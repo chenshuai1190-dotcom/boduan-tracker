@@ -376,9 +376,12 @@ export default function TQQQTracker() {
     { symbol: 'QQQ',   name: '纳指ETF',   price: 640.47, high: 642.18, cost: 0,      shares: 0   },
   ]);
   const [editingStock, setEditingStock] = useState(null);
+  const [showAddStock, setShowAddStock] = useState(false);
+  const [newStock, setNewStock] = useState({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
 
   // VIX 恐慌指数
   const [vix, setVix] = useState(16.5);
+  const [vixDataDate, setVixDataDate] = useState(null); // FRED 返回的数据日期
   
   // 预警通知开关(本地静默时间)
   const [alertsMuted, setAlertsMuted] = useState(false);
@@ -414,13 +417,6 @@ export default function TQQQTracker() {
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
   
-  // 自动拉取
-  const [autoFetch, setAutoFetch] = useState(false);
-  const [autoFetchInterval, setAutoFetchInterval] = useState(5); // 默认 5 分钟
-  
-  // 暗黑模式
-  const [darkMode, setDarkMode] = useState(false);
-  
   useEffect(() => {
     try {
       const raw = localStorage.getItem('tqqq_state');
@@ -435,16 +431,14 @@ export default function TQQQTracker() {
         if (s.exitTargets) setExitTargets(s.exitTargets);
         if (s.watchlist) setWatchlist(s.watchlist);
         if (s.vix) setVix(s.vix);
-        if (typeof s.darkMode === 'boolean') setDarkMode(s.darkMode);
-        if (typeof s.autoFetch === 'boolean') setAutoFetch(s.autoFetch);
-        if (s.autoFetchInterval) setAutoFetchInterval(s.autoFetchInterval);
+        if (s.vixDataDate) setVixDataDate(s.vixDataDate);
       }
     } catch (e) { /* 首次使用无数据 */ }
   }, []);
 
   const saveState = () => {
     try {
-      const state = { qqqHigh, qqqCurrent, tqqqCurrent, totalCapital, batches, trades, exitTargets, watchlist, vix, darkMode, autoFetch, autoFetchInterval };
+      const state = { qqqHigh, qqqCurrent, tqqqCurrent, totalCapital, batches, trades, exitTargets, watchlist, vix, vixDataDate };
       localStorage.setItem('tqqq_state', JSON.stringify(state));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -596,6 +590,37 @@ export default function TQQQTracker() {
     if (symbol === 'QQQ' && field === 'price') setQqqCurrent(parseFloat(value) || 0);
   };
 
+  const addStock = () => {
+    if (!newStock.symbol || !newStock.price) {
+      alert('请至少填写股票代码和当前价');
+      return;
+    }
+    const symbol = newStock.symbol.toUpperCase().trim();
+    if (watchlist.find(s => s.symbol === symbol)) {
+      alert('该股票已存在');
+      return;
+    }
+    const price = parseFloat(newStock.price) || 0;
+    const high = parseFloat(newStock.high) || price;
+    setWatchlist([...watchlist, {
+      symbol,
+      name: newStock.name || symbol,
+      price,
+      high,
+      cost: parseFloat(newStock.cost) || 0,
+      shares: parseInt(newStock.shares) || 0,
+    }]);
+    setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
+    setShowAddStock(false);
+  };
+
+  const removeStock = (symbol) => {
+    if (window.confirm(`确认删除 ${symbol}?`)) {
+      setWatchlist(watchlist.filter(s => s.symbol !== symbol));
+      if (editingStock === symbol) setEditingStock(null);
+    }
+  };
+
   // 一键拉取实时行情(从 Vercel API)
   const fetchRealtimePrices = async () => {
     setFetching(true);
@@ -632,7 +657,10 @@ export default function TQQQTracker() {
 
       // 更新 VIX
       const vixData = result.data.find(d => d.symbol === 'VIX');
-      if (vixData?.price > 0) setVix(vixData.price);
+      if (vixData?.price > 0) {
+        setVix(vixData.price);
+        if (vixData.dataDate) setVixDataDate(vixData.dataDate);
+      }
 
       setLastFetched(new Date());
     } catch (e) {
@@ -642,137 +670,147 @@ export default function TQQQTracker() {
     }
   };
 
-  // 自动拉取定时器
-  useEffect(() => {
-    if (!autoFetch) return;
-    // 启用时立刻拉取一次,然后每隔指定时间拉取
-    fetchRealtimePrices();
-    const interval = setInterval(() => {
-      fetchRealtimePrices();
-    }, autoFetchInterval * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [autoFetch, autoFetchInterval]);
-
   const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
 
-  // 暗黑模式样式辅助
-  const theme = darkMode ? {
-    bg: 'bg-slate-900',
-    cardBg: 'bg-slate-800',
-    cardBorder: 'border-slate-700',
-    text: 'text-slate-100',
-    textMuted: 'text-slate-400',
-    textSecondary: 'text-slate-300',
-    inputBg: 'bg-slate-700',
-    inputBorder: 'border-slate-600',
-    statusBgLight: 'bg-slate-800',
-    divider: 'border-slate-700',
-  } : {
-    bg: 'bg-slate-50',
-    cardBg: 'bg-white',
-    cardBorder: 'border-slate-200',
-    text: 'text-slate-800',
-    textMuted: 'text-slate-500',
-    textSecondary: 'text-slate-600',
-    inputBg: 'bg-white',
-    inputBorder: 'border-slate-300',
-    statusBgLight: 'bg-slate-100',
-    divider: 'border-slate-200',
-  };
-
   return (
-    <div className={darkMode ? 'dark' : ''}>
-    <div className={`min-h-screen p-4 pb-24 transition-colors ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+    <div className="min-h-screen bg-slate-50 p-4 pb-24">
       <div className="max-w-5xl mx-auto">
-        {/* 顶部标题 */}
-        <div className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white rounded-2xl p-5 mb-4 shadow-lg">
-          <h1 className="text-2xl font-bold">波段跟踪计划 2.0</h1>
-          <p className="text-blue-100 text-sm mt-1">分批建仓 · 目标 50-100% · 一年一次</p>
+        {/* 顶部标题 - 专业深色风 */}
+        <div className="rounded-2xl p-4 mb-4 shadow-lg flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+          <div className="flex items-center gap-3">
+            {/* Logo */}
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-slate-900 text-lg shadow-md" style={{ background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' }}>
+              B
+            </div>
+            <div>
+              <h1 className="text-white font-black text-xl tracking-tight leading-none">Bottomline</h1>
+              <div className="text-slate-400 text-[10px] mt-1 tracking-widest uppercase font-medium">Buy the Dip · Stay Disciplined</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-emerald-400 text-[10px] font-bold">LIVE</span>
+          </div>
         </div>
 
-        {/* 状态卡片 */}
-        <div className={`rounded-2xl p-5 mb-4 shadow ${status.color}`}>
+        {/* 合并卡:市场状态 + 触发预警 */}
+        <div className="bg-white rounded-2xl p-5 mb-4 shadow">
+          {/* === 第 1 排:市场状态 === */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm opacity-80">当前市场状态</div>
-              <div className="text-2xl font-bold mt-1">{status.text}</div>
-              <div className="text-sm mt-1 opacity-90">{status.desc}</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前市场状态</div>
+              <div className="text-2xl font-black mt-1 text-slate-900">{status.text}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{status.desc}</div>
             </div>
             <div className="text-right">
-              <div className="text-sm opacity-80">QQQ 回撤</div>
-              <div className="text-3xl font-bold">{fmtPct(drawdown)}</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">QQQ 回撤</div>
+              <div className={`text-3xl font-black tabular-nums mt-1 ${drawdown <= -0.10 ? 'text-red-600' : drawdown <= -0.05 ? 'text-amber-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                {fmtPct(drawdown)}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* 🚨 预警横幅(有触发时才显示) */}
-        {triggeredAlerts.length > 0 && !alertsMuted && (
-          <div className="space-y-2 mb-4">
-            {triggeredAlerts.slice(0, 3).map(s => {
-              const isExtreme = s.alert.level >= 7;
-              const isHigh = s.alert.level >= 5;
-              return (
-                <div
-                  key={s.symbol}
-                  className={`rounded-2xl border-2 p-4 shadow-lg ${s.alert.color} ${isExtreme ? 'animate-pulse' : ''}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={isExtreme ? 'text-2xl' : isHigh ? 'text-xl' : 'text-base'}>
-                          {s.alert.icon}
-                        </span>
-                        <span className={`font-black ${isExtreme ? 'text-xl' : 'text-base'}`}>
-                          {s.symbol} · {s.alert.label}
-                        </span>
-                        <span className="text-xs opacity-80 px-1.5 py-0.5 rounded bg-white/30">
-                          L{s.alert.level}
-                        </span>
-                      </div>
-                      <div className={`font-bold mb-1 ${isExtreme ? 'text-2xl' : 'text-lg'}`}>
-                        {s.name} 已下跌 {(Math.abs(s.drawdown) * 100).toFixed(1)}%
-                      </div>
-                      <div className={`${isExtreme ? 'text-base font-bold' : 'text-sm'} opacity-95`}>
-                        ➡️ {s.alert.action}
-                      </div>
+          {/* === 第 2 排:触发预警 === */}
+          {triggeredAlerts.length > 0 && (
+            <>
+              <div className="border-t border-slate-200 my-4"></div>
+
+              {!alertsMuted ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        触发预警 · {triggeredAlerts.length}
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs opacity-70">从 ${fmt(s.high)}</div>
-                      <div className={`font-black ${isExtreme ? 'text-2xl' : 'text-lg'}`}>${fmt(s.price)}</div>
-                    </div>
+                    <button
+                      onClick={() => setAlertsMuted(true)}
+                      className="text-xs text-slate-500 font-medium hover:text-slate-700 active:scale-95 px-2 py-0.5 rounded"
+                    >
+                      收起 ▲
+                    </button>
                   </div>
-                </div>
-              );
-            })}
-            {triggeredAlerts.length > 3 && (
-              <div className="text-center text-xs text-slate-500 py-1">
-                还有 {triggeredAlerts.length - 3} 只股票触发预警,见下方列表
-              </div>
-            )}
-            <button
-              onClick={() => setAlertsMuted(true)}
-              className="w-full py-2 bg-slate-200 text-slate-600 rounded-lg text-xs font-medium active:scale-95"
-            >
-              暂时收起预警
-            </button>
-          </div>
-        )}
 
-        {alertsMuted && triggeredAlerts.length > 0 && (
-          <button
-            onClick={() => setAlertsMuted(false)}
-            className="w-full mb-4 py-2 bg-orange-100 text-orange-800 rounded-lg text-sm font-bold border border-orange-300 active:scale-95"
-          >
-            🔔 有 {triggeredAlerts.length} 个预警被收起,点击展开
-          </button>
-        )}
+                  <div className="space-y-3">
+                    {triggeredAlerts.map(s => {
+                      const isExtreme = s.alert.level >= 7;
+                      const levelColor = s.alert.level >= 7 ? 'text-red-600 bg-red-50 border-red-200' 
+                                       : s.alert.level >= 5 ? 'text-orange-600 bg-orange-50 border-orange-200'
+                                       : s.alert.level >= 3 ? 'text-amber-600 bg-amber-50 border-amber-200'
+                                       : 'text-yellow-700 bg-yellow-50 border-yellow-200';
+                      const ddColor = s.alert.level >= 7 ? 'text-red-600'
+                                    : s.alert.level >= 5 ? 'text-orange-600'
+                                    : s.alert.level >= 3 ? 'text-amber-600'
+                                    : 'text-yellow-700';
+                      return (
+                        <button
+                          key={s.symbol}
+                          onClick={() => setEditingStock(s.symbol)}
+                          className="w-full text-left active:scale-[0.99] transition"
+                        >
+                          {/* 第 1 行:股票信息 + 价格 */}
+                          <div className="flex items-start justify-between mb-1 gap-2">
+                            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                              <span className={`font-black text-base text-slate-900 hover:text-blue-600 transition ${isExtreme ? 'animate-pulse' : ''}`}>
+                                {s.symbol}
+                              </span>
+                              <span className="text-xs text-slate-500">{s.name}</span>
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${levelColor}`}>
+                                L{s.alert.level} · {s.alert.label}
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-[10px] text-slate-400 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                从 ${fmt(s.high)}
+                              </div>
+                              <div className="flex items-baseline gap-1.5 leading-tight">
+                                <span className="text-base font-black tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  ${fmt(s.price)}
+                                </span>
+                                <span className={`text-sm font-black tabular-nums ${ddColor}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  {(s.drawdown * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {/* 第 2 行:操作建议 */}
+                          <div className="text-xs text-slate-500 pl-0">
+                            ➡️ {s.alert.action}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <button
+                  onClick={() => setAlertsMuted(false)}
+                  className="w-full py-2.5 bg-orange-50 text-orange-700 rounded-lg text-sm font-bold border border-orange-200 active:scale-95"
+                >
+                  🔔 有 {triggeredAlerts.length} 个预警被收起,点击展开
+                </button>
+              )}
+            </>
+          )}
+        </div>
 
         {/* VIX 恐慌指数 */}
         <div className={`rounded-2xl p-5 mb-4 shadow border-2 ${vixSignal.color}`}>
           <div className="flex items-start justify-between mb-3">
             <div>
-              <div className="text-xs opacity-80 font-medium">VIX 恐慌指数</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs opacity-80 font-medium">VIX 恐慌指数</span>
+                {vixDataDate && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/30 font-bold">
+                    📅 {(() => {
+                      const d = new Date(vixDataDate);
+                      return `${d.getMonth() + 1}/${d.getDate()} 收盘`;
+                    })()}
+                  </span>
+                )}
+              </div>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-4xl font-black">{vix.toFixed(1)}</span>
                 <span className="text-2xl">{vixSignal.icon}</span>
@@ -813,37 +851,136 @@ export default function TQQQTracker() {
             💡 {vixSignal.action}
           </div>
 
-          {/* VIX 输入 */}
-          <div className="mt-3 flex items-center gap-2">
-            <label className="text-xs opacity-80 font-bold">更新 VIX:</label>
-            <input
-              type="number"
-              step="0.1"
-              value={vix}
-              onChange={(e) => setVix(parseFloat(e.target.value) || 0)}
-              className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-900 bg-white/90 border border-white/50"
-            />
+          {/* VIX 输入(手动覆盖,适合盘中查实时值) */}
+          <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs opacity-80 font-bold">手动覆盖 VIX:</label>
+              <input
+                type="number"
+                step="0.1"
+                value={vix}
+                onChange={(e) => { setVix(parseFloat(e.target.value) || 0); setVixDataDate(null); }}
+                className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-900 bg-white/90 border border-white/50"
+              />
+              <a
+                href="https://finance.yahoo.com/quote/%5EVIX/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1.5 rounded-lg text-xs font-bold bg-white/30 hover:bg-white/50 transition active:scale-95"
+                title="在 Yahoo 查询实时 VIX"
+              >
+                查实时↗
+              </a>
+            </div>
+            <div className="text-[10px] opacity-70 mt-1">
+              💡 自动拉取的是 FRED T+1 收盘价(策略足够);如需盘中实时,可点"查实时"后手动填
+            </div>
           </div>
         </div>
 
-        {/* 关注股票 */}
+        {/* 关注股票 - 1 列大卡片 */}
         <div className="bg-white rounded-2xl p-5 mb-4 shadow">
           <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-600" />
             我的关注
-            <span className="text-xs text-slate-500 font-normal ml-auto">点击卡片编辑价格/持仓</span>
+            <span className="text-xs text-slate-500 font-normal ml-auto">{watchlist.length} 只</span>
           </h2>
-          <div className="grid grid-cols-2 gap-2">
+
+          {/* 添加股票表单(只在打开时显示) */}
+          {showAddStock && (
+            <div className="mb-3 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl">
+              <div className="font-bold text-sm mb-2 text-blue-900">+ 添加新股票</div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <label className="text-[10px] text-slate-600 block mb-0.5">代码 *</label>
+                  <input
+                    type="text"
+                    placeholder="如 AAPL"
+                    value={newStock.symbol}
+                    onChange={(e) => setNewStock({ ...newStock, symbol: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-600 block mb-0.5">中文名</label>
+                  <input
+                    type="text"
+                    placeholder="如 苹果"
+                    value={newStock.name}
+                    onChange={(e) => setNewStock({ ...newStock, name: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <label className="text-[10px] text-slate-600 block mb-0.5">现价 *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={newStock.price}
+                    onChange={(e) => setNewStock({ ...newStock, price: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold text-blue-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-600 block mb-0.5">最高价</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="留空=用现价"
+                    value={newStock.high}
+                    onChange={(e) => setNewStock({ ...newStock, high: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold text-orange-700"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div>
+                  <label className="text-[10px] text-slate-600 block mb-0.5">成本(可选)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newStock.cost}
+                    onChange={(e) => setNewStock({ ...newStock, cost: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-600 block mb-0.5">股数(可选)</label>
+                  <input
+                    type="number"
+                    value={newStock.shares}
+                    onChange={(e) => setNewStock({ ...newStock, shares: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={addStock} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold active:scale-95">
+                  确认添加
+                </button>
+                <button onClick={() => { setShowAddStock(false); setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' }); }} className="flex-1 py-2 bg-slate-300 text-slate-700 rounded-lg text-sm font-bold active:scale-95">
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 1 列大卡片 */}
+          <div className="space-y-2">
             {watchlistAlerts.map(s => {
               const pnl = s.cost > 0 ? (s.price - s.cost) / s.cost : 0;
               const marketValue = s.shares * s.price;
+              const pnlAmount = (s.price - s.cost) * s.shares;
               const isEditing = editingStock === s.symbol;
               const hasAlert = !!s.alert;
               const isExtreme = hasAlert && s.alert.level >= 7;
               return (
                 <div
                   key={s.symbol}
-                  className={`rounded-xl border-2 transition ${
+                  className={`rounded-xl border-2 transition relative ${
                     isEditing
                       ? 'border-blue-500 bg-blue-50'
                       : hasAlert
@@ -852,102 +989,146 @@ export default function TQQQTracker() {
                   }`}
                 >
                   {!isEditing ? (
-                    <button
-                      onClick={() => setEditingStock(s.symbol)}
-                      className="w-full text-left p-3"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1">
-                          <span className={`font-bold text-sm ${hasAlert ? '' : 'text-slate-800'}`}>{s.symbol}</span>
+                    <div className="relative">
+                      {/* 删除按钮(右上角) */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeStock(s.symbol); }}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-slate-300/40 hover:bg-red-500 hover:text-white text-slate-600 flex items-center justify-center text-xs font-bold transition active:scale-90 z-10"
+                        title="删除"
+                      >
+                        ✕
+                      </button>
+                      <button
+                        onClick={() => setEditingStock(s.symbol)}
+                        className="w-full text-left p-4 pr-10"
+                      >
+                        {/* 第 1 行:代码 + 名字 + 等级标签 */}
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className={`font-black text-lg ${hasAlert ? '' : 'text-slate-900'}`}>{s.symbol}</span>
+                          <span className={`text-xs ${hasAlert ? 'opacity-80' : 'text-slate-500'}`}>{s.name}</span>
                           {hasAlert && (
-                            <span className="text-[9px] px-1 py-0.5 rounded font-black bg-white/40">
-                              {s.alert.icon} L{s.alert.level}
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-black bg-white/40 ml-auto mr-2">
+                              {s.alert.icon} L{s.alert.level} · {s.alert.label}
                             </span>
                           )}
                         </div>
-                        <span className={`text-xs ${hasAlert ? 'opacity-80' : 'text-slate-500'}`}>{s.name}</span>
-                      </div>
-                      <div className="flex items-baseline justify-between">
-                        <span className={`text-lg font-bold ${hasAlert ? '' : 'text-slate-900'}`}>${fmt(s.price)}</span>
-                        {s.cost > 0 && (
-                          <span className={`text-xs font-bold ${hasAlert ? 'opacity-90' : pnl >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {pnl >= 0 ? '+' : ''}{(pnl * 100).toFixed(1)}%
+                        {/* 第 2 行:大字现价 + 涨跌幅 */}
+                        <div className="flex items-baseline justify-between mb-2">
+                          <span className={`text-3xl font-black tabular-nums ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            ${fmt(s.price)}
                           </span>
-                        )}
-                      </div>
-                      {/* 回撤显示 */}
-                      {s.high > 0 && (
-                        <div className={`text-[11px] mt-1 font-bold ${hasAlert ? 'opacity-90' : 'text-slate-500'}`}>
-                          {s.drawdown < 0 ? '⬇' : '⬆'} 距高 {(s.drawdown * 100).toFixed(1)}%
-                          {hasAlert && <span className="ml-1">· {s.alert.label}</span>}
+                          {s.cost > 0 && (
+                            <div className="text-right">
+                              <div className={`text-base font-black tabular-nums ${hasAlert ? 'opacity-95' : pnl >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {pnl >= 0 ? '+' : ''}{(pnl * 100).toFixed(1)}%
+                              </div>
+                              <div className={`text-[10px] tabular-nums ${hasAlert ? 'opacity-80' : pnl >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                {pnlAmount >= 0 ? '+' : ''}${fmt(Math.abs(pnlAmount), 0)}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {s.shares > 0 && (
-                        <div className={`text-[10px] mt-0.5 ${hasAlert ? 'opacity-80' : 'text-slate-500'}`}>
-                          {s.shares}股 · ${fmt(marketValue, 0)}
+                        {/* 第 3 行:回撤 + 持仓信息(分两栏) */}
+                        <div className={`grid grid-cols-2 gap-2 pt-2 border-t ${hasAlert ? 'border-white/30' : 'border-slate-200'}`}>
+                          {s.high > 0 && (
+                            <div>
+                              <div className={`text-[10px] uppercase tracking-wider font-bold ${hasAlert ? 'opacity-70' : 'text-slate-500'}`}>距高点</div>
+                              <div className={`text-sm font-bold tabular-nums ${hasAlert ? 'opacity-95' : 'text-slate-700'}`}>
+                                {(s.drawdown * 100).toFixed(1)}% <span className={`text-[10px] font-normal ${hasAlert ? 'opacity-70' : 'text-slate-400'}`}>${fmt(s.high)}</span>
+                              </div>
+                            </div>
+                          )}
+                          {s.shares > 0 ? (
+                            <div className="text-right">
+                              <div className={`text-[10px] uppercase tracking-wider font-bold ${hasAlert ? 'opacity-70' : 'text-slate-500'}`}>持仓市值</div>
+                              <div className={`text-sm font-bold tabular-nums ${hasAlert ? 'opacity-95' : 'text-slate-700'}`}>
+                                ${fmt(marketValue, 0)} <span className={`text-[10px] font-normal ${hasAlert ? 'opacity-70' : 'text-slate-400'}`}>({s.shares}股)</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-right">
+                              <div className={`text-[10px] uppercase tracking-wider font-bold ${hasAlert ? 'opacity-70' : 'text-slate-400'}`}>未持仓</div>
+                              <div className={`text-sm font-bold ${hasAlert ? 'opacity-60' : 'text-slate-400'}`}>—</div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </button>
+                      </button>
+                    </div>
                   ) : (
-                    <div className="p-3 space-y-2">
+                    <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm">{s.symbol} <span className="text-xs text-slate-500 font-normal">{s.name}</span></span>
+                        <span className="font-bold text-base">{s.symbol} <span className="text-xs text-slate-500 font-normal">{s.name}</span></span>
                         <button
                           onClick={() => setEditingStock(null)}
-                          className="text-xs text-blue-600 font-bold active:scale-95"
+                          className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold active:scale-95"
                         >
                           完成
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-1">
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-slate-500">现价</label>
+                          <label className="text-[10px] text-slate-500 block mb-0.5">现价</label>
                           <input
                             type="number"
                             step="0.01"
                             value={s.price}
                             onChange={(e) => updateStockPrice(s.symbol, 'price', e.target.value)}
-                            className="w-full px-1.5 py-1 border border-slate-300 rounded text-xs font-bold text-blue-700"
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold text-blue-700"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-slate-500">最高价</label>
+                          <label className="text-[10px] text-slate-500 block mb-0.5">最高价</label>
                           <input
                             type="number"
                             step="0.01"
                             value={s.high}
                             onChange={(e) => updateStockPrice(s.symbol, 'high', e.target.value)}
-                            className="w-full px-1.5 py-1 border border-slate-300 rounded text-xs font-bold text-orange-700"
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold text-orange-700"
                           />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1">
                         <div>
-                          <label className="text-[10px] text-slate-500">成本</label>
+                          <label className="text-[10px] text-slate-500 block mb-0.5">成本</label>
                           <input
                             type="number"
                             step="0.01"
                             value={s.cost}
                             onChange={(e) => updateStockPrice(s.symbol, 'cost', e.target.value)}
-                            className="w-full px-1.5 py-1 border border-slate-300 rounded text-xs"
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-slate-500">股数</label>
+                          <label className="text-[10px] text-slate-500 block mb-0.5">股数</label>
                           <input
                             type="number"
                             value={s.shares}
                             onChange={(e) => updateStockPrice(s.symbol, 'shares', e.target.value)}
-                            className="w-full px-1.5 py-1 border border-slate-300 rounded text-xs"
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
                           />
                         </div>
                       </div>
+                      <button
+                        onClick={() => removeStock(s.symbol)}
+                        className="w-full py-2 rounded-lg bg-red-50 text-red-600 text-xs font-bold border border-red-200 active:scale-95"
+                      >
+                        🗑 删除该股票
+                      </button>
                     </div>
                   )}
                 </div>
               );
             })}
+
+            {/* 添加股票按钮 */}
+            {!showAddStock && (
+              <button
+                onClick={() => setShowAddStock(true)}
+                className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition active:scale-98 font-bold text-sm flex items-center justify-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> 添加股票
+              </button>
+            )}
           </div>
+
           {/* 持仓汇总 */}
           {(() => {
             const totalMV = watchlist.reduce((sum, s) => sum + s.shares * s.price, 0);
@@ -1365,71 +1546,6 @@ export default function TQQQTracker() {
           </div>
         </div>
 
-        {/* ⚙️ 设置 */}
-        <div className="bg-white rounded-2xl p-5 mb-4 shadow">
-          <h2 className="font-bold text-lg mb-3">⚙️ 设置</h2>
-          
-          {/* 暗黑模式 */}
-          <div className="flex items-center justify-between py-3 border-b border-slate-100">
-            <div>
-              <div className="font-bold text-sm">{darkMode ? '🌙' : '☀️'} 暗黑模式</div>
-              <div className="text-xs text-slate-500 mt-0.5">护眼,适合夜间使用</div>
-            </div>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`relative w-14 h-7 rounded-full transition-colors ${darkMode ? 'bg-blue-600' : 'bg-slate-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${darkMode ? 'translate-x-7' : ''}`} />
-            </button>
-          </div>
-
-          {/* 自动拉取 */}
-          <div className="flex items-center justify-between py-3 border-b border-slate-100">
-            <div className="flex-1">
-              <div className="font-bold text-sm">🔄 自动拉取行情</div>
-              <div className="text-xs text-slate-500 mt-0.5">
-                {autoFetch ? `每 ${autoFetchInterval} 分钟自动更新一次` : '关闭(手动点按钮)'}
-              </div>
-            </div>
-            <button
-              onClick={() => setAutoFetch(!autoFetch)}
-              className={`relative w-14 h-7 rounded-full transition-colors ${autoFetch ? 'bg-green-600' : 'bg-slate-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${autoFetch ? 'translate-x-7' : ''}`} />
-            </button>
-          </div>
-
-          {/* 自动拉取频率(只在开启时显示) */}
-          {autoFetch && (
-            <div className="py-3 border-b border-slate-100">
-              <div className="font-bold text-sm mb-2">⏱️ 拉取频率</div>
-              <div className="flex gap-2">
-                {[1, 5, 15, 30].map(min => (
-                  <button
-                    key={min}
-                    onClick={() => setAutoFetchInterval(min)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${
-                      autoFetchInterval === min
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {min} 分
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 px-2 py-1.5 rounded border border-amber-200">
-                💡 Finnhub 免费版限制 60 次/分钟,1 分钟拉取约用 8 次额度,完全够用
-              </div>
-            </div>
-          )}
-
-          {/* 设置说明 */}
-          <div className="mt-3 p-2 bg-blue-50 rounded text-[11px] text-slate-700">
-            🔔 自动拉取需要保持 App 在后台或前台运行(浏览器最小化通常仍会运行)
-          </div>
-        </div>
-
         {/* 底部操作栏 */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 shadow-lg" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
           <div className="max-w-5xl mx-auto">
@@ -1441,9 +1557,7 @@ export default function TQQQTracker() {
             )}
             {lastFetched && !fetchError && (
               <div className="mb-2 px-3 py-1 text-xs text-slate-500 flex items-center gap-1">
-                <Wifi className="w-3 h-3 text-green-600" />
-                最近更新:{lastFetched.toLocaleTimeString('zh-CN', { hour12: false })}
-                {autoFetch && <span className="ml-2 text-green-600 font-bold">· 🔄 自动拉取已开启</span>}
+                <Wifi className="w-3 h-3 text-green-600" /> 最近更新:{lastFetched.toLocaleTimeString('zh-CN', { hour12: false })}
               </div>
             )}
             <div className="flex gap-2">
@@ -1472,7 +1586,6 @@ export default function TQQQTracker() {
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 }
