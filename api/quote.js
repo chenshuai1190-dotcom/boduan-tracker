@@ -1,6 +1,5 @@
-// Vercel Serverless 函数:代理 Finnhub API
-// 浏览器无法直接调用 Finnhub(会跨域),通过这个后端中转
-// API Key 存在 Vercel 环境变量里,前端看不到,安全
+// Vercel Serverless 函数:代理 Finnhub(股票) + FRED(VIX) API
+// API Keys 存在 Vercel 环境变量里,前端看不到,安全
 
 export default async function handler(req, res) {
   // 允许跨域
@@ -8,9 +7,10 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
 
   const { symbols } = req.query;
-  const apiKey = process.env.FINNHUB_API_KEY;
+  const finnhubKey = process.env.FINNHUB_API_KEY;
+  const fredKey = process.env.FRED_API_KEY;
 
-  if (!apiKey) {
+  if (!finnhubKey) {
     return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 FINNHUB_API_KEY' });
   }
 
@@ -21,25 +21,71 @@ export default async function handler(req, res) {
   const symbolList = symbols.split(',').map(s => s.trim().toUpperCase());
 
   try {
-    // 并发请求所有股票
+    // 并发请求所有数据
     const results = await Promise.all(
       symbolList.map(async (symbol) => {
+        // VIX 走 FRED 通道(免费、官方、稳定)
+        if (symbol === 'VIX') {
+          if (!fredKey) {
+            return { symbol, error: 'FRED_API_KEY 未配置,VIX 无法自动获取' };
+          }
+          try {
+            // FRED VIX 数据序列代号: VIXCLS (CBOE Volatility Index, Daily Close)
+            const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=VIXCLS&api_key=${fredKey}&file_type=json&sort_order=desc&limit=2`;
+            const r = await fetch(fredUrl);
+            const data = await r.json();
+            
+            if (!data.observations || data.observations.length === 0) {
+              return { symbol, error: 'FRED 未返回 VIX 数据' };
+            }
+
+            // 找到最近一条非缺失数据(FRED 用 "." 表示无数据)
+            const latest = data.observations.find(o => o.value !== '.' && o.value !== null);
+            const previous = data.observations.slice(1).find(o => o.value !== '.' && o.value !== null);
+
+            if (!latest) {
+              return { symbol, error: 'FRED 返回的 VIX 数据为空' };
+            }
+
+            const price = parseFloat(latest.value);
+            const prevPrice = previous ? parseFloat(previous.value) : price;
+            const change = price - prevPrice;
+            const changePercent = prevPrice > 0 ? (change / prevPrice) * 100 : 0;
+
+            return {
+              symbol,
+              price,
+              change,
+              changePercent,
+              high: 0,
+              low: 0,
+              open: 0,
+              previousClose: prevPrice,
+              timestamp: new Date(latest.date).getTime() / 1000,
+              dataDate: latest.date,        // 标注是哪天的收盘数据
+              source: 'FRED',
+            };
+          } catch (e) {
+            return { symbol, error: `FRED 请求失败: ${e.message}` };
+          }
+        }
+        
+        // 其他股票走 Finnhub
         try {
-          // VIX 在 Finnhub 是 ^VIX,需要特殊处理
-          const fetchSymbol = symbol === 'VIX' ? '^VIX' : symbol;
-          const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(fetchSymbol)}&token=${apiKey}`;
+          const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${finnhubKey}`;
           const r = await fetch(url);
           const data = await r.json();
           return {
             symbol,
-            price: data.c || 0,        // 当前价
-            change: data.d || 0,       // 涨跌额
-            changePercent: data.dp || 0, // 涨跌幅
-            high: data.h || 0,         // 当日高
-            low: data.l || 0,          // 当日低
-            open: data.o || 0,         // 开盘
-            previousClose: data.pc || 0, // 昨收
+            price: data.c || 0,
+            change: data.d || 0,
+            changePercent: data.dp || 0,
+            high: data.h || 0,
+            low: data.l || 0,
+            open: data.o || 0,
+            previousClose: data.pc || 0,
             timestamp: data.t || 0,
+            source: 'Finnhub',
           };
         } catch (e) {
           return { symbol, error: e.message };
