@@ -11,6 +11,7 @@ html, body, #root {
 body {
   -webkit-tap-highlight-color: transparent;
   background: #f8fafc;
+  transition: background-color 0.3s ease;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
@@ -22,3 +23,65 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* ============ 暗黑模式 ============ */
+.dark {
+  color-scheme: dark;
+}
+
+/* 当根容器有 .dark 类时,转换所有浅色背景 */
+.dark .bg-white { background-color: #1e293b !important; }
+.dark .bg-slate-50 { background-color: #0f172a !important; }
+.dark .bg-slate-100 { background-color: #1e293b !important; }
+.dark .bg-slate-200 { background-color: #334155 !important; }
+
+/* 浅色文字反转为浅色(在深色背景上可读) */
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-900 { color: #f1f5f9 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .text-slate-400 { color: #94a3b8 !important; }
+
+/* 边框变深 */
+.dark .border-slate-200 { border-color: #334155 !important; }
+.dark .border-slate-300 { border-color: #475569 !important; }
+.dark .border-slate-100 { border-color: #334155 !important; }
+
+/* 输入框背景 */
+.dark input[type="number"],
+.dark input[type="text"],
+.dark input[type="date"],
+.dark select {
+  background-color: #334155 !important;
+  color: #f1f5f9 !important;
+  border-color: #475569 !important;
+}
+
+/* 黄色高亮的输入框在暗黑模式下保持高亮可见 */
+.dark .bg-yellow-50 { background-color: #422006 !important; }
+.dark .border-yellow-300 { border-color: #ca8a04 !important; }
+
+/* 浅色提示卡片(警告、提示等)在暗黑模式下保持识别度 */
+.dark .bg-amber-50 { background-color: #422006 !important; color: #fef3c7 !important; }
+.dark .bg-blue-50 { background-color: #1e3a5f !important; color: #dbeafe !important; }
+.dark .bg-green-50 { background-color: #14532d !important; color: #bbf7d0 !important; }
+.dark .bg-red-50 { background-color: #4c0519 !important; color: #fecaca !important; }
+.dark .bg-orange-50 { background-color: #431407 !important; color: #fed7aa !important; }
+.dark .bg-yellow-50.text-yellow-800 { color: #fde68a !important; }
+
+/* 更深一点的预警背景在暗黑模式下也调整 */
+.dark .bg-yellow-100 { background-color: #422006 !important; color: #fef3c7 !important; }
+.dark .bg-orange-100 { background-color: #431407 !important; color: #fed7aa !important; }
+.dark .bg-red-100 { background-color: #4c0519 !important; color: #fecaca !important; }
+.dark .bg-green-100 { background-color: #14532d !important; color: #bbf7d0 !important; }
+.dark .bg-amber-100 { background-color: #422006 !important; color: #fef3c7 !important; }
+
+/* 渐变保持(主标题、按钮等渐变颜色不变) */
+
+/* 阴影在暗黑模式下减弱 */
+.dark .shadow,
+.dark .shadow-lg {
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5), 0 2px 4px -1px rgba(0,0,0,0.3) !important;
+}
+
