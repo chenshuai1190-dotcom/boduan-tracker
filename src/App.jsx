@@ -414,6 +414,13 @@ export default function TQQQTracker() {
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
   
+  // 自动拉取
+  const [autoFetch, setAutoFetch] = useState(false);
+  const [autoFetchInterval, setAutoFetchInterval] = useState(5); // 默认 5 分钟
+  
+  // 暗黑模式
+  const [darkMode, setDarkMode] = useState(false);
+  
   useEffect(() => {
     try {
       const raw = localStorage.getItem('tqqq_state');
@@ -428,13 +435,16 @@ export default function TQQQTracker() {
         if (s.exitTargets) setExitTargets(s.exitTargets);
         if (s.watchlist) setWatchlist(s.watchlist);
         if (s.vix) setVix(s.vix);
+        if (typeof s.darkMode === 'boolean') setDarkMode(s.darkMode);
+        if (typeof s.autoFetch === 'boolean') setAutoFetch(s.autoFetch);
+        if (s.autoFetchInterval) setAutoFetchInterval(s.autoFetchInterval);
       }
     } catch (e) { /* 首次使用无数据 */ }
   }, []);
 
   const saveState = () => {
     try {
-      const state = { qqqHigh, qqqCurrent, tqqqCurrent, totalCapital, batches, trades, exitTargets, watchlist, vix };
+      const state = { qqqHigh, qqqCurrent, tqqqCurrent, totalCapital, batches, trades, exitTargets, watchlist, vix, darkMode, autoFetch, autoFetchInterval };
       localStorage.setItem('tqqq_state', JSON.stringify(state));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -632,11 +642,48 @@ export default function TQQQTracker() {
     }
   };
 
+  // 自动拉取定时器
+  useEffect(() => {
+    if (!autoFetch) return;
+    // 启用时立刻拉取一次,然后每隔指定时间拉取
+    fetchRealtimePrices();
+    const interval = setInterval(() => {
+      fetchRealtimePrices();
+    }, autoFetchInterval * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [autoFetch, autoFetchInterval]);
+
   const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
 
+  // 暗黑模式样式辅助
+  const theme = darkMode ? {
+    bg: 'bg-slate-900',
+    cardBg: 'bg-slate-800',
+    cardBorder: 'border-slate-700',
+    text: 'text-slate-100',
+    textMuted: 'text-slate-400',
+    textSecondary: 'text-slate-300',
+    inputBg: 'bg-slate-700',
+    inputBorder: 'border-slate-600',
+    statusBgLight: 'bg-slate-800',
+    divider: 'border-slate-700',
+  } : {
+    bg: 'bg-slate-50',
+    cardBg: 'bg-white',
+    cardBorder: 'border-slate-200',
+    text: 'text-slate-800',
+    textMuted: 'text-slate-500',
+    textSecondary: 'text-slate-600',
+    inputBg: 'bg-white',
+    inputBorder: 'border-slate-300',
+    statusBgLight: 'bg-slate-100',
+    divider: 'border-slate-200',
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 pb-24">
+    <div className={darkMode ? 'dark' : ''}>
+    <div className={`min-h-screen p-4 pb-24 transition-colors ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
       <div className="max-w-5xl mx-auto">
         {/* 顶部标题 */}
         <div className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white rounded-2xl p-5 mb-4 shadow-lg">
@@ -1318,6 +1365,71 @@ export default function TQQQTracker() {
           </div>
         </div>
 
+        {/* ⚙️ 设置 */}
+        <div className="bg-white rounded-2xl p-5 mb-4 shadow">
+          <h2 className="font-bold text-lg mb-3">⚙️ 设置</h2>
+          
+          {/* 暗黑模式 */}
+          <div className="flex items-center justify-between py-3 border-b border-slate-100">
+            <div>
+              <div className="font-bold text-sm">{darkMode ? '🌙' : '☀️'} 暗黑模式</div>
+              <div className="text-xs text-slate-500 mt-0.5">护眼,适合夜间使用</div>
+            </div>
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${darkMode ? 'bg-blue-600' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${darkMode ? 'translate-x-7' : ''}`} />
+            </button>
+          </div>
+
+          {/* 自动拉取 */}
+          <div className="flex items-center justify-between py-3 border-b border-slate-100">
+            <div className="flex-1">
+              <div className="font-bold text-sm">🔄 自动拉取行情</div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                {autoFetch ? `每 ${autoFetchInterval} 分钟自动更新一次` : '关闭(手动点按钮)'}
+              </div>
+            </div>
+            <button
+              onClick={() => setAutoFetch(!autoFetch)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${autoFetch ? 'bg-green-600' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${autoFetch ? 'translate-x-7' : ''}`} />
+            </button>
+          </div>
+
+          {/* 自动拉取频率(只在开启时显示) */}
+          {autoFetch && (
+            <div className="py-3 border-b border-slate-100">
+              <div className="font-bold text-sm mb-2">⏱️ 拉取频率</div>
+              <div className="flex gap-2">
+                {[1, 5, 15, 30].map(min => (
+                  <button
+                    key={min}
+                    onClick={() => setAutoFetchInterval(min)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${
+                      autoFetchInterval === min
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {min} 分
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 px-2 py-1.5 rounded border border-amber-200">
+                💡 Finnhub 免费版限制 60 次/分钟,1 分钟拉取约用 8 次额度,完全够用
+              </div>
+            </div>
+          )}
+
+          {/* 设置说明 */}
+          <div className="mt-3 p-2 bg-blue-50 rounded text-[11px] text-slate-700">
+            🔔 自动拉取需要保持 App 在后台或前台运行(浏览器最小化通常仍会运行)
+          </div>
+        </div>
+
         {/* 底部操作栏 */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 shadow-lg" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
           <div className="max-w-5xl mx-auto">
@@ -1329,7 +1441,9 @@ export default function TQQQTracker() {
             )}
             {lastFetched && !fetchError && (
               <div className="mb-2 px-3 py-1 text-xs text-slate-500 flex items-center gap-1">
-                <Wifi className="w-3 h-3 text-green-600" /> 最近更新:{lastFetched.toLocaleTimeString('zh-CN', { hour12: false })}
+                <Wifi className="w-3 h-3 text-green-600" />
+                最近更新:{lastFetched.toLocaleTimeString('zh-CN', { hour12: false })}
+                {autoFetch && <span className="ml-2 text-green-600 font-bold">· 🔄 自动拉取已开启</span>}
               </div>
             )}
             <div className="flex gap-2">
@@ -1358,6 +1472,7 @@ export default function TQQQTracker() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
