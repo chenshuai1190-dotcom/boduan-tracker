@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings } from 'lucide-react';
+import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2 } from 'lucide-react';
+import Login from './Login';
+import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
+import * as db from './lib/db';
 
 // ============ 美股中英对照表 ============
 // 主流热门股票 + 美股 ETF + 中概股(共 220+)
@@ -184,7 +187,8 @@ const getStockColor = (symbol) => {
   return fallbackPalette[Math.abs(hash) % fallbackPalette.length];
 };
 
-export default function TQQQTracker() {
+// ============ 内部主 App 组件(要求已登录) ============
+function MainApp({ user, onLogout }) {
   // ============ 核心状态 ============
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
@@ -315,45 +319,76 @@ export default function TQQQTracker() {
   const [fetching, setFetching] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
-  
+  // 云端数据加载状态
+  const [cloudLoading, setCloudLoading] = useState(true);
+  const [cloudError, setCloudError] = useState(null);
+
+  // 启动时从 Supabase 拉取所有数据
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('tqqq_state');
-      if (raw) {
-        const s = JSON.parse(raw);
-        if (s.qqqHigh) setQqqHigh(s.qqqHigh);
-        if (s.qqqCurrent) setQqqCurrent(s.qqqCurrent);
-        if (s.tqqqCurrent) setTqqqCurrent(s.tqqqCurrent);
-        if (s.totalCapital) setTotalCapital(s.totalCapital);
-        if (s.batches) setBatches(s.batches);
-        if (s.trades) setTrades(s.trades);
-        if (s.exitTargets) setExitTargets(s.exitTargets);
-        if (s.watchlist) setWatchlist(s.watchlist);
-        if (s.vix) setVix(s.vix);
-        if (s.vixDataDate) setVixDataDate(s.vixDataDate);
-        if (typeof s.fgi === 'number') setFgi(s.fgi);
-        if (s.fgiLabel) setFgiLabel(s.fgiLabel);
-        if (typeof s.fgiPrev === 'number') setFgiPrev(s.fgiPrev);
-        if (typeof s.fgiWeek === 'number') setFgiWeek(s.fgiWeek);
-        if (typeof s.fgiMonth === 'number') setFgiMonth(s.fgiMonth);
-        if (typeof s.fgiYear === 'number') setFgiYear(s.fgiYear);
-        if (s.fgiDataDate) setFgiDataDate(s.fgiDataDate);
-        if (Array.isArray(s.indices)) setIndices(s.indices);
-        if (s.benchmarkSymbol) setBenchmarkSymbol(s.benchmarkSymbol);
-        if (s.waveNotes) setWaveNotes(s.waveNotes);
+    let mounted = true;
+    (async () => {
+      try {
+        setCloudLoading(true);
+        const { trades: cloudTrades, watchlist: cloudWatchlist, waveNotes: cloudNotes, settings } = await db.fetchAllUserData();
+        if (!mounted) return;
+        setTrades(cloudTrades || []);
+        if (cloudWatchlist && cloudWatchlist.length > 0) {
+          setWatchlist(cloudWatchlist);
+        }
+        // 如果云端没数据,保留 useState 里的默认 watchlist(首次使用)
+        setWaveNotes(cloudNotes || {});
+        if (settings) {
+          if (settings.benchmarkSymbol) setBenchmarkSymbol(settings.benchmarkSymbol);
+          if (typeof settings.fgi === 'number') setFgi(settings.fgi);
+          if (settings.fgiLabel) setFgiLabel(settings.fgiLabel);
+          if (typeof settings.fgiPrev === 'number') setFgiPrev(settings.fgiPrev);
+          if (typeof settings.fgiWeek === 'number') setFgiWeek(settings.fgiWeek);
+          if (typeof settings.fgiMonth === 'number') setFgiMonth(settings.fgiMonth);
+          if (typeof settings.fgiYear === 'number') setFgiYear(settings.fgiYear);
+          if (settings.fgiDataDate) setFgiDataDate(settings.fgiDataDate);
+          if (settings.vix) setVix(settings.vix);
+          if (settings.vixDataDate) setVixDataDate(settings.vixDataDate);
+        }
+      } catch (e) {
+        console.error('云端数据加载失败:', e);
+        setCloudError(e.message);
+      } finally {
+        if (mounted) setCloudLoading(false);
       }
-    } catch (e) { /* 首次使用无数据 */ }
+    })();
+    return () => { mounted = false; };
   }, []);
 
+  // 保存设置到云端(防抖,500ms 内多次改只保存最后一次)
+  const settingsSaveTimerRef = useRef(null);
+  useEffect(() => {
+    if (cloudLoading) return; // 加载期间不保存
+    clearTimeout(settingsSaveTimerRef.current);
+    settingsSaveTimerRef.current = setTimeout(() => {
+      db.upsertSettings({
+        benchmarkSymbol,
+        fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
+        vix, vixDataDate,
+      }).catch(e => console.error('设置保存失败:', e));
+    }, 500);
+    return () => clearTimeout(settingsSaveTimerRef.current);
+  }, [benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
+
+  // 保存关注列表到云端(防抖)
+  const watchlistSaveTimerRef = useRef(null);
+  useEffect(() => {
+    if (cloudLoading) return;
+    clearTimeout(watchlistSaveTimerRef.current);
+    watchlistSaveTimerRef.current = setTimeout(() => {
+      db.replaceWatchlist(watchlist).catch(e => console.error('关注列表保存失败:', e));
+    }, 1000);
+    return () => clearTimeout(watchlistSaveTimerRef.current);
+  }, [watchlist, cloudLoading]);
+
+  // saveState: 现在是手动触发的"保存反馈",数据其实自动同步
   const saveState = () => {
-    try {
-      const state = { qqqHigh, qqqCurrent, tqqqCurrent, totalCapital, batches, trades, exitTargets, watchlist, vix, vixDataDate, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, indices, benchmarkSymbol, waveNotes };
-      localStorage.setItem('tqqq_state', JSON.stringify(state));
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      alert('保存失败:' + e.message);
-    }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const resetAll = () => {
@@ -701,7 +736,7 @@ export default function TQQQTracker() {
     setBatches(batches.map(b => b.id === id ? { ...b, [field]: parseFloat(value) || 0 } : b));
   };
 
-  const addTrade = () => {
+  const addTrade = async () => {
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
       alert('请填写股票代码、价格和股数');
       return;
@@ -716,17 +751,21 @@ export default function TQQQTracker() {
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
     const stockName = newTrade.name || STOCK_NAME_CN[symbol] || symbol;
 
-    // 添加交易记录
-    const tradeRecord = {
-      id: Date.now(),
-      symbol,
-      name: stockName,
-      side: newTrade.side || 'buy',
-      date: newTrade.date,
-      price: priceNum,
-      shares: sharesNum,
-    };
-    setTrades([...trades, tradeRecord]);
+    // 添加交易记录(走云端,等返回真正的 id)
+    try {
+      const tradeRecord = await db.insertTrade({
+        symbol,
+        name: stockName,
+        side: newTrade.side || 'buy',
+        date: newTrade.date,
+        price: priceNum,
+        shares: sharesNum,
+      });
+      setTrades([...trades, tradeRecord]);
+    } catch (e) {
+      alert('添加交易失败:' + e.message);
+      return;
+    }
 
     // 如果这只股票不在关注列表里,自动加进去
     if (!watchlist.find(s => s.symbol === symbol)) {
@@ -754,8 +793,13 @@ export default function TQQQTracker() {
     setShowAddTrade(false);
   };
 
-  const deleteTrade = (id) => {
-    setTrades(trades.filter(t => t.id !== id));
+  const deleteTrade = async (id) => {
+    try {
+      await db.deleteTrade(id);
+      setTrades(trades.filter(t => t.id !== id));
+    } catch (e) {
+      alert('删除失败:' + e.message);
+    }
   };
 
   const updateStockPrice = (symbol, field, value) => {
@@ -950,6 +994,20 @@ export default function TQQQTracker() {
 
   const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
+
+  // 云端加载时显示 loading
+  if (cloudLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center px-5">
+        <div className="text-center">
+          <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 items-center justify-center text-2xl font-black text-white shadow-xl mb-4">B</div>
+          <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mx-auto mb-2" />
+          <div className="text-sm text-slate-700 font-bold">正在加载云端数据...</div>
+          <div className="text-xs text-slate-400 mt-1">{user?.email}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pb-24" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
@@ -2032,14 +2090,18 @@ export default function TQQQTracker() {
                                 onClick={(e) => e.stopPropagation()}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
-                                    setWaveNotes({ ...waveNotes, [w.id]: e.target.value });
+                                    const newVal = e.target.value;
+                                    setWaveNotes({ ...waveNotes, [w.id]: newVal });
+                                    db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
                                     setEditingNoteId(null);
                                   } else if (e.key === 'Escape') {
                                     setEditingNoteId(null);
                                   }
                                 }}
                                 onBlur={(e) => {
-                                  setWaveNotes({ ...waveNotes, [w.id]: e.target.value });
+                                  const newVal = e.target.value;
+                                  setWaveNotes({ ...waveNotes, [w.id]: newVal });
+                                  db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
                                   setEditingNoteId(null);
                                 }}
                               />
@@ -2291,6 +2353,32 @@ export default function TQQQTracker() {
         {/* ====== 设置 tab ====== */}
         {activeTab === 'settings' && (
           <div className="space-y-4">
+            {/* 账户信息 */}
+            <div className="rounded-2xl p-5 shadow text-white" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-black text-lg flex items-center gap-2">
+                  ☁️ 云端账户
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-black">已登录</span>
+              </div>
+              <div className="text-xs text-white/80 mb-1">登录邮箱</div>
+              <div className="text-sm font-bold mb-3 break-all">{user?.email || '--'}</div>
+              <div className="text-[10px] text-white/70 mb-3 leading-relaxed">
+                💾 数据已云端备份(Supabase Singapore)<br />
+                🔒 行级安全 · 任何人都无法访问你的数据<br />
+                📱 任意设备登录此账号都能看到你的数据
+              </div>
+              <button
+                onClick={async () => {
+                  if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
+                  await onLogout();
+                }}
+                className="w-full py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold border border-white/20"
+              >
+                <LogOut className="w-4 h-4" /> 退出登录
+              </button>
+            </div>
+
             {/* 数据状态 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
@@ -2513,3 +2601,47 @@ export default function TQQQTracker() {
     </div>
   );
 }
+
+
+// ============ 外层包装: 处理登录状态 ============
+export default function TQQQTracker() {
+  const [authState, setAuthState] = useState({ loading: true, user: null });
+
+  useEffect(() => {
+    // 启动时检查是否已登录
+    getCurrentUser().then(user => {
+      setAuthState({ loading: false, user });
+    });
+    // 监听登录/登出事件
+    const { data: { subscription } } = onAuthChange(user => {
+      setAuthState(s => ({ ...s, user }));
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  // 加载中
+  if (authState.loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+      </div>
+    );
+  }
+
+  // 未登录 → 登录页
+  if (!authState.user) {
+    return <Login onSuccess={(user) => setAuthState({ loading: false, user })} />;
+  }
+
+  // 已登录 → 主 App
+  return (
+    <MainApp
+      user={authState.user}
+      onLogout={async () => {
+        await signOut();
+        setAuthState({ loading: false, user: null });
+      }}
+    />
+  );
+}
+
