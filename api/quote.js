@@ -31,12 +31,21 @@ export default async function handler(req, res) {
           }
           try {
             // FRED VIX 数据序列代号: VIXCLS (CBOE Volatility Index, Daily Close)
-            const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=VIXCLS&api_key=${fredKey}&file_type=json&sort_order=desc&limit=2`;
+            // 用 observation_start 限制时间范围,只取最近 14 天数据,降序返回
+            const today = new Date();
+            const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+            const startDate = twoWeeksAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+            const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=VIXCLS&api_key=${fredKey}&file_type=json&observation_start=${startDate}&sort_order=desc&limit=10`;
             const r = await fetch(fredUrl);
             const data = await r.json();
             
+            // 如果 FRED 返回错误(比如 key 无效)
+            if (data.error_code || data.error_message) {
+              return { symbol, error: `FRED API 错误: ${data.error_message || data.error_code}`, debug: { url: fredUrl.replace(fredKey, 'XXX'), response: data } };
+            }
+            
             if (!data.observations || data.observations.length === 0) {
-              return { symbol, error: 'FRED 未返回 VIX 数据' };
+              return { symbol, error: 'FRED 未返回 VIX 数据', debug: { url: fredUrl.replace(fredKey, 'XXX'), response: data } };
             }
 
             // 找到最近一条非缺失数据(FRED 用 "." 表示无数据)
@@ -44,7 +53,7 @@ export default async function handler(req, res) {
             const previous = data.observations.slice(1).find(o => o.value !== '.' && o.value !== null);
 
             if (!latest) {
-              return { symbol, error: 'FRED 返回的 VIX 数据为空' };
+              return { symbol, error: 'FRED 返回的所有 VIX 数据均为缺失', debug: { observationsCount: data.observations.length, sample: data.observations.slice(0, 3) } };
             }
 
             const price = parseFloat(latest.value);
