@@ -1226,9 +1226,9 @@ function MainApp({ user, onLogout }) {
                     <span className="text-xs font-bold text-slate-700">{idx.name}</span>
                     <span className="text-[9px] text-slate-400 font-mono">{idx.ticker}</span>
                   </div>
-                  {/* 当前价 */}
+                  {/* 当前价 - BTC 加美元符,指数纯点位 */}
                   <div className={`text-base font-black tabular-nums leading-tight`} style={{ color: accentColor, fontFamily: 'ui-monospace, monospace' }}>
-                    ${(idx.price || 0).toFixed(2)}
+                    {idx.ticker === 'BTC-USD.CC' ? '$' : ''}{(idx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   {/* 涨跌幅 */}
                   <div className={`text-[11px] font-bold tabular-nums leading-tight`} style={{ color: accentColor }}>
@@ -2746,10 +2746,15 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 14:30:00 (UTC+8)
-// 📝 本次更新: v10.1 - Day 1 修 Bug
-//   1. Watchlist 改动入库: addStock/updateStockPrice/removeStock 加 db 写入
-//   2. watchlist 默认值改为空数组(新用户友好)
-//   3. 新用户引导界面: "添加你的第一只股票" 按钮
-//   4. batches/exitTargets 改动也入库 (存到 user_settings.data)
+// 📅 最后修改时间: 2026-04-20 16:30:00 (UTC+8)
+// 📝 本次更新: v10.2 - Day 2 EODHD REST 接入
+//   1. quote.js 重写: Finnhub → EODHD 为主
+//   2. 股票实时价支持盘前/盘后 (4-8pm EST)
+//   3. 52 周高精确化: 用 EODHD 历史日线 + Math.max()
+//   4. 大盘指数换真指数: GSPC.INDX / NDX.INDX (点位)
+//   5. 加入 BTC-USD.CC (24h 永动)
+//   6. 删除道琼斯 DIA
+//   7. VIX 升级: FRED 24h 延迟 → EODHD 实时
+//   8. 指数价格显示优化: BTC 加 $,指数纯点位
+// 📦 Day 1 回顾: watchlist + useState + batches 入库 bug
 // ============================================
