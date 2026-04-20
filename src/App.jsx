@@ -535,7 +535,8 @@ function MainApp({ user, onLogout }) {
     }
     if (cloudLoading) return;
 
-    const symbols = watchlist.map(s => `${s.symbol}.US`).join(',');
+    // ⚠️ EODHD 订阅格式: 只用 "AAPL" 不带 .US 后缀 (否则收不到推送)
+    const symbols = watchlist.map(s => s.symbol).join(',');
     if (!symbols) {
       setWsStatus('off');
       return;
@@ -552,7 +553,7 @@ function MainApp({ user, onLogout }) {
       ws.onopen = () => {
         if (closed) return;
         setWsStatus('connected');
-        // 订阅 watchlist 里所有股票
+        // 订阅 watchlist 里所有股票 (不带 .US 后缀)
         ws.send(JSON.stringify({ action: 'subscribe', symbols }));
         wsSubscribedRef.current = new Set(symbols.split(','));
       };
@@ -560,47 +561,53 @@ function MainApp({ user, onLogout }) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          // EODHD 返回格式: { s: "AAPL.US", p: 270.50, t: 时间戳, ... }
-          if (!data.s || !data.p) return;
-          const symbol = data.s.replace('.US', '');
+          // EODHD 推送格式: { s: "AAPL", p: 227.31, v: 100, c: 12, dp: false, ms: "open", t: 1725198451165 }
+          // 订阅成功消息: { status_code: 200, message: "..." } → 跳过
+          if (!data.s || data.p === undefined || data.p === null) return;
+          const symbol = String(data.s).replace('.US', '').toUpperCase();
           const newPrice = parseFloat(data.p);
-          if (!newPrice || isNaN(newPrice)) return;
+          if (!newPrice || isNaN(newPrice) || newPrice <= 0) return;
 
           setWatchlist(prev => {
-            return prev.map(s => {
+            let changed = false;
+            const next = prev.map(s => {
               if (s.symbol !== symbol) return s;
               const oldPrice = s.price || 0;
+              if (oldPrice === newPrice) return s; // 价格一样,不触发 re-render
+              changed = true;
               // 触发闪烁
-              if (oldPrice > 0 && newPrice !== oldPrice) {
+              if (oldPrice > 0) {
                 const direction = newPrice > oldPrice ? 'up' : 'down';
-                setLastFlash(prev => ({ ...prev, [symbol]: { direction, t: Date.now() } }));
-                // 500ms 后清除
+                setLastFlash(prev2 => ({ ...prev2, [symbol]: { direction, t: Date.now() } }));
                 clearTimeout(flashTimersRef.current[symbol]);
                 flashTimersRef.current[symbol] = setTimeout(() => {
-                  setLastFlash(prev => {
-                    const next = { ...prev };
-                    delete next[symbol];
-                    return next;
+                  setLastFlash(prev2 => {
+                    const nx = { ...prev2 };
+                    delete nx[symbol];
+                    return nx;
                   });
                 }, 500);
               }
-              // 更新价格 + 重新算 change/changePercent(基于 previousClose)
+              // 更新价格 + 重新算 change/changePercent
               const prevClose = s.previousClose || oldPrice;
               const change = newPrice - prevClose;
               const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
               return { ...s, price: newPrice, change, changePercent };
             });
+            return changed ? next : prev;
           });
         } catch (e) { /* ignore malformed messages */ }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
         if (closed) return;
+        console.error('EODHD WS error:', err);
         setWsStatus('error');
       };
 
-      ws.onclose = () => {
+      ws.onclose = (evt) => {
         if (closed) return;
+        console.warn('EODHD WS closed:', evt.code, evt.reason);
         setWsStatus('closed');
         // 5 秒后自动重连
         wsReconnectTimerRef.current = setTimeout(connect, 5000);
@@ -618,7 +625,8 @@ function MainApp({ user, onLogout }) {
       Object.values(flashTimersRef.current).forEach(clearTimeout);
       flashTimersRef.current = {};
     };
-  }, [watchlist.length, cloudLoading]); // 只在数量变化时重连(避免每次价格更新都重连)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlist.map(s => s.symbol).join(','), cloudLoading]); // 依赖 symbol 列表字符串
 
   // saveState: 现在是手动触发的"保存反馈",数据其实自动同步
   const saveState = () => {
@@ -2923,21 +2931,28 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 18:20:00 (UTC+8)
-// 📝 本次更新: v10.3.1 - 紧急修复 WebSocket 破坏自动保存
+// 📅 最后修改时间: 2026-04-20 18:40:00 (UTC+8)
+// 📝 本次更新: v10.3.2 - WebSocket 修 2 个 bug
 //
-//   问题: Day 3 引入 WebSocket 后,防抖 useEffect 监听整个 watchlist
-//        WebSocket 每秒推送几十次 price 更新 → 数组变化
-//        → 防抖永远不到 500ms 就被重置
-//        → replaceWatchlist 永远不执行 → 用户改动不入库
+//   Bug 1: 订阅格式错误
+//     之前: {"symbols": "AAPL.US,NVDA.US"}  ← 带 .US 后缀
+//     现在: {"symbols": "AAPL,NVDA"}         ← 不带后缀 (按 EODHD 官方例子)
 //
-//   修复: 防抖依赖改为"结构签名"字符串
-//        只包含 symbol|name|high|cost|shares
-//        不包含 price/change (这些由 WebSocket 推送,不该触发保存)
-//        用户改股票数量/成本 → 签名变 → 触发保存 ✓
-//        WebSocket 只改价格 → 签名不变 → 不触发保存 ✓
+//   Bug 2: 价格判断太严格
+//     之前: if (!data.p) return  ← p=0 也返回
+//     现在: if (data.p === undefined) return  ← 只跳过真的没有字段
 //
-// 📦 v10.3: WebSocket 毫秒级 + 闪烁动画
+//   Bug 3: 重连依赖优化
+//     之前: 只依赖 watchlist.length
+//     现在: 依赖 symbols 列表字符串
+//           (改 symbol 也会触发重新订阅)
+//
+//   附加改动:
+//     - 订阅成功的状态消息跳过(EODHD 返回 {status_code:200})
+//     - 加 console.warn/error 方便 F12 排查
+//     - oldPrice === newPrice 时不更新 state (减少渲染)
+//
+// 📦 v10.3.1: 修保存防抖 bug
+// 📦 v10.3:   WebSocket 毫秒级 + 闪烁动画
 // 📦 v10.2.x: EODHD REST 接入
-// 📦 v10.1: Day 1 bug 修
 // ============================================
