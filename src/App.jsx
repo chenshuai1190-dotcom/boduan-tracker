@@ -495,7 +495,12 @@ function MainApp({ user, onLogout }) {
   }, [benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
 
   // 保存关注列表到云端(防抖 500ms)
+  // 签名: 只监听结构性变化(添加/删除/shares/cost/name/high),不监听 price/change (这些由 WebSocket 推送,不该触发云端保存)
   const watchlistSaveTimerRef = useRef(null);
+  const watchlistStructureSig = useMemo(
+    () => watchlist.map(s => `${s.symbol}|${s.name}|${s.high}|${s.cost}|${s.shares}`).join(';'),
+    [watchlist]
+  );
   useEffect(() => {
     if (cloudLoading) return;
     clearTimeout(watchlistSaveTimerRef.current);
@@ -503,7 +508,8 @@ function MainApp({ user, onLogout }) {
       db.replaceWatchlist(watchlist).catch(e => console.error('关注列表保存失败:', e));
     }, 500);
     return () => clearTimeout(watchlistSaveTimerRef.current);
-  }, [watchlist, cloudLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlistStructureSig, cloudLoading]);
 
   // ====== 市场时段定时刷新(每分钟更新一次 phase) ======
   useEffect(() => {
@@ -2917,22 +2923,21 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 18:00:00 (UTC+8)
-// 📝 本次更新: v10.3 - Day 3 WebSocket 毫秒级跳动
-//   1. 浏览器直连 EODHD WebSocket (wss://ws.eodhistoricaldata.com/ws/us)
-//   2. 股票 watchlist 自动订阅,价格推送毫秒级更新
-//   3. 顶部 LIVE 徽章智能显示: 连接中/LIVE/盘前/盘中/盘后/休市/周末
-//   4. 股票卡片价格变化时闪烁: 涨=红光环 跌=绿光环 (500ms)
-//   5. 断线 5 秒自动重连
-//   6. 新增 computeMarketPhase() 根据美东时间判断盘前/盘中/盘后
+// 📅 最后修改时间: 2026-04-20 18:20:00 (UTC+8)
+// 📝 本次更新: v10.3.1 - 紧急修复 WebSocket 破坏自动保存
 //
-// ⚠️ 部署前必做:
-//   1. Vercel 加环境变量: VITE_EODHD_API_KEY = 你的新 Token
-//      (注意 VITE_ 前缀是必须的,不然前端拿不到)
-//   2. EODHD 后台加域名白名单: https://boduan-tracker.vercel.app
-//      (防止 Token 暴露在前端被滥用)
-//   3. 建议先在 EODHD 后台 Regenerate Token (旧 Token 已在对话历史泄露)
+//   问题: Day 3 引入 WebSocket 后,防抖 useEffect 监听整个 watchlist
+//        WebSocket 每秒推送几十次 price 更新 → 数组变化
+//        → 防抖永远不到 500ms 就被重置
+//        → replaceWatchlist 永远不执行 → 用户改动不入库
 //
-// 📦 v10.2.x: EODHD REST 接入 + 指数修复 + 防抖 bug 修
-// 📦 v10.1: Day 1 bug 修 (入库/引导/batches)
+//   修复: 防抖依赖改为"结构签名"字符串
+//        只包含 symbol|name|high|cost|shares
+//        不包含 price/change (这些由 WebSocket 推送,不该触发保存)
+//        用户改股票数量/成本 → 签名变 → 触发保存 ✓
+//        WebSocket 只改价格 → 签名不变 → 不触发保存 ✓
+//
+// 📦 v10.3: WebSocket 毫秒级 + 闪烁动画
+// 📦 v10.2.x: EODHD REST 接入
+// 📦 v10.1: Day 1 bug 修
 // ============================================
