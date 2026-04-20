@@ -1221,8 +1221,8 @@ function MainApp({ user, onLogout }) {
 
               return (
                 <div key={idx.ticker} className="bg-white rounded-xl p-3 shadow overflow-hidden relative">
-                  {/* 名字 */}
-                  <div className="mb-1">
+                  {/* 名字(英文代码已删除,只保留中文名) */}
+                  <div className="flex items-baseline justify-between mb-1">
                     <span className="text-xs font-bold text-slate-700">{idx.name}</span>
                   </div>
                   {/* 当前价 - BTC 加美元符,指数纯点位 */}
