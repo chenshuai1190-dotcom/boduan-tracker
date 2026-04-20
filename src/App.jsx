@@ -4,6 +4,35 @@ import Login from './Login';
 import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
 import * as db from './lib/db';
 
+// ============ 市场时段判断(美东时区) ============
+// 盘前: 4:00 - 9:30 AM EST
+// 盘中: 9:30 AM - 4:00 PM EST
+// 盘后: 4:00 - 8:00 PM EST
+// 休市: 其他时间 + 周末
+function computeMarketPhase() {
+  const now = new Date();
+  // 北京 = UTC+8, 美东(EST) = UTC-5, 夏令时(EDT) = UTC-4
+  // 简化: 用 UTC-4 粗略近似(夏令时 3-11 月;冬令时 11-3 月大概差 1 小时,不影响判断)
+  const utc = now.getUTCHours() * 60 + now.getUTCMinutes();
+  // 转 EST 分钟数(UTC - 5 小时)
+  let estMin = utc - 5 * 60;
+  if (estMin < 0) estMin += 24 * 60;
+  const estHour = Math.floor(estMin / 60);
+
+  // UTC 的星期几(周六=6, 周日=0)
+  // 简化: 周末休市不区分夏令时
+  const utcDay = now.getUTCDay();
+  if (utcDay === 0 || utcDay === 6) return 'weekend';
+
+  // 盘前 4:00-9:30
+  if (estMin >= 4 * 60 && estMin < 9 * 60 + 30) return 'pre-market';
+  // 盘中 9:30-16:00
+  if (estMin >= 9 * 60 + 30 && estMin < 16 * 60) return 'regular';
+  // 盘后 16:00-20:00
+  if (estMin >= 16 * 60 && estMin < 20 * 60) return 'after-hours';
+  return 'closed';
+}
+
 // ============ 滚动触发数字动画 Hook ============
 // 当元素进入视口时触发,数字从 0 动画到 target
 // 离开视口再回来时,会重新动画一次
@@ -289,6 +318,14 @@ function MainApp({ user, onLogout }) {
   // 三大指数(DIA/QQQ/SPY 当天分时)
   const [indices, setIndices] = useState([]);
 
+  // ====== WebSocket 实时推送 ======
+  // wsStatus: 'connecting' | 'connected' | 'closed' | 'error' | 'off'
+  const [wsStatus, setWsStatus] = useState('off');
+  // lastFlash: { symbol, direction } 用于价格跳动闪烁动画
+  const [lastFlash, setLastFlash] = useState({});
+  // marketPhase: 'closed' | 'pre-market' | 'regular' | 'after-hours' | 'weekend'
+  const [marketPhase, setMarketPhase] = useState(() => computeMarketPhase());
+
   // 顶部市场状态卡的基准股票(默认 QQQ,可切换关注列表里其他 1x 标的)
   const [benchmarkSymbol, setBenchmarkSymbol] = useState('QQQ');
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = useState(false);
@@ -467,6 +504,115 @@ function MainApp({ user, onLogout }) {
     }, 500);
     return () => clearTimeout(watchlistSaveTimerRef.current);
   }, [watchlist, cloudLoading]);
+
+  // ====== 市场时段定时刷新(每分钟更新一次 phase) ======
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMarketPhase(computeMarketPhase());
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // ====== EODHD WebSocket 实时价格推送 ======
+  // 毫秒级推送股票 last price,自动跟 watchlist 订阅变化
+  const wsRef = useRef(null);
+  const wsReconnectTimerRef = useRef(null);
+  const wsSubscribedRef = useRef(new Set());
+  const flashTimersRef = useRef({});
+
+  useEffect(() => {
+    // 只在有 VITE_EODHD_API_KEY 且 watchlist 非空 时连接
+    const wsKey = import.meta.env.VITE_EODHD_API_KEY;
+    if (!wsKey) {
+      setWsStatus('off');
+      return;
+    }
+    if (cloudLoading) return;
+
+    const symbols = watchlist.map(s => `${s.symbol}.US`).join(',');
+    if (!symbols) {
+      setWsStatus('off');
+      return;
+    }
+
+    let closed = false;
+
+    const connect = () => {
+      if (closed) return;
+      setWsStatus('connecting');
+      const ws = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${wsKey}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (closed) return;
+        setWsStatus('connected');
+        // 订阅 watchlist 里所有股票
+        ws.send(JSON.stringify({ action: 'subscribe', symbols }));
+        wsSubscribedRef.current = new Set(symbols.split(','));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // EODHD 返回格式: { s: "AAPL.US", p: 270.50, t: 时间戳, ... }
+          if (!data.s || !data.p) return;
+          const symbol = data.s.replace('.US', '');
+          const newPrice = parseFloat(data.p);
+          if (!newPrice || isNaN(newPrice)) return;
+
+          setWatchlist(prev => {
+            return prev.map(s => {
+              if (s.symbol !== symbol) return s;
+              const oldPrice = s.price || 0;
+              // 触发闪烁
+              if (oldPrice > 0 && newPrice !== oldPrice) {
+                const direction = newPrice > oldPrice ? 'up' : 'down';
+                setLastFlash(prev => ({ ...prev, [symbol]: { direction, t: Date.now() } }));
+                // 500ms 后清除
+                clearTimeout(flashTimersRef.current[symbol]);
+                flashTimersRef.current[symbol] = setTimeout(() => {
+                  setLastFlash(prev => {
+                    const next = { ...prev };
+                    delete next[symbol];
+                    return next;
+                  });
+                }, 500);
+              }
+              // 更新价格 + 重新算 change/changePercent(基于 previousClose)
+              const prevClose = s.previousClose || oldPrice;
+              const change = newPrice - prevClose;
+              const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+              return { ...s, price: newPrice, change, changePercent };
+            });
+          });
+        } catch (e) { /* ignore malformed messages */ }
+      };
+
+      ws.onerror = () => {
+        if (closed) return;
+        setWsStatus('error');
+      };
+
+      ws.onclose = () => {
+        if (closed) return;
+        setWsStatus('closed');
+        // 5 秒后自动重连
+        wsReconnectTimerRef.current = setTimeout(connect, 5000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      clearTimeout(wsReconnectTimerRef.current);
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+      Object.values(flashTimersRef.current).forEach(clearTimeout);
+      flashTimersRef.current = {};
+    };
+  }, [watchlist.length, cloudLoading]); // 只在数量变化时重连(避免每次价格更新都重连)
 
   // saveState: 现在是手动触发的"保存反馈",数据其实自动同步
   const saveState = () => {
@@ -1127,9 +1273,34 @@ function MainApp({ user, onLogout }) {
               className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
               title="点击刷新"
             >
-              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
-              <span className="text-emerald-400 text-[10px] font-bold tracking-wider">LIVE</span>
-              <RefreshCw className={`w-3 h-3 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
+              {(() => {
+                // 根据 WebSocket 状态 + 市场时段综合显示
+                const isLive = wsStatus === 'connected';
+                const dotColor = isLive ? 'bg-emerald-400' : (wsStatus === 'connecting' ? 'bg-amber-400' : 'bg-slate-500');
+                const textColor = isLive ? 'text-emerald-400' : (wsStatus === 'connecting' ? 'text-amber-400' : 'text-slate-400');
+
+                // 市场时段中文标签
+                const phaseLabel = {
+                  'pre-market': '盘前',
+                  'regular': '盘中',
+                  'after-hours': '盘后',
+                  'closed': '休市',
+                  'weekend': '周末',
+                }[marketPhase] || '';
+
+                return (
+                  <>
+                    <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${isLive || fetching ? 'animate-pulse' : ''}`}></span>
+                    <span className={`${textColor} text-[10px] font-bold tracking-wider`}>
+                      {isLive ? 'LIVE' : wsStatus === 'connecting' ? '连接中' : phaseLabel || 'OFF'}
+                    </span>
+                    {isLive && phaseLabel && (
+                      <span className="text-slate-400 text-[9px] font-medium ml-0.5">· {phaseLabel}</span>
+                    )}
+                    <RefreshCw className={`w-3 h-3 ${textColor} ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
+                  </>
+                );
+              })()}
             </button>
           </div>
 
@@ -1219,9 +1390,9 @@ function MainApp({ user, onLogout }) {
                   <div className="flex items-baseline justify-between mb-1">
                     <span className="text-xs font-bold text-slate-700">{idx.name}</span>
                   </div>
-                  {/* 当前价 - BTC 加美元符,指数纯点位 */}
+                  {/* 当前价 - 指数纯点位显示 */}
                   <div className={`text-base font-black tabular-nums leading-tight`} style={{ color: accentColor, fontFamily: 'ui-monospace, monospace' }}>
-                    {idx.ticker === 'BTC-USD.CC' ? '$' : ''}{(idx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {(idx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   {/* 涨跌幅 */}
                   <div className={`text-[11px] font-bold tabular-nums leading-tight`} style={{ color: accentColor }}>
@@ -1737,6 +1908,12 @@ function MainApp({ user, onLogout }) {
               const hasAlert = !!s.alert;
               const isExtreme = hasAlert && s.alert.level >= 7;
 
+              // 闪烁动画 (WebSocket 推送时触发)
+              const flash = lastFlash[s.symbol];
+              const flashClass = flash
+                ? (flash.direction === 'up' ? 'ring-2 ring-rose-400/80 shadow-rose-300/50' : 'ring-2 ring-emerald-400/80 shadow-emerald-300/50')
+                : '';
+
               // 当日涨跌色(红涨绿跌)
               const dayChange = s.changePercent || 0;
               const isUp = dayChange >= 0;
@@ -1806,11 +1983,12 @@ function MainApp({ user, onLogout }) {
               return (
                 <div
                   key={s.symbol}
-                  className={`rounded-xl border transition relative overflow-hidden ${
+                  className={`rounded-xl border transition relative overflow-hidden ${flashClass} ${
                     hasAlert
                       ? `${s.alert.color} ${isExtreme ? 'animate-pulse' : ''} border-2`
                       : 'border-slate-200 bg-white active:bg-slate-50'
                   }`}
+                  style={{ transition: 'box-shadow 0.3s, border-color 0.3s' }}
                 >
                   {/* 删除按钮(右上角小×,触发弹窗确认) */}
                   <button
@@ -2739,16 +2917,22 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 17:00:00 (UTC+8)
-// 📝 本次更新: v10.2.2 - 关键 Bug 修复
-//   1. 🚨 修复: 添加/修改股票后刷新消失
-//      原因: Day 1 加的手动 upsert + 防抖 useEffect 同时写云端
-//           导致防抖的"删光重插"用了闭包里的旧 state,误删了新股票
-//      修复: 去掉手动 upsert,只保留防抖 useEffect
-//           防抖从 1000ms 改 500ms,更快同步
+// 📅 最后修改时间: 2026-04-20 18:00:00 (UTC+8)
+// 📝 本次更新: v10.3 - Day 3 WebSocket 毫秒级跳动
+//   1. 浏览器直连 EODHD WebSocket (wss://ws.eodhistoricaldata.com/ws/us)
+//   2. 股票 watchlist 自动订阅,价格推送毫秒级更新
+//   3. 顶部 LIVE 徽章智能显示: 连接中/LIVE/盘前/盘中/盘后/休市/周末
+//   4. 股票卡片价格变化时闪烁: 涨=红光环 跌=绿光环 (500ms)
+//   5. 断线 5 秒自动重连
+//   6. 新增 computeMarketPhase() 根据美东时间判断盘前/盘中/盘后
 //
-// 📦 历史:
-//   v10.2.1: 指数卡片去掉英文代码
-//   v10.2:   EODHD REST 接入
-//   v10.1:   Day 1 修 bug
+// ⚠️ 部署前必做:
+//   1. Vercel 加环境变量: VITE_EODHD_API_KEY = 你的新 Token
+//      (注意 VITE_ 前缀是必须的,不然前端拿不到)
+//   2. EODHD 后台加域名白名单: https://boduan-tracker.vercel.app
+//      (防止 Token 暴露在前端被滥用)
+//   3. 建议先在 EODHD 后台 Regenerate Token (旧 Token 已在对话历史泄露)
+//
+// 📦 v10.2.x: EODHD REST 接入 + 指数修复 + 防抖 bug 修
+// 📦 v10.1: Day 1 bug 修 (入库/引导/batches)
 // ============================================
