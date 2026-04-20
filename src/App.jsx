@@ -245,8 +245,8 @@ const getStockLogoUrl = (symbol) => {
 };
 
 // ============ 股票 Logo 组件 ============
-// 多源 fallback: Clearbit → DuckDuckGo → 首字母
-// Clearbit 在中国大陆可能被墙,DuckDuckGo Icons 通常能访问
+// 多源 fallback: Clearbit → DuckDuckGo → Google Favicon → 首字母
+// Service Worker 会缓存这些 logo,第二次访问 0 延迟
 function StockLogo({ symbol, size = 32 }) {
   const [srcIndex, setSrcIndex] = useState(0);
   const domain = STOCK_LOGO_DOMAIN[symbol];
@@ -2808,9 +2808,10 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 11:22:24 (UTC+8)
-// 📝 本次更新: v5
-//   1. 点股票卡片头部 → 直接弹出添加交易弹窗,股票代码自动填好
-//   2. 头部右侧加 + 图标提示可点击
-//   3. 交易明细字号放大(11px → 13px)
+// 📅 最后修改时间: 2026-04-20 11:34:00 (UTC+8)
+// 📝 本次更新: v7
+//   1. 撤销 v6 内嵌 logo,改回原方案(远程加载)
+//   2. 新增 Service Worker (public/sw.js) 缓存股票 logo
+//   3. 第 1 次访问加载,第 2 次访问 0 延迟(从浏览器缓存读)
+//   4. main.jsx 注册 Service Worker
 // ============================================
