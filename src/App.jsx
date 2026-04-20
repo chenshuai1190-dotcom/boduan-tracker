@@ -1185,9 +1185,9 @@ function MainApp({ user, onLogout }) {
         {/* ====== 首页 tab ====== */}
         {activeTab === 'home' && (<>
 
-        {/* 三大指数(DIA/QQQ/SPY 当天分时,迷你卡片) */}
+        {/* 两大指数(标普/纳指 当天分时,迷你卡片) */}
         {indices.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
             {indices.map((idx) => {
               if (idx.error) {
                 return (
@@ -1221,10 +1221,9 @@ function MainApp({ user, onLogout }) {
 
               return (
                 <div key={idx.ticker} className="bg-white rounded-xl p-3 shadow overflow-hidden relative">
-                  {/* 名字 + 代码 */}
-                  <div className="flex items-baseline justify-between mb-1">
+                  {/* 名字 */}
+                  <div className="mb-1">
                     <span className="text-xs font-bold text-slate-700">{idx.name}</span>
-                    <span className="text-[9px] text-slate-400 font-mono">{idx.ticker}</span>
                   </div>
                   {/* 当前价 - BTC 加美元符,指数纯点位 */}
                   <div className={`text-base font-black tabular-nums leading-tight`} style={{ color: accentColor, fontFamily: 'ui-monospace, monospace' }}>
@@ -2746,15 +2745,16 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 16:30:00 (UTC+8)
-// 📝 本次更新: v10.2 - Day 2 EODHD REST 接入
-//   1. quote.js 重写: Finnhub → EODHD 为主
-//   2. 股票实时价支持盘前/盘后 (4-8pm EST)
-//   3. 52 周高精确化: 用 EODHD 历史日线 + Math.max()
-//   4. 大盘指数换真指数: GSPC.INDX / NDX.INDX (点位)
-//   5. 加入 BTC-USD.CC (24h 永动)
-//   6. 删除道琼斯 DIA
-//   7. VIX 升级: FRED 24h 延迟 → EODHD 实时
-//   8. 指数价格显示优化: BTC 加 $,指数纯点位
-// 📦 Day 1 回顾: watchlist + useState + batches 入库 bug
+// 📅 最后修改时间: 2026-04-20 16:00:00 (UTC+8)
+// 📝 本次更新: v10.2.1 - Day 2 小修
+//   1. 指数卡片移除右侧英文代码(NDX.INDX/GSPC.INDX)
+//      原因: 纳斯达克 + 代码 挤一起导致 2 行,视觉不优雅
+//
+// 📦 Day 2 原始改动 (v10.2):
+//   - 后端 quote.js 重写: Finnhub → EODHD
+//   - 删道琼斯,加真指数 GSPC/NDX
+//   - VIX 改 EODHD 实时
+//   - 52 周高用 EODHD 历史日线 (跟雪球一致)
+//
+// 📦 Day 1: watchlist + batches 入库 bug 已修
 // ============================================
