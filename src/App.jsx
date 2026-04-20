@@ -457,14 +457,14 @@ function MainApp({ user, onLogout }) {
     return () => clearTimeout(settingsSaveTimerRef.current);
   }, [benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
 
-  // 保存关注列表到云端(防抖)
+  // 保存关注列表到云端(防抖 500ms)
   const watchlistSaveTimerRef = useRef(null);
   useEffect(() => {
     if (cloudLoading) return;
     clearTimeout(watchlistSaveTimerRef.current);
     watchlistSaveTimerRef.current = setTimeout(() => {
       db.replaceWatchlist(watchlist).catch(e => console.error('关注列表保存失败:', e));
-    }, 1000);
+    }, 500);
     return () => clearTimeout(watchlistSaveTimerRef.current);
   }, [watchlist, cloudLoading]);
 
@@ -895,19 +895,15 @@ function MainApp({ user, onLogout }) {
     }
   };
 
-  const updateStockPrice = async (symbol, field, value) => {
+  const updateStockPrice = (symbol, field, value) => {
     const newList = watchlist.map(s => s.symbol === symbol ? { ...s, [field]: parseFloat(value) || 0 } : s);
     setWatchlist(newList);
     if (symbol === 'TQQQ' && field === 'price') setTqqqCurrent(parseFloat(value) || 0);
     if (symbol === 'QQQ' && field === 'price') setQqqCurrent(parseFloat(value) || 0);
-    // 写入云端(防数据丢失)
-    const updated = newList.find(s => s.symbol === symbol);
-    if (updated) {
-      try { await db.upsertWatchlistItem(updated); } catch (e) { console.error('保存失败:', e); }
-    }
+    // 防抖 useEffect 会自动保存到云端,不需要手动调 db
   };
 
-  const addStock = async () => {
+  const addStock = () => {
     if (!newStock.symbol || !newStock.price) {
       alert('请至少填写股票代码和当前价');
       return;
@@ -930,17 +926,15 @@ function MainApp({ user, onLogout }) {
     setWatchlist([...watchlist, newItem]);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
-    // 写入云端
-    try { await db.upsertWatchlistItem(newItem); } catch (e) { console.error('添加失败:', e); }
+    // 防抖 useEffect 会自动保存到云端
   };
 
-  const removeStock = async (symbol) => {
+  const removeStock = (symbol) => {
     if (window.confirm(`确认删除 ${symbol}?`)) {
       const newList = watchlist.filter(s => s.symbol !== symbol);
       setWatchlist(newList);
       if (editingStock === symbol) setEditingStock(null);
-      // 整体替换云端列表(简单粗暴,适合数据量小)
-      try { await db.replaceWatchlist(newList); } catch (e) { console.error('删除失败:', e); }
+      // 防抖 useEffect 会自动保存到云端
     }
   };
 
@@ -2745,16 +2739,16 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 16:00:00 (UTC+8)
-// 📝 本次更新: v10.2.1 - Day 2 小修
-//   1. 指数卡片移除右侧英文代码(NDX.INDX/GSPC.INDX)
-//      原因: 纳斯达克 + 代码 挤一起导致 2 行,视觉不优雅
+// 📅 最后修改时间: 2026-04-20 17:00:00 (UTC+8)
+// 📝 本次更新: v10.2.2 - 关键 Bug 修复
+//   1. 🚨 修复: 添加/修改股票后刷新消失
+//      原因: Day 1 加的手动 upsert + 防抖 useEffect 同时写云端
+//           导致防抖的"删光重插"用了闭包里的旧 state,误删了新股票
+//      修复: 去掉手动 upsert,只保留防抖 useEffect
+//           防抖从 1000ms 改 500ms,更快同步
 //
-// 📦 Day 2 原始改动 (v10.2):
-//   - 后端 quote.js 重写: Finnhub → EODHD
-//   - 删道琼斯,加真指数 GSPC/NDX
-//   - VIX 改 EODHD 实时
-//   - 52 周高用 EODHD 历史日线 (跟雪球一致)
-//
-// 📦 Day 1: watchlist + batches 入库 bug 已修
+// 📦 历史:
+//   v10.2.1: 指数卡片去掉英文代码
+//   v10.2:   EODHD REST 接入
+//   v10.1:   Day 1 修 bug
 // ============================================
