@@ -952,36 +952,41 @@ function MainApp({ user, onLogout }) {
       }
 
       // 更新股票价格
-      const updated = watchlist.map(s => {
-        const fresh = result.data.find(d => d.symbol === s.symbol);
-        if (fresh && fresh.price > 0) {
-          // 52 周高的优先级:
-          // - Yahoo(已前复权,跟主流软件一致) → 直接覆盖本地(解决拆股问题)
-          // - Finnhub(可能未复权) → 跟本地取 max
-          // - 都没有 → 保留本地 high
-          let newHigh;
-          if (fresh.highSource === 'yahoo' && fresh.week52High > 0) {
-            // Yahoo 数据权威,直接用,不跟本地比 max(避免拆股前的旧高价残留)
-            newHigh = Math.max(fresh.week52High, fresh.price);
-          } else {
-            // Finnhub 或 fallback,保守起见跟本地取 max
-            newHigh = Math.max(s.high || 0, fresh.week52High || 0, fresh.price);
+      // 🚨 防护: 如果 watchlist 当前是空(可能云端还没加载完), 直接跳过更新, 不能 setWatchlist([])
+      if (watchlist.length === 0) {
+        // 只更新指数/VIX/FGI, 不动 watchlist
+      } else {
+        const updated = watchlist.map(s => {
+          const fresh = result.data.find(d => d.symbol === s.symbol);
+          if (fresh && fresh.price > 0) {
+            // 52 周高的优先级:
+            // - Yahoo(已前复权,跟主流软件一致) → 直接覆盖本地(解决拆股问题)
+            // - Finnhub(可能未复权) → 跟本地取 max
+            // - 都没有 → 保留本地 high
+            let newHigh;
+            if (fresh.highSource === 'yahoo' && fresh.week52High > 0) {
+              // Yahoo 数据权威,直接用,不跟本地比 max(避免拆股前的旧高价残留)
+              newHigh = Math.max(fresh.week52High, fresh.price);
+            } else {
+              // Finnhub 或 fallback,保守起见跟本地取 max
+              newHigh = Math.max(s.high || 0, fresh.week52High || 0, fresh.price);
+            }
+            return {
+              ...s,
+              price: fresh.price,
+              high: newHigh,
+              // 保存当天分时(用于心电图)
+              intraday: fresh.intraday || s.intraday || [],
+              // 保存昨收(用于当日涨跌色)
+              previousClose: fresh.previousClose || s.previousClose || 0,
+              // 保存当日涨跌
+              changePercent: fresh.changePercent || 0,
+            };
           }
-          return {
-            ...s,
-            price: fresh.price,
-            high: newHigh,
-            // 保存当天分时(用于心电图)
-            intraday: fresh.intraday || s.intraday || [],
-            // 保存昨收(用于当日涨跌色)
-            previousClose: fresh.previousClose || s.previousClose || 0,
-            // 保存当日涨跌
-            changePercent: fresh.changePercent || 0,
-          };
-        }
-        return s;
-      });
-      setWatchlist(updated);
+          return s;
+        });
+        setWatchlist(updated);
+      }
 
       // 同步 TQQQ 和 QQQ 到核心参数
       const tqqqData = result.data.find(d => d.symbol === 'TQQQ');
@@ -1025,15 +1030,17 @@ function MainApp({ user, onLogout }) {
     }
   };
 
-  // 自动拉取:打开 App 立即拉一次,之后每 5 分钟拉一次
+  // 自动拉取: 等云端数据加载完成后才拉实时价格
+  // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
   useEffect(() => {
+    if (cloudLoading) return; // 等云端数据先就位
     fetchRealtimePrices();
     const timer = setInterval(() => {
       fetchRealtimePrices();
     }, 5 * 60 * 1000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cloudLoading]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -2739,35 +2746,40 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 19:00:00 (UTC+8)
-// 📝 本次更新: v10.2.3 - 回滚到稳定版 (Day 3 WebSocket 暂缓)
+// 📅 最后修改时间: 2026-04-20 20:20:00 (UTC+8)
+// 📝 本次更新: v10.2.4 - 🚨 终极修复关注股票消失
 //
-//   本版本 = v10.2.2 核心代码 (Day 1 bug 修 + Day 2 EODHD REST)
+//   根源(用户今天多次报告):
+//     v10.2.2 修过一次,但今天又复现 "添加股票刷新消失"
 //
-//   删除的实验性功能 (以后重新设计再加):
-//   - WebSocket 浏览器直连
-//   - 毫秒级价格推送
-//   - 顶部 LIVE · 盘前/盘中 徽章
-//   - 价格闪烁动画
-//   - 市场时段感知
+//   真正原因:
+//     打开 App 流程:
+//       1. useState([]) → watchlist = []
+//       2. cloudLoading = true, 显示 Loading
+//       3. 同时跑 2 个 useEffect:
+//          A. 加载云端数据 → setWatchlist(cloudData)
+//          B. fetchRealtimePrices() ← BUG!
+//             这里闭包里的 watchlist 还是 []
+//             拉到数据后 setWatchlist([])  ← 清空!
+//       4. 竞态: 谁后跑谁赢
+//       5. 防抖 500ms 触发 → replaceWatchlist(最终值)
+//          如果最终值是 [] → 云端也被删光!
 //
-//   保留的功能 (Day 1 + Day 2):
-//   ✓ Watchlist 自动云端保存 (防抖 500ms)
-//   ✓ 新用户空状态引导
-//   ✓ batches/exitTargets 入库
-//   ✓ EODHD REST 接口 (手动刷新价格,含盘前盘后)
-//   ✓ 真指数 GSPC.INDX + NDX.INDX (删了道琼斯)
-//   ✓ VIX EODHD 实时
-//   ✓ 52 周高 EODHD 历史日线精确计算
+//   3 层防护修复:
+//     ① 自动拉取 useEffect 加 cloudLoading 判断
+//        (等云端数据加载完再拉实时价, 不抢 watchlist)
+//     ② fetchRealtimePrices 内部:
+//        watchlist.length === 0 时不 setWatchlist([])
+//     ③ db.replaceWatchlist() 拒绝写入空数组
+//        console.warn 提示但不清云端数据
 //
-//   ⚠️ 部署前:
-//   如果你在 Vercel 后台加过 VITE_EODHD_API_KEY 环境变量,
-//   可以保留(前端不再用,但留着也不影响).
-//   也可以删掉: Vercel → Settings → Environment Variables
+//   验证:
+//     - 添加/改/删股票 → 等 1 秒 → 刷新 → 还在 ✓
+//     - 每 5 分钟自动拉实时价 → 不影响保存 ✓
+//     - 打开 App → Loading → 股票显示, 永远不清空 ✓
 //
-// 📦 历史版本:
-//   v10.3.x: WebSocket 尝试 (多个 bug 后回滚)
-//   v10.2.2: 修防抖覆盖 bug (你确认过完美)
-//   v10.2.x: Day 2 EODHD REST
-//   v10.1:   Day 1 修 Watchlist/useState/batches bug
+// 📦 v10.2.3: 回滚到稳定版(去 WebSocket)
+// 📦 v10.2.2: 修 Day 1 引入的防抖冲突
+// 📦 v10.2.x: EODHD REST 接入
+// 📦 v10.1:   Day 1 修 bug
 // ============================================
