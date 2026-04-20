@@ -153,8 +153,20 @@ export default async function handler(req, res) {
                 if (yahooRes && yahooRes.ok) {
                   try {
                     const yahooData = await yahooRes.json();
-                    const closes = yahooData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-                    intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+                    const result = yahooData?.chart?.result?.[0];
+                    const closes = result?.indicators?.quote?.[0]?.close || [];
+                    const etfIntraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+
+                    // Yahoo 拿的是 ETF 价格(如 SPY ~580),但我们要画的是指数(GSPC ~6850)
+                    // 两者量级不同,直接用会导致走势图变"直线"(所有点挤在图底)
+                    // 修复: 用 ETF 的第一个价格作锚点,按比例缩放到指数级别
+                    const etfPrevClose = result?.meta?.chartPreviousClose || etfIntraday[0] || 0;
+                    if (etfPrevClose > 0 && previousClose > 0 && etfIntraday.length > 0) {
+                      const ratio = previousClose / etfPrevClose;
+                      intraday = etfIntraday.map(v => v * ratio);
+                    } else {
+                      intraday = etfIntraday;
+                    }
                   } catch (e) { /* ignore */ }
                 }
 
