@@ -162,25 +162,11 @@ const STOCK_NAME_CN = {
 
 // ============ 股票配色 ============
 // 主流热门股配品牌色,非主流的根据代码 hash 自动分配
-// ============ 股票卡片颜色:统一绿色系 ============
-// 用 3 档绿色深浅区分,避免完全一样太单调,但保持整体视觉统一
-const GREEN_PALETTE = [
-  { from: '#10b981', to: '#047857' },  // 翠绿(emerald 500→700)
-  { from: '#16a34a', to: '#15803d' },  // 标准绿(green 600→700)
-  { from: '#22c55e', to: '#15803d' },  // 鲜绿(green 500→700)
-  { from: '#059669', to: '#065f46' },  // 深翠绿(emerald 600→800)
-  { from: '#65a30d', to: '#4d7c0f' },  // 黄绿(lime 600→700)
-];
+// ============ 股票卡片颜色:统一翠绿色 ============
+// 所有股票卡片头部用同一种翠绿,简洁统一
+const UNIFIED_GREEN = { from: '#10b981', to: '#047857' };  // emerald 500→700
 
-// 根据股票代码返回绿色(用 hash 让同一只股票永远是同一种深浅)
-const getStockColor = (symbol) => {
-  let hash = 0;
-  for (let i = 0; i < symbol.length; i++) {
-    hash = ((hash << 5) - hash) + symbol.charCodeAt(i);
-    hash |= 0;
-  }
-  return GREEN_PALETTE[Math.abs(hash) % GREEN_PALETTE.length];
-};
+const getStockColor = (symbol) => UNIFIED_GREEN;
 
 // ============ 股票 Logo 域名映射 ============
 // 用 Clearbit Logo API: https://logo.clearbit.com/{domain}
@@ -259,11 +245,20 @@ const getStockLogoUrl = (symbol) => {
 };
 
 // ============ 股票 Logo 组件 ============
-// 优先显示真实公司 logo,加载失败 fallback 到首字母圆形图
+// 多源 fallback: Clearbit → DuckDuckGo → 首字母
+// Clearbit 在中国大陆可能被墙,DuckDuckGo Icons 通常能访问
 function StockLogo({ symbol, size = 32 }) {
-  const [imgError, setImgError] = useState(false);
-  const url = getStockLogoUrl(symbol);
-  const showImg = url && !imgError;
+  const [srcIndex, setSrcIndex] = useState(0);
+  const domain = STOCK_LOGO_DOMAIN[symbol];
+
+  // 多个 logo 源,按顺序尝试
+  const sources = domain ? [
+    `https://logo.clearbit.com/${domain}`,
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+    `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
+  ] : [];
+
+  const showImg = srcIndex < sources.length;
   const firstChar = (symbol || '?').charAt(0).toUpperCase();
 
   return (
@@ -273,10 +268,10 @@ function StockLogo({ symbol, size = 32 }) {
     >
       {showImg ? (
         <img
-          src={url}
+          src={sources[srcIndex]}
           alt={symbol}
           className="w-full h-full object-contain p-0.5"
-          onError={() => setImgError(true)}
+          onError={() => setSrcIndex(srcIndex + 1)}
           loading="lazy"
         />
       ) : (
@@ -2791,3 +2786,8 @@ export default function TQQQTracker() {
   );
 }
 
+
+// ============================================
+// 📅 最后修改时间: 2026-04-20 11:16:01 (UTC+8)
+// 📝 本次更新: v4 - 颜色完全统一翠绿 + Logo 多源 fallback (Clearbit→DuckDuckGo→Google→首字母)
+// ============================================
