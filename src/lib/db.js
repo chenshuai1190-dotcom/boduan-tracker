@@ -219,16 +219,32 @@ export const upsertSettings = async (settings) => {
 
 // ============ 一次性拉取所有数据 ============
 // 用于登录后或刷新时
+// 🚨 容错设计: 用 Promise.allSettled 代替 Promise.all
+// 任何一个表 404 或出错, 不影响其他表的数据加载
 export const fetchAllUserData = async () => {
-  const [trades, watchlist, waveNotes, settings, accounts, snapshots] = await Promise.all([
-    fetchTrades(),
-    fetchWatchlist(),
-    fetchWaveNotes(),
-    fetchSettings(),
-    fetchAccounts(),
-    fetchSnapshots(),
+  const results = await Promise.allSettled([
+    fetchTrades(),      // 0
+    fetchWatchlist(),   // 1
+    fetchWaveNotes(),   // 2
+    fetchSettings(),    // 3
+    fetchAccounts(),    // 4
+    fetchSnapshots(),   // 5
   ]);
-  return { trades, watchlist, waveNotes, settings, accounts, snapshots };
+
+  const getValue = (idx, fallback) => {
+    if (results[idx].status === 'fulfilled') return results[idx].value;
+    console.warn(`[fetchAllUserData] 第 ${idx} 个表加载失败:`, results[idx].reason);
+    return fallback;
+  };
+
+  return {
+    trades:     getValue(0, []),
+    watchlist:  getValue(1, []),
+    waveNotes:  getValue(2, {}),
+    settings:   getValue(3, null),
+    accounts:   getValue(4, []),
+    snapshots:  getValue(5, []),
+  };
 };
 
 // ============ ACCOUNTS (家庭账户) ============
