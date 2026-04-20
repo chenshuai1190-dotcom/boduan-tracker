@@ -168,123 +168,6 @@ const UNIFIED_GREEN = { from: '#10b981', to: '#047857' };  // emerald 500→700
 
 const getStockColor = (symbol) => UNIFIED_GREEN;
 
-// ============ 股票 Logo 域名映射 ============
-// 用 Clearbit Logo API: https://logo.clearbit.com/{domain}
-// 没在表里的代码,fallback 显示首字母
-const STOCK_LOGO_DOMAIN = {
-  // 七姐妹
-  AAPL: 'apple.com',
-  MSFT: 'microsoft.com',
-  GOOGL: 'google.com',
-  GOOG: 'google.com',
-  AMZN: 'amazon.com',
-  META: 'meta.com',
-  NVDA: 'nvidia.com',
-  TSLA: 'tesla.com',
-  // 杠杆 ETF (用 ProShares)
-  TQQQ: 'proshares.com',
-  SQQQ: 'proshares.com',
-  SOXL: 'direxion.com',
-  TNA: 'direxion.com',
-  // 半导体
-  TSM: 'tsmc.com',
-  AMD: 'amd.com',
-  AVGO: 'broadcom.com',
-  INTC: 'intel.com',
-  MU: 'micron.com',
-  ASML: 'asml.com',
-  // 中概
-  BABA: 'alibaba.com',
-  PDD: 'pddholdings.com',
-  JD: 'jd.com',
-  BIDU: 'baidu.com',
-  NIO: 'nio.com',
-  XPEV: 'xiaopeng.com',
-  LI: 'lixiang.com',
-  TCEHY: 'tencent.com',
-  // 主流 ETF
-  SPY: 'ssga.com',         // State Street
-  QQQ: 'invesco.com',
-  DIA: 'ssga.com',
-  VTI: 'vanguard.com',
-  IWM: 'ishares.com',
-  // 加密相关
-  COIN: 'coinbase.com',
-  MSTR: 'microstrategy.com',
-  IBIT: 'ishares.com',
-  GBTC: 'grayscale.com',
-  // 流媒体/消费
-  NFLX: 'netflix.com',
-  DIS: 'disney.com',
-  SBUX: 'starbucks.com',
-  KO: 'coca-cola.com',
-  PEP: 'pepsi.com',
-  MCD: 'mcdonalds.com',
-  NKE: 'nike.com',
-  // 金融
-  JPM: 'jpmorganchase.com',
-  V: 'visa.com',
-  MA: 'mastercard.com',
-  BAC: 'bankofamerica.com',
-  GS: 'goldmansachs.com',
-  // 软件 / SaaS
-  CRM: 'salesforce.com',
-  ORCL: 'oracle.com',
-  ADBE: 'adobe.com',
-  SHOP: 'shopify.com',
-  PLTR: 'palantir.com',
-  NOW: 'servicenow.com',
-  // 现金等价
-  SGOV: 'ishares.com',
-  BIL: 'ssga.com',
-};
-
-const getStockLogoUrl = (symbol) => {
-  const domain = STOCK_LOGO_DOMAIN[symbol];
-  return domain ? `https://logo.clearbit.com/${domain}` : null;
-};
-
-// ============ 股票 Logo 组件 ============
-// 多源 fallback: Clearbit → DuckDuckGo → Google Favicon → 首字母
-// Service Worker 会缓存这些 logo,第二次访问 0 延迟
-function StockLogo({ symbol, size = 32 }) {
-  const [srcIndex, setSrcIndex] = useState(0);
-  const domain = STOCK_LOGO_DOMAIN[symbol];
-
-  // 多个 logo 源,按顺序尝试
-  const sources = domain ? [
-    `https://logo.clearbit.com/${domain}`,
-    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-    `https://www.google.com/s2/favicons?sz=64&domain=${domain}`,
-  ] : [];
-
-  const showImg = srcIndex < sources.length;
-  const firstChar = (symbol || '?').charAt(0).toUpperCase();
-
-  return (
-    <div
-      className="rounded-lg bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm"
-      style={{ width: size, height: size }}
-    >
-      {showImg ? (
-        <img
-          src={sources[srcIndex]}
-          alt={symbol}
-          className="w-full h-full object-contain p-0.5"
-          onError={() => setSrcIndex(srcIndex + 1)}
-          loading="lazy"
-        />
-      ) : (
-        <span
-          className="font-black text-emerald-700"
-          style={{ fontSize: size * 0.45 }}
-        >
-          {firstChar}
-        </span>
-      )}
-    </div>
-  );
-}
 
 
 // ============ 内部主 App 组件(要求已登录) ============
@@ -2102,12 +1985,9 @@ function MainApp({ user, onLogout }) {
                   style={{ background: `linear-gradient(135deg, ${stockColor.from} 0%, ${stockColor.to} 100%)` }}
                   title={`点击快速添加 ${group.symbol} 交易`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <StockLogo symbol={group.symbol} size={36} />
-                    <div className="min-w-0">
-                      <div className="font-black text-lg text-white truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{group.symbol}</div>
-                      <div className="text-xs text-white/80 truncate">{group.name}</div>
-                    </div>
+                  <div className="min-w-0">
+                    <div className="font-black text-lg text-white truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{group.symbol}</div>
+                    <div className="text-xs text-white/80 truncate">{group.name}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {group.activeWave && (
@@ -2808,10 +2688,10 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 11:34:00 (UTC+8)
-// 📝 本次更新: v7
-//   1. 撤销 v6 内嵌 logo,改回原方案(远程加载)
-//   2. 新增 Service Worker (public/sw.js) 缓存股票 logo
-//   3. 第 1 次访问加载,第 2 次访问 0 延迟(从浏览器缓存读)
-//   4. main.jsx 注册 Service Worker
+// 📅 最后修改时间: 2026-04-20 11:36:00 (UTC+8)
+// 📝 本次更新: v8 - 删除 logo 方案
+//   1. 移除股票卡片头部的公司 logo
+//   2. 删除 STOCK_LOGO_DOMAIN / StockLogo / 内嵌 SVG 等所有相关代码
+//   3. main.jsx 改为主动注销之前注册的 Service Worker
+//   4. 卡片头部回到纯文字(代码 + 中文名)
 // ============================================
