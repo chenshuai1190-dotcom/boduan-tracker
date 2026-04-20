@@ -98,6 +98,17 @@ export const fetchWatchlist = async () => {
 
 // 整体替换关注列表(简单粗暴:删光重插,适合数据量小的场景)
 export const replaceWatchlist = async (newList) => {
+  // 🚨 防护: 禁止传空数组(可能是 bug 或竞态导致的误清空)
+  //       如果用户真要清空所有, 应该一个一个删
+  if (!Array.isArray(newList)) {
+    console.warn('replaceWatchlist: 参数必须是数组', newList);
+    return;
+  }
+  if (newList.length === 0) {
+    console.warn('replaceWatchlist: 拒绝写入空数组 (防止误删所有股票)');
+    return;
+  }
+
   // 取当前用户 id
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
@@ -106,19 +117,17 @@ export const replaceWatchlist = async (newList) => {
   await supabase.from('watchlist').delete().eq('user_id', user.id);
 
   // 2) 插入新数据
-  if (newList.length > 0) {
-    const records = newList.map(s => ({
-      user_id: user.id,
-      symbol: s.symbol,
-      name: s.name || '',
-      price: s.price || 0,
-      high: s.high || 0,
-      cost: s.cost || 0,
-      shares: s.shares || 0,
-    }));
-    const { error } = await supabase.from('watchlist').insert(records);
-    if (error) throw error;
-  }
+  const records = newList.map(s => ({
+    user_id: user.id,
+    symbol: s.symbol,
+    name: s.name || '',
+    price: s.price || 0,
+    high: s.high || 0,
+    cost: s.cost || 0,
+    shares: s.shares || 0,
+  }));
+  const { error } = await supabase.from('watchlist').insert(records);
+  if (error) throw error;
   cacheSet('watchlist', newList);
 };
 
@@ -211,11 +220,146 @@ export const upsertSettings = async (settings) => {
 // ============ 一次性拉取所有数据 ============
 // 用于登录后或刷新时
 export const fetchAllUserData = async () => {
-  const [trades, watchlist, waveNotes, settings] = await Promise.all([
+  const [trades, watchlist, waveNotes, settings, accounts, snapshots] = await Promise.all([
     fetchTrades(),
     fetchWatchlist(),
     fetchWaveNotes(),
     fetchSettings(),
+    fetchAccounts(),
+    fetchSnapshots(),
   ]);
-  return { trades, watchlist, waveNotes, settings };
+  return { trades, watchlist, waveNotes, settings, accounts, snapshots };
+};
+
+// ============ ACCOUNTS (家庭账户) ============
+
+export const fetchAccounts = async () => {
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.error('fetchAccounts 失败:', error);
+    return cacheGet('accounts') || [];
+  }
+  const list = (data || []).map(a => ({
+    id: a.id,
+    owner: a.owner,
+    type: a.type,
+    name: a.name,
+    currency: a.currency || 'CNY',
+    icon: a.icon || '💰',
+    sortOrder: a.sort_order || 0,
+  }));
+  cacheSet('accounts', list);
+  return list;
+};
+
+export const insertAccount = async (account) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { data, error } = await supabase
+    .from('accounts')
+    .insert({
+      user_id: user.id,
+      owner: account.owner,
+      type: account.type,
+      name: account.name,
+      currency: account.currency || 'CNY',
+      icon: account.icon || '💰',
+      sort_order: account.sortOrder || 0,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    owner: data.owner,
+    type: data.type,
+    name: data.name,
+    currency: data.currency,
+    icon: data.icon,
+    sortOrder: data.sort_order,
+  };
+};
+
+export const updateAccount = async (id, account) => {
+  const { error } = await supabase
+    .from('accounts')
+    .update({
+      owner: account.owner,
+      type: account.type,
+      name: account.name,
+      currency: account.currency,
+      icon: account.icon,
+    })
+    .eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteAccount = async (id) => {
+  // snapshots 通过外键 cascade 自动删除
+  const { error } = await supabase.from('accounts').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ============ BALANCE SNAPSHOTS (余额快照) ============
+
+export const fetchSnapshots = async () => {
+  const { data, error } = await supabase
+    .from('balance_snapshots')
+    .select('*')
+    .order('month', { ascending: true });
+  if (error) {
+    console.error('fetchSnapshots 失败:', error);
+    return cacheGet('snapshots') || [];
+  }
+  const list = (data || []).map(s => ({
+    id: s.id,
+    accountId: s.account_id,
+    month: s.month,
+    balance: Number(s.balance),
+  }));
+  cacheSet('snapshots', list);
+  return list;
+};
+
+// 插入或更新一个月的快照(同月已有则覆盖)
+export const upsertSnapshot = async (accountId, month, balance) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { error } = await supabase
+    .from('balance_snapshots')
+    .upsert({
+      user_id: user.id,
+      account_id: accountId,
+      month: month,
+      balance: balance,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'account_id,month' });
+  if (error) throw error;
+};
+
+// 批量保存某月的所有快照(填本月余额时用)
+export const upsertMonthlySnapshots = async (month, balanceMap) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const rows = Object.entries(balanceMap).map(([accountId, balance]) => ({
+    user_id: user.id,
+    account_id: accountId,
+    month: month,
+    balance: Number(balance) || 0,
+    updated_at: new Date().toISOString(),
+  }));
+  if (rows.length === 0) return;
+  const { error } = await supabase
+    .from('balance_snapshots')
+    .upsert(rows, { onConflict: 'account_id,month' });
+  if (error) throw error;
+};
+
+export const deleteSnapshot = async (id) => {
+  const { error } = await supabase.from('balance_snapshots').delete().eq('id', id);
+  if (error) throw error;
 };
