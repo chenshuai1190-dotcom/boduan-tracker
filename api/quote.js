@@ -1,17 +1,19 @@
-// Vercel Serverless 函数:代理 Finnhub(股票) + FRED(VIX) API
-// API Keys 存在 Vercel 环境变量里,前端看不到,安全
+// Vercel Serverless 函数: 代理 EODHD(股票+指数+VIX) + CNN(FGI)
+// API Keys 存在 Vercel 环境变量,前端看不到
+//
+// 升级历史:
+//   v1: Finnhub(股票) + FRED(VIX) + Yahoo(指数 ETF 代理)
+//   v2 (Day 2): EODHD 替换 Finnhub/FRED + 真指数(GSPC/NDX) + BTC + 52周高准确化
 
 export default async function handler(req, res) {
-  // 允许跨域
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
 
   const { symbols } = req.query;
-  const finnhubKey = (process.env.FINNHUB_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
-  const fredKey = (process.env.FRED_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
 
-  if (!finnhubKey) {
-    return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 FINNHUB_API_KEY' });
+  if (!eodhdKey) {
+    return res.status(500).json({ error: 'EODHD_API_KEY 未配置,请在 Vercel 环境变量里设置' });
   }
 
   if (!symbols) {
@@ -21,69 +23,51 @@ export default async function handler(req, res) {
   const symbolList = symbols.split(',').map(s => s.trim().toUpperCase());
 
   try {
-    // 并发请求所有数据
     const results = await Promise.all(
       symbolList.map(async (symbol) => {
-        // VIX 走 FRED 通道(免费、官方、稳定)
+
+        // ============================================
+        // VIX: EODHD 指数,支持 REST 拉实时值
+        // ============================================
         if (symbol === 'VIX') {
-          if (!fredKey) {
-            return { symbol, error: 'FRED_API_KEY 未配置,VIX 无法自动获取' };
-          }
           try {
-            // FRED VIX 数据序列代号: VIXCLS (CBOE Volatility Index, Daily Close)
-            // 用 observation_start 限制时间范围,只取最近 14 天数据,降序返回
-            const today = new Date();
-            const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
-            const startDate = twoWeeksAgo.toISOString().split('T')[0]; // YYYY-MM-DD
-            const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=VIXCLS&api_key=${fredKey}&file_type=json&observation_start=${startDate}&sort_order=desc&limit=10`;
-            const r = await fetch(fredUrl);
+            // 优先 VIX.INDX,失败回退到 GSPC 简单处理
+            const url = `https://eodhd.com/api/real-time/VIX.INDX?api_token=${eodhdKey}&fmt=json`;
+            const r = await fetch(url);
             const data = await r.json();
-            
-            // 如果 FRED 返回错误(比如 key 无效)
-            if (data.error_code || data.error_message) {
-              return { symbol, error: `FRED API 错误: ${data.error_message || data.error_code}`, debug: { keyLength: fredKey.length, keyFirst4: fredKey.slice(0, 4), keyLast4: fredKey.slice(-4), url: fredUrl.replace(fredKey, 'XXX'), response: data } };
-            }
-            
-            if (!data.observations || data.observations.length === 0) {
-              return { symbol, error: 'FRED 未返回 VIX 数据', debug: { url: fredUrl.replace(fredKey, 'XXX'), response: data } };
+
+            if (data.error || !data.close) {
+              return { symbol, error: `EODHD VIX 错误: ${data.error || '无数据'}`, debug: data };
             }
 
-            // 找到最近一条非缺失数据(FRED 用 "." 表示无数据)
-            const latest = data.observations.find(o => o.value !== '.' && o.value !== null);
-            const previous = data.observations.slice(1).find(o => o.value !== '.' && o.value !== null);
-
-            if (!latest) {
-              return { symbol, error: 'FRED 返回的所有 VIX 数据均为缺失', debug: { observationsCount: data.observations.length, sample: data.observations.slice(0, 3) } };
-            }
-
-            const price = parseFloat(latest.value);
-            const prevPrice = previous ? parseFloat(previous.value) : price;
-            const change = price - prevPrice;
-            const changePercent = prevPrice > 0 ? (change / prevPrice) * 100 : 0;
+            const price = parseFloat(data.close) || 0;
+            const prevClose = parseFloat(data.previousClose) || price;
+            const change = parseFloat(data.change) || (price - prevClose);
+            const changePercent = parseFloat(data.change_p) || (prevClose > 0 ? (change / prevClose) * 100 : 0);
 
             return {
               symbol,
               price,
               change,
               changePercent,
-              high: 0,
-              low: 0,
-              open: 0,
-              previousClose: prevPrice,
-              timestamp: new Date(latest.date).getTime() / 1000,
-              dataDate: latest.date,        // 标注是哪天的收盘数据
-              source: 'FRED',
+              high: parseFloat(data.high) || 0,
+              low: parseFloat(data.low) || 0,
+              open: parseFloat(data.open) || 0,
+              previousClose: prevClose,
+              timestamp: parseInt(data.timestamp) || Math.floor(Date.now() / 1000),
+              dataDate: data.timestamp ? new Date(data.timestamp * 1000).toISOString().split('T')[0] : null,
+              source: 'EODHD',
             };
           } catch (e) {
-            return { symbol, error: `FRED 请求失败: ${e.message}` };
+            return { symbol, error: `EODHD VIX 请求失败: ${e.message}` };
           }
         }
 
-        // FGI 走 CNN 通道(免费、非官方但稳定多年)
+        // ============================================
+        // FGI: CNN Fear & Greed Index (不变, CNN 免费稳定)
+        // ============================================
         if (symbol === 'FGI') {
           try {
-            // CNN Fear & Greed Index API(过去 5 年稳定)
-            // 起始日期取 1 年前,可一并拿到历史对比数据
             const today = new Date();
             const yearAgo = new Date(today.getTime() - 400 * 24 * 60 * 60 * 1000);
             const startDate = yearAgo.toISOString().split('T')[0];
@@ -108,11 +92,9 @@ export default async function handler(req, res) {
             }
 
             const score = Math.round(current.score);
-            const label = current.rating; // "extreme fear" / "fear" / "neutral" / "greed" / "extreme greed"
+            const label = current.rating;
             const timestamp = current.timestamp;
 
-            // 找历史对比:前一交易日/1周前/1月前/1年前
-            // historical 数组按时间升序,最后一个是最新
             const findHistorical = (daysAgo) => {
               const targetTime = today.getTime() - daysAgo * 24 * 60 * 60 * 1000;
               let closest = null;
@@ -129,12 +111,12 @@ export default async function handler(req, res) {
 
             return {
               symbol,
-              price: score,                              // 当前分数(0-100)
-              label,                                     // 评级标签
-              previousClose: findHistorical(1),          // 前一交易日
-              weekAgo: findHistorical(7),                // 1 周前
-              monthAgo: findHistorical(30),              // 1 月前
-              yearAgo: findHistorical(365),              // 1 年前
+              price: score,
+              label,
+              previousClose: findHistorical(1),
+              weekAgo: findHistorical(7),
+              monthAgo: findHistorical(30),
+              yearAgo: findHistorical(365),
               timestamp: new Date(timestamp).getTime() / 1000,
               dataDate: timestamp ? timestamp.split('T')[0] : null,
               source: 'CNN',
@@ -144,45 +126,66 @@ export default async function handler(req, res) {
           }
         }
 
-        // 三大指数当天分时图(走 Yahoo Finance,免费稳定)
-        // 使用 ETF 代替指数:DIA(道指)/QQQ(纳指)/SPY(标普)
+        // ============================================
+        // INDICES: 大盘指数 (真指数: GSPC.INDX / NDX.INDX + BTC)
+        // 删除道琼斯,加入 BTC
+        // ============================================
         if (symbol === 'INDICES') {
           try {
             const indices = [
-              { ticker: 'DIA', name: '道琼斯', cn: '道指', mult: 100 },   // DIA × 100 ≈ 道指点位
-              { ticker: 'QQQ', name: '纳斯达克', cn: '纳指', mult: 38 }, // QQQ × ~38 ≈ 纳指
-              { ticker: 'SPY', name: '标普500', cn: '标普', mult: 10 },  // SPY × 10 ≈ 标普
+              { ticker: 'GSPC.INDX',  name: '标普500',     cn: '标普' },
+              { ticker: 'NDX.INDX',   name: '纳斯达克100', cn: '纳指' },
+              { ticker: 'BTC-USD.CC', name: '比特币',      cn: 'BTC'  },
             ];
 
             const results = await Promise.all(indices.map(async (idx) => {
               try {
-                // Yahoo Finance: 1m 间隔,1d 范围 = 当天分时
-                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${idx.ticker}?interval=5m&range=1d`;
-                const r = await fetch(yahooUrl, {
-                  headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json',
-                  },
-                });
+                // 并发拉 EODHD 实时 + Yahoo 当天分时(分时图用)
+                const eodhdUrl = `https://eodhd.com/api/real-time/${idx.ticker}?api_token=${eodhdKey}&fmt=json`;
+                // Yahoo 分时的 ticker 需要特殊处理
+                let yahooTicker = idx.ticker.replace('.INDX', '');
+                if (yahooTicker === 'GSPC') yahooTicker = '^GSPC';
+                if (yahooTicker === 'NDX') yahooTicker = '^NDX';
+                if (yahooTicker === 'BTC-USD.CC') yahooTicker = 'BTC-USD';
+                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooTicker)}?interval=5m&range=1d`;
 
-                if (!r.ok) {
-                  return { ticker: idx.ticker, name: idx.name, error: `Yahoo HTTP ${r.status}` };
+                const [eodhdRes, yahooRes] = await Promise.all([
+                  fetch(eodhdUrl),
+                  fetch(yahooUrl, {
+                    headers: {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                      'Accept': 'application/json',
+                    },
+                  }).catch(() => null),
+                ]);
+
+                const data = await eodhdRes.json();
+                if (data.error || !data.close) {
+                  return { ticker: idx.ticker, name: idx.name, error: `EODHD: ${data.error || '无数据'}`, debug: data };
                 }
 
-                const data = await r.json();
-                const result = data?.chart?.result?.[0];
-                if (!result) {
-                  return { ticker: idx.ticker, name: idx.name, error: 'Yahoo 返回数据为空' };
+                const currentPrice = parseFloat(data.close) || 0;
+                const previousClose = parseFloat(data.previousClose) || currentPrice;
+                const change = parseFloat(data.change) || (currentPrice - previousClose);
+                const changePercent = parseFloat(data.change_p) || (previousClose > 0 ? (change / previousClose) * 100 : 0);
+
+                // Yahoo 分时图数据
+                let intraday = [];
+                let dayHigh = parseFloat(data.high) || currentPrice;
+                let dayLow = parseFloat(data.low) || currentPrice;
+                if (yahooRes && yahooRes.ok) {
+                  try {
+                    const yahooData = await yahooRes.json();
+                    const result = yahooData?.chart?.result?.[0];
+                    const closes = result?.indicators?.quote?.[0]?.close || [];
+                    intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+                    const meta = result?.meta || {};
+                    dayHigh = meta.regularMarketDayHigh || dayHigh;
+                    dayLow = meta.regularMarketDayLow || dayLow;
+                  } catch (e) {
+                    // Yahoo 失败不影响
+                  }
                 }
-
-                const meta = result.meta || {};
-                const quote = result.indicators?.quote?.[0] || {};
-                const closes = (quote.close || []).filter(v => v !== null && v !== undefined);
-
-                const currentPrice = meta.regularMarketPrice || closes[closes.length - 1] || 0;
-                const previousClose = meta.chartPreviousClose || meta.previousClose || 0;
-                const change = currentPrice - previousClose;
-                const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
                 return {
                   ticker: idx.ticker,
@@ -192,103 +195,119 @@ export default async function handler(req, res) {
                   previousClose,
                   change,
                   changePercent,
-                  // 当天分时收盘价数组(用于画走势线)
-                  intraday: closes,
-                  // 日内最高/最低
-                  dayHigh: meta.regularMarketDayHigh || Math.max(...closes),
-                  dayLow: meta.regularMarketDayLow || Math.min(...closes),
+                  intraday,
+                  dayHigh,
+                  dayLow,
                 };
               } catch (e) {
-                return { ticker: idx.ticker, name: idx.name, error: `Yahoo 请求失败: ${e.message}` };
+                return { ticker: idx.ticker, name: idx.name, error: `请求失败: ${e.message}` };
               }
             }));
 
             return {
               symbol: 'INDICES',
               data: results,
-              source: 'Yahoo',
+              source: 'EODHD+Yahoo',
               fetchedAt: new Date().toISOString(),
             };
           } catch (e) {
-            return { symbol, error: `Yahoo 拉取失败: ${e.message}` };
+            return { symbol: 'INDICES', error: `INDICES 拉取失败: ${e.message}` };
           }
         }
-        
-        // 其他股票走 Finnhub(报价 + 52 周高低) + Yahoo(当天分时图)
+
+        // ============================================
+        // 股票: EODHD 实时价 + 52周高(历史日线 max) + Yahoo 分时图
+        // ============================================
         try {
-          const quoteUrl = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${finnhubKey}`;
-          const metricUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all&token=${finnhubKey}`;
+          // 1) EODHD 实时价 (支持盘前盘后!)
+          const realtimeUrl = `https://eodhd.com/api/real-time/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&fmt=json`;
+
+          // 2) EODHD 历史日线(过去 400 天) → 算准确 52 周高/低
+          const today = new Date();
+          const fromDate = new Date(today.getTime() - 400 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
+
+          // 3) Yahoo 分时图 (保留, 用于心电图)
           const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d`;
 
-          const [quoteRes, metricRes, yahooRes] = await Promise.all([
-            fetch(quoteUrl),
-            fetch(metricUrl),
+          const [realtimeRes, eodRes, yahooRes] = await Promise.all([
+            fetch(realtimeUrl),
+            fetch(eodUrl),
             fetch(yahooUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
               },
-            }).catch(() => null), // Yahoo 失败不影响整体
+            }).catch(() => null),
           ]);
 
-          const data = await quoteRes.json();
-          let week52High = 0;
-          let week52Low = 0;
-          if (metricRes.ok) {
+          const data = await realtimeRes.json();
+          if (data.error || data.close === undefined || data.close === null || data.close === 'NA') {
+            return { symbol, error: `EODHD 错误: ${data.error || '无数据'}`, debug: data };
+          }
+
+          // EODHD 字段映射
+          const price = parseFloat(data.close) || 0;
+          const open = parseFloat(data.open) || 0;
+          const dayHigh = parseFloat(data.high) || 0;
+          const dayLow = parseFloat(data.low) || 0;
+          const previousClose = parseFloat(data.previousClose) || price;
+          const change = parseFloat(data.change) || (price - previousClose);
+          const changePercent = parseFloat(data.change_p) || (previousClose > 0 ? (change / previousClose) * 100 : 0);
+          const timestamp = parseInt(data.timestamp) || Math.floor(Date.now() / 1000);
+
+          // 52 周高/低 - 从历史日线精确计算
+          let week52High = dayHigh;
+          let week52Low = dayLow;
+          let highSource = 'realtime';
+          if (eodRes.ok) {
             try {
-              const metricData = await metricRes.json();
-              week52High = metricData?.metric?.['52WeekHigh'] || 0;
-              week52Low = metricData?.metric?.['52WeekLow'] || 0;
+              const eodData = await eodRes.json();
+              if (Array.isArray(eodData) && eodData.length > 0) {
+                // 只取最近 252 个交易日(约 52 周)
+                const last52Weeks = eodData.slice(-252);
+                const highs = last52Weeks.map(d => parseFloat(d.high)).filter(v => !isNaN(v) && v > 0);
+                const lows = last52Weeks.map(d => parseFloat(d.low)).filter(v => !isNaN(v) && v > 0);
+                if (highs.length > 0) week52High = Math.max(...highs, dayHigh);
+                if (lows.length > 0) week52Low = Math.min(...lows, dayLow || Infinity);
+                highSource = 'eodhd-eod';
+              }
             } catch (e) {
-              // metric 拉取失败不影响 quote 返回
+              // EOD 失败不影响
             }
           }
 
-          // 拉 Yahoo 当天分时 + 52 周高低(已前复权,跟雪球/长桥一致)
+          // Yahoo 分时图(心电图用)
           let intraday = [];
-          let yahooWeek52High = 0;
-          let yahooWeek52Low = 0;
           if (yahooRes && yahooRes.ok) {
             try {
               const yahooData = await yahooRes.json();
               const result = yahooData?.chart?.result?.[0];
               const closes = result?.indicators?.quote?.[0]?.close || [];
               intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
-              // Yahoo meta 里的 52 周高/低(已复权)
-              const meta = result?.meta || {};
-              yahooWeek52High = meta.fiftyTwoWeekHigh || 0;
-              yahooWeek52Low = meta.fiftyTwoWeekLow || 0;
             } catch (e) {
-              // Yahoo 失败不影响整体
+              // Yahoo 失败不影响
             }
           }
 
-          // 52 周高优先级:Yahoo(前复权) > Finnhub > 当日高
-          const finalWeek52High = yahooWeek52High || week52High || data.h || 0;
-          const finalWeek52Low = yahooWeek52Low || week52Low || data.l || 0;
-
           return {
             symbol,
-            price: data.c || 0,
-            change: data.d || 0,
-            changePercent: data.dp || 0,
-            // 当日高低(用于日内分析)
-            dayHigh: data.h || 0,
-            dayLow: data.l || 0,
-            // 52 周高低(已复权,优先 Yahoo)
-            week52High: finalWeek52High,
-            week52Low: finalWeek52Low,
+            price,
+            change,
+            changePercent,
+            dayHigh,
+            dayLow,
+            week52High,
+            week52Low,
             // 兼容旧字段
-            high: finalWeek52High,
-            low: finalWeek52Low,
-            // 数据来源标记(用于调试)
-            highSource: yahooWeek52High > 0 ? 'yahoo' : (week52High > 0 ? 'finnhub' : 'fallback'),
-            open: data.o || 0,
-            previousClose: data.pc || 0,
-            timestamp: data.t || 0,
-            // 当天分时数据(用于心电图)
+            high: week52High,
+            low: week52Low,
+            highSource,
+            open,
+            previousClose,
+            timestamp,
             intraday,
-            source: 'Finnhub+Yahoo',
+            source: 'EODHD+Yahoo',
           };
         } catch (e) {
           return { symbol, error: e.message };
