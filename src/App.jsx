@@ -4,6 +4,62 @@ import Login from './Login';
 import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
 import * as db from './lib/db';
 
+// ============ 滚动触发数字动画 Hook ============
+// 当元素进入视口时触发,数字从 0 动画到 target
+// 离开视口再回来时,会重新动画一次
+function useCountUpOnScroll(target, duration = 800) {
+  const [value, setValue] = useState(0);
+  const ref = useRef(null);
+  const animationRef = useRef(null);
+  const wasInView = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          if (!wasInView.current) {
+            wasInView.current = true;
+            // 取消之前的动画
+            if (animationRef.current) cancelAnimationFrame(animationRef.current);
+            // 启动动画: 0 → target
+            const startTime = performance.now();
+            const animate = (now) => {
+              const elapsed = now - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              // easeOutCubic 缓动函数,有"哒哒哒到位"的感觉
+              const eased = 1 - Math.pow(1 - progress, 3);
+              setValue(target * eased);
+              if (progress < 1) {
+                animationRef.current = requestAnimationFrame(animate);
+              } else {
+                setValue(target); // 确保终点精确
+              }
+            };
+            animationRef.current = requestAnimationFrame(animate);
+          }
+        } else {
+          // 离开视口,重置标志(下次进入会再次触发动画)
+          wasInView.current = false;
+        }
+      },
+      { threshold: 0.4 } // 40% 的元素可见才触发,避免轻微滑动也重播
+    );
+
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [target, duration]);
+
+  return [value, ref];
+}
+
+
 // ============ 美股中英对照表 ============
 // 主流热门股票 + 美股 ETF + 中概股(共 220+)
 const STOCK_NAME_CN = {
@@ -106,88 +162,224 @@ const STOCK_NAME_CN = {
 
 // ============ 股票配色 ============
 // 主流热门股配品牌色,非主流的根据代码 hash 自动分配
-const STOCK_COLORS = {
-  // 七姐妹 - 用品牌色
-  AAPL: { from: '#1f2937', to: '#374151' },      // 苹果灰黑
-  MSFT: { from: '#0078d4', to: '#005a9e' },      // 微软蓝
-  GOOGL: { from: '#4285f4', to: '#1a73e8' },     // 谷歌蓝
-  GOOG: { from: '#4285f4', to: '#1a73e8' },
-  AMZN: { from: '#ff9900', to: '#e88c00' },      // 亚马逊橙
-  META: { from: '#0866ff', to: '#0052cc' },      // Meta 蓝
-  NVDA: { from: '#76b900', to: '#5a8f00' },      // 英伟达绿
-  TSLA: { from: '#cc0000', to: '#990000' },      // 特斯拉红
-  // 杠杆 ETF - 用紫色系强调"高风险"
-  TQQQ: { from: '#7c3aed', to: '#5b21b6' },      // 紫
-  SQQQ: { from: '#6b21a8', to: '#4c1d95' },
-  SOXL: { from: '#a855f7', to: '#7e22ce' },
-  TNA: { from: '#9333ea', to: '#6b21a8' },
-  // 半导体
-  TSM: { from: '#dc2626', to: '#991b1b' },       // 台积电红
-  AMD: { from: '#000000', to: '#1f2937' },
-  AVGO: { from: '#cc0000', to: '#7f1d1d' },
-  // 中概
-  BABA: { from: '#ff6a00', to: '#e55a00' },      // 阿里橙
-  PDD: { from: '#e02e24', to: '#b91c1c' },
-  JD: { from: '#e1251b', to: '#a8181a' },
-  BIDU: { from: '#2932e1', to: '#1d4ed8' },
-  NIO: { from: '#00a99d', to: '#047857' },
-  XPEV: { from: '#0066ff', to: '#0047b3' },
-  LI: { from: '#1e88e5', to: '#1565c0' },
-  // 主流 ETF
-  SPY: { from: '#1e40af', to: '#1e3a8a' },       // 标普蓝
-  QQQ: { from: '#0ea5e9', to: '#0369a1' },       // 纳指浅蓝
-  DIA: { from: '#475569', to: '#334155' },       // 道指灰
-  VTI: { from: '#16a34a', to: '#15803d' },
-  // 加密相关
-  COIN: { from: '#0052ff', to: '#0040cc' },
-  MSTR: { from: '#f7931a', to: '#cc7400' },
-  // 流媒体/消费
-  NFLX: { from: '#e50914', to: '#b20710' },
-  DIS: { from: '#113ccf', to: '#0a2796' },
-  SBUX: { from: '#00704a', to: '#00543a' },
-  KO: { from: '#f40009', to: '#c30007' },
-  PEP: { from: '#004b93', to: '#003a72' },
-  MCD: { from: '#ffc72c', to: '#da9c00' },
-  NKE: { from: '#111111', to: '#000000' },
-  // 金融
-  JPM: { from: '#0066b3', to: '#004d8a' },
-  V: { from: '#1a1f71', to: '#101545' },
-  MA: { from: '#eb001b', to: '#b30015' },
-  // 软件 / SaaS
-  CRM: { from: '#00a1e0', to: '#0079a8' },
-  ORCL: { from: '#c74634', to: '#9a3527' },
-  ADBE: { from: '#fa0f00', to: '#c00c00' },
-  SHOP: { from: '#95bf47', to: '#7ba238' },
-  PLTR: { from: '#101216', to: '#000000' },
-  // 加密 ETF
-  IBIT: { from: '#000000', to: '#1f1f1f' },
-  GBTC: { from: '#f7931a', to: '#cc7400' },
-};
+// ============ 股票卡片颜色:统一绿色系 ============
+// 用 3 档绿色深浅区分,避免完全一样太单调,但保持整体视觉统一
+const GREEN_PALETTE = [
+  { from: '#10b981', to: '#047857' },  // 翠绿(emerald 500→700)
+  { from: '#16a34a', to: '#15803d' },  // 标准绿(green 600→700)
+  { from: '#22c55e', to: '#15803d' },  // 鲜绿(green 500→700)
+  { from: '#059669', to: '#065f46' },  // 深翠绿(emerald 600→800)
+  { from: '#65a30d', to: '#4d7c0f' },  // 黄绿(lime 600→700)
+];
 
-// 根据股票代码返回颜色(没有预设的用 hash 自动分配)
+// 根据股票代码返回绿色(用 hash 让同一只股票永远是同一种深浅)
 const getStockColor = (symbol) => {
-  if (STOCK_COLORS[symbol]) return STOCK_COLORS[symbol];
-  // 自动分配:从一个备选色板里 hash 选一个
-  const fallbackPalette = [
-    { from: '#0891b2', to: '#0e7490' }, // 青
-    { from: '#059669', to: '#047857' }, // 翠绿
-    { from: '#d97706', to: '#b45309' }, // 琥珀
-    { from: '#db2777', to: '#be185d' }, // 玫红
-    { from: '#7c3aed', to: '#6d28d9' }, // 紫
-    { from: '#0d9488', to: '#0f766e' }, // 蓝绿
-    { from: '#ea580c', to: '#c2410c' }, // 橙
-    { from: '#4f46e5', to: '#4338ca' }, // 靛
-    { from: '#65a30d', to: '#4d7c0f' }, // 草绿
-  ];
   let hash = 0;
   for (let i = 0; i < symbol.length; i++) {
     hash = ((hash << 5) - hash) + symbol.charCodeAt(i);
     hash |= 0;
   }
-  return fallbackPalette[Math.abs(hash) % fallbackPalette.length];
+  return GREEN_PALETTE[Math.abs(hash) % GREEN_PALETTE.length];
 };
 
+// ============ 股票 Logo 域名映射 ============
+// 用 Clearbit Logo API: https://logo.clearbit.com/{domain}
+// 没在表里的代码,fallback 显示首字母
+const STOCK_LOGO_DOMAIN = {
+  // 七姐妹
+  AAPL: 'apple.com',
+  MSFT: 'microsoft.com',
+  GOOGL: 'google.com',
+  GOOG: 'google.com',
+  AMZN: 'amazon.com',
+  META: 'meta.com',
+  NVDA: 'nvidia.com',
+  TSLA: 'tesla.com',
+  // 杠杆 ETF (用 ProShares)
+  TQQQ: 'proshares.com',
+  SQQQ: 'proshares.com',
+  SOXL: 'direxion.com',
+  TNA: 'direxion.com',
+  // 半导体
+  TSM: 'tsmc.com',
+  AMD: 'amd.com',
+  AVGO: 'broadcom.com',
+  INTC: 'intel.com',
+  MU: 'micron.com',
+  ASML: 'asml.com',
+  // 中概
+  BABA: 'alibaba.com',
+  PDD: 'pddholdings.com',
+  JD: 'jd.com',
+  BIDU: 'baidu.com',
+  NIO: 'nio.com',
+  XPEV: 'xiaopeng.com',
+  LI: 'lixiang.com',
+  TCEHY: 'tencent.com',
+  // 主流 ETF
+  SPY: 'ssga.com',         // State Street
+  QQQ: 'invesco.com',
+  DIA: 'ssga.com',
+  VTI: 'vanguard.com',
+  IWM: 'ishares.com',
+  // 加密相关
+  COIN: 'coinbase.com',
+  MSTR: 'microstrategy.com',
+  IBIT: 'ishares.com',
+  GBTC: 'grayscale.com',
+  // 流媒体/消费
+  NFLX: 'netflix.com',
+  DIS: 'disney.com',
+  SBUX: 'starbucks.com',
+  KO: 'coca-cola.com',
+  PEP: 'pepsi.com',
+  MCD: 'mcdonalds.com',
+  NKE: 'nike.com',
+  // 金融
+  JPM: 'jpmorganchase.com',
+  V: 'visa.com',
+  MA: 'mastercard.com',
+  BAC: 'bankofamerica.com',
+  GS: 'goldmansachs.com',
+  // 软件 / SaaS
+  CRM: 'salesforce.com',
+  ORCL: 'oracle.com',
+  ADBE: 'adobe.com',
+  SHOP: 'shopify.com',
+  PLTR: 'palantir.com',
+  NOW: 'servicenow.com',
+  // 现金等价
+  SGOV: 'ishares.com',
+  BIL: 'ssga.com',
+};
+
+const getStockLogoUrl = (symbol) => {
+  const domain = STOCK_LOGO_DOMAIN[symbol];
+  return domain ? `https://logo.clearbit.com/${domain}` : null;
+};
+
+// ============ 股票 Logo 组件 ============
+// 优先显示真实公司 logo,加载失败 fallback 到首字母圆形图
+function StockLogo({ symbol, size = 32 }) {
+  const [imgError, setImgError] = useState(false);
+  const url = getStockLogoUrl(symbol);
+  const showImg = url && !imgError;
+  const firstChar = (symbol || '?').charAt(0).toUpperCase();
+
+  return (
+    <div
+      className="rounded-lg bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm"
+      style={{ width: size, height: size }}
+    >
+      {showImg ? (
+        <img
+          src={url}
+          alt={symbol}
+          className="w-full h-full object-contain p-0.5"
+          onError={() => setImgError(true)}
+          loading="lazy"
+        />
+      ) : (
+        <span
+          className="font-black text-emerald-700"
+          style={{ fontSize: size * 0.45 }}
+        >
+          {firstChar}
+        </span>
+      )}
+    </div>
+  );
+}
+
+
 // ============ 内部主 App 组件(要求已登录) ============
+// ============ VIX 恐慌指数卡片(独立组件,支持滚动入场动画) ============
+function VixCard({ vix, setVix, vixDataDate, setVixDataDate, vixSignal }) {
+  const [animatedVix, vixCardRef] = useCountUpOnScroll(vix, 900);
+  return (
+    <div ref={vixCardRef} className={`rounded-2xl p-5 mb-4 shadow border-2 ${vixSignal.color}`}>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs opacity-80 font-medium">VIX 恐慌指数</span>
+            {vixDataDate && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/30 font-bold">
+                📅 {(() => {
+                  const d = new Date(vixDataDate);
+                  return `${d.getMonth() + 1}/${d.getDate()} 收盘`;
+                })()}
+              </span>
+            )}
+          </div>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-4xl font-black tabular-nums">{animatedVix.toFixed(1)}</span>
+            <span className="text-2xl">{vixSignal.icon}</span>
+          </div>
+          <div className="text-sm opacity-90 mt-0.5">{vixSignal.desc}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs opacity-80">操作信号</div>
+          <div className="text-xl font-black mt-1">{vixSignal.label}</div>
+        </div>
+      </div>
+
+      {/* VIX 进度条 */}
+      <div className="relative h-3 bg-white/30 rounded-full overflow-hidden mb-2">
+        <div
+          className="absolute inset-y-0 left-0 bg-white/60 rounded-full"
+          style={{ width: `${Math.min((animatedVix / 50) * 100, 100)}%` }}
+        />
+        {/* 阈值刻度 */}
+        {[20, 25, 30, 35].map(v => (
+          <div
+            key={v}
+            className="absolute inset-y-0 w-0.5 bg-white/80"
+            style={{ left: `${(v / 50) * 100}%` }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] opacity-80 font-bold mb-3">
+        <span>0</span>
+        <span>20 准备</span>
+        <span>25 买入</span>
+        <span>30 重点</span>
+        <span>35 梭哈</span>
+        <span>50</span>
+      </div>
+
+      <div className="bg-white/20 rounded-lg px-3 py-2 text-sm font-bold">
+        💡 {vixSignal.action}
+      </div>
+
+      {/* VIX 输入(手动覆盖) */}
+      <div className="mt-3">
+        <div className="flex items-center gap-2">
+          <label className="text-xs opacity-80 font-bold">手动覆盖 VIX:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={vix}
+            onChange={(e) => { setVix(parseFloat(e.target.value) || 0); setVixDataDate(null); }}
+            className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-900 bg-white/90 border border-white/50"
+          />
+          <a
+            href="https://finance.yahoo.com/quote/%5EVIX/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1.5 rounded-lg text-xs font-bold bg-white/30 hover:bg-white/50 transition active:scale-95"
+            title="在 Yahoo 查询实时 VIX"
+          >
+            查实时↗
+          </a>
+        </div>
+        <div className="text-[10px] opacity-70 mt-1">
+          💡 自动拉取 FRED 收盘价;盘中实时点「查实时」手动填
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MainApp({ user, onLogout }) {
   // ============ 核心状态 ============
   const [qqqHigh, setQqqHigh] = useState(640.47);
@@ -779,17 +971,17 @@ function MainApp({ user, onLogout }) {
       }]);
     }
 
-    // 重置表单
+    // 重置表单(保留 symbol/name/side/date,方便下一笔同一股票)
     setNewTrade({
-      symbol: 'TQQQ',
-      name: '3倍纳指',
-      side: 'buy',
+      symbol: newTrade.symbol,           // 保留刚用的代码
+      name: newTrade.name,                // 保留中文名
+      side: newTrade.side,                // 保留买/卖方向
       date: new Date().toISOString().split('T')[0],
-      price: '',
-      shares: '',
+      price: '',                          // 价格清空,等待重新输入
+      shares: '',                         // 股数清空
       batch: '第1批',
     });
-    setLookupStatus(null);
+    setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found'); // 已知代码默认显示已找到
     setShowAddTrade(false);
   };
 
@@ -1275,86 +1467,13 @@ function MainApp({ user, onLogout }) {
         </div>
 
         {/* VIX 恐慌指数 */}
-        <div className={`rounded-2xl p-5 mb-4 shadow border-2 ${vixSignal.color}`}>
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs opacity-80 font-medium">VIX 恐慌指数</span>
-                {vixDataDate && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/30 font-bold">
-                    📅 {(() => {
-                      const d = new Date(vixDataDate);
-                      return `${d.getMonth() + 1}/${d.getDate()} 收盘`;
-                    })()}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-4xl font-black">{vix.toFixed(1)}</span>
-                <span className="text-2xl">{vixSignal.icon}</span>
-              </div>
-              <div className="text-sm opacity-90 mt-0.5">{vixSignal.desc}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs opacity-80">操作信号</div>
-              <div className="text-xl font-black mt-1">{vixSignal.label}</div>
-            </div>
-          </div>
-
-          {/* VIX 进度条 */}
-          <div className="relative h-3 bg-white/30 rounded-full overflow-hidden mb-2">
-            <div
-              className="absolute inset-y-0 left-0 bg-white/60 rounded-full transition-all"
-              style={{ width: `${Math.min((vix / 50) * 100, 100)}%` }}
-            />
-            {/* 阈值刻度 */}
-            {[20, 25, 30, 35].map(v => (
-              <div
-                key={v}
-                className="absolute inset-y-0 w-0.5 bg-white/80"
-                style={{ left: `${(v / 50) * 100}%` }}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between text-[10px] opacity-80 font-bold mb-3">
-            <span>0</span>
-            <span>20 准备</span>
-            <span>25 买入</span>
-            <span>30 重点</span>
-            <span>35 梭哈</span>
-            <span>50</span>
-          </div>
-
-          <div className="bg-white/20 rounded-lg px-3 py-2 text-sm font-bold">
-            💡 {vixSignal.action}
-          </div>
-
-          {/* VIX 输入(手动覆盖,适合盘中查实时值) */}
-          <div className="mt-3">
-            <div className="flex items-center gap-2">
-              <label className="text-xs opacity-80 font-bold">手动覆盖 VIX:</label>
-              <input
-                type="number"
-                step="0.1"
-                value={vix}
-                onChange={(e) => { setVix(parseFloat(e.target.value) || 0); setVixDataDate(null); }}
-                className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-900 bg-white/90 border border-white/50"
-              />
-              <a
-                href="https://finance.yahoo.com/quote/%5EVIX/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1.5 rounded-lg text-xs font-bold bg-white/30 hover:bg-white/50 transition active:scale-95"
-                title="在 Yahoo 查询实时 VIX"
-              >
-                查实时↗
-              </a>
-            </div>
-            <div className="text-[10px] opacity-70 mt-1">
-              💡 自动拉取 FRED 收盘价;盘中实时点「查实时」手动填
-            </div>
-          </div>
-        </div>
+        <VixCard
+          vix={vix}
+          setVix={setVix}
+          vixDataDate={vixDataDate}
+          setVixDataDate={setVixDataDate}
+          vixSignal={vixSignal}
+        />
 
         {/* CNN 恐慌贪婪指数 (FGI) */}
         {(() => {
@@ -1973,12 +2092,15 @@ function MainApp({ user, onLogout }) {
                   className="px-4 py-3 flex items-center justify-between"
                   style={{ background: `linear-gradient(135deg, ${stockColor.from} 0%, ${stockColor.to} 100%)` }}
                 >
-                  <div>
-                    <div className="font-black text-lg text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{group.symbol}</div>
-                    <div className="text-xs text-white/80">{group.name}</div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <StockLogo symbol={group.symbol} size={36} />
+                    <div className="min-w-0">
+                      <div className="font-black text-lg text-white truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>{group.symbol}</div>
+                      <div className="text-xs text-white/80 truncate">{group.name}</div>
+                    </div>
                   </div>
                   {group.activeWave && (
-                    <div className="px-2 py-1 rounded-full bg-white/25 backdrop-blur flex items-center gap-1">
+                    <div className="px-2 py-1 rounded-full bg-white/25 backdrop-blur flex items-center gap-1 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
                       <span className="text-[10px] font-black text-white">进行中</span>
                     </div>
@@ -2197,123 +2319,147 @@ function MainApp({ user, onLogout }) {
           <Plus className="w-5 h-5" /> 添加交易
         </button>
 
-        {/* 添加成交表单 */}
+        {/* 添加成交表单 - Modal 弹窗 */}
         {showAddTrade && (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 mb-3">
-            {/* 买/卖切换 */}
-            <div className="flex gap-2 mb-3">
-              <button
-                onClick={() => setNewTrade({ ...newTrade, side: 'buy' })}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold transition active:scale-95 ${newTrade.side === 'buy' ? 'bg-red-600 text-white shadow' : 'bg-white text-slate-500 border border-slate-200'}`}
-              >
-                买入
-              </button>
-              <button
-                onClick={() => setNewTrade({ ...newTrade, side: 'sell' })}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold transition active:scale-95 ${newTrade.side === 'sell' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-500 border border-slate-200'}`}
-              >
-                卖出
-              </button>
-            </div>
-
-            {/* 股票代码 + 名称 */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1 flex items-center gap-1.5">
-                  <span>股票代码</span>
-                  {lookupStatus === 'loading' && (
-                    <span className="text-blue-600 inline-flex items-center gap-0.5">
-                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                      <span>查询中</span>
-                    </span>
-                  )}
-                  {lookupStatus === 'found' && (
-                    <span className="text-emerald-600 inline-flex items-center gap-0.5">
-                      <CheckCircle2 className="w-2.5 h-2.5" />
-                      <span>已找到</span>
-                    </span>
-                  )}
-                  {lookupStatus === 'notfound' && (
-                    <span className="text-amber-600 inline-flex items-center gap-0.5">
-                      <AlertCircle className="w-2.5 h-2.5" />
-                      <span>未找到,可手动填</span>
-                    </span>
-                  )}
-                </label>
-                <input
-                  type="text"
-                  placeholder="如 NVDA"
-                  value={newTrade.symbol}
-                  onChange={(e) => {
-                    const sym = e.target.value.toUpperCase();
-                    // 改代码时清掉之前自动填的名字和价格(让查询重新生效)
-                    setNewTrade({
-                      ...newTrade,
-                      symbol: sym,
-                      name: '',
-                      price: '',
-                    });
-                  }}
-                  className={`w-full px-2 py-2 border rounded-lg text-sm font-bold uppercase ${
-                    lookupStatus === 'found' ? 'border-emerald-400' :
-                    lookupStatus === 'notfound' ? 'border-amber-400' :
-                    'border-slate-300'
-                  }`}
-                />
+          <div
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAddTrade(false); }}
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+          >
+            <div
+              className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+              {/* 顶部把手 + 标题 */}
+              <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-slate-100 z-10">
+                <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-2 sm:hidden" />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-black text-slate-900">添加交易</h2>
+                  <button
+                    onClick={() => setShowAddTrade(false)}
+                    className="text-slate-400 hover:text-slate-600 active:scale-90 transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">中文名(自动)</label>
-                <input
-                  type="text"
-                  placeholder="自动填充"
-                  value={newTrade.name}
-                  onChange={(e) => setNewTrade({ ...newTrade, name: e.target.value })}
-                  className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
-                />
-              </div>
-            </div>
 
-            {/* 日期(独占一行) */}
-            <div className="mb-2">
-              <label className="text-[10px] text-slate-500 block mb-1">日期</label>
-              <input
-                type="date"
-                value={newTrade.date}
-                onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
-                className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm"
-              />
-            </div>
+              <div className="p-4">
+                {/* 买/卖切换 */}
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setNewTrade({ ...newTrade, side: 'buy' })}
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition active:scale-95 ${newTrade.side === 'buy' ? 'bg-red-600 text-white shadow' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+                  >
+                    买入
+                  </button>
+                  <button
+                    onClick={() => setNewTrade({ ...newTrade, side: 'sell' })}
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition active:scale-95 ${newTrade.side === 'sell' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+                  >
+                    卖出
+                  </button>
+                </div>
 
-            {/* 价格 + 股数(共一行) */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">价格 ($, 自动)</label>
-                <input
-                  type="number"
-                  placeholder="自动填充"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={newTrade.price}
-                  onChange={(e) => setNewTrade({ ...newTrade, price: e.target.value })}
-                  className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm tabular-nums bg-slate-50"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 block mb-1">股数</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  inputMode="numeric"
-                  value={newTrade.shares}
-                  onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
-                  className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                />
-              </div>
-            </div>
+                {/* 股票代码 + 名称 */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1 flex items-center gap-1.5">
+                      <span>股票代码</span>
+                      {lookupStatus === 'loading' && (
+                        <span className="text-blue-600 inline-flex items-center gap-0.5">
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                          <span>查询中</span>
+                        </span>
+                      )}
+                      {lookupStatus === 'found' && (
+                        <span className="text-emerald-600 inline-flex items-center gap-0.5">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          <span>已找到</span>
+                        </span>
+                      )}
+                      {lookupStatus === 'notfound' && (
+                        <span className="text-amber-600 inline-flex items-center gap-0.5">
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          <span>未找到,可手动填</span>
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="如 NVDA"
+                      value={newTrade.symbol}
+                      onChange={(e) => {
+                        const sym = e.target.value.toUpperCase();
+                        setNewTrade({
+                          ...newTrade,
+                          symbol: sym,
+                          name: '',
+                          price: '',
+                        });
+                      }}
+                      className={`w-full px-2 py-2 border rounded-lg text-sm font-bold uppercase ${
+                        lookupStatus === 'found' ? 'border-emerald-400' :
+                        lookupStatus === 'notfound' ? 'border-amber-400' :
+                        'border-slate-300'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">中文名(自动)</label>
+                    <input
+                      type="text"
+                      placeholder="自动填充"
+                      value={newTrade.name}
+                      onChange={(e) => setNewTrade({ ...newTrade, name: e.target.value })}
+                      className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
+                    />
+                  </div>
+                </div>
 
-            <div className="flex gap-2">
-              <button onClick={addTrade} className="flex-1 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold active:scale-95">确认添加</button>
-              <button onClick={() => setShowAddTrade(false)} className="flex-1 py-2.5 bg-slate-300 text-slate-700 rounded-lg text-sm font-bold active:scale-95">取消</button>
+                {/* 日期(独占一行) */}
+                <div className="mb-2">
+                  <label className="text-[10px] text-slate-500 block mb-1">日期</label>
+                  <input
+                    type="date"
+                    value={newTrade.date}
+                    onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
+                    className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+
+                {/* 价格 + 股数(共一行) */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">价格 ($, 自动)</label>
+                    <input
+                      type="number"
+                      placeholder="自动填充"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={newTrade.price}
+                      onChange={(e) => setNewTrade({ ...newTrade, price: e.target.value })}
+                      className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm tabular-nums bg-slate-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">股数</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      inputMode="numeric"
+                      value={newTrade.shares}
+                      onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
+                      className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button onClick={addTrade} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-black active:scale-95 shadow">确认添加</button>
+                  <button onClick={() => setShowAddTrade(false)} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl text-sm font-bold active:scale-95">取消</button>
+                </div>
+              </div>
             </div>
           </div>
         )}
