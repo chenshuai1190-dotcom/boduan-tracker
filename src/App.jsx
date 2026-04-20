@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2 } from 'lucide-react';
+import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2 } from 'lucide-react';
 import Login from './Login';
 import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
 import * as db from './lib/db';
@@ -267,15 +267,8 @@ function MainApp({ user, onLogout }) {
 
   // 关注股票列表(可编辑价格)
   // high = 6个月滚动最高价,用于计算回撤预警
-  const [watchlist, setWatchlist] = useState([
-    { symbol: 'TQQQ',  name: '3倍纳指',  price: 58.55,  high: 90.00,  cost: 11.23,  shares: 600 },
-    { symbol: 'NVDA',  name: '英伟达',    price: 200.96, high: 210.00, cost: 83.68,  shares: 500 },
-    { symbol: 'TSM',   name: '台积电',    price: 369.30, high: 380.00, cost: 137.04, shares: 250 },
-    { symbol: 'META',  name: 'Meta',     price: 686.80, high: 720.00, cost: 613.50, shares: 400 },
-    { symbol: 'MSFT',  name: '微软',      price: 422.36, high: 470.00, cost: 388.15, shares: 330 },
-    { symbol: 'GOOGL', name: '谷歌',      price: 340.55, high: 355.00, cost: 149.05, shares: 800 },
-    { symbol: 'QQQ',   name: '纳指ETF',   price: 640.47, high: 642.18, cost: 0,      shares: 0   },
-  ]);
+  // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
+  const [watchlist, setWatchlist] = useState([]);
   const [editingStock, setEditingStock] = useState(null);
   const [showAddStock, setShowAddStock] = useState(false);
   const [newStock, setNewStock] = useState({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
@@ -338,6 +331,24 @@ function MainApp({ user, onLogout }) {
   // 波段备注 { 'wave-id': '关税恐慌' }
   const [waveNotes, setWaveNotes] = useState({});
   const [editingNoteId, setEditingNoteId] = useState(null);  // 正在编辑哪个波段的备注
+
+  // ===== 家庭资产 =====
+  const [accounts, setAccounts] = useState([]);          // [{id, owner, type, name, currency, icon}]
+  const [snapshots, setSnapshots] = useState([]);        // [{id, accountId, month, balance}]
+  const [usdRate, setUsdRate] = useState(7.20);          // 美元换人民币汇率
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [showFillSnapshot, setShowFillSnapshot] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState(null);
+  const [accountDeleteConfirmId, setAccountDeleteConfirmId] = useState(null);
+  const [newAccount, setNewAccount] = useState({
+    owner: '我',
+    type: '银行',
+    name: '',
+    currency: 'CNY',
+    icon: '🏦',
+    balance: '',
+  });
+  const [snapshotDraft, setSnapshotDraft] = useState({}); // { account_id: '12345' } 填快照时的暂存值
 
   // 波段展开状态(点击波段可展开看明细) { 'wave-id': true }
   const [expandedWaves, setExpandedWaves] = useState({});
@@ -418,6 +429,8 @@ function MainApp({ user, onLogout }) {
           if (settings.fgiDataDate) setFgiDataDate(settings.fgiDataDate);
           if (settings.vix) setVix(settings.vix);
           if (settings.vixDataDate) setVixDataDate(settings.vixDataDate);
+          if (Array.isArray(settings.batches) && settings.batches.length > 0) setBatches(settings.batches);
+          if (Array.isArray(settings.exitTargets) && settings.exitTargets.length > 0) setExitTargets(settings.exitTargets);
         }
       } catch (e) {
         console.error('云端数据加载失败:', e);
@@ -802,8 +815,18 @@ function MainApp({ user, onLogout }) {
   });
 
   // ============ 操作函数 ============
-  const updateBatch = (id, field, value) => {
-    setBatches(batches.map(b => b.id === id ? { ...b, [field]: parseFloat(value) || 0 } : b));
+  const updateBatch = async (id, field, value) => {
+    const newBatches = batches.map(b => b.id === id ? { ...b, [field]: parseFloat(value) || 0 } : b);
+    setBatches(newBatches);
+    // 保存到云端 settings.batches
+    try {
+      await db.upsertSettings({
+        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
+        vix, vixDataDate,
+        batches: newBatches,
+        exitTargets,
+      });
+    } catch (e) { console.error('batch 保存失败:', e); }
   };
 
   const addTrade = async () => {
@@ -872,13 +895,19 @@ function MainApp({ user, onLogout }) {
     }
   };
 
-  const updateStockPrice = (symbol, field, value) => {
-    setWatchlist(watchlist.map(s => s.symbol === symbol ? { ...s, [field]: parseFloat(value) || 0 } : s));
+  const updateStockPrice = async (symbol, field, value) => {
+    const newList = watchlist.map(s => s.symbol === symbol ? { ...s, [field]: parseFloat(value) || 0 } : s);
+    setWatchlist(newList);
     if (symbol === 'TQQQ' && field === 'price') setTqqqCurrent(parseFloat(value) || 0);
     if (symbol === 'QQQ' && field === 'price') setQqqCurrent(parseFloat(value) || 0);
+    // 写入云端(防数据丢失)
+    const updated = newList.find(s => s.symbol === symbol);
+    if (updated) {
+      try { await db.upsertWatchlistItem(updated); } catch (e) { console.error('保存失败:', e); }
+    }
   };
 
-  const addStock = () => {
+  const addStock = async () => {
     if (!newStock.symbol || !newStock.price) {
       alert('请至少填写股票代码和当前价');
       return;
@@ -890,22 +919,28 @@ function MainApp({ user, onLogout }) {
     }
     const price = parseFloat(newStock.price) || 0;
     const high = parseFloat(newStock.high) || price;
-    setWatchlist([...watchlist, {
+    const newItem = {
       symbol,
       name: newStock.name || symbol,
       price,
       high,
       cost: parseFloat(newStock.cost) || 0,
       shares: parseInt(newStock.shares) || 0,
-    }]);
+    };
+    setWatchlist([...watchlist, newItem]);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
+    // 写入云端
+    try { await db.upsertWatchlistItem(newItem); } catch (e) { console.error('添加失败:', e); }
   };
 
-  const removeStock = (symbol) => {
+  const removeStock = async (symbol) => {
     if (window.confirm(`确认删除 ${symbol}?`)) {
-      setWatchlist(watchlist.filter(s => s.symbol !== symbol));
+      const newList = watchlist.filter(s => s.symbol !== symbol);
+      setWatchlist(newList);
       if (editingStock === symbol) setEditingStock(null);
+      // 整体替换云端列表(简单粗暴,适合数据量小)
+      try { await db.replaceWatchlist(newList); } catch (e) { console.error('删除失败:', e); }
     }
   };
 
@@ -1678,6 +1713,25 @@ function MainApp({ user, onLogout }) {
                   取消
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* 空状态引导 - 新用户友好 */}
+          {watchlist.length === 0 && !showAddStock && (
+            <div className="text-center py-12 px-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-dashed border-blue-200">
+              <div className="text-5xl mb-3">📊</div>
+              <div className="text-slate-700 font-bold mb-1.5">还没有关注的股票</div>
+              <div className="text-xs text-slate-500 mb-4 leading-relaxed">
+                添加你关注的美股,实时跟踪价格、回撤<br/>
+                所有数据自动云同步,多设备共享
+              </div>
+              <button
+                onClick={() => setShowAddStock(true)}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 transition inline-flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" strokeWidth={3}/>
+                添加你的第一只股票
+              </button>
             </div>
           )}
 
@@ -2618,7 +2672,7 @@ function MainApp({ user, onLogout }) {
               {[
                 { id: 'home',     label: '首页', icon: Home },
                 { id: 'trades',   label: '交易', icon: ListChecks },
-                { id: 'analysis', label: '分析', icon: BarChart3 },
+                { id: 'analysis', label: '资产', icon: Wallet },
                 { id: 'settings', label: '设置', icon: Settings },
               ].map(tab => {
                 const Icon = tab.icon;
@@ -2692,10 +2746,10 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 11:48:00 (UTC+8)
-// 📝 本次更新: v9 - 顶部改造为总盈亏汇总卡
-//   1. 顶部 Bottomline 标题区改成大数字总盈亏卡片
-//   2. 显示: 总盈亏 / 持仓市值 / 涨跌幅 / 活跃笔数 / LIVE 刷新
-//   3. 删除交易 tab 里重复的盈亏卡片
-//   4. 顶部信息密度更高,有效信息上提
+// 📅 最后修改时间: 2026-04-20 14:30:00 (UTC+8)
+// 📝 本次更新: v10.1 - Day 1 修 Bug
+//   1. Watchlist 改动入库: addStock/updateStockPrice/removeStock 加 db 写入
+//   2. watchlist 默认值改为空数组(新用户友好)
+//   3. 新用户引导界面: "添加你的第一只股票" 按钮
+//   4. batches/exitTargets 改动也入库 (存到 user_settings.data)
 // ============================================
