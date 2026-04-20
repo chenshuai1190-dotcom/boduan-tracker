@@ -410,11 +410,18 @@ function MainApp({ user, onLogout }) {
     (async () => {
       try {
         setCloudLoading(true);
-        const { trades: cloudTrades, watchlist: cloudWatchlist, waveNotes: cloudNotes, settings } = await db.fetchAllUserData();
+        console.log('[云端加载] 开始拉取...');
+        const result = await db.fetchAllUserData();
+        console.log('[云端加载] 原始返回:', result);
+        const { trades: cloudTrades, watchlist: cloudWatchlist, waveNotes: cloudNotes, settings } = result;
+        console.log('[云端加载] cloudWatchlist:', cloudWatchlist, '长度:', cloudWatchlist?.length);
         if (!mounted) return;
         setTrades(cloudTrades || []);
         if (cloudWatchlist && cloudWatchlist.length > 0) {
+          console.log('[云端加载] ✓ 设置 watchlist:', cloudWatchlist.length, '只');
           setWatchlist(cloudWatchlist);
+        } else {
+          console.warn('[云端加载] ⚠️ cloudWatchlist 为空, 不设置');
         }
         // 如果云端没数据,保留 useState 里的默认 watchlist(首次使用)
         setWaveNotes(cloudNotes || {});
@@ -433,7 +440,7 @@ function MainApp({ user, onLogout }) {
           if (Array.isArray(settings.exitTargets) && settings.exitTargets.length > 0) setExitTargets(settings.exitTargets);
         }
       } catch (e) {
-        console.error('云端数据加载失败:', e);
+        console.error('[云端加载] 失败:', e);
         setCloudError(e.message);
       } finally {
         if (mounted) setCloudLoading(false);
@@ -463,6 +470,7 @@ function MainApp({ user, onLogout }) {
     if (cloudLoading) return;
     clearTimeout(watchlistSaveTimerRef.current);
     watchlistSaveTimerRef.current = setTimeout(() => {
+      console.log('[保存 watchlist] 防抖触发, 当前长度:', watchlist.length, watchlist);
       db.replaceWatchlist(watchlist).catch(e => console.error('关注列表保存失败:', e));
     }, 500);
     return () => clearTimeout(watchlistSaveTimerRef.current);
@@ -2746,40 +2754,26 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 20:20:00 (UTC+8)
-// 📝 本次更新: v10.2.4 - 🚨 终极修复关注股票消失
+// 📅 最后修改时间: 2026-04-20 21:00:00 (UTC+8)
+// 📝 本次更新: v10.2.5 - 调试版: 加日志定位"关注丢失"根因
 //
-//   根源(用户今天多次报告):
-//     v10.2.2 修过一次,但今天又复现 "添加股票刷新消失"
+//   背景: v10.2.4 部署后用户反馈"股票还是丢了"
+//         Supabase 里数据在, 但前端不显示
+//         = 前端读取/渲染 bug, 不是保存 bug
 //
-//   真正原因:
-//     打开 App 流程:
-//       1. useState([]) → watchlist = []
-//       2. cloudLoading = true, 显示 Loading
-//       3. 同时跑 2 个 useEffect:
-//          A. 加载云端数据 → setWatchlist(cloudData)
-//          B. fetchRealtimePrices() ← BUG!
-//             这里闭包里的 watchlist 还是 []
-//             拉到数据后 setWatchlist([])  ← 清空!
-//       4. 竞态: 谁后跑谁赢
-//       5. 防抖 500ms 触发 → replaceWatchlist(最终值)
-//          如果最终值是 [] → 云端也被删光!
+//   加了 console.log 定位:
+//     [云端加载] 开始拉取...
+//     [云端加载] 原始返回: {...}
+//     [云端加载] cloudWatchlist: [...] 长度: X
+//     [云端加载] ✓ 设置 watchlist: X 只
+//     或
+//     [云端加载] ⚠️ cloudWatchlist 为空, 不设置
 //
-//   3 层防护修复:
-//     ① 自动拉取 useEffect 加 cloudLoading 判断
-//        (等云端数据加载完再拉实时价, 不抢 watchlist)
-//     ② fetchRealtimePrices 内部:
-//        watchlist.length === 0 时不 setWatchlist([])
-//     ③ db.replaceWatchlist() 拒绝写入空数组
-//        console.warn 提示但不清云端数据
+//     [保存 watchlist] 防抖触发, 当前长度: X
 //
-//   验证:
-//     - 添加/改/删股票 → 等 1 秒 → 刷新 → 还在 ✓
-//     - 每 5 分钟自动拉实时价 → 不影响保存 ✓
-//     - 打开 App → Loading → 股票显示, 永远不清空 ✓
+//   用户需 F12 打开 Console 看打印信息, 反馈给开发者
 //
-// 📦 v10.2.3: 回滚到稳定版(去 WebSocket)
+// 📦 v10.2.4: 3 层防护修关注丢失 (可能没根治)
+// 📦 v10.2.3: 回滚到稳定版
 // 📦 v10.2.2: 修 Day 1 引入的防抖冲突
-// 📦 v10.2.x: EODHD REST 接入
-// 📦 v10.1:   Day 1 修 bug
 // ============================================
