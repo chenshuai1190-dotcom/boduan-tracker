@@ -1082,67 +1082,45 @@ function MainApp({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50 px-4 pb-24" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       <div className="max-w-5xl mx-auto">
-        {/* 顶部总览卡片 - 总盈亏 + 持仓市值 + LIVE */}
-        <div className="rounded-2xl p-4 mb-4 shadow-lg text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
-          {/* 顶行: 标题 + LIVE 刷新 */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-slate-900 text-sm shadow-md shrink-0" style={{ background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' }}>
-                B
-              </div>
-              <span className="text-white font-black text-sm tracking-tight">Bottomline</span>
+        {/* 顶部标题 - 专业深色风 */}
+        <div className="rounded-2xl p-4 mb-4 shadow-lg flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Logo */}
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-slate-900 text-lg shadow-md shrink-0" style={{ background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' }}>
+              B
             </div>
-            <button
-              onClick={fetchRealtimePrices}
-              disabled={fetching}
-              className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
-              title="点击刷新"
-            >
-              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
-              <span className="text-emerald-400 text-[10px] font-bold tracking-wider">LIVE</span>
-              <RefreshCw className={`w-3 h-3 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
-            </button>
+            <div className="min-w-0">
+              <h1 className="text-white font-black text-xl tracking-tight leading-none">Bottomline</h1>
+              <div className="text-slate-400 text-[10px] mt-1 tracking-widest uppercase font-medium truncate">Buy the Dip · Stay Disciplined</div>
+            </div>
           </div>
-
-          {/* 主数字: 总盈亏 */}
+          {/* 右侧:持仓 + 收益 + LIVE */}
           {(() => {
             const totalMV = watchlist.reduce((sum, s) => sum + s.shares * s.price, 0);
             const totalCost = watchlist.reduce((sum, s) => sum + s.shares * s.cost, 0);
             const totalGainPct = totalCost > 0 ? (totalMV - totalCost) / totalCost : 0;
-            const isProfit = allTradesGrandTotal >= 0;
+            const isProfit = totalGainPct >= 0;
             return (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">总盈亏</div>
-                  <div className="text-[10px] text-slate-500">已实现+浮动</div>
+              <div className="flex flex-col items-end shrink-0">
+                <button
+                  onClick={fetchRealtimePrices}
+                  disabled={fetching}
+                  className="flex items-center gap-1 mb-0.5 px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
+                  title="点击刷新"
+                >
+                  <span className={`w-1 h-1 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
+                  <span className="text-emerald-400 text-[9px] font-bold tracking-wider">LIVE</span>
+                  <RefreshCw className={`w-2.5 h-2.5 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
+                </button>
+                <div className="text-white font-black text-base tabular-nums leading-none" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                  ${fmt(totalMV / 1000, 1)}K
                 </div>
-                <div className={`text-3xl font-black tabular-nums mt-1 ${isProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  {isProfit ? '+' : ''}${fmt(allTradesGrandTotal, 0)}
-                </div>
-
-                {/* 底行: 持仓市值 / 活跃 */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
-                  <div>
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">持仓市值</div>
-                    <div className="flex items-baseline gap-1.5 mt-0.5">
-                      <span className="text-white font-black text-base tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                        ${fmt(totalMV / 1000, 1)}K
-                      </span>
-                      {totalCost > 0 && (
-                        <span className={`text-[11px] font-bold tabular-nums ${totalGainPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {totalGainPct >= 0 ? '+' : ''}{(totalGainPct * 100).toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
+                {totalCost > 0 && (
+                  <div className={`text-xs font-bold tabular-nums mt-0.5 ${isProfit ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {isProfit ? '+' : ''}{(totalGainPct * 100).toFixed(1)}%
                   </div>
-                  <div className="text-right">
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">活跃</div>
-                    <div className="text-white font-bold text-sm mt-0.5">
-                      {allTradesStocks} 只 · {allTradesCount} 笔
-                    </div>
-                  </div>
-                </div>
-              </>
+                )}
+              </div>
             );
           })()}
         </div>
@@ -2211,6 +2189,24 @@ function MainApp({ user, onLogout }) {
           </>
         )}
 
+        {/* 交易日记本 - 顶部总收益 */}
+        {trades.length > 0 && (
+          <div className="rounded-2xl p-4 mb-3 shadow text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">总盈亏(已实现+浮动)</div>
+                <div className={`text-3xl font-black tabular-nums mt-1 ${allTradesGrandTotal >= 0 ? 'text-red-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                  {allTradesGrandTotal >= 0 ? '+' : ''}${fmt(allTradesGrandTotal, 0)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">活跃</div>
+                <div className="text-base font-bold text-white mt-1">{allTradesStocks} 只 · {allTradesCount} 笔</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 添加成交按钮 */}
         <button
           onClick={() => setShowAddTrade(!showAddTrade)}
@@ -2692,10 +2688,10 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 11:48:00 (UTC+8)
-// 📝 本次更新: v9 - 顶部改造为总盈亏汇总卡
-//   1. 顶部 Bottomline 标题区改成大数字总盈亏卡片
-//   2. 显示: 总盈亏 / 持仓市值 / 涨跌幅 / 活跃笔数 / LIVE 刷新
-//   3. 删除交易 tab 里重复的盈亏卡片
-//   4. 顶部信息密度更高,有效信息上提
+// 📅 最后修改时间: 2026-04-20 11:36:00 (UTC+8)
+// 📝 本次更新: v8 - 删除 logo 方案
+//   1. 移除股票卡片头部的公司 logo
+//   2. 删除 STOCK_LOGO_DOMAIN / StockLogo / 内嵌 SVG 等所有相关代码
+//   3. main.jsx 改为主动注销之前注册的 Service Worker
+//   4. 卡片头部回到纯文字(代码 + 中文名)
 // ============================================
