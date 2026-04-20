@@ -2082,10 +2082,25 @@ function MainApp({ user, onLogout }) {
               const stockColor = getStockColor(group.symbol);
               return (
               <div key={group.symbol} className="bg-white rounded-2xl mb-3 shadow overflow-hidden">
-                {/* 头部(股票专属配色) */}
-                <div
-                  className="px-4 py-3 flex items-center justify-between"
+                {/* 头部(股票专属配色) - 点击可快速添加该股票交易 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewTrade({
+                      ...newTrade,
+                      symbol: group.symbol,
+                      name: group.name,
+                      side: 'buy',
+                      date: new Date().toISOString().split('T')[0],
+                      price: '',
+                      shares: '',
+                    });
+                    setLookupStatus('found');
+                    setShowAddTrade(true);
+                  }}
+                  className="w-full px-4 py-3 flex items-center justify-between active:opacity-80 active:scale-[0.99] transition text-left"
                   style={{ background: `linear-gradient(135deg, ${stockColor.from} 0%, ${stockColor.to} 100%)` }}
+                  title={`点击快速添加 ${group.symbol} 交易`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <StockLogo symbol={group.symbol} size={36} />
@@ -2094,13 +2109,19 @@ function MainApp({ user, onLogout }) {
                       <div className="text-xs text-white/80 truncate">{group.name}</div>
                     </div>
                   </div>
-                  {group.activeWave && (
-                    <div className="px-2 py-1 rounded-full bg-white/25 backdrop-blur flex items-center gap-1 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                      <span className="text-[10px] font-black text-white">进行中</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {group.activeWave && (
+                      <div className="px-2 py-1 rounded-full bg-white/25 backdrop-blur flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                        <span className="text-[10px] font-black text-white">进行中</span>
+                      </div>
+                    )}
+                    {/* 点击提示图标 */}
+                    <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white">
+                      <Plus className="w-4 h-4" strokeWidth={3} />
                     </div>
-                  )}
-                </div>
+                  </div>
+                </button>
 
                 {/* 历史规律(只在有完成波段时显示) */}
                 {group.completedCount > 0 && (
@@ -2243,31 +2264,31 @@ function MainApp({ user, onLogout }) {
                         {/* 展开:交易明细 */}
                         {isExpanded && (
                           <div className="px-4 pb-3 pt-1 bg-slate-50/50 border-t border-slate-100">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2 mt-2">📋 交易明细</div>
-                            <div className="space-y-1.5">
+                            <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-2 mt-2">📋 交易明细</div>
+                            <div className="space-y-2">
                               {waveTrades.map(t => {
                                 const isBuy = !t.side || t.side === 'buy';
                                 const amount = t.shares * t.price;
                                 return (
-                                  <div key={t.id} className="flex items-center justify-between py-1 px-2 bg-white rounded-lg border border-slate-100">
+                                  <div key={t.id} className="flex items-center justify-between py-2 px-2.5 bg-white rounded-lg border border-slate-100">
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className={`px-1 py-0.5 rounded text-[9px] font-black text-white shrink-0 ${isBuy ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                                      <span className={`px-1.5 py-0.5 rounded text-[11px] font-black text-white shrink-0 ${isBuy ? 'bg-red-600' : 'bg-emerald-600'}`}>
                                         {isBuy ? '买' : '卖'}
                                       </span>
-                                      <span className="text-[11px] text-slate-500 tabular-nums shrink-0" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                      <span className="text-[13px] text-slate-500 tabular-nums shrink-0" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                         {(t.date || '').slice(5)}
                                       </span>
-                                      <span className="text-[11px] text-slate-700 tabular-nums truncate" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                      <span className="text-[13px] text-slate-700 tabular-nums truncate" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                         {t.shares}股 @${fmt(t.price)}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <span className={`text-[11px] font-bold tabular-nums ${isBuy ? 'text-slate-900' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className={`text-[13px] font-bold tabular-nums ${isBuy ? 'text-slate-900' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                         {isBuy ? '-' : '+'}${fmt(amount, 0)}
                                       </span>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
-                                        className="w-4 h-4 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-[9px] font-bold transition active:scale-90"
+                                        className="w-5 h-5 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-[10px] font-bold transition active:scale-90"
                                       >
                                         ✕
                                       </button>
@@ -2786,8 +2807,10 @@ export default function TQQQTracker() {
   );
 }
 
-
 // ============================================
-// 📅 最后修改时间: 2026-04-20 11:16:01 (UTC+8)
-// 📝 本次更新: v4 - 颜色完全统一翠绿 + Logo 多源 fallback (Clearbit→DuckDuckGo→Google→首字母)
+// 📅 最后修改时间: 2026-04-20 11:22:24 (UTC+8)
+// 📝 本次更新: v5
+//   1. 点股票卡片头部 → 直接弹出添加交易弹窗,股票代码自动填好
+//   2. 头部右侧加 + 图标提示可点击
+//   3. 交易明细字号放大(11px → 13px)
 // ============================================
