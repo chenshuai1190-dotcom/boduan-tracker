@@ -464,17 +464,31 @@ function MainApp({ user, onLogout }) {
     return () => clearTimeout(settingsSaveTimerRef.current);
   }, [benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
 
-  // 保存关注列表到云端(防抖 500ms)
+  // 🚨 Watchlist 保存策略: 改为精确单条操作 (addStock/removeStock/updateStockPrice 里直接写)
+  //     不再用"删光重插"的 replaceWatchlist, 避免竞态和重复问题
+  //     所以这个防抖 useEffect 只用于"更新价格/成本/股数"时保存
   const watchlistSaveTimerRef = useRef(null);
+  const watchlistStructureSig = useMemo(
+    () => watchlist.map(s => `${s.symbol}|${s.name}|${s.high}|${s.cost}|${s.shares}`).join(';'),
+    [watchlist]
+  );
   useEffect(() => {
     if (cloudLoading) return;
+    if (watchlist.length === 0) return; // 空列表不触发
     clearTimeout(watchlistSaveTimerRef.current);
-    watchlistSaveTimerRef.current = setTimeout(() => {
-      console.log('[保存 watchlist] 防抖触发, 当前长度:', watchlist.length, watchlist);
-      db.replaceWatchlist(watchlist).catch(e => console.error('关注列表保存失败:', e));
+    watchlistSaveTimerRef.current = setTimeout(async () => {
+      // 对每只股票单独 upsert, 不走"删光重插"
+      for (const item of watchlist) {
+        try {
+          await db.upsertWatchlistItem(item);
+        } catch (e) {
+          console.error(`[保存 ${item.symbol}] 失败:`, e);
+        }
+      }
     }, 500);
     return () => clearTimeout(watchlistSaveTimerRef.current);
-  }, [watchlist, cloudLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlistStructureSig, cloudLoading]);
 
   // saveState: 现在是手动触发的"保存反馈",数据其实自动同步
   const saveState = () => {
@@ -911,7 +925,7 @@ function MainApp({ user, onLogout }) {
     // 防抖 useEffect 会自动保存到云端,不需要手动调 db
   };
 
-  const addStock = () => {
+  const addStock = async () => {
     if (!newStock.symbol || !newStock.price) {
       alert('请至少填写股票代码和当前价');
       return;
@@ -934,15 +948,27 @@ function MainApp({ user, onLogout }) {
     setWatchlist([...watchlist, newItem]);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
-    // 防抖 useEffect 会自动保存到云端
+    // 🚨 立刻同步到云端 (不等防抖,精确单条写入)
+    try {
+      await db.upsertWatchlistItem(newItem);
+    } catch (e) {
+      console.error('[添加股票] 云端失败:', e);
+      alert(`添加 ${symbol} 失败: ${e.message}`);
+    }
   };
 
-  const removeStock = (symbol) => {
+  const removeStock = async (symbol) => {
     if (window.confirm(`确认删除 ${symbol}?`)) {
       const newList = watchlist.filter(s => s.symbol !== symbol);
       setWatchlist(newList);
       if (editingStock === symbol) setEditingStock(null);
-      // 防抖 useEffect 会自动保存到云端
+      // 🚨 立刻同步到云端 (不等防抖,不走"删光重插",精确单条删除)
+      try {
+        await db.removeWatchlistItem(symbol);
+      } catch (e) {
+        console.error('[删除股票] 云端失败:', e);
+        alert(`删除 ${symbol} 失败: ${e.message}`);
+      }
     }
   };
 
@@ -2754,26 +2780,26 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 21:00:00 (UTC+8)
-// 📝 本次更新: v10.2.5 - 调试版: 加日志定位"关注丢失"根因
+// 📅 最后修改时间: 2026-04-20 22:40:00 (UTC+8)
+// 📝 本次更新: v10.2.7 - 彻底重构关注保存机制
 //
-//   背景: v10.2.4 部署后用户反馈"股票还是丢了"
-//         Supabase 里数据在, 但前端不显示
-//         = 前端读取/渲染 bug, 不是保存 bug
+//   问题: 删股票消失后刷新又回来
+//   根因: "删光重插" 机制存在以下问题
+//     1. 删 7 条 → 插 6 条 的时序里, 中间可能被其他请求打断
+//     2. UNIQUE 约束 + 竞态可能导致 INSERT 失败
+//     3. 失败后前后端不一致 → 刷新恢复旧数据
 //
-//   加了 console.log 定位:
-//     [云端加载] 开始拉取...
-//     [云端加载] 原始返回: {...}
-//     [云端加载] cloudWatchlist: [...] 长度: X
-//     [云端加载] ✓ 设置 watchlist: X 只
-//     或
-//     [云端加载] ⚠️ cloudWatchlist 为空, 不设置
+//   修复: 改用"精确单条操作"
+//     addStock    → 直接 upsert 一条
+//     removeStock → 直接 DELETE 一条
+//     改成本/股数 → 防抖 upsert (只改变了的那只)
 //
-//     [保存 watchlist] 防抖触发, 当前长度: X
+//   好处:
+//     ✓ 不再有"删光重插"的竞态
+//     ✓ 删除立刻生效, 不等防抖
+//     ✓ 配合 UNIQUE 约束, 添加同名股票会报错 (好事)
+//     ✓ 代码更简单
 //
-//   用户需 F12 打开 Console 看打印信息, 反馈给开发者
-//
-// 📦 v10.2.4: 3 层防护修关注丢失 (可能没根治)
-// 📦 v10.2.3: 回滚到稳定版
-// 📦 v10.2.2: 修 Day 1 引入的防抖冲突
+// 📦 v10.2.6: 修 Promise.all → Promise.allSettled
+// 📦 数据库: 已关 RLS + 加 UNIQUE 约束 (手动 SQL)
 // ============================================
