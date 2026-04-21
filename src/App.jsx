@@ -617,6 +617,9 @@ function MainApp({ user, onLogout }) {
   // 波段展开状态(点击波段可展开看明细) { 'wave-id': true }
   const [expandedWaves, setExpandedWaves] = useState({});
 
+  // 📋 所有交易记录弹窗 (按股票代码查看/删除完整历史)
+  const [allTradesModal, setAllTradesModal] = useState(null); // null 或 { symbol, name }
+
   // === FGI 仪表盘动画:从 0 缓动到目标值 ===
   const [displayFgi, setDisplayFgi] = useState(0);
   const fgiAnimRef = useRef({ from: 0, hasInit: false });
@@ -1018,7 +1021,9 @@ function MainApp({ user, onLogout }) {
         if (!currentWave) {
           if (!isBuy) continue; // 没仓位时的卖出忽略(数据异常)
           currentWave = {
-            id: `wave-${g.symbol}-${t.id}`,
+            // 🔑 波段 id 基于"开始日期+股票代码", 稳定
+            // 删除非首笔交易后, 波段 id 不变 → 展开状态/备注都保留
+            id: `wave-${g.symbol}-${t.date || t.id}`,
             startDate: t.date,
             endDate: null,
             buys: [],
@@ -2748,8 +2753,20 @@ function MainApp({ user, onLogout }) {
                         <Plus className="w-4 h-4" strokeWidth={2.5} />
                       </div>
                     </button>
-                    <div className="text-[11px] text-slate-400">
-                      {group.waves.length} 个波段
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAllTradesModal({ symbol: group.symbol, name: group.name });
+                        }}
+                        className="text-[11px] text-rose-600 font-bold flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-95 transition"
+                        title="查看所有交易记录"
+                      >
+                        📋 全部
+                      </button>
+                      <div className="text-[11px] text-slate-400">
+                        {group.waves.length} 个波段
+                      </div>
                     </div>
                   </div>
                   {/* 3 列统计 */}
@@ -5593,14 +5610,30 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.5
+                  v10.7.7.3
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.5', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.7.3', date: '2026-04-22', latest: true,
+                    items: ['修复波段"消失"bug (id 改基于日期)', '新增"📋 全部交易"弹窗 (完整历史可查可删)'],
+                  },
+                  {
+                    ver: 'v10.7.7.2', date: '2026-04-22',
+                    items: ['资产走势图入场动画 (V2 点依次弹出)', '空月断线 不画"假数据"'],
+                  },
+                  {
+                    ver: 'v10.7.7', date: '2026-04-22',
+                    items: ['设置页全部黑金统一', '云端账户 + 手动拉取按钮改黑金'],
+                  },
+                  {
+                    ver: 'v10.7.6', date: '2026-04-22',
+                    items: ['设置页删除持仓头卡', '数据状态升级为智能刷新实时指标', '新增更新日志卡片'],
+                  },
+                  {
+                    ver: 'v10.7.5', date: '2026-04-22',
                     items: ['修复密码重置直接登录 bug', '设置页加"修改密码"入口'],
                   },
                   {
@@ -5696,7 +5729,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.5</div>
+                <div>📊 版本:v10.7.7.3</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -5704,6 +5737,142 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
         {/* ====== 设置 tab 结束 ====== */}
+
+        {/* === 📋 全部交易记录弹窗 === */}
+        {allTradesModal !== null && (() => {
+          const sym = allTradesModal.symbol;
+          const name = allTradesModal.name;
+          const allTrades = trades
+            .filter(t => (t.symbol || 'TQQQ') === sym)
+            .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id - a.id));
+
+          return (
+            <div
+              className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+              onClick={() => setAllTradesModal(null)}
+            >
+              <div
+                className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* 头部 */}
+                <div
+                  className="px-5 py-4 relative overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #0a0a0a 0%, #171717 100%)',
+                    borderBottom: '1px solid rgba(251, 191, 36, 0.2)',
+                  }}
+                >
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📋</span>
+                        <h3
+                          className="font-black text-lg"
+                          style={{
+                            background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                          }}
+                        >
+                          全部交易
+                        </h3>
+                      </div>
+                      <div className="text-[11px] mt-0.5" style={{ color: '#a3a3a3' }}>
+                        <span className="font-bold" style={{ color: '#fbbf24' }}>{sym}</span>
+                        <span className="mx-1.5" style={{ color: '#525252' }}>·</span>
+                        <span>{name}</span>
+                        <span className="mx-1.5" style={{ color: '#525252' }}>·</span>
+                        <span>{allTrades.length} 条记录</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setAllTradesModal(null)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(255,255,255,0.1)', color: '#fbbf24' }}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 列表 */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {allTrades.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 text-sm">
+                      暂无交易记录
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allTrades.map((t, i) => {
+                        const isBuy = !t.side || t.side === 'buy';
+                        const amount = Number(t.shares) * Number(t.price);
+                        return (
+                          <div
+                            key={t.id}
+                            className={`p-3 rounded-xl border ${
+                              isBuy ? 'border-rose-100 bg-rose-50/30' : 'border-emerald-100 bg-emerald-50/30'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black text-white ${isBuy ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+                                {isBuy ? '买入' : '卖出'}
+                              </span>
+                              <span className="text-[11px] text-slate-500 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                {t.date || '—'}
+                              </span>
+                              <span className="text-[10px] text-slate-400">#{allTrades.length - i}</span>
+                              <button
+                                onClick={() => setTradeDeleteConfirmId(t.id)}
+                                className="ml-auto w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-red-500 hover:border-red-500 hover:text-white text-slate-400 flex items-center justify-center text-xs font-bold transition active:scale-90"
+                                title="删除这条"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-[12px]">
+                              <div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">股数</div>
+                                <div className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  {t.shares}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">单价</div>
+                                <div className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  ${fmt(t.price)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">金额</div>
+                                <div className={`font-bold tabular-nums ${isBuy ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                </div>
+                              </div>
+                            </div>
+                            {t.batch && (
+                              <div className="text-[10px] text-slate-400 mt-1.5">
+                                批次: {t.batch}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 底部说明 */}
+                <div className="px-5 py-3 border-t border-slate-100 bg-slate-50">
+                  <p className="text-[10px] text-slate-500 text-center leading-relaxed">
+                    💡 删除单笔交易不影响其他波段 · 按日期倒序排列
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* === 删除确认弹窗 (交易记录) === */}
         {tradeDeleteConfirmId !== null && (() => {
@@ -5921,26 +6090,32 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 09:00:00 (UTC+8)
-// 📝 本次更新: v10.7.7.2 - 走势图 V2 动画 (点依次弹出) ✨
+// 📅 最后修改时间: 2026-04-22 10:00:00 (UTC+8)
+// 📝 本次更新: v10.7.7.3 - 波段 bug 修复 + 全部交易弹窗 📋
 //
-//   打开资产 tab 时, 12 个月走势图动画入场:
+//   问题:
+//     1) 删除一笔交易时, 有时候整个波段"消失"
+//     2) 用户没有一个地方能看到某只股票的完整交易历史
 //
-//   时间线:
-//     0.0s 第 1 个点弹出 (带 overshoot)
-//     0.2s 第 2 个点弹出
-//     0.4s 第 3 个点弹出 ...
-//     (每隔 0.2s 一个点, 像波浪)
-//     0.2s 折线从左往右画 (1.5s 完成)
-//     0.8s 面积图淡入 (底部填充)
-//     1.8s 空月灰点淡入
-//     ~2s 完成
+//   根因:
+//     波段 id 基于"第一笔交易的 id"
+//     删除第一笔后, 波段 id 变 → expandedWaves/waveNotes 失效
+//     视觉上像"消失"
 //
-//   技术:
-//     - SVG stroke-dashoffset 动画 (画线)
-//     - CSS scale(0→1.4→1) (点 overshoot 弹出)
-//     - animationDelay 错峰 (每个点独立时间)
+//   修复:
+//     1) 波段 id 改基于"股票代码 + 开始日期"
+//        稳定性大幅提升
+//        删除非首笔交易 → id 不变
+//        删除首笔 → id 变 (正确, 反映了真实的波段起点变化)
 //
-// 📦 v10.7.7.1: 空月断线
+//     2) 交易 tab 头部加"📋 全部"按钮
+//        点击弹出该股票所有交易记录弹窗:
+//        - 按日期倒序排列
+//        - 每条有买入/卖出徽章
+//        - 单独删除按钮
+//        - 黑金头部 + 卡片式列表
+//        - 底部提示"删除单笔不影响其他波段"
+//
+// 📦 v10.7.7.2: 走势图 V2 动画 + 空月断线
 // 📦 v10.7.7:   设置页黑金统一
 // ============================================
