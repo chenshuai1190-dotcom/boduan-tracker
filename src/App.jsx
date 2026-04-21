@@ -1315,10 +1315,6 @@ function MainApp({ user, onLogout }) {
               previousClose: fresh.previousClose || s.previousClose || 0,
               // 保存当日涨跌
               changePercent: fresh.changePercent || 0,
-              // 市场状态 + 分段走势
-              marketState: fresh.marketState || '',
-              intradayPoints: fresh.intradayPoints || [],
-              regularMarketTime: fresh.regularMarketTime || 0,
             };
           }
           return s;
@@ -2426,33 +2422,7 @@ function MainApp({ user, onLogout }) {
                     {/* 上:代码/名称 ← → 价格/涨跌 */}
                     <div className="flex items-center justify-between mb-2">
                       <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`font-black text-[18px] leading-tight tabular-nums ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
-                          {(() => {
-                            // marketState Badge
-                            const ms = s.marketState || '';
-                            if (!ms) return null;
-                            const cfg = {
-                              PRE:     { label: '盘前', bg: 'rgba(245,158,11,0.1)', color: '#d97706', border: 'rgba(245,158,11,0.3)', dot: '#d97706', pulse: false },
-                              REGULAR: { label: '盘中', bg: 'rgba(34,197,94,0.1)',  color: '#15803d', border: 'rgba(34,197,94,0.3)',  dot: '#22c55e', pulse: true  },
-                              POST:    { label: '盘后', bg: 'rgba(139,92,246,0.1)', color: '#7c3aed', border: 'rgba(139,92,246,0.3)', dot: '#7c3aed', pulse: false },
-                              CLOSED:  { label: '休市', bg: '#f1f5f9',              color: '#64748b', border: '#e2e8f0',              dot: '#94a3b8', pulse: false },
-                            }[ms];
-                            if (!cfg) return null;
-                            return (
-                              <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider"
-                                style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
-                              >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${cfg.pulse ? 'animate-pulse' : ''}`}
-                                  style={{ background: cfg.dot }}
-                                />
-                                {cfg.label}
-                              </span>
-                            );
-                          })()}
-                        </div>
+                        <div className={`font-black text-[18px] leading-tight tabular-nums ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
                         <div className={`text-[12px] truncate leading-tight mt-0.5 ${hasAlert ? 'opacity-70' : 'text-slate-500'}`}>{s.name}</div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -2468,122 +2438,35 @@ function MainApp({ user, onLogout }) {
                       </div>
                     </div>
 
-                    {/* 中:大走势图 56px + 分段变色 (盘前金 / 盘中红绿 / 盘后紫 / 休市灰) */}
+                    {/* 中:大走势图 56px + 渐变填充 */}
                     <div className="w-full h-14 my-2">
                       {series.length > 1 ? (
                         <svg viewBox="0 0 100 56" className="w-full h-full" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id={`grad-${s.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={dayColor} stopOpacity="0.25"/>
+                              <stop offset="100%" stopColor={dayColor} stopOpacity="0"/>
+                            </linearGradient>
+                          </defs>
                           {(() => {
-                            const H = 56, W = 100;
-                            const ms = s.marketState || 'REGULAR';
-                            const points = s.intradayPoints || [];
-
-                            // y 映射
+                            // 重建 path 使 H=56
+                            const H56 = 56;
+                            if (series.length <= 1) return null;
                             const min = Math.min(...series, s.previousClose || series[0]);
                             const max = Math.max(...series, s.previousClose || series[0]);
                             const range = max - min || 1;
-                            const yOf = (v) => H - ((v - min) / range) * H;
-
-                            // ====== 休市: 整段灰色 ======
-                            if (ms === 'CLOSED') {
-                              const pts = series.map((v, i) => ({ x: (i / (series.length - 1)) * W, y: yOf(v) }));
-                              const p = 'M ' + pts.map(pt => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' L ');
-                              const f = `${p} L ${W},${H} L 0,${H} Z`;
-                              return (
-                                <>
-                                  <defs>
-                                    <linearGradient id={`g-${s.symbol}-c`} x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.2"/>
-                                      <stop offset="100%" stopColor="#94a3b8" stopOpacity="0"/>
-                                    </linearGradient>
-                                  </defs>
-                                  <path d={f} fill={`url(#g-${s.symbol}-c)`} />
-                                  <path d={p} fill="none" stroke="#94a3b8" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
-                                </>
-                              );
-                            }
-
-                            // ====== 有分段数据: 按 session 分段绘 ======
-                            if (points.length > 1 && points.some(pt => pt.session)) {
-                              const W2 = W, H2 = H;
-                              // 按 session 分组
-                              const groups = [];
-                              let cur = { session: points[0].session, idx: [0] };
-                              for (let i = 1; i < points.length; i++) {
-                                if (points[i].session === cur.session) cur.idx.push(i);
-                                else { groups.push(cur); cur = { session: points[i].session, idx: [i - 1, i] }; } // 包含前一个点做连接
-                              }
-                              groups.push(cur);
-
-                              // 颜色映射
-                              const colorOf = (sess) => {
-                                if (sess === 'pre')  return '#f59e0b';   // 金
-                                if (sess === 'post') return '#7c3aed';   // 紫
-                                return dayColor;                          // 盘中用 dayColor (红/绿)
-                              };
-
-                              const renderGroup = (g, gIdx) => {
-                                const ps = g.idx.map(i => ({
-                                  x: (i / (points.length - 1)) * W2,
-                                  y: yOf(points[i].price),
-                                }));
-                                if (ps.length < 2) return null;
-                                const p = 'M ' + ps.map(pt => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' L ');
-                                const color = colorOf(g.session);
-                                const firstX = ps[0].x;
-                                const lastX = ps[ps.length - 1].x;
-                                const f = `${p} L ${lastX.toFixed(1)},${H2} L ${firstX.toFixed(1)},${H2} Z`;
-                                const gradId = `g-${s.symbol}-${gIdx}`;
-                                return (
-                                  <React.Fragment key={gIdx}>
-                                    <defs>
-                                      <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={color} stopOpacity={g.session === 'post' ? 0.15 : 0.25}/>
-                                        <stop offset="100%" stopColor={color} stopOpacity="0"/>
-                                      </linearGradient>
-                                    </defs>
-                                    <path d={f} fill={`url(#${gradId})`} />
-                                    <path
-                                      d={p}
-                                      fill="none"
-                                      stroke={color}
-                                      strokeWidth={1.6}
-                                      strokeDasharray={g.session === 'post' ? '3,1.5' : undefined}
-                                      vectorEffect="non-scaling-stroke"
-                                    />
-                                  </React.Fragment>
-                                );
-                              };
-
-                              // 16:00 分割线 (如果有 post 段)
-                              const postGroup = groups.find(g => g.session === 'post');
-                              const regularGroup = groups.filter(g => g.session === 'regular').pop();
-                              let divider = null;
-                              if (postGroup && regularGroup) {
-                                const lastRegIdx = regularGroup.idx[regularGroup.idx.length - 1];
-                                const divX = (lastRegIdx / (points.length - 1)) * W2;
-                                divider = (
-                                  <line key="div" x1={divX} y1={0} x2={divX} y2={H2}
-                                    stroke="#94a3b8" strokeWidth="0.3" strokeDasharray="1.5,1.5" vectorEffect="non-scaling-stroke" />
-                                );
-                              }
-
-                              return <>{groups.map(renderGroup)}{divider}</>;
-                            }
-
-                            // ====== 降级: 普通一整条 (用 dayColor) ======
-                            const pts = series.map((v, i) => ({ x: (i / (series.length - 1)) * W, y: yOf(v) }));
-                            const p = 'M ' + pts.map(pt => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' L ');
-                            const f = `${p} L ${W},${H} L 0,${H} Z`;
+                            const W = 100;
+                            const pts = series.map((v, i) => {
+                              const x = (i / (series.length - 1)) * W;
+                              const y = H56 - ((v - min) / range) * H56;
+                              return `${x.toFixed(1)},${y.toFixed(1)}`;
+                            });
+                            const p = `M ${pts.join(' L ')}`;
+                            const f = `${p} L ${W},${H56} L 0,${H56} Z`;
                             return (
                               <>
-                                <defs>
-                                  <linearGradient id={`g-${s.symbol}-d`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={dayColor} stopOpacity="0.25"/>
-                                    <stop offset="100%" stopColor={dayColor} stopOpacity="0"/>
-                                  </linearGradient>
-                                </defs>
-                                <path d={f} fill={`url(#g-${s.symbol}-d)`} />
-                                <path d={p} fill="none" stroke={dayColor} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+                                <path d={f} fill={`url(#grad-${s.symbol})`} />
+                                <path d={p} fill="none" stroke={dayColor} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                               </>
                             );
                           })()}
@@ -5952,36 +5835,24 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 06:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8 - 股票状态 Badge + 分段走势 📊
+// 📅 最后修改时间: 2026-04-22 05:30:00 (UTC+8)
+// 📝 本次更新: v10.7.7 - 设置页黑金统一 ✨
 //
-//   新功能:
-//     1) 每只关注股票显示状态 Badge
-//        🟡 盘前 (ET 4:00-9:30)   金色
-//        🟢 盘中 (ET 9:30-16:00)  绿色脉动
-//        🟣 盘后 (ET 16:00-20:00) 紫色
-//        ⚪ 休市                  灰色
+//   改动:
+//     1. ☁️ 云端账户卡: 紫色 → 奢华黑金
+//        - 和首页/资产/交易 tab 头部同色
+//        - 金色标题 + 绿色脉动"已登录"徽章
+//        - 邮箱区域: SIGNED IN 小标签 + 等宽字体
+//        - 描述区域独立底色
+//        - 修改密码按钮: 金色边框
+//        - 退出登录按钮: 红色边框 (警示)
 //
-//     2) 走势图分段变色 (按 session 分段):
-//        盘前段: 金色
-//        盘中段: 红涨/绿跌 (dayColor)
-//        盘后段: 紫色虚线
-//        休市: 整段灰色
-//        16:00 收盘分割线 (有 post 段时)
+//     2. "立即手动拉取" 按钮: 蓝色 → 黑金
+//        - 金色渐变 + 金光阴影
+//        - 和账户卡统一
 //
-//   技术实现:
-//     API (api/quote.js):
-//       - 返回 intradayPoints: [{price, t, session}]
-//       - 根据 currentTradingPeriod.regular.start/end 判断 session
-//       - 返回 regularMarketTime 开盘时间戳
+//   结果: 设置 tab 所有元素视觉统一 ✨
 //
-//     前端 (App.jsx):
-//       - watchlist 每只股票存 marketState/intradayPoints/regularMarketTime
-//       - 按 session 分组绘制 SVG path
-//       - 每段独立颜色/渐变
-//       - 盘后用虚线 strokeDasharray
-//       - 16:00 分割线在最后 regular 点位置
-//
-// 📦 v10.7.7: 设置页黑金统一
-// 📦 v10.7.6: 更新日志
+// 📦 v10.7.6: 设置页改版 (删头卡 + 数据状态 + 更新日志)
+// 📦 v10.7.5: 密码重置修复
 // ============================================
