@@ -3305,6 +3305,15 @@ function MainApp({ user, onLogout }) {
 
             // 12 个月走势数据
             const chartData = last12Months.map(m => totalAtMonth(m));
+
+            // 🔍 诊断: 打印每个月的数据
+            console.log('[走势图诊断] 最近 12 个月数据:');
+            last12Months.forEach((m, i) => {
+              const val = chartData[i];
+              console.log(`  ${m}: ¥${(val/10000).toFixed(1)}万 ${val > 0 ? '✓' : '❌ 无数据'}`);
+            });
+            console.log('[走势图诊断] snapshots 总数:', snapshots.length);
+            console.log('[走势图诊断] snapshot 月份分布:', [...new Set(snapshots.map(s => s.month))].sort());
             const nonZero = chartData.filter(v => v > 0);
             const chartMin = nonZero.length > 0 ? Math.min(...nonZero) : 0;
             const chartMax = nonZero.length > 0 ? Math.max(...nonZero) : 0;
