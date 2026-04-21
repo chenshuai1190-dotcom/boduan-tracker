@@ -151,6 +151,19 @@ export const upsertWatchlistItem = async (item) => {
   if (error) throw error;
 };
 
+// 精确删除单条 (不走"删光重插", 避免竞态和约束冲突)
+export const removeWatchlistItem = async (symbol) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('watchlist')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('symbol', symbol);
+  if (error) throw error;
+};
+
 // ============ WAVE_NOTES (波段备注) ============
 
 export const fetchWaveNotes = async () => {
