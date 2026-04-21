@@ -3818,28 +3818,6 @@ function MainApp({ user, onLogout }) {
                     </div>
                   </div>
 
-                  {/* 现实推演终点 (新增, 联动年度表) */}
-                  {projectedFinal > 0 && projectedFinal !== ageGoalAmount && (
-                    <div
-                      className="mt-3 pt-3 relative z-10"
-                      style={{ borderTop: '1px solid rgba(220, 38, 38, 0.3)' }}
-                    >
-                      <div className="flex items-baseline justify-between mb-1">
-                        <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#737373', letterSpacing: '1.5px' }}>
-                          现实推演终点
-                        </div>
-                        <div className="text-sm font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#fbbf24' }}>
-                          {fmtWanUSD(projectedFinal, 0)}
-                        </div>
-                      </div>
-                      <div className="text-[11px] font-bold tabular-nums" style={{ color: shortfall > 0 ? '#fca5a5' : '#86efac' }}>
-                        {shortfall > 0
-                          ? `落后 ${fmtWanUSD(shortfall, 0)} ⚠️`
-                          : `领先 ${fmtWanUSD(-shortfall, 0)} ✓`}
-                      </div>
-                    </div>
-                  )}
-
                   {/* 个人箴言 (红色分隔线 + 金色字) */}
                   {PLAN.motto && (
                     <div
@@ -3891,22 +3869,6 @@ function MainApp({ user, onLogout }) {
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-4 h-4 text-blue-600"/>
                       <div className="text-sm font-black text-slate-800">年度目标进度</div>
-                    </div>
-                  </div>
-
-                  {/* 北极星 vs 现实推演 (顶部总结) */}
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-                      <div className="text-[9px] text-amber-700 font-bold uppercase">北极星目标</div>
-                      <div className="text-base font-black text-amber-900 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>{fmtWanUSD(ageGoalAmount, 0)}</div>
-                      <div className="text-[10px] text-amber-700 mt-0.5">{PLAN.totalYears} 年后</div>
-                    </div>
-                    <div className={`rounded-lg p-2.5 border ${shortfall > 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                      <div className={`text-[9px] font-bold uppercase ${shortfall > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>现实推演</div>
-                      <div className={`text-base font-black tabular-nums mt-0.5 ${shortfall > 0 ? 'text-rose-900' : 'text-emerald-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{fmtWanUSD(projectedFinal, 0)}</div>
-                      <div className={`text-[10px] mt-0.5 ${shortfall > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                        {shortfall > 0 ? `落后 ${fmtWanUSD(shortfall, 0)}` : `领先 ${fmtWanUSD(-shortfall, 0)}`}
-                      </div>
                     </div>
                   </div>
 
@@ -4704,23 +4666,26 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 19:00:00 (UTC+8)
-// 📝 本次更新: v10.5.6 - 3 个 bug 修复
+// 📅 最后修改时间: 2026-04-21 19:30:00 (UTC+8)
+// 📝 本次更新: v10.5.7 - 复盘 tab 精简 (方案 B)
 //
-//   修复 1: 默认值改 0 (用户自己填)
-//     startCapital: 2400000 → 0
-//     ageGoalAge: 40 → 0
-//     新用户看到空白 (需要去设置里填)
+//   删除:
+//     ❌ 北极星卡中的"现实推演终点"行
+//     ❌ 年度表顶部"北极星 vs 现实推演" 2 列对比卡
 //
-//   修复 2: 进度条不动
-//     旧: currentBalance = 家庭总资产 (资产 tab 数据)
-//     新: currentBalance = 最近一个"实际填写"年份的终点余额
-//         没填过 → currentBalance = 起始本金
-//     逻辑: 复盘 tab 追踪的是投资账户, 不是家庭总资产
+//   保留:
+//     ✓ 北极星卡: 目标 + 进度条 + 箴言
+//     ✓ 年度表: 逐年明细 (起点→终点 + 计划/实际/差额)
+//     ✓ 每行底部小字 "北极星余额 落后/领先" (保留)
+//     ✓ 双币种切换
+//     ✓ 进度条用复盘自己的数据
+//     ✓ 柔性复利逻辑
 //
-//   修复 3: 双币种切换没部署
-//     (代码本来就在, 提示用户重新 commit 到 GitHub)
+//   原因:
+//     - 重复显示太多"现实推演"
+//     - 顶部对比卡信息已在进度条+逐年行体现
+//     - 简化后视觉更清爽
 //
-// 📦 v10.5.5: 双币种切换 (初版, 未部署)
-// 📦 v10.5.4: 柔性复利逻辑
+// 📦 v10.5.6: 3 bug 修复
+// 📦 v10.5.5: 双币种切换
 // ============================================
