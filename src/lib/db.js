@@ -344,6 +344,8 @@ export const insertAccount = async (account) => {
 };
 
 export const updateAccount = async (id, account) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
   const { error } = await supabase
     .from('accounts')
     .update({
@@ -353,13 +355,20 @@ export const updateAccount = async (id, account) => {
       currency: account.currency,
       icon: account.icon,
     })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);  // 宪法原则 2/3: 必须过滤 user_id
   if (error) throw error;
 };
 
 export const deleteAccount = async (id) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
   // snapshots 通过外键 cascade 自动删除
-  const { error } = await supabase.from('accounts').delete().eq('id', id);
+  const { error } = await supabase
+    .from('accounts')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);  // 宪法原则 2: 只能删自己的
   if (error) throw error;
 };
 
