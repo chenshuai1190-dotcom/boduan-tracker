@@ -575,6 +575,7 @@ function MainApp({ user, onLogout }) {
     balance: '',
   });
   const [snapshotDraft, setSnapshotDraft] = useState({}); // { account_id: '12345' } 填快照时的暂存值
+  const [snapshotTab, setSnapshotTab] = useState('我');    // 录入界面当前 Tab: '我' or '老婆'
   const [fillMonth, setFillMonth] = useState(() => new Date().toISOString().slice(0, 7)); // 填快照 Modal 里当前选择的月份
   const [showMonthsDetail, setShowMonthsDetail] = useState(false); // 12 个月资产走势 Modal
 
@@ -1357,17 +1358,93 @@ function MainApp({ user, onLogout }) {
     }
   };
 
-  // 自动拉取: 等云端数据加载完成后才拉实时价格
+  // 智能刷新: 根据市场状态动态调整刷新频率
+  // - 开盘 (9:30-16:00 ET)  : 10 秒
+  // - 盘前 (4:00-9:30 ET)   : 30 秒
+  // - 盘后 (16:00-20:00 ET) : 30 秒
+  // - 休市                  : 5 分钟
+  // - 页面隐藏              : 暂停 (省电 + 省 API)
+  // - 页面回来              : 立刻拉一次
+  const getMarketRefreshInterval = () => {
+    // 获取美东时间
+    const now = new Date();
+    const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
+    const et = new Date(etStr);
+    const day = et.getDay();          // 0=周日, 6=周六
+    const hour = et.getHours();
+    const minute = et.getMinutes();
+    const time = hour + minute / 60;  // 小数小时, 如 9.5 = 9:30
+
+    // 周末: 休市
+    if (day === 0 || day === 6) {
+      return 5 * 60 * 1000; // 5 分钟
+    }
+    // 开盘 9:30 - 16:00
+    if (time >= 9.5 && time < 16) {
+      return 10 * 1000; // 10 秒
+    }
+    // 盘前 4:00 - 9:30
+    if (time >= 4 && time < 9.5) {
+      return 30 * 1000; // 30 秒
+    }
+    // 盘后 16:00 - 20:00
+    if (time >= 16 && time < 20) {
+      return 30 * 1000; // 30 秒
+    }
+    // 深夜/凌晨: 休市
+    return 5 * 60 * 1000; // 5 分钟
+  };
+
+  // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
   useEffect(() => {
-    if (cloudLoading) return; // 等云端数据先就位
-    fetchRealtimePrices();
-    const timer = setInterval(() => {
+    if (cloudLoading) return;
+    // 等 watchlist 也真正有数据, 再拉 (防止首次 watchlist=[] 的 bug)
+    if (watchlist.length === 0) return;
+
+    let timerId = null;
+    let isActive = true;
+
+    const runFetchAndReschedule = () => {
+      if (!isActive) return;
       fetchRealtimePrices();
-    }, 5 * 60 * 1000);
-    return () => clearInterval(timer);
+      // 每次都动态计算间隔 (盘中/盘前盘后/休市 可能跨越时段)
+      const interval = getMarketRefreshInterval();
+      timerId = setTimeout(runFetchAndReschedule, interval);
+    };
+
+    // 启动: 立即拉一次
+    fetchRealtimePrices();
+    // 第一次调度
+    const firstInterval = getMarketRefreshInterval();
+    timerId = setTimeout(runFetchAndReschedule, firstInterval);
+
+    // 页面可见性: 隐藏时暂停, 可见时立即拉 + 重启
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // 页面隐藏: 清除定时器
+        if (timerId) {
+          clearTimeout(timerId);
+          timerId = null;
+        }
+      } else {
+        // 页面回来: 立即拉 + 重启
+        if (isActive && !timerId) {
+          fetchRealtimePrices();
+          const interval = getMarketRefreshInterval();
+          timerId = setTimeout(runFetchAndReschedule, interval);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isActive = false;
+      if (timerId) clearTimeout(timerId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading]);
+  }, [cloudLoading, watchlist.length]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -3941,29 +4018,87 @@ function MainApp({ user, onLogout }) {
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        {accounts.map(acc => {
-                          const currentBal = getBalance(acc.id, fillMonth);
-                          const draftVal = snapshotDraft[acc.id] ?? (currentBal || '');
-                          return (
-                            <div key={acc.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
-                              <span className="text-lg">{acc.icon || '💰'}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-bold truncate">{acc.name}</div>
-                                <div className="text-[10px] text-slate-500">{acc.owner} · {acc.currency}</div>
+                      {/* Tab 切换: 我 / 老婆 */}
+                      {(() => {
+                        const myAccs = accounts.filter(a => a.owner === '我');
+                        const wifeAccs = accounts.filter(a => a.owner === '老婆');
+                        const hasMulti = myAccs.length > 0 && wifeAccs.length > 0;
+
+                        // 当前 Tab 过滤 (单人时不显示 Tab, 直接全部)
+                        const currentAccs = hasMulti
+                          ? (snapshotTab === '我' ? myAccs : wifeAccs)
+                          : accounts;
+
+                        // 小计 (CNY)
+                        const curSum = currentAccs.reduce((sum, acc) => {
+                          const v = parseFloat(snapshotDraft[acc.id] ?? getBalance(acc.id, fillMonth) ?? 0) || 0;
+                          return sum + toCNY(v, acc.currency);
+                        }, 0);
+
+                        return (
+                          <>
+                            {hasMulti && (
+                              <div className="flex gap-0 bg-slate-100 p-1 rounded-lg mb-3">
+                                {[
+                                  { owner: '我', icon: '👤', accs: myAccs, color: '#3b82f6' },
+                                  { owner: '老婆', icon: '👩', accs: wifeAccs, color: '#ec4899' },
+                                ].map(({ owner, icon, accs }) => {
+                                  const active = snapshotTab === owner;
+                                  return (
+                                    <button
+                                      key={owner}
+                                      onClick={() => setSnapshotTab(owner)}
+                                      className={`flex-1 py-2 rounded-md text-sm font-bold flex items-center justify-center gap-1.5 active:scale-95 transition ${
+                                        active ? 'bg-white text-slate-900 shadow' : 'text-slate-500'
+                                      }`}
+                                    >
+                                      <span>{icon}</span>
+                                      <span>{owner}</span>
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                        active ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-500'
+                                      }`}>{accs.length}</span>
+                                    </button>
+                                  );
+                                })}
                               </div>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={draftVal}
-                                onChange={(e) => setSnapshotDraft({...snapshotDraft, [acc.id]: e.target.value})}
-                                placeholder="0"
-                                className="w-24 px-2 py-1.5 border border-slate-300 rounded text-sm tabular-nums text-right"
-                              />
+                            )}
+
+                            {/* 小计 */}
+                            {hasMulti && (
+                              <div className="text-[11px] text-slate-500 mb-2 flex items-center justify-between">
+                                <span>{snapshotTab} · {currentAccs.length} 个账户</span>
+                                <span className="font-bold text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  ≈ ¥{fmt(curSum, 0)}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              {currentAccs.map(acc => {
+                                const currentBal = getBalance(acc.id, fillMonth);
+                                const draftVal = snapshotDraft[acc.id] ?? (currentBal || '');
+                                return (
+                                  <div key={acc.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
+                                    <span className="text-lg">{acc.icon || '💰'}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs font-bold truncate">{acc.name}</div>
+                                      <div className="text-[10px] text-slate-500">{acc.currency}</div>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={draftVal}
+                                      onChange={(e) => setSnapshotDraft({...snapshotDraft, [acc.id]: e.target.value})}
+                                      placeholder="0"
+                                      className="w-24 px-2 py-1.5 border border-slate-300 rounded text-sm tabular-nums text-right"
+                                    />
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
+                          </>
+                        );
+                      })()}
                       <div className="flex gap-2 mt-4">
                         <button
                           onClick={() => { setShowFillSnapshot(false); setSnapshotDraft({}); }}
@@ -5347,28 +5482,26 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 02:00:00 (UTC+8)
-// 📝 本次更新: v10.7.0 - 我的关注 Robinhood 风 📈
+// 📅 最后修改时间: 2026-04-22 03:30:00 (UTC+8)
+// 📝 本次更新: v10.7.2 - 录入按人 Tab 切换 👥
 //
-//   问题: "字太小, 区域比较窄"
+//   问题: 填月底余额时, 我/老婆账户混在一起, 难以专注
 //
-//   改动: 卡片改 Robinhood 白底风格
+//   改动:
+//     弹窗内加顶部 Tab 切换
+//     [👤 我 (3)]  [👩 老婆 (2)]
+//     一次只录入一人的账户
 //
-//   原结构 (1 行 4 列横排):
-//     代码(sm) | 价格(sm) | 走势图 28px | 回撤(xs)
+//   智能行为:
+//     - 只有一人有账户 → 不显示 Tab (减少噪音)
+//     - 两人都有账户 → 显示 Tab
+//     - Tab 下方显示: "我 · 3 个账户 ≈ ¥140,000" 小计
+//     - 金额用 toCNY 按 USD/HKD 换算为 CNY
 //
-//   新结构 (3 层垂直布局):
-//     上: 代码 18px + 名称 12px | 价格 20px + 当日 13px
-//     中: 大走势图 56px (带渐变填充)
-//     下: 成本 / 52 周高(回撤) / 持仓收益 3 列
+//   账户卡简化:
+//     去掉 meta 里的 "我 / 老婆" (因为 Tab 已经区分了)
+//     只保留币种
 //
-//   优势:
-//     ✓ 字大 (16/18/20/13)
-//     ✓ 走势图 2 倍大 (28→56px)
-//     ✓ 带渐变填充 (专业感)
-//     ✓ 底部 3 列多 2 个关键数据
-//     ✓ 每卡高约 150px (比原来多, 但信息量翻倍)
-//
-// 📦 v10.6.9: HKD 汇率修复
-// 📦 v10.6.8: V4-B 全黑开屏
+// 📦 v10.7.1: 智能刷新 + 走势图修复
+// 📦 v10.7.0: Robinhood 风
 // ============================================
