@@ -1452,6 +1452,24 @@ function MainApp({ user, onLogout }) {
         .rocket-particle-1 { animation: rocketP1 0.9s ease-out 0.3s forwards; }
         .rocket-particle-2 { animation: rocketP2 0.9s ease-out 0.5s forwards; }
         .rocket-particle-3 { animation: rocketP3 0.9s ease-out 0.7s forwards; }
+
+        /* ✨ 年度进度条微光扫过效果 (PE) */
+        @keyframes progressShine {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
+        }
+        .progress-shine { overflow: hidden; }
+        .progress-shine::after {
+          content: '';
+          position: absolute;
+          top: 0; left: 0;
+          width: 20px; height: 100%;
+          background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.5) 50%,
+            transparent 100%);
+          animation: progressShine 2s linear infinite;
+        }
       `}</style>
       <div className="max-w-5xl mx-auto">
         {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
@@ -3965,94 +3983,174 @@ function MainApp({ user, onLogout }) {
                     </div>
                   </div>
 
-                  {/* 年度列表 (每行: 标签 + 起点/计划/实际/差额 + 终点) */}
-                  <div className="space-y-2">
+                  {/* 年度列表 (V5B 布局: 本年夕阳粉金 + 微光扫过 + 起点→终点 胶囊) */}
+                  <div className="space-y-3">
                     {yearlyFinal.map(y => {
                       const thisYear = new Date().getFullYear();
                       const isCurrent = y.year === thisYear;
-                      const isPast = y.year < thisYear;
                       const hasActual = y.actualGain !== null;
                       const diff = hasActual ? y.actualGain - y.planTarget : null;
                       const isOverTarget = diff !== null && diff >= 0;
 
-                      return (
-                        <div
-                          key={y.year}
-                          className={`rounded-lg p-2.5 ${
-                            isCurrent ? 'bg-blue-50 border border-blue-200'
-                            : isPast ? 'bg-slate-50'
-                            : 'bg-slate-50/50'
-                          }`}
-                        >
-                          {/* 第 1 行: 年份 + 标签 + 编辑 */}
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <div className={`text-sm font-black tabular-nums ${isCurrent ? 'text-blue-700' : 'text-slate-700'}`}>
-                                {y.year}
+                      // 当年进度 (基于月份)
+                      const currentMonth = new Date().getMonth() + 1;  // 1-12
+                      const yearProgressPct = isCurrent ? (currentMonth / 12 * 100) : 0;
+
+                      if (isCurrent) {
+                        // ============ 本年大卡: 夕阳粉金 + 微光扫过 ============
+                        return (
+                          <div
+                            key={y.year}
+                            className="rounded-xl p-3 relative"
+                            style={{
+                              background: `
+                                radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+                                radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.12) 0%, transparent 50%),
+                                linear-gradient(135deg, #fdf2f8 0%, #fff 100%)
+                              `,
+                              border: '1px solid #fbcfe8',
+                            }}
+                          >
+                            {/* 第 1 行: 年份 + 标签 + 编辑 */}
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <div className="text-base font-black tabular-nums" style={{ color: '#db2777', fontFamily: 'ui-monospace, monospace' }}>
+                                  {y.year}
+                                </div>
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: '#db2777' }}>本年</span>
+                                {hasActual && (
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${isOverTarget ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+                                    {isOverTarget ? '↑达标' : '↓未达'}
+                                  </span>
+                                )}
                               </div>
-                              {isCurrent && (
-                                <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">本年</span>
-                              )}
-                              {hasActual && (
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${isOverTarget ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                                  {isOverTarget ? '↑达标' : '↓未达'}
+                              <button
+                                onClick={() => setEditYearlyActualId(y.year)}
+                                className="w-6 h-6 rounded hover:bg-pink-200 flex items-center justify-center active:scale-95 transition"
+                                style={{ background: 'rgba(219, 39, 119, 0.1)', color: '#db2777' }}
+                              >
+                                <Edit2 className="w-3 h-3"/>
+                              </button>
+                            </div>
+
+                            {/* 第 2 行: 计划 → 实际 + 差额 */}
+                            <div className="flex items-center justify-between text-xs mb-2 px-1">
+                              <div className="flex items-baseline gap-1.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                <span className="text-slate-500 text-[11px]">计划 +{symbol}{fmtWan(y.planTarget * rate, 1)}</span>
+                                <span style={{ color: '#f9a8d4' }}>→</span>
+                                <span className={`font-black text-[13px] ${!hasActual ? 'text-slate-400 italic font-normal' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                  {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${symbol}${fmtWan(y.actualGain * rate, 1)}万` : 'TBD'}
                                 </span>
+                              </div>
+                              {hasActual ? (
+                                <span className={`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded ${isOverTarget ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                  {diff >= 0 ? '+' : ''}{symbol}{fmtWan(diff * rate, 1)}万
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-bold">—</span>
                               )}
-                              {y.isProjected && !isCurrent && (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-400 text-white text-[9px] font-bold">推演</span>
+                            </div>
+
+                            {/* 第 3 行: 起点 → 终点 (蓝色胶囊) */}
+                            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-[11px]" style={{ background: 'rgba(219, 39, 119, 0.08)' }}>
+                              <span>
+                                <span className="text-slate-500 text-[10px]">起点</span>{' '}
+                                <span className="font-bold tabular-nums" style={{ color: '#be185d', fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.startBalance * rate, 1)}万</span>
+                              </span>
+                              <span style={{ color: '#f9a8d4' }}>→</span>
+                              <span>
+                                <span className="text-slate-500 text-[10px]">终点</span>{' '}
+                                <span className="font-bold tabular-nums" style={{ color: '#be185d', fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.endBalance * rate, 1)}万</span>
+                              </span>
+                            </div>
+
+                            {/* 第 4 行: 年度时间进度条 (PE 微光扫过) */}
+                            <div className="flex items-center gap-2 mt-2 text-[10px] font-bold" style={{ color: '#db2777' }}>
+                              <span className="whitespace-nowrap">当年 · {currentMonth}月</span>
+                              <div className="flex-1 h-2 rounded-full overflow-hidden relative" style={{ background: 'rgba(219, 39, 119, 0.12)' }}>
+                                <div
+                                  className="h-full rounded-full relative progress-shine"
+                                  style={{
+                                    width: `${yearProgressPct}%`,
+                                    background: 'linear-gradient(90deg, #10b981 0%, #fbbf24 50%, #e11d48 100%)',
+                                    boxShadow: '0 0 6px rgba(251, 191, 36, 0.4)',
+                                  }}
+                                ></div>
+                              </div>
+                              <span className="tabular-nums">{yearProgressPct.toFixed(0)}%</span>
+                            </div>
+
+                            {/* 北极星对比 */}
+                            {(!isCurrent || hasActual) && (
+                              <div className="text-[10px] text-slate-400 mt-2 px-1">
+                                北极星余额: <span className="tabular-nums">{symbol}{fmtWan(y.planEndBalance * rate, 1)}万</span>
+                                {' · '}
+                                {y.endBalance >= y.planEndBalance ? (
+                                  <span className="text-rose-500 font-bold">领先 {symbol}{fmtWan((y.endBalance - y.planEndBalance) * rate, 1)}万</span>
+                                ) : (
+                                  <span className="text-emerald-500 font-bold">落后 {symbol}{fmtWan((y.planEndBalance - y.endBalance) * rate, 1)}万</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // ============ 其他年份: 紧凑行 + 起点→终点 胶囊 ============
+                      return (
+                        <div key={y.year} className="rounded-lg p-2.5 bg-slate-50/50">
+                          {/* 第 1 行: 年份 + 标签 + 主数据 + 编辑 */}
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-black tabular-nums text-slate-600 w-12" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                              {y.year}
+                            </div>
+                            <div className="flex-1 flex items-center justify-between text-[11px]">
+                              <div className="flex items-baseline gap-1" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                <span className="text-slate-500">+{symbol}{fmtWan(y.planTarget * rate, 1)}</span>
+                                <span className="text-slate-300">→</span>
+                                <span className={`font-bold ${!hasActual ? 'text-slate-400 italic font-normal' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                  {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${symbol}${fmtWan(y.actualGain * rate, 1)}万` : 'TBD'}
+                                </span>
+                              </div>
+                              {hasActual ? (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums ${isOverTarget ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                  {diff >= 0 ? '+' : ''}{symbol}{fmtWan(diff * rate, 1)}万
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-bold">TBD</span>
                               )}
                             </div>
                             <button
                               onClick={() => setEditYearlyActualId(y.year)}
-                              className="w-6 h-6 rounded bg-slate-200 hover:bg-blue-500 hover:text-white flex items-center justify-center active:scale-95 transition"
+                              className="w-5 h-5 rounded bg-slate-200 hover:bg-blue-500 hover:text-white flex items-center justify-center active:scale-95 transition text-slate-400 flex-shrink-0"
                             >
-                              <Edit2 className="w-3 h-3"/>
+                              <Edit2 className="w-2.5 h-2.5"/>
                             </button>
                           </div>
 
-                          {/* 第 2 行: 起点 → 终点 (用箭头表达) */}
-                          <div className="flex items-center justify-between text-[11px] mb-1.5 px-1">
-                            <span className="text-slate-500">
-                              起点 <span className="font-bold text-slate-700 tabular-nums">{symbol}{fmtWan(y.startBalance * rate, 1)}万</span>
+                          {/* 第 2 行: 起点 → 终点 小胶囊 */}
+                          <div className="flex items-center justify-between mt-1.5 ml-14 mr-7 px-2 py-1 rounded text-[10px] bg-white">
+                            <span>
+                              <span className="text-slate-400">起点</span>{' '}
+                              <span className="font-bold text-slate-600 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.startBalance * rate, 1)}万</span>
                             </span>
-                            <span className="text-slate-400">→</span>
-                            <span className={y.isProjected ? 'text-slate-400 italic' : 'text-slate-700'}>
-                              终点 <span className={`font-bold tabular-nums ${y.isProjected ? 'text-slate-400' : 'text-slate-900'}`}>{symbol}{fmtWan(y.endBalance * rate, 1)}万</span>
+                            <span className="text-slate-300">→</span>
+                            <span>
+                              <span className="text-slate-400">终点</span>{' '}
+                              <span className={`font-bold tabular-nums italic ${y.isProjected ? 'text-slate-400' : 'text-slate-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.endBalance * rate, 1)}万</span>
                             </span>
                           </div>
 
-                          {/* 第 3 行: 计划 / 实际 / 差额 */}
-                          <div className="grid grid-cols-3 gap-2 text-[11px] pt-1.5 border-t border-slate-200/60">
-                            <div>
-                              <div className="text-[9px] text-slate-500 font-bold uppercase">计划</div>
-                              <div className="font-bold tabular-nums text-slate-700">+{symbol}{fmtWan(y.planTarget * rate, 1)}万</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] text-slate-500 font-bold uppercase">实际</div>
-                              <div className={`font-bold tabular-nums ${!hasActual ? 'text-slate-400 italic' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${symbol}${fmtWan(y.actualGain * rate, 1)}万` : 'TBD'}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] text-slate-500 font-bold uppercase">差额</div>
-                              <div className={`font-bold tabular-nums ${diff === null ? 'text-slate-400 italic' : isOverTarget ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {diff === null ? 'TBD' : `${diff >= 0 ? '+' : ''}${symbol}${fmtWan(diff * rate, 1)}万`}
-                              </div>
-                            </div>
+                          {/* 北极星对比 */}
+                          <div className="text-[10px] text-slate-400 mt-1 ml-14">
+                            北极星 <span className="tabular-nums">{symbol}{fmtWan(y.planEndBalance * rate, 1)}万</span>
+                            {' · '}
+                            {y.endBalance >= y.planEndBalance ? (
+                              <span className="text-rose-500 font-bold">领先 {symbol}{fmtWan((y.endBalance - y.planEndBalance) * rate, 1)}万</span>
+                            ) : (
+                              <span className="text-emerald-500 font-bold">落后 {symbol}{fmtWan((y.planEndBalance - y.endBalance) * rate, 1)}万</span>
+                            )}
                           </div>
-
-                          {/* 北极星对比 (小字, 落后/领先) */}
-                          {!isCurrent && (
-                            <div className="text-[10px] text-slate-400 mt-1 px-1">
-                              北极星余额: <span className="tabular-nums">{symbol}{fmtWan(y.planEndBalance * rate, 1)}万</span>
-                              {' · '}
-                              {y.endBalance >= y.planEndBalance ? (
-                                <span className="text-rose-500 font-bold">领先 {symbol}{fmtWan((y.endBalance - y.planEndBalance) * rate, 1)}万</span>
-                              ) : (
-                                <span className="text-emerald-500 font-bold">落后 {symbol}{fmtWan((y.planEndBalance - y.endBalance) * rate, 1)}万</span>
-                              )}
-                            </div>
-                          )}
                         </div>
                       );
                     })}
@@ -4794,18 +4892,29 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 20:30:00 (UTC+8)
-// 📝 本次更新: v10.5.9 - 火箭进度条 🚀
+// 📅 最后修改时间: 2026-04-21 21:00:00 (UTC+8)
+// 📝 本次更新: v10.6.0 - 年度表 V5B + BG5 + PE ✨
 //
-//   改动 1: 北极星进度条加粒子尾气动画
-//     - 进度条先快后慢冲出 (1.2s, cubic-bezier)
-//     - 3 个金色粒子从右边飞出 (间隔 0.3/0.5/0.7s)
-//     - 每次打开/重新进入复盘 tab 都重新播放
+//   改版: 年度目标表彻底重做
 //
-//   改动 2: 融资进度条删掉 1.3/1.5 两条竖线
-//     - 底色分档 3 段已足够表达
-//     - 视觉更清爽
+//   布局 (V5B):
+//     本年: 夕阳粉金大卡 (BG5)
+//       - 年份 + 本年标签 + 达标/未达
+//       - 计划 → 实际 + 差额
+//       - 起点 → 终点 粉色胶囊
+//       - 当年月度进度条 (PE 微光扫过)
+//       - 北极星对比小字
 //
+//     未来/过去: 单行极简
+//       - 年份 + 计划→实际 + 差额 + ✎
+//       - 起点→终点 白色小胶囊
+//       - 北极星对比小字
+//
+//   动画 (PE 微光扫过):
+//     进度条中白色光条从左扫到右
+//     无限循环
+//     像金属反光, 柔和不打扰
+//
+// 📦 v10.5.9: 火箭进度条
 // 📦 v10.5.8: 融资改倍率
-// 📦 v10.5.7: 精简 (删现实推演)
 // ============================================
