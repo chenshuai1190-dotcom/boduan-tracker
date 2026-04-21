@@ -587,7 +587,7 @@ function MainApp({ user, onLogout }) {
     motto: '',
     displayCurrency: 'USD',  // USD | CNY
   });
-  const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 600000 });
+  const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 0 });
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [yearlyActuals, setYearlyActuals] = useState([]); // [{year, actualGain, endBalance}]
@@ -3685,11 +3685,20 @@ function MainApp({ user, onLogout }) {
             const progressPct = ageGoalAmount > 0 ? (currentBalance / ageGoalAmount) * 100 : 0;
             const yearsLeft = (PLAN.startYear + PLAN.totalYears - 1) - thisYear;
 
-            // === 融资红线状态 ===
-            const marginPct = marginStatus.marginLimit > 0 ? (marginStatus.currentMargin / marginStatus.marginLimit) * 100 : 0;
-            const marginState = marginStatus.currentMargin >= marginStatus.marginLimit ? 'red'
-              : marginStatus.currentMargin >= marginStatus.marginLimit * 0.8 ? 'orange'
+            // === 融资杠杆状态 (基于总仓位倍率) ===
+            // 总仓位倍率 = (账户净值 + 融资金额) / 账户净值
+            // 1.0 = 无融资, 1.5 = 杠杆到 1.5 倍
+            // 账户净值 = currentBalance (来自复盘数据)
+            // 融资 marginStatus.currentMargin 是人民币, 但复盘是 USD, 需要统一
+            // 约定: currentMargin 也是 USD (和 startCapital 一致)
+            const marginRatio = currentBalance > 0
+              ? 1 + (marginStatus.currentMargin / currentBalance)
+              : 1;
+            const marginState = marginRatio >= 1.5 ? 'red'
+              : marginRatio >= 1.3 ? 'orange'
               : 'green';
+            // 进度条位置: 1.0 → 0%, 2.0 → 100% (以 2x 为刻度上限)
+            const marginPct = Math.max(0, Math.min(100, (marginRatio - 1.0) / 1.0 * 100));
 
             // === 戒律筛选 ===
             const LEVELS = [
@@ -3832,34 +3841,77 @@ function MainApp({ user, onLogout }) {
                   )}
                 </div>
 
-                {/* ============ 模块 2: 融资红线监控 ============ */}
+                {/* ============ 模块 2: 融资杠杆监控 (基于总仓位倍率) ============ */}
                 <div className={`rounded-2xl p-4 shadow border-2 mb-4 ${marginState === 'red' ? 'bg-rose-50 border-rose-300' : marginState === 'orange' ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'}`}>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-1.5">
                       <AlertTriangle className={`w-4 h-4 ${marginState === 'red' ? 'text-rose-600' : marginState === 'orange' ? 'text-amber-600' : 'text-emerald-600'}`}/>
-                      <div className="text-sm font-black text-slate-800">融资红线监控</div>
+                      <div className="text-sm font-black text-slate-800">融资杠杆监控</div>
                     </div>
                     <button onClick={() => setShowEditMargin(true)} className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
                       <Edit2 className="w-3 h-3"/> 修改
                     </button>
                   </div>
 
-                  <div className="flex items-baseline justify-between mb-2">
-                    <div className="text-2xl font-black tabular-nums text-slate-800" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                      ¥{fmtWan(marginStatus.currentMargin, 1)}万
+                  {/* 主数字: 总仓位倍率 + 状态 */}
+                  <div className="flex items-baseline justify-between mb-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">总仓位倍率</div>
+                      <div className={`text-2xl font-black tabular-nums ${marginState === 'red' ? 'text-rose-700' : marginState === 'orange' ? 'text-amber-700' : 'text-emerald-700'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {marginRatio.toFixed(2)}x
+                      </div>
                     </div>
                     <div className={`text-xs font-bold ${marginState === 'red' ? 'text-rose-700' : marginState === 'orange' ? 'text-amber-700' : 'text-emerald-700'}`}>
-                      {marginState === 'red' ? '🚨 红线警报!' : marginState === 'orange' ? '⚠️ 接近红线' : '✅ 安全区'}
+                      {marginState === 'red' ? '🚨 危险' : marginState === 'orange' ? '⚠️ 中等' : '✅ 安全'}
                     </div>
                   </div>
 
-                  <div className="relative h-3 bg-white rounded-full overflow-hidden border border-slate-200">
-                    <div className={`h-full rounded-full ${marginState === 'red' ? 'bg-rose-500' : marginState === 'orange' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(marginPct, 100)}%` }}></div>
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-rose-700" style={{ left: '100%', transform: 'translateX(-1px)' }}></div>
+                  {/* 金额明细 */}
+                  <div className="grid grid-cols-3 gap-2 mb-3 text-[11px]">
+                    <div className="bg-white/60 rounded-md p-2">
+                      <div className="text-[9px] text-slate-500 font-bold uppercase mb-0.5">账户净值</div>
+                      <div className="font-bold text-slate-800 tabular-nums">{fmtWanUSD(currentBalance, 1)}</div>
+                    </div>
+                    <div className="bg-white/60 rounded-md p-2">
+                      <div className="text-[9px] text-slate-500 font-bold uppercase mb-0.5">融资金额</div>
+                      <div className="font-bold text-slate-800 tabular-nums">{fmtWanUSD(marginStatus.currentMargin, 1)}</div>
+                    </div>
+                    <div className="bg-white/60 rounded-md p-2">
+                      <div className="text-[9px] text-slate-500 font-bold uppercase mb-0.5">总仓位</div>
+                      <div className="font-bold text-slate-800 tabular-nums">{fmtWanUSD(currentBalance + marginStatus.currentMargin, 1)}</div>
+                    </div>
                   </div>
-                  <div className="flex justify-between mt-1 text-[10px] text-slate-500 font-medium">
-                    <span>0</span>
-                    <span>红线 ¥{fmtWan(marginStatus.marginLimit, 0)}万</span>
+
+                  {/* 倍率进度条 (1.0 → 2.0) */}
+                  <div className="relative h-3 bg-white rounded-full overflow-hidden border border-slate-200">
+                    {/* 3 档背景色 */}
+                    <div className="absolute inset-0 flex">
+                      <div style={{ width: '30%' }} className="bg-emerald-100"></div>
+                      <div style={{ width: '20%' }} className="bg-amber-100"></div>
+                      <div style={{ width: '50%' }} className="bg-rose-100"></div>
+                    </div>
+                    {/* 当前进度 */}
+                    <div className={`absolute top-0 left-0 h-full rounded-full ${marginState === 'red' ? 'bg-rose-500' : marginState === 'orange' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${marginPct}%` }}></div>
+                    {/* 1.3 分割线 */}
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-amber-600" style={{ left: '30%' }}></div>
+                    {/* 1.5 分割线 */}
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-rose-600" style={{ left: '50%' }}></div>
+                  </div>
+                  <div className="flex justify-between mt-1 text-[9px] text-slate-500 font-medium">
+                    <span>1.0x</span>
+                    <span className="text-emerald-600 font-bold" style={{ marginLeft: '6%' }}>安全</span>
+                    <span className="text-amber-600 font-bold">1.3x</span>
+                    <span className="text-rose-600 font-bold">1.5x</span>
+                    <span>2.0x</span>
+                  </div>
+
+                  {/* 提示 */}
+                  <div className={`mt-3 text-[11px] font-medium ${marginState === 'red' ? 'text-rose-700' : marginState === 'orange' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {marginState === 'red'
+                      ? '🚨 融资过度, 强烈建议降杠杆'
+                      : marginState === 'orange'
+                      ? '⚠️ 杠杆偏高, 注意风险控制'
+                      : '✅ 杠杆安全, 风险可控'}
                   </div>
                 </div>
 
@@ -4226,32 +4278,67 @@ function MainApp({ user, onLogout }) {
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEditMargin(false)}>
                     <div className="bg-white rounded-2xl p-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-base">融资状态</h3>
+                        <h3 className="font-bold text-base">融资杠杆</h3>
                         <button onClick={() => setShowEditMargin(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
                           <X className="w-4 h-4"/>
                         </button>
                       </div>
                       <div className="space-y-3">
-                        <div>
-                          <label className="text-xs text-slate-500 block mb-1">当前融资额 (¥)</label>
-                          <input
-                            type="number"
-                            value={marginStatus.currentMargin}
-                            onChange={e => setMarginStatus({ ...marginStatus, currentMargin: parseFloat(e.target.value) || 0 })}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                          />
-                          <div className="text-[10px] text-slate-400 mt-0.5">¥{fmtWan(marginStatus.currentMargin, 1)}万</div>
+                        {/* 账户净值显示 (自动, 不可改) */}
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">账户净值 (自动)</div>
+                          <div className="font-bold text-slate-800 tabular-nums text-sm">{fmtWanUSD(currentBalance, 1)}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">来自复盘 tab 最近填写的余额</div>
                         </div>
+
                         <div>
-                          <label className="text-xs text-slate-500 block mb-1">红线阈值 (¥)</label>
-                          <input
-                            type="number"
-                            value={marginStatus.marginLimit}
-                            onChange={e => setMarginStatus({ ...marginStatus, marginLimit: parseFloat(e.target.value) || 0 })}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                          />
-                          <div className="text-[10px] text-slate-400 mt-0.5">¥{fmtWan(marginStatus.marginLimit, 1)}万 (超过会警报)</div>
+                          <label className="text-xs text-slate-500 block mb-1">当前融资额 ({investmentPlan.displayCurrency === 'CNY' ? '¥' : '$'})</label>
+                          {(() => {
+                            const isCNYMargin = investmentPlan.displayCurrency === 'CNY';
+                            const rateMargin = isCNYMargin ? (usdRate || 7.2) : 1;
+                            const displayMargin = marginStatus.currentMargin * rateMargin;
+                            return (
+                              <>
+                                <input
+                                  type="number"
+                                  value={Math.round(displayMargin)}
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    setMarginStatus({ ...marginStatus, currentMargin: val / rateMargin });
+                                  }}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+                                  placeholder={isCNYMargin ? '例: 3600000 (360 万¥)' : '例: 500000 (50 万$)'}
+                                />
+                                <div className="text-[10px] text-slate-400 mt-0.5">
+                                  当前: {fmtWanUSD(marginStatus.currentMargin, 1)}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
+
+                        {/* 实时计算预览 */}
+                        {currentBalance > 0 && (
+                          <div className={`rounded-lg p-3 border ${marginRatio >= 1.5 ? 'bg-rose-50 border-rose-200' : marginRatio >= 1.3 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                            <div className="text-[10px] font-bold uppercase mb-1 tracking-widest">
+                              {marginRatio >= 1.5 ? '🚨 危险区' : marginRatio >= 1.3 ? '⚠️ 中等区' : '✅ 安全区'}
+                            </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-xs text-slate-600">总仓位倍率:</span>
+                              <span className={`text-lg font-black tabular-nums ${marginRatio >= 1.5 ? 'text-rose-700' : marginRatio >= 1.3 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                {marginRatio.toFixed(2)}x
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1">
+                              1.0-1.3x 安全 · 1.3-1.5x 中等 · 1.5x+ 危险
+                            </div>
+                          </div>
+                        )}
+                        {currentBalance === 0 && (
+                          <div className="text-[11px] text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+                            💡 先在复盘 tab 填年度数据, 才能自动算杠杆倍率
+                          </div>
+                        )}
                       </div>
                       <div className="flex gap-2 mt-4">
                         <button onClick={() => setShowEditMargin(false)} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
@@ -4666,26 +4753,28 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 19:30:00 (UTC+8)
-// 📝 本次更新: v10.5.7 - 复盘 tab 精简 (方案 B)
+// 📅 最后修改时间: 2026-04-21 20:00:00 (UTC+8)
+// 📝 本次更新: v10.5.8 - 融资改倍率监控 ⚖️
 //
-//   删除:
-//     ❌ 北极星卡中的"现实推演终点"行
-//     ❌ 年度表顶部"北极星 vs 现实推演" 2 列对比卡
+//   旧逻辑 (固定红线):
+//     融资 50 万 vs 红线 60 万 (硬定额)
+//     → 大账户 / 小账户 同标准, 不科学
 //
-//   保留:
-//     ✓ 北极星卡: 目标 + 进度条 + 箴言
-//     ✓ 年度表: 逐年明细 (起点→终点 + 计划/实际/差额)
-//     ✓ 每行底部小字 "北极星余额 落后/领先" (保留)
-//     ✓ 双币种切换
-//     ✓ 进度条用复盘自己的数据
-//     ✓ 柔性复利逻辑
+//   新逻辑 (倍率模式):
+//     总仓位倍率 = (账户净值 + 融资) / 账户净值
+//     1.0x - 1.3x  🟢 安全
+//     1.3x - 1.5x  🟡 中等
+//     1.5x +       🔴 危险
 //
-//   原因:
-//     - 重复显示太多"现实推演"
-//     - 顶部对比卡信息已在进度条+逐年行体现
-//     - 简化后视觉更清爽
+//   数据源:
+//     账户净值 → 自动读复盘 currentBalance
+//     融资金额 → 用户自己填 (支持 USD/CNY 切换)
 //
+//   视觉:
+//     主数字: 总仓位倍率 X.XX x
+//     明细: 账户净值 / 融资 / 总仓位 3 列
+//     进度条: 1.0 → 2.0 (安全绿 → 中等黄 → 危险红)
+//
+// 📦 v10.5.7: 精简 (删现实推演)
 // 📦 v10.5.6: 3 bug 修复
-// 📦 v10.5.5: 双币种切换
 // ============================================
