@@ -579,11 +579,11 @@ function MainApp({ user, onLogout }) {
 
   // ===== 复盘 tab =====
   const [investmentPlan, setInvestmentPlan] = useState({
-    startCapital: 2400000,
+    startCapital: 0,
     targetAnnualRate: 0.20,
     startYear: new Date().getFullYear(),
     totalYears: 10,
-    ageGoalAge: 40,
+    ageGoalAge: 0,
     motto: '',
     displayCurrency: 'USD',  // USD | CNY
   });
@@ -3666,16 +3666,24 @@ function MainApp({ user, onLogout }) {
             const projectedFinal = yearlyFinal[yearlyFinal.length - 1]?.endBalance || 0;
             const shortfall = ageGoalAmount - projectedFinal;
 
-            // === 计算: 当前总资产 (从资产 tab 的数据) ===
+            // === 当前进度 ===
+            // 用复盘 tab 自己的数据: 取最近一个已填实际数据的年份 endBalance
+            // 如果一个都没填, 用起始本金
             const currentMonth = new Date().toISOString().slice(0, 7);
-            const currentBalance = accounts.reduce((sum, acc) => {
-              const snap = snapshots.find(s => s.accountId === acc.id && s.month === currentMonth);
-              const bal = snap ? snap.balance : 0;
-              return sum + (acc.currency === 'USD' ? bal * usdRate : bal);
-            }, 0);
+            // 旧逻辑: 读资产 tab 家庭总资产 (不合适, 因为复盘追踪的是投资账户)
+            // 新逻辑: 基于复盘 tab 填入的数据
+            let currentBalance = PLAN.startCapital;
+            // 找最近一个"实际"填写的年份 (不是推演)
+            const thisYear = new Date().getFullYear();
+            for (let i = yearlyFinal.length - 1; i >= 0; i--) {
+              if (!yearlyFinal[i].isProjected) {
+                currentBalance = yearlyFinal[i].endBalance;
+                break;
+              }
+            }
 
             const progressPct = ageGoalAmount > 0 ? (currentBalance / ageGoalAmount) * 100 : 0;
-            const yearsLeft = (PLAN.startYear + PLAN.totalYears - 1) - new Date().getFullYear();
+            const yearsLeft = (PLAN.startYear + PLAN.totalYears - 1) - thisYear;
 
             // === 融资红线状态 ===
             const marginPct = marginStatus.marginLimit > 0 ? (marginStatus.currentMargin / marginStatus.marginLimit) * 100 : 0;
@@ -4696,35 +4704,23 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 18:30:00 (UTC+8)
-// 📝 本次更新: v10.5.5 - 复盘 tab 双币种切换 💱
+// 📅 最后修改时间: 2026-04-21 19:00:00 (UTC+8)
+// 📝 本次更新: v10.5.6 - 3 个 bug 修复
 //
-//   改动: 2 个文件 (db.js + App.jsx)
-//   前置条件: 已跑 SQL (ALTER TABLE investment_plan ADD display_currency)
+//   修复 1: 默认值改 0 (用户自己填)
+//     startCapital: 2400000 → 0
+//     ageGoalAge: 40 → 0
+//     新用户看到空白 (需要去设置里填)
 //
-//   新增功能:
-//     ✅ 复盘 tab 顶部右侧: [$ USD] [¥ CNY] 切换按钮
-//     ✅ 切换状态云端保存 (多设备同步)
-//     ✅ 汇率复用资产 tab 的 usdRate (默认 7.2)
-//     ✅ 数据库统一存 USD, 显示时动态换算
+//   修复 2: 进度条不动
+//     旧: currentBalance = 家庭总资产 (资产 tab 数据)
+//     新: currentBalance = 最近一个"实际填写"年份的终点余额
+//         没填过 → currentBalance = 起始本金
+//     逻辑: 复盘 tab 追踪的是投资账户, 不是家庭总资产
 //
-//   涉及页面:
-//     - 北极星卡: 主数字按币种显示
-//     - 年度表: 起点/终点/计划/实际/差额 全部动态
-//     - 北极星余额对比小字: 带符号
-//     - 年度编辑 Modal: 输入框提示当前币种
-//     - 计划设置 Modal: 本金字段支持 CNY 输入
+//   修复 3: 双币种切换没部署
+//     (代码本来就在, 提示用户重新 commit 到 GitHub)
 //
-//   存储规则:
-//     - 数据库统一存 USD 值 (start_capital, actualGain, endBalance)
-//     - 显示时: USD × rate (rate = CNY?7.2:1)
-//     - 输入时: CNY 值 / rate = USD 值 (保存到 DB)
-//     → 切换币种不会丢失精度, 数据永远准确
-//
-//   不受影响:
-//     - 融资红线保持 ¥ (国内券商融资天然人民币)
-//     - 资产 tab (家庭资产, 已有多币种支持)
-//     - 首页/交易 tab (独立)
-//
-// 📦 v10.5.4: 复利计划科学重构 (柔性目标)
+// 📦 v10.5.5: 双币种切换 (初版, 未部署)
+// 📦 v10.5.4: 柔性复利逻辑
 // ============================================
