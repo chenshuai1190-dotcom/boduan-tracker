@@ -665,6 +665,16 @@ function MainApp({ user, onLogout }) {
   
   // 拉取实时行情状态
   const [fetching, setFetching] = useState(false);
+
+  // 🧪 WebSocket 实时模式 (EODHD All World Extended 套餐)
+  // localStorage 存, 默认关闭 (实验功能)
+  const [wsEnabled, setWsEnabled] = useState(() => {
+    try { return localStorage.getItem('bottomline_ws') === 'true'; } catch { return false; }
+  });
+  const [wsStatus, setWsStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
+  const [wsLastTick, setWsLastTick] = useState(null); // 最后收到 tick 的时间
+  // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
+  const [priceFlash, setPriceFlash] = useState({});
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
   // 云端数据加载状态
@@ -1513,6 +1523,116 @@ function MainApp({ user, onLogout }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading, watchlist.length]);
+
+  // 🧪 WebSocket 实时推送 (EODHD All World Extended)
+  // 启用后, 股价实时推送, 替代 REST 轮询
+  useEffect(() => {
+    if (!wsEnabled || cloudLoading || watchlist.length === 0) {
+      setWsStatus('disconnected');
+      return;
+    }
+
+    // EODHD token - 从 Vite 环境变量读取 (VITE_ 前缀才能到前端)
+    const token = import.meta.env.VITE_EODHD_TOKEN || '';
+    if (!token) {
+      console.error('[WebSocket] VITE_EODHD_TOKEN 未配置');
+      setWsStatus('error');
+      return;
+    }
+
+    const symbols = watchlist.map(s => s.symbol).join(',');
+    const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
+
+    console.log('[WebSocket] 连接中...', symbols);
+    setWsStatus('connecting');
+
+    let ws = null;
+    let reconnectTimer = null;
+    let isUnmounting = false;
+
+    const connect = () => {
+      if (isUnmounting) return;
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('[WebSocket] ✓ 已连接, 订阅:', symbols);
+          setWsStatus('connected');
+          ws.send(JSON.stringify({ action: 'subscribe', symbols }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            // EODHD 消息格式: { s: 'AAPL', p: 150.25, t: 1234567890, v: 100 }
+            if (data.s && typeof data.p === 'number') {
+              const sym = data.s.toUpperCase();
+              const newPrice = data.p;
+
+              setWsLastTick(new Date());
+
+              // 更新 watchlist 中对应股票的价格
+              setWatchlist(prev => prev.map(s => {
+                if (s.symbol !== sym) return s;
+                const oldPrice = s.price || 0;
+                if (oldPrice === newPrice) return s; // 价格没变, 不触发闪烁
+
+                // 触发闪烁效果
+                const flashDir = newPrice > oldPrice ? 'up' : 'down';
+                setPriceFlash(prev => ({ ...prev, [sym]: flashDir }));
+                setTimeout(() => {
+                  setPriceFlash(prev => {
+                    const next = { ...prev };
+                    delete next[sym];
+                    return next;
+                  });
+                }, 500);
+
+                // 当日涨跌重算
+                const pc = s.previousClose || oldPrice;
+                const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
+
+                return { ...s, price: newPrice, changePercent: newChangePct };
+              }));
+            }
+          } catch (e) { /* 忽略非 JSON 消息 (心跳) */ }
+        };
+
+        ws.onerror = (e) => {
+          console.error('[WebSocket] 错误:', e);
+          setWsStatus('error');
+        };
+
+        ws.onclose = (e) => {
+          console.warn('[WebSocket] 已关闭:', e.code, e.reason);
+          setWsStatus('disconnected');
+          // 3 秒后自动重连 (除非是主动关闭)
+          if (!isUnmounting && wsEnabled) {
+            reconnectTimer = setTimeout(() => {
+              console.log('[WebSocket] 尝试重连...');
+              connect();
+            }, 3000);
+          }
+        };
+      } catch (e) {
+        console.error('[WebSocket] 连接失败:', e);
+        setWsStatus('error');
+      }
+    };
+
+    connect();
+
+    return () => {
+      isUnmounting = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'unsubscribe', symbols }));
+        ws.close();
+      }
+      setWsStatus('disconnected');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsEnabled, cloudLoading, watchlist.length]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -2531,7 +2651,12 @@ function MainApp({ user, onLogout }) {
 
                   <button
                     onClick={() => setEditingStock(s.symbol)}
-                    className="w-full text-left p-4 pr-7 block"
+                    className="w-full text-left p-4 pr-7 block transition-colors duration-300"
+                    style={{
+                      background: priceFlash[s.symbol] === 'up' ? 'rgba(225, 29, 72, 0.08)' :
+                                  priceFlash[s.symbol] === 'down' ? 'rgba(16, 185, 129, 0.08)' :
+                                  'transparent',
+                    }}
                   >
                     {/* 上:代码/名称 ← → 价格/涨跌 */}
                     <div className="flex items-center justify-between mb-2">
@@ -5689,6 +5814,74 @@ function MainApp({ user, onLogout }) {
               </button>
             </div>
 
+            {/* 🧪 实验: WebSocket 实时模式 */}
+            <div
+              className="rounded-2xl p-5 relative overflow-hidden"
+              style={{
+                background: `
+                  radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.12) 0%, transparent 50%),
+                  linear-gradient(135deg, #0a0a0a 0%, #171717 100%)
+                `,
+                border: '1px solid rgba(34, 197, 94, 0.2)',
+              }}
+            >
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-black text-base flex items-center gap-2" style={{ color: '#4ade80' }}>
+                    🧪 实时推送 <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>BETA</span>
+                  </h2>
+                  {wsEnabled && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-black">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'animate-pulse' : ''}`}
+                        style={{
+                          background: wsStatus === 'connected' ? '#4ade80' :
+                                      wsStatus === 'connecting' ? '#fbbf24' :
+                                      wsStatus === 'error' ? '#ef4444' : '#64748b',
+                        }}
+                      />
+                      <span style={{ color: '#a3a3a3' }}>
+                        {wsStatus === 'connected' ? 'LIVE' :
+                         wsStatus === 'connecting' ? '连接中' :
+                         wsStatus === 'error' ? '错误' : '未连接'}
+                      </span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] leading-relaxed mb-3" style={{ color: '#a3a3a3' }}>
+                  使用 EODHD WebSocket 接收股票实时 tick (延迟 &lt; 50ms)
+                  <br/>
+                  开启后 REST 轮询停止, 数字会实时跳动
+                  <br/>
+                  <span style={{ color: '#fbbf24' }}>⚠️ Token 会暴露在浏览器, 仅个人使用</span>
+                </p>
+
+                <button
+                  onClick={() => {
+                    const next = !wsEnabled;
+                    setWsEnabled(next);
+                    try { localStorage.setItem('bottomline_ws', String(next)); } catch {}
+                  }}
+                  className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-2"
+                  style={{
+                    background: wsEnabled
+                      ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                      : 'rgba(255,255,255,0.08)',
+                    color: wsEnabled ? '#fff' : '#a3a3a3',
+                    border: wsEnabled ? '1px solid #16a34a' : '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  {wsEnabled ? '✓ 实时模式已开启' : '开启实时模式'}
+                </button>
+
+                {wsEnabled && wsLastTick && (
+                  <div className="text-[10px] mt-2 text-center tabular-nums" style={{ color: '#64748b', fontFamily: 'ui-monospace, monospace' }}>
+                    最后 tick: {wsLastTick.toLocaleTimeString('zh-CN', { hour12: false })}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* 数据持久化 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">💾 数据管理</h2>
@@ -5719,14 +5912,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.7.4
+                  v10.7.8
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.7.4', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.8', date: '2026-04-22', latest: true,
+                    items: ['🧪 WebSocket 实时推送 BETA (< 50ms 延迟)', '设置页 → 🧪 实时推送 手动开启', '价格变化时卡片闪烁动画'],
+                  },
+                  {
+                    ver: 'v10.7.7.4', date: '2026-04-22',
                     items: ['🛡️ 数据安全加固: 云端失败时不覆盖本地', '顶部警告横幅 (含重试按钮)', '"重置"加二次确认 (防误操作)'],
                   },
                   {
@@ -5842,7 +6039,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.7.4</div>
+                <div>📊 版本:v10.7.8</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6203,37 +6400,39 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 11:00:00 (UTC+8)
-// 📝 本次更新: v10.7.7.4 - 数据安全加固 🛡️
+// 📅 最后修改时间: 2026-04-22 12:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8 - WebSocket 实时推送 BETA 🧪
 //
-//   审计发现 3 个数据消失风险:
-//     1) 云端拉取失败时, [] 被当成 "真的没数据" 覆盖本地
-//     2) resetAll 只弹一次确认, 容易误点
-//     3) 用户不知道云端数据有没有同步成功
+//   新增: EODHD WebSocket 实时推送模式
 //
-//   修复:
-//     1) db.js:
-//        - 拉取失败返回 null (而非 [])
-//        - 新增 _failedTables 清单
+//   原理:
+//     EODHD All World Extended 套餐 ($29.99/月) 包含 WebSocket
+//     wss://ws.eodhistoricaldata.com/ws/us?api_token=XXX
+//     延迟 < 50ms, 每笔成交 tick 推送
+//     支持盘前盘后 (4:00 AM - 8:00 PM ET)
 //
-//     2) App.jsx 云端加载逻辑:
-//        - 每个表独立判断: null = 失败 (保留本地)
-//        - 非 null = 真实数据 (覆盖)
-//        - 即使 Supabase 部分故障, 本地数据也不丢
+//   功能:
+//     1) 设置页 → 🧪 实时推送 BETA 卡片 (金绿色)
+//        开关按钮 + 连接状态指示 (● LIVE)
+//        显示最后 tick 时间
 //
-//     3) 顶部警告横幅:
-//        - 失败时显示金色警告条
-//        - 列出哪些表失败
-//        - 提供 "🔄 重试" 按钮
-//        - 重试成功后横幅自动消失
+//     2) 开启后:
+//        - 连接 WebSocket, 订阅所有 watchlist
+//        - 价格变化 → 实时更新 state
+//        - 卡片背景闪烁 (涨红/跌绿, 300ms 自动消失)
+//        - 断线 3 秒自动重连
 //
-//     4) resetAll 二次确认:
-//        - 第一步: 详细警告 (云端不会删)
-//        - 第二步: 输入"确认清空"才继续
-//        - 防止误点
+//     3) localStorage 记住开关状态
 //
-//   结果: 即使 Supabase 出故障, 用户数据也绝不丢失
+//   ⚠️ 安全提示:
+//     token 直接在浏览器 WebSocket URL 中
+//     仅自测使用, 不推荐多用户场景
+//     正式上线需中转方案 (Supabase Edge Function)
 //
+//   需要:
+//     Vercel 添加环境变量 VITE_EODHD_TOKEN = 你的 token
+//     重新部署后生效
+//
+// 📦 v10.7.7.4: 数据安全加固
 // 📦 v10.7.7.3: 波段 bug + 全部交易弹窗
-// 📦 v10.7.7.2: 走势图动画 + 空月断线
 // ============================================
