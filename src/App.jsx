@@ -867,7 +867,7 @@ function MainApp({ user, onLogout }) {
     setQqqCurrent(640.47);
     setTqqqCurrent(58.55);
     setTotalCapital(500000);
-    localStorage.removeItem('tqqq_state');
+    try { localStorage.removeItem('tqqq_state'); } catch {}
     alert('本地数据已清空 (云端数据保留)');
   };
 
@@ -977,16 +977,9 @@ function MainApp({ user, onLogout }) {
   };
   const vixSignal = getVixSignal();
 
-  // 各批次触发价和投入计算
-  const computedBatches = batches.map(b => {
-    const triggerPrice = qqqHigh * (1 + b.drawdown);
-    const tqqqEstimate = tqqqCurrent * (1 + b.drawdown * 3 * 0.85);
-    const investAmount = totalCapital * b.allocation;
-    const estShares = Math.floor(investAmount / tqqqEstimate);
-    const triggered = qqqCurrent <= triggerPrice;
-    const tradeForBatch = trades.find(t => t.batch === b.name);
-    return { ...b, triggerPrice, tqqqEstimate, investAmount, estShares, triggered, executed: !!tradeForBatch };
-  });
+  // 注: computedBatches / computedExits 死代码已于 v10.7.8.7 清理
+  // 原属 v1 时代 "单追 TQQQ + 3 批建仓 + 2 止盈点" 的老逻辑,
+  // 新版用 watchlistAlerts (9 档) 和波段切分替代, 原变量无 JSX 消费
 
   // 持仓汇总(老逻辑:仅 TQQQ 全合,假设都是买入,用于止盈触发线兼容)
   const tqqqTrades = trades.filter(t => !t.symbol || t.symbol === 'TQQQ');
@@ -5936,14 +5929,62 @@ function MainApp({ user, onLogout }) {
               <div className="text-xs text-slate-500 mb-3 leading-relaxed">
                 所有数据自动云端同步, 无需手动保存。
                 <br/>
-                如需清空本地数据, 可点重置 (云端数据保留)。
+                建议: 每月导出一次 JSON 备份到本地。
               </div>
-              <button
-                onClick={resetAll}
-                className="w-full py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1.5 active:scale-95 transition"
-              >
-                <RotateCcw className="w-4 h-4" /> 重置本地数据
-              </button>
+              <div className="space-y-2">
+                {/* 导出 JSON 备份 */}
+                <button
+                  onClick={() => {
+                    const backup = {
+                      exportedAt: new Date().toISOString(),
+                      version: 'v10.7.8.7',
+                      trades,
+                      watchlist,
+                      waveNotes,
+                      accounts,
+                      snapshots,
+                      investmentPlan,
+                      marginStatus,
+                      disciplines,
+                      reviewLogs,
+                      yearlyActuals,
+                      settings: {
+                        benchmarkSymbol,
+                        fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
+                        vix, vixDataDate,
+                        usdRate, hkdRate,
+                        batches, exitTargets,
+                      },
+                    };
+                    const json = JSON.stringify(backup, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const date = new Date().toISOString().slice(0, 10);
+                    a.download = `bottomline-backup-${date}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-1.5"
+                  style={{
+                    background: '#fff',
+                    color: '#d97706',
+                    border: '2px solid #fbbf24',
+                  }}
+                >
+                  ⬇️ 导出 JSON 备份
+                </button>
+                {/* 重置本地数据 */}
+                <button
+                  onClick={resetAll}
+                  className="w-full py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1.5 active:scale-95 transition"
+                >
+                  <RotateCcw className="w-4 h-4" /> 重置本地数据
+                </button>
+              </div>
             </div>
 
             {/* 📜 更新日志 */}
@@ -5953,14 +5994,24 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.6
+                  v10.7.8.7
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8.6', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.8.7', date: '2026-04-22', latest: true,
+                    items: [
+                      '💾 新增"导出 JSON 备份"按钮 (设置页 → 数据卡)',
+                      '建议每月 1 次导出, 对抗数据意外丢失',
+                      '🔧 导出 JSON 补全 settings 字段 (FGI 历史 + 汇率)',
+                      '🛡️ localStorage.removeItem 加 try/catch (兼容隐私模式)',
+                      '🗑️ 清理 v1 时代死代码 computedBatches',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.8.6', date: '2026-04-22',
                     items: ['底部 tab "复盘" 改名 "目标" (更贴合实际功能)', '更新日志支持折叠/展开 (默认显示最新 5 条)'],
                   },
                   {
@@ -6136,7 +6187,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.6</div>
+                <div>📊 版本:v10.7.8.7</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6497,21 +6548,37 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 17:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8.6 - 改名"目标" + 完整版本史 📜
+// 📅 最后修改时间: 2026-04-22 18:30:00 (UTC+8)
+// 📝 本次更新: v10.7.8.7 - 导出 JSON 备份 💾
 //
-//   2 个改动:
+//   新功能: 设置 → 数据卡 新增"⬇️ 导出 JSON 备份"按钮
 //
-//   1) 底部 tab "复盘" 改名 "目标"
-//      理由: 这个 tab 包含 5 大模块, "复盘"只是其中之一
-//      "目标"更符合整体功能 (计划+杠杆+进度+戒律+反思)
+//   原因:
+//     用户担心 "哪天 Claude 消失了或账号丢了 怎么办"
+//     虽然数据在 Supabase 云端
+//     但多一层本地备份更安心
 //
-//   2) 更新日志支持折叠/展开
-//      默认: 显示最新 5 条 (符合移动端简洁原则)
-//      展开: 显示全部 25+ 条历史
-//      包含: 从 v1.0 (诞生) 到 v10.7.8.6 (今天)
-//      用户可以看到完整产品成长史
+//   工作方式:
+//     点击按钮 → 生成 JSON → 自动下载到本地
+//     文件名: bottomline-backup-YYYY-MM-DD.json
+//     内容: 所有 11 张表的数据 + 当前版本号
 //
-// 📦 v10.7.8.5: 指数实时 + 删假按钮
-// 📦 v10.7.8.3: 完成度 + 按钮配色
+//   建议: 每月 1 日导出一次, 存 Google Drive
+//
+//   顺手修复 (新 Claude 通读时发现):
+//     1. 导出 JSON 的 settings 原本只含 6 字段,
+//        补全 FGI 4 个历史值 + fgiDataDate + vixDataDate + usdRate + hkdRate
+//        (恢复时 FGI 对比和汇率不会再丢)
+//     2. localStorage.removeItem 加 try/catch
+//        (iOS Safari 隐私模式不再崩)
+//     3. 删除 v1 时代死代码 computedBatches
+//        (老的 "单追 TQQQ + 3 批建仓" 变量, 无 JSX 消费)
+//
+//   配套文档:
+//     CONTEXT.md      - 项目交接文档
+//     SURVIVAL-GUIDE.md - "Claude 消失后" 生存手册
+//     backup-supabase.sql - Supabase 后台 SQL 备份脚本
+//
+// 📦 v10.7.8.6: 改名目标 + 折叠
+// 📦 v10.7.8.5: ETF 实时 + 删假按钮
 // ============================================
