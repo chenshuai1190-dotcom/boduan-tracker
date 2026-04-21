@@ -193,14 +193,17 @@ export default async function handler(req, res) {
           }
         }
 
-        // ============ 普通股票: EODHD 实时(含盘前盘后) + 历史日线(52周高) + Yahoo 分时 ============
+        // ============ 普通股票: EODHD 历史(52周高) + Yahoo 实时(盘前盘后更准) ============
+        // 策略: EODHD 盘前盘后 REST 延迟较大(5-10min),Yahoo chart 接口盘前/盘后几乎实时
+        //      所以优先用 Yahoo 的 regularMarketPrice + pre/post 价
         try {
           const quoteUrl = `https://eodhd.com/api/real-time/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&fmt=json`;
           const today = new Date();
           const oneYearAgo = new Date(today.getTime() - 380 * 24 * 60 * 60 * 1000);
           const fromDate = oneYearAgo.toISOString().split('T')[0];
           const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
-          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d`;
+          // Yahoo chart: includePrePost=true 获取盘前盘后数据
+          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
           const [quoteRes, eodRes, yahooRes] = await Promise.all([
             fetch(quoteUrl),
@@ -213,20 +216,70 @@ export default async function handler(req, res) {
             }).catch(() => null),
           ]);
 
-          if (!quoteRes.ok) return { symbol, error: `EODHD quote HTTP ${quoteRes.status}` };
-          const data = await quoteRes.json();
-          if (!data || data.code === 'NA') return { symbol, error: 'EODHD 返回数据为空,可能 symbol 不存在' };
+          // EODHD 数据(作为备份和 52 周高数据源)
+          let eodhdPrice = 0, eodhdPrevClose = 0, eodhdDayHigh = 0, eodhdDayLow = 0, eodhdOpen = 0, eodhdTimestamp = 0;
+          if (quoteRes.ok) {
+            try {
+              const data = await quoteRes.json();
+              if (data && data.code !== 'NA') {
+                eodhdPrice = parseFloat(data.close) || 0;
+                eodhdPrevClose = parseFloat(data.previousClose) || 0;
+                eodhdDayHigh = parseFloat(data.high) || 0;
+                eodhdDayLow = parseFloat(data.low) || 0;
+                eodhdOpen = parseFloat(data.open) || 0;
+                eodhdTimestamp = data.timestamp || 0;
+              }
+            } catch (e) { /* ignore */ }
+          }
 
-          const price = parseFloat(data.close) || 0;
-          const previousClose = parseFloat(data.previousClose) || 0;
-          const change = parseFloat(data.change) || (price - previousClose);
-          const changePercent = parseFloat(data.change_p) || (previousClose > 0 ? (change / previousClose) * 100 : 0);
-          const dayHigh = parseFloat(data.high) || 0;
-          const dayLow = parseFloat(data.low) || 0;
-          const open = parseFloat(data.open) || 0;
-          const timestamp = data.timestamp || Math.floor(Date.now() / 1000);
+          // Yahoo 数据(优先,盘前盘后延迟更小)
+          let yahooPrice = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
+          let intraday = [];
+          if (yahooRes && yahooRes.ok) {
+            try {
+              const yahooData = await yahooRes.json();
+              const result = yahooData?.chart?.result?.[0];
+              const meta = result?.meta || {};
+              yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
+              yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED
+              yahooTimestamp = meta.regularMarketTime || 0;
 
-          // 52 周高/低:从 EODHD 历史日线精确计算(跟雪球/长桥一致)
+              // 分时 closes
+              const closes = result?.indicators?.quote?.[0]?.close || [];
+              intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+
+              // 价格决策:
+              // - 盘中 REGULAR: 用 meta.regularMarketPrice (权威)
+              // - 盘外 PRE/POST/CLOSED: 用 intraday 分时最后一点 (盘前盘后最新成交价)
+              //   因为 Yahoo chart meta 不暴露 preMarketPrice/postMarketPrice,
+              //   但 includePrePost=true 时 intraday 会包含盘外数据
+              if (yahooMarketState === 'REGULAR') {
+                yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
+              } else {
+                // 盘前/盘后/休市: 取分时最后一点
+                yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
+              }
+            } catch (e) { /* ignore */ }
+          }
+
+          // 价格决策: 优先 Yahoo (盘前盘后实时),降级到 EODHD
+          const price = yahooPrice > 0 ? yahooPrice : eodhdPrice;
+          const previousClose = yahooPrevClose > 0 ? yahooPrevClose : eodhdPrevClose;
+          const change = price - previousClose;
+          const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+          const dayHigh = eodhdDayHigh || price;
+          const dayLow = eodhdDayLow || price;
+          const open = eodhdOpen || price;
+          const timestamp = yahooTimestamp || eodhdTimestamp || Math.floor(Date.now() / 1000);
+          const priceSource = yahooPrice > 0 ? 'Yahoo' : 'EODHD';
+
+          if (price === 0) return { symbol, error: 'Yahoo 和 EODHD 都没返回有效价格' };
+
+          // 52 周高/低: 从 EODHD 历史日线计算
+          // 🔑 关键: EODHD 返回的 high/low 是 raw (未拆股调整)
+          //         adjusted_close 是已复权
+          //         我们用 adjusted_close/close 比例还原"复权后 high/low"
+          //         这样和长桥/雪球/Yahoo 等主流软件显示一致
           let week52High = 0;
           let week52Low = Infinity;
           let highSource = 'fallback';
@@ -235,28 +288,26 @@ export default async function handler(req, res) {
               const eodData = await eodRes.json();
               if (Array.isArray(eodData) && eodData.length > 0) {
                 for (const day of eodData) {
-                  const h = parseFloat(day.high) || 0;
-                  const l = parseFloat(day.low) || 0;
-                  if (h > week52High) week52High = h;
-                  if (l > 0 && l < week52Low) week52Low = l;
+                  const rawHigh = parseFloat(day.high) || 0;
+                  const rawLow = parseFloat(day.low) || 0;
+                  const rawClose = parseFloat(day.close) || 0;
+                  const adjClose = parseFloat(day.adjusted_close) || 0;
+                  // 复权系数 = adjusted_close / close
+                  // 拆股或派息后才会 ≠ 1
+                  const adjFactor = (rawClose > 0 && adjClose > 0) ? (adjClose / rawClose) : 1;
+                  const adjHigh = rawHigh * adjFactor;
+                  const adjLow = rawLow * adjFactor;
+                  if (adjHigh > week52High) week52High = adjHigh;
+                  if (adjLow > 0 && adjLow < week52Low) week52Low = adjLow;
                 }
+                // 当前价也参与比较 (今天可能创新高)
                 if (price > week52High) week52High = price;
                 if (price > 0 && price < week52Low) week52Low = price;
-                highSource = 'eodhd-historical';
+                highSource = 'eodhd-adjusted';
               }
             } catch (e) { /* ignore */ }
           }
           if (week52Low === Infinity) week52Low = 0;
-
-          let intraday = [];
-          if (yahooRes && yahooRes.ok) {
-            try {
-              const yahooData = await yahooRes.json();
-              const result = yahooData?.chart?.result?.[0];
-              const closes = result?.indicators?.quote?.[0]?.close || [];
-              intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
-            } catch (e) { /* ignore */ }
-          }
 
           return {
             symbol,
@@ -274,7 +325,9 @@ export default async function handler(req, res) {
             previousClose,
             timestamp,
             intraday,
-            source: 'EODHD',
+            marketState: yahooMarketState,
+            priceSource,
+            source: priceSource === 'Yahoo' ? 'Yahoo' : 'EODHD',
           };
         } catch (e) {
           return { symbol, error: e.message };
