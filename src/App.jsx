@@ -415,8 +415,9 @@ function MainApp({ user, onLogout }) {
         console.log('[云端加载] 开始拉取...');
         const result = await db.fetchAllUserData();
         console.log('[云端加载] 原始返回:', result);
-        const { trades: cloudTrades, watchlist: cloudWatchlist, waveNotes: cloudNotes, settings } = result;
+        const { trades: cloudTrades, watchlist: cloudWatchlist, waveNotes: cloudNotes, settings, accounts: cloudAccounts, snapshots: cloudSnapshots } = result;
         console.log('[云端加载] cloudWatchlist:', cloudWatchlist, '长度:', cloudWatchlist?.length);
+        console.log('[云端加载] accounts:', cloudAccounts?.length, 'snapshots:', cloudSnapshots?.length);
         if (!mounted) return;
         setTrades(cloudTrades || []);
         if (cloudWatchlist && cloudWatchlist.length > 0) {
@@ -427,6 +428,9 @@ function MainApp({ user, onLogout }) {
         }
         // 如果云端没数据,保留 useState 里的默认 watchlist(首次使用)
         setWaveNotes(cloudNotes || {});
+        // 资产相关: 可以为空(新用户), 直接设置
+        setAccounts(cloudAccounts || []);
+        setSnapshots(cloudSnapshots || []);
         if (settings) {
           if (settings.benchmarkSymbol) setBenchmarkSymbol(settings.benchmarkSymbol);
           if (typeof settings.fgi === 'number') setFgi(settings.fgi);
@@ -3005,33 +3009,40 @@ function MainApp({ user, onLogout }) {
                         <button
                           onClick={async () => {
                             if (!newAccount.name.trim()) { alert('请填写账户名'); return; }
-                            // 检查同人同名
+                            // 检查同人同名 (本地预检查, 云端还有 UNIQUE 约束兜底)
                             if (accounts.find(a => a.owner === newAccount.owner && a.name === newAccount.name.trim())) {
                               alert('该账户已存在');
                               return;
                             }
-                            const tempId = 'tmp_' + Date.now();
-                            const newAcc = {
-                              id: tempId,
-                              owner: newAccount.owner,
-                              type: newAccount.type,
-                              name: newAccount.name.trim(),
-                              currency: newAccount.currency,
-                              icon: newAccount.icon,
-                              sortOrder: accounts.length,
-                            };
-                            setAccounts([...accounts, newAcc]);
-                            // 如果填了余额,也加一条快照
-                            if (newAccount.balance && parseFloat(newAccount.balance) > 0) {
-                              setSnapshots([...snapshots, {
-                                id: 'tmp_snap_' + Date.now(),
-                                accountId: tempId,
-                                month: currentMonth,
-                                balance: parseFloat(newAccount.balance),
-                              }]);
+                            try {
+                              // 1. 先写云端
+                              const saved = await db.insertAccount({
+                                owner: newAccount.owner,
+                                type: newAccount.type,
+                                name: newAccount.name.trim(),
+                                currency: newAccount.currency,
+                                icon: newAccount.icon,
+                                sortOrder: accounts.length,
+                              });
+                              // 2. 用云端返回的真实 id 更新本地 state
+                              setAccounts([...accounts, saved]);
+                              // 3. 如果填了余额, 云端插一条快照
+                              if (newAccount.balance && parseFloat(newAccount.balance) > 0) {
+                                const val = parseFloat(newAccount.balance);
+                                await db.upsertSnapshot(saved.id, currentMonth, val);
+                                setSnapshots([...snapshots, {
+                                  id: 'new_' + Date.now(),
+                                  accountId: saved.id,
+                                  month: currentMonth,
+                                  balance: val,
+                                }]);
+                              }
+                              setNewAccount({ owner: '我', type: '银行', name: '', currency: 'CNY', icon: '🏦', balance: '' });
+                              setShowAddAccount(false);
+                            } catch (e) {
+                              console.error('[添加账户] 失败:', e);
+                              alert('添加失败: ' + (e.message || '未知错误'));
                             }
-                            setNewAccount({ owner: '我', type: '银行', name: '', currency: 'CNY', icon: '🏦', balance: '' });
-                            setShowAddAccount(false);
                           }}
                           className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
                         >添加</button>
@@ -3055,11 +3066,18 @@ function MainApp({ user, onLogout }) {
                           className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold"
                         >取消</button>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             const accId = accountDeleteConfirmId;
-                            setAccounts(accounts.filter(a => a.id !== accId));
-                            setSnapshots(snapshots.filter(s => s.accountId !== accId));
-                            setAccountDeleteConfirmId(null);
+                            try {
+                              // 云端删除 (snapshots 通过外键 cascade 自动删)
+                              await db.deleteAccount(accId);
+                              setAccounts(accounts.filter(a => a.id !== accId));
+                              setSnapshots(snapshots.filter(s => s.accountId !== accId));
+                              setAccountDeleteConfirmId(null);
+                            } catch (e) {
+                              console.error('[删除账户] 失败:', e);
+                              alert('删除失败: ' + (e.message || '未知错误'));
+                            }
                           }}
                           className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-bold"
                         >删除</button>
@@ -3239,27 +3257,48 @@ function MainApp({ user, onLogout }) {
                           className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold"
                         >取消</button>
                         <button
-                          onClick={() => {
-                            // 应用 snapshotDraft 到 snapshots (指定月份)
-                            const newSnapshots = [...snapshots];
-                            Object.entries(snapshotDraft).forEach(([accId, valStr]) => {
-                              const val = parseFloat(valStr);
-                              if (isNaN(val) || val < 0) return;
-                              const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === fillMonth);
-                              if (idx >= 0) {
-                                newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
-                              } else {
-                                newSnapshots.push({
-                                  id: 'tmp_snap_' + Date.now() + '_' + accId,
-                                  accountId: accId,
-                                  month: fillMonth,
-                                  balance: val,
-                                });
-                              }
-                            });
-                            setSnapshots(newSnapshots);
-                            setSnapshotDraft({});
-                            setShowFillSnapshot(false);
+                          onClick={async () => {
+                            // 收集有效数据
+                            const validEntries = Object.entries(snapshotDraft)
+                              .map(([accId, valStr]) => ({ accId, val: parseFloat(valStr) }))
+                              .filter(({ val }) => !isNaN(val) && val >= 0);
+
+                            if (validEntries.length === 0) {
+                              setShowFillSnapshot(false);
+                              setSnapshotDraft({});
+                              return;
+                            }
+
+                            try {
+                              // 并发写云端 (每个账户独立 upsert)
+                              await Promise.all(
+                                validEntries.map(({ accId, val }) =>
+                                  db.upsertSnapshot(accId, fillMonth, val)
+                                )
+                              );
+
+                              // 本地 state 同步更新
+                              const newSnapshots = [...snapshots];
+                              validEntries.forEach(({ accId, val }) => {
+                                const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === fillMonth);
+                                if (idx >= 0) {
+                                  newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
+                                } else {
+                                  newSnapshots.push({
+                                    id: 'new_' + Date.now() + '_' + accId,
+                                    accountId: accId,
+                                    month: fillMonth,
+                                    balance: val,
+                                  });
+                                }
+                              });
+                              setSnapshots(newSnapshots);
+                              setSnapshotDraft({});
+                              setShowFillSnapshot(false);
+                            } catch (e) {
+                              console.error('[保存快照] 失败:', e);
+                              alert('保存失败: ' + (e.message || '未知错误'));
+                            }
                           }}
                           className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
                         >保存 {fillMonth}</button>
@@ -3569,26 +3608,27 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 13:30:00 (UTC+8)
-// 📝 本次更新: v10.3.7 - 顶部总资产卡黑金风格
+// 📅 最后修改时间: 2026-04-21 14:00:00 (UTC+8)
+// 📝 本次更新: v10.4.0 - 资产 tab 接云端 (Step 3 完成)
 //
-//   改动: 顶部总资产大卡视觉升级
-//     原: 蓝-深灰渐变
-//     新: 奢华黑金
-//       - 深黑底 + 金色角落光晕
-//       - 主数字: 金色渐变 (淡金→亮金→深金)
-//       - 标题: 金色渐变
-//       - 月份按钮: 金色边框 + 浅金背景
-//       - 金色分隔线
-//       - 阴影 + 金色内光
+//   对接 Supabase:
+//     ✓ 加载时读 accounts + snapshots (fetchAllUserData)
+//     ✓ 添加账户: 调 db.insertAccount (带 user_id)
+//     ✓ 删除账户: 调 db.deleteAccount (user_id 过滤)
+//     ✓ 添加时带余额: 调 db.upsertSnapshot
+//     ✓ 填月度余额: Promise.all 并发 upsertSnapshot
 //
-//   色系:
-//     主金: #fbbf24 (亮金)
-//     次金: #f59e0b (深金)  
-//     高亮: #fef3c7 (淡金)
-//     正向涨: #fda4af (玫瑰色, 对比金色好看)
-//     负向跌: #6ee7b7 (薄荷绿, 对比金色好看)
+//   db.js 宪法合规修补:
+//     ✓ updateAccount 加 .eq('user_id')
+//     ✓ deleteAccount 加 .eq('user_id')
+//       (防止别人拿到 id 误删)
 //
+//   测试要点:
+//     - 多浏览器登录不同账号, 数据隔离
+//     - 添加账户立刻入库
+//     - 刷新不丢数据
+//     - 删除立刻生效
+//
+// 📦 v10.3.7: 顶部黑金卡
 // 📦 v10.3.6: 12 个月走势 Modal
-// 📦 v10.3.5: 选月份填余额
 // ============================================
