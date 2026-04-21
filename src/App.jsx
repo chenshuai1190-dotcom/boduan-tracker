@@ -1181,35 +1181,37 @@ function MainApp({ user, onLogout }) {
             </button>
           </div>
 
-          {/* 主数字: 总盈亏 */}
+          {/* 主数字: 持仓总市值 */}
           {(() => {
             const totalMV = watchlist.reduce((sum, s) => sum + s.shares * s.price, 0);
             const totalCost = watchlist.reduce((sum, s) => sum + s.shares * s.cost, 0);
             const totalGainPct = totalCost > 0 ? (totalMV - totalCost) / totalCost : 0;
-            const isProfit = allTradesGrandTotal >= 0;
+            // 波段总盈亏 = 所有股票的已实现 realizedPnl 之和
+            const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
+            const isRealizedProfit = realizedOnly >= 0;
             return (
               <>
                 <div className="flex items-baseline gap-2">
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">总盈亏</div>
-                  <div className="text-[10px] text-slate-500">已实现+浮动</div>
+                  <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">持仓总市值</div>
+                  <div className="text-[10px] text-slate-500">当前</div>
                 </div>
-                <div className={`text-3xl font-black tabular-nums mt-1 ${isProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  {isProfit ? '+' : ''}${fmt(allTradesGrandTotal, 0)}
+                <div className="text-3xl font-black tabular-nums mt-1 text-white" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                  ${fmt(totalMV, 0)}
                 </div>
+                {totalCost > 0 && (
+                  <div className={`text-[11px] font-bold tabular-nums mt-0.5 ${totalGainPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {totalGainPct >= 0 ? '+' : ''}{(totalGainPct * 100).toFixed(1)}% 浮动
+                  </div>
+                )}
 
-                {/* 底行: 持仓市值 / 活跃 */}
+                {/* 底行: 波段总盈亏 / 活跃 */}
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">持仓市值</div>
+                    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">波段总盈亏</div>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
-                      <span className="text-white font-black text-base tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                        ${fmt(totalMV / 1000, 1)}K
+                      <span className={`font-black text-base tabular-nums ${isRealizedProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {isRealizedProfit ? '+' : ''}${fmt(realizedOnly, 0)}
                       </span>
-                      {totalCost > 0 && (
-                        <span className={`text-[11px] font-bold tabular-nums ${totalGainPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {totalGainPct >= 0 ? '+' : ''}{(totalGainPct * 100).toFixed(1)}%
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -3608,27 +3610,31 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 14:00:00 (UTC+8)
-// 📝 本次更新: v10.4.0 - 资产 tab 接云端 (Step 3 完成)
+// 📅 最后修改时间: 2026-04-21 15:00:00 (UTC+8)
+// 📝 本次更新: v10.4.1 - 首页顶部卡语义优化
 //
-//   对接 Supabase:
-//     ✓ 加载时读 accounts + snapshots (fetchAllUserData)
-//     ✓ 添加账户: 调 db.insertAccount (带 user_id)
-//     ✓ 删除账户: 调 db.deleteAccount (user_id 过滤)
-//     ✓ 添加时带余额: 调 db.upsertSnapshot
-//     ✓ 填月度余额: Promise.all 并发 upsertSnapshot
+//   改动: 主数字和副数字交换位置, 并改语义
 //
-//   db.js 宪法合规修补:
-//     ✓ updateAccount 加 .eq('user_id')
-//     ✓ deleteAccount 加 .eq('user_id')
-//       (防止别人拿到 id 误删)
+//   之前 (不合理):
+//     主数字(大): 总盈亏 (已实现 + 浮动)
+//                 - 视觉上像"账户总盈亏"
+//                 - 但其实只是交易记录的盈亏
+//                 - 没法一眼看到"我现在多少钱"
+//     副数字(小): 持仓市值 $X.XK (千元粗略)
 //
-//   测试要点:
-//     - 多浏览器登录不同账号, 数据隔离
-//     - 添加账户立刻入库
-//     - 刷新不丢数据
-//     - 删除立刻生效
+//   现在 (合理):
+//     主数字(大): 持仓总市值 $XX,XXX (精确到元)
+//                 - 当下资产一目了然
+//                 - 下方显示 +X.X% 浮动
+//     副数字(小): 波段总盈亏
+//                 - 严格定义: 所有股票 realizedPnl 之和
+//                 - 不含浮动 (浮动已在主数字下方)
+//                 - 名字精准: "波段总盈亏" 不是"总盈亏"
 //
-// 📦 v10.3.7: 顶部黑金卡
-// 📦 v10.3.6: 12 个月走势 Modal
+//   逻辑清晰:
+//     主数字回答: "我现在有多少钱?"   → 持仓市值
+//     副数字回答: "交易赚了多少?"     → 波段盈亏
+//     浮动百分比: "未来能赚/亏多少?"  → 浮动比例
+//
+// 📦 v10.4.0: 资产 tab 接云端
 // ============================================
