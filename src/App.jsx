@@ -2132,7 +2132,7 @@ function MainApp({ user, onLogout }) {
 
         {/* 关注股票 - 1 列大卡片 */}
         <div className="bg-white rounded-2xl p-5 mb-4 shadow">
-          <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
+          <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-600" />
             我的关注
             <span className="text-xs text-slate-500 font-normal ml-auto">{watchlist.length} 只</span>
@@ -2240,7 +2240,7 @@ function MainApp({ user, onLogout }) {
           )}
 
           {/* 心电图行(单列,紧凑专业) */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {watchlistAlerts.map(s => {
               const pnl = s.cost > 0 ? (s.price - s.cost) / s.cost : 0;
               const marketValue = s.shares * s.price;
@@ -2334,56 +2334,99 @@ function MainApp({ user, onLogout }) {
 
                   <button
                     onClick={() => setEditingStock(s.symbol)}
-                    className="w-full text-left px-3 py-2 pr-6 flex items-center gap-2"
+                    className="w-full text-left p-4 pr-7 block"
                   >
-                    {/* 左:代码 + 中文名 */}
-                    <div className="min-w-0 flex-shrink-0" style={{ width: '64px' }}>
-                      <div className={`font-black text-sm leading-tight ${hasAlert ? '' : 'text-slate-900'}`}>{s.symbol}</div>
-                      <div className={`text-[9px] truncate leading-tight ${hasAlert ? 'opacity-70' : 'text-slate-500'}`}>{s.name}</div>
+                    {/* 上:代码/名称 ← → 价格/涨跌 */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className={`font-black text-[18px] leading-tight tabular-nums ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
+                        <div className={`text-[12px] truncate leading-tight mt-0.5 ${hasAlert ? 'opacity-70' : 'text-slate-500'}`}>{s.name}</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className={`text-[20px] font-bold tabular-nums leading-tight ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          ${fmt(s.price)}
+                        </div>
+                        <div
+                          className="text-[13px] font-bold tabular-nums leading-tight mt-0.5"
+                          style={{ fontFamily: 'ui-monospace, monospace', color: hasAlert ? undefined : dayColor }}
+                        >
+                          {isUp ? '+' : ''}{dayChange.toFixed(2)}%
+                        </div>
+                      </div>
                     </div>
 
-                    {/* 中-左:价格 + 当日% */}
-                    <div className="flex-shrink-0" style={{ width: '74px' }}>
-                      <div className={`text-sm font-bold tabular-nums leading-tight ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                        ${fmt(s.price)}
-                      </div>
-                      <div
-                        className="text-[10px] font-bold tabular-nums leading-tight"
-                        style={{ fontFamily: 'ui-monospace, monospace', color: hasAlert ? undefined : dayColor }}
-                      >
-                        {isUp ? '+' : ''}{dayChange.toFixed(2)}%
-                      </div>
-                    </div>
-
-                    {/* 中:走势线(撑满剩余空间) */}
-                    <div className="flex-1 min-w-0 h-7">
+                    {/* 中:大走势图 56px + 渐变填充 */}
+                    <div className="w-full h-14 my-2">
                       {series.length > 1 ? (
-                        <svg viewBox="0 0 100 28" className="w-full h-full" preserveAspectRatio="none">
-                          <path d={fillD} fill={dayBg} />
-                          <path d={pathD} fill="none" stroke={dayColor} strokeWidth={1.4} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                        <svg viewBox="0 0 100 56" className="w-full h-full" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id={`grad-${s.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={dayColor} stopOpacity="0.25"/>
+                              <stop offset="100%" stopColor={dayColor} stopOpacity="0"/>
+                            </linearGradient>
+                          </defs>
+                          {(() => {
+                            // 重建 path 使 H=56
+                            const H56 = 56;
+                            if (series.length <= 1) return null;
+                            const min = Math.min(...series, s.previousClose || series[0]);
+                            const max = Math.max(...series, s.previousClose || series[0]);
+                            const range = max - min || 1;
+                            const W = 100;
+                            const pts = series.map((v, i) => {
+                              const x = (i / (series.length - 1)) * W;
+                              const y = H56 - ((v - min) / range) * H56;
+                              return `${x.toFixed(1)},${y.toFixed(1)}`;
+                            });
+                            const p = `M ${pts.join(' L ')}`;
+                            const f = `${p} L ${W},${H56} L 0,${H56} Z`;
+                            return (
+                              <>
+                                <path d={f} fill={`url(#grad-${s.symbol})`} />
+                                <path d={p} fill="none" stroke={dayColor} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                              </>
+                            );
+                          })()}
                         </svg>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-[9px] text-slate-300">--</div>
+                        <div className="h-full flex items-center justify-center text-[11px] text-slate-300">-- 无走势数据 --</div>
                       )}
                     </div>
 
-                    {/* 右:回撤% + 高点价格 + L 等级 */}
-                    <div className="flex-shrink-0 text-right" style={{ width: '70px' }}>
-                      {s.high > 0 && (
-                        <>
-                          <div className={`text-xs font-bold tabular-nums leading-tight ${hasAlert ? '' : 'text-slate-700'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {(s.drawdown * 100).toFixed(1)}%
-                          </div>
-                          <div className={`text-[9px] tabular-nums leading-tight mt-0.5 ${hasAlert ? 'opacity-75' : 'text-slate-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            高 ${s.high >= 1000 ? s.high.toFixed(0) : s.high.toFixed(2)}
-                          </div>
-                        </>
-                      )}
-                      {hasAlert && (
-                        <div className="text-[9px] font-black mt-0.5">
-                          {s.alert.icon} L{s.alert.level}
+                    {/* 下:3 列底部统计 成本 / 52 周高 / 持仓收益 */}
+                    <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-dashed border-slate-200">
+                      <div className="text-center">
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">成本</div>
+                        <div className="text-[13px] font-bold text-slate-700 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          {s.cost > 0 ? `$${s.cost.toFixed(2)}` : '—'}
                         </div>
-                      )}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">52 周高</div>
+                        <div className="text-[13px] font-bold text-slate-700 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          {s.high > 0 ? `$${s.high >= 1000 ? s.high.toFixed(0) : s.high.toFixed(2)}` : '—'}
+                        </div>
+                        {s.high > 0 && (
+                          <div className="text-[10px] text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            -{(s.drawdown * 100).toFixed(1)}%
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">持仓</div>
+                        {s.cost > 0 ? (
+                          <div className={`text-[13px] font-bold tabular-nums mt-0.5 ${pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            {pnl >= 0 ? '+' : ''}{(pnl * 100).toFixed(1)}%
+                          </div>
+                        ) : (
+                          <div className="text-[13px] font-bold text-slate-300 mt-0.5">—</div>
+                        )}
+                        {hasAlert && (
+                          <div className="text-[10px] font-black mt-0.5">
+                            {s.alert.icon} L{s.alert.level}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </button>
                 </div>
@@ -5304,30 +5347,28 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 01:30:00 (UTC+8)
-// 📝 本次更新: v10.6.9 - 修复 HKD 汇率 bug 🔧
+// 📅 最后修改时间: 2026-04-22 02:00:00 (UTC+8)
+// 📝 本次更新: v10.7.0 - 我的关注 Robinhood 风 📈
 //
-//   问题:
-//     资产 tab 录入 HKD 账户余额, 不会换算成 CNY
-//     美元正常 (× usdRate), 港币直接当 CNY 算 (BUG)
+//   问题: "字太小, 区域比较窄"
 //
-//   原因:
-//     toCNY 函数只处理了 USD, 没处理 HKD
-//     早期代码 const toCNY = (balance, currency) =>
-//       currency === 'USD' ? balance * usdRate : balance;
-//     HKD 走 else 分支, 直接当 CNY 返回了
+//   改动: 卡片改 Robinhood 白底风格
 //
-//   修复:
-//     1. 加 hkdRate state (默认 0.87)
-//        基于今天 2026-04-21 实际汇率 ~0.87
-//     2. toCNY 函数处理 3 种货币:
-//        USD → balance × usdRate
-//        HKD → balance × hkdRate (新)
-//        CNY → balance (直接)
-//     3. 资产 tab 加港币汇率输入框 (有 HKD 账户时显示)
-//        和美元汇率输入框样式一致
+//   原结构 (1 行 4 列横排):
+//     代码(sm) | 价格(sm) | 走势图 28px | 回撤(xs)
 //
+//   新结构 (3 层垂直布局):
+//     上: 代码 18px + 名称 12px | 价格 20px + 当日 13px
+//     中: 大走势图 56px (带渐变填充)
+//     下: 成本 / 52 周高(回撤) / 持仓收益 3 列
+//
+//   优势:
+//     ✓ 字大 (16/18/20/13)
+//     ✓ 走势图 2 倍大 (28→56px)
+//     ✓ 带渐变填充 (专业感)
+//     ✓ 底部 3 列多 2 个关键数据
+//     ✓ 每卡高约 150px (比原来多, 但信息量翻倍)
+//
+// 📦 v10.6.9: HKD 汇率修复
 // 📦 v10.6.8: V4-B 全黑开屏
-// 📦 v10.6.7: 极简黑金开屏
-// 📦 v10.6.6: 头部统一黑金
 // ============================================
