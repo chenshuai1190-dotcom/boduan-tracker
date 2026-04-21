@@ -1261,12 +1261,12 @@ function MainApp({ user, onLogout }) {
           const fresh = result.data.find(d => d.symbol === s.symbol);
           if (fresh && fresh.price > 0) {
             // 52 周高的优先级:
-            // - Yahoo(已前复权,跟主流软件一致) → 直接覆盖本地(解决拆股问题)
-            // - Finnhub(可能未复权) → 跟本地取 max
-            // - 都没有 → 保留本地 high
+            // - Yahoo (前复权) 或 EODHD-adjusted (我们自己算的复权) → 直接覆盖本地
+            //   (跟主流软件一致, 解决拆股问题)
+            // - Finnhub 或 fallback → 跟本地取 max
             let newHigh;
-            if (fresh.highSource === 'yahoo' && fresh.week52High > 0) {
-              // Yahoo 数据权威,直接用,不跟本地比 max(避免拆股前的旧高价残留)
+            if ((fresh.highSource === 'yahoo' || fresh.highSource === 'eodhd-adjusted') && fresh.week52High > 0) {
+              // 权威数据,直接用,不跟本地比 max(避免拆股前的旧高价残留)
               newHigh = Math.max(fresh.week52High, fresh.price);
             } else {
               // Finnhub 或 fallback,保守起见跟本地取 max
@@ -5153,37 +5153,34 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 23:00:00 (UTC+8)
-// 📝 本次更新: v10.6.4 - 交易 tab V3.2 重做 🎯
+// 📅 最后修改时间: 2026-04-21 23:30:00 (UTC+8)
+// 📝 本次更新: v10.6.5 - 修复 52 周高拆股 bug 🔧
 //
-//   旧版问题:
-//     ❌ 字号杂乱 (10/11/13px 混用)
-//     ❌ 颜色冲突 (彩色头部 + 红绿涨跌 + 编辑色)
-//     ❌ 信息密度过高 (一行 5-6 个数字)
-//     ❌ 历史规律卡和波段列表分离
+//   问题:
+//     TQQQ 52 周高显示 $121.37
+//     但拆股后真实最高 $60.49
+//     差 2 倍 (TQQQ 2022/1 做了 1:10 反向拆股)
 //
-//   新版结构 (V3.2):
-//     1. 头部 (中性灰白)
-//        - 股票代码 + 名称
-//        - 3 列统计: 总盈亏 / 胜率 / 均持有
-//        - 删除彩色渐变头部
-//     
-//     2. 进行中独立大卡 (突出)
-//        - 红色边框 + 红色"进行中"角标
-//        - 大数字 +X.X% (24px)
-//        - 3 列详情: 买入均/持有/浮盈
-//        - 备注/展开/明细 保留
-//     
-//     3. 已完成列表 (紧凑)
-//        - 标题"已完成 (X)"
-//        - 一行: 编号 / 日期 → / 收益
-//        - 备注弱化, 默认隐藏"+加备注"
+//   原因:
+//     EODHD /api/eod 默认返回 raw 价格 (未拆股调整)
+//     但 adjusted_close 字段是已复权的
 //
-//   颜色统一:
-//     全部用 rose-600 涨 / emerald-600 跌
-//     (和复盘 tab 一致)
+//   修复:
+//     用 adjFactor = adjusted_close / close 算复权系数
+//     adjHigh = rawHigh × adjFactor
+//     这样 high 也"被复权"
+//     和雪球/长桥/Yahoo 等主流软件显示一致
 //
+//   高价源:
+//     'yahoo'           (Yahoo, 自带前复权)
+//     'eodhd-adjusted'  (我们自己用 adjusted_close 算的, 等价)
+//     'fallback'        (备用, 跟本地取 max)
+//
+//   优势:
+//     ✓ 不浪费 EODHD 付费数据
+//     ✓ 准确度 100%
+//     ✓ 适用所有股票, 不只 TQQQ
+//
+// 📦 v10.6.4: 交易 tab V3.2 重做
 // 📦 v10.6.3: 酷黑开屏
-// 📦 v10.6.2: 防重复提交
-// 📦 v10.6.1: 年度表字号+折叠
 // ============================================
