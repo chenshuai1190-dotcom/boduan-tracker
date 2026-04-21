@@ -1521,27 +1521,57 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading, watchlist.length]);
 
-  // 🧪 WebSocket 实时推送 (EODHD All World Extended)
-  // 启用后, 股价实时推送, 替代 REST 轮询
+  // 🧪 WebSocket 实时推送 (EODHD All World Extended) - v10.7.8.10 合并版
+  // 单个连接 (EODHD 同 token 限 1 连接), 根据 symbol 分发:
+  //   - SPY / QQQ → indices state
+  //   - 其他 → watchlist state
+  // 两个独立开关:
+  //   - wsEnabled (BETA): 订阅 watchlist 全部
+  //   - indicesWsEnabled: 订阅 SPY, QQQ
+  // 任一开启 → 建连, 都关 → 断开
   useEffect(() => {
-    if (!wsEnabled || cloudLoading || watchlist.length === 0) {
+    if (cloudLoading) {
       setWsStatus('disconnected');
+      setIndicesWsStatus('disconnected');
+      return;
+    }
+
+    const needWatchlist = wsEnabled && watchlist.length > 0;
+    const needIndices = indicesWsEnabled && indices.length > 0;
+
+    if (!needWatchlist && !needIndices) {
+      setWsStatus('disconnected');
+      setIndicesWsStatus('disconnected');
       return;
     }
 
     // EODHD token - 从 Vite 环境变量读取 (VITE_ 前缀才能到前端)
     const token = import.meta.env.VITE_EODHD_TOKEN || '';
     if (!token) {
-      console.error('[WebSocket] VITE_EODHD_TOKEN 未配置');
-      setWsStatus('error');
+      console.error('[WS] VITE_EODHD_TOKEN 未配置');
+      if (needWatchlist) setWsStatus('error');
+      if (needIndices) setIndicesWsStatus('error');
       return;
     }
 
-    const symbols = watchlist.map(s => s.symbol).join(',');
-    const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
+    // 合并订阅 symbols (去重)
+    const symbolSet = new Set();
+    if (needWatchlist) watchlist.forEach(s => symbolSet.add(s.symbol));
+    if (needIndices) { symbolSet.add('SPY'); symbolSet.add('QQQ'); }
+    const symbols = [...symbolSet].join(',');
 
-    console.log('[WebSocket] 连接中...', symbols);
-    setWsStatus('connecting');
+    // SPY/QQQ → indices.ticker 映射 (indices 里是 'SPY.US' / 'QQQ.US' 格式)
+    const wsSymToTicker = (s) => {
+      const up = (s || '').toUpperCase();
+      if (up === 'SPY') return 'SPY.US';
+      if (up === 'QQQ') return 'QQQ.US';
+      return null;
+    };
+
+    const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
+    console.log('[WS] 连接中...', symbols);
+    if (needWatchlist) setWsStatus('connecting');
+    if (needIndices) setIndicesWsStatus('connecting');
 
     let ws = null;
     let reconnectTimer = null;
@@ -1553,103 +1583,134 @@ function MainApp({ user, onLogout }) {
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-          console.log('[WebSocket] ✓ 已连接, 订阅:', symbols);
-          setWsStatus('connected');
+          console.log('[WS] ✓ 已连接, 订阅:', symbols);
+          if (needWatchlist) setWsStatus('connected');
+          if (needIndices) setIndicesWsStatus('connected');
           ws.send(JSON.stringify({ action: 'subscribe', symbols }));
         };
 
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            // EODHD 消息格式: { s: 'AAPL', p: 150.25, t: 1234567890, v: 100 }
-            if (data.s && typeof data.p === 'number') {
-              const sym = data.s.toUpperCase();
-              const newPrice = data.p;
-              const tickTime = data.t || Math.floor(Date.now() / 1000);
+            if (!data.s || typeof data.p !== 'number') return;
+            const sym = data.s.toUpperCase();
+            const newPrice = data.p;
+            const tickTime = data.t || Math.floor(Date.now() / 1000);
 
-              setWsLastTick(new Date());
+            // ===== 分发 A: SPY / QQQ → indices =====
+            const indicesTicker = wsSymToTicker(sym);
+            if (indicesTicker) {
+              setIndices(prev => prev.map(idx => {
+                if (idx.ticker !== indicesTicker) return idx;
+                const oldPrice = idx.price || 0;
+                if (oldPrice === newPrice) return idx;
 
-              // 更新 watchlist 中对应股票的价格
-              setWatchlist(prev => prev.map(s => {
-                if (s.symbol !== sym) return s;
-                const oldPrice = s.price || 0;
-                if (oldPrice === newPrice) return s; // 价格没变, 不触发闪烁
-
-                // 触发闪烁效果
-                const flashDir = newPrice > oldPrice ? 'up' : 'down';
-                setPriceFlash(prev => ({ ...prev, [sym]: flashDir }));
-                setTimeout(() => {
-                  setPriceFlash(prev => {
-                    const next = { ...prev };
-                    delete next[sym];
-                    return next;
-                  });
-                }, 500);
-
-                // 当日涨跌重算
-                const pc = s.previousClose || oldPrice;
+                const pc = idx.previousClose || oldPrice;
                 const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
 
-                // 🔑 同步更新走势图数据 (intraday + intradayPoints)
-                // 策略: 每分钟合并一个点 (避免数组爆炸)
-                // - 1 分钟内的 tick 覆盖最后一个点
-                // - 1 分钟以上的 tick 新增一个点
-                const BUCKET_MS = 60 * 1000; // 1 分钟桶
+                // 1 分钟桶合并
+                const BUCKET_MS = 60 * 1000;
                 const nowMs = Date.now();
-                const prevIntraday = Array.isArray(s.intraday) ? s.intraday : [];
-                const prevPoints = Array.isArray(s.intradayPoints) ? s.intradayPoints : [];
+                const prevIntraday = Array.isArray(idx.intraday) ? idx.intraday : [];
+                const lastTickMs = idx._lastTickMs || 0;
 
-                let newIntraday, newPoints;
-                const lastPoint = prevPoints[prevPoints.length - 1];
-                const lastPointMs = lastPoint?.t ? lastPoint.t * 1000 : 0;
-
-                if (lastPoint && (nowMs - lastPointMs) < BUCKET_MS) {
-                  // 同一分钟内: 覆盖最后一个点
+                let newIntraday;
+                if (lastTickMs && (nowMs - lastTickMs) < BUCKET_MS) {
                   newIntraday = [...prevIntraday.slice(0, -1), newPrice];
-                  newPoints = [...prevPoints.slice(0, -1), { ...lastPoint, price: newPrice }];
                 } else {
-                  // 新的一分钟: 追加新点
-                  // 推断 session (根据美东时间)
-                  const etHour = new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false });
-                  const h = parseInt(etHour);
-                  let session = 'regular';
-                  if (h >= 4 && h < 9) session = 'pre';
-                  else if (h >= 16 && h < 20) session = 'post';
                   newIntraday = [...prevIntraday, newPrice];
-                  newPoints = [...prevPoints, { price: newPrice, t: tickTime, session }];
                 }
-
-                return {
-                  ...s,
-                  price: newPrice,
-                  changePercent: newChangePct,
-                  intraday: newIntraday,
-                  intradayPoints: newPoints,
-                };
+                return { ...idx, price: newPrice, changePercent: newChangePct, intraday: newIntraday, _lastTickMs: nowMs };
               }));
+              return;  // 走 indices 分支就不再走 watchlist
             }
+
+            // ===== 分发 B: 其他 → watchlist =====
+            setWsLastTick(new Date());
+
+            // 更新 watchlist 中对应股票的价格
+            setWatchlist(prev => prev.map(s => {
+              if (s.symbol !== sym) return s;
+              const oldPrice = s.price || 0;
+              if (oldPrice === newPrice) return s; // 价格没变, 不触发闪烁
+
+              // 触发闪烁效果
+              const flashDir = newPrice > oldPrice ? 'up' : 'down';
+              setPriceFlash(prev => ({ ...prev, [sym]: flashDir }));
+              setTimeout(() => {
+                setPriceFlash(prev => {
+                  const next = { ...prev };
+                  delete next[sym];
+                  return next;
+                });
+              }, 500);
+
+              // 当日涨跌重算
+              const pc = s.previousClose || oldPrice;
+              const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
+
+              // 🔑 同步更新走势图数据 (intraday + intradayPoints)
+              // 策略: 每分钟合并一个点 (避免数组爆炸)
+              // - 1 分钟内的 tick 覆盖最后一个点
+              // - 1 分钟以上的 tick 新增一个点
+              const BUCKET_MS = 60 * 1000; // 1 分钟桶
+              const nowMs = Date.now();
+              const prevIntraday = Array.isArray(s.intraday) ? s.intraday : [];
+              const prevPoints = Array.isArray(s.intradayPoints) ? s.intradayPoints : [];
+
+              let newIntraday, newPoints;
+              const lastPoint = prevPoints[prevPoints.length - 1];
+              const lastPointMs = lastPoint?.t ? lastPoint.t * 1000 : 0;
+
+              if (lastPoint && (nowMs - lastPointMs) < BUCKET_MS) {
+                // 同一分钟内: 覆盖最后一个点
+                newIntraday = [...prevIntraday.slice(0, -1), newPrice];
+                newPoints = [...prevPoints.slice(0, -1), { ...lastPoint, price: newPrice }];
+              } else {
+                // 新的一分钟: 追加新点
+                // 推断 session (根据美东时间)
+                const etHour = new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false });
+                const h = parseInt(etHour);
+                let session = 'regular';
+                if (h >= 4 && h < 9) session = 'pre';
+                else if (h >= 16 && h < 20) session = 'post';
+                newIntraday = [...prevIntraday, newPrice];
+                newPoints = [...prevPoints, { price: newPrice, t: tickTime, session }];
+              }
+
+              return {
+                ...s,
+                price: newPrice,
+                changePercent: newChangePct,
+                intraday: newIntraday,
+                intradayPoints: newPoints,
+              };
+            }));
           } catch (e) { /* 忽略非 JSON 消息 (心跳) */ }
         };
 
         ws.onerror = (e) => {
-          console.error('[WebSocket] 错误:', e);
-          setWsStatus('error');
+          console.error('[WS] 错误:', e);
+          if (needWatchlist) setWsStatus('error');
+          if (needIndices) setIndicesWsStatus('error');
         };
 
         ws.onclose = (e) => {
-          console.warn('[WebSocket] 已关闭:', e.code, e.reason);
-          setWsStatus('disconnected');
+          console.warn('[WS] 已关闭:', e.code, e.reason);
+          if (needWatchlist) setWsStatus('disconnected');
+          if (needIndices) setIndicesWsStatus('disconnected');
           // 3 秒后自动重连 (除非是主动关闭)
-          if (!isUnmounting && wsEnabled) {
+          if (!isUnmounting && (wsEnabled || indicesWsEnabled)) {
             reconnectTimer = setTimeout(() => {
-              console.log('[WebSocket] 尝试重连...');
+              console.log('[WS] 尝试重连...');
               connect();
             }, 3000);
           }
         };
       } catch (e) {
-        console.error('[WebSocket] 连接失败:', e);
-        setWsStatus('error');
+        console.error('[WS] 连接失败:', e);
+        if (needWatchlist) setWsStatus('error');
+        if (needIndices) setIndicesWsStatus('error');
       }
     };
 
@@ -1663,135 +1724,10 @@ function MainApp({ user, onLogout }) {
         ws.close();
       }
       setWsStatus('disconnected');
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsEnabled, cloudLoading, watchlist.length]);
-
-  // 📡 SPY/QQQ 指数实时 WebSocket (v10.7.8.9)
-  // 独立于 wsEnabled (BETA), 默认开启, 推送给 indices state
-  useEffect(() => {
-    if (!indicesWsEnabled || cloudLoading || indices.length === 0) {
-      setIndicesWsStatus('disconnected');
-      return;
-    }
-
-    const token = import.meta.env.VITE_EODHD_TOKEN || '';
-    if (!token) {
-      console.error('[IndicesWS] VITE_EODHD_TOKEN 未配置');
-      setIndicesWsStatus('error');
-      return;
-    }
-
-    // 只订阅 SPY 和 QQQ (不含 BTC, 避免多余流量)
-    const WS_SYMBOLS = 'SPY,QQQ';
-    const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
-
-    console.log('[IndicesWS] 连接中...', WS_SYMBOLS);
-    setIndicesWsStatus('connecting');
-
-    let ws = null;
-    let reconnectTimer = null;
-    let isUnmounting = false;
-
-    // data.s = 'SPY' / 'QQQ' → 找对应的 indices 项
-    // indices[i].ticker 格式是 'SPY.US' 或 'QQQ.US'
-    const wsSymToTicker = (s) => {
-      const up = (s || '').toUpperCase();
-      if (up === 'SPY') return 'SPY.US';
-      if (up === 'QQQ') return 'QQQ.US';
-      return null;
-    };
-
-    const connect = () => {
-      if (isUnmounting) return;
-      try {
-        ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-          console.log('[IndicesWS] ✓ 已连接, 订阅:', WS_SYMBOLS);
-          setIndicesWsStatus('connected');
-          ws.send(JSON.stringify({ action: 'subscribe', symbols: WS_SYMBOLS }));
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (!data.s || typeof data.p !== 'number') return;
-            const ticker = wsSymToTicker(data.s);
-            if (!ticker) return;
-            const newPrice = data.p;
-            const tickTime = data.t || Math.floor(Date.now() / 1000);
-
-            setIndices(prev => prev.map(idx => {
-              if (idx.ticker !== ticker) return idx;
-              const oldPrice = idx.price || 0;
-              if (oldPrice === newPrice) return idx;
-
-              // 涨跌幅重算 (基于昨收)
-              const pc = idx.previousClose || oldPrice;
-              const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
-
-              // 1 分钟桶合并 (复用 watchlist WS 策略)
-              const BUCKET_MS = 60 * 1000;
-              const nowMs = Date.now();
-              const prevIntraday = Array.isArray(idx.intraday) ? idx.intraday : [];
-              // indices 没有 intradayPoints, 用 lastTickMs 记录最后一次 tick 时间
-              const lastTickMs = idx._lastTickMs || 0;
-
-              let newIntraday;
-              if (lastTickMs && (nowMs - lastTickMs) < BUCKET_MS) {
-                // 同一分钟内: 覆盖最后一个点
-                newIntraday = [...prevIntraday.slice(0, -1), newPrice];
-              } else {
-                // 新分钟: 追加新点
-                newIntraday = [...prevIntraday, newPrice];
-              }
-
-              return {
-                ...idx,
-                price: newPrice,
-                changePercent: newChangePct,
-                intraday: newIntraday,
-                _lastTickMs: nowMs,  // 内部字段, 用于桶合并
-              };
-            }));
-          } catch (e) { /* 忽略非 JSON (心跳等) */ }
-        };
-
-        ws.onerror = (e) => {
-          console.error('[IndicesWS] 错误:', e);
-          setIndicesWsStatus('error');
-        };
-
-        ws.onclose = (e) => {
-          console.warn('[IndicesWS] 已关闭:', e.code, e.reason);
-          setIndicesWsStatus('disconnected');
-          if (!isUnmounting && indicesWsEnabled) {
-            reconnectTimer = setTimeout(() => {
-              console.log('[IndicesWS] 尝试重连...');
-              connect();
-            }, 3000);
-          }
-        };
-      } catch (e) {
-        console.error('[IndicesWS] 连接失败:', e);
-        setIndicesWsStatus('error');
-      }
-    };
-
-    connect();
-
-    return () => {
-      isUnmounting = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ action: 'unsubscribe', symbols: WS_SYMBOLS }));
-        ws.close();
-      }
       setIndicesWsStatus('disconnected');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [indicesWsEnabled, cloudLoading, indices.length]);
+  }, [wsEnabled, indicesWsEnabled, cloudLoading, watchlist.length, indices.length]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -2202,13 +2138,48 @@ function MainApp({ user, onLogout }) {
 
               return (
                 <div key={idx.ticker} className="bg-white rounded-xl p-3 shadow overflow-hidden relative">
-                  {/* LIVE 徽章 (v10.7.8.9): 仅在 indices WS 已连接时显示 */}
-                  {indicesWsStatus === 'connected' && (
-                    <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
-                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22c55e' }}></span>
-                      <span className="text-[8px] font-black tracking-wider" style={{ color: '#16a34a' }}>LIVE</span>
-                    </span>
-                  )}
+                  {/* 4 态诊断角标 (v10.7.8.10): 根据 indicesWsEnabled + indicesWsStatus 显示 */}
+                  {(() => {
+                    if (!indicesWsEnabled) {
+                      return (
+                        <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(148, 163, 184, 0.15)', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#94a3b8' }}></span>
+                          <span className="text-[8px] font-black tracking-wider" style={{ color: '#64748b' }}>OFF</span>
+                        </span>
+                      );
+                    }
+                    if (indicesWsStatus === 'connected') {
+                      return (
+                        <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22c55e' }}></span>
+                          <span className="text-[8px] font-black tracking-wider" style={{ color: '#16a34a' }}>LIVE</span>
+                        </span>
+                      );
+                    }
+                    if (indicesWsStatus === 'connecting') {
+                      return (
+                        <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.25)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#f59e0b' }}></span>
+                          <span className="text-[8px] font-black tracking-wider" style={{ color: '#b45309' }}>连接中</span>
+                        </span>
+                      );
+                    }
+                    if (indicesWsStatus === 'error') {
+                      return (
+                        <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#ef4444' }}></span>
+                          <span className="text-[8px] font-black tracking-wider" style={{ color: '#b91c1c' }}>TOKEN?</span>
+                        </span>
+                      );
+                    }
+                    // disconnected (任何"未连接"状态, 可能是休市或主动关闭)
+                    return (
+                      <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(148, 163, 184, 0.15)', border: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#94a3b8' }}></span>
+                        <span className="text-[8px] font-black tracking-wider" style={{ color: '#64748b' }}>离线</span>
+                      </span>
+                    );
+                  })()}
                   {/* 名字(英文代码已删除,只保留中文名) */}
                   <div className="flex items-baseline justify-between mb-1">
                     <span className="text-xs font-bold text-slate-700">{idx.name}</span>
@@ -6141,7 +6112,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.8.9',
+                      version: 'v10.7.8.10',
                       trades,
                       watchlist,
                       waveNotes,
@@ -6198,14 +6169,22 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.9
+                  v10.7.8.10
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8.9', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.8.10', date: '2026-04-22', latest: true,
+                    items: [
+                      '🔧 修复 SPY/QQQ 实时推送未生效 (WS 连接冲突)',
+                      '合并 watchlist + indices 到单个 WebSocket (EODHD 限 1 连接)',
+                      '指数卡加 4 态诊断角标 (LIVE/连接中/TOKEN?/OFF)',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.8.9', date: '2026-04-22',
                     items: [
                       '📡 SPY/QQQ 实时曲线 (WebSocket 推送, 每秒跳)',
                       '首页小卡加 LIVE 徽章 + 末端呼吸点',
@@ -6403,7 +6382,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.9</div>
+                <div>📊 版本:v10.7.8.10</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6764,27 +6743,33 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 19:30:00 (UTC+8)
-// 📝 本次更新: v10.7.8.9 - SPY/QQQ 实时曲线 📡
+// 📅 最后修改时间: 2026-04-22 20:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.10 - WS 合并 + 4 态诊断 🔧
 //
-//   新功能: 首页 SPY/QQQ 小卡每秒跳动 (数字 + 曲线 + 末端呼吸点)
+//   背景:
+//     v10.7.8.9 发出后, 用户截图反馈"SPY/QQQ 没看到 LIVE 徽章"
+//     根因: EODHD 同 token 限 1 个 WS 连接
+//     用户 BETA 开着 (watchlist WS 占 1 连接)
+//     → indices WS 尝试连第 2 个, 被拒绝
 //
-//   技术:
-//     - 复用 v10.7.8 WebSocket 基础 (EODHD All World Extended)
-//     - 独立订阅 SPY + QQQ, 不受 wsEnabled BETA 开关影响
-//     - 1 分钟桶合并策略 (同分钟覆盖, 新分钟追加)
-//     - 连接断开后 3 秒自动重连
+//   修复 (合并方案):
+//     1. 单个 WebSocket 连接, 任一开关开启就建连
+//     2. 订阅 symbols 动态合并:
+//        wsEnabled 开 → 加入 watchlist 全部
+//        indicesWsEnabled 开 → 加入 SPY, QQQ
+//     3. onmessage 按 symbol 路由:
+//        SPY / QQQ → indices state
+//        其他 → watchlist state
+//     4. 两个开关保持独立 (不改 UI)
 //
-//   视觉 (方案 Y+Z):
-//     - 小卡右上角 LIVE 徽章 (小绿点 + LIVE 文字)
-//     - SVG 曲线末端呼吸圆点 (1.2s 脉动)
-//     - 仅在 WS 已连接时显示 (disconnected 时回归静态)
+//   新增: 首页 SPY/QQQ 卡 4 态诊断角标
+//     🟢 LIVE     (indicesWsEnabled + status=connected)
+//     🟡 连接中    (status=connecting)
+//     🔴 TOKEN?   (status=error, 通常是环境变量没配)
+//     ⚪ OFF      (indicesWsEnabled=false)
+//     ⚪ 离线     (disconnected, 可能休市)
 //
-//   开关: 设置 → 数据卡, 独立 toggle, 默认开
-//     key: localStorage['bottomline_indices_ws']
-//
-// 📦 v10.7.8.8: 当前市场状态 → 当前猎手状态 (仅标签文字)
+// 📦 v10.7.8.9: SPY/QQQ 实时曲线 (独立 WS, 后发现连接冲突)
+// 📦 v10.7.8.8: 当前市场状态 → 当前猎手状态
 // 📦 v10.7.8.7: 导出 JSON 备份 + 3 项通读修复
-//     (补 settings 字段 / localStorage try/catch / 删 computedBatches)
-// 📦 v10.7.8.6: 改名目标 + 折叠
 // ============================================
