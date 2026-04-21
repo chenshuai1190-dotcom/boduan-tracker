@@ -673,6 +673,16 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
+  // 📡 SPY/QQQ 指数实时推送 (独立开关, 默认开)
+  // 跟 wsEnabled (BETA) 分开: 这个为普通用户常开
+  const [indicesWsEnabled, setIndicesWsEnabled] = useState(() => {
+    try {
+      const v = localStorage.getItem('bottomline_indices_ws');
+      return v === null ? true : v === 'true';  // 默认 true
+    } catch { return true; }
+  });
+  const [indicesWsStatus, setIndicesWsStatus] = useState('disconnected');
+
   // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
@@ -1657,6 +1667,132 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsEnabled, cloudLoading, watchlist.length]);
 
+  // 📡 SPY/QQQ 指数实时 WebSocket (v10.7.8.9)
+  // 独立于 wsEnabled (BETA), 默认开启, 推送给 indices state
+  useEffect(() => {
+    if (!indicesWsEnabled || cloudLoading || indices.length === 0) {
+      setIndicesWsStatus('disconnected');
+      return;
+    }
+
+    const token = import.meta.env.VITE_EODHD_TOKEN || '';
+    if (!token) {
+      console.error('[IndicesWS] VITE_EODHD_TOKEN 未配置');
+      setIndicesWsStatus('error');
+      return;
+    }
+
+    // 只订阅 SPY 和 QQQ (不含 BTC, 避免多余流量)
+    const WS_SYMBOLS = 'SPY,QQQ';
+    const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
+
+    console.log('[IndicesWS] 连接中...', WS_SYMBOLS);
+    setIndicesWsStatus('connecting');
+
+    let ws = null;
+    let reconnectTimer = null;
+    let isUnmounting = false;
+
+    // data.s = 'SPY' / 'QQQ' → 找对应的 indices 项
+    // indices[i].ticker 格式是 'SPY.US' 或 'QQQ.US'
+    const wsSymToTicker = (s) => {
+      const up = (s || '').toUpperCase();
+      if (up === 'SPY') return 'SPY.US';
+      if (up === 'QQQ') return 'QQQ.US';
+      return null;
+    };
+
+    const connect = () => {
+      if (isUnmounting) return;
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('[IndicesWS] ✓ 已连接, 订阅:', WS_SYMBOLS);
+          setIndicesWsStatus('connected');
+          ws.send(JSON.stringify({ action: 'subscribe', symbols: WS_SYMBOLS }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (!data.s || typeof data.p !== 'number') return;
+            const ticker = wsSymToTicker(data.s);
+            if (!ticker) return;
+            const newPrice = data.p;
+            const tickTime = data.t || Math.floor(Date.now() / 1000);
+
+            setIndices(prev => prev.map(idx => {
+              if (idx.ticker !== ticker) return idx;
+              const oldPrice = idx.price || 0;
+              if (oldPrice === newPrice) return idx;
+
+              // 涨跌幅重算 (基于昨收)
+              const pc = idx.previousClose || oldPrice;
+              const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
+
+              // 1 分钟桶合并 (复用 watchlist WS 策略)
+              const BUCKET_MS = 60 * 1000;
+              const nowMs = Date.now();
+              const prevIntraday = Array.isArray(idx.intraday) ? idx.intraday : [];
+              // indices 没有 intradayPoints, 用 lastTickMs 记录最后一次 tick 时间
+              const lastTickMs = idx._lastTickMs || 0;
+
+              let newIntraday;
+              if (lastTickMs && (nowMs - lastTickMs) < BUCKET_MS) {
+                // 同一分钟内: 覆盖最后一个点
+                newIntraday = [...prevIntraday.slice(0, -1), newPrice];
+              } else {
+                // 新分钟: 追加新点
+                newIntraday = [...prevIntraday, newPrice];
+              }
+
+              return {
+                ...idx,
+                price: newPrice,
+                changePercent: newChangePct,
+                intraday: newIntraday,
+                _lastTickMs: nowMs,  // 内部字段, 用于桶合并
+              };
+            }));
+          } catch (e) { /* 忽略非 JSON (心跳等) */ }
+        };
+
+        ws.onerror = (e) => {
+          console.error('[IndicesWS] 错误:', e);
+          setIndicesWsStatus('error');
+        };
+
+        ws.onclose = (e) => {
+          console.warn('[IndicesWS] 已关闭:', e.code, e.reason);
+          setIndicesWsStatus('disconnected');
+          if (!isUnmounting && indicesWsEnabled) {
+            reconnectTimer = setTimeout(() => {
+              console.log('[IndicesWS] 尝试重连...');
+              connect();
+            }, 3000);
+          }
+        };
+      } catch (e) {
+        console.error('[IndicesWS] 连接失败:', e);
+        setIndicesWsStatus('error');
+      }
+    };
+
+    connect();
+
+    return () => {
+      isUnmounting = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'unsubscribe', symbols: WS_SYMBOLS }));
+        ws.close();
+      }
+      setIndicesWsStatus('disconnected');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indicesWsEnabled, cloudLoading, indices.length]);
+
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
 
@@ -2066,6 +2202,13 @@ function MainApp({ user, onLogout }) {
 
               return (
                 <div key={idx.ticker} className="bg-white rounded-xl p-3 shadow overflow-hidden relative">
+                  {/* LIVE 徽章 (v10.7.8.9): 仅在 indices WS 已连接时显示 */}
+                  {indicesWsStatus === 'connected' && (
+                    <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded" style={{ background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22c55e' }}></span>
+                      <span className="text-[8px] font-black tracking-wider" style={{ color: '#16a34a' }}>LIVE</span>
+                    </span>
+                  )}
                   {/* 名字(英文代码已删除,只保留中文名) */}
                   <div className="flex items-baseline justify-between mb-1">
                     <span className="text-xs font-bold text-slate-700">{idx.name}</span>
@@ -2080,9 +2223,24 @@ function MainApp({ user, onLogout }) {
                   </div>
                   {/* 走势线 */}
                   {series.length > 1 ? (
-                    <svg viewBox="0 0 100 32" className="w-full h-8 mt-1.5" preserveAspectRatio="none">
+                    <svg viewBox="0 0 100 32" className="w-full h-8 mt-1.5" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
                       <path d={fillD} fill={bgColor} />
                       <path d={pathD} fill="none" stroke={accentColor} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      {/* 末端呼吸点 (v10.7.8.9): 仅在 indices WS 已连接时显示 */}
+                      {indicesWsStatus === 'connected' && (() => {
+                        // 算末端点的坐标
+                        const lastV = series[series.length - 1];
+                        const min = Math.min(...series, idx.previousClose);
+                        const max = Math.max(...series, idx.previousClose);
+                        const range = max - min || 1;
+                        const endY = 32 - ((lastV - min) / range) * 32;
+                        return (
+                          <circle cx={100} cy={endY} r={3} fill={accentColor}>
+                            <animate attributeName="r" values="2;5;2" dur="1.2s" repeatCount="indefinite" />
+                            <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite" />
+                          </circle>
+                        );
+                      })()}
                     </svg>
                   ) : (
                     <div className="h-8 mt-1.5 flex items-center justify-center text-[10px] text-slate-300">无数据</div>
@@ -5926,6 +6084,52 @@ function MainApp({ user, onLogout }) {
             {/* 数据持久化 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">💾 数据</h2>
+
+              {/* 📡 指数实时推送开关 (v10.7.8.9) */}
+              <div className="flex items-center justify-between py-2.5 mb-2 border-b border-slate-100">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-bold text-slate-900 flex items-center gap-1.5">
+                    指数实时推送
+                    {indicesWsEnabled && indicesWsStatus === 'connected' && (
+                      <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded" style={{ background: 'rgba(34, 197, 94, 0.12)' }}>
+                        <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: '#22c55e' }}></span>
+                        <span className="text-[8px] font-black tracking-wider" style={{ color: '#16a34a' }}>LIVE</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    SPY / QQQ 曲线每秒跳动 · 默认开
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !indicesWsEnabled;
+                    setIndicesWsEnabled(next);
+                    try { localStorage.setItem('bottomline_indices_ws', String(next)); } catch {}
+                  }}
+                  className="relative shrink-0 transition active:scale-95"
+                  style={{
+                    width: 42,
+                    height: 24,
+                    borderRadius: 12,
+                    background: indicesWsEnabled ? '#22c55e' : '#cbd5e1',
+                  }}
+                  aria-label="指数实时推送开关"
+                >
+                  <span
+                    className="absolute top-0.5 transition-all"
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      background: '#fff',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      left: indicesWsEnabled ? 20 : 2,
+                    }}
+                  />
+                </button>
+              </div>
+
               <div className="text-xs text-slate-500 mb-3 leading-relaxed">
                 所有数据自动云端同步, 无需手动保存。
                 <br/>
@@ -5937,7 +6141,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.8.7',
+                      version: 'v10.7.8.9',
                       trades,
                       watchlist,
                       waveNotes,
@@ -5994,14 +6198,26 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.7
+                  v10.7.8.9
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8.7', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.8.9', date: '2026-04-22', latest: true,
+                    items: [
+                      '📡 SPY/QQQ 实时曲线 (WebSocket 推送, 每秒跳)',
+                      '首页小卡加 LIVE 徽章 + 末端呼吸点',
+                      '设置页新增"指数实时推送"开关 (默认开)',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.8.8', date: '2026-04-22',
+                    items: ['首页状态卡标签"当前市场状态" → "当前猎手状态"'],
+                  },
+                  {
+                    ver: 'v10.7.8.7', date: '2026-04-22',
                     items: [
                       '💾 新增"导出 JSON 备份"按钮 (设置页 → 数据卡)',
                       '建议每月 1 次导出, 对抗数据意外丢失',
@@ -6187,7 +6403,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.7</div>
+                <div>📊 版本:v10.7.8.9</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6548,37 +6764,27 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 18:30:00 (UTC+8)
-// 📝 本次更新: v10.7.8.7 - 导出 JSON 备份 💾
+// 📅 最后修改时间: 2026-04-22 19:30:00 (UTC+8)
+// 📝 本次更新: v10.7.8.9 - SPY/QQQ 实时曲线 📡
 //
-//   新功能: 设置 → 数据卡 新增"⬇️ 导出 JSON 备份"按钮
+//   新功能: 首页 SPY/QQQ 小卡每秒跳动 (数字 + 曲线 + 末端呼吸点)
 //
-//   原因:
-//     用户担心 "哪天 Claude 消失了或账号丢了 怎么办"
-//     虽然数据在 Supabase 云端
-//     但多一层本地备份更安心
+//   技术:
+//     - 复用 v10.7.8 WebSocket 基础 (EODHD All World Extended)
+//     - 独立订阅 SPY + QQQ, 不受 wsEnabled BETA 开关影响
+//     - 1 分钟桶合并策略 (同分钟覆盖, 新分钟追加)
+//     - 连接断开后 3 秒自动重连
 //
-//   工作方式:
-//     点击按钮 → 生成 JSON → 自动下载到本地
-//     文件名: bottomline-backup-YYYY-MM-DD.json
-//     内容: 所有 11 张表的数据 + 当前版本号
+//   视觉 (方案 Y+Z):
+//     - 小卡右上角 LIVE 徽章 (小绿点 + LIVE 文字)
+//     - SVG 曲线末端呼吸圆点 (1.2s 脉动)
+//     - 仅在 WS 已连接时显示 (disconnected 时回归静态)
 //
-//   建议: 每月 1 日导出一次, 存 Google Drive
+//   开关: 设置 → 数据卡, 独立 toggle, 默认开
+//     key: localStorage['bottomline_indices_ws']
 //
-//   顺手修复 (新 Claude 通读时发现):
-//     1. 导出 JSON 的 settings 原本只含 6 字段,
-//        补全 FGI 4 个历史值 + fgiDataDate + vixDataDate + usdRate + hkdRate
-//        (恢复时 FGI 对比和汇率不会再丢)
-//     2. localStorage.removeItem 加 try/catch
-//        (iOS Safari 隐私模式不再崩)
-//     3. 删除 v1 时代死代码 computedBatches
-//        (老的 "单追 TQQQ + 3 批建仓" 变量, 无 JSX 消费)
-//
-//   配套文档:
-//     CONTEXT.md      - 项目交接文档
-//     SURVIVAL-GUIDE.md - "Claude 消失后" 生存手册
-//     backup-supabase.sql - Supabase 后台 SQL 备份脚本
-//
+// 📦 v10.7.8.8: 当前市场状态 → 当前猎手状态 (仅标签文字)
+// 📦 v10.7.8.7: 导出 JSON 备份 + 3 项通读修复
+//     (补 settings 字段 / localStorage try/catch / 删 computedBatches)
 // 📦 v10.7.8.6: 改名目标 + 折叠
-// 📦 v10.7.8.5: ETF 实时 + 删假按钮
 // ============================================
