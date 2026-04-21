@@ -561,6 +561,7 @@ function MainApp({ user, onLogout }) {
   const [accounts, setAccounts] = useState([]);          // [{id, owner, type, name, currency, icon}]
   const [snapshots, setSnapshots] = useState([]);        // [{id, accountId, month, balance}]
   const [usdRate, setUsdRate] = useState(7.20);          // 美元换人民币汇率
+  const [hkdRate, setHkdRate] = useState(0.87);           // 港币换人民币汇率
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState(null);
@@ -3144,7 +3145,11 @@ function MainApp({ user, onLogout }) {
               const snap = snapshots.find(s => s.accountId === accId && s.month === month);
               return snap ? snap.balance : 0;
             };
-            const toCNY = (balance, currency) => currency === 'USD' ? balance * usdRate : balance;
+            const toCNY = (balance, currency) => {
+              if (currency === 'USD') return balance * usdRate;
+              if (currency === 'HKD') return balance * hkdRate;
+              return balance;  // CNY 直接返回
+            };
             const balanceAtMonthCNY = (accId, month) => {
               const acc = accounts.find(a => a.id === accId);
               if (!acc) return 0;
@@ -3507,7 +3512,7 @@ function MainApp({ user, onLogout }) {
 
                 {/* ============ 美元汇率设置 (有 USD 账户时才显示) ============ */}
                 {accounts.some(a => a.currency === 'USD') && (
-                  <div className="bg-white rounded-xl p-3 mb-4 shadow flex items-center justify-between">
+                  <div className="bg-white rounded-xl p-3 mb-3 shadow flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">💱</span>
                       <div>
@@ -3522,6 +3527,30 @@ function MainApp({ user, onLogout }) {
                         step="0.01"
                         value={usdRate}
                         onChange={(e) => setUsdRate(parseFloat(e.target.value) || 7.20)}
+                        className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center font-bold tabular-nums"
+                      />
+                      <span className="text-xs text-slate-500">CNY</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ============ 港币汇率设置 (有 HKD 账户时才显示) ============ */}
+                {accounts.some(a => a.currency === 'HKD') && (
+                  <div className="bg-white rounded-xl p-3 mb-4 shadow flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">💱</span>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">港币汇率</div>
+                        <div className="text-[10px] text-slate-500">HKD → CNY 换算</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">1 HKD =</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={hkdRate}
+                        onChange={(e) => setHkdRate(parseFloat(e.target.value) || 0.87)}
                         className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center font-bold tabular-nums"
                       />
                       <span className="text-xs text-slate-500">CNY</span>
@@ -5275,33 +5304,30 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 01:00:00 (UTC+8)
-// 📝 本次更新: v10.6.8 - V4-B 全黑开屏 + 加载控制 ⚫
+// 📅 最后修改时间: 2026-04-22 01:30:00 (UTC+8)
+// 📝 本次更新: v10.6.9 - 修复 HKD 汇率 bug 🔧
 //
-//   开屏改动:
-//     旧: 奢华黑金 + 大金 B + 顶部 SIGNED IN + 底部 LIVE
-//     新: 纯黑底 + BOTTOMLINE 文字 + 流动金线
-//          + 底部 SUPABASE LIVE 徽章 + 邮箱
+//   问题:
+//     资产 tab 录入 HKD 账户余额, 不会换算成 CNY
+//     美元正常 (× usdRate), 港币直接当 CNY 算 (BUG)
 //
-//   设计:
-//     中央: BOTTOMLINE 金色字 + 240px 流动金线
-//     底部: SUPABASE LIVE 绿徽章 + user@email
-//     无 logo, 全黑酷炫
+//   原因:
+//     toCNY 函数只处理了 USD, 没处理 HKD
+//     早期代码 const toCNY = (balance, currency) =>
+//       currency === 'USD' ? balance * usdRate : balance;
+//     HKD 走 else 分支, 直接当 CNY 返回了
 //
-//   加载时间控制 (新增):
-//     最少 0.8s (MIN_SPLASH_MS)
-//       即使云端瞬间响应, 也保证看到设计感
-//     最多 2.0s (MAX_SPLASH_MS)
-//       即使云端连不上, 也强制进入主界面
-//       防止永久卡屏
+//   修复:
+//     1. 加 hkdRate state (默认 0.87)
+//        基于今天 2026-04-21 实际汇率 ~0.87
+//     2. toCNY 函数处理 3 种货币:
+//        USD → balance × usdRate
+//        HKD → balance × hkdRate (新)
+//        CNY → balance (直接)
+//     3. 资产 tab 加港币汇率输入框 (有 HKD 账户时显示)
+//        和美元汇率输入框样式一致
 //
-//   逻辑:
-//     - 启动时记录 startTime
-//     - setTimeout 2s 强制 setCloudLoading(false)
-//     - 云端响应时, 算 elapsed = now - startTime
-//       如果 < 800ms, 等到 800ms 才跳
-//       如果 >= 800ms, 立即跳
-//
-// 📦 v10.6.7: 极简黑金开屏 (大 B)
+// 📦 v10.6.8: V4-B 全黑开屏
+// 📦 v10.6.7: 极简黑金开屏
 // 📦 v10.6.6: 头部统一黑金
 // ============================================
