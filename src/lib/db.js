@@ -275,24 +275,37 @@ export const fetchAllUserData = async () => {
     fetchYearlyActuals(),     // 10
   ]);
 
-  const getValue = (idx, fallback) => {
+  // 🔑 关键: 失败时返回 null (非 []/{}) 这样 App 层能区分
+  // "真的没数据" vs "拉取失败"
+  // 防止用 || 时把 [] 当成 falsy 意外覆盖本地数据
+  const tableNames = [
+    'trades', 'watchlist', 'waveNotes', 'settings',
+    'accounts', 'snapshots', 'investmentPlan', 'marginStatus',
+    'disciplines', 'reviewLogs', 'yearlyActuals',
+  ];
+  const failedTables = [];
+
+  const getValue = (idx) => {
     if (results[idx].status === 'fulfilled') return results[idx].value;
-    console.warn(`[fetchAllUserData] 第 ${idx} 个表加载失败:`, results[idx].reason);
-    return fallback;
+    console.warn(`[fetchAllUserData] 第 ${idx} 个表 (${tableNames[idx]}) 加载失败:`, results[idx].reason);
+    failedTables.push(tableNames[idx]);
+    return null;  // 🔑 失败标记
   };
 
   return {
-    trades:         getValue(0, []),
-    watchlist:      getValue(1, []),
-    waveNotes:      getValue(2, {}),
-    settings:       getValue(3, null),
-    accounts:       getValue(4, []),
-    snapshots:      getValue(5, []),
-    investmentPlan: getValue(6, null),
-    marginStatus:   getValue(7, null),
-    disciplines:    getValue(8, []),
-    reviewLogs:     getValue(9, []),
-    yearlyActuals:  getValue(10, []),
+    trades:         getValue(0),
+    watchlist:      getValue(1),
+    waveNotes:      getValue(2),
+    settings:       getValue(3),
+    accounts:       getValue(4),
+    snapshots:      getValue(5),
+    investmentPlan: getValue(6),
+    marginStatus:   getValue(7),
+    disciplines:    getValue(8),
+    reviewLogs:     getValue(9),
+    yearlyActuals:  getValue(10),
+    // 🔑 失败表清单 (App 层决定是否显示警告)
+    _failedTables: failedTables,
   };
 };
 
