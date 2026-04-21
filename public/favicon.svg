@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 背景: 深黑 + 金光晕 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="50%" stop-color="#171717"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1">
+      <stop offset="0%" stop-color="rgba(251,191,36,0.3)"/>
+      <stop offset="70%" stop-color="rgba(251,191,36,0)"/>
+    </radialGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="30%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- 圆角背景 -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- 边框微光 -->
+  <rect x="1" y="1" width="510" height="510" rx="111" fill="none" stroke="rgba(251,191,36,0.15)" stroke-width="2"/>
+  <!-- 左上金光晕 -->
+  <circle cx="0" cy="0" r="300" fill="url(#glow)"/>
+
+  <!-- 7 根上升柱 - 发光效果 -->
+  <!-- 阴影层 (blur) -->
+  <g filter="url(#shadow)" opacity="0.5">
+    <rect x="66"  y="340" width="38" height="120" rx="6" fill="#fbbf24"/>
+    <rect x="118" y="300" width="38" height="160" rx="6" fill="#fbbf24"/>
+    <rect x="170" y="320" width="38" height="140" rx="6" fill="#fbbf24"/>
+    <rect x="222" y="240" width="38" height="220" rx="6" fill="#fbbf24"/>
+    <rect x="274" y="260" width="38" height="200" rx="6" fill="#fbbf24"/>
+    <rect x="326" y="180" width="38" height="280" rx="6" fill="#fbbf24"/>
+    <rect x="378" y="100" width="38" height="360" rx="6" fill="#fbbf24"/>
+  </g>
+
+  <!-- 正式柱 -->
+  <rect x="66"  y="340" width="38" height="120" rx="6" fill="url(#bar)"/>
+  <rect x="118" y="300" width="38" height="160" rx="6" fill="url(#bar)"/>
+  <rect x="170" y="320" width="38" height="140" rx="6" fill="url(#bar)"/>
+  <rect x="222" y="240" width="38" height="220" rx="6" fill="url(#bar)"/>
+  <rect x="274" y="260" width="38" height="200" rx="6" fill="url(#bar)"/>
+  <rect x="326" y="180" width="38" height="280" rx="6" fill="url(#bar)"/>
+  <rect x="378" y="100" width="38" height="360" rx="6" fill="url(#bar)"/>
+
+  <!-- 顶部高亮 (立体感) -->
+  <rect x="66"  y="340" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <rect x="118" y="300" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <rect x="170" y="320" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <rect x="222" y="240" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <rect x="274" y="260" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <rect x="326" y="180" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <rect x="378" y="100" width="38" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+</svg>
