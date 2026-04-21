@@ -672,6 +672,9 @@ function MainApp({ user, onLogout }) {
   const [wsLastTick, setWsLastTick] = useState(null); // 最后收到 tick 的时间
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
+
+  // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
+  const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
   // 云端数据加载状态
@@ -5389,7 +5392,7 @@ function MainApp({ user, onLogout }) {
                         <div className="bg-slate-50 rounded-lg p-3">
                           <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">账户净值 (自动)</div>
                           <div className="font-bold text-slate-800 tabular-nums text-sm">{fmtWanUSD(currentBalance, 1)}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">来自复盘 tab 最近填写的余额</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">来自目标 tab 最近填写的余额</div>
                         </div>
 
                         <div>
@@ -5437,7 +5440,7 @@ function MainApp({ user, onLogout }) {
                         )}
                         {currentBalance === 0 && (
                           <div className="text-[11px] text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-                            💡 先在复盘 tab 填年度数据, 才能自动算杠杆倍率
+                            💡 先在目标 tab 填年度数据, 才能自动算杠杆倍率
                           </div>
                         )}
                       </div>
@@ -5950,19 +5953,23 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.5
+                  v10.7.8.6
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8.5', date: '2026-04-22', latest: true,
-                    items: ['首页指数改用 SPY/QQQ ETF (实时数据 替代 15min 延迟的指数)', '删除"手动保存"假按钮 (数据本来就自动同步)', '"重置"按钮改名"重置本地数据" 更清晰'],
+                    ver: 'v10.7.8.6', date: '2026-04-22', latest: true,
+                    items: ['底部 tab "复盘" 改名 "目标" (更贴合实际功能)', '更新日志支持折叠/展开 (默认显示最新 5 条)'],
+                  },
+                  {
+                    ver: 'v10.7.8.5', date: '2026-04-22',
+                    items: ['首页指数改用 SPY/QQQ ETF (实时数据 替代 15min 延迟)', '删除"手动保存"假按钮'],
                   },
                   {
                     ver: 'v10.7.8.3', date: '2026-04-22',
-                    items: ['年度目标进度条改成"实际收益完成度" (不再是时间)', '4 个主按钮统一金色描边 (添加交易/填月度余额/手动拉取)'],
+                    items: ['年度目标进度条改成"实际收益完成度" (不再是时间)', '4 个主按钮统一金色描边'],
                   },
                   {
                     ver: 'v10.7.8.1', date: '2026-04-22',
@@ -5983,6 +5990,10 @@ function MainApp({ user, onLogout }) {
                   {
                     ver: 'v10.7.7.2', date: '2026-04-22',
                     items: ['资产走势图入场动画 (V2 点依次弹出)', '空月断线 不画"假数据"'],
+                  },
+                  {
+                    ver: 'v10.7.7.1', date: '2026-04-22',
+                    items: ['资产走势图空月断线修复'],
                   },
                   {
                     ver: 'v10.7.7', date: '2026-04-22',
@@ -6006,23 +6017,27 @@ function MainApp({ user, onLogout }) {
                   },
                   {
                     ver: 'v10.7.2', date: '2026-04-22',
-                    items: ['资产录入按人 Tab 切换'],
+                    items: ['资产录入按人 Tab 切换 (我/老婆)'],
                   },
                   {
                     ver: 'v10.7.1', date: '2026-04-22',
-                    items: ['智能刷新 (10s/30s/5min)', '修复首次进入没走势图'],
+                    items: ['智能刷新 (盘中 10s/盘外 30s/休市 5min)', '修复首次进入没走势图'],
                   },
                   {
                     ver: 'v10.7.0', date: '2026-04-22',
-                    items: ['我的关注 Robinhood 风', '走势图 56px + 渐变填充'],
+                    items: ['我的关注 Robinhood 风改造', '走势图 56px + 渐变填充'],
                   },
                   {
                     ver: 'v10.6.9', date: '2026-04-21',
-                    items: ['修复 HKD 汇率 bug'],
+                    items: ['修复 HKD 汇率 bug (港币换算正确)'],
                   },
                   {
                     ver: 'v10.6.8', date: '2026-04-21',
-                    items: ['全黑流动金线开屏', 'SUPABASE LIVE 状态徽章'],
+                    items: ['全黑流动金线开屏 (V4-B)', 'SUPABASE LIVE 状态徽章'],
+                  },
+                  {
+                    ver: 'v10.6.7', date: '2026-04-21',
+                    items: ['大 B 开屏字母品牌强化'],
                   },
                   {
                     ver: 'v10.6.6', date: '2026-04-21',
@@ -6034,19 +6049,31 @@ function MainApp({ user, onLogout }) {
                   },
                   {
                     ver: 'v10.6.4', date: '2026-04-21',
-                    items: ['交易 tab 重做: 进行中独立大卡 + 历史紧凑'],
+                    items: ['交易 tab V3.2 重做: 进行中独立大卡 + 历史紧凑'],
                   },
                   {
                     ver: 'v10.6.0-3', date: '2026-04-20',
-                    items: ['年度表视觉升级', '字号+折叠', '防重复提交'],
+                    items: ['年度表视觉升级', '字号+折叠优化', '防重复提交'],
+                  },
+                  {
+                    ver: 'v10.5.x', date: '2026-04-19',
+                    items: ['复利计划', '融资杠杆监控', '投资戒律'],
+                  },
+                  {
+                    ver: 'v10.x', date: '2026-04 之前',
+                    items: ['Supabase 云端同步', '账户/快照独立表', '波段切分'],
+                  },
+                  {
+                    ver: 'v1.0', date: '诞生',
+                    items: ['第一版 TQQQ 波段追踪器 🎂'],
                   },
                 ];
                 return (
                   <div>
-                    {changelog.map((log, idx) => (
+                    {(changelogExpanded ? changelog : changelog.slice(0, 5)).map((log, idx, arr) => (
                       <div
                         key={log.ver}
-                        className={`py-3 ${idx !== changelog.length - 1 ? 'border-b border-slate-100' : ''} ${idx === 0 ? 'pt-0' : ''}`}
+                        className={`py-3 ${idx !== arr.length - 1 ? 'border-b border-slate-100' : ''} ${idx === 0 ? 'pt-0' : ''}`}
                       >
                         <div className="flex items-center gap-2 mb-1.5">
                           <span
@@ -6080,6 +6107,26 @@ function MainApp({ user, onLogout }) {
                         </ul>
                       </div>
                     ))}
+
+                    {/* 折叠/展开按钮 */}
+                    {changelog.length > 5 && (
+                      <button
+                        onClick={() => setChangelogExpanded(!changelogExpanded)}
+                        className="w-full mt-2 py-2.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 active:scale-95 transition flex items-center justify-center gap-1.5"
+                      >
+                        {changelogExpanded ? (
+                          <>
+                            <ChevronUp className="w-3.5 h-3.5" />
+                            收起 (隐藏 {changelog.length - 5} 条历史)
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                            查看完整历史 (还有 {changelog.length - 5} 条 · 共 {changelog.length} 个版本)
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 );
               })()}
@@ -6089,7 +6136,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.5</div>
+                <div>📊 版本:v10.7.8.6</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6361,7 +6408,7 @@ function MainApp({ user, onLogout }) {
                 { id: 'home',     label: '首页', icon: Home },
                 { id: 'trades',   label: '交易', icon: ListChecks },
                 { id: 'analysis', label: '资产', icon: Wallet },
-                { id: 'review',   label: '复盘', icon: Target },
+                { id: 'review',   label: '目标', icon: Target },
                 { id: 'settings', label: '设置', icon: Settings },
               ].map(tab => {
                 const Icon = tab.icon;
@@ -6450,25 +6497,21 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 16:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8.5 - 指数实时数据 + 设置精简 ⚡
+// 📅 最后修改时间: 2026-04-22 17:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.6 - 改名"目标" + 完整版本史 📜
 //
-//   改动 1: 首页 ETF 替代真指数 (api/quote.js)
-//     问题: EODHD 真指数 (GSPC.INDX/NDX.INDX) 有 15 分钟延迟
-//          即使前端每 10 秒刷, 数据还是慢
-//     修复: 改用 SPY (标普 500 ETF) 和 QQQ (纳指 100 ETF)
-//          ETF 是真实时数据 (你的 All World Extended 套餐)
-//          数字会变成 ~580 (SPY) 和 ~480 (QQQ) 这种
-//          但走势 100% 同步指数
-//          和长桥/雪球的"S&P 500 ETF"一样
+//   2 个改动:
 //
-//   改动 2: 删除"手动保存"假按钮 (App.jsx)
-//     之前: 点击只显示 "✓ 已保存" 2 秒, 实际什么都不做
-//     原因: 数据本来就自动云端同步
-//     保留: "重置" 按钮 → 改名 "重置本地数据"
+//   1) 底部 tab "复盘" 改名 "目标"
+//      理由: 这个 tab 包含 5 大模块, "复盘"只是其中之一
+//      "目标"更符合整体功能 (计划+杠杆+进度+戒律+反思)
 //
-//   清理: 删除 saveState 函数 + saved state + Save 图标 import
+//   2) 更新日志支持折叠/展开
+//      默认: 显示最新 5 条 (符合移动端简洁原则)
+//      展开: 显示全部 25+ 条历史
+//      包含: 从 v1.0 (诞生) 到 v10.7.8.6 (今天)
+//      用户可以看到完整产品成长史
 //
+// 📦 v10.7.8.5: 指数实时 + 删假按钮
 // 📦 v10.7.8.3: 完成度 + 按钮配色
-// 📦 v10.7.8.1: WebSocket 走势图同步
 // ============================================
