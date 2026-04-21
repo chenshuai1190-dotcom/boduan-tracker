@@ -5194,36 +5194,101 @@ function MainApp({ user, onLogout }) {
         {/* ====== 设置 tab ====== */}
         {activeTab === 'settings' && (
           <div className="space-y-4">
-            {/* 账户信息 */}
-            <div className="rounded-2xl p-5 shadow text-white" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-black text-lg flex items-center gap-2">
-                  ☁️ 云端账户
-                </h2>
-                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-black">已登录</span>
+            {/* 账户信息 - 奢华黑金 */}
+            <div
+              className="rounded-2xl p-5 text-white relative overflow-hidden"
+              style={{
+                background: `
+                  radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+                  radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+                  linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+                `,
+                border: '1px solid rgba(251, 191, 36, 0.2)',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+              }}
+            >
+              {/* 金色光晕装饰 (右上) */}
+              <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
+                background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
+                transform: 'translate(40%, -40%)',
+              }}></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <h2
+                    className="font-black text-lg flex items-center gap-2"
+                    style={{
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '1px',
+                    }}
+                  >
+                    ☁️ 云端账户
+                  </h2>
+                  <span
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-black flex items-center gap-1.5"
+                    style={{
+                      background: 'rgba(34, 197, 94, 0.12)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      color: '#4ade80',
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4ade80' }}></span>
+                    已登录
+                  </span>
+                </div>
+                <div
+                  className="text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: '#737373', letterSpacing: '2px' }}
+                >
+                  SIGNED IN
+                </div>
+                <div
+                  className="text-sm font-bold mb-3 break-all mt-1"
+                  style={{ color: '#d4d4d4', fontFamily: 'ui-monospace, monospace' }}
+                >
+                  {user?.email || '--'}
+                </div>
+                <div
+                  className="text-[10px] mb-3 leading-relaxed p-2.5 rounded-lg"
+                  style={{
+                    color: '#a3a3a3',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(251, 191, 36, 0.08)',
+                  }}
+                >
+                  💾 数据已云端备份 (Supabase Singapore)<br />
+                  🔒 行级安全 · 任何人都无法访问你的数据<br />
+                  📱 任意设备登录此账号都能看到你的数据
+                </div>
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold mb-2"
+                  style={{
+                    background: 'rgba(251, 191, 36, 0.1)',
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    color: '#fbbf24',
+                  }}
+                >
+                  🔑 修改密码
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
+                    await onLogout();
+                  }}
+                  className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#f87171',
+                  }}
+                >
+                  <LogOut className="w-4 h-4" /> 退出登录
+                </button>
               </div>
-              <div className="text-xs text-white/80 mb-1">登录邮箱</div>
-              <div className="text-sm font-bold mb-3 break-all">{user?.email || '--'}</div>
-              <div className="text-[10px] text-white/70 mb-3 leading-relaxed">
-                💾 数据已云端备份(Supabase Singapore)<br />
-                🔒 行级安全 · 任何人都无法访问你的数据<br />
-                📱 任意设备登录此账号都能看到你的数据
-              </div>
-              <button
-                onClick={() => setShowChangePassword(true)}
-                className="w-full py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold border border-white/20 mb-2"
-              >
-                🔑 修改密码
-              </button>
-              <button
-                onClick={async () => {
-                  if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
-                  await onLogout();
-                }}
-                className="w-full py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold border border-white/20"
-              >
-                <LogOut className="w-4 h-4" /> 退出登录
-              </button>
             </div>
 
             {/* 修改密码 Modal */}
@@ -5398,7 +5463,14 @@ function MainApp({ user, onLogout }) {
               <button
                 onClick={fetchRealtimePrices}
                 disabled={fetching}
-                className={`mt-3 w-full py-2.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition ${fetching ? 'bg-slate-400' : 'bg-blue-600'}`}
+                className="mt-3 w-full py-2.5 rounded-xl font-black flex items-center justify-center gap-2 active:scale-95 transition disabled:opacity-50"
+                style={{
+                  background: fetching
+                    ? 'rgba(251, 191, 36, 0.2)'
+                    : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                  color: fetching ? '#a3a3a3' : '#0a0a0a',
+                  boxShadow: fetching ? 'none' : '0 4px 12px rgba(251, 191, 36, 0.3)',
+                }}
               >
                 <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
                 {fetching ? '拉取中…' : '立即手动拉取'}
@@ -5763,29 +5835,24 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 05:00:00 (UTC+8)
-// 📝 本次更新: v10.7.6 - 设置页改版 📜
+// 📅 最后修改时间: 2026-04-22 05:30:00 (UTC+8)
+// 📝 本次更新: v10.7.7 - 设置页黑金统一 ✨
 //
 //   改动:
-//     1. 删除设置 tab 顶部的 "持仓总市值" 黑金头卡
-//        条件加 activeTab !== 'settings'
-//        (设置页本来就不关心持仓)
+//     1. ☁️ 云端账户卡: 紫色 → 奢华黑金
+//        - 和首页/资产/交易 tab 头部同色
+//        - 金色标题 + 绿色脉动"已登录"徽章
+//        - 邮箱区域: SIGNED IN 小标签 + 等宽字体
+//        - 描述区域独立底色
+//        - 修改密码按钮: 金色边框
+//        - 退出登录按钮: 红色边框 (警示)
 //
-//     2. 数据状态升级为实时指标:
-//        - 连接状态 (绿/红)
-//        - 当前刷新频率 (10s/30s/5min 实时算)
-//        - 市场状态 (🟢 盘中 / 🟡 盘前/后 / 🔴 休市)
-//        - 最近更新时间
-//        - 数据源 (EODHD + Yahoo)
-//        + 底部说明智能刷新策略
+//     2. "立即手动拉取" 按钮: 蓝色 → 黑金
+//        - 金色渐变 + 金光阴影
+//        - 和账户卡统一
 //
-//     3. 新增 "📜 更新日志" 卡:
-//        v10.6.0 ~ v10.7.5 共 12 个版本
-//        最新版本金色徽章 → 绿色"最新"标
-//        历史版本金色徽章
-//        每个版本: 日期 + 更新要点列表
+//   结果: 设置 tab 所有元素视觉统一 ✨
 //
-//     4. "关于" 卡版本号更新到 v10.7.5
-//
-// 📦 v10.7.5: recovery 修复 + 改密码入口
+// 📦 v10.7.6: 设置页改版 (删头卡 + 数据状态 + 更新日志)
+// 📦 v10.7.5: 密码重置修复
 // ============================================
