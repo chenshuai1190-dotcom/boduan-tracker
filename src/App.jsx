@@ -663,6 +663,31 @@ function MainApp({ user, onLogout }) {
   // 启动时从 Supabase 拉取所有数据
   useEffect(() => {
     let mounted = true;
+    const startTime = Date.now();
+    const MIN_SPLASH_MS = 800;   // 最少显示 0.8s (保证用户看到设计)
+    const MAX_SPLASH_MS = 2000;  // 最多 2s (即使云端连不上, 也跳)
+
+    // 强制超时跳出
+    const timeoutId = setTimeout(() => {
+      if (mounted) {
+        console.warn('[云端加载] 超过 2s 仍未完成, 强制进入主界面');
+        setCloudLoading(false);
+      }
+    }, MAX_SPLASH_MS);
+
+    // 完成后, 保证至少显示 0.8s
+    const finishLoading = () => {
+      if (!mounted) return;
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
+      setTimeout(() => {
+        if (mounted) {
+          clearTimeout(timeoutId);
+          setCloudLoading(false);
+        }
+      }, remaining);
+    };
+
     (async () => {
       try {
         setCloudLoading(true);
@@ -710,10 +735,10 @@ function MainApp({ user, onLogout }) {
         console.error('[云端加载] 失败:', e);
         setCloudError(e.message);
       } finally {
-        if (mounted) setCloudLoading(false);
+        finishLoading();  // 0.8s 下限保护
       }
     })();
-    return () => { mounted = false; };
+    return () => { mounted = false; clearTimeout(timeoutId); };
   }, []);
 
   // 保存设置到云端(防抖,500ms 内多次改只保存最后一次)
@@ -1402,66 +1427,37 @@ function MainApp({ user, onLogout }) {
   const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
 
-  // 云端加载时显示 loading - 纯黑白极简开屏
+  // ⚪ 开屏 (V4-B 全黑流动金线 + 同步徽章 + 邮箱)
   if (cloudLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center px-5 relative overflow-hidden"
-        style={{
-          background: `
-            radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.12) 0%, transparent 50%),
-            radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
-            linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
-          `,
-        }}
+        style={{ background: '#000' }}
       >
-        {/* 内联开屏动画 CSS */}
         <style>{`
-          @keyframes bigBPulse {
-            0%, 100% {
-              box-shadow: 0 0 60px rgba(251, 191, 36, 0.4), 0 0 120px rgba(245, 158, 11, 0.2),
-                inset 0 -4px 12px rgba(0, 0, 0, 0.15), inset 0 4px 12px rgba(255, 255, 255, 0.3);
-              transform: scale(1);
-            }
-            50% {
-              box-shadow: 0 0 80px rgba(251, 191, 36, 0.6), 0 0 180px rgba(245, 158, 11, 0.35),
-                inset 0 -4px 12px rgba(0, 0, 0, 0.15), inset 0 4px 12px rgba(255, 255, 255, 0.3);
-              transform: scale(1.04);
-            }
-          }
-          @keyframes bigBFadeIn {
-            0% { opacity: 0; transform: scale(0.6); }
-            100% { opacity: 1; transform: scale(1); }
+          @keyframes v4FillSimple {
+            0% { width: 0%; }
+            50% { width: 100%; }
+            100% { width: 0%; }
           }
           @keyframes splashFadeIn {
-            0% { opacity: 0; }
-            100% { opacity: 1; }
-          }
-          @keyframes splashSpin {
-            100% { transform: rotate(360deg); }
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
           }
           @keyframes splashPulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
           }
-          .big-b-icon {
-            animation: bigBPulse 3s ease-in-out infinite, bigBFadeIn 0.8s ease-out;
+          .v4-fill {
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, #fbbf24 50%, transparent 100%);
+            animation: v4FillSimple 1.8s ease-in-out infinite;
           }
-          .splash-top {
-            animation: splashFadeIn 1s ease-out 0.3s both;
+          .splash-fade-in {
+            animation: splashFadeIn 1s ease-out 0.2s both;
           }
-          .splash-tagline {
-            animation: splashFadeIn 1s ease-out 0.7s both;
-          }
-          .splash-bottom {
-            animation: splashFadeIn 1s ease-out 0.5s both;
-          }
-          .splash-spinner {
-            width: 12px; height: 12px;
-            border: 1.5px solid rgba(251, 191, 36, 0.2);
-            border-top-color: #fbbf24;
-            border-radius: 50%;
-            animation: splashSpin 1s linear infinite;
+          .splash-fade-in-late {
+            animation: splashFadeIn 1s ease-out 0.4s both;
           }
           .splash-sync-dot {
             width: 5px; height: 5px; border-radius: 50%;
@@ -1470,69 +1466,55 @@ function MainApp({ user, onLogout }) {
           }
         `}</style>
 
-        {/* 金色光晕装饰 (右上) */}
-        <div className="absolute top-0 right-0 pointer-events-none" style={{
-          width: '300px', height: '300px',
-          background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
-          transform: 'translate(40%, -40%)',
-        }}></div>
-        {/* 金色光晕装饰 (左下) */}
-        <div className="absolute bottom-0 left-0 pointer-events-none" style={{
-          width: '240px', height: '240px',
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%)',
-          transform: 'translate(-40%, 40%)',
-        }}></div>
+        {/* 中央: BOTTOMLINE 文字 + 流动金线 */}
+        <div className="text-center relative z-10">
+          <div
+            className="text-[13px] mb-6 splash-fade-in"
+            style={{
+              letterSpacing: '4px',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              fontWeight: 700,
+            }}
+          >
+            BOTTOMLINE
+          </div>
+          <div
+            className="splash-fade-in"
+            style={{
+              width: '240px',
+              height: '2px',
+              background: 'rgba(251, 191, 36, 0.15)',
+              borderRadius: '2px',
+              overflow: 'hidden',
+              margin: '0 auto',
+            }}
+          >
+            <div className="v4-fill"></div>
+          </div>
+        </div>
 
-        {/* 顶部: 用户信息 */}
-        <div className="absolute top-12 left-0 right-0 text-center splash-top z-10">
-          <div className="text-[9px] font-bold" style={{ letterSpacing: '4px', color: '#737373' }}>
-            SIGNED IN
+        {/* 底部: SUPABASE LIVE 徽章 + 邮箱 */}
+        <div className="absolute bottom-9 left-0 right-0 text-center splash-fade-in-late z-10">
+          <div
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl mb-3"
+            style={{
+              background: 'rgba(34, 197, 94, 0.08)',
+              border: '1px solid rgba(34, 197, 94, 0.15)',
+            }}
+          >
+            <span className="splash-sync-dot"></span>
+            <span className="text-[9px] font-bold" style={{ color: '#4ade80', letterSpacing: '2px' }}>
+              SUPABASE LIVE
+            </span>
           </div>
           {user?.email && (
-            <div className="text-[13px] font-medium mt-1.5" style={{ color: '#d4d4d4', fontFamily: 'ui-monospace, monospace' }}>
+            <div className="text-[12px]" style={{ color: '#a3a3a3', fontFamily: 'ui-monospace, monospace' }}>
               {user.email}
             </div>
           )}
-        </div>
-
-        {/* 中央大 B */}
-        <div className="text-center relative z-10">
-          <div
-            className="big-b-icon mx-auto rounded-[32px] flex items-center justify-center"
-            style={{
-              width: '140px',
-              height: '140px',
-              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-              color: '#0a0a0a',
-              fontWeight: 900,
-              fontSize: '80px',
-              fontFamily: 'ui-monospace, monospace',
-            }}
-          >
-            B
-          </div>
-          {/* 标语 */}
-          <div
-            className="splash-tagline text-[10px] mt-8"
-            style={{ color: '#525252', letterSpacing: '5px' }}
-          >
-            DESIGNED FOR FOCUS
-          </div>
-        </div>
-
-        {/* 底部: 加载 + 同步状态 */}
-        <div className="absolute bottom-12 left-0 right-0 text-center splash-bottom z-10">
-          <div className="inline-flex items-center gap-2 text-[11px] font-bold" style={{ color: '#525252', letterSpacing: '3px' }}>
-            <div className="splash-spinner"></div>
-            <span>SYNCING FROM CLOUD</span>
-          </div>
-          <div className="mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full" style={{
-            background: 'rgba(34, 197, 94, 0.08)',
-            border: '1px solid rgba(34, 197, 94, 0.15)',
-          }}>
-            <span className="splash-sync-dot"></span>
-            <span className="text-[10px] font-bold" style={{ color: '#4ade80', letterSpacing: '2px' }}>SUPABASE LIVE</span>
-          </div>
         </div>
       </div>
     );
@@ -5293,34 +5275,33 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 00:30:00 (UTC+8)
-// 📝 本次更新: v10.6.7 - 极简黑金开屏 (大 B 版) ⚪
+// 📅 最后修改时间: 2026-04-22 01:00:00 (UTC+8)
+// 📝 本次更新: v10.6.8 - V4-B 全黑开屏 + 加载控制 ⚫
 //
-//   旧版: 纯黑底 + 白色小圆 + BOTTOMLINE 大字
-//   新版: 奢华黑金 + 大金 B + 顶部用户信息 + 底部同步状态
+//   开屏改动:
+//     旧: 奢华黑金 + 大金 B + 顶部 SIGNED IN + 底部 LIVE
+//     新: 纯黑底 + BOTTOMLINE 文字 + 流动金线
+//          + 底部 SUPABASE LIVE 徽章 + 邮箱
 //
-//   布局:
-//     顶部 (top-12):
-//       SIGNED IN (小标签)
-//       user@example.com (用户邮箱)
+//   设计:
+//     中央: BOTTOMLINE 金色字 + 240px 流动金线
+//     底部: SUPABASE LIVE 绿徽章 + user@email
+//     无 logo, 全黑酷炫
 //
-//     中央:
-//       大金色 B (140x140px)
-//       金色发光呼吸 (3s 循环)
-//       下面: DESIGNED FOR FOCUS
+//   加载时间控制 (新增):
+//     最少 0.8s (MIN_SPLASH_MS)
+//       即使云端瞬间响应, 也保证看到设计感
+//     最多 2.0s (MAX_SPLASH_MS)
+//       即使云端连不上, 也强制进入主界面
+//       防止永久卡屏
 //
-//     底部 (bottom-12):
-//       🔄 SYNCING FROM CLOUD
-//       ● SUPABASE LIVE (绿色脉动徽章)
+//   逻辑:
+//     - 启动时记录 startTime
+//     - setTimeout 2s 强制 setCloudLoading(false)
+//     - 云端响应时, 算 elapsed = now - startTime
+//       如果 < 800ms, 等到 800ms 才跳
+//       如果 >= 800ms, 立即跳
 //
-//   动画:
-//     大 B: bigBPulse (光晕呼吸) + bigBFadeIn (出现)
-//     spinner: 旋转
-//     绿点: 脉动
-//
-//   配色:
-//     和资产 tab/首页/交易 tab 头部一致 (奢华黑金)
-//     ✓ 全 App 视觉完全统一
-//
+// 📦 v10.6.7: 极简黑金开屏 (大 B)
 // 📦 v10.6.6: 头部统一黑金
 // ============================================
