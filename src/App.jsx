@@ -1664,7 +1664,7 @@ function MainApp({ user, onLogout }) {
       `}</style>
       <div className="max-w-5xl mx-auto">
         {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
-        {activeTab !== 'analysis' && activeTab !== 'review' && (
+        {activeTab !== 'analysis' && activeTab !== 'review' && activeTab !== 'settings' && (
         <div
           className="rounded-2xl p-4 mb-4 text-white relative overflow-hidden"
           style={{
@@ -5313,24 +5313,88 @@ function MainApp({ user, onLogout }) {
             {/* 数据状态 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
-                <Wifi className="w-5 h-5 text-green-600" />
-                数据状态
+                📡 数据状态
               </h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">最近拉取</span>
-                  <span className="font-mono text-slate-900">{lastFetched ? lastFetched.toLocaleTimeString('zh-CN', { hour12: false }) : '--'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">自动刷新</span>
-                  <span className="text-emerald-600 font-bold">每 5 分钟</span>
-                </div>
-                {fetchError && (
-                  <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-1">
-                    <WifiOff className="w-3 h-3" /> {fetchError}
-                  </div>
-                )}
-              </div>
+              {(() => {
+                // 计算当前刷新状态
+                const now = new Date();
+                const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
+                const et = new Date(etStr);
+                const day = et.getDay();
+                const hour = et.getHours();
+                const minute = et.getMinutes();
+                const time = hour + minute / 60;
+
+                let marketStatus, freq, freqColor;
+                if (day === 0 || day === 6) {
+                  marketStatus = '🔴 休市 (周末)';
+                  freq = '5 分钟';
+                  freqColor = 'text-slate-500';
+                } else if (time >= 9.5 && time < 16) {
+                  marketStatus = '🟢 盘中';
+                  freq = '10 秒';
+                  freqColor = 'text-emerald-600';
+                } else if (time >= 4 && time < 9.5) {
+                  marketStatus = '🟡 盘前';
+                  freq = '30 秒';
+                  freqColor = 'text-amber-600';
+                } else if (time >= 16 && time < 20) {
+                  marketStatus = '🟡 盘后';
+                  freq = '30 秒';
+                  freqColor = 'text-amber-600';
+                } else {
+                  marketStatus = '🔴 休市 (深夜)';
+                  freq = '5 分钟';
+                  freqColor = 'text-slate-500';
+                }
+
+                return (
+                  <>
+                    <div className="flex justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600 text-sm">连接状态</span>
+                      <span className={`text-sm font-bold tabular-nums ${fetchError ? 'text-red-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {fetchError ? '● 异常' : '● 已连接'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-slate-100">
+                      <div className="text-slate-600 text-sm">
+                        当前刷新频率
+                        <div className="text-[10px] text-slate-400 mt-0.5">智能切换</div>
+                      </div>
+                      <span className={`text-sm font-bold tabular-nums ${freqColor}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {freq}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600 text-sm">市场状态</span>
+                      <span className="text-sm font-bold text-slate-900 tabular-nums">
+                        {marketStatus}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600 text-sm">最近更新</span>
+                      <span className="text-sm font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {lastFetched ? lastFetched.toLocaleTimeString('zh-CN', { hour12: false }) : '--'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-600 text-sm">数据源</span>
+                      <span className="text-[11px] text-slate-500">EODHD + Yahoo</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 pt-2 leading-relaxed border-t border-slate-100 mt-1">
+                      智能刷新策略:<br/>
+                      开盘 10s · 盘前盘后 30s · 休市 5 分钟<br/>
+                      页面隐藏时自动暂停
+                    </div>
+
+                    {fetchError && (
+                      <div className="mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-1">
+                        <WifiOff className="w-3 h-3" /> {fetchError}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               <button
                 onClick={fetchRealtimePrices}
                 disabled={fetching}
@@ -5364,12 +5428,118 @@ function MainApp({ user, onLogout }) {
               </div>
             </div>
 
+            {/* 📜 更新日志 */}
+            <div className="bg-white rounded-2xl p-5 shadow">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-lg flex items-center gap-2">
+                  📜 更新日志
+                </h2>
+                <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
+                  v10.7.5
+                </span>
+              </div>
+
+              {(() => {
+                const changelog = [
+                  {
+                    ver: 'v10.7.5', date: '2026-04-22', latest: true,
+                    items: ['修复密码重置直接登录 bug', '设置页加"修改密码"入口'],
+                  },
+                  {
+                    ver: 'v10.7.4', date: '2026-04-22',
+                    items: ['新增忘记密码功能', '登录页升级黑金主题'],
+                  },
+                  {
+                    ver: 'v10.7.3', date: '2026-04-22',
+                    items: ['品牌图标: 金色 K 线柱', 'App 名改为 Bottomline'],
+                  },
+                  {
+                    ver: 'v10.7.2', date: '2026-04-22',
+                    items: ['资产录入按人 Tab 切换'],
+                  },
+                  {
+                    ver: 'v10.7.1', date: '2026-04-22',
+                    items: ['智能刷新 (10s/30s/5min)', '修复首次进入没走势图'],
+                  },
+                  {
+                    ver: 'v10.7.0', date: '2026-04-22',
+                    items: ['我的关注 Robinhood 风', '走势图 56px + 渐变填充'],
+                  },
+                  {
+                    ver: 'v10.6.9', date: '2026-04-21',
+                    items: ['修复 HKD 汇率 bug'],
+                  },
+                  {
+                    ver: 'v10.6.8', date: '2026-04-21',
+                    items: ['全黑流动金线开屏', 'SUPABASE LIVE 状态徽章'],
+                  },
+                  {
+                    ver: 'v10.6.6', date: '2026-04-21',
+                    items: ['3 tab 头部统一奢华黑金'],
+                  },
+                  {
+                    ver: 'v10.6.5', date: '2026-04-21',
+                    items: ['修复 52 周高拆股 bug (TQQQ)', '盘前数据自动显示'],
+                  },
+                  {
+                    ver: 'v10.6.4', date: '2026-04-21',
+                    items: ['交易 tab 重做: 进行中独立大卡 + 历史紧凑'],
+                  },
+                  {
+                    ver: 'v10.6.0-3', date: '2026-04-20',
+                    items: ['年度表视觉升级', '字号+折叠', '防重复提交'],
+                  },
+                ];
+                return (
+                  <div>
+                    {changelog.map((log, idx) => (
+                      <div
+                        key={log.ver}
+                        className={`py-3 ${idx !== changelog.length - 1 ? 'border-b border-slate-100' : ''} ${idx === 0 ? 'pt-0' : ''}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span
+                            className="px-2 py-0.5 rounded text-[11px] font-black tabular-nums"
+                            style={{
+                              fontFamily: 'ui-monospace, monospace',
+                              background: log.latest
+                                ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                                : 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                              color: log.latest ? '#fff' : '#0a0a0a',
+                            }}
+                          >
+                            {log.ver}
+                          </span>
+                          <span className="text-[10px] text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            {log.date}
+                          </span>
+                          {log.latest && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-black tracking-wider">
+                              最新
+                            </span>
+                          )}
+                        </div>
+                        <ul className="pl-1 space-y-0.5">
+                          {log.items.map((item, i) => (
+                            <li key={i} className="text-[12px] text-slate-600 pl-3.5 relative">
+                              <span className="absolute left-1 text-amber-500 font-bold">·</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* 关于 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v2.0 PWA</div>
-                <div>📡 数据源:Finnhub / FRED / CNN / Yahoo</div>
+                <div>📊 版本:v10.7.5</div>
+                <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
             </div>
@@ -5593,27 +5763,29 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 04:30:00 (UTC+8)
-// 📝 本次更新: v10.7.5 - 修复 recovery bug + 加修改密码 🔑
+// 📅 最后修改时间: 2026-04-22 05:00:00 (UTC+8)
+// 📝 本次更新: v10.7.6 - 设置页改版 📜
 //
-//   问题:
-//     用户点"重置密码"邮件链接后, 会自动登录
-//     但没让设新密码 → 旧密码还是忘的 → 下次又登不上
+//   改动:
+//     1. 删除设置 tab 顶部的 "持仓总市值" 黑金头卡
+//        条件加 activeTab !== 'settings'
+//        (设置页本来就不关心持仓)
 //
-//   原因:
-//     外层 TQQQTracker 的 onAuthChange 比 Login 的 useEffect 先触发
-//     auth session 一建立立刻进主界面, 没机会进入"设新密码"
+//     2. 数据状态升级为实时指标:
+//        - 连接状态 (绿/红)
+//        - 当前刷新频率 (10s/30s/5min 实时算)
+//        - 市场状态 (🟢 盘中 / 🟡 盘前/后 / 🔴 休市)
+//        - 最近更新时间
+//        - 数据源 (EODHD + Yahoo)
+//        + 底部说明智能刷新策略
 //
-//   修复:
-//     1) 外层启动时检测 URL hash=recovery
-//        isRecovery state, 优先级高于 authState.user
-//        即使已有 session, 也强制进 Login (设新密码)
+//     3. 新增 "📜 更新日志" 卡:
+//        v10.6.0 ~ v10.7.5 共 12 个版本
+//        最新版本金色徽章 → 绿色"最新"标
+//        历史版本金色徽章
+//        每个版本: 日期 + 更新要点列表
 //
-//     2) 设置页加"🔑 修改密码"入口
-//        Modal 输入新密码 → supabase.auth.updateUser
-//        以后日常改密码也方便, 不用每次走"忘记密码"流程
+//     4. "关于" 卡版本号更新到 v10.7.5
 //
-// 📦 v10.7.4: 忘记密码功能 (初版)
-// 📦 v10.7.3: V5 K 线柱图标
-// 📦 v10.7.2: 录入按人 Tab
+// 📦 v10.7.5: recovery 修复 + 改密码入口
 // ============================================
