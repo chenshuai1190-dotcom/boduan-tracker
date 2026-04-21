@@ -1152,7 +1152,8 @@ function MainApp({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50 px-4 pb-24" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       <div className="max-w-5xl mx-auto">
-        {/* 顶部总览卡片 - 总盈亏 + 持仓市值 + LIVE */}
+        {/* 顶部总览卡片 - 资产 tab 专注显示资产数字,不展示这个 */}
+        {activeTab !== 'analysis' && (
         <div className="rounded-2xl p-4 mb-4 shadow-lg text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
           {/* 顶行: 标题 + LIVE 刷新 */}
           <div className="flex items-center justify-between mb-3">
@@ -1216,6 +1217,8 @@ function MainApp({ user, onLogout }) {
             );
           })()}
         </div>
+        )}
+        {/* 顶部总览卡结束 */}
 
         {/* ====== 首页 tab ====== */}
         {activeTab === 'home' && (<>
@@ -2464,7 +2467,7 @@ function MainApp({ user, onLogout }) {
         </>)}
         {/* ====== 交易 tab 结束 ====== */}
 
-        {/* ====== 分析 tab(预留位,即将上线) ====== */}
+        {/* ====== 资产 tab ====== */}
         {activeTab === 'analysis' && (<>
           {(() => {
             // ============ 工具函数 ============
@@ -2473,7 +2476,23 @@ function MainApp({ user, onLogout }) {
             lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
             const lastMonth = lastMonthDate.toISOString().slice(0, 7);
 
-            // 账户在某月的余额 (CNY 换算后)
+            // 本年初 (2026-01)
+            const yearStart = currentMonth.slice(0, 4) + '-01';
+
+            // 12 个月前
+            const yearAgoDate = new Date();
+            yearAgoDate.setMonth(yearAgoDate.getMonth() - 12);
+            const yearAgo = yearAgoDate.toISOString().slice(0, 7);
+
+            // 最近 12 个月的月份列表 (从 12 月前到当月)
+            const last12Months = [];
+            for (let i = 11; i >= 0; i--) {
+              const d = new Date();
+              d.setMonth(d.getMonth() - i);
+              last12Months.push(d.toISOString().slice(0, 7));
+            }
+
+            // ============ 数据函数 ============
             const getBalance = (accId, month) => {
               const snap = snapshots.find(s => s.accountId === accId && s.month === month);
               return snap ? snap.balance : 0;
@@ -2484,133 +2503,288 @@ function MainApp({ user, onLogout }) {
               if (!acc) return 0;
               return toCNY(getBalance(accId, month), acc.currency);
             };
-
-            // 总资产
             const totalAtMonth = (month) =>
               accounts.reduce((sum, acc) => sum + balanceAtMonthCNY(acc.id, month), 0);
 
+            // 万单位格式化 (保留 1 位小数)
+            const fmtWan = (n) => {
+              const v = Math.abs(n) / 10000;
+              return v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            };
+
+            // ============ 核心数据 ============
             const totalNow = totalAtMonth(currentMonth);
             const totalLast = totalAtMonth(lastMonth);
+            const totalYearStart = totalAtMonth(yearStart);
+            const totalYearAgo = totalAtMonth(yearAgo);
+
             const monthChange = totalNow - totalLast;
             const monthChangePct = totalLast > 0 ? (monthChange / totalLast) * 100 : 0;
+            const ytdChange = totalNow - totalYearStart;
+            const ytdChangePct = totalYearStart > 0 ? (ytdChange / totalYearStart) * 100 : 0;
+            const yearChange = totalNow - totalYearAgo;
+            const yearChangePct = totalYearAgo > 0 ? (yearChange / totalYearAgo) * 100 : 0;
 
-            // 按人分组
+            // 12 个月走势数据
+            const chartData = last12Months.map(m => totalAtMonth(m));
+            const nonZero = chartData.filter(v => v > 0);
+            const chartMin = nonZero.length > 0 ? Math.min(...nonZero) : 0;
+            const chartMax = nonZero.length > 0 ? Math.max(...nonZero) : 0;
+            const chartRange = chartMax - chartMin || 1;
+
+            // 按持有人分组
             const myAccounts = accounts.filter(a => a.owner === '我');
             const wifeAccounts = accounts.filter(a => a.owner === '老婆');
             const myTotal = myAccounts.reduce((s, a) => s + balanceAtMonthCNY(a.id, currentMonth), 0);
             const wifeTotal = wifeAccounts.reduce((s, a) => s + balanceAtMonthCNY(a.id, currentMonth), 0);
+            const myPct = totalNow > 0 ? (myTotal / totalNow) * 100 : 0;
+            const wifePct = totalNow > 0 ? (wifeTotal / totalNow) * 100 : 0;
 
             return (
               <>
-                {/* ====== 顶部总资产卡 ====== */}
-                <div className="rounded-2xl p-4 mb-4 shadow-lg text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-black text-sm tracking-tight">家庭资产</span>
+                {/* ============ 顶部:总资产卡 (3 指标) ============ */}
+                <div className="rounded-2xl p-5 mb-4 shadow-lg text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0c1628 0%, #1e3a5f 50%, #2c5985 100%)' }}>
+                  {/* 装饰光晕 */}
+                  <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}></div>
+
+                  <div className="flex items-center justify-between mb-3 relative z-10">
+                    <div className="text-[10px] uppercase tracking-widest font-bold text-blue-200">家庭总资产</div>
+                    <div className="text-[10px] text-blue-300 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {currentMonth}
                     </div>
-                    <button
-                      onClick={() => setShowFillSnapshot(true)}
-                      className="px-2 py-1 rounded-md bg-blue-600/80 hover:bg-blue-600 active:scale-95 transition text-[11px] font-bold text-white flex items-center gap-1"
-                      disabled={accounts.length === 0}
-                    >
-                      <Calendar className="w-3 h-3" /> 填 {currentMonth.slice(5)} 月
-                    </button>
                   </div>
 
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">当月总资产 (CNY)</div>
-                  <div className="text-3xl font-black tabular-nums text-white mb-2" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    ¥{fmt(totalNow, 0)}
+                  <div className="text-4xl font-black tabular-nums relative z-10" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                    ¥{fmtWan(totalNow)}<span className="text-lg ml-1 font-bold">万</span>
                   </div>
 
-                  {totalLast > 0 && (
-                    <div className={`text-xs font-bold tabular-nums ${monthChange >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                      {monthChange >= 0 ? '+' : ''}¥{fmt(Math.abs(monthChange), 0)} ({monthChange >= 0 ? '+' : ''}{monthChangePct.toFixed(2)}%) 本月
+                  {/* 3 个指标 */}
+                  <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/15 relative z-10">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-widest text-blue-300 font-bold mb-1">较上月</div>
+                      {totalLast > 0 ? (
+                        <>
+                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5 ${monthChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                            {monthChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {monthChange >= 0 ? '+' : '-'}¥{fmtWan(monthChange)}万
+                          </div>
+                          <div className={`text-[11px] font-bold ${monthChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                            {monthChangePct >= 0 ? '+' : ''}{monthChangePct.toFixed(1)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-[11px] text-slate-400">无数据</div>
+                      )}
                     </div>
-                  )}
-
-                  {/* 按人分组 */}
-                  {accounts.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-700">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">我</div>
-                        <div className="text-sm font-bold tabular-nums text-white">¥{fmt(myTotal, 0)}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">老婆</div>
-                        <div className="text-sm font-bold tabular-nums text-white">¥{fmt(wifeTotal, 0)}</div>
-                      </div>
+                    <div className="border-l border-white/10 pl-3">
+                      <div className="text-[9px] uppercase tracking-widest text-blue-300 font-bold mb-1">年初至今</div>
+                      {totalYearStart > 0 ? (
+                        <>
+                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5 ${ytdChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                            {ytdChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {ytdChange >= 0 ? '+' : '-'}¥{fmtWan(ytdChange)}万
+                          </div>
+                          <div className={`text-[11px] font-bold ${ytdChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                            {ytdChangePct >= 0 ? '+' : ''}{ytdChangePct.toFixed(1)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-[11px] text-slate-400">无数据</div>
+                      )}
                     </div>
-                  )}
+                    <div className="border-l border-white/10 pl-3">
+                      <div className="text-[9px] uppercase tracking-widest text-blue-300 font-bold mb-1">近一年</div>
+                      {totalYearAgo > 0 ? (
+                        <>
+                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5 ${yearChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                            {yearChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {yearChange >= 0 ? '+' : '-'}¥{fmtWan(yearChange)}万
+                          </div>
+                          <div className={`text-[11px] font-bold ${yearChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                            {yearChangePct >= 0 ? '+' : ''}{yearChangePct.toFixed(1)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-[11px] text-slate-400">无数据</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* ====== 账户列表 ====== */}
-                <div className="bg-white rounded-2xl p-3 mb-4 shadow">
-                  <div className="flex items-center justify-between mb-3 px-1">
-                    <h3 className="font-bold text-sm text-slate-800">账户</h3>
+                {/* ============ 12 个月走势图 (有数据时才显示) ============ */}
+                {nonZero.length >= 2 && (
+                  <div className="rounded-2xl bg-white p-4 shadow mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                        <span>📈</span>
+                        <span>12 个月走势</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500">月度</div>
+                    </div>
+
+                    <svg viewBox="0 0 320 120" className="w-full h-32">
+                      <defs>
+                        <linearGradient id="assetGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.25"/>
+                          <stop offset="100%" stopColor="#f43f5e" stopOpacity="0"/>
+                        </linearGradient>
+                      </defs>
+                      {/* 网格线 */}
+                      {[0, 0.25, 0.5, 0.75, 1].map(t => (
+                        <line key={t} x1="0" x2="320" y1={20 + t * 80} y2={20 + t * 80} stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="2 2"/>
+                      ))}
+                      {/* 面积 */}
+                      <path
+                        d={`M 0 ${20 + (1 - ((chartData[0] || chartMin) - chartMin) / chartRange) * 80} ${chartData.map((v, i) => `L ${(i / (chartData.length - 1)) * 320} ${20 + (1 - ((v || chartMin) - chartMin) / chartRange) * 80}`).join(' ')} L 320 120 L 0 120 Z`}
+                        fill="url(#assetGrad)"
+                      />
+                      {/* 折线 */}
+                      <path
+                        d={`M 0 ${20 + (1 - ((chartData[0] || chartMin) - chartMin) / chartRange) * 80} ${chartData.map((v, i) => `L ${(i / (chartData.length - 1)) * 320} ${20 + (1 - ((v || chartMin) - chartMin) / chartRange) * 80}`).join(' ')}`}
+                        fill="none"
+                        stroke="#f43f5e"
+                        strokeWidth="2"
+                      />
+                      {/* 数据点 */}
+                      {chartData.map((v, i) => (
+                        <circle
+                          key={i}
+                          cx={(i / (chartData.length - 1)) * 320}
+                          cy={20 + (1 - ((v || chartMin) - chartMin) / chartRange) * 80}
+                          r={i === chartData.length - 1 ? 4 : 2}
+                          fill={i === chartData.length - 1 ? '#f43f5e' : 'white'}
+                          stroke="#f43f5e"
+                          strokeWidth="1.5"
+                        />
+                      ))}
+                    </svg>
+
+                    <div className="flex justify-between text-[9px] text-slate-400 font-medium mt-1 px-1">
+                      <span>{last12Months[0].slice(5)}月</span>
+                      <span>{last12Months[5].slice(5)}月</span>
+                      <span>{last12Months[11].slice(5)}月</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-center">
+                      <div>
+                        <div className="text-[9px] text-slate-500">最低</div>
+                        <div className="text-xs font-bold text-slate-700 tabular-nums">¥{fmtWan(chartMin)}万</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-500">最高</div>
+                        <div className="text-xs font-bold text-slate-700 tabular-nums">¥{fmtWan(chartMax)}万</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-500">区间</div>
+                        <div className="text-xs font-bold text-slate-700 tabular-nums">¥{fmtWan(chartRange)}万</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ============ 操作按钮 ============ */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button
+                    onClick={() => setShowFillSnapshot(true)}
+                    disabled={accounts.length === 0}
+                    className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow"
+                  >
+                    <Calendar className="w-4 h-4"/> 填 {currentMonth.slice(5)} 月余额
+                  </button>
+                  <button
+                    onClick={() => setShowAddAccount(true)}
+                    className="py-3 rounded-xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Plus className="w-4 h-4"/> 新增账户
+                  </button>
+                </div>
+
+                {/* ============ 空状态 ============ */}
+                {accounts.length === 0 && (
+                  <div className="text-center py-12 px-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-dashed border-blue-200 mb-4">
+                    <div className="text-5xl mb-3">💰</div>
+                    <div className="text-slate-700 font-bold mb-1.5">还没有账户</div>
+                    <div className="text-xs text-slate-500 mb-3">添加你和家人的账户,记录每月余额</div>
                     <button
                       onClick={() => setShowAddAccount(true)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 active:scale-95 transition text-xs font-bold text-blue-700"
+                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 transition text-sm font-bold text-white"
                     >
-                      <Plus className="w-3 h-3" /> 添加
+                      添加第一个账户
                     </button>
                   </div>
+                )}
 
-                  {accounts.length === 0 ? (
-                    <div className="text-center py-12 px-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-dashed border-blue-200">
-                      <div className="text-5xl mb-3">💰</div>
-                      <div className="text-slate-700 font-bold mb-1.5">还没有账户</div>
-                      <div className="text-xs text-slate-500 mb-3">添加你和家人的账户,记录每月余额</div>
-                      <button
-                        onClick={() => setShowAddAccount(true)}
-                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 transition text-sm font-bold text-white"
-                      >
-                        添加第一个账户
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {['我', '老婆'].map(owner => {
-                        const ownerAccounts = accounts.filter(a => a.owner === owner);
-                        if (ownerAccounts.length === 0) return null;
-                        return (
-                          <div key={owner}>
-                            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1 mb-1">{owner}</div>
-                            {ownerAccounts.map(acc => {
-                              const bal = getBalance(acc.id, currentMonth);
-                              const balCNY = toCNY(bal, acc.currency);
-                              return (
-                                <div key={acc.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition">
-                                  <span className="text-xl">{acc.icon || '💰'}</span>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold text-slate-800 truncate">{acc.name}</div>
-                                    <div className="text-[10px] text-slate-500">{acc.type} · {acc.currency}</div>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-sm font-bold tabular-nums text-slate-900">
-                                      {acc.currency === 'USD' ? '$' : '¥'}{fmt(bal, 0)}
-                                    </div>
-                                    {acc.currency === 'USD' && (
-                                      <div className="text-[10px] text-slate-400 tabular-nums">≈¥{fmt(balCNY, 0)}</div>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => setAccountDeleteConfirmId(acc.id)}
-                                    className="w-6 h-6 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-xs transition active:scale-90 ml-1"
-                                    title="删除"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              );
-                            })}
+                {/* ============ 持有人分组卡 ============ */}
+                {[
+                  { owner: '我', icon: '👤', gradient: 'from-blue-50 to-cyan-50 border-blue-100', barColor: '#3b82f6', accounts: myAccounts, total: myTotal, pct: myPct },
+                  { owner: '老婆', icon: '👩', gradient: 'from-pink-50 to-rose-50 border-pink-100', barColor: '#ec4899', accounts: wifeAccounts, total: wifeTotal, pct: wifePct },
+                ].map(({ owner, icon, gradient, barColor, accounts: ownerAccs, total, pct }) => {
+                  if (ownerAccs.length === 0) return null;
+                  return (
+                    <div key={owner} className={`rounded-2xl bg-gradient-to-br ${gradient} border p-4 shadow-sm mb-4`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{icon}</span>
+                          <div>
+                            <div className="font-black text-slate-800 text-base">{owner}</div>
+                            <div className="text-[10px] text-slate-500 font-medium">{ownerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-black text-slate-800 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>¥{fmtWan(total)}万</div>
+                        </div>
+                      </div>
 
-                {/* ====== 汇率设置小卡 ====== */}
+                      {/* 占比进度条 */}
+                      <div className="h-1.5 bg-white/60 rounded-full overflow-hidden mb-3">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }}></div>
+                      </div>
+
+                      {/* 账户列表 */}
+                      <div className="space-y-2">
+                        {ownerAccs.map(acc => {
+                          const bal = getBalance(acc.id, currentMonth);
+                          const balCNY = toCNY(bal, acc.currency);
+                          return (
+                            <div key={acc.id} className="bg-white/80 backdrop-blur rounded-xl p-3 flex items-center justify-between transition">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className="w-9 h-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-lg shrink-0">
+                                  {acc.icon || '💰'}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-bold text-slate-800 text-sm truncate">{acc.name}</div>
+                                  <div className="text-[10px] text-slate-500">{acc.type}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0 mr-2">
+                                {acc.currency !== 'CNY' ? (
+                                  <>
+                                    <div className="font-bold text-slate-800 text-sm tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                      {acc.currency === 'USD' ? '$' : 'HK$'}{fmt(bal, 0)}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 tabular-nums">≈¥{fmtWan(balCNY)}万</div>
+                                  </>
+                                ) : (
+                                  <div className="font-bold text-slate-800 text-sm tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>¥{fmtWan(bal)}万</div>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setAccountDeleteConfirmId(acc.id)}
+                                className="w-6 h-6 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-xs transition active:scale-90"
+                                title="删除"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* ============ 美元汇率设置 (有 USD 账户时才显示) ============ */}
                 {accounts.some(a => a.currency === 'USD') && (
                   <div className="bg-white rounded-xl p-3 mb-4 shadow flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -3155,30 +3329,21 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 11:00:00 (UTC+8)
-// 📝 本次更新: v10.3.0 - 资产 tab 本地版 (Day 4 Step 2)
+// 📅 最后修改时间: 2026-04-21 11:50:00 (UTC+8)
+// 📝 本次更新: v10.3.3 - 资产 tab 按设计稿补齐 4 项核心
 //
-//   功能:
-//     ✓ 资产 tab 替换占位图为真实 UI
-//     ✓ 顶部总资产卡 (当月 + 本月变化 + 按人分组)
-//     ✓ 账户列表 (分 我/老婆 两组)
-//     ✓ 添加账户 Modal (人/类型/名字/币种/初始余额)
-//     ✓ 删除账户 Modal (带确认, 删除时同步清掉快照)
-//     ✓ 填月度快照 Modal (一次填所有账户本月余额)
-//     ✓ 美元汇率设置 (有 USD 账户时才显示)
-//     ✓ 空状态引导
+//   对照设计稿 FamilyAssetsPreview.jsx, 补齐:
+//     ✅ 顶部总资产卡: 3 个变化指标 (较上月/年初至今/近一年)
+//     ✅ 12 个月走势图 (SVG 折线图 + 数据点 + 最低/最高/区间)
+//     ✅ 全部数字用 "万" 单位显示 (fmtWan 工具函数)
+//     ✅ 彩色人员分组卡 (蓝/粉渐变背景 + 进度条 + 占比)
+//     ✅ 👤我 / 👩老婆 emoji 标识
 //
-//   架构 (严格按数据架构宪法):
-//     ❌ 暂未接 Supabase (本次只做本地版, 下一版 Step 3 接云端)
-//     ✓ 新增代码不影响 watchlist / trades / settings
-//     ✓ 独立 state: accounts / snapshots / usdRate
-//     ✓ 独立模块: 所有逻辑在 analysis tab 内部, 不污染其他
+//   设计稿里"每个账户 vs 上月"变化未实现 (故意的)
+//     - 月度快照频率低, "vs 上月" 容易误导
+//     - 总资产卡的 "较上月" 已够用
 //
-//   下一步 (Step 3):
-//     - 接 Supabase fetchAccounts/insertAccount/etc
-//     - 按宪法: 所有 fetch 都要 .eq('user_id', user.id)
-//     - 多账户隔离测试
-//
-// 📦 v10.2.8: 多账户隔离 (修昨天的大 bug)
-// 📦 v10.2.7: 抛弃"删光重插"模式
+// 📦 v10.3.2: 非资产 tab 保留总览卡 (按用户反馈)
+// 📦 v10.3.1: (废弃, 只在首页显示太激进)
+// 📦 v10.3.0: 资产 tab 本地版 初稿 (缺 4 项)
 // ============================================
