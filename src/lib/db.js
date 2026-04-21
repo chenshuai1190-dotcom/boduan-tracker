@@ -262,12 +262,17 @@ export const upsertSettings = async (settings) => {
 // 任何一个表 404 或出错, 不影响其他表的数据加载
 export const fetchAllUserData = async () => {
   const results = await Promise.allSettled([
-    fetchTrades(),      // 0
-    fetchWatchlist(),   // 1
-    fetchWaveNotes(),   // 2
-    fetchSettings(),    // 3
-    fetchAccounts(),    // 4
-    fetchSnapshots(),   // 5
+    fetchTrades(),            // 0
+    fetchWatchlist(),         // 1
+    fetchWaveNotes(),         // 2
+    fetchSettings(),          // 3
+    fetchAccounts(),          // 4
+    fetchSnapshots(),         // 5
+    fetchInvestmentPlan(),    // 6
+    fetchMarginStatus(),      // 7
+    fetchDisciplines(),       // 8
+    fetchReviewLogs(),        // 9
+    fetchYearlyActuals(),     // 10
   ]);
 
   const getValue = (idx, fallback) => {
@@ -277,12 +282,17 @@ export const fetchAllUserData = async () => {
   };
 
   return {
-    trades:     getValue(0, []),
-    watchlist:  getValue(1, []),
-    waveNotes:  getValue(2, {}),
-    settings:   getValue(3, null),
-    accounts:   getValue(4, []),
-    snapshots:  getValue(5, []),
+    trades:         getValue(0, []),
+    watchlist:      getValue(1, []),
+    waveNotes:      getValue(2, {}),
+    settings:       getValue(3, null),
+    accounts:       getValue(4, []),
+    snapshots:      getValue(5, []),
+    investmentPlan: getValue(6, null),
+    marginStatus:   getValue(7, null),
+    disciplines:    getValue(8, []),
+    reviewLogs:     getValue(9, []),
+    yearlyActuals:  getValue(10, []),
   };
 };
 
@@ -432,6 +442,293 @@ export const upsertMonthlySnapshots = async (month, balanceMap) => {
 };
 
 export const deleteSnapshot = async (id) => {
-  const { error } = await supabase.from('balance_snapshots').delete().eq('id', id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { error } = await supabase
+    .from('balance_snapshots')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
+
+// ============ INVESTMENT_PLAN (复利计划, 每人 1 条) ============
+
+export const fetchInvestmentPlan = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('investment_plan')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) {
+    console.error('fetchInvestmentPlan 失败:', error);
+    return cacheGet('investment_plan') || null;
+  }
+  const plan = data ? {
+    startCapital: Number(data.start_capital),
+    targetAnnualRate: Number(data.target_annual_rate),
+    startYear: data.start_year,
+    totalYears: data.total_years,
+    ageGoalAge: data.age_goal_age,
+    motto: data.motto || '',
+  } : null;
+  if (plan) cacheSet('investment_plan', plan);
+  return plan;
+};
+
+export const upsertInvestmentPlan = async (plan) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('investment_plan')
+    .upsert({
+      user_id: user.id,
+      start_capital: plan.startCapital,
+      target_annual_rate: plan.targetAnnualRate,
+      start_year: plan.startYear,
+      total_years: plan.totalYears,
+      age_goal_age: plan.ageGoalAge,
+      motto: plan.motto || '',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  if (error) throw error;
+};
+
+// ============ MARGIN_STATUS (融资状态, 每人 1 条) ============
+
+export const fetchMarginStatus = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('margin_status')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) {
+    console.error('fetchMarginStatus 失败:', error);
+    return cacheGet('margin_status') || null;
+  }
+  const status = data ? {
+    currentMargin: Number(data.current_margin),
+    marginLimit: Number(data.margin_limit),
+  } : null;
+  if (status) cacheSet('margin_status', status);
+  return status;
+};
+
+export const upsertMarginStatus = async (status) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('margin_status')
+    .upsert({
+      user_id: user.id,
+      current_margin: status.currentMargin,
+      margin_limit: status.marginLimit,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  if (error) throw error;
+};
+
+// ============ DISCIPLINES (投资戒律) ============
+
+export const fetchDisciplines = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('disciplines')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('pinned', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('fetchDisciplines 失败:', error);
+    return cacheGet('disciplines') || [];
+  }
+  const list = (data || []).map(d => ({
+    id: d.id,
+    level: d.level,
+    text: d.text,
+    pinned: d.pinned,
+    sortOrder: d.sort_order || 0,
+    date: d.created_at ? d.created_at.slice(0, 10) : '',
+  }));
+  cacheSet('disciplines', list);
+  return list;
+};
+
+export const insertDiscipline = async (discipline) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { data, error } = await supabase
+    .from('disciplines')
+    .insert({
+      user_id: user.id,
+      level: discipline.level,
+      text: discipline.text,
+      pinned: discipline.pinned || false,
+      sort_order: discipline.sortOrder || 0,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    level: data.level,
+    text: data.text,
+    pinned: data.pinned,
+    sortOrder: data.sort_order,
+    date: data.created_at ? data.created_at.slice(0, 10) : '',
+  };
+};
+
+export const updateDiscipline = async (id, discipline) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { error } = await supabase
+    .from('disciplines')
+    .update({
+      level: discipline.level,
+      text: discipline.text,
+      pinned: discipline.pinned,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
+
+export const deleteDiscipline = async (id) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { error } = await supabase
+    .from('disciplines')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
+
+// ============ REVIEW_LOGS (月度复盘日志) ============
+
+export const fetchReviewLogs = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('review_logs')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('log_date', { ascending: false });
+  if (error) {
+    console.error('fetchReviewLogs 失败:', error);
+    return cacheGet('review_logs') || [];
+  }
+  const list = (data || []).map(l => ({
+    id: l.id,
+    date: l.log_date,
+    mood: l.mood || '',
+    text: l.text,
+  }));
+  cacheSet('review_logs', list);
+  return list;
+};
+
+export const insertReviewLog = async (log) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { data, error } = await supabase
+    .from('review_logs')
+    .insert({
+      user_id: user.id,
+      log_date: log.date,
+      mood: log.mood || '',
+      text: log.text,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    date: data.log_date,
+    mood: data.mood,
+    text: data.text,
+  };
+};
+
+export const updateReviewLog = async (id, log) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { error } = await supabase
+    .from('review_logs')
+    .update({
+      log_date: log.date,
+      mood: log.mood,
+      text: log.text,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
+
+export const deleteReviewLog = async (id) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { error } = await supabase
+    .from('review_logs')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
+
+// ============ YEARLY_ACTUALS (年度实际回报) ============
+
+export const fetchYearlyActuals = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('yearly_actuals')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('year', { ascending: true });
+  if (error) {
+    console.error('fetchYearlyActuals 失败:', error);
+    return cacheGet('yearly_actuals') || [];
+  }
+  const list = (data || []).map(y => ({
+    id: y.id,
+    year: y.year,
+    actualGain: y.actual_gain != null ? Number(y.actual_gain) : null,
+    endBalance: y.end_balance != null ? Number(y.end_balance) : null,
+  }));
+  cacheSet('yearly_actuals', list);
+  return list;
+};
+
+export const upsertYearlyActual = async (year, actualGain, endBalance) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('yearly_actuals')
+    .upsert({
+      user_id: user.id,
+      year: year,
+      actual_gain: actualGain,
+      end_balance: endBalance,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,year' });
   if (error) throw error;
 };
