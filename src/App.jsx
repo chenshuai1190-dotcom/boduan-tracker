@@ -2607,18 +2607,8 @@ function MainApp({ user, onLogout }) {
               const dayColor = isUp ? '#dc2626' : '#16a34a';
               const dayBg = isUp ? 'rgba(220, 38, 38, 0.06)' : 'rgba(22, 163, 74, 0.06)';
 
-              // 走势线 - 只画盘中 (9:30-16:00 ET) 数据
-              // 优先用 intradayPoints (含 session 信息) 过滤
-              // 旧数据只有 intraday (无时段) → 按旧逻辑画全部
-              let series;
-              if (Array.isArray(s.intradayPoints) && s.intradayPoints.length > 0) {
-                // 只保留盘中 tick
-                series = s.intradayPoints
-                  .filter(p => p.session === 'regular' && p.price != null && !isNaN(p.price))
-                  .map(p => p.price);
-              } else {
-                series = (s.intraday || []).filter(v => v != null && !isNaN(v));
-              }
+              // 走势线
+              const series = (s.intraday || []).filter(v => v != null && !isNaN(v));
               let pathD = '';
               let fillD = '';
               if (series.length > 1) {
@@ -6446,27 +6436,23 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 13:30:00 (UTC+8)
-// 📝 本次更新: v10.7.8.2 - 走势图只画盘中 📊
+// 📅 最后修改时间: 2026-04-22 13:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.1 - WebSocket 同步走势图 📈
 //
-//   问题: 走势图延续昨天收盘/盘前数据
-//         用户看不清"今天盘中"的独立走势
+//   问题: v10.7.8 WebSocket 模式下, 价格实时跳
+//         但 56px 走势图不动 (用的是旧 intraday 数组)
 //
-//   修复: 走势图过滤, 只画 session === 'regular' 的点
-//         盘前/盘后数据不绘制
+//   修复: WebSocket 每次收到新 tick
+//         同步更新 s.intraday + s.intradayPoints
 //
-//   逻辑:
-//     if (有 intradayPoints):
-//       过滤 session === 'regular'
-//       → 只画盘中 tick (9:30-16:00 ET)
-//     else:
-//       fallback 用全部 intraday (兼容旧数据)
+//   智能合并策略 (1 分钟桶):
+//     - 同分钟内多次 tick: 覆盖最后一点 (避免数组爆炸)
+//     - 新的一分钟: 追加一个点
+//     - 按美东时间自动标记 session (pre/regular/post)
 //
-//   效果:
-//     盘前时段: 图中无线 (等开盘)
-//     9:30 开盘: 线从 0 开始画
-//     盘后: 线停在 16:00 收盘点 (盘后数据不画)
+//   效果: 走势图尾部不停延伸, 看起来"线在画"
+//         视觉效果极强, 像券商 App
 //
-// 📦 v10.7.8.1: 走势图实时同步
-// 📦 v10.7.8:   WebSocket 实时推送 BETA
+// 📦 v10.7.8: WebSocket 实时推送 BETA
+// 📦 v10.7.7.4: 数据安全加固
 // ============================================
