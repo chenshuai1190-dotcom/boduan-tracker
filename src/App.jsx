@@ -1415,6 +1415,44 @@ function MainApp({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pb-24" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+      {/* 🚀 火箭进度条动画 CSS */}
+      <style>{`
+        @keyframes rocketLaunch {
+          0% { width: 0%; }
+          100% { width: var(--target-width); }
+        }
+        .rocket-bar {
+          width: var(--target-width);
+          animation: rocketLaunch 1.2s cubic-bezier(0.25, 0.85, 0.25, 1) forwards;
+        }
+        .rocket-particle {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #fbbf24;
+          box-shadow: 0 0 6px #fbbf24, 0 0 10px rgba(251, 191, 36, 0.5);
+          opacity: 0;
+          right: 0;
+        }
+        @keyframes rocketP1 {
+          0% { right: 0; opacity: 1; }
+          100% { right: 60px; opacity: 0; }
+        }
+        @keyframes rocketP2 {
+          0% { right: 0; opacity: 1; }
+          100% { right: 90px; opacity: 0; }
+        }
+        @keyframes rocketP3 {
+          0% { right: 0; opacity: 1; }
+          100% { right: 40px; opacity: 0; }
+        }
+        .rocket-particle-1 { animation: rocketP1 0.9s ease-out 0.3s forwards; }
+        .rocket-particle-2 { animation: rocketP2 0.9s ease-out 0.5s forwards; }
+        .rocket-particle-3 { animation: rocketP3 0.9s ease-out 0.7s forwards; }
+      `}</style>
       <div className="max-w-5xl mx-auto">
         {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
         {activeTab !== 'analysis' && activeTab !== 'review' && (
@@ -3806,21 +3844,28 @@ function MainApp({ user, onLogout }) {
                     {PLAN.totalYears} 年目标 · {PLAN.ageGoalAge} 岁实现
                   </div>
 
-                  {/* 进度条 (红→金渐变) */}
+                  {/* 进度条 (🚀 粒子尾气动画) */}
                   <div className="mt-4 relative z-10">
                     <div className="flex justify-between text-[10px] font-bold mb-1" style={{ color: '#fbbf24' }}>
                       <span>当前 {fmtWanUSD(currentBalance, 0)}</span>
                       <span>{progressPct.toFixed(1)}%</span>
                     </div>
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(220, 38, 38, 0.15)' }}>
+                    <div className="h-2 rounded-full relative" style={{ background: 'rgba(220, 38, 38, 0.15)', overflow: 'visible' }}>
+                      {/* 主进度条 */}
                       <div
-                        className="h-full rounded-full transition-all"
+                        className="h-full rounded-full rocket-bar"
                         style={{
-                          width: `${Math.min(progressPct, 100)}%`,
+                          '--target-width': `${Math.min(progressPct, 100)}%`,
                           background: 'linear-gradient(90deg, #dc2626 0%, #fbbf24 100%)',
                           boxShadow: '0 0 10px rgba(251, 191, 36, 0.4)',
+                          position: 'relative',
                         }}
-                      ></div>
+                      >
+                        {/* 3 个粒子 (尾气) */}
+                        <div className="rocket-particle rocket-particle-1"></div>
+                        <div className="rocket-particle rocket-particle-2"></div>
+                        <div className="rocket-particle rocket-particle-3"></div>
+                      </div>
                     </div>
                     <div className="text-[10px] mt-1.5" style={{ color: '#737373' }}>
                       还剩 {yearsLeft} 年 · 本金 {fmtWanUSD(PLAN.startCapital, 0)} · 年化 {(PLAN.targetAnnualRate * 100).toFixed(0)}%
@@ -3892,10 +3937,6 @@ function MainApp({ user, onLogout }) {
                     </div>
                     {/* 当前进度 */}
                     <div className={`absolute top-0 left-0 h-full rounded-full ${marginState === 'red' ? 'bg-rose-500' : marginState === 'orange' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${marginPct}%` }}></div>
-                    {/* 1.3 分割线 */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-amber-600" style={{ left: '30%' }}></div>
-                    {/* 1.5 分割线 */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-rose-600" style={{ left: '50%' }}></div>
                   </div>
                   <div className="flex justify-between mt-1 text-[9px] text-slate-500 font-medium">
                     <span>1.0x</span>
@@ -4753,28 +4794,18 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 20:00:00 (UTC+8)
-// 📝 本次更新: v10.5.8 - 融资改倍率监控 ⚖️
+// 📅 最后修改时间: 2026-04-21 20:30:00 (UTC+8)
+// 📝 本次更新: v10.5.9 - 火箭进度条 🚀
 //
-//   旧逻辑 (固定红线):
-//     融资 50 万 vs 红线 60 万 (硬定额)
-//     → 大账户 / 小账户 同标准, 不科学
+//   改动 1: 北极星进度条加粒子尾气动画
+//     - 进度条先快后慢冲出 (1.2s, cubic-bezier)
+//     - 3 个金色粒子从右边飞出 (间隔 0.3/0.5/0.7s)
+//     - 每次打开/重新进入复盘 tab 都重新播放
 //
-//   新逻辑 (倍率模式):
-//     总仓位倍率 = (账户净值 + 融资) / 账户净值
-//     1.0x - 1.3x  🟢 安全
-//     1.3x - 1.5x  🟡 中等
-//     1.5x +       🔴 危险
+//   改动 2: 融资进度条删掉 1.3/1.5 两条竖线
+//     - 底色分档 3 段已足够表达
+//     - 视觉更清爽
 //
-//   数据源:
-//     账户净值 → 自动读复盘 currentBalance
-//     融资金额 → 用户自己填 (支持 USD/CNY 切换)
-//
-//   视觉:
-//     主数字: 总仓位倍率 X.XX x
-//     明细: 账户净值 / 融资 / 总仓位 3 列
-//     进度条: 1.0 → 2.0 (安全绿 → 中等黄 → 危险红)
-//
+// 📦 v10.5.8: 融资改倍率
 // 📦 v10.5.7: 精简 (删现实推演)
-// 📦 v10.5.6: 3 bug 修复
 // ============================================
