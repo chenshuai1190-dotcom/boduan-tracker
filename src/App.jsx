@@ -3366,9 +3366,14 @@ function MainApp({ user, onLogout }) {
         {/* 添加成交按钮 */}
         <button
           onClick={() => setShowAddTrade(!showAddTrade)}
-          className="w-full mb-3 py-3 rounded-2xl bg-blue-600 text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition shadow"
+          className="w-full mb-3 py-3 rounded-2xl font-black flex items-center justify-center gap-2 active:scale-95 transition"
+          style={{
+            background: '#fff',
+            color: '#d97706',
+            border: '2px solid #fbbf24',
+          }}
         >
-          <Plus className="w-5 h-5" /> 添加交易
+          <Plus className="w-5 h-5" strokeWidth={3} /> 添加交易
         </button>
 
         {/* 添加成交表单 - Modal 弹窗 */}
@@ -3913,7 +3918,12 @@ function MainApp({ user, onLogout }) {
                   <button
                     onClick={() => { setFillMonth(currentMonth); setShowFillSnapshot(true); }}
                     disabled={accounts.length === 0}
-                    className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow"
+                    className="py-3 rounded-xl font-black text-sm flex items-center justify-center gap-1.5 active:scale-95 transition"
+                    style={{
+                      background: accounts.length === 0 ? '#e2e8f0' : '#fff',
+                      color: accounts.length === 0 ? '#94a3b8' : '#d97706',
+                      border: accounts.length === 0 ? '2px solid #cbd5e1' : '2px solid #fbbf24',
+                    }}
                   >
                     <Calendar className="w-4 h-4"/> 填月度余额
                   </button>
@@ -4327,7 +4337,12 @@ function MainApp({ user, onLogout }) {
                             setFillMonth(currentMonth);
                             setShowFillSnapshot(true);
                           }}
-                          className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold active:scale-95 transition flex items-center justify-center gap-1.5"
+                          className="w-full py-2.5 rounded-lg text-sm font-black active:scale-95 transition flex items-center justify-center gap-1.5"
+                          style={{
+                            background: '#fff',
+                            color: '#d97706',
+                            border: '2px solid #fbbf24',
+                          }}
                         >
                           <Plus className="w-4 h-4"/> 补录/修改月度余额
                         </button>
@@ -4918,9 +4933,12 @@ function MainApp({ user, onLogout }) {
                             const diff = hasActual ? y.actualGain - y.planTarget : null;
                             const isOverTarget = diff !== null && diff >= 0;
 
-                            // 当年进度 (基于月份)
+                            // 当年进度: 基于实际收益完成度 (而非时间)
+                            // 例如: 目标 +20%, 实际已经 +12% → 完成度 = 60%
                             const currentMonth = new Date().getMonth() + 1;
-                            const yearProgressPct = isCurrent ? (currentMonth / 12 * 100) : 0;
+                            const yearProgressPct = isCurrent && hasActual && y.planTarget > 0
+                              ? Math.max(0, Math.min(150, (y.actualGain / y.planTarget) * 100))  // 上限 150% (超额完成)
+                              : 0;
 
                             if (isCurrent) {
                               // ============ 本年大卡: 夕阳粉金 ============
@@ -4990,15 +5008,17 @@ function MainApp({ user, onLogout }) {
                                     </span>
                                   </div>
 
-                                  {/* 第 4 行: 年度时间进度条 (PE 微光扫过) */}
+                                  {/* 第 4 行: 年度收益完成度进度条 (PE 微光扫过) */}
                                   <div className="flex items-center gap-2 mb-2 text-[13px] font-bold" style={{ color: '#db2777' }}>
-                                    <span className="whitespace-nowrap">当年 · {currentMonth}月</span>
+                                    <span className="whitespace-nowrap">{hasActual ? '本年完成' : '尚未填收益'}</span>
                                     <div className="flex-1 h-[9px] rounded-full overflow-hidden relative" style={{ background: 'rgba(219, 39, 119, 0.12)' }}>
                                       <div
                                         className="h-full rounded-full relative progress-shine"
                                         style={{
-                                          width: `${yearProgressPct}%`,
-                                          background: 'linear-gradient(90deg, #10b981 0%, #fbbf24 50%, #e11d48 100%)',
+                                          width: `${Math.min(100, yearProgressPct)}%`,
+                                          background: yearProgressPct >= 100
+                                            ? 'linear-gradient(90deg, #f43f5e 0%, #fb923c 50%, #fbbf24 100%)'  // 达标: 红橙金
+                                            : 'linear-gradient(90deg, #10b981 0%, #fbbf24 50%, #e11d48 100%)',  // 未达: 绿黄红
                                           boxShadow: '0 0 6px rgba(251, 191, 36, 0.4)',
                                         }}
                                       ></div>
@@ -5838,11 +5858,9 @@ function MainApp({ user, onLogout }) {
                 disabled={fetching}
                 className="mt-3 w-full py-2.5 rounded-xl font-black flex items-center justify-center gap-2 active:scale-95 transition disabled:opacity-50"
                 style={{
-                  background: fetching
-                    ? 'rgba(251, 191, 36, 0.2)'
-                    : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                  color: fetching ? '#a3a3a3' : '#0a0a0a',
-                  boxShadow: fetching ? 'none' : '0 4px 12px rgba(251, 191, 36, 0.3)',
+                  background: fetching ? '#f1f5f9' : '#fff',
+                  color: fetching ? '#94a3b8' : '#d97706',
+                  border: fetching ? '2px solid #cbd5e1' : '2px solid #fbbf24',
                 }}
               >
                 <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
@@ -5948,14 +5966,22 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8
+                  v10.7.8.3
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.8.3', date: '2026-04-22', latest: true,
+                    items: ['年度目标进度条改成"实际收益完成度" (不再是时间)', '4 个主按钮统一金色描边 (添加交易/填月度余额/手动拉取)'],
+                  },
+                  {
+                    ver: 'v10.7.8.1', date: '2026-04-22',
+                    items: ['WebSocket 走势图实时同步 (1 分钟合并桶)'],
+                  },
+                  {
+                    ver: 'v10.7.8', date: '2026-04-22',
                     items: ['🧪 WebSocket 实时推送 BETA (< 50ms 延迟)', '设置页 → 🧪 实时推送 手动开启', '价格变化时卡片闪烁动画'],
                   },
                   {
@@ -6075,7 +6101,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8</div>
+                <div>📊 版本:v10.7.8.3</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6436,23 +6462,23 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 13:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8.1 - WebSocket 同步走势图 📈
+// 📅 最后修改时间: 2026-04-22 15:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.3 - 完成度进度条 + 按钮配色统一 🎯
 //
-//   问题: v10.7.8 WebSocket 模式下, 价格实时跳
-//         但 56px 走势图不动 (用的是旧 intraday 数组)
+//   改动 1: 年度目标进度条逻辑改变
+//     之前: 基于时间 (4月 = 33%)
+//     现在: 基于实际收益完成度 (实际增长 / 目标增长)
+//     例如: 目标 +20%, 实际 +12% → 进度 60%
+//     上限 150% (超额完成显示, 颜色变红橙金)
+//     未填实际: 进度 0%, 文案 "尚未填收益"
 //
-//   修复: WebSocket 每次收到新 tick
-//         同步更新 s.intraday + s.intradayPoints
+//   改动 2: 4 个主按钮改"金色描边 V3"
+//     1) 交易 tab → "添加交易"
+//     2) 资产 tab → "填月度余额" (含 disabled 态)
+//     3) 资产 tab → "补录/修改月度余额"
+//     4) 设置 tab → "立即手动拉取"
+//     白底 + 深金字 + 2px 金边 + 字体加粗
 //
-//   智能合并策略 (1 分钟桶):
-//     - 同分钟内多次 tick: 覆盖最后一点 (避免数组爆炸)
-//     - 新的一分钟: 追加一个点
-//     - 按美东时间自动标记 session (pre/regular/post)
-//
-//   效果: 走势图尾部不停延伸, 看起来"线在画"
-//         视觉效果极强, 像券商 App
-//
-// 📦 v10.7.8: WebSocket 实时推送 BETA
-// 📦 v10.7.7.4: 数据安全加固
+// 📦 v10.7.8.1: WebSocket 走势图同步
+// 📦 v10.7.8:   WebSocket 实时推送 BETA
 // ============================================
