@@ -1405,78 +1405,134 @@ function MainApp({ user, onLogout }) {
   // 云端加载时显示 loading - 纯黑白极简开屏
   if (cloudLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-5 relative overflow-hidden" style={{ background: '#0a0a0a' }}>
+      <div
+        className="min-h-screen flex items-center justify-center px-5 relative overflow-hidden"
+        style={{
+          background: `
+            radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.12) 0%, transparent 50%),
+            radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
+            linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+          `,
+        }}
+      >
         {/* 内联开屏动画 CSS */}
         <style>{`
-          @keyframes splashPulse {
-            0%, 100% { box-shadow: 0 0 60px rgba(255, 255, 255, 0.4); transform: scale(1); }
-            50% { box-shadow: 0 0 90px rgba(255, 255, 255, 0.7); transform: scale(1.03); }
+          @keyframes bigBPulse {
+            0%, 100% {
+              box-shadow: 0 0 60px rgba(251, 191, 36, 0.4), 0 0 120px rgba(245, 158, 11, 0.2),
+                inset 0 -4px 12px rgba(0, 0, 0, 0.15), inset 0 4px 12px rgba(255, 255, 255, 0.3);
+              transform: scale(1);
+            }
+            50% {
+              box-shadow: 0 0 80px rgba(251, 191, 36, 0.6), 0 0 180px rgba(245, 158, 11, 0.35),
+                inset 0 -4px 12px rgba(0, 0, 0, 0.15), inset 0 4px 12px rgba(255, 255, 255, 0.3);
+              transform: scale(1.04);
+            }
+          }
+          @keyframes bigBFadeIn {
+            0% { opacity: 0; transform: scale(0.6); }
+            100% { opacity: 1; transform: scale(1); }
           }
           @keyframes splashFadeIn {
-            0% { opacity: 0; transform: translateY(10px); }
-            100% { opacity: 1; transform: translateY(0); }
+            0% { opacity: 0; }
+            100% { opacity: 1; }
           }
-          @keyframes splashDot {
-            0%, 60%, 100% { opacity: 0.2; }
-            30% { opacity: 1; }
+          @keyframes splashSpin {
+            100% { transform: rotate(360deg); }
           }
-          .splash-icon {
-            animation: splashPulse 3s ease-in-out infinite, splashFadeIn 0.6s ease-out;
+          @keyframes splashPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
           }
-          .splash-title {
-            animation: splashFadeIn 0.8s ease-out 0.1s both;
+          .big-b-icon {
+            animation: bigBPulse 3s ease-in-out infinite, bigBFadeIn 0.8s ease-out;
+          }
+          .splash-top {
+            animation: splashFadeIn 1s ease-out 0.3s both;
           }
           .splash-tagline {
-            animation: splashFadeIn 0.8s ease-out 0.3s both;
+            animation: splashFadeIn 1s ease-out 0.7s both;
           }
-          .splash-dot {
-            display: inline-block;
-            animation: splashDot 1.4s infinite;
+          .splash-bottom {
+            animation: splashFadeIn 1s ease-out 0.5s both;
           }
-          .splash-dot:nth-child(2) { animation-delay: 0.2s; }
-          .splash-dot:nth-child(3) { animation-delay: 0.4s; }
+          .splash-spinner {
+            width: 12px; height: 12px;
+            border: 1.5px solid rgba(251, 191, 36, 0.2);
+            border-top-color: #fbbf24;
+            border-radius: 50%;
+            animation: splashSpin 1s linear infinite;
+          }
+          .splash-sync-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: #4ade80;
+            animation: splashPulse 1.5s ease-in-out infinite;
+          }
         `}</style>
 
-        {/* 中央 logo 区 */}
+        {/* 金色光晕装饰 (右上) */}
+        <div className="absolute top-0 right-0 pointer-events-none" style={{
+          width: '300px', height: '300px',
+          background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
+          transform: 'translate(40%, -40%)',
+        }}></div>
+        {/* 金色光晕装饰 (左下) */}
+        <div className="absolute bottom-0 left-0 pointer-events-none" style={{
+          width: '240px', height: '240px',
+          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%)',
+          transform: 'translate(-40%, 40%)',
+        }}></div>
+
+        {/* 顶部: 用户信息 */}
+        <div className="absolute top-12 left-0 right-0 text-center splash-top z-10">
+          <div className="text-[9px] font-bold" style={{ letterSpacing: '4px', color: '#737373' }}>
+            SIGNED IN
+          </div>
+          {user?.email && (
+            <div className="text-[13px] font-medium mt-1.5" style={{ color: '#d4d4d4', fontFamily: 'ui-monospace, monospace' }}>
+              {user.email}
+            </div>
+          )}
+        </div>
+
+        {/* 中央大 B */}
         <div className="text-center relative z-10">
-          {/* 白色发光圆 */}
           <div
-            className="splash-icon w-24 h-24 mx-auto mb-7 rounded-full flex items-center justify-center text-5xl font-black"
+            className="big-b-icon mx-auto rounded-[32px] flex items-center justify-center"
             style={{
-              background: '#fff',
+              width: '140px',
+              height: '140px',
+              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
               color: '#0a0a0a',
+              fontWeight: 900,
+              fontSize: '80px',
               fontFamily: 'ui-monospace, monospace',
-              boxShadow: '0 0 60px rgba(255, 255, 255, 0.4)',
             }}
           >
             B
           </div>
-          {/* 大字标题 */}
-          <div
-            className="splash-title text-3xl text-white mb-3"
-            style={{ fontWeight: 200, letterSpacing: '8px' }}
-          >
-            BOTTOMLINE
-          </div>
           {/* 标语 */}
           <div
-            className="splash-tagline text-[10px]"
+            className="splash-tagline text-[10px] mt-8"
             style={{ color: '#525252', letterSpacing: '5px' }}
           >
             DESIGNED FOR FOCUS
           </div>
         </div>
 
-        {/* 底部 loading */}
-        <div className="absolute bottom-16 left-0 right-0 text-center">
-          <div className="text-[11px]" style={{ color: '#404040', letterSpacing: '3px' }}>
-            LOADING<span className="splash-dot">.</span><span className="splash-dot">.</span><span className="splash-dot">.</span>
+        {/* 底部: 加载 + 同步状态 */}
+        <div className="absolute bottom-12 left-0 right-0 text-center splash-bottom z-10">
+          <div className="inline-flex items-center gap-2 text-[11px] font-bold" style={{ color: '#525252', letterSpacing: '3px' }}>
+            <div className="splash-spinner"></div>
+            <span>SYNCING FROM CLOUD</span>
           </div>
-          {user?.email && (
-            <div className="text-[10px] mt-2" style={{ color: '#262626' }}>
-              {user.email}
-            </div>
-          )}
+          <div className="mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full" style={{
+            background: 'rgba(34, 197, 94, 0.08)',
+            border: '1px solid rgba(34, 197, 94, 0.15)',
+          }}>
+            <span className="splash-sync-dot"></span>
+            <span className="text-[10px] font-bold" style={{ color: '#4ade80', letterSpacing: '2px' }}>SUPABASE LIVE</span>
+          </div>
         </div>
       </div>
     );
@@ -1543,9 +1599,26 @@ function MainApp({ user, onLogout }) {
       <div className="max-w-5xl mx-auto">
         {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
         {activeTab !== 'analysis' && activeTab !== 'review' && (
-        <div className="rounded-2xl p-4 mb-4 shadow-lg text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+        <div
+          className="rounded-2xl p-4 mb-4 text-white relative overflow-hidden"
+          style={{
+            background: `
+              radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+              radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+              linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+            `,
+            border: '1px solid rgba(251, 191, 36, 0.2)',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+          }}
+        >
+          {/* 金色光晕装饰 (右上) */}
+          <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
+            background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
+            transform: 'translate(40%, -40%)',
+          }}></div>
+
           {/* 顶行: 标题 + LIVE 刷新 */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 relative z-10">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-slate-900 text-sm shadow-md shrink-0" style={{ background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' }}>
                 B
@@ -1569,16 +1642,36 @@ function MainApp({ user, onLogout }) {
             const totalMV = watchlist.reduce((sum, s) => sum + s.shares * s.price, 0);
             const totalCost = watchlist.reduce((sum, s) => sum + s.shares * s.cost, 0);
             const totalGainPct = totalCost > 0 ? (totalMV - totalCost) / totalCost : 0;
-            // 波段总盈亏 = 所有股票的已实现 realizedPnl 之和
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
             return (
-              <>
+              <div className="relative z-10">
                 <div className="flex items-baseline gap-2">
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">持仓总市值</div>
-                  <div className="text-[10px] text-slate-500">当前</div>
+                  <div
+                    className="text-[10px] uppercase font-bold"
+                    style={{
+                      letterSpacing: '3px',
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}
+                  >
+                    持仓总市值
+                  </div>
+                  <div className="text-[10px]" style={{ color: '#737373' }}>当前</div>
                 </div>
-                <div className="text-3xl font-black tabular-nums mt-1 text-white" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                <div
+                  className="text-3xl font-black tabular-nums mt-1"
+                  style={{
+                    fontFamily: 'ui-monospace, monospace',
+                    background: 'linear-gradient(135deg, #fef3c7 0%, #fbbf24 50%, #f59e0b 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    letterSpacing: '-0.5px',
+                  }}
+                >
                   ${fmt(totalMV, 0)}
                 </div>
                 {totalCost > 0 && (
@@ -1588,9 +1681,9 @@ function MainApp({ user, onLogout }) {
                 )}
 
                 {/* 底行: 波段总盈亏 / 活跃 */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+                <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">波段总盈亏</div>
+                    <div className="text-[9px] uppercase tracking-widest font-bold" style={{ color: '#737373' }}>波段总盈亏</div>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
                       <span className={`font-black text-base tabular-nums ${isRealizedProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                         {isRealizedProfit ? '+' : ''}${fmt(realizedOnly, 0)}
@@ -1598,13 +1691,13 @@ function MainApp({ user, onLogout }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">活跃</div>
+                    <div className="text-[9px] uppercase tracking-widest font-bold" style={{ color: '#737373' }}>活跃</div>
                     <div className="text-white font-bold text-sm mt-0.5">
                       {allTradesStocks} 只 · {allTradesCount} 笔
                     </div>
                   </div>
                 </div>
-              </>
+              </div>
             );
           })()}
         </div>
@@ -2439,27 +2532,74 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-4 mb-3 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
+            {/* 顶部总览 - 奢华黑金 */}
+            <div
+              className="rounded-2xl p-4 mb-3 text-white relative overflow-hidden"
+              style={{
+                background: `
+                  radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+                  radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+                  linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+                `,
+                border: '1px solid rgba(251, 191, 36, 0.2)',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+              }}
+            >
+              {/* 金色光晕装饰 */}
+              <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
+                background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
+                transform: 'translate(40%, -40%)',
+              }}></div>
+
+              <div className="flex items-center justify-between mb-3 relative z-10">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">📓</span>
-                  <h2 className="font-black text-base text-slate-900">波段记录</h2>
+                  <span className="text-lg">📓</span>
+                  <h2
+                    className="font-black text-sm"
+                    style={{
+                      letterSpacing: '1px',
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}
+                  >
+                    波段记录
+                  </h2>
                 </div>
-                <div className="text-[10px] text-slate-500 italic">点波段看明细</div>
+                <div className="text-[10px] italic" style={{ color: '#737373' }}>点波段看明细</div>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-white/70 rounded-xl py-2">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">进行中</div>
-                  <div className="text-xl font-black text-indigo-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomActiveCount}</div>
+
+              <div className="grid grid-cols-3 gap-2 relative z-10">
+                <div
+                  className="rounded-xl py-2.5 text-center"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(251, 191, 36, 0.1)',
+                  }}
+                >
+                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#fbbf24' }}>{calmRoomActiveCount}</div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#737373' }}>进行中</div>
                 </div>
-                <div className="bg-white/70 rounded-xl py-2">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">已完成</div>
-                  <div className="text-xl font-black text-emerald-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomCompletedCount}</div>
+                <div
+                  className="rounded-xl py-2.5 text-center"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(251, 191, 36, 0.1)',
+                  }}
+                >
+                  <div className="text-xl font-black text-white tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomCompletedCount}</div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#737373' }}>已完成</div>
                 </div>
-                <div className="bg-white/70 rounded-xl py-2">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">均持有</div>
-                  <div className="text-xl font-black text-purple-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5">天</span></div>
+                <div
+                  className="rounded-xl py-2.5 text-center"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(251, 191, 36, 0.1)',
+                  }}
+                >
+                  <div className="text-xl font-black text-white tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5" style={{ color: '#a3a3a3' }}>天</span></div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#737373' }}>均持有</div>
                 </div>
               </div>
             </div>
@@ -5153,34 +5293,34 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 23:30:00 (UTC+8)
-// 📝 本次更新: v10.6.5 - 修复 52 周高拆股 bug 🔧
+// 📅 最后修改时间: 2026-04-22 00:30:00 (UTC+8)
+// 📝 本次更新: v10.6.7 - 极简黑金开屏 (大 B 版) ⚪
 //
-//   问题:
-//     TQQQ 52 周高显示 $121.37
-//     但拆股后真实最高 $60.49
-//     差 2 倍 (TQQQ 2022/1 做了 1:10 反向拆股)
+//   旧版: 纯黑底 + 白色小圆 + BOTTOMLINE 大字
+//   新版: 奢华黑金 + 大金 B + 顶部用户信息 + 底部同步状态
 //
-//   原因:
-//     EODHD /api/eod 默认返回 raw 价格 (未拆股调整)
-//     但 adjusted_close 字段是已复权的
+//   布局:
+//     顶部 (top-12):
+//       SIGNED IN (小标签)
+//       user@example.com (用户邮箱)
 //
-//   修复:
-//     用 adjFactor = adjusted_close / close 算复权系数
-//     adjHigh = rawHigh × adjFactor
-//     这样 high 也"被复权"
-//     和雪球/长桥/Yahoo 等主流软件显示一致
+//     中央:
+//       大金色 B (140x140px)
+//       金色发光呼吸 (3s 循环)
+//       下面: DESIGNED FOR FOCUS
 //
-//   高价源:
-//     'yahoo'           (Yahoo, 自带前复权)
-//     'eodhd-adjusted'  (我们自己用 adjusted_close 算的, 等价)
-//     'fallback'        (备用, 跟本地取 max)
+//     底部 (bottom-12):
+//       🔄 SYNCING FROM CLOUD
+//       ● SUPABASE LIVE (绿色脉动徽章)
 //
-//   优势:
-//     ✓ 不浪费 EODHD 付费数据
-//     ✓ 准确度 100%
-//     ✓ 适用所有股票, 不只 TQQQ
+//   动画:
+//     大 B: bigBPulse (光晕呼吸) + bigBFadeIn (出现)
+//     spinner: 旋转
+//     绿点: 脉动
 //
-// 📦 v10.6.4: 交易 tab V3.2 重做
-// 📦 v10.6.3: 酷黑开屏
+//   配色:
+//     和资产 tab/首页/交易 tab 头部一致 (奢华黑金)
+//     ✓ 全 App 视觉完全统一
+//
+// 📦 v10.6.6: 头部统一黑金
 // ============================================
