@@ -1568,6 +1568,7 @@ function MainApp({ user, onLogout }) {
             if (data.s && typeof data.p === 'number') {
               const sym = data.s.toUpperCase();
               const newPrice = data.p;
+              const tickTime = data.t || Math.floor(Date.now() / 1000);
 
               setWsLastTick(new Date());
 
@@ -1592,7 +1593,42 @@ function MainApp({ user, onLogout }) {
                 const pc = s.previousClose || oldPrice;
                 const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
 
-                return { ...s, price: newPrice, changePercent: newChangePct };
+                // 🔑 同步更新走势图数据 (intraday + intradayPoints)
+                // 策略: 每分钟合并一个点 (避免数组爆炸)
+                // - 1 分钟内的 tick 覆盖最后一个点
+                // - 1 分钟以上的 tick 新增一个点
+                const BUCKET_MS = 60 * 1000; // 1 分钟桶
+                const nowMs = Date.now();
+                const prevIntraday = Array.isArray(s.intraday) ? s.intraday : [];
+                const prevPoints = Array.isArray(s.intradayPoints) ? s.intradayPoints : [];
+
+                let newIntraday, newPoints;
+                const lastPoint = prevPoints[prevPoints.length - 1];
+                const lastPointMs = lastPoint?.t ? lastPoint.t * 1000 : 0;
+
+                if (lastPoint && (nowMs - lastPointMs) < BUCKET_MS) {
+                  // 同一分钟内: 覆盖最后一个点
+                  newIntraday = [...prevIntraday.slice(0, -1), newPrice];
+                  newPoints = [...prevPoints.slice(0, -1), { ...lastPoint, price: newPrice }];
+                } else {
+                  // 新的一分钟: 追加新点
+                  // 推断 session (根据美东时间)
+                  const etHour = new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false });
+                  const h = parseInt(etHour);
+                  let session = 'regular';
+                  if (h >= 4 && h < 9) session = 'pre';
+                  else if (h >= 16 && h < 20) session = 'post';
+                  newIntraday = [...prevIntraday, newPrice];
+                  newPoints = [...prevPoints, { price: newPrice, t: tickTime, session }];
+                }
+
+                return {
+                  ...s,
+                  price: newPrice,
+                  changePercent: newChangePct,
+                  intraday: newIntraday,
+                  intradayPoints: newPoints,
+                };
               }));
             }
           } catch (e) { /* 忽略非 JSON 消息 (心跳) */ }
@@ -6400,39 +6436,23 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 12:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8 - WebSocket 实时推送 BETA 🧪
+// 📅 最后修改时间: 2026-04-22 13:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.1 - WebSocket 同步走势图 📈
 //
-//   新增: EODHD WebSocket 实时推送模式
+//   问题: v10.7.8 WebSocket 模式下, 价格实时跳
+//         但 56px 走势图不动 (用的是旧 intraday 数组)
 //
-//   原理:
-//     EODHD All World Extended 套餐 ($29.99/月) 包含 WebSocket
-//     wss://ws.eodhistoricaldata.com/ws/us?api_token=XXX
-//     延迟 < 50ms, 每笔成交 tick 推送
-//     支持盘前盘后 (4:00 AM - 8:00 PM ET)
+//   修复: WebSocket 每次收到新 tick
+//         同步更新 s.intraday + s.intradayPoints
 //
-//   功能:
-//     1) 设置页 → 🧪 实时推送 BETA 卡片 (金绿色)
-//        开关按钮 + 连接状态指示 (● LIVE)
-//        显示最后 tick 时间
+//   智能合并策略 (1 分钟桶):
+//     - 同分钟内多次 tick: 覆盖最后一点 (避免数组爆炸)
+//     - 新的一分钟: 追加一个点
+//     - 按美东时间自动标记 session (pre/regular/post)
 //
-//     2) 开启后:
-//        - 连接 WebSocket, 订阅所有 watchlist
-//        - 价格变化 → 实时更新 state
-//        - 卡片背景闪烁 (涨红/跌绿, 300ms 自动消失)
-//        - 断线 3 秒自动重连
+//   效果: 走势图尾部不停延伸, 看起来"线在画"
+//         视觉效果极强, 像券商 App
 //
-//     3) localStorage 记住开关状态
-//
-//   ⚠️ 安全提示:
-//     token 直接在浏览器 WebSocket URL 中
-//     仅自测使用, 不推荐多用户场景
-//     正式上线需中转方案 (Supabase Edge Function)
-//
-//   需要:
-//     Vercel 添加环境变量 VITE_EODHD_TOKEN = 你的 token
-//     重新部署后生效
-//
+// 📦 v10.7.8: WebSocket 实时推送 BETA
 // 📦 v10.7.7.4: 数据安全加固
-// 📦 v10.7.7.3: 波段 bug + 全部交易弹窗
 // ============================================
