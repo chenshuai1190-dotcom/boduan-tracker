@@ -21,9 +21,13 @@ const cacheSet = (key, value) => {
 // ============ TRADES (交易) ============
 
 export const fetchTrades = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from('trades')
     .select('*')
+    .eq('user_id', user.id)
     .order('date', { ascending: true });
   if (error) {
     console.error('fetchTrades 失败:', error);
@@ -44,9 +48,13 @@ export const fetchTrades = async () => {
 };
 
 export const insertTrade = async (trade) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
   const { data, error } = await supabase
     .from('trades')
     .insert({
+      user_id: user.id,
       symbol: trade.symbol,
       name: trade.name,
       side: trade.side,
@@ -76,9 +84,17 @@ export const deleteTrade = async (id) => {
 // ============ WATCHLIST (关注列表) ============
 
 export const fetchWatchlist = async () => {
+  // 🚨 必须过滤当前用户, 不然多账户数据会混杂
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.warn('fetchWatchlist: 未登录');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('watchlist')
     .select('*')
+    .eq('user_id', user.id)  // ← 关键: 只查当前用户的
     .order('id', { ascending: true });
   if (error) {
     console.error('fetchWatchlist 失败:', error);
@@ -167,7 +183,13 @@ export const removeWatchlistItem = async (symbol) => {
 // ============ WAVE_NOTES (波段备注) ============
 
 export const fetchWaveNotes = async () => {
-  const { data, error } = await supabase.from('wave_notes').select('*');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return {};
+
+  const { data, error } = await supabase
+    .from('wave_notes')
+    .select('*')
+    .eq('user_id', user.id);
   if (error) {
     console.error('fetchWaveNotes 失败:', error);
     return cacheGet('wave_notes') || {};
@@ -197,11 +219,15 @@ export const upsertWaveNote = async (waveId, note) => {
 // ============ USER_SETTINGS (用户设置: 基准股票/FGI 缓存等) ============
 
 export const fetchSettings = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
   const { data, error } = await supabase
     .from('user_settings')
     .select('*')
-    .single();
-  if (error && error.code !== 'PGRST116') {  // PGRST116 = 没记录
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) {
     console.error('fetchSettings 失败:', error);
     return cacheGet('settings') || null;
   }
@@ -263,9 +289,13 @@ export const fetchAllUserData = async () => {
 // ============ ACCOUNTS (家庭账户) ============
 
 export const fetchAccounts = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from('accounts')
     .select('*')
+    .eq('user_id', user.id)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
   if (error) {
@@ -336,9 +366,13 @@ export const deleteAccount = async (id) => {
 // ============ BALANCE SNAPSHOTS (余额快照) ============
 
 export const fetchSnapshots = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from('balance_snapshots')
     .select('*')
+    .eq('user_id', user.id)
     .order('month', { ascending: true });
   if (error) {
     console.error('fetchSnapshots 失败:', error);
