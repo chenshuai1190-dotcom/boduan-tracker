@@ -705,29 +705,70 @@ function MainApp({ user, onLogout }) {
         console.log('[云端加载] 开始拉取...');
         const result = await db.fetchAllUserData();
         console.log('[云端加载] 原始返回:', result);
-        const { trades: cloudTrades, watchlist: cloudWatchlist, waveNotes: cloudNotes, settings, accounts: cloudAccounts, snapshots: cloudSnapshots, investmentPlan: cloudPlan, marginStatus: cloudMargin, disciplines: cloudDisciplines, reviewLogs: cloudLogs, yearlyActuals: cloudActuals } = result;
+        const {
+          trades: cloudTrades,
+          watchlist: cloudWatchlist,
+          waveNotes: cloudNotes,
+          settings,
+          accounts: cloudAccounts,
+          snapshots: cloudSnapshots,
+          investmentPlan: cloudPlan,
+          marginStatus: cloudMargin,
+          disciplines: cloudDisciplines,
+          reviewLogs: cloudLogs,
+          yearlyActuals: cloudActuals,
+          _failedTables,
+        } = result;
         console.log('[云端加载] cloudWatchlist:', cloudWatchlist, '长度:', cloudWatchlist?.length);
         console.log('[云端加载] accounts:', cloudAccounts?.length, 'snapshots:', cloudSnapshots?.length);
         console.log('[云端加载] 复盘 tab: plan', cloudPlan, 'margin', cloudMargin, 'disciplines', cloudDisciplines?.length, 'logs', cloudLogs?.length);
+
+        // 🔑 如果有表拉取失败, 记录到 state 让用户知道
+        if (_failedTables && _failedTables.length > 0) {
+          console.error('[云端加载] ⚠️ 以下表拉取失败, 保留本地数据:', _failedTables);
+          setCloudError(`⚠️ ${_failedTables.length} 项数据未能加载: ${_failedTables.join(', ')}`);
+        }
+
         if (!mounted) return;
-        setTrades(cloudTrades || []);
+
+        // 🔑 防护原则: 只有云端返回"有效数据"时才覆盖本地
+        // null = 拉取失败 → 不动本地 (最重要)
+        // []/{} = 真的空 (新用户/刚重置) → 可以覆盖
+        // 有数据 → 直接覆盖
+
+        if (cloudTrades !== null) setTrades(cloudTrades);
+        else console.warn('[云端加载] ⚠️ trades 拉取失败, 保留本地 state');
+
         if (cloudWatchlist && cloudWatchlist.length > 0) {
           console.log('[云端加载] ✓ 设置 watchlist:', cloudWatchlist.length, '只');
           setWatchlist(cloudWatchlist);
+        } else if (cloudWatchlist === null) {
+          console.warn('[云端加载] ⚠️ watchlist 拉取失败, 保留本地默认');
         } else {
-          console.warn('[云端加载] ⚠️ cloudWatchlist 为空, 不设置');
+          console.warn('[云端加载] ⚠️ cloudWatchlist 为空, 保留本地默认 (新用户)');
         }
-        // 如果云端没数据,保留 useState 里的默认 watchlist(首次使用)
-        setWaveNotes(cloudNotes || {});
-        // 资产相关: 可以为空(新用户), 直接设置
-        setAccounts(cloudAccounts || []);
-        setSnapshots(cloudSnapshots || []);
-        // 复盘 tab: 如果云端有就覆盖, 没有保留默认
+
+        if (cloudNotes !== null) setWaveNotes(cloudNotes);
+        else console.warn('[云端加载] ⚠️ waveNotes 拉取失败, 保留本地');
+
+        if (cloudAccounts !== null) setAccounts(cloudAccounts);
+        else console.warn('[云端加载] ⚠️ accounts 拉取失败, 保留本地');
+
+        if (cloudSnapshots !== null) setSnapshots(cloudSnapshots);
+        else console.warn('[云端加载] ⚠️ snapshots 拉取失败, 保留本地');
+
         if (cloudPlan) setInvestmentPlan(cloudPlan);
         if (cloudMargin) setMarginStatus(cloudMargin);
-        setDisciplines(cloudDisciplines || []);
-        setReviewLogs(cloudLogs || []);
-        setYearlyActuals(cloudActuals || []);
+
+        if (cloudDisciplines !== null) setDisciplines(cloudDisciplines);
+        else console.warn('[云端加载] ⚠️ disciplines 拉取失败, 保留本地');
+
+        if (cloudLogs !== null) setReviewLogs(cloudLogs);
+        else console.warn('[云端加载] ⚠️ reviewLogs 拉取失败, 保留本地');
+
+        if (cloudActuals !== null) setYearlyActuals(cloudActuals);
+        else console.warn('[云端加载] ⚠️ yearlyActuals 拉取失败, 保留本地');
+
         if (settings) {
           if (settings.benchmarkSymbol) setBenchmarkSymbol(settings.benchmarkSymbol);
           if (typeof settings.fgi === 'number') setFgi(settings.fgi);
@@ -800,14 +841,30 @@ function MainApp({ user, onLogout }) {
   };
 
   const resetAll = () => {
-    if (window.confirm('确认清空所有数据?这会删除所有交易记录。')) {
-      setTrades([]);
-      setQqqHigh(640.47);
-      setQqqCurrent(640.47);
-      setTqqqCurrent(58.55);
-      setTotalCapital(500000);
-      localStorage.removeItem('tqqq_state');
+    // 第一次确认: 警告严重性
+    if (!window.confirm(
+      '⚠️ 危险操作!\n\n' +
+      '此操作会清空本地所有交易记录。\n' +
+      '但云端数据不会被删除, 刷新后会重新加载。\n\n' +
+      '如果你真的想删除所有云端数据:\n' +
+      '请前往 Supabase Dashboard 手动删除\n\n' +
+      '确定要继续清空本地?'
+    )) return;
+
+    // 第二次确认: 输入关键词
+    const confirm2 = window.prompt('请输入 "确认清空" 来继续:');
+    if (confirm2 !== '确认清空') {
+      alert('操作已取消');
+      return;
     }
+
+    setTrades([]);
+    setQqqHigh(640.47);
+    setQqqCurrent(640.47);
+    setTqqqCurrent(58.55);
+    setTotalCapital(500000);
+    localStorage.removeItem('tqqq_state');
+    alert('本地数据已清空 (云端数据保留)');
   };
 
   // ============ 计算逻辑 ============
@@ -1774,6 +1831,58 @@ function MainApp({ user, onLogout }) {
         </div>
         )}
         {/* 顶部总览卡结束 */}
+
+        {/* ⚠️ 云端加载失败警告横幅 */}
+        {cloudError && (
+          <div className="mb-3 px-3 py-2.5 rounded-xl flex items-center gap-2"
+            style={{
+              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+              border: '1px solid #f59e0b',
+              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.15)',
+            }}
+          >
+            <span className="text-lg">⚠️</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-black text-amber-900">
+                数据未完全同步
+              </div>
+              <div className="text-[11px] text-amber-800 leading-tight mt-0.5">
+                {cloudError}<br/>
+                本地数据已保留, 可点击重试
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setCloudError(null);
+                try {
+                  const result = await db.fetchAllUserData();
+                  const { _failedTables } = result;
+                  if (!_failedTables || _failedTables.length === 0) {
+                    // 重试成功, 重新设置所有 state
+                    if (result.trades !== null) setTrades(result.trades);
+                    if (result.watchlist && result.watchlist.length > 0) setWatchlist(result.watchlist);
+                    if (result.waveNotes !== null) setWaveNotes(result.waveNotes);
+                    if (result.accounts !== null) setAccounts(result.accounts);
+                    if (result.snapshots !== null) setSnapshots(result.snapshots);
+                    if (result.disciplines !== null) setDisciplines(result.disciplines);
+                    if (result.reviewLogs !== null) setReviewLogs(result.reviewLogs);
+                    if (result.yearlyActuals !== null) setYearlyActuals(result.yearlyActuals);
+                    if (result.investmentPlan) setInvestmentPlan(result.investmentPlan);
+                    if (result.marginStatus) setMarginStatus(result.marginStatus);
+                  } else {
+                    setCloudError(`⚠️ ${_failedTables.length} 项数据未能加载: ${_failedTables.join(', ')}`);
+                  }
+                } catch (e) {
+                  setCloudError(e.message || '重试失败');
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-black text-white active:scale-95 transition flex-shrink-0"
+              style={{ background: '#f59e0b' }}
+            >
+              🔄 重试
+            </button>
+          </div>
+        )}
 
         {/* ====== 首页 tab ====== */}
         {activeTab === 'home' && (<>
@@ -5610,14 +5719,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.7.3
+                  v10.7.7.4
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.7.3', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.7.4', date: '2026-04-22', latest: true,
+                    items: ['🛡️ 数据安全加固: 云端失败时不覆盖本地', '顶部警告横幅 (含重试按钮)', '"重置"加二次确认 (防误操作)'],
+                  },
+                  {
+                    ver: 'v10.7.7.3', date: '2026-04-22',
                     items: ['修复波段"消失"bug (id 改基于日期)', '新增"📋 全部交易"弹窗 (完整历史可查可删)'],
                   },
                   {
@@ -5729,7 +5842,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.7.3</div>
+                <div>📊 版本:v10.7.7.4</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6090,32 +6203,37 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 10:00:00 (UTC+8)
-// 📝 本次更新: v10.7.7.3 - 波段 bug 修复 + 全部交易弹窗 📋
+// 📅 最后修改时间: 2026-04-22 11:00:00 (UTC+8)
+// 📝 本次更新: v10.7.7.4 - 数据安全加固 🛡️
 //
-//   问题:
-//     1) 删除一笔交易时, 有时候整个波段"消失"
-//     2) 用户没有一个地方能看到某只股票的完整交易历史
-//
-//   根因:
-//     波段 id 基于"第一笔交易的 id"
-//     删除第一笔后, 波段 id 变 → expandedWaves/waveNotes 失效
-//     视觉上像"消失"
+//   审计发现 3 个数据消失风险:
+//     1) 云端拉取失败时, [] 被当成 "真的没数据" 覆盖本地
+//     2) resetAll 只弹一次确认, 容易误点
+//     3) 用户不知道云端数据有没有同步成功
 //
 //   修复:
-//     1) 波段 id 改基于"股票代码 + 开始日期"
-//        稳定性大幅提升
-//        删除非首笔交易 → id 不变
-//        删除首笔 → id 变 (正确, 反映了真实的波段起点变化)
+//     1) db.js:
+//        - 拉取失败返回 null (而非 [])
+//        - 新增 _failedTables 清单
 //
-//     2) 交易 tab 头部加"📋 全部"按钮
-//        点击弹出该股票所有交易记录弹窗:
-//        - 按日期倒序排列
-//        - 每条有买入/卖出徽章
-//        - 单独删除按钮
-//        - 黑金头部 + 卡片式列表
-//        - 底部提示"删除单笔不影响其他波段"
+//     2) App.jsx 云端加载逻辑:
+//        - 每个表独立判断: null = 失败 (保留本地)
+//        - 非 null = 真实数据 (覆盖)
+//        - 即使 Supabase 部分故障, 本地数据也不丢
 //
-// 📦 v10.7.7.2: 走势图 V2 动画 + 空月断线
-// 📦 v10.7.7:   设置页黑金统一
+//     3) 顶部警告横幅:
+//        - 失败时显示金色警告条
+//        - 列出哪些表失败
+//        - 提供 "🔄 重试" 按钮
+//        - 重试成功后横幅自动消失
+//
+//     4) resetAll 二次确认:
+//        - 第一步: 详细警告 (云端不会删)
+//        - 第二步: 输入"确认清空"才继续
+//        - 防止误点
+//
+//   结果: 即使 Supabase 出故障, 用户数据也绝不丢失
+//
+// 📦 v10.7.7.3: 波段 bug + 全部交易弹窗
+// 📦 v10.7.7.2: 走势图动画 + 空月断线
 // ============================================
