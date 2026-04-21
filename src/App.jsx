@@ -2098,7 +2098,7 @@ function MainApp({ user, onLogout }) {
           {/* === 第 1 排:市场状态(可切换基准) === */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前市场状态</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前猎手状态</div>
               <div className="text-2xl font-black mt-1 text-slate-900 leading-tight">{benchmarkStatus.text}</div>
               <div className="text-xs text-slate-500 mt-0.5 truncate">{benchmarkStatus.desc}</div>
             </div>
