@@ -2544,16 +2544,48 @@ function MainApp({ user, onLogout }) {
 
             return (
               <>
-                {/* ============ 顶部:总资产卡 (3 指标) ============ */}
-                <div className="rounded-2xl p-5 mb-4 shadow-lg text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0c1628 0%, #1e3a5f 50%, #2c5985 100%)' }}>
-                  {/* 装饰光晕 */}
-                  <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}></div>
+                {/* ============ 顶部:总资产卡 (奢华黑金) ============ */}
+                <div
+                  className="rounded-2xl p-5 mb-4 text-white relative overflow-hidden"
+                  style={{
+                    background: `
+                      radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+                      radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+                      linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+                    `,
+                    border: '1px solid rgba(251, 191, 36, 0.2)',
+                    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+                  }}
+                >
+                  {/* 金色光晕装饰 */}
+                  <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
+                    background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
+                    transform: 'translate(40%, -40%)',
+                  }}></div>
 
                   <div className="flex items-center justify-between mb-3 relative z-10">
-                    <div className="text-[10px] uppercase tracking-widest font-bold text-blue-200">家庭总资产</div>
+                    {/* 金色渐变标题 */}
+                    <div
+                      className="text-[10px] uppercase font-bold"
+                      style={{
+                        letterSpacing: '3px',
+                        background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                      }}
+                    >
+                      家庭总资产
+                    </div>
+                    {/* 金色边框按钮 */}
                     <button
                       onClick={() => setShowMonthsDetail(true)}
-                      className="text-[10px] text-blue-300 hover:text-white flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:scale-95 transition"
+                      className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-md active:scale-95 transition"
+                      style={{
+                        color: '#fbbf24',
+                        background: 'rgba(251, 191, 36, 0.1)',
+                        border: '1px solid rgba(251, 191, 36, 0.3)',
+                      }}
                       title="查看 12 个月走势"
                     >
                       <Calendar className="w-3 h-3" />
@@ -2562,58 +2594,95 @@ function MainApp({ user, onLogout }) {
                     </button>
                   </div>
 
-                  <div className="text-4xl font-black tabular-nums relative z-10" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                  {/* 主数字 - 金色渐变 */}
+                  <div
+                    className="text-4xl font-black tabular-nums relative z-10"
+                    style={{
+                      fontFamily: 'ui-monospace, "SF Mono", monospace',
+                      background: 'linear-gradient(135deg, #fef3c7 0%, #fbbf24 50%, #f59e0b 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '-1px',
+                    }}
+                  >
                     ¥{fmtWan(totalNow)}<span className="text-lg ml-1 font-bold">万</span>
                   </div>
 
+                  {/* 金色分隔线 */}
+                  <div
+                    className="h-px my-4"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(251, 191, 36, 0.3) 50%, transparent 100%)',
+                    }}
+                  ></div>
+
                   {/* 3 个指标 */}
-                  <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/15 relative z-10">
+                  <div className="grid grid-cols-3 gap-3 relative z-10">
                     <div>
-                      <div className="text-[9px] uppercase tracking-widest text-blue-300 font-bold mb-1">较上月</div>
+                      <div
+                        className="text-[9px] uppercase font-bold mb-1"
+                        style={{
+                          color: '#a3a3a3',
+                          letterSpacing: '1.5px',
+                        }}
+                      >
+                        较上月
+                      </div>
                       {totalLast > 0 ? (
                         <>
-                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5 ${monthChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5`} style={{ color: monthChange >= 0 ? '#fda4af' : '#6ee7b7' }}>
                             {monthChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                             {monthChange >= 0 ? '+' : '-'}¥{fmtWan(monthChange)}万
                           </div>
-                          <div className={`text-[11px] font-bold ${monthChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          <div className="text-[11px] font-bold" style={{ color: monthChange >= 0 ? '#fda4af' : '#6ee7b7' }}>
                             {monthChangePct >= 0 ? '+' : ''}{monthChangePct.toFixed(1)}%
                           </div>
                         </>
                       ) : (
-                        <div className="text-[11px] text-slate-400">无数据</div>
+                        <div className="text-[11px] text-slate-500">无数据</div>
                       )}
                     </div>
-                    <div className="border-l border-white/10 pl-3">
-                      <div className="text-[9px] uppercase tracking-widest text-blue-300 font-bold mb-1">年初至今</div>
+                    <div style={{ borderLeft: '1px solid rgba(251, 191, 36, 0.15)', paddingLeft: '12px' }}>
+                      <div
+                        className="text-[9px] uppercase font-bold mb-1"
+                        style={{ color: '#a3a3a3', letterSpacing: '1.5px' }}
+                      >
+                        年初至今
+                      </div>
                       {totalYearStart > 0 ? (
                         <>
-                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5 ${ytdChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          <div className="text-xs font-bold tabular-nums flex items-center gap-0.5" style={{ color: ytdChange >= 0 ? '#fda4af' : '#6ee7b7' }}>
                             {ytdChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                             {ytdChange >= 0 ? '+' : '-'}¥{fmtWan(ytdChange)}万
                           </div>
-                          <div className={`text-[11px] font-bold ${ytdChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          <div className="text-[11px] font-bold" style={{ color: ytdChange >= 0 ? '#fda4af' : '#6ee7b7' }}>
                             {ytdChangePct >= 0 ? '+' : ''}{ytdChangePct.toFixed(1)}%
                           </div>
                         </>
                       ) : (
-                        <div className="text-[11px] text-slate-400">无数据</div>
+                        <div className="text-[11px] text-slate-500">无数据</div>
                       )}
                     </div>
-                    <div className="border-l border-white/10 pl-3">
-                      <div className="text-[9px] uppercase tracking-widest text-blue-300 font-bold mb-1">近一年</div>
+                    <div style={{ borderLeft: '1px solid rgba(251, 191, 36, 0.15)', paddingLeft: '12px' }}>
+                      <div
+                        className="text-[9px] uppercase font-bold mb-1"
+                        style={{ color: '#a3a3a3', letterSpacing: '1.5px' }}
+                      >
+                        近一年
+                      </div>
                       {totalYearAgo > 0 ? (
                         <>
-                          <div className={`text-xs font-bold tabular-nums flex items-center gap-0.5 ${yearChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          <div className="text-xs font-bold tabular-nums flex items-center gap-0.5" style={{ color: yearChange >= 0 ? '#fda4af' : '#6ee7b7' }}>
                             {yearChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                             {yearChange >= 0 ? '+' : '-'}¥{fmtWan(yearChange)}万
                           </div>
-                          <div className={`text-[11px] font-bold ${yearChange >= 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          <div className="text-[11px] font-bold" style={{ color: yearChange >= 0 ? '#fda4af' : '#6ee7b7' }}>
                             {yearChangePct >= 0 ? '+' : ''}{yearChangePct.toFixed(1)}%
                           </div>
                         </>
                       ) : (
-                        <div className="text-[11px] text-slate-400">无数据</div>
+                        <div className="text-[11px] text-slate-500">无数据</div>
                       )}
                     </div>
                   </div>
@@ -3500,21 +3569,26 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 13:00:00 (UTC+8)
-// 📝 本次更新: v10.3.6 - 12 个月资产走势 Modal
+// 📅 最后修改时间: 2026-04-21 13:30:00 (UTC+8)
+// 📝 本次更新: v10.3.7 - 顶部总资产卡黑金风格
 //
-//   新功能: 点击黑卡右上角月份徽章
-//     弹出紧凑列表显示 12 个月资产:
-//     - 每月一行: YYYY-MM / ¥XX.X 万 / 环比%
-//     - 当月高亮蓝色
-//     - 年初月加"年初"徽章
-//     - 环比涨红跌绿
-//     - 无数据的月份显示"无数据"
-//     - 底部"补录/修改"按钮直达填写 Modal
+//   改动: 顶部总资产大卡视觉升级
+//     原: 蓝-深灰渐变
+//     新: 奢华黑金
+//       - 深黑底 + 金色角落光晕
+//       - 主数字: 金色渐变 (淡金→亮金→深金)
+//       - 标题: 金色渐变
+//       - 月份按钮: 金色边框 + 浅金背景
+//       - 金色分隔线
+//       - 阴影 + 金色内光
 //
-//   触发方式: 
-//     点顶部黑卡右上角 "📅 2026-04 ›"
+//   色系:
+//     主金: #fbbf24 (亮金)
+//     次金: #f59e0b (深金)  
+//     高亮: #fef3c7 (淡金)
+//     正向涨: #fda4af (玫瑰色, 对比金色好看)
+//     负向跌: #6ee7b7 (薄荷绿, 对比金色好看)
 //
+// 📦 v10.3.6: 12 个月走势 Modal
 // 📦 v10.3.5: 选月份填余额
-// 📦 v10.3.4: 账户名快捷预设
 // ============================================
