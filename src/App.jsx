@@ -1402,15 +1402,81 @@ function MainApp({ user, onLogout }) {
   const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
 
-  // 云端加载时显示 loading
+  // 云端加载时显示 loading - 纯黑白极简开屏
   if (cloudLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center px-5">
-        <div className="text-center">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 items-center justify-center text-2xl font-black text-white shadow-xl mb-4">B</div>
-          <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mx-auto mb-2" />
-          <div className="text-sm text-slate-700 font-bold">正在加载云端数据...</div>
-          <div className="text-xs text-slate-400 mt-1">{user?.email}</div>
+      <div className="min-h-screen flex items-center justify-center px-5 relative overflow-hidden" style={{ background: '#0a0a0a' }}>
+        {/* 内联开屏动画 CSS */}
+        <style>{`
+          @keyframes splashPulse {
+            0%, 100% { box-shadow: 0 0 60px rgba(255, 255, 255, 0.4); transform: scale(1); }
+            50% { box-shadow: 0 0 90px rgba(255, 255, 255, 0.7); transform: scale(1.03); }
+          }
+          @keyframes splashFadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes splashDot {
+            0%, 60%, 100% { opacity: 0.2; }
+            30% { opacity: 1; }
+          }
+          .splash-icon {
+            animation: splashPulse 3s ease-in-out infinite, splashFadeIn 0.6s ease-out;
+          }
+          .splash-title {
+            animation: splashFadeIn 0.8s ease-out 0.1s both;
+          }
+          .splash-tagline {
+            animation: splashFadeIn 0.8s ease-out 0.3s both;
+          }
+          .splash-dot {
+            display: inline-block;
+            animation: splashDot 1.4s infinite;
+          }
+          .splash-dot:nth-child(2) { animation-delay: 0.2s; }
+          .splash-dot:nth-child(3) { animation-delay: 0.4s; }
+        `}</style>
+
+        {/* 中央 logo 区 */}
+        <div className="text-center relative z-10">
+          {/* 白色发光圆 */}
+          <div
+            className="splash-icon w-24 h-24 mx-auto mb-7 rounded-full flex items-center justify-center text-5xl font-black"
+            style={{
+              background: '#fff',
+              color: '#0a0a0a',
+              fontFamily: 'ui-monospace, monospace',
+              boxShadow: '0 0 60px rgba(255, 255, 255, 0.4)',
+            }}
+          >
+            B
+          </div>
+          {/* 大字标题 */}
+          <div
+            className="splash-title text-3xl text-white mb-3"
+            style={{ fontWeight: 200, letterSpacing: '8px' }}
+          >
+            BOTTOMLINE
+          </div>
+          {/* 标语 */}
+          <div
+            className="splash-tagline text-[10px]"
+            style={{ color: '#525252', letterSpacing: '5px' }}
+          >
+            DESIGNED FOR FOCUS
+          </div>
+        </div>
+
+        {/* 底部 loading */}
+        <div className="absolute bottom-16 left-0 right-0 text-center">
+          <div className="text-[11px]" style={{ color: '#404040', letterSpacing: '3px' }}>
+            LOADING<span className="splash-dot">.</span><span className="splash-dot">.</span><span className="splash-dot">.</span>
+          </div>
+          {user?.email && (
+            <div className="text-[10px] mt-2" style={{ color: '#262626' }}>
+              {user.email}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -4953,27 +5019,28 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 22:00:00 (UTC+8)
-// 📝 本次更新: v10.6.2 - 防重复提交 🛡️
+// 📅 最后修改时间: 2026-04-21 22:30:00 (UTC+8)
+// 📝 本次更新: v10.6.3 - 酷黑开屏 ⚪
 //
-//   问题:
-//     提交日记/戒律时, 用户可能反复点保存按钮
-//     导致同一条内容存进数据库多次
+//   改动: 替换 cloudLoading 加载页
 //
-//   解决:
-//     用 useRef 记录最近一次提交内容
-//     提交前检查: 相同内容 + 10 秒内 → 拒绝 + alert
-//     不同内容 / 超过 10 秒 → 允许提交
+//   设计 (方案 D 纯黑白极简):
+//     - 黑底 (#0a0a0a)
+//     - 白色发光圆 logo "B" (脉动呼吸)
+//     - "BOTTOMLINE" 细体大字 letter-spacing: 8px
+//     - 标语 "DESIGNED FOR FOCUS"
+//     - 底部 LOADING... 三点跳动
+//     - 用户邮箱小字
 //
-//   范围:
-//     ✓ 投资戒律 (新增)
-//     ✓ 复盘日记 (新增)
-//     ✗ 编辑模式不影响 (本来就有 ID 不会重复)
+//   动画:
+//     - 圆形 box-shadow 呼吸 (3s 循环)
+//     - 渐入 (logo→标题→标语 错开 0.1s)
+//     - 三点跳动
 //
-//   存储:
-//     useRef 仅在内存, 刷新就清空
-//     不影响数据库设计
+//   特点:
+//     高级感 (Apple 极简风)
+//     和后续黑金 tab (复盘) 视觉协调
 //
+// 📦 v10.6.2: 防重复提交
 // 📦 v10.6.1: 年度表字号+折叠
-// 📦 v10.6.0: 年度表 V5B + BG5 + PE
 // ============================================
