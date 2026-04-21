@@ -114,19 +114,20 @@ export default async function handler(req, res) {
           }
         }
 
-        // ============ 三大指数: EODHD 真指数(删道琼斯 + 真 SPX/NDX) ============
+        // ============ 三大指数: 用 ETF 替代真指数 (实时数据) ============
+        // EODHD 真指数 (GSPC.INDX/NDX.INDX) 有 15 分钟延迟
+        // ETF (SPY/QQQ) 是真实时 (你的 All World Extended 套餐)
         if (symbol === 'INDICES') {
           try {
-            // 已删除道琼斯 DIA (用户决策 2026-04-20)
             const indices = [
-              { ticker: 'GSPC.INDX', etf: 'SPY', name: '标普500', cn: '标普' },
-              { ticker: 'NDX.INDX',  etf: 'QQQ', name: '纳斯达克', cn: '纳指' },
+              { ticker: 'SPY.US', name: '标普500 ETF', cn: '标普', symbol: 'SPY' },
+              { ticker: 'QQQ.US', name: '纳斯达克100 ETF', cn: '纳指', symbol: 'QQQ' },
             ];
 
             const idxResults = await Promise.all(indices.map(async (idx) => {
               try {
                 const eodhdUrl = `https://eodhd.com/api/real-time/${idx.ticker}?api_token=${eodhdKey}&fmt=json`;
-                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${idx.etf}?interval=5m&range=1d`;
+                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${idx.symbol}?interval=5m&range=1d`;
 
                 const [eodRes, yahooRes] = await Promise.all([
                   fetch(eodhdUrl),
@@ -155,18 +156,7 @@ export default async function handler(req, res) {
                     const yahooData = await yahooRes.json();
                     const result = yahooData?.chart?.result?.[0];
                     const closes = result?.indicators?.quote?.[0]?.close || [];
-                    const etfIntraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
-
-                    // Yahoo 拿的是 ETF 价格(如 SPY ~580),但我们要画的是指数(GSPC ~6850)
-                    // 两者量级不同,直接用会导致走势图变"直线"(所有点挤在图底)
-                    // 修复: 用 ETF 的第一个价格作锚点,按比例缩放到指数级别
-                    const etfPrevClose = result?.meta?.chartPreviousClose || etfIntraday[0] || 0;
-                    if (etfPrevClose > 0 && previousClose > 0 && etfIntraday.length > 0) {
-                      const ratio = previousClose / etfPrevClose;
-                      intraday = etfIntraday.map(v => v * ratio);
-                    } else {
-                      intraday = etfIntraday;
-                    }
+                    intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
                   } catch (e) { /* ignore */ }
                 }
 
@@ -187,7 +177,7 @@ export default async function handler(req, res) {
               }
             }));
 
-            return { symbol: 'INDICES', data: idxResults, source: 'EODHD', fetchedAt: new Date().toISOString() };
+            return { symbol: 'INDICES', data: idxResults, source: 'EODHD-ETF', fetchedAt: new Date().toISOString() };
           } catch (e) {
             return { symbol: 'INDICES', error: `指数请求失败: ${e.message}` };
           }
