@@ -3648,41 +3648,123 @@ function MainApp({ user, onLogout }) {
 
             return (
               <>
-                {/* ============ 模块 1: 复利计划卡 (紫色渐变) ============ */}
-                <div className="rounded-2xl p-5 shadow-lg text-white relative overflow-hidden mb-4" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #a855f7 100%)' }}>
-                  <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', transform: 'translate(40%, -40%)' }}></div>
+                {/* ============ 模块 1: 复利计划卡 (烈焰红金 · 王者北极星) ============ */}
+                <div
+                  className="rounded-2xl p-5 mb-4 text-white relative overflow-hidden"
+                  style={{
+                    background: `
+                      radial-gradient(circle at 0% 100%, rgba(220, 38, 38, 0.25) 0%, transparent 50%),
+                      radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.18) 0%, transparent 50%),
+                      linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0505 100%)
+                    `,
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    boxShadow: '0 10px 40px rgba(127, 29, 29, 0.4)',
+                  }}
+                >
+                  {/* 金色光晕装饰 (右上) */}
+                  <div className="absolute top-0 right-0 w-40 h-40 pointer-events-none" style={{
+                    background: 'radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, transparent 70%)',
+                    transform: 'translate(40%, -40%)',
+                  }}></div>
 
                   <div className="flex items-center justify-between mb-3 relative z-10">
-                    <div className="text-[10px] uppercase tracking-widest font-bold text-purple-200">北极星目标</div>
+                    {/* 金红渐变标题 */}
+                    <div
+                      className="text-[10px] uppercase font-bold"
+                      style={{
+                        letterSpacing: '3px',
+                        background: 'linear-gradient(135deg, #fbbf24 0%, #dc2626 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                      }}
+                    >
+                      ★ 北极星目标
+                    </div>
+                    {/* 红色边框按钮 */}
                     <button
                       onClick={() => setShowPlanSettings(true)}
-                      className="text-[10px] text-purple-200 flex items-center gap-1 px-2 py-1 rounded-md bg-white/10 active:scale-95 transition"
+                      className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-md active:scale-95 transition"
+                      style={{
+                        color: '#fca5a5',
+                        background: 'rgba(220, 38, 38, 0.15)',
+                        border: '1px solid rgba(220, 38, 38, 0.3)',
+                      }}
                     >
                       <Edit2 className="w-3 h-3" /> 设置
                     </button>
                   </div>
 
-                  <div className="text-3xl font-black tabular-nums mb-1 relative z-10" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                  {/* 主数字 - 金色渐变 */}
+                  <div
+                    className="text-3xl font-black tabular-nums mb-1 relative z-10"
+                    style={{
+                      fontFamily: 'ui-monospace, "SF Mono", monospace',
+                      background: 'linear-gradient(135deg, #fef3c7 0%, #fbbf24 40%, #f59e0b 80%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '-0.5px',
+                    }}
+                  >
                     {fmtWanUSD(ageGoalAmount, 0)}
                   </div>
-                  <div className="text-xs text-purple-100 relative z-10">
+                  <div className="text-xs relative z-10" style={{ color: '#fca5a5' }}>
                     {PLAN.totalYears} 年目标 · {PLAN.ageGoalAge} 岁实现
                   </div>
 
-                  {/* 进度条 */}
+                  {/* 进度条 (红→金渐变) */}
                   <div className="mt-4 relative z-10">
-                    <div className="flex justify-between text-[10px] text-purple-200 font-bold mb-1">
+                    <div className="flex justify-between text-[10px] font-bold mb-1" style={{ color: '#fbbf24' }}>
                       <span>当前 {fmtWanUSD(currentBalance, 0)}</span>
                       <span>{progressPct.toFixed(1)}%</span>
                     </div>
-                    <div className="h-2 bg-white/15 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-amber-300 to-yellow-400 rounded-full transition-all" style={{ width: `${Math.min(progressPct, 100)}%` }}></div>
+                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(220, 38, 38, 0.15)' }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(progressPct, 100)}%`,
+                          background: 'linear-gradient(90deg, #dc2626 0%, #fbbf24 100%)',
+                          boxShadow: '0 0 10px rgba(251, 191, 36, 0.4)',
+                        }}
+                      ></div>
                     </div>
-                    <div className="text-[10px] text-purple-200 mt-1.5">还剩 {yearsLeft} 年 · 本金 {fmtWanUSD(PLAN.startCapital, 0)} · 年化 {(PLAN.targetAnnualRate * 100).toFixed(0)}%</div>
+                    <div className="text-[10px] mt-1.5" style={{ color: '#737373' }}>
+                      还剩 {yearsLeft} 年 · 本金 {fmtWanUSD(PLAN.startCapital, 0)} · 年化 {(PLAN.targetAnnualRate * 100).toFixed(0)}%
+                    </div>
                   </div>
 
+                  {/* 现实推演终点 (新增, 联动年度表) */}
+                  {projectedFinal > 0 && projectedFinal !== ageGoalAmount && (
+                    <div
+                      className="mt-3 pt-3 relative z-10"
+                      style={{ borderTop: '1px solid rgba(220, 38, 38, 0.3)' }}
+                    >
+                      <div className="flex items-baseline justify-between mb-1">
+                        <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#737373', letterSpacing: '1.5px' }}>
+                          现实推演终点
+                        </div>
+                        <div className="text-sm font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#fbbf24' }}>
+                          {fmtWanUSD(projectedFinal, 0)}
+                        </div>
+                      </div>
+                      <div className="text-[11px] font-bold tabular-nums" style={{ color: shortfall > 0 ? '#fca5a5' : '#86efac' }}>
+                        {shortfall > 0
+                          ? `落后 ${fmtWanUSD(shortfall, 0)} ⚠️`
+                          : `领先 ${fmtWanUSD(-shortfall, 0)} ✓`}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 个人箴言 (红色分隔线 + 金色字) */}
                   {PLAN.motto && (
-                    <div className="mt-3 pt-3 border-t border-white/15 text-[11px] text-purple-100 italic relative z-10">
+                    <div
+                      className="mt-4 pt-3 text-[11px] italic relative z-10"
+                      style={{
+                        borderTop: '1px solid rgba(220, 38, 38, 0.3)',
+                        color: '#fbbf24',
+                      }}
+                    >
                       "{PLAN.motto}"
                     </div>
                   )}
@@ -3728,7 +3810,7 @@ function MainApp({ user, onLogout }) {
                     </div>
                   </div>
 
-                  {/* 北极星 vs 现实推演 */}
+                  {/* 北极星 vs 现实推演 (顶部总结) */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
                       <div className="text-[9px] text-amber-700 font-bold uppercase">北极星目标</div>
@@ -3744,41 +3826,77 @@ function MainApp({ user, onLogout }) {
                     </div>
                   </div>
 
-                  {/* 表头 */}
-                  <div className="flex items-center gap-2 px-3 py-1 text-[9px] text-slate-400 font-bold uppercase">
-                    <div className="w-10">年份</div>
-                    <div className="flex-1 grid grid-cols-3 gap-1">
-                      <div>原目标</div>
-                      <div>实际</div>
-                      <div>余额(原/推)</div>
-                    </div>
-                    <div className="w-4"></div>
-                  </div>
-
-                  <div className="space-y-1">
+                  {/* 年度列表 (每行 2 行布局) */}
+                  <div className="space-y-2">
                     {yearlyFinal.map(y => {
                       const thisYear = new Date().getFullYear();
                       const isCurrent = y.year === thisYear;
                       const isPast = y.year < thisYear;
                       const hasActual = y.actualGain !== null;
+                      const diff = hasActual ? y.actualGain - y.planTarget : null;
+                      const isOverTarget = diff !== null && diff >= 0;
+
                       return (
-                        <div key={y.year} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${isCurrent ? 'bg-blue-50 border border-blue-200' : isPast ? 'bg-slate-50' : 'bg-slate-50/50'}`}>
-                          <div className={`w-10 text-xs font-black tabular-nums ${isCurrent ? 'text-blue-700' : 'text-slate-600'}`}>{y.year}</div>
-                          <div className="flex-1 grid grid-cols-3 gap-1 text-[10px]">
-                            <div className="text-slate-600 tabular-nums">+{fmtWan(y.planTarget, 1)}万</div>
-                            <div className={`tabular-nums font-bold ${!hasActual ? 'text-slate-400' : y.actualGain >= y.planTarget ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${fmtWan(y.actualGain, 1)}万` : '—'}
+                        <div
+                          key={y.year}
+                          className={`rounded-lg p-2.5 ${
+                            isCurrent ? 'bg-blue-50 border border-blue-200'
+                            : isPast ? 'bg-slate-50'
+                            : 'bg-slate-50/50'
+                          }`}
+                        >
+                          {/* 第 1 行: 年份 + 标签 + 编辑 */}
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className={`text-sm font-black tabular-nums ${isCurrent ? 'text-blue-700' : 'text-slate-700'}`}>
+                                {y.year}
+                              </div>
+                              {isCurrent && (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">本年</span>
+                              )}
+                              {isPast && hasActual && (
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${isOverTarget ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+                                  {isOverTarget ? '↑达标' : '↓未达'}
+                                </span>
+                              )}
                             </div>
-                            <div className={`tabular-nums ${y.isProjected ? 'text-slate-500 italic' : 'text-slate-900 font-bold'}`}>
-                              {fmtWan(y.projectedEndBalance, 0)}
+                            <button
+                              onClick={() => setEditYearlyActualId(y.year)}
+                              className="w-6 h-6 rounded bg-slate-200 hover:bg-blue-500 hover:text-white flex items-center justify-center active:scale-95 transition"
+                            >
+                              <Edit2 className="w-3 h-3"/>
+                            </button>
+                          </div>
+
+                          {/* 第 2 行: 目标 / 实际 / 差额 */}
+                          <div className="grid grid-cols-3 gap-2 text-[11px]">
+                            <div>
+                              <div className="text-[9px] text-slate-500 font-bold uppercase">目标</div>
+                              <div className="font-bold tabular-nums text-slate-700">+{fmtWan(y.planTarget, 1)}万</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] text-slate-500 font-bold uppercase">实际</div>
+                              <div className={`font-bold tabular-nums ${!hasActual ? 'text-slate-400' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${fmtWan(y.actualGain, 1)}万` : '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] text-slate-500 font-bold uppercase">差额</div>
+                              <div className={`font-bold tabular-nums ${diff === null ? 'text-slate-400' : isOverTarget ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {diff === null ? '—' : `${diff >= 0 ? '+' : ''}${fmtWan(diff, 1)}万`}
+                              </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => setEditYearlyActualId(y.year)}
-                            className="w-5 h-5 rounded bg-slate-200 hover:bg-blue-500 hover:text-white flex items-center justify-center active:scale-95 transition"
-                          >
-                            <Edit2 className="w-2.5 h-2.5"/>
-                          </button>
+
+                          {/* 第 3 行: 余额信息 (小字) */}
+                          <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-200/60 text-[10px]">
+                            <span className="text-slate-500">
+                              原计划余额: <span className="font-bold text-slate-700 tabular-nums">{fmtWan(y.planEndBalance, 0)}万</span>
+                            </span>
+                            <span className={y.isProjected ? 'text-slate-400 italic' : 'text-slate-900 font-bold'}>
+                              {y.isProjected ? '推演' : '实际'}: <span className="tabular-nums">{fmtWan(y.projectedEndBalance, 0)}万</span>
+                            </span>
+                          </div>
                         </div>
                       );
                     })}
@@ -4470,59 +4588,31 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 15:30:00 (UTC+8)
-// 📝 本次更新: v10.5.0 - Day 5 复盘 tab 全上线 🎯
+// 📅 最后修改时间: 2026-04-21 17:00:00 (UTC+8)
+// 📝 本次更新: v10.5.3 - 北极星 ↔ 年度表 双向联动 🎯
 //
-//   新增 "复盘" tab (底部第 4 个), 6 大模块:
+//   核心改进: 实现"目标 vs 实际"差额可视化
 //
-//   模块 1: 复利计划卡 (紫色渐变"北极星")
-//     - 基础本金 → 10 年目标 (复利公式自动推算)
-//     - 当前进度条 (CURRENT / 目标)
-//     - 个人箴言
+//   1. 北极星卡新增"现实推演终点"行:
+//      - 主数字 = 原计划终点 (北极星, 不变)
+//      - 新增 = projectedFinal (根据实际数据推演)
+//      - 显示 "落后/领先 XX 万"
+//      - 只在 projectedFinal 与 ageGoalAmount 不同时显示
 //
-//   模块 2: 融资红线监控
-//     - 当前融资 / 红线阈值
-//     - 红/橙/绿三档状态
-//     - 进度条可视化
-//     - 可编辑修改
+//   2. 年度表换样式 (每行 2 行布局):
+//      - 第 1 行: 年份 + [本年]/[达标]/[未达] 标签 + 编辑按钮
+//      - 第 2 行: 目标 / 实际 / 差额 (新增列, 重要!)
+//      - 第 3 行: 原计划余额 vs 推演余额 (小字)
 //
-//   模块 3: 年度目标进度表 (10 年)
-//     - 原计划线 (北极星, 基础本金复利)
-//     - 现实推演线 (根据实际数据往后推)
-//     - 每年录入实际 actualGain / endBalance
+//   联动逻辑:
+//      用户填某年实际 → 推演自动重算
+//      → 北极星卡显示新差额
+//      → 年度表显示该年差额 + 后续年用新基础推算
 //
-//   模块 4: 投资戒律清单
-//     - 4 等级: 🟢一般 / 🔺重要 / 📣强调 / ❗警告
-//     - 📌 置顶功能
-//     - 长文折叠/展开
-//     - 按等级筛选
-//     - 超过 10 条自动折叠
+//   视觉:
+//      达标 → 红色 ↑ (你定义涨为红, 跌为绿)
+//      未达 → 绿色 ↓
+//      未填 → 灰色 —
 //
-//   模块 5: 月度复盘日志
-//     - 日期 + 心情 + 文字
-//     - 按日期倒序
-//     - 可编辑/删除
-//
-//   模块 6: 计划设置
-//     - 修改 startCapital / targetAnnualRate
-//     - startYear / totalYears / ageGoalAge
-//     - motto 个人箴言
-//
-//   架构 (严格按宪法):
-//     ✅ 5 张新表独立 (不影响 watchlist/trades/settings/accounts)
-//     ✅ 所有 fetch 过滤 user_id
-//     ✅ 所有 insert/upsert 带 user_id
-//     ✅ 所有 delete 按 user_id 保护
-//     ✅ investment_plan/margin_status 有 UNIQUE user_id (每人 1 条)
-//     ✅ yearly_actuals 有 UNIQUE user_id+year
-//
-//   db.js 新增 16 个函数:
-//     fetchInvestmentPlan / upsertInvestmentPlan
-//     fetchMarginStatus / upsertMarginStatus
-//     fetchDisciplines / insertDiscipline / updateDiscipline / deleteDiscipline
-//     fetchReviewLogs / insertReviewLog / updateReviewLog / deleteReviewLog
-//     fetchYearlyActuals / upsertYearlyActual
-//
-// 📦 v10.4.1: 首页顶部卡语义优化
-// 📦 v10.4.0: 资产 tab 接云端
+// 📦 v10.5.2: 复利计划卡烈焰红金
 // ============================================
