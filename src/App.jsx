@@ -576,6 +576,12 @@ function MainApp({ user, onLogout }) {
   });
   const [snapshotDraft, setSnapshotDraft] = useState({}); // { account_id: '12345' } 填快照时的暂存值
   const [snapshotTab, setSnapshotTab] = useState('我');    // 录入界面当前 Tab: '我' or '老婆'
+
+  // 🔑 修改密码 (设置页)
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [newPwd, setNewPwd] = useState('');
+  const [pwdMsg, setPwdMsg] = useState(null);  // { type: 'error'|'success', text: '...' }
+  const [pwdLoading, setPwdLoading] = useState(false);
   const [fillMonth, setFillMonth] = useState(() => new Date().toISOString().slice(0, 7)); // 填快照 Modal 里当前选择的月份
   const [showMonthsDetail, setShowMonthsDetail] = useState(false); // 12 个月资产走势 Modal
 
@@ -5204,6 +5210,12 @@ function MainApp({ user, onLogout }) {
                 📱 任意设备登录此账号都能看到你的数据
               </div>
               <button
+                onClick={() => setShowChangePassword(true)}
+                className="w-full py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold border border-white/20 mb-2"
+              >
+                🔑 修改密码
+              </button>
+              <button
                 onClick={async () => {
                   if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
                   await onLogout();
@@ -5213,6 +5225,90 @@ function MainApp({ user, onLogout }) {
                 <LogOut className="w-4 h-4" /> 退出登录
               </button>
             </div>
+
+            {/* 修改密码 Modal */}
+            {showChangePassword && (
+              <div
+                className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+                onClick={(e) => { if (e.target === e.currentTarget) { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); } }}
+              >
+                <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-black text-base flex items-center gap-2">
+                      🔑 修改密码
+                    </h3>
+                    <button
+                      onClick={() => { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); }}
+                      className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <label className="block text-xs text-slate-500 font-bold mb-1">新密码 (至少 6 位)</label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPwd}
+                    onChange={e => setNewPwd(e.target.value)}
+                    placeholder="至少 6 位"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:border-amber-500 focus:outline-none mb-3"
+                  />
+
+                  {pwdMsg && (
+                    <div className={`mb-3 px-3 py-2 rounded-lg text-xs ${
+                      pwdMsg.type === 'error'
+                        ? 'bg-red-50 border border-red-200 text-red-700'
+                        : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                    }`}>
+                      {pwdMsg.text}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={async () => {
+                      if (!newPwd || newPwd.length < 6) {
+                        setPwdMsg({ type: 'error', text: '密码至少 6 位' });
+                        return;
+                      }
+                      setPwdLoading(true);
+                      setPwdMsg(null);
+                      try {
+                        const { error } = await supabase.auth.updateUser({ password: newPwd });
+                        if (error) {
+                          setPwdMsg({ type: 'error', text: error.message });
+                        } else {
+                          setPwdMsg({ type: 'success', text: '✓ 密码已更新, 下次登录用新密码' });
+                          setNewPwd('');
+                          setTimeout(() => {
+                            setShowChangePassword(false);
+                            setPwdMsg(null);
+                          }, 2000);
+                        }
+                      } catch (e) {
+                        setPwdMsg({ type: 'error', text: e.message || '更新失败' });
+                      } finally {
+                        setPwdLoading(false);
+                      }
+                    }}
+                    disabled={pwdLoading}
+                    className="w-full py-3 font-black rounded-xl active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      color: '#0a0a0a',
+                    }}
+                  >
+                    {pwdLoading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />保存中...</>
+                    ) : '保存新密码'}
+                  </button>
+
+                  <p className="text-[10px] text-slate-400 text-center mt-3">
+                    保存后下次登录请使用新密码
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* 数据状态 */}
             <div className="bg-white rounded-2xl p-5 shadow">
@@ -5441,6 +5537,12 @@ function MainApp({ user, onLogout }) {
 
 // ============ 外层包装: 处理登录状态 ============
 export default function TQQQTracker() {
+  // 🔑 检测是否是从"重置密码"邮件链接点进来的
+  // 必须在外层就挂住 (不让 auth session 自动进主界面)
+  const [isRecovery, setIsRecovery] = useState(() => {
+    const hash = window.location.hash || '';
+    return hash.includes('type=recovery');
+  });
   const [authState, setAuthState] = useState({ loading: true, user: null });
 
   useEffect(() => {
@@ -5464,6 +5566,15 @@ export default function TQQQTracker() {
     );
   }
 
+  // 🔑 重置密码流程: 即使已登录, 也强制进 Login 组件 (让用户设新密码)
+  // 新密码设完之后 (Login 调 onSuccess), 才清除 recovery 状态
+  if (isRecovery) {
+    return <Login onSuccess={(user) => {
+      setIsRecovery(false);
+      setAuthState({ loading: false, user });
+    }} />;
+  }
+
   // 未登录 → 登录页
   if (!authState.user) {
     return <Login onSuccess={(user) => setAuthState({ loading: false, user })} />;
@@ -5482,26 +5593,27 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 03:30:00 (UTC+8)
-// 📝 本次更新: v10.7.2 - 录入按人 Tab 切换 👥
+// 📅 最后修改时间: 2026-04-22 04:30:00 (UTC+8)
+// 📝 本次更新: v10.7.5 - 修复 recovery bug + 加修改密码 🔑
 //
-//   问题: 填月底余额时, 我/老婆账户混在一起, 难以专注
+//   问题:
+//     用户点"重置密码"邮件链接后, 会自动登录
+//     但没让设新密码 → 旧密码还是忘的 → 下次又登不上
 //
-//   改动:
-//     弹窗内加顶部 Tab 切换
-//     [👤 我 (3)]  [👩 老婆 (2)]
-//     一次只录入一人的账户
+//   原因:
+//     外层 TQQQTracker 的 onAuthChange 比 Login 的 useEffect 先触发
+//     auth session 一建立立刻进主界面, 没机会进入"设新密码"
 //
-//   智能行为:
-//     - 只有一人有账户 → 不显示 Tab (减少噪音)
-//     - 两人都有账户 → 显示 Tab
-//     - Tab 下方显示: "我 · 3 个账户 ≈ ¥140,000" 小计
-//     - 金额用 toCNY 按 USD/HKD 换算为 CNY
+//   修复:
+//     1) 外层启动时检测 URL hash=recovery
+//        isRecovery state, 优先级高于 authState.user
+//        即使已有 session, 也强制进 Login (设新密码)
 //
-//   账户卡简化:
-//     去掉 meta 里的 "我 / 老婆" (因为 Tab 已经区分了)
-//     只保留币种
+//     2) 设置页加"🔑 修改密码"入口
+//        Modal 输入新密码 → supabase.auth.updateUser
+//        以后日常改密码也方便, 不用每次走"忘记密码"流程
 //
-// 📦 v10.7.1: 智能刷新 + 走势图修复
-// 📦 v10.7.0: Robinhood 风
+// 📦 v10.7.4: 忘记密码功能 (初版)
+// 📦 v10.7.3: V5 K 线柱图标
+// 📦 v10.7.2: 录入按人 Tab
 // ============================================
