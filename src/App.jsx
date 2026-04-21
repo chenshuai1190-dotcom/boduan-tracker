@@ -3305,15 +3305,6 @@ function MainApp({ user, onLogout }) {
 
             // 12 个月走势数据
             const chartData = last12Months.map(m => totalAtMonth(m));
-
-            // 🔍 诊断: 打印每个月的数据
-            console.log('[走势图诊断] 最近 12 个月数据:');
-            last12Months.forEach((m, i) => {
-              const val = chartData[i];
-              console.log(`  ${m}: ¥${(val/10000).toFixed(1)}万 ${val > 0 ? '✓' : '❌ 无数据'}`);
-            });
-            console.log('[走势图诊断] snapshots 总数:', snapshots.length);
-            console.log('[走势图诊断] snapshot 月份分布:', [...new Set(snapshots.map(s => s.month))].sort());
             const nonZero = chartData.filter(v => v > 0);
             const chartMin = nonZero.length > 0 ? Math.min(...nonZero) : 0;
             const chartMax = nonZero.length > 0 ? Math.max(...nonZero) : 0;
@@ -3495,30 +3486,116 @@ function MainApp({ user, onLogout }) {
                       {[0, 0.25, 0.5, 0.75, 1].map(t => (
                         <line key={t} x1="0" x2="320" y1={20 + t * 80} y2={20 + t * 80} stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="2 2"/>
                       ))}
-                      {/* 面积 */}
-                      <path
-                        d={`M 0 ${20 + (1 - ((chartData[0] || chartMin) - chartMin) / chartRange) * 80} ${chartData.map((v, i) => `L ${(i / (chartData.length - 1)) * 320} ${20 + (1 - ((v || chartMin) - chartMin) / chartRange) * 80}`).join(' ')} L 320 120 L 0 120 Z`}
-                        fill="url(#assetGrad)"
-                      />
-                      {/* 折线 */}
-                      <path
-                        d={`M 0 ${20 + (1 - ((chartData[0] || chartMin) - chartMin) / chartRange) * 80} ${chartData.map((v, i) => `L ${(i / (chartData.length - 1)) * 320} ${20 + (1 - ((v || chartMin) - chartMin) / chartRange) * 80}`).join(' ')}`}
-                        fill="none"
-                        stroke="#f43f5e"
-                        strokeWidth="2"
-                      />
-                      {/* 数据点 */}
-                      {chartData.map((v, i) => (
-                        <circle
-                          key={i}
-                          cx={(i / (chartData.length - 1)) * 320}
-                          cy={20 + (1 - ((v || chartMin) - chartMin) / chartRange) * 80}
-                          r={i === chartData.length - 1 ? 4 : 2}
-                          fill={i === chartData.length - 1 ? '#f43f5e' : 'white'}
-                          stroke="#f43f5e"
-                          strokeWidth="1.5"
-                        />
-                      ))}
+                      {(() => {
+                        // 只画有数据的月份 (v > 0), 空月份断线不画
+                        const validPoints = chartData
+                          .map((v, i) => ({
+                            x: (i / (chartData.length - 1)) * 320,
+                            y: 20 + (1 - (v - chartMin) / chartRange) * 80,
+                            v,
+                            i,
+                            isLast: i === chartData.length - 1,
+                          }))
+                          .filter(p => p.v > 0);
+
+                        if (validPoints.length === 0) return null;
+
+                        // 构造 path (只连有效月份)
+                        const pathD = validPoints.length > 1
+                          ? `M ${validPoints[0].x} ${validPoints[0].y} ${validPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`
+                          : '';
+                        // 面积 (底部闭合)
+                        const areaD = validPoints.length > 1
+                          ? `${pathD} L ${validPoints[validPoints.length - 1].x} 120 L ${validPoints[0].x} 120 Z`
+                          : '';
+
+                        // 估算 path 总长度 (用于 stroke-dasharray 动画)
+                        let pathLength = 0;
+                        for (let i = 1; i < validPoints.length; i++) {
+                          const dx = validPoints[i].x - validPoints[i - 1].x;
+                          const dy = validPoints[i].y - validPoints[i - 1].y;
+                          pathLength += Math.sqrt(dx * dx + dy * dy);
+                        }
+
+                        // V2 动画参数
+                        // - 点: 逐个弹出 (overshoot), 间隔 0.2s
+                        // - 线: 0.2s 后开始画, 1.5s 画完
+                        // - 面积: 0.8s 后淡入
+                        const totalPointDuration = validPoints.length * 0.2;
+
+                        return (
+                          <>
+                            <style>{`
+                              @keyframes assetPop {
+                                0%   { opacity: 0; transform: scale(0) translateY(10px); }
+                                60%  { opacity: 1; transform: scale(1.4) translateY(0); }
+                                100% { opacity: 1; transform: scale(1); }
+                              }
+                              @keyframes assetDrawLine {
+                                from { stroke-dashoffset: ${pathLength}; }
+                                to   { stroke-dashoffset: 0; }
+                              }
+                              @keyframes assetFadeIn {
+                                from { opacity: 0; }
+                                to   { opacity: 1; }
+                              }
+                              .asset-chart-dot {
+                                opacity: 0;
+                                transform-box: fill-box;
+                                transform-origin: center;
+                                animation: assetPop 0.4s ease-out forwards;
+                              }
+                              .asset-chart-line {
+                                stroke-dasharray: ${pathLength};
+                                stroke-dashoffset: ${pathLength};
+                                animation: assetDrawLine 1.5s ease-out 0.2s forwards;
+                              }
+                              .asset-chart-area {
+                                opacity: 0;
+                                animation: assetFadeIn 1s ease-out 0.8s forwards;
+                              }
+                              .asset-chart-empty-dot {
+                                opacity: 0;
+                                animation: assetFadeIn 0.5s ease-out 1.8s forwards;
+                              }
+                            `}</style>
+                            {/* 面积 (延迟淡入) */}
+                            {areaD && <path d={areaD} fill="url(#assetGrad)" className="asset-chart-area" />}
+                            {/* 折线 (从左画到右) */}
+                            {pathD && <path d={pathD} fill="none" stroke="#f43f5e" strokeWidth="2" className="asset-chart-line" />}
+                            {/* 数据点 (依次弹出) */}
+                            {validPoints.map((p, idx) => (
+                              <circle
+                                key={p.i}
+                                cx={p.x}
+                                cy={p.y}
+                                r={p.isLast ? 4 : 2}
+                                fill={p.isLast ? '#f43f5e' : 'white'}
+                                stroke="#f43f5e"
+                                strokeWidth="1.5"
+                                className="asset-chart-dot"
+                                style={{ animationDelay: `${idx * 0.2}s` }}
+                              />
+                            ))}
+                            {/* 空月份提示 (最后淡入) */}
+                            {chartData.map((v, i) => {
+                              if (v > 0) return null;
+                              const x = (i / (chartData.length - 1)) * 320;
+                              return (
+                                <circle
+                                  key={`empty-${i}`}
+                                  cx={x}
+                                  cy={100}
+                                  r={1.5}
+                                  fill="#cbd5e1"
+                                  opacity="0.6"
+                                  className="asset-chart-empty-dot"
+                                />
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
                     </svg>
 
                     <div className="flex justify-between text-[9px] text-slate-400 font-medium mt-1 px-1">
@@ -5844,24 +5921,26 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 05:30:00 (UTC+8)
-// 📝 本次更新: v10.7.7 - 设置页黑金统一 ✨
+// 📅 最后修改时间: 2026-04-22 09:00:00 (UTC+8)
+// 📝 本次更新: v10.7.7.2 - 走势图 V2 动画 (点依次弹出) ✨
 //
-//   改动:
-//     1. ☁️ 云端账户卡: 紫色 → 奢华黑金
-//        - 和首页/资产/交易 tab 头部同色
-//        - 金色标题 + 绿色脉动"已登录"徽章
-//        - 邮箱区域: SIGNED IN 小标签 + 等宽字体
-//        - 描述区域独立底色
-//        - 修改密码按钮: 金色边框
-//        - 退出登录按钮: 红色边框 (警示)
+//   打开资产 tab 时, 12 个月走势图动画入场:
 //
-//     2. "立即手动拉取" 按钮: 蓝色 → 黑金
-//        - 金色渐变 + 金光阴影
-//        - 和账户卡统一
+//   时间线:
+//     0.0s 第 1 个点弹出 (带 overshoot)
+//     0.2s 第 2 个点弹出
+//     0.4s 第 3 个点弹出 ...
+//     (每隔 0.2s 一个点, 像波浪)
+//     0.2s 折线从左往右画 (1.5s 完成)
+//     0.8s 面积图淡入 (底部填充)
+//     1.8s 空月灰点淡入
+//     ~2s 完成
 //
-//   结果: 设置 tab 所有元素视觉统一 ✨
+//   技术:
+//     - SVG stroke-dashoffset 动画 (画线)
+//     - CSS scale(0→1.4→1) (点 overshoot 弹出)
+//     - animationDelay 错峰 (每个点独立时间)
 //
-// 📦 v10.7.6: 设置页改版 (删头卡 + 数据状态 + 更新日志)
-// 📦 v10.7.5: 密码重置修复
+// 📦 v10.7.7.1: 空月断线
+// 📦 v10.7.7:   设置页黑金统一
 // ============================================
