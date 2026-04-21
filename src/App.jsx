@@ -349,6 +349,7 @@ function MainApp({ user, onLogout }) {
     balance: '',
   });
   const [snapshotDraft, setSnapshotDraft] = useState({}); // { account_id: '12345' } 填快照时的暂存值
+  const [fillMonth, setFillMonth] = useState(() => new Date().toISOString().slice(0, 7)); // 填快照 Modal 里当前选择的月份
 
   // 波段展开状态(点击波段可展开看明细) { 'wave-id': true }
   const [expandedWaves, setExpandedWaves] = useState({});
@@ -2686,11 +2687,11 @@ function MainApp({ user, onLogout }) {
                 {/* ============ 操作按钮 ============ */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <button
-                    onClick={() => setShowFillSnapshot(true)}
+                    onClick={() => { setFillMonth(currentMonth); setShowFillSnapshot(true); }}
                     disabled={accounts.length === 0}
                     className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow"
                   >
-                    <Calendar className="w-4 h-4"/> 填 {currentMonth.slice(5)} 月余额
+                    <Calendar className="w-4 h-4"/> 填月度余额
                   </button>
                   <button
                     onClick={() => setShowAddAccount(true)}
@@ -2857,11 +2858,43 @@ function MainApp({ user, onLogout }) {
                         </div>
                         <div>
                           <label className="text-xs text-slate-500 block mb-1">账户名</label>
+                          {/* 快捷预设 (按类型动态显示) */}
+                          {(() => {
+                            const presets = {
+                              '银行':   ['招商银行', '招商永隆', '工商银行', '建设银行', '中国银行'],
+                              '证券':   ['长桥证券', 'IBKR', '富途', '老虎', '华泰证券', '东方财富'],
+                              '支付宝': ['支付宝现金', '支付宝理财'],
+                              '微信':   ['微信钱包', '微信零钱通'],
+                              '定期':   ['银行定期', '大额存单', '货币基金'],
+                              '现金':   ['现金'],
+                              '公积金': ['住房公积金', '企业年金'],
+                              '其他':   ['房产', '车', '黄金', '保险'],
+                            };
+                            const list = presets[newAccount.type] || [];
+                            if (list.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {list.map(p => (
+                                  <button
+                                    key={p}
+                                    onClick={() => setNewAccount({...newAccount, name: p})}
+                                    className={`px-2 py-1 rounded-md text-xs font-bold transition ${
+                                      newAccount.name === p
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
+                                    }`}
+                                  >
+                                    {p}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
                           <input
                             type="text"
                             value={newAccount.name}
                             onChange={(e) => setNewAccount({...newAccount, name: e.target.value})}
-                            placeholder="例: 招商银行 / 长桥证券"
+                            placeholder="点上面快捷选或自己输入"
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                           />
                         </div>
@@ -2962,17 +2995,68 @@ function MainApp({ user, onLogout }) {
 
                 {/* ====== 填快照 Modal ====== */}
                 {showFillSnapshot && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFillSnapshot(false)}>
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowFillSnapshot(false); setSnapshotDraft({}); }}>
                     <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-base">填 {currentMonth} 月余额</h3>
-                        <button onClick={() => setShowFillSnapshot(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                        <h3 className="font-bold text-base">填月度余额</h3>
+                        <button onClick={() => { setShowFillSnapshot(false); setSnapshotDraft({}); }} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
+
+                      {/* 月份选择器 */}
+                      <div className="bg-slate-50 rounded-lg p-3 mb-3">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">选择月份</div>
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              const d = new Date(fillMonth + '-15');
+                              d.setMonth(d.getMonth() - 1);
+                              setFillMonth(d.toISOString().slice(0, 7));
+                              setSnapshotDraft({}); // 切月清空草稿
+                            }}
+                            className="w-9 h-9 rounded-lg bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition font-bold"
+                          >
+                            ‹
+                          </button>
+                          <div className="flex-1 text-center">
+                            <div className="text-lg font-black text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{fillMonth}</div>
+                            {fillMonth === currentMonth && (
+                              <div className="text-[10px] text-blue-600 font-bold">本月</div>
+                            )}
+                            {fillMonth > currentMonth && (
+                              <div className="text-[10px] text-amber-600 font-bold">未来月</div>
+                            )}
+                            {fillMonth < currentMonth && (
+                              <div className="text-[10px] text-slate-500 font-bold">历史月</div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const d = new Date(fillMonth + '-15');
+                              d.setMonth(d.getMonth() + 1);
+                              setFillMonth(d.toISOString().slice(0, 7));
+                              setSnapshotDraft({});
+                            }}
+                            className="w-9 h-9 rounded-lg bg-white border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition font-bold"
+                          >
+                            ›
+                          </button>
+                        </div>
+                        {/* 快捷跳转 */}
+                        {fillMonth !== currentMonth && (
+                          <button
+                            onClick={() => { setFillMonth(currentMonth); setSnapshotDraft({}); }}
+                            className="w-full mt-2 py-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold active:scale-95 transition"
+                          >
+                            回到本月 ({currentMonth})
+                          </button>
+                        )}
+                      </div>
+
                       <div className="space-y-2">
                         {accounts.map(acc => {
-                          const currentBal = getBalance(acc.id, currentMonth);
+                          const currentBal = getBalance(acc.id, fillMonth);
                           const draftVal = snapshotDraft[acc.id] ?? (currentBal || '');
                           return (
                             <div key={acc.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
@@ -3000,19 +3084,19 @@ function MainApp({ user, onLogout }) {
                         >取消</button>
                         <button
                           onClick={() => {
-                            // 应用 snapshotDraft 到 snapshots
+                            // 应用 snapshotDraft 到 snapshots (指定月份)
                             const newSnapshots = [...snapshots];
                             Object.entries(snapshotDraft).forEach(([accId, valStr]) => {
                               const val = parseFloat(valStr);
                               if (isNaN(val) || val < 0) return;
-                              const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === currentMonth);
+                              const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === fillMonth);
                               if (idx >= 0) {
                                 newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
                               } else {
                                 newSnapshots.push({
                                   id: 'tmp_snap_' + Date.now() + '_' + accId,
                                   accountId: accId,
-                                  month: currentMonth,
+                                  month: fillMonth,
                                   balance: val,
                                 });
                               }
@@ -3022,7 +3106,7 @@ function MainApp({ user, onLogout }) {
                             setShowFillSnapshot(false);
                           }}
                           className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
-                        >保存</button>
+                        >保存 {fillMonth}</button>
                       </div>
                     </div>
                   </div>
@@ -3329,21 +3413,21 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 11:50:00 (UTC+8)
-// 📝 本次更新: v10.3.3 - 资产 tab 按设计稿补齐 4 项核心
+// 📅 最后修改时间: 2026-04-21 12:30:00 (UTC+8)
+// 📝 本次更新: v10.3.5 - 填快照支持选月份(补录历史)
 //
-//   对照设计稿 FamilyAssetsPreview.jsx, 补齐:
-//     ✅ 顶部总资产卡: 3 个变化指标 (较上月/年初至今/近一年)
-//     ✅ 12 个月走势图 (SVG 折线图 + 数据点 + 最低/最高/区间)
-//     ✅ 全部数字用 "万" 单位显示 (fmtWan 工具函数)
-//     ✅ 彩色人员分组卡 (蓝/粉渐变背景 + 进度条 + 占比)
-//     ✅ 👤我 / 👩老婆 emoji 标识
+//   改进: 填月度余额 Modal
+//     - 顶部加月份选择器 (‹ 2026-04 ›)
+//     - 可往前选历史月份
+//     - 切换月份时自动加载该月已有数据
+//     - 切月会清空当前草稿 (避免混乱)
+//     - "回到本月" 快捷按钮
+//     - 按钮文字 "保存 YYYY-MM" 明确保存哪月
 //
-//   设计稿里"每个账户 vs 上月"变化未实现 (故意的)
-//     - 月度快照频率低, "vs 上月" 容易误导
-//     - 总资产卡的 "较上月" 已够用
+//   意义:
+//     本地版能手动填 12 个月历史 → 走势图就有数据了
+//     接云端后, 这些历史数据会一起永久保存
 //
-// 📦 v10.3.2: 非资产 tab 保留总览卡 (按用户反馈)
-// 📦 v10.3.1: (废弃, 只在首页显示太激进)
-// 📦 v10.3.0: 资产 tab 本地版 初稿 (缺 4 项)
+// 📦 v10.3.4: 账户名快捷预设
+// 📦 v10.3.3: 资产 tab 4 项核心
 // ============================================
