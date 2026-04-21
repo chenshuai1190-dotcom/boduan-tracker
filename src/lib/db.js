@@ -474,6 +474,7 @@ export const fetchInvestmentPlan = async () => {
     totalYears: data.total_years,
     ageGoalAge: data.age_goal_age,
     motto: data.motto || '',
+    displayCurrency: data.display_currency || 'USD',
   } : null;
   if (plan) cacheSet('investment_plan', plan);
   return plan;
@@ -493,6 +494,7 @@ export const upsertInvestmentPlan = async (plan) => {
       total_years: plan.totalYears,
       age_goal_age: plan.ageGoalAge,
       motto: plan.motto || '',
+      display_currency: plan.displayCurrency || 'USD',
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
   if (error) throw error;
