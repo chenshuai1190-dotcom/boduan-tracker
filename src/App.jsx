@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2 } from 'lucide-react';
+import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight } from 'lucide-react';
 import Login from './Login';
 import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
 import * as db from './lib/db';
@@ -350,6 +350,7 @@ function MainApp({ user, onLogout }) {
   });
   const [snapshotDraft, setSnapshotDraft] = useState({}); // { account_id: '12345' } 填快照时的暂存值
   const [fillMonth, setFillMonth] = useState(() => new Date().toISOString().slice(0, 7)); // 填快照 Modal 里当前选择的月份
+  const [showMonthsDetail, setShowMonthsDetail] = useState(false); // 12 个月资产走势 Modal
 
   // 波段展开状态(点击波段可展开看明细) { 'wave-id': true }
   const [expandedWaves, setExpandedWaves] = useState({});
@@ -2550,10 +2551,15 @@ function MainApp({ user, onLogout }) {
 
                   <div className="flex items-center justify-between mb-3 relative z-10">
                     <div className="text-[10px] uppercase tracking-widest font-bold text-blue-200">家庭总资产</div>
-                    <div className="text-[10px] text-blue-300 flex items-center gap-1">
+                    <button
+                      onClick={() => setShowMonthsDetail(true)}
+                      className="text-[10px] text-blue-300 hover:text-white flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:scale-95 transition"
+                      title="查看 12 个月走势"
+                    >
                       <Calendar className="w-3 h-3" />
                       {currentMonth}
-                    </div>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
                   </div>
 
                   <div className="text-4xl font-black tabular-nums relative z-10" style={{ fontFamily: 'ui-monospace, monospace' }}>
@@ -2993,6 +2999,87 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
+                {/* ====== 12 个月资产走势 Modal ====== */}
+                {showMonthsDetail && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMonthsDetail(false)}>
+                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-base flex items-center gap-1.5">
+                          <span>📅</span>
+                          <span>12 个月资产走势</span>
+                        </h3>
+                        <button onClick={() => setShowMonthsDetail(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* 列表: 最新在顶部 */}
+                      <div className="space-y-1">
+                        {[...last12Months].reverse().map((m, idx) => {
+                          const reversedIdx = last12Months.length - 1 - idx; // 原始索引
+                          const total = chartData[reversedIdx];
+                          const prevTotal = reversedIdx > 0 ? chartData[reversedIdx - 1] : 0;
+                          const change = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
+                          const isCurrent = m === currentMonth;
+                          const isYearStart = m.endsWith('-01');
+                          const hasData = total > 0;
+
+                          return (
+                            <div
+                              key={m}
+                              className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition ${
+                                isCurrent
+                                  ? 'bg-blue-50 border-2 border-blue-200'
+                                  : hasData
+                                    ? 'bg-slate-50 hover:bg-slate-100'
+                                    : 'bg-slate-50/50 opacity-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className={`text-sm font-black tabular-nums ${isCurrent ? 'text-blue-700' : 'text-slate-800'}`}>
+                                  {m}
+                                </div>
+                                {isYearStart && (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold">年初</span>
+                                )}
+                                {isCurrent && (
+                                  <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">本月</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`text-sm font-bold tabular-nums ${isCurrent ? 'text-blue-700' : hasData ? 'text-slate-900' : 'text-slate-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  {hasData ? `¥${fmtWan(total)}万` : '无数据'}
+                                </div>
+                                {hasData && change !== null ? (
+                                  <div className={`text-[11px] font-bold tabular-nums min-w-[45px] text-right ${change >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {change >= 0 ? '↑' : '↓'}{Math.abs(change).toFixed(1)}%
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-slate-300 min-w-[45px] text-right">—</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* 底部: 快捷操作 */}
+                      <div className="mt-4 pt-3 border-t border-slate-100">
+                        <button
+                          onClick={() => {
+                            setShowMonthsDetail(false);
+                            setFillMonth(currentMonth);
+                            setShowFillSnapshot(true);
+                          }}
+                          className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold active:scale-95 transition flex items-center justify-center gap-1.5"
+                        >
+                          <Plus className="w-4 h-4"/> 补录/修改月度余额
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* ====== 填快照 Modal ====== */}
                 {showFillSnapshot && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowFillSnapshot(false); setSnapshotDraft({}); }}>
@@ -3413,21 +3500,21 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 12:30:00 (UTC+8)
-// 📝 本次更新: v10.3.5 - 填快照支持选月份(补录历史)
+// 📅 最后修改时间: 2026-04-21 13:00:00 (UTC+8)
+// 📝 本次更新: v10.3.6 - 12 个月资产走势 Modal
 //
-//   改进: 填月度余额 Modal
-//     - 顶部加月份选择器 (‹ 2026-04 ›)
-//     - 可往前选历史月份
-//     - 切换月份时自动加载该月已有数据
-//     - 切月会清空当前草稿 (避免混乱)
-//     - "回到本月" 快捷按钮
-//     - 按钮文字 "保存 YYYY-MM" 明确保存哪月
+//   新功能: 点击黑卡右上角月份徽章
+//     弹出紧凑列表显示 12 个月资产:
+//     - 每月一行: YYYY-MM / ¥XX.X 万 / 环比%
+//     - 当月高亮蓝色
+//     - 年初月加"年初"徽章
+//     - 环比涨红跌绿
+//     - 无数据的月份显示"无数据"
+//     - 底部"补录/修改"按钮直达填写 Modal
 //
-//   意义:
-//     本地版能手动填 12 个月历史 → 走势图就有数据了
-//     接云端后, 这些历史数据会一起永久保存
+//   触发方式: 
+//     点顶部黑卡右上角 "📅 2026-04 ›"
 //
+// 📦 v10.3.5: 选月份填余额
 // 📦 v10.3.4: 账户名快捷预设
-// 📦 v10.3.3: 资产 tab 4 项核心
 // ============================================
