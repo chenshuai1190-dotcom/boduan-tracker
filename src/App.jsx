@@ -220,9 +220,13 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
 }
 
 // 编辑年度实际数据 Modal
-function YearlyActualModal({ year, initial, onCancel, onSave }) {
-  const [actualGain, setActualGain] = useState(initial.actualGain ?? '');
-  const [endBalance, setEndBalance] = useState(initial.endBalance ?? '');
+function YearlyActualModal({ year, initial, onCancel, onSave, currency, rate }) {
+  const isCNY = currency === 'CNY';
+  const symbol = isCNY ? '¥' : '$';
+  // 显示时: USD存储 × rate → 展示值
+  // 保存时: 展示值 / rate → 存回 USD
+  const [actualGain, setActualGain] = useState(initial.actualGain !== null && initial.actualGain !== undefined ? String(Math.round(initial.actualGain * rate)) : '');
+  const [endBalance, setEndBalance] = useState(initial.endBalance !== null && initial.endBalance !== undefined ? String(Math.round(initial.endBalance * rate)) : '');
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
@@ -235,33 +239,40 @@ function YearlyActualModal({ year, initial, onCancel, onSave }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-slate-500 block mb-1">实际增长 (¥)</label>
+            <label className="text-xs text-slate-500 block mb-1">实际增长 ({symbol})</label>
             <input
               type="number"
               value={actualGain}
               onChange={e => setActualGain(e.target.value)}
-              placeholder="例: 200000 (20万)"
+              placeholder={isCNY ? '例: 1440000 (144万¥)' : '例: 200000 (20万$)'}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
             />
-            <div className="text-[10px] text-slate-400 mt-0.5">留空 = 未录入</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">这一年涨了多少 (留空则按年末余额倒算)</div>
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">年末余额 (¥)</label>
+            <label className="text-xs text-slate-500 block mb-1">年末余额 ({symbol})</label>
             <input
               type="number"
               value={endBalance}
               onChange={e => setEndBalance(e.target.value)}
-              placeholder="例: 2600000 (260万)"
+              placeholder={isCNY ? '例: 19440000 (1944万¥)' : '例: 2600000 (260万$)'}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
             />
+            <div className="text-[10px] text-slate-400 mt-0.5">这一年结束总共多少 (留空则按上年余额+本年增长自动算)</div>
+          </div>
+          <div className="text-[11px] text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+            💡 当前币种: <span className="font-bold">{currency}</span> (汇率 1 USD = {rate} CNY){isCNY ? ' · 保存时自动换算为 USD 存储' : ''}
           </div>
         </div>
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
           <button
             onClick={() => {
-              const ag = actualGain === '' ? null : parseFloat(actualGain);
-              const eb = endBalance === '' ? null : parseFloat(endBalance);
+              // 输入的是当前显示币种的数字
+              // 存储时: 如果是 CNY, 除以 rate 换算成 USD
+              const divisor = isCNY ? rate : 1;
+              const ag = actualGain === '' ? null : parseFloat(actualGain) / divisor;
+              const eb = endBalance === '' ? null : parseFloat(endBalance) / divisor;
               onSave(ag, eb);
             }}
             className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
@@ -574,6 +585,7 @@ function MainApp({ user, onLogout }) {
     totalYears: 10,
     ageGoalAge: 40,
     motto: '',
+    displayCurrency: 'USD',  // USD | CNY
   });
   const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 600000 });
   const [disciplines, setDisciplines] = useState([]);
@@ -3568,55 +3580,90 @@ function MainApp({ user, onLogout }) {
               const v = Math.abs(n) / 10000;
               return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
             };
-            const fmtWanUSD = (n, d = 1) => `$${fmtWan(n, d)} 万`;
+            // 📌 核心: 统一金额显示函数 (根据 displayCurrency 切换)
+            // 数据库永远存 USD, CNY 模式时显示 × usdRate
+            const displayCurrency = investmentPlan.displayCurrency || 'USD';
+            const isCNY = displayCurrency === 'CNY';
+            const symbol = isCNY ? '¥' : '$';
+            const rate = isCNY ? (usdRate || 7.2) : 1;
+            // 金额带"万"单位显示 (USD: $240 万, CNY: ¥1728 万)
+            const fmtMoney = (usdValue, d = 1) => `${symbol}${fmtWan(usdValue * rate, d)} 万`;
+            const fmtWanUSD = fmtMoney;  // 兼容旧调用, 自动切
 
-            // === 计算: 复利计划 ===
+            // ============================================
+            // 🧠 复利计划核心计算 (柔性目标 + 宽松推演)
+            // ============================================
             const PLAN = investmentPlan;
-            // 10 年 原计划每年末余额 (北极星, 永远基于基础本金)
-            const yearlyPlan = [];
+            // 规则:
+            //   1. 每年起点 = 上年终点 (实际或推演)
+            //   2. 计划增长 = 起点 × 年化率 (柔性, 联动上年实际)
+            //   3. 实际增长 = 用户填的 (可空)
+            //   4. 终点 = 起点 + 实际增长
+            //   5. 未填年: 假设达标 20%, 标记为 isProjected
+            //   6. 智能补全: 填一个自动算另一个
+            // ============================================
+
+            // 第 1 步: 合并用户填的原始数据
+            const yearlyRaw = [];
             for (let i = 0; i < PLAN.totalYears; i++) {
-              const endBal = PLAN.startCapital * Math.pow(1 + PLAN.targetAnnualRate, i + 1);
-              const prevBal = i === 0 ? PLAN.startCapital : PLAN.startCapital * Math.pow(1 + PLAN.targetAnnualRate, i);
-              yearlyPlan.push({
-                year: PLAN.startYear + i,
-                planTarget: Math.round(endBal - prevBal),
-                planEndBalance: Math.round(endBal),
-              });
-            }
-            // 合并实际数据
-            const yearlyFinal = yearlyPlan.map(y => {
-              const actual = yearlyActuals.find(a => a.year === y.year);
-              return {
-                ...y,
+              const year = PLAN.startYear + i;
+              const actual = yearlyActuals.find(a => a.year === year);
+              yearlyRaw.push({
+                year,
                 actualGain: actual?.actualGain ?? null,
                 endBalance: actual?.endBalance ?? null,
-              };
-            });
-            // 实际推演线: 找最近一个有实际数据的年份, 往后按年化目标复利推
-            let lastActualIdx = -1;
-            let lastActualBalance = PLAN.startCapital;
-            yearlyFinal.forEach((y, i) => {
-              if (y.endBalance !== null) {
-                lastActualIdx = i;
-                lastActualBalance = y.endBalance;
-              }
-            });
-            yearlyFinal.forEach((y, i) => {
-              if (y.endBalance !== null) {
-                y.projectedEndBalance = y.endBalance;
-                y.isProjected = false;
-              } else if (i > lastActualIdx) {
-                const yearsAfter = i - lastActualIdx;
-                y.projectedEndBalance = Math.round(lastActualBalance * Math.pow(1 + PLAN.targetAnnualRate, yearsAfter));
-                y.isProjected = true;
-              } else {
-                y.projectedEndBalance = y.planEndBalance;
-                y.isProjected = true;
-              }
-            });
+              });
+            }
 
-            const ageGoalAmount = yearlyPlan[yearlyPlan.length - 1]?.planEndBalance || 0;
-            const projectedFinal = yearlyFinal[yearlyFinal.length - 1]?.projectedEndBalance || 0;
+            // 第 2 步: 按年顺序计算 (起点 / 计划 / 实际 / 终点 / 是否推演)
+            const yearlyFinal = [];
+            let prevEnd = PLAN.startCapital;  // 第 1 年起点 = 起始本金
+
+            for (let i = 0; i < yearlyRaw.length; i++) {
+              const r = yearlyRaw[i];
+              const startBalance = prevEnd;  // 本年起点 = 上年终点
+              const planTarget = Math.round(startBalance * PLAN.targetAnnualRate);  // 柔性: 基于动态起点
+
+              let actualGain, endBalance, isProjected;
+
+              if (r.actualGain !== null && r.endBalance !== null) {
+                // 都填了: 用 endBalance, actualGain 显示用户填的
+                actualGain = r.actualGain;
+                endBalance = r.endBalance;
+                isProjected = false;
+              } else if (r.endBalance !== null) {
+                // 只填了余额: 倒算增长
+                actualGain = r.endBalance - startBalance;
+                endBalance = r.endBalance;
+                isProjected = false;
+              } else if (r.actualGain !== null) {
+                // 只填了增长: 算余额
+                actualGain = r.actualGain;
+                endBalance = startBalance + r.actualGain;
+                isProjected = false;
+              } else {
+                // 都没填: 推演 = 起点 × 1.20 (假设达标)
+                actualGain = null;  // 实际显示 TBD
+                endBalance = Math.round(startBalance * (1 + PLAN.targetAnnualRate));
+                isProjected = true;
+              }
+
+              yearlyFinal.push({
+                year: r.year,
+                startBalance: Math.round(startBalance),
+                planTarget,
+                actualGain,  // null = TBD
+                endBalance: Math.round(endBalance),
+                isProjected,
+                planEndBalance: Math.round(PLAN.startCapital * Math.pow(1 + PLAN.targetAnnualRate, i + 1)),  // 原计划余额 (北极星硬目标)
+              });
+              prevEnd = endBalance;  // 下年起点
+            }
+
+            // 北极星目标 (永远固定)
+            const ageGoalAmount = Math.round(PLAN.startCapital * Math.pow(1 + PLAN.targetAnnualRate, PLAN.totalYears));
+            // 现实推演终点 (根据柔性 + 宽松推演)
+            const projectedFinal = yearlyFinal[yearlyFinal.length - 1]?.endBalance || 0;
             const shortfall = ageGoalAmount - projectedFinal;
 
             // === 计算: 当前总资产 (从资产 tab 的数据) ===
@@ -3648,6 +3695,35 @@ function MainApp({ user, onLogout }) {
 
             return (
               <>
+                {/* ============ 货币切换按钮 (USD/CNY) ============ */}
+                {(() => {
+                  const isCNY = investmentPlan.displayCurrency === 'CNY';
+                  const switchCurrency = async (newCurrency) => {
+                    if (newCurrency === investmentPlan.displayCurrency) return;
+                    const next = { ...investmentPlan, displayCurrency: newCurrency };
+                    setInvestmentPlan(next);
+                    try {
+                      await db.upsertInvestmentPlan(next);
+                    } catch (e) {
+                      console.error('[切换币种] 云端保存失败:', e);
+                    }
+                  };
+                  return (
+                    <div className="flex justify-end mb-3">
+                      <div className="inline-flex rounded-lg p-0.5 bg-slate-200">
+                        <button
+                          onClick={() => switchCurrency('USD')}
+                          className={`px-3 py-1 rounded-md text-[11px] font-bold transition ${!isCNY ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`}
+                        >$ USD</button>
+                        <button
+                          onClick={() => switchCurrency('CNY')}
+                          className={`px-3 py-1 rounded-md text-[11px] font-bold transition ${isCNY ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`}
+                        >¥ CNY</button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* ============ 模块 1: 复利计划卡 (烈焰红金 · 王者北极星) ============ */}
                 <div
                   className="rounded-2xl p-5 mb-4 text-white relative overflow-hidden"
@@ -3826,7 +3902,7 @@ function MainApp({ user, onLogout }) {
                     </div>
                   </div>
 
-                  {/* 年度列表 (每行 2 行布局) */}
+                  {/* 年度列表 (每行: 标签 + 起点/计划/实际/差额 + 终点) */}
                   <div className="space-y-2">
                     {yearlyFinal.map(y => {
                       const thisYear = new Date().getFullYear();
@@ -3854,10 +3930,13 @@ function MainApp({ user, onLogout }) {
                               {isCurrent && (
                                 <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">本年</span>
                               )}
-                              {isPast && hasActual && (
+                              {hasActual && (
                                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${isOverTarget ? 'bg-rose-600' : 'bg-emerald-600'}`}>
                                   {isOverTarget ? '↑达标' : '↓未达'}
                                 </span>
+                              )}
+                              {y.isProjected && !isCurrent && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-400 text-white text-[9px] font-bold">推演</span>
                               )}
                             </div>
                             <button
@@ -3868,35 +3947,49 @@ function MainApp({ user, onLogout }) {
                             </button>
                           </div>
 
-                          {/* 第 2 行: 目标 / 实际 / 差额 */}
-                          <div className="grid grid-cols-3 gap-2 text-[11px]">
+                          {/* 第 2 行: 起点 → 终点 (用箭头表达) */}
+                          <div className="flex items-center justify-between text-[11px] mb-1.5 px-1">
+                            <span className="text-slate-500">
+                              起点 <span className="font-bold text-slate-700 tabular-nums">{symbol}{fmtWan(y.startBalance * rate, 1)}万</span>
+                            </span>
+                            <span className="text-slate-400">→</span>
+                            <span className={y.isProjected ? 'text-slate-400 italic' : 'text-slate-700'}>
+                              终点 <span className={`font-bold tabular-nums ${y.isProjected ? 'text-slate-400' : 'text-slate-900'}`}>{symbol}{fmtWan(y.endBalance * rate, 1)}万</span>
+                            </span>
+                          </div>
+
+                          {/* 第 3 行: 计划 / 实际 / 差额 */}
+                          <div className="grid grid-cols-3 gap-2 text-[11px] pt-1.5 border-t border-slate-200/60">
                             <div>
-                              <div className="text-[9px] text-slate-500 font-bold uppercase">目标</div>
-                              <div className="font-bold tabular-nums text-slate-700">+{fmtWan(y.planTarget, 1)}万</div>
+                              <div className="text-[9px] text-slate-500 font-bold uppercase">计划</div>
+                              <div className="font-bold tabular-nums text-slate-700">+{symbol}{fmtWan(y.planTarget * rate, 1)}万</div>
                             </div>
                             <div>
                               <div className="text-[9px] text-slate-500 font-bold uppercase">实际</div>
-                              <div className={`font-bold tabular-nums ${!hasActual ? 'text-slate-400' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${fmtWan(y.actualGain, 1)}万` : '—'}
+                              <div className={`font-bold tabular-nums ${!hasActual ? 'text-slate-400 italic' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${symbol}${fmtWan(y.actualGain * rate, 1)}万` : 'TBD'}
                               </div>
                             </div>
                             <div>
                               <div className="text-[9px] text-slate-500 font-bold uppercase">差额</div>
-                              <div className={`font-bold tabular-nums ${diff === null ? 'text-slate-400' : isOverTarget ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                {diff === null ? '—' : `${diff >= 0 ? '+' : ''}${fmtWan(diff, 1)}万`}
+                              <div className={`font-bold tabular-nums ${diff === null ? 'text-slate-400 italic' : isOverTarget ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {diff === null ? 'TBD' : `${diff >= 0 ? '+' : ''}${symbol}${fmtWan(diff * rate, 1)}万`}
                               </div>
                             </div>
                           </div>
 
-                          {/* 第 3 行: 余额信息 (小字) */}
-                          <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-200/60 text-[10px]">
-                            <span className="text-slate-500">
-                              原计划余额: <span className="font-bold text-slate-700 tabular-nums">{fmtWan(y.planEndBalance, 0)}万</span>
-                            </span>
-                            <span className={y.isProjected ? 'text-slate-400 italic' : 'text-slate-900 font-bold'}>
-                              {y.isProjected ? '推演' : '实际'}: <span className="tabular-nums">{fmtWan(y.projectedEndBalance, 0)}万</span>
-                            </span>
-                          </div>
+                          {/* 北极星对比 (小字, 落后/领先) */}
+                          {!isCurrent && (
+                            <div className="text-[10px] text-slate-400 mt-1 px-1">
+                              北极星余额: <span className="tabular-nums">{symbol}{fmtWan(y.planEndBalance * rate, 1)}万</span>
+                              {' · '}
+                              {y.endBalance >= y.planEndBalance ? (
+                                <span className="text-rose-500 font-bold">领先 {symbol}{fmtWan((y.endBalance - y.planEndBalance) * rate, 1)}万</span>
+                              ) : (
+                                <span className="text-emerald-500 font-bold">落后 {symbol}{fmtWan((y.planEndBalance - y.endBalance) * rate, 1)}万</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -4062,17 +4155,30 @@ function MainApp({ user, onLogout }) {
                       </div>
                       {(() => {
                         const [draft, setDraft] = [investmentPlan, setInvestmentPlan];
+                        const settingCurrency = draft.displayCurrency || 'USD';
+                        const isCNYSetting = settingCurrency === 'CNY';
+                        const settingSymbol = isCNYSetting ? '¥' : '$';
+                        const settingRate = isCNYSetting ? (usdRate || 7.2) : 1;
+                        // 输入框显示值 (当前币种)
+                        const displayStartCapital = draft.startCapital * settingRate;
                         return (
                           <div className="space-y-3">
                             <div>
-                              <label className="text-xs text-slate-500 block mb-1">基础本金 (¥)</label>
+                              <label className="text-xs text-slate-500 block mb-1">基础本金 ({settingSymbol})</label>
                               <input
                                 type="number"
-                                value={draft.startCapital}
-                                onChange={e => setDraft({ ...draft, startCapital: parseFloat(e.target.value) || 0 })}
+                                value={Math.round(displayStartCapital)}
+                                onChange={e => {
+                                  const inputVal = parseFloat(e.target.value) || 0;
+                                  // 存回 USD
+                                  setDraft({ ...draft, startCapital: inputVal / settingRate });
+                                }}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
                               />
-                              <div className="text-[10px] text-slate-400 mt-0.5">当前: {fmtWanUSD(draft.startCapital, 0)}</div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                当前: {fmtWanUSD(draft.startCapital, 0)}
+                                {isCNYSetting && <span> (输入 ¥ 自动换算为 USD 存储, 汇率 1 USD = {settingRate} CNY)</span>}
+                              </div>
                             </div>
                             <div>
                               <label className="text-xs text-slate-500 block mb-1">年化目标 (%)</label>
@@ -4267,6 +4373,8 @@ function MainApp({ user, onLogout }) {
                     <YearlyActualModal
                       year={year}
                       initial={existing || { actualGain: null, endBalance: null }}
+                      currency={investmentPlan.displayCurrency || 'USD'}
+                      rate={(investmentPlan.displayCurrency === 'CNY') ? (usdRate || 7.2) : 1}
                       onCancel={() => setEditYearlyActualId(null)}
                       onSave={async (actualGain, endBalance) => {
                         try {
@@ -4588,31 +4696,35 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 17:00:00 (UTC+8)
-// 📝 本次更新: v10.5.3 - 北极星 ↔ 年度表 双向联动 🎯
+// 📅 最后修改时间: 2026-04-21 18:30:00 (UTC+8)
+// 📝 本次更新: v10.5.5 - 复盘 tab 双币种切换 💱
 //
-//   核心改进: 实现"目标 vs 实际"差额可视化
+//   改动: 2 个文件 (db.js + App.jsx)
+//   前置条件: 已跑 SQL (ALTER TABLE investment_plan ADD display_currency)
 //
-//   1. 北极星卡新增"现实推演终点"行:
-//      - 主数字 = 原计划终点 (北极星, 不变)
-//      - 新增 = projectedFinal (根据实际数据推演)
-//      - 显示 "落后/领先 XX 万"
-//      - 只在 projectedFinal 与 ageGoalAmount 不同时显示
+//   新增功能:
+//     ✅ 复盘 tab 顶部右侧: [$ USD] [¥ CNY] 切换按钮
+//     ✅ 切换状态云端保存 (多设备同步)
+//     ✅ 汇率复用资产 tab 的 usdRate (默认 7.2)
+//     ✅ 数据库统一存 USD, 显示时动态换算
 //
-//   2. 年度表换样式 (每行 2 行布局):
-//      - 第 1 行: 年份 + [本年]/[达标]/[未达] 标签 + 编辑按钮
-//      - 第 2 行: 目标 / 实际 / 差额 (新增列, 重要!)
-//      - 第 3 行: 原计划余额 vs 推演余额 (小字)
+//   涉及页面:
+//     - 北极星卡: 主数字按币种显示
+//     - 年度表: 起点/终点/计划/实际/差额 全部动态
+//     - 北极星余额对比小字: 带符号
+//     - 年度编辑 Modal: 输入框提示当前币种
+//     - 计划设置 Modal: 本金字段支持 CNY 输入
 //
-//   联动逻辑:
-//      用户填某年实际 → 推演自动重算
-//      → 北极星卡显示新差额
-//      → 年度表显示该年差额 + 后续年用新基础推算
+//   存储规则:
+//     - 数据库统一存 USD 值 (start_capital, actualGain, endBalance)
+//     - 显示时: USD × rate (rate = CNY?7.2:1)
+//     - 输入时: CNY 值 / rate = USD 值 (保存到 DB)
+//     → 切换币种不会丢失精度, 数据永远准确
 //
-//   视觉:
-//      达标 → 红色 ↑ (你定义涨为红, 跌为绿)
-//      未达 → 绿色 ↓
-//      未填 → 灰色 —
+//   不受影响:
+//     - 融资红线保持 ¥ (国内券商融资天然人民币)
+//     - 资产 tab (家庭资产, 已有多币种支持)
+//     - 首页/交易 tab (独立)
 //
-// 📦 v10.5.2: 复利计划卡烈焰红金
+// 📦 v10.5.4: 复利计划科学重构 (柔性目标)
 // ============================================
