@@ -50,6 +50,18 @@ export const signOut = async () => {
   return await supabase.auth.signOut();
 };
 
+// 发送重置密码邮件 (忘记密码)
+export const resetPassword = async (email) => {
+  return await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,  // 点邮件链接后回到 App
+  });
+};
+
+// 更新密码 (已登录时用)
+export const updatePassword = async (newPassword) => {
+  return await supabase.auth.updateUser({ password: newPassword });
+};
+
 // 监听登录状态变化(用于自动响应登录/登出)
 export const onAuthChange = (callback) => {
   return supabase.auth.onAuthStateChange((event, session) => {
