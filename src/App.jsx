@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import Login from './Login';
 import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
 import * as db from './lib/db';
@@ -660,9 +660,6 @@ function MainApp({ user, onLogout }) {
     { id: 2, name: '止盈点2', gain: 0.70, sellRatio: 0.30 },
   ]);
 
-  // 持久化
-  const [saved, setSaved] = useState(false);
-  
   // 拉取实时行情状态
   const [fetching, setFetching] = useState(false);
 
@@ -843,12 +840,6 @@ function MainApp({ user, onLogout }) {
     return () => clearTimeout(watchlistSaveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlistStructureSig, cloudLoading]);
-
-  // saveState: 现在是手动触发的"保存反馈",数据其实自动同步
-  const saveState = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
 
   const resetAll = () => {
     // 第一次确认: 警告严重性
@@ -5938,25 +5929,18 @@ function MainApp({ user, onLogout }) {
 
             {/* 数据持久化 */}
             <div className="bg-white rounded-2xl p-5 shadow">
-              <h2 className="font-bold text-lg mb-3">💾 数据管理</h2>
-              <div className="text-xs text-slate-500 mb-3">
-                所有数据(关注列表 / 持仓 / 计划 / VIX / FGI)都自动保存在你浏览器本地。
+              <h2 className="font-bold text-lg mb-3">💾 数据</h2>
+              <div className="text-xs text-slate-500 mb-3 leading-relaxed">
+                所有数据自动云端同步, 无需手动保存。
+                <br/>
+                如需清空本地数据, 可点重置 (云端数据保留)。
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={saveState}
-                  className={`flex-1 py-2.5 rounded-xl font-bold text-white flex items-center justify-center gap-1 active:scale-95 transition ${saved ? 'bg-green-600' : 'bg-slate-700'}`}
-                >
-                  <Save className="w-4 h-4" />
-                  {saved ? '✓ 已保存' : '手动保存'}
-                </button>
-                <button
-                  onClick={resetAll}
-                  className="px-4 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-200 flex items-center justify-center gap-1 active:scale-95"
-                >
-                  <RotateCcw className="w-4 h-4" /> 重置
-                </button>
-              </div>
+              <button
+                onClick={resetAll}
+                className="w-full py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1.5 active:scale-95 transition"
+              >
+                <RotateCcw className="w-4 h-4" /> 重置本地数据
+              </button>
             </div>
 
             {/* 📜 更新日志 */}
@@ -5966,14 +5950,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.3
+                  v10.7.8.5
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8.3', date: '2026-04-22', latest: true,
+                    ver: 'v10.7.8.5', date: '2026-04-22', latest: true,
+                    items: ['首页指数改用 SPY/QQQ ETF (实时数据 替代 15min 延迟的指数)', '删除"手动保存"假按钮 (数据本来就自动同步)', '"重置"按钮改名"重置本地数据" 更清晰'],
+                  },
+                  {
+                    ver: 'v10.7.8.3', date: '2026-04-22',
                     items: ['年度目标进度条改成"实际收益完成度" (不再是时间)', '4 个主按钮统一金色描边 (添加交易/填月度余额/手动拉取)'],
                   },
                   {
@@ -6101,7 +6089,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.3</div>
+                <div>📊 版本:v10.7.8.5</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6462,23 +6450,25 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 15:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8.3 - 完成度进度条 + 按钮配色统一 🎯
+// 📅 最后修改时间: 2026-04-22 16:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.5 - 指数实时数据 + 设置精简 ⚡
 //
-//   改动 1: 年度目标进度条逻辑改变
-//     之前: 基于时间 (4月 = 33%)
-//     现在: 基于实际收益完成度 (实际增长 / 目标增长)
-//     例如: 目标 +20%, 实际 +12% → 进度 60%
-//     上限 150% (超额完成显示, 颜色变红橙金)
-//     未填实际: 进度 0%, 文案 "尚未填收益"
+//   改动 1: 首页 ETF 替代真指数 (api/quote.js)
+//     问题: EODHD 真指数 (GSPC.INDX/NDX.INDX) 有 15 分钟延迟
+//          即使前端每 10 秒刷, 数据还是慢
+//     修复: 改用 SPY (标普 500 ETF) 和 QQQ (纳指 100 ETF)
+//          ETF 是真实时数据 (你的 All World Extended 套餐)
+//          数字会变成 ~580 (SPY) 和 ~480 (QQQ) 这种
+//          但走势 100% 同步指数
+//          和长桥/雪球的"S&P 500 ETF"一样
 //
-//   改动 2: 4 个主按钮改"金色描边 V3"
-//     1) 交易 tab → "添加交易"
-//     2) 资产 tab → "填月度余额" (含 disabled 态)
-//     3) 资产 tab → "补录/修改月度余额"
-//     4) 设置 tab → "立即手动拉取"
-//     白底 + 深金字 + 2px 金边 + 字体加粗
+//   改动 2: 删除"手动保存"假按钮 (App.jsx)
+//     之前: 点击只显示 "✓ 已保存" 2 秒, 实际什么都不做
+//     原因: 数据本来就自动云端同步
+//     保留: "重置" 按钮 → 改名 "重置本地数据"
 //
+//   清理: 删除 saveState 函数 + saved state + Save 图标 import
+//
+// 📦 v10.7.8.3: 完成度 + 按钮配色
 // 📦 v10.7.8.1: WebSocket 走势图同步
-// 📦 v10.7.8:   WebSocket 实时推送 BETA
 // ============================================
