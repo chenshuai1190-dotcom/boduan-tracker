@@ -2466,21 +2466,396 @@ function MainApp({ user, onLogout }) {
 
         {/* ====== 分析 tab(预留位,即将上线) ====== */}
         {activeTab === 'analysis' && (<>
+          {(() => {
+            // ============ 工具函数 ============
+            const currentMonth = new Date().toISOString().slice(0, 7); // '2026-04'
+            const lastMonthDate = new Date();
+            lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+            const lastMonth = lastMonthDate.toISOString().slice(0, 7);
 
-        <div className="bg-white rounded-2xl p-8 mb-4 shadow text-center">
-          <div className="text-5xl mb-3">📊</div>
-          <h2 className="font-bold text-lg mb-2 text-slate-700">分析功能开发中</h2>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            未来这里会有:
-          </p>
-          <div className="mt-3 space-y-1.5 text-sm text-slate-600">
-            <div>📈 收益曲线</div>
-            <div>🎯 胜率统计</div>
-            <div>🤖 AI 每日盘评</div>
-            <div>📅 操作日历</div>
-          </div>
-        </div>
+            // 账户在某月的余额 (CNY 换算后)
+            const getBalance = (accId, month) => {
+              const snap = snapshots.find(s => s.accountId === accId && s.month === month);
+              return snap ? snap.balance : 0;
+            };
+            const toCNY = (balance, currency) => currency === 'USD' ? balance * usdRate : balance;
+            const balanceAtMonthCNY = (accId, month) => {
+              const acc = accounts.find(a => a.id === accId);
+              if (!acc) return 0;
+              return toCNY(getBalance(accId, month), acc.currency);
+            };
 
+            // 总资产
+            const totalAtMonth = (month) =>
+              accounts.reduce((sum, acc) => sum + balanceAtMonthCNY(acc.id, month), 0);
+
+            const totalNow = totalAtMonth(currentMonth);
+            const totalLast = totalAtMonth(lastMonth);
+            const monthChange = totalNow - totalLast;
+            const monthChangePct = totalLast > 0 ? (monthChange / totalLast) * 100 : 0;
+
+            // 按人分组
+            const myAccounts = accounts.filter(a => a.owner === '我');
+            const wifeAccounts = accounts.filter(a => a.owner === '老婆');
+            const myTotal = myAccounts.reduce((s, a) => s + balanceAtMonthCNY(a.id, currentMonth), 0);
+            const wifeTotal = wifeAccounts.reduce((s, a) => s + balanceAtMonthCNY(a.id, currentMonth), 0);
+
+            return (
+              <>
+                {/* ====== 顶部总资产卡 ====== */}
+                <div className="rounded-2xl p-4 mb-4 shadow-lg text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-black text-sm tracking-tight">家庭资产</span>
+                    </div>
+                    <button
+                      onClick={() => setShowFillSnapshot(true)}
+                      className="px-2 py-1 rounded-md bg-blue-600/80 hover:bg-blue-600 active:scale-95 transition text-[11px] font-bold text-white flex items-center gap-1"
+                      disabled={accounts.length === 0}
+                    >
+                      <Calendar className="w-3 h-3" /> 填 {currentMonth.slice(5)} 月
+                    </button>
+                  </div>
+
+                  <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">当月总资产 (CNY)</div>
+                  <div className="text-3xl font-black tabular-nums text-white mb-2" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                    ¥{fmt(totalNow, 0)}
+                  </div>
+
+                  {totalLast > 0 && (
+                    <div className={`text-xs font-bold tabular-nums ${monthChange >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {monthChange >= 0 ? '+' : ''}¥{fmt(Math.abs(monthChange), 0)} ({monthChange >= 0 ? '+' : ''}{monthChangePct.toFixed(2)}%) 本月
+                    </div>
+                  )}
+
+                  {/* 按人分组 */}
+                  {accounts.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-700">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">我</div>
+                        <div className="text-sm font-bold tabular-nums text-white">¥{fmt(myTotal, 0)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-widest font-bold text-slate-400">老婆</div>
+                        <div className="text-sm font-bold tabular-nums text-white">¥{fmt(wifeTotal, 0)}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ====== 账户列表 ====== */}
+                <div className="bg-white rounded-2xl p-3 mb-4 shadow">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <h3 className="font-bold text-sm text-slate-800">账户</h3>
+                    <button
+                      onClick={() => setShowAddAccount(true)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 active:scale-95 transition text-xs font-bold text-blue-700"
+                    >
+                      <Plus className="w-3 h-3" /> 添加
+                    </button>
+                  </div>
+
+                  {accounts.length === 0 ? (
+                    <div className="text-center py-12 px-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-dashed border-blue-200">
+                      <div className="text-5xl mb-3">💰</div>
+                      <div className="text-slate-700 font-bold mb-1.5">还没有账户</div>
+                      <div className="text-xs text-slate-500 mb-3">添加你和家人的账户,记录每月余额</div>
+                      <button
+                        onClick={() => setShowAddAccount(true)}
+                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 transition text-sm font-bold text-white"
+                      >
+                        添加第一个账户
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {['我', '老婆'].map(owner => {
+                        const ownerAccounts = accounts.filter(a => a.owner === owner);
+                        if (ownerAccounts.length === 0) return null;
+                        return (
+                          <div key={owner}>
+                            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1 mb-1">{owner}</div>
+                            {ownerAccounts.map(acc => {
+                              const bal = getBalance(acc.id, currentMonth);
+                              const balCNY = toCNY(bal, acc.currency);
+                              return (
+                                <div key={acc.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition">
+                                  <span className="text-xl">{acc.icon || '💰'}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold text-slate-800 truncate">{acc.name}</div>
+                                    <div className="text-[10px] text-slate-500">{acc.type} · {acc.currency}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-sm font-bold tabular-nums text-slate-900">
+                                      {acc.currency === 'USD' ? '$' : '¥'}{fmt(bal, 0)}
+                                    </div>
+                                    {acc.currency === 'USD' && (
+                                      <div className="text-[10px] text-slate-400 tabular-nums">≈¥{fmt(balCNY, 0)}</div>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => setAccountDeleteConfirmId(acc.id)}
+                                    className="w-6 h-6 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-xs transition active:scale-90 ml-1"
+                                    title="删除"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ====== 汇率设置小卡 ====== */}
+                {accounts.some(a => a.currency === 'USD') && (
+                  <div className="bg-white rounded-xl p-3 mb-4 shadow flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">💱</span>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">美元汇率</div>
+                        <div className="text-[10px] text-slate-500">USD → CNY 换算</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">1 USD =</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={usdRate}
+                        onChange={(e) => setUsdRate(parseFloat(e.target.value) || 7.20)}
+                        className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center font-bold tabular-nums"
+                      />
+                      <span className="text-xs text-slate-500">CNY</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ====== 添加账户 Modal ====== */}
+                {showAddAccount && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddAccount(false)}>
+                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-base">添加账户</h3>
+                        <button onClick={() => setShowAddAccount(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-slate-500 block mb-1">拥有人</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['我', '老婆'].map(o => (
+                              <button
+                                key={o}
+                                onClick={() => setNewAccount({...newAccount, owner: o})}
+                                className={`py-2 rounded-lg text-sm font-bold transition ${newAccount.owner === o ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                              >{o}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-500 block mb-1">类型</label>
+                          <div className="grid grid-cols-4 gap-1">
+                            {[
+                              { t: '银行', i: '🏦' },
+                              { t: '证券', i: '📈' },
+                              { t: '支付宝', i: '💚' },
+                              { t: '微信', i: '💬' },
+                              { t: '定期', i: '🔒' },
+                              { t: '现金', i: '💵' },
+                              { t: '公积金', i: '🏛️' },
+                              { t: '其他', i: '💰' },
+                            ].map(({ t, i }) => (
+                              <button
+                                key={t}
+                                onClick={() => setNewAccount({...newAccount, type: t, icon: i})}
+                                className={`py-2 rounded-lg text-xs font-bold transition flex flex-col items-center gap-0.5 ${newAccount.type === t ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' : 'bg-slate-50 text-slate-600 border-2 border-transparent'}`}
+                              >
+                                <span className="text-base">{i}</span>
+                                <span>{t}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-500 block mb-1">账户名</label>
+                          <input
+                            type="text"
+                            value={newAccount.name}
+                            onChange={(e) => setNewAccount({...newAccount, name: e.target.value})}
+                            placeholder="例: 招商银行 / 长桥证券"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-500 block mb-1">币种</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['CNY', 'USD', 'HKD'].map(c => (
+                              <button
+                                key={c}
+                                onClick={() => setNewAccount({...newAccount, currency: c})}
+                                className={`py-2 rounded-lg text-sm font-bold transition ${newAccount.currency === c ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                              >{c}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-500 block mb-1">当前余额 (可稍后填)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={newAccount.balance}
+                            onChange={(e) => setNewAccount({...newAccount, balance: e.target.value})}
+                            placeholder="0"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={() => setShowAddAccount(false)}
+                          className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold"
+                        >取消</button>
+                        <button
+                          onClick={async () => {
+                            if (!newAccount.name.trim()) { alert('请填写账户名'); return; }
+                            // 检查同人同名
+                            if (accounts.find(a => a.owner === newAccount.owner && a.name === newAccount.name.trim())) {
+                              alert('该账户已存在');
+                              return;
+                            }
+                            const tempId = 'tmp_' + Date.now();
+                            const newAcc = {
+                              id: tempId,
+                              owner: newAccount.owner,
+                              type: newAccount.type,
+                              name: newAccount.name.trim(),
+                              currency: newAccount.currency,
+                              icon: newAccount.icon,
+                              sortOrder: accounts.length,
+                            };
+                            setAccounts([...accounts, newAcc]);
+                            // 如果填了余额,也加一条快照
+                            if (newAccount.balance && parseFloat(newAccount.balance) > 0) {
+                              setSnapshots([...snapshots, {
+                                id: 'tmp_snap_' + Date.now(),
+                                accountId: tempId,
+                                month: currentMonth,
+                                balance: parseFloat(newAccount.balance),
+                              }]);
+                            }
+                            setNewAccount({ owner: '我', type: '银行', name: '', currency: 'CNY', icon: '🏦', balance: '' });
+                            setShowAddAccount(false);
+                          }}
+                          className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
+                        >添加</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ====== 删除账户确认 Modal ====== */}
+                {accountDeleteConfirmId && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setAccountDeleteConfirmId(null)}>
+                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+                      <h3 className="font-bold text-base mb-2">删除账户</h3>
+                      <p className="text-sm text-slate-600 mb-4">
+                        删除 <span className="font-bold">{accounts.find(a => a.id === accountDeleteConfirmId)?.name}</span> ?
+                        <br/><span className="text-xs text-slate-400">该账户所有月度快照也会一起删除</span>
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setAccountDeleteConfirmId(null)}
+                          className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold"
+                        >取消</button>
+                        <button
+                          onClick={() => {
+                            const accId = accountDeleteConfirmId;
+                            setAccounts(accounts.filter(a => a.id !== accId));
+                            setSnapshots(snapshots.filter(s => s.accountId !== accId));
+                            setAccountDeleteConfirmId(null);
+                          }}
+                          className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-bold"
+                        >删除</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ====== 填快照 Modal ====== */}
+                {showFillSnapshot && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFillSnapshot(false)}>
+                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-base">填 {currentMonth} 月余额</h3>
+                        <button onClick={() => setShowFillSnapshot(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {accounts.map(acc => {
+                          const currentBal = getBalance(acc.id, currentMonth);
+                          const draftVal = snapshotDraft[acc.id] ?? (currentBal || '');
+                          return (
+                            <div key={acc.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
+                              <span className="text-lg">{acc.icon || '💰'}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold truncate">{acc.name}</div>
+                                <div className="text-[10px] text-slate-500">{acc.owner} · {acc.currency}</div>
+                              </div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={draftVal}
+                                onChange={(e) => setSnapshotDraft({...snapshotDraft, [acc.id]: e.target.value})}
+                                placeholder="0"
+                                className="w-24 px-2 py-1.5 border border-slate-300 rounded text-sm tabular-nums text-right"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={() => { setShowFillSnapshot(false); setSnapshotDraft({}); }}
+                          className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold"
+                        >取消</button>
+                        <button
+                          onClick={() => {
+                            // 应用 snapshotDraft 到 snapshots
+                            const newSnapshots = [...snapshots];
+                            Object.entries(snapshotDraft).forEach(([accId, valStr]) => {
+                              const val = parseFloat(valStr);
+                              if (isNaN(val) || val < 0) return;
+                              const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === currentMonth);
+                              if (idx >= 0) {
+                                newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
+                              } else {
+                                newSnapshots.push({
+                                  id: 'tmp_snap_' + Date.now() + '_' + accId,
+                                  accountId: accId,
+                                  month: currentMonth,
+                                  balance: val,
+                                });
+                              }
+                            });
+                            setSnapshots(newSnapshots);
+                            setSnapshotDraft({});
+                            setShowFillSnapshot(false);
+                          }}
+                          className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
+                        >保存</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </>)}
         {/* ====== 分析 tab 结束 ====== */}
 
@@ -2780,26 +3155,30 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-20 22:40:00 (UTC+8)
-// 📝 本次更新: v10.2.7 - 彻底重构关注保存机制
+// 📅 最后修改时间: 2026-04-21 11:00:00 (UTC+8)
+// 📝 本次更新: v10.3.0 - 资产 tab 本地版 (Day 4 Step 2)
 //
-//   问题: 删股票消失后刷新又回来
-//   根因: "删光重插" 机制存在以下问题
-//     1. 删 7 条 → 插 6 条 的时序里, 中间可能被其他请求打断
-//     2. UNIQUE 约束 + 竞态可能导致 INSERT 失败
-//     3. 失败后前后端不一致 → 刷新恢复旧数据
+//   功能:
+//     ✓ 资产 tab 替换占位图为真实 UI
+//     ✓ 顶部总资产卡 (当月 + 本月变化 + 按人分组)
+//     ✓ 账户列表 (分 我/老婆 两组)
+//     ✓ 添加账户 Modal (人/类型/名字/币种/初始余额)
+//     ✓ 删除账户 Modal (带确认, 删除时同步清掉快照)
+//     ✓ 填月度快照 Modal (一次填所有账户本月余额)
+//     ✓ 美元汇率设置 (有 USD 账户时才显示)
+//     ✓ 空状态引导
 //
-//   修复: 改用"精确单条操作"
-//     addStock    → 直接 upsert 一条
-//     removeStock → 直接 DELETE 一条
-//     改成本/股数 → 防抖 upsert (只改变了的那只)
+//   架构 (严格按数据架构宪法):
+//     ❌ 暂未接 Supabase (本次只做本地版, 下一版 Step 3 接云端)
+//     ✓ 新增代码不影响 watchlist / trades / settings
+//     ✓ 独立 state: accounts / snapshots / usdRate
+//     ✓ 独立模块: 所有逻辑在 analysis tab 内部, 不污染其他
 //
-//   好处:
-//     ✓ 不再有"删光重插"的竞态
-//     ✓ 删除立刻生效, 不等防抖
-//     ✓ 配合 UNIQUE 约束, 添加同名股票会报错 (好事)
-//     ✓ 代码更简单
+//   下一步 (Step 3):
+//     - 接 Supabase fetchAccounts/insertAccount/etc
+//     - 按宪法: 所有 fetch 都要 .eq('user_id', user.id)
+//     - 多账户隔离测试
 //
-// 📦 v10.2.6: 修 Promise.all → Promise.allSettled
-// 📦 数据库: 已关 RLS + 加 UNIQUE 约束 (手动 SQL)
+// 📦 v10.2.8: 多账户隔离 (修昨天的大 bug)
+// 📦 v10.2.7: 抛弃"删光重插"模式
 // ============================================
