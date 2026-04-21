@@ -603,6 +603,8 @@ function MainApp({ user, onLogout }) {
   const [expandedDisciplines, setExpandedDisciplines] = useState({}); // { id: bool } 长戒律展开
   const [editYearlyActualId, setEditYearlyActualId] = useState(null); // 编辑哪个年份的实际数据
   const [showAllYears, setShowAllYears] = useState(false); // 年度表默认显示 3 个, 点击展开全部
+  // 防重复提交: 记录最近一次提交的内容 + 时间戳 (10 秒内相同内容拒绝)
+  const lastSubmitRef = useRef({}); // { [key]: { text: '', at: timestamp } }
 
   // 波段展开状态(点击波段可展开看明细) { 'wave-id': true }
   const [expandedWaves, setExpandedWaves] = useState({});
@@ -4559,7 +4561,16 @@ function MainApp({ user, onLogout }) {
                             setDisciplines(disciplines.map(d => d.id === editingDisciplineId ? { ...d, ...data } : d));
                             setEditingDisciplineId(null);
                           } else {
+                            // 防重复: 10 秒内相同内容拒绝
+                            const text = (data.text || '').trim();
+                            const last = lastSubmitRef.current['discipline'];
+                            const now = Date.now();
+                            if (last && last.text === text && (now - last.at) < 10000) {
+                              alert('⚠️ 10 秒内已提交过相同内容, 请勿重复');
+                              return;
+                            }
                             const saved = await db.insertDiscipline(data);
+                            lastSubmitRef.current['discipline'] = { text, at: now };
                             setDisciplines([saved, ...disciplines]);
                             setShowAddDiscipline(false);
                           }
@@ -4592,7 +4603,16 @@ function MainApp({ user, onLogout }) {
                             setReviewLogs(reviewLogs.map(l => l.id === editingLogId ? { ...l, ...data } : l));
                             setEditingLogId(null);
                           } else {
+                            // 防重复: 10 秒内相同内容拒绝
+                            const text = (data.text || '').trim();
+                            const last = lastSubmitRef.current['log'];
+                            const now = Date.now();
+                            if (last && last.text === text && (now - last.at) < 10000) {
+                              alert('⚠️ 10 秒内已提交过相同内容, 请勿重复');
+                              return;
+                            }
                             const saved = await db.insertReviewLog(data);
+                            lastSubmitRef.current['log'] = { text, at: now };
                             setReviewLogs([saved, ...reviewLogs]);
                             setShowAddLog(false);
                           }
@@ -4933,28 +4953,27 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-21 21:30:00 (UTC+8)
-// 📝 本次更新: v10.6.1 - 年度表字号↑ + 折叠
+// 📅 最后修改时间: 2026-04-21 22:00:00 (UTC+8)
+// 📝 本次更新: v10.6.2 - 防重复提交 🛡️
 //
-//   改动:
-//     1. 字号放大一档
-//        本年年份 16 → 20px
-//        本年数字 13 → 18px
-//        胶囊字 11 → 14px
-//        差额徽章 10 → 13px
-//        其他年份 14 → 17px
-//        其他数字 11 → 14px
-//        标题 13 → 15px
-//   
-//     2. 两侧贴边
-//        卡片内边距 p-4 → p-2.5
-//        (更多空间给内容)
+//   问题:
+//     提交日记/戒律时, 用户可能反复点保存按钮
+//     导致同一条内容存进数据库多次
 //
-//     3. 默认折叠
-//        只显示本年 + 未来 2 年 (共 3 个)
-//        底部"展开剩余 X 年"按钮
-//        点击展开全部 10 年
-//        再点"收起"返回 3 个
+//   解决:
+//     用 useRef 记录最近一次提交内容
+//     提交前检查: 相同内容 + 10 秒内 → 拒绝 + alert
+//     不同内容 / 超过 10 秒 → 允许提交
 //
+//   范围:
+//     ✓ 投资戒律 (新增)
+//     ✓ 复盘日记 (新增)
+//     ✗ 编辑模式不影响 (本来就有 ID 不会重复)
+//
+//   存储:
+//     useRef 仅在内存, 刷新就清空
+//     不影响数据库设计
+//
+// 📦 v10.6.1: 年度表字号+折叠
 // 📦 v10.6.0: 年度表 V5B + BG5 + PE
 // ============================================
