@@ -234,7 +234,9 @@ export default async function handler(req, res) {
 
           // Yahoo 数据(优先,盘前盘后延迟更小)
           let yahooPrice = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
-          let intraday = [];
+          let intraday = [];           // 纯价格数组 (兼容旧代码)
+          let intradayPoints = [];      // [{price, t, session}] 含时间戳和时段
+          let regularMarketTime = 0;   // 开盘时间戳 (秒, Unix)
           if (yahooRes && yahooRes.ok) {
             try {
               const yahooData = await yahooRes.json();
@@ -243,20 +245,38 @@ export default async function handler(req, res) {
               yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
               yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED
               yahooTimestamp = meta.regularMarketTime || 0;
+              regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
+              const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
+              const preStart = meta.currentTradingPeriod?.pre?.start || 0;
+              const postEnd = meta.currentTradingPeriod?.post?.end || 0;
 
-              // 分时 closes
+              // 分时 closes + timestamp
               const closes = result?.indicators?.quote?.[0]?.close || [];
-              intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+              const tsArr = result?.timestamp || [];
+
+              // 构造带时间戳的分时点 + 时段标记 (pre/regular/post)
+              intradayPoints = [];
+              intraday = [];
+              for (let i = 0; i < closes.length; i++) {
+                const v = closes[i];
+                if (v === null || v === undefined || isNaN(v)) continue;
+                const t = tsArr[i] || 0;
+                let session = 'regular';
+                if (regularMarketTime > 0 && regularEndTime > 0) {
+                  if (t < regularMarketTime) session = 'pre';
+                  else if (t > regularEndTime) session = 'post';
+                  else session = 'regular';
+                }
+                intraday.push(v);
+                intradayPoints.push({ price: v, t, session });
+              }
 
               // 价格决策:
               // - 盘中 REGULAR: 用 meta.regularMarketPrice (权威)
-              // - 盘外 PRE/POST/CLOSED: 用 intraday 分时最后一点 (盘前盘后最新成交价)
-              //   因为 Yahoo chart meta 不暴露 preMarketPrice/postMarketPrice,
-              //   但 includePrePost=true 时 intraday 会包含盘外数据
+              // - 盘外 PRE/POST/CLOSED: 用 intraday 分时最后一点
               if (yahooMarketState === 'REGULAR') {
                 yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
               } else {
-                // 盘前/盘后/休市: 取分时最后一点
                 yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
               }
             } catch (e) { /* ignore */ }
@@ -325,6 +345,8 @@ export default async function handler(req, res) {
             previousClose,
             timestamp,
             intraday,
+            intradayPoints,       // [{price, t, session}] 带时间戳+时段 (pre/regular/post)
+            regularMarketTime,    // 开盘时间戳 (秒)
             marketState: yahooMarketState,
             priceSource,
             source: priceSource === 'Yahoo' ? 'Yahoo' : 'EODHD',
