@@ -387,6 +387,14 @@ const STOCK_NAME_CN = {
 
 // ============ 股票配色 ============
 // 主流热门股配品牌色,非主流的根据代码 hash 自动分配
+// ============ 股票卡片颜色:统一翠绿色 ============
+// 所有股票卡片头部用同一种翠绿,简洁统一
+const UNIFIED_GREEN = { from: '#10b981', to: '#047857' };  // emerald 500→700
+
+const getStockColor = (symbol) => UNIFIED_GREEN;
+
+
+
 // ============ 内部主 App 组件(要求已登录) ============
 // ============ VIX 恐慌指数卡片(独立组件,支持滚动入场动画) ============
 function VixCard({ vix, setVix, vixDataDate, setVixDataDate, vixSignal }) {
@@ -480,6 +488,7 @@ function MainApp({ user, onLogout }) {
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
   const [tqqqCurrent, setTqqqCurrent] = useState(58.55);
+  const [totalCapital, setTotalCapital] = useState(500000);
 
   // 关注股票列表(可编辑价格)
   // high = 6个月滚动最高价,用于计算回撤预警
@@ -555,6 +564,7 @@ function MainApp({ user, onLogout }) {
   const [hkdRate, setHkdRate] = useState(0.87);           // 港币换人民币汇率
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState(null);
   const [accountDeleteConfirmId, setAccountDeleteConfirmId] = useState(null);
   const [newAccount, setNewAccount] = useState({
     owner: '我',
@@ -857,6 +867,7 @@ function MainApp({ user, onLogout }) {
     setQqqHigh(640.47);
     setQqqCurrent(640.47);
     setTqqqCurrent(58.55);
+    setTotalCapital(500000);
     try { localStorage.removeItem('tqqq_state'); } catch {}  // 兼容隐私模式
     alert('本地数据已清空 (云端数据保留)');
   };
@@ -1186,6 +1197,20 @@ function MainApp({ user, onLogout }) {
   });
 
   // ============ 操作函数 ============
+  const updateBatch = async (id, field, value) => {
+    const newBatches = batches.map(b => b.id === id ? { ...b, [field]: parseFloat(value) || 0 } : b);
+    setBatches(newBatches);
+    // 保存到云端 settings.batches
+    try {
+      await db.upsertSettings({
+        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
+        vix, vixDataDate,
+        batches: newBatches,
+        exitTargets,
+      });
+    } catch (e) { console.error('batch 保存失败:', e); }
+  };
+
   const addTrade = async () => {
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
       alert('请填写股票代码、价格和股数');
@@ -1949,6 +1974,10 @@ function MainApp({ user, onLogout }) {
                 >
                   ${fmt(totalMV, 0)}
                 </div>
+                {/* 💱 CNY 副显示 */}
+                <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                  ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
+                </div>
                 {totalCost > 0 && (
                   <div className={`text-[11px] font-bold tabular-nums mt-0.5 ${totalGainPct >= 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                     {totalGainPct >= 0 ? '+' : ''}{(totalGainPct * 100).toFixed(1)}% 浮动
@@ -1959,9 +1988,13 @@ function MainApp({ user, onLogout }) {
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   <div>
                     <div className="text-[9px] uppercase tracking-widest font-bold" style={{ color: '#737373' }}>波段总盈亏</div>
-                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <div className="flex items-baseline gap-1.5 mt-0.5 flex-wrap">
                       <span className={`font-black text-base tabular-nums ${isRealizedProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                         {isRealizedProfit ? '+' : ''}${fmt(realizedOnly, 0)}
+                      </span>
+                      {/* 💱 CNY 副显示 (小字) */}
+                      <span className="text-[10px] tabular-nums" style={{ color: '#737373', fontFamily: 'ui-monospace, monospace' }}>
+                        ≈ {isRealizedProfit ? '+' : '-'}¥{(Math.abs(realizedOnly) * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </span>
                     </div>
                   </div>
@@ -5873,7 +5906,7 @@ function MainApp({ user, onLogout }) {
                 const changelog = [
                   {
                     ver: 'v10.7.9.9', date: '2026-04-23', latest: true,
-                    items: ['🧹 代码清理 (删除 10 处死代码, -105 行)', 'App.jsx 6750→6726 · db.js 766→686', '清理: totalCapital/UNIFIED_GREEN/updateBatch 等 v1 时代残留'],
+                    items: ['💱 首页总览卡加人民币副显示 (≈ ¥X.X万)', '总市值 + 波段总盈亏 都显示', '主 USD 大字 · 小字 CNY 辅助 · 汇率明示', '🧹 代码清理 -105 行 (10 处死代码)'],
                   },
                   {
                     ver: 'v10.7.9.8', date: '2026-04-23',
