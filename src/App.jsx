@@ -674,11 +674,6 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 📊 分析师评级动态 (Finnhub upgrade-downgrade)
-  const [analystRatings, setAnalystRatings] = useState([]);  // [{ symbol, gradeTime, fromGrade, toGrade, company, action }]
-  const [showAllAnalyst, setShowAllAnalyst] = useState(false);
-  const [analystLoading, setAnalystLoading] = useState(false);
-
   // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
@@ -1336,38 +1331,6 @@ function MainApp({ user, onLogout }) {
       }
     }
   };
-
-  // 📊 拉取分析师评级动态 (Finnhub)
-  const fetchAnalystRatings = async () => {
-    if (watchlist.length === 0) return;
-    setAnalystLoading(true);
-    try {
-      const symbols = `ANALYST:${watchlist.map(s => s.symbol).join(',')}`;
-      const r = await fetch(`/api/quote?symbols=${encodeURIComponent(symbols)}`);
-      const result = await r.json();
-      if (result.success && result.data) {
-        const analystData = result.data.find(d => d.symbol === 'ANALYST');
-        if (analystData?.data && Array.isArray(analystData.data)) {
-          setAnalystRatings(analystData.data);
-          console.log('[分析师] 拉取', analystData.data.length, '条');
-        }
-      }
-    } catch (e) {
-      console.error('[分析师] 拉取失败:', e);
-    } finally {
-      setAnalystLoading(false);
-    }
-  };
-
-  // 自动拉取分析师评级 (跟着 watchlist 变化, 每次只拉 1 次, 缓存 1 小时)
-  useEffect(() => {
-    if (cloudLoading || watchlist.length === 0) return;
-    fetchAnalystRatings();
-    // 每小时刷新一次
-    const timer = setInterval(fetchAnalystRatings, 60 * 60 * 1000);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, watchlist.length]);
 
   // 一键拉取实时行情(从 Vercel API)
   const fetchRealtimePrices = async () => {
@@ -2840,99 +2803,6 @@ function MainApp({ user, onLogout }) {
               </button>
             )}
           </div>
-
-          {/* 📊 分析师评级动态 (Finnhub) */}
-          {watchlist.length > 0 && (
-            <div className="mt-3 bg-white rounded-2xl p-4 shadow" style={{ border: '2px solid #fbbf24', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.12)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-black text-sm text-slate-900 flex items-center gap-1.5">
-                  📊 分析师动态
-                  <span
-                    className="text-[9px] font-black px-1.5 py-0.5 rounded"
-                    style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', color: '#0a0a0a', letterSpacing: '0.5px' }}
-                  >
-                    NEW
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-bold">
-                  {analystLoading ? '加载中...' : `关注列表 · ${analystRatings.length} 条`}
-                </span>
-              </div>
-
-              {analystRatings.length === 0 ? (
-                <div className="text-center py-6 text-slate-400 text-xs">
-                  {analystLoading ? '⏳ 拉取中...' : '📭 最近 90 天暂无关注股票的评级动态'}
-                </div>
-              ) : (
-                <div>
-                  {(showAllAnalyst ? analystRatings : analystRatings.slice(0, 5)).map((r, i) => {
-                    const time = new Date(r.gradeTime * 1000);
-                    const now = new Date();
-                    const diffH = Math.round((now - time) / (1000 * 60 * 60));
-                    const diffD = Math.round(diffH / 24);
-                    const relative = diffH < 1 ? '刚刚' : diffH < 24 ? `${diffH} 小时前` : diffD < 7 ? `${diffD} 天前` : `${Math.round(diffD/7)} 周前`;
-                    const dateStr = `${(time.getMonth()+1).toString().padStart(2,'0')}-${time.getDate().toString().padStart(2,'0')}`;
-
-                    // 动作类型 → 中文 + 颜色
-                    const action = (r.action || '').toLowerCase();
-                    let actionText, actionStyle;
-                    if (action === 'up') { actionText = '↑ 升级'; actionStyle = { background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }; }
-                    else if (action === 'down') { actionText = '↓ 降级'; actionStyle = { background: '#ecfdf5', color: '#16a34a', border: '1px solid #6ee7b7' }; }
-                    else if (action === 'init') { actionText = '🆕 首次'; actionStyle = { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd' }; }
-                    else { actionText = '— 维持'; actionStyle = { background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }; }
-
-                    // 评级颜色
-                    const newGradeLower = (r.toGrade || '').toLowerCase();
-                    let newGradeColor = '#475569';
-                    if (newGradeLower.includes('strong buy') || newGradeLower.includes('buy') || newGradeLower.includes('outperform') || newGradeLower.includes('overweight')) newGradeColor = '#dc2626';
-                    else if (newGradeLower.includes('sell') || newGradeLower.includes('underperform') || newGradeLower.includes('underweight')) newGradeColor = '#16a34a';
-                    else if (newGradeLower.includes('hold') || newGradeLower.includes('neutral') || newGradeLower.includes('equal')) newGradeColor = '#f59e0b';
-
-                    return (
-                      <div key={i} className="flex gap-2.5 py-2.5" style={{ borderTop: i === 0 ? 'none' : '1px solid #f1f5f9' }}>
-                        {/* 时间 */}
-                        <div className="text-center" style={{ width: '50px', flexShrink: 0 }}>
-                          <div className="text-[11px] font-black text-slate-900 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>{relative}</div>
-                          <div className="text-[9px] text-slate-400 mt-0.5">{dateStr}</div>
-                        </div>
-                        {/* 内容 */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className="font-black text-[11px] text-slate-600 truncate max-w-[120px]">{r.company || '—'}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={actionStyle}>{actionText}</span>
-                            <span className="font-black text-[13px] tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#d97706' }}>{r.symbol}</span>
-                          </div>
-                          <div className="text-[12px] text-slate-600 leading-snug">
-                            {r.fromGrade && r.fromGrade !== r.toGrade && (
-                              <>
-                                <span className="text-slate-400 line-through">{r.fromGrade}</span>
-                                <span className="text-slate-400 mx-1">→</span>
-                              </>
-                            )}
-                            <span className="font-bold" style={{ color: newGradeColor }}>{r.toGrade || '—'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* 展开按钮 */}
-                  {analystRatings.length > 5 && (
-                    <button
-                      onClick={() => setShowAllAnalyst(!showAllAnalyst)}
-                      className="w-full mt-2 py-2 rounded-lg text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 active:scale-95 transition flex items-center justify-center gap-1"
-                    >
-                      {showAllAnalyst ? (
-                        <><ChevronUp className="w-3.5 h-3.5"/>收起, 只看前 5 条</>
-                      ) : (
-                        <><ChevronDown className="w-3.5 h-3.5"/>查看更多 (剩余 {analystRatings.length - 5} 条)</>
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* 持仓汇总 */}
           {(() => {
@@ -5940,22 +5810,14 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.8
+                  v10.7.9.6
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.8', date: '2026-04-23', latest: true,
-                    items: ['🐛 修复分析师动态显示空 (Finnhub API 缺日期参数)', '改成最近 90 天 + 加 F12 调试日志'],
-                  },
-                  {
-                    ver: 'v10.7.9.7', date: '2026-04-23',
-                    items: ['📊 新增"分析师动态"模块 (Finnhub 数据)', '首页关注列表后, 显示华尔街升级/降级/首次覆盖', '点击查看更多 / 收起'],
-                  },
-                  {
-                    ver: 'v10.7.9.6', date: '2026-04-23',
+                    ver: 'v10.7.9.6', date: '2026-04-23', latest: true,
                     items: ['📋 设置页卡片重排序 (符合使用频率)', '新顺序: 实时推送 → 数据状态 → 更新日志 → 云端 → 数据 → 关于', '高频功能优先 (实时推送在最上)'],
                   },
                   {
@@ -6413,7 +6275,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.8</div>
+                <div>📊 版本:v10.7.9.6</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
