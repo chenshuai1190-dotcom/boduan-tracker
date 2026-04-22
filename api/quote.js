@@ -130,31 +130,40 @@ export default async function handler(req, res) {
             }
 
             // 并发拉取每只股票的评级历史
+            // 计算日期范围: 最近 90 天 (拉宽点然后过滤)
+            const now = new Date();
+            const fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            const toStr = now.toISOString().slice(0, 10);
+            const fromStr = fromDate.toISOString().slice(0, 10);
+
             const allRatings = await Promise.all(stockList.map(async (sym) => {
               try {
-                const url = `https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${sym}&token=${finnhubKey}`;
+                const url = `https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${sym}&from=${fromStr}&to=${toStr}&token=${finnhubKey}`;
                 const r = await fetch(url);
-                if (!r.ok) return [];
+                if (!r.ok) {
+                  console.error(`[Finnhub] ${sym} HTTP ${r.status}`);
+                  return [];
+                }
                 const data = await r.json();
+                console.log(`[Finnhub] ${sym}:`, Array.isArray(data) ? `${data.length} 条` : 'not array', JSON.stringify(data).slice(0, 200));
                 if (!Array.isArray(data)) return [];
-                // 每条加上股票代码 (Finnhub 返回里 symbol 字段就有, 这里保险)
                 return data.map(d => ({
                   symbol: d.symbol || sym,
                   gradeTime: d.gradeTime,
                   fromGrade: d.fromGrade || '',
                   toGrade: d.toGrade || '',
                   company: d.company || '',
-                  action: d.action || '',  // up / down / init / maintain
+                  action: d.action || '',
                 }));
               } catch (e) {
-                console.error(`fetchAnalyst ${sym} 失败:`, e.message);
+                console.error(`[Finnhub] ${sym} 失败:`, e.message);
                 return [];
               }
             }));
 
-            // 合并 + 按时间倒序 + 最近 30 天 + 最多 30 条
+            // 合并 + 按时间倒序 + 最近 90 天 + 最多 30 条
             const merged = allRatings.flat();
-            const cutoff = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;  // 30 天前
+            const cutoff = Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60;  // 90 天前
             const filtered = merged
               .filter(r => r.gradeTime && r.gradeTime > cutoff)
               .sort((a, b) => b.gradeTime - a.gradeTime)
