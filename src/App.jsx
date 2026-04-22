@@ -673,10 +673,6 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 🌟 关注 tab 管理模式 state
-  const [watchManageMode, setWatchManageMode] = useState(false);
-  const [watchSelected, setWatchSelected] = useState({}); // { symbol: true }
-
   // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
@@ -1877,7 +1873,7 @@ function MainApp({ user, onLogout }) {
         }
       `}</style>
       <div className="max-w-5xl mx-auto">
-        {/* 顶部总览卡片 - 资产/复盘/设置 tab 专注显示自己的主卡,不展示这个 */}
+        {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
         {activeTab !== 'analysis' && activeTab !== 'review' && activeTab !== 'settings' && (
         <div
           className="rounded-2xl p-4 mb-4 text-white relative overflow-hidden"
@@ -1905,27 +1901,16 @@ function MainApp({ user, onLogout }) {
               </div>
               <span className="text-white font-black text-sm tracking-tight">Bottomline</span>
             </div>
-            {/* 右侧: LIVE 刷新 + 设置齿轮 */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={fetchRealtimePrices}
-                disabled={fetching}
-                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
-                title="点击刷新"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
-                <span className="text-emerald-400 text-[10px] font-bold tracking-wider">LIVE</span>
-                <RefreshCw className={`w-3 h-3 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 active:bg-white/20 active:scale-90 transition"
-                style={{ color: '#fbbf24' }}
-                title="设置"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={fetchRealtimePrices}
+              disabled={fetching}
+              className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
+              title="点击刷新"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
+              <span className="text-emerald-400 text-[10px] font-bold tracking-wider">LIVE</span>
+              <RefreshCw className={`w-3 h-3 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
+            </button>
           </div>
 
           {/* 主数字: 持仓总市值 */}
@@ -2925,261 +2910,6 @@ function MainApp({ user, onLogout }) {
 
         </>)}
         {/* ====== 首页 tab 结束 ====== */}
-
-        {/* ====== 关注 tab ====== */}
-        {activeTab === 'watch' && (<>
-
-          {/* 工具栏 */}
-          <div className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-black text-lg text-slate-900">⭐ 关注</span>
-                <span className="text-xs text-slate-500 ml-2 font-bold">({watchlist.length})</span>
-              </div>
-              <div className="flex gap-2">
-                {!watchManageMode ? (
-                  <>
-                    <button
-                      onClick={() => setShowAddStock(true)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black active:scale-95 transition flex items-center gap-1"
-                      style={{ background: '#fff', color: '#d97706', border: '2px solid #fbbf24' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> 添加
-                    </button>
-                    <button
-                      onClick={() => setWatchManageMode(true)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black active:scale-95 transition flex items-center gap-1"
-                      style={{ background: '#fff', color: '#d97706', border: '2px solid #fbbf24' }}
-                    >
-                      <Edit2 className="w-3.5 h-3.5" /> 管理
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        // 全选/取消全选
-                        const allSelected = watchlist.every(s => watchSelected[s.symbol]);
-                        if (allSelected) setWatchSelected({});
-                        else setWatchSelected(Object.fromEntries(watchlist.map(s => [s.symbol, true])));
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold active:scale-95 transition"
-                      style={{ background: '#f1f5f9', color: '#475569' }}
-                    >
-                      {watchlist.every(s => watchSelected[s.symbol]) && watchlist.length > 0 ? '取消全选' : '全选'}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const selected = Object.keys(watchSelected).filter(s => watchSelected[s]);
-                        if (selected.length === 0) return alert('请先勾选股票');
-                        if (!window.confirm(`确认删除 ${selected.length} 只股票?\n${selected.join(', ')}`)) return;
-                        // 批量删除
-                        const newList = watchlist.filter(s => !watchSelected[s.symbol]);
-                        setWatchlist(newList);
-                        for (const sym of selected) {
-                          try { await db.removeWatchlistItem(sym); } catch (e) { console.error(e); }
-                        }
-                        setWatchSelected({});
-                        alert(`✓ 已删除 ${selected.length} 只`);
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black text-white active:scale-95 transition"
-                      style={{ background: '#dc2626' }}
-                    >
-                      🗑 删除 ({Object.values(watchSelected).filter(Boolean).length})
-                    </button>
-                    <button
-                      onClick={() => { setWatchManageMode(false); setWatchSelected({}); }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black active:scale-95 transition"
-                      style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', color: '#0a0a0a' }}
-                    >
-                      ✓ 完成
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 列表 */}
-          {watchlist.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-slate-400">
-              <div className="text-5xl mb-3">⭐</div>
-              <div className="text-sm font-bold mb-2">还没有关注股票</div>
-              <button
-                onClick={() => setShowAddStock(true)}
-                className="mt-3 px-5 py-2 rounded-xl font-black text-sm active:scale-95"
-                style={{ background: '#fff', color: '#d97706', border: '2px solid #fbbf24' }}
-              >
-                + 添加第一只
-              </button>
-            </div>
-          ) : watchManageMode ? (
-            // 管理模式: 精简卡 + checkbox
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm -mx-4">
-              {watchlistAlerts.map((s) => {
-                const isSelected = !!watchSelected[s.symbol];
-                const dayChange = s.changePercent || 0;
-                const dayColor = dayChange >= 0 ? '#dc2626' : '#16a34a';
-                return (
-                  <button
-                    key={s.symbol}
-                    onClick={() => setWatchSelected(prev => ({ ...prev, [s.symbol]: !prev[s.symbol] }))}
-                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-200 active:bg-slate-50 transition text-left"
-                    style={{ background: isSelected ? '#fef3c7' : 'white' }}
-                  >
-                    {/* checkbox */}
-                    <div
-                      className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 text-white text-xs font-black"
-                      style={{
-                        background: isSelected ? '#f59e0b' : 'transparent',
-                        border: isSelected ? '2px solid #f59e0b' : '2px solid #cbd5e1',
-                      }}
-                    >
-                      {isSelected ? '✓' : ''}
-                    </div>
-                    {/* 代码 + 名字 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-black text-[14px] tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{s.name}</div>
-                    </div>
-                    {/* 价格 + 涨跌 */}
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-bold text-[14px] tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>${fmt(s.price)}</div>
-                      <div className="text-[11px] font-bold tabular-nums" style={{ color: dayColor, fontFamily: 'ui-monospace, monospace' }}>
-                        {dayChange >= 0 ? '+' : ''}{dayChange.toFixed(2)}%
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            // 查看模式: 复用首页关注列表样式
-            <div className="space-y-1.5 -mx-4">
-              {watchlistAlerts.map(s => {
-                const pnl = s.cost > 0 ? (s.price - s.cost) / s.cost : 0;
-                const isEditing = editingStock === s.symbol;
-                const hasAlert = !!s.alert;
-                const dayChange = s.changePercent || 0;
-                const isUp = dayChange >= 0;
-                const dayColor = isUp ? '#dc2626' : '#16a34a';
-
-                if (isEditing) {
-                  return (
-                    <div key={s.symbol} className="rounded-xl border-2 border-blue-500 bg-blue-50 p-3 space-y-2 mx-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm">{s.symbol} <span className="text-xs text-slate-500 font-normal">{s.name}</span></span>
-                        <button onClick={() => setEditingStock(null)} className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold active:scale-95">完成</button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">现价</label>
-                          <input type="number" step="0.01" value={s.price} onChange={(e) => updateStockPrice(s.symbol, 'price', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold text-blue-700" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">52周高</label>
-                          <input type="number" step="0.01" value={s.high} onChange={(e) => updateStockPrice(s.symbol, 'high', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm font-bold text-orange-700" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">成本</label>
-                          <input type="number" step="0.01" value={s.cost} onChange={(e) => updateStockPrice(s.symbol, 'cost', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">股数</label>
-                          <input type="number" value={s.shares} onChange={(e) => updateStockPrice(s.symbol, 'shares', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm" />
-                        </div>
-                      </div>
-                      <button onClick={() => removeStock(s.symbol)} className="w-full py-2 rounded-lg bg-red-50 text-red-600 text-xs font-bold border border-red-200 active:scale-95">🗑 删除该股票</button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={s.symbol}
-                    className="border-b border-slate-200 bg-white active:bg-slate-50 transition relative overflow-hidden"
-                  >
-                    <button
-                      onClick={() => setEditingStock(s.symbol)}
-                      className="w-full text-left p-4 block transition-colors duration-300"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="min-w-0 flex-1 pr-2">
-                          <div className="font-black text-[18px] leading-tight tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
-                          <div className="text-[12px] truncate leading-tight mt-0.5 text-slate-500">{s.name}</div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-[20px] font-bold tabular-nums leading-tight text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            ${fmt(s.price)}
-                          </div>
-                          <div className="text-[13px] font-bold tabular-nums leading-tight mt-0.5" style={{ fontFamily: 'ui-monospace, monospace', color: dayColor }}>
-                            {isUp ? '+' : ''}{dayChange.toFixed(2)}%
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 pt-2.5">
-                        <div className="rounded-lg p-2.5" style={{ background: '#f8fafc' }}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">持仓</span>
-                            {s.cost > 0 && (
-                              <span className={`text-[10px] font-black tabular-nums ${pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                {pnl >= 0 ? '+' : ''}{(pnl * 100).toFixed(1)}%
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[13px] font-bold text-slate-700 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {s.shares > 0 ? `${s.shares} 股` : '—'}
-                          </div>
-                          <div className="text-[10px] text-slate-500 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            成本 {s.cost > 0 ? `$${s.cost.toFixed(2)}` : '—'}
-                          </div>
-                        </div>
-
-                        <div
-                          className="rounded-lg p-2.5"
-                          style={{
-                            background: hasAlert ? '#fef2f2' : '#f8fafc',
-                            border: hasAlert ? '1px solid #fecaca' : 'none',
-                          }}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">52周高</span>
-                            {hasAlert && (
-                              <span
-                                className="text-[10px] font-black px-1.5 py-0.5 rounded"
-                                style={{
-                                  background: s.alert.level >= 7 ? '#7f1d1d' : s.alert.level >= 5 ? '#dc2626' : s.alert.level >= 3 ? '#f97316' : '#fbbf24',
-                                  color: '#fff',
-                                }}
-                              >
-                                L{s.alert.level}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[13px] font-bold text-slate-700 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {s.high > 0 ? `$${s.high >= 1000 ? s.high.toFixed(0) : s.high.toFixed(2)}` : '—'}
-                          </div>
-                          <div
-                            className="text-[10px] tabular-nums mt-0.5 font-bold"
-                            style={{
-                              fontFamily: 'ui-monospace, monospace',
-                              color: s.high > 0 && s.drawdown < 0 ? '#dc2626' : '#94a3b8',
-                            }}
-                          >
-                            {s.high > 0 ? (s.drawdown < 0 ? `▾ ${(s.drawdown * 100).toFixed(1)}%` : '─ 0.0%') : '—'}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-        </>)}
-        {/* ====== 关注 tab 结束 ====== */}
 
         {/* ====== 交易 tab ====== */}
         {activeTab === 'trades' && (<>
@@ -6275,22 +6005,14 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.4
+                  v10.7.9.2
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.4', date: '2026-04-23', latest: true,
-                    items: ['⚙️ 齿轮按钮移到总览卡内 (跟 LIVE 并排)', '关注 tab 也复用总览卡 (视觉一致)', '删除浮动齿轮 (位置不对)'],
-                  },
-                  {
-                    ver: 'v10.7.9.3', date: '2026-04-23',
-                    items: ['⭐ 新增"关注"tab (替换底部"设置"位置)', '⚙️ 头部右上加齿轮按钮 → 进设置', '关注 tab 含管理模式: 多选 + 批量删除', '复用现有股票卡样式 (查看模式)'],
-                  },
-                  {
-                    ver: 'v10.7.9.2', date: '2026-04-23',
+                    ver: 'v10.7.9.2', date: '2026-04-23', latest: true,
                     items: ['📐 关注列表再扩宽 (删 ✕ + 单线分隔)', '右侧 padding 28px → 14px (内容多 14px 空间)', '卡间双线 → 单线 (视觉更轻)', '删除股票: 点卡片进编辑 → 底部"删除"按钮'],
                   },
                   {
@@ -6490,7 +6212,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.4</div>
+                <div>📊 版本:v10.7.9.2</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6760,10 +6482,10 @@ function MainApp({ user, onLogout }) {
             <div className="grid grid-cols-5">
               {[
                 { id: 'home',     label: '首页', icon: Home },
-                { id: 'watch',    label: '关注', icon: BarChart3 },
                 { id: 'trades',   label: '交易', icon: ListChecks },
                 { id: 'analysis', label: '资产', icon: Wallet },
                 { id: 'review',   label: '目标', icon: Target },
+                { id: 'settings', label: '设置', icon: Settings },
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
