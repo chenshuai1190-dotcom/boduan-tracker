@@ -2861,7 +2861,7 @@ function MainApp({ user, onLogout }) {
 
               {analystRatings.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 text-xs">
-                  {analystLoading ? '⏳ 拉取中...' : '📭 最近 30 天暂无关注股票的评级动态'}
+                  {analystLoading ? '⏳ 拉取中...' : '📭 最近 90 天暂无关注股票的评级动态'}
                 </div>
               ) : (
                 <div>
@@ -5940,14 +5940,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.7
+                  v10.7.9.8
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.7', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.8', date: '2026-04-23', latest: true,
+                    items: ['🐛 修复分析师动态显示空 (Finnhub API 缺日期参数)', '改成最近 90 天 + 加 F12 调试日志'],
+                  },
+                  {
+                    ver: 'v10.7.9.7', date: '2026-04-23',
                     items: ['📊 新增"分析师动态"模块 (Finnhub 数据)', '首页关注列表后, 显示华尔街升级/降级/首次覆盖', '点击查看更多 / 收起'],
                   },
                   {
@@ -6409,7 +6413,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.7</div>
+                <div>📊 版本:v10.7.9.8</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
