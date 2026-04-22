@@ -387,14 +387,6 @@ const STOCK_NAME_CN = {
 
 // ============ 股票配色 ============
 // 主流热门股配品牌色,非主流的根据代码 hash 自动分配
-// ============ 股票卡片颜色:统一翠绿色 ============
-// 所有股票卡片头部用同一种翠绿,简洁统一
-const UNIFIED_GREEN = { from: '#10b981', to: '#047857' };  // emerald 500→700
-
-const getStockColor = (symbol) => UNIFIED_GREEN;
-
-
-
 // ============ 内部主 App 组件(要求已登录) ============
 // ============ VIX 恐慌指数卡片(独立组件,支持滚动入场动画) ============
 function VixCard({ vix, setVix, vixDataDate, setVixDataDate, vixSignal }) {
@@ -488,7 +480,6 @@ function MainApp({ user, onLogout }) {
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
   const [tqqqCurrent, setTqqqCurrent] = useState(58.55);
-  const [totalCapital, setTotalCapital] = useState(500000);
 
   // 关注股票列表(可编辑价格)
   // high = 6个月滚动最高价,用于计算回撤预警
@@ -564,7 +555,6 @@ function MainApp({ user, onLogout }) {
   const [hkdRate, setHkdRate] = useState(0.87);           // 港币换人民币汇率
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = useState(false);
-  const [editingAccountId, setEditingAccountId] = useState(null);
   const [accountDeleteConfirmId, setAccountDeleteConfirmId] = useState(null);
   const [newAccount, setNewAccount] = useState({
     owner: '我',
@@ -867,7 +857,6 @@ function MainApp({ user, onLogout }) {
     setQqqHigh(640.47);
     setQqqCurrent(640.47);
     setTqqqCurrent(58.55);
-    setTotalCapital(500000);
     try { localStorage.removeItem('tqqq_state'); } catch {}  // 兼容隐私模式
     alert('本地数据已清空 (云端数据保留)');
   };
@@ -1197,20 +1186,6 @@ function MainApp({ user, onLogout }) {
   });
 
   // ============ 操作函数 ============
-  const updateBatch = async (id, field, value) => {
-    const newBatches = batches.map(b => b.id === id ? { ...b, [field]: parseFloat(value) || 0 } : b);
-    setBatches(newBatches);
-    // 保存到云端 settings.batches
-    try {
-      await db.upsertSettings({
-        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
-        vix, vixDataDate,
-        batches: newBatches,
-        exitTargets,
-      });
-    } catch (e) { console.error('batch 保存失败:', e); }
-  };
-
   const addTrade = async () => {
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
       alert('请填写股票代码、价格和股数');
@@ -5890,14 +5865,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.8
+                  v10.7.9.9
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.8', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.9', date: '2026-04-23', latest: true,
+                    items: ['🧹 代码清理 (删除 10 处死代码, -105 行)', 'App.jsx 6750→6726 · db.js 766→686', '清理: totalCapital/UNIFIED_GREEN/updateBatch 等 v1 时代残留'],
+                  },
+                  {
+                    ver: 'v10.7.9.8', date: '2026-04-23',
                     items: ['✨ 北极星计划卡 宇宙动效 (保留烈焰红金)', '北极星移到右下角, 不挡设置按钮', '8 颗闪烁星 + 偶尔流星'],
                   },
                   {
@@ -6363,7 +6342,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.8</div>
+                <div>📊 版本:v10.7.9.9</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
