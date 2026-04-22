@@ -1877,26 +1877,8 @@ function MainApp({ user, onLogout }) {
         }
       `}</style>
       <div className="max-w-5xl mx-auto">
-        {/* ⚙️ 浮动齿轮按钮 (右上角固定, 在所有非设置 tab 都显示) */}
-        {activeTab !== 'settings' && (
-          <button
-            onClick={() => setActiveTab('settings')}
-            className="fixed z-50 w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition shadow-lg"
-            style={{
-              top: 'calc(env(safe-area-inset-top) + 14px)',
-              right: '14px',
-              background: 'linear-gradient(135deg, #0a0a0a 0%, #171717 100%)',
-              border: '1px solid rgba(251, 191, 36, 0.3)',
-              color: '#fbbf24',
-            }}
-            title="设置"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
-        {activeTab !== 'analysis' && activeTab !== 'review' && activeTab !== 'settings' && activeTab !== 'watch' && (
+        {/* 顶部总览卡片 - 资产/复盘/设置 tab 专注显示自己的主卡,不展示这个 */}
+        {activeTab !== 'analysis' && activeTab !== 'review' && activeTab !== 'settings' && (
         <div
           className="rounded-2xl p-4 mb-4 text-white relative overflow-hidden"
           style={{
@@ -1923,16 +1905,27 @@ function MainApp({ user, onLogout }) {
               </div>
               <span className="text-white font-black text-sm tracking-tight">Bottomline</span>
             </div>
-            <button
-              onClick={fetchRealtimePrices}
-              disabled={fetching}
-              className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
-              title="点击刷新"
-            >
-              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
-              <span className="text-emerald-400 text-[10px] font-bold tracking-wider">LIVE</span>
-              <RefreshCw className={`w-3 h-3 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
-            </button>
+            {/* 右侧: LIVE 刷新 + 设置齿轮 */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchRealtimePrices}
+                disabled={fetching}
+                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/10 active:bg-white/20 active:scale-95 transition disabled:opacity-50"
+                title="点击刷新"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${fetching ? '' : 'animate-pulse'}`}></span>
+                <span className="text-emerald-400 text-[10px] font-bold tracking-wider">LIVE</span>
+                <RefreshCw className={`w-3 h-3 text-emerald-400 ml-0.5 ${fetching ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 active:bg-white/20 active:scale-90 transition"
+                style={{ color: '#fbbf24' }}
+                title="设置"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* 主数字: 持仓总市值 */}
@@ -6282,14 +6275,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.3
+                  v10.7.9.4
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.3', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.4', date: '2026-04-23', latest: true,
+                    items: ['⚙️ 齿轮按钮移到总览卡内 (跟 LIVE 并排)', '关注 tab 也复用总览卡 (视觉一致)', '删除浮动齿轮 (位置不对)'],
+                  },
+                  {
+                    ver: 'v10.7.9.3', date: '2026-04-23',
                     items: ['⭐ 新增"关注"tab (替换底部"设置"位置)', '⚙️ 头部右上加齿轮按钮 → 进设置', '关注 tab 含管理模式: 多选 + 批量删除', '复用现有股票卡样式 (查看模式)'],
                   },
                   {
@@ -6493,7 +6490,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.3</div>
+                <div>📊 版本:v10.7.9.4</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
