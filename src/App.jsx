@@ -5635,186 +5635,73 @@ function MainApp({ user, onLogout }) {
         {/* ====== 设置 tab ====== */}
         {activeTab === 'settings' && (
           <div className="space-y-4">
-            {/* 账户信息 - 奢华黑金 */}
+            {/* 🧪 实验: WebSocket 实时模式 */}
             <div
-              className="rounded-2xl p-5 text-white relative overflow-hidden"
+              className="rounded-2xl p-5 relative overflow-hidden"
               style={{
                 background: `
-                  radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
-                  radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
-                  linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+                  radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.12) 0%, transparent 50%),
+                  linear-gradient(135deg, #0a0a0a 0%, #171717 100%)
                 `,
-                border: '1px solid rgba(251, 191, 36, 0.2)',
-                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
               }}
             >
-              {/* 金色光晕装饰 (右上) */}
-              <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
-                background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
-                transform: 'translate(40%, -40%)',
-              }}></div>
-
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3">
-                  <h2
-                    className="font-black text-lg flex items-center gap-2"
-                    style={{
-                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                      letterSpacing: '1px',
-                    }}
-                  >
-                    ☁️ 云端账户
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-black text-base flex items-center gap-2" style={{ color: '#4ade80' }}>
+                    🧪 实时推送 <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>BETA</span>
                   </h2>
-                  <span
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-black flex items-center gap-1.5"
-                    style={{
-                      background: 'rgba(34, 197, 94, 0.12)',
-                      border: '1px solid rgba(34, 197, 94, 0.2)',
-                      color: '#4ade80',
-                    }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4ade80' }}></span>
-                    已登录
-                  </span>
+                  {wsEnabled && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-black">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'animate-pulse' : ''}`}
+                        style={{
+                          background: wsStatus === 'connected' ? '#4ade80' :
+                                      wsStatus === 'connecting' ? '#fbbf24' :
+                                      wsStatus === 'error' ? '#ef4444' : '#64748b',
+                        }}
+                      />
+                      <span style={{ color: '#a3a3a3' }}>
+                        {wsStatus === 'connected' ? 'LIVE' :
+                         wsStatus === 'connecting' ? '连接中' :
+                         wsStatus === 'error' ? '错误' : '未连接'}
+                      </span>
+                    </span>
+                  )}
                 </div>
-                <div
-                  className="text-[10px] font-bold uppercase tracking-widest"
-                  style={{ color: '#737373', letterSpacing: '2px' }}
-                >
-                  SIGNED IN
-                </div>
-                <div
-                  className="text-sm font-bold mb-3 break-all mt-1"
-                  style={{ color: '#d4d4d4', fontFamily: 'ui-monospace, monospace' }}
-                >
-                  {user?.email || '--'}
-                </div>
-                <div
-                  className="text-[10px] mb-3 leading-relaxed p-2.5 rounded-lg"
-                  style={{
-                    color: '#a3a3a3',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(251, 191, 36, 0.08)',
-                  }}
-                >
-                  💾 数据已云端备份 (Supabase Singapore)<br />
-                  🔒 行级安全 · 任何人都无法访问你的数据<br />
-                  📱 任意设备登录此账号都能看到你的数据
-                </div>
+                <p className="text-[11px] leading-relaxed mb-3" style={{ color: '#a3a3a3' }}>
+                  使用 EODHD WebSocket 接收股票实时 tick (延迟 &lt; 50ms)
+                  <br/>
+                  开启后 REST 轮询停止, 数字会实时跳动
+                  <br/>
+                  <span style={{ color: '#fbbf24' }}>⚠️ Token 会暴露在浏览器, 仅个人使用</span>
+                </p>
+
                 <button
-                  onClick={() => setShowChangePassword(true)}
-                  className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold mb-2"
+                  onClick={() => {
+                    const next = !wsEnabled;
+                    setWsEnabled(next);
+                    try { localStorage.setItem('bottomline_ws', String(next)); } catch {}
+                  }}
+                  className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-2"
                   style={{
-                    background: 'rgba(251, 191, 36, 0.1)',
-                    border: '1px solid rgba(251, 191, 36, 0.3)',
-                    color: '#fbbf24',
+                    background: wsEnabled
+                      ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                      : 'rgba(255,255,255,0.08)',
+                    color: wsEnabled ? '#fff' : '#a3a3a3',
+                    border: wsEnabled ? '1px solid #16a34a' : '1px solid rgba(255,255,255,0.1)',
                   }}
                 >
-                  🔑 修改密码
+                  {wsEnabled ? '✓ 实时模式已开启' : '开启实时模式'}
                 </button>
-                <button
-                  onClick={async () => {
-                    if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
-                    await onLogout();
-                  }}
-                  className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold"
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    color: '#f87171',
-                  }}
-                >
-                  <LogOut className="w-4 h-4" /> 退出登录
-                </button>
+
+                {wsEnabled && wsLastTick && (
+                  <div className="text-[10px] mt-2 text-center tabular-nums" style={{ color: '#64748b', fontFamily: 'ui-monospace, monospace' }}>
+                    最后 tick: {wsLastTick.toLocaleTimeString('zh-CN', { hour12: false })}
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* 修改密码 Modal */}
-            {showChangePassword && (
-              <div
-                className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
-                onClick={(e) => { if (e.target === e.currentTarget) { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); } }}
-              >
-                <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-black text-base flex items-center gap-2">
-                      🔑 修改密码
-                    </h3>
-                    <button
-                      onClick={() => { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); }}
-                      className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <label className="block text-xs text-slate-500 font-bold mb-1">新密码 (至少 6 位)</label>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPwd}
-                    onChange={e => setNewPwd(e.target.value)}
-                    placeholder="至少 6 位"
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:border-amber-500 focus:outline-none mb-3"
-                  />
-
-                  {pwdMsg && (
-                    <div className={`mb-3 px-3 py-2 rounded-lg text-xs ${
-                      pwdMsg.type === 'error'
-                        ? 'bg-red-50 border border-red-200 text-red-700'
-                        : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                    }`}>
-                      {pwdMsg.text}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={async () => {
-                      if (!newPwd || newPwd.length < 6) {
-                        setPwdMsg({ type: 'error', text: '密码至少 6 位' });
-                        return;
-                      }
-                      setPwdLoading(true);
-                      setPwdMsg(null);
-                      try {
-                        const { error } = await supabase.auth.updateUser({ password: newPwd });
-                        if (error) {
-                          setPwdMsg({ type: 'error', text: error.message });
-                        } else {
-                          setPwdMsg({ type: 'success', text: '✓ 密码已更新, 下次登录用新密码' });
-                          setNewPwd('');
-                          setTimeout(() => {
-                            setShowChangePassword(false);
-                            setPwdMsg(null);
-                          }, 2000);
-                        }
-                      } catch (e) {
-                        setPwdMsg({ type: 'error', text: e.message || '更新失败' });
-                      } finally {
-                        setPwdLoading(false);
-                      }
-                    }}
-                    disabled={pwdLoading}
-                    className="w-full py-3 font-black rounded-xl active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-50"
-                    style={{
-                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                      color: '#0a0a0a',
-                    }}
-                  >
-                    {pwdLoading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" />保存中...</>
-                    ) : '保存新密码'}
-                  </button>
-
-                  <p className="text-[10px] text-slate-400 text-center mt-3">
-                    保存后下次登录请使用新密码
-                  </p>
-                </div>
-              </div>
-            )}
 
             {/* 数据状态 */}
             <div className="bg-white rounded-2xl p-5 shadow">
@@ -5916,135 +5803,6 @@ function MainApp({ user, onLogout }) {
               </button>
             </div>
 
-            {/* 🧪 实验: WebSocket 实时模式 */}
-            <div
-              className="rounded-2xl p-5 relative overflow-hidden"
-              style={{
-                background: `
-                  radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.12) 0%, transparent 50%),
-                  linear-gradient(135deg, #0a0a0a 0%, #171717 100%)
-                `,
-                border: '1px solid rgba(34, 197, 94, 0.2)',
-              }}
-            >
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="font-black text-base flex items-center gap-2" style={{ color: '#4ade80' }}>
-                    🧪 实时推送 <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>BETA</span>
-                  </h2>
-                  {wsEnabled && (
-                    <span className="flex items-center gap-1.5 text-[10px] font-black">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'animate-pulse' : ''}`}
-                        style={{
-                          background: wsStatus === 'connected' ? '#4ade80' :
-                                      wsStatus === 'connecting' ? '#fbbf24' :
-                                      wsStatus === 'error' ? '#ef4444' : '#64748b',
-                        }}
-                      />
-                      <span style={{ color: '#a3a3a3' }}>
-                        {wsStatus === 'connected' ? 'LIVE' :
-                         wsStatus === 'connecting' ? '连接中' :
-                         wsStatus === 'error' ? '错误' : '未连接'}
-                      </span>
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] leading-relaxed mb-3" style={{ color: '#a3a3a3' }}>
-                  使用 EODHD WebSocket 接收股票实时 tick (延迟 &lt; 50ms)
-                  <br/>
-                  开启后 REST 轮询停止, 数字会实时跳动
-                  <br/>
-                  <span style={{ color: '#fbbf24' }}>⚠️ Token 会暴露在浏览器, 仅个人使用</span>
-                </p>
-
-                <button
-                  onClick={() => {
-                    const next = !wsEnabled;
-                    setWsEnabled(next);
-                    try { localStorage.setItem('bottomline_ws', String(next)); } catch {}
-                  }}
-                  className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-2"
-                  style={{
-                    background: wsEnabled
-                      ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                      : 'rgba(255,255,255,0.08)',
-                    color: wsEnabled ? '#fff' : '#a3a3a3',
-                    border: wsEnabled ? '1px solid #16a34a' : '1px solid rgba(255,255,255,0.1)',
-                  }}
-                >
-                  {wsEnabled ? '✓ 实时模式已开启' : '开启实时模式'}
-                </button>
-
-                {wsEnabled && wsLastTick && (
-                  <div className="text-[10px] mt-2 text-center tabular-nums" style={{ color: '#64748b', fontFamily: 'ui-monospace, monospace' }}>
-                    最后 tick: {wsLastTick.toLocaleTimeString('zh-CN', { hour12: false })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 数据持久化 */}
-            <div className="bg-white rounded-2xl p-5 shadow">
-              <h2 className="font-bold text-lg mb-3">💾 数据</h2>
-              <div className="text-xs text-slate-500 mb-3 leading-relaxed">
-                所有数据自动云端同步, 无需手动保存。
-                <br/>
-                建议: 每月导出一次 JSON 备份到本地。
-              </div>
-              <div className="space-y-2">
-                {/* 导出 JSON 备份 */}
-                <button
-                  onClick={() => {
-                    const backup = {
-                      exportedAt: new Date().toISOString(),
-                      version: 'v10.7.8.6',
-                      trades,
-                      watchlist,
-                      waveNotes,
-                      accounts,
-                      snapshots,
-                      investmentPlan,
-                      marginStatus,
-                      disciplines,
-                      reviewLogs,
-                      yearlyActuals,
-                      settings: {
-                        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
-                        vix, vixDataDate, batches, exitTargets, usdRate, hkdRate,
-                      },
-                    };
-                    const json = JSON.stringify(backup, null, 2);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    const date = new Date().toISOString().slice(0, 10);
-                    a.download = `bottomline-backup-${date}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-1.5"
-                  style={{
-                    background: '#fff',
-                    color: '#d97706',
-                    border: '2px solid #fbbf24',
-                  }}
-                >
-                  ⬇️ 导出 JSON 备份
-                </button>
-                {/* 重置本地数据 */}
-                <button
-                  onClick={resetAll}
-                  className="w-full py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1.5 active:scale-95 transition"
-                >
-                  <RotateCcw className="w-4 h-4" /> 重置本地数据
-                </button>
-              </div>
-            </div>
-
             {/* 📜 更新日志 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <div className="flex items-center justify-between mb-3">
@@ -6052,14 +5810,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.5
+                  v10.7.9.6
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.5', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.6', date: '2026-04-23', latest: true,
+                    items: ['📋 设置页卡片重排序 (符合使用频率)', '新顺序: 实时推送 → 数据状态 → 更新日志 → 云端 → 数据 → 关于', '高频功能优先 (实时推送在最上)'],
+                  },
+                  {
+                    ver: 'v10.7.9.5', date: '2026-04-23',
                     items: ['🐛 修复复利计划输入 bug (起始年/总年数/目标年龄)', '之前: 删空数字会自动跳回默认值, 不让删', '现在: 输入时可以完全清空, 失焦时才 fallback 默认'],
                   },
                   {
@@ -6267,11 +6029,253 @@ function MainApp({ user, onLogout }) {
               })()}
             </div>
 
+            {/* 账户信息 - 奢华黑金 */}
+            <div
+              className="rounded-2xl p-5 text-white relative overflow-hidden"
+              style={{
+                background: `
+                  radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+                  radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+                  linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
+                `,
+                border: '1px solid rgba(251, 191, 36, 0.2)',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+              }}
+            >
+              {/* 金色光晕装饰 (右上) */}
+              <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
+                background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
+                transform: 'translate(40%, -40%)',
+              }}></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <h2
+                    className="font-black text-lg flex items-center gap-2"
+                    style={{
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '1px',
+                    }}
+                  >
+                    ☁️ 云端账户
+                  </h2>
+                  <span
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-black flex items-center gap-1.5"
+                    style={{
+                      background: 'rgba(34, 197, 94, 0.12)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      color: '#4ade80',
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4ade80' }}></span>
+                    已登录
+                  </span>
+                </div>
+                <div
+                  className="text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: '#737373', letterSpacing: '2px' }}
+                >
+                  SIGNED IN
+                </div>
+                <div
+                  className="text-sm font-bold mb-3 break-all mt-1"
+                  style={{ color: '#d4d4d4', fontFamily: 'ui-monospace, monospace' }}
+                >
+                  {user?.email || '--'}
+                </div>
+                <div
+                  className="text-[10px] mb-3 leading-relaxed p-2.5 rounded-lg"
+                  style={{
+                    color: '#a3a3a3',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(251, 191, 36, 0.08)',
+                  }}
+                >
+                  💾 数据已云端备份 (Supabase Singapore)<br />
+                  🔒 行级安全 · 任何人都无法访问你的数据<br />
+                  📱 任意设备登录此账号都能看到你的数据
+                </div>
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold mb-2"
+                  style={{
+                    background: 'rgba(251, 191, 36, 0.1)',
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    color: '#fbbf24',
+                  }}
+                >
+                  🔑 修改密码
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
+                    await onLogout();
+                  }}
+                  className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#f87171',
+                  }}
+                >
+                  <LogOut className="w-4 h-4" /> 退出登录
+                </button>
+              </div>
+            </div>
+
+            {/* 修改密码 Modal */}
+            {showChangePassword && (
+              <div
+                className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+                onClick={(e) => { if (e.target === e.currentTarget) { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); } }}
+              >
+                <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-black text-base flex items-center gap-2">
+                      🔑 修改密码
+                    </h3>
+                    <button
+                      onClick={() => { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); }}
+                      className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <label className="block text-xs text-slate-500 font-bold mb-1">新密码 (至少 6 位)</label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPwd}
+                    onChange={e => setNewPwd(e.target.value)}
+                    placeholder="至少 6 位"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:border-amber-500 focus:outline-none mb-3"
+                  />
+
+                  {pwdMsg && (
+                    <div className={`mb-3 px-3 py-2 rounded-lg text-xs ${
+                      pwdMsg.type === 'error'
+                        ? 'bg-red-50 border border-red-200 text-red-700'
+                        : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                    }`}>
+                      {pwdMsg.text}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={async () => {
+                      if (!newPwd || newPwd.length < 6) {
+                        setPwdMsg({ type: 'error', text: '密码至少 6 位' });
+                        return;
+                      }
+                      setPwdLoading(true);
+                      setPwdMsg(null);
+                      try {
+                        const { error } = await supabase.auth.updateUser({ password: newPwd });
+                        if (error) {
+                          setPwdMsg({ type: 'error', text: error.message });
+                        } else {
+                          setPwdMsg({ type: 'success', text: '✓ 密码已更新, 下次登录用新密码' });
+                          setNewPwd('');
+                          setTimeout(() => {
+                            setShowChangePassword(false);
+                            setPwdMsg(null);
+                          }, 2000);
+                        }
+                      } catch (e) {
+                        setPwdMsg({ type: 'error', text: e.message || '更新失败' });
+                      } finally {
+                        setPwdLoading(false);
+                      }
+                    }}
+                    disabled={pwdLoading}
+                    className="w-full py-3 font-black rounded-xl active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      color: '#0a0a0a',
+                    }}
+                  >
+                    {pwdLoading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />保存中...</>
+                    ) : '保存新密码'}
+                  </button>
+
+                  <p className="text-[10px] text-slate-400 text-center mt-3">
+                    保存后下次登录请使用新密码
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 数据持久化 */}
+            <div className="bg-white rounded-2xl p-5 shadow">
+              <h2 className="font-bold text-lg mb-3">💾 数据</h2>
+              <div className="text-xs text-slate-500 mb-3 leading-relaxed">
+                所有数据自动云端同步, 无需手动保存。
+                <br/>
+                建议: 每月导出一次 JSON 备份到本地。
+              </div>
+              <div className="space-y-2">
+                {/* 导出 JSON 备份 */}
+                <button
+                  onClick={() => {
+                    const backup = {
+                      exportedAt: new Date().toISOString(),
+                      version: 'v10.7.8.6',
+                      trades,
+                      watchlist,
+                      waveNotes,
+                      accounts,
+                      snapshots,
+                      investmentPlan,
+                      marginStatus,
+                      disciplines,
+                      reviewLogs,
+                      yearlyActuals,
+                      settings: {
+                        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
+                        vix, vixDataDate, batches, exitTargets, usdRate, hkdRate,
+                      },
+                    };
+                    const json = JSON.stringify(backup, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const date = new Date().toISOString().slice(0, 10);
+                    a.download = `bottomline-backup-${date}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-1.5"
+                  style={{
+                    background: '#fff',
+                    color: '#d97706',
+                    border: '2px solid #fbbf24',
+                  }}
+                >
+                  ⬇️ 导出 JSON 备份
+                </button>
+                {/* 重置本地数据 */}
+                <button
+                  onClick={resetAll}
+                  className="w-full py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1.5 active:scale-95 transition"
+                >
+                  <RotateCcw className="w-4 h-4" /> 重置本地数据
+                </button>
+              </div>
+            </div>
+
             {/* 关于 */}
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.5</div>
+                <div>📊 版本:v10.7.9.6</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
