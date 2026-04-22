@@ -4756,7 +4756,7 @@ function MainApp({ user, onLogout }) {
                   );
                 })()}
 
-                {/* ============ 模块 1: 复利计划卡 (烈焰红金 · 王者北极星) ============ */}
+                {/* ============ 模块 1: 复利计划卡 (烈焰红金 + 北极星宇宙动效) ============ */}
                 <div
                   className="rounded-2xl p-5 mb-4 text-white relative overflow-hidden"
                   style={{
@@ -4769,11 +4769,68 @@ function MainApp({ user, onLogout }) {
                     boxShadow: '0 10px 40px rgba(127, 29, 29, 0.4)',
                   }}
                 >
-                  {/* 金色光晕装饰 (右上) */}
-                  <div className="absolute top-0 right-0 w-40 h-40 pointer-events-none" style={{
-                    background: 'radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, transparent 70%)',
-                    transform: 'translate(40%, -40%)',
-                  }}></div>
+                  {/* 🌌 宇宙动效层 (纯 CSS 动画, 不阻塞 React 渲染) */}
+                  <style>{`
+                    @keyframes polar-twinkle {
+                      0%, 100% { opacity: 0.3; transform: scale(1); }
+                      50% { opacity: 1; transform: scale(1.5); }
+                    }
+                    @keyframes polar-star-pulse {
+                      0%, 100% { box-shadow: 0 0 15px #fbbf24, 0 0 30px rgba(251, 191, 36, 0.6), 0 0 50px rgba(251, 191, 36, 0.3); }
+                      50% { box-shadow: 0 0 20px #fbbf24, 0 0 40px rgba(251, 191, 36, 0.8), 0 0 70px rgba(251, 191, 36, 0.5); }
+                    }
+                    @keyframes polar-meteor {
+                      0% { transform: translate(-50px, -20px) rotate(25deg); opacity: 0; }
+                      5% { opacity: 1; }
+                      20% { opacity: 1; }
+                      25% { transform: translate(400px, 150px) rotate(25deg); opacity: 0; }
+                      100% { transform: translate(400px, 150px) rotate(25deg); opacity: 0; }
+                    }
+                    .polar-bg-star {
+                      position: absolute;
+                      background: white;
+                      border-radius: 50%;
+                      animation: polar-twinkle infinite;
+                      pointer-events: none;
+                      z-index: 1;
+                    }
+                    .polar-main-star {
+                      position: absolute;
+                      top: 24px;
+                      right: 30px;
+                      width: 6px;
+                      height: 6px;
+                      background: #fbbf24;
+                      border-radius: 50%;
+                      animation: polar-star-pulse 2s ease-in-out infinite;
+                      pointer-events: none;
+                      z-index: 2;
+                    }
+                    .polar-meteor {
+                      position: absolute;
+                      width: 60px;
+                      height: 1px;
+                      background: linear-gradient(90deg, transparent, #fbbf24, white);
+                      animation: polar-meteor linear infinite;
+                      opacity: 0;
+                      pointer-events: none;
+                      z-index: 1;
+                    }
+                  `}</style>
+                  {/* ⭐ 北极星 (右上角主星, 脉动发光) */}
+                  <div className="polar-main-star"></div>
+                  {/* 闪烁背景星星 */}
+                  <div className="polar-bg-star" style={{ top: '20%', left: '15%', width: '2px', height: '2px', animationDuration: '2s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '45%', left: '40%', width: '1.5px', height: '1.5px', animationDuration: '3s', animationDelay: '0.5s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '65%', left: '20%', width: '2px', height: '2px', animationDuration: '2.5s', animationDelay: '1s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '75%', left: '60%', width: '1.5px', height: '1.5px', animationDuration: '3.5s', animationDelay: '1.5s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '30%', left: '70%', width: '1px', height: '1px', animationDuration: '4s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '55%', left: '80%', width: '1.5px', height: '1.5px', animationDuration: '2s', animationDelay: '0.8s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '85%', left: '40%', width: '1px', height: '1px', animationDuration: '3s' }}></div>
+                  <div className="polar-bg-star" style={{ top: '15%', left: '50%', width: '1px', height: '1px', animationDuration: '3.5s', animationDelay: '0.3s' }}></div>
+                  {/* 流星 (偶尔划过) */}
+                  <div className="polar-meteor" style={{ top: '40%', left: '30%', animationDuration: '10s', animationDelay: '2s' }}></div>
+                  <div className="polar-meteor" style={{ top: '70%', left: '50%', animationDuration: '12s', animationDelay: '7s' }}></div>
 
                   <div className="flex items-center justify-between mb-3 relative z-10">
                     {/* 金红渐变标题 */}
@@ -5833,15 +5890,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.7
+                  v10.7.9.8
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.7', date: '2026-04-23', latest: true,
-                    items: ['🔧 修复顶部指数(标普/纳指 ETF)WebSocket 不更新', '现在 SPY/QQQ 也实时推送', '关注列表和顶部指数同步跳动'],
+                    ver: 'v10.7.9.8', date: '2026-04-23', latest: true,
+                    items: ['✨ 北极星计划卡 宇宙动效 (保留烈焰红金背景)', '右上角北极星脉动发光 + 8 颗闪烁星星 + 偶尔流星', '只加装饰层, 不改背景色'],
+                  },
+                  {
+                    ver: 'v10.7.9.7', date: '2026-04-23',
+                    items: ['🔧 修复顶部指数(标普/纳指 ETF)WebSocket 不更新', '现在 SPY/QQQ 也实时推送'],
                   },
                   {
                     ver: 'v10.7.9.6', date: '2026-04-23',
@@ -6302,7 +6363,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.7</div>
+                <div>📊 版本:v10.7.9.8</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
