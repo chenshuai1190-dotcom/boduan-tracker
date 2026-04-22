@@ -112,41 +112,6 @@ export const fetchWatchlist = async (preUser = null) => {
   return list;
 };
 
-// 整体替换关注列表(简单粗暴:删光重插,适合数据量小的场景)
-export const replaceWatchlist = async (newList) => {
-  // 🚨 防护: 禁止传空数组(可能是 bug 或竞态导致的误清空)
-  //       如果用户真要清空所有, 应该一个一个删
-  if (!Array.isArray(newList)) {
-    console.warn('replaceWatchlist: 参数必须是数组', newList);
-    return;
-  }
-  if (newList.length === 0) {
-    console.warn('replaceWatchlist: 拒绝写入空数组 (防止误删所有股票)');
-    return;
-  }
-
-  // 取当前用户 id
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-
-  // 1) 删光当前用户的关注列表
-  await supabase.from('watchlist').delete().eq('user_id', user.id);
-
-  // 2) 插入新数据
-  const records = newList.map(s => ({
-    user_id: user.id,
-    symbol: s.symbol,
-    name: s.name || '',
-    price: s.price || 0,
-    high: s.high || 0,
-    cost: s.cost || 0,
-    shares: s.shares || 0,
-  }));
-  const { error } = await supabase.from('watchlist').insert(records);
-  if (error) throw error;
-  cacheSet('watchlist', newList);
-};
-
 // 单个股票字段更新(用于实时价格更新等高频操作,不走整表重写)
 export const upsertWatchlistItem = async (item) => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -383,23 +348,6 @@ export const insertAccount = async (account) => {
   };
 };
 
-export const updateAccount = async (id, account) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-  const { error } = await supabase
-    .from('accounts')
-    .update({
-      owner: account.owner,
-      type: account.type,
-      name: account.name,
-      currency: account.currency,
-      icon: account.icon,
-    })
-    .eq('id', id)
-    .eq('user_id', user.id);  // 宪法原则 2/3: 必须过滤 user_id
-  if (error) throw error;
-};
-
 export const deleteAccount = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
@@ -450,35 +398,6 @@ export const upsertSnapshot = async (accountId, month, balance) => {
       balance: balance,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'account_id,month' });
-  if (error) throw error;
-};
-
-// 批量保存某月的所有快照(填本月余额时用)
-export const upsertMonthlySnapshots = async (month, balanceMap) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-  const rows = Object.entries(balanceMap).map(([accountId, balance]) => ({
-    user_id: user.id,
-    account_id: accountId,
-    month: month,
-    balance: Number(balance) || 0,
-    updated_at: new Date().toISOString(),
-  }));
-  if (rows.length === 0) return;
-  const { error } = await supabase
-    .from('balance_snapshots')
-    .upsert(rows, { onConflict: 'account_id,month' });
-  if (error) throw error;
-};
-
-export const deleteSnapshot = async (id) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-  const { error } = await supabase
-    .from('balance_snapshots')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
   if (error) throw error;
 };
 
