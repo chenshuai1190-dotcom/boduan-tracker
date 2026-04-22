@@ -2584,8 +2584,8 @@ function MainApp({ user, onLogout }) {
             </div>
           )}
 
-          {/* 心电图行(单列,紧凑专业) */}
-          <div className="space-y-2">
+          {/* 心电图行(单列, 入侵式占满全屏 v10.7.9.1) */}
+          <div className="space-y-1.5 -mx-4">
             {watchlistAlerts.map(s => {
               const pnl = s.cost > 0 ? (s.price - s.cost) / s.cost : 0;
               const marketValue = s.shares * s.price;
@@ -2618,9 +2618,9 @@ function MainApp({ user, onLogout }) {
               }
 
               if (isEditing) {
-                // 编辑模式 - 展开成大卡
+                // 编辑模式 - 展开成大卡 (有 mx-4 抵消列表 -mx-4)
                 return (
-                  <div key={s.symbol} className="rounded-xl border-2 border-blue-500 bg-blue-50 p-3 space-y-2">
+                  <div key={s.symbol} className="rounded-xl border-2 border-blue-500 bg-blue-50 p-3 space-y-2 mx-4">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm">{s.symbol} <span className="text-xs text-slate-500 font-normal">{s.name}</span></span>
                       <button
@@ -2658,11 +2658,11 @@ function MainApp({ user, onLogout }) {
                 );
               }
 
-              // 心电图行 - 紧凑专业
+              // 心电图行 - 入侵式占满全屏
               return (
                 <div
                   key={s.symbol}
-                  className="rounded-xl border border-slate-200 bg-white active:bg-slate-50 transition relative overflow-hidden"
+                  className="border-y border-slate-200 bg-white active:bg-slate-50 transition relative overflow-hidden"
                 >
                   {/* 删除按钮(右上角小×,触发弹窗确认) */}
                   <button
@@ -2800,11 +2800,12 @@ function MainApp({ user, onLogout }) {
               );
             })}
 
-            {/* 添加股票按钮(整行) */}
+            {/* 添加股票按钮(整行, 给左右补 padding) */}
             {!showAddStock && (
               <button
                 onClick={() => setShowAddStock(true)}
                 className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition active:scale-98 font-bold text-sm flex items-center justify-center gap-1"
+                style={{ marginLeft: '1rem', marginRight: '1rem', width: 'calc(100% - 2rem)', marginTop: '8px' }}
               >
                 <Plus className="w-4 h-4" /> 添加股票
               </button>
@@ -6013,14 +6014,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.0
+                  v10.7.9.1
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.0', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.1', date: '2026-04-23', latest: true,
+                    items: ['📱 关注列表入侵式占满全屏 (手机视觉 +宽 32px)', '卡片左右贴边, 走势图更长', '编辑卡和添加按钮保持原宽度'],
+                  },
+                  {
+                    ver: 'v10.7.9.0', date: '2026-04-23',
                     items: ['🎨 关注列表卡片重设计 (B 对称两块)', '左块: 持仓信息 / 右块: 52周高 + L级', '移除整张卡红色背景 (跟"触发预警"统一)', '52周跌幅红色 + 等级渐深 (L1黄→L7暗红)'],
                   },
                   {
@@ -6212,7 +6217,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.0</div>
+                <div>📊 版本:v10.7.9.1</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6573,35 +6578,23 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-23 09:00:00 (UTC+8)
-// 📝 本次更新: v10.7.9.0 - 关注列表卡片重设计 🎨
+// 📅 最后修改时间: 2026-04-23 09:30:00 (UTC+8)
+// 📝 本次更新: v10.7.9.1 - 关注列表入侵式占满全屏 📱
 //
-//   用户反馈: 整张卡红色预警太抢眼, 跟上面"触发预警"卡重复
+//   用户反馈: 关注列表卡片太窄
+//   原因: 主容器 px-4 + 卡片 p-4 = 占用 64px (手机 375px 只剩 311px)
 //
-//   改造 (B 对称两块方案):
+//   修复 (D 入侵式方案):
+//     1) 列表容器加 -mx-4 抵消主容器 padding
+//     2) 卡片去左右圆角 (rounded-xl → border-y)
+//     3) 卡片占满屏幕全宽 (375px 全部利用)
+//     4) 编辑模式卡 / 添加按钮 加 mx-4 保持原状
 //
-//   1) 删除整张卡的红色背景
-//      之前: hasAlert → 卡片整体染红
-//      现在: 卡片永远白底, 只在右块染浅红
+//   效果:
+//     - 卡片宽度从 311px → 375px (+20%)
+//     - 走势图明显更宽
+//     - 持仓块/52周高块 各 ~170px (之前 151px)
+//     - 像 Robinhood / 长桥的 mobile UI
 //
-//   2) 底部 3 列 → 2 块对称
-//      左块 (持仓): 灰底
-//        - 持有 X 股
-//        - 成本 $XX
-//        - 收益率 (+X.X% 红 / -X.X% 绿)
-//      右块 (52周高): 浅红底 (有预警时) / 灰底 (无预警)
-//        - 52周高 $XX
-//        - ▾ -X.X% (跌幅红色)
-//        - L X 徽章 (按等级渐深: L1 黄 / L3 橙 / L5 红 / L7 暗红)
-//
-//   3) 创新高时:
-//      右块灰底, 显示 "─ 0.0%"
-//
-//   视觉效果:
-//      - 卡片永远干净白色
-//      - 当日涨跌色清晰显示
-//      - L 等级一眼看出
-//      - 跟上方"触发预警"卡不再重复
-//
-// 📦 v10.7.8.9: 大合并 + 性能优化
+// 📦 v10.7.9.0: 关注列表对称两块
 // ============================================
