@@ -867,7 +867,7 @@ function MainApp({ user, onLogout }) {
     setQqqCurrent(640.47);
     setTqqqCurrent(58.55);
     setTotalCapital(500000);
-    localStorage.removeItem('tqqq_state');
+    try { localStorage.removeItem('tqqq_state'); } catch {}  // 兼容隐私模式
     alert('本地数据已清空 (云端数据保留)');
   };
 
@@ -978,16 +978,7 @@ function MainApp({ user, onLogout }) {
   };
   const vixSignal = getVixSignal();
 
-  // 各批次触发价和投入计算
-  const computedBatches = batches.map(b => {
-    const triggerPrice = qqqHigh * (1 + b.drawdown);
-    const tqqqEstimate = tqqqCurrent * (1 + b.drawdown * 3 * 0.85);
-    const investAmount = totalCapital * b.allocation;
-    const estShares = Math.floor(investAmount / tqqqEstimate);
-    const triggered = qqqCurrent <= triggerPrice;
-    const tradeForBatch = trades.find(t => t.batch === b.name);
-    return { ...b, triggerPrice, tqqqEstimate, investAmount, estShares, triggered, executed: !!tradeForBatch };
-  });
+  // (computedBatches 已废弃 - v1 时代死代码, 新逻辑用 wavesByStock)
 
   // 持仓汇总(老逻辑:仅 TQQQ 全合,假设都是买入,用于止盈触发线兼容)
   const tqqqTrades = trades.filter(t => !t.symbol || t.symbol === 'TQQQ');
@@ -5963,7 +5954,8 @@ function MainApp({ user, onLogout }) {
                       reviewLogs,
                       yearlyActuals,
                       settings: {
-                        benchmarkSymbol, fgi, fgiLabel, vix, batches, exitTargets,
+                        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
+                        vix, vixDataDate, batches, exitTargets, usdRate, hkdRate,
                       },
                     };
                     const json = JSON.stringify(backup, null, 2);
@@ -6004,7 +5996,7 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.8
+                  v10.7.8.9
                 </span>
               </div>
 
@@ -6195,7 +6187,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.8</div>
+                <div>📊 版本:v10.7.8.9</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6556,38 +6548,27 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 20:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8.8 - 紧急修复 + 性能优化 🚨⚡
+// 📅 最后修改时间: 2026-04-23 00:30:00 (UTC+8)
+// 📝 本次更新: v10.7.8.9 - 大合并 🎉
 //
-//   🚨 紧急修复: 5 张表加载失败
+//   合并所有改动 (我的 + 新 Claude 的):
 //
-//   症状:
-//     ⚠️ 5 项数据未能加载: investmentPlan, marginStatus,
-//        disciplines, reviewLogs, yearlyActuals
+//   我的:
+//     ✓ useMemo × 7 (性能优化)
+//     ✓ hasChanges 检测
+//     ✓ 4 个按钮金色描边 V3
+//     ✓ 年度进度 = 实际收益完成度
+//     ✓ 删假按钮"手动保存"
+//     ✓ ETF 替代真指数 (实时数据)
+//     ✓ 复盘 → 目标 改名
+//     ✓ 更新日志折叠
+//     ✓ 导出 JSON 备份
 //
-//   F12 报错:
-//     "Lock 'lock:sb-...-auth-token' was not released within 5000ms"
-//     "Lock broken by another request with the steal option"
+//   新 Claude 的:
+//     ✓ "当前猎手状态" 文案
+//     ✓ settings 补全 (FGI 历史 + 汇率)
+//     ✓ try/catch (隐私模式兼容)
+//     ✓ 删 computedBatches 死代码
 //
-//   根因:
-//     Supabase 的 auth 库用单一全局锁
-//     fetchAllUserData 用 Promise.allSettled 并发 11 个查询
-//     每个查询内部都调 supabase.auth.getUser()
-//     → 11 个请求同时抢同一个锁
-//     → 前 6 个超时, 后 5 个抛 AbortError
-//
-//   修复 (db.js):
-//     1) fetchAllUserData 先 getUser 一次拿到 user
-//     2) 11 个 fetch 函数支持 preUser 参数
-//        signature: async (preUser = null) =>
-//        body: const user = preUser || (await getUser()).data.user;
-//     3) Promise.allSettled 时传入 user
-//     → 完全避开 auth lock 竞争
-//
-//   ⚡ 同时加性能优化:
-//     7 处 useMemo (wavesByStock + watchlistAlerts 等)
-//     hasChanges 智能检测
-//
-// 📦 v10.7.8.7: 导出 JSON 备份 + 猎手状态
-// 📦 v10.7.8.6: 改名"目标" + 折叠
+// 📦 v10.7.8.8: db.js 修复 lock 抢锁
 // ============================================
