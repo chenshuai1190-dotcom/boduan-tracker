@@ -1533,7 +1533,10 @@ function MainApp({ user, onLogout }) {
       return;
     }
 
-    const symbols = watchlist.map(s => s.symbol).join(',');
+    // 订阅: watchlist 股票 + SPY + QQQ (用于顶部指数实时更新)
+    // 自动去重 (用户 watchlist 可能已含 QQQ)
+    const subscribeSet = new Set([...watchlist.map(s => s.symbol), 'SPY', 'QQQ']);
+    const symbols = Array.from(subscribeSet).join(',');
     const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
 
     console.log('[WebSocket] 连接中...', symbols);
@@ -1564,6 +1567,26 @@ function MainApp({ user, onLogout }) {
               const tickTime = data.t || Math.floor(Date.now() / 1000);
 
               setWsLastTick(new Date());
+
+              // 🔑 更新顶部指数 (SPY / QQQ)
+              if (sym === 'SPY' || sym === 'QQQ') {
+                setIndices(prev => prev.map(idx => {
+                  // EODHD 返回的 ticker 是 'SPY.US' 或 'QQQ.US'
+                  if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
+                  const oldPrice = idx.price || 0;
+                  if (oldPrice === newPrice) return idx;
+                  // 重算当日涨跌
+                  const pc = idx.previousClose || oldPrice;
+                  const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
+                  const newChange = newPrice - pc;
+                  return {
+                    ...idx,
+                    price: newPrice,
+                    change: newChange,
+                    changePercent: newChangePct,
+                  };
+                }));
+              }
 
               // 更新 watchlist 中对应股票的价格
               setWatchlist(prev => prev.map(s => {
@@ -5810,14 +5833,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.6
+                  v10.7.9.7
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.6', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.7', date: '2026-04-23', latest: true,
+                    items: ['🔧 修复顶部指数(标普/纳指 ETF)WebSocket 不更新', '现在 SPY/QQQ 也实时推送', '关注列表和顶部指数同步跳动'],
+                  },
+                  {
+                    ver: 'v10.7.9.6', date: '2026-04-23',
                     items: ['📋 设置页卡片重排序 (符合使用频率)', '新顺序: 实时推送 → 数据状态 → 更新日志 → 云端 → 数据 → 关于', '高频功能优先 (实时推送在最上)'],
                   },
                   {
@@ -6275,7 +6302,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.6</div>
+                <div>📊 版本:v10.7.9.7</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
