@@ -2662,11 +2662,7 @@ function MainApp({ user, onLogout }) {
               return (
                 <div
                   key={s.symbol}
-                  className={`rounded-xl border transition relative overflow-hidden ${
-                    hasAlert
-                      ? `${s.alert.color} ${isExtreme ? 'animate-pulse' : ''} border-2`
-                      : 'border-slate-200 bg-white active:bg-slate-50'
-                  }`}
+                  className="rounded-xl border border-slate-200 bg-white active:bg-slate-50 transition relative overflow-hidden"
                 >
                   {/* 删除按钮(右上角小×,触发弹窗确认) */}
                   <button
@@ -2689,16 +2685,16 @@ function MainApp({ user, onLogout }) {
                     {/* 上:代码/名称 ← → 价格/涨跌 */}
                     <div className="flex items-center justify-between mb-2">
                       <div className="min-w-0 flex-1 pr-2">
-                        <div className={`font-black text-[18px] leading-tight tabular-nums ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
-                        <div className={`text-[12px] truncate leading-tight mt-0.5 ${hasAlert ? 'opacity-70' : 'text-slate-500'}`}>{s.name}</div>
+                        <div className="font-black text-[18px] leading-tight tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
+                        <div className="text-[12px] truncate leading-tight mt-0.5 text-slate-500">{s.name}</div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className={`text-[20px] font-bold tabular-nums leading-tight ${hasAlert ? '' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        <div className="text-[20px] font-bold tabular-nums leading-tight text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>
                           ${fmt(s.price)}
                         </div>
                         <div
                           className="text-[13px] font-bold tabular-nums leading-tight mt-0.5"
-                          style={{ fontFamily: 'ui-monospace, monospace', color: hasAlert ? undefined : dayColor }}
+                          style={{ fontFamily: 'ui-monospace, monospace', color: dayColor }}
                         >
                           {isUp ? '+' : ''}{dayChange.toFixed(2)}%
                         </div>
@@ -2743,39 +2739,60 @@ function MainApp({ user, onLogout }) {
                       )}
                     </div>
 
-                    {/* 下:3 列底部统计 成本 / 52 周高 / 持仓收益 */}
-                    <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-dashed border-slate-200">
-                      <div className="text-center">
-                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">成本</div>
-                        <div className="text-[13px] font-bold text-slate-700 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                          {s.cost > 0 ? `$${s.cost.toFixed(2)}` : '—'}
+                    {/* 下: 2 块对称 - 持仓块 / 52周高块 */}
+                    <div className="grid grid-cols-2 gap-2 pt-2.5">
+                      {/* 左: 持仓块 (灰底) */}
+                      <div className="rounded-lg p-2.5" style={{ background: '#f8fafc' }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">持仓</span>
+                          {s.cost > 0 && (
+                            <span className={`text-[10px] font-black tabular-nums ${pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                              {pnl >= 0 ? '+' : ''}{(pnl * 100).toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[13px] font-bold text-slate-700 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          {s.shares > 0 ? `${s.shares} 股` : '—'}
+                        </div>
+                        <div className="text-[10px] text-slate-500 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          成本 {s.cost > 0 ? `$${s.cost.toFixed(2)}` : '—'}
                         </div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">52 周高</div>
-                        <div className="text-[13px] font-bold text-slate-700 tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace' }}>
+
+                      {/* 右: 52周高块 (有预警时浅红, 无时灰底) */}
+                      <div
+                        className="rounded-lg p-2.5"
+                        style={{
+                          background: hasAlert ? '#fef2f2' : '#f8fafc',
+                          border: hasAlert ? '1px solid #fecaca' : 'none',
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">52周高</span>
+                          {hasAlert && (
+                            <span
+                              className="text-[10px] font-black px-1.5 py-0.5 rounded"
+                              style={{
+                                background: s.alert.level >= 7 ? '#7f1d1d' : s.alert.level >= 5 ? '#dc2626' : s.alert.level >= 3 ? '#f97316' : '#fbbf24',
+                                color: '#fff',
+                              }}
+                            >
+                              L{s.alert.level}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[13px] font-bold text-slate-700 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>
                           {s.high > 0 ? `$${s.high >= 1000 ? s.high.toFixed(0) : s.high.toFixed(2)}` : '—'}
                         </div>
-                        {s.high > 0 && (
-                          <div className="text-[10px] text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            -{(s.drawdown * 100).toFixed(1)}%
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-center">
-                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">持仓</div>
-                        {s.cost > 0 ? (
-                          <div className={`text-[13px] font-bold tabular-nums mt-0.5 ${pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {pnl >= 0 ? '+' : ''}{(pnl * 100).toFixed(1)}%
-                          </div>
-                        ) : (
-                          <div className="text-[13px] font-bold text-slate-300 mt-0.5">—</div>
-                        )}
-                        {hasAlert && (
-                          <div className="text-[10px] font-black mt-0.5">
-                            {s.alert.icon} L{s.alert.level}
-                          </div>
-                        )}
+                        <div
+                          className="text-[10px] tabular-nums mt-0.5 font-bold"
+                          style={{
+                            fontFamily: 'ui-monospace, monospace',
+                            color: s.high > 0 && s.drawdown < 0 ? '#dc2626' : '#94a3b8',
+                          }}
+                        >
+                          {s.high > 0 ? (s.drawdown < 0 ? `▾ ${(s.drawdown * 100).toFixed(1)}%` : '─ 0.0%') : '—'}
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -5996,15 +6013,23 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.8.9
+                  v10.7.9.0
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.8.8', date: '2026-04-22', latest: true,
-                    items: ['⚡ 性能优化: 7 处 useMemo (波段/警报/统计缓存)', 'WebSocket 模式 CPU 占用降低 ~40%', '切 tab + 表单输入更流畅'],
+                    ver: 'v10.7.9.0', date: '2026-04-23', latest: true,
+                    items: ['🎨 关注列表卡片重设计 (B 对称两块)', '左块: 持仓信息 / 右块: 52周高 + L级', '移除整张卡红色背景 (跟"触发预警"统一)', '52周跌幅红色 + 等级渐深 (L1黄→L7暗红)'],
+                  },
+                  {
+                    ver: 'v10.7.8.9', date: '2026-04-22',
+                    items: ['🎉 大合并版: 含所有功能 + 修复', '🎯 当前猎手状态 / settings 补全 / try/catch 兼容'],
+                  },
+                  {
+                    ver: 'v10.7.8.8', date: '2026-04-22',
+                    items: ['🚨 修复 5 张表加载失败 (Supabase auth lock 抢锁 bug)', '⚡ 性能优化: 7 处 useMemo (波段/警报/统计缓存)', 'WebSocket 模式 CPU 占用降低 ~40%'],
                   },
                   {
                     ver: 'v10.7.8.7', date: '2026-04-22',
@@ -6187,7 +6212,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.8.9</div>
+                <div>📊 版本:v10.7.9.0</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6548,27 +6573,35 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-23 00:30:00 (UTC+8)
-// 📝 本次更新: v10.7.8.9 - 大合并 🎉
+// 📅 最后修改时间: 2026-04-23 09:00:00 (UTC+8)
+// 📝 本次更新: v10.7.9.0 - 关注列表卡片重设计 🎨
 //
-//   合并所有改动 (我的 + 新 Claude 的):
+//   用户反馈: 整张卡红色预警太抢眼, 跟上面"触发预警"卡重复
 //
-//   我的:
-//     ✓ useMemo × 7 (性能优化)
-//     ✓ hasChanges 检测
-//     ✓ 4 个按钮金色描边 V3
-//     ✓ 年度进度 = 实际收益完成度
-//     ✓ 删假按钮"手动保存"
-//     ✓ ETF 替代真指数 (实时数据)
-//     ✓ 复盘 → 目标 改名
-//     ✓ 更新日志折叠
-//     ✓ 导出 JSON 备份
+//   改造 (B 对称两块方案):
 //
-//   新 Claude 的:
-//     ✓ "当前猎手状态" 文案
-//     ✓ settings 补全 (FGI 历史 + 汇率)
-//     ✓ try/catch (隐私模式兼容)
-//     ✓ 删 computedBatches 死代码
+//   1) 删除整张卡的红色背景
+//      之前: hasAlert → 卡片整体染红
+//      现在: 卡片永远白底, 只在右块染浅红
 //
-// 📦 v10.7.8.8: db.js 修复 lock 抢锁
+//   2) 底部 3 列 → 2 块对称
+//      左块 (持仓): 灰底
+//        - 持有 X 股
+//        - 成本 $XX
+//        - 收益率 (+X.X% 红 / -X.X% 绿)
+//      右块 (52周高): 浅红底 (有预警时) / 灰底 (无预警)
+//        - 52周高 $XX
+//        - ▾ -X.X% (跌幅红色)
+//        - L X 徽章 (按等级渐深: L1 黄 / L3 橙 / L5 红 / L7 暗红)
+//
+//   3) 创新高时:
+//      右块灰底, 显示 "─ 0.0%"
+//
+//   视觉效果:
+//      - 卡片永远干净白色
+//      - 当日涨跌色清晰显示
+//      - L 等级一眼看出
+//      - 跟上方"触发预警"卡不再重复
+//
+// 📦 v10.7.8.9: 大合并 + 性能优化
 // ============================================
