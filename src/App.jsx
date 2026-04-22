@@ -2658,24 +2658,15 @@ function MainApp({ user, onLogout }) {
                 );
               }
 
-              // 心电图行 - 入侵式占满全屏
+              // 心电图行 - 入侵式占满全屏 (v10.7.9.2: 删 X, 单线分隔)
               return (
                 <div
                   key={s.symbol}
-                  className="border-y border-slate-200 bg-white active:bg-slate-50 transition relative overflow-hidden"
+                  className="border-b border-slate-200 bg-white active:bg-slate-50 transition relative overflow-hidden"
                 >
-                  {/* 删除按钮(右上角小×,触发弹窗确认) */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setStockDeleteConfirmId(s.symbol); }}
-                    className="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-200/60 hover:bg-red-500 hover:text-white text-slate-500 flex items-center justify-center text-[8px] font-bold transition active:scale-90 z-10"
-                    title="删除"
-                  >
-                    ✕
-                  </button>
-
                   <button
                     onClick={() => setEditingStock(s.symbol)}
-                    className="w-full text-left p-4 pr-7 block transition-colors duration-300"
+                    className="w-full text-left p-4 block transition-colors duration-300"
                     style={{
                       background: priceFlash[s.symbol] === 'up' ? 'rgba(225, 29, 72, 0.08)' :
                                   priceFlash[s.symbol] === 'down' ? 'rgba(16, 185, 129, 0.08)' :
@@ -6014,14 +6005,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.1
+                  v10.7.9.2
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.1', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.2', date: '2026-04-23', latest: true,
+                    items: ['📐 关注列表再扩宽 (删 ✕ + 单线分隔)', '右侧 padding 28px → 14px (内容多 14px 空间)', '卡间双线 → 单线 (视觉更轻)', '删除股票: 点卡片进编辑 → 底部"删除"按钮'],
+                  },
+                  {
+                    ver: 'v10.7.9.1', date: '2026-04-23',
                     items: ['📱 关注列表入侵式占满全屏 (手机视觉 +宽 32px)', '卡片左右贴边, 走势图更长', '编辑卡和添加按钮保持原宽度'],
                   },
                   {
@@ -6217,7 +6212,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.1</div>
+                <div>📊 版本:v10.7.9.2</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6578,23 +6573,27 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-23 09:30:00 (UTC+8)
-// 📝 本次更新: v10.7.9.1 - 关注列表入侵式占满全屏 📱
+// 📅 最后修改时间: 2026-04-23 10:00:00 (UTC+8)
+// 📝 本次更新: v10.7.9.2 - 关注列表再扩宽 📐
 //
-//   用户反馈: 关注列表卡片太窄
-//   原因: 主容器 px-4 + 卡片 p-4 = 占用 64px (手机 375px 只剩 311px)
+//   3 项优化:
 //
-//   修复 (D 入侵式方案):
-//     1) 列表容器加 -mx-4 抵消主容器 padding
-//     2) 卡片去左右圆角 (rounded-xl → border-y)
-//     3) 卡片占满屏幕全宽 (375px 全部利用)
-//     4) 编辑模式卡 / 添加按钮 加 mx-4 保持原状
+//   1) 删除右上角 ✕ 删除按钮
+//      原因: 点卡片就能进编辑模式删除, 重复
+//      节省: 16px 按钮 + 28px 右 padding = 44px 内容空间
 //
-//   效果:
-//     - 卡片宽度从 311px → 375px (+20%)
-//     - 走势图明显更宽
-//     - 持仓块/52周高块 各 ~170px (之前 151px)
-//     - 像 Robinhood / 长桥的 mobile UI
+//   2) 卡之间分割线: 双线 → 单线
+//      之前: border-y (上+下) → 相邻卡 2 条
+//      现在: border-b (只下) → 相邻卡 1 条
+//      视觉更清爽
 //
+//   3) 删除股票统一入口
+//      点卡片 → 编辑模式 → 底部"🗑 删除该股票"
+//      window.confirm 二次确认 (防误删)
+//      跟其他模块的"二次确认"体验一致
+//
+//   总计: 内容宽度 ~315px → ~329px (+14px)
+//
+// 📦 v10.7.9.1: 入侵式占满全屏
 // 📦 v10.7.9.0: 关注列表对称两块
 // ============================================
