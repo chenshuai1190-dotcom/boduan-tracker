@@ -4920,168 +4920,6 @@ function MainApp({ user, onLogout }) {
                   )}
                 </div>
 
-                {/* ============ 模块 1.5: 复利曲线 (V3 宇宙彩虹线) ============ */}
-                {(() => {
-                  // 构造数据点
-                  // x: 0 → 380 (10 年) 
-                  // y: 150 → 0 (从 startCapital → ageGoalAmount)
-                  const totalYears = yearlyFinal.length;
-                  if (totalYears < 2) return null;
-                  
-                  const chartW = 380;
-                  const chartH = 140;
-                  const maxVal = ageGoalAmount;
-                  const minVal = PLAN.startCapital;
-                  const range = maxVal - minVal || 1;
-                  
-                  const valToY = (v) => chartH - ((v - minVal) / range) * chartH;
-                  const idxToX = (i) => (i / (totalYears - 1)) * chartW;
-                  
-                  // 北极星路径 (计划余额)
-                  const planPath = yearlyFinal.map((y, i) =>
-                    `${i === 0 ? 'M' : 'L'} ${idxToX(i).toFixed(1)} ${valToY(y.planEndBalance).toFixed(1)}`
-                  ).join(' ');
-                  
-                  // 实际路径 (到今天为止, 非推演部分)
-                  const thisYearNum = new Date().getFullYear();
-                  const actualPoints = [];
-                  for (let i = 0; i < yearlyFinal.length; i++) {
-                    const y = yearlyFinal[i];
-                    if (y.isProjected) break;  // 从推演开始停
-                    actualPoints.push({ x: idxToX(i), y: valToY(y.endBalance) });
-                  }
-                  const actualPath = actualPoints.length > 0
-                    ? 'M ' + actualPoints.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')
-                    : '';
-                  
-                  const currentPoint = actualPoints[actualPoints.length - 1];
-                  const currentBal = actualPoints.length > 0 ? yearlyFinal[actualPoints.length - 1].endBalance : PLAN.startCapital;
-                  const progressPct = ((currentBal - PLAN.startCapital) / (ageGoalAmount - PLAN.startCapital)) * 100;
-                  const yearsPassed = actualPoints.length;
-                  const yearsLeftTotal = PLAN.totalYears - yearsPassed;
-                  
-                  return (
-                    <div
-                      className="rounded-2xl p-4 mb-4 text-white relative overflow-hidden"
-                      style={{
-                        background: 'linear-gradient(135deg, #0c1427 0%, #1a0f2e 50%, #0a0a0a 100%)',
-                        border: '1px solid rgba(251, 191, 36, 0.25)',
-                        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
-                      }}
-                    >
-                      {/* 星空装饰 */}
-                      <style>{`
-                        @keyframes curve-twinkle {
-                          0%, 100% { opacity: 0.3; transform: scale(1); }
-                          50% { opacity: 1; transform: scale(1.5); }
-                        }
-                        .curve-star {
-                          position: absolute;
-                          background: white;
-                          border-radius: 50%;
-                          animation: curve-twinkle 3s ease-in-out infinite;
-                          pointer-events: none;
-                        }
-                      `}</style>
-                      <div className="curve-star" style={{ top: '12%', left: '20%', width: '2px', height: '2px', animationDuration: '2s' }}></div>
-                      <div className="curve-star" style={{ top: '28%', left: '55%', width: '1.5px', height: '1.5px', animationDuration: '3s', animationDelay: '0.5s' }}></div>
-                      <div className="curve-star" style={{ top: '45%', left: '78%', width: '1px', height: '1px', animationDuration: '4s' }}></div>
-                      <div className="curve-star" style={{ top: '65%', left: '35%', width: '1.5px', height: '1.5px', animationDuration: '2.5s', animationDelay: '1s' }}></div>
-                      <div className="curve-star" style={{ top: '85%', left: '70%', width: '1px', height: '1px', animationDuration: '3s', animationDelay: '1.5s' }}></div>
-
-                      {/* 头部 */}
-                      <div className="flex items-center justify-between mb-3 relative z-10">
-                        <div
-                          className="text-[10px] uppercase font-bold"
-                          style={{
-                            letterSpacing: '2px',
-                            background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                          }}
-                        >
-                          ★ 通往北极星的轨迹
-                        </div>
-                        <div className="text-[10px] font-bold" style={{ color: '#94a3b8' }}>
-                          {PLAN.totalYears} 年远征
-                        </div>
-                      </div>
-
-                      {/* 曲线 */}
-                      <div className="relative z-10" style={{ background: 'rgba(0,0,0,0.35)', borderRadius: '10px', padding: '12px', height: '180px' }}>
-                        <svg viewBox={`0 0 ${chartW} ${chartH + 10}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-                          <defs>
-                            <linearGradient id="cosmic-path-live" x1="0" y1="0" x2="1" y2="0">
-                              <stop offset="0%" stopColor="#dc2626"/>
-                              <stop offset="50%" stopColor="#f97316"/>
-                              <stop offset="100%" stopColor="#fbbf24"/>
-                            </linearGradient>
-                          </defs>
-                          
-                          {/* 网格 */}
-                          {[0.25, 0.5, 0.75].map(p => (
-                            <line key={p} x1="0" y1={chartH * p} x2={chartW} y2={chartH * p} stroke="rgba(251,191,36,0.08)"/>
-                          ))}
-                          
-                          {/* 计划轨迹 (淡金虚线) */}
-                          {planPath && (
-                            <path d={planPath} stroke="#fbbf24" strokeWidth="1.5" fill="none" strokeDasharray="2,3" opacity="0.4"/>
-                          )}
-                          
-                          {/* 实际轨迹 (彩虹线) */}
-                          {actualPath && (
-                            <path d={actualPath} stroke="url(#cosmic-path-live)" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                          )}
-                          
-                          {/* 当前光点 */}
-                          {currentPoint && (
-                            <>
-                              <circle cx={currentPoint.x} cy={currentPoint.y} r="4" fill="#f97316"/>
-                              <circle cx={currentPoint.x} cy={currentPoint.y} r="4" fill="#f97316" opacity="0.6">
-                                <animate attributeName="r" from="4" to="14" dur="2s" repeatCount="indefinite"/>
-                                <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite"/>
-                              </circle>
-                            </>
-                          )}
-                          
-                          {/* 北极星 (右上角) */}
-                          <circle cx={chartW - 5} cy={valToY(ageGoalAmount)} r="5" fill="#fbbf24"/>
-                          <circle cx={chartW - 5} cy={valToY(ageGoalAmount)} r="5" fill="#fbbf24" opacity="0.7">
-                            <animate attributeName="r" from="5" to="18" dur="2.5s" repeatCount="indefinite"/>
-                            <animate attributeName="opacity" from="0.7" to="0" dur="2.5s" repeatCount="indefinite"/>
-                          </circle>
-                          {/* 北极星光芒十字 */}
-                          <line x1={chartW - 5} y1={valToY(ageGoalAmount) - 8} x2={chartW - 5} y2={valToY(ageGoalAmount) + 8} stroke="#fbbf24" strokeWidth="0.5" opacity="0.6"/>
-                          <line x1={chartW - 13} y1={valToY(ageGoalAmount)} x2={chartW + 3} y2={valToY(ageGoalAmount)} stroke="#fbbf24" strokeWidth="0.5" opacity="0.6"/>
-                        </svg>
-                      </div>
-
-                      {/* 统计 3 列 */}
-                      <div className="grid grid-cols-3 gap-2 mt-3 relative z-10">
-                        <div className="text-center p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                          <div className="text-[9px] uppercase font-bold tracking-wider" style={{ color: '#94a3b8' }}>已走</div>
-                          <div className="text-[13px] font-black tabular-nums mt-1" style={{ color: '#fbbf24', fontFamily: 'ui-monospace, monospace' }}>
-                            {fmtWanUSD(currentBal - PLAN.startCapital, 0)}
-                          </div>
-                        </div>
-                        <div className="text-center p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                          <div className="text-[9px] uppercase font-bold tracking-wider" style={{ color: '#94a3b8' }}>还剩</div>
-                          <div className="text-[13px] font-black tabular-nums mt-1" style={{ color: '#f97316', fontFamily: 'ui-monospace, monospace' }}>
-                            {fmtWanUSD(ageGoalAmount - currentBal, 0)}
-                          </div>
-                        </div>
-                        <div className="text-center p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                          <div className="text-[9px] uppercase font-bold tracking-wider" style={{ color: '#94a3b8' }}>时间</div>
-                          <div className="text-[13px] font-black tabular-nums mt-1" style={{ color: 'white', fontFamily: 'ui-monospace, monospace' }}>
-                            剩 {yearsLeftTotal} 年
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
                 {/* ============ 模块 2: 融资杠杆监控 (基于总仓位倍率) ============ */}
                 <div className={`rounded-2xl p-4 shadow border-2 mb-4 ${marginState === 'red' ? 'bg-rose-50 border-rose-300' : marginState === 'orange' ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'}`}>
                   <div className="flex items-center justify-between mb-3">
@@ -6052,18 +5890,14 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.9
+                  v10.7.9.8
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.9', date: '2026-04-23', latest: true,
-                    items: ['✨ 新增"复利曲线" 模块 (目标 tab)', '宇宙星空底 + 彩虹色实际轨迹 + 金色计划虚线 + 脉动北极星', '显示: 已走 / 还剩 / 剩余年数'],
-                  },
-                  {
-                    ver: 'v10.7.9.8', date: '2026-04-23',
+                    ver: 'v10.7.9.8', date: '2026-04-23', latest: true,
                     items: ['✨ 北极星计划卡 宇宙动效 (保留烈焰红金)', '北极星移到右下角, 不挡设置按钮', '8 颗闪烁星 + 偶尔流星'],
                   },
                   {
@@ -6529,7 +6363,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.9</div>
+                <div>📊 版本:v10.7.9.8</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
