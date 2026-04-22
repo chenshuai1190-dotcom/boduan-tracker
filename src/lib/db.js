@@ -20,8 +20,8 @@ const cacheSet = (key, value) => {
 
 // ============ TRADES (交易) ============
 
-export const fetchTrades = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchTrades = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -83,9 +83,9 @@ export const deleteTrade = async (id) => {
 
 // ============ WATCHLIST (关注列表) ============
 
-export const fetchWatchlist = async () => {
+export const fetchWatchlist = async (preUser = null) => {
   // 🚨 必须过滤当前用户, 不然多账户数据会混杂
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) {
     console.warn('fetchWatchlist: 未登录');
     return [];
@@ -182,8 +182,8 @@ export const removeWatchlistItem = async (symbol) => {
 
 // ============ WAVE_NOTES (波段备注) ============
 
-export const fetchWaveNotes = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchWaveNotes = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return {};
 
   const { data, error } = await supabase
@@ -218,8 +218,8 @@ export const upsertWaveNote = async (waveId, note) => {
 
 // ============ USER_SETTINGS (用户设置: 基准股票/FGI 缓存等) ============
 
-export const fetchSettings = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchSettings = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
   const { data, error } = await supabase
@@ -261,18 +261,35 @@ export const upsertSettings = async (settings) => {
 // 🚨 容错设计: 用 Promise.allSettled 代替 Promise.all
 // 任何一个表 404 或出错, 不影响其他表的数据加载
 export const fetchAllUserData = async () => {
+  // 🔧 关键修复 (v10.7.8.8):
+  // 之前: 每个 fetch 函数内部都调 supabase.auth.getUser()
+  //       Promise.all 11 个并发请求 → 11 个同时抢 auth lock
+  //       超时报 "Lock was not released" → 5 个查询失败
+  // 现在: 先 getUser 一次拿到 user, 然后所有 fetch 用同一个 user
+  //       完全避开 auth lock 竞争
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.warn('[fetchAllUserData] 用户未登录');
+    return {
+      trades: null, watchlist: null, waveNotes: null, settings: null,
+      accounts: null, snapshots: null, investmentPlan: null,
+      marginStatus: null, disciplines: null, reviewLogs: null,
+      yearlyActuals: null, _failedTables: [],
+    };
+  }
+
   const results = await Promise.allSettled([
-    fetchTrades(),            // 0
-    fetchWatchlist(),         // 1
-    fetchWaveNotes(),         // 2
-    fetchSettings(),          // 3
-    fetchAccounts(),          // 4
-    fetchSnapshots(),         // 5
-    fetchInvestmentPlan(),    // 6
-    fetchMarginStatus(),      // 7
-    fetchDisciplines(),       // 8
-    fetchReviewLogs(),        // 9
-    fetchYearlyActuals(),     // 10
+    fetchTrades(user),            // 0
+    fetchWatchlist(user),         // 1
+    fetchWaveNotes(user),         // 2
+    fetchSettings(user),          // 3
+    fetchAccounts(user),          // 4
+    fetchSnapshots(user),         // 5
+    fetchInvestmentPlan(user),    // 6
+    fetchMarginStatus(user),      // 7
+    fetchDisciplines(user),       // 8
+    fetchReviewLogs(user),        // 9
+    fetchYearlyActuals(user),     // 10
   ]);
 
   // 🔑 关键: 失败时返回 null (非 []/{}) 这样 App 层能区分
@@ -311,8 +328,8 @@ export const fetchAllUserData = async () => {
 
 // ============ ACCOUNTS (家庭账户) ============
 
-export const fetchAccounts = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchAccounts = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -397,8 +414,8 @@ export const deleteAccount = async (id) => {
 
 // ============ BALANCE SNAPSHOTS (余额快照) ============
 
-export const fetchSnapshots = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchSnapshots = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -467,8 +484,8 @@ export const deleteSnapshot = async (id) => {
 
 // ============ INVESTMENT_PLAN (复利计划, 每人 1 条) ============
 
-export const fetchInvestmentPlan = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchInvestmentPlan = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
   const { data, error } = await supabase
@@ -515,8 +532,8 @@ export const upsertInvestmentPlan = async (plan) => {
 
 // ============ MARGIN_STATUS (融资状态, 每人 1 条) ============
 
-export const fetchMarginStatus = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchMarginStatus = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
   const { data, error } = await supabase
@@ -553,8 +570,8 @@ export const upsertMarginStatus = async (status) => {
 
 // ============ DISCIPLINES (投资戒律) ============
 
-export const fetchDisciplines = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchDisciplines = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -634,8 +651,8 @@ export const deleteDiscipline = async (id) => {
 
 // ============ REVIEW_LOGS (月度复盘日志) ============
 
-export const fetchReviewLogs = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchReviewLogs = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -709,8 +726,8 @@ export const deleteReviewLog = async (id) => {
 
 // ============ YEARLY_ACTUALS (年度实际回报) ============
 
-export const fetchYearlyActuals = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+export const fetchYearlyActuals = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
   const { data, error } = await supabase
