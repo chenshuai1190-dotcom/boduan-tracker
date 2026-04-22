@@ -2658,7 +2658,7 @@ function MainApp({ user, onLogout }) {
                 );
               }
 
-              // 心电图行 - 入侵式占满全屏 (v10.7.9.2: 删 X, 单线分隔)
+              // 心电图行 - 入侵式占满全屏 (v10.7.9.3: 删 X, 单线分隔)
               return (
                 <div
                   key={s.symbol}
@@ -4691,7 +4691,15 @@ function MainApp({ user, onLogout }) {
               { level: '❗', label: '警告', colorClass: 'bg-rose-50 border-rose-200 text-rose-800' },
             ];
             const LEVEL_COLORS = Object.fromEntries(LEVELS.map(l => [l.level, l.colorClass]));
-            const filteredDisciplines = filterLevel === 'all' ? disciplines : disciplines.filter(d => d.level === filterLevel);
+            // 🐛 修复 (v10.7.9.3): 按 pinned 优先排序
+            //   之前: 直接用 disciplines, 置顶按钮无效
+            //   现在: pinned=true 的永远在前
+            const sortedDisciplines = [...disciplines].sort((a, b) => {
+              if (a.pinned && !b.pinned) return -1;
+              if (!a.pinned && b.pinned) return 1;
+              return 0;  // 都置顶 / 都不置顶 → 保持原顺序
+            });
+            const filteredDisciplines = filterLevel === 'all' ? sortedDisciplines : sortedDisciplines.filter(d => d.level === filterLevel);
 
             return (
               <>
@@ -6005,14 +6013,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.2
+                  v10.7.9.3
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.2', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.3', date: '2026-04-23', latest: true,
+                    items: ['🐛 修复戒律置顶 bug (pinned 排序失效)', '现在置顶的戒律永远显示在最上面'],
+                  },
+                  {
+                    ver: 'v10.7.9.2', date: '2026-04-23',
                     items: ['📐 关注列表再扩宽 (删 ✕ + 单线分隔)', '右侧 padding 28px → 14px (内容多 14px 空间)', '卡间双线 → 单线 (视觉更轻)', '删除股票: 点卡片进编辑 → 底部"删除"按钮'],
                   },
                   {
@@ -6212,7 +6224,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.2</div>
+                <div>📊 版本:v10.7.9.3</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6574,7 +6586,7 @@ export default function TQQQTracker() {
 
 // ============================================
 // 📅 最后修改时间: 2026-04-23 10:00:00 (UTC+8)
-// 📝 本次更新: v10.7.9.2 - 关注列表再扩宽 📐
+// 📝 本次更新: v10.7.9.3 - 关注列表再扩宽 📐
 //
 //   3 项优化:
 //
