@@ -2112,7 +2112,7 @@ function MainApp({ user, onLogout }) {
           {/* === 第 1 排:市场状态(可切换基准) === */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前市场状态</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前猎手状态</div>
               <div className="text-2xl font-black mt-1 text-slate-900 leading-tight">{benchmarkStatus.text}</div>
               <div className="text-xs text-slate-500 mt-0.5 truncate">{benchmarkStatus.desc}</div>
             </div>
@@ -6556,40 +6556,38 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-22 19:00:00 (UTC+8)
-// 📝 本次更新: v10.7.8.8 - 性能优化 ⚡
+// 📅 最后修改时间: 2026-04-22 20:00:00 (UTC+8)
+// 📝 本次更新: v10.7.8.8 - 紧急修复 + 性能优化 🚨⚡
 //
-//   App.jsx 体检报告:
-//     6572 行, 90 个 state, 13 个 useEffect, 172 内联函数
-//     之前 useMemo: 0 (全靠重算)
+//   🚨 紧急修复: 5 张表加载失败
 //
-//   阶段 1 优化 (这次):
+//   症状:
+//     ⚠️ 5 项数据未能加载: investmentPlan, marginStatus,
+//        disciplines, reviewLogs, yearlyActuals
 //
-//   1) wavesByStock 加 useMemo
-//      只依赖 trades + watchlist
-//      之前: 任何 state 变化都重算波段
-//      现在: 只在交易/关注列表变化时重算
-//      估算节省: 大量 CPU
+//   F12 报错:
+//     "Lock 'lock:sb-...-auth-token' was not released within 5000ms"
+//     "Lock broken by another request with the steal option"
 //
-//   2) watchlistAlerts + triggeredAlerts useMemo
-//      之前: 每次重渲都遍历 watchlist 算回撤
-//      现在: 只在 watchlist 变化时算
-//      WebSocket 价格更新时, 算法稳定
+//   根因:
+//     Supabase 的 auth 库用单一全局锁
+//     fetchAllUserData 用 Promise.allSettled 并发 11 个查询
+//     每个查询内部都调 supabase.auth.getUser()
+//     → 11 个请求同时抢同一个锁
+//     → 前 6 个超时, 后 5 个抛 AbortError
 //
-//   3) calmRoom* 系列 useMemo
-//      持仓冷静室总览数据缓存
+//   修复 (db.js):
+//     1) fetchAllUserData 先 getUser 一次拿到 user
+//     2) 11 个 fetch 函数支持 preUser 参数
+//        signature: async (preUser = null) =>
+//        body: const user = preUser || (await getUser()).data.user;
+//     3) Promise.allSettled 时传入 user
+//     → 完全避开 auth lock 竞争
 //
-//   4) fetchRealtimePrices 加 hasChanges 检查
-//      只在数据真变化时 setWatchlist
-//      避免每 10 秒空 setState 触发全 App 重渲
+//   ⚡ 同时加性能优化:
+//     7 处 useMemo (wavesByStock + watchlistAlerts 等)
+//     hasChanges 智能检测
 //
-//   5) 加 useCallback import (准备未来组件拆分)
-//
-//   未做 (留给阶段 2):
-//     - 拆分大组件 (React.memo)
-//     - useReducer 合并 90 个 state
-//     - 懒加载 (单文件结构限制)
-//
-// 📦 v10.7.8.7: 导出 JSON 备份
+// 📦 v10.7.8.7: 导出 JSON 备份 + 猎手状态
 // 📦 v10.7.8.6: 改名"目标" + 折叠
 // ============================================
