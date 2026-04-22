@@ -608,6 +608,7 @@ function MainApp({ user, onLogout }) {
   const [editingLogId, setEditingLogId] = useState(null);
   const [filterLevel, setFilterLevel] = useState('all'); // all / 🟢 / 🔺 / 📣 / ❗
   const [showAllDisciplines, setShowAllDisciplines] = useState(false);
+  const [showAllLogs, setShowAllLogs] = useState(false);
   const [expandedDisciplines, setExpandedDisciplines] = useState({}); // { id: bool } 长戒律展开
   const [editYearlyActualId, setEditYearlyActualId] = useState(null); // 编辑哪个年份的实际数据
   const [showAllYears, setShowAllYears] = useState(false); // 年度表默认显示 3 个, 点击展开全部
@@ -5265,22 +5266,37 @@ function MainApp({ user, onLogout }) {
                       <div className="text-xs">每周/每月记录一下操作和思考</div>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {reviewLogs.slice(0, 20).map(l => (
-                        <div key={l.id} className="rounded-xl border border-slate-200 p-3 bg-slate-50">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="text-xs font-black text-slate-700 tabular-nums">{l.date}</div>
-                            <div className="flex items-center gap-1.5">
-                              {l.mood && <span className="text-[10px] text-blue-600 font-bold bg-blue-100 px-1.5 py-0.5 rounded">{l.mood}</span>}
-                              <button onClick={() => setEditingLogId(l.id)} className="p-1 rounded hover:bg-white">
-                                <Edit2 className="w-3 h-3 text-slate-400"/>
-                              </button>
+                    <>
+                      <div className="space-y-2">
+                        {(showAllLogs ? reviewLogs : reviewLogs.slice(0, 10)).map(l => (
+                          <div key={l.id} className="rounded-xl border border-slate-200 p-3 bg-slate-50">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-xs font-black text-slate-700 tabular-nums">{l.date}</div>
+                              <div className="flex items-center gap-1.5">
+                                {l.mood && <span className="text-[10px] text-blue-600 font-bold bg-blue-100 px-1.5 py-0.5 rounded">{l.mood}</span>}
+                                <button onClick={() => setEditingLogId(l.id)} className="p-1 rounded hover:bg-white">
+                                  <Edit2 className="w-3 h-3 text-slate-400"/>
+                                </button>
+                              </div>
                             </div>
+                            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap break-words">{l.text}</div>
                           </div>
-                          <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap break-words">{l.text}</div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                      {/* 展开/收起按钮 (跟戒律一致样式) */}
+                      {reviewLogs.length > 10 && (
+                        <button
+                          onClick={() => setShowAllLogs(!showAllLogs)}
+                          className="w-full mt-2 py-2.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 active:scale-95 transition flex items-center justify-center gap-1.5"
+                        >
+                          {showAllLogs ? (
+                            <><ChevronUp className="w-3.5 h-3.5"/>收起, 只看前 10 条</>
+                          ) : (
+                            <><ChevronDown className="w-3.5 h-3.5"/>展开剩余 {reviewLogs.length - 10} 条</>
+                          )}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -5336,8 +5352,15 @@ function MainApp({ user, onLogout }) {
                                 <label className="text-xs text-slate-500 block mb-1">起始年</label>
                                 <input
                                   type="number"
-                                  value={draft.startYear}
-                                  onChange={e => setDraft({ ...draft, startYear: parseInt(e.target.value) || 2026 })}
+                                  value={draft.startYear === '' ? '' : draft.startYear}
+                                  onChange={e => {
+                                    const v = e.target.value;
+                                    setDraft({ ...draft, startYear: v === '' ? '' : (parseInt(v) || 0) });
+                                  }}
+                                  onBlur={e => {
+                                    const v = parseInt(e.target.value);
+                                    if (!v || v < 2000) setDraft({ ...draft, startYear: 2026 });
+                                  }}
                                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
                                 />
                               </div>
@@ -5345,8 +5368,17 @@ function MainApp({ user, onLogout }) {
                                 <label className="text-xs text-slate-500 block mb-1">总年数</label>
                                 <input
                                   type="number"
-                                  value={draft.totalYears}
-                                  onChange={e => setDraft({ ...draft, totalYears: parseInt(e.target.value) || 10 })}
+                                  value={draft.totalYears === '' ? '' : draft.totalYears}
+                                  onChange={e => {
+                                    const v = e.target.value;
+                                    // 空 → 保持空 (允许删除); 否则解析为数字
+                                    setDraft({ ...draft, totalYears: v === '' ? '' : (parseInt(v) || 0) });
+                                  }}
+                                  onBlur={e => {
+                                    // 失焦时: 如果是空 / 0, fallback 到 10
+                                    const v = parseInt(e.target.value);
+                                    if (!v || v < 1) setDraft({ ...draft, totalYears: 10 });
+                                  }}
                                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
                                 />
                               </div>
@@ -5355,8 +5387,15 @@ function MainApp({ user, onLogout }) {
                               <label className="text-xs text-slate-500 block mb-1">目标年龄</label>
                               <input
                                 type="number"
-                                value={draft.ageGoalAge || ''}
-                                onChange={e => setDraft({ ...draft, ageGoalAge: parseInt(e.target.value) || 40 })}
+                                value={draft.ageGoalAge === '' ? '' : (draft.ageGoalAge || '')}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setDraft({ ...draft, ageGoalAge: v === '' ? '' : (parseInt(v) || 0) });
+                                }}
+                                onBlur={e => {
+                                  const v = parseInt(e.target.value);
+                                  if (!v || v < 1) setDraft({ ...draft, ageGoalAge: 40 });
+                                }}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
                               />
                             </div>
@@ -6013,14 +6052,22 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.3
+                  v10.7.9.5
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.3', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.5', date: '2026-04-23', latest: true,
+                    items: ['🐛 修复复利计划输入 bug (起始年/总年数/目标年龄)', '之前: 删空数字会自动跳回默认值, 不让删', '现在: 输入时可以完全清空, 失焦时才 fallback 默认'],
+                  },
+                  {
+                    ver: 'v10.7.9.4', date: '2026-04-23',
+                    items: ['📜 复盘日志默认显示 10 条 (跟戒律一致)', '超过 10 条 → "展开剩余 X 条" 按钮', '收起后回归 10 条简洁视图'],
+                  },
+                  {
+                    ver: 'v10.7.9.3', date: '2026-04-23',
                     items: ['🐛 修复戒律置顶 bug (pinned 排序失效)', '现在置顶的戒律永远显示在最上面'],
                   },
                   {
@@ -6224,7 +6271,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.3</div>
+                <div>📊 版本:v10.7.9.5</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
