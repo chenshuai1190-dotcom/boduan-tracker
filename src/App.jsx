@@ -4796,8 +4796,8 @@ function MainApp({ user, onLogout }) {
                     }
                     .polar-main-star {
                       position: absolute;
-                      top: 24px;
-                      right: 30px;
+                      bottom: 24px;
+                      right: 24px;
                       width: 6px;
                       height: 6px;
                       background: #fbbf24;
@@ -5898,7 +5898,7 @@ function MainApp({ user, onLogout }) {
                 const changelog = [
                   {
                     ver: 'v10.7.9.8', date: '2026-04-23', latest: true,
-                    items: ['✨ 北极星计划卡 宇宙动效 (保留烈焰红金背景)', '右上角北极星脉动发光 + 8 颗闪烁星星 + 偶尔流星', '只加装饰层, 不改背景色'],
+                    items: ['✨ 北极星计划卡 宇宙动效 (保留烈焰红金)', '北极星移到右下角, 不挡设置按钮', '8 颗闪烁星 + 偶尔流星'],
                   },
                   {
                     ver: 'v10.7.9.7', date: '2026-04-23',
