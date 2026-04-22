@@ -15,6 +15,7 @@ export default async function handler(req, res) {
 
   const { symbols } = req.query;
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  const finnhubKey = (process.env.FINNHUB_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
 
   if (!eodhdKey) {
     return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY' });
@@ -111,6 +112,62 @@ export default async function handler(req, res) {
             };
           } catch (e) {
             return { symbol, error: `CNN 请求失败: ${e.message}` };
+          }
+        }
+
+        // ============ 📊 ANALYST: 分析师评级动态 (Finnhub) ============
+        // 输入: ANALYST:NVDA,META,TSM,GOOGL,MSFT (前缀 + 股票列表)
+        // 返回: 最近的评级升级/降级/目标价调整
+        if (symbol.startsWith('ANALYST')) {
+          if (!finnhubKey) {
+            return { symbol: 'ANALYST', error: 'FINNHUB_API_KEY 未配置' };
+          }
+          try {
+            // 解析后面的股票列表
+            const stockList = symbol.replace('ANALYST:', '').split(',').filter(Boolean);
+            if (stockList.length === 0) {
+              return { symbol: 'ANALYST', data: [] };
+            }
+
+            // 并发拉取每只股票的评级历史
+            const allRatings = await Promise.all(stockList.map(async (sym) => {
+              try {
+                const url = `https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${sym}&token=${finnhubKey}`;
+                const r = await fetch(url);
+                if (!r.ok) return [];
+                const data = await r.json();
+                if (!Array.isArray(data)) return [];
+                // 每条加上股票代码 (Finnhub 返回里 symbol 字段就有, 这里保险)
+                return data.map(d => ({
+                  symbol: d.symbol || sym,
+                  gradeTime: d.gradeTime,
+                  fromGrade: d.fromGrade || '',
+                  toGrade: d.toGrade || '',
+                  company: d.company || '',
+                  action: d.action || '',  // up / down / init / maintain
+                }));
+              } catch (e) {
+                console.error(`fetchAnalyst ${sym} 失败:`, e.message);
+                return [];
+              }
+            }));
+
+            // 合并 + 按时间倒序 + 最近 30 天 + 最多 30 条
+            const merged = allRatings.flat();
+            const cutoff = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;  // 30 天前
+            const filtered = merged
+              .filter(r => r.gradeTime && r.gradeTime > cutoff)
+              .sort((a, b) => b.gradeTime - a.gradeTime)
+              .slice(0, 30);
+
+            return {
+              symbol: 'ANALYST',
+              data: filtered,
+              source: 'Finnhub',
+              fetchedAt: new Date().toISOString(),
+            };
+          } catch (e) {
+            return { symbol: 'ANALYST', error: `分析师评级请求失败: ${e.message}` };
           }
         }
 
