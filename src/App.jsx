@@ -494,6 +494,14 @@ function MainApp({ user, onLogout }) {
   // high = 6个月滚动最高价,用于计算回撤预警
   // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
   const [watchlist, setWatchlist] = useState([]);
+  // 🐛 DEBUG (v10.7.9.16): 监控 watchlist 变化
+  useEffect(() => {
+    if (watchlist.length === 0) return;
+    const nvda = watchlist.find(s => s.symbol === 'NVDA');
+    if (nvda) {
+      console.log('[STATE NVDA] price:', nvda.price, 'previousClose:', nvda.previousClose, 'changePercent:', nvda.changePercent);
+    }
+  }, [watchlist]);
   const [editingStock, setEditingStock] = useState(null);
   const [showAddStock, setShowAddStock] = useState(false);
   const [newStock, setNewStock] = useState({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
@@ -1430,7 +1438,15 @@ function MainApp({ user, onLogout }) {
           const old = watchlist[i];
           return !old || s.price !== old.price || s.high !== old.high || s.changePercent !== old.changePercent;
         });
-        if (hasChanges) setWatchlist(updated);
+        console.log('[FETCH] hasChanges:', hasChanges, '| 第一只 NVDA 数据:', {
+          price: updated[0]?.price,
+          previousClose: updated[0]?.previousClose,
+          changePercent: updated[0]?.changePercent,
+        });
+        if (hasChanges) {
+          setWatchlist(updated);
+          console.log('[FETCH] ✓ setWatchlist 已调用');
+        }
       }
 
       // 同步 TQQQ 和 QQQ 到核心参数
