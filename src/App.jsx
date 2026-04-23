@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.14: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.15: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.14): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.15): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1977,7 +1977,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.14: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.15: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2024,7 +2024,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.14) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.15) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2802,44 +2802,6 @@ function MainApp({ user, onLogout }) {
                       </div>
                     </div>
 
-                    {/* 中:大走势图 56px + 渐变填充 */}
-                    <div className="w-full h-14 my-2">
-                      {series.length > 1 ? (
-                        <svg viewBox="0 0 100 56" className="w-full h-full" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id={`grad-${s.symbol}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={dayColor} stopOpacity="0.25"/>
-                              <stop offset="100%" stopColor={dayColor} stopOpacity="0"/>
-                            </linearGradient>
-                          </defs>
-                          {(() => {
-                            // 重建 path 使 H=56
-                            const H56 = 56;
-                            if (series.length <= 1) return null;
-                            const min = Math.min(...series, s.previousClose || series[0]);
-                            const max = Math.max(...series, s.previousClose || series[0]);
-                            const range = max - min || 1;
-                            const W = 100;
-                            const pts = series.map((v, i) => {
-                              const x = (i / (series.length - 1)) * W;
-                              const y = H56 - ((v - min) / range) * H56;
-                              return `${x.toFixed(1)},${y.toFixed(1)}`;
-                            });
-                            const p = `M ${pts.join(' L ')}`;
-                            const f = `${p} L ${W},${H56} L 0,${H56} Z`;
-                            return (
-                              <>
-                                <path d={f} fill={`url(#grad-${s.symbol})`} />
-                                <path d={p} fill="none" stroke={dayColor} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                              </>
-                            );
-                          })()}
-                        </svg>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-[11px] text-slate-300">-- 无走势数据 --</div>
-                      )}
-                    </div>
-
                     {/* 下: 2 块对称 - 持仓块 / 52周高块 */}
                     <div className="grid grid-cols-2 gap-2 pt-2.5">
                       {/* 左: 持仓块 (灰底) */}
@@ -3027,7 +2989,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.14) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.15) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3210,7 +3172,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.14) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.15) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -5970,15 +5932,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.14
+                  v10.7.9.15
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.14', date: '2026-04-23', latest: true,
-                    items: ['🎯 切换到 EODHD Live v2 端点 (/api/us-quote-delayed)', '支持 ethPrice (盘前盘后实时价)', 'changePercent 直接用 EODHD 返回的', '盘前盘后现在应该跟网页一致了'],
+                    ver: 'v10.7.9.15', date: '2026-04-23', latest: true,
+                    items: ['🎯 删除关注列表走势图 (数据源不稳定)', '顶部指数走势图保留 (未删)', '关注卡更紧凑, 一屏看更多', '股价+涨跌%依然实时'],
+                  },
+                  {
+                    ver: 'v10.7.9.14', date: '2026-04-23',
+                    items: ['🎯 切换到 EODHD Live v2 (/api/us-quote-delayed)', '支持 ethPrice (盘前盘后实时价)', 'changePercent 跟 Yahoo 网页一致'],
                   },
                   {
                     ver: 'v10.7.9.13', date: '2026-04-23',
@@ -6467,7 +6433,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.14</div>
+                <div>📊 版本:v10.7.9.15</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
