@@ -3009,13 +3009,11 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 蓝色专业 (v10.7.9.12) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.12) */}
             <div
-              className="rounded-2xl p-4 mb-3 relative overflow-hidden"
+              className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
-                background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                border: '1px solid #bfdbfe',
-                boxShadow: '0 4px 20px rgba(59, 130, 246, 0.08)',
+                border: '1px solid #e2e8f0',
               }}
             >
               <div className="flex items-center justify-between mb-3 relative z-10">
@@ -3025,45 +3023,45 @@ function MainApp({ user, onLogout }) {
                     className="font-black text-sm"
                     style={{
                       letterSpacing: '1px',
-                      color: '#1e40af',
+                      color: '#0f172a',
                     }}
                   >
                     波段记录
                   </h2>
                 </div>
-                <div className="text-[10px] italic" style={{ color: '#64748b' }}>点波段看明细</div>
+                <div className="text-[10px] italic" style={{ color: '#94a3b8' }}>点波段看明细</div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 relative z-10">
                 <div
                   className="rounded-xl py-2.5 text-center"
                   style={{
-                    background: 'white',
-                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9',
                   }}
                 >
-                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#2563eb' }}>{calmRoomActiveCount}</div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#64748b' }}>进行中</div>
+                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#dc2626' }}>{calmRoomActiveCount}</div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#94a3b8' }}>进行中</div>
                 </div>
                 <div
                   className="rounded-xl py-2.5 text-center"
                   style={{
-                    background: 'white',
-                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9',
                   }}
                 >
                   <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomCompletedCount}</div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#64748b' }}>已完成</div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#94a3b8' }}>已完成</div>
                 </div>
                 <div
                   className="rounded-xl py-2.5 text-center"
                   style={{
-                    background: 'white',
-                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    border: '1px solid #f1f5f9',
                   }}
                 >
-                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5" style={{ color: '#64748b' }}>天</span></div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#64748b' }}>均持有</div>
+                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5" style={{ color: '#94a3b8' }}>天</span></div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#94a3b8' }}>均持有</div>
                 </div>
               </div>
             </div>
@@ -5962,7 +5960,7 @@ function MainApp({ user, onLogout }) {
                 const changelog = [
                   {
                     ver: 'v10.7.9.12', date: '2026-04-23', latest: true,
-                    items: ['🎨 波段记录卡换蓝色专业色调 (替换黑金)', '跟首页黑金/北极星红金 形成层次区分', '浅蓝底 + 深蓝字 + 白色数字块'],
+                    items: ['🎨 波段记录卡换白卡极简 (替换黑金)', '跟关注列表/戒律/复盘 视觉统一', '白底 + 灰块 + 进行中红色数字'],
                   },
                   {
                     ver: 'v10.7.9.11', date: '2026-04-23',
