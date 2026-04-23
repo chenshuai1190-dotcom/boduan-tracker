@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.19: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.13: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.19): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.13): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1592,17 +1592,11 @@ function MainApp({ user, onLogout }) {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            // EODHD 消息格式: { s: 'AAPL', p: 150.25, t: 1234567890, v: 100, dc: 1.23, dd: 1.85, ppms: false }
-            //   p = 实时价 (Last price)
-            //   dc = daily change % (实时涨跌% 含盘前盘后)
-            //   dd = daily difference (美元差值)
-            //   ppms = pre/post market status
+            // EODHD 消息格式: { s: 'AAPL', p: 150.25, t: 1234567890, v: 100 }
             if (data.s && typeof data.p === 'number') {
               const sym = data.s.toUpperCase();
               const newPrice = data.p;
               const tickTime = data.t || Math.floor(Date.now() / 1000);
-              // 🎯 v10.7.9.19: EODHD WebSocket 自带 dc (实时涨跌%, 含盘前盘后)
-              const tickChangePct = typeof data.dc === 'number' ? data.dc : null;
 
               setWsLastTick(new Date());
 
@@ -1612,11 +1606,11 @@ function MainApp({ user, onLogout }) {
                   // EODHD 返回的 ticker 是 'SPY.US' 或 'QQQ.US'
                   if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
                   const oldPrice = idx.price || 0;
-                  if (oldPrice === newPrice && tickChangePct === null) return idx;
-                  // 优先用 EODHD WebSocket 自带的 dc, 没有时才自己算
-                  const newChangePct = tickChangePct !== null ? tickChangePct
-                                     : (idx.previousClose > 0 ? ((newPrice - idx.previousClose) / idx.previousClose) * 100 : 0);
-                  const newChange = typeof data.dd === 'number' ? data.dd : (newPrice - (idx.previousClose || oldPrice));
+                  if (oldPrice === newPrice) return idx;
+                  // 重算当日涨跌
+                  const pc = idx.previousClose || oldPrice;
+                  const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
+                  const newChange = newPrice - pc;
                   return {
                     ...idx,
                     price: newPrice,
@@ -1643,10 +1637,9 @@ function MainApp({ user, onLogout }) {
                   });
                 }, 500);
 
-                // 🎯 v10.7.9.19: 优先用 EODHD WebSocket 自带的 dc (实时%)
-                //   tickChangePct 已经在前面统一拿了
-                const newChangePct = tickChangePct !== null ? tickChangePct
-                                   : (s.previousClose > 0 ? ((newPrice - s.previousClose) / s.previousClose) * 100 : 0);
+                // 当日涨跌重算
+                const pc = s.previousClose || oldPrice;
+                const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : 0;
 
                 // 🔑 同步更新走势图数据 (intraday + intradayPoints)
                 // 策略: 每分钟合并一个点 (避免数组爆炸)
@@ -1984,7 +1977,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.19: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.13: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2031,7 +2024,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.19) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.13) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2136,9 +2129,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 );
               }
-              // v10.7.9.19: 直接用后端 changePercent (Yahoo 自带的 pre/regular/post 实时%)
-              const realChangePct = idx.changePercent || 0;
-              const isUp = realChangePct >= 0;
+              const isUp = idx.changePercent >= 0;
               const accentColor = isUp ? '#dc2626' : '#16a34a';        // 红涨绿跌
               const bgColor = isUp ? 'rgba(220, 38, 38, 0.08)' : 'rgba(22, 163, 74, 0.08)';
               const series = (idx.intraday || []).filter(v => v != null && !isNaN(v));
@@ -2170,9 +2161,9 @@ function MainApp({ user, onLogout }) {
                   <div className={`text-base font-black tabular-nums leading-tight`} style={{ color: accentColor, fontFamily: 'ui-monospace, monospace' }}>
                     {idx.ticker === 'BTC-USD.CC' ? '$' : ''}{(idx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  {/* 涨跌幅 (v10.7.9.19: 实时算, 支持盘前/盘后) */}
+                  {/* 涨跌幅 */}
                   <div className={`text-[11px] font-bold tabular-nums leading-tight`} style={{ color: accentColor }}>
-                    {isUp ? '+' : ''}{realChangePct.toFixed(2)}%
+                    {isUp ? '+' : ''}{(idx.changePercent || 0).toFixed(2)}%
                   </div>
                   {/* 走势线 */}
                   {series.length > 1 ? (
@@ -2713,8 +2704,6 @@ function MainApp({ user, onLogout }) {
               const isExtreme = hasAlert && s.alert.level >= 7;
 
               // 当日涨跌色(红涨绿跌)
-              // v10.7.9.19: 直接用后端 changePercent (Yahoo 自带的 pre/regular/post 实时%)
-              //   后端已经按 marketState 自动选了对应字段, 跟 Yahoo 网页一致
               const dayChange = s.changePercent || 0;
               const isUp = dayChange >= 0;
               const dayColor = isUp ? '#dc2626' : '#16a34a';
@@ -3038,7 +3027,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.19) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.13) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3221,7 +3210,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.19) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.13) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -5981,38 +5970,14 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.19
+                  v10.7.9.13
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.19', date: '2026-04-23', latest: true,
-                    items: ['🎯 改回全部用 EODHD (你付费的, 数据更准)', 'REST: data.change_p (实时%)', 'WebSocket: dc 字段 (实时% 含盘前盘后)', 'Yahoo 只用作走势图分时数据'],
-                  },
-                  {
-                    ver: 'v10.7.9.18', date: '2026-04-23',
-                    items: ['🐛 尝试用 Yahoo 实时字段 (但拿不到 price)'],
-                  },
-                  {
-                    ver: 'v10.7.9.17', date: '2026-04-23',
-                    items: ['🐛 尝试修盘前% (改用 regularMarketPreviousClose, 实际还不对)'],
-                  },
-                  {
-                    ver: 'v10.7.9.16', date: '2026-04-23',
-                    items: ['🔍 临时 debug log 排查盘前% bug'],
-                  },
-                  {
-                    ver: 'v10.7.9.15', date: '2026-04-23',
-                    items: ['🔍 临时 debug log 排查盘前% bug'],
-                  },
-                  {
-                    ver: 'v10.7.9.14', date: '2026-04-23',
-                    items: ['🐛 修复涨跌% 盘前/盘后不更新 bug', '原: 用 EODHD changePercent (盘前不更新)', '现: 实时算 (现价 - 昨收) / 昨收 · 影响关注列表 + 顶部指数 + 持仓总盈亏'],
-                  },
-                  {
-                    ver: 'v10.7.9.13', date: '2026-04-23',
+                    ver: 'v10.7.9.13', date: '2026-04-23', latest: true,
                     items: ['📈 首页持仓卡: 浮动% → 当日盈亏', '显示: 今日 +$X,XXX (+X.XX%)', '红涨绿跌, 跟着 WebSocket 实时跳'],
                   },
                   {
@@ -6498,7 +6463,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.19</div>
+                <div>📊 版本:v10.7.9.13</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
