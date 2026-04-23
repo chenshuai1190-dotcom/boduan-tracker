@@ -521,8 +521,19 @@ function MainApp({ user, onLogout }) {
   // 杠杆 ETF 黑名单(不允许作为基准,因为回撤不该 ×3 来判断)
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
-  // 预警通知开关(本地静默时间)
-  const [alertsMuted, setAlertsMuted] = useState(false);
+  // 预警通知开关 (持久化 localStorage)
+  // v10.7.9.10: 用户折叠后记住, 下次打开还是折叠
+  const [alertsMuted, setAlertsMuted] = useState(() => {
+    try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
+  });
+  // 上次看到的预警股票 + 等级 (用于检测"新预警")
+  // 格式: { TQQQ: 3, SOXL: 7 }
+  const [lastSeenAlerts, setLastSeenAlerts] = useState(() => {
+    try {
+      const raw = localStorage.getItem('bottomline_last_seen_alerts');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
 
   // 三档配置(可调)
   const [batches, setBatches] = useState([
@@ -943,6 +954,27 @@ function MainApp({ user, onLogout }) {
   const triggeredAlerts = useMemo(() => watchlistAlerts
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
+
+  // 🔔 自动检测新预警 (v10.7.9.10): 新股票 / 等级升级 → 自动展开
+  useEffect(() => {
+    if (triggeredAlerts.length === 0) return;
+    // 检查当前每只预警股票 vs lastSeenAlerts
+    let hasNewOrUpgraded = false;
+    for (const s of triggeredAlerts) {
+      const prevLevel = lastSeenAlerts[s.symbol] || 0;
+      if (s.alert.level > prevLevel) {
+        // 新股票 (prevLevel=0) 或 等级升级 (例如 L3 → L5)
+        hasNewOrUpgraded = true;
+        break;
+      }
+    }
+    if (hasNewOrUpgraded && alertsMuted) {
+      // 自动展开 (用户之前折叠过, 但有新情况)
+      setAlertsMuted(false);
+      try { localStorage.setItem('bottomline_alerts_muted', 'false'); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggeredAlerts]);
 
   // ============ VIX 恐慌指数等级 ============
   const getVixSignal = () => {
@@ -2211,7 +2243,17 @@ function MainApp({ user, onLogout }) {
                       </span>
                     </div>
                     <button
-                      onClick={() => setAlertsMuted(true)}
+                      onClick={() => {
+                        setAlertsMuted(true);
+                        // 持久化: 记住"已折叠" + 存当前看到的股票等级
+                        try {
+                          localStorage.setItem('bottomline_alerts_muted', 'true');
+                          const snap = {};
+                          triggeredAlerts.forEach(s => { snap[s.symbol] = s.alert.level; });
+                          localStorage.setItem('bottomline_last_seen_alerts', JSON.stringify(snap));
+                          setLastSeenAlerts(snap);
+                        } catch {}
+                      }}
                       className="text-xs text-slate-500 font-medium hover:text-slate-700 active:scale-95 px-2 py-0.5 rounded"
                     >
                       收起 ▲
@@ -2246,6 +2288,21 @@ function MainApp({ user, onLogout }) {
                               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${levelColor}`}>
                                 L{s.alert.level} · {s.alert.label}
                               </span>
+                              {/* "新" 徽章: 新股票或等级升级 */}
+                              {(() => {
+                                const prevLevel = lastSeenAlerts[s.symbol] || 0;
+                                if (s.alert.level > prevLevel) {
+                                  return (
+                                    <span
+                                      className="text-[9px] font-black px-1.5 py-0.5 rounded text-white"
+                                      style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', letterSpacing: '0.5px' }}
+                                    >
+                                      {prevLevel === 0 ? '新' : '升级'}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                             <div className="text-right shrink-0">
                               <div className="text-[10px] text-slate-400 tabular-nums leading-tight" style={{ fontFamily: 'ui-monospace, monospace' }}>
@@ -2272,7 +2329,10 @@ function MainApp({ user, onLogout }) {
                 </>
               ) : (
                 <button
-                  onClick={() => setAlertsMuted(false)}
+                  onClick={() => {
+                    setAlertsMuted(false);
+                    try { localStorage.setItem('bottomline_alerts_muted', 'false'); } catch {}
+                  }}
                   className="w-full py-2.5 bg-orange-50 text-orange-700 rounded-lg text-sm font-bold border border-orange-200 active:scale-95"
                 >
                   🔔 有 {triggeredAlerts.length} 个预警被收起,点击展开
@@ -5898,14 +5958,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.9
+                  v10.7.9.10
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.9', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.10', date: '2026-04-23', latest: true,
+                    items: ['🔔 预警折叠状态持久化 (localStorage)', '用户点"收起"后, 下次打开保持折叠', '有新预警或等级升级 → 自动展开 + 显示"新/升级"徽章', '不会漏掉重要信号'],
+                  },
+                  {
+                    ver: 'v10.7.9.9', date: '2026-04-23',
                     items: ['💱 首页总览卡加人民币副显示 (≈ ¥X.X万)', '总市值 + 波段总盈亏 都显示', '主 USD 大字 · 小字 CNY 辅助 · 汇率明示', '🧹 代码清理 -105 行 (10 处死代码)'],
                   },
                   {
@@ -6375,7 +6439,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.9</div>
+                <div>📊 版本:v10.7.9.10</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
