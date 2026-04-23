@@ -1370,11 +1370,25 @@ function MainApp({ user, onLogout }) {
     setFetchError(null);
     try {
       const symbols = [...watchlist.map(s => s.symbol), 'VIX', 'FGI', 'INDICES'].join(',');
+      console.log('[FETCH] 🌐 开始拉取:', symbols.slice(0, 80));
       const r = await fetch(`/api/quote?symbols=${symbols}`);
       const result = await r.json();
+      console.log('[FETCH] ✓ 返回:', result.success ? `成功 ${result.data?.length} 条` : `失败 ${result.error}`);
       
       if (!result.success) {
         throw new Error(result.error || '拉取失败');
+      }
+
+      // DEBUG: 打印 NVDA 的返回数据
+      const nvdaData = result.data?.find(d => d.symbol === 'NVDA');
+      if (nvdaData) {
+        console.log('[FETCH NVDA]', {
+          price: nvdaData.price,
+          previousClose: nvdaData.previousClose,
+          changePercent: nvdaData.changePercent,
+          source: nvdaData.priceSource || nvdaData.source,
+          error: nvdaData.error,
+        });
       }
 
       // 更新股票价格
