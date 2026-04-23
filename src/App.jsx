@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.10: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.11: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.10): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.11): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -3207,11 +3207,20 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 3 列详情 */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.11) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
                             <div className="font-black text-slate-900 tabular-nums text-[13px]" style={{ fontFamily: 'ui-monospace, monospace' }}>${w.avgBuyPrice.toFixed(2)}</div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">现价</div>
+                            <div
+                              className={`font-black tabular-nums text-[13px] ${w.currentPrice > w.avgBuyPrice ? 'text-rose-600' : w.currentPrice < w.avgBuyPrice ? 'text-emerald-600' : 'text-slate-900'}`}
+                              style={{ fontFamily: 'ui-monospace, monospace' }}
+                            >
+                              {w.currentPrice > 0 ? `$${w.currentPrice.toFixed(2)}` : '—'}
+                            </div>
                           </div>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">持有</div>
@@ -5958,14 +5967,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.10
+                  v10.7.9.11
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.10', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.11', date: '2026-04-23', latest: true,
+                    items: ['📊 交易波段卡加"现价"列 (3 列 → 4 列)', '现价颜色: 高于买入均=红(浮盈) · 低于=绿(浮亏)', '一眼看出当前价格 + 盈亏方向'],
+                  },
+                  {
+                    ver: 'v10.7.9.10', date: '2026-04-23',
                     items: ['🔔 预警折叠状态持久化 (localStorage)', '用户点"收起"后, 下次打开保持折叠', '有新预警或等级升级 → 自动展开 + 显示"新/升级"徽章', '不会漏掉重要信号'],
                   },
                   {
@@ -6439,7 +6452,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.10</div>
+                <div>📊 版本:v10.7.9.11</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
