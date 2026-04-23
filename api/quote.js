@@ -206,8 +206,9 @@ export default async function handler(req, res) {
             }).catch(() => null),
           ]);
 
-          // EODHD 数据(作为备份和 52 周高数据源)
+          // EODHD 数据(主力数据源, 你付费的)
           let eodhdPrice = 0, eodhdPrevClose = 0, eodhdDayHigh = 0, eodhdDayLow = 0, eodhdOpen = 0, eodhdTimestamp = 0;
+          let eodhdChange, eodhdChangePercent;  // EODHD 已经算好的实时涨跌
           if (quoteRes.ok) {
             try {
               const data = await quoteRes.json();
@@ -218,14 +219,20 @@ export default async function handler(req, res) {
                 eodhdDayLow = parseFloat(data.low) || 0;
                 eodhdOpen = parseFloat(data.open) || 0;
                 eodhdTimestamp = data.timestamp || 0;
+                // 🎯 EODHD 自带涨跌字段
+                eodhdChange = parseFloat(data.change);
+                eodhdChangePercent = parseFloat(data.change_p);
+                if (isNaN(eodhdChange)) eodhdChange = undefined;
+                if (isNaN(eodhdChangePercent)) eodhdChangePercent = undefined;
               }
             } catch (e) { /* ignore */ }
           }
 
-          // Yahoo 数据(优先,盘前盘后延迟更小)
-          // 🎯 v10.7.9.18: Yahoo chart meta 自带 pre/regular/post 完整数据
-          //   按 marketState 选对应的"价 + 涨跌%" (跟 Yahoo 网页完全一致)
-          let yahooPrice = 0, yahooChangePct = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
+          // 🎯 v10.7.9.19: 全部用 EODHD (你付费的, 数据更准)
+          //   EODHD real-time 端点 在盘中提供实时价 + 涨跌%
+          //   EODHD WebSocket 在盘前/盘后也能持续推送 (前端已接)
+          //   Yahoo 只作为分时图的备份 (走势图用)
+          let yahooMarketState = '', yahooTimestamp = 0;
           let intraday = [];
           let intradayPoints = [];
           let regularMarketTime = 0;
@@ -234,39 +241,14 @@ export default async function handler(req, res) {
               const yahooData = await yahooRes.json();
               const result = yahooData?.chart?.result?.[0];
               const meta = result?.meta || {};
-              yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED | PREPRE
-              yahooPrevClose = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose || 0;
+              yahooMarketState = meta.marketState || '';
               yahooTimestamp = meta.regularMarketTime || 0;
               regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
               const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
 
-              // 🎯 关键: 按市场状态选对应字段 (Yahoo 网页就是这么做的)
-              //   PRE  → preMarketPrice + preMarketChangePercent
-              //   POST → postMarketPrice + postMarketChangePercent
-              //   REGULAR/CLOSED → regularMarketPrice + regularMarketChangePercent
-              if (yahooMarketState === 'PRE' && meta.preMarketPrice) {
-                yahooPrice = meta.preMarketPrice;
-                yahooChangePct = (meta.preMarketChangePercent || 0);  // 已经是 % (不是小数)
-              } else if (yahooMarketState === 'POST' && meta.postMarketPrice) {
-                yahooPrice = meta.postMarketPrice;
-                yahooChangePct = (meta.postMarketChangePercent || 0);
-              } else {
-                // REGULAR / CLOSED / PREPRE
-                yahooPrice = meta.regularMarketPrice || 0;
-                yahooChangePct = (meta.regularMarketChangePercent || 0);
-              }
-
-              // Yahoo 有时返回的 changePercent 是小数 (0.0124), 有时是 % (1.24)
-              // 自动判断: 如果 |val| < 1 一律乘 100
-              if (Math.abs(yahooChangePct) < 1 && yahooChangePct !== 0) {
-                yahooChangePct = yahooChangePct * 100;
-              }
-
-              // 分时 closes + timestamp (用于走势图)
+              // 分时 closes (用于走势图)
               const closes = result?.indicators?.quote?.[0]?.close || [];
               const tsArr = result?.timestamp || [];
-              intradayPoints = [];
-              intraday = [];
               for (let i = 0; i < closes.length; i++) {
                 const v = closes[i];
                 if (v === null || v === undefined || isNaN(v)) continue;
@@ -280,29 +262,25 @@ export default async function handler(req, res) {
                 intraday.push(v);
                 intradayPoints.push({ price: v, t, session });
               }
-
-              // 兜底: 如果 Yahoo 返回的 price 是 0, 用分时最后一点
-              if (yahooPrice === 0 && intraday.length > 0) {
-                yahooPrice = intraday[intraday.length - 1];
-              }
             } catch (e) { /* ignore */ }
           }
 
-          // 价格决策: 优先 Yahoo (盘前盘后实时),降级到 EODHD
-          const price = yahooPrice > 0 ? yahooPrice : eodhdPrice;
-          const previousClose = yahooPrevClose > 0 ? yahooPrevClose : eodhdPrevClose;
-          // 🎯 涨跌%: 优先用 Yahoo 自带的 (盘前/盘后/盘中各时段都是对应的实时%)
-          //          降级才自己算
-          const changePercent = yahooChangePct !== 0 ? yahooChangePct
+          // 🎯 价格 + 涨跌%: 全部用 EODHD (你的付费数据)
+          //   data.close = 实时价 (盘中)
+          //   data.change_p = 实时涨跌% (盘中)
+          //   盘前/盘后由前端 WebSocket 实时推送 (使用 EODHD ws 的 dc 字段)
+          const price = eodhdPrice > 0 ? eodhdPrice : 0;
+          const previousClose = eodhdPrevClose;
+          const change = eodhdChange !== undefined ? eodhdChange : (price - previousClose);
+          const changePercent = eodhdChangePercent !== undefined ? eodhdChangePercent
                               : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
-          const change = price - previousClose;
           const dayHigh = eodhdDayHigh || price;
           const dayLow = eodhdDayLow || price;
           const open = eodhdOpen || price;
-          const timestamp = yahooTimestamp || eodhdTimestamp || Math.floor(Date.now() / 1000);
-          const priceSource = yahooPrice > 0 ? 'Yahoo' : 'EODHD';
+          const timestamp = eodhdTimestamp || yahooTimestamp || Math.floor(Date.now() / 1000);
+          const priceSource = 'EODHD';
 
-          if (price === 0) return { symbol, error: 'Yahoo 和 EODHD 都没返回有效价格' };
+          if (price === 0) return { symbol, error: 'EODHD 没返回有效价格' };
 
           // 52 周高/低: 从 EODHD 历史日线计算
           // 🔑 关键: EODHD 返回的 high/low 是 raw (未拆股调整)
