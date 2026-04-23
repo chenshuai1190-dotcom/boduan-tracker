@@ -232,7 +232,13 @@ export default async function handler(req, res) {
               const yahooData = await yahooRes.json();
               const result = yahooData?.chart?.result?.[0];
               const meta = result?.meta || {};
-              yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
+              // 🐛 v10.7.9.17: previousClose 优先级修复
+              // 之前用 chartPreviousClose: range=1d 时返回的是 N-1 日的收盘 (不是昨天)
+              // 现在优先用 regularMarketPreviousClose (= 上个交易日盘后收盘价, 跟 Yahoo 网页一致)
+              yahooPrevClose = meta.regularMarketPreviousClose
+                            || meta.previousClose
+                            || meta.chartPreviousClose
+                            || 0;
               yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED
               yahooTimestamp = meta.regularMarketTime || 0;
               regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
