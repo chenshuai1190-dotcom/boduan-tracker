@@ -15,7 +15,6 @@ export default async function handler(req, res) {
 
   const { symbols } = req.query;
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
-  const finnhubKey = (process.env.FINNHUB_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
 
   if (!eodhdKey) {
     return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY' });
@@ -127,8 +126,10 @@ export default async function handler(req, res) {
 
             const idxResults = await Promise.all(indices.map(async (idx) => {
               try {
+                // v10.7.9.13: 顶部指数走跟普通股票一样的逻辑 (Yahoo 优先, EODHD 兜底)
+                //   解决盘前/盘后 EODHD 给昨日收盘价的问题
                 const eodhdUrl = `https://eodhd.com/api/real-time/${idx.ticker}?api_token=${eodhdKey}&fmt=json`;
-                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${idx.symbol}?interval=5m&range=1d`;
+                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${idx.symbol}?interval=5m&range=1d&includePrePost=true`;
 
                 const [eodRes, yahooRes] = await Promise.all([
                   fetch(eodhdUrl),
@@ -140,25 +141,60 @@ export default async function handler(req, res) {
                   }).catch(() => null),
                 ]);
 
-                if (!eodRes.ok) return { ticker: idx.ticker, name: idx.name, error: `EODHD HTTP ${eodRes.status}` };
-                const data = await eodRes.json();
-                if (!data || data.code === 'NA' || data.close === undefined) {
-                  return { ticker: idx.ticker, name: idx.name, error: 'EODHD 返回数据为空' };
+                // EODHD 数据 (兜底)
+                let eodhdPrice = 0, eodhdPrevClose = 0, eodhdHigh = 0, eodhdLow = 0;
+                if (eodRes.ok) {
+                  try {
+                    const data = await eodRes.json();
+                    if (data && data.code !== 'NA' && data.close !== undefined) {
+                      eodhdPrice = parseFloat(data.close) || 0;
+                      eodhdPrevClose = parseFloat(data.previousClose) || 0;
+                      eodhdHigh = parseFloat(data.high) || 0;
+                      eodhdLow = parseFloat(data.low) || 0;
+                    }
+                  } catch (e) { /* ignore */ }
                 }
 
-                const currentPrice = parseFloat(data.close) || 0;
-                const previousClose = parseFloat(data.previousClose) || 0;
-                const change = parseFloat(data.change) || (currentPrice - previousClose);
-                const changePercent = parseFloat(data.change_p) || (previousClose > 0 ? (change / previousClose) * 100 : 0);
-
+                // Yahoo 数据 (主, 盘前盘后实时)
+                let yahooPrice = 0, yahooPrevClose = 0, yahooMarketState = '';
                 let intraday = [];
                 if (yahooRes && yahooRes.ok) {
                   try {
                     const yahooData = await yahooRes.json();
                     const result = yahooData?.chart?.result?.[0];
+                    const meta = result?.meta || {};
+                    yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
+                    yahooMarketState = meta.marketState || '';
+                    const regularStart = meta.currentTradingPeriod?.regular?.start || 0;
+                    const regularEnd = meta.currentTradingPeriod?.regular?.end || 0;
                     const closes = result?.indicators?.quote?.[0]?.close || [];
-                    intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+                    const tsArr = result?.timestamp || [];
+
+                    // 收集分时 (用于走势图)
+                    for (let i = 0; i < closes.length; i++) {
+                      const v = closes[i];
+                      if (v !== null && v !== undefined && !isNaN(v)) {
+                        intraday.push(v);
+                      }
+                    }
+
+                    // 价格: 盘中用 regularMarketPrice, 盘外用最后一个分时点
+                    if (yahooMarketState === 'REGULAR') {
+                      yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
+                    } else {
+                      yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
+                    }
                   } catch (e) { /* ignore */ }
+                }
+
+                // 决策: 优先 Yahoo (盘前盘后实时), 兜底 EODHD
+                const currentPrice = yahooPrice > 0 ? yahooPrice : eodhdPrice;
+                const previousClose = yahooPrevClose > 0 ? yahooPrevClose : eodhdPrevClose;
+                const change = currentPrice - previousClose;
+                const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+
+                if (currentPrice === 0) {
+                  return { ticker: idx.ticker, name: idx.name, error: 'Yahoo 和 EODHD 都没数据' };
                 }
 
                 return {
@@ -170,15 +206,16 @@ export default async function handler(req, res) {
                   change,
                   changePercent,
                   intraday,
-                  dayHigh: parseFloat(data.high) || currentPrice,
-                  dayLow: parseFloat(data.low) || currentPrice,
+                  dayHigh: eodhdHigh || currentPrice,
+                  dayLow: eodhdLow || currentPrice,
+                  source: yahooPrice > 0 ? 'Yahoo' : 'EODHD',
                 };
               } catch (e) {
                 return { ticker: idx.ticker, name: idx.name, error: `请求失败: ${e.message}` };
               }
             }));
 
-            return { symbol: 'INDICES', data: idxResults, source: 'EODHD-ETF', fetchedAt: new Date().toISOString() };
+            return { symbol: 'INDICES', data: idxResults, source: 'Yahoo+EODHD', fetchedAt: new Date().toISOString() };
           } catch (e) {
             return { symbol: 'INDICES', error: `指数请求失败: ${e.message}` };
           }
