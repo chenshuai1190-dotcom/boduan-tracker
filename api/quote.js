@@ -223,34 +223,48 @@ export default async function handler(req, res) {
           }
 
           // Yahoo 数据(优先,盘前盘后延迟更小)
-          let yahooPrice = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
-          let intraday = [];           // 纯价格数组 (兼容旧代码)
-          let intradayPoints = [];      // [{price, t, session}] 含时间戳和时段
-          let regularMarketTime = 0;   // 开盘时间戳 (秒, Unix)
+          // 🎯 v10.7.9.18: Yahoo chart meta 自带 pre/regular/post 完整数据
+          //   按 marketState 选对应的"价 + 涨跌%" (跟 Yahoo 网页完全一致)
+          let yahooPrice = 0, yahooChangePct = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
+          let intraday = [];
+          let intradayPoints = [];
+          let regularMarketTime = 0;
           if (yahooRes && yahooRes.ok) {
             try {
               const yahooData = await yahooRes.json();
               const result = yahooData?.chart?.result?.[0];
               const meta = result?.meta || {};
-              // 🐛 v10.7.9.17: previousClose 优先级修复
-              // 之前用 chartPreviousClose: range=1d 时返回的是 N-1 日的收盘 (不是昨天)
-              // 现在优先用 regularMarketPreviousClose (= 上个交易日盘后收盘价, 跟 Yahoo 网页一致)
-              yahooPrevClose = meta.regularMarketPreviousClose
-                            || meta.previousClose
-                            || meta.chartPreviousClose
-                            || 0;
-              yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED
+              yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED | PREPRE
+              yahooPrevClose = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose || 0;
               yahooTimestamp = meta.regularMarketTime || 0;
               regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
               const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
-              const preStart = meta.currentTradingPeriod?.pre?.start || 0;
-              const postEnd = meta.currentTradingPeriod?.post?.end || 0;
 
-              // 分时 closes + timestamp
+              // 🎯 关键: 按市场状态选对应字段 (Yahoo 网页就是这么做的)
+              //   PRE  → preMarketPrice + preMarketChangePercent
+              //   POST → postMarketPrice + postMarketChangePercent
+              //   REGULAR/CLOSED → regularMarketPrice + regularMarketChangePercent
+              if (yahooMarketState === 'PRE' && meta.preMarketPrice) {
+                yahooPrice = meta.preMarketPrice;
+                yahooChangePct = (meta.preMarketChangePercent || 0);  // 已经是 % (不是小数)
+              } else if (yahooMarketState === 'POST' && meta.postMarketPrice) {
+                yahooPrice = meta.postMarketPrice;
+                yahooChangePct = (meta.postMarketChangePercent || 0);
+              } else {
+                // REGULAR / CLOSED / PREPRE
+                yahooPrice = meta.regularMarketPrice || 0;
+                yahooChangePct = (meta.regularMarketChangePercent || 0);
+              }
+
+              // Yahoo 有时返回的 changePercent 是小数 (0.0124), 有时是 % (1.24)
+              // 自动判断: 如果 |val| < 1 一律乘 100
+              if (Math.abs(yahooChangePct) < 1 && yahooChangePct !== 0) {
+                yahooChangePct = yahooChangePct * 100;
+              }
+
+              // 分时 closes + timestamp (用于走势图)
               const closes = result?.indicators?.quote?.[0]?.close || [];
               const tsArr = result?.timestamp || [];
-
-              // 构造带时间戳的分时点 + 时段标记 (pre/regular/post)
               intradayPoints = [];
               intraday = [];
               for (let i = 0; i < closes.length; i++) {
@@ -267,13 +281,9 @@ export default async function handler(req, res) {
                 intradayPoints.push({ price: v, t, session });
               }
 
-              // 价格决策:
-              // - 盘中 REGULAR: 用 meta.regularMarketPrice (权威)
-              // - 盘外 PRE/POST/CLOSED: 用 intraday 分时最后一点
-              if (yahooMarketState === 'REGULAR') {
-                yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
-              } else {
-                yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
+              // 兜底: 如果 Yahoo 返回的 price 是 0, 用分时最后一点
+              if (yahooPrice === 0 && intraday.length > 0) {
+                yahooPrice = intraday[intraday.length - 1];
               }
             } catch (e) { /* ignore */ }
           }
@@ -281,8 +291,11 @@ export default async function handler(req, res) {
           // 价格决策: 优先 Yahoo (盘前盘后实时),降级到 EODHD
           const price = yahooPrice > 0 ? yahooPrice : eodhdPrice;
           const previousClose = yahooPrevClose > 0 ? yahooPrevClose : eodhdPrevClose;
+          // 🎯 涨跌%: 优先用 Yahoo 自带的 (盘前/盘后/盘中各时段都是对应的实时%)
+          //          降级才自己算
+          const changePercent = yahooChangePct !== 0 ? yahooChangePct
+                              : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
           const change = price - previousClose;
-          const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
           const dayHigh = eodhdDayHigh || price;
           const dayLow = eodhdDayLow || price;
           const open = eodhdOpen || price;
