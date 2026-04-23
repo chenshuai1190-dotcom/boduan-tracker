@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.11: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.12: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.11): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.12): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -3009,25 +3009,15 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 奢华黑金 */}
+            {/* 顶部总览 - 蓝色专业 (v10.7.9.12) */}
             <div
-              className="rounded-2xl p-4 mb-3 text-white relative overflow-hidden"
+              className="rounded-2xl p-4 mb-3 relative overflow-hidden"
               style={{
-                background: `
-                  radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
-                  radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
-                  linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0a0a0a 100%)
-                `,
-                border: '1px solid rgba(251, 191, 36, 0.2)',
-                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(251, 191, 36, 0.1)',
+                background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                border: '1px solid #bfdbfe',
+                boxShadow: '0 4px 20px rgba(59, 130, 246, 0.08)',
               }}
             >
-              {/* 金色光晕装饰 */}
-              <div className="absolute top-0 right-0 w-44 h-44 pointer-events-none" style={{
-                background: 'radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 70%)',
-                transform: 'translate(40%, -40%)',
-              }}></div>
-
               <div className="flex items-center justify-between mb-3 relative z-10">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📓</span>
@@ -3035,48 +3025,45 @@ function MainApp({ user, onLogout }) {
                     className="font-black text-sm"
                     style={{
                       letterSpacing: '1px',
-                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
+                      color: '#1e40af',
                     }}
                   >
                     波段记录
                   </h2>
                 </div>
-                <div className="text-[10px] italic" style={{ color: '#737373' }}>点波段看明细</div>
+                <div className="text-[10px] italic" style={{ color: '#64748b' }}>点波段看明细</div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 relative z-10">
                 <div
                   className="rounded-xl py-2.5 text-center"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(251, 191, 36, 0.1)',
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
                   }}
                 >
-                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#fbbf24' }}>{calmRoomActiveCount}</div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#737373' }}>进行中</div>
+                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#2563eb' }}>{calmRoomActiveCount}</div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#64748b' }}>进行中</div>
                 </div>
                 <div
                   className="rounded-xl py-2.5 text-center"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(251, 191, 36, 0.1)',
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
                   }}
                 >
-                  <div className="text-xl font-black text-white tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomCompletedCount}</div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#737373' }}>已完成</div>
+                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomCompletedCount}</div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#64748b' }}>已完成</div>
                 </div>
                 <div
                   className="rounded-xl py-2.5 text-center"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(251, 191, 36, 0.1)',
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
                   }}
                 >
-                  <div className="text-xl font-black text-white tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5" style={{ color: '#a3a3a3' }}>天</span></div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#737373' }}>均持有</div>
+                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5" style={{ color: '#64748b' }}>天</span></div>
+                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#64748b' }}>均持有</div>
                 </div>
               </div>
             </div>
@@ -3207,7 +3194,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.11) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.12) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -5967,14 +5954,18 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.11
+                  v10.7.9.12
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.11', date: '2026-04-23', latest: true,
+                    ver: 'v10.7.9.12', date: '2026-04-23', latest: true,
+                    items: ['🎨 波段记录卡换蓝色专业色调 (替换黑金)', '跟首页黑金/北极星红金 形成层次区分', '浅蓝底 + 深蓝字 + 白色数字块'],
+                  },
+                  {
+                    ver: 'v10.7.9.11', date: '2026-04-23',
                     items: ['📊 交易波段卡加"现价"列 (3 列 → 4 列)', '现价颜色: 高于买入均=红(浮盈) · 低于=绿(浮亏)', '一眼看出当前价格 + 盈亏方向'],
                   },
                   {
@@ -6452,7 +6443,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.11</div>
+                <div>📊 版本:v10.7.9.12</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
