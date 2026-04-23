@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         // ============ 三大指数: 用 ETF 替代真指数 (实时数据) ============
         // v10.7.9.14: 用 EODHD Live v2 (批量 /api/us-quote-delayed)
         //   一次请求拿 SPY + QQQ
-        //   含 ethPrice (盘前盘后价)
+        //   v10.7.9.15: 走势图也换 EODHD Intraday (符合纪律)
         if (symbol === 'INDICES') {
           try {
             const indices = [
@@ -125,23 +125,20 @@ export default async function handler(req, res) {
               { ticker: 'QQQ.US', name: '纳斯达克100 ETF', cn: '纳指', symbol: 'QQQ' },
             ];
 
-            // 批量请求 Live v2 (一次拿 SPY + QQQ)
+            // 批量请求 Live v2 (一次拿 SPY + QQQ 的现价+涨跌%)
             const tickers = indices.map(i => i.ticker).join(',');
             const v2Url = `https://eodhd.com/api/us-quote-delayed?s=${tickers}&api_token=${eodhdKey}&fmt=json`;
 
-            // Yahoo 分时 (每只股一个请求, 用于走势图)
-            const yahooPromises = indices.map(idx =>
-              fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${idx.symbol}?interval=5m&range=1d&includePrePost=true`, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                  'Accept': 'application/json',
-                },
-              }).catch(() => null)
+            // EODHD Intraday: 每只股票单独请求 (5m K 线走势图)
+            const nowTs = Math.floor(Date.now() / 1000);
+            const oneDayAgo = nowTs - 24 * 60 * 60;
+            const intradayPromises = indices.map(idx =>
+              fetch(`https://eodhd.com/api/intraday/${idx.ticker}?interval=5m&from=${oneDayAgo}&to=${nowTs}&api_token=${eodhdKey}&fmt=json`).catch(() => null)
             );
 
-            const [v2Res, ...yahooResults] = await Promise.all([
+            const [v2Res, ...intradayResults] = await Promise.all([
               fetch(v2Url),
-              ...yahooPromises,
+              ...intradayPromises,
             ]);
 
             // 解析 Live v2
@@ -173,15 +170,27 @@ export default async function handler(req, res) {
                   if (isNaN(eodhdChangePercent)) eodhdChangePercent = undefined;
                 }
 
-                // Yahoo 分时 (只用于走势图)
+                // EODHD Intraday (走势图)
                 let intraday = [];
-                const yahooRes = yahooResults[i];
-                if (yahooRes && yahooRes.ok) {
+                const intradayRes = intradayResults[i];
+                if (intradayRes && intradayRes.ok) {
                   try {
-                    const yahooData = await yahooRes.json();
-                    const result = yahooData?.chart?.result?.[0];
-                    const closes = result?.indicators?.quote?.[0]?.close || [];
-                    intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+                    const bars = await intradayRes.json();
+                    if (Array.isArray(bars)) {
+                      const nowMs = Date.now();
+                      const todayEt = new Date(nowMs).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                      for (const bar of bars) {
+                        const ts = bar.timestamp || (bar.datetime ? Math.floor(new Date(bar.datetime + ' UTC').getTime() / 1000) : 0);
+                        const close = parseFloat(bar.close);
+                        if (!ts || isNaN(close) || close <= 0) continue;
+                        const barDate = new Date(ts * 1000);
+                        const barEtDate = barDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                        if (barEtDate !== todayEt) continue;
+                        const etHour = parseInt(barDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false }));
+                        if (etHour < 4 || etHour >= 20) continue; // 跳过非交易时间
+                        intraday.push(close);
+                      }
+                    }
                   } catch (e) { /* ignore */ }
                 }
 
@@ -220,29 +229,27 @@ export default async function handler(req, res) {
           }
         }
 
-        // ============ 普通股票: 用 EODHD Live v2 (含盘前盘后 ethPrice) + EOD 历史 ============
-        // v10.7.9.14: 切换到 /api/us-quote-delayed (Live v2)
-        //   返回 ethPrice (extended hours price) = 盘前盘后实时价
-        //   返回 changePercent (实时涨跌%)
-        //   Yahoo 只用于分时图数据 (走势图)
+        // ============ 普通股票: 用 EODHD Live v2 (现价+涨跌%) + EODHD Intraday (走势图) + EOD (52周高) ============
+        // v10.7.9.15: 走势图也换 EODHD Intraday (符合 EODHD 纪律)
+        //   EODHD Intraday 延迟 2-3 小时
+        //   前端 WebSocket tick 自动追加最新点 (填补延迟 gap)
         try {
           const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
           const today = new Date();
           const oneYearAgo = new Date(today.getTime() - 380 * 24 * 60 * 60 * 1000);
           const fromDate = oneYearAgo.toISOString().split('T')[0];
           const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
-          // Yahoo chart: 只用于分时数据 (走势图)
-          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
+          // EODHD Intraday: 今天 9:30am (美东) 起的 5 分钟 K 线
+          // 美东 9:30am ≈ UTC 13:30 / 14:30 (夏令/冬令时)
+          // 保险起见: 拉最近 24 小时的数据, 前端再过滤"今天"的
+          const nowTs = Math.floor(Date.now() / 1000);
+          const oneDayAgo = nowTs - 24 * 60 * 60;
+          const intradayUrl = `https://eodhd.com/api/intraday/${encodeURIComponent(symbol)}.US?interval=5m&from=${oneDayAgo}&to=${nowTs}&api_token=${eodhdKey}&fmt=json`;
 
-          const [quoteRes, eodRes, yahooRes] = await Promise.all([
+          const [quoteRes, eodRes, intradayRes] = await Promise.all([
             fetch(quoteUrl),
             fetch(eodUrl),
-            fetch(yahooUrl, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
-              },
-            }).catch(() => null),
+            fetch(intradayUrl).catch(() => null),
           ]);
 
           // EODHD Live v2 数据 (主力, 含盘前盘后)
@@ -277,72 +284,59 @@ export default async function handler(req, res) {
             } catch (e) { /* ignore */ }
           }
 
-          // Yahoo 数据(优先,盘前盘后延迟更小)
-          let yahooPrice = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
-          let intraday = [];           // 纯价格数组 (兼容旧代码)
-          let intradayPoints = [];      // [{price, t, session}] 含时间戳和时段
-          let regularMarketTime = 0;   // 开盘时间戳 (秒, Unix)
-          if (yahooRes && yahooRes.ok) {
+          // v10.7.9.15: EODHD Intraday 数据 (5m K 线, 替换 Yahoo chart)
+          //   延迟 2-3 小时, 前端 WebSocket tick 自动补充最新点
+          let intraday = [];           // 纯价格数组
+          let intradayPoints = [];      // [{price, t, session}]
+          if (intradayRes && intradayRes.ok) {
             try {
-              const yahooData = await yahooRes.json();
-              const result = yahooData?.chart?.result?.[0];
-              const meta = result?.meta || {};
-              yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
-              yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED
-              yahooTimestamp = meta.regularMarketTime || 0;
-              regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
-              const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
-              const preStart = meta.currentTradingPeriod?.pre?.start || 0;
-              const postEnd = meta.currentTradingPeriod?.post?.end || 0;
+              const bars = await intradayRes.json();
+              if (Array.isArray(bars)) {
+                // EODHD 返回 UTC 时间, 需要判断美东时区的 pre/regular/post session
+                const nowMs = Date.now();
+                const todayEt = new Date(nowMs).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
 
-              // 分时 closes + timestamp
-              const closes = result?.indicators?.quote?.[0]?.close || [];
-              const tsArr = result?.timestamp || [];
+                for (const bar of bars) {
+                  // EODHD bar: { datetime: "2024-04-23 13:30:00", timestamp: ..., open, high, low, close, volume }
+                  const ts = bar.timestamp || (bar.datetime ? Math.floor(new Date(bar.datetime + ' UTC').getTime() / 1000) : 0);
+                  const close = parseFloat(bar.close);
+                  if (!ts || isNaN(close) || close <= 0) continue;
 
-              // 构造带时间戳的分时点 + 时段标记 (pre/regular/post)
-              intradayPoints = [];
-              intraday = [];
-              for (let i = 0; i < closes.length; i++) {
-                const v = closes[i];
-                if (v === null || v === undefined || isNaN(v)) continue;
-                const t = tsArr[i] || 0;
-                let session = 'regular';
-                if (regularMarketTime > 0 && regularEndTime > 0) {
-                  if (t < regularMarketTime) session = 'pre';
-                  else if (t > regularEndTime) session = 'post';
-                  else session = 'regular';
+                  // 只要"今天"的数据 (美东时区)
+                  const barDate = new Date(ts * 1000);
+                  const barEtDate = barDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                  if (barEtDate !== todayEt) continue;
+
+                  // session 判断: 美东 4am-9:30 pre, 9:30-16:00 regular, 16:00-20:00 post
+                  const etHour = parseInt(barDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false }));
+                  let session = 'regular';
+                  if (etHour >= 4 && etHour < 9) session = 'pre';
+                  else if (etHour >= 16 && etHour < 20) session = 'post';
+                  else if (etHour < 4 || etHour >= 20) continue; // 非交易时间跳过
+
+                  intraday.push(close);
+                  intradayPoints.push({ price: close, t: ts, session });
                 }
-                intraday.push(v);
-                intradayPoints.push({ price: v, t, session });
-              }
-
-              // 价格决策:
-              // - 盘中 REGULAR: 用 meta.regularMarketPrice (权威)
-              // - 盘外 PRE/POST/CLOSED: 用 intraday 分时最后一点
-              if (yahooMarketState === 'REGULAR') {
-                yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
-              } else {
-                yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
               }
             } catch (e) { /* ignore */ }
           }
 
-          // v10.7.9.14: 价格 + 涨跌% 优先 EODHD Live v2 (含盘前盘后 ethPrice)
-          //   EODHD Live v2 本身就返回正确的 lastTradePrice / ethPrice
-          //   Yahoo 只作兜底 + 提供分时图
-          const price = eodhdPrice > 0 ? eodhdPrice : yahooPrice;
-          const previousClose = eodhdPrevClose > 0 ? eodhdPrevClose : yahooPrevClose;
-          // changePercent 优先用 EODHD 自带的 (已经是百分比)
+          // v10.7.9.15: 价格 + 涨跌% + 走势图 全部用 EODHD
+          //   Live v2: 实时价 (ethPrice/lastTradePrice) + 涨跌%
+          //   Intraday: 5m K 线走势图 (延迟 2-3h, WebSocket 补充)
+          //   EOD: 52 周高
+          const price = eodhdPrice;
+          const previousClose = eodhdPrevClose;
           const changePercent = (eodhdChangePercent !== undefined) ? eodhdChangePercent
                               : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
           const change = (eodhdChange !== undefined) ? eodhdChange : (price - previousClose);
           const dayHigh = eodhdDayHigh || price;
           const dayLow = eodhdDayLow || price;
           const open = eodhdOpen || price;
-          const timestamp = eodhdTimestamp || yahooTimestamp || Math.floor(Date.now() / 1000);
-          const priceSource = eodhdPrice > 0 ? 'EODHD-v2' : 'Yahoo';
+          const timestamp = eodhdTimestamp || Math.floor(Date.now() / 1000);
+          const priceSource = 'EODHD-v2';
 
-          if (price === 0) return { symbol, error: 'EODHD 和 Yahoo 都没返回有效价格' };
+          if (price === 0) return { symbol, error: 'EODHD 没返回有效价格' };
 
           // 52 周高/低: 从 EODHD 历史日线计算
           // 🔑 关键: EODHD 返回的 high/low 是 raw (未拆股调整)
@@ -395,10 +389,8 @@ export default async function handler(req, res) {
             timestamp,
             intraday,
             intradayPoints,       // [{price, t, session}] 带时间戳+时段 (pre/regular/post)
-            regularMarketTime,    // 开盘时间戳 (秒)
-            marketState: yahooMarketState,
             priceSource,
-            source: priceSource === 'Yahoo' ? 'Yahoo' : 'EODHD',
+            source: 'EODHD',
           };
         } catch (e) {
           return { symbol, error: e.message };
