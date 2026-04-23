@@ -173,15 +173,31 @@ export default async function handler(req, res) {
                   if (isNaN(eodhdChangePercent)) eodhdChangePercent = undefined;
                 }
 
-                // Yahoo 分时 (只用于走势图)
+                // Yahoo 分时 (用于走势图 - v10.7.9.15 带 session 标记)
                 let intraday = [];
+                let intradayPoints = [];
                 const yahooRes = yahooResults[i];
                 if (yahooRes && yahooRes.ok) {
                   try {
                     const yahooData = await yahooRes.json();
                     const result = yahooData?.chart?.result?.[0];
+                    const meta = result?.meta || {};
+                    const regularStart = meta.currentTradingPeriod?.regular?.start || 0;
+                    const regularEnd = meta.currentTradingPeriod?.regular?.end || 0;
                     const closes = result?.indicators?.quote?.[0]?.close || [];
-                    intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+                    const tsArr = result?.timestamp || [];
+                    for (let j = 0; j < closes.length; j++) {
+                      const v = closes[j];
+                      if (v === null || v === undefined || isNaN(v)) continue;
+                      const t = tsArr[j] || 0;
+                      let session = 'regular';
+                      if (regularStart > 0 && regularEnd > 0) {
+                        if (t < regularStart) session = 'pre';
+                        else if (t > regularEnd) session = 'post';
+                      }
+                      intraday.push(v);
+                      intradayPoints.push({ price: v, t, session });
+                    }
                   } catch (e) { /* ignore */ }
                 }
 
@@ -205,6 +221,7 @@ export default async function handler(req, res) {
                   change,
                   changePercent,
                   intraday,
+                  intradayPoints,
                   dayHigh: eodhdHigh || currentPrice,
                   dayLow: eodhdLow || currentPrice,
                   source: 'EODHD-v2',
