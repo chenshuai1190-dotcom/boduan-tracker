@@ -494,14 +494,6 @@ function MainApp({ user, onLogout }) {
   // high = 6个月滚动最高价,用于计算回撤预警
   // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
   const [watchlist, setWatchlist] = useState([]);
-  // 🐛 DEBUG (v10.7.9.16): 监控 watchlist 变化
-  useEffect(() => {
-    if (watchlist.length === 0) return;
-    const nvda = watchlist.find(s => s.symbol === 'NVDA');
-    if (nvda) {
-      console.log('[STATE NVDA] price:', nvda.price, 'previousClose:', nvda.previousClose, 'changePercent:', nvda.changePercent);
-    }
-  }, [watchlist]);
   const [editingStock, setEditingStock] = useState(null);
   const [showAddStock, setShowAddStock] = useState(false);
   const [newStock, setNewStock] = useState({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
@@ -530,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.15: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.17: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -963,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.15): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.17): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1378,25 +1370,11 @@ function MainApp({ user, onLogout }) {
     setFetchError(null);
     try {
       const symbols = [...watchlist.map(s => s.symbol), 'VIX', 'FGI', 'INDICES'].join(',');
-      console.log('[FETCH] 🌐 开始拉取:', symbols.slice(0, 80));
       const r = await fetch(`/api/quote?symbols=${symbols}`);
       const result = await r.json();
-      console.log('[FETCH] ✓ 返回:', result.success ? `成功 ${result.data?.length} 条` : `失败 ${result.error}`);
       
       if (!result.success) {
         throw new Error(result.error || '拉取失败');
-      }
-
-      // DEBUG: 打印 NVDA 的返回数据
-      const nvdaData = result.data?.find(d => d.symbol === 'NVDA');
-      if (nvdaData) {
-        console.log('[FETCH NVDA]', {
-          price: nvdaData.price,
-          previousClose: nvdaData.previousClose,
-          changePercent: nvdaData.changePercent,
-          source: nvdaData.priceSource || nvdaData.source,
-          error: nvdaData.error,
-        });
       }
 
       // 更新股票价格
@@ -1438,15 +1416,7 @@ function MainApp({ user, onLogout }) {
           const old = watchlist[i];
           return !old || s.price !== old.price || s.high !== old.high || s.changePercent !== old.changePercent;
         });
-        console.log('[FETCH] hasChanges:', hasChanges, '| 第一只 NVDA 数据:', {
-          price: updated[0]?.price,
-          previousClose: updated[0]?.previousClose,
-          changePercent: updated[0]?.changePercent,
-        });
-        if (hasChanges) {
-          setWatchlist(updated);
-          console.log('[FETCH] ✓ setWatchlist 已调用');
-        }
+        if (hasChanges) setWatchlist(updated);
       }
 
       // 同步 TQQQ 和 QQQ 到核心参数
@@ -2007,7 +1977,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.15: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.17: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2054,7 +2024,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.15) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.17) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2159,7 +2129,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 );
               }
-              // 🐛 v10.7.9.15: 实时算涨跌, 支持盘前/盘后
+              // 🐛 v10.7.9.17: 实时算涨跌, 支持盘前/盘后
               const realChangePct = (idx.previousClose > 0 && idx.price > 0)
                 ? ((idx.price - idx.previousClose) / idx.previousClose) * 100
                 : (idx.changePercent || 0);
@@ -2195,7 +2165,7 @@ function MainApp({ user, onLogout }) {
                   <div className={`text-base font-black tabular-nums leading-tight`} style={{ color: accentColor, fontFamily: 'ui-monospace, monospace' }}>
                     {idx.ticker === 'BTC-USD.CC' ? '$' : ''}{(idx.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  {/* 涨跌幅 (v10.7.9.15: 实时算, 支持盘前/盘后) */}
+                  {/* 涨跌幅 (v10.7.9.17: 实时算, 支持盘前/盘后) */}
                   <div className={`text-[11px] font-bold tabular-nums leading-tight`} style={{ color: accentColor }}>
                     {isUp ? '+' : ''}{realChangePct.toFixed(2)}%
                   </div>
@@ -2738,23 +2708,11 @@ function MainApp({ user, onLogout }) {
               const isExtreme = hasAlert && s.alert.level >= 7;
 
               // 当日涨跌色(红涨绿跌)
-              // 🐛 v10.7.9.15: 实时算 = (现价 - 昨收) / 昨收, 支持盘前/盘后
-              //   之前 bug: s.changePercent 是 EODHD 给的"昨日 vs 前日", 盘前不更新
+              // v10.7.9.17: 实时算 = (现价 - 昨收) / 昨收, 支持盘前/盘后
+              //   昨收用 Yahoo regularMarketPreviousClose (跟 Yahoo 网页一致)
               const dayChange = (s.previousClose > 0 && s.price > 0)
                 ? ((s.price - s.previousClose) / s.previousClose) * 100
                 : (s.changePercent || 0);
-              // 🐛 DEBUG (v10.7.9.15): 把 5 个关键字段输出到 Console
-              if (typeof window !== 'undefined' && !window['__loggedDayChange_' + s.symbol]) {
-                window['__loggedDayChange_' + s.symbol] = true;
-                setTimeout(() => { delete window['__loggedDayChange_' + s.symbol]; }, 5000);
-                console.log(`[DEBUG ${s.symbol}]`,
-                  '现价:', s.price,
-                  '昨收:', s.previousClose,
-                  'EODHD%:', s.changePercent,
-                  '我们算的%:', dayChange.toFixed(4),
-                  '差值:', s.price - s.previousClose
-                );
-              }
               const isUp = dayChange >= 0;
               const dayColor = isUp ? '#dc2626' : '#16a34a';
               const dayBg = isUp ? 'rgba(220, 38, 38, 0.06)' : 'rgba(22, 163, 74, 0.06)';
@@ -3077,7 +3035,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.15) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.17) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3260,7 +3218,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.15) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.17) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -6020,15 +5978,23 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.15
+                  v10.7.9.17
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.15', date: '2026-04-23', latest: true,
-                    items: ['🔍 加 debug log (用于排查涨跌% 仍不实时的问题)', '关注列表股票卡: F12 Console 看每只股票的 现价/昨收/差值'],
+                    ver: 'v10.7.9.17', date: '2026-04-23', latest: true,
+                    items: ['🐛 修复盘前盘后涨跌% 拿错数据 (Yahoo previousClose)', '原: chartPreviousClose (range=1d 时是 N-2 日收盘)', '现: regularMarketPreviousClose (= 上个交易日收盘, 跟 Yahoo 网页一致)', '🧹 清理调试日志'],
+                  },
+                  {
+                    ver: 'v10.7.9.16', date: '2026-04-23',
+                    items: ['🔍 临时 debug log 排查盘前% bug'],
+                  },
+                  {
+                    ver: 'v10.7.9.15', date: '2026-04-23',
+                    items: ['🔍 临时 debug log 排查盘前% bug'],
                   },
                   {
                     ver: 'v10.7.9.14', date: '2026-04-23',
@@ -6521,7 +6487,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.15</div>
+                <div>📊 版本:v10.7.9.17</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
