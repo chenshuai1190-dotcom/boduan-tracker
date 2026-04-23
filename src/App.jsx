@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.14: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.15: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.14): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.15): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1977,7 +1977,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.14: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.15: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2024,7 +2024,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.14) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.15) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2132,24 +2132,19 @@ function MainApp({ user, onLogout }) {
               const isUp = idx.changePercent >= 0;
               const accentColor = isUp ? '#dc2626' : '#16a34a';        // 红涨绿跌
               const bgColor = isUp ? 'rgba(220, 38, 38, 0.08)' : 'rgba(22, 163, 74, 0.08)';
-              const series = (idx.intraday || []).filter(v => v != null && !isNaN(v));
-
-              // 走势图绘制(纯 SVG)
-              let pathD = '';
-              let fillD = '';
-              if (series.length > 1) {
-                const min = Math.min(...series, idx.previousClose);
-                const max = Math.max(...series, idx.previousClose);
-                const range = max - min || 1;
-                const W = 100, H = 32;
-                const points = series.map((v, i) => {
-                  const x = (i / (series.length - 1)) * W;
-                  const y = H - ((v - min) / range) * H;
-                  return `${x.toFixed(1)},${y.toFixed(1)}`;
-                });
-                pathD = `M ${points.join(' L ')}`;
-                fillD = `${pathD} L ${W},${H} L 0,${H} Z`;
-              }
+              // v10.7.9.15: 只画今日 + 按 session 分段
+              const todayIdxPoints = (() => {
+                const points = idx.intradayPoints || [];
+                if (points.length === 0) return [];
+                const todayEt = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                return points
+                  .filter(p => p.price && !isNaN(p.price) && p.t)
+                  .filter(p => {
+                    const ptEt = new Date(p.t * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                    return ptEt === todayEt;
+                  });
+              })();
+              const series = todayIdxPoints.map(p => p.price);
 
               return (
                 <div key={idx.ticker} className="bg-white rounded-xl p-3 shadow overflow-hidden relative">
@@ -2165,11 +2160,61 @@ function MainApp({ user, onLogout }) {
                   <div className={`text-[11px] font-bold tabular-nums leading-tight`} style={{ color: accentColor }}>
                     {isUp ? '+' : ''}{(idx.changePercent || 0).toFixed(2)}%
                   </div>
-                  {/* 走势线 */}
+                  {/* 走势线 (v10.7.9.15: 分 session 着色) */}
                   {series.length > 1 ? (
                     <svg viewBox="0 0 100 32" className="w-full h-8 mt-1.5" preserveAspectRatio="none">
-                      <path d={fillD} fill={bgColor} />
-                      <path d={pathD} fill="none" stroke={accentColor} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      {(() => {
+                        const H = 32;
+                        const min = Math.min(...series, idx.previousClose);
+                        const max = Math.max(...series, idx.previousClose);
+                        const range = max - min || 1;
+                        const W = 100;
+                        const pts = todayIdxPoints.map((p, i) => ({
+                          x: (i / (todayIdxPoints.length - 1)) * W,
+                          y: H - ((p.price - min) / range) * H,
+                          session: p.session || 'regular',
+                        }));
+                        // 分段
+                        const segments = [];
+                        let current = { session: pts[0].session, points: [pts[0]] };
+                        for (let i = 1; i < pts.length; i++) {
+                          if (pts[i].session === current.session) current.points.push(pts[i]);
+                          else {
+                            current.points.push(pts[i]);
+                            segments.push(current);
+                            current = { session: pts[i].session, points: [pts[i]] };
+                          }
+                        }
+                        segments.push(current);
+                        const firstRegular = pts.find(p => p.session === 'regular');
+                        const allPtsStr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ');
+                        const fillPath = `M ${allPtsStr} L ${W},${H} L 0,${H} Z`;
+                        return (
+                          <>
+                            <path d={fillPath} fill={bgColor} />
+                            {segments.map((seg, idx2) => {
+                              const segPath = `M ${seg.points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`;
+                              const isRegular = seg.session === 'regular';
+                              return (
+                                <path
+                                  key={idx2}
+                                  d={segPath}
+                                  fill="none"
+                                  stroke={isRegular ? accentColor : '#94a3b8'}
+                                  strokeWidth={isRegular ? 1.5 : 1.0}
+                                  strokeLinejoin="round"
+                                  strokeLinecap="round"
+                                  vectorEffect="non-scaling-stroke"
+                                  opacity={isRegular ? 1 : 0.6}
+                                />
+                              );
+                            })}
+                            {firstRegular && firstRegular.x > 0 && (
+                              <line x1={firstRegular.x.toFixed(1)} y1="0" x2={firstRegular.x.toFixed(1)} y2={H} stroke="#cbd5e1" strokeWidth="0.5" strokeDasharray="2,2" vectorEffect="non-scaling-stroke"/>
+                            )}
+                          </>
+                        );
+                      })()}
                     </svg>
                   ) : (
                     <div className="h-8 mt-1.5 flex items-center justify-center text-[10px] text-slate-300">无数据</div>
@@ -2709,23 +2754,25 @@ function MainApp({ user, onLogout }) {
               const dayColor = isUp ? '#dc2626' : '#16a34a';
               const dayBg = isUp ? 'rgba(220, 38, 38, 0.06)' : 'rgba(22, 163, 74, 0.06)';
 
-              // 走势线
-              const series = (s.intraday || []).filter(v => v != null && !isNaN(v));
-              let pathD = '';
-              let fillD = '';
-              if (series.length > 1) {
-                const min = Math.min(...series, s.previousClose || series[0]);
-                const max = Math.max(...series, s.previousClose || series[0]);
-                const range = max - min || 1;
-                const W = 100, H = 28;
-                const points = series.map((v, i) => {
-                  const x = (i / (series.length - 1)) * W;
-                  const y = H - ((v - min) / range) * H;
-                  return `${x.toFixed(1)},${y.toFixed(1)}`;
-                });
-                pathD = `M ${points.join(' L ')}`;
-                fillD = `${pathD} L ${W},${H} L 0,${H} Z`;
-              }
+              // 走势线 (v10.7.9.15: 只画今日 + 按 session 分段着色)
+              //   数据源: intradayPoints = [{price, t, session}]
+              //     session = 'pre' | 'regular' | 'post'
+              //   筛选: 只取今天美东日期
+              //   渲染: 盘前盘后灰色, 盘中红/绿
+              const todayPoints = (() => {
+                const points = s.intradayPoints || [];
+                if (points.length === 0) return [];
+                // 今天美东日期 (美股日历)
+                const todayEt = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                return points
+                  .filter(p => p.price && !isNaN(p.price) && p.t)
+                  .filter(p => {
+                    // 今天美东日期
+                    const ptEt = new Date(p.t * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                    return ptEt === todayEt;
+                  });
+              })();
+              const series = todayPoints.map(p => p.price);
 
               if (isEditing) {
                 // 编辑模式 - 展开成大卡 (有 mx-4 抵消列表 -mx-4)
@@ -2813,24 +2860,84 @@ function MainApp({ user, onLogout }) {
                             </linearGradient>
                           </defs>
                           {(() => {
-                            // 重建 path 使 H=56
+                            // v10.7.9.15: 按 session 分段着色 (V2 雪球风)
+                            //   盘前盘后: 灰色细线
+                            //   盘中: 红/绿粗线 (当日涨跌色)
+                            //   开盘时间: 竖虚线标记
                             const H56 = 56;
-                            if (series.length <= 1) return null;
-                            const min = Math.min(...series, s.previousClose || series[0]);
-                            const max = Math.max(...series, s.previousClose || series[0]);
+                            if (todayPoints.length <= 1) return null;
+                            const prices = todayPoints.map(p => p.price);
+                            const min = Math.min(...prices, s.previousClose || prices[0]);
+                            const max = Math.max(...prices, s.previousClose || prices[0]);
                             const range = max - min || 1;
                             const W = 100;
-                            const pts = series.map((v, i) => {
-                              const x = (i / (series.length - 1)) * W;
-                              const y = H56 - ((v - min) / range) * H56;
-                              return `${x.toFixed(1)},${y.toFixed(1)}`;
-                            });
-                            const p = `M ${pts.join(' L ')}`;
-                            const f = `${p} L ${W},${H56} L 0,${H56} Z`;
+
+                            // 构建所有点 (带 session)
+                            const pts = todayPoints.map((p, i) => ({
+                              x: (i / (todayPoints.length - 1)) * W,
+                              y: H56 - ((p.price - min) / range) * H56,
+                              session: p.session || 'regular',
+                            }));
+
+                            // 按 session 分段 (相邻同 session 的点合并成一段)
+                            const segments = [];
+                            let current = { session: pts[0].session, points: [pts[0]] };
+                            for (let i = 1; i < pts.length; i++) {
+                              if (pts[i].session === current.session) {
+                                current.points.push(pts[i]);
+                              } else {
+                                // 切换 session 时, 前段的最后一点也是新段的第一点 (连续)
+                                current.points.push(pts[i]);
+                                segments.push(current);
+                                current = { session: pts[i].session, points: [pts[i]] };
+                              }
+                            }
+                            segments.push(current);
+
+                            // 开盘位置 (第一个 regular 点的 x, 画竖虚线)
+                            const firstRegular = pts.find(p => p.session === 'regular');
+
+                            // 完整填充路径
+                            const allPtsStr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ');
+                            const fillPath = `M ${allPtsStr} L ${W},${H56} L 0,${H56} Z`;
+
                             return (
                               <>
-                                <path d={f} fill={`url(#grad-${s.symbol})`} />
-                                <path d={p} fill="none" stroke={dayColor} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                                {/* 填充 (浅色渐变) */}
+                                <path d={fillPath} fill={`url(#grad-${s.symbol})`} />
+
+                                {/* 分段线 */}
+                                {segments.map((seg, idx) => {
+                                  const segPath = `M ${seg.points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`;
+                                  const isRegular = seg.session === 'regular';
+                                  return (
+                                    <path
+                                      key={idx}
+                                      d={segPath}
+                                      fill="none"
+                                      stroke={isRegular ? dayColor : '#94a3b8'}
+                                      strokeWidth={isRegular ? 1.6 : 1.0}
+                                      strokeLinejoin="round"
+                                      strokeLinecap="round"
+                                      vectorEffect="non-scaling-stroke"
+                                      opacity={isRegular ? 1 : 0.6}
+                                    />
+                                  );
+                                })}
+
+                                {/* 开盘竖虚线 */}
+                                {firstRegular && firstRegular.x > 0 && (
+                                  <line
+                                    x1={firstRegular.x.toFixed(1)}
+                                    y1="0"
+                                    x2={firstRegular.x.toFixed(1)}
+                                    y2={H56}
+                                    stroke="#cbd5e1"
+                                    strokeWidth="0.5"
+                                    strokeDasharray="2,2"
+                                    vectorEffect="non-scaling-stroke"
+                                  />
+                                )}
                               </>
                             );
                           })()}
@@ -3027,7 +3134,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.14) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.15) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3210,7 +3317,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.14) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.15) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -5970,15 +6077,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.14
+                  v10.7.9.15
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.14', date: '2026-04-23', latest: true,
-                    items: ['🎯 切换到 EODHD Live v2 端点 (/api/us-quote-delayed)', '支持 ethPrice (盘前盘后实时价)', 'changePercent 直接用 EODHD 返回的', '盘前盘后现在应该跟网页一致了'],
+                    ver: 'v10.7.9.15', date: '2026-04-23', latest: true,
+                    items: ['🎯 走势图修复: 只画今日 (之前混入昨天盘后)', '✨ 盘前/盘后灰色细线, 盘中红/绿粗线 (雪球风)', '开盘时间竖虚线标志', '关注列表 + 顶部指数 同时修复'],
+                  },
+                  {
+                    ver: 'v10.7.9.14', date: '2026-04-23',
+                    items: ['🎯 切换到 EODHD Live v2 (/api/us-quote-delayed)', '支持 ethPrice (盘前盘后实时价)', 'changePercent 跟 Yahoo 网页一致'],
                   },
                   {
                     ver: 'v10.7.9.13', date: '2026-04-23',
@@ -6467,7 +6578,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.14</div>
+                <div>📊 版本:v10.7.9.15</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
