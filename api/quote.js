@@ -15,6 +15,7 @@ export default async function handler(req, res) {
 
   const { symbols } = req.query;
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  const finnhubKey = (process.env.FINNHUB_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
 
   if (!eodhdKey) {
     return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY' });
@@ -206,9 +207,8 @@ export default async function handler(req, res) {
             }).catch(() => null),
           ]);
 
-          // EODHD 数据(主力数据源, 你付费的)
+          // EODHD 数据(作为备份和 52 周高数据源)
           let eodhdPrice = 0, eodhdPrevClose = 0, eodhdDayHigh = 0, eodhdDayLow = 0, eodhdOpen = 0, eodhdTimestamp = 0;
-          let eodhdChange, eodhdChangePercent;  // EODHD 已经算好的实时涨跌
           if (quoteRes.ok) {
             try {
               const data = await quoteRes.json();
@@ -219,36 +219,35 @@ export default async function handler(req, res) {
                 eodhdDayLow = parseFloat(data.low) || 0;
                 eodhdOpen = parseFloat(data.open) || 0;
                 eodhdTimestamp = data.timestamp || 0;
-                // 🎯 EODHD 自带涨跌字段
-                eodhdChange = parseFloat(data.change);
-                eodhdChangePercent = parseFloat(data.change_p);
-                if (isNaN(eodhdChange)) eodhdChange = undefined;
-                if (isNaN(eodhdChangePercent)) eodhdChangePercent = undefined;
               }
             } catch (e) { /* ignore */ }
           }
 
-          // 🎯 v10.7.9.19: 全部用 EODHD (你付费的, 数据更准)
-          //   EODHD real-time 端点 在盘中提供实时价 + 涨跌%
-          //   EODHD WebSocket 在盘前/盘后也能持续推送 (前端已接)
-          //   Yahoo 只作为分时图的备份 (走势图用)
-          let yahooMarketState = '', yahooTimestamp = 0;
-          let intraday = [];
-          let intradayPoints = [];
-          let regularMarketTime = 0;
+          // Yahoo 数据(优先,盘前盘后延迟更小)
+          let yahooPrice = 0, yahooPrevClose = 0, yahooMarketState = '', yahooTimestamp = 0;
+          let intraday = [];           // 纯价格数组 (兼容旧代码)
+          let intradayPoints = [];      // [{price, t, session}] 含时间戳和时段
+          let regularMarketTime = 0;   // 开盘时间戳 (秒, Unix)
           if (yahooRes && yahooRes.ok) {
             try {
               const yahooData = await yahooRes.json();
               const result = yahooData?.chart?.result?.[0];
               const meta = result?.meta || {};
-              yahooMarketState = meta.marketState || '';
+              yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
+              yahooMarketState = meta.marketState || ''; // REGULAR | PRE | POST | CLOSED
               yahooTimestamp = meta.regularMarketTime || 0;
               regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
               const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
+              const preStart = meta.currentTradingPeriod?.pre?.start || 0;
+              const postEnd = meta.currentTradingPeriod?.post?.end || 0;
 
-              // 分时 closes (用于走势图)
+              // 分时 closes + timestamp
               const closes = result?.indicators?.quote?.[0]?.close || [];
               const tsArr = result?.timestamp || [];
+
+              // 构造带时间戳的分时点 + 时段标记 (pre/regular/post)
+              intradayPoints = [];
+              intraday = [];
               for (let i = 0; i < closes.length; i++) {
                 const v = closes[i];
                 if (v === null || v === undefined || isNaN(v)) continue;
@@ -262,25 +261,30 @@ export default async function handler(req, res) {
                 intraday.push(v);
                 intradayPoints.push({ price: v, t, session });
               }
+
+              // 价格决策:
+              // - 盘中 REGULAR: 用 meta.regularMarketPrice (权威)
+              // - 盘外 PRE/POST/CLOSED: 用 intraday 分时最后一点
+              if (yahooMarketState === 'REGULAR') {
+                yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
+              } else {
+                yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
+              }
             } catch (e) { /* ignore */ }
           }
 
-          // 🎯 价格 + 涨跌%: 全部用 EODHD (你的付费数据)
-          //   data.close = 实时价 (盘中)
-          //   data.change_p = 实时涨跌% (盘中)
-          //   盘前/盘后由前端 WebSocket 实时推送 (使用 EODHD ws 的 dc 字段)
-          const price = eodhdPrice > 0 ? eodhdPrice : 0;
-          const previousClose = eodhdPrevClose;
-          const change = eodhdChange !== undefined ? eodhdChange : (price - previousClose);
-          const changePercent = eodhdChangePercent !== undefined ? eodhdChangePercent
-                              : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
+          // 价格决策: 优先 Yahoo (盘前盘后实时),降级到 EODHD
+          const price = yahooPrice > 0 ? yahooPrice : eodhdPrice;
+          const previousClose = yahooPrevClose > 0 ? yahooPrevClose : eodhdPrevClose;
+          const change = price - previousClose;
+          const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
           const dayHigh = eodhdDayHigh || price;
           const dayLow = eodhdDayLow || price;
           const open = eodhdOpen || price;
-          const timestamp = eodhdTimestamp || yahooTimestamp || Math.floor(Date.now() / 1000);
-          const priceSource = 'EODHD';
+          const timestamp = yahooTimestamp || eodhdTimestamp || Math.floor(Date.now() / 1000);
+          const priceSource = yahooPrice > 0 ? 'Yahoo' : 'EODHD';
 
-          if (price === 0) return { symbol, error: 'EODHD 没返回有效价格' };
+          if (price === 0) return { symbol, error: 'Yahoo 和 EODHD 都没返回有效价格' };
 
           // 52 周高/低: 从 EODHD 历史日线计算
           // 🔑 关键: EODHD 返回的 high/low 是 raw (未拆股调整)
