@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.27: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.28: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -685,7 +685,23 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 💼 v10.7.9.27: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 🗑 v10.7.9.28: 通用删除确认 Modal (替换 window.confirm)
+  // 用法: showConfirm({ title, desc, info, confirmText, onConfirm })
+  const [confirmModal, setConfirmModal] = useState(null);
+  const showConfirm = useCallback((opts) => {
+    setConfirmModal({
+      title: opts.title || '确认操作?',
+      desc: opts.desc || '此操作不可撤销',
+      info: opts.info || null,
+      confirmText: opts.confirmText || '删除',
+      cancelText: opts.cancelText || '取消',
+      confirmStyle: opts.confirmStyle || 'danger', // 'danger' | 'primary'
+      icon: opts.icon || '🗑',
+      onConfirm: opts.onConfirm,
+    });
+  }, []);
+
+  // 💼 v10.7.9.28: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -925,7 +941,7 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlistStructureSig, cloudLoading]);
 
-  // ☁️ v10.7.9.27: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
+  // ☁️ v10.7.9.28: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
   // 严格放在 cloudLoading 之后, 避免 React state hoisting 错乱
   // 启动时拉云端覆盖本地; 本地有数据但云端为空 → 自动迁移上云
   useEffect(() => {
@@ -1070,7 +1086,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.27): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.28): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1464,19 +1480,24 @@ function MainApp({ user, onLogout }) {
     }
   };
 
-  const removeStock = async (symbol) => {
-    if (window.confirm(`确认删除 ${symbol}?`)) {
-      const newList = watchlist.filter(s => s.symbol !== symbol);
-      setWatchlist(newList);
-      if (editingStock === symbol) setEditingStock(null);
-      // 🚨 立刻同步到云端 (不等防抖,不走"删光重插",精确单条删除)
-      try {
-        await db.removeWatchlistItem(symbol);
-      } catch (e) {
-        console.error('[删除股票] 云端失败:', e);
-        alert(`删除 ${symbol} 失败: ${e.message}`);
-      }
-    }
+  const removeStock = (symbol) => {
+    showConfirm({
+      title: `删除 ${symbol}?`,
+      desc: '此操作不可撤销, 该股票的关注信息将从列表中移除',
+      info: symbol,
+      confirmText: '删除',
+      onConfirm: async () => {
+        const newList = watchlist.filter(s => s.symbol !== symbol);
+        setWatchlist(newList);
+        if (editingStock === symbol) setEditingStock(null);
+        try {
+          await db.removeWatchlistItem(symbol);
+        } catch (e) {
+          console.error('[删除股票] 云端失败:', e);
+          alert(`删除 ${symbol} 失败: ${e.message}`);
+        }
+      },
+    });
   };
 
   // 一键拉取实时行情(从 Vercel API)
@@ -1615,7 +1636,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.27: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.28: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -1732,7 +1753,7 @@ function MainApp({ user, onLogout }) {
                   if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
                   const oldPrice = idx.price || 0;
                   if (oldPrice === newPrice) return idx;
-                  // 重算当日涨跌 (v10.7.9.27: 跟关注列表逻辑完全一致)
+                  // 重算当日涨跌 (v10.7.9.28: 跟关注列表逻辑完全一致)
                   // ⚠️ pc fallback 必须是 0 (不能用 oldPrice, 否则算出来 % 一直≈0 乱跳)
                   const pc = idx.previousClose || 0;
                   const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (idx.changePercent || 0);
@@ -1763,7 +1784,7 @@ function MainApp({ user, onLogout }) {
                   });
                 }, 500);
 
-                // 当日涨跌重算 (v10.7.9.27: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
+                // 当日涨跌重算 (v10.7.9.28: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
                 const pc = s.previousClose || 0;
                 const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (s.changePercent || 0);
 
@@ -2103,14 +2124,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.27: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.28: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.27: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.28: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2157,7 +2178,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (v10.7.9.27: 加 CNY 副显示) */}
+                {/* 当日盈亏 (v10.7.9.28: 加 CNY 副显示) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2170,7 +2191,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.27: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.28: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2937,7 +2958,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.27) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.28) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3180,7 +3201,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.27) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.28) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3363,7 +3384,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.27) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.28) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3788,7 +3809,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* ============ 💼 摊薄成本计算器 (v10.7.9.27, iOS 风格) ============ */}
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.28, iOS 风格) ============ */}
         {(() => {
           const allSymbols = Object.keys(costBasisData);
           const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
@@ -3981,16 +4002,21 @@ function MainApp({ user, onLogout }) {
                                   )}
                                   <button
                                     onClick={() => {
-                                      if (window.confirm(`删除这笔交易?\n${t.date} ${isSell ? '卖出' : '买入'} ${shares} 股 @ $${price}`)) {
-                                        setCostBasisData(prev => ({
-                                          ...prev,
-                                          [activeSymbol]: prev[activeSymbol].filter(x => x.id !== t.id),
-                                        }));
-                                        // ☁️ 异步删云端
-                                        db.deleteCostBasisTrade(t.id).catch(e => {
-                                          console.error('[CostBasis] 删除云端失败:', e.message);
-                                        });
-                                      }
+                                      showConfirm({
+                                        title: '删除这笔交易?',
+                                        desc: '此操作不可撤销',
+                                        info: `${t.date} · ${isSell ? '卖出' : '买入'} ${shares} 股 @ $${price}`,
+                                        confirmText: '删除',
+                                        onConfirm: () => {
+                                          setCostBasisData(prev => ({
+                                            ...prev,
+                                            [activeSymbol]: prev[activeSymbol].filter(x => x.id !== t.id),
+                                          }));
+                                          db.deleteCostBasisTrade(t.id).catch(e => {
+                                            console.error('[CostBasis] 删除云端失败:', e.message);
+                                          });
+                                        },
+                                      });
                                     }}
                                     className="text-slate-300 hover:text-rose-500 text-[14px] px-1"
                                     title="删除"
@@ -4024,20 +4050,26 @@ function MainApp({ user, onLogout }) {
                   {/* 删除整只股票按钮 */}
                   <button
                     onClick={() => {
-                      if (window.confirm(`删除 ${activeSymbol} 及全部交易记录? 此操作不可撤销`)) {
-                        const symToDelete = activeSymbol;
-                        setCostBasisData(prev => {
-                          const next = { ...prev };
-                          delete next[symToDelete];
-                          return next;
-                        });
-                        const remaining = Object.keys(costBasisData).filter(s => s !== symToDelete);
-                        setCostBasisActiveSymbol(remaining[0] || '');
-                        // ☁️ 异步删云端
-                        db.deleteCostBasisSymbol(symToDelete).catch(e => {
-                          console.error('[CostBasis] 删整只云端失败:', e.message);
-                        });
-                      }
+                      const symToDelete = activeSymbol;
+                      const count = trades.length;
+                      showConfirm({
+                        title: `删除 ${symToDelete}?`,
+                        desc: '此操作不可撤销, 该股票的全部交易记录将从云端删除',
+                        info: `${symToDelete} · ${count} 笔交易`,
+                        confirmText: '全部删除',
+                        onConfirm: () => {
+                          setCostBasisData(prev => {
+                            const next = { ...prev };
+                            delete next[symToDelete];
+                            return next;
+                          });
+                          const remaining = Object.keys(costBasisData).filter(s => s !== symToDelete);
+                          setCostBasisActiveSymbol(remaining[0] || '');
+                          db.deleteCostBasisSymbol(symToDelete).catch(e => {
+                            console.error('[CostBasis] 删整只云端失败:', e.message);
+                          });
+                        },
+                      });
                     }}
                     className="w-full mt-3 py-2 text-[11px] text-rose-500 font-bold active:scale-95"
                   >
@@ -6096,13 +6128,21 @@ function MainApp({ user, onLogout }) {
                     <DisciplineModal
                       initial={current || { level: '🟢', text: '', pinned: false }}
                       onCancel={() => { setShowAddDiscipline(false); setEditingDisciplineId(null); }}
-                      onDelete={isEdit ? async () => {
-                        if (!window.confirm('确认删除这条戒律?')) return;
-                        try {
-                          await db.deleteDiscipline(editingDisciplineId);
-                          setDisciplines(disciplines.filter(d => d.id !== editingDisciplineId));
-                          setEditingDisciplineId(null);
-                        } catch (e) { alert('删除失败: ' + e.message); }
+                      onDelete={isEdit ? () => {
+                        showConfirm({
+                          title: '删除这条戒律?',
+                          desc: '此操作不可撤销',
+                          info: (current?.text || '').slice(0, 50) + ((current?.text || '').length > 50 ? '...' : ''),
+                          confirmText: '删除',
+                          onConfirm: async () => {
+                            try {
+                              await db.deleteDiscipline(editingDisciplineId);
+                              setDisciplines(disciplines.filter(d => d.id !== editingDisciplineId));
+                              setEditingDisciplineId(null);
+                              setShowAddDiscipline(false);
+                            } catch (e) { alert('删除失败: ' + e.message); }
+                          },
+                        });
                       } : null}
                       onSave={async (data) => {
                         try {
@@ -6138,13 +6178,21 @@ function MainApp({ user, onLogout }) {
                     <LogModal
                       initial={current || { date: new Date().toISOString().slice(0, 10), mood: '', text: '' }}
                       onCancel={() => { setShowAddLog(false); setEditingLogId(null); }}
-                      onDelete={isEdit ? async () => {
-                        if (!window.confirm('确认删除这条复盘?')) return;
-                        try {
-                          await db.deleteReviewLog(editingLogId);
-                          setReviewLogs(reviewLogs.filter(l => l.id !== editingLogId));
-                          setEditingLogId(null);
-                        } catch (e) { alert('删除失败: ' + e.message); }
+                      onDelete={isEdit ? () => {
+                        showConfirm({
+                          title: '删除这条复盘?',
+                          desc: '此操作不可撤销',
+                          info: current?.date + ' · ' + (current?.text || '').slice(0, 40) + ((current?.text || '').length > 40 ? '...' : ''),
+                          confirmText: '删除',
+                          onConfirm: async () => {
+                            try {
+                              await db.deleteReviewLog(editingLogId);
+                              setReviewLogs(reviewLogs.filter(l => l.id !== editingLogId));
+                              setEditingLogId(null);
+                              setShowAddLog(false);
+                            } catch (e) { alert('删除失败: ' + e.message); }
+                          },
+                        });
                       } : null}
                       onSave={async (data) => {
                         try {
@@ -6387,14 +6435,22 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.27
+                  v10.7.9.28
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.27', date: '2026-04-24', latest: true,
+                    ver: 'v10.7.9.28', date: '2026-04-24', latest: true,
+                    items: [
+                      '🗑 删除确认 Modal 统一升级 (替换浏览器原生 confirm)',
+                      '苹果风底部抽屉 · 图标 + 描述 + 信息 + 大按钮',
+                      '影响: 关注删股票 / 摊薄交易 / 戒律 / 复盘 / 退出登录',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.27', date: '2026-04-24',
                     items: [
                       '💱 首页头部"今日"加 CNY 副显示',
                       '今日 +$42,150 (+1.50%) ≈ +¥30.3万',
@@ -6768,9 +6824,16 @@ function MainApp({ user, onLogout }) {
                   🔑 修改密码
                 </button>
                 <button
-                  onClick={async () => {
-                    if (!window.confirm('确认退出登录?\n下次进入需要重新登录。')) return;
-                    await onLogout();
+                  onClick={() => {
+                    showConfirm({
+                      title: '退出登录?',
+                      desc: '下次进入需要重新登录',
+                      icon: '🔓',
+                      confirmText: '退出',
+                      onConfirm: async () => {
+                        await onLogout();
+                      },
+                    });
                   }}
                   className="w-full py-2.5 rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5 text-sm font-bold"
                   style={{
@@ -6933,7 +6996,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.27</div>
+                <div>📊 版本:v10.7.9.28</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6941,6 +7004,79 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
         {/* ====== 设置 tab 结束 ====== */}
+
+        {/* === 🗑 通用删除确认 Modal (v10.7.9.28) === */}
+        {confirmModal && (
+          <div
+            className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setConfirmModal(null); }}
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+          >
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
+              <div className="p-6">
+                {/* 图标 */}
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-[24px] mx-auto mb-3"
+                  style={{
+                    background: confirmModal.confirmStyle === 'danger' ? '#fef2f2' : '#eff6ff',
+                    color: confirmModal.confirmStyle === 'danger' ? '#dc2626' : '#2563eb',
+                  }}
+                >
+                  {confirmModal.icon}
+                </div>
+                {/* 标题 */}
+                <div className="text-center font-black text-[17px] text-slate-900 mb-1.5">
+                  {confirmModal.title}
+                </div>
+                {/* 描述 */}
+                <div className="text-center text-[13px] text-slate-500 mb-4 leading-relaxed">
+                  {confirmModal.desc}
+                </div>
+                {/* 信息框 (可选) */}
+                {confirmModal.info && (
+                  <div
+                    className="rounded-lg px-3 py-2.5 mb-4 text-[12px] text-center"
+                    style={{
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontFamily: 'ui-monospace, monospace',
+                    }}
+                  >
+                    {confirmModal.info}
+                  </div>
+                )}
+                {/* 按钮 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setConfirmModal(null)}
+                    className="py-3 rounded-xl font-bold text-[14px] active:scale-95"
+                    style={{ background: '#f1f5f9', color: '#64748b' }}
+                  >
+                    {confirmModal.cancelText}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const cb = confirmModal.onConfirm;
+                      setConfirmModal(null);
+                      if (cb) cb();
+                    }}
+                    className="py-3 rounded-xl font-black text-[14px] text-white active:scale-95"
+                    style={{
+                      background: confirmModal.confirmStyle === 'danger' ? '#dc2626' : '#2563eb',
+                    }}
+                  >
+                    {confirmModal.confirmText}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* === 💼 摊薄成本 - 新增股票弹窗 === */}
         {showCostBasisAdd && (
