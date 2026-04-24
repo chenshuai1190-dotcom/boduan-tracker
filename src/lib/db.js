@@ -683,3 +683,71 @@ export const upsertYearlyActual = async (year, actualGain, endBalance) => {
     }, { onConflict: 'user_id,year' });
   if (error) throw error;
 };
+
+// ============ COST_BASIS_TRADES (摊薄成本计算器, v10.7.9.24 云端) ============
+export const fetchCostBasisTrades = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error('未登录');
+
+  const { data, error } = await supabase
+    .from('cost_basis_trades')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('trade_date', { ascending: true });
+  if (error) throw error;
+  const grouped = {};
+  for (const row of (data || [])) {
+    const sym = row.symbol;
+    if (!grouped[sym]) grouped[sym] = [];
+    grouped[sym].push({
+      id: row.id,
+      type: row.trade_type,
+      price: parseFloat(row.price),
+      shares: parseFloat(row.shares),
+      date: row.trade_date,
+    });
+  }
+  return grouped;
+};
+
+export const insertCostBasisTrade = async (symbol, trade) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('cost_basis_trades')
+    .insert({
+      id: trade.id,
+      user_id: user.id,
+      symbol: symbol,
+      trade_type: trade.type,
+      price: trade.price,
+      shares: trade.shares,
+      trade_date: trade.date,
+    });
+  if (error) throw error;
+};
+
+export const deleteCostBasisTrade = async (id) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('cost_basis_trades')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
+
+export const deleteCostBasisSymbol = async (symbol) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('cost_basis_trades')
+    .delete()
+    .eq('symbol', symbol)
+    .eq('user_id', user.id);
+  if (error) throw error;
+};
