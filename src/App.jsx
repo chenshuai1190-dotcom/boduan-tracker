@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.16: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.17: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.16): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.17): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1500,38 +1500,48 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
+  // v10.7.9.17: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
+  //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
+  //         WebSocket 断了 → 启动 REST 兜底
   useEffect(() => {
     if (cloudLoading) return;
-    // 等 watchlist 也真正有数据, 再拉 (防止首次 watchlist=[] 的 bug)
     if (watchlist.length === 0) return;
 
+    // 启动时立即拉 1 次 (拿初始数据 + 指数 + VIX/FGI)
+    fetchRealtimePrices();
+
+    // 判断是否启用 REST 自动拉:
+    //   WebSocket 已开启 + 已连接 → 不拉 (让 WS 接管)
+    //   WebSocket 没开 / 断了 / 错误 → 启用 REST 兜底
+    const shouldUseRest = !wsEnabled || wsStatus !== 'connected';
+    if (!shouldUseRest) {
+      console.log('[REST] WebSocket 已连接, 跳过 REST 自动拉取');
+      return; // 不启动定时器
+    }
+
+    console.log('[REST] WebSocket 未连接, 启用 REST 自动拉取兜底');
     let timerId = null;
     let isActive = true;
 
     const runFetchAndReschedule = () => {
       if (!isActive) return;
       fetchRealtimePrices();
-      // 每次都动态计算间隔 (盘中/盘前盘后/休市 可能跨越时段)
       const interval = getMarketRefreshInterval();
       timerId = setTimeout(runFetchAndReschedule, interval);
     };
 
-    // 启动: 立即拉一次
-    fetchRealtimePrices();
-    // 第一次调度
     const firstInterval = getMarketRefreshInterval();
     timerId = setTimeout(runFetchAndReschedule, firstInterval);
 
     // 页面可见性: 隐藏时暂停, 可见时立即拉 + 重启
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // 页面隐藏: 清除定时器
         if (timerId) {
           clearTimeout(timerId);
           timerId = null;
         }
       } else {
-        // 页面回来: 立即拉 + 重启
         if (isActive && !timerId) {
           fetchRealtimePrices();
           const interval = getMarketRefreshInterval();
@@ -1547,7 +1557,7 @@ function MainApp({ user, onLogout }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, watchlist.length]);
+  }, [cloudLoading, watchlist.length, wsEnabled, wsStatus]);
 
   // 🧪 WebSocket 实时推送 (EODHD All World Extended)
   // 启用后, 股价实时推送, 替代 REST 轮询
@@ -1977,7 +1987,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.16: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.17: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2024,7 +2034,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.16) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.17) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2783,7 +2793,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.16) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.17) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3026,7 +3036,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.16) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.17) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3209,7 +3219,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.16) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.17) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -5960,6 +5970,9 @@ function MainApp({ user, onLogout }) {
                 <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
                 {fetching ? '拉取中…' : '立即手动拉取'}
               </button>
+              <div className="mt-2 text-[10px] text-slate-400 text-center italic">
+                💡 WebSocket 连接时无需手动 (实时推送) · 仅在 WS 断开或想强制刷新时用
+              </div>
             </div>
 
             {/* 📜 更新日志 */}
@@ -5969,15 +5982,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.16
+                  v10.7.9.17
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.16', date: '2026-04-23', latest: true,
-                    items: ['🎨 关注卡重设计 V1 三列布局', '代码 | 走势图 | 价格 横向排列', '走势图嵌入上方中间 (40px 高)', '下方持仓块 + 52周高块 保留'],
+                    ver: 'v10.7.9.17', date: '2026-04-24', latest: true,
+                    items: ['🐛 修复 REST 与 WebSocket 数据冲突 (价格"跳回"bug)', 'WebSocket 已连接时, REST 自动拉取自动跳过', 'WebSocket 断开/未启用时, REST 才兜底跑', '"立即手动拉取"按钮加提示'],
+                  },
+                  {
+                    ver: 'v10.7.9.16', date: '2026-04-23',
+                    items: ['🎨 关注卡 V1 三列布局: 代码 | 走势图 | 价格'],
                   },
                   {
                     ver: 'v10.7.9.15', date: '2026-04-23',
@@ -6474,7 +6491,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.16</div>
+                <div>📊 版本:v10.7.9.17</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
