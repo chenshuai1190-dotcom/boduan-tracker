@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.17: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.16: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -684,15 +684,6 @@ function MainApp({ user, onLogout }) {
   const [wsLastTick, setWsLastTick] = useState(null); // 最后收到 tick 的时间
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
-
-  // 🔧 走势图调试 (开发用) - v10.7.9.17
-  const [debugSymbol, setDebugSymbol] = useState('NVDA');
-  const [debugLoading, setDebugLoading] = useState(false);
-  const [debugIntraday, setDebugIntraday] = useState(null);
-  const [debugLiveV2, setDebugLiveV2] = useState(null);
-  const [debugWsStats, setDebugWsStats] = useState(null);
-  const [debugError, setDebugError] = useState(null);
-  const [debugShowJson, setDebugShowJson] = useState({ intraday: false, live: false });
 
   // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
   const [changelogExpanded, setChangelogExpanded] = useState(false);
@@ -964,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.17): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.16): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1370,47 +1361,6 @@ function MainApp({ user, onLogout }) {
         console.error('[删除股票] 云端失败:', e);
         alert(`删除 ${symbol} 失败: ${e.message}`);
       }
-    }
-  };
-
-  // 🔧 走势图调试 (v10.7.9.17): 拉真实数据看
-  const fetchDebugData = async () => {
-    if (!debugSymbol) return;
-    setDebugLoading(true);
-    setDebugError(null);
-    setDebugIntraday(null);
-    setDebugLiveV2(null);
-    try {
-      const sym = debugSymbol.trim().toUpperCase();
-      // 用现有 /api/quote 拿 Live v2 数据 (它已经返回 EODHD-v2)
-      const r = await fetch(`/api/quote?symbols=${sym}`);
-      const result = await r.json();
-      if (!result.success) throw new Error(result.error || 'API 失败');
-      const data = (result.data || []).find(d => d.symbol === sym);
-      if (!data) throw new Error(`没有 ${sym} 数据`);
-      setDebugLiveV2(data);
-
-      // EODHD Intraday 直接调 (前端 → /api/quote 没有 intraday 直返通道, 我们走相同 API 看)
-      // 因为后端返回里就有 intraday 数组, 我们提取出来
-      setDebugIntraday({
-        count: (data.intraday || []).length,
-        intraday: data.intraday || [],
-        intradayPoints: data.intradayPoints || [],
-      });
-
-      // WebSocket 累积统计
-      const wsStock = watchlist.find(s => s.symbol === sym);
-      setDebugWsStats({
-        wsStatus,
-        wsLastTick,
-        watchlistHas: !!wsStock,
-        wsIntradayCount: wsStock ? (wsStock.intradayPoints || []).length : 0,
-        wsLatestPrice: wsStock?.price,
-      });
-    } catch (e) {
-      setDebugError(e.message);
-    } finally {
-      setDebugLoading(false);
     }
   };
 
@@ -2027,7 +1977,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.17: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.16: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2074,7 +2024,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.17) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.16) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2833,7 +2783,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.17) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.16) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3076,7 +3026,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.17) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.16) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3259,7 +3209,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.17) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.16) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -6019,19 +5969,15 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.17
+                  v10.7.9.16
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.17', date: '2026-04-23', latest: true,
-                    items: ['🔧 设置页底部加"走势图调试"卡 (开发用)', '可输入股票代码, 拉真实数据看 EODHD/WebSocket 返回', '验证完后这个卡会删除'],
-                  },
-                  {
-                    ver: 'v10.7.9.16', date: '2026-04-23',
-                    items: ['🎨 关注卡 V1 三列布局: 代码 | 走势图 | 价格', '走势图嵌入上方中间 (40px)', '下方持仓块 + 52周高块 保留'],
+                    ver: 'v10.7.9.16', date: '2026-04-23', latest: true,
+                    items: ['🎨 关注卡重设计 V1 三列布局', '代码 | 走势图 | 价格 横向排列', '走势图嵌入上方中间 (40px 高)', '下方持仓块 + 52周高块 保留'],
                   },
                   {
                     ver: 'v10.7.9.15', date: '2026-04-23',
@@ -6528,165 +6474,10 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.17</div>
+                <div>📊 版本:v10.7.9.16</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
-            </div>
-
-            {/* 🔧 走势图调试 (开发用) - v10.7.9.17 */}
-            <div className="bg-white rounded-2xl p-5 shadow border-2" style={{ borderColor: '#fbbf24', borderStyle: 'dashed' }}>
-              <h2 className="font-bold text-lg mb-3" style={{ color: '#92400e' }}>🔧 走势图调试 (开发用)</h2>
-              <div className="text-[11px] text-slate-500 mb-3">验证 EODHD Intraday + Live v2 + WebSocket 实际返回的数据</div>
-
-              {/* 输入 + 按钮 */}
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  value={debugSymbol}
-                  onChange={(e) => setDebugSymbol(e.target.value.toUpperCase())}
-                  placeholder="股票代码 (如 NVDA)"
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold uppercase tabular-nums"
-                  style={{ fontFamily: 'ui-monospace, monospace' }}
-                />
-                <button
-                  onClick={fetchDebugData}
-                  disabled={debugLoading}
-                  className="px-4 py-2 rounded-lg text-sm font-black active:scale-95 disabled:opacity-50"
-                  style={{ background: '#fbbf24', color: '#0a0a0a' }}
-                >
-                  {debugLoading ? '⏳ 拉取中' : '🔍 拉取'}
-                </button>
-              </div>
-
-              {debugError && (
-                <div className="text-xs text-red-600 bg-red-50 p-2 rounded mb-3 font-mono break-all">❌ {debugError}</div>
-              )}
-
-              {/* Live v2 (EODHD 实时) */}
-              {debugLiveV2 && (
-                <div className="border border-slate-200 rounded-lg p-3 mb-2 bg-slate-50">
-                  <div className="text-xs font-black text-slate-700 mb-2">━━━ EODHD Live v2 ━━━</div>
-                  <div className="space-y-0.5 text-[11px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    <div className="flex justify-between"><span className="text-slate-500">price:</span> <span className="font-bold">${debugLiveV2.price?.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">previousClose:</span> <span className="font-bold">${debugLiveV2.previousClose?.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">change:</span> <span className={`font-bold ${(debugLiveV2.change || 0) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{(debugLiveV2.change || 0).toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">changePercent:</span> <span className={`font-bold ${(debugLiveV2.changePercent || 0) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{(debugLiveV2.changePercent || 0).toFixed(2)}%</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">timestamp:</span> <span className="text-slate-700">{debugLiveV2.timestamp ? new Date(debugLiveV2.timestamp * 1000).toLocaleString('zh-CN', { timeZone: 'America/New_York' }) : '—'} ET</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">source:</span> <span className="font-bold text-amber-700">{debugLiveV2.priceSource || debugLiveV2.source || '—'}</span></div>
-                  </div>
-                  <button
-                    onClick={() => setDebugShowJson(prev => ({ ...prev, live: !prev.live }))}
-                    className="mt-2 text-[10px] text-amber-700 font-bold underline"
-                  >
-                    {debugShowJson.live ? '收起' : '展开'} 完整 JSON
-                  </button>
-                  {debugShowJson.live && (
-                    <pre className="mt-2 text-[9px] bg-slate-900 text-emerald-300 p-2 rounded overflow-auto max-h-40">
-{JSON.stringify({ ...debugLiveV2, intraday: '...省略...', intradayPoints: '...省略...' }, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              )}
-
-              {/* Intraday 走势图数据 */}
-              {debugIntraday && (
-                <div className="border border-slate-200 rounded-lg p-3 mb-2 bg-slate-50">
-                  <div className="text-xs font-black text-slate-700 mb-2">━━━ 走势图数据 (intraday) ━━━</div>
-                  <div className="space-y-0.5 text-[11px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    <div className="flex justify-between"><span className="text-slate-500">总条数:</span> <span className="font-bold">{debugIntraday.count}</span></div>
-                    {debugIntraday.intradayPoints.length > 0 && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">最早 t:</span>
-                          <span className="text-slate-700">{new Date(debugIntraday.intradayPoints[0].t * 1000).toLocaleString('zh-CN', { timeZone: 'America/New_York' })} ET</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">最晚 t:</span>
-                          <span className="text-slate-700">{new Date(debugIntraday.intradayPoints[debugIntraday.intradayPoints.length - 1].t * 1000).toLocaleString('zh-CN', { timeZone: 'America/New_York' })} ET</span>
-                        </div>
-                        <div className="flex justify-between"><span className="text-slate-500">最早 price:</span> <span className="font-bold">${debugIntraday.intradayPoints[0].price?.toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-500">最晚 price:</span> <span className="font-bold">${debugIntraday.intradayPoints[debugIntraday.intradayPoints.length - 1].price?.toFixed(2)}</span></div>
-                        {/* session 分布 */}
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">session 分布:</span>
-                          <span className="text-slate-700">
-                            pre {debugIntraday.intradayPoints.filter(p => p.session === 'pre').length} ·
-                            regular {debugIntraday.intradayPoints.filter(p => p.session === 'regular').length} ·
-                            post {debugIntraday.intradayPoints.filter(p => p.session === 'post').length}
-                          </span>
-                        </div>
-                        {/* 今日筛选 */}
-                        {(() => {
-                          const todayEt = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' });
-                          const todayPoints = debugIntraday.intradayPoints.filter(p => {
-                            return new Date(p.t * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === todayEt;
-                          });
-                          return (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">今天的点 ({todayEt}):</span>
-                              <span className="font-bold text-amber-700">{todayPoints.length} / {debugIntraday.intradayPoints.length}</span>
-                            </div>
-                          );
-                        })()}
-                      </>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setDebugShowJson(prev => ({ ...prev, intraday: !prev.intraday }))}
-                    className="mt-2 text-[10px] text-amber-700 font-bold underline"
-                  >
-                    {debugShowJson.intraday ? '收起' : '展开'} 前 5 条点
-                  </button>
-                  {debugShowJson.intraday && (
-                    <pre className="mt-2 text-[9px] bg-slate-900 text-emerald-300 p-2 rounded overflow-auto max-h-40">
-{JSON.stringify(debugIntraday.intradayPoints.slice(0, 5).map(p => ({
-  ...p,
-  time_ET: new Date(p.t * 1000).toLocaleString('zh-CN', { timeZone: 'America/New_York' }),
-})), null, 2)}
-                    </pre>
-                  )}
-                </div>
-              )}
-
-              {/* WebSocket 累积 */}
-              {debugWsStats && (
-                <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                  <div className="text-xs font-black text-slate-700 mb-2">━━━ WebSocket ━━━</div>
-                  <div className="space-y-0.5 text-[11px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">连接状态:</span>
-                      <span className={`font-bold ${debugWsStats.wsStatus === 'connected' ? 'text-emerald-600' : 'text-red-600'}`}>
-                        ● {debugWsStats.wsStatus}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">最后 tick:</span>
-                      <span className="text-slate-700">{debugWsStats.wsLastTick ? new Date(debugWsStats.wsLastTick).toLocaleTimeString('zh-CN') : '—'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">在 watchlist?:</span>
-                      <span className={`font-bold ${debugWsStats.watchlistHas ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {debugWsStats.watchlistHas ? '是' : '否 (WebSocket 不订阅)'}
-                      </span>
-                    </div>
-                    {debugWsStats.watchlistHas && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">WS 累积 ticks:</span>
-                          <span className="font-bold">{debugWsStats.wsIntradayCount}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">最新 price (state):</span>
-                          <span className="font-bold">${debugWsStats.wsLatestPrice?.toFixed(2)}</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="text-[10px] text-slate-400 mt-3 italic">💡 数据用完调试后, 这个卡可以删 (告诉 Claude 删)</div>
             </div>
           </div>
         )}
