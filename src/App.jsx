@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.18: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.16: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -955,7 +955,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.18): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.16): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1721,54 +1721,9 @@ function MainApp({ user, onLogout }) {
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
 
-  // 🔄 v10.7.9.18: 滚动位置记忆 (每个 tab 独立记)
-  //   切走时存当前 tab 位置, 切回时恢复到之前位置
-  //   用 ref 不用 state (不触发重渲染)
-  const scrollPositions = useRef({});
-  const prevTabRef = useRef('home');
-
+  // 切换 tab 时自动滚到页面顶部(像原生 App 一样)
   useEffect(() => {
-    const prevTab = prevTabRef.current;
-    // 1. 切走时: 保存离开的 tab 位置
-    if (prevTab && prevTab !== activeTab) {
-      scrollPositions.current[prevTab] = window.scrollY;
-    }
-    // 2. 切来时: 恢复目标 tab 位置
-    //    v10.7.9.18: 首页内容多, DOM 渲染慢, 单次 setTimeout 滚不到 → 多次重试
-    const targetY = scrollPositions.current[activeTab] || 0;
-    if (targetY === 0) {
-      // 没历史位置 (首次进 tab), 直接顶部
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    } else {
-      // 有历史位置 → 多次尝试滚 (等 DOM 高度足够)
-      let attempts = 0;
-      const maxAttempts = 10;
-      const tryScroll = () => {
-        attempts++;
-        const docHeight = document.documentElement.scrollHeight;
-        // DOM 高度足够时才能滚到目标位置
-        if (docHeight >= targetY + window.innerHeight) {
-          window.scrollTo({ top: targetY, behavior: 'instant' });
-        } else if (attempts < maxAttempts) {
-          // DOM 还在渲染, 50ms 后再试
-          setTimeout(tryScroll, 50);
-        } else {
-          // 5次都不行就强行滚 (DOM 还没完, 但反正是底部)
-          window.scrollTo({ top: targetY, behavior: 'instant' });
-        }
-      };
-      requestAnimationFrame(tryScroll);
-    }
-    prevTabRef.current = activeTab;
-  }, [activeTab]);
-
-  // 实时记录当前 tab 滚动位置 (滚动时持续更新)
-  useEffect(() => {
-    const handleScroll = () => {
-      scrollPositions.current[activeTab] = window.scrollY;
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [activeTab]);
 
   // 添加交易表单:输入股票代码后 500ms 自动查询(填充中文名+当前价)
@@ -2022,7 +1977,7 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 📈 v10.7.9.18: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.16: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2069,7 +2024,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.18) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.16) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2828,7 +2783,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.18) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.16) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3071,7 +3026,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.18) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.16) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3254,7 +3209,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.18) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.16) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -6014,23 +5969,15 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.18
+                  v10.7.9.16
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.18', date: '2026-04-24', latest: true,
-                    items: ['🐛 修复首页滚动位置不恢复 bug', '原因: 首页 DOM 渲染慢, setTimeout 0 太早 → DOM 高度不够 scrollTo 失败', '修: 改用多次重试 (检查 docHeight 够才滚, 否则 50ms 后再试)'],
-                  },
-                  {
-                    ver: 'v10.7.9.17', date: '2026-04-24',
-                    items: ['🔄 滚动位置记忆 (各 tab 独立)', '关注卡 V1 三列布局: 代码 | 走势图 | 价格'],
-                  },
-                  {
-                    ver: 'v10.7.9.16', date: '2026-04-23',
-                    items: ['🎨 关注卡重设计 V1 三列布局', '代码 | 走势图 | 价格 横向排列', '走势图嵌入上方中间 (40px 高)'],
+                    ver: 'v10.7.9.16', date: '2026-04-23', latest: true,
+                    items: ['🎨 关注卡重设计 V1 三列布局', '代码 | 走势图 | 价格 横向排列', '走势图嵌入上方中间 (40px 高)', '下方持仓块 + 52周高块 保留'],
                   },
                   {
                     ver: 'v10.7.9.15', date: '2026-04-23',
@@ -6527,7 +6474,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.18</div>
+                <div>📊 版本:v10.7.9.16</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
