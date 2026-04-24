@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.26: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.27: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -685,7 +685,7 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 💼 v10.7.9.26: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 💼 v10.7.9.27: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -925,7 +925,7 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlistStructureSig, cloudLoading]);
 
-  // ☁️ v10.7.9.26: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
+  // ☁️ v10.7.9.27: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
   // 严格放在 cloudLoading 之后, 避免 React state hoisting 错乱
   // 启动时拉云端覆盖本地; 本地有数据但云端为空 → 自动迁移上云
   useEffect(() => {
@@ -1070,7 +1070,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.26): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.27): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1615,7 +1615,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.26: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.27: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -1732,7 +1732,7 @@ function MainApp({ user, onLogout }) {
                   if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
                   const oldPrice = idx.price || 0;
                   if (oldPrice === newPrice) return idx;
-                  // 重算当日涨跌 (v10.7.9.26: 跟关注列表逻辑完全一致)
+                  // 重算当日涨跌 (v10.7.9.27: 跟关注列表逻辑完全一致)
                   // ⚠️ pc fallback 必须是 0 (不能用 oldPrice, 否则算出来 % 一直≈0 乱跳)
                   const pc = idx.previousClose || 0;
                   const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (idx.changePercent || 0);
@@ -1763,7 +1763,7 @@ function MainApp({ user, onLogout }) {
                   });
                 }, 500);
 
-                // 当日涨跌重算 (v10.7.9.26: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
+                // 当日涨跌重算 (v10.7.9.27: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
                 const pc = s.previousClose || 0;
                 const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (s.changePercent || 0);
 
@@ -2103,14 +2103,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.26: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.27: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.26: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.27: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2157,17 +2157,20 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.26) */}
+                {/* 当日盈亏 (v10.7.9.27: 加 CNY 副显示) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
                     <span className="text-[11px] font-bold ml-1.5">
                       ({isTodayProfit ? '+' : ''}{(todayPnlPct * 100).toFixed(2)}%)
                     </span>
+                    <span className="text-[10px] font-semibold ml-1.5" style={{ color: '#737373' }}>
+                      ≈ {isTodayProfit ? '+' : '-'}¥{(Math.abs(todayPnl) * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
+                    </span>
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.26: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.27: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2934,7 +2937,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.26) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.27) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3177,7 +3180,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.26) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.27) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3360,7 +3363,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.26) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.27) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3785,7 +3788,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* ============ 💼 摊薄成本计算器 (v10.7.9.26, iOS 风格) ============ */}
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.27, iOS 风格) ============ */}
         {(() => {
           const allSymbols = Object.keys(costBasisData);
           const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
@@ -6384,14 +6387,21 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.26
+                  v10.7.9.27
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.26', date: '2026-04-24', latest: true,
+                    ver: 'v10.7.9.27', date: '2026-04-24', latest: true,
+                    items: [
+                      '💱 首页头部"今日"加 CNY 副显示',
+                      '今日 +$42,150 (+1.50%) ≈ +¥30.3万',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.26', date: '2026-04-24',
                     items: [
                       '🐛 修复顶部指数 SPY/QQQ 涨跌% 乱跳 bug',
                       '原因: WebSocket 推送时 fallback 到 oldPrice (上一次现价)',
@@ -6923,7 +6933,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.26</div>
+                <div>📊 版本:v10.7.9.27</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
