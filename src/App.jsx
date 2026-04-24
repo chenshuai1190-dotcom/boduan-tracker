@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.20: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.21: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -685,7 +685,7 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 💼 v10.7.9.20: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 💼 v10.7.9.21: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -1017,7 +1017,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.20): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.21): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1562,7 +1562,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.20: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.21: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -2049,14 +2049,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.20: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.21: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.20: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.21: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2103,7 +2103,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.20) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.21) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2113,7 +2113,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.20: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.21: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2880,7 +2880,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.20) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.21) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3123,7 +3123,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.20) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.21) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3306,7 +3306,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.20) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.21) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3731,7 +3731,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* ============ 💼 摊薄成本计算器 (v10.7.9.20, iOS 风格) ============ */}
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.21, iOS 风格) ============ */}
         {(() => {
           const allSymbols = Object.keys(costBasisData);
           const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
@@ -6234,15 +6234,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.20
+                  v10.7.9.21
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.20', date: '2026-04-24', latest: true,
-                    items: ['💼 新增 摊薄成本计算器 (交易 tab 最底部)', 'iOS 卡片风格 + 多股 Tab 切换', '算法: 移动加权平均 (买入累加, 卖出按平均扣)', '本地存 localStorage, 完全独立, 不影响其他模块'],
+                    ver: 'v10.7.9.21', date: '2026-04-24', latest: true,
+                    items: ['🐛 修复 摊薄成本 Modal 显示不全', 'z-index 50 → 110 (跟添加交易 Modal 对齐)', '加 safe-area-inset-bottom (避开手机底部安全区)', 'backdrop-blur 视觉跟主 App 一致'],
+                  },
+                  {
+                    ver: 'v10.7.9.20', date: '2026-04-24',
+                    items: ['💼 新增 摊薄成本计算器 (交易 tab 最底部)', 'iOS 卡片风格 + 多股 Tab', '本地 localStorage'],
                   },
                   {
                     ver: 'v10.7.9.19', date: '2026-04-24',
@@ -6755,7 +6759,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.20</div>
+                <div>📊 版本:v10.7.9.21</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6766,41 +6770,53 @@ function MainApp({ user, onLogout }) {
 
         {/* === 💼 摊薄成本 - 新增股票弹窗 === */}
         {showCostBasisAdd && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setShowCostBasisAdd(false)}>
-            <div className="bg-white rounded-t-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
-              <div className="font-black text-lg text-slate-900 mb-3">+ 新增股票</div>
-              <input
-                type="text"
-                value={costBasisNewSymbol}
-                onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
-                placeholder="股票代码 (如 NVDA)"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg text-base font-bold uppercase mb-3 tabular-nums"
-                style={{ fontFamily: 'ui-monospace, monospace' }}
-                autoFocus
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setShowCostBasisAdd(false)}
-                  className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold active:scale-95"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={() => {
-                    const sym = costBasisNewSymbol.trim();
-                    if (!sym) return;
-                    if (costBasisData[sym]) {
-                      alert(`${sym} 已存在`);
-                      return;
-                    }
-                    setCostBasisData(prev => ({ ...prev, [sym]: [] }));
-                    setCostBasisActiveSymbol(sym);
-                    setShowCostBasisAdd(false);
-                  }}
-                  className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
-                >
-                  确定
-                </button>
+          <div
+            className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisAdd(false); }}
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+          >
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* 顶部把手 */}
+              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
+              <div className="p-5">
+                <div className="font-black text-lg text-slate-900 mb-3">+ 新增股票</div>
+                <input
+                  type="text"
+                  value={costBasisNewSymbol}
+                  onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
+                  placeholder="股票代码 (如 NVDA)"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-base font-bold uppercase mb-3 tabular-nums"
+                  style={{ fontFamily: 'ui-monospace, monospace' }}
+                  autoFocus
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setShowCostBasisAdd(false)}
+                    className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold active:scale-95"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      const sym = costBasisNewSymbol.trim();
+                      if (!sym) return;
+                      if (costBasisData[sym]) {
+                        alert(`${sym} 已存在`);
+                        return;
+                      }
+                      setCostBasisData(prev => ({ ...prev, [sym]: [] }));
+                      setCostBasisActiveSymbol(sym);
+                      setShowCostBasisAdd(false);
+                    }}
+                    className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
+                  >
+                    确定
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -6808,9 +6824,20 @@ function MainApp({ user, onLogout }) {
 
         {/* === 💼 摊薄成本 - 添加交易弹窗 === */}
         {showCostBasisTrade && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setShowCostBasisTrade(false)}>
-            <div className="bg-white rounded-t-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
-              <div className="font-black text-lg text-slate-900 mb-3">+ 添加交易 ({costBasisActiveSymbol})</div>
+          <div
+            className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisTrade(false); }}
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+          >
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* 顶部把手 */}
+              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
+              <div className="p-5">
+                <div className="font-black text-lg text-slate-900 mb-3">+ 添加交易 ({costBasisActiveSymbol})</div>
               {/* 类型切换 */}
               <div className="flex gap-2 mb-3">
                 <button
@@ -6910,6 +6937,7 @@ function MainApp({ user, onLogout }) {
                 >
                   确定
                 </button>
+              </div>
               </div>
             </div>
           </div>
