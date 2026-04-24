@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.23: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.24: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -685,7 +685,7 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 💼 v10.7.9.23: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 💼 v10.7.9.24: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -715,6 +715,45 @@ function MainApp({ user, onLogout }) {
   useEffect(() => {
     try { localStorage.setItem('bottomline_cost_basis_active', costBasisActiveSymbol); } catch {}
   }, [costBasisActiveSymbol]);
+
+  // ☁️ v10.7.9.24: 云端同步 (Supabase cost_basis_trades 表)
+  // 启动时拉云端覆盖本地; 本地有数据但云端为空 → 自动迁移上云
+  useEffect(() => {
+    if (cloudLoading) return; // 等主云端加载完成后再跑
+    let cancelled = false;
+    (async () => {
+      try {
+        const cloudData = await db.fetchCostBasisTrades();
+        if (cancelled) return;
+        const cloudHasData = cloudData && Object.keys(cloudData).length > 0;
+        const localHasData = costBasisData && Object.keys(costBasisData).length > 0;
+
+        if (cloudHasData) {
+          // 云端有数据 → 用云端覆盖本地 (云端是真相)
+          console.log('[CostBasis] ☁️ 从云端加载', Object.keys(cloudData).length, '只股票');
+          setCostBasisData(cloudData);
+        } else if (localHasData) {
+          // 云端空, 本地有 → 自动上传迁移
+          console.log('[CostBasis] 📤 本地数据自动迁移到云端...');
+          for (const [sym, trades] of Object.entries(costBasisData)) {
+            for (const trade of trades) {
+              try {
+                await db.insertCostBasisTrade(sym, trade);
+              } catch (e) {
+                console.error('[CostBasis] 迁移失败', sym, trade.id, e.message);
+              }
+            }
+          }
+          console.log('[CostBasis] ✓ 迁移完成');
+        }
+      } catch (e) {
+        console.error('[CostBasis] 云端加载失败:', e.message);
+        // 失败时保留本地数据 (localStorage 兜底)
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudLoading]);
 
   // 核心算法: 移动加权平均 + 扣除已实现盈亏的"实际成本"
   const calcCostBasis = (trades) => {
@@ -1024,7 +1063,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.23): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.24): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1569,7 +1608,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.23: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.24: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -2056,14 +2095,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.23: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.24: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.23: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.24: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2110,7 +2149,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.23) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.24) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2120,7 +2159,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.23: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.24: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2887,7 +2926,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.23) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.24) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3130,7 +3169,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.23) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.24) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3313,7 +3352,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.23) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.24) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3738,7 +3777,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* ============ 💼 摊薄成本计算器 (v10.7.9.23, iOS 风格) ============ */}
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.24, iOS 风格) ============ */}
         {(() => {
           const allSymbols = Object.keys(costBasisData);
           const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
@@ -3936,6 +3975,10 @@ function MainApp({ user, onLogout }) {
                                           ...prev,
                                           [activeSymbol]: prev[activeSymbol].filter(x => x.id !== t.id),
                                         }));
+                                        // ☁️ 异步删云端
+                                        db.deleteCostBasisTrade(t.id).catch(e => {
+                                          console.error('[CostBasis] 删除云端失败:', e.message);
+                                        });
                                       }
                                     }}
                                     className="text-slate-300 hover:text-rose-500 text-[14px] px-1"
@@ -3971,13 +4014,18 @@ function MainApp({ user, onLogout }) {
                   <button
                     onClick={() => {
                       if (window.confirm(`删除 ${activeSymbol} 及全部交易记录? 此操作不可撤销`)) {
+                        const symToDelete = activeSymbol;
                         setCostBasisData(prev => {
                           const next = { ...prev };
-                          delete next[activeSymbol];
+                          delete next[symToDelete];
                           return next;
                         });
-                        const remaining = Object.keys(costBasisData).filter(s => s !== activeSymbol);
+                        const remaining = Object.keys(costBasisData).filter(s => s !== symToDelete);
                         setCostBasisActiveSymbol(remaining[0] || '');
+                        // ☁️ 异步删云端
+                        db.deleteCostBasisSymbol(symToDelete).catch(e => {
+                          console.error('[CostBasis] 删整只云端失败:', e.message);
+                        });
                       }
                     }}
                     className="w-full mt-3 py-2 text-[11px] text-rose-500 font-bold active:scale-95"
@@ -6328,15 +6376,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.23
+                  v10.7.9.24
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.23', date: '2026-04-24', latest: true,
-                    items: ['💼 摊薄成本 - 卖出交易点击展开利润详情', '点 ▼ 展开: 卖出收入 - 卖出成本 = 本次利润', '用"卖出当时"的会计摊薄成本 (跟卖出的实际盈亏一致)'],
+                    ver: 'v10.7.9.24', date: '2026-04-24', latest: true,
+                    items: ['☁️ 摊薄成本上云端 (Supabase cost_basis_trades 表)', '本地 localStorage 数据 自动迁移到云端 (一次性)', '跨设备登录自动同步', '删除/添加 实时双写 (本地 + 云端)', '云端是真相, 本地兜底缓存'],
+                  },
+                  {
+                    ver: 'v10.7.9.23', date: '2026-04-24',
+                    items: ['💼 摊薄成本 - 卖出交易点击展开利润详情'],
                   },
                   {
                     ver: 'v10.7.9.22', date: '2026-04-24',
@@ -6861,7 +6913,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.23</div>
+                <div>📊 版本:v10.7.9.24</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -7033,6 +7085,10 @@ function MainApp({ user, onLogout }) {
                       ...prev,
                       [costBasisActiveSymbol]: [...(prev[costBasisActiveSymbol] || []), newTrade],
                     }));
+                    // ☁️ 异步写云端
+                    db.insertCostBasisTrade(costBasisActiveSymbol, newTrade).catch(e => {
+                      console.error('[CostBasis] 添加云端失败:', e.message);
+                    });
                     setShowCostBasisTrade(false);
                   }}
                   className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
