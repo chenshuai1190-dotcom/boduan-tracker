@@ -3799,7 +3799,7 @@ function MainApp({ user, onLogout }) {
               <div className="px-1 mb-3">
                 <h2 className="font-black text-[20px] text-slate-900 mb-0.5">💼 摊薄成本</h2>
                 <div className="text-[11px] text-slate-400">
-                  {allSymbols.length > 0 ? `${allSymbols.length} 只股 · 本地存储` : '本地小工具 · 不影响其他模块'}
+                  {allSymbols.length > 0 ? `${allSymbols.length} 只股 · 云端存储` : '云端小工具 · 不影响其他模块'}
                 </div>
               </div>
 
@@ -6391,27 +6391,17 @@ function MainApp({ user, onLogout }) {
                 const changelog = [
                   {
                     ver: 'v10.7.9.25', date: '2026-04-24', latest: true,
-                    items: ['☁️ 摊薄成本上云端 (重新设计, 修 v24 hoisting bug)', 'useEffect 严格放在 cloudLoading 后面 (避免变量声明顺序错乱)', 'setState 用函数式 (避免依赖 costBasisData 引发循环)', '本地数据自动迁移到云端 · 跨设备同步'],
+                    items: [
+                      '💼 新增 摊薄成本计算器 ☁️',
+                      '位置: 交易 tab 最底部 · iOS 卡片风格 · 多股 Tab 切换',
+                      '算法: 移动加权平均 · 双成本显示 (会计摊薄 + 实际成本)',
+                      '卖出交易点击 ▼ 展开利润详情 (收入 − 成本 = 利润)',
+                      '云端 Supabase 持久化 · 跨设备同步 · 本地兜底缓存',
+                    ],
                   },
                   {
-                    ver: 'v10.7.9.24', date: '2026-04-24',
-                    items: ['❌ 云端版有 JS 报错, 已回退至 v23'],
-                  },
-                  {
-                    ver: 'v10.7.9.23', date: '2026-04-24',
-                    items: ['💼 摊薄成本 - 卖出交易点击展开利润详情'],
-                  },
-                  {
-                    ver: 'v10.7.9.22', date: '2026-04-24',
-                    items: ['💼 摊薄成本卡 加"实际成本" (扣除已实现盈亏)'],
-                  },
-                  {
-                    ver: 'v10.7.9.21', date: '2026-04-24',
-                    items: ['🐛 修复 摊薄成本 Modal 显示不全'],
-                  },
-                  {
-                    ver: 'v10.7.9.20', date: '2026-04-24',
-                    items: ['💼 新增 摊薄成本计算器 (交易 tab 最底部)', 'iOS 卡片风格 + 多股 Tab', '本地 localStorage'],
+                    ver: 'v10.7.9.19', date: '2026-04-24',
+                    items: ['🔄 头部黑金卡按 tab 切换字段 (持仓总盈亏 / 波段总盈亏)'],
                   },
                   {
                     ver: 'v10.7.9.19', date: '2026-04-24',
