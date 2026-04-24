@@ -522,7 +522,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.19: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.20: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -684,6 +684,68 @@ function MainApp({ user, onLogout }) {
   const [wsLastTick, setWsLastTick] = useState(null); // 最后收到 tick 的时间
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
+
+  // 💼 v10.7.9.20: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
+  const [costBasisData, setCostBasisData] = useState(() => {
+    try {
+      const raw = localStorage.getItem('bottomline_cost_basis');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const [costBasisActiveSymbol, setCostBasisActiveSymbol] = useState(() => {
+    try { return localStorage.getItem('bottomline_cost_basis_active') || ''; } catch { return ''; }
+  });
+  const [showCostBasisAdd, setShowCostBasisAdd] = useState(false);  // 添加新股票 modal
+  const [showCostBasisTrade, setShowCostBasisTrade] = useState(false);  // 添加交易 modal
+  const [costBasisNewSymbol, setCostBasisNewSymbol] = useState('');
+  const [costBasisNewTrade, setCostBasisNewTrade] = useState({
+    type: 'buy',
+    price: '',
+    shares: '',
+    date: new Date().toISOString().slice(0, 10),
+  });
+
+  // 持久化到 localStorage
+  useEffect(() => {
+    try { localStorage.setItem('bottomline_cost_basis', JSON.stringify(costBasisData)); } catch {}
+  }, [costBasisData]);
+  useEffect(() => {
+    try { localStorage.setItem('bottomline_cost_basis_active', costBasisActiveSymbol); } catch {}
+  }, [costBasisActiveSymbol]);
+
+  // 核心算法: 移动加权平均
+  const calcCostBasis = (trades) => {
+    if (!trades || trades.length === 0) return { shares: 0, totalCost: 0, avgCost: 0, realizedPnl: 0 };
+    const sorted = [...trades].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    let shares = 0;
+    let totalCost = 0;
+    let realizedPnl = 0;
+    for (const t of sorted) {
+      const p = parseFloat(t.price) || 0;
+      const s = parseFloat(t.shares) || 0;
+      if (t.type === 'buy') {
+        shares += s;
+        totalCost += s * p;
+      } else {
+        if (shares <= 0) continue;  // 没持仓不能卖
+        const avg = totalCost / shares;
+        realizedPnl += s * (p - avg);
+        totalCost -= s * avg;
+        shares -= s;
+        if (shares <= 0) {
+          shares = 0;
+          totalCost = 0;  // 清仓重置
+        }
+      }
+    }
+    return {
+      shares,
+      totalCost,
+      avgCost: shares > 0 ? totalCost / shares : 0,
+      realizedPnl,
+    };
+  };
 
   // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
   const [changelogExpanded, setChangelogExpanded] = useState(false);
@@ -955,7 +1017,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.19): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.20): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1500,7 +1562,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.19: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.20: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -1987,14 +2049,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.19: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.20: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.19: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.20: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2041,7 +2103,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (替换原"浮动%", v10.7.9.19) */}
+                {/* 当日盈亏 (替换原"浮动%", v10.7.9.20) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2051,7 +2113,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.19: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.20: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2818,7 +2880,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.19) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.20) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3061,7 +3123,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.19) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.20) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3244,7 +3306,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.19) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.20) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3668,6 +3730,171 @@ function MainApp({ user, onLogout }) {
             <p className="text-sm text-slate-500">点上面「添加交易」开始记录你的高抛低吸</p>
           </div>
         )}
+
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.20, iOS 风格) ============ */}
+        {(() => {
+          const allSymbols = Object.keys(costBasisData);
+          const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
+            ? costBasisActiveSymbol
+            : (allSymbols[0] || '');
+          const trades = activeSymbol ? (costBasisData[activeSymbol] || []) : [];
+          const stats = calcCostBasis(trades);
+
+          return (
+            <div className="mt-6 mb-4">
+              {/* 头部 */}
+              <div className="px-1 mb-3">
+                <h2 className="font-black text-[20px] text-slate-900 mb-0.5">💼 摊薄成本</h2>
+                <div className="text-[11px] text-slate-400">
+                  {allSymbols.length > 0 ? `${allSymbols.length} 只股 · 本地存储` : '本地小工具 · 不影响其他模块'}
+                </div>
+              </div>
+
+              {/* 顶部 Tab 切换 */}
+              <div className="flex gap-2 px-1 pb-3 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                {allSymbols.map(sym => (
+                  <button
+                    key={sym}
+                    onClick={() => setCostBasisActiveSymbol(sym)}
+                    className="flex-shrink-0 px-4 py-2 rounded-xl text-[13px] font-black transition active:scale-95"
+                    style={{
+                      background: activeSymbol === sym ? '#0f172a' : 'white',
+                      color: activeSymbol === sym ? 'white' : '#475569',
+                      fontFamily: 'ui-monospace, monospace',
+                      boxShadow: activeSymbol === sym ? '0 4px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    {sym}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setCostBasisNewSymbol(''); setShowCostBasisAdd(true); }}
+                  className="flex-shrink-0 px-4 py-2 rounded-xl text-[13px] font-black transition active:scale-95"
+                  style={{
+                    background: 'white',
+                    color: '#0f172a',
+                    border: '1px dashed #cbd5e1',
+                    fontFamily: 'ui-monospace, monospace',
+                  }}
+                >
+                  + 新增
+                </button>
+              </div>
+
+              {/* 内容 */}
+              {!activeSymbol ? (
+                // 空状态
+                <div className="bg-white rounded-2xl p-8 text-center" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                  <div className="text-5xl mb-3">💼</div>
+                  <div className="text-sm text-slate-700 font-bold mb-1">还没有股票</div>
+                  <div className="text-xs text-slate-500">点上方"+ 新增" 添加第一只股票</div>
+                </div>
+              ) : (
+                <>
+                  {/* 大数字卡 - 摊薄成本 */}
+                  <div
+                    className="rounded-2xl p-5 mb-3"
+                    style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+                  >
+                    <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">摊薄成本 / 股</div>
+                    <div className="font-black tabular-nums mt-1 leading-tight" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '32px', color: '#0f172a' }}>
+                      ${stats.avgCost.toFixed(2)}
+                    </div>
+                    <div className="text-[12px] text-emerald-600 font-bold tabular-nums mt-1" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                      持仓 {stats.shares} 股
+                    </div>
+                  </div>
+
+                  {/* 2 列小卡 */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="rounded-2xl p-4" style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">累计投入</div>
+                      <div className="font-black tabular-nums text-slate-900 mt-1 text-[18px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        ${stats.totalCost.toFixed(0)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl p-4" style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">已实现盈亏</div>
+                      <div className={`font-black tabular-nums mt-1 text-[18px] ${stats.realizedPnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 交易记录列表 */}
+                  <div className="rounded-2xl p-4" style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[12px] text-slate-600 font-bold">交易记录 ({trades.length})</div>
+                      <button
+                        onClick={() => {
+                          setCostBasisNewTrade({ type: 'buy', price: '', shares: '', date: new Date().toISOString().slice(0, 10) });
+                          setShowCostBasisTrade(true);
+                        }}
+                        className="text-[11px] font-bold text-amber-700 active:scale-95"
+                      >
+                        + 添加
+                      </button>
+                    </div>
+                    {trades.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-400">还没有交易, 点 + 添加</div>
+                    ) : (
+                      [...trades]
+                        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                        .map(t => (
+                          <div key={t.id} className="grid items-center py-2.5 border-b border-slate-100 last:border-b-0" style={{ gridTemplateColumns: '32px 1fr auto auto', gap: '10px' }}>
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black ${t.type === 'buy' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}
+                            >
+                              {t.type === 'buy' ? '买' : '卖'}
+                            </div>
+                            <div className="text-[13px]">
+                              <div className="font-bold text-slate-900">{t.date} {t.type === 'buy' ? '买入' : '卖出'} {t.shares} 股</div>
+                              <div className="text-[11px] text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>${parseFloat(t.price).toFixed(2)}/股</div>
+                            </div>
+                            <div className={`text-right font-black tabular-nums text-[13px] ${t.type === 'buy' ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                              {t.type === 'buy' ? '-' : '+'}${(parseFloat(t.price) * parseFloat(t.shares)).toFixed(0)}
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`删除这笔交易?\n${t.date} ${t.type === 'buy' ? '买入' : '卖出'} ${t.shares} 股 @ $${t.price}`)) {
+                                  setCostBasisData(prev => ({
+                                    ...prev,
+                                    [activeSymbol]: prev[activeSymbol].filter(x => x.id !== t.id),
+                                  }));
+                                }
+                              }}
+                              className="text-slate-300 hover:text-rose-500 text-[14px] px-1"
+                              title="删除"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+
+                  {/* 删除整只股票按钮 */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`删除 ${activeSymbol} 及全部交易记录? 此操作不可撤销`)) {
+                        setCostBasisData(prev => {
+                          const next = { ...prev };
+                          delete next[activeSymbol];
+                          return next;
+                        });
+                        const remaining = Object.keys(costBasisData).filter(s => s !== activeSymbol);
+                        setCostBasisActiveSymbol(remaining[0] || '');
+                      }
+                    }}
+                    className="w-full mt-3 py-2 text-[11px] text-rose-500 font-bold active:scale-95"
+                  >
+                    🗑 删除 {activeSymbol} 整只股票
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         </>)}
         {/* ====== 交易 tab 结束 ====== */}
@@ -6007,15 +6234,19 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.19
+                  v10.7.9.20
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.19', date: '2026-04-24', latest: true,
-                    items: ['🔄 头部黑金卡底行 按 tab 切换字段', '首页/关注 → "持仓总盈亏" (浮动)', '交易 tab → "波段总盈亏" (已实现)', '同一张卡, 不同上下文显示不同关键数据'],
+                    ver: 'v10.7.9.20', date: '2026-04-24', latest: true,
+                    items: ['💼 新增 摊薄成本计算器 (交易 tab 最底部)', 'iOS 卡片风格 + 多股 Tab 切换', '算法: 移动加权平均 (买入累加, 卖出按平均扣)', '本地存 localStorage, 完全独立, 不影响其他模块'],
+                  },
+                  {
+                    ver: 'v10.7.9.19', date: '2026-04-24',
+                    items: ['🔄 头部黑金卡按 tab 切换字段 (持仓总盈亏 / 波段总盈亏)'],
                   },
                   {
                     ver: 'v10.7.9.18', date: '2026-04-24',
@@ -6524,7 +6755,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.19</div>
+                <div>📊 版本:v10.7.9.20</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -6532,6 +6763,157 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
         {/* ====== 设置 tab 结束 ====== */}
+
+        {/* === 💼 摊薄成本 - 新增股票弹窗 === */}
+        {showCostBasisAdd && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setShowCostBasisAdd(false)}>
+            <div className="bg-white rounded-t-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <div className="font-black text-lg text-slate-900 mb-3">+ 新增股票</div>
+              <input
+                type="text"
+                value={costBasisNewSymbol}
+                onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
+                placeholder="股票代码 (如 NVDA)"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg text-base font-bold uppercase mb-3 tabular-nums"
+                style={{ fontFamily: 'ui-monospace, monospace' }}
+                autoFocus
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setShowCostBasisAdd(false)}
+                  className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold active:scale-95"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    const sym = costBasisNewSymbol.trim();
+                    if (!sym) return;
+                    if (costBasisData[sym]) {
+                      alert(`${sym} 已存在`);
+                      return;
+                    }
+                    setCostBasisData(prev => ({ ...prev, [sym]: [] }));
+                    setCostBasisActiveSymbol(sym);
+                    setShowCostBasisAdd(false);
+                  }}
+                  className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
+                >
+                  确定
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === 💼 摊薄成本 - 添加交易弹窗 === */}
+        {showCostBasisTrade && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setShowCostBasisTrade(false)}>
+            <div className="bg-white rounded-t-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <div className="font-black text-lg text-slate-900 mb-3">+ 添加交易 ({costBasisActiveSymbol})</div>
+              {/* 类型切换 */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'buy' }))}
+                  className="flex-1 py-2.5 rounded-lg font-black active:scale-95"
+                  style={{
+                    background: costBasisNewTrade.type === 'buy' ? '#dc2626' : '#f1f5f9',
+                    color: costBasisNewTrade.type === 'buy' ? 'white' : '#94a3b8',
+                  }}
+                >
+                  买入
+                </button>
+                <button
+                  onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'sell' }))}
+                  className="flex-1 py-2.5 rounded-lg font-black active:scale-95"
+                  style={{
+                    background: costBasisNewTrade.type === 'sell' ? '#16a34a' : '#f1f5f9',
+                    color: costBasisNewTrade.type === 'sell' ? 'white' : '#94a3b8',
+                  }}
+                >
+                  卖出
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-1">价格 ($/股)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={costBasisNewTrade.price}
+                    onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+                    style={{ fontFamily: 'ui-monospace, monospace' }}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-1">股数</label>
+                  <input
+                    type="number"
+                    value={costBasisNewTrade.shares}
+                    onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+                    style={{ fontFamily: 'ui-monospace, monospace' }}
+                  />
+                </div>
+              </div>
+              <div className="mb-3">
+                <label className="text-[11px] text-slate-500 block mb-1">日期</label>
+                <input
+                  type="date"
+                  value={costBasisNewTrade.date}
+                  onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                />
+              </div>
+              {/* 实时预览金额 */}
+              {costBasisNewTrade.price && costBasisNewTrade.shares && (
+                <div className="text-[12px] text-slate-500 mb-3 p-2 bg-slate-50 rounded text-center">
+                  {costBasisNewTrade.type === 'buy' ? '将投入' : '将收回'}{' '}
+                  <span className="font-black text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                    ${(parseFloat(costBasisNewTrade.price) * parseFloat(costBasisNewTrade.shares)).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setShowCostBasisTrade(false)}
+                  className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold active:scale-95"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    const p = parseFloat(costBasisNewTrade.price);
+                    const s = parseFloat(costBasisNewTrade.shares);
+                    if (!p || !s || p <= 0 || s <= 0) {
+                      alert('请填写正确的价格和股数');
+                      return;
+                    }
+                    const newTrade = {
+                      id: 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                      date: costBasisNewTrade.date,
+                      type: costBasisNewTrade.type,
+                      price: p,
+                      shares: s,
+                    };
+                    setCostBasisData(prev => ({
+                      ...prev,
+                      [costBasisActiveSymbol]: [...(prev[costBasisActiveSymbol] || []), newTrade],
+                    }));
+                    setShowCostBasisTrade(false);
+                  }}
+                  className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
+                >
+                  确定
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* === 📋 全部交易记录弹窗 === */}
         {allTradesModal !== null && (() => {
