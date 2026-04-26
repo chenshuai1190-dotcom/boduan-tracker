@@ -7388,15 +7388,21 @@ function MainApp({ user, onLogout }) {
                   const epsAct = cleanNum(selectedEvent.epsActual);
                   const lastEPS = cleanNum(selectedEvent.lastYearEPS);
                   const surprise = cleanNum(selectedEvent.surprise);
-                  const isReleased = epsAct !== null;
+                  // v10.7.9.40 修: 判断财报"已发布"必须满足:
+                  //   1. 财报日 <= 今天 (日期已过或当天)
+                  //   2. epsAct 不为 null 且不为 0 (EODHD 未发布时返回 0)
+                  //   3. surprise 字段也不为 0
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const earningsDateReached = selectedEvent.date && selectedEvent.date <= todayStr;
+                  const isReleased = earningsDateReached && epsAct !== null && epsAct !== 0;
                   const beat = isReleased && epsEst !== null && epsAct > epsEst;
                   const miss = isReleased && epsEst !== null && epsAct < epsEst;
-                  // 计算同比增长
+                  // 计算同比增长 (只在已发布时算)
                   const yoyEst = (epsEst !== null && lastEPS !== null && lastEPS > 0) ? ((epsEst - lastEPS) / lastEPS * 100) : null;
-                  const yoyAct = (epsAct !== null && lastEPS !== null && lastEPS > 0) ? ((epsAct - lastEPS) / lastEPS * 100) : null;
-                  // 超预期 % (优先用 NASDAQ 给的, 没有就自己算)
-                  const surprisePct = surprise !== null ? surprise
-                    : (epsEst !== null && epsAct !== null && Math.abs(epsEst) > 0) ? ((epsAct - epsEst) / Math.abs(epsEst) * 100)
+                  const yoyAct = (isReleased && epsAct !== null && lastEPS !== null && lastEPS > 0) ? ((epsAct - lastEPS) / lastEPS * 100) : null;
+                  // 超预期 % (只在真实发布时算)
+                  const surprisePct = (isReleased && surprise !== null && surprise !== 0) ? surprise
+                    : (isReleased && epsEst !== null && epsAct !== null && Math.abs(epsEst) > 0) ? ((epsAct - epsEst) / Math.abs(epsEst) * 100)
                     : null;
 
                   return (
@@ -7480,7 +7486,8 @@ function MainApp({ user, onLogout }) {
                             )}
                           </div>
                           <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-[12px]">
-                            {epsAct !== null && (
+                            {/* v40 修: 实际 EPS 只在真发布时显示 */}
+                            {isReleased && epsAct !== null && (
                               <div className="flex justify-between">
                                 <span className="text-slate-500">本季实际 EPS</span>
                                 <span className={`font-black tabular-nums ${beat ? 'text-rose-600' : miss ? 'text-emerald-600' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px' }}>
