@@ -2655,7 +2655,9 @@ function MainApp({ user, onLogout }) {
             if (isToday) return { dot: '#dc2626', glow: 'rgba(220,38,38,0.6)', day: '#dc2626' };
             if (type === 'earnings') return { dot: '#f59e0b', glow: 'rgba(245,158,11,0.4)', day: '#94a3b8' };
             if (type === 'fomc') return { dot: '#1e40af', glow: 'rgba(30,64,175,0.4)', day: '#94a3b8' };
-            return { dot: '#7c3aed', glow: 'rgba(124,58,237,0.4)', day: '#94a3b8' };
+            if (type === 'cpi') return { dot: '#7c3aed', glow: 'rgba(124,58,237,0.4)', day: '#94a3b8' };
+            if (type === 'nonfarm') return { dot: '#0891b2', glow: 'rgba(8,145,178,0.4)', day: '#94a3b8' };
+            return { dot: '#94a3b8', glow: 'rgba(148,163,184,0.4)', day: '#94a3b8' };
           };
 
           return (
@@ -2680,10 +2682,24 @@ function MainApp({ user, onLogout }) {
                   {futureEvents.map((e, idx) => {
                     const isToday = e.date === today;
                     const c = typeColor(e.type, isToday);
-                    // V6: 股票名按事件类型染色, 文字带时段
-                    const nameColor = e.type === 'earnings' ? '#d97706' : e.type === 'fomc' ? '#1e40af' : '#7c3aed';
+                    // 颜色: 不同类型不同色
+                    const nameColor = e.type === 'earnings' ? '#d97706'
+                      : e.type === 'fomc' ? '#1e40af'
+                      : e.type === 'cpi' ? '#7c3aed'
+                      : e.type === 'nonfarm' ? '#0891b2'
+                      : '#475569';
+                    // 显示名 (中文化)
+                    const displayName = e.symbol || (
+                      e.type === 'fomc' ? 'FOMC'
+                      : e.type === 'cpi' ? 'CPI'
+                      : e.type === 'nonfarm' ? '非农'
+                      : ''
+                    );
+                    // 副文字
                     const subText = (() => {
-                      if (e.type === 'fomc') return '议息 · 14:00';
+                      if (e.type === 'fomc') return '美联储议息';
+                      if (e.type === 'cpi') return '通胀数据';
+                      if (e.type === 'nonfarm') return '就业数据';
                       if (e.type !== 'earnings') return '';
                       const t = (e.time || '').toLowerCase();
                       if (t.includes('pre') || t.includes('before')) return '财报 · 盘前';
@@ -2713,11 +2729,9 @@ function MainApp({ user, onLogout }) {
                         <div className="text-[10px] font-bold tabular-nums" style={{ color: c.day, fontFamily: 'ui-monospace, monospace' }}>
                           {dayLabel(e.date)}
                         </div>
-                        {/* V6: 股票名染色 */}
                         <div className="text-[13px] font-black mt-0.5 truncate px-1" style={{ color: isToday ? '#dc2626' : nameColor }}>
-                          {e.symbol || (e.type === 'fomc' ? 'FOMC' : '')}
+                          {displayName}
                         </div>
-                        {/* V6: 文字带时段 (代替 emoji) */}
                         <div className="text-[9px] text-slate-400 mt-0.5 truncate px-1">
                           {subText}
                         </div>
@@ -7360,22 +7374,48 @@ function MainApp({ user, onLogout }) {
                       borderRadius: '50%',
                       fontSize: '28px',
                       fontWeight: 900,
-                      background: selectedEvent.type === 'earnings'
-                        ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
-                        : 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
-                      color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af',
-                      border: selectedEvent.type === 'earnings' ? '2px solid #fbbf24' : '2px solid #60a5fa',
+                      background: selectedEvent.type === 'earnings' ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                        : selectedEvent.type === 'fomc' ? 'linear-gradient(135deg, #dbeafe, #bfdbfe)'
+                        : selectedEvent.type === 'cpi' ? 'linear-gradient(135deg, #f3e8ff, #e9d5ff)'
+                        : selectedEvent.type === 'nonfarm' ? 'linear-gradient(135deg, #cffafe, #a5f3fc)'
+                        : 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                      color: selectedEvent.type === 'earnings' ? '#d97706'
+                        : selectedEvent.type === 'fomc' ? '#1e40af'
+                        : selectedEvent.type === 'cpi' ? '#7c3aed'
+                        : selectedEvent.type === 'nonfarm' ? '#0891b2'
+                        : '#475569',
+                      border: '2px solid ' + (selectedEvent.type === 'earnings' ? '#fbbf24'
+                        : selectedEvent.type === 'fomc' ? '#60a5fa'
+                        : selectedEvent.type === 'cpi' ? '#a78bfa'
+                        : selectedEvent.type === 'nonfarm' ? '#22d3ee'
+                        : '#cbd5e1'),
                     }}>
-                      {selectedEvent.type === 'earnings' ? '$' : selectedEvent.type === 'fomc' ? '%' : '!'}
+                      {selectedEvent.type === 'earnings' ? '$'
+                        : selectedEvent.type === 'fomc' ? '%'
+                        : selectedEvent.type === 'cpi' ? 'C'
+                        : selectedEvent.type === 'nonfarm' ? 'J'
+                        : '!'}
                     </div>
                   )}
-                  <div className="text-[14px] uppercase tracking-widest font-bold" style={{ color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af' }}>
-                    {selectedEvent.type === 'earnings' ? '财报日' : selectedEvent.type === 'fomc' ? '美联储议息' : '事件'}
+                  <div className="text-[14px] uppercase tracking-widest font-bold" style={{
+                    color: selectedEvent.type === 'earnings' ? '#d97706'
+                      : selectedEvent.type === 'fomc' ? '#1e40af'
+                      : selectedEvent.type === 'cpi' ? '#7c3aed'
+                      : selectedEvent.type === 'nonfarm' ? '#0891b2'
+                      : '#475569',
+                  }}>
+                    {selectedEvent.type === 'earnings' ? '财报日'
+                      : selectedEvent.type === 'fomc' ? '美联储议息'
+                      : selectedEvent.type === 'cpi' ? '通胀数据 CPI'
+                      : selectedEvent.type === 'nonfarm' ? '就业数据'
+                      : '事件'}
                   </div>
                 </div>
-                {/* 标题 */}
+                {/* 标题 (CPI/非农 用原始 title, earnings 用 symbol) */}
                 <div className="text-center font-black text-[22px] text-slate-900 mb-1">
-                  {selectedEvent.symbol || selectedEvent.title}
+                  {selectedEvent.type === 'cpi' ? 'CPI'
+                    : selectedEvent.type === 'nonfarm' ? '非农就业'
+                    : (selectedEvent.symbol || selectedEvent.title || '')}
                 </div>
                 {/* 日期 + 时间 */}
                 <div className="text-center text-[14px] font-bold text-slate-700 mb-4 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
@@ -7938,11 +7978,79 @@ function MainApp({ user, onLogout }) {
                   );
                 })()}
 
-                {selectedEvent.type === 'fomc' && (
-                  <div className="bg-slate-50 rounded-xl p-4 mb-4 text-[15px] text-slate-700 leading-relaxed">
-                    {selectedEvent.detail || '美联储利率决议日, 关注是否加息/降息/维持利率'}
-                  </div>
-                )}
+                {/* 经济事件详情 (FOMC / CPI / 非农 - v10.7.9.40 EODHD Economic Events) */}
+                {(selectedEvent.type === 'fomc' || selectedEvent.type === 'cpi' || selectedEvent.type === 'nonfarm') && (() => {
+                  const e = selectedEvent;
+                  const hasData = e.actual != null || e.estimate != null || e.previous != null;
+                  const fmtVal = (v) => {
+                    if (v == null) return '—';
+                    const n = parseFloat(v);
+                    if (isNaN(n)) return v;
+                    return n.toFixed(2) + (e.type === 'fomc' ? '%' : '');
+                  };
+                  const isReleased = e.actual != null;
+                  const beat = isReleased && e.estimate != null && parseFloat(e.actual) > parseFloat(e.estimate);
+                  const miss = isReleased && e.estimate != null && parseFloat(e.actual) < parseFloat(e.estimate);
+                  return (
+                    <div className="space-y-3">
+                      {/* 事件英文原名 */}
+                      {e.title && (
+                        <div className="bg-slate-50 rounded-xl p-3 text-[14px] text-slate-700 leading-relaxed">
+                          {e.title}
+                        </div>
+                      )}
+                      {/* 数据对比 */}
+                      {hasData && (
+                        <div>
+                          <div className="text-[12px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex justify-between">
+                            <span>📊 数据对比</span>
+                            <span style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                              数据源 EODHD
+                            </span>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-3 space-y-2 text-[14px]">
+                            {e.actual != null && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">实际值</span>
+                                <span className={`font-black tabular-nums ${beat ? 'text-rose-600' : miss ? 'text-emerald-600' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '16px' }}>
+                                  {fmtVal(e.actual)}
+                                </span>
+                              </div>
+                            )}
+                            {e.estimate != null && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">市场预期</span>
+                                <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  {fmtVal(e.estimate)}
+                                </span>
+                              </div>
+                            )}
+                            {e.previous != null && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">上次值</span>
+                                <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                  {fmtVal(e.previous)}
+                                </span>
+                              </div>
+                            )}
+                            {/* 解读 */}
+                            {isReleased && e.estimate != null && (
+                              <div className="pt-2 border-t border-slate-200 text-[13px] text-center" style={{ color: beat ? '#dc2626' : miss ? '#16a34a' : '#475569' }}>
+                                {beat ? '📈 高于预期' : miss ? '📉 低于预期' : '— 持平'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {/* 未发布 */}
+                      {!hasData && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[13px] text-amber-700 text-center">
+                          数据尚未发布, 关注届时市场反应
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* 关闭按钮 */}
                 <button
