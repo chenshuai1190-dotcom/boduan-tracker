@@ -1046,6 +1046,10 @@ function MainApp({ user, onLogout }) {
           const a = result.data.find(d => d.symbol && d.symbol.startsWith('ANALYST:'));
           if (a && a.targets) {
             setAnalystTargets(a.targets);
+            console.log('[Analyst] 数据:', a.targets);
+            console.log('[Analyst] 原始返回 (调试):', a.raw);
+          } else {
+            console.warn('[Analyst] 没拿到数据:', a);
           }
         }
       } catch (e) {
