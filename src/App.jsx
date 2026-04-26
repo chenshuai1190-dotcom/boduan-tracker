@@ -7599,8 +7599,11 @@ function MainApp({ user, onLogout }) {
 
                         return (
                           <div className="mb-3">
-                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">
-                              📊 分析师目标价 {analystTargets.numAnalysts ? `· ${analystTargets.numAnalysts} 位` : ''}
+                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                              <span>📊 分析师目标价 {analystTargets.numAnalysts ? `· 约 ${analystTargets.numAnalysts} 位` : ''}</span>
+                              <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                                数据源 EODHD
+                              </span>
                             </div>
                             <div className="bg-slate-50 rounded-xl p-3 text-[12px] space-y-1.5">
                               <div className="flex justify-between items-center">
@@ -7679,7 +7682,12 @@ function MainApp({ user, onLogout }) {
                         const fmtPct = (n) => n != null ? `${(n * 100).toFixed(2)}%` : null;
                         return (
                           <div className="mb-3">
-                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📈 公司基本面</div>
+                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                              <span>📈 公司基本面</span>
+                              <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                                数据源 EODHD
+                              </span>
+                            </div>
                             <div className="bg-slate-50 rounded-xl p-3 text-[12px] space-y-1.5">
                               {h.marketCap && (
                                 <div className="flex justify-between">
@@ -7691,7 +7699,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.peRatio && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500">市盈率 (PE)</span>
+                                  <span className="text-slate-500">市盈率 PE (TTM)</span>
                                   <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {h.peRatio.toFixed(2)}
                                   </span>
@@ -7699,7 +7707,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.pegRatio && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500">PEG (5年)</span>
+                                  <span className="text-slate-500">PEG (5 年预期)</span>
                                   <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {h.pegRatio.toFixed(2)}
                                   </span>
@@ -7715,7 +7723,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.quarterlyRevenueGrowthYOY != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500">营收同比</span>
+                                  <span className="text-slate-500">本季营收同比</span>
                                   <span className={`font-bold tabular-nums ${h.quarterlyRevenueGrowthYOY >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {h.quarterlyRevenueGrowthYOY >= 0 ? '+' : ''}{(h.quarterlyRevenueGrowthYOY * 100).toFixed(2)}%
                                   </span>
@@ -7723,7 +7731,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.quarterlyEarningsGrowthYOY != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500">利润同比</span>
+                                  <span className="text-slate-500">本季 EPS 同比</span>
                                   <span className={`font-bold tabular-nums ${h.quarterlyEarningsGrowthYOY >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {h.quarterlyEarningsGrowthYOY >= 0 ? '+' : ''}{(h.quarterlyEarningsGrowthYOY * 100).toFixed(2)}%
                                   </span>
@@ -7731,7 +7739,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.profitMargin != null && (
                                 <div className="flex justify-between pt-2 border-t border-slate-200">
-                                  <span className="text-slate-500">净利率</span>
+                                  <span className="text-slate-500">净利率 (TTM)</span>
                                   <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {fmtPct(h.profitMargin)}
                                   </span>
@@ -7739,7 +7747,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.operatingMargin != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500">营业利润率</span>
+                                  <span className="text-slate-500">营业利润率 (TTM)</span>
                                   <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {fmtPct(h.operatingMargin)}
                                   </span>
@@ -7747,7 +7755,7 @@ function MainApp({ user, onLogout }) {
                               )}
                               {h.roe != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500">ROE</span>
+                                  <span className="text-slate-500">ROE (TTM)</span>
                                   <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                     {fmtPct(h.roe)}
                                   </span>
