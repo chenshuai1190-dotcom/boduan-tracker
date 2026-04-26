@@ -514,13 +514,14 @@ function MainApp({ user, onLogout }) {
   // 三大指数(DIA/QQQ/SPY 当天分时)
   const [indices, setIndices] = useState([]);
 
-  // 📅 v10.7.9.40: 重要日历 (财报 + FOMC)
+  // 📅 v10.7.9.41: 重要日历 (财报 + FOMC)
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);  // 点击展开的事件
-  // 📊 v10.7.9.40: 分析师 + 公司基本面 (EODHD Fundamentals, 按需拉)
+  // 📊 v10.7.9.41: 分析师 + 公司基本面 (EODHD Fundamentals, 按需拉)
   const [analystTargets, setAnalystTargets] = useState(null);
   const [analystHighlights, setAnalystHighlights] = useState(null);
   const [analystGeneral, setAnalystGeneral] = useState(null);
+  const [analystEarnings, setAnalystEarnings] = useState(null);  // v41: EPS + 营收 对比
   const [analystLoading, setAnalystLoading] = useState(false);
 
   // 顶部市场状态卡的基准股票(默认 QQQ,可切换关注列表里其他 1x 标的)
@@ -531,7 +532,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.40: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.41: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -694,7 +695,7 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 🗑 v10.7.9.40: 通用删除确认 Modal (替换 window.confirm)
+  // 🗑 v10.7.9.41: 通用删除确认 Modal (替换 window.confirm)
   // 用法: showConfirm({ title, desc, info, confirmText, onConfirm })
   const [confirmModal, setConfirmModal] = useState(null);
   const showConfirm = useCallback((opts) => {
@@ -710,7 +711,7 @@ function MainApp({ user, onLogout }) {
     });
   }, []);
 
-  // 💼 v10.7.9.40: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 💼 v10.7.9.41: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -950,7 +951,7 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlistStructureSig, cloudLoading]);
 
-  // ☁️ v10.7.9.40: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
+  // ☁️ v10.7.9.41: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
   // 严格放在 cloudLoading 之后, 避免 React state hoisting 错乱
   // 启动时拉云端覆盖本地; 本地有数据但云端为空 → 自动迁移上云
   useEffect(() => {
@@ -996,12 +997,12 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading]);
 
-  // 📅 v10.7.9.40: 重要日历 (每天拉 1 次, 缓存 24h)
+  // 📅 v10.7.9.41: 重要日历 (每天拉 1 次, 缓存 24h)
   useEffect(() => {
     if (cloudLoading) return;
     if (watchlist.length === 0) return;
 
-    // v10.7.9.40: 取消缓存, 每次进 App 都拉新数据
+    // v10.7.9.41: 取消缓存, 每次进 App 都拉新数据
     // (NASDAQ 接口免费 + 财报状态会变 (EPS 实际值刷新))
     (async () => {
       try {
@@ -1021,13 +1022,14 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading, watchlist.length]);
 
-  // 📊 v10.7.9.40: Modal 打开时按需拉 EODHD Fundamentals (分析师 + 业绩)
+  // 📊 v10.7.9.41: Modal 打开时按需拉 EODHD Fundamentals (分析师 + 业绩)
   useEffect(() => {
     // 关闭 Modal → 清掉旧数据
     if (!selectedEvent) {
       setAnalystTargets(null);
       setAnalystHighlights(null);
       setAnalystGeneral(null);
+      setAnalystEarnings(null);
       setAnalystLoading(false);
       return;
     }
@@ -1036,6 +1038,7 @@ function MainApp({ user, onLogout }) {
       setAnalystTargets(null);
       setAnalystHighlights(null);
       setAnalystGeneral(null);
+      setAnalystEarnings(null);
       return;
     }
 
@@ -1044,6 +1047,7 @@ function MainApp({ user, onLogout }) {
     setAnalystTargets(null);
     setAnalystHighlights(null);
     setAnalystGeneral(null);
+    setAnalystEarnings(null);
 
     (async () => {
       try {
@@ -1056,7 +1060,15 @@ function MainApp({ user, onLogout }) {
             if (a.targets) setAnalystTargets(a.targets);
             if (a.highlights) setAnalystHighlights(a.highlights);
             if (a.general) setAnalystGeneral(a.general);
-            console.log('[Fundamentals]', { targets: a.targets, highlights: a.highlights, general: a.general });
+            // v41: 选 earnings (优先用最近已发布的, 若 selectedEvent 是未来财报则用 upcoming)
+            const evDate = selectedEvent.date || '';
+            const todayStr = new Date().toISOString().slice(0, 10);
+            // 如果 Modal 的财报日期已过 → 用 latestEarnings (已发布)
+            // 如果是未来日期 → 优先 upcomingEarnings
+            const evIsFuture = evDate > todayStr;
+            const earnings = evIsFuture && a.upcomingEarnings ? a.upcomingEarnings : a.earnings;
+            if (earnings) setAnalystEarnings({ ...earnings, isFuture: evIsFuture });
+            console.log('[Fundamentals]', { targets: a.targets, highlights: a.highlights, earnings: a.earnings, upcoming: a.upcomingEarnings });
           } else {
             console.warn('[Fundamentals] 没拿到数据:', a);
           }
@@ -1169,7 +1181,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.40): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.41): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1719,7 +1731,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.40: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.41: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -1836,7 +1848,7 @@ function MainApp({ user, onLogout }) {
                   if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
                   const oldPrice = idx.price || 0;
                   if (oldPrice === newPrice) return idx;
-                  // 重算当日涨跌 (v10.7.9.40: 跟关注列表逻辑完全一致)
+                  // 重算当日涨跌 (v10.7.9.41: 跟关注列表逻辑完全一致)
                   // ⚠️ pc fallback 必须是 0 (不能用 oldPrice, 否则算出来 % 一直≈0 乱跳)
                   const pc = idx.previousClose || 0;
                   const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (idx.changePercent || 0);
@@ -1867,7 +1879,7 @@ function MainApp({ user, onLogout }) {
                   });
                 }, 500);
 
-                // 当日涨跌重算 (v10.7.9.40: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
+                // 当日涨跌重算 (v10.7.9.41: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
                 const pc = s.previousClose || 0;
                 const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (s.changePercent || 0);
 
@@ -2207,14 +2219,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.40: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.41: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.40: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.41: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2261,7 +2273,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (v10.7.9.40: 加 CNY 副显示) */}
+                {/* 当日盈亏 (v10.7.9.41: 加 CNY 副显示) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2274,7 +2286,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.40: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.41: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2618,9 +2630,9 @@ function MainApp({ user, onLogout }) {
           )}
         </div>
 
-        {/* 📅 v10.7.9.40: 重要日历 (时间轴风格) */}
+        {/* 📅 v10.7.9.41: 重要日历 (时间轴风格) */}
         {(() => {
-          // v10.7.9.40: 15 天范围 + V1 日期格式 (今天 / M/D)
+          // v10.7.9.41: 15 天范围 + V1 日期格式 (今天 / M/D)
           const today = new Date().toISOString().slice(0, 10);
           const fifteenDaysLater = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const futureEvents = (calendarEvents || [])
@@ -3141,7 +3153,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.40) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.41) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3384,7 +3396,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.40) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.41) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3567,7 +3579,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.40) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.41) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3992,7 +4004,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* ============ 💼 摊薄成本计算器 (v10.7.9.40, iOS 风格) ============ */}
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.41, iOS 风格) ============ */}
         {(() => {
           const allSymbols = Object.keys(costBasisData);
           const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
@@ -4064,7 +4076,7 @@ function MainApp({ user, onLogout }) {
                         {stats.shares} 股
                       </div>
                     </div>
-                    {/* 两种成本对比 (v10.7.9.40: V2 替换 sub 字, 显示涨幅%) */}
+                    {/* 两种成本对比 (v10.7.9.41: V2 替换 sub 字, 显示涨幅%) */}
                     {(() => {
                       // 从关注列表拿现价
                       const watchStock = watchlist.find(w => w.symbol === activeSymbol);
@@ -4087,7 +4099,7 @@ function MainApp({ user, onLogout }) {
                             <div className="font-black tabular-nums leading-tight mt-1" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '22px', color: '#d97706' }}>
                               ${stats.effectiveCost.toFixed(2)}
                             </div>
-                            {/* v10.7.9.40: 涨幅% + 现价 一行紧凑 (11px 长股价也能装下) */}
+                            {/* v10.7.9.41: 涨幅% + 现价 一行紧凑 (11px 长股价也能装下) */}
                             {hasPrice ? (
                               <div className="mt-0.5" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                 <span className={isUp ? 'text-rose-600' : 'text-emerald-600'}>
@@ -4113,7 +4125,7 @@ function MainApp({ user, onLogout }) {
                       <div className="font-black tabular-nums text-slate-900 mt-1 text-[18px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
                         ${stats.totalCost.toFixed(0)}
                       </div>
-                      {/* v10.7.9.40: CNY 副显示 */}
+                      {/* v10.7.9.41: CNY 副显示 */}
                       <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>
                         ≈ ¥{(stats.totalCost * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </div>
@@ -4123,7 +4135,7 @@ function MainApp({ user, onLogout }) {
                       <div className={`font-black tabular-nums mt-1 text-[18px] ${stats.realizedPnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                         {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
                       </div>
-                      {/* v10.7.9.40: CNY 副显示 */}
+                      {/* v10.7.9.41: CNY 副显示 */}
                       <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>
                         ≈ {stats.realizedPnl >= 0 ? '+' : '-'}¥{(Math.abs(stats.realizedPnl) * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </div>
@@ -6649,7 +6661,7 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.40
+                  v10.7.9.41
                 </span>
               </div>
 
@@ -6662,15 +6674,20 @@ function MainApp({ user, onLogout }) {
                       '📅 重要日历 (首页时间轴 - 15 天)',
                       '  - 财报数据: NASDAQ → EODHD 官方 (更稳)',
                       '  - 财报 + FOMC 议息',
-                      '  - 时间轴风格 + 彩色圆点 + 横滑',
-                      '🪟 Modal 重新设计 (5 大 section)',
-                      '  - 公司 Logo (EODHD 官方) + fallback 圆形渐变',
-                      '  - 弹窗可上下滚动 (maxHeight 90vh)',
-                      '  - 📋 公司信息 (含 行业 / 员工数)',
-                      '  - 📊 EPS 业绩 (已发布/未发布徽章)',
-                      '  - 📊 分析师目标价 + 5 档评级细分',
+                      '🪟 Modal 重新设计 + 公司 Logo + 可滚动',
+                      '  - 公司 Logo (EODHD 官方)',
+                      '  - 顶部 V4 两行: "EPS 超预期 +X%" / "营收 超预期 +X%"',
+                      '  - 业绩 V2 双卡片: EPS + 营收 (实际 vs 预期)',
+                      '  - 已发布显示实际, 未发布显示预期',
+                      '  - 同比对比 (本季 EPS/营收 vs 去年同期)',
+                      '  - 📋 公司信息 (含 行业/员工)',
+                      '  - 📊 分析师目标价 + 5 档评级',
                       '  - 📈 公司基本面 (PE TTM/营收/利润率/ROE)',
                       '  - 字段口径标注 (TTM / 本季 / 数据源 EODHD)',
+                      '🔌 接入 EODHD 接口:',
+                      '  - Earnings::History (EPS 实际+预期+超预期)',
+                      '  - Earnings::Trend (营收预期 平均/低/高)',
+                      '  - Financials::Income_Statement::quarterly (营收实际)',
                     ],
                   },
                   {
@@ -7228,7 +7245,7 @@ function MainApp({ user, onLogout }) {
         )}
         {/* ====== 设置 tab 结束 ====== */}
 
-        {/* === 🗑 通用删除确认 Modal (v10.7.9.40) === */}
+        {/* === 🗑 通用删除确认 Modal (v10.7.9.41) === */}
         {confirmModal && (
           <div
             className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -7301,7 +7318,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* === 📅 v10.7.9.40: 事件详情 Modal === */}
+        {/* === 📅 v10.7.9.41: 事件详情 Modal === */}
         {selectedEvent && (
           <div
             className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -7318,7 +7335,7 @@ function MainApp({ user, onLogout }) {
             >
               <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden flex-shrink-0"></div>
               <div className="p-6 overflow-y-auto" style={{ flex: '1 1 auto', minHeight: 0 }}>
-                {/* 图标 + 类型 (v10.7.9.40: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
+                {/* 图标 + 类型 (v10.7.9.41: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
                 <div className="text-center mb-3">
                   {analystGeneral && analystGeneral.logoURL ? (
                     <img
@@ -7373,7 +7390,7 @@ function MainApp({ user, onLogout }) {
                   })()}
                 </div>
 
-                {/* 详情内容 (v10.7.9.40: 完整业绩版) */}
+                {/* 详情内容 (v10.7.9.41: 完整业绩版) */}
                 {selectedEvent.type === 'earnings' && (() => {
                   const stockInfo = watchlist.find(s => s.symbol === selectedEvent.symbol);
                   const isHolding = stockInfo && stockInfo.shares > 0;
@@ -7408,7 +7425,7 @@ function MainApp({ user, onLogout }) {
                   const epsAct = cleanNum(selectedEvent.epsActual);
                   const lastEPS = cleanNum(selectedEvent.lastYearEPS);
                   const surprise = cleanNum(selectedEvent.surprise);
-                  // v10.7.9.40 修: 判断财报"已发布"必须满足:
+                  // v10.7.9.41 修: 判断财报"已发布"必须满足:
                   //   1. 财报日 <= 今天 (日期已过或当天)
                   //   2. epsAct 不为 null 且不为 0 (EODHD 未发布时返回 0)
                   //   3. surprise 字段也不为 0
@@ -7427,8 +7444,66 @@ function MainApp({ user, onLogout }) {
 
                   return (
                     <>
-                      {/* 财报后顶部突出 surprise */}
-                      {isReleased && surprisePct !== null && (
+                      {/* v10.7.9.41: 顶部 V4 - EPS + 营收 两行 (用 EODHD earnings) */}
+                      {analystEarnings && !analystEarnings.isFuture && (() => {
+                        const epsActE = analystEarnings.epsActual;
+                        const epsEstE = analystEarnings.epsEstimate;
+                        const revActE = analystEarnings.revenueActual;
+                        const revEstE = analystEarnings.revenueEstimate;
+                        const epsSurp = (epsActE != null && epsEstE != null && Math.abs(epsEstE) > 0)
+                          ? ((epsActE - epsEstE) / Math.abs(epsEstE) * 100) : null;
+                        const revSurp = (revActE != null && revEstE != null && revEstE > 0)
+                          ? ((revActE - revEstE) / revEstE * 100) : null;
+                        // 至少要有一个 surprise
+                        if (epsSurp === null && revSurp === null) return null;
+                        const epsBeat = epsSurp != null && epsSurp > 0;
+                        const epsMiss = epsSurp != null && epsSurp < 0;
+                        const revBeat = revSurp != null && revSurp > 0;
+                        const revMiss = revSurp != null && revSurp < 0;
+                        // 整体颜色: 看 EPS 为主
+                        const overallBeat = epsBeat || revBeat;
+                        const overallMiss = epsMiss || revMiss;
+                        return (
+                          <div
+                            className="rounded-xl p-3.5 mb-3"
+                            style={{
+                              background: overallBeat && !overallMiss ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
+                                : overallMiss && !overallBeat ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)'
+                                : 'linear-gradient(135deg, #fef9c3, #fef3c7)',
+                              border: overallBeat && !overallMiss ? '1px solid #fecaca'
+                                : overallMiss && !overallBeat ? '1px solid #bbf7d0'
+                                : '1px solid #fde68a',
+                            }}
+                          >
+                            {epsSurp !== null && (
+                              <div className="flex justify-between items-center py-1">
+                                <span className="text-[11px] font-bold" style={{ color: '#94a3b8' }}>
+                                  EPS {epsBeat ? '超预期' : epsMiss ? '不及预期' : '持平'}
+                                </span>
+                                <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#475569' }}>
+                                  {epsBeat ? '+' : ''}{epsSurp.toFixed(2)}%
+                                </span>
+                              </div>
+                            )}
+                            {epsSurp !== null && revSurp !== null && (
+                              <div style={{ borderTop: '1px solid', borderColor: overallBeat ? '#fecaca' : overallMiss ? '#bbf7d0' : '#fde68a', margin: '4px 0' }}></div>
+                            )}
+                            {revSurp !== null && (
+                              <div className="flex justify-between items-center py-1">
+                                <span className="text-[11px] font-bold" style={{ color: '#94a3b8' }}>
+                                  营收 {revBeat ? '超预期' : revMiss ? '不及预期' : '持平'}
+                                </span>
+                                <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#475569' }}>
+                                  {revBeat ? '+' : ''}{revSurp.toFixed(2)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* 老 EPS surprise (备用 - 用 selectedEvent 字段) */}
+                      {!analystEarnings && isReleased && surprisePct !== null && (
                         <div
                           className="rounded-xl p-3 mb-3 text-center"
                           style={{
@@ -7506,80 +7581,129 @@ function MainApp({ user, onLogout }) {
                         </div>
                       </div>
 
-                      {/* 2. EPS 业绩 (v10.7.9.40: 区分已发布/未发布) */}
-                      {(epsEst !== null || epsAct !== null) && (
-                        <div className="mb-3">
-                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center gap-2">
-                            📊 EPS 业绩
-                            {!isReleased && (
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>
-                                未发布
+                      {/* 2. 业绩详情 (v10.7.9.41: V2 双卡片 - EPS + 营收 实际/预期) */}
+                      {(analystEarnings || epsEst !== null || epsAct !== null) && (() => {
+                        // 优先用 EODHD analystEarnings, 次选 selectedEvent
+                        const e = analystEarnings;
+                        const isFut = e?.isFuture;
+                        const epsActE = e ? e.epsActual : (isReleased ? epsAct : null);
+                        const epsEstE = e ? e.epsEstimate : epsEst;
+                        const revActE = e ? e.revenueActual : null;
+                        const revEstE = e ? e.revenueEstimate : null;
+                        const epsSurp = (epsActE != null && epsEstE != null && Math.abs(epsEstE) > 0)
+                          ? ((epsActE - epsEstE) / Math.abs(epsEstE) * 100) : null;
+                        const revSurp = (revActE != null && revEstE != null && revEstE > 0)
+                          ? ((revActE - revEstE) / revEstE * 100) : null;
+                        const epsBeat = epsSurp != null && epsSurp > 0;
+                        const epsMiss = epsSurp != null && epsSurp < 0;
+                        const revBeat = revSurp != null && revSurp > 0;
+                        const revMiss = revSurp != null && revSurp < 0;
+                        // 格式化金额
+                        const fmtBig = (n) => {
+                          if (n == null) return null;
+                          if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+                          if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+                          if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
+                          return `$${n.toLocaleString()}`;
+                        };
+                        const released = !isFut && (epsActE != null && epsActE !== 0);
+                        return (
+                          <div className="mb-3">
+                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                              <span className="flex items-center gap-2">
+                                {released ? '📊 业绩详情' : '📊 业绩预期'}
+                                {released ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0' }}>已发布</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>未发布</span>
+                                )}
                               </span>
-                            )}
-                            {isReleased && (
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0' }}>
-                                已发布
-                              </span>
-                            )}
-                          </div>
-                          <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-[12px]">
-                            {/* v40 修: 实际 EPS 只在真发布时显示 */}
-                            {isReleased && epsAct !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-500">本季实际 EPS</span>
-                                <span className={`font-black tabular-nums ${beat ? 'text-rose-600' : miss ? 'text-emerald-600' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px' }}>
-                                  ${epsAct.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                            {epsEst !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-500">本季预期 EPS</span>
-                                <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  ${epsEst.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                            {isReleased && epsEst !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-500">{beat ? '超预期' : miss ? '不及' : '差异'}</span>
-                                <span className={`font-bold tabular-nums ${beat ? 'text-rose-600' : miss ? 'text-emerald-600' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  {beat ? '+' : ''}${(epsAct - epsEst).toFixed(2)} ({beat ? '+' : ''}{surprisePct.toFixed(2)}%)
-                                </span>
-                              </div>
-                            )}
-                            {/* 同比对比 */}
-                            {lastEPS !== null && (
-                              <>
-                                <div className="border-t border-slate-200 my-1.5"></div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">去年同期 EPS</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    ${lastEPS.toFixed(2)}
-                                  </span>
+                              <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>数据源 EODHD</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* EPS 卡 */}
+                              <div className="rounded-xl p-3 text-center" style={{
+                                background: epsBeat ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' : epsMiss ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' : '#f8fafc',
+                                border: epsBeat ? '1px solid #fecaca' : epsMiss ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                              }}>
+                                <div className="text-[10px] uppercase font-bold mb-1" style={{ color: '#94a3b8' }}>
+                                  {released ? '本季 EPS' : 'EPS 预期'}
                                 </div>
-                                {selectedEvent.lastYearRptDt && (
+                                <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#0f172a' }}>
+                                  {released && epsActE != null ? `$${epsActE.toFixed(2)}` : epsEstE != null ? `$${epsEstE.toFixed(2)}` : '—'}
+                                </div>
+                                {released && epsEstE != null && (
+                                  <div className="text-[10px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                                    预期 ${epsEstE.toFixed(2)}
+                                  </div>
+                                )}
+                                {released && epsSurp != null && (
+                                  <div className="text-[10px] font-bold mt-0.5" style={{ color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#475569' }}>
+                                    {epsBeat ? '超预期 +' : epsMiss ? '不及 ' : '持平 '}{epsSurp.toFixed(2)}%
+                                  </div>
+                                )}
+                              </div>
+                              {/* 营收卡 */}
+                              <div className="rounded-xl p-3 text-center" style={{
+                                background: revBeat ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' : revMiss ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' : '#f8fafc',
+                                border: revBeat ? '1px solid #fecaca' : revMiss ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                              }}>
+                                <div className="text-[10px] uppercase font-bold mb-1" style={{ color: '#94a3b8' }}>
+                                  {released ? '本季 营收' : '营收 预期'}
+                                </div>
+                                <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#0f172a' }}>
+                                  {released && revActE ? fmtBig(revActE) : revEstE ? fmtBig(revEstE) : '—'}
+                                </div>
+                                {released && revEstE && (
+                                  <div className="text-[10px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                                    预期 {fmtBig(revEstE)}
+                                  </div>
+                                )}
+                                {released && revSurp != null && (
+                                  <div className="text-[10px] font-bold mt-0.5" style={{ color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#475569' }}>
+                                    {revBeat ? '超预期 +' : revMiss ? '不及 ' : '持平 '}{revSurp.toFixed(2)}%
+                                  </div>
+                                )}
+                                {!released && e?.revenueEstimateGrowth != null && (
+                                  <div className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>
+                                    同比预期 {e.revenueEstimateGrowth >= 0 ? '+' : ''}{(e.revenueEstimateGrowth * 100).toFixed(1)}%
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {/* 同比对比 (已发布且有去年数据) */}
+                            {released && (e?.lastYearEPS != null || e?.lastYearRevenue != null || lastEPS !== null) && (
+                              <div className="bg-slate-50 rounded-xl p-3 mt-2 space-y-1.5 text-[12px]">
+                                {(e?.lastYearEPS != null || lastEPS !== null) && epsActE != null && (
                                   <div className="flex justify-between">
-                                    <span className="text-slate-500">去年报告日</span>
-                                    <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      {selectedEvent.lastYearRptDt}
+                                    <span className="text-slate-500">本季 EPS 同比</span>
+                                    <span className={`font-bold tabular-nums ${(() => {
+                                      const ly = e?.lastYearEPS ?? lastEPS;
+                                      const yoy = ly && Math.abs(ly) > 0 ? ((epsActE - ly) / Math.abs(ly)) * 100 : 0;
+                                      return yoy >= 0 ? 'text-rose-600' : 'text-emerald-600';
+                                    })()}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                      {(() => {
+                                        const ly = e?.lastYearEPS ?? lastEPS;
+                                        if (!ly || Math.abs(ly) === 0) return '—';
+                                        const yoy = ((epsActE - ly) / Math.abs(ly)) * 100;
+                                        return `${yoy >= 0 ? '+' : ''}${yoy.toFixed(2)}%`;
+                                      })()}
                                     </span>
                                   </div>
                                 )}
-                                {/* 同比增长 (优先实际, 没实际用预期) */}
-                                {(yoyAct !== null || yoyEst !== null) && (
+                                {e?.lastYearRevenue != null && revActE != null && e.lastYearRevenue > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-slate-500">{yoyAct !== null ? '同比增长' : '同比预期增长'}</span>
-                                    <span className={`font-bold tabular-nums ${(yoyAct ?? yoyEst) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      {(yoyAct ?? yoyEst) >= 0 ? '+' : ''}{(yoyAct ?? yoyEst).toFixed(2)}%
+                                    <span className="text-slate-500">本季营收同比</span>
+                                    <span className={`font-bold tabular-nums ${revActE > e.lastYearRevenue ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                      {revActE > e.lastYearRevenue ? '+' : ''}{(((revActE - e.lastYearRevenue) / e.lastYearRevenue) * 100).toFixed(2)}%
                                     </span>
                                   </div>
                                 )}
-                              </>
+                              </div>
                             )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* 3. 持仓 */}
                       {isHolding && (
@@ -7596,7 +7720,7 @@ function MainApp({ user, onLogout }) {
                         </div>
                       )}
 
-                      {/* 4. 分析师目标价 (v10.7.9.40, V2 进度条) */}
+                      {/* 4. 分析师目标价 (v10.7.9.41, V2 进度条) */}
                       {(() => {
                         if (analystLoading) {
                           return (
@@ -7706,7 +7830,7 @@ function MainApp({ user, onLogout }) {
                         );
                       })()}
 
-                      {/* 5. 公司基本面 (v10.7.9.40, EODHD Highlights) */}
+                      {/* 5. 公司基本面 (v10.7.9.41, EODHD Highlights) */}
                       {analystHighlights && (() => {
                         const h = analystHighlights;
                         const fmtBig = (n) => {
