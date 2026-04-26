@@ -171,8 +171,16 @@ export default async function handler(req, res) {
                       time: row.time || 'time-not-supplied',  // time-not-supplied | pre-market | after-hours
                       symbol: sym,
                       name: row.name,
-                      epsEstimate: row.epsForecast || null,
-                      epsActual: row.eps || null,
+                      // 公司信息
+                      marketCap: row.marketCap || null,                  // 市值 (数字)
+                      fiscalQuarterEnding: row.fiscalQuarterEnding || null,  // 财季 (May/2025)
+                      noOfEsts: row.noOfEsts || null,                    // 分析师覆盖数
+                      // EPS 预期 + 历史
+                      epsEstimate: row.epsForecast || null,              // 本季预期
+                      epsActual: row.eps || null,                        // 本季实际 (财报后)
+                      surprise: row.surprise || null,                    // 超预期 % (财报后)
+                      lastYearEPS: row.lastYearEPS || null,              // 去年同期
+                      lastYearRptDt: row.lastYearRptDt || null,          // 去年报告日期
                     });
                   }
                 }
