@@ -128,29 +128,55 @@ export default async function handler(req, res) {
             const to = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
             const toDate = to.toISOString().slice(0, 10);
 
-            // 1. 财报日历 (EODHD)
+            // 1. 财报日历 (NASDAQ 免费接口, 替换 EODHD)
+            // EODHD Calendar 不在你套餐内, 改用 NASDAQ 公开 API
             const events = [];
+            const watchSet = new Set(watchSymbols);
             if (watchSymbols.length > 0) {
-              const earningsSymbols = watchSymbols.map(s => `${s}.US`).join(',');
-              const earningsUrl = `https://eodhd.com/api/calendar/earnings?api_token=${eodhdKey}&symbols=${earningsSymbols}&from=${fromDate}&to=${toDate}&fmt=json`;
-              try {
-                const r = await fetch(earningsUrl);
-                if (r.ok) {
+              // 拉未来 7 天的财报 (每天一个请求, 并发)
+              const dates = [];
+              for (let i = 0; i < 7; i++) {
+                const d = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+                dates.push(d.toISOString().slice(0, 10));
+              }
+
+              const dailyResults = await Promise.all(dates.map(async (d) => {
+                try {
+                  const url = `https://api.nasdaq.com/api/calendar/earnings?date=${d}`;
+                  const r = await fetch(url, {
+                    headers: {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                      'Accept': 'application/json',
+                      'Origin': 'https://www.nasdaq.com',
+                      'Referer': 'https://www.nasdaq.com/',
+                    },
+                  });
+                  if (!r.ok) return { date: d, rows: [] };
                   const json = await r.json();
-                  const earnings = json?.earnings || [];
-                  for (const e of earnings) {
+                  const rows = json?.data?.rows || [];
+                  return { date: d, rows };
+                } catch (e) {
+                  return { date: d, rows: [] };
+                }
+              }));
+
+              // 过滤: 只保留 watchlist 里的股
+              for (const { date, rows } of dailyResults) {
+                for (const row of rows) {
+                  const sym = row.symbol;
+                  if (watchSet.has(sym)) {
                     events.push({
                       type: 'earnings',
-                      date: e.report_date,
-                      time: e.before_after_market || 'after market',  // before_market | after_market | during_market
-                      symbol: (e.code || '').replace('.US', ''),
-                      epsEstimate: e.estimate,
-                      epsActual: e.actual,
-                      epsDiff: e.difference,
+                      date: date,
+                      time: row.time || 'time-not-supplied',  // time-not-supplied | pre-market | after-hours
+                      symbol: sym,
+                      name: row.name,
+                      epsEstimate: row.epsForecast || null,
+                      epsActual: row.eps || null,
                     });
                   }
                 }
-              } catch (e) { /* ignore */ }
+              }
             }
 
             // 2. FOMC 议息日 (硬编码 2026 年所有日期)
@@ -184,7 +210,7 @@ export default async function handler(req, res) {
               symbol,
               events,
               fetchedAt: new Date().toISOString(),
-              source: 'EODHD-Calendar + FOMC',
+              source: 'NASDAQ + FOMC',
             };
           } catch (e) {
             return { symbol, error: `日历请求失败: ${e.message}` };
