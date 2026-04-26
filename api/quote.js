@@ -116,53 +116,98 @@ export default async function handler(req, res) {
 
         // ============ 📊 v10.7.9.39: 分析师目标价 (NASDAQ 免费) ============
         // 用法: ?symbols=ANALYST:NVDA
+        // ============ 📊 v10.7.9.40: 公司基本面 + 分析师目标价 (EODHD Fundamentals) ============
+        // 用法: ?symbols=ANALYST:NVDA
+        // 返回: targets (分析师) + highlights (业绩) + general (公司信息)
         if (symbol.startsWith('ANALYST:')) {
           try {
             const stockSym = symbol.split(':')[1];
             if (!stockSym) {
               return { symbol, error: '缺少股票代码' };
             }
-            const url = `https://api.nasdaq.com/api/analyst/${stockSym}/targets?assetclass=stocks`;
-            const r = await fetch(url, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
-                'Origin': 'https://www.nasdaq.com',
-                'Referer': 'https://www.nasdaq.com/',
-              },
-            });
+            // 用 filter 只拉需要的 sections (省 API 调用配额)
+            // 1 次请求拿: General + Highlights + AnalystRatings + Earnings
+            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General::Name,General::Sector,General::Industry,General::Description,General::LogoURL,General::FullTimeEmployees,Highlights,AnalystRatings,Earnings::History,SharesStats::PercentInsiders,SharesStats::PercentInstitutions&fmt=json`;
+            const r = await fetch(url);
             if (!r.ok) {
-              return { symbol, error: `NASDAQ 返回 ${r.status}` };
+              return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
             }
-            const json = await r.json();
-            // NASDAQ 返回结构 (调试):
-            //   {data: {targetPriceSummary: {...}, ratings: {...}, ...}}
-            // 或 {data: {lastTradePrice, averageTargetPrice, ...}}
-            const data = json?.data || {};
-            // 兼容多种结构
-            const tps = data.targetPriceSummary || data;
-            const ratings = data.ratings || data;
+            const data = await r.json();
+            const highlights = data.Highlights || {};
+            const ratings = data.AnalystRatings || {};
+            const general = data.General || {};
+            const sharesStats = data.SharesStats || {};
+            // EODHD Rating 是 1-5 (1 = Strong Sell, 5 = Strong Buy)
+            const ratingNum = parseFloat(ratings.Rating) || null;
+            // 转换成评级文字
+            const ratingText = ratingNum >= 4.5 ? 'STRONG BUY'
+              : ratingNum >= 3.5 ? 'BUY'
+              : ratingNum >= 2.5 ? 'HOLD'
+              : ratingNum >= 1.5 ? 'SELL'
+              : ratingNum > 0 ? 'STRONG SELL' : null;
+            const totalAnalysts = (ratings.StrongBuy || 0) + (ratings.Buy || 0) + (ratings.Hold || 0) + (ratings.Sell || 0) + (ratings.StrongSell || 0);
+
             return {
               symbol,
+              // 分析师目标价
               targets: {
-                lastTrade: tps.lastTradePrice || tps.lastTrade || data.lastSalePrice || null,
-                average: tps.average || tps.averageTargetPrice || tps.averageTarget || null,
-                high: tps.high || tps.highTargetPrice || tps.highTarget || null,
-                low: tps.low || tps.lowTargetPrice || tps.lowTarget || null,
-                rating: ratings.consensusRating || ratings.rating || data.consensusRating || null,
-                numAnalysts: ratings.numberOfRatings || ratings.totalRatings || data.numberOfRatings || null,
-                strongBuy: ratings.strongBuy || null,
-                buy: ratings.buy || null,
-                hold: ratings.hold || null,
-                sell: ratings.sell || null,
-                strongSell: ratings.strongSell || null,
+                lastTrade: null,  // 由前端 watchlist 填
+                average: ratings.TargetPrice || highlights.WallStreetTargetPrice || null,
+                high: null,  // EODHD 未提供
+                low: null,
+                rating: ratingText,
+                ratingNum,  // 1-5
+                numAnalysts: totalAnalysts || null,
+                strongBuy: ratings.StrongBuy || 0,
+                buy: ratings.Buy || 0,
+                hold: ratings.Hold || 0,
+                sell: ratings.Sell || 0,
+                strongSell: ratings.StrongSell || 0,
               },
-              raw: json,  // 调试用
+              // 公司基本面
+              highlights: {
+                marketCap: highlights.MarketCapitalization || null,
+                marketCapMln: highlights.MarketCapitalizationMln || null,
+                ebitda: highlights.EBITDA || null,
+                peRatio: highlights.PERatio || null,
+                pegRatio: highlights.PEGRatio || null,
+                bookValue: highlights.BookValue || null,
+                dividendYield: highlights.DividendYield || null,
+                eps: highlights.EarningsShare || null,
+                epsEstimateCurrentYear: highlights.EPSEstimateCurrentYear || null,
+                epsEstimateNextYear: highlights.EPSEstimateNextYear || null,
+                epsEstimateNextQuarter: highlights.EPSEstimateNextQuarter || null,
+                epsEstimateCurrentQuarter: highlights.EPSEstimateCurrentQuarter || null,
+                profitMargin: highlights.ProfitMargin || null,
+                operatingMargin: highlights.OperatingMarginTTM || null,
+                roe: highlights.ReturnOnEquityTTM || null,
+                roa: highlights.ReturnOnAssetsTTM || null,
+                revenueTTM: highlights.RevenueTTM || null,
+                revenuePerShareTTM: highlights.RevenuePerShareTTM || null,
+                quarterlyRevenueGrowthYOY: highlights.QuarterlyRevenueGrowthYOY || null,
+                quarterlyEarningsGrowthYOY: highlights.QuarterlyEarningsGrowthYOY || null,
+                grossProfitTTM: highlights.GrossProfitTTM || null,
+                mostRecentQuarter: highlights.MostRecentQuarter || null,
+              },
+              // 公司信息
+              general: {
+                name: general.Name || null,
+                sector: general.Sector || null,
+                industry: general.Industry || null,
+                description: general.Description || null,
+                logoURL: general.LogoURL ? `https://eodhd.com${general.LogoURL}` : null,
+                employees: general.FullTimeEmployees || null,
+              },
+              // 股权结构
+              shares: {
+                percentInsiders: sharesStats.PercentInsiders || null,
+                percentInstitutions: sharesStats.PercentInstitutions || null,
+              },
               fetchedAt: new Date().toISOString(),
-              source: 'NASDAQ',
+              source: 'EODHD-Fundamentals',
             };
           } catch (e) {
-            return { symbol, error: `分析师请求失败: ${e.message}` };
+            return { symbol, error: `Fundamentals 请求失败: ${e.message}` };
           }
         }
 
@@ -180,62 +225,34 @@ export default async function handler(req, res) {
             const to = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
             const toDate = to.toISOString().slice(0, 10);
 
-            // 1. 财报日历 (NASDAQ 免费接口, 替换 EODHD)
-            // EODHD Calendar 不在你套餐内, 改用 NASDAQ 公开 API
+            // 1. 财报日历 (v10.7.9.40: EODHD 官方 Calendar - 升级 All-In-One 后)
             const events = [];
-            const watchSet = new Set(watchSymbols);
             if (watchSymbols.length > 0) {
-              // 拉未来 7 天的财报 (每天一个请求, 并发)
-              const dates = [];
-              for (let i = 0; i < 7; i++) {
-                const d = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
-                dates.push(d.toISOString().slice(0, 10));
-              }
-
-              const dailyResults = await Promise.all(dates.map(async (d) => {
-                try {
-                  const url = `https://api.nasdaq.com/api/calendar/earnings?date=${d}`;
-                  const r = await fetch(url, {
-                    headers: {
-                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                      'Accept': 'application/json',
-                      'Origin': 'https://www.nasdaq.com',
-                      'Referer': 'https://www.nasdaq.com/',
-                    },
-                  });
-                  if (!r.ok) return { date: d, rows: [] };
+              try {
+                // 一次请求拿全部 watchlist 财报 (省时)
+                const symbolsParam = watchSymbols.map(s => `${s}.US`).join(',');
+                const url = `https://eodhd.com/api/calendar/earnings?api_token=${eodhdKey}&symbols=${symbolsParam}&from=${fromDate}&to=${toDate}&fmt=json`;
+                const r = await fetch(url);
+                if (r.ok) {
                   const json = await r.json();
-                  const rows = json?.data?.rows || [];
-                  return { date: d, rows };
-                } catch (e) {
-                  return { date: d, rows: [] };
-                }
-              }));
-
-              // 过滤: 只保留 watchlist 里的股
-              for (const { date, rows } of dailyResults) {
-                for (const row of rows) {
-                  const sym = row.symbol;
-                  if (watchSet.has(sym)) {
+                  const earnings = json?.earnings || [];
+                  for (const e of earnings) {
+                    const sym = (e.code || '').replace('.US', '');
                     events.push({
                       type: 'earnings',
-                      date: date,
-                      time: row.time || 'time-not-supplied',  // time-not-supplied | pre-market | after-hours
+                      date: e.report_date,
+                      time: e.before_after_market || 'time-not-supplied',  // BeforeMarket / AfterMarket
                       symbol: sym,
-                      name: row.name,
-                      // 公司信息
-                      marketCap: row.marketCap || null,                  // 市值 (数字)
-                      fiscalQuarterEnding: row.fiscalQuarterEnding || null,  // 财季 (May/2025)
-                      noOfEsts: row.noOfEsts || null,                    // 分析师覆盖数
-                      // EPS 预期 + 历史
-                      epsEstimate: row.epsForecast || null,              // 本季预期
-                      epsActual: row.eps || null,                        // 本季实际 (财报后)
-                      surprise: row.surprise || null,                    // 超预期 % (财报后)
-                      lastYearEPS: row.lastYearEPS || null,              // 去年同期
-                      lastYearRptDt: row.lastYearRptDt || null,          // 去年报告日期
+                      // EPS 字段
+                      epsEstimate: e.estimate,
+                      epsActual: e.actual,
+                      epsDiff: e.difference,
+                      surprise: e.percent ? (e.percent + '') : null,  // EODHD 给百分比
                     });
                   }
                 }
+              } catch (e) {
+                console.warn('[Calendar] EODHD 拉取失败:', e.message);
               }
             }
 
