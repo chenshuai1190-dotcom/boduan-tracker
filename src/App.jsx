@@ -7369,7 +7369,7 @@ function MainApp({ user, onLogout }) {
                       {selectedEvent.type === 'earnings' ? '$' : selectedEvent.type === 'fomc' ? '%' : '!'}
                     </div>
                   )}
-                  <div className="text-[10px] uppercase tracking-widest font-bold" style={{ color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af' }}>
+                  <div className="text-[14px] uppercase tracking-widest font-bold" style={{ color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af' }}>
                     {selectedEvent.type === 'earnings' ? '财报日' : selectedEvent.type === 'fomc' ? '美联储议息' : '事件'}
                   </div>
                 </div>
@@ -7477,7 +7477,7 @@ function MainApp({ user, onLogout }) {
                           >
                             {epsSurp !== null && (
                               <div className="flex justify-between items-center py-1">
-                                <span className="text-[11px] font-bold" style={{ color: '#94a3b8' }}>
+                                <span className="text-[15px] font-bold" style={{ color: '#94a3b8' }}>
                                   EPS {epsBeat ? '超预期' : epsMiss ? '不及预期' : '持平'}
                                 </span>
                                 <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#475569' }}>
@@ -7490,7 +7490,7 @@ function MainApp({ user, onLogout }) {
                             )}
                             {revSurp !== null && (
                               <div className="flex justify-between items-center py-1">
-                                <span className="text-[11px] font-bold" style={{ color: '#94a3b8' }}>
+                                <span className="text-[15px] font-bold" style={{ color: '#94a3b8' }}>
                                   营收 {revBeat ? '超预期' : revMiss ? '不及预期' : '持平'}
                                 </span>
                                 <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#475569' }}>
@@ -7521,7 +7521,7 @@ function MainApp({ user, onLogout }) {
                           >
                             {beat ? '+' : ''}{surprisePct.toFixed(2)}%
                           </div>
-                          <div className="text-[10px] font-bold mt-0.5" style={{ color: beat ? '#dc2626' : miss ? '#16a34a' : '#64748b' }}>
+                          <div className="text-[14px] font-bold mt-0.5" style={{ color: beat ? '#dc2626' : miss ? '#16a34a' : '#64748b' }}>
                             EPS {beat ? '超预期' : miss ? '不及预期' : '持平'}
                           </div>
                         </div>
@@ -7529,8 +7529,8 @@ function MainApp({ user, onLogout }) {
 
                       {/* 1. 公司信息 */}
                       <div className="mb-3">
-                        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📋 公司信息</div>
-                        <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-[12px]">
+                        <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📋 公司信息</div>
+                        <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-[14px]">
                           <div className="flex justify-between">
                             <span className="text-slate-500">公司</span>
                             <span className="font-bold text-slate-900">{analystGeneral?.name || stockInfo?.name || selectedEvent.name || selectedEvent.symbol}</span>
@@ -7609,13 +7609,13 @@ function MainApp({ user, onLogout }) {
                         const released = !isFut && (epsActE != null && epsActE !== 0);
                         return (
                           <div className="mb-3">
-                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
                               <span className="flex items-center gap-2">
                                 {released ? '📊 业绩详情' : '📊 业绩预期'}
                                 {released ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0' }}>已发布</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0' }}>已发布</span>
                                 ) : (
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>未发布</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>未发布</span>
                                 )}
                               </span>
                               <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>数据源 EODHD</span>
@@ -7626,19 +7626,19 @@ function MainApp({ user, onLogout }) {
                                 background: epsBeat ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' : epsMiss ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' : '#f8fafc',
                                 border: epsBeat ? '1px solid #fecaca' : epsMiss ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
                               }}>
-                                <div className="text-[10px] uppercase font-bold mb-1" style={{ color: '#94a3b8' }}>
+                                <div className="text-[14px] uppercase font-bold mb-1" style={{ color: '#94a3b8' }}>
                                   {released ? '本季 EPS' : 'EPS 预期'}
                                 </div>
                                 <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#0f172a' }}>
                                   {released && epsActE != null ? `$${epsActE.toFixed(2)}` : epsEstE != null ? `$${epsEstE.toFixed(2)}` : '—'}
                                 </div>
                                 {released && epsEstE != null && (
-                                  <div className="text-[10px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                                  <div className="text-[14px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                                     预期 ${epsEstE.toFixed(2)}
                                   </div>
                                 )}
                                 {released && epsSurp != null && (
-                                  <div className="text-[10px] font-bold mt-0.5" style={{ color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#475569' }}>
+                                  <div className="text-[14px] font-bold mt-0.5" style={{ color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#475569' }}>
                                     {epsBeat ? '超预期 +' : epsMiss ? '不及 ' : '持平 '}{epsSurp.toFixed(2)}%
                                   </div>
                                 )}
@@ -7648,24 +7648,24 @@ function MainApp({ user, onLogout }) {
                                 background: revBeat ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' : revMiss ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' : '#f8fafc',
                                 border: revBeat ? '1px solid #fecaca' : revMiss ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
                               }}>
-                                <div className="text-[10px] uppercase font-bold mb-1" style={{ color: '#94a3b8' }}>
+                                <div className="text-[14px] uppercase font-bold mb-1" style={{ color: '#94a3b8' }}>
                                   {released ? '本季 营收' : '营收 预期'}
                                 </div>
                                 <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#0f172a' }}>
                                   {released && revActE ? fmtBig(revActE) : revEstE ? fmtBig(revEstE) : '—'}
                                 </div>
                                 {released && revEstE && (
-                                  <div className="text-[10px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                                  <div className="text-[14px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                                     预期 {fmtBig(revEstE)}
                                   </div>
                                 )}
                                 {released && revSurp != null && (
-                                  <div className="text-[10px] font-bold mt-0.5" style={{ color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#475569' }}>
+                                  <div className="text-[14px] font-bold mt-0.5" style={{ color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#475569' }}>
                                     {revBeat ? '超预期 +' : revMiss ? '不及 ' : '持平 '}{revSurp.toFixed(2)}%
                                   </div>
                                 )}
                                 {!released && e?.revenueEstimateGrowth != null && (
-                                  <div className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>
+                                  <div className="text-[14px] mt-1" style={{ color: '#94a3b8' }}>
                                     同比预期 {e.revenueEstimateGrowth >= 0 ? '+' : ''}{(e.revenueEstimateGrowth * 100).toFixed(1)}%
                                   </div>
                                 )}
@@ -7673,7 +7673,7 @@ function MainApp({ user, onLogout }) {
                             </div>
                             {/* 同比对比 (已发布且有去年数据) */}
                             {released && (e?.lastYearEPS != null || e?.lastYearRevenue != null || lastEPS !== null) && (
-                              <div className="bg-slate-50 rounded-xl p-3 mt-2 space-y-1.5 text-[12px]">
+                              <div className="bg-slate-50 rounded-xl p-3 mt-2 space-y-1.5 text-[14px]">
                                 {(e?.lastYearEPS != null || lastEPS !== null) && epsActE != null && (
                                   <div className="flex justify-between">
                                     <span className="text-slate-500">本季 EPS 同比</span>
@@ -7708,8 +7708,8 @@ function MainApp({ user, onLogout }) {
                       {/* 3. 持仓 */}
                       {isHolding && (
                         <div className="mb-3">
-                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">💼 你的持仓</div>
-                          <div className="bg-slate-50 rounded-xl p-3 text-[12px]">
+                          <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">💼 你的持仓</div>
+                          <div className="bg-slate-50 rounded-xl p-3 text-[14px]">
                             <div className="flex justify-between">
                               <span className="text-slate-500">持仓股数</span>
                               <span className="font-bold text-rose-600 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
@@ -7725,8 +7725,8 @@ function MainApp({ user, onLogout }) {
                         if (analystLoading) {
                           return (
                             <div className="mb-3">
-                              <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📊 分析师目标价</div>
-                              <div className="bg-slate-50 rounded-xl p-4 text-center text-[12px] text-slate-400">
+                              <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📊 分析师目标价</div>
+                              <div className="bg-slate-50 rounded-xl p-4 text-center text-[14px] text-slate-400">
                                 加载中…
                               </div>
                             </div>
@@ -7760,16 +7760,16 @@ function MainApp({ user, onLogout }) {
 
                         return (
                           <div className="mb-3">
-                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
                               <span>📊 分析师目标价 {analystTargets.numAnalysts ? `· 约 ${analystTargets.numAnalysts} 位` : ''}</span>
                               <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
                                 数据源 EODHD
                               </span>
                             </div>
-                            <div className="bg-slate-50 rounded-xl p-3 text-[12px] space-y-1.5">
+                            <div className="bg-slate-50 rounded-xl p-3 text-[14px] space-y-1.5">
                               <div className="flex justify-between items-center">
                                 <span className="text-slate-500">平均目标价</span>
-                                <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#d97706' }}>
+                                <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '16px', color: '#d97706' }}>
                                   ${avg.toFixed(2)}
                                 </span>
                               </div>
@@ -7792,7 +7792,7 @@ function MainApp({ user, onLogout }) {
                               {rating && (
                                 <div className="flex justify-between items-center pt-2 border-t border-slate-200">
                                   <span className="text-slate-500">综合评级</span>
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase" style={{
+                                  <span className="px-2.5 py-1 rounded-full text-[14px] font-black uppercase" style={{
                                     background: rating.bg, color: rating.color, border: `1px solid ${rating.border}`,
                                     letterSpacing: '0.5px',
                                   }}>
@@ -7843,13 +7843,13 @@ function MainApp({ user, onLogout }) {
                         const fmtPct = (n) => n != null ? `${(n * 100).toFixed(2)}%` : null;
                         return (
                           <div className="mb-3">
-                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
                               <span>📈 公司基本面</span>
                               <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
                                 数据源 EODHD
                               </span>
                             </div>
-                            <div className="bg-slate-50 rounded-xl p-3 text-[12px] space-y-1.5">
+                            <div className="bg-slate-50 rounded-xl p-3 text-[14px] space-y-1.5">
                               {h.marketCap && (
                                 <div className="flex justify-between">
                                   <span className="text-slate-500">市值</span>
@@ -7939,7 +7939,7 @@ function MainApp({ user, onLogout }) {
                 })()}
 
                 {selectedEvent.type === 'fomc' && (
-                  <div className="bg-slate-50 rounded-xl p-4 mb-4 text-[13px] text-slate-700 leading-relaxed">
+                  <div className="bg-slate-50 rounded-xl p-4 mb-4 text-[15px] text-slate-700 leading-relaxed">
                     {selectedEvent.detail || '美联储利率决议日, 关注是否加息/降息/维持利率'}
                   </div>
                 )}
