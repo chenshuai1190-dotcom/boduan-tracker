@@ -517,8 +517,10 @@ function MainApp({ user, onLogout }) {
   // 📅 v10.7.9.40: 重要日历 (财报 + FOMC)
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);  // 点击展开的事件
-  // 📊 v10.7.9.40: 分析师目标价 (按需拉, 不缓存)
+  // 📊 v10.7.9.40: 分析师 + 公司基本面 (EODHD Fundamentals, 按需拉)
   const [analystTargets, setAnalystTargets] = useState(null);
+  const [analystHighlights, setAnalystHighlights] = useState(null);
+  const [analystGeneral, setAnalystGeneral] = useState(null);
   const [analystLoading, setAnalystLoading] = useState(false);
 
   // 顶部市场状态卡的基准股票(默认 QQQ,可切换关注列表里其他 1x 标的)
@@ -1019,23 +1021,29 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading, watchlist.length]);
 
-  // 📊 v10.7.9.40: Modal 打开时按需拉分析师目标价
+  // 📊 v10.7.9.40: Modal 打开时按需拉 EODHD Fundamentals (分析师 + 业绩)
   useEffect(() => {
     // 关闭 Modal → 清掉旧数据
     if (!selectedEvent) {
       setAnalystTargets(null);
+      setAnalystHighlights(null);
+      setAnalystGeneral(null);
       setAnalystLoading(false);
       return;
     }
     // 只对财报事件拉 (FOMC 不需要)
     if (selectedEvent.type !== 'earnings' || !selectedEvent.symbol) {
       setAnalystTargets(null);
+      setAnalystHighlights(null);
+      setAnalystGeneral(null);
       return;
     }
 
     let cancelled = false;
     setAnalystLoading(true);
     setAnalystTargets(null);
+    setAnalystHighlights(null);
+    setAnalystGeneral(null);
 
     (async () => {
       try {
@@ -1044,16 +1052,17 @@ function MainApp({ user, onLogout }) {
         if (cancelled) return;
         if (result.success && result.data) {
           const a = result.data.find(d => d.symbol && d.symbol.startsWith('ANALYST:'));
-          if (a && a.targets) {
-            setAnalystTargets(a.targets);
-            console.log('[Analyst] 数据:', a.targets);
-            console.log('[Analyst] 原始返回 (调试):', a.raw);
+          if (a) {
+            if (a.targets) setAnalystTargets(a.targets);
+            if (a.highlights) setAnalystHighlights(a.highlights);
+            if (a.general) setAnalystGeneral(a.general);
+            console.log('[Fundamentals]', { targets: a.targets, highlights: a.highlights, general: a.general });
           } else {
-            console.warn('[Analyst] 没拿到数据:', a);
+            console.warn('[Fundamentals] 没拿到数据:', a);
           }
         }
       } catch (e) {
-        console.warn('[Analyst] 拉取失败:', e.message);
+        console.warn('[Fundamentals] 拉取失败:', e.message);
       } finally {
         if (!cancelled) setAnalystLoading(false);
       }
@@ -6649,24 +6658,20 @@ function MainApp({ user, onLogout }) {
                   {
                     ver: 'v10.7.9.40', date: '2026-04-27', latest: true,
                     items: [
-                      '📊 重要日历 Modal 加 分析师目标价 (NASDAQ 免费接口)',
-                      '  - V2 进度条 (绿→金→红 渐变)',
-                      '  - 现价 marker 显示在区间位置',
-                      '  - 综合评级 (强烈买入/买入/持有/卖出)',
-                      '  - 距平均上行 %',
-                      '  - 按需拉 (点开 Modal 才拉, 不拉全部)',
-                      '🏷 EPS 业绩加"已发布/未发布"徽章',
-                    ],
-                  },
-                  {
-                    ver: 'v10.7.9.39', date: '2026-04-27',
-                    items: [
-                      '📊 重要日历 Modal 完整业绩字段',
-                      '  - 顶部突出 EPS 超预期/不及 (大字)',
-                      '  - 公司信息: 市值 + 财季 + 时段 + 分析师覆盖',
-                      '  - EPS 业绩: 实际 + 预期 + 差异 + 同比对比',
-                      '  - 持仓提示',
-                      '  - NASDAQ 全字段使用',
+                      '🚀 升级 EODHD All-In-One ($99.99/月), 全套接口替换',
+                      '📅 重要日历 (首页时间轴 - 15 天)',
+                      '  - 财报数据: NASDAQ → EODHD 官方 (更稳)',
+                      '  - 财报 + FOMC 议息',
+                      '  - 时间轴风格 + 彩色圆点 + 横滑',
+                      '  - 日期: 今天 / 4/28 / 5/2',
+                      '🪟 Modal 完整业绩 + 分析师 (EODHD Fundamentals)',
+                      '  - 顶部 EPS 超预期/不及 (大字 红/绿)',
+                      '  - 📋 公司信息 (市值/财季/时段/分析师覆盖)',
+                      '  - 📊 EPS 业绩 (实际/预期/同比/超预期)',
+                      '  - 📊 分析师目标价 + 5 档评级细分 (强买/买/持/卖/强卖)',
+                      '  - 📈 公司基本面 (PE/PEG/营收/利润率/ROE/股息率)',
+                      '  - 已发布/未发布徽章',
+                      '  - 圆形渐变图标 ($/% 替换 emoji)',
                     ],
                   },
                   {
@@ -7569,11 +7574,10 @@ function MainApp({ user, onLogout }) {
                         const high = cleanNum(analystTargets.high);
                         const low = cleanNum(analystTargets.low);
                         const avg = cleanNum(analystTargets.average);
-                        const last = cleanNum(analystTargets.lastTrade);
-                        if (high === null || low === null || avg === null) return null;
-                        // 现价位置 % (在 low-high 区间)
-                        const range = high - low;
-                        const pos = range > 0 && last !== null ? Math.max(0, Math.min(100, ((last - low) / range) * 100)) : null;
+                        // 现价从 watchlist 拿 (EODHD Fundamentals 不返回现价)
+                        const watchStock = watchlist.find(w => w.symbol === selectedEvent.symbol);
+                        const last = watchStock?.price || cleanNum(analystTargets.lastTrade);
+                        if (avg === null) return null;
                         // 距平均上行
                         const upPct = (last !== null && avg > 0) ? ((avg - last) / last) * 100 : null;
                         // 评级中文化
@@ -7591,66 +7595,165 @@ function MainApp({ user, onLogout }) {
                             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">
                               📊 分析师目标价 {analystTargets.numAnalysts ? `· ${analystTargets.numAnalysts} 位` : ''}
                             </div>
-                            <div className="bg-slate-50 rounded-xl p-3 text-[12px]">
-                              {/* 进度条 */}
-                              {pos !== null && (
-                                <div className="mb-3">
-                                  <div className="relative" style={{
-                                    height: '24px',
-                                    background: 'linear-gradient(90deg, #16a34a 0%, #fbbf24 50%, #dc2626 100%)',
-                                    borderRadius: '12px',
-                                    marginTop: '20px',
+                            <div className="bg-slate-50 rounded-xl p-3 text-[12px] space-y-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500">平均目标价</span>
+                                <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#d97706' }}>
+                                  ${avg.toFixed(2)}
+                                </span>
+                              </div>
+                              {last !== null && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-500">现价</span>
+                                  <span className="font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    ${last.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                              {upPct !== null && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">距平均{upPct >= 0 ? '上行' : '下行'}</span>
+                                  <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: upPct >= 0 ? '#dc2626' : '#16a34a' }}>
+                                    {upPct >= 0 ? '+' : ''}{upPct.toFixed(2)}%
+                                  </span>
+                                </div>
+                              )}
+                              {rating && (
+                                <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                                  <span className="text-slate-500">综合评级</span>
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase" style={{
+                                    background: rating.bg, color: rating.color, border: `1px solid ${rating.border}`,
+                                    letterSpacing: '0.5px',
                                   }}>
-                                    {/* 现价 marker */}
-                                    <div style={{
-                                      position: 'absolute',
-                                      top: '-20px',
-                                      left: `${pos}%`,
-                                      transform: 'translateX(-50%)',
-                                      background: 'white',
-                                      border: '2px solid #0f172a',
-                                      color: '#0f172a',
-                                      padding: '1px 8px',
-                                      borderRadius: '99px',
-                                      fontSize: '10px',
-                                      fontWeight: 900,
-                                      fontFamily: 'ui-monospace, monospace',
-                                      whiteSpace: 'nowrap',
-                                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                                    }}>
-                                      ${last.toFixed(2)}
-                                    </div>
+                                    {rating.cn}
+                                  </span>
+                                </div>
+                              )}
+                              {/* 5 档分析师细分 */}
+                              {analystTargets.numAnalysts > 0 && (
+                                <div className="grid grid-cols-5 gap-1 pt-2 border-t border-slate-200" style={{ fontSize: '9px', textAlign: 'center' }}>
+                                  <div>
+                                    <div style={{ color: '#dc2626', fontWeight: 900 }}>{analystTargets.strongBuy}</div>
+                                    <div style={{ color: '#94a3b8' }}>强买</div>
                                   </div>
-                                  <div className="flex justify-between mt-1.5 text-[10px] tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8', fontWeight: 700 }}>
-                                    <span>${low.toFixed(0)}</span>
-                                    <span style={{ color: '#d97706', fontWeight: 900 }}>${avg.toFixed(2)} 平均</span>
-                                    <span>${high.toFixed(0)}</span>
+                                  <div>
+                                    <div style={{ color: '#f87171', fontWeight: 900 }}>{analystTargets.buy}</div>
+                                    <div style={{ color: '#94a3b8' }}>买入</div>
+                                  </div>
+                                  <div>
+                                    <div style={{ color: '#94a3b8', fontWeight: 900 }}>{analystTargets.hold}</div>
+                                    <div style={{ color: '#94a3b8' }}>持有</div>
+                                  </div>
+                                  <div>
+                                    <div style={{ color: '#86efac', fontWeight: 900 }}>{analystTargets.sell}</div>
+                                    <div style={{ color: '#94a3b8' }}>卖出</div>
+                                  </div>
+                                  <div>
+                                    <div style={{ color: '#16a34a', fontWeight: 900 }}>{analystTargets.strongSell}</div>
+                                    <div style={{ color: '#94a3b8' }}>强卖</div>
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
-                              {/* 评级 + 上行% */}
-                              <div className="space-y-1.5">
-                                {rating && (
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-slate-500">综合评级</span>
-                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase" style={{
-                                      background: rating.bg, color: rating.color, border: `1px solid ${rating.border}`,
-                                      letterSpacing: '0.5px',
-                                    }}>
-                                      {rating.cn}
-                                    </span>
-                                  </div>
-                                )}
-                                {upPct !== null && (
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500">距平均{upPct >= 0 ? '上行' : '下行'}</span>
-                                    <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: upPct >= 0 ? '#dc2626' : '#16a34a' }}>
-                                      {upPct >= 0 ? '+' : ''}{upPct.toFixed(2)}%
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
+                      {/* 5. 公司基本面 (v10.7.9.40, EODHD Highlights) */}
+                      {analystHighlights && (() => {
+                        const h = analystHighlights;
+                        const fmtBig = (n) => {
+                          if (!n) return null;
+                          if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+                          if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+                          if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
+                          return `$${n.toLocaleString()}`;
+                        };
+                        const fmtPct = (n) => n != null ? `${(n * 100).toFixed(2)}%` : null;
+                        return (
+                          <div className="mb-3">
+                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📈 公司基本面</div>
+                            <div className="bg-slate-50 rounded-xl p-3 text-[12px] space-y-1.5">
+                              {h.marketCap && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">市值</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtBig(h.marketCap)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.peRatio && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">市盈率 (PE)</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {h.peRatio.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.pegRatio && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">PEG (5年)</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {h.pegRatio.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.revenueTTM && (
+                                <div className="flex justify-between pt-2 border-t border-slate-200">
+                                  <span className="text-slate-500">营收 (TTM)</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtBig(h.revenueTTM)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.quarterlyRevenueGrowthYOY != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">营收同比</span>
+                                  <span className={`font-bold tabular-nums ${h.quarterlyRevenueGrowthYOY >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {h.quarterlyRevenueGrowthYOY >= 0 ? '+' : ''}{(h.quarterlyRevenueGrowthYOY * 100).toFixed(2)}%
+                                  </span>
+                                </div>
+                              )}
+                              {h.quarterlyEarningsGrowthYOY != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">利润同比</span>
+                                  <span className={`font-bold tabular-nums ${h.quarterlyEarningsGrowthYOY >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {h.quarterlyEarningsGrowthYOY >= 0 ? '+' : ''}{(h.quarterlyEarningsGrowthYOY * 100).toFixed(2)}%
+                                  </span>
+                                </div>
+                              )}
+                              {h.profitMargin != null && (
+                                <div className="flex justify-between pt-2 border-t border-slate-200">
+                                  <span className="text-slate-500">净利率</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtPct(h.profitMargin)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.operatingMargin != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">营业利润率</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtPct(h.operatingMargin)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.roe != null && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">ROE</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtPct(h.roe)}
+                                  </span>
+                                </div>
+                              )}
+                              {h.dividendYield != null && h.dividendYield > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">股息率</span>
+                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtPct(h.dividendYield)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
