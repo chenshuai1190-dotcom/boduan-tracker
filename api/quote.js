@@ -122,10 +122,10 @@ export default async function handler(req, res) {
             if (!stockSym) {
               return { symbol, error: '缺少股票代码' };
             }
-            const url = `https://api.nasdaq.com/api/analyst/${stockSym}/targets`;
+            const url = `https://api.nasdaq.com/api/analyst/${stockSym}/targets?assetclass=stocks`;
             const r = await fetch(url, {
               headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
                 'Origin': 'https://www.nasdaq.com',
                 'Referer': 'https://www.nasdaq.com/',
@@ -135,25 +135,29 @@ export default async function handler(req, res) {
               return { symbol, error: `NASDAQ 返回 ${r.status}` };
             }
             const json = await r.json();
-            // NASDAQ 返回结构: data.lastTradePrice / data.averageTargetPrice / etc
+            // NASDAQ 返回结构 (调试):
+            //   {data: {targetPriceSummary: {...}, ratings: {...}, ...}}
+            // 或 {data: {lastTradePrice, averageTargetPrice, ...}}
             const data = json?.data || {};
+            // 兼容多种结构
+            const tps = data.targetPriceSummary || data;
+            const ratings = data.ratings || data;
             return {
               symbol,
               targets: {
-                lastTrade: data.lastTradePrice || data.lastTrade || null,
-                average: data.averageTargetPrice || data.averageTarget || null,
-                high: data.highTargetPrice || data.highTarget || null,
-                low: data.lowTargetPrice || data.lowTarget || null,
-                rating: data.consensusRating || data.recommendation || null,
-                numAnalysts: data.numberOfRatings || data.numAnalysts || null,
-                // 个数 (强买/买/持/卖)
-                strongBuy: data.strongBuy || null,
-                buy: data.buy || null,
-                hold: data.hold || null,
-                sell: data.sell || null,
-                strongSell: data.strongSell || null,
+                lastTrade: tps.lastTradePrice || tps.lastTrade || data.lastSalePrice || null,
+                average: tps.average || tps.averageTargetPrice || tps.averageTarget || null,
+                high: tps.high || tps.highTargetPrice || tps.highTarget || null,
+                low: tps.low || tps.lowTargetPrice || tps.lowTarget || null,
+                rating: ratings.consensusRating || ratings.rating || data.consensusRating || null,
+                numAnalysts: ratings.numberOfRatings || ratings.totalRatings || data.numberOfRatings || null,
+                strongBuy: ratings.strongBuy || null,
+                buy: ratings.buy || null,
+                hold: ratings.hold || null,
+                sell: ratings.sell || null,
+                strongSell: ratings.strongSell || null,
               },
-              raw: json,  // 调试用 (生产可删)
+              raw: json,  // 调试用
               fetchedAt: new Date().toISOString(),
               source: 'NASDAQ',
             };
