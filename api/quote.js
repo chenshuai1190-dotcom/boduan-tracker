@@ -127,7 +127,7 @@ export default async function handler(req, res) {
             }
             // 用 filter 只拉需要的 sections (省 API 调用配额)
             // 1 次请求拿: General + Highlights + AnalystRatings + Earnings
-            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General::Name,General::Sector,General::Industry,General::Description,General::LogoURL,General::FullTimeEmployees,Highlights,AnalystRatings,Earnings::History,SharesStats::PercentInsiders,SharesStats::PercentInstitutions&fmt=json`;
+            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General::Name,General::Sector,General::Industry,General::LogoURL,General::FullTimeEmployees,Highlights,AnalystRatings,Earnings::History,Earnings::Trend,Financials::Income_Statement::quarterly,SharesStats::PercentInsiders,SharesStats::PercentInstitutions&fmt=json`;
             const r = await fetch(url);
             if (!r.ok) {
               return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
@@ -137,6 +137,50 @@ export default async function handler(req, res) {
             const ratings = data.AnalystRatings || {};
             const general = data.General || {};
             const sharesStats = data.SharesStats || {};
+            // v10.7.9.41: 解析最近一次财报 (EPS + 营收 实际/预期)
+            const earningsHistoryObj = data.Earnings?.History || {};  // 对象 {date: {...}}
+            const earningsTrendObj = data.Earnings?.Trend || {};     // 对象 {date: {...}}
+            const incomeStmtObj = data.Financials?.Income_Statement?.quarterly || {};  // 季度营收
+
+            // 找最新已发布财报 (按 reportDate 倒序, 取 epsActual !== null 的第一个)
+            const earningsHistoryArr = Object.values(earningsHistoryObj)
+              .filter(e => e && e.reportDate)
+              .sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
+            const latestEarnings = earningsHistoryArr.find(e => e.epsActual != null) || null;
+            const upcomingEarnings = earningsHistoryArr.find(e => e.epsActual == null) || null;
+            // 上一季 (用于同比)
+            const lastYearEarnings = (() => {
+              if (!latestEarnings) return null;
+              const targetDate = new Date(latestEarnings.date || latestEarnings.reportDate);
+              targetDate.setFullYear(targetDate.getFullYear() - 1);
+              const targetStr = targetDate.toISOString().slice(0, 10);
+              return earningsHistoryArr.find(e => {
+                const d = e.date || e.reportDate;
+                return d && Math.abs(new Date(d) - targetDate) < 90 * 24 * 60 * 60 * 1000;
+              }) || null;
+            })();
+
+            // Income Statement: 找匹配最新季度的营收
+            const incomeArr = Object.values(incomeStmtObj)
+              .filter(i => i && i.date)
+              .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            const latestIncome = incomeArr[0] || null;
+            const lastYearIncome = (() => {
+              if (!latestIncome) return null;
+              const targetDate = new Date(latestIncome.date);
+              targetDate.setFullYear(targetDate.getFullYear() - 1);
+              return incomeArr.find(i => {
+                return i.date && Math.abs(new Date(i.date) - targetDate) < 90 * 24 * 60 * 60 * 1000;
+              }) || null;
+            })();
+
+            // Earnings::Trend: 找营收预期 (period = "0q" 当前季度, "+1q" 下季度)
+            const trendArr = Object.values(earningsTrendObj).filter(t => t);
+            // 当前季度 (本次发布的财报对应的预期)
+            const currentTrend = trendArr.find(t => t.period === '0q') || null;
+            // 下个季度预期
+            const nextTrend = trendArr.find(t => t.period === '+1q') || null;
+
             // EODHD Rating 是 1-5 (1 = Strong Sell, 5 = Strong Buy)
             const ratingNum = parseFloat(ratings.Rating) || null;
             // 转换成评级文字
@@ -203,6 +247,34 @@ export default async function handler(req, res) {
                 percentInsiders: sharesStats.PercentInsiders || null,
                 percentInstitutions: sharesStats.PercentInstitutions || null,
               },
+              // v10.7.9.41: 最近一次财报 (EPS + 营收 实际/预期/同比)
+              earnings: latestEarnings ? {
+                reportDate: latestEarnings.reportDate,
+                fiscalDate: latestEarnings.date,
+                // EPS
+                epsActual: latestEarnings.epsActual,
+                epsEstimate: latestEarnings.epsEstimate,
+                epsDiff: latestEarnings.epsDifference,
+                epsSurprisePct: latestEarnings.surprisePercent,
+                // 营收 (Income Statement 实际值)
+                revenueActual: latestIncome?.totalRevenue || null,
+                // 营收预期 (Earnings::Trend)
+                revenueEstimate: currentTrend?.revenueEstimateAvg || null,
+                revenueEstimateLow: currentTrend?.revenueEstimateLow || null,
+                revenueEstimateHigh: currentTrend?.revenueEstimateHigh || null,
+                revenueEstimateGrowth: currentTrend?.revenueEstimateGrowth || null,
+                // 同比
+                lastYearEPS: lastYearEarnings?.epsActual || null,
+                lastYearRevenue: lastYearIncome?.totalRevenue || null,
+              } : null,
+              // 下一次未发布财报 (从 history 拿)
+              upcomingEarnings: upcomingEarnings ? {
+                reportDate: upcomingEarnings.reportDate,
+                fiscalDate: upcomingEarnings.date,
+                epsEstimate: upcomingEarnings.epsEstimate,
+                revenueEstimate: nextTrend?.revenueEstimateAvg || null,
+                revenueEstimateGrowth: nextTrend?.revenueEstimateGrowth || null,
+              } : null,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
             };
