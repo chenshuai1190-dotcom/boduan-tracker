@@ -6663,15 +6663,14 @@ function MainApp({ user, onLogout }) {
                       '  - 财报数据: NASDAQ → EODHD 官方 (更稳)',
                       '  - 财报 + FOMC 议息',
                       '  - 时间轴风格 + 彩色圆点 + 横滑',
-                      '  - 日期: 今天 / 4/28 / 5/2',
-                      '🪟 Modal 完整业绩 + 分析师 (EODHD Fundamentals)',
-                      '  - 顶部 EPS 超预期/不及 (大字 红/绿)',
-                      '  - 📋 公司信息 (市值/财季/时段/分析师覆盖)',
-                      '  - 📊 EPS 业绩 (实际/预期/同比/超预期)',
-                      '  - 📊 分析师目标价 + 5 档评级细分 (强买/买/持/卖/强卖)',
-                      '  - 📈 公司基本面 (PE/PEG/营收/利润率/ROE/股息率)',
-                      '  - 已发布/未发布徽章',
-                      '  - 圆形渐变图标 ($/% 替换 emoji)',
+                      '🪟 Modal 重新设计 (5 大 section)',
+                      '  - 公司 Logo (EODHD 官方) + fallback 圆形渐变',
+                      '  - 弹窗可上下滚动 (maxHeight 90vh)',
+                      '  - 📋 公司信息 (含 行业 / 员工数)',
+                      '  - 📊 EPS 业绩 (已发布/未发布徽章)',
+                      '  - 📊 分析师目标价 + 5 档评级细分',
+                      '  - 📈 公司基本面 (PE TTM/营收/利润率/ROE)',
+                      '  - 字段口径标注 (TTM / 本季 / 数据源 EODHD)',
                     ],
                   },
                   {
@@ -7310,28 +7309,49 @@ function MainApp({ user, onLogout }) {
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md flex flex-col"
+              style={{
+                paddingBottom: 'env(safe-area-inset-bottom)',
+                maxHeight: '90vh',
+              }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
-              <div className="p-6">
-                {/* 图标 + 类型 (v10.7.9.40: M1 圆形渐变 $/% 字符) */}
+              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden flex-shrink-0"></div>
+              <div className="p-6 overflow-y-auto" style={{ flex: '1 1 auto', minHeight: 0 }}>
+                {/* 图标 + 类型 (v10.7.9.40: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
                 <div className="text-center mb-3">
-                  <div className="mx-auto mb-3 inline-flex items-center justify-center" style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    fontSize: '28px',
-                    fontWeight: 900,
-                    background: selectedEvent.type === 'earnings'
-                      ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
-                      : 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
-                    color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af',
-                    border: selectedEvent.type === 'earnings' ? '2px solid #fbbf24' : '2px solid #60a5fa',
-                  }}>
-                    {selectedEvent.type === 'earnings' ? '$' : selectedEvent.type === 'fomc' ? '%' : '!'}
-                  </div>
+                  {analystGeneral && analystGeneral.logoURL ? (
+                    <img
+                      src={analystGeneral.logoURL}
+                      alt={selectedEvent.symbol}
+                      className="mx-auto mb-3"
+                      style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '16px',
+                        objectFit: 'contain',
+                        background: 'white',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="mx-auto mb-3 inline-flex items-center justify-center" style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      fontSize: '28px',
+                      fontWeight: 900,
+                      background: selectedEvent.type === 'earnings'
+                        ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                        : 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
+                      color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af',
+                      border: selectedEvent.type === 'earnings' ? '2px solid #fbbf24' : '2px solid #60a5fa',
+                    }}>
+                      {selectedEvent.type === 'earnings' ? '$' : selectedEvent.type === 'fomc' ? '%' : '!'}
+                    </div>
+                  )}
                   <div className="text-[10px] uppercase tracking-widest font-bold" style={{ color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af' }}>
                     {selectedEvent.type === 'earnings' ? '财报日' : selectedEvent.type === 'fomc' ? '美联储议息' : '事件'}
                   </div>
@@ -7438,13 +7458,22 @@ function MainApp({ user, onLogout }) {
                         <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-[12px]">
                           <div className="flex justify-between">
                             <span className="text-slate-500">公司</span>
-                            <span className="font-bold text-slate-900">{stockInfo?.name || selectedEvent.name || selectedEvent.symbol}</span>
+                            <span className="font-bold text-slate-900">{analystGeneral?.name || stockInfo?.name || selectedEvent.name || selectedEvent.symbol}</span>
                           </div>
-                          {selectedEvent.marketCap && (
+                          {/* v40+: EODHD 行业 */}
+                          {analystGeneral?.sector && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">行业</span>
+                              <span className="font-bold text-slate-900 truncate" style={{ maxWidth: '60%' }}>
+                                {analystGeneral.sector}{analystGeneral.industry ? ` · ${analystGeneral.industry}` : ''}
+                              </span>
+                            </div>
+                          )}
+                          {(analystHighlights?.marketCap || selectedEvent.marketCap) && (
                             <div className="flex justify-between">
                               <span className="text-slate-500">市值</span>
                               <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                {fmtMarketCap(selectedEvent.marketCap)}
+                                {fmtMarketCap(analystHighlights?.marketCap || selectedEvent.marketCap)}
                               </span>
                             </div>
                           )}
@@ -7458,11 +7487,19 @@ function MainApp({ user, onLogout }) {
                             <span className="text-slate-500">发布时段</span>
                             <span className="font-bold text-slate-900">{sessionCN}</span>
                           </div>
+                          {analystGeneral?.employees && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">员工数</span>
+                              <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                {analystGeneral.employees.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
                           {selectedEvent.noOfEsts && selectedEvent.noOfEsts !== 'N/A' && (
                             <div className="flex justify-between">
                               <span className="text-slate-500">分析师覆盖</span>
                               <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                {selectedEvent.noOfEsts} 位
+                                约 {selectedEvent.noOfEsts} 位
                               </span>
                             </div>
                           )}
