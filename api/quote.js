@@ -114,6 +114,54 @@ export default async function handler(req, res) {
           }
         }
 
+        // ============ 📊 v10.7.9.39: 分析师目标价 (NASDAQ 免费) ============
+        // 用法: ?symbols=ANALYST:NVDA
+        if (symbol.startsWith('ANALYST:')) {
+          try {
+            const stockSym = symbol.split(':')[1];
+            if (!stockSym) {
+              return { symbol, error: '缺少股票代码' };
+            }
+            const url = `https://api.nasdaq.com/api/analyst/${stockSym}/targets`;
+            const r = await fetch(url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json',
+                'Origin': 'https://www.nasdaq.com',
+                'Referer': 'https://www.nasdaq.com/',
+              },
+            });
+            if (!r.ok) {
+              return { symbol, error: `NASDAQ 返回 ${r.status}` };
+            }
+            const json = await r.json();
+            // NASDAQ 返回结构: data.lastTradePrice / data.averageTargetPrice / etc
+            const data = json?.data || {};
+            return {
+              symbol,
+              targets: {
+                lastTrade: data.lastTradePrice || data.lastTrade || null,
+                average: data.averageTargetPrice || data.averageTarget || null,
+                high: data.highTargetPrice || data.highTarget || null,
+                low: data.lowTargetPrice || data.lowTarget || null,
+                rating: data.consensusRating || data.recommendation || null,
+                numAnalysts: data.numberOfRatings || data.numAnalysts || null,
+                // 个数 (强买/买/持/卖)
+                strongBuy: data.strongBuy || null,
+                buy: data.buy || null,
+                hold: data.hold || null,
+                sell: data.sell || null,
+                strongSell: data.strongSell || null,
+              },
+              raw: json,  // 调试用 (生产可删)
+              fetchedAt: new Date().toISOString(),
+              source: 'NASDAQ',
+            };
+          } catch (e) {
+            return { symbol, error: `分析师请求失败: ${e.message}` };
+          }
+        }
+
         // ============ 📅 v10.7.9.33: 重要日历 (财报 + FOMC) ============
         // 用法: ?symbols=CALENDAR:NVDA,META,TSM,...
         // 返回: { events: [{type:'earnings'|'fomc', date, time, symbol?, ...}], cachedUntil }
