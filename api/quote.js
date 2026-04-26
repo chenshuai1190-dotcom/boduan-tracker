@@ -114,6 +114,83 @@ export default async function handler(req, res) {
           }
         }
 
+        // ============ 📅 v10.7.9.33: 重要日历 (财报 + FOMC) ============
+        // 用法: ?symbols=CALENDAR:NVDA,META,TSM,...
+        // 返回: { events: [{type:'earnings'|'fomc', date, time, symbol?, ...}], cachedUntil }
+        if (symbol.startsWith('CALENDAR')) {
+          try {
+            // 解析参数: CALENDAR:NVDA,META,TSM 或 CALENDAR (无 watchlist)
+            const watchSymbols = symbol.includes(':') ? symbol.split(':')[1].split('|') : [];
+
+            // 时间范围: 今天 → 14 天后
+            const today = new Date();
+            const fromDate = today.toISOString().slice(0, 10);
+            const to = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+            const toDate = to.toISOString().slice(0, 10);
+
+            // 1. 财报日历 (EODHD)
+            const events = [];
+            if (watchSymbols.length > 0) {
+              const earningsSymbols = watchSymbols.map(s => `${s}.US`).join(',');
+              const earningsUrl = `https://eodhd.com/api/calendar/earnings?api_token=${eodhdKey}&symbols=${earningsSymbols}&from=${fromDate}&to=${toDate}&fmt=json`;
+              try {
+                const r = await fetch(earningsUrl);
+                if (r.ok) {
+                  const json = await r.json();
+                  const earnings = json?.earnings || [];
+                  for (const e of earnings) {
+                    events.push({
+                      type: 'earnings',
+                      date: e.report_date,
+                      time: e.before_after_market || 'after market',  // before_market | after_market | during_market
+                      symbol: (e.code || '').replace('.US', ''),
+                      epsEstimate: e.estimate,
+                      epsActual: e.actual,
+                      epsDiff: e.difference,
+                    });
+                  }
+                }
+              } catch (e) { /* ignore */ }
+            }
+
+            // 2. FOMC 议息日 (硬编码 2026 年所有日期)
+            // 数据来源: https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
+            const fomc2026 = [
+              { date: '2026-01-28', time: '14:00 ET' },
+              { date: '2026-03-18', time: '14:00 ET' },
+              { date: '2026-04-30', time: '14:00 ET' },
+              { date: '2026-06-17', time: '14:00 ET' },
+              { date: '2026-07-29', time: '14:00 ET' },
+              { date: '2026-09-16', time: '14:00 ET' },
+              { date: '2026-10-28', time: '14:00 ET' },
+              { date: '2026-12-09', time: '14:00 ET' },
+            ];
+            for (const f of fomc2026) {
+              if (f.date >= fromDate && f.date <= toDate) {
+                events.push({
+                  type: 'fomc',
+                  date: f.date,
+                  time: f.time,
+                  title: 'FOMC 议息',
+                  detail: '美联储利率决议',
+                });
+              }
+            }
+
+            // 按日期排序
+            events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+            return {
+              symbol,
+              events,
+              fetchedAt: new Date().toISOString(),
+              source: 'EODHD-Calendar + FOMC',
+            };
+          } catch (e) {
+            return { symbol, error: `日历请求失败: ${e.message}` };
+          }
+        }
+
         // ============ 三大指数: 用 ETF 替代真指数 (实时数据) ============
         // v10.7.9.14: 用 EODHD Live v2 (批量 /api/us-quote-delayed)
         //   一次请求拿 SPY + QQQ
