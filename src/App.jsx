@@ -514,7 +514,7 @@ function MainApp({ user, onLogout }) {
   // 三大指数(DIA/QQQ/SPY 当天分时)
   const [indices, setIndices] = useState([]);
 
-  // 📅 v10.7.9.37: 重要日历 (财报 + FOMC)
+  // 📅 v10.7.9.38: 重要日历 (财报 + FOMC)
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);  // 点击展开的事件
 
@@ -526,7 +526,7 @@ function MainApp({ user, onLogout }) {
   const LEVERAGED_ETFS = ['TQQQ', 'SQQQ', 'QLD', 'PSQ', 'SOXL', 'SOXS', 'UPRO', 'SPXU', 'UDOW', 'SDOW', 'TNA', 'TZA', 'FAS', 'FAZ', 'TMF', 'TMV', 'LABU', 'LABD'];
   
   // 预警通知开关 (持久化 localStorage)
-  // v10.7.9.37: 用户折叠后记住, 下次打开还是折叠
+  // v10.7.9.38: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
     try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
   });
@@ -689,7 +689,7 @@ function MainApp({ user, onLogout }) {
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
 
-  // 🗑 v10.7.9.37: 通用删除确认 Modal (替换 window.confirm)
+  // 🗑 v10.7.9.38: 通用删除确认 Modal (替换 window.confirm)
   // 用法: showConfirm({ title, desc, info, confirmText, onConfirm })
   const [confirmModal, setConfirmModal] = useState(null);
   const showConfirm = useCallback((opts) => {
@@ -705,7 +705,7 @@ function MainApp({ user, onLogout }) {
     });
   }, []);
 
-  // 💼 v10.7.9.37: 摊薄成本计算器 (独立模块, localStorage 存)
+  // 💼 v10.7.9.38: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -945,7 +945,7 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlistStructureSig, cloudLoading]);
 
-  // ☁️ v10.7.9.37: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
+  // ☁️ v10.7.9.38: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
   // 严格放在 cloudLoading 之后, 避免 React state hoisting 错乱
   // 启动时拉云端覆盖本地; 本地有数据但云端为空 → 自动迁移上云
   useEffect(() => {
@@ -991,12 +991,12 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading]);
 
-  // 📅 v10.7.9.37: 重要日历 (每天拉 1 次, 缓存 24h)
+  // 📅 v10.7.9.38: 重要日历 (每天拉 1 次, 缓存 24h)
   useEffect(() => {
     if (cloudLoading) return;
     if (watchlist.length === 0) return;
 
-    // v10.7.9.37: 取消缓存, 每次进 App 都拉新数据
+    // v10.7.9.38: 取消缓存, 每次进 App 都拉新数据
     // (NASDAQ 接口免费 + 财报状态会变 (EPS 实际值刷新))
     (async () => {
       try {
@@ -1115,7 +1115,7 @@ function MainApp({ user, onLogout }) {
     .filter(s => s.alert)
     .sort((a, b) => b.alert.level - a.alert.level), [watchlistAlerts]);
 
-  // 🔔 自动检测新预警 (v10.7.9.37): 新股票 / 等级升级 → 自动展开
+  // 🔔 自动检测新预警 (v10.7.9.38): 新股票 / 等级升级 → 自动展开
   useEffect(() => {
     if (triggeredAlerts.length === 0) return;
     // 检查当前每只预警股票 vs lastSeenAlerts
@@ -1665,7 +1665,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.37: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
+  // v10.7.9.38: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
   //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
   //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
   //         WebSocket 断了 → 启动 REST 兜底
@@ -1782,7 +1782,7 @@ function MainApp({ user, onLogout }) {
                   if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
                   const oldPrice = idx.price || 0;
                   if (oldPrice === newPrice) return idx;
-                  // 重算当日涨跌 (v10.7.9.37: 跟关注列表逻辑完全一致)
+                  // 重算当日涨跌 (v10.7.9.38: 跟关注列表逻辑完全一致)
                   // ⚠️ pc fallback 必须是 0 (不能用 oldPrice, 否则算出来 % 一直≈0 乱跳)
                   const pc = idx.previousClose || 0;
                   const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (idx.changePercent || 0);
@@ -1813,7 +1813,7 @@ function MainApp({ user, onLogout }) {
                   });
                 }, 500);
 
-                // 当日涨跌重算 (v10.7.9.37: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
+                // 当日涨跌重算 (v10.7.9.38: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
                 const pc = s.previousClose || 0;
                 const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (s.changePercent || 0);
 
@@ -2153,14 +2153,14 @@ function MainApp({ user, onLogout }) {
             const realizedOnly = tradesByStock.reduce((sum, g) => sum + g.realizedPnl, 0);
             const isRealizedProfit = realizedOnly >= 0;
 
-            // 💼 v10.7.9.37: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
+            // 💼 v10.7.9.38: 持仓总盈亏 (浮动盈亏 = 总市值 - 总成本)
             //   首页头部用这个 (跟用户实际"账户感觉"一致)
             //   交易 tab 的波段卡仍用 realizedOnly (波段=已实现)
             const holdingPnl = totalMV - totalCost;
             const holdingPnlPct = totalCost > 0 ? holdingPnl / totalCost : 0;
             const isHoldingProfit = holdingPnl >= 0;
 
-            // 📈 v10.7.9.37: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
+            // 📈 v10.7.9.38: 当日盈亏 (按持仓数量 × (当前价 - 昨收) 计算)
             const todayPnl = watchlist.reduce((sum, s) => {
               if (!s.shares || !s.previousClose || !s.price) return sum;
               return sum + s.shares * (s.price - s.previousClose);
@@ -2207,7 +2207,7 @@ function MainApp({ user, onLogout }) {
                 <div className="text-[11px] tabular-nums mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                   ≈ ¥{(totalMV * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万 <span style={{ opacity: 0.6 }}>· 汇率 {usdRate.toFixed(2)}</span>
                 </div>
-                {/* 当日盈亏 (v10.7.9.37: 加 CNY 副显示) */}
+                {/* 当日盈亏 (v10.7.9.38: 加 CNY 副显示) */}
                 {yesterdayMV > 0 && (
                   <div className={`text-[12px] font-black tabular-nums mt-1 ${isTodayProfit ? 'text-rose-400' : 'text-emerald-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                     今日 {isTodayProfit ? '+' : ''}${fmt(Math.abs(todayPnl), 0)}
@@ -2220,7 +2220,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.37: 按 tab 切换) */}
+                {/* 底行: 持仓总盈亏 / 波段总盈亏 / 活跃 (v10.7.9.38: 按 tab 切换) */}
                 <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.15)' }}>
                   {activeTab === 'trades' ? (
                     // 交易 tab: 波段总盈亏 (已实现, 跟之前一样)
@@ -2564,27 +2564,24 @@ function MainApp({ user, onLogout }) {
           )}
         </div>
 
-        {/* 📅 v10.7.9.37: 重要日历 (时间轴风格) */}
+        {/* 📅 v10.7.9.38: 重要日历 (时间轴风格) */}
         {(() => {
-          // 只显示未来 7 天
+          // v10.7.9.38: 15 天范围 + V1 日期格式 (今天 / M/D)
           const today = new Date().toISOString().slice(0, 10);
-          const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          const fifteenDaysLater = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const futureEvents = (calendarEvents || [])
-            .filter(e => e.date >= today && e.date <= sevenDaysLater)
-            .slice(0, 6);  // 最多 6 个
+            .filter(e => e.date >= today && e.date <= fifteenDaysLater)
+            .slice(0, 10);  // 最多 10 个
 
           if (futureEvents.length === 0) return null;
 
-          // 计算每个事件的"几天后"
-          const todayDate = new Date(today);
+          // V1 日期格式: 今天 / 4/28 / 5/1
           const dayLabel = (dateStr) => {
             const d = new Date(dateStr);
+            const todayDate = new Date(today);
             const diff = Math.round((d - todayDate) / (24 * 60 * 60 * 1000));
             if (diff === 0) return '今天';
-            if (diff === 1) return '明天';
-            if (diff === 2) return '后天';
-            const weekDay = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
-            return `周${weekDay}`;
+            return `${d.getMonth() + 1}/${d.getDate()}`;
           };
 
           // 类型颜色
@@ -2598,7 +2595,7 @@ function MainApp({ user, onLogout }) {
           return (
             <div className="bg-white rounded-2xl shadow p-4 mb-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-[12px] font-bold text-slate-700">📅 重要日历 · 7 天内</div>
+                <div className="text-[12px] font-bold text-slate-700">📅 重要日历 · 15 天内</div>
                 <div className="text-[10px] text-slate-400">点圆点看详情</div>
               </div>
               {/* 时间轴 */}
@@ -3090,7 +3087,7 @@ function MainApp({ user, onLogout }) {
                                   'transparent',
                     }}
                   >
-                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.37) */}
+                    {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.38) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
                       {/* 左: 代码 + 名称 */}
                       <div className="min-w-0" style={{ minWidth: '64px' }}>
@@ -3333,7 +3330,7 @@ function MainApp({ user, onLogout }) {
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {wavesByStock.length > 0 && (
           <>
-            {/* 顶部总览 - 白卡极简 (v10.7.9.37) */}
+            {/* 顶部总览 - 白卡极简 (v10.7.9.38) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
               style={{
@@ -3516,7 +3513,7 @@ function MainApp({ user, onLogout }) {
                           </div>
                         </div>
 
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.37) */}
+                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.38) */}
                         <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
@@ -3941,7 +3938,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* ============ 💼 摊薄成本计算器 (v10.7.9.37, iOS 风格) ============ */}
+        {/* ============ 💼 摊薄成本计算器 (v10.7.9.38, iOS 风格) ============ */}
         {(() => {
           const allSymbols = Object.keys(costBasisData);
           const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
@@ -4013,7 +4010,7 @@ function MainApp({ user, onLogout }) {
                         {stats.shares} 股
                       </div>
                     </div>
-                    {/* 两种成本对比 (v10.7.9.37: V2 替换 sub 字, 显示涨幅%) */}
+                    {/* 两种成本对比 (v10.7.9.38: V2 替换 sub 字, 显示涨幅%) */}
                     {(() => {
                       // 从关注列表拿现价
                       const watchStock = watchlist.find(w => w.symbol === activeSymbol);
@@ -4036,7 +4033,7 @@ function MainApp({ user, onLogout }) {
                             <div className="font-black tabular-nums leading-tight mt-1" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '22px', color: '#d97706' }}>
                               ${stats.effectiveCost.toFixed(2)}
                             </div>
-                            {/* v10.7.9.37: 涨幅% + 现价 一行紧凑 (11px 长股价也能装下) */}
+                            {/* v10.7.9.38: 涨幅% + 现价 一行紧凑 (11px 长股价也能装下) */}
                             {hasPrice ? (
                               <div className="mt-0.5" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                 <span className={isUp ? 'text-rose-600' : 'text-emerald-600'}>
@@ -4062,7 +4059,7 @@ function MainApp({ user, onLogout }) {
                       <div className="font-black tabular-nums text-slate-900 mt-1 text-[18px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
                         ${stats.totalCost.toFixed(0)}
                       </div>
-                      {/* v10.7.9.37: CNY 副显示 */}
+                      {/* v10.7.9.38: CNY 副显示 */}
                       <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>
                         ≈ ¥{(stats.totalCost * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </div>
@@ -4072,7 +4069,7 @@ function MainApp({ user, onLogout }) {
                       <div className={`font-black tabular-nums mt-1 text-[18px] ${stats.realizedPnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                         {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
                       </div>
-                      {/* v10.7.9.37: CNY 副显示 */}
+                      {/* v10.7.9.38: CNY 副显示 */}
                       <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>
                         ≈ {stats.realizedPnl >= 0 ? '+' : '-'}¥{(Math.abs(stats.realizedPnl) * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </div>
@@ -6598,14 +6595,23 @@ function MainApp({ user, onLogout }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.37
+                  v10.7.9.38
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.37', date: '2026-04-26', latest: true,
+                    ver: 'v10.7.9.38', date: '2026-04-26', latest: true,
+                    items: [
+                      '🎨 重要日历同步优化',
+                      '  - 时间范围 7 天 → 15 天',
+                      '  - 日期格式: 周三/周四 → 4/28 / 5/2 (M/D)',
+                      '  - Modal 图标: 📊/🏛 emoji → 圆形渐变 $/%',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.37', date: '2026-04-26',
                     items: [
                       '🐛 修 重要日历 Modal 顶部时段还是英文 (上次漏改一处)',
                       '现在 3 处都做了兼容: 小卡片 / Modal 顶部 / Modal 详情',
@@ -7178,7 +7184,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.37</div>
+                <div>📊 版本:v10.7.9.38</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -7187,7 +7193,7 @@ function MainApp({ user, onLogout }) {
         )}
         {/* ====== 设置 tab 结束 ====== */}
 
-        {/* === 🗑 通用删除确认 Modal (v10.7.9.37) === */}
+        {/* === 🗑 通用删除确认 Modal (v10.7.9.38) === */}
         {confirmModal && (
           <div
             className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -7260,7 +7266,7 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* === 📅 v10.7.9.37: 事件详情 Modal === */}
+        {/* === 📅 v10.7.9.38: 事件详情 Modal === */}
         {selectedEvent && (
           <div
             className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -7274,10 +7280,21 @@ function MainApp({ user, onLogout }) {
             >
               <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
               <div className="p-6">
-                {/* 图标 + 类型 */}
+                {/* 图标 + 类型 (v10.7.9.38: M1 圆形渐变 $/% 字符) */}
                 <div className="text-center mb-3">
-                  <div className="text-[36px] mb-2">
-                    {selectedEvent.type === 'earnings' ? '📊' : selectedEvent.type === 'fomc' ? '🏛' : '📅'}
+                  <div className="mx-auto mb-3 inline-flex items-center justify-center" style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    fontSize: '28px',
+                    fontWeight: 900,
+                    background: selectedEvent.type === 'earnings'
+                      ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                      : 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
+                    color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af',
+                    border: selectedEvent.type === 'earnings' ? '2px solid #fbbf24' : '2px solid #60a5fa',
+                  }}>
+                    {selectedEvent.type === 'earnings' ? '$' : selectedEvent.type === 'fomc' ? '%' : '!'}
                   </div>
                   <div className="text-[10px] uppercase tracking-widest font-bold" style={{ color: selectedEvent.type === 'earnings' ? '#d97706' : '#1e40af' }}>
                     {selectedEvent.type === 'earnings' ? '财报日' : selectedEvent.type === 'fomc' ? '美联储议息' : '事件'}
