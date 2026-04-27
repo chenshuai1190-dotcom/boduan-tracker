@@ -125,8 +125,8 @@ export default async function handler(req, res) {
             if (!stockSym) {
               return { symbol, error: '缺少股票代码' };
             }
-            // 完全不用 filter, 拉全部 - 排查 Earnings 为空问题
-            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&fmt=json`;
+            // 用 filter 拉需要的 sections (省 API 配额)
+            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
             const r = await fetch(url);
             if (!r.ok) {
               return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
@@ -136,27 +136,15 @@ export default async function handler(req, res) {
             const ratings = data.AnalystRatings || {};
             const general = data.General || {};
             const sharesStats = data.SharesStats || {};
-            // v10.7.9.41: 解析最近一次财报 (EPS + 营收 实际/预期)
-            // 调试: 打印 EODHD 返回结构 (排查 earnings = null)
-            console.log('[Fundamentals]', stockSym, 'data keys:', Object.keys(data));
-            console.log('[Fundamentals]', stockSym, 'Earnings keys:', Object.keys(data.Earnings || {}));
-            console.log('[Fundamentals]', stockSym, 'Financials keys:', Object.keys(data.Financials || {}));
-
-            const earningsHistoryObj = data.Earnings?.History || {};  // 对象 {date: {...}}
-            const earningsTrendObj = data.Earnings?.Trend || {};     // 对象 {date: {...}}
-            const incomeStmtObj = data.Financials?.Income_Statement?.quarterly || {};  // 季度营收
-
-            console.log('[Fundamentals]', stockSym, 'historyType:', Array.isArray(earningsHistoryObj) ? 'array' : 'object', 'len:', Array.isArray(earningsHistoryObj) ? earningsHistoryObj.length : Object.keys(earningsHistoryObj).length);
+            // 解析最近一次财报 (EPS + 营收 实际/预期)
+            const earningsHistoryObj = data.Earnings?.History || {};
+            const earningsTrendObj = data.Earnings?.Trend || {};
+            const incomeStmtObj = data.Financials?.Income_Statement?.quarterly || {};
 
             // 找最新已发布财报 (按 reportDate 倒序, 取 epsActual !== null 的第一个)
-            // 兼容 数组 / 对象两种结构
             const earningsHistoryArr = (Array.isArray(earningsHistoryObj) ? earningsHistoryObj : Object.values(earningsHistoryObj))
               .filter(e => e && e.reportDate)
               .sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
-            console.log('[Fundamentals]', stockSym, 'earnings arr length:', earningsHistoryArr.length);
-            if (earningsHistoryArr[0]) {
-              console.log('[Fundamentals]', stockSym, 'sample:', JSON.stringify(earningsHistoryArr[0]).substring(0, 300));
-            }
             const latestEarnings = earningsHistoryArr.find(e => e.epsActual != null) || null;
             const upcomingEarnings = earningsHistoryArr.find(e => e.epsActual == null) || null;
             // 上一季 (用于同比)
@@ -185,16 +173,17 @@ export default async function handler(req, res) {
               }) || null;
             })();
 
-            // Earnings::Trend: 找营收预期 (period = "-1q" 上次已发布 / "0q" 当前 / "+1q" 下季度)
-            const trendArr = Object.values(earningsTrendObj).filter(t => t);
-            // -1q: 上次已公布的季度 (latestEarnings 对应的预期)
+            // Earnings::Trend: 找营收预期
+            // ⚠️ EODHD 返回多条 0q (历史每次预期), 取 date 最新的
+            const trendArr = (Array.isArray(earningsTrendObj) ? earningsTrendObj : Object.values(earningsTrendObj))
+              .filter(t => t)
+              .sort((a, b) => (b.date || '').localeCompare(a.date || ''));  // 按 date 倒序
+            // -1q: 上次已公布的季度 (latestEarnings 对应的预期, 取最新一条)
             const lastTrend = trendArr.find(t => t.period === '-1q') || null;
-            // 0q: 当前 (即将公布) (upcomingEarnings 对应的预期)
+            // 0q: 当前 (即将公布) (upcomingEarnings 对应的预期, 取最新一条)
             const currentTrend = trendArr.find(t => t.period === '0q') || null;
-            // +1q: 下个季度
+            // +1q: 下个季度 (取最新一条)
             const nextTrend = trendArr.find(t => t.period === '+1q') || null;
-            // 调试: 看 EODHD 返回什么 trend periods
-            console.log('[Fundamentals]', stockSym, 'trends:', trendArr.map(t => ({ period: t.period, date: t.date, revEst: t.revenueEstimateAvg })));
 
             // EODHD Rating 是 1-5 (1 = Strong Sell, 5 = Strong Buy)
             const ratingNum = parseFloat(ratings.Rating) || null;
@@ -296,23 +285,7 @@ export default async function handler(req, res) {
               } : null,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
-              _apiVersion: 'fix12-no-filter',  // 用来确认部署的是不是最新
-              // 🔍 调试信息 (前端 F12 看)
-              _debug: {
-                dataKeys: Object.keys(data),
-                hasEarnings: !!data.Earnings,
-                earningsKeys: Object.keys(data.Earnings || {}),
-                hasFinancials: !!data.Financials,
-                financialsKeys: Object.keys(data.Financials || {}),
-                historyType: Array.isArray(earningsHistoryObj) ? 'array' : 'object',
-                historyLen: Array.isArray(earningsHistoryObj) ? earningsHistoryObj.length : Object.keys(earningsHistoryObj).length,
-                trendLen: trendArr.length,
-                trendPeriods: trendArr.map(t => t.period),
-                latestEarningsIsNull: latestEarnings === null,
-                upcomingEarningsIsNull: upcomingEarnings === null,
-                sampleEarning: earningsHistoryArr[0] ? Object.keys(earningsHistoryArr[0]) : null,
-                sampleTrend: trendArr[0] ? Object.keys(trendArr[0]) : null,
-              },
+              _apiVersion: 'fix13',
             };
           } catch (e) {
             return { symbol, error: `Fundamentals 请求失败: ${e.message}` };
