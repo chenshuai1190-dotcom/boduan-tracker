@@ -1041,7 +1041,7 @@ function MainApp({ user, onLogout }) {
       return;
     }
     // 只对财报事件拉 (FOMC 不需要)
-    if (selectedEvent.type !== 'earnings' || !selectedEvent.symbol) {
+    if ((selectedEvent.type !== 'earnings' && selectedEvent.type !== 'stock') || !selectedEvent.symbol) {
       setAnalystTargets(null);
       setAnalystHighlights(null);
       setAnalystGeneral(null);
@@ -3197,8 +3197,21 @@ function MainApp({ user, onLogout }) {
                   >
                     {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.41) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
-                      {/* 左: 代码 + 名称 */}
-                      <div className="min-w-0" style={{ minWidth: '64px' }}>
+                      {/* 左: 代码 + 名称 (v10.7.9.40 fix27: 点击弹股票详情 Modal) */}
+                      <div
+                        className="min-w-0 cursor-pointer active:opacity-60 transition"
+                        style={{ minWidth: '64px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // 弹股票详情 Modal (复用 selectedEvent, type='stock')
+                          setSelectedEvent({
+                            type: 'stock',
+                            symbol: s.symbol,
+                            name: s.name,
+                            date: new Date().toISOString().slice(0, 10),
+                          });
+                        }}
+                      >
                         <div className="font-black text-[17px] leading-tight tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
                         <div className="text-[10px] truncate leading-tight mt-0.5 text-slate-400" style={{ maxWidth: '70px' }}>{s.name}</div>
                       </div>
@@ -7380,7 +7393,7 @@ function MainApp({ user, onLogout }) {
                 {/* 图标 + 类型 (v10.7.9.41: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
                 <div className="text-center mb-3">
                   {/* Logo: 直接拼 EODHD CDN URL (不等 API), 加载失败 fallback 圆形 */}
-                  {selectedEvent.symbol && selectedEvent.type === 'earnings' ? (
+                  {selectedEvent.symbol && (selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') ? (
                     <img
                       src={analystGeneral?.logoURL || `https://eodhd.com/img/logos/US/${selectedEvent.symbol.toLowerCase()}.png`}
                       alt={selectedEvent.symbol}
@@ -7404,14 +7417,14 @@ function MainApp({ user, onLogout }) {
                   ) : null}
                   {/* Fallback 圆形 (Logo 加载失败 / FOMC / CPI / 非农) */}
                   <div className="mx-auto mb-3" style={{
-                    display: (selectedEvent.type === 'earnings' && selectedEvent.symbol) ? 'none' : 'inline-flex',
+                    display: ((selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') && selectedEvent.symbol) ? 'none' : 'inline-flex',
                     alignItems: 'center', justifyContent: 'center',
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
                     fontSize: '28px',
                     fontWeight: 900,
-                    background: selectedEvent.type === 'earnings' ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                    background: (selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
                       : selectedEvent.type === 'fomc' ? 'linear-gradient(135deg, #dbeafe, #bfdbfe)'
                       : selectedEvent.type === 'cpi' ? 'linear-gradient(135deg, #f3e8ff, #e9d5ff)'
                       : selectedEvent.type === 'nonfarm' ? 'linear-gradient(135deg, #cffafe, #a5f3fc)'
@@ -7421,13 +7434,13 @@ function MainApp({ user, onLogout }) {
                       : selectedEvent.type === 'cpi' ? '#7c3aed'
                       : selectedEvent.type === 'nonfarm' ? '#0891b2'
                       : '#475569',
-                    border: '2px solid ' + (selectedEvent.type === 'earnings' ? '#fbbf24'
+                    border: '2px solid ' + ((selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') ? '#fbbf24'
                       : selectedEvent.type === 'fomc' ? '#60a5fa'
                       : selectedEvent.type === 'cpi' ? '#a78bfa'
                       : selectedEvent.type === 'nonfarm' ? '#22d3ee'
                       : '#cbd5e1'),
                   }}>
-                    {selectedEvent.type === 'earnings' ? '$'
+                    {(selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') ? '$'
                       : selectedEvent.type === 'fomc' ? '%'
                       : selectedEvent.type === 'cpi' ? 'C'
                       : selectedEvent.type === 'nonfarm' ? 'J'
@@ -7441,6 +7454,7 @@ function MainApp({ user, onLogout }) {
                       : '#475569',
                   }}>
                     {selectedEvent.type === 'earnings' ? '财报日'
+                      : selectedEvent.type === 'stock' ? '股票详情'
                       : selectedEvent.type === 'fomc' ? '美联储议息'
                       : selectedEvent.type === 'cpi' ? '通胀数据 CPI'
                       : selectedEvent.type === 'nonfarm' ? '就业数据'
@@ -7467,7 +7481,7 @@ function MainApp({ user, onLogout }) {
                 </div>
 
                 {/* 详情内容 (v10.7.9.41: 完整业绩版) */}
-                {selectedEvent.type === 'earnings' && (() => {
+                {(selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') && (() => {
                   const stockInfo = watchlist.find(s => s.symbol === selectedEvent.symbol);
                   const isHolding = stockInfo && stockInfo.shares > 0;
 
