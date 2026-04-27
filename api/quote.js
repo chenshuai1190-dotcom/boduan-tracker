@@ -416,6 +416,7 @@ export default async function handler(req, res) {
               events,
               fetchedAt: new Date().toISOString(),
               source: 'NASDAQ + FOMC',
+              _apiVersion: 'fix16',
             };
           } catch (e) {
             return { symbol, error: `日历请求失败: ${e.message}` };
