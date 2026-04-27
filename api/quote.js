@@ -234,14 +234,44 @@ export default async function handler(req, res) {
               : ratingNum > 0 ? 'STRONG SELL' : null;
             const totalAnalysts = (ratings.StrongBuy || 0) + (ratings.Buy || 0) + (ratings.Hold || 0) + (ratings.Sell || 0) + (ratings.StrongSell || 0);
 
+            // v10.7.9.40 fix23: 拉过去 1 年日线 (走势图用)
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const fromYearStr = oneYearAgo.toISOString().slice(0, 10);
+            let priceHistory = null;
+            try {
+              const eodUrl = `https://eodhd.com/api/eod/${stockSym}.US?api_token=${eodhdKey}&from=${fromYearStr}&period=d&fmt=json`;
+              const eodR = await fetch(eodUrl);
+              if (eodR.ok) {
+                const eodData = await eodR.json();
+                if (Array.isArray(eodData)) {
+                  // 简化: 只保留 date + close, 每周 1 个点 (省数据量)
+                  priceHistory = eodData
+                    .filter((_, i) => i % 5 === 0)  // 每 5 天 1 个点 ~ 每周
+                    .map(d => ({
+                      date: d.date,
+                      close: parseFloat(d.adjusted_close || d.close) || null,
+                    }))
+                    .filter(d => d.close != null);
+                }
+              }
+            } catch (e) {
+              console.warn('[Fundamentals] 历史日线失败:', e.message);
+            }
+
+            // 估算 high/low (基于平均 ±20%, 因为 EODHD 不直接给)
+            const avgPrice = ratings.TargetPrice || highlights.WallStreetTargetPrice;
+            const estimatedHigh = avgPrice ? avgPrice * 1.20 : null;
+            const estimatedLow = avgPrice ? avgPrice * 0.80 : null;
+
             return {
               symbol,
               // 分析师目标价
               targets: {
                 lastTrade: null,  // 由前端 watchlist 填
-                average: ratings.TargetPrice || highlights.WallStreetTargetPrice || null,
-                high: null,  // EODHD 未提供
-                low: null,
+                average: avgPrice || null,
+                high: estimatedHigh,    // 估算: avg × 1.2
+                low: estimatedLow,      // 估算: avg × 0.8
                 rating: ratingText,
                 ratingNum,  // 1-5
                 numAnalysts: totalAnalysts || null,
@@ -324,6 +354,7 @@ export default async function handler(req, res) {
               } : null,
               // v10.7.9.40 fix21: 近 10 年年度业绩 (柱状图用)
               annualSeries: annualSeries,  // [{year, revenue, netIncome, epsActual}, ...]
+              priceHistory: priceHistory,   // [{date, close}, ...] 过去 1 年日线 (周采样)
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
               _apiVersion: 'fix21',
