@@ -7820,9 +7820,31 @@ function MainApp({ user, onLogout }) {
                           const xStep = (cx - 10) / (history.length - 1);
                           pathPoints = history.map((d, i) => ({ x: 10 + i * xStep, y: yScale(d.close) }));
                           var currentY = yScale(last);
-                          var highY = yScale(high);
-                          var lowY = yScale(low);
-                          var avgY = yScale(avg);
+                          // 标签 y 坐标: 真实位置算出后, 强制最小间距 28px (避免重叠)
+                          var rawHighY = yScale(high);
+                          var rawLowY = yScale(low);
+                          var rawAvgY = yScale(avg);
+                          var highY = rawHighY;
+                          var avgY = rawAvgY;
+                          var lowY = rawLowY;
+                          const MIN_GAP = 28;  // 标签最小间距
+                          // 平均如果靠近高 → 平均向下推
+                          if (avgY - highY < MIN_GAP) avgY = highY + MIN_GAP;
+                          // 低如果靠近平均 → 低向下推
+                          if (lowY - avgY < MIN_GAP) lowY = avgY + MIN_GAP;
+                          // 最后整体限制在画布范围内 (20-160)
+                          if (lowY > 160) {
+                            const overflow = lowY - 160;
+                            highY -= overflow;
+                            avgY -= overflow;
+                            lowY -= overflow;
+                          }
+                          if (highY < 20) {
+                            const lack = 20 - highY;
+                            highY += lack;
+                            avgY += lack;
+                            lowY += lack;
+                          }
                         }
 
                         return (
