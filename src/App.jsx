@@ -1069,6 +1069,7 @@ function MainApp({ user, onLogout }) {
             const earnings = evIsFuture && a.upcomingEarnings ? a.upcomingEarnings : a.earnings;
             if (earnings) setAnalystEarnings({ ...earnings, isFuture: evIsFuture });
             console.log('[Fundamentals]', { targets: a.targets, highlights: a.highlights, earnings: a.earnings, upcoming: a.upcomingEarnings });
+            console.log('[Fundamentals DEBUG]', a._debug);
           } else {
             console.warn('[Fundamentals] 没拿到数据:', a);
           }
