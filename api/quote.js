@@ -117,30 +117,37 @@ export default async function handler(req, res) {
         // ============ 📊 v10.7.9.39: 分析师目标价 (NASDAQ 免费) ============
         // 用法: ?symbols=ANALYST:NVDA
         // ============ 🌐 v10.7.9.40 fix38: 翻译端点 (Google Translate 免费) ============
-        // 用法: ?symbols=TRANSLATE:base64编码的英文(可包含||分隔多条)
         if (symbol.startsWith('TRANSLATE:')) {
           try {
-            const encoded = symbol.split(':').slice(1).join(':');  // 防止内容含 :
-            const text = decodeURIComponent(escape(atob(encoded)));  // base64 → utf8
-            // 多条用 \n||\n 分隔批量翻译
+            let encoded = symbol.split(':').slice(1).join(':');
+            // URL decode (前端做了 encodeURIComponent)
+            try { encoded = decodeURIComponent(encoded); } catch {}
+            // base64 → utf-8 (用 Buffer, Node.js 兼容)
+            const text = Buffer.from(encoded, 'base64').toString('utf-8');
+            console.log('[Translate] 待翻译长度:', text.length, '前 100 字符:', text.slice(0, 100));
+            
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
             const r = await fetch(url, {
               headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; Bottomline/1.0)',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               },
             });
             if (!r.ok) {
-              return { symbol, error: `Translate 失败 ${r.status}`, original: text };
+              console.warn('[Translate] Google 返回', r.status);
+              return { symbol, error: `Translate 失败 ${r.status}`, original: text.slice(0, 50) };
             }
             const json = await r.json();
-            // 返回: [[["翻译1", "原文1"], ["翻译2", "原文2"]], ...]
-            const translatedParts = (json[0] || []).map(item => item[0]).join('');
+            // 返回结构: [[["翻译1", "原文1", null, null, X], ["翻译2", "原文2", ...], ...], ...]
+            const sentences = json[0] || [];
+            const translatedParts = sentences.map(item => item[0] || '').join('');
+            console.log('[Translate] 返回长度:', translatedParts.length);
             return {
               symbol,
               translated: translatedParts,
               fetchedAt: new Date().toISOString(),
             };
           } catch (e) {
+            console.warn('[Translate] 错误:', e.message);
             return { symbol, error: `Translate 错误: ${e.message}` };
           }
         }
