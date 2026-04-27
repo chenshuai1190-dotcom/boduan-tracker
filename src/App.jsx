@@ -7666,22 +7666,34 @@ function MainApp({ user, onLogout }) {
                         const revBeat = revSurp != null && revSurp > 0;
                         const revMiss = revSurp != null && revSurp < 0;
                         // 格式化金额 (支持币种, 非美元加 USD 估算)
-                        // v10.7.9.40 fix31: TSM 等台股 用 NT$, 港股 HK$
-                        const currencyCode = analystGeneral?.currencyCode || 'USD';
-                        const currencySymbol = analystGeneral?.currencySymbol || '$';
-                        // 汇率估算 (粗略, 用于 ≈ $X 亿 标注)
-                        const FX_TO_USD = {
-                          'USD': 1,
-                          'TWD': 0.031,    // 1 NT$ ≈ 0.031 USD
-                          'HKD': 0.128,    // 1 HK$ ≈ 0.128 USD
-                          'JPY': 0.0066,   // 1 ¥ ≈ 0.0066 USD
-                          'EUR': 1.08,
-                          'GBP': 1.27,
-                          'CNY': 0.14,     // 1 元 ≈ 0.14 USD
-                          'KRW': 0.00075,
+                        // v10.7.9.40 fix34: 财报币种用 country 判断 (ADR CurrencyCode=USD 但财报实际是本币)
+                        // 国家 → 财报币种映射
+                        const COUNTRY_TO_CURRENCY = {
+                          'Taiwan': { code: 'TWD', symbol: 'NT$', rate: 0.031 },
+                          'Hong Kong': { code: 'HKD', symbol: 'HK$', rate: 0.128 },
+                          'China': { code: 'CNY', symbol: '¥', rate: 0.14 },
+                          'Japan': { code: 'JPY', symbol: '¥', rate: 0.0066 },
+                          'South Korea': { code: 'KRW', symbol: '₩', rate: 0.00075 },
+                          'United Kingdom': { code: 'GBP', symbol: '£', rate: 1.27 },
+                          'Germany': { code: 'EUR', symbol: '€', rate: 1.08 },
+                          'France': { code: 'EUR', symbol: '€', rate: 1.08 },
+                          'Italy': { code: 'EUR', symbol: '€', rate: 1.08 },
+                          'Spain': { code: 'EUR', symbol: '€', rate: 1.08 },
+                          'Netherlands': { code: 'EUR', symbol: '€', rate: 1.08 },
                         };
-                        const fxRate = FX_TO_USD[currencyCode] || 1;
+                        // 优先用 country 判断 (针对 ADR), fallback CurrencyCode
+                        const country = analystGeneral?.countryName;
+                        const countryFx = country && COUNTRY_TO_CURRENCY[country];
+                        const FX_TO_USD = {
+                          'USD': 1, 'TWD': 0.031, 'HKD': 0.128, 'JPY': 0.0066,
+                          'EUR': 1.08, 'GBP': 1.27, 'CNY': 0.14, 'KRW': 0.00075,
+                        };
+                        const currencyCode = countryFx ? countryFx.code : (analystGeneral?.currencyCode || 'USD');
+                        const currencySymbol = countryFx ? countryFx.symbol : (analystGeneral?.currencySymbol || '$');
+                        const fxRate = countryFx ? countryFx.rate : (FX_TO_USD[currencyCode] || 1);
                         const isForeignCurrency = currencyCode !== 'USD';
+                        // 调试: 看 TSM 等 ADR 的 country 判断
+                        console.log('[Modal 币种]', selectedEvent.symbol, 'country:', country, 'currencyCode:', currencyCode, '原 EODHD:', analystGeneral?.currencyCode);
                         // 单币种格式化 (不带 USD 估算)
                         const fmtCurrency = (n, sym) => {
                           if (n == null) return null;
@@ -8037,12 +8049,22 @@ function MainApp({ user, onLogout }) {
                         const yoy = (cur, prev) => (cur != null && prev != null && prev !== 0) ? ((cur - prev) / Math.abs(prev) * 100) : null;
                         const fmtMoney = (n) => {
                           if (n == null) return "—";
-                          // 币种 + 汇率 (跟业绩详情一致)
-                          const cc = analystGeneral?.currencyCode || 'USD';
-                          const cs = analystGeneral?.currencySymbol || '$';
-                          const FX = { 'USD': 1, 'TWD': 0.031, 'HKD': 0.128, 'JPY': 0.0066, 'EUR': 1.08, 'GBP': 1.27, 'CNY': 0.14, 'KRW': 0.00075 };
-                          const rate = FX[cc] || 1;
-                          const isForeign = cc !== 'USD';
+                          // v10.7.9.40 fix34: 用 country 判断 (ADR 财报本币)
+                          const COUNTRY_FX = {
+                            'Taiwan': { code: 'TWD', symbol: 'NT$', rate: 0.031 },
+                            'Hong Kong': { code: 'HKD', symbol: 'HK$', rate: 0.128 },
+                            'China': { code: 'CNY', symbol: '¥', rate: 0.14 },
+                            'Japan': { code: 'JPY', symbol: '¥', rate: 0.0066 },
+                            'South Korea': { code: 'KRW', symbol: '₩', rate: 0.00075 },
+                            'United Kingdom': { code: 'GBP', symbol: '£', rate: 1.27 },
+                            'Germany': { code: 'EUR', symbol: '€', rate: 1.08 },
+                            'France': { code: 'EUR', symbol: '€', rate: 1.08 },
+                          };
+                          const ctry = analystGeneral?.countryName;
+                          const cf = ctry && COUNTRY_FX[ctry];
+                          const cs = cf ? cf.symbol : (analystGeneral?.currencySymbol || '$');
+                          const rate = cf ? cf.rate : 1;
+                          const isForeign = !!cf;
                           const fmt = (val, sym) => {
                             const yi = val / 1e8;
                             if (Math.abs(yi) >= 10000) return `${sym}${(yi / 10000).toFixed(2)} 万亿`;
