@@ -7667,16 +7667,42 @@ function MainApp({ user, onLogout }) {
                         const epsMiss = epsSurp != null && epsSurp < 0;
                         const revBeat = revSurp != null && revSurp > 0;
                         const revMiss = revSurp != null && revSurp < 0;
-                        // 格式化金额 (营收用美元亿: $37.86B → 378.6 亿)
+                        // 格式化金额 (支持币种, 非美元加 USD 估算)
+                        // v10.7.9.40 fix31: TSM 等台股 用 NT$, 港股 HK$
+                        const currencyCode = analystGeneral?.currencyCode || 'USD';
+                        const currencySymbol = analystGeneral?.currencySymbol || '$';
+                        // 汇率估算 (粗略, 用于 ≈ $X 亿 标注)
+                        const FX_TO_USD = {
+                          'USD': 1,
+                          'TWD': 0.031,    // 1 NT$ ≈ 0.031 USD
+                          'HKD': 0.128,    // 1 HK$ ≈ 0.128 USD
+                          'JPY': 0.0066,   // 1 ¥ ≈ 0.0066 USD
+                          'EUR': 1.08,
+                          'GBP': 1.27,
+                          'CNY': 0.14,     // 1 元 ≈ 0.14 USD
+                          'KRW': 0.00075,
+                        };
+                        const fxRate = FX_TO_USD[currencyCode] || 1;
+                        const isForeignCurrency = currencyCode !== 'USD';
+                        // 单币种格式化 (不带 USD 估算)
+                        const fmtCurrency = (n, sym) => {
+                          if (n == null) return null;
+                          const yi = n / 1e8;
+                          if (Math.abs(yi) >= 10000) return `${sym}${(yi / 10000).toFixed(2)} 万亿`;
+                          if (Math.abs(yi) >= 100) return `${sym}${yi.toFixed(0)} 亿`;
+                          if (Math.abs(yi) >= 1) return `${sym}${yi.toFixed(1)} 亿`;
+                          return `${sym}${(n / 1e6).toFixed(0)}M`;
+                        };
+                        // 主格式化 (带 USD 估算 fallback, 如果是外币)
                         const fmtBig = (n) => {
                           if (n == null) return null;
-                          // 转换成亿 (1 亿美元 = 1e8)
-                          const yi = n / 1e8;
-                          if (Math.abs(yi) >= 10000) return `$${(yi / 10000).toFixed(2)} 万亿`;
-                          if (Math.abs(yi) >= 100) return `$${yi.toFixed(0)} 亿`;
-                          if (Math.abs(yi) >= 1) return `$${yi.toFixed(1)} 亿`;
-                          // 小于 1 亿的, 用百万
-                          return `$${(n / 1e6).toFixed(0)}M`;
+                          const main = fmtCurrency(n, currencySymbol);
+                          if (isForeignCurrency && fxRate) {
+                            const usdVal = n * fxRate;
+                            const usdStr = fmtCurrency(usdVal, '$');
+                            return `${main} (≈ ${usdStr})`;
+                          }
+                          return main;
                         };
                         const released = !isFut && (epsActE != null && epsActE !== 0);
                         return (
@@ -8013,10 +8039,24 @@ function MainApp({ user, onLogout }) {
                         const yoy = (cur, prev) => (cur != null && prev != null && prev !== 0) ? ((cur - prev) / Math.abs(prev) * 100) : null;
                         const fmtMoney = (n) => {
                           if (n == null) return "—";
-                          const yi = n / 1e8;
-                          if (Math.abs(yi) >= 10000) return `$${(yi / 10000).toFixed(2)} 万亿`;
-                          if (Math.abs(yi) >= 1) return `$${yi.toFixed(yi >= 100 ? 0 : 1)} 亿`;
-                          return `$${(n / 1e6).toFixed(0)}M`;
+                          // 币种 + 汇率 (跟业绩详情一致)
+                          const cc = analystGeneral?.currencyCode || 'USD';
+                          const cs = analystGeneral?.currencySymbol || '$';
+                          const FX = { 'USD': 1, 'TWD': 0.031, 'HKD': 0.128, 'JPY': 0.0066, 'EUR': 1.08, 'GBP': 1.27, 'CNY': 0.14, 'KRW': 0.00075 };
+                          const rate = FX[cc] || 1;
+                          const isForeign = cc !== 'USD';
+                          const fmt = (val, sym) => {
+                            const yi = val / 1e8;
+                            if (Math.abs(yi) >= 10000) return `${sym}${(yi / 10000).toFixed(2)} 万亿`;
+                            if (Math.abs(yi) >= 1) return `${sym}${yi.toFixed(yi >= 100 ? 0 : 1)} 亿`;
+                            return `${sym}${(val / 1e6).toFixed(0)}M`;
+                          };
+                          const main = fmt(n, cs);
+                          if (isForeign) {
+                            const usdStr = fmt(n * rate, '$');
+                            return `${main}\n(≈ ${usdStr})`;
+                          }
+                          return main;
                         };
                         return (
                           <div className="mb-3">
