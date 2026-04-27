@@ -3210,19 +3210,28 @@ function MainApp({ user, onLogout }) {
                   >
                     {/* 上: 三列 - 代码+名称 | 走势图 | 价格+涨跌 (v10.7.9.41) */}
                     <div className="grid gap-3 mb-2 items-center" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
-                      {/* 左: 代码 + 名称 (v10.7.9.40 fix27: 点击弹股票详情 Modal) */}
+                      {/* 左: 代码 + 名称 (v10.7.9.40 fix29: 点击复用财报日数据) */}
                       <div
                         className="min-w-0 cursor-pointer active:opacity-60 transition"
                         style={{ minWidth: '64px' }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // 弹股票详情 Modal (复用 selectedEvent, type='stock')
-                          setSelectedEvent({
-                            type: 'stock',
-                            symbol: s.symbol,
-                            name: s.name,
-                            date: new Date().toISOString().slice(0, 10),
-                          });
+                          // 优先用 calendarEvents 里的财报事件 (跟"重要日历"完全一致)
+                          const earningsEvent = (calendarEvents || []).find(
+                            ev => ev.type === 'earnings' && ev.symbol === s.symbol
+                          );
+                          if (earningsEvent) {
+                            // 直接复用财报事件 (确保数据一致)
+                            setSelectedEvent(earningsEvent);
+                          } else {
+                            // 没在财报日历里 (可能 30 天内无财报) → fallback stock 类型
+                            setSelectedEvent({
+                              type: 'stock',
+                              symbol: s.symbol,
+                              name: s.name,
+                              date: new Date().toISOString().slice(0, 10),
+                            });
+                          }
                         }}
                       >
                         <div className="font-black text-[17px] leading-tight tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace' }}>{s.symbol}</div>
