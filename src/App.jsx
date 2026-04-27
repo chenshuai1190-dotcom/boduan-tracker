@@ -524,6 +524,9 @@ function MainApp({ user, onLogout }) {
   const [analystEarnings, setAnalystEarnings] = useState(null);  // v41: EPS + 营收 对比
   const [analystAnnual, setAnalystAnnual] = useState(null);      // v40 fix21: 10 年年度业绩
   const [analystPriceHistory, setAnalystPriceHistory] = useState(null);  // v40 fix23: 1 年历史日线
+  const [analystInsider, setAnalystInsider] = useState(null);    // v40 fix37: 内部人交易
+  const [analystNews, setAnalystNews] = useState(null);          // v40 fix37: 新闻
+  const [analystNewsSentiment, setAnalystNewsSentiment] = useState(null);  // 综合情绪
   const [chartMetric, setChartMetric] = useState('revenue');     // 'revenue' | 'netIncome' | 'epsActual'
   const [chartSelectedYear, setChartSelectedYear] = useState(null);
   const [analystLoading, setAnalystLoading] = useState(false);
@@ -1035,6 +1038,9 @@ function MainApp({ user, onLogout }) {
       setAnalystEarnings(null);
       setAnalystAnnual(null);
       setAnalystPriceHistory(null);
+      setAnalystInsider(null);
+      setAnalystNews(null);
+      setAnalystNewsSentiment(null);
       setChartSelectedYear(null);
       setChartMetric('revenue');
       setAnalystLoading(false);
@@ -1048,6 +1054,9 @@ function MainApp({ user, onLogout }) {
       setAnalystEarnings(null);
       setAnalystAnnual(null);
       setAnalystPriceHistory(null);
+      setAnalystInsider(null);
+      setAnalystNews(null);
+      setAnalystNewsSentiment(null);
       return;
     }
 
@@ -1059,6 +1068,9 @@ function MainApp({ user, onLogout }) {
     setAnalystEarnings(null);
     setAnalystAnnual(null);
     setAnalystPriceHistory(null);
+    setAnalystInsider(null);
+    setAnalystNews(null);
+    setAnalystNewsSentiment(null);
     setChartSelectedYear(null);
 
     (async () => {
@@ -1091,6 +1103,10 @@ function MainApp({ user, onLogout }) {
             if (a.priceHistory && a.priceHistory.length > 0) {
               setAnalystPriceHistory(a.priceHistory);
             }
+            // v40 fix37: 内部人 + 新闻
+            if (a.insiderTransactions) setAnalystInsider(a.insiderTransactions);
+            if (a.newsList) setAnalystNews(a.newsList);
+            if (a.newsSentiment) setAnalystNewsSentiment(a.newsSentiment);
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
             const evIsFuture = evDate > todayStr;
@@ -7401,7 +7417,7 @@ function MainApp({ user, onLogout }) {
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md flex flex-col"
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md flex flex-col relative"
               style={{
                 paddingBottom: 'env(safe-area-inset-bottom)',
                 maxHeight: '90vh',
@@ -7409,6 +7425,18 @@ function MainApp({ user, onLogout }) {
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden flex-shrink-0"></div>
+              {/* v10.7.9.40 fix37: 右上角 X 关闭按钮 */}
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition z-10"
+                style={{ background: '#f1f5f9', color: '#64748b' }}
+                aria-label="关闭"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                  <line x1="6" y1="18" x2="18" y2="6"/>
+                </svg>
+              </button>
               <div className="p-6 overflow-y-auto" style={{ flex: '1 1 auto', minHeight: 0 }}>
                 {/* 图标 + 类型 (v10.7.9.41: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
                 <div className="text-center mb-3">
@@ -8293,6 +8321,159 @@ function MainApp({ user, onLogout }) {
                                 </div>
                               )}
                             </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 6. 内部人交易 (A3 时间线) v10.7.9.40 fix37 */}
+                      {analystInsider && analystInsider.length > 0 && (() => {
+                        const items = analystInsider.slice(0, 8);  // 最多 8 笔
+                        const fmtDollar = (n) => {
+                          if (Math.abs(n) >= 1e6) return `${n >= 0 ? '+' : ''}$${(n / 1e6).toFixed(1)}M`;
+                          if (Math.abs(n) >= 1e3) return `${n >= 0 ? '+' : ''}$${(n / 1e3).toFixed(0)}K`;
+                          return `${n >= 0 ? '+' : ''}$${n.toFixed(0)}`;
+                        };
+                        // 90 天汇总
+                        const buyTotal = items.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount, 0);
+                        const sellTotal = items.filter(t => t.type === 'sell').reduce((s, t) => s + t.amount, 0);
+                        const buyCount = items.filter(t => t.type === 'buy').length;
+                        const sellCount = items.filter(t => t.type === 'sell').length;
+                        const netFlow = buyTotal - sellTotal;
+                        return (
+                          <div className="mb-3">
+                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                              <span>🔥 内部人 · 90 天</span>
+                              <span style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                                数据源 EODHD
+                              </span>
+                            </div>
+                            {/* 汇总 */}
+                            {(buyTotal > 0 || sellTotal > 0) && (
+                              <div className="grid grid-cols-2 gap-2 mb-2">
+                                <div className="rounded-xl p-2.5 text-center" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                                  <div className="text-[11px] font-bold uppercase" style={{ color: '#dc2626' }}>买入</div>
+                                  <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '15px', color: '#dc2626' }}>
+                                    {fmtDollar(buyTotal)}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 mt-0.5">{buyCount} 笔</div>
+                                </div>
+                                <div className="rounded-xl p-2.5 text-center" style={{ background: '#ecfdf5', border: '1px solid #bbf7d0' }}>
+                                  <div className="text-[11px] font-bold uppercase" style={{ color: '#16a34a' }}>卖出</div>
+                                  <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '15px', color: '#16a34a' }}>
+                                    -{fmtDollar(sellTotal).replace('+', '').replace('-', '')}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 mt-0.5">{sellCount} 笔</div>
+                                </div>
+                              </div>
+                            )}
+                            {/* 时间线 */}
+                            <div className="rounded-xl p-3 relative" style={{ background: '#f8fafc' }}>
+                              <div style={{ position: 'absolute', left: '28px', top: '12px', bottom: '12px', width: '2px', background: '#e2e8f0' }}></div>
+                              {items.map((t, idx) => (
+                                <div key={idx} className="grid items-center py-1.5 relative" style={{ gridTemplateColumns: '32px 1fr auto', gap: '12px' }}>
+                                  <div style={{
+                                    width: '12px', height: '12px',
+                                    borderRadius: '50%',
+                                    marginLeft: '10px',
+                                    border: '2px solid white',
+                                    boxShadow: t.type === 'buy' ? '0 0 0 2px #dc2626' : '0 0 0 2px #16a34a',
+                                    background: t.type === 'buy' ? '#dc2626' : '#16a34a',
+                                    zIndex: 1,
+                                  }}></div>
+                                  <div className="text-[12px] overflow-hidden">
+                                    <div className="font-bold text-slate-900 truncate">{t.ownerName} · {t.position}</div>
+                                    <div className="text-[10px] text-slate-500 mt-0.5">{t.type === 'buy' ? '买入' : '卖出'} · {t.date}</div>
+                                  </div>
+                                  <div className="text-right font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '13px', color: t.type === 'buy' ? '#dc2626' : '#16a34a' }}>
+                                    {t.type === 'buy' ? '+' : '-'}{fmtDollar(t.amount).replace('+', '').replace('-', '')}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 7. 新闻 + AI 情绪 (B1) v10.7.9.40 fix37 */}
+                      {analystNews && analystNews.length > 0 && (() => {
+                        const items = analystNews.slice(0, 6);
+                        const sent = analystNewsSentiment;
+                        const formatTimeAgo = (dateStr) => {
+                          if (!dateStr) return '';
+                          const d = new Date(dateStr);
+                          const now = new Date();
+                          const diff = (now - d) / 1000;
+                          if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+                          if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+                          if (diff < 604800) return `${Math.floor(diff / 86400)} 天前`;
+                          return dateStr.slice(0, 10);
+                        };
+                        const polLabel = (p) => {
+                          if (p > 0.1) return { text: `↑ ${p > 0 ? '+' : ''}${p.toFixed(2)}`, color: '#dc2626', bg: '#fef2f2' };
+                          if (p < -0.1) return { text: `↓ ${p.toFixed(2)}`, color: '#16a34a', bg: '#ecfdf5' };
+                          return { text: `— ${p > 0 ? '+' : ''}${p.toFixed(2)}`, color: '#475569', bg: '#f1f5f9' };
+                        };
+                        return (
+                          <div className="mb-3">
+                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                              <span>📰 新闻 · 30 天</span>
+                              <span style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                                AI 情绪
+                              </span>
+                            </div>
+                            {/* 大情绪条 */}
+                            {sent && (
+                              <div className="rounded-xl p-3 mb-2 text-center" style={{
+                                background: sent.avgPolarity > 0.1 ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' :
+                                  sent.avgPolarity < -0.1 ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' :
+                                  'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                                border: sent.avgPolarity > 0.1 ? '1px solid #fecaca' :
+                                  sent.avgPolarity < -0.1 ? '1px solid #bbf7d0' :
+                                  '1px solid #cbd5e1',
+                              }}>
+                                <div className="font-black tabular-nums" style={{
+                                  fontFamily: 'ui-monospace, monospace',
+                                  fontSize: '24px',
+                                  color: sent.avgPolarity > 0.1 ? '#dc2626' : sent.avgPolarity < -0.1 ? '#16a34a' : '#475569',
+                                }}>
+                                  {sent.avgPolarity > 0 ? '+' : ''}{sent.avgPolarity.toFixed(2)}
+                                </div>
+                                <div className="text-[11px] font-bold mt-0.5" style={{
+                                  color: sent.avgPolarity > 0.1 ? '#dc2626' : sent.avgPolarity < -0.1 ? '#16a34a' : '#475569',
+                                }}>
+                                  {sent.avgPolarity > 0.3 ? '强烈看多' : sent.avgPolarity > 0.1 ? '偏多' : sent.avgPolarity < -0.3 ? '强烈看空' : sent.avgPolarity < -0.1 ? '偏空' : '中性'}
+                                </div>
+                                <div className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>
+                                  看多 {sent.posCount} · 中性 {sent.neuCount} · 看空 {sent.negCount}
+                                </div>
+                              </div>
+                            )}
+                            {/* 新闻列表 */}
+                            {items.map((n, idx) => {
+                              const pol = polLabel(n.polarity || 0);
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => n.link && window.open(n.link, '_blank')}
+                                  className="w-full text-left py-2 px-1 active:opacity-60"
+                                  style={{ borderBottom: idx < items.length - 1 ? '1px solid #f1f5f9' : 'none' }}
+                                >
+                                  <div className="text-[13px] font-bold text-slate-900 leading-snug mb-1">
+                                    {n.title}
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                      {formatTimeAgo(n.date)}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full font-bold tabular-nums" style={{
+                                      background: pol.bg, color: pol.color, fontFamily: 'ui-monospace, monospace'
+                                    }}>
+                                      {pol.text}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
                           </div>
                         );
                       })()}
