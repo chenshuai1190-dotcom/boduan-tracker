@@ -525,8 +525,9 @@ function MainApp({ user, onLogout }) {
   const [analystAnnual, setAnalystAnnual] = useState(null);      // v40 fix21: 10 年年度业绩
   const [analystPriceHistory, setAnalystPriceHistory] = useState(null);  // v40 fix23: 1 年历史日线
   const [analystInsider, setAnalystInsider] = useState(null);    // v40 fix37: 内部人交易
-  const [analystNews, setAnalystNews] = useState(null);          // v40 fix37: 新闻
-  const [analystNewsSentiment, setAnalystNewsSentiment] = useState(null);  // 综合情绪
+  const [analystNews, setAnalystNews] = useState(null);          // v40 fix37: 新闻 (取消显示, 但保留)
+  const [analystNewsSentiment, setAnalystNewsSentiment] = useState(null);  // v40 fix42: 综合情绪 (保留)
+  const [analystStructure, setAnalystStructure] = useState(null); // v40 fix42: 季度财务结构
   const [chartMetric, setChartMetric] = useState('revenue');     // 'revenue' | 'netIncome' | 'epsActual'
   const [chartSelectedYear, setChartSelectedYear] = useState(null);
   const [analystLoading, setAnalystLoading] = useState(false);
@@ -1041,6 +1042,7 @@ function MainApp({ user, onLogout }) {
       setAnalystInsider(null);
       setAnalystNews(null);
       setAnalystNewsSentiment(null);
+      setAnalystStructure(null);
       setChartSelectedYear(null);
       setChartMetric('revenue');
       setAnalystLoading(false);
@@ -1057,6 +1059,7 @@ function MainApp({ user, onLogout }) {
       setAnalystInsider(null);
       setAnalystNews(null);
       setAnalystNewsSentiment(null);
+      setAnalystStructure(null);
       return;
     }
 
@@ -1071,6 +1074,7 @@ function MainApp({ user, onLogout }) {
     setAnalystInsider(null);
     setAnalystNews(null);
     setAnalystNewsSentiment(null);
+    setAnalystStructure(null);
     setChartSelectedYear(null);
 
     (async () => {
@@ -1105,66 +1109,9 @@ function MainApp({ user, onLogout }) {
             }
             // v40 fix37: 内部人 + 新闻
             if (a.insiderTransactions) setAnalystInsider(a.insiderTransactions);
-            if (a.newsList) {
-              setAnalystNews(a.newsList);
-              // v40 fix38: 自动翻译新闻标题 (有缓存 不重复调)
-              (async () => {
-                try {
-                  console.log('[News 翻译] 开始, 共', a.newsList.length, '条');
-                  // 先看 localStorage 缓存
-                  const cacheKey = 'newsTransCache';
-                  let cache = {};
-                  try {
-                    cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-                  } catch {}
-                  // 找出未翻译的标题
-                  const toTranslate = a.newsList.filter(n => n.title && !cache[n.title]);
-                  console.log('[News 翻译] 待翻译', toTranslate.length, '条');
-                  if (toTranslate.length === 0) {
-                    if (cancelled) return;
-                    setAnalystNews(prev => (prev || []).map(n => ({ ...n, titleZh: cache[n.title] || null })));
-                    return;
-                  }
-                  // 批量翻译 (用 \n||\n 分隔, 一次调 1 个 API)
-                  const sep = '\n||\n';
-                  const combined = toTranslate.map(n => n.title).join(sep);
-                  const encoded = btoa(unescape(encodeURIComponent(combined)));
-                  const safeEncoded = encodeURIComponent(encoded);
-                  const trUrl = `/api/quote?symbols=TRANSLATE:${safeEncoded}`;
-                  console.log('[News 翻译] URL 长度', trUrl.length);
-                  const tr = await fetch(trUrl);
-                  const trResult = await tr.json();
-                  console.log('[News 翻译] 返回', trResult);
-                  if (cancelled) return;
-                  if (trResult.success && trResult.data) {
-                    const t = trResult.data.find(d => d.symbol && d.symbol.startsWith('TRANSLATE:'));
-                    console.log('[News 翻译] 解析', t);
-                    if (t && t.translated) {
-                      // 拆分翻译结果
-                      const translated = t.translated.split(/\s*\|\|\s*/);
-                      console.log('[News 翻译] 拆分', translated.length, '条');
-                      toTranslate.forEach((n, idx) => {
-                        if (translated[idx]) {
-                          cache[n.title] = translated[idx].trim();
-                        }
-                      });
-                      // 写回缓存
-                      try {
-                        localStorage.setItem(cacheKey, JSON.stringify(cache));
-                      } catch {}
-                      // 更新 state (合并所有缓存)
-                      setAnalystNews(prev => (prev || []).map(n => ({ ...n, titleZh: cache[n.title] || null })));
-                      console.log('[News 翻译] 完成');
-                    } else if (t?.error) {
-                      console.warn('[News 翻译] 后端错误:', t.error);
-                    }
-                  }
-                } catch (e) {
-                  console.warn('[News 翻译] 失败:', e.message);
-                }
-              })();
-            }
+            if (a.newsList) setAnalystNews(a.newsList);
             if (a.newsSentiment) setAnalystNewsSentiment(a.newsSentiment);
+            if (a.quarterlyStructure) setAnalystStructure(a.quarterlyStructure);
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
             const evIsFuture = evDate > todayStr;
@@ -1945,10 +1892,6 @@ function MainApp({ user, onLogout }) {
           ws.send(JSON.stringify({ action: 'subscribe', symbols }));
         };
 
-        // 调试: 统计每只股 推送次数 (临时)
-        const tickStats = {};
-        let lastStatLog = Date.now();
-
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -1957,14 +1900,6 @@ function MainApp({ user, onLogout }) {
               const sym = data.s.toUpperCase();
               const newPrice = data.p;
               const tickTime = data.t || Math.floor(Date.now() / 1000);
-              
-              // 调试: 累加推送次数
-              tickStats[sym] = (tickStats[sym] || 0) + 1;
-              // 每 30 秒打印一次统计
-              if (Date.now() - lastStatLog > 30000) {
-                console.log('[WS 推送统计]', tickStats);
-                lastStatLog = Date.now();
-              }
 
               setWsLastTick(new Date());
 
@@ -8032,6 +7967,188 @@ function MainApp({ user, onLogout }) {
                         );
                       })()}
 
+                      {/* 2.5 财务结构图 (v10.7.9.40 fix42, V4 三卡 + 漏斗) */}
+                      {analystStructure && (() => {
+                        const s = analystStructure;
+                        if (!s.totalRevenue) return null;
+                        // 季度标识
+                        const dateStr = s.date || '';
+                        const year = dateStr.slice(0, 4);
+                        const month = parseInt(dateStr.slice(5, 7));
+                        const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+                        const quarterLabel = `${quarter} ${year}`;
+                        // 判断是否本季已公布 (财报日期 7 天内 = 本季新出)
+                        const todayMs = new Date().getTime();
+                        const reportMs = new Date(dateStr).getTime();
+                        const daysSince = (todayMs - reportMs) / (24 * 60 * 60 * 1000);
+                        const isFresh = daysSince <= 90;  // 90 天内算"本季"
+                        // 币种 (用 analystGeneral 一样逻辑)
+                        const COUNTRY_FX2 = {
+                          'Taiwan': { symbol: 'NT$', rate: 0.031 },
+                          'Hong Kong': { symbol: 'HK$', rate: 0.128 },
+                          'China': { symbol: '¥', rate: 0.14 },
+                          'Japan': { symbol: '¥', rate: 0.0066 },
+                        };
+                        const ADR_MAP2 = { 'TSM': 'Taiwan', 'BABA': 'China', 'JD': 'China', 'NIO': 'China', 'XPEV': 'China', 'LI': 'China', 'PDD': 'China', 'BIDU': 'China', 'TCEHY': 'China', 'TM': 'Japan', 'SONY': 'Japan', 'HMC': 'Japan', 'TME': 'China', 'BILI': 'China' };
+                        const isADR2 = analystGeneral?.homeCategory?.includes('ADR');
+                        const realCountry2 = isADR2 ? (ADR_MAP2[selectedEvent.symbol] || analystGeneral?.addressCountry) : analystGeneral?.countryName;
+                        const cf2 = realCountry2 && COUNTRY_FX2[realCountry2];
+                        const sym2 = cf2 ? cf2.symbol : '$';
+                        const rate2 = cf2 ? cf2.rate : 1;
+                        const isForeign2 = !!cf2;
+                        const fmtMoney2 = (n) => {
+                          if (n == null) return '—';
+                          const yi = n / 1e8;
+                          let str;
+                          if (Math.abs(yi) >= 10000) str = `${sym2}${(yi / 10000).toFixed(2)} 万亿`;
+                          else if (Math.abs(yi) >= 1) str = `${sym2}${yi.toFixed(yi >= 100 ? 0 : 1)} 亿`;
+                          else str = `${sym2}${(n / 1e6).toFixed(0)}M`;
+                          return str;
+                        };
+                        // 计算各项占比
+                        const pct = (n) => s.totalRevenue && n != null ? (n / s.totalRevenue * 100) : null;
+                        const grossMargin = pct(s.grossProfit);
+                        const opMargin = pct(s.operatingIncome);
+                        const netMargin = pct(s.netIncome);
+                        const costPct = pct(s.costOfRevenue);
+                        const rdPct = pct(s.researchDevelopment);
+                        const sgaPct = pct(s.sellingGeneralAdministrative);
+                        return (
+                          <div className="mb-3">
+                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>📊 财务结构</span>
+                                <span className="px-2 py-0.5 rounded-full" style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  textTransform: 'none',
+                                  letterSpacing: 0,
+                                  background: isFresh ? '#ecfdf5' : '#f1f5f9',
+                                  color: isFresh ? '#16a34a' : '#475569',
+                                  border: isFresh ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                                }}>
+                                  {quarterLabel} · {isFresh ? '本季已公布' : '最新已公布'}
+                                </span>
+                              </span>
+                              <span style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>EODHD</span>
+                            </div>
+                            
+                            {/* 三利润率卡 */}
+                            {(grossMargin !== null || opMargin !== null || netMargin !== null) && (
+                              <div className="grid grid-cols-3 gap-2 mb-2">
+                                {grossMargin !== null && (
+                                  <div className="rounded-lg p-2.5 text-center" style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', border: '1px solid #fbbf24' }}>
+                                    <div className="font-bold uppercase mb-1" style={{ fontSize: '9px', color: '#92400e' }}>毛利率</div>
+                                    <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '17px', color: '#d97706' }}>
+                                      {grossMargin.toFixed(1)}%
+                                    </div>
+                                    <div className="mt-0.5" style={{ fontSize: '9px', color: '#475569' }}>
+                                      {fmtMoney2(s.grossProfit)}
+                                    </div>
+                                  </div>
+                                )}
+                                {opMargin !== null && (
+                                  <div className="rounded-lg p-2.5 text-center" style={{ background: 'linear-gradient(135deg, #fef9c3, #fde047)', border: '1px solid #facc15' }}>
+                                    <div className="font-bold uppercase mb-1" style={{ fontSize: '9px', color: '#854d0e' }}>营业利润率</div>
+                                    <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '17px', color: '#ca8a04' }}>
+                                      {opMargin.toFixed(1)}%
+                                    </div>
+                                    <div className="mt-0.5" style={{ fontSize: '9px', color: '#475569' }}>
+                                      {fmtMoney2(s.operatingIncome)}
+                                    </div>
+                                  </div>
+                                )}
+                                {netMargin !== null && (
+                                  <div className="rounded-lg p-2.5 text-center" style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '1px solid #fecaca' }}>
+                                    <div className="font-bold uppercase mb-1" style={{ fontSize: '9px', color: '#991b1b' }}>净利率</div>
+                                    <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '17px', color: '#dc2626' }}>
+                                      {netMargin.toFixed(1)}%
+                                    </div>
+                                    <div className="mt-0.5" style={{ fontSize: '9px', color: '#475569' }}>
+                                      {fmtMoney2(s.netIncome)}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* 漏斗 */}
+                            <div className="bg-slate-50 rounded-xl p-3">
+                              <div className="grid items-center mb-1.5" style={{ gridTemplateColumns: '70px 1fr auto', gap: '8px', fontSize: '12px' }}>
+                                <div>
+                                  <div className="font-bold text-slate-900">营收</div>
+                                </div>
+                                <div className="rounded overflow-hidden" style={{ height: '22px', background: '#f1f5f9' }}>
+                                  <div style={{ height: '100%', width: '100%', background: 'linear-gradient(90deg, #1e40af, #2563eb)', display: 'flex', alignItems: 'center', padding: '0 8px', color: 'white', fontWeight: 900, fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtMoney2(s.totalRevenue)}
+                                  </div>
+                                </div>
+                                <span className="font-bold tabular-nums text-slate-500" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px' }}>100%</span>
+                              </div>
+                              {costPct !== null && (
+                                <div className="grid items-center mb-1.5" style={{ gridTemplateColumns: '70px 1fr auto', gap: '8px', fontSize: '12px' }}>
+                                  <div>
+                                    <div className="font-bold text-slate-900">- 营业成本</div>
+                                    <div className="text-[10px] text-slate-400">{fmtMoney2(s.costOfRevenue)}</div>
+                                  </div>
+                                  <div className="rounded overflow-hidden" style={{ height: '22px', background: '#f1f5f9' }}>
+                                    <div style={{ height: '100%', width: `${Math.min(costPct, 100)}%`, background: '#94a3b8', display: 'flex', alignItems: 'center', padding: '0 8px', color: 'white', fontWeight: 900, fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>
+                                      {costPct.toFixed(1)}%
+                                    </div>
+                                  </div>
+                                  <span className="font-bold tabular-nums text-slate-500" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px' }}>{costPct.toFixed(1)}%</span>
+                                </div>
+                              )}
+                              {rdPct !== null && (
+                                <div className="grid items-center mb-1.5" style={{ gridTemplateColumns: '70px 1fr auto', gap: '8px', fontSize: '12px' }}>
+                                  <div>
+                                    <div className="font-bold text-slate-900">- 研发</div>
+                                    <div className="text-[10px] text-slate-400">{fmtMoney2(s.researchDevelopment)}</div>
+                                  </div>
+                                  <div className="rounded overflow-hidden" style={{ height: '22px', background: '#f1f5f9' }}>
+                                    <div style={{ height: '100%', width: `${Math.min(rdPct, 100)}%`, background: '#f59e0b', display: 'flex', alignItems: 'center', padding: '0 8px', color: 'white', fontWeight: 900, fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>
+                                      {rdPct.toFixed(1)}%
+                                    </div>
+                                  </div>
+                                  <span className="font-bold tabular-nums text-slate-500" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px' }}>{rdPct.toFixed(1)}%</span>
+                                </div>
+                              )}
+                              {sgaPct !== null && (
+                                <div className="grid items-center mb-1.5" style={{ gridTemplateColumns: '70px 1fr auto', gap: '8px', fontSize: '12px' }}>
+                                  <div>
+                                    <div className="font-bold text-slate-900">- 销管费</div>
+                                    <div className="text-[10px] text-slate-400">{fmtMoney2(s.sellingGeneralAdministrative)}</div>
+                                  </div>
+                                  <div className="rounded overflow-hidden" style={{ height: '22px', background: '#f1f5f9' }}>
+                                    <div style={{ height: '100%', width: `${Math.min(sgaPct, 100)}%`, background: '#facc15', display: 'flex', alignItems: 'center', padding: '0 8px', color: 'white', fontWeight: 900, fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>
+                                      {sgaPct.toFixed(1)}%
+                                    </div>
+                                  </div>
+                                  <span className="font-bold tabular-nums text-slate-500" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px' }}>{sgaPct.toFixed(1)}%</span>
+                                </div>
+                              )}
+                              {netMargin !== null && (
+                                <>
+                                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '4px', paddingTop: '6px' }}></div>
+                                  <div className="grid items-center" style={{ gridTemplateColumns: '70px 1fr auto', gap: '8px', fontSize: '12px' }}>
+                                    <div>
+                                      <div className="font-bold" style={{ color: '#dc2626' }}>= 净利润</div>
+                                      <div className="text-[10px]" style={{ color: '#dc2626' }}>{fmtMoney2(s.netIncome)}</div>
+                                    </div>
+                                    <div className="rounded overflow-hidden" style={{ height: '22px', background: '#f1f5f9' }}>
+                                      <div style={{ height: '100%', width: `${Math.min(netMargin, 100)}%`, background: 'linear-gradient(90deg, #dc2626, #ef4444)', display: 'flex', alignItems: 'center', padding: '0 8px', color: 'white', fontWeight: 900, fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>
+                                        {netMargin.toFixed(1)}%
+                                      </div>
+                                    </div>
+                                    <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px', color: '#dc2626' }}>{netMargin.toFixed(1)}%</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* 3. 持仓 */}
                       {isHolding && (
                         <div className="mb-3">
@@ -8457,91 +8574,41 @@ function MainApp({ user, onLogout }) {
                         );
                       })()}
 
-                      {/* 7. 新闻 + AI 情绪 (B1) v10.7.9.40 fix37 */}
-                      {analystNews && analystNews.length > 0 && (() => {
-                        const items = analystNews.slice(0, 6);
+                      {/* 7. AI 情绪综合 (v10.7.9.40 fix42, 删新闻列表 只保留情绪) */}
+                      {analystNewsSentiment && (() => {
                         const sent = analystNewsSentiment;
-                        const formatTimeAgo = (dateStr) => {
-                          if (!dateStr) return '';
-                          const d = new Date(dateStr);
-                          const now = new Date();
-                          const diff = (now - d) / 1000;
-                          if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-                          if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-                          if (diff < 604800) return `${Math.floor(diff / 86400)} 天前`;
-                          return dateStr.slice(0, 10);
-                        };
-                        const polLabel = (p) => {
-                          if (p > 0.1) return { text: `↑ ${p > 0 ? '+' : ''}${p.toFixed(2)}`, color: '#dc2626', bg: '#fef2f2' };
-                          if (p < -0.1) return { text: `↓ ${p.toFixed(2)}`, color: '#16a34a', bg: '#ecfdf5' };
-                          return { text: `— ${p > 0 ? '+' : ''}${p.toFixed(2)}`, color: '#475569', bg: '#f1f5f9' };
-                        };
                         return (
                           <div className="mb-3">
                             <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
-                              <span>📰 新闻 · 30 天</span>
+                              <span>📰 AI 综合情绪 · 30 天</span>
                               <span style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
-                                AI 情绪
+                                EODHD
                               </span>
                             </div>
-                            {/* 大情绪条 */}
-                            {sent && (
-                              <div className="rounded-xl p-3 mb-2 text-center" style={{
-                                background: sent.avgPolarity > 0.1 ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' :
-                                  sent.avgPolarity < -0.1 ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' :
-                                  'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
-                                border: sent.avgPolarity > 0.1 ? '1px solid #fecaca' :
-                                  sent.avgPolarity < -0.1 ? '1px solid #bbf7d0' :
-                                  '1px solid #cbd5e1',
+                            <div className="rounded-xl p-3 text-center" style={{
+                              background: sent.avgPolarity > 0.1 ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' :
+                                sent.avgPolarity < -0.1 ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' :
+                                'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                              border: sent.avgPolarity > 0.1 ? '1px solid #fecaca' :
+                                sent.avgPolarity < -0.1 ? '1px solid #bbf7d0' :
+                                '1px solid #cbd5e1',
+                            }}>
+                              <div className="font-black tabular-nums" style={{
+                                fontFamily: 'ui-monospace, monospace',
+                                fontSize: '24px',
+                                color: sent.avgPolarity > 0.1 ? '#dc2626' : sent.avgPolarity < -0.1 ? '#16a34a' : '#475569',
                               }}>
-                                <div className="font-black tabular-nums" style={{
-                                  fontFamily: 'ui-monospace, monospace',
-                                  fontSize: '24px',
-                                  color: sent.avgPolarity > 0.1 ? '#dc2626' : sent.avgPolarity < -0.1 ? '#16a34a' : '#475569',
-                                }}>
-                                  {sent.avgPolarity > 0 ? '+' : ''}{sent.avgPolarity.toFixed(2)}
-                                </div>
-                                <div className="text-[11px] font-bold mt-0.5" style={{
-                                  color: sent.avgPolarity > 0.1 ? '#dc2626' : sent.avgPolarity < -0.1 ? '#16a34a' : '#475569',
-                                }}>
-                                  {sent.avgPolarity > 0.3 ? '强烈看多' : sent.avgPolarity > 0.1 ? '偏多' : sent.avgPolarity < -0.3 ? '强烈看空' : sent.avgPolarity < -0.1 ? '偏空' : '中性'}
-                                </div>
-                                <div className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>
-                                  看多 {sent.posCount} · 中性 {sent.neuCount} · 看空 {sent.negCount}
-                                </div>
+                                {sent.avgPolarity > 0 ? '+' : ''}{sent.avgPolarity.toFixed(2)}
                               </div>
-                            )}
-                            {/* 新闻列表 */}
-                            {items.map((n, idx) => {
-                              const pol = polLabel(n.polarity || 0);
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => n.link && window.open(n.link, '_blank')}
-                                  className="w-full text-left py-2 px-1 active:opacity-60"
-                                  style={{ borderBottom: idx < items.length - 1 ? '1px solid #f1f5f9' : 'none' }}
-                                >
-                                  <div className="text-[13px] font-bold text-slate-900 leading-snug mb-1">
-                                    {n.titleZh || n.title}
-                                  </div>
-                                  {n.titleZh && (
-                                    <div className="text-[10px] text-slate-400 leading-snug mb-1" style={{ fontStyle: 'italic' }}>
-                                      {n.title}
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      {formatTimeAgo(n.date)}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full font-bold tabular-nums" style={{
-                                      background: pol.bg, color: pol.color, fontFamily: 'ui-monospace, monospace'
-                                    }}>
-                                      {pol.text}
-                                    </span>
-                                  </div>
-                                </button>
-                              );
-                            })}
+                              <div className="text-[11px] font-bold mt-0.5" style={{
+                                color: sent.avgPolarity > 0.1 ? '#dc2626' : sent.avgPolarity < -0.1 ? '#16a34a' : '#475569',
+                              }}>
+                                {sent.avgPolarity > 0.3 ? '强烈看多' : sent.avgPolarity > 0.1 ? '偏多' : sent.avgPolarity < -0.3 ? '强烈看空' : sent.avgPolarity < -0.1 ? '偏空' : '中性'}
+                              </div>
+                              <div className="text-[10px] mt-1" style={{ color: '#94a3b8' }}>
+                                共 {sent.total} 条新闻 · 看多 {sent.posCount} · 中性 {sent.neuCount} · 看空 {sent.negCount}
+                              </div>
+                            </div>
                           </div>
                         );
                       })()}
