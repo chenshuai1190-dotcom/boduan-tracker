@@ -1094,8 +1094,21 @@ function MainApp({ user, onLogout }) {
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
             const evIsFuture = evDate > todayStr;
-            const earnings = evIsFuture && a.upcomingEarnings ? a.upcomingEarnings : a.earnings;
-            if (earnings) setAnalystEarnings({ ...earnings, isFuture: evIsFuture });
+            // v10.7.9.40 fix28: stock 入口 (关注列表点代码) 智能判断
+            //   - 有 upcomingEarnings 优先 (即将发布的, 最贴合"展望")
+            //   - 没有就用 earnings (最近已发布)
+            // earnings 入口 (财报日历):
+            //   - 按 selectedEvent.date 是否未来判断
+            const isStockEntry = selectedEvent.type === 'stock';
+            let earnings;
+            if (isStockEntry) {
+              // 关注列表: 优先未来财报
+              earnings = a.upcomingEarnings || a.earnings;
+            } else {
+              // 财报日历: 按事件日期判断
+              earnings = evIsFuture && a.upcomingEarnings ? a.upcomingEarnings : a.earnings;
+            }
+            if (earnings) setAnalystEarnings({ ...earnings, isFuture: isStockEntry ? !!a.upcomingEarnings : evIsFuture });
             console.log('[Fundamentals]', { earnings: a.earnings, upcoming: a.upcomingEarnings, annual: a.annualSeries?.length, version: a._apiVersion });
           } else {
             console.warn('[Fundamentals] 没拿到数据:', a);
