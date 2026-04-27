@@ -1012,12 +1012,19 @@ function MainApp({ user, onLogout }) {
         if (result.success && result.data) {
           const cal = result.data.find(d => d.symbol && d.symbol.startsWith('CALENDAR'));
           if (cal && cal.events) {
-            // v10.7.9.40 fix15: 调试 GOOGL/HOOD
+            // v10.7.9.40 fix16: 详细调试
+            console.log('[Calendar] 后端版本:', cal._apiVersion || '⚠️ 旧版本');
             const googlEvents = cal.events.filter(e => e.symbol === 'GOOGL' || e.symbol === 'GOOG');
             const hoodEvents = cal.events.filter(e => e.symbol === 'HOOD');
-            console.log('[Calendar] GOOGL/GOOG events:', googlEvents);
-            console.log('[Calendar] HOOD events:', hoodEvents);
-            console.log('[Calendar] all earnings:', cal.events.filter(e => e.type === 'earnings'));
+            console.log('[Calendar] GOOGL/GOOG full:', JSON.stringify(googlEvents));
+            console.log('[Calendar] HOOD full:', JSON.stringify(hoodEvents));
+            const earningsDebug = cal.events.filter(e => e.type === 'earnings').map(e => ({
+              symbol: e.symbol,
+              date: e.date,
+              originalDate: e.originalDate,
+              time: e.time,
+            }));
+            console.log('[Calendar] all earnings 详细:', JSON.stringify(earningsDebug));
             setCalendarEvents(cal.events);
           }
         }
