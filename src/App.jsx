@@ -3220,11 +3220,9 @@ function MainApp({ user, onLogout }) {
                           const earningsEvent = (calendarEvents || []).find(
                             ev => ev.type === 'earnings' && ev.symbol === s.symbol
                           );
-                          console.log('[关注列表点击]', s.symbol, '- 财报日历:', earningsEvent || '没找到');
                           if (earningsEvent) {
                             setSelectedEvent(earningsEvent);
                           } else {
-                            console.log('[关注列表点击] fallback stock 类型, 等 ANALYST 拉');
                             setSelectedEvent({
                               type: 'stock',
                               symbol: s.symbol,
@@ -7654,8 +7652,6 @@ function MainApp({ user, onLogout }) {
                       {(analystEarnings || epsEst !== null || epsAct !== null) && (() => {
                         // 优先用 EODHD analystEarnings, 次选 selectedEvent
                         const e = analystEarnings;
-                        // v10.7.9.40 fix32: 调试 - 看用了什么数据源
-                        console.log('[Modal 业绩]', selectedEvent.symbol, '- type:', selectedEvent.type, '- analystEarnings:', e ? {epsEst: e.epsEstimate, revEst: e.revenueEstimate, isFut: e.isFuture} : null, '- selectedEvent.eps:', selectedEvent.epsEstimate);
                         const isFut = e?.isFuture;
                         const epsActE = e ? e.epsActual : (isReleased ? epsAct : null);
                         const epsEstE = e ? e.epsEstimate : epsEst;
