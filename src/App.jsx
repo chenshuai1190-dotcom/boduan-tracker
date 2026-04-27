@@ -523,6 +523,7 @@ function MainApp({ user, onLogout }) {
   const [analystGeneral, setAnalystGeneral] = useState(null);
   const [analystEarnings, setAnalystEarnings] = useState(null);  // v41: EPS + 营收 对比
   const [analystAnnual, setAnalystAnnual] = useState(null);      // v40 fix21: 10 年年度业绩
+  const [analystPriceHistory, setAnalystPriceHistory] = useState(null);  // v40 fix23: 1 年历史日线
   const [chartMetric, setChartMetric] = useState('revenue');     // 'revenue' | 'netIncome' | 'epsActual'
   const [chartSelectedYear, setChartSelectedYear] = useState(null);
   const [analystLoading, setAnalystLoading] = useState(false);
@@ -1033,6 +1034,7 @@ function MainApp({ user, onLogout }) {
       setAnalystGeneral(null);
       setAnalystEarnings(null);
       setAnalystAnnual(null);
+      setAnalystPriceHistory(null);
       setChartSelectedYear(null);
       setChartMetric('revenue');
       setAnalystLoading(false);
@@ -1045,6 +1047,7 @@ function MainApp({ user, onLogout }) {
       setAnalystGeneral(null);
       setAnalystEarnings(null);
       setAnalystAnnual(null);
+      setAnalystPriceHistory(null);
       return;
     }
 
@@ -1055,6 +1058,7 @@ function MainApp({ user, onLogout }) {
     setAnalystGeneral(null);
     setAnalystEarnings(null);
     setAnalystAnnual(null);
+    setAnalystPriceHistory(null);
     setChartSelectedYear(null);
 
     (async () => {
@@ -1082,6 +1086,10 @@ function MainApp({ user, onLogout }) {
               }
               // 如果都没有完整, 用最新一年
               setChartSelectedYear(defaultYear || a.annualSeries[a.annualSeries.length - 1].year);
+            }
+            // v40 fix23: 历史价格 (1 年走势图)
+            if (a.priceHistory && a.priceHistory.length > 0) {
+              setAnalystPriceHistory(a.priceHistory);
             }
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -7759,12 +7767,12 @@ function MainApp({ user, onLogout }) {
                         </div>
                       )}
 
-                      {/* 4. 分析师目标价 (v10.7.9.41, V2 进度条) */}
+                      {/* 4. 分析师评级 (v10.7.9.40 fix23, V1 完整版: 走势图 + 喇叭口) */}
                       {(() => {
                         if (analystLoading) {
                           return (
                             <div className="mb-3">
-                              <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📊 分析师目标价</div>
+                              <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📊 分析师评级</div>
                               <div className="bg-slate-50 rounded-xl p-4 text-center text-[14px] text-slate-400">
                                 加载中…
                               </div>
@@ -7781,11 +7789,9 @@ function MainApp({ user, onLogout }) {
                         const high = cleanNum(analystTargets.high);
                         const low = cleanNum(analystTargets.low);
                         const avg = cleanNum(analystTargets.average);
-                        // 现价从 watchlist 拿 (EODHD Fundamentals 不返回现价)
                         const watchStock = watchlist.find(w => w.symbol === selectedEvent.symbol);
                         const last = watchStock?.price || cleanNum(analystTargets.lastTrade);
                         if (avg === null) return null;
-                        // 距平均上行
                         const upPct = (last !== null && avg > 0) ? ((avg - last) / last) * 100 : null;
                         // 评级中文化
                         const ratingMap = {
@@ -7796,75 +7802,150 @@ function MainApp({ user, onLogout }) {
                           'STRONG SELL': { cn: '强烈卖出', bg: '#ecfdf5', color: '#16a34a', border: '#bbf7d0' },
                         };
                         const rating = ratingMap[String(analystTargets.rating || '').toUpperCase()] || null;
+                        // 历史价格走势图数据
+                        const history = analystPriceHistory || [];
+                        const hasChart = history.length > 5 && last && high && low;
+                        // SVG 走势图
+                        const W = 360, H = 200;
+                        const cx = W / 2;  // 现价 X 位置 (中点)
+                        let pathPoints = [];
+                        if (hasChart) {
+                          const closes = history.map(d => d.close);
+                          const allPrices = [...closes, last, high, low];
+                          const minP = Math.min(...allPrices) * 0.95;
+                          const maxP = Math.max(...allPrices) * 1.05;
+                          const yRange = maxP - minP;
+                          const yScale = (p) => 170 - ((p - minP) / yRange) * 150;
+                          // 历史折线 (左半边: x=10 → cx)
+                          const xStep = (cx - 10) / (history.length - 1);
+                          pathPoints = history.map((d, i) => ({ x: 10 + i * xStep, y: yScale(d.close) }));
+                          var currentY = yScale(last);
+                          var highY = yScale(high);
+                          var lowY = yScale(low);
+                          var avgY = yScale(avg);
+                        }
 
                         return (
                           <div className="mb-3">
-                            <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
-                              <span>📊 分析师目标价 {analystTargets.numAnalysts ? `· 约 ${analystTargets.numAnalysts} 位` : ''}</span>
-                              <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
-                                数据源 EODHD
-                              </span>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-3 text-[14px] space-y-1.5">
-                              <div className="flex justify-between items-center">
-                                <span className="text-slate-500">平均目标价</span>
-                                <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '16px', color: '#d97706' }}>
-                                  ${avg.toFixed(2)}
-                                </span>
+                            {/* 顶部: 标题 + 评级胶囊 */}
+                            <div className="flex items-center justify-between mb-3 px-1">
+                              <div>
+                                <div className="font-black text-[18px] text-slate-900">分析师评级</div>
+                                <div className="text-[11px] text-slate-400 mt-0.5">
+                                  {analystTargets.numAnalysts ? `${analystTargets.numAnalysts} 位分析师综合` : '综合评级'}
+                                </div>
                               </div>
-                              {last !== null && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-500">现价</span>
-                                  <span className="font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    ${last.toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                              {upPct !== null && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">距平均{upPct >= 0 ? '上行' : '下行'}</span>
-                                  <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: upPct >= 0 ? '#dc2626' : '#16a34a' }}>
-                                    {upPct >= 0 ? '+' : ''}{upPct.toFixed(2)}%
-                                  </span>
-                                </div>
-                              )}
                               {rating && (
-                                <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                                  <span className="text-slate-500">综合评级</span>
-                                  <span className="px-2.5 py-1 rounded-full text-[14px] font-black uppercase" style={{
-                                    background: rating.bg, color: rating.color, border: `1px solid ${rating.border}`,
-                                    letterSpacing: '0.5px',
-                                  }}>
-                                    {rating.cn}
-                                  </span>
-                                </div>
-                              )}
-                              {/* 5 档分析师细分 */}
-                              {analystTargets.numAnalysts > 0 && (
-                                <div className="grid grid-cols-5 gap-1 pt-2 border-t border-slate-200" style={{ fontSize: '9px', textAlign: 'center' }}>
-                                  <div>
-                                    <div style={{ color: '#dc2626', fontWeight: 900 }}>{analystTargets.strongBuy}</div>
-                                    <div style={{ color: '#94a3b8' }}>强买</div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#f87171', fontWeight: 900 }}>{analystTargets.buy}</div>
-                                    <div style={{ color: '#94a3b8' }}>买入</div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#94a3b8', fontWeight: 900 }}>{analystTargets.hold}</div>
-                                    <div style={{ color: '#94a3b8' }}>持有</div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#86efac', fontWeight: 900 }}>{analystTargets.sell}</div>
-                                    <div style={{ color: '#94a3b8' }}>卖出</div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#16a34a', fontWeight: 900 }}>{analystTargets.strongSell}</div>
-                                    <div style={{ color: '#94a3b8' }}>强卖</div>
-                                  </div>
-                                </div>
+                                <span className="px-3 py-1.5 rounded-full text-[12px] font-black uppercase" style={{
+                                  background: rating.bg, color: rating.color, border: `1px solid ${rating.border}`,
+                                  letterSpacing: '0.5px',
+                                }}>
+                                  {rating.cn}
+                                </span>
                               )}
                             </div>
+
+                            {/* 走势图 + 喇叭口预测 */}
+                            {hasChart && (
+                              <div className="bg-slate-50 rounded-xl p-3 mb-2">
+                                <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: 200 }}>
+                                  <defs>
+                                    <linearGradient id={`flare-${selectedEvent.symbol}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                                      <stop offset="0%" stopColor="rgba(252,165,165,0.4)"/>
+                                      <stop offset="100%" stopColor="rgba(254,202,202,0.6)"/>
+                                    </linearGradient>
+                                  </defs>
+                                  {/* 中线 */}
+                                  <line x1={cx} y1="20" x2={cx} y2="170" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3,3"/>
+                                  {/* 喇叭口 */}
+                                  <path d={`M ${cx} ${currentY} L 350 ${highY} L 350 ${lowY} Z`} fill={`url(#flare-${selectedEvent.symbol})`}/>
+                                  {/* 历史折线 */}
+                                  <polyline
+                                    points={pathPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                                    fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                  />
+                                  {/* 平均预测虚线 */}
+                                  <line x1={cx} y1={currentY} x2={350} y2={avgY} stroke="#94a3b8" strokeWidth="2" strokeDasharray="6,3"/>
+                                  {/* 现价点 */}
+                                  <circle cx={cx} cy={currentY} r="6" fill="#3b82f6" stroke="white" strokeWidth="2.5"/>
+                                  {/* 现价标签 */}
+                                  <rect x={cx - 32} y={currentY - 28} width="64" height="22" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.5"/>
+                                  <text x={cx} y={currentY - 13} textAnchor="middle" fontSize="12" fontWeight="900" fill="#0f172a" fontFamily="ui-monospace, monospace">${last.toFixed(2)}</text>
+                                  {/* 高/平均/低 标签 */}
+                                  <text x="332.5" y={highY - 8} textAnchor="middle" fontSize="9" fill="#94a3b8" fontWeight="600">最高</text>
+                                  <rect x="305" y={highY - 4} width="55" height="22" rx="6" fill="#dc2626"/>
+                                  <text x="332.5" y={highY + 11} textAnchor="middle" fontSize="11" fontWeight="900" fill="white" fontFamily="ui-monospace, monospace">${Math.round(high)}</text>
+                                  <text x="332.5" y={avgY - 8} textAnchor="middle" fontSize="9" fill="#d97706" fontWeight="700">平均 ⭐</text>
+                                  <rect x="305" y={avgY - 4} width="55" height="22" rx="6" fill="#0f172a"/>
+                                  <text x="332.5" y={avgY + 11} textAnchor="middle" fontSize="11" fontWeight="900" fill="white" fontFamily="ui-monospace, monospace">${Math.round(avg)}</text>
+                                  <rect x="305" y={lowY - 4} width="55" height="22" rx="6" fill="#dc2626"/>
+                                  <text x="332.5" y={lowY + 11} textAnchor="middle" fontSize="11" fontWeight="900" fill="white" fontFamily="ui-monospace, monospace">${Math.round(low)}</text>
+                                  <text x="332.5" y={lowY + 30} textAnchor="middle" fontSize="9" fill="#94a3b8" fontWeight="600">最低</text>
+                                  {/* 时间轴 */}
+                                  <text x="10" y="195" fontSize="9" fill="#94a3b8" fontFamily="ui-monospace, monospace">过去 1 年</text>
+                                  <text x={cx} y="195" textAnchor="middle" fontSize="9" fill="#0f172a" fontWeight="900" fontFamily="ui-monospace, monospace">今天</text>
+                                  <text x="350" y="195" textAnchor="end" fontSize="9" fill="#dc2626" fontWeight="900" fontFamily="ui-monospace, monospace">未来 1 年预测</text>
+                                </svg>
+                              </div>
+                            )}
+
+                            {/* 关键数字双卡 */}
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                              <div className="rounded-xl p-3 text-center" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                <div className="text-[11px] text-slate-400 uppercase font-bold">现价</div>
+                                {last && (
+                                  <div className="font-black tabular-nums mt-1" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: '#0f172a' }}>
+                                    ${last.toFixed(2)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="rounded-xl p-3 text-center" style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', border: '1px solid #fbbf24' }}>
+                                <div className="text-[11px] uppercase font-bold" style={{ color: '#92400e' }}>平均目标价</div>
+                                <div className="font-black tabular-nums mt-1" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: '#d97706' }}>
+                                  ${avg.toFixed(2)}
+                                </div>
+                                {upPct !== null && (
+                                  <div className="font-bold tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px', color: upPct >= 0 ? '#dc2626' : '#16a34a' }}>
+                                    {upPct >= 0 ? '↑ +' : '↓ '}{upPct.toFixed(2)}%
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 评级分布柱状图 */}
+                            {analystTargets.numAnalysts > 0 && (() => {
+                              const total = analystTargets.numAnalysts;
+                              const items = [
+                                { label: '强烈买入', count: analystTargets.strongBuy, color: '#dc2626', bg: 'linear-gradient(90deg, #dc2626, #b91c1c)' },
+                                { label: '买入', count: analystTargets.buy, color: '#f87171', bg: 'linear-gradient(90deg, #f87171, #ef4444)' },
+                                { label: '持有', count: analystTargets.hold, color: '#475569', bg: '#94a3b8' },
+                                { label: '卖出', count: analystTargets.sell, color: '#86efac', bg: 'linear-gradient(90deg, #86efac, #4ade80)' },
+                                { label: '强烈卖出', count: analystTargets.strongSell, color: '#16a34a', bg: 'linear-gradient(90deg, #4ade80, #16a34a)' },
+                              ];
+                              return (
+                                <div className="rounded-xl p-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                  <div className="text-[11px] text-slate-400 uppercase font-bold mb-2 flex justify-between">
+                                    <span>📊 评级分布</span>
+                                    <span style={{ color: '#cbd5e1', textTransform: 'none', letterSpacing: 0 }}>数据源 EODHD</span>
+                                  </div>
+                                  {items.map((it, idx) => {
+                                    const pct = total > 0 ? (it.count / total) * 100 : 0;
+                                    const isZero = it.count === 0;
+                                    return (
+                                      <div key={idx} className="grid items-center mb-1.5" style={{ gridTemplateColumns: '60px 1fr 30px', gap: '10px' }}>
+                                        <span className="text-[12px] font-bold" style={{ color: isZero ? '#cbd5e1' : it.color }}>{it.label}</span>
+                                        <div className="rounded-full overflow-hidden" style={{ height: '14px', background: '#f1f5f9' }}>
+                                          {!isZero && (
+                                            <div style={{ height: '100%', width: `${pct}%`, background: it.bg, borderRadius: '7px' }}></div>
+                                          )}
+                                        </div>
+                                        <span className="text-[12px] font-black tabular-nums text-right" style={{ fontFamily: 'ui-monospace, monospace', color: isZero ? '#cbd5e1' : it.color }}>{it.count}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })()}
