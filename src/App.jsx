@@ -7910,14 +7910,7 @@ function MainApp({ user, onLogout }) {
                         return (
                           <div className="mb-3">
                             <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
-                              <span className="flex items-center gap-2">
-                                {released ? '📊 业绩详情' : '📊 业绩预期'}
-                                {released ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0' }}>已发布</span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>未发布</span>
-                                )}
-                              </span>
+                              <span>{released ? '📊 业绩详情' : '📊 业绩预期'}</span>
                               <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>数据源 EODHD</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
