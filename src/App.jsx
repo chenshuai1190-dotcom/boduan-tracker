@@ -7466,17 +7466,19 @@ function MainApp({ user, onLogout }) {
                       onError={(e) => {
                         const retry = parseInt(e.target.dataset.retry || '0');
                         const sym = selectedEvent.symbol.toLowerCase();
-                        if (retry < 3) {
-                          // 重试 3 次, 每次延迟翻倍
-                          const delay = (retry + 1) * 800;  // 800ms / 1.6s / 2.4s
+                        if (retry < 2) {
+                          // 重试 2 次 (不加 timestamp, EODHD CDN 不接受 query)
+                          const delay = (retry + 1) * 1000;  // 1s / 2s
                           e.target.dataset.retry = String(retry + 1);
                           setTimeout(() => {
-                            // 加 timestamp 强制重新请求 (绕过缓存)
-                            e.target.src = `https://eodhd.com/img/logos/US/${sym}.png?t=${Date.now()}`;
+                            // 重置 src (强制浏览器重新加载)
+                            const url = `https://eodhd.com/img/logos/US/${sym}.png`;
+                            e.target.src = '';  // 清空
+                            setTimeout(() => { e.target.src = url; }, 50);
                           }, delay);
                           return;
                         }
-                        // 3 次都失败, fallback
+                        // 2 次都失败, fallback
                         e.target.style.display = 'none';
                         const fallback = e.target.nextElementSibling;
                         if (fallback) fallback.style.display = 'inline-flex';
