@@ -1070,8 +1070,18 @@ function MainApp({ user, onLogout }) {
             if (a.general) setAnalystGeneral(a.general);
             if (a.annualSeries && a.annualSeries.length > 0) {
               setAnalystAnnual(a.annualSeries);
-              // 默认选最近一年
-              setChartSelectedYear(a.annualSeries[a.annualSeries.length - 1].year);
+              // 默认选最新有完整数据的一年 (从最新往前找, 跳过空数据)
+              // a.annualSeries 是正序 [最早 ... 最新], 倒着找
+              let defaultYear = null;
+              for (let i = a.annualSeries.length - 1; i >= 0; i--) {
+                const d = a.annualSeries[i];
+                if (d.revenue != null && d.netIncome != null) {
+                  defaultYear = d.year;
+                  break;
+                }
+              }
+              // 如果都没有完整, 用最新一年
+              setChartSelectedYear(defaultYear || a.annualSeries[a.annualSeries.length - 1].year);
             }
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
