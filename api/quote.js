@@ -125,10 +125,8 @@ export default async function handler(req, res) {
             if (!stockSym) {
               return { symbol, error: '缺少股票代码' };
             }
-            // 用 filter 只拉需要的 sections (省 API 调用配额)
-            // ⚠️ 不能用 :: 双冒号 (会扁平化, 丢失父节点路径)
-            // 用单层 filter, 拿完整子树
-            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
+            // 完全不用 filter, 拉全部 - 排查 Earnings 为空问题
+            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&fmt=json`;
             const r = await fetch(url);
             if (!r.ok) {
               return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
@@ -298,6 +296,7 @@ export default async function handler(req, res) {
               } : null,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
+              _apiVersion: 'fix12-no-filter',  // 用来确认部署的是不是最新
               // 🔍 调试信息 (前端 F12 看)
               _debug: {
                 dataKeys: Object.keys(data),
