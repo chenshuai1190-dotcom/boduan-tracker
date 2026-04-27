@@ -116,6 +116,35 @@ export default async function handler(req, res) {
 
         // ============ 📊 v10.7.9.39: 分析师目标价 (NASDAQ 免费) ============
         // 用法: ?symbols=ANALYST:NVDA
+        // ============ 🌐 v10.7.9.40 fix38: 翻译端点 (Google Translate 免费) ============
+        // 用法: ?symbols=TRANSLATE:base64编码的英文(可包含||分隔多条)
+        if (symbol.startsWith('TRANSLATE:')) {
+          try {
+            const encoded = symbol.split(':').slice(1).join(':');  // 防止内容含 :
+            const text = decodeURIComponent(escape(atob(encoded)));  // base64 → utf8
+            // 多条用 \n||\n 分隔批量翻译
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
+            const r = await fetch(url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Bottomline/1.0)',
+              },
+            });
+            if (!r.ok) {
+              return { symbol, error: `Translate 失败 ${r.status}`, original: text };
+            }
+            const json = await r.json();
+            // 返回: [[["翻译1", "原文1"], ["翻译2", "原文2"]], ...]
+            const translatedParts = (json[0] || []).map(item => item[0]).join('');
+            return {
+              symbol,
+              translated: translatedParts,
+              fetchedAt: new Date().toISOString(),
+            };
+          } catch (e) {
+            return { symbol, error: `Translate 错误: ${e.message}` };
+          }
+        }
+
         // ============ 📊 v10.7.9.40: 公司基本面 + 分析师目标价 (EODHD Fundamentals) ============
         // 用法: ?symbols=ANALYST:NVDA
         // 返回: targets (分析师) + highlights (业绩) + general (公司信息)
