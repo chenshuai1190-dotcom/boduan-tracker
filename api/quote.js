@@ -292,7 +292,19 @@ export default async function handler(req, res) {
               } : null,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
-              _apiVersion: 'fix13',
+              _apiVersion: 'fix17',
+              // 调试信息: 看 EODHD 是否有 Earnings::Trend (0q 的营收预期)
+              _debug: {
+                queriedSym: fundamentalsSym,           // 实际查询的 ticker
+                originalSym: stockSym,
+                hasEarnings: !!data.Earnings,
+                hasTrend: !!data.Earnings?.Trend,
+                trendCount: trendArr.length,
+                trendPeriods: trendArr.slice(0, 10).map(t => ({ p: t.period, d: t.date, revEst: t.revenueEstimateAvg })),
+                latestTrend0q: currentTrend ? { date: currentTrend.date, revEst: currentTrend.revenueEstimateAvg } : null,
+                upcomingExists: !!upcomingEarnings,
+                upcomingDate: upcomingEarnings?.reportDate,
+              },
             };
           } catch (e) {
             return { symbol, error: `Fundamentals 请求失败: ${e.message}` };
