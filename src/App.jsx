@@ -7353,9 +7353,10 @@ function MainApp({ user, onLogout }) {
               <div className="p-6 overflow-y-auto" style={{ flex: '1 1 auto', minHeight: 0 }}>
                 {/* 图标 + 类型 (v10.7.9.41: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
                 <div className="text-center mb-3">
-                  {analystGeneral && analystGeneral.logoURL ? (
+                  {/* Logo: 直接拼 EODHD CDN URL (不等 API), 加载失败 fallback 圆形 */}
+                  {selectedEvent.symbol && selectedEvent.type === 'earnings' ? (
                     <img
-                      src={analystGeneral.logoURL}
+                      src={analystGeneral?.logoURL || `https://eodhd.com/img/logos/US/${selectedEvent.symbol.toLowerCase()}.png`}
                       alt={selectedEvent.symbol}
                       className="mx-auto mb-3"
                       style={{
@@ -7367,38 +7368,45 @@ function MainApp({ user, onLogout }) {
                         border: '1px solid #e2e8f0',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       }}
-                      onError={(e) => { e.target.style.display = 'none'; }}
+                      onError={(e) => {
+                        // Logo 加载失败 → 隐藏 img, 显示下方 fallback
+                        e.target.style.display = 'none';
+                        const fallback = e.target.nextElementSibling;
+                        if (fallback) fallback.style.display = 'inline-flex';
+                      }}
                     />
-                  ) : (
-                    <div className="mx-auto mb-3 inline-flex items-center justify-center" style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '50%',
-                      fontSize: '28px',
-                      fontWeight: 900,
-                      background: selectedEvent.type === 'earnings' ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
-                        : selectedEvent.type === 'fomc' ? 'linear-gradient(135deg, #dbeafe, #bfdbfe)'
-                        : selectedEvent.type === 'cpi' ? 'linear-gradient(135deg, #f3e8ff, #e9d5ff)'
-                        : selectedEvent.type === 'nonfarm' ? 'linear-gradient(135deg, #cffafe, #a5f3fc)'
-                        : 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
-                      color: selectedEvent.type === 'earnings' ? '#d97706'
-                        : selectedEvent.type === 'fomc' ? '#1e40af'
-                        : selectedEvent.type === 'cpi' ? '#7c3aed'
-                        : selectedEvent.type === 'nonfarm' ? '#0891b2'
-                        : '#475569',
-                      border: '2px solid ' + (selectedEvent.type === 'earnings' ? '#fbbf24'
-                        : selectedEvent.type === 'fomc' ? '#60a5fa'
-                        : selectedEvent.type === 'cpi' ? '#a78bfa'
-                        : selectedEvent.type === 'nonfarm' ? '#22d3ee'
-                        : '#cbd5e1'),
-                    }}>
-                      {selectedEvent.type === 'earnings' ? '$'
-                        : selectedEvent.type === 'fomc' ? '%'
-                        : selectedEvent.type === 'cpi' ? 'C'
-                        : selectedEvent.type === 'nonfarm' ? 'J'
-                        : '!'}
-                    </div>
-                  )}
+                  ) : null}
+                  {/* Fallback 圆形 (Logo 加载失败 / FOMC / CPI / 非农) */}
+                  <div className="mx-auto mb-3" style={{
+                    display: (selectedEvent.type === 'earnings' && selectedEvent.symbol) ? 'none' : 'inline-flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    fontSize: '28px',
+                    fontWeight: 900,
+                    background: selectedEvent.type === 'earnings' ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                      : selectedEvent.type === 'fomc' ? 'linear-gradient(135deg, #dbeafe, #bfdbfe)'
+                      : selectedEvent.type === 'cpi' ? 'linear-gradient(135deg, #f3e8ff, #e9d5ff)'
+                      : selectedEvent.type === 'nonfarm' ? 'linear-gradient(135deg, #cffafe, #a5f3fc)'
+                      : 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                    color: selectedEvent.type === 'earnings' ? '#d97706'
+                      : selectedEvent.type === 'fomc' ? '#1e40af'
+                      : selectedEvent.type === 'cpi' ? '#7c3aed'
+                      : selectedEvent.type === 'nonfarm' ? '#0891b2'
+                      : '#475569',
+                    border: '2px solid ' + (selectedEvent.type === 'earnings' ? '#fbbf24'
+                      : selectedEvent.type === 'fomc' ? '#60a5fa'
+                      : selectedEvent.type === 'cpi' ? '#a78bfa'
+                      : selectedEvent.type === 'nonfarm' ? '#22d3ee'
+                      : '#cbd5e1'),
+                  }}>
+                    {selectedEvent.type === 'earnings' ? '$'
+                      : selectedEvent.type === 'fomc' ? '%'
+                      : selectedEvent.type === 'cpi' ? 'C'
+                      : selectedEvent.type === 'nonfarm' ? 'J'
+                      : '!'}
+                  </div>
                   <div className="text-[14px] uppercase tracking-widest font-bold" style={{
                     color: selectedEvent.type === 'earnings' ? '#d97706'
                       : selectedEvent.type === 'fomc' ? '#1e40af'
