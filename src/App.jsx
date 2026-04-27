@@ -1945,6 +1945,10 @@ function MainApp({ user, onLogout }) {
           ws.send(JSON.stringify({ action: 'subscribe', symbols }));
         };
 
+        // 调试: 统计每只股 推送次数 (临时)
+        const tickStats = {};
+        let lastStatLog = Date.now();
+
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -1953,6 +1957,14 @@ function MainApp({ user, onLogout }) {
               const sym = data.s.toUpperCase();
               const newPrice = data.p;
               const tickTime = data.t || Math.floor(Date.now() / 1000);
+              
+              // 调试: 累加推送次数
+              tickStats[sym] = (tickStats[sym] || 0) + 1;
+              // 每 30 秒打印一次统计
+              if (Date.now() - lastStatLog > 30000) {
+                console.log('[WS 推送统计]', tickStats);
+                lastStatLog = Date.now();
+              }
 
               setWsLastTick(new Date());
 
