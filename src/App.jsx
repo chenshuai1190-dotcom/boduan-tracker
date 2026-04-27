@@ -7811,7 +7811,7 @@ function MainApp({ user, onLogout }) {
                         let pathPoints = [];
                         if (hasChart) {
                           const closes = history.map(d => d.close);
-                          const allPrices = [...closes, last, high, low];
+                          const allPrices = [...closes, last];
                           const minP = Math.min(...allPrices) * 0.95;
                           const maxP = Math.max(...allPrices) * 1.05;
                           const yRange = maxP - minP;
@@ -7820,30 +7820,38 @@ function MainApp({ user, onLogout }) {
                           const xStep = (cx - 10) / (history.length - 1);
                           pathPoints = history.map((d, i) => ({ x: 10 + i * xStep, y: yScale(d.close) }));
                           var currentY = yScale(last);
-                          // 标签 y 坐标: 真实位置算出后, 强制最小间距 28px (避免重叠)
-                          var rawHighY = yScale(high);
-                          var rawLowY = yScale(low);
-                          var rawAvgY = yScale(avg);
-                          var highY = rawHighY;
-                          var avgY = rawAvgY;
-                          var lowY = rawLowY;
-                          const MIN_GAP = 28;  // 标签最小间距
-                          // 平均如果靠近高 → 平均向下推
-                          if (avgY - highY < MIN_GAP) avgY = highY + MIN_GAP;
-                          // 低如果靠近平均 → 低向下推
-                          if (lowY - avgY < MIN_GAP) lowY = avgY + MIN_GAP;
-                          // 最后整体限制在画布范围内 (20-160)
-                          if (lowY > 160) {
-                            const overflow = lowY - 160;
-                            highY -= overflow;
-                            avgY -= overflow;
-                            lowY -= overflow;
+                          // v10.7.9.40 fix25: 喇叭口标签 y 用"固定撑开"模式
+                          // 不依赖真实价差 (避免小区间挤一起)
+                          // 永远围绕现价 ±36px 分布, 最高/最低 在画布上下 30 px 边距内
+                          // 同时让"高低排序"匹配真实价格 (确保 high 永远在低 y, low 永远在高 y)
+                          const FIXED_SPREAD = 36;  // 现价到 高/低 的固定距离
+                          // 现价位置
+                          var rawCurrentY = currentY;
+                          // 强制 高/平均/低 围绕现价
+                          var highY = rawCurrentY - FIXED_SPREAD;
+                          var avgY = rawCurrentY;  // 平均 ≈ 现价位置 (但其实可调)
+                          var lowY = rawCurrentY + FIXED_SPREAD;
+                          // 但平均 vs 现价的相对关系要匹配真实
+                          //   如果 avg > last (上行) → avg 在 high 区域
+                          //   如果 avg < last (下行) → avg 在 low 区域
+                          if (avg > last) {
+                            avgY = rawCurrentY - FIXED_SPREAD * 0.6;  // 平均稍高
+                          } else if (avg < last) {
+                            avgY = rawCurrentY + FIXED_SPREAD * 0.6;  // 平均稍低
                           }
+                          // 限制在画布范围内 (20-160)
                           if (highY < 20) {
                             const lack = 20 - highY;
                             highY += lack;
                             avgY += lack;
                             lowY += lack;
+                            currentY = rawCurrentY + lack;
+                          } else if (lowY > 160) {
+                            const overflow = lowY - 160;
+                            highY -= overflow;
+                            avgY -= overflow;
+                            lowY -= overflow;
+                            currentY = rawCurrentY - overflow;
                           }
                         }
 
