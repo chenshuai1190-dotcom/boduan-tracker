@@ -314,10 +314,15 @@ export default async function handler(req, res) {
                 description: general.Description || null,
                 logoURL: general.LogoURL ? `https://eodhd.com${general.LogoURL}` : null,
                 employees: general.FullTimeEmployees || null,
-                // v10.7.9.40 fix31: 币种 (台股 TSM 是 TWD, 港股是 HKD 等)
-                currencyCode: general.CurrencyCode || 'USD',          // TWD / USD / HKD
-                currencySymbol: general.CurrencySymbol || '$',         // NT$ / $ / HK$
+                // v10.7.9.40 fix31: 股票交易币种
+                currencyCode: general.CurrencyCode || 'USD',
+                currencySymbol: general.CurrencySymbol || '$',
                 currencyName: general.CurrencyName || 'US Dollar',
+                // v10.7.9.40 fix34: 财报币种 (ADR 公司国家不一定是 US)
+                // TSM ADR: CountryName='Taiwan' → 财报 TWD
+                // 阿里 ADR: CountryName='China' → 财报 CNY
+                countryName: general.CountryName || null,
+                countryISO: general.CountryISO || null,
               },
               // 股权结构
               shares: {
