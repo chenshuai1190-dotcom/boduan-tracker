@@ -7666,8 +7666,8 @@ function MainApp({ user, onLogout }) {
                         const revBeat = revSurp != null && revSurp > 0;
                         const revMiss = revSurp != null && revSurp < 0;
                         // 格式化金额 (支持币种, 非美元加 USD 估算)
-                        // v10.7.9.40 fix34: 财报币种用 country 判断 (ADR CurrencyCode=USD 但财报实际是本币)
-                        // 国家 → 财报币种映射
+                        // v10.7.9.40 fix35: ADR 真实国家判断
+                        // 优先级: HomeCategory='ADR' → addressCountry → countryName
                         const COUNTRY_TO_CURRENCY = {
                           'Taiwan': { code: 'TWD', symbol: 'NT$', rate: 0.031 },
                           'Hong Kong': { code: 'HKD', symbol: 'HK$', rate: 0.128 },
@@ -7681,9 +7681,36 @@ function MainApp({ user, onLogout }) {
                           'Spain': { code: 'EUR', symbol: '€', rate: 1.08 },
                           'Netherlands': { code: 'EUR', symbol: '€', rate: 1.08 },
                         };
-                        // 优先用 country 判断 (针对 ADR), fallback CurrencyCode
-                        const country = analystGeneral?.countryName;
-                        const countryFx = country && COUNTRY_TO_CURRENCY[country];
+                        // ADR 真实国家映射 (硬编码 + EODHD 字段)
+                        const ADR_REAL_COUNTRY = {
+                          'TSM': 'Taiwan',
+                          'BABA': 'China',
+                          'JD': 'China',
+                          'NIO': 'China',
+                          'XPEV': 'China',
+                          'LI': 'China',
+                          'PDD': 'China',
+                          'BIDU': 'China',
+                          'TCEHY': 'China',
+                          'TM': 'Japan',     // Toyota
+                          'SONY': 'Japan',
+                          'HMC': 'Japan',    // Honda
+                          'TME': 'China',
+                          'BILI': 'China',
+                        };
+                        // 优先级判断真实国家
+                        const homeCategory = analystGeneral?.homeCategory;
+                        const isADR = homeCategory && homeCategory.includes('ADR');
+                        let realCountry = null;
+                        if (isADR) {
+                          // ADR: 优先硬编码 → addressCountry → countryName (但 ADR 的 countryName 是 USA, 不准)
+                          realCountry = ADR_REAL_COUNTRY[selectedEvent.symbol]
+                            || analystGeneral?.addressCountry
+                            || analystGeneral?.countryName;
+                        } else {
+                          realCountry = analystGeneral?.countryName;
+                        }
+                        const countryFx = realCountry && COUNTRY_TO_CURRENCY[realCountry];
                         const FX_TO_USD = {
                           'USD': 1, 'TWD': 0.031, 'HKD': 0.128, 'JPY': 0.0066,
                           'EUR': 1.08, 'GBP': 1.27, 'CNY': 0.14, 'KRW': 0.00075,
@@ -7692,8 +7719,8 @@ function MainApp({ user, onLogout }) {
                         const currencySymbol = countryFx ? countryFx.symbol : (analystGeneral?.currencySymbol || '$');
                         const fxRate = countryFx ? countryFx.rate : (FX_TO_USD[currencyCode] || 1);
                         const isForeignCurrency = currencyCode !== 'USD';
-                        // 调试: 看 TSM 等 ADR 的 country 判断
-                        console.log('[Modal 币种]', selectedEvent.symbol, 'country:', country, 'currencyCode:', currencyCode, '原 EODHD:', analystGeneral?.currencyCode);
+                        // 调试
+                        console.log('[Modal 币种]', selectedEvent.symbol, 'homeCategory:', homeCategory, 'realCountry:', realCountry, 'currencyCode:', currencyCode);
                         // 单币种格式化 (不带 USD 估算)
                         const fmtCurrency = (n, sym) => {
                           if (n == null) return null;
@@ -8049,27 +8076,35 @@ function MainApp({ user, onLogout }) {
                         const yoy = (cur, prev) => (cur != null && prev != null && prev !== 0) ? ((cur - prev) / Math.abs(prev) * 100) : null;
                         const fmtMoney = (n) => {
                           if (n == null) return "—";
-                          // v10.7.9.40 fix34: 用 country 判断 (ADR 财报本币)
+                          // v10.7.9.40 fix35: ADR 真实国家
                           const COUNTRY_FX = {
-                            'Taiwan': { code: 'TWD', symbol: 'NT$', rate: 0.031 },
-                            'Hong Kong': { code: 'HKD', symbol: 'HK$', rate: 0.128 },
-                            'China': { code: 'CNY', symbol: '¥', rate: 0.14 },
-                            'Japan': { code: 'JPY', symbol: '¥', rate: 0.0066 },
-                            'South Korea': { code: 'KRW', symbol: '₩', rate: 0.00075 },
-                            'United Kingdom': { code: 'GBP', symbol: '£', rate: 1.27 },
-                            'Germany': { code: 'EUR', symbol: '€', rate: 1.08 },
-                            'France': { code: 'EUR', symbol: '€', rate: 1.08 },
+                            'Taiwan': { symbol: 'NT$', rate: 0.031 },
+                            'Hong Kong': { symbol: 'HK$', rate: 0.128 },
+                            'China': { symbol: '¥', rate: 0.14 },
+                            'Japan': { symbol: '¥', rate: 0.0066 },
+                            'South Korea': { symbol: '₩', rate: 0.00075 },
+                            'United Kingdom': { symbol: '£', rate: 1.27 },
+                            'Germany': { symbol: '€', rate: 1.08 },
+                            'France': { symbol: '€', rate: 1.08 },
                           };
-                          const ctry = analystGeneral?.countryName;
-                          const cf = ctry && COUNTRY_FX[ctry];
+                          const ADR_MAP = {
+                            'TSM': 'Taiwan', 'BABA': 'China', 'JD': 'China', 'NIO': 'China',
+                            'XPEV': 'China', 'LI': 'China', 'PDD': 'China', 'BIDU': 'China',
+                            'TCEHY': 'China', 'TM': 'Japan', 'SONY': 'Japan', 'HMC': 'Japan',
+                            'TME': 'China', 'BILI': 'China',
+                          };
+                          const sym = selectedEvent.symbol;
+                          const isADR = analystGeneral?.homeCategory?.includes('ADR');
+                          const realCountry = isADR ? (ADR_MAP[sym] || analystGeneral?.addressCountry || analystGeneral?.countryName) : analystGeneral?.countryName;
+                          const cf = realCountry && COUNTRY_FX[realCountry];
                           const cs = cf ? cf.symbol : (analystGeneral?.currencySymbol || '$');
                           const rate = cf ? cf.rate : 1;
                           const isForeign = !!cf;
-                          const fmt = (val, sym) => {
+                          const fmt = (val, s) => {
                             const yi = val / 1e8;
-                            if (Math.abs(yi) >= 10000) return `${sym}${(yi / 10000).toFixed(2)} 万亿`;
-                            if (Math.abs(yi) >= 1) return `${sym}${yi.toFixed(yi >= 100 ? 0 : 1)} 亿`;
-                            return `${sym}${(val / 1e6).toFixed(0)}M`;
+                            if (Math.abs(yi) >= 10000) return `${s}${(yi / 10000).toFixed(2)} 万亿`;
+                            if (Math.abs(yi) >= 1) return `${s}${yi.toFixed(yi >= 100 ? 0 : 1)} 亿`;
+                            return `${s}${(val / 1e6).toFixed(0)}M`;
                           };
                           const main = fmt(n, cs);
                           if (isForeign) {
