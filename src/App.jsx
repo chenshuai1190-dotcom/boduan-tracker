@@ -7489,16 +7489,27 @@ function MainApp({ user, onLogout }) {
                     : selectedEvent.type === 'nonfarm' ? '非农就业'
                     : (selectedEvent.symbol || selectedEvent.title || '')}
                 </div>
-                {/* 日期 + 时间 */}
+                {/* 日期 + 时间 (v10.7.9.40 fix30: stock 类型用 upcomingEarnings.reportDate) */}
                 <div className="text-center text-[14px] font-bold text-slate-700 mb-4 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  {selectedEvent.date} · {(() => {
-                    // 兼容多种时段写法
-                    if (selectedEvent.type === 'fomc') return selectedEvent.time || '14:00 ET';
-                    const t = (selectedEvent.time || '').toLowerCase();
-                    if (t.includes('pre') || t.includes('before')) return '盘前';
-                    if (t.includes('after') || t.includes('post')) return '盘后';
-                    if (t.includes('not-supplied') || t.includes('not supplied') || t === '') return '未公布';
-                    return selectedEvent.time;  // FOMC 时间格式 14:00 ET 等直接用
+                  {(() => {
+                    // stock 类型: 用 ANALYST 返回的 upcomingEarnings 日期
+                    let displayDate = selectedEvent.date;
+                    if (selectedEvent.type === 'stock' && analystEarnings?.isFuture && analystEarnings?.reportDate) {
+                      displayDate = analystEarnings.reportDate;
+                    }
+                    let displayTime;
+                    if (selectedEvent.type === 'fomc') {
+                      displayTime = selectedEvent.time || '14:00 ET';
+                    } else {
+                      const t = (selectedEvent.time || '').toLowerCase();
+                      if (t.includes('pre') || t.includes('before')) displayTime = '盘前';
+                      else if (t.includes('after') || t.includes('post')) displayTime = '盘后';
+                      else if (t.includes('not-supplied') || t.includes('not supplied') || t === '') displayTime = '未公布';
+                      else displayTime = selectedEvent.time || '';
+                    }
+                    // stock 类型 + 即将发布: 标"下次财报"
+                    const prefix = (selectedEvent.type === 'stock' && analystEarnings?.isFuture) ? '下次财报: ' : '';
+                    return `${prefix}${displayDate}${displayTime ? ' · ' + displayTime : ''}`;
                   })()}
                 </div>
 
