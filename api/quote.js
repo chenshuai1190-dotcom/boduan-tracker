@@ -400,9 +400,9 @@ export default async function handler(req, res) {
             const events = [];
             if (watchSymbols.length > 0) {
               const watchSet = new Set(watchSymbols);
-              // 拉未来 14 天的财报 (并发)
+              // 拉未来 30 天的财报 (并发)
               const dates = [];
-              for (let i = 0; i < 14; i++) {
+              for (let i = 0; i < 30; i++) {
                 const d = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
                 dates.push(d.toISOString().slice(0, 10));
               }
