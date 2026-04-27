@@ -494,6 +494,36 @@ export default async function handler(req, res) {
               insiderTransactions: insiderTransactions,
               newsList: newsList,
               newsSentiment: newsSentiment,
+              // v10.7.9.40 fix42: 最新已公布的季度财务结构
+              quarterlyStructure: (() => {
+                // 按 date 倒序
+                const arr = Object.values(incomeStmtObj)
+                  .filter(i => i && i.date && i.totalRevenue)
+                  .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+                if (arr.length === 0) return null;
+                const latest = arr[0];
+                const num = (v) => {
+                  const n = parseFloat(v);
+                  return isNaN(n) ? null : n;
+                };
+                const totalRev = num(latest.totalRevenue);
+                const costRev = num(latest.costOfRevenue);
+                const grossProfit = num(latest.grossProfit) || (totalRev && costRev ? totalRev - costRev : null);
+                const rd = num(latest.researchDevelopment);
+                const sga = num(latest.sellingGeneralAdministrative);
+                const opIncome = num(latest.operatingIncome);
+                const netIncome = num(latest.netIncome);
+                return {
+                  date: latest.date,
+                  totalRevenue: totalRev,
+                  costOfRevenue: costRev,
+                  grossProfit,
+                  researchDevelopment: rd,
+                  sellingGeneralAdministrative: sga,
+                  operatingIncome: opIncome,
+                  netIncome,
+                };
+              })(),
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
               _apiVersion: 'fix37',
