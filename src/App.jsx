@@ -7487,27 +7487,102 @@ function MainApp({ user, onLogout }) {
                     : selectedEvent.type === 'nonfarm' ? '非农就业'
                     : (selectedEvent.symbol || selectedEvent.title || '')}
                 </div>
-                {/* 日期 + 时间 (v10.7.9.40 fix30: stock 类型用 upcomingEarnings.reportDate) */}
-                <div className="text-center text-[14px] font-bold text-slate-700 mb-4 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                {/* 日期 + 时间 + 状态 (v10.7.9.40 fix36) */}
+                <div className="text-center mb-4">
                   {(() => {
-                    // stock 类型: 用 ANALYST 返回的 upcomingEarnings 日期
-                    let displayDate = selectedEvent.date;
-                    if (selectedEvent.type === 'stock' && analystEarnings?.isFuture && analystEarnings?.reportDate) {
-                      displayDate = analystEarnings.reportDate;
-                    }
-                    let displayTime;
-                    if (selectedEvent.type === 'fomc') {
-                      displayTime = selectedEvent.time || '14:00 ET';
+                    // === 数据源 ===
+                    // 关注列表入口 (stock): 优先 ANALYST.upcomingEarnings 或 latestEarnings
+                    // 财报日历入口 (earnings): 用 selectedEvent 字段
+                    const isStock = selectedEvent.type === 'stock';
+                    const todayStr = new Date().toISOString().slice(0, 10);
+                    
+                    // 选择展示日期
+                    let displayDate, isReleasedFlag, isUpcomingFlag;
+                    if (isStock) {
+                      // stock 类型: 看 analystEarnings 的 isFuture
+                      if (analystEarnings?.isFuture && analystEarnings.reportDate) {
+                        displayDate = analystEarnings.reportDate;
+                        isUpcomingFlag = true;
+                      } else if (analystEarnings?.reportDate) {
+                        // 已发布最近一次
+                        displayDate = analystEarnings.reportDate;
+                        isReleasedFlag = true;
+                      } else {
+                        displayDate = null;  // 暂无近期财报
+                      }
                     } else {
-                      const t = (selectedEvent.time || '').toLowerCase();
-                      if (t.includes('pre') || t.includes('before')) displayTime = '盘前';
-                      else if (t.includes('after') || t.includes('post')) displayTime = '盘后';
-                      else if (t.includes('not-supplied') || t.includes('not supplied') || t === '') displayTime = '未公布';
-                      else displayTime = selectedEvent.time || '';
+                      // earnings 类型: selectedEvent 已经有完整数据
+                      displayDate = selectedEvent.date;
+                      // 判断是否已公布: 日期 <= 今天 && epsActual 有值
+                      const dateReached = selectedEvent.date && selectedEvent.date <= todayStr;
+                      const hasActual = selectedEvent.epsActual != null && selectedEvent.epsActual !== 0
+                                        && String(selectedEvent.epsActual).replace(/[$,\s]/g, '') !== '0';
+                      isReleasedFlag = dateReached && hasActual;
+                      isUpcomingFlag = !isReleasedFlag;
                     }
-                    // stock 类型 + 即将发布: 标"下次财报"
-                    const prefix = (selectedEvent.type === 'stock' && analystEarnings?.isFuture) ? '下次财报: ' : '';
-                    return `${prefix}${displayDate}${displayTime ? ' · ' + displayTime : ''}`;
+                    
+                    if (selectedEvent.type === 'fomc') {
+                      // FOMC 单独处理
+                      return (
+                        <div className="text-[14px] font-bold text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          {selectedEvent.date} · {selectedEvent.time || '14:00 ET'}
+                        </div>
+                      );
+                    }
+                    
+                    if (selectedEvent.type === 'cpi' || selectedEvent.type === 'nonfarm') {
+                      return (
+                        <div className="text-[14px] font-bold text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          {selectedEvent.date} {selectedEvent.time ? `· ${selectedEvent.time}` : ''}
+                        </div>
+                      );
+                    }
+                    
+                    // 时段中文
+                    const t = (selectedEvent.time || analystEarnings?.time || '').toLowerCase();
+                    let sessionText = '';
+                    if (t.includes('pre') || t.includes('before')) sessionText = '盘前';
+                    else if (t.includes('after') || t.includes('post')) sessionText = '盘后';
+                    
+                    if (!displayDate) {
+                      // 无近期财报
+                      return (
+                        <div className="text-[13px] text-slate-400 italic">暂无近期财报</div>
+                      );
+                    }
+                    
+                    if (isReleasedFlag) {
+                      // 已公布
+                      return (
+                        <>
+                          <div className="text-[14px] font-bold text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            {displayDate}{sessionText ? ` · ${sessionText}` : ''}
+                          </div>
+                          <div className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full" style={{ background: '#ecfdf5', border: '1px solid #bbf7d0' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }}></span>
+                            <span className="text-[11px] font-bold" style={{ color: '#15803d' }}>已公布</span>
+                          </div>
+                        </>
+                      );
+                    }
+                    
+                    if (isUpcomingFlag) {
+                      // 待发布
+                      const prefix = isStock ? '下次财报' : (displayDate <= todayStr ? '今日财报' : '即将公布');
+                      return (
+                        <>
+                          <div className="text-[14px] font-bold text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            {prefix}: {displayDate}{sessionText ? ` · ${sessionText}` : ''}
+                          </div>
+                          <div className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full" style={{ background: '#fef3c7', border: '1px solid #fbbf24' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d97706' }}></span>
+                            <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>待发布</span>
+                          </div>
+                        </>
+                      );
+                    }
+                    
+                    return null;
                   })()}
                 </div>
 
@@ -7719,8 +7794,6 @@ function MainApp({ user, onLogout }) {
                         const currencySymbol = countryFx ? countryFx.symbol : (analystGeneral?.currencySymbol || '$');
                         const fxRate = countryFx ? countryFx.rate : (FX_TO_USD[currencyCode] || 1);
                         const isForeignCurrency = currencyCode !== 'USD';
-                        // 调试
-                        console.log('[Modal 币种]', selectedEvent.symbol, 'homeCategory:', homeCategory, 'realCountry:', realCountry, 'currencyCode:', currencyCode);
                         // 单币种格式化 (不带 USD 估算)
                         const fmtCurrency = (n, sym) => {
                           if (n == null) return null;
@@ -7730,14 +7803,20 @@ function MainApp({ user, onLogout }) {
                           if (Math.abs(yi) >= 1) return `${sym}${yi.toFixed(1)} 亿`;
                           return `${sym}${(n / 1e6).toFixed(0)}M`;
                         };
-                        // 主格式化 (带 USD 估算 fallback, 如果是外币)
+                        // 主格式化: 返回 JSX (主大字 + USD 小字灰色)
+                        // 删调试 (确认 fix35 后)
                         const fmtBig = (n) => {
                           if (n == null) return null;
                           const main = fmtCurrency(n, currencySymbol);
                           if (isForeignCurrency && fxRate) {
                             const usdVal = n * fxRate;
                             const usdStr = fmtCurrency(usdVal, '$');
-                            return `${main} (≈ ${usdStr})`;
+                            return (
+                              <>
+                                {main}
+                                <div className="text-[11px] text-slate-400 font-normal mt-0.5">≈ {usdStr}</div>
+                              </>
+                            );
                           }
                           return main;
                         };
