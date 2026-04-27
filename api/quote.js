@@ -146,7 +146,39 @@ export default async function handler(req, res) {
             // 解析最近一次财报 (EPS + 营收 实际/预期)
             const earningsHistoryObj = data.Earnings?.History || {};
             const earningsTrendObj = data.Earnings?.Trend || {};
+            const earningsAnnualObj = data.Earnings?.Annual || {};         // 年度 EPS
             const incomeStmtObj = data.Financials?.Income_Statement?.quarterly || {};
+            const incomeAnnualObj = data.Financials?.Income_Statement?.yearly || {};  // 年度营收/利润
+
+            // 解析年度业绩 (近 10 年)
+            const annualEarningsArr = Object.values(earningsAnnualObj)
+              .filter(e => e && e.date)
+              .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            const annualIncomeArr = Object.values(incomeAnnualObj)
+              .filter(i => i && i.date)
+              .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+            // 合并年度数据 (按 date 匹配)
+            const annualBySource = new Map();
+            annualEarningsArr.forEach(e => {
+              const year = (e.date || '').slice(0, 4);
+              if (!year) return;
+              if (!annualBySource.has(year)) annualBySource.set(year, {});
+              annualBySource.get(year).epsActual = parseFloat(e.epsActual) || null;
+            });
+            annualIncomeArr.forEach(i => {
+              const year = (i.date || '').slice(0, 4);
+              if (!year) return;
+              if (!annualBySource.has(year)) annualBySource.set(year, {});
+              annualBySource.get(year).revenue = parseFloat(i.totalRevenue) || null;
+              annualBySource.get(year).netIncome = parseFloat(i.netIncome) || null;
+            });
+            // 转数组, 倒序, 取近 10 年
+            const annualSeries = Array.from(annualBySource.entries())
+              .map(([year, v]) => ({ year, ...v }))
+              .sort((a, b) => b.year.localeCompare(a.year))
+              .slice(0, 10)
+              .reverse();  // 正序: 最早 → 最新
 
             // 找最新已发布财报 (按 reportDate 倒序, 取 epsActual !== null 的第一个)
             const earningsHistoryArr = (Array.isArray(earningsHistoryObj) ? earningsHistoryObj : Object.values(earningsHistoryObj))
@@ -290,9 +322,11 @@ export default async function handler(req, res) {
                 revenueEstimateGrowth: currentTrend?.revenueEstimateGrowth || null,
                 revenueNumberOfAnalysts: currentTrend?.revenueEstimateNumberOfAnalysts || null,
               } : null,
+              // v10.7.9.40 fix21: 近 10 年年度业绩 (柱状图用)
+              annualSeries: annualSeries,  // [{year, revenue, netIncome, epsActual}, ...]
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
-              _apiVersion: 'fix17',
+              _apiVersion: 'fix21',
               // 调试信息: 看 EODHD 是否有 Earnings::Trend (0q 的营收预期)
               _debug: {
                 queriedSym: fundamentalsSym,           // 实际查询的 ticker
