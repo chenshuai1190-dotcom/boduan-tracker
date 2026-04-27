@@ -7422,7 +7422,7 @@ function MainApp({ user, onLogout }) {
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md flex flex-col relative"
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-xl flex flex-col relative"
               style={{
                 paddingBottom: 'env(safe-area-inset-bottom)',
                 maxHeight: '90vh',
