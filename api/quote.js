@@ -325,46 +325,54 @@ export default async function handler(req, res) {
             const to = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
             const toDate = to.toISOString().slice(0, 10);
 
-            // 1. 财报日历 (v10.7.9.40: EODHD 官方 Calendar - 升级 All-In-One 后)
+            // 1. 财报日历 (v10.7.9.40 fix18: NASDAQ 公开接口 - 日期更准)
+            //    EODHD 日期 ±1 天误差大, NASDAQ 官方更可靠
+            //    EPS 详情仍用 EODHD Fundamentals
             const events = [];
             if (watchSymbols.length > 0) {
-              try {
-                // 特殊股票别名: GOOGL → GOOG (财报归 Class C)
-                // 反向映射: response 里 GOOG 转回 GOOGL 用户看
-                const SYMBOL_ALIAS_REV = { 'GOOG': 'GOOGL' };
-                // 把 watchlist 转换成 EODHD 用的代码
-                const symbolsForApi = watchSymbols.map(s => {
-                  if (s === 'GOOGL') return 'GOOG';
-                  return s;
-                });
-                // 一次请求拿全部 watchlist 财报 (省时)
-                const symbolsParam = symbolsForApi.map(s => `${s}.US`).join(',');
-                const url = `https://eodhd.com/api/calendar/earnings?api_token=${eodhdKey}&symbols=${symbolsParam}&from=${fromDate}&to=${toDate}&fmt=json`;
-                const r = await fetch(url);
-                if (r.ok) {
+              const watchSet = new Set(watchSymbols);
+              // 拉未来 14 天的财报 (并发)
+              const dates = [];
+              for (let i = 0; i < 14; i++) {
+                const d = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+                dates.push(d.toISOString().slice(0, 10));
+              }
+
+              const dailyResults = await Promise.all(dates.map(async (d) => {
+                try {
+                  const url = `https://api.nasdaq.com/api/calendar/earnings?date=${d}`;
+                  const r = await fetch(url, {
+                    headers: {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                      'Accept': 'application/json',
+                      'Origin': 'https://www.nasdaq.com',
+                      'Referer': 'https://www.nasdaq.com/',
+                    },
+                  });
+                  if (!r.ok) return { date: d, rows: [] };
                   const json = await r.json();
-                  const earnings = json?.earnings || [];
-                  for (const e of earnings) {
-                    let sym = (e.code || '').replace('.US', '');
-                    // 反向映射: EODHD 返回 GOOG → 转回 GOOGL (跟用户 watchlist 一致)
-                    if (SYMBOL_ALIAS_REV[sym] && watchSymbols.includes(SYMBOL_ALIAS_REV[sym])) {
-                      sym = SYMBOL_ALIAS_REV[sym];
-                    }
-                    // 日期: EODHD report_date 已经是美东日期, 直接用
+                  const rows = json?.data?.rows || [];
+                  return { date: d, rows };
+                } catch (e) {
+                  return { date: d, rows: [] };
+                }
+              }));
+
+              // 过滤: 只保留 watchlist 里的股
+              for (const { date, rows } of dailyResults) {
+                for (const row of rows) {
+                  const sym = row.symbol;
+                  if (watchSet.has(sym)) {
                     events.push({
                       type: 'earnings',
-                      date: e.report_date,
-                      time: e.before_after_market || 'time-not-supplied',
+                      date: date,
+                      time: row.time || 'time-not-supplied',  // NASDAQ: pre-market / after-hours / time-not-supplied
                       symbol: sym,
-                      epsEstimate: e.estimate,
-                      epsActual: e.actual,
-                      epsDiff: e.difference,
-                      surprise: e.percent ? (e.percent + '') : null,
+                      epsEstimate: row.epsForecast || null,
+                      epsActual: row.eps || null,
                     });
                   }
                 }
-              } catch (e) {
-                console.warn('[Calendar] EODHD 拉取失败:', e.message);
               }
             }
 
