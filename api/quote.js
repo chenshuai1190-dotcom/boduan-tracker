@@ -338,9 +338,20 @@ export default async function handler(req, res) {
                     if (SYMBOL_ALIAS_REV[sym] && watchSymbols.includes(SYMBOL_ALIAS_REV[sym])) {
                       sym = SYMBOL_ALIAS_REV[sym];
                     }
+                    // 日期处理: EODHD 用 UTC, 美东盘后 → 第二天 UTC
+                    // 美东时间显示需要 -1 天 (盘后情况)
+                    let displayDate = e.report_date;
+                    const timeStr = (e.before_after_market || '').toLowerCase();
+                    if (displayDate && (timeStr.includes('after') || timeStr === 'aftermarket')) {
+                      // 盘后: UTC 日期减 1 天 = 美东日期
+                      const d = new Date(displayDate);
+                      d.setDate(d.getDate() - 1);
+                      displayDate = d.toISOString().slice(0, 10);
+                    }
                     events.push({
                       type: 'earnings',
-                      date: e.report_date,
+                      date: displayDate,
+                      originalDate: e.report_date,  // 调试: EODHD 原始日期
                       time: e.before_after_market || 'time-not-supplied',  // BeforeMarket / AfterMarket
                       symbol: sym,
                       // EPS 字段
