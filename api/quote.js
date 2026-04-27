@@ -125,8 +125,15 @@ export default async function handler(req, res) {
             if (!stockSym) {
               return { symbol, error: '缺少股票代码' };
             }
+            // 特殊股票: 财报数据归属其他 ticker
+            //   GOOGL (Class A) → GOOG (Class C, EODHD 财报归这里)
+            //   未来可能加更多
+            const SYMBOL_ALIAS = {
+              'GOOGL': 'GOOG',
+            };
+            const fundamentalsSym = SYMBOL_ALIAS[stockSym] || stockSym;
             // 用 filter 拉需要的 sections (省 API 配额)
-            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
+            const url = `https://eodhd.com/api/fundamentals/${fundamentalsSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
             const r = await fetch(url);
             if (!r.ok) {
               return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
@@ -310,15 +317,27 @@ export default async function handler(req, res) {
             const events = [];
             if (watchSymbols.length > 0) {
               try {
+                // 特殊股票别名: GOOGL → GOOG (财报归 Class C)
+                // 反向映射: response 里 GOOG 转回 GOOGL 用户看
+                const SYMBOL_ALIAS_REV = { 'GOOG': 'GOOGL' };
+                // 把 watchlist 转换成 EODHD 用的代码
+                const symbolsForApi = watchSymbols.map(s => {
+                  if (s === 'GOOGL') return 'GOOG';
+                  return s;
+                });
                 // 一次请求拿全部 watchlist 财报 (省时)
-                const symbolsParam = watchSymbols.map(s => `${s}.US`).join(',');
+                const symbolsParam = symbolsForApi.map(s => `${s}.US`).join(',');
                 const url = `https://eodhd.com/api/calendar/earnings?api_token=${eodhdKey}&symbols=${symbolsParam}&from=${fromDate}&to=${toDate}&fmt=json`;
                 const r = await fetch(url);
                 if (r.ok) {
                   const json = await r.json();
                   const earnings = json?.earnings || [];
                   for (const e of earnings) {
-                    const sym = (e.code || '').replace('.US', '');
+                    let sym = (e.code || '').replace('.US', '');
+                    // 反向映射: EODHD 返回 GOOG → 转回 GOOGL (跟用户 watchlist 一致)
+                    if (SYMBOL_ALIAS_REV[sym] && watchSymbols.includes(SYMBOL_ALIAS_REV[sym])) {
+                      sym = SYMBOL_ALIAS_REV[sym];
+                    }
                     events.push({
                       type: 'earnings',
                       date: e.report_date,
