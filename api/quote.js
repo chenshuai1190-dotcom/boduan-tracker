@@ -132,13 +132,95 @@ export default async function handler(req, res) {
               'GOOGL': 'GOOG',
             };
             const fundamentalsSym = SYMBOL_ALIAS[stockSym] || stockSym;
-            // 用 filter 拉需要的 sections (省 API 配额)
-            const url = `https://eodhd.com/api/fundamentals/${fundamentalsSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
-            const r = await fetch(url);
-            if (!r.ok) {
-              return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
+            // 并发拉 3 个端点: fundamentals + insider + news
+            const fundUrl = `https://eodhd.com/api/fundamentals/${fundamentalsSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
+            // 内部人交易 (近 90 天, 50 笔)
+            const insiderUrl = `https://eodhd.com/api/insider-transactions?api_token=${eodhdKey}&code=${fundamentalsSym}.US&limit=50&fmt=json`;
+            // 新闻 (近 30 天, 10 条)
+            const newsUrl = `https://eodhd.com/api/news?api_token=${eodhdKey}&s=${fundamentalsSym}.US&limit=10&offset=0&fmt=json`;
+
+            const [fundResp, insiderResp, newsResp] = await Promise.allSettled([
+              fetch(fundUrl),
+              fetch(insiderUrl),
+              fetch(newsUrl),
+            ]);
+
+            // 处理 fundamentals (主数据)
+            if (fundResp.status !== 'fulfilled' || !fundResp.value.ok) {
+              return { symbol, error: `EODHD Fundamentals 返回 ${fundResp.value?.status || 'fail'}` };
             }
-            const data = await r.json();
+            const data = await fundResp.value.json();
+
+            // 处理 insider transactions (next 90 days)
+            let insiderTransactions = [];
+            try {
+              if (insiderResp.status === 'fulfilled' && insiderResp.value.ok) {
+                const insArr = await insiderResp.value.json();
+                if (Array.isArray(insArr)) {
+                  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                  insiderTransactions = insArr
+                    .filter(t => t.transactionDate >= ninetyDaysAgo)
+                    .filter(t => t.transactionAmount > 0)  // 排除空交易
+                    .map(t => {
+                      const code = (t.transactionCode || '').toUpperCase();
+                      // P=Purchase 买入 / S=Sale 卖出 / A=Award 授予 (排除) / G=Gift 排除
+                      const isBuy = code === 'P' || (t.transactionAcquiredDisposedCode || '').toUpperCase() === 'A' && code !== 'A';
+                      const isSell = code === 'S' || (t.transactionAcquiredDisposedCode || '').toUpperCase() === 'D';
+                      // 只保留真实买卖, 排除 A (Award 授予 / Grant)
+                      if (code === 'A' || code === 'G' || code === 'M') return null;  // Award/Gift/Misc 排除
+                      return {
+                        date: t.transactionDate,
+                        ownerName: t.ownerName || t.fullName,
+                        position: t.ownerRelationship,
+                        type: code === 'P' ? 'buy' : (code === 'S' ? 'sell' : (isBuy ? 'buy' : 'sell')),
+                        shares: parseFloat(t.transactionAmount) || 0,
+                        price: parseFloat(t.transactionPrice) || 0,
+                        amount: (parseFloat(t.transactionAmount) || 0) * (parseFloat(t.transactionPrice) || 0),
+                      };
+                    })
+                    .filter(t => t && t.amount > 0)
+                    .sort((a, b) => b.date.localeCompare(a.date));
+                }
+              }
+            } catch (e) {
+              console.warn('[Insider] 解析失败:', e.message);
+            }
+
+            // 处理 news + sentiment
+            let newsList = [];
+            let newsSentiment = null;
+            try {
+              if (newsResp.status === 'fulfilled' && newsResp.value.ok) {
+                const newsArr = await newsResp.value.json();
+                if (Array.isArray(newsArr)) {
+                  newsList = newsArr.slice(0, 10).map(n => ({
+                    date: n.date,
+                    title: n.title,
+                    link: n.link,
+                    source: n.symbols && n.symbols.length > 0 ? null : (n.source || ''),
+                    polarity: n.sentiment?.polarity || 0,
+                    pos: n.sentiment?.pos || 0,
+                    neg: n.sentiment?.neg || 0,
+                    neu: n.sentiment?.neu || 0,
+                  }));
+                  // 综合情绪 (平均 polarity)
+                  if (newsList.length > 0) {
+                    const avgPol = newsList.reduce((s, n) => s + (n.polarity || 0), 0) / newsList.length;
+                    const posCount = newsList.filter(n => n.polarity > 0.1).length;
+                    const negCount = newsList.filter(n => n.polarity < -0.1).length;
+                    const neuCount = newsList.length - posCount - negCount;
+                    newsSentiment = {
+                      avgPolarity: avgPol,
+                      posCount, negCount, neuCount,
+                      total: newsList.length,
+                    };
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('[News] 解析失败:', e.message);
+            }
+
             const highlights = data.Highlights || {};
             const ratings = data.AnalystRatings || {};
             const general = data.General || {};
@@ -367,9 +449,13 @@ export default async function handler(req, res) {
               // v10.7.9.40 fix21: 近 10 年年度业绩 (柱状图用)
               annualSeries: annualSeries,  // [{year, revenue, netIncome, epsActual}, ...]
               priceHistory: priceHistory,   // [{date, close}, ...] 过去 1 年日线 (周采样)
+              // v10.7.9.40 fix37: 内部人 + 新闻
+              insiderTransactions: insiderTransactions,
+              newsList: newsList,
+              newsSentiment: newsSentiment,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
-              _apiVersion: 'fix35',
+              _apiVersion: 'fix37',
               // 调试信息: 看 EODHD 是否有 Earnings::Trend (0q 的营收预期)
               _debug: {
                 queriedSym: fundamentalsSym,           // 实际查询的 ticker
