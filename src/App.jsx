@@ -1105,7 +1105,55 @@ function MainApp({ user, onLogout }) {
             }
             // v40 fix37: 内部人 + 新闻
             if (a.insiderTransactions) setAnalystInsider(a.insiderTransactions);
-            if (a.newsList) setAnalystNews(a.newsList);
+            if (a.newsList) {
+              setAnalystNews(a.newsList);
+              // v40 fix38: 自动翻译新闻标题 (有缓存 不重复调)
+              (async () => {
+                try {
+                  // 先看 localStorage 缓存
+                  const cacheKey = 'newsTransCache';
+                  let cache = {};
+                  try {
+                    cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+                  } catch {}
+                  // 找出未翻译的标题
+                  const toTranslate = a.newsList.filter(n => n.title && !cache[n.title]);
+                  if (toTranslate.length === 0) {
+                    // 全部都缓存过, 直接更新
+                    if (cancelled) return;
+                    setAnalystNews(prev => (prev || []).map(n => ({ ...n, titleZh: cache[n.title] || null })));
+                    return;
+                  }
+                  // 批量翻译 (用 \n||\n 分隔, 一次调 1 个 API)
+                  const sep = '\n||\n';
+                  const combined = toTranslate.map(n => n.title).join(sep);
+                  const encoded = btoa(unescape(encodeURIComponent(combined)));
+                  const tr = await fetch(`/api/quote?symbols=TRANSLATE:${encoded}`);
+                  const trResult = await tr.json();
+                  if (cancelled) return;
+                  if (trResult.success && trResult.data) {
+                    const t = trResult.data.find(d => d.symbol && d.symbol.startsWith('TRANSLATE:'));
+                    if (t && t.translated) {
+                      // 拆分翻译结果
+                      const translated = t.translated.split(/\s*\|\|\s*/);
+                      toTranslate.forEach((n, idx) => {
+                        if (translated[idx]) {
+                          cache[n.title] = translated[idx].trim();
+                        }
+                      });
+                      // 写回缓存
+                      try {
+                        localStorage.setItem(cacheKey, JSON.stringify(cache));
+                      } catch {}
+                      // 更新 state (合并所有缓存)
+                      setAnalystNews(prev => (prev || []).map(n => ({ ...n, titleZh: cache[n.title] || null })));
+                    }
+                  }
+                } catch (e) {
+                  console.warn('[News 翻译] 失败:', e.message);
+                }
+              })();
+            }
             if (a.newsSentiment) setAnalystNewsSentiment(a.newsSentiment);
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -8459,8 +8507,13 @@ function MainApp({ user, onLogout }) {
                                   style={{ borderBottom: idx < items.length - 1 ? '1px solid #f1f5f9' : 'none' }}
                                 >
                                   <div className="text-[13px] font-bold text-slate-900 leading-snug mb-1">
-                                    {n.title}
+                                    {n.titleZh || n.title}
                                   </div>
+                                  {n.titleZh && (
+                                    <div className="text-[10px] text-slate-400 leading-snug mb-1" style={{ fontStyle: 'italic' }}>
+                                      {n.title}
+                                    </div>
+                                  )}
                                   <div className="flex justify-between items-center text-[10px]">
                                     <span className="text-slate-400 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                       {formatTimeAgo(n.date)}
