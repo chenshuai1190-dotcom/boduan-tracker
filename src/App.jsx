@@ -522,6 +522,9 @@ function MainApp({ user, onLogout }) {
   const [analystHighlights, setAnalystHighlights] = useState(null);
   const [analystGeneral, setAnalystGeneral] = useState(null);
   const [analystEarnings, setAnalystEarnings] = useState(null);  // v41: EPS + 营收 对比
+  const [analystAnnual, setAnalystAnnual] = useState(null);      // v40 fix21: 10 年年度业绩
+  const [chartMetric, setChartMetric] = useState('revenue');     // 'revenue' | 'netIncome' | 'epsActual'
+  const [chartSelectedYear, setChartSelectedYear] = useState(null);
   const [analystLoading, setAnalystLoading] = useState(false);
 
   // 顶部市场状态卡的基准股票(默认 QQQ,可切换关注列表里其他 1x 标的)
@@ -1029,6 +1032,9 @@ function MainApp({ user, onLogout }) {
       setAnalystHighlights(null);
       setAnalystGeneral(null);
       setAnalystEarnings(null);
+      setAnalystAnnual(null);
+      setChartSelectedYear(null);
+      setChartMetric('revenue');
       setAnalystLoading(false);
       return;
     }
@@ -1038,6 +1044,7 @@ function MainApp({ user, onLogout }) {
       setAnalystHighlights(null);
       setAnalystGeneral(null);
       setAnalystEarnings(null);
+      setAnalystAnnual(null);
       return;
     }
 
@@ -1047,6 +1054,8 @@ function MainApp({ user, onLogout }) {
     setAnalystHighlights(null);
     setAnalystGeneral(null);
     setAnalystEarnings(null);
+    setAnalystAnnual(null);
+    setChartSelectedYear(null);
 
     (async () => {
       try {
@@ -1059,18 +1068,17 @@ function MainApp({ user, onLogout }) {
             if (a.targets) setAnalystTargets(a.targets);
             if (a.highlights) setAnalystHighlights(a.highlights);
             if (a.general) setAnalystGeneral(a.general);
-            // v41: 选 earnings (优先用最近已发布的, 若 selectedEvent 是未来财报则用 upcoming)
+            if (a.annualSeries && a.annualSeries.length > 0) {
+              setAnalystAnnual(a.annualSeries);
+              // 默认选最近一年
+              setChartSelectedYear(a.annualSeries[a.annualSeries.length - 1].year);
+            }
             const evDate = selectedEvent.date || '';
             const todayStr = new Date().toISOString().slice(0, 10);
-            // 如果 Modal 的财报日期已过 → 用 latestEarnings (已发布)
-            // 如果是未来日期 → 优先 upcomingEarnings
             const evIsFuture = evDate > todayStr;
             const earnings = evIsFuture && a.upcomingEarnings ? a.upcomingEarnings : a.earnings;
             if (earnings) setAnalystEarnings({ ...earnings, isFuture: evIsFuture });
-            console.log('[Fundamentals]', { earnings: a.earnings, upcoming: a.upcomingEarnings, version: a._apiVersion });
-            if (a._debug) {
-              console.log('[Fundamentals DEBUG]', a._debug);
-            }
+            console.log('[Fundamentals]', { earnings: a.earnings, upcoming: a.upcomingEarnings, annual: a.annualSeries?.length, version: a._apiVersion });
           } else {
             console.warn('[Fundamentals] 没拿到数据:', a);
           }
@@ -7577,60 +7585,6 @@ function MainApp({ user, onLogout }) {
                         </div>
                       )}
 
-                      {/* 1. 公司信息 */}
-                      <div className="mb-3">
-                        <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1">📋 公司信息</div>
-                        <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-[14px]">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">公司</span>
-                            <span className="font-bold text-slate-900">{analystGeneral?.name || stockInfo?.name || selectedEvent.name || selectedEvent.symbol}</span>
-                          </div>
-                          {/* v40+: EODHD 行业 */}
-                          {analystGeneral?.sector && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">行业</span>
-                              <span className="font-bold text-slate-900 truncate" style={{ maxWidth: '60%' }}>
-                                {analystGeneral.sector}{analystGeneral.industry ? ` · ${analystGeneral.industry}` : ''}
-                              </span>
-                            </div>
-                          )}
-                          {(analystHighlights?.marketCap || selectedEvent.marketCap) && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">市值</span>
-                              <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                {fmtMarketCap(analystHighlights?.marketCap || selectedEvent.marketCap)}
-                              </span>
-                            </div>
-                          )}
-                          {selectedEvent.fiscalQuarterEnding && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">财季</span>
-                              <span className="font-bold text-slate-900">{selectedEvent.fiscalQuarterEnding}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">发布时段</span>
-                            <span className="font-bold text-slate-900">{sessionCN}</span>
-                          </div>
-                          {analystGeneral?.employees && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">员工数</span>
-                              <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                {analystGeneral.employees.toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                          {selectedEvent.noOfEsts && selectedEvent.noOfEsts !== 'N/A' && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">分析师覆盖</span>
-                              <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                约 {selectedEvent.noOfEsts} 位
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
                       {/* 2. 业绩详情 (v10.7.9.41: V2 双卡片 - EPS + 营收 实际/预期) */}
                       {(analystEarnings || epsEst !== null || epsAct !== null) && (() => {
                         // 优先用 EODHD analystEarnings, 次选 selectedEvent
@@ -7648,13 +7602,16 @@ function MainApp({ user, onLogout }) {
                         const epsMiss = epsSurp != null && epsSurp < 0;
                         const revBeat = revSurp != null && revSurp > 0;
                         const revMiss = revSurp != null && revSurp < 0;
-                        // 格式化金额
+                        // 格式化金额 (营收用美元亿: $37.86B → 378.6 亿)
                         const fmtBig = (n) => {
                           if (n == null) return null;
-                          if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-                          if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-                          if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
-                          return `$${n.toLocaleString()}`;
+                          // 转换成亿 (1 亿美元 = 1e8)
+                          const yi = n / 1e8;
+                          if (Math.abs(yi) >= 10000) return `$${(yi / 10000).toFixed(2)} 万亿`;
+                          if (Math.abs(yi) >= 100) return `$${yi.toFixed(0)} 亿`;
+                          if (Math.abs(yi) >= 1) return `$${yi.toFixed(1)} 亿`;
+                          // 小于 1 亿的, 用百万
+                          return `$${(n / 1e6).toFixed(0)}M`;
                         };
                         const released = !isFut && (epsActE != null && epsActE !== 0);
                         return (
@@ -7902,104 +7859,125 @@ function MainApp({ user, onLogout }) {
                         );
                       })()}
 
-                      {/* 5. 公司基本面 (v10.7.9.41, EODHD Highlights) */}
-                      {analystHighlights && (() => {
-                        const h = analystHighlights;
-                        const fmtBig = (n) => {
-                          if (!n) return null;
-                          if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-                          if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-                          if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
-                          return `$${n.toLocaleString()}`;
+                      {/* 5. 10 年年度业绩柱状图 (v10.7.9.40 fix21, 替代公司基本面) */}
+                      {analystAnnual && analystAnnual.length > 0 && (() => {
+                        const series = analystAnnual;
+                        const values = series.map(d => d[chartMetric]).filter(v => v != null);
+                        if (values.length === 0) return null;
+                        const maxV = Math.max(...values);
+                        const minV = Math.min(...values, 0);
+                        const range = maxV - minV;
+                        const W = 320, H = 130;
+                        const barW = (W - 20) / series.length - 4;
+                        const selected = series.find(s => s.year === chartSelectedYear) || series[series.length - 1];
+                        const selectedIdx = series.indexOf(selected);
+                        const prevSelected = selectedIdx > 0 ? series[selectedIdx - 1] : null;
+                        const yoy = (cur, prev) => (cur != null && prev != null && prev !== 0) ? ((cur - prev) / Math.abs(prev) * 100) : null;
+                        const fmtMoney = (n) => {
+                          if (n == null) return "—";
+                          const yi = n / 1e8;
+                          if (Math.abs(yi) >= 10000) return `$${(yi / 10000).toFixed(2)} 万亿`;
+                          if (Math.abs(yi) >= 1) return `$${yi.toFixed(yi >= 100 ? 0 : 1)} 亿`;
+                          return `$${(n / 1e6).toFixed(0)}M`;
                         };
-                        const fmtPct = (n) => n != null ? `${(n * 100).toFixed(2)}%` : null;
                         return (
                           <div className="mb-3">
                             <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
-                              <span>📈 公司基本面</span>
-                              <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
-                                数据源 EODHD
+                              <span>📈 {series.length} 年业绩</span>
+                              <span style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                                点柱看详情 · 数据源 EODHD
                               </span>
                             </div>
-                            <div className="bg-slate-50 rounded-xl p-3 text-[14px] space-y-1.5">
-                              {h.marketCap && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">市值</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {fmtBig(h.marketCap)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.peRatio && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">市盈率 PE (TTM)</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {h.peRatio.toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.pegRatio && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">PEG (5 年预期)</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {h.pegRatio.toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.revenueTTM && (
-                                <div className="flex justify-between pt-2 border-t border-slate-200">
-                                  <span className="text-slate-500">营收 (TTM)</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {fmtBig(h.revenueTTM)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.quarterlyRevenueGrowthYOY != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">本季营收同比</span>
-                                  <span className={`font-bold tabular-nums ${h.quarterlyRevenueGrowthYOY >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {h.quarterlyRevenueGrowthYOY >= 0 ? '+' : ''}{(h.quarterlyRevenueGrowthYOY * 100).toFixed(2)}%
-                                  </span>
-                                </div>
-                              )}
-                              {h.quarterlyEarningsGrowthYOY != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">本季 EPS 同比</span>
-                                  <span className={`font-bold tabular-nums ${h.quarterlyEarningsGrowthYOY >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {h.quarterlyEarningsGrowthYOY >= 0 ? '+' : ''}{(h.quarterlyEarningsGrowthYOY * 100).toFixed(2)}%
-                                  </span>
-                                </div>
-                              )}
-                              {h.profitMargin != null && (
-                                <div className="flex justify-between pt-2 border-t border-slate-200">
-                                  <span className="text-slate-500">净利率 (TTM)</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {fmtPct(h.profitMargin)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.operatingMargin != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">营业利润率 (TTM)</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {fmtPct(h.operatingMargin)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.roe != null && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">ROE (TTM)</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {fmtPct(h.roe)}
-                                  </span>
-                                </div>
-                              )}
-                              {h.dividendYield != null && h.dividendYield > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500">股息率</span>
-                                  <span className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {fmtPct(h.dividendYield)}
-                                  </span>
+                            <div className="bg-slate-50 rounded-xl p-3">
+                              <div className="flex gap-2 justify-center mb-3">
+                                {[
+                                  { k: 'revenue', label: '营收' },
+                                  { k: 'netIncome', label: '净利润' },
+                                  { k: 'epsActual', label: 'EPS' },
+                                ].map(t => (
+                                  <button
+                                    key={t.k}
+                                    onClick={() => setChartMetric(t.k)}
+                                    className="px-3 py-1 rounded-full text-[12px] font-bold active:scale-95"
+                                    style={{
+                                      background: chartMetric === t.k ? '#0f172a' : 'white',
+                                      color: chartMetric === t.k ? 'white' : '#64748b',
+                                      border: '1px solid #e2e8f0',
+                                    }}
+                                  >
+                                    {t.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <svg viewBox={`0 0 ${W} ${H + 18}`} preserveAspectRatio="none" style={{ width: '100%', height: 150 }}>
+                                {series.map((d, i) => {
+                                  const v = d[chartMetric];
+                                  if (v == null) return null;
+                                  const x = 10 + i * (barW + 4);
+                                  const h = range > 0 ? ((v - minV) / range) * (H - 20) : 0;
+                                  const y = H - 10 - h;
+                                  const isSelected = d.year === chartSelectedYear;
+                                  return (
+                                    <g key={d.year} onClick={() => setChartSelectedYear(d.year)} style={{ cursor: 'pointer' }}>
+                                      <rect
+                                        x={x} y={y} width={barW} height={Math.max(h, 1)}
+                                        rx={2}
+                                        fill={isSelected ? '#d97706' : (v >= 0 ? '#fbbf24' : '#94a3b8')}
+                                        opacity={isSelected ? 1 : 0.85}
+                                      />
+                                      <text x={x + barW / 2} y={H + 8}
+                                        textAnchor="middle"
+                                        fontSize="9"
+                                        fontFamily="ui-monospace, monospace"
+                                        fontWeight={isSelected ? 900 : 500}
+                                        fill={isSelected ? '#d97706' : '#94a3b8'}
+                                      >
+                                        {d.year.slice(-2)}
+                                      </text>
+                                    </g>
+                                  );
+                                })}
+                              </svg>
+                              {selected && (
+                                <div className="rounded-lg p-3 mt-2" style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', border: '1px solid #fbbf24' }}>
+                                  <div className="text-center font-bold mb-2" style={{ color: '#92400e', fontSize: '13px' }}>
+                                    {selected.year} 财年
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div>
+                                      <div className="text-[11px] text-amber-700 font-semibold">营收</div>
+                                      <div className="font-black tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px' }}>
+                                        {fmtMoney(selected.revenue)}
+                                      </div>
+                                      {prevSelected && yoy(selected.revenue, prevSelected.revenue) != null && (
+                                        <div className={`text-[10px] font-bold ${yoy(selected.revenue, prevSelected.revenue) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                          {yoy(selected.revenue, prevSelected.revenue) >= 0 ? '+' : ''}{yoy(selected.revenue, prevSelected.revenue).toFixed(1)}%
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div className="text-[11px] text-amber-700 font-semibold">净利润</div>
+                                      <div className="font-black tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px' }}>
+                                        {fmtMoney(selected.netIncome)}
+                                      </div>
+                                      {prevSelected && yoy(selected.netIncome, prevSelected.netIncome) != null && (
+                                        <div className={`text-[10px] font-bold ${yoy(selected.netIncome, prevSelected.netIncome) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                          {yoy(selected.netIncome, prevSelected.netIncome) >= 0 ? '+' : ''}{yoy(selected.netIncome, prevSelected.netIncome).toFixed(1)}%
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div className="text-[11px] text-amber-700 font-semibold">EPS</div>
+                                      <div className="font-black tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px' }}>
+                                        {selected.epsActual != null ? `$${selected.epsActual.toFixed(2)}` : '—'}
+                                      </div>
+                                      {prevSelected && yoy(selected.epsActual, prevSelected.epsActual) != null && (
+                                        <div className={`text-[10px] font-bold ${yoy(selected.epsActual, prevSelected.epsActual) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                          {yoy(selected.epsActual, prevSelected.epsActual) >= 0 ? '+' : ''}{yoy(selected.epsActual, prevSelected.epsActual).toFixed(1)}%
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </div>
