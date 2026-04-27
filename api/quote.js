@@ -126,8 +126,9 @@ export default async function handler(req, res) {
               return { symbol, error: '缺少股票代码' };
             }
             // 用 filter 只拉需要的 sections (省 API 调用配额)
-            // 1 次请求拿: General + Highlights + AnalystRatings + Earnings
-            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General::Name,General::Sector,General::Industry,General::LogoURL,General::FullTimeEmployees,Highlights,AnalystRatings,Earnings::History,Earnings::Trend,Financials::Income_Statement::quarterly,SharesStats::PercentInsiders,SharesStats::PercentInstitutions&fmt=json`;
+            // ⚠️ 不能用 :: 双冒号 (会扁平化, 丢失父节点路径)
+            // 用单层 filter, 拿完整子树
+            const url = `https://eodhd.com/api/fundamentals/${stockSym}.US?api_token=${eodhdKey}&filter=General,Highlights,AnalystRatings,Earnings,Financials,SharesStats&fmt=json`;
             const r = await fetch(url);
             if (!r.ok) {
               return { symbol, error: `EODHD Fundamentals 返回 ${r.status}` };
@@ -138,14 +139,26 @@ export default async function handler(req, res) {
             const general = data.General || {};
             const sharesStats = data.SharesStats || {};
             // v10.7.9.41: 解析最近一次财报 (EPS + 营收 实际/预期)
+            // 调试: 打印 EODHD 返回结构 (排查 earnings = null)
+            console.log('[Fundamentals]', stockSym, 'data keys:', Object.keys(data));
+            console.log('[Fundamentals]', stockSym, 'Earnings keys:', Object.keys(data.Earnings || {}));
+            console.log('[Fundamentals]', stockSym, 'Financials keys:', Object.keys(data.Financials || {}));
+
             const earningsHistoryObj = data.Earnings?.History || {};  // 对象 {date: {...}}
             const earningsTrendObj = data.Earnings?.Trend || {};     // 对象 {date: {...}}
             const incomeStmtObj = data.Financials?.Income_Statement?.quarterly || {};  // 季度营收
 
+            console.log('[Fundamentals]', stockSym, 'historyType:', Array.isArray(earningsHistoryObj) ? 'array' : 'object', 'len:', Array.isArray(earningsHistoryObj) ? earningsHistoryObj.length : Object.keys(earningsHistoryObj).length);
+
             // 找最新已发布财报 (按 reportDate 倒序, 取 epsActual !== null 的第一个)
-            const earningsHistoryArr = Object.values(earningsHistoryObj)
+            // 兼容 数组 / 对象两种结构
+            const earningsHistoryArr = (Array.isArray(earningsHistoryObj) ? earningsHistoryObj : Object.values(earningsHistoryObj))
               .filter(e => e && e.reportDate)
               .sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
+            console.log('[Fundamentals]', stockSym, 'earnings arr length:', earningsHistoryArr.length);
+            if (earningsHistoryArr[0]) {
+              console.log('[Fundamentals]', stockSym, 'sample:', JSON.stringify(earningsHistoryArr[0]).substring(0, 300));
+            }
             const latestEarnings = earningsHistoryArr.find(e => e.epsActual != null) || null;
             const upcomingEarnings = earningsHistoryArr.find(e => e.epsActual == null) || null;
             // 上一季 (用于同比)
@@ -285,6 +298,22 @@ export default async function handler(req, res) {
               } : null,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
+              // 🔍 调试信息 (前端 F12 看)
+              _debug: {
+                dataKeys: Object.keys(data),
+                hasEarnings: !!data.Earnings,
+                earningsKeys: Object.keys(data.Earnings || {}),
+                hasFinancials: !!data.Financials,
+                financialsKeys: Object.keys(data.Financials || {}),
+                historyType: Array.isArray(earningsHistoryObj) ? 'array' : 'object',
+                historyLen: Array.isArray(earningsHistoryObj) ? earningsHistoryObj.length : Object.keys(earningsHistoryObj).length,
+                trendLen: trendArr.length,
+                trendPeriods: trendArr.map(t => t.period),
+                latestEarningsIsNull: latestEarnings === null,
+                upcomingEarningsIsNull: upcomingEarnings === null,
+                sampleEarning: earningsHistoryArr[0] ? Object.keys(earningsHistoryArr[0]) : null,
+                sampleTrend: trendArr[0] ? Object.keys(trendArr[0]) : null,
+              },
             };
           } catch (e) {
             return { symbol, error: `Fundamentals 请求失败: ${e.message}` };
