@@ -296,11 +296,11 @@ export default async function handler(req, res) {
               annualBySource.get(year).revenue = parseFloat(i.totalRevenue) || null;
               annualBySource.get(year).netIncome = parseFloat(i.netIncome) || null;
             });
-            // 转数组, 倒序, 取近 10 年
+            // 转数组, 倒序, 取近 15 年
             const annualSeries = Array.from(annualBySource.entries())
               .map(([year, v]) => ({ year, ...v }))
               .sort((a, b) => b.year.localeCompare(a.year))
-              .slice(0, 10)
+              .slice(0, 15)
               .reverse();  // 正序: 最早 → 最新
 
             // 找最新已发布财报 (按 reportDate 倒序, 取 epsActual !== null 的第一个)
