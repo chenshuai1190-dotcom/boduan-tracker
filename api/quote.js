@@ -314,15 +314,18 @@ export default async function handler(req, res) {
                 description: general.Description || null,
                 logoURL: general.LogoURL ? `https://eodhd.com${general.LogoURL}` : null,
                 employees: general.FullTimeEmployees || null,
-                // v10.7.9.40 fix31: 股票交易币种
+                // v10.7.9.40 fix34: 股票交易币种 (ADR 是 USD)
                 currencyCode: general.CurrencyCode || 'USD',
                 currencySymbol: general.CurrencySymbol || '$',
                 currencyName: general.CurrencyName || 'US Dollar',
-                // v10.7.9.40 fix34: 财报币种 (ADR 公司国家不一定是 US)
-                // TSM ADR: CountryName='Taiwan' → 财报 TWD
-                // 阿里 ADR: CountryName='China' → 财报 CNY
+                // 股票上市国家 (ADR 是 USA)
                 countryName: general.CountryName || null,
                 countryISO: general.CountryISO || null,
+                // v10.7.9.40 fix35: ADR 识别 + 真实公司国家
+                // HomeCategory: 'ADR' / 'Domestic' / 'Canadian' ...
+                homeCategory: general.HomeCategory || null,
+                // 公司注册地址 (ADR 公司的真实国家)
+                addressCountry: general.AddressData?.Country || null,
               },
               // 股权结构
               shares: {
@@ -366,7 +369,7 @@ export default async function handler(req, res) {
               priceHistory: priceHistory,   // [{date, close}, ...] 过去 1 年日线 (周采样)
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
-              _apiVersion: 'fix34',
+              _apiVersion: 'fix35',
               // 调试信息: 看 EODHD 是否有 Earnings::Trend (0q 的营收预期)
               _debug: {
                 queriedSym: fundamentalsSym,           // 实际查询的 ticker
