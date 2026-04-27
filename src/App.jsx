@@ -7661,7 +7661,7 @@ function MainApp({ user, onLogout }) {
                               <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>数据源 EODHD</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
-                              {/* EPS 卡 */}
+                              {/* EPS 卡 (v10.7.9.40 fix9: 未发布时加同比预期 %) */}
                               <div className="rounded-xl p-3 text-center" style={{
                                 background: epsBeat ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' : epsMiss ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' : '#f8fafc',
                                 border: epsBeat ? '1px solid #fecaca' : epsMiss ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
@@ -7672,6 +7672,7 @@ function MainApp({ user, onLogout }) {
                                 <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: epsBeat ? '#dc2626' : epsMiss ? '#16a34a' : '#0f172a' }}>
                                   {released && epsActE != null ? `$${epsActE.toFixed(2)}` : epsEstE != null ? `$${epsEstE.toFixed(2)}` : '—'}
                                 </div>
+                                {/* 已发布: 显示预期 */}
                                 {released && epsEstE != null && (
                                   <div className="text-[14px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                                     预期 ${epsEstE.toFixed(2)}
@@ -7682,8 +7683,22 @@ function MainApp({ user, onLogout }) {
                                     {epsBeat ? '超预期 +' : epsMiss ? '不及 ' : '持平 '}{epsSurp.toFixed(2)}%
                                   </div>
                                 )}
+                                {/* 未发布: 同比预期 % (vs 去年同期 EPS) */}
+                                {!released && epsEstE != null && lastEPS != null && lastEPS !== 0 && (() => {
+                                  const epsYoyEst = ((epsEstE - lastEPS) / Math.abs(lastEPS)) * 100;
+                                  return (
+                                    <div className="text-[14px] font-bold mt-1" style={{ color: epsYoyEst >= 0 ? '#dc2626' : '#16a34a', fontFamily: 'ui-monospace, monospace' }}>
+                                      同比预期 {epsYoyEst >= 0 ? '+' : ''}{epsYoyEst.toFixed(2)}%
+                                    </div>
+                                  );
+                                })()}
+                                {!released && lastEPS != null && (
+                                  <div className="text-[12px] mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                                    去年同期 ${lastEPS.toFixed(2)}
+                                  </div>
+                                )}
                               </div>
-                              {/* 营收卡 */}
+                              {/* 营收卡 (v10.7.9.40 fix9: 加高/低区间 + 同比 %) */}
                               <div className="rounded-xl p-3 text-center" style={{
                                 background: revBeat ? 'linear-gradient(135deg, #fef2f2, #fee2e2)' : revMiss ? 'linear-gradient(135deg, #ecfdf5, #dcfce7)' : '#f8fafc',
                                 border: revBeat ? '1px solid #fecaca' : revMiss ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
@@ -7694,6 +7709,7 @@ function MainApp({ user, onLogout }) {
                                 <div className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '18px', color: revBeat ? '#dc2626' : revMiss ? '#16a34a' : '#0f172a' }}>
                                   {released && revActE ? fmtBig(revActE) : revEstE ? fmtBig(revEstE) : '—'}
                                 </div>
+                                {/* 已发布: 显示预期值 + 超预期% */}
                                 {released && revEstE && (
                                   <div className="text-[14px] mt-1" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                                     预期 {fmtBig(revEstE)}
@@ -7704,9 +7720,15 @@ function MainApp({ user, onLogout }) {
                                     {revBeat ? '超预期 +' : revMiss ? '不及 ' : '持平 '}{revSurp.toFixed(2)}%
                                   </div>
                                 )}
+                                {/* 未发布: 显示同比预期 % + 高/低区间 */}
                                 {!released && e?.revenueEstimateGrowth != null && (
-                                  <div className="text-[14px] mt-1" style={{ color: '#94a3b8' }}>
-                                    同比预期 {e.revenueEstimateGrowth >= 0 ? '+' : ''}{(e.revenueEstimateGrowth * 100).toFixed(1)}%
+                                  <div className="text-[14px] font-bold mt-1" style={{ color: e.revenueEstimateGrowth >= 0 ? '#dc2626' : '#16a34a', fontFamily: 'ui-monospace, monospace' }}>
+                                    同比预期 {e.revenueEstimateGrowth >= 0 ? '+' : ''}{(e.revenueEstimateGrowth * 100).toFixed(2)}%
+                                  </div>
+                                )}
+                                {!released && e?.revenueEstimateLow && e?.revenueEstimateHigh && (
+                                  <div className="text-[12px] mt-0.5" style={{ color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+                                    {fmtBig(e.revenueEstimateLow)} ~ {fmtBig(e.revenueEstimateHigh)}
                                   </div>
                                 )}
                               </div>
