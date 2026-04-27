@@ -1012,6 +1012,12 @@ function MainApp({ user, onLogout }) {
         if (result.success && result.data) {
           const cal = result.data.find(d => d.symbol && d.symbol.startsWith('CALENDAR'));
           if (cal && cal.events) {
+            // v10.7.9.40 fix15: 调试 GOOGL/HOOD
+            const googlEvents = cal.events.filter(e => e.symbol === 'GOOGL' || e.symbol === 'GOOG');
+            const hoodEvents = cal.events.filter(e => e.symbol === 'HOOD');
+            console.log('[Calendar] GOOGL/GOOG events:', googlEvents);
+            console.log('[Calendar] HOOD events:', hoodEvents);
+            console.log('[Calendar] all earnings:', cal.events.filter(e => e.type === 'earnings'));
             setCalendarEvents(cal.events);
           }
         }
