@@ -402,8 +402,15 @@ export default async function handler(req, res) {
                       date: date,
                       time: row.time || 'time-not-supplied',  // NASDAQ: pre-market / after-hours / time-not-supplied
                       symbol: sym,
+                      name: row.name,
                       epsEstimate: row.epsForecast || null,
                       epsActual: row.eps || null,
+                      // NASDAQ 还提供这些字段:
+                      marketCap: row.marketCap || null,
+                      fiscalQuarterEnding: row.fiscalQuarterEnding || null,
+                      noOfEsts: row.noOfEsts || null,
+                      lastYearEPS: row.lastYearEPS || null,
+                      lastYearRptDt: row.lastYearRptDt || null,
                     });
                   }
                 }
