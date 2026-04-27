@@ -1110,6 +1110,7 @@ function MainApp({ user, onLogout }) {
               // v40 fix38: 自动翻译新闻标题 (有缓存 不重复调)
               (async () => {
                 try {
+                  console.log('[News 翻译] 开始, 共', a.newsList.length, '条');
                   // 先看 localStorage 缓存
                   const cacheKey = 'newsTransCache';
                   let cache = {};
@@ -1118,8 +1119,8 @@ function MainApp({ user, onLogout }) {
                   } catch {}
                   // 找出未翻译的标题
                   const toTranslate = a.newsList.filter(n => n.title && !cache[n.title]);
+                  console.log('[News 翻译] 待翻译', toTranslate.length, '条');
                   if (toTranslate.length === 0) {
-                    // 全部都缓存过, 直接更新
                     if (cancelled) return;
                     setAnalystNews(prev => (prev || []).map(n => ({ ...n, titleZh: cache[n.title] || null })));
                     return;
@@ -1128,14 +1129,20 @@ function MainApp({ user, onLogout }) {
                   const sep = '\n||\n';
                   const combined = toTranslate.map(n => n.title).join(sep);
                   const encoded = btoa(unescape(encodeURIComponent(combined)));
-                  const tr = await fetch(`/api/quote?symbols=TRANSLATE:${encoded}`);
+                  const safeEncoded = encodeURIComponent(encoded);
+                  const trUrl = `/api/quote?symbols=TRANSLATE:${safeEncoded}`;
+                  console.log('[News 翻译] URL 长度', trUrl.length);
+                  const tr = await fetch(trUrl);
                   const trResult = await tr.json();
+                  console.log('[News 翻译] 返回', trResult);
                   if (cancelled) return;
                   if (trResult.success && trResult.data) {
                     const t = trResult.data.find(d => d.symbol && d.symbol.startsWith('TRANSLATE:'));
+                    console.log('[News 翻译] 解析', t);
                     if (t && t.translated) {
                       // 拆分翻译结果
                       const translated = t.translated.split(/\s*\|\|\s*/);
+                      console.log('[News 翻译] 拆分', translated.length, '条');
                       toTranslate.forEach((n, idx) => {
                         if (translated[idx]) {
                           cache[n.title] = translated[idx].trim();
@@ -1147,6 +1154,9 @@ function MainApp({ user, onLogout }) {
                       } catch {}
                       // 更新 state (合并所有缓存)
                       setAnalystNews(prev => (prev || []).map(n => ({ ...n, titleZh: cache[n.title] || null })));
+                      console.log('[News 翻译] 完成');
+                    } else if (t?.error) {
+                      console.warn('[News 翻译] 后端错误:', t.error);
                     }
                   }
                 } catch (e) {
