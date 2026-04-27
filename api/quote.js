@@ -24,7 +24,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '需要传 symbols 参数,例如 ?symbols=TQQQ,QQQ,NVDA' });
   }
 
-  const symbolList = symbols.split(',').map(s => s.trim().toUpperCase());
+  // v40 fix38c: TRANSLATE 类型保留原大小写 (base64 区分大小写)
+  const symbolList = symbols.split(',').map(s => {
+    const t = s.trim();
+    if (t.startsWith('TRANSLATE:')) return t;  // 不 uppercase!
+    return t.toUpperCase();
+  });
 
   try {
     const results = await Promise.all(
