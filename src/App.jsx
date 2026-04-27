@@ -1068,9 +1068,7 @@ function MainApp({ user, onLogout }) {
             const evIsFuture = evDate > todayStr;
             const earnings = evIsFuture && a.upcomingEarnings ? a.upcomingEarnings : a.earnings;
             if (earnings) setAnalystEarnings({ ...earnings, isFuture: evIsFuture });
-            console.log('[Fundamentals]', { targets: a.targets, highlights: a.highlights, earnings: a.earnings, upcoming: a.upcomingEarnings });
-            console.log('[Fundamentals DEBUG]', a._debug);
-            console.log('[Fundamentals 后端版本]', a._apiVersion || '⚠️ 旧版本! api/quote.js 没更新');
+            console.log('[Fundamentals]', { earnings: a.earnings, upcoming: a.upcomingEarnings, version: a._apiVersion });
           } else {
             console.warn('[Fundamentals] 没拿到数据:', a);
           }
