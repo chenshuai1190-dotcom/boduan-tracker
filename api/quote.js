@@ -314,6 +314,10 @@ export default async function handler(req, res) {
                 description: general.Description || null,
                 logoURL: general.LogoURL ? `https://eodhd.com${general.LogoURL}` : null,
                 employees: general.FullTimeEmployees || null,
+                // v10.7.9.40 fix31: 币种 (台股 TSM 是 TWD, 港股是 HKD 等)
+                currencyCode: general.CurrencyCode || 'USD',          // TWD / USD / HKD
+                currencySymbol: general.CurrencySymbol || '$',         // NT$ / $ / HK$
+                currencyName: general.CurrencyName || 'US Dollar',
               },
               // 股权结构
               shares: {
