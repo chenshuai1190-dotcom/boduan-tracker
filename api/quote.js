@@ -366,7 +366,7 @@ export default async function handler(req, res) {
               priceHistory: priceHistory,   // [{date, close}, ...] 过去 1 年日线 (周采样)
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
-              _apiVersion: 'fix21',
+              _apiVersion: 'fix34',
               // 调试信息: 看 EODHD 是否有 Earnings::Trend (0q 的营收预期)
               _debug: {
                 queriedSym: fundamentalsSym,           // 实际查询的 ticker
@@ -506,7 +506,7 @@ export default async function handler(req, res) {
               events,
               fetchedAt: new Date().toISOString(),
               source: 'NASDAQ + FOMC',
-              _apiVersion: 'fix16',
+              _apiVersion: 'fix34cal',
             };
           } catch (e) {
             return { symbol, error: `日历请求失败: ${e.message}` };
