@@ -174,12 +174,16 @@ export default async function handler(req, res) {
               }) || null;
             })();
 
-            // Earnings::Trend: 找营收预期 (period = "0q" 当前季度, "+1q" 下季度)
+            // Earnings::Trend: 找营收预期 (period = "-1q" 上次已发布 / "0q" 当前 / "+1q" 下季度)
             const trendArr = Object.values(earningsTrendObj).filter(t => t);
-            // 当前季度 (本次发布的财报对应的预期)
+            // -1q: 上次已公布的季度 (latestEarnings 对应的预期)
+            const lastTrend = trendArr.find(t => t.period === '-1q') || null;
+            // 0q: 当前 (即将公布) (upcomingEarnings 对应的预期)
             const currentTrend = trendArr.find(t => t.period === '0q') || null;
-            // 下个季度预期
+            // +1q: 下个季度
             const nextTrend = trendArr.find(t => t.period === '+1q') || null;
+            // 调试: 看 EODHD 返回什么 trend periods
+            console.log('[Fundamentals]', stockSym, 'trends:', trendArr.map(t => ({ period: t.period, date: t.date, revEst: t.revenueEstimateAvg })));
 
             // EODHD Rating 是 1-5 (1 = Strong Sell, 5 = Strong Buy)
             const ratingNum = parseFloat(ratings.Rating) || null;
@@ -258,22 +262,26 @@ export default async function handler(req, res) {
                 epsSurprisePct: latestEarnings.surprisePercent,
                 // 营收 (Income Statement 实际值)
                 revenueActual: latestIncome?.totalRevenue || null,
-                // 营收预期 (Earnings::Trend)
-                revenueEstimate: currentTrend?.revenueEstimateAvg || null,
-                revenueEstimateLow: currentTrend?.revenueEstimateLow || null,
-                revenueEstimateHigh: currentTrend?.revenueEstimateHigh || null,
-                revenueEstimateGrowth: currentTrend?.revenueEstimateGrowth || null,
+                // 营收预期 (Earnings::Trend -1q = 上次已公布的季度)
+                revenueEstimate: lastTrend?.revenueEstimateAvg || null,
+                revenueEstimateLow: lastTrend?.revenueEstimateLow || null,
+                revenueEstimateHigh: lastTrend?.revenueEstimateHigh || null,
+                revenueEstimateGrowth: lastTrend?.revenueEstimateGrowth || null,
                 // 同比
                 lastYearEPS: lastYearEarnings?.epsActual || null,
                 lastYearRevenue: lastYearIncome?.totalRevenue || null,
               } : null,
               // 下一次未发布财报 (从 history 拿)
+              // 关键: 营收预期用 currentTrend (0q = 即将公布的当前季度)
               upcomingEarnings: upcomingEarnings ? {
                 reportDate: upcomingEarnings.reportDate,
                 fiscalDate: upcomingEarnings.date,
                 epsEstimate: upcomingEarnings.epsEstimate,
-                revenueEstimate: nextTrend?.revenueEstimateAvg || null,
-                revenueEstimateGrowth: nextTrend?.revenueEstimateGrowth || null,
+                revenueEstimate: currentTrend?.revenueEstimateAvg || null,
+                revenueEstimateLow: currentTrend?.revenueEstimateLow || null,
+                revenueEstimateHigh: currentTrend?.revenueEstimateHigh || null,
+                revenueEstimateGrowth: currentTrend?.revenueEstimateGrowth || null,
+                revenueNumberOfAnalysts: currentTrend?.revenueEstimateNumberOfAnalysts || null,
               } : null,
               fetchedAt: new Date().toISOString(),
               source: 'EODHD-Fundamentals',
@@ -328,28 +336,45 @@ export default async function handler(req, res) {
               }
             }
 
-            // 2. FOMC 议息日 (硬编码 2026 年所有日期)
-            // 数据来源: https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
-            const fomc2026 = [
-              { date: '2026-01-28', time: '14:00 ET' },
-              { date: '2026-03-18', time: '14:00 ET' },
-              { date: '2026-04-30', time: '14:00 ET' },
-              { date: '2026-06-17', time: '14:00 ET' },
-              { date: '2026-07-29', time: '14:00 ET' },
-              { date: '2026-09-16', time: '14:00 ET' },
-              { date: '2026-10-28', time: '14:00 ET' },
-              { date: '2026-12-09', time: '14:00 ET' },
-            ];
-            for (const f of fomc2026) {
-              if (f.date >= fromDate && f.date <= toDate) {
-                events.push({
-                  type: 'fomc',
-                  date: f.date,
-                  time: f.time,
-                  title: 'FOMC 议息',
-                  detail: '美联储利率决议',
-                });
+            // 2. 经济日历 (v10.7.9.40: EODHD Economic Events 替换硬编码 FOMC)
+            //    只取 3 大核心: FOMC 利率决议 + CPI + 非农就业
+            try {
+              const econUrl = `https://eodhd.com/api/economic-events?api_token=${eodhdKey}&country=US&from=${fromDate}&to=${toDate}&fmt=json`;
+              const r = await fetch(econUrl);
+              if (r.ok) {
+                const econData = await r.json();
+                if (Array.isArray(econData)) {
+                  // 关键词匹配: 只要 3 类
+                  const fomcKeywords = ['fed interest rate', 'fomc', 'federal funds', 'fomc statement'];
+                  const cpiKeywords = ['cpi', 'consumer price index', 'core cpi', 'inflation rate'];
+                  const nonfarmKeywords = ['nonfarm', 'non-farm', 'non farm payroll', 'unemployment rate', 'employment rate'];
+
+                  for (const e of econData) {
+                    const eventName = (e.event || '').toLowerCase();
+                    let econType = null;
+                    if (fomcKeywords.some(k => eventName.includes(k))) econType = 'fomc';
+                    else if (cpiKeywords.some(k => eventName.includes(k))) econType = 'cpi';
+                    else if (nonfarmKeywords.some(k => eventName.includes(k))) econType = 'nonfarm';
+                    if (!econType) continue;
+
+                    events.push({
+                      type: econType,                          // fomc / cpi / nonfarm
+                      date: e.date ? e.date.slice(0, 10) : '',
+                      time: e.date ? e.date.slice(11, 16) + ' UTC' : '',
+                      title: e.event,                          // 原始英文
+                      country: e.country || 'US',
+                      // 数据
+                      actual: e.actual,
+                      estimate: e.estimate,
+                      previous: e.previous,
+                      change: e.change,
+                      changePercentage: e.change_percentage,
+                    });
+                  }
+                }
               }
+            } catch (e) {
+              console.warn('[Calendar] EODHD Economic Events 失败:', e.message);
             }
 
             // 按日期排序
