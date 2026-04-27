@@ -7446,8 +7446,11 @@ function MainApp({ user, onLogout }) {
                 {/* 图标 + 类型 (v10.7.9.41: 公司 Logo 优先, fallback 圆形渐变 $/%) */}
                 <div className="text-center mb-3">
                   {/* Logo: 直接拼 EODHD CDN URL (不等 API), 加载失败 fallback 圆形 */}
+                  {/* v40 fix43: 加 retry 机制 (网络抖动时不立即 fallback) */}
                   {selectedEvent.symbol && (selectedEvent.type === 'earnings' || selectedEvent.type === 'stock') ? (
                     <img
+                      key={`logo-${selectedEvent.symbol}-${selectedEvent.date || ''}`}
+                      data-retry="0"
                       src={analystGeneral?.logoURL || `https://eodhd.com/img/logos/US/${selectedEvent.symbol.toLowerCase()}.png`}
                       alt={selectedEvent.symbol}
                       className="mx-auto mb-3"
@@ -7461,7 +7464,19 @@ function MainApp({ user, onLogout }) {
                         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       }}
                       onError={(e) => {
-                        // Logo 加载失败 → 隐藏 img, 显示下方 fallback
+                        const retry = parseInt(e.target.dataset.retry || '0');
+                        const sym = selectedEvent.symbol.toLowerCase();
+                        if (retry < 3) {
+                          // 重试 3 次, 每次延迟翻倍
+                          const delay = (retry + 1) * 800;  // 800ms / 1.6s / 2.4s
+                          e.target.dataset.retry = String(retry + 1);
+                          setTimeout(() => {
+                            // 加 timestamp 强制重新请求 (绕过缓存)
+                            e.target.src = `https://eodhd.com/img/logos/US/${sym}.png?t=${Date.now()}`;
+                          }, delay);
+                          return;
+                        }
+                        // 3 次都失败, fallback
                         e.target.style.display = 'none';
                         const fallback = e.target.nextElementSibling;
                         if (fallback) fallback.style.display = 'inline-flex';
