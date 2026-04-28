@@ -613,6 +613,7 @@ function MainApp({ user, onLogout }) {
   const [pwdLoading, setPwdLoading] = useState(false);
   const [fillMonth, setFillMonth] = useState(() => new Date().toISOString().slice(0, 7)); // 填快照 Modal 里当前选择的月份
   const [showMonthsDetail, setShowMonthsDetail] = useState(false); // 12 个月资产走势 Modal
+  const [chartSelectedMonthIdx, setChartSelectedMonthIdx] = useState(null); // v40 fix46: 12月走势点圆点
 
   // ===== 复盘 tab =====
   const [investmentPlan, setInvestmentPlan] = useState({
@@ -4637,8 +4638,45 @@ function MainApp({ user, onLogout }) {
                         <span>📈</span>
                         <span>12 个月走势</span>
                       </div>
-                      <div className="text-[10px] text-slate-500">月度</div>
+                      <div className="text-[10px] text-slate-500">月度 · 点圆点查看</div>
                     </div>
+
+                    {/* v40 fix46: 顶部选中月数字 */}
+                    {(() => {
+                      // 默认选最后一个有效月
+                      const validIdxs = chartData.map((v, i) => v > 0 ? i : -1).filter(i => i >= 0);
+                      const lastValidIdx = validIdxs[validIdxs.length - 1];
+                      const selectedIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
+                        ? chartSelectedMonthIdx
+                        : lastValidIdx;
+                      if (selectedIdx == null) return null;
+                      const value = chartData[selectedIdx];
+                      const monthStr = last12Months[selectedIdx]; // 'YYYY-MM'
+                      const [year, month] = monthStr.split('-');
+                      // 找上一有效月计算变化
+                      const prevValidIdx = validIdxs.filter(i => i < selectedIdx).pop();
+                      const prevValue = prevValidIdx != null ? chartData[prevValidIdx] : null;
+                      const change = prevValue ? value - prevValue : null;
+                      const changePct = prevValue ? (change / prevValue * 100) : null;
+                      return (
+                        <div className="text-center mb-2">
+                          <div className="text-[11px] text-slate-400 font-semibold">{year} 年 {parseInt(month)} 月</div>
+                          <div className="font-black tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '24px', lineHeight: 1.1 }}>
+                            ¥{fmtWan(value)}万
+                          </div>
+                          {change !== null && (
+                            <div className="font-bold tabular-nums" style={{
+                              fontFamily: 'ui-monospace, monospace',
+                              fontSize: '11px',
+                              color: change >= 0 ? '#dc2626' : '#16a34a',
+                              marginTop: '2px'
+                            }}>
+                              {change >= 0 ? '↑ +' : '↓ '}¥{fmtWan(Math.abs(change))}万 ({change >= 0 ? '+' : ''}{changePct.toFixed(2)}%)
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <svg viewBox="0 0 320 120" className="w-full h-32">
                       <defs>
@@ -4729,19 +4767,37 @@ function MainApp({ user, onLogout }) {
                             {/* 折线 (从左画到右) */}
                             {pathD && <path d={pathD} fill="none" stroke="#f43f5e" strokeWidth="2" className="asset-chart-line" />}
                             {/* 数据点 (依次弹出) */}
-                            {validPoints.map((p, idx) => (
-                              <circle
-                                key={p.i}
-                                cx={p.x}
-                                cy={p.y}
-                                r={p.isLast ? 4 : 2}
-                                fill={p.isLast ? '#f43f5e' : 'white'}
-                                stroke="#f43f5e"
-                                strokeWidth="1.5"
-                                className="asset-chart-dot"
-                                style={{ animationDelay: `${idx * 0.2}s` }}
-                              />
-                            ))}
+                            {validPoints.map((p, idx) => {
+                              const isSelected = chartSelectedMonthIdx === p.i;
+                              return (
+                                <g key={p.i}>
+                                  {/* 选中时的辅助竖线 */}
+                                  {isSelected && (
+                                    <line x1={p.x} y1={p.y} x2={p.x} y2="120" stroke="#f43f5e" strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
+                                  )}
+                                  <circle
+                                    cx={p.x}
+                                    cy={p.y}
+                                    r={isSelected ? 7 : (p.isLast ? 4 : 2)}
+                                    fill={isSelected ? '#f43f5e' : (p.isLast ? '#f43f5e' : 'white')}
+                                    stroke={isSelected ? 'white' : '#f43f5e'}
+                                    strokeWidth={isSelected ? 3 : 1.5}
+                                    className="asset-chart-dot"
+                                    style={{ animationDelay: `${idx * 0.2}s`, cursor: 'pointer' }}
+                                    onClick={() => setChartSelectedMonthIdx(p.i)}
+                                  />
+                                  {/* 加大点击区 (透明) */}
+                                  <circle
+                                    cx={p.x}
+                                    cy={p.y}
+                                    r="12"
+                                    fill="transparent"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => setChartSelectedMonthIdx(p.i)}
+                                  />
+                                </g>
+                              );
+                            })}
                             {/* 空月份提示 (最后淡入) */}
                             {chartData.map((v, i) => {
                               if (v > 0) return null;
