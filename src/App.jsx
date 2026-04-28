@@ -4641,38 +4641,37 @@ function MainApp({ user, onLogout }) {
                       <div className="text-[10px] text-slate-500">月度 · 点圆点查看</div>
                     </div>
 
-                    {/* v40 fix46: 顶部选中月数字 */}
-                    {(() => {
-                      // 默认选最后一个有效月
+                    {/* v40 fix47: 默认隐藏, 点圆点才出 (紧凑红卡) */}
+                    {chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0 && (() => {
                       const validIdxs = chartData.map((v, i) => v > 0 ? i : -1).filter(i => i >= 0);
-                      const lastValidIdx = validIdxs[validIdxs.length - 1];
-                      const selectedIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
-                        ? chartSelectedMonthIdx
-                        : lastValidIdx;
-                      if (selectedIdx == null) return null;
+                      const selectedIdx = chartSelectedMonthIdx;
                       const value = chartData[selectedIdx];
-                      const monthStr = last12Months[selectedIdx]; // 'YYYY-MM'
+                      const monthStr = last12Months[selectedIdx];
                       const [year, month] = monthStr.split('-');
-                      // 找上一有效月计算变化
                       const prevValidIdx = validIdxs.filter(i => i < selectedIdx).pop();
                       const prevValue = prevValidIdx != null ? chartData[prevValidIdx] : null;
                       const change = prevValue ? value - prevValue : null;
                       const changePct = prevValue ? (change / prevValue * 100) : null;
                       return (
-                        <div className="text-center mb-2">
-                          <div className="text-[11px] text-slate-400 font-semibold">{year} 年 {parseInt(month)} 月</div>
-                          <div className="font-black tabular-nums text-slate-900" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '24px', lineHeight: 1.1 }}>
+                        <div
+                          className="text-center mb-2 px-3 py-2 rounded-lg"
+                          style={{
+                            background: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
+                            border: '1px solid #fecaca',
+                          }}
+                        >
+                          <span className="text-[11px] text-slate-500 font-semibold">{year}-{month} · </span>
+                          <span className="font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '17px', color: '#dc2626' }}>
                             ¥{fmtWan(value)}万
-                          </div>
+                          </span>
                           {change !== null && (
-                            <div className="font-bold tabular-nums" style={{
+                            <span className="font-bold tabular-nums ml-2" style={{
                               fontFamily: 'ui-monospace, monospace',
                               fontSize: '11px',
                               color: change >= 0 ? '#dc2626' : '#16a34a',
-                              marginTop: '2px'
                             }}>
-                              {change >= 0 ? '↑ +' : '↓ '}¥{fmtWan(Math.abs(change))}万 ({change >= 0 ? '+' : ''}{changePct.toFixed(2)}%)
-                            </div>
+                              {change >= 0 ? '↑ +' : '↓ '}{changePct.toFixed(2)}%
+                            </span>
                           )}
                         </div>
                       );
@@ -4784,7 +4783,7 @@ function MainApp({ user, onLogout }) {
                                     strokeWidth={isSelected ? 3 : 1.5}
                                     className="asset-chart-dot"
                                     style={{ animationDelay: `${idx * 0.2}s`, cursor: 'pointer' }}
-                                    onClick={() => setChartSelectedMonthIdx(p.i)}
+                                    onClick={() => setChartSelectedMonthIdx(prev => prev === p.i ? null : p.i)}
                                   />
                                   {/* 加大点击区 (透明) */}
                                   <circle
@@ -4793,7 +4792,7 @@ function MainApp({ user, onLogout }) {
                                     r="12"
                                     fill="transparent"
                                     style={{ cursor: 'pointer' }}
-                                    onClick={() => setChartSelectedMonthIdx(p.i)}
+                                    onClick={() => setChartSelectedMonthIdx(prev => prev === p.i ? null : p.i)}
                                   />
                                 </g>
                               );
