@@ -2696,10 +2696,12 @@ function MainApp({ user, onLogout }) {
         {/* 📅 v10.7.9.41: 重要日历 (时间轴风格) */}
         {(() => {
           // v10.7.9.41: 15 天范围 + V1 日期格式 (今天 / M/D)
+          // v10.7.9.40 fix49: 昨天 ~ 未来 15 天 (已公布的保留 1 天)
           const today = new Date().toISOString().slice(0, 10);
+          const yesterday = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const fifteenDaysLater = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const futureEvents = (calendarEvents || [])
-            .filter(e => e.date >= today && e.date <= fifteenDaysLater)
+            .filter(e => e.date >= yesterday && e.date <= fifteenDaysLater)
             .slice(0, 10);  // 最多 10 个
 
           if (futureEvents.length === 0) return null;
@@ -2709,12 +2711,15 @@ function MainApp({ user, onLogout }) {
             const d = new Date(dateStr);
             const todayDate = new Date(today);
             const diff = Math.round((d - todayDate) / (24 * 60 * 60 * 1000));
+            if (diff === -1) return '昨天';
             if (diff === 0) return '今天';
             return `${d.getMonth() + 1}/${d.getDate()}`;
           };
 
           // 类型颜色
-          const typeColor = (type, isToday) => {
+          // v10.7.9.40 fix49: 已公布的财报圆点变绿
+          const typeColor = (type, isToday, isReleased) => {
+            if (isReleased) return { dot: '#16a34a', glow: 'rgba(22,163,74,0.5)', day: '#16a34a' };
             if (isToday) return { dot: '#dc2626', glow: 'rgba(220,38,38,0.6)', day: '#dc2626' };
             if (type === 'earnings') return { dot: '#f59e0b', glow: 'rgba(245,158,11,0.4)', day: '#94a3b8' };
             if (type === 'fomc') return { dot: '#1e40af', glow: 'rgba(30,64,175,0.4)', day: '#94a3b8' };
@@ -2744,9 +2749,20 @@ function MainApp({ user, onLogout }) {
                 <div className="flex gap-2 overflow-x-auto pb-1 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
                   {futureEvents.map((e, idx) => {
                     const isToday = e.date === today;
-                    const c = typeColor(e.type, isToday);
-                    // 颜色: 不同类型不同色
-                    const nameColor = e.type === 'earnings' ? '#d97706'
+                    // v10.7.9.40 fix49: 已公布判断
+                    // 财报: 日期已过 + epsActual 真实有值
+                    const isReleased = e.type === 'earnings' && e.date < today
+                      && e.epsActual != null && e.epsActual !== 0
+                      && String(e.epsActual).replace(/[$,\s]/g, '') !== '0';
+                    // 财报当天但已公布 (盘前发的)
+                    const isReleasedToday = e.type === 'earnings' && e.date === today
+                      && e.epsActual != null && e.epsActual !== 0
+                      && String(e.epsActual).replace(/[$,\s]/g, '') !== '0';
+                    const c = typeColor(e.type, isToday, isReleased || isReleasedToday);
+                    // 颜色: 已公布 → 绿; 未公布按类型
+                    const nameColor = (isReleased || isReleasedToday) ? '#16a34a'
+                      : isToday ? '#dc2626'
+                      : e.type === 'earnings' ? '#d97706'
                       : e.type === 'fomc' ? '#1e40af'
                       : e.type === 'cpi' ? '#7c3aed'
                       : e.type === 'nonfarm' ? '#0891b2'
@@ -2764,6 +2780,8 @@ function MainApp({ user, onLogout }) {
                       if (e.type === 'cpi') return '通胀数据';
                       if (e.type === 'nonfarm') return '就业数据';
                       if (e.type !== 'earnings') return '';
+                      // 已公布: 显示"已公布"
+                      if (isReleased || isReleasedToday) return '财报 · 已公布';
                       const t = (e.time || '').toLowerCase();
                       if (t.includes('pre') || t.includes('before')) return '财报 · 盘前';
                       if (t.includes('after') || t.includes('post')) return '财报 · 盘后';
