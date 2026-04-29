@@ -2696,11 +2696,13 @@ function MainApp({ user, onLogout }) {
         {/* 📅 v10.7.9.41: 重要日历 (时间轴风格) */}
         {(() => {
           // v10.7.9.41: 15 天范围 + V1 日期格式 (今天 / M/D)
+          // v10.7.9.40 fix48: 已公布财报保留 2 天 (盘后发布 + 第二天复盘)
           const today = new Date().toISOString().slice(0, 10);
+          const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const fifteenDaysLater = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const futureEvents = (calendarEvents || [])
-            .filter(e => e.date >= today && e.date <= fifteenDaysLater)
-            .slice(0, 10);  // 最多 10 个
+            .filter(e => e.date >= twoDaysAgo && e.date <= fifteenDaysLater)
+            .slice(0, 10);
 
           if (futureEvents.length === 0) return null;
 
@@ -2709,6 +2711,8 @@ function MainApp({ user, onLogout }) {
             const d = new Date(dateStr);
             const todayDate = new Date(today);
             const diff = Math.round((d - todayDate) / (24 * 60 * 60 * 1000));
+            if (diff === -2) return '前天';
+            if (diff === -1) return '昨天';
             if (diff === 0) return '今天';
             return `${d.getMonth() + 1}/${d.getDate()}`;
           };
@@ -7926,12 +7930,46 @@ function MainApp({ user, onLogout }) {
                           return main;
                         };
                         const released = !isFut && (epsActE != null && epsActE !== 0);
+                        // v10.7.9.40 fix48: 已公布但数据未拉到 (EODHD 同步延迟)
+                        const todayStr2 = new Date().toISOString().slice(0, 10);
+                        const eventDateForCheck = selectedEvent.date || analystEarnings?.reportDate || '';
+                        const dateReached = eventDateForCheck && eventDateForCheck <= todayStr2;
+                        const isPending = !isFut && dateReached && !released;
                         return (
                           <div className="mb-3">
                             <div className="text-[14px] uppercase tracking-wider text-slate-400 font-bold mb-1.5 px-1 flex items-center justify-between">
                               <span>{released ? '📊 业绩详情' : '📊 业绩预期'}</span>
                               <span style={{ color: '#cbd5e1', fontSize: '9px', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>数据源 EODHD</span>
                             </div>
+                            
+                            {/* v10.7.9.40 fix48: 已公布但数据未到 提示 */}
+                            {isPending && (
+                              <div
+                                className="rounded-xl p-3 mb-2 text-center"
+                                style={{
+                                  background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+                                  border: '1px solid #fcd34d',
+                                }}
+                              >
+                                <div className="text-[14px] font-bold mb-1" style={{ color: '#92400e' }}>
+                                  ⏳ 数据正在同步中
+                                </div>
+                                <div className="text-[12px] mb-2" style={{ color: '#78350f' }}>
+                                  EODHD 通常延迟 1-3 小时, 稍后再看
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    // 触发重新拉数据
+                                    setSelectedEvent({ ...selectedEvent });
+                                  }}
+                                  className="px-3 py-1.5 rounded-full text-[12px] font-bold active:scale-95"
+                                  style={{ background: '#92400e', color: 'white' }}
+                                >
+                                  🔄 刷新重试
+                                </button>
+                              </div>
+                            )}
+                            
                             <div className="grid grid-cols-2 gap-2">
                               {/* EPS 卡 (v10.7.9.40 fix9: 未发布时加同比预期 %) */}
                               <div className="rounded-xl p-3 text-center" style={{
