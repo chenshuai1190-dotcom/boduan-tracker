@@ -2704,6 +2704,16 @@ function MainApp({ user, onLogout }) {
             .filter(e => e.date >= yesterday && e.date <= fifteenDaysLater)
             .slice(0, 10);  // 最多 10 个
 
+          // 调试: 看时间轴数据
+          console.log('[时间轴]', {
+            today,
+            yesterday,
+            calendarEventsLen: (calendarEvents || []).length,
+            allEvents: (calendarEvents || []).map(e => ({sym: e.symbol, date: e.date, type: e.type, epsAct: e.epsActual})),
+            futureEventsLen: futureEvents.length,
+            shown: futureEvents.map(e => ({sym: e.symbol, date: e.date, epsAct: e.epsActual})),
+          });
+
           if (futureEvents.length === 0) return null;
 
           // V1 日期格式: 今天 / 4/28 / 5/1
