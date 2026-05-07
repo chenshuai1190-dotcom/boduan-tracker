@@ -1,8 +1,8 @@
 # 🎯 Bottomline · 项目交接文档
 
-> **给下一个 Claude (或工程师) 的全套背景资料**  
-> 阅读这份文档 → 立刻进入状态, 接手开发  
-> 最后更新: 2026-04-22 by chenshuai1190 + Claude
+> **给下一个 Claude (或工程师) 的全套背景资料**
+> 阅读这份文档 → 立刻进入状态, 接手开发
+> 最后更新: 2026-05-07 by chenshuai1190 + Claude (Opus 4.7)
 
 ---
 
@@ -13,15 +13,15 @@ Bottomline 是一个个人理财 PWA
 波段交易追踪 + 资产管理 + 长期投资规划
 
 技术栈:
-  React + Vite + Tailwind  (前端)
-  Vercel                   (部署)
-  Supabase (Singapore)     (云端数据库)
-  EODHD All World Extended (实时行情, $29.99/月, 含 WebSocket)
+  React 18 + Vite 5 + Tailwind 3   (前端)
+  Vercel                            (部署)
+  Supabase (Singapore)              (云端数据库, 12 张表)
+  EODHD All-In-One ($99.99/月)      (实时行情 + 财报 + 基本面)
 
-当前线上版本: v10.7.8.6
-GitHub: https://github.com/chenshuai1190-dotcom/boduan-tracker
-线上: https://boduan-tracker.vercel.app
-Supabase: https://ykgotnmtqcqdzqtrlayq.supabase.co
+当前线上版本: v10.7.9.40 (rollback 到 fix47, 干净版)
+GitHub:    https://github.com/chenshuai1190-dotcom/boduan-tracker
+线上:      https://boduan-tracker.vercel.app
+Supabase:  https://ykgotnmtqcqdzqtrlayq.supabase.co
 ```
 
 ---
@@ -52,29 +52,39 @@ chenshuai1190 (用户)
 ✗ 不要 emojis 滥用
 ✗ 不要长篇大论
 ✗ 不要建议时反复确认
-✗ 不要让用户判断技术细节
+✗ 不要让用户判断技术细节 → 给 ABCD 选项
 ```
 
 ---
 
 ## 🏗️ 项目架构
 
-### 目录结构
+### 目录结构 (实际打包结构)
 
 ```
-/home/claude/tqqq-app/          (本地开发路径)
+bottomline-v10.7.9.40-fix47/
 ├── src/
-│   ├── App.jsx                 (~6500 行, 全部业务逻辑)
-│   ├── Login.jsx               (登录/注册/忘记密码)
+│   ├── App.jsx              (~9349 行, 全部业务逻辑)
+│   ├── Login.jsx            (登录/注册/忘记密码)
+│   ├── main.jsx             (入口)
 │   └── lib/
-│       ├── db.js               (~740 行, 所有 Supabase 操作)
-│       └── supabase.js         (Supabase 客户端 + 认证函数)
-├── api/
-│   └── quote.js                (~400 行, Vercel API 代理 EODHD)
+│       ├── db.js            (~752 行, 34 个导出函数, 12 张表 CRUD)
+│       └── supabase.js      (~69 行, 客户端 + 认证)
 ├── public/
-│   ├── manifest.json           (PWA)
-│   └── favicon.svg             (V5 K线柱图标)
-└── index.html
+│   ├── manifest.json        (PWA)
+│   ├── favicon.svg          (V5 K线柱图标)
+│   └── publicsw.js          (Service Worker)
+├── index.html
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── postcss.config.js
+
+⚠️ 注意:
+  - api/quote.js 在 GitHub 仓库根目录的 api/ 下 (Vercel Serverless 函数)
+  - 本地 zip 包不一定带 api/ 目录 (因为部署用 GitHub edit)
+  - 历史遗留两份重复 quote.js (src/quote.js + src/lib/quote.js), 都是孤儿
+    → 待办: 下次去 GitHub 核对 api/quote.js 后, 清理本地两份
 ```
 
 ### 数据流
@@ -95,7 +105,7 @@ PostgreSQL (云端)
 
 ---
 
-## 🗂️ Supabase 数据库 (11 张表)
+## 🗂️ Supabase 数据库 (12 张表)
 
 ```
 所有表都遵守"数据架构宪法 v1.0":
@@ -118,6 +128,7 @@ PostgreSQL (云端)
   disciplines         投资戒律
   review_logs         月度复盘日志
   yearly_actuals      年度实际数据
+  cost_basis_trades   摊薄成本计算器 (v10.7.9.32 新增)
 ```
 
 ---
@@ -126,11 +137,15 @@ PostgreSQL (云端)
 
 ```
 EODHD API Token: 69e5ce0b670248.02951638
-EODHD 套餐: All World Extended ($29.99/月, 含 WebSocket)
+EODHD 套餐: All-In-One ($99.99/月)
+  含: 实时行情 + WebSocket + Fundamentals + Earnings + Financials + Calendar
+  之前: All World Extended ($29.99/月, 仅行情) - 已升级
 
 Vercel 环境变量:
-  EODHD_API_KEY = 69e5ce0b670248.02951638  (服务端用)
+  EODHD_API_KEY    = 69e5ce0b670248.02951638  (服务端 api/quote.js 用)
   VITE_EODHD_TOKEN = 69e5ce0b670248.02951638  (前端 WebSocket 用)
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY
 
 环境变量管理:
   https://vercel.com/chenshuai1190s-projects/boduan-tracker/settings/environment-variables
@@ -140,7 +155,7 @@ Supabase Dashboard:
 
 ⚠️ Token 安全:
   EODHD_API_KEY 在服务端安全 (api/quote.js)
-  VITE_EODHD_TOKEN 暴露在浏览器 (WebSocket 用, 只是个人使用 OK)
+  VITE_EODHD_TOKEN 暴露在浏览器 (WebSocket 用, 个人使用 OK)
   正式上线前需中转 (Supabase Edge Function)
 ```
 
@@ -154,7 +169,7 @@ Supabase Dashboard:
 品牌色: 黑金 (#0a0a0a + #fbbf24)
 
 涨跌:
-  涨 = 红色 #dc2626 / rose-600  (中国股市习惯)
+  涨 = 红色 #dc2626 / rose-600   (中国股市习惯)
   跌 = 绿色 #16a34a / emerald-600
 
 主操作按钮 (V3 金色描边):
@@ -186,8 +201,8 @@ WebSocket BETA 卡: 金绿色 (#0a0a0a + #4ade80)
 ## 📱 5 个底部 Tab
 
 ```
-1. 首页 (home)        SPY/QQQ ETF + VIX + FGI + 关注列表
-2. 交易 (trades)      波段记录 + 全部交易弹窗
+1. 首页 (home)        SPY/QQQ ETF + VIX + FGI + 重要日历 + 关注列表
+2. 交易 (trades)      波段记录 + 全部交易弹窗 + 摊薄成本计算器
 3. 资产 (analysis)    家庭账户 + 月度走势图
 4. 目标 (review)      复利计划 + 杠杆 + 年度进度 + 戒律 + 复盘日志
 5. 设置 (settings)    数据状态 + WebSocket BETA + 重置 + 更新日志 + 关于
@@ -284,6 +299,70 @@ UI:
 未填: 0% + 文案 "尚未填收益"
 ```
 
+### 7. 重要日历 (v10.7.9.38 新增, .40 升级 EODHD 数据源)
+
+```javascript
+首页时间轴, 显示未来 15 天:
+  - 财报日 (watchlist 全部股, EODHD Earnings::History 接口)
+  - FOMC 议息 (写死表)
+  - 时间轴风格, 彩色圆点 + 横滑
+  - 日期格式: 今天 / 4/28 / 5/2 (M/D)
+  - 股票名按类型染色 (橙=财报, 蓝=议息, 红=今天)
+  - 每次进 App 都拉新, 无缓存
+
+点击事件 → 弹详情 Modal:
+  - 圆形渐变图标 (金 $ 财报 / 蓝 % 议息)
+  - 时段中文 (盘前/盘后)
+  - EPS 预期/实际 + 超预期对比
+  - 持仓股数提示
+```
+
+### 8. 公司 Modal (v10.7.9.40 重做)
+
+```javascript
+入口: 关注列表点代码 → 弹公司详情 Modal
+  - 顶部: 公司 Logo (EODHD 官方) + 名称 + 行业
+  - V4 双行: "EPS 超预期 +X%" / "营收 超预期 +X%"
+  - 业绩 V2 双卡片: EPS + 营收 (实际 vs 预期, 已发布显示实际, 未发布显示预期)
+  - 同比对比 (本季 EPS/营收 vs 去年同期)
+  - 📋 公司信息 (含 行业 / 员工数)
+  - 📊 分析师目标价 + 5 档评级
+  - 📈 公司基本面 (PE TTM / 营收 / 利润率 / ROE)
+  - 字段口径标注 (TTM / 本季 / 数据源 EODHD)
+
+EODHD 接口 (按需拉, 进 Modal 时):
+  - Earnings::History           (EPS 实际 + 预期 + 超预期)
+  - Earnings::Trend             (营收预期 平均 / 低 / 高)
+  - Financials::Income_Statement::quarterly  (营收实际)
+  - General + Highlights        (公司信息 + 基本面)
+  - AnalystRatings              (分析师评级)
+  - SharesStats                 (内部人 / 机构持股)
+
+⚠️ 营收预期口径 (v10.7.9.41 修正):
+  已公布财报 → 用 -1q (上次已公布对应的预期)
+  未公布财报 → 用 0q (即将公布的预期)
+```
+
+### 9. 摊薄成本计算器 (v10.7.9.32 新增)
+
+```javascript
+独立模块 (交易 tab 内), iOS 风格
+功能:
+  - 输入若干笔买入 (日期 + 价格 + 股数)
+  - 计算两种摊薄成本: 平均成本 vs 当前持仓加权
+  - 显示当前价 + 涨跌幅% + CNY 副显示
+  - 云端同步 (新表 cost_basis_trades)
+```
+
+### 10. 通用删除确认 Modal (v10.7.9.41)
+
+```
+统一替换所有 window.confirm
+- 居中 Modal + 红色图标
+- 取消 / 删除 双按钮
+- 涉及关联数据 (如关注股票有交易记录) 给金色警告
+```
+
 ---
 
 ## 🔧 工作流程 (重要)
@@ -304,13 +383,14 @@ Claude 写代码
 用户部署 (GitHub edit 链接)
 ```
 
-### 每次改动必更新 3 处
+### 每次改动必更新 4 处版本号
 
 ```
 1. App.jsx 底部注释
-   // 📅 最后修改时间: YYYY-MM-DD HH:MM:SS (UTC+8)
-   // 📝 本次更新: vX.X.X - 标题
-   // (详细说明)
+   // 📅 最后修改时间: YYYY-MM-DD (UTC+8)
+   // 📝 当前版本: vX.X.X
+   //   vX.X.X 主要内容: ...
+   // 📦 中间版本快览: ...
 
 2. changelog 数组 (顶部加新条目)
    { ver: 'vX.X.X', date: '...', latest: true, items: [...] }
@@ -319,8 +399,8 @@ Claude 写代码
 3. "关于"卡版本号
    <div>📊 版本:vX.X.X</div>
 
-4. 顶部徽章 (changelog 卡)
-   v10.7.8.6  (这个文字也要改)
+4. JSON 备份导出 version 字段
+   const backup = { version: 'vX.X.X', ... }
 ```
 
 ### 打包命令
@@ -333,13 +413,13 @@ cd /tmp/vX.X.X && zip -r /mnt/user-data/outputs/bottomline-vX.X.X.zip.zip src �
 
 注意: **双 .zip.zip 扩展名** (历史习惯, 不要改)
 
-### 验证脚本 (每次必跑)
+### 验证 (每次必跑)
 
 ```bash
+# 括号匹配检查 + JSX 关键元素清点
 node -e "
-const c = require('fs').readFileSync('/home/claude/tqqq-app/src/App.jsx', 'utf8');
-// 括号匹配检查 (忽略字符串/注释)
-// ...
+const c = require('fs').readFileSync('src/App.jsx', 'utf8');
+// ... 见 SURVIVAL-GUIDE.md
 "
 ```
 
@@ -358,14 +438,52 @@ GitHub edit:
 
 ## 📜 完整版本历史
 
+### v10.7.9.x 阶段 (重要日历 + 公司 Modal + EODHD 升级)
+
 ```
-v10.7.8.6   复盘改名"目标" + 更新日志折叠           ← 当前
+v10.7.9.40  🚀 EODHD 升级 All-In-One + 公司 Modal 重做 + 重要日历升级 ← 当前
+            内嵌 v10.7.9.41 注释 (摊薄成本云端同步 + 通用删除 Modal + 自动预警)
+            ✓ fix47: 12月走势点击显示金额
+            ✗ fix48 (财报保留 2 天) / fix49 (时间轴+绿色) 已 rollback
+v10.7.9.38  📅 重要日历 V1 (NASDAQ 数据源, 后升级到 EODHD)
+v10.7.9.32  💼 摊薄成本计算器 (云端同步, 新表 cost_basis_trades)
+v10.7.9.17  🐛 修复 REST 与 WebSocket 数据冲突 (价格"跳回"bug)
+v10.7.9.16  🎨 关注卡 V1 三列布局 (代码 | 走势图 | 价格)
+v10.7.9.14  🎯 切换到 EODHD Live v2 (/api/us-quote-delayed)
+v10.7.9.13  📈 首页持仓卡: 浮动% → 当日盈亏
+v10.7.9.12  🎨 波段记录卡换白卡极简
+v10.7.9.11  📊 交易波段卡加"现价"列 (4 列)
+v10.7.9.10  🔔 预警折叠状态持久化
+v10.7.9.9   💱 首页加人民币副显示
+v10.7.9.8   ✨ 北极星宇宙动效
+v10.7.9.7   🔧 修复指数 ETF WebSocket 不更新
+v10.7.9.6   📋 设置页卡片重排序
+v10.7.9.5   🐛 修复复利计划输入 bug
+v10.7.9.4   📜 复盘日志默认显示 10 条
+v10.7.9.3   🐛 修复戒律置顶 bug
+v10.7.9.2   📐 关注列表再扩宽
+v10.7.9.1   📱 关注列表入侵式占满全屏
+v10.7.9.0   🎨 关注列表 B 对称两块重设计
+```
+
+### v10.7.8.x 阶段 (WebSocket BETA + 数据安全)
+
+```
+v10.7.8.9   🎉 大合并版
+v10.7.8.8   🚨 修复 Supabase auth lock 抢锁 bug
+v10.7.8.7   💾 导出 JSON 备份按钮
+v10.7.8.6   底部 tab "复盘" → "目标"
 v10.7.8.5   首页指数改 SPY/QQQ ETF + 删假按钮
-v10.7.8.3   年度进度改"实际收益完成度" + 按钮配色
+v10.7.8.3   年度进度改"实际收益完成度"
 v10.7.8.1   WebSocket 走势图实时同步
 v10.7.8     WebSocket 实时推送 BETA
-v10.7.7.4   数据安全加固
-v10.7.7.3   波段 bug 修复 + 全部交易弹窗
+```
+
+### v10.7.x 早期阶段
+
+```
+v10.7.7.4   🛡️ 数据安全加固
+v10.7.7.3   修复波段"消失"bug
 v10.7.7.2   走势图入场动画 + 空月断线
 v10.7.7     设置页全部黑金统一
 v10.7.6     设置页改版 (智能刷新指标 + 更新日志卡)
@@ -375,13 +493,12 @@ v10.7.3     品牌图标 (V5 K 线) + 改名 Bottomline
 v10.7.2     资产录入按人 Tab
 v10.7.1     智能刷新
 v10.7.0     我的关注 Robinhood 风
-v10.6.9     HKD 汇率 bug
-v10.6.8     全黑流动金线开屏 V4-B
-v10.6.7     大 B 字母品牌
-v10.6.6     头部统一黑金
-v10.6.5     52 周高拆股 bug
-v10.6.4     交易 tab V3.2 重做
-v10.6.0-3   年度表升级
+```
+
+### v10.6.x 及更早
+
+```
+v10.6.x     头部统一黑金 / 全黑流动金线开屏 / 大 B 字母品牌
 v10.5.x     复利计划 + 杠杆 + 戒律
 v10.x       Supabase 云端 + 账户独立
 v1.0        第一版 TQQQ 波段追踪器 🎂
@@ -391,6 +508,18 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 
 ## 🚧 已知限制 / 待办
 
+### 🔴 立刻要清理的 (技术债)
+
+```
+1. 重复的 quote.js (孤儿文件)
+   - src/quote.js (737 行, 业绩口径修正版)
+   - src/lib/quote.js (716 行, 业绩口径错误版)
+   - 两份都没人 import, 真正部署是 GitHub api/quote.js
+   - → 待办: 去 GitHub 核对 api/quote.js 内容, 再清理本地两份
+
+2. CONTEXT.md 之前格式破损 (反斜杠转义), 已在本次重写修复
+```
+
 ### 立刻可以做的小改进
 
 ```
@@ -398,6 +527,7 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 - 没有 csv 导出功能
 - 没有股票分组 (核心仓 / 杠杆 / 关注)
 - 没有隐私模式 (一键模糊金额)
+- v10.7.9.41 inline 标记还在代码里, 下次改动正式升 .41
 ```
 
 ### 中期改进
@@ -413,6 +543,15 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 
 - 价格预警 (绑定戒律)
   比如 "VIX > 30 提醒我" + 触发后弹推送
+
+- 关键事件日历扩展 (CPI + PPI + 非农)
+  目前只有财报 + FOMC
+
+- 风险仪表盘 (集中度 / 相关性预警)
+
+- 目标达成概率 Monte Carlo
+
+- 止盈止损线
 ```
 
 ### 长期想做的
@@ -421,6 +560,7 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 - BTC / 加密货币支持 (EODHD crypto endpoint 不同)
 - 期权追踪
 - 自动导入交易 (CSV / 邮件 / OCR)
+- "猎手状态" 首页改造 (战备面板 / 狩猎阶段 / 今日战报, 待选方案)
 ```
 
 ### 不要做的
@@ -466,6 +606,20 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 7. 防抖保存
    设置/状态变化用 useEffect + 500ms 防抖
    单条操作直接调 db.xxx (不要等防抖)
+
+8. EODHD Earnings::Trend period 口径 (v10.7.9.41 教训)
+   period: '-1q' = 上次已公布的季度
+   period: '0q'  = 当前 (即将公布) 季度
+   period: '+1q' = 下个季度
+   对应:
+     已公布财报 vs 营收预期 → 用 -1q
+     未公布财报 vs 营收预期 → 用 0q
+   错用 +1q 会导致"实际 vs 预期"对错季度
+
+9. EODHD Fundamentals filter 写法
+   推荐: 单层 filter (General,Highlights,Earnings,Financials,SharesStats)
+   慎用: 双冒号 filter (General::Name,...) 会丢父节点路径
+   src/quote.js 用单层是新版, src/lib/quote.js 用双冒号是旧版
 ```
 
 ---
@@ -493,21 +647,22 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 
 ```
 1. 用户告诉你: "看一下 boduan-tracker 仓库的 CONTEXT.md"
+   或者上传最新的 zip 包给你
 
-2. 你 web_fetch 这个文档:
-   https://github.com/chenshuai1190-dotcom/boduan-tracker/blob/main/CONTEXT.md
+2. 优先级:
+   A. 用户给 zip → 解压, 读 CONTEXT.md + App.jsx 头尾 + db.js
+   B. 用户没给 → web_fetch GitHub 上的 CONTEXT.md
+      https://github.com/chenshuai1190-dotcom/boduan-tracker/blob/main/CONTEXT.md
 
 3. 读完后回应:
    "✓ 看完了. 我现在了解 Bottomline 的全部:
-    - 最新 v10.7.8.6
-    - 黑金主题 + 波段追踪 + 长期目标
+    - 最新 v10.7.9.40
+    - 黑金主题 + 波段追踪 + 长期目标 + 重要日历 + 公司 Modal
     - 你的偏好和工作流
-    
     今天想做什么?"
 
 4. 如果用户的需求涉及代码:
-   先 git clone 或者 web_fetch 关键文件
-   或者让用户上传 App.jsx 当前版本
+   先确认有最新 App.jsx 在手, 不要凭记忆改
 
 5. 严格按照 "DESIGN FIRST, CODE LATER" 流程
 ```
@@ -532,6 +687,23 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 
 ---
 
-**最后更新**: 2026-04-22  
-**当前版本**: v10.7.8.6  
+**最后更新**: 2026-05-07
+**当前版本**: v10.7.9.40
 **作者**: chenshuai1190 (产品 + 决策) + Claude (实现 + 建议)
+
+---
+
+## 📝 本次更新 (2026-05-07) 做了什么
+
+```
+1. 修复 CONTEXT.md 格式破损 (所有 \# \- \*\* 反斜杠转义)
+2. 当前版本号 v10.7.8.6 → v10.7.9.40
+3. EODHD 套餐 $29.99 → $99.99 (All-In-One)
+4. 数据库表 11 张 → 12 张 (加 cost_basis_trades)
+5. 补全 v10.7.8.7 → v10.7.9.40 中间所有版本历史
+6. 新增"核心业务逻辑": 重要日历 / 公司 Modal / 摊薄成本 / 删除 Modal (4 个新功能)
+7. 新增"踩坑": EODHD Earnings::Trend period 口径 + Fundamentals filter 写法
+8. 标记技术债: 重复的 quote.js 孤儿文件待清理
+9. 4 处版本号同步规则补一条 (JSON 备份 version 字段)
+10. 待办列表更新, 加入"猎手状态" / 关键事件扩展等之前讨论过未做的方向
+```
