@@ -5210,8 +5210,8 @@ function MainApp({ user, onLogout }) {
 
                 {/* ====== 12 个月资产走势 Modal (v10.7.9.42 黑金版 + 环比金额) ====== */}
                 {showMonthsDetail && (
-                  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowMonthsDetail(false)}>
-                    <div className="rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden" style={{ background: '#0f0f0f' }} onClick={(e) => e.stopPropagation()}>
+                  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowMonthsDetail(false)}>
+                    <div className="rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden" style={{ background: '#0f0f0f', border: '1px solid rgba(251,191,36,0.35)', boxShadow: '0 25px 60px -10px rgba(0,0,0,0.9), 0 0 40px rgba(251,191,36,0.06)' }} onClick={(e) => e.stopPropagation()}>
                       {/* Header */}
                       <div className="flex items-center justify-between px-4 py-4 shrink-0" style={{ background: 'linear-gradient(135deg,#0a0a0a,#1a1a1a)', borderBottom: '1px solid rgba(251,191,36,0.15)' }}>
                         <h3 className="font-black text-base flex items-center gap-1.5 text-white">
