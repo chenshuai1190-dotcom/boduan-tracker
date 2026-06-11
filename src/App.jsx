@@ -5208,63 +5208,71 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
 
-                {/* ====== 12 个月资产走势 Modal ====== */}
+                {/* ====== 12 个月资产走势 Modal (v10.7.9.42 黑金版 + 环比金额) ====== */}
                 {showMonthsDetail && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMonthsDetail(false)}>
-                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-base flex items-center gap-1.5">
+                  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowMonthsDetail(false)}>
+                    <div className="rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden" style={{ background: '#0f0f0f' }} onClick={(e) => e.stopPropagation()}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-4 py-4 shrink-0" style={{ background: 'linear-gradient(135deg,#0a0a0a,#1a1a1a)', borderBottom: '1px solid rgba(251,191,36,0.15)' }}>
+                        <h3 className="font-black text-base flex items-center gap-1.5 text-white">
                           <span>📅</span>
                           <span>12 个月资产走势</span>
                         </h3>
-                        <button onClick={() => setShowMonthsDetail(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                        <button onClick={() => setShowMonthsDetail(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400" style={{ background: 'rgba(255,255,255,0.08)' }}>
                           <X className="w-4 h-4" />
                         </button>
                       </div>
 
                       {/* 列表: 最新在顶部 */}
-                      <div className="space-y-1">
+                      <div className="px-3 py-3 overflow-y-auto space-y-1.5">
                         {[...last12Months].reverse().map((m, idx) => {
                           const reversedIdx = last12Months.length - 1 - idx; // 原始索引
                           const total = chartData[reversedIdx];
                           const prevTotal = reversedIdx > 0 ? chartData[reversedIdx - 1] : 0;
                           const change = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
+                          const changeAmt = prevTotal > 0 ? (total - prevTotal) : null; // v10.7.9.42 环比金额
                           const isCurrent = m === currentMonth;
                           const isYearStart = m.endsWith('-01');
                           const hasData = total > 0;
+                          const isFlat = change !== null && Math.abs(change) < 0.05; // 持平判定
 
                           return (
                             <div
                               key={m}
-                              className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition ${
-                                isCurrent
-                                  ? 'bg-blue-50 border-2 border-blue-200'
-                                  : hasData
-                                    ? 'bg-slate-50 hover:bg-slate-100'
-                                    : 'bg-slate-50/50 opacity-50'
-                              }`}
+                              className="flex items-center justify-between py-3 px-4 rounded-xl"
+                              style={isCurrent
+                                ? { background: 'linear-gradient(135deg, rgba(251,191,36,0.16), rgba(251,191,36,0.06))', border: '1px solid rgba(251,191,36,0.4)' }
+                                : hasData
+                                  ? { background: 'rgba(255,255,255,0.04)' }
+                                  : { background: 'rgba(255,255,255,0.02)', opacity: 0.5 }
+                              }
                             >
                               <div className="flex items-center gap-2">
-                                <div className={`text-sm font-black tabular-nums ${isCurrent ? 'text-blue-700' : 'text-slate-800'}`}>
+                                <div className="text-[15px] font-black tabular-nums" style={{ color: isCurrent ? '#fbbf24' : '#e2e8f0', fontFamily: 'ui-monospace, monospace' }}>
                                   {m}
                                 </div>
                                 {isYearStart && (
-                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold">年初</span>
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(251,191,36,0.2)', color: '#fbbf24' }}>年初</span>
                                 )}
                                 {isCurrent && (
-                                  <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold">本月</span>
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: '#fbbf24', color: '#0a0a0a' }}>本月</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className={`text-sm font-bold tabular-nums ${isCurrent ? 'text-blue-700' : hasData ? 'text-slate-900' : 'text-slate-400'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                              <div className="text-right">
+                                <div className="text-[15px] font-bold tabular-nums" style={{ color: isCurrent ? '#fff' : hasData ? '#f1f5f9' : '#64748b', fontFamily: 'ui-monospace, monospace' }}>
                                   {hasData ? `¥${fmtWan(total)}万` : '无数据'}
                                 </div>
                                 {hasData && change !== null ? (
-                                  <div className={`text-[11px] font-bold tabular-nums min-w-[45px] text-right ${change >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                    {change >= 0 ? '↑' : '↓'}{Math.abs(change).toFixed(1)}%
+                                  <div className="text-[11px] font-bold tabular-nums mt-0.5" style={{ fontFamily: 'ui-monospace, monospace', color: isFlat ? '#64748b' : change >= 0 ? '#f87171' : '#34d399' }}>
+                                    {isFlat
+                                      ? '±0 · 0.0%'
+                                      : `${change >= 0 ? '+' : '-'}${fmtWan(changeAmt)}万 · ${change >= 0 ? '↑' : '↓'}${Math.abs(change).toFixed(1)}%`
+                                    }
                                   </div>
+                                ) : hasData ? (
+                                  <div className="text-[11px] mt-0.5" style={{ color: '#475569', fontFamily: 'ui-monospace, monospace' }}>起始月</div>
                                 ) : (
-                                  <div className="text-[11px] text-slate-300 min-w-[45px] text-right">—</div>
+                                  <div className="text-[11px] mt-0.5" style={{ color: '#334155' }}>—</div>
                                 )}
                               </div>
                             </div>
@@ -5273,18 +5281,18 @@ function MainApp({ user, onLogout }) {
                       </div>
 
                       {/* 底部: 快捷操作 */}
-                      <div className="mt-4 pt-3 border-t border-slate-100">
+                      <div className="px-4 py-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                         <button
                           onClick={() => {
                             setShowMonthsDetail(false);
                             setFillMonth(currentMonth);
                             setShowFillSnapshot(true);
                           }}
-                          className="w-full py-2.5 rounded-lg text-sm font-black active:scale-95 transition flex items-center justify-center gap-1.5"
+                          className="w-full py-3 rounded-xl text-sm font-black active:scale-95 transition flex items-center justify-center gap-1.5"
                           style={{
-                            background: '#fff',
-                            color: '#d97706',
-                            border: '2px solid #fbbf24',
+                            background: 'rgba(251,191,36,0.08)',
+                            color: '#fbbf24',
+                            border: '1.5px solid rgba(251,191,36,0.5)',
                           }}
                         >
                           <Plus className="w-4 h-4"/> 补录/修改月度余额
@@ -6834,7 +6842,15 @@ function MainApp({ user, onLogout }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.41', date: '2026-05-07', latest: true,
+                    ver: 'v10.7.9.42', date: '2026-06-10', latest: true,
+                    items: [
+                      '💰 资产走势 Modal 改黑金质感 (跟家庭总资产同调)',
+                      '📊 每月新增环比金额 (+233.2万 · ↑8.1%, 不只百分比)',
+                      '  - 起始月显示"起始月", 持平显示"±0"',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.41', date: '2026-06-10',
                     items: [
                       '🎯 修复猎手状态 QQQ 回撤拉取不到 (核心 bug)',
                       '  - QQQ 之前没进请求列表, 数据藏 INDICES 里只有当日高',
@@ -7360,7 +7376,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.41',
+                      version: 'v10.7.9.42',
                       trades,
                       watchlist,
                       waveNotes,
@@ -7411,7 +7427,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.41</div>
+                <div>📊 版本:v10.7.9.42</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -9329,8 +9345,14 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-05-07 (UTC+8)
-// 📝 本次更新: v10.7.9.41 - 修复猎手状态 QQQ 回撤拉取不到 🎯
+// 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
+// 📝 本次更新: v10.7.9.42 - 资产走势 Modal 黑金化 + 环比金额 💰
+//
+//   1) Modal 改黑金质感 (白底 → #0f0f0f, 跟家庭总资产卡同调)
+//   2) 每月新增环比金额: 之前只有 ↑8.1%, 现在 +233.2万 · ↑8.1%
+//   3) 起始月 (最早月无对比) 显示"起始月", 持平显示"±0"
+//
+// 📝 v10.7.9.41 - 修复猎手状态 QQQ 回撤拉取不到 🎯
 //
 //   核心 bug: 首页"当前猎手状态"的 QQQ 回撤一直拉不到真实数据
 //
