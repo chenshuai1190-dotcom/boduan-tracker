@@ -1663,7 +1663,13 @@ function MainApp({ user, onLogout }) {
     setFetching(true);
     setFetchError(null);
     try {
-      const symbols = [...watchlist.map(s => s.symbol), 'VIX', 'FGI', 'INDICES'].join(',');
+      // v10.7.9.41: 显式把 QQQ/TQQQ 加进请求 (走完整 stock 接口, 有真实 week52High)
+      // 之前只请求 watchlist+VIX+FGI+INDICES, QQQ 数据藏在 INDICES 里但只有 dayHigh 没有 52周高
+      // 导致 qqqHigh 永远停在写死的初始值 640.47, 猎手状态回撤算不准
+      // Set 去重: 用户 watchlist 若已有 QQQ/TQQQ 不会重复请求
+      const coreSymbols = ['QQQ', 'TQQQ'];
+      const symbolSet = new Set([...watchlist.map(s => s.symbol), ...coreSymbols]);
+      const symbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'].join(',');
       const r = await fetch(`/api/quote?symbols=${symbols}`);
       const result = await r.json();
       
@@ -1719,7 +1725,16 @@ function MainApp({ user, onLogout }) {
       if (tqqqData?.price > 0) setTqqqCurrent(tqqqData.price);
       if (qqqData?.price > 0) {
         setQqqCurrent(qqqData.price);
-        setQqqHigh(prev => Math.max(prev, qqqData.price));
+        // v10.7.9.41: QQQ 52周高直接信任 API 的 week52High (本身就是滚动52周最高)
+        // 之前 Math.max(prev, 当前价) 不读 API, 导致 high 被锁死在初始值 640.47, 回撤算不准
+        // 不用 Math.max(prev) 粘滞: 避免某次脏数据把 high 永久顶死降不下来
+        const qqqApiHigh = qqqData.week52High || qqqData.high || 0;
+        if (qqqApiHigh > 0) {
+          setQqqHigh(Math.max(qqqApiHigh, qqqData.price));
+        } else {
+          // API 没给 high 时才退回老逻辑 (至少不低于当前价)
+          setQqqHigh(prev => Math.max(prev, qqqData.price));
+        }
       }
 
       // 更新 VIX
@@ -6819,7 +6834,16 @@ function MainApp({ user, onLogout }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.40', date: '2026-04-27', latest: true,
+                    ver: 'v10.7.9.41', date: '2026-05-07', latest: true,
+                    items: [
+                      '🎯 修复猎手状态 QQQ 回撤拉取不到 (核心 bug)',
+                      '  - QQQ 之前没进请求列表, 数据藏 INDICES 里只有当日高',
+                      '  - 现 QQQ/TQQQ 走完整接口, 用真实 52 周高算回撤',
+                      '  - 52周高不再写死 640.47, 跟 watchlist 同源',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.40', date: '2026-04-27',
                     items: [
                       '🚀 升级 EODHD All-In-One ($99.99/月), 全套接口替换',
                       '📅 重要日历 (首页时间轴 - 15 天)',
@@ -7336,7 +7360,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.8.6',
+                      version: 'v10.7.9.41',
                       trades,
                       watchlist,
                       waveNotes,
@@ -7387,7 +7411,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.40</div>
+                <div>📊 版本:v10.7.9.41</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -9305,8 +9329,25 @@ export default function TQQQTracker() {
 }
 
 // ============================================
-// 📅 最后修改时间: 2026-04-23 10:00:00 (UTC+8)
-// 📝 本次更新: v10.7.9.3 - 关注列表再扩宽 📐
+// 📅 最后修改时间: 2026-05-07 (UTC+8)
+// 📝 本次更新: v10.7.9.41 - 修复猎手状态 QQQ 回撤拉取不到 🎯
+//
+//   核心 bug: 首页"当前猎手状态"的 QQQ 回撤一直拉不到真实数据
+//
+//   根因 (两个叠加):
+//   1) QQQ 没进 API 请求列表 (只请求 watchlist+VIX+FGI+INDICES)
+//      → result.data 里找不到 d.symbol==='QQQ' → qqqCurrent/High 不更新
+//      → 数据藏在 INDICES 子数组里, 但那个只有当日高没有 52周高
+//   2) qqqHigh 用 Math.max(prev, 当前价), 从不读 API 的 week52High
+//      → 永远停在写死的初始值 640.47
+//
+//   修复:
+//   - 把 QQQ/TQQQ 显式加进主请求 (Set 去重), 走完整 stock 接口
+//   - QQQ 52周高直接信任 API week52High, 跟 watchlist 同源
+//   - 不用 Math.max(prev) 粘滞, 避免脏数据顶死
+//
+// ── 历史 ──
+// 📝 v10.7.9.3 - 关注列表再扩宽 📐
 //
 //   3 项优化:
 //
