@@ -1214,15 +1214,15 @@ function MainApp({ user, onLogout }) {
   // ============ 预警等级系统 ============
   // 9 档回撤阈值,跌得越狠等级越高
   const ALERT_LEVELS = [
-    { dd: -0.10, level: 1, label: '关注',     color: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: '🟡', action: '小批试探(5-10%仓位)' },
-    { dd: -0.12, level: 2, label: '准备',     color: 'bg-amber-100 text-amber-800 border-amber-300',  icon: '🟠', action: '准备第1批建仓资金' },
-    { dd: -0.15, level: 3, label: '建仓',     color: 'bg-orange-100 text-orange-900 border-orange-400', icon: '🟠', action: '执行第1批 25% 仓位' },
-    { dd: -0.18, level: 4, label: '加码',     color: 'bg-orange-200 text-orange-900 border-orange-500', icon: '🔶', action: '加仓至 40-50%' },
-    { dd: -0.20, level: 5, label: '重仓',     color: 'bg-red-100 text-red-800 border-red-400',         icon: '🔴', action: '执行第2批,累计 60%' },
-    { dd: -0.25, level: 6, label: '深度',     color: 'bg-red-200 text-red-900 border-red-500',         icon: '🔴', action: '执行第3批,满仓 100%' },
-    { dd: -0.30, level: 7, label: '恐慌',     color: 'bg-red-500 text-white border-red-700',           icon: '⛔', action: '满仓持有,如有现金继续加' },
-    { dd: -0.40, level: 8, label: '极度恐慌', color: 'bg-red-700 text-white border-red-900',           icon: '🚨', action: '历史级机会,所有现金加杠杆' },
-    { dd: -0.50, level: 9, label: '世纪机会', color: 'bg-black text-yellow-300 border-yellow-500',     icon: '💎', action: '类似 2008/2020 级别底部' },
+    { dd: -0.10, level: 1, label: '关注',     color: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: '🟡', action: '进入观察区, 可小批试探 (5-10%)' },
+    { dd: -0.12, level: 2, label: '准备',     color: 'bg-amber-100 text-amber-800 border-amber-300',  icon: '🟠', action: '核对第1批资金是否就位' },
+    { dd: -0.15, level: 3, label: '第1批',    color: 'bg-orange-100 text-orange-900 border-orange-400', icon: '🟠', action: '按计划执行第1批 (25%)' },
+    { dd: -0.18, level: 4, label: '推进',     color: 'bg-orange-200 text-orange-900 border-orange-500', icon: '🔶', action: '按计划推进至 40-50%' },
+    { dd: -0.20, level: 5, label: '第2批',    color: 'bg-red-100 text-red-800 border-red-400',         icon: '🔴', action: '按计划执行第2批 (累计 60%)' },
+    { dd: -0.25, level: 6, label: '第3批',    color: 'bg-red-200 text-red-900 border-red-500',         icon: '🔴', action: '可执行第3批, 留 10-20% 应急弹药' },
+    { dd: -0.30, level: 7, label: '深跌',     color: 'bg-red-500 text-white border-red-700',           icon: '⛔', action: '历史性区间, 维持率安全则可继续进攻' },
+    { dd: -0.40, level: 8, label: '极端区',   color: 'bg-red-700 text-white border-red-900',           icon: '🚨', action: '大级别机会, 先核维持率, 弹药分 2-3 次打' },
+    { dd: -0.50, level: 9, label: '历史极值', color: 'bg-black text-yellow-300 border-yellow-500',     icon: '💎', action: '2008/2020 级深跌, 敢买但分批, 底部无法预知' },
   ];
 
   // 计算每只股票的预警等级
@@ -2835,11 +2835,11 @@ function MainApp({ user, onLogout }) {
         {(() => {
           // 5 档分级
           const getFgiLevel = (v) => {
-            if (v < 25) return { label: 'Extreme Fear', cn: '极度恐慌', color: 'bg-rose-100 text-rose-800 border-rose-300', barColor: 'bg-rose-500', accent: 'text-rose-600', action: '🎯 抄底重点机会,梭哈买入', desc: '市场极度恐慌,反向操作时机' };
-            if (v < 45) return { label: 'Fear', cn: '恐慌', color: 'bg-orange-100 text-orange-800 border-orange-300', barColor: 'bg-orange-500', accent: 'text-orange-600', action: '✅ 重点买入区,可分批建仓', desc: '市场偏恐慌,逢低布局' };
+            if (v < 25) return { label: 'Extreme Fear', cn: '极度恐慌', color: 'bg-rose-100 text-rose-800 border-rose-300', barColor: 'bg-rose-500', accent: 'text-rose-600', action: '🎯 重点买入区, 分批进攻', desc: '市场极度恐慌,反向操作时机' };
+            if (v < 45) return { label: 'Fear', cn: '恐慌', color: 'bg-orange-100 text-orange-800 border-orange-300', barColor: 'bg-orange-500', accent: 'text-orange-600', action: '✅ 买入区, 可分批建仓', desc: '市场偏恐慌,逢低布局' };
             if (v < 55) return { label: 'Neutral', cn: '中立', color: 'bg-slate-100 text-slate-700 border-slate-300', barColor: 'bg-slate-400', accent: 'text-slate-600', action: '⏸ 观望,不动作', desc: '市场情绪平衡' };
             if (v < 75) return { label: 'Greed', cn: '贪婪', color: 'bg-emerald-100 text-emerald-800 border-emerald-300', barColor: 'bg-emerald-500', accent: 'text-emerald-600', action: '⚠️ 减仓区,获利了结部分仓位', desc: '市场偏贪婪,谨慎追高' };
-            return { label: 'Extreme Greed', cn: '极度贪婪', color: 'bg-red-100 text-red-800 border-red-400', barColor: 'bg-red-600', accent: 'text-red-700', action: '🚨 清仓离场,等待回调', desc: '市场极度贪婪,泡沫风险' };
+            return { label: 'Extreme Greed', cn: '极度贪婪', color: 'bg-red-100 text-red-800 border-red-400', barColor: 'bg-red-600', accent: 'text-red-700', action: '🚨 高风险区, 减仓为主, 留核心仓', desc: '市场极度贪婪,泡沫风险' };
           };
           const cur = getFgiLevel(fgi);
 
@@ -6842,7 +6842,16 @@ function MainApp({ user, onLogout }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.42', date: '2026-06-10', latest: true,
+                    ver: 'v10.7.9.43', date: '2026-06-10', latest: true,
+                    items: [
+                      '🧠 预警文案理性化 (保留进攻性)',
+                      '  - L6 不再"满仓100%", 留 10-20% 应急弹药',
+                      '  - L8 "所有现金加杠杆" → 先核维持率, 弹药分 2-3 次',
+                      '  - FGI "梭哈买入"→分批进攻, "清仓离场"→留核心仓',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.42', date: '2026-06-10',
                     items: [
                       '💰 资产走势 Modal 改黑金质感 (跟家庭总资产同调)',
                       '📊 每月新增环比金额 (+233.2万 · ↑8.1%, 不只百分比)',
@@ -7376,7 +7385,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.42',
+                      version: 'v10.7.9.43',
                       trades,
                       watchlist,
                       waveNotes,
@@ -7427,7 +7436,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.42</div>
+                <div>📊 版本:v10.7.9.43</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -9346,7 +9355,18 @@ export default function TQQQTracker() {
 
 // ============================================
 // 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
-// 📝 本次更新: v10.7.9.42 - 资产走势 Modal 黑金化 + 环比金额 💰
+// 📝 本次更新: v10.7.9.43 - 预警文案理性化 (保留进攻性) 🧠
+//
+//   ALERT_LEVELS 9 档 + FGI 5 档全部重写:
+//   - 原则: 指令式→提示式, 风控前置 (维持率检查), 分批钉进句子
+//   - L6: "满仓100%" → "留 10-20% 应急弹药" (满仓后 L7-L9 没子弹, 原方案自相矛盾)
+//   - L7: "满仓持有,继续加" → "维持率安全则可继续进攻"
+//   - L8: "所有现金加杠杆" → "先核维持率, 弹药分 2-3 次打" (账户本身已 1.25-1.3x 杠杆)
+//   - L9: "世纪机会" → "敢买但分批, 底部无法预知" (2008 从 -40% 又跌到 -55%)
+//   - FGI: "梭哈买入" → "分批进攻" / "清仓离场" → "减仓为主, 留核心仓" (符合核心+卫星体系)
+//   - 速查表自动同步 (直接 map ALERT_LEVELS, 一处改全生效)
+//
+// 📝 v10.7.9.42 - 资产走势 Modal 黑金化 + 环比金额 💰
 //
 //   1) Modal 改黑金质感 (白底 → #0f0f0f, 跟家庭总资产卡同调)
 //   2) 每月新增环比金额: 之前只有 ↑8.1%, 现在 +233.2万 · ↑8.1%
