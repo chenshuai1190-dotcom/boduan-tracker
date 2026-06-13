@@ -2110,6 +2110,9 @@ function MainApp({ user, onLogout }) {
             50% { width: 100%; }
             100% { width: 0%; }
           }
+          @keyframes xDraw {
+            to { stroke-dashoffset: 0; }
+          }
           @keyframes splashFadeIn {
             0% { opacity: 0; transform: translateY(10px); }
             100% { opacity: 1; transform: translateY(0); }
@@ -2136,20 +2139,34 @@ function MainApp({ user, onLogout }) {
           }
         `}</style>
 
-        {/* 中央: BOTTOMLINE 文字 + 流动金线 */}
+        {/* 中央: X Logo 两笔画描出 + X MONEY 文字 (v10.7.9.44 改名) */}
         <div className="text-center relative z-10">
+          <svg width="88" height="88" viewBox="0 0 84 84" style={{ margin: '0 auto 20px', display: 'block' }}>
+            <defs>
+              <linearGradient id="xLogoGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#fde68a"/>
+                <stop offset="1" stopColor="#d97706"/>
+              </linearGradient>
+            </defs>
+            <path d="M18 18 L66 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none"
+              style={{ strokeDasharray: 70, strokeDashoffset: 70, animation: 'xDraw 0.6s ease-out 0.3s forwards' }} />
+            <path d="M66 18 L18 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none"
+              style={{ strokeDasharray: 70, strokeDashoffset: 70, animation: 'xDraw 0.6s ease-out 0.85s forwards' }} />
+          </svg>
           <div
-            className="text-[13px] mb-6 splash-fade-in"
+            className="text-[22px] splash-fade-in"
             style={{
-              letterSpacing: '4px',
-              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+              letterSpacing: '6px',
+              background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #d97706 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              fontWeight: 700,
+              fontWeight: 900,
+              marginBottom: '20px',
+              animationDelay: '1.4s',
             }}
           >
-            BOTTOMLINE
+            X MONEY
           </div>
           <div
             className="splash-fade-in"
@@ -2160,6 +2177,7 @@ function MainApp({ user, onLogout }) {
               borderRadius: '2px',
               overflow: 'hidden',
               margin: '0 auto',
+              animationDelay: '1.6s',
             }}
           >
             <div className="v4-fill"></div>
@@ -2273,9 +2291,9 @@ function MainApp({ user, onLogout }) {
           <div className="flex items-center justify-between mb-3 relative z-10">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-slate-900 text-sm shadow-md shrink-0" style={{ background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' }}>
-                B
+                X
               </div>
-              <span className="text-white font-black text-sm tracking-tight">Bottomline</span>
+              <span className="text-white font-black text-sm tracking-tight">X MONEY</span>
             </div>
             <button
               onClick={fetchRealtimePrices}
@@ -6842,7 +6860,16 @@ function MainApp({ user, onLogout }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.43', date: '2026-06-10', latest: true,
+                    ver: 'v10.7.9.44', date: '2026-06-13', latest: true,
+                    items: [
+                      '🎨 改名 Bottomline → X MONEY',
+                      '  - 开屏: 金色 X 两笔画描出 + X MONEY 文字',
+                      '  - 头部 logo / 关于卡 / 图标 / PWA 名 全部更新',
+                      '  - favicon 改黑底金 X',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.43', date: '2026-06-10',
                     items: [
                       '🧠 预警文案理性化 (保留进攻性)',
                       '  - L6 不再"满仓100%", 留 10-20% 应急弹药',
@@ -7385,7 +7412,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.43',
+                      version: 'v10.7.9.44',
                       trades,
                       watchlist,
                       waveNotes,
@@ -7407,7 +7434,7 @@ function MainApp({ user, onLogout }) {
                     const a = document.createElement('a');
                     a.href = url;
                     const date = new Date().toISOString().slice(0, 10);
-                    a.download = `bottomline-backup-${date}.json`;
+                    a.download = `x-money-backup-${date}.json`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -7434,9 +7461,9 @@ function MainApp({ user, onLogout }) {
 
             {/* 关于 */}
             <div className="bg-white rounded-2xl p-5 shadow">
-              <h2 className="font-bold text-lg mb-3">关于 Bottomline</h2>
+              <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.43</div>
+                <div>📊 版本:v10.7.9.44</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -9355,7 +9382,16 @@ export default function TQQQTracker() {
 
 // ============================================
 // 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
-// 📝 本次更新: v10.7.9.43 - 预警文案理性化 (保留进攻性) 🧠
+// 📝 本次更新: v10.7.9.44 - 改名 X MONEY 🎨
+//
+//   Bottomline → X MONEY 全套改名:
+//   - 开屏动画: 金色 X 两笔画描出 + X MONEY (去掉 BOTTOMLINE)
+//   - 头部 logo: B 方块 → X 方块, 文字 → X MONEY
+//   - 关于卡 / index.html title / manifest PWA 名
+//   - favicon.svg 重画: 黑底金色经典 X + 圆角方块
+//   ⚠️ localStorage key (bottomline_*) 保持不变, 不动用户数据
+//
+// 📝 v10.7.9.43 - 预警文案理性化 (保留进攻性) 🧠
 //
 //   ALERT_LEVELS 9 档 + FGI 5 档全部重写:
 //   - 原则: 指令式→提示式, 风控前置 (维持率检查), 分批钉进句子
