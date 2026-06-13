@@ -801,8 +801,8 @@ function MainApp({ user, onLogout }) {
   useEffect(() => {
     let mounted = true;
     const startTime = Date.now();
-    const MIN_SPLASH_MS = 800;   // 最少显示 0.8s (保证用户看到设计)
-    const MAX_SPLASH_MS = 2000;  // 最多 2s (即使云端连不上, 也跳)
+    const MIN_SPLASH_MS = 1600;  // 最少显示 1.6s (保证 X MONEY 文字完整淡入)
+    const MAX_SPLASH_MS = 2600;  // 最多 2.6s (即使云端连不上, 也跳)
 
     // 强制超时跳出
     const timeoutId = setTimeout(() => {
@@ -2139,19 +2139,17 @@ function MainApp({ user, onLogout }) {
           }
         `}</style>
 
-        {/* 中央: X Logo 两笔画描出 + X MONEY 文字 (v10.7.9.44 改名) */}
+        {/* 中央: X Logo 直接淡入 + X MONEY 文字 (v10.7.9.45 X 不再描线) */}
         <div className="text-center relative z-10">
-          <svg width="88" height="88" viewBox="0 0 84 84" style={{ margin: '0 auto 20px', display: 'block' }}>
+          <svg width="88" height="88" viewBox="0 0 84 84" style={{ margin: '0 auto 20px', display: 'block', animation: 'splashFadeIn 0.6s ease-out 0.1s both' }}>
             <defs>
               <linearGradient id="xLogoGrad" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0" stopColor="#fde68a"/>
                 <stop offset="1" stopColor="#d97706"/>
               </linearGradient>
             </defs>
-            <path d="M18 18 L66 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none"
-              style={{ strokeDasharray: 70, strokeDashoffset: 70, animation: 'xDraw 0.6s ease-out 0.3s forwards' }} />
-            <path d="M66 18 L18 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none"
-              style={{ strokeDasharray: 70, strokeDashoffset: 70, animation: 'xDraw 0.6s ease-out 0.85s forwards' }} />
+            <path d="M18 18 L66 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none" />
+            <path d="M66 18 L18 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none" />
           </svg>
           <div
             className="text-[22px] splash-fade-in"
@@ -2163,7 +2161,7 @@ function MainApp({ user, onLogout }) {
               backgroundClip: 'text',
               fontWeight: 900,
               marginBottom: '20px',
-              animationDelay: '1.4s',
+              animationDelay: '0.5s',
             }}
           >
             X MONEY
@@ -2177,7 +2175,7 @@ function MainApp({ user, onLogout }) {
               borderRadius: '2px',
               overflow: 'hidden',
               margin: '0 auto',
-              animationDelay: '1.6s',
+              animationDelay: '0.8s',
             }}
           >
             <div className="v4-fill"></div>
@@ -6860,12 +6858,13 @@ function MainApp({ user, onLogout }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.44', date: '2026-06-13', latest: true,
+                    ver: 'v10.7.9.45', date: '2026-06-13', latest: true,
                     items: [
                       '🎨 改名 Bottomline → X MONEY',
                       '  - 开屏: 金色 X 两笔画描出 + X MONEY 文字',
                       '  - 头部 logo / 关于卡 / 图标 / PWA 名 全部更新',
                       '  - favicon 改黑底金 X',
+                      '🎬 v45: 开屏 X 直接显示 (不描线), 最短停留 1.6s 让 X MONEY 完整淡入',
                     ],
                   },
                   {
@@ -7412,7 +7411,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.44',
+                      version: 'v10.7.9.45',
                       trades,
                       watchlist,
                       waveNotes,
@@ -7463,7 +7462,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.44</div>
+                <div>📊 版本:v10.7.9.45</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -9382,7 +9381,7 @@ export default function TQQQTracker() {
 
 // ============================================
 // 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
-// 📝 本次更新: v10.7.9.44 - 改名 X MONEY 🎨
+// 📝 本次更新: v10.7.9.45 - 改名 X MONEY + 开屏调速 🎨
 //
 //   Bottomline → X MONEY 全套改名:
 //   - 开屏动画: 金色 X 两笔画描出 + X MONEY (去掉 BOTTOMLINE)
