@@ -2549,7 +2549,7 @@ function MainApp({ user, onLogout }) {
           {/* === 第 1 排:市场状态(可切换基准) === */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前猎手状态</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-bold">当前信号</div>
               <div className="text-2xl font-black mt-1 text-slate-900 leading-tight">{benchmarkStatus.text}</div>
               <div className="text-xs text-slate-500 mt-0.5 truncate">{benchmarkStatus.desc}</div>
             </div>
@@ -6858,7 +6858,13 @@ function MainApp({ user, onLogout }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.45', date: '2026-06-13', latest: true,
+                    ver: 'v10.7.9.46', date: '2026-06-13', latest: true,
+                    items: [
+                      '🏷 首页"当前猎手状态" → "当前信号"',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.45', date: '2026-06-13',
                     items: [
                       '🎨 改名 Bottomline → X MONEY',
                       '  - 开屏: 金色 X 两笔画描出 + X MONEY 文字',
@@ -7411,7 +7417,7 @@ function MainApp({ user, onLogout }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.45',
+                      version: 'v10.7.9.46',
                       trades,
                       watchlist,
                       waveNotes,
@@ -7462,7 +7468,7 @@ function MainApp({ user, onLogout }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.45</div>
+                <div>📊 版本:v10.7.9.46</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
@@ -9381,7 +9387,9 @@ export default function TQQQTracker() {
 
 // ============================================
 // 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
-// 📝 本次更新: v10.7.9.45 - 改名 X MONEY + 开屏调速 🎨
+// 📝 本次更新: v10.7.9.46 - 首页"当前猎手状态" → "当前信号" 🏷
+//
+// 📝 v10.7.9.45 - 改名 X MONEY + 开屏调速 🎨
 //
 //   Bottomline → X MONEY 全套改名:
 //   - 开屏动画: 金色 X 两笔画描出 + X MONEY (去掉 BOTTOMLINE)
