@@ -4,6 +4,27 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 同步设置页应用内更新日志
+
+- Commit: `same commit`
+- Background: 用户指出更新日志也必须在设置页里更新,不能只写仓库文档。
+- Changes:
+  - 在设置页更新日志顶部新增 `v10.7.9.47`。
+  - 将设置页更新日志角标、关于页版本、JSON 备份版本号同步到 `v10.7.9.47`。
+  - 保留 `v10.7.9.46` 为历史项,不再标记最新。
+- Key files:
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run build`: pass
+  - `npm audit`: pass,0 vulnerabilities
+  - `git diff --check`: pass
+  - local build SettingsTab chunk: `SettingsTab-B5SIqOMt.js`
+- Deployment: pending
+- Production verification: pending
+- Rollback: 回滚本次提交即可恢复设置页旧版本号和旧日志。
+- Follow-up: 后续每次用户可见更新,必须同时更新 `docs/development-log.md` 和设置页应用内更新日志。
+
 ### 2026-07-03 - 删除已登录启动开屏
 
 - Commit: `67e8f5b`
