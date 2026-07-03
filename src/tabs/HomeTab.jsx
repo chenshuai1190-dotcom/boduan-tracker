@@ -57,6 +57,12 @@ function marketColor(value) {
   return num(value) >= 0 ? '#ef4444' : '#22c55e';
 }
 
+function eodhdLogoUrl(symbol) {
+  const clean = String(symbol || '').trim().toUpperCase();
+  if (!/^[A-Z0-9.-]+$/.test(clean)) return null;
+  return `https://eodhd.com/img/logos/US/${clean}.png`;
+}
+
 function cleanSignalText(value) {
   return String(value || '等待中').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+ */u, '');
 }
@@ -233,8 +239,10 @@ export default function HomeTab({ ctx }) {
 
   const resetNewStock = () => setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
 
+  const isWatchlistTab = tableTab === 'watchlist';
   const allRows = tableTab === 'positions' ? positions : (watchlist || []);
-  const rows = showAllRows ? allRows : allRows.slice(0, 3);
+  const rows = isWatchlistTab || showAllRows ? allRows : allRows.slice(0, 3);
+  const canToggleRows = !isWatchlistTab && allRows.length > 3;
 
   return (
     <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
@@ -440,14 +448,17 @@ export default function HomeTab({ ctx }) {
               持仓
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAllRows((value) => !value)}
-            disabled={allRows.length <= 3}
-            className="flex items-center gap-0.5 rounded-full py-1 pl-2 text-[12px] font-semibold leading-none text-white/42 active:scale-95 disabled:opacity-70"
-          >
-            {showAllRows ? '收起' : '查看全部'} <ChevronRight className={`h-3.5 w-3.5 ${showAllRows ? '-rotate-90' : ''}`} />
-          </button>
+          {canToggleRows ? (
+            <button
+              type="button"
+              onClick={() => setShowAllRows((value) => !value)}
+              className="flex items-center gap-0.5 rounded-full py-1 pl-2 text-[12px] font-semibold leading-none text-white/42 active:scale-95"
+            >
+              {showAllRows ? '收起' : '查看全部'} <ChevronRight className={`h-3.5 w-3.5 ${showAllRows ? '-rotate-90' : ''}`} />
+            </button>
+          ) : (
+            <span className="h-5 w-14" aria-hidden="true" />
+          )}
         </div>
 
         <div className="grid grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
@@ -473,7 +484,7 @@ export default function HomeTab({ ctx }) {
             const pnlValue = position ? position.totalPnl : null;
             const pnlPct = position ? position.totalPnlPct : null;
             const color = marketColor(changePct);
-            const logoText = String(symbol || '?').slice(0, 1);
+            const logoUrl = row.logoURL || row.logoUrl || quote?.logoURL || quote?.logoUrl || eodhdLogoUrl(symbol);
 
             return (
               <div key={symbol}>
@@ -483,7 +494,19 @@ export default function HomeTab({ ctx }) {
                   className="grid min-h-[43px] w-full grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 py-1.5 text-left active:bg-white/[0.03]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[12px] font-black leading-none text-slate-950">{logoText}</span>
+                    {logoUrl && (
+                      <img
+                        src={logoUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none';
+                        }}
+                        className="h-6 w-6 shrink-0 rounded-md bg-white object-contain p-0.5"
+                      />
+                    )}
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{symbol}</span>
                       <span className="block truncate text-[10px] leading-[12px] text-white/40">{row.name || quote?.name || symbol}</span>

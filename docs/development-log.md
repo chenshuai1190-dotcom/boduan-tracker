@@ -4,6 +4,30 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 自选默认展开并接入 EODHD 图标
+
+- Commit: `same commit`
+- Background: 用户要求首页自选区域默认显示全部,并确认公司图标是否能通过 EODHD 获取;如果不能稳定获取则取消图标功能。
+- Changes:
+  - 首页自选 tab 默认显示全部自选股票,不再限制为 3 行预览。
+  - 持仓 tab 继续保留 3 行预览和 `查看全部` 展开逻辑。
+  - 自选/持仓列表图标改为 EODHD 官方 logo 图片地址 `https://eodhd.com/img/logos/US/{SYMBOL}.png`,不需要前端 token。
+  - 公司图标加载失败时直接隐藏,不再显示字母占位假图标。
+  - 设置页用户可见更新日志同步到 `v10.7.9.55`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BFytG1L8.js` 21.05 kB / gzip 6.05 kB, `SettingsTab-DPrCHReO.js` 29.01 kB / gzip 11.30 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass via Chrome DevTools Protocol mobile viewport; no horizontal overflow offenders, default watchlist shows 5 rows, `查看全部` is absent on watchlist, and all 5 list icons use EODHD logo URLs.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复自选 3 行预览和字母占位图标;不影响交易、资产或目标逻辑。
+
 ### 2026-07-03 - 记录首页列表字号部署验证
 
 - Commit: `same commit`

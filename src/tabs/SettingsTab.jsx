@@ -249,14 +249,23 @@ export default function SettingsTab({ ctx }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.54
+                  v10.7.9.55
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.54', date: '2026-07-03', latest: true,
+                    ver: 'v10.7.9.55', date: '2026-07-03', latest: true,
+                    items: [
+                      '📋 首页自选默认显示全部',
+                      '  - 自选列表不再默认折叠为 3 行',
+                      '🏷 自选/持仓列表接入 EODHD 公司图标',
+                      '  - 图片加载失败时直接隐藏, 不再显示字母占位',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.54', date: '2026-07-03',
                     items: [
                       '📋 首页自选/持仓列表按效果图重排',
                       '  - Tab、表头、股票名称、副标题和数字字号同步收紧',
@@ -889,7 +898,7 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.54',
+                      version: 'v10.7.9.55',
                       trades,
                       watchlist,
                       waveNotes,
@@ -940,7 +949,7 @@ export default function SettingsTab({ ctx }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.54</div>
+                <div>📊 版本:v10.7.9.55</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>
