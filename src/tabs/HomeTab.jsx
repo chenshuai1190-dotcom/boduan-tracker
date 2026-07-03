@@ -4,6 +4,7 @@ export default function HomeTab({ ctx }) {
   const {
     addStock,
     ALERT_LEVELS,
+    alertsMuted,
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,

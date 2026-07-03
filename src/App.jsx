@@ -2258,6 +2258,7 @@ function MainApp({ user, onLogout }) {
     ALERT_LEVELS,
     AlertCircle,
     AlertTriangle,
+    alertsMuted,
     batches,
     benchmarkDrawdown,
     benchmarkMenuOpen,
