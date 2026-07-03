@@ -18,6 +18,7 @@ This project started as a personal hand-built app, so the first priority is to m
 3. Apply Supabase RLS.
    - Run `supabase/rls.sql` in the Supabase SQL editor.
    - Confirm each user-owned table has RLS enabled and policies scoped to `auth.uid() = user_id`.
+   - Run `npm run verify:rls:rest` to confirm anonymous REST clients cannot see user-owned rows.
 
 4. Validate production behavior.
    - Login works.
@@ -32,12 +33,15 @@ This project started as a personal hand-built app, so the first priority is to m
 - `/api/quote` no longer sends wildcard CORS headers.
 - Frontend quote calls attach the current Supabase access token.
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
+- Quote provider requests now go through timeout-aware provider fetch helpers.
+- First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.
 - Stale duplicate quote implementations were removed; `api/quote.js` is the only quote API entry.
-- GitHub Actions CI runs install, build, and audit checks.
+- GitHub Actions CI runs install, test, build, and audit checks.
 
 ## Known Follow-Up Work
 
 - Add a server-side relay before enabling real-time streaming.
 - Continue splitting the large `src/App.jsx` into feature modules.
-- Add focused tests around database writes and quote API auth.
+- Continue splitting full EODHD/Yahoo/CNN provider implementations out of `api/quote.js`.
+- Add metadata-level Supabase RLS verification through SQL/admin access.

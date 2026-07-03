@@ -1,6 +1,7 @@
 // 数据库操作层
 // 所有增删改查都走这里,统一处理错误和缓存
 import { supabase } from './supabase';
+import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
 
 // ============ 离线缓存 ============
 // 把最近一次拉取的数据缓存到 localStorage
@@ -80,11 +81,7 @@ export const deleteTrade = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const { error } = await supabase
-    .from('trades')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
+  const { error } = await scopedDeleteById(supabase.from('trades'), id, user.id);
   if (error) throw error;
 };
 
@@ -144,11 +141,7 @@ export const removeWatchlistItem = async (symbol) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const { error } = await supabase
-    .from('watchlist')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('symbol', symbol);
+  const { error } = await scopedDeleteBySymbol(supabase.from('watchlist'), symbol, user.id);
   if (error) throw error;
 };
 
@@ -359,11 +352,7 @@ export const deleteAccount = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
   // snapshots 通过外键 cascade 自动删除
-  const { error } = await supabase
-    .from('accounts')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);  // 宪法原则 2: 只能删自己的
+  const { error } = await scopedDeleteById(supabase.from('accounts'), id, user.id);  // 宪法原则 2: 只能删自己的
   if (error) throw error;
 };
 
@@ -567,11 +556,7 @@ export const updateDiscipline = async (id, discipline) => {
 export const deleteDiscipline = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
-  const { error } = await supabase
-    .from('disciplines')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
+  const { error } = await scopedDeleteById(supabase.from('disciplines'), id, user.id);
   if (error) throw error;
 };
 
@@ -642,11 +627,7 @@ export const updateReviewLog = async (id, log) => {
 export const deleteReviewLog = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
-  const { error } = await supabase
-    .from('review_logs')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
+  const { error } = await scopedDeleteById(supabase.from('review_logs'), id, user.id);
   if (error) throw error;
 };
 
@@ -739,11 +720,7 @@ export const deleteCostBasisTrade = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const { error } = await supabase
-    .from('cost_basis_trades')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
+  const { error } = await scopedDeleteById(supabase.from('cost_basis_trades'), id, user.id);
   if (error) throw error;
 };
 
@@ -751,10 +728,6 @@ export const deleteCostBasisSymbol = async (symbol) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const { error } = await supabase
-    .from('cost_basis_trades')
-    .delete()
-    .eq('symbol', symbol)
-    .eq('user_id', user.id);
+  const { error } = await scopedDeleteByField(supabase.from('cost_basis_trades'), 'symbol', symbol, user.id);
   if (error) throw error;
 };

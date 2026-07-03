@@ -33,6 +33,7 @@
    - 每次可部署改动至少运行:
 
      ```bash
+     npm test
      npm run build
      npm audit
      git diff --check
@@ -41,8 +42,10 @@
    - 涉及线上行为时,补充目标验证。例如:
      - 登录页和已登录页面 smoke check
      - `/api/quote` 未登录必须返回 `401`
+     - 安全边界改动必须有对应 `npm test` 覆盖
      - 包体积治理必须记录 Vite chunk 输出和首页 preload 状态
      - 数据库/RLS 改动必须说明 Supabase SQL 执行状态
+     - RLS 外部暴露复核可运行 `npm run verify:rls:rest`
 
 5. **必须更新开发日志**
    - 每次代码、配置、部署、安全或文档改动,都必须在同一个提交中更新 `docs/development-log.md`。
@@ -82,6 +85,7 @@
 遇到以下情况必须暂停发布,先修正或让用户决策:
 
 - `npm run build` 失败
+- `npm test` 失败
 - `npm audit` 出现生产依赖高风险漏洞
 - 发现真实 token、密钥或敏感 URL 被写入仓库
 - `/api/quote` 未登录不再返回 `401`
@@ -101,6 +105,7 @@
 - Changes:
 - Key files:
 - Validation:
+  - `npm test`: pass/fail
   - `npm run build`: pass/fail
   - `npm audit`: pass/fail
   - Other checks:

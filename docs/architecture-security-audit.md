@@ -58,10 +58,12 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 
 3. **Split and harden `/api/quote.js`**
    - The endpoint currently handles too many providers and response shapes in one file.
-   - Add provider modules, request timeouts, consistent error objects, and tests before adding broker-grade or professional data features.
+   - Status: provider routing, timeout fetch, auth/CORS, symbol parsing, and error helpers now have explicit module boundaries.
+   - Continue moving full EODHD/Yahoo/CNN provider implementations out of `api/quote.js` before adding broker-grade or professional data features.
 
 4. **Add automated checks before business expansion**
-   - Required baseline: lint, unit tests, API tests, and smoke tests.
+   - Status: first `node --test` baseline exists and runs in GitHub Actions.
+   - Remaining baseline: lint, broader API tests, and smoke tests.
    - Financial calculations, risk rules, and delete/update operations must have tests before professional features are added.
 
 ### Medium Priority
@@ -85,15 +87,15 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 Goal: make the current app safer to change without altering product behavior.
 
 - [x] Remove browser-direct EODHD WebSocket token path.
-- Add API request timeout helpers in `api/quote.js`.
+- [x] Add API request timeout helpers and quote provider boundary modules.
 - Add lightweight linting.
-- Add a first test runner.
-- Add tests for:
+- [x] Add a first test runner.
+- [x] Add tests for:
   - `/api/quote` unauthenticated returns `401`
   - symbol validation rejects invalid input
-  - `deleteTrade` and other deletes scope by `user_id`
-  - key portfolio calculations
-- Verify Supabase RLS live.
+  - delete guards scope by `user_id`
+- Add tests for key portfolio calculations.
+- [~] Verify Supabase RLS live: anonymous REST exposure probe passes for all user-owned tables; metadata-level `relrowsecurity` verification still requires Supabase SQL/admin access.
 
 ### Phase 1 - Feature Boundary Split
 
@@ -163,9 +165,9 @@ Only after Phases 0-2:
 
 Start with Phase 0 in this order:
 
-1. Add quote API timeout utilities and cleaner provider boundaries.
-2. Add test runner and first tests.
-3. Verify RLS live in Supabase.
+1. Continue splitting full provider implementations out of `api/quote.js`.
+2. Add quote API response-shape tests for VIX, FGI, INDICES, CALENDAR, ANALYST, and normal stocks.
+3. Verify RLS metadata in Supabase SQL/admin when dashboard or CLI access is available.
 4. Add server-side relay design before enabling real-time streaming.
 
 This sequence reduces future bug risk before adding new professional features.

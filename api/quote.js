@@ -9,129 +9,11 @@
 //   - FGI: CNN Fear & Greed Index (免费,1小时刷新)
 //   - 当日分时: Yahoo Finance (用于心电图)
 
-const MAX_SYMBOLS = 30;
-const MAX_SYMBOLS_PARAM_LENGTH = 2000;
-const MAX_TRANSLATE_PAYLOAD_LENGTH = 1200;
-const STOCK_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
-
-function configuredOrigins(req) {
-  const origins = new Set();
-  const envOrigins = (process.env.QUOTE_ALLOWED_ORIGINS || '')
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean);
-  envOrigins.forEach(origin => origins.add(origin));
-  if (process.env.VERCEL_URL) origins.add(`https://${process.env.VERCEL_URL}`);
-  if (req.headers.host) origins.add(`https://${req.headers.host}`);
-  origins.add('https://boduan-tracker.vercel.app');
-  return origins;
-}
-
-function setCorsHeaders(req, res) {
-  const origin = req.headers.origin;
-  const origins = configuredOrigins(req);
-  if (origin && origins.has(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-}
-
-async function requireQuoteAuth(req, res) {
-  if (process.env.QUOTE_API_AUTH_REQUIRED === 'false') {
-    return { ok: true, user: null };
-  }
-
-  const authHeader = req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: '未授权: 请先登录后再请求行情接口' });
-    return { ok: false };
-  }
-
-  const token = authHeader.slice('Bearer '.length).trim();
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    res.status(500).json({ error: '行情接口认证未配置: 缺少 Supabase URL 或 anon key' });
-    return { ok: false };
-  }
-
-  try {
-    const authRes = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!authRes.ok) {
-      res.status(401).json({ error: '未授权或登录已过期,请重新登录' });
-      return { ok: false };
-    }
-    return { ok: true, user: await authRes.json() };
-  } catch (e) {
-    res.status(503).json({ error: `认证服务暂不可用: ${e.message}` });
-    return { ok: false };
-  }
-}
-
-function normalizeSymbolToken(token) {
-  const trimmed = (token || '').trim();
-  if (!trimmed) return { error: 'symbols 里包含空代码' };
-
-  if (trimmed.startsWith('TRANSLATE:')) {
-    const encoded = trimmed.slice('TRANSLATE:'.length);
-    if (encoded.length === 0 || encoded.length > MAX_TRANSLATE_PAYLOAD_LENGTH) {
-      return { error: 'TRANSLATE 内容长度不合法' };
-    }
-    if (!/^[A-Za-z0-9+/=_-]+$/.test(encoded)) {
-      return { error: 'TRANSLATE 内容格式不合法' };
-    }
-    return { value: trimmed };
-  }
-
-  const upper = trimmed.toUpperCase();
-  if (upper.startsWith('ANALYST:')) {
-    const stockSym = upper.slice('ANALYST:'.length);
-    if (!STOCK_SYMBOL_RE.test(stockSym)) return { error: `股票代码不合法: ${stockSym}` };
-    return { value: `ANALYST:${stockSym}` };
-  }
-
-  if (upper.startsWith('CALENDAR')) {
-    if (upper === 'CALENDAR') return { value: upper };
-    if (!upper.startsWith('CALENDAR:')) return { error: `日历参数不合法: ${trimmed}` };
-    const watchSymbols = upper.slice('CALENDAR:'.length).split('|').filter(Boolean);
-    if (watchSymbols.length > MAX_SYMBOLS) return { error: `日历股票数量不能超过 ${MAX_SYMBOLS} 个` };
-    const invalid = watchSymbols.find(sym => !STOCK_SYMBOL_RE.test(sym));
-    if (invalid) return { error: `日历股票代码不合法: ${invalid}` };
-    return { value: `CALENDAR:${watchSymbols.join('|')}` };
-  }
-
-  if (upper === 'VIX' || upper === 'FGI' || upper === 'INDICES') return { value: upper };
-  if (!STOCK_SYMBOL_RE.test(upper)) return { error: `股票代码不合法: ${trimmed}` };
-  return { value: upper };
-}
-
-function parseSymbolsParam(rawSymbols) {
-  const symbols = Array.isArray(rawSymbols) ? rawSymbols[0] : rawSymbols;
-  if (!symbols || typeof symbols !== 'string') {
-    return { error: '需要传 symbols 参数,例如 ?symbols=TQQQ,QQQ,NVDA' };
-  }
-  if (symbols.length > MAX_SYMBOLS_PARAM_LENGTH) {
-    return { error: `symbols 参数过长,最多 ${MAX_SYMBOLS_PARAM_LENGTH} 字符` };
-  }
-
-  const normalized = [];
-  for (const token of symbols.split(',')) {
-    const result = normalizeSymbolToken(token);
-    if (result.error) return { error: result.error };
-    normalized.push(result.value);
-  }
-  if (normalized.length > MAX_SYMBOLS) {
-    return { error: `单次最多请求 ${MAX_SYMBOLS} 个 symbols` };
-  }
-  return { symbolList: normalized };
-}
+import { requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
+import { sendError } from '../server/quote/errors.js';
+import { providerFetch, QUOTE_TIMEOUTS } from '../server/quote/http.js';
+import { providerForSymbol, QUOTE_PROVIDER } from '../server/quote/providers.js';
+import { parseSymbolsParam } from '../server/quote/symbols.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -144,7 +26,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET, OPTIONS');
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return sendError(res, 405, 'Method Not Allowed');
   }
 
   const auth = await requireQuoteAuth(req, res);
@@ -152,12 +34,12 @@ export default async function handler(req, res) {
 
   const { symbols } = req.query;
   const parsed = parseSymbolsParam(symbols);
-  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  if (parsed.error) return sendError(res, 400, parsed.error);
 
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
 
   if (!eodhdKey) {
-    return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY' });
+    return sendError(res, 500, 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY');
   }
 
   const symbolList = parsed.symbolList;
@@ -165,11 +47,12 @@ export default async function handler(req, res) {
   try {
     const results = await Promise.all(
       symbolList.map(async (symbol) => {
+        const provider = providerForSymbol(symbol);
         // ============ VIX: EODHD VIX.INDX(1 分钟刷新) ============
-        if (symbol === 'VIX') {
+        if (provider === QUOTE_PROVIDER.VIX) {
           try {
             const url = `https://eodhd.com/api/real-time/VIX.INDX?api_token=${eodhdKey}&fmt=json`;
-            const r = await fetch(url);
+            const r = await providerFetch(url, {}, { provider: 'eodhd:vix', timeoutMs: QUOTE_TIMEOUTS.eodhd });
             if (!r.ok) return await fetchVixFallback();
             const data = await r.json();
             if (!data || data.code === 'NA' || data.close === undefined || data.close === null) {
@@ -199,18 +82,18 @@ export default async function handler(req, res) {
         }
 
         // ============ FGI: CNN Fear & Greed Index ============
-        if (symbol === 'FGI') {
+        if (provider === QUOTE_PROVIDER.FGI) {
           try {
             const today = new Date();
             const yearAgo = new Date(today.getTime() - 400 * 24 * 60 * 60 * 1000);
             const startDate = yearAgo.toISOString().split('T')[0];
             const cnnUrl = `https://production.dataviz.cnn.io/index/fearandgreed/graphdata/${startDate}`;
-            const r = await fetch(cnnUrl, {
+            const r = await providerFetch(cnnUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
               },
-            });
+            }, { provider: 'cnn:fgi', timeoutMs: QUOTE_TIMEOUTS.cnn });
             if (!r.ok) return { symbol, error: `CNN 请求失败: HTTP ${r.status}` };
 
             const data = await r.json();
@@ -253,7 +136,7 @@ export default async function handler(req, res) {
         // ============ 📊 v10.7.9.39: 分析师目标价 (NASDAQ 免费) ============
         // 用法: ?symbols=ANALYST:NVDA
         // ============ 🌐 v10.7.9.40 fix38: 翻译端点 (Google Translate 免费) ============
-        if (symbol.startsWith('TRANSLATE:')) {
+        if (provider === QUOTE_PROVIDER.TRANSLATE) {
           try {
             let encoded = symbol.split(':').slice(1).join(':');
             // URL decode (前端做了 encodeURIComponent)
@@ -263,11 +146,11 @@ export default async function handler(req, res) {
             console.log('[Translate] 待翻译长度:', text.length, '前 100 字符:', text.slice(0, 100));
             
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
-            const r = await fetch(url, {
+            const r = await providerFetch(url, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               },
-            });
+            }, { provider: 'google:translate', timeoutMs: QUOTE_TIMEOUTS.translate });
             if (!r.ok) {
               console.warn('[Translate] Google 返回', r.status);
               return { symbol, error: `Translate 失败 ${r.status}`, original: text.slice(0, 50) };
@@ -291,7 +174,7 @@ export default async function handler(req, res) {
         // ============ 📊 v10.7.9.40: 公司基本面 + 分析师目标价 (EODHD Fundamentals) ============
         // 用法: ?symbols=ANALYST:NVDA
         // 返回: targets (分析师) + highlights (业绩) + general (公司信息)
-        if (symbol.startsWith('ANALYST:')) {
+        if (provider === QUOTE_PROVIDER.ANALYST) {
           try {
             const stockSym = symbol.split(':')[1];
             if (!stockSym) {
@@ -312,9 +195,9 @@ export default async function handler(req, res) {
             const newsUrl = `https://eodhd.com/api/news?api_token=${eodhdKey}&s=${fundamentalsSym}.US&limit=10&offset=0&fmt=json`;
 
             const [fundResp, insiderResp, newsResp] = await Promise.allSettled([
-              fetch(fundUrl),
-              fetch(insiderUrl),
-              fetch(newsUrl),
+              providerFetch(fundUrl, {}, { provider: 'eodhd:fundamentals', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
+              providerFetch(insiderUrl, {}, { provider: 'eodhd:insider', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
+              providerFetch(newsUrl, {}, { provider: 'eodhd:news', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
             ]);
 
             // 处理 fundamentals (主数据)
@@ -495,7 +378,7 @@ export default async function handler(req, res) {
             let priceHistory = null;
             try {
               const eodUrl = `https://eodhd.com/api/eod/${stockSym}.US?api_token=${eodhdKey}&from=${fromYearStr}&period=d&fmt=json`;
-              const eodR = await fetch(eodUrl);
+              const eodR = await providerFetch(eodUrl, {}, { provider: 'eodhd:analyst-history', timeoutMs: QUOTE_TIMEOUTS.eodhd });
               if (eodR.ok) {
                 const eodData = await eodR.json();
                 if (Array.isArray(eodData)) {
@@ -679,7 +562,7 @@ export default async function handler(req, res) {
         // ============ 📅 v10.7.9.33: 重要日历 (财报 + FOMC) ============
         // 用法: ?symbols=CALENDAR:NVDA,META,TSM,...
         // 返回: { events: [{type:'earnings'|'fomc', date, time, symbol?, ...}], cachedUntil }
-        if (symbol.startsWith('CALENDAR')) {
+        if (provider === QUOTE_PROVIDER.CALENDAR) {
           try {
             // 解析参数: CALENDAR:NVDA,META,TSM 或 CALENDAR (无 watchlist)
             const watchSymbols = symbol.includes(':') ? symbol.split(':')[1].split('|') : [];
@@ -706,14 +589,14 @@ export default async function handler(req, res) {
               const dailyResults = await Promise.all(dates.map(async (d) => {
                 try {
                   const url = `https://api.nasdaq.com/api/calendar/earnings?date=${d}`;
-                  const r = await fetch(url, {
+                  const r = await providerFetch(url, {
                     headers: {
                       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                       'Accept': 'application/json',
                       'Origin': 'https://www.nasdaq.com',
                       'Referer': 'https://www.nasdaq.com/',
                     },
-                  });
+                  }, { provider: 'nasdaq:earnings-calendar', timeoutMs: QUOTE_TIMEOUTS.nasdaq });
                   if (!r.ok) return { date: d, rows: [] };
                   const json = await r.json();
                   const rows = json?.data?.rows || [];
@@ -752,7 +635,7 @@ export default async function handler(req, res) {
             //    只取 3 大核心: FOMC 利率决议 + CPI + 非农就业
             try {
               const econUrl = `https://eodhd.com/api/economic-events?api_token=${eodhdKey}&country=US&from=${fromDate}&to=${toDate}&fmt=json`;
-              const r = await fetch(econUrl);
+              const r = await providerFetch(econUrl, {}, { provider: 'eodhd:economic-calendar', timeoutMs: QUOTE_TIMEOUTS.eodhd });
               if (r.ok) {
                 const econData = await r.json();
                 if (Array.isArray(econData)) {
@@ -808,7 +691,7 @@ export default async function handler(req, res) {
         // v10.7.9.14: 用 EODHD Live v2 (批量 /api/us-quote-delayed)
         //   一次请求拿 SPY + QQQ
         //   含 ethPrice (盘前盘后价)
-        if (symbol === 'INDICES') {
+        if (provider === QUOTE_PROVIDER.INDICES) {
           try {
             const indices = [
               { ticker: 'SPY.US', name: '标普500 ETF', cn: '标普', symbol: 'SPY' },
@@ -821,16 +704,16 @@ export default async function handler(req, res) {
 
             // Yahoo 分时 (每只股一个请求, 用于走势图)
             const yahooPromises = indices.map(idx =>
-              fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${idx.symbol}?interval=5m&range=1d&includePrePost=true`, {
+              providerFetch(`https://query1.finance.yahoo.com/v8/finance/chart/${idx.symbol}?interval=5m&range=1d&includePrePost=true`, {
                 headers: {
                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                   'Accept': 'application/json',
                 },
-              }).catch(() => null)
+              }, { provider: 'yahoo:index-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null)
             );
 
             const [v2Res, ...yahooResults] = await Promise.all([
-              fetch(v2Url),
+              providerFetch(v2Url, {}, { provider: 'eodhd:indices', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
               ...yahooPromises,
             ]);
 
@@ -925,14 +808,14 @@ export default async function handler(req, res) {
           const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
           const [quoteRes, eodRes, yahooRes] = await Promise.all([
-            fetch(quoteUrl),
-            fetch(eodUrl),
-            fetch(yahooUrl, {
+            providerFetch(quoteUrl, {}, { provider: 'eodhd:stock-quote', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
+            providerFetch(eodUrl, {}, { provider: 'eodhd:stock-history', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
+            providerFetch(yahooUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
               },
-            }).catch(() => null),
+            }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null),
           ]);
 
           // EODHD Live v2 数据 (主力, 含盘前盘后)
@@ -1098,7 +981,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, data: results, fetchedAt: new Date().toISOString() });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return sendError(res, 500, e.message);
   }
 }
 
@@ -1106,12 +989,12 @@ export default async function handler(req, res) {
 async function fetchVixFallback() {
   try {
     const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d';
-    const r = await fetch(yahooUrl, {
+    const r = await providerFetch(yahooUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json',
       },
-    });
+    }, { provider: 'yahoo:vix-fallback', timeoutMs: QUOTE_TIMEOUTS.yahoo });
     if (!r.ok) throw new Error(`Yahoo HTTP ${r.status}`);
     const data = await r.json();
     const meta = data?.chart?.result?.[0]?.meta || {};

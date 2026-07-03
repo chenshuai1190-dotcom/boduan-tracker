@@ -48,11 +48,18 @@ Do not add any `VITE_` EODHD token. Browser-direct market-data streaming has bee
 ## Checks
 
 ```bash
+npm test
 npm run build
 npm audit
 ```
 
-The GitHub Actions workflow runs `npm ci`, `npm run build`, and `npm audit`.
+The GitHub Actions workflow runs `npm ci`, `npm test`, `npm run build`, and `npm audit`.
+
+RLS exposure probe:
+
+```bash
+npm run verify:rls:rest
+```
 
 ## Security Baseline
 

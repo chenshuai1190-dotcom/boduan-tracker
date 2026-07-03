@@ -4,9 +4,47 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 记录架构安全升级部署验证
+### 2026-07-03 - 拆分 quote API 安全边界并加入测试
 
 - Commit: `same commit`
+- Background: 用户要求继续 Phase 0,先拆 `/api/quote.js` 的 provider/timeout/error 边界,再加第一批自动化测试,并复核 Supabase RLS 线上状态。
+- Changes:
+  - 将 quote API 的认证/CORS、错误响应、symbol 解析、provider 路由、timeout fetch 拆到 `server/quote/*`。
+  - `/api/quote.js` 外部 EODHD/Yahoo/CNN/Nasdaq/Translate 请求统一走 `providerFetch`,避免 provider 慢响应无限挂住函数。
+  - 新增 `node --test` 测试基线,覆盖 quote auth、symbol 校验、provider 路由、timeout 和删除按 `user_id` 约束。
+  - 新增 `src/lib/dbGuards.js`,让删除操作的 `user_id` 约束可复用、可测试。
+  - GitHub Actions 增加 `npm test`。
+  - 新增 `scripts/verify-rls-rest.mjs`,用生产公开 Supabase anon 配置复核匿名 REST 客户端不能看到用户表数据。
+  - 设置页应用内更新日志同步到 `v10.7.9.49`。
+  - README、安全 runbook、开发流程和架构审查文档同步本次安全基线。
+- Key files:
+  - `api/quote.js`
+  - `server/quote/auth.js`
+  - `server/quote/errors.js`
+  - `server/quote/http.js`
+  - `server/quote/providers.js`
+  - `server/quote/symbols.js`
+  - `src/lib/db.js`
+  - `src/lib/dbGuards.js`
+  - `tests/*.test.js`
+  - `scripts/verify-rls-rest.mjs`
+  - `.github/workflows/ci.yml`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,12 tests
+  - `npm run build`: pass, local App chunk `App-C0OkX0VY.js` `124.03 kB`, gzip `33.16 kB`
+  - `npm audit`: pass,0 vulnerabilities
+  - `git diff --check`: pass
+  - `npm run verify:rls:rest`: pass,12 user-owned tables returned `visibleRows=0` for anonymous REST probes
+- Deployment: pending
+- Production verification: pending
+- Rollback: 回滚本次提交会恢复旧 quote API 单文件边界和无测试基线;如回滚,不要继续新增专业功能。
+- Follow-up: 继续把 EODHD/Yahoo/CNN/Nasdaq provider 的完整实现移出 `api/quote.js`,并在有 Supabase SQL/admin 权限时做 metadata-level RLS 复核。
+
+### 2026-07-03 - 记录架构安全升级部署验证
+
+- Commit: `3d50aad`
 - Background: 架构审查和浏览器直连 EODHD token 路径移除已推送生产环境,需要把线上验证证据补进交接日志。
 - Changes:
   - 回填架构审查与安全升级条目的 commit、部署状态和线上验证结果。
