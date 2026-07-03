@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, UserPlus, Loader2, AlertCircle, Mail, Lock, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { signIn, signUp, resetPassword, updatePassword, supabase } from './lib/supabase';
+
+const loadAuthApi = () => import('./lib/supabase');
 
 export default function Login({ onSuccess }) {
   // mode: 'signin' | 'signup' | 'forgot' | 'newpw' (点邮件链接后设新密码)
@@ -34,6 +35,7 @@ export default function Login({ onSuccess }) {
       }
       setLoading(true);
       try {
+        const { resetPassword } = await loadAuthApi();
         const { error } = await resetPassword(email);
         if (error) {
           setError(error.message);
@@ -60,6 +62,7 @@ export default function Login({ onSuccess }) {
       }
       setLoading(true);
       try {
+        const { updatePassword, getCurrentUser } = await loadAuthApi();
         const { error } = await updatePassword(newPassword);
         if (error) {
           setError(error.message);
@@ -69,7 +72,7 @@ export default function Login({ onSuccess }) {
           window.history.replaceState(null, '', window.location.pathname);
           // 获取当前用户并跳转
           setTimeout(async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = await getCurrentUser();
             if (user) onSuccess(user);
           }, 2000);
         }
@@ -93,6 +96,7 @@ export default function Login({ onSuccess }) {
     setLoading(true);
 
     try {
+      const { signIn, signUp } = await loadAuthApi();
       if (mode === 'signin') {
         const { data, error } = await signIn(email, password);
         if (error) {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
-import Login from './Login';
-import { supabase, isSupabaseConfigured, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 
 // ============ 滚动触发数字动画 Hook ============
@@ -9356,87 +9355,7 @@ function MainApp({ user, onLogout }) {
 }
 
 
-// ============ 外层包装: 处理登录状态 ============
-function ConfigMissingScreen() {
-  return (
-    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-md rounded-2xl border border-amber-400/30 bg-slate-900 p-5 shadow-2xl">
-        <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-300 flex items-center justify-center mb-4">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-        <h1 className="text-xl font-black mb-2">Supabase 配置缺失</h1>
-        <p className="text-sm text-slate-300 leading-relaxed mb-4">
-          请先复制 `.env.example` 为 `.env.local`,并填写以下变量后重新启动开发服务器。
-        </p>
-        <div className="rounded-xl bg-black/40 border border-white/10 p-3 text-xs font-mono text-amber-100 space-y-1">
-          <div>VITE_SUPABASE_URL</div>
-          <div>VITE_SUPABASE_ANON_KEY</div>
-          <div>EODHD_API_KEY</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function TQQQTracker() {
-  if (!isSupabaseConfigured) {
-    return <ConfigMissingScreen />;
-  }
-
-  // 🔑 检测是否是从"重置密码"邮件链接点进来的
-  // 必须在外层就挂住 (不让 auth session 自动进主界面)
-  const [isRecovery, setIsRecovery] = useState(() => {
-    const hash = window.location.hash || '';
-    return hash.includes('type=recovery');
-  });
-  const [authState, setAuthState] = useState({ loading: true, user: null });
-
-  useEffect(() => {
-    // 启动时检查是否已登录
-    getCurrentUser().then(user => {
-      setAuthState({ loading: false, user });
-    });
-    // 监听登录/登出事件
-    const { data: { subscription } } = onAuthChange(user => {
-      setAuthState(s => ({ ...s, user }));
-    });
-    return () => subscription?.unsubscribe();
-  }, []);
-
-  // 加载中
-  if (authState.loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
-      </div>
-    );
-  }
-
-  // 🔑 重置密码流程: 即使已登录, 也强制进 Login 组件 (让用户设新密码)
-  // 新密码设完之后 (Login 调 onSuccess), 才清除 recovery 状态
-  if (isRecovery) {
-    return <Login onSuccess={(user) => {
-      setIsRecovery(false);
-      setAuthState({ loading: false, user });
-    }} />;
-  }
-
-  // 未登录 → 登录页
-  if (!authState.user) {
-    return <Login onSuccess={(user) => setAuthState({ loading: false, user })} />;
-  }
-
-  // 已登录 → 主 App
-  return (
-    <MainApp
-      user={authState.user}
-      onLogout={async () => {
-        await signOut();
-        setAuthState({ loading: false, user: null });
-      }}
-    />
-  );
-}
+export default MainApp;
 
 // ============================================
 // 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
