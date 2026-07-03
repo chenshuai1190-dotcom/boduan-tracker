@@ -4,9 +4,26 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 重做首页投资账户看板
+### 2026-07-03 - 记录首页看板部署验证
 
 - Commit: `same commit`
+- Background: 首页投资账户看板已推送到 GitHub `main` 并由 Vercel 自动部署,需要把部署和线上验证证据补进日志,同时刷新交接文档当前状态。
+- Changes:
+  - 回填运行时代码提交 `3ca274c` 的 GitHub Actions、Vercel 和生产 smoke check 结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码和设置页版本。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `git diff --check`: pass
+- Deployment: docs-only,推送 `main` 后由 Vercel 自动部署,不改变运行时代码逻辑。
+- Production verification: docs-only,运行时代码验证见下方 `重做首页投资账户看板` 条目。
+- Rollback: 回滚本次提交只会移除部署记录和交接状态刷新,不改变应用行为。
+- Follow-up: 后续完成任何可部署改动后按 `docs/development-process.md` 默认自动部署并验证。
+
+### 2026-07-03 - 重做首页投资账户看板
+
+- Commit: `3ca274c`
 - Background: 用户提供新的首页效果图并明确首页口径:总资产只统计投资账户,资产/目标模块保持独立,`costBasisData` 继续作为单股票摊薄成本小工具,不参与首页主账本。
 - Changes:
   - 新增 `src/lib/investmentSummary.js`,从交易记录和自选行情派生首页投资账户汇总。
@@ -33,8 +50,14 @@
   - `npm audit`: pass,0 vulnerabilities
   - `git diff --check`: pass
   - Local visual check: pass,390×844 mobile preview of `HomeTab` showed no horizontal overflow and no detected viewport offenders
-- Deployment: pending。
-- Production verification: pending。
+- Deployment: 已推送 `main`;Vercel 对 `3ca274c65536642cb462ae96778cb325531a56cf` 返回 `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3DBpMoRwwUCtLoqZq87ZcDCxX8he`。
+- Production verification:
+  - GitHub `main`: `3ca274c65536642cb462ae96778cb325531a56cf`
+  - GitHub Actions `CI` run `28664187222`: success
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production `GET /api/quote?symbols=VIX` without auth: `401`
+  - Production HTML points to `App-BZZTuF4R.js`;App chunk lazy-loads `HomeTab-BZMrfBOs.js`
+  - Production Settings chunk contains `v10.7.9.50` and the homepage changelog entry
 - Rollback: 回滚本次提交会恢复旧首页和旧的两项指数市场卡,不会改动资产/目标模块数据。
 - Follow-up: 在交易页补投资现金手动录入模块,再把首页现金纳入 `investmentSummary.cashUsd`;继续拆 `server/quote/providers/eodhd.js` 并做 RLS metadata 复核。
 

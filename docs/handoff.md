@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `25c79eb806225adbc5aa53212077db5d90ffa7a9`
-- Latest verified docs/deployment record before this handoff: `25c79eb806225adbc5aa53212077db5d90ffa7a9`
-- App changelog version shown in Settings: `v10.7.9.49`
+- Runtime code verified on production: `3ca274c65536642cb462ae96778cb325531a56cf`
+- Latest verified docs/deployment record before this handoff: `3ca274c65536642cb462ae96778cb325531a56cf`
+- App changelog version shown in Settings: `v10.7.9.50`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
