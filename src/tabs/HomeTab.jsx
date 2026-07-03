@@ -57,10 +57,22 @@ function marketColor(value) {
   return num(value) >= 0 ? '#ef4444' : '#22c55e';
 }
 
-function eodhdLogoUrl(symbol) {
-  const clean = String(symbol || '').trim().toUpperCase();
-  if (!/^[A-Z0-9.-]+$/.test(clean)) return null;
-  return `https://eodhd.com/img/logos/US/${clean}.png`;
+function normalizeLogoUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (raw.startsWith('/')) return `https://eodhd.com${raw}`;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return null;
+}
+
+function logoUrlCandidates(symbol, ...explicitUrls) {
+  const urls = explicitUrls.map(normalizeLogoUrl).filter(Boolean);
+  const raw = String(symbol || '').trim();
+  if (/^[A-Za-z0-9.-]+$/.test(raw)) {
+    urls.push(`https://eodhd.com/img/logos/US/${raw.toUpperCase()}.png`);
+    urls.push(`https://eodhd.com/img/logos/US/${raw.toLowerCase()}.png`);
+  }
+  return Array.from(new Set(urls));
 }
 
 function cleanSignalText(value) {
@@ -484,7 +496,8 @@ export default function HomeTab({ ctx }) {
             const pnlValue = position ? position.totalPnl : null;
             const pnlPct = position ? position.totalPnlPct : null;
             const color = marketColor(changePct);
-            const logoUrl = row.logoURL || row.logoUrl || quote?.logoURL || quote?.logoUrl || eodhdLogoUrl(symbol);
+            const logoUrls = logoUrlCandidates(symbol, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
+            const logoUrl = logoUrls[0];
 
             return (
               <div key={symbol}>
@@ -501,8 +514,18 @@ export default function HomeTab({ ctx }) {
                         loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
+                        data-logo-fallback-index="0"
+                        data-logo-fallbacks={logoUrls.join('|')}
                         onError={(event) => {
-                          event.currentTarget.style.display = 'none';
+                          const img = event.currentTarget;
+                          const fallbacks = (img.dataset.logoFallbacks || '').split('|').filter(Boolean);
+                          const nextIndex = Number(img.dataset.logoFallbackIndex || 0) + 1;
+                          if (nextIndex < fallbacks.length) {
+                            img.dataset.logoFallbackIndex = String(nextIndex);
+                            img.src = fallbacks[nextIndex];
+                            return;
+                          }
+                          img.style.display = 'none';
                         }}
                         className="h-6 w-6 shrink-0 rounded-md bg-white object-contain p-0.5"
                       />

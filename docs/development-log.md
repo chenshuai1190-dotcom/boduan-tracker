@@ -4,6 +4,30 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 修复 EODHD 图标大小写 fallback
+
+- Commit: `same commit`
+- Background: 用户反馈首页自选列表公司图标拉取不全。实际请求发现 EODHD logo 文件名大小写不统一,例如 `US/AAPL.png` 返回 404,但 `US/aapl.png` 返回 200;上一版只尝试大写路径,导致部分可用图标被隐藏。
+- Changes:
+  - 首页自选/持仓列表 logo 加载改为候选 URL 队列,优先使用已有 `logoURL`,再尝试 EODHD 大写路径和小写路径。
+  - 图片 `onError` 从直接隐藏改为尝试下一个候选路径;所有候选路径失败后才隐藏。
+  - 支持从 fundamentals 返回的相对 `LogoURL` 路径规范化为 `https://eodhd.com/...`。
+  - 设置页用户可见更新日志同步到 `v10.7.9.56`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - Direct EODHD checks: `US/AAPL.png`, `US/AMZN.png`, `US/GOOGL.png`, `US/HOOD.png`, `US/NFLX.png`, and `US/TSM.png` returned 404; lowercase equivalents returned 200 image/png.
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-DgRCQBTf.js` 21.55 kB / gzip 6.26 kB, `SettingsTab-07aPWMBk.js` 29.21 kB / gzip 11.37 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local logo fallback check: pass; built `HomeTab-DgRCQBTf.js` contains uppercase and lowercase EODHD candidates, `data-logo-fallbacks`, retry-by-setting-`src`, and final hide fallback.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复为只尝试单一路径,部分 EODHD 小写 logo 会继续隐藏;不影响交易、资产或目标逻辑。
+
 ### 2026-07-03 - 记录自选展开和 EODHD 图标部署验证
 
 - Commit: `same commit`
