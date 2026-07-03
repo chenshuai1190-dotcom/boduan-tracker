@@ -9,27 +9,158 @@
 //   - FGI: CNN Fear & Greed Index (免费,1小时刷新)
 //   - 当日分时: Yahoo Finance (用于心电图)
 
+const MAX_SYMBOLS = 30;
+const MAX_SYMBOLS_PARAM_LENGTH = 2000;
+const MAX_TRANSLATE_PAYLOAD_LENGTH = 1200;
+const STOCK_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
+
+function configuredOrigins(req) {
+  const origins = new Set();
+  const envOrigins = (process.env.QUOTE_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+  envOrigins.forEach(origin => origins.add(origin));
+  if (process.env.VERCEL_URL) origins.add(`https://${process.env.VERCEL_URL}`);
+  if (req.headers.host) origins.add(`https://${req.headers.host}`);
+  origins.add('https://boduan-tracker.vercel.app');
+  return origins;
+}
+
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  const origins = configuredOrigins(req);
+  if (origin && origins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+}
+
+async function requireQuoteAuth(req, res) {
+  if (process.env.QUOTE_API_AUTH_REQUIRED === 'false') {
+    return { ok: true, user: null };
+  }
+
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: '未授权: 请先登录后再请求行情接口' });
+    return { ok: false };
+  }
+
+  const token = authHeader.slice('Bearer '.length).trim();
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    res.status(500).json({ error: '行情接口认证未配置: 缺少 Supabase URL 或 anon key' });
+    return { ok: false };
+  }
+
+  try {
+    const authRes = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!authRes.ok) {
+      res.status(401).json({ error: '未授权或登录已过期,请重新登录' });
+      return { ok: false };
+    }
+    return { ok: true, user: await authRes.json() };
+  } catch (e) {
+    res.status(503).json({ error: `认证服务暂不可用: ${e.message}` });
+    return { ok: false };
+  }
+}
+
+function normalizeSymbolToken(token) {
+  const trimmed = (token || '').trim();
+  if (!trimmed) return { error: 'symbols 里包含空代码' };
+
+  if (trimmed.startsWith('TRANSLATE:')) {
+    const encoded = trimmed.slice('TRANSLATE:'.length);
+    if (encoded.length === 0 || encoded.length > MAX_TRANSLATE_PAYLOAD_LENGTH) {
+      return { error: 'TRANSLATE 内容长度不合法' };
+    }
+    if (!/^[A-Za-z0-9+/=_-]+$/.test(encoded)) {
+      return { error: 'TRANSLATE 内容格式不合法' };
+    }
+    return { value: trimmed };
+  }
+
+  const upper = trimmed.toUpperCase();
+  if (upper.startsWith('ANALYST:')) {
+    const stockSym = upper.slice('ANALYST:'.length);
+    if (!STOCK_SYMBOL_RE.test(stockSym)) return { error: `股票代码不合法: ${stockSym}` };
+    return { value: `ANALYST:${stockSym}` };
+  }
+
+  if (upper.startsWith('CALENDAR')) {
+    if (upper === 'CALENDAR') return { value: upper };
+    if (!upper.startsWith('CALENDAR:')) return { error: `日历参数不合法: ${trimmed}` };
+    const watchSymbols = upper.slice('CALENDAR:'.length).split('|').filter(Boolean);
+    if (watchSymbols.length > MAX_SYMBOLS) return { error: `日历股票数量不能超过 ${MAX_SYMBOLS} 个` };
+    const invalid = watchSymbols.find(sym => !STOCK_SYMBOL_RE.test(sym));
+    if (invalid) return { error: `日历股票代码不合法: ${invalid}` };
+    return { value: `CALENDAR:${watchSymbols.join('|')}` };
+  }
+
+  if (upper === 'VIX' || upper === 'FGI' || upper === 'INDICES') return { value: upper };
+  if (!STOCK_SYMBOL_RE.test(upper)) return { error: `股票代码不合法: ${trimmed}` };
+  return { value: upper };
+}
+
+function parseSymbolsParam(rawSymbols) {
+  const symbols = Array.isArray(rawSymbols) ? rawSymbols[0] : rawSymbols;
+  if (!symbols || typeof symbols !== 'string') {
+    return { error: '需要传 symbols 参数,例如 ?symbols=TQQQ,QQQ,NVDA' };
+  }
+  if (symbols.length > MAX_SYMBOLS_PARAM_LENGTH) {
+    return { error: `symbols 参数过长,最多 ${MAX_SYMBOLS_PARAM_LENGTH} 字符` };
+  }
+
+  const normalized = [];
+  for (const token of symbols.split(',')) {
+    const result = normalizeSymbolToken(token);
+    if (result.error) return { error: result.error };
+    normalized.push(result.value);
+  }
+  if (normalized.length > MAX_SYMBOLS) {
+    return { error: `单次最多请求 ${MAX_SYMBOLS} 个 symbols` };
+  }
+  return { symbolList: normalized };
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
+  setCorsHeaders(req, res);
+  const authRequired = process.env.QUOTE_API_AUTH_REQUIRED !== 'false';
+  res.setHeader(
+    'Cache-Control',
+    authRequired ? 'private, max-age=15' : 's-maxage=15, stale-while-revalidate=30'
+  );
+
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET, OPTIONS');
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const auth = await requireQuoteAuth(req, res);
+  if (!auth.ok) return;
 
   const { symbols } = req.query;
+  const parsed = parseSymbolsParam(symbols);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
 
   if (!eodhdKey) {
     return res.status(500).json({ error: 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY' });
   }
 
-  if (!symbols) {
-    return res.status(400).json({ error: '需要传 symbols 参数,例如 ?symbols=TQQQ,QQQ,NVDA' });
-  }
-
-  // v40 fix38c: TRANSLATE 类型保留原大小写 (base64 区分大小写)
-  const symbolList = symbols.split(',').map(s => {
-    const t = s.trim();
-    if (t.startsWith('TRANSLATE:')) return t;  // 不 uppercase!
-    return t.toUpperCase();
-  });
+  const symbolList = parsed.symbolList;
 
   try {
     const results = await Promise.all(

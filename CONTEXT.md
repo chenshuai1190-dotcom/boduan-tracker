@@ -210,7 +210,7 @@ PostgreSQL (云端)
 
   5. 原子操作 - 永远不要"先删后插"
 
-  6. RLS 关闭 (信任前端 + user_id 隔离)
+  6. RLS 必须开启,策略以 auth.uid() = user_id 隔离
 
 
 
@@ -252,7 +252,7 @@ PostgreSQL (云端)
 
 ```
 
-EODHD API Token: 69e5ce0b670248.02951638
+EODHD API Token: 不写入仓库;在 Vercel 的 EODHD_API_KEY 环境变量中配置
 
 EODHD 套餐: All World Extended ($29.99/月, 含 WebSocket)
 
@@ -260,9 +260,9 @@ EODHD 套餐: All World Extended ($29.99/月, 含 WebSocket)
 
 Vercel 环境变量:
 
-  EODHD_API_KEY = 69e5ce0b670248.02951638  (服务端用)
+  EODHD_API_KEY = <rotated-token>  (服务端用)
 
-  VITE_EODHD_TOKEN = 69e5ce0b670248.02951638  (前端 WebSocket 用)
+  VITE_EODHD_TOKEN = 不再生产配置;浏览器直连会暴露 token
 
 
 
@@ -280,11 +280,11 @@ Supabase Dashboard:
 
 ⚠️ Token 安全:
 
-  EODHD_API_KEY 在服务端安全 (api/quote.js)
+  EODHD_API_KEY 只放服务端 (api/quote.js)
 
-  VITE_EODHD_TOKEN 暴露在浏览器 (WebSocket 用, 只是个人使用 OK)
+  VITE_EODHD_TOKEN 会暴露在浏览器,默认禁用
 
-  正式上线前需中转 (Supabase Edge Function)
+  如需 WebSocket 实时推送,先做服务端中转 (Supabase Edge Function 或 Vercel relay)
 
 ```
 
@@ -821,9 +821,9 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 
 ```
 
-- WebSocket 中转 (Supabase Edge Function)
+- WebSocket 中转 (Supabase Edge Function 或 Vercel relay)
 
-  原因: 当前 token 暴露在浏览器
+  原因: 浏览器直连会暴露付费 token,当前已默认关闭
 
   方案: Edge Function 中转 + 用户认证
 
@@ -1099,4 +1099,3 @@ v1.0        第一版 TQQQ 波段追踪器 🎂
 **当前版本**: v10.7.9.46  
 
 **作者**: chenshuai1190 (产品 + 决策) + Claude (实现 + 建议)
-

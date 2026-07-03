@@ -77,7 +77,14 @@ export const insertTrade = async (trade) => {
 };
 
 export const deleteTrade = async (id) => {
-  const { error } = await supabase.from('trades').delete().eq('id', id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('trades')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
   if (error) throw error;
 };
 

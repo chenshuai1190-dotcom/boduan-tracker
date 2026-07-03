@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import Login from './Login';
-import { supabase, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
+import { supabase, isSupabaseConfigured, getCurrentUser, signOut, onAuthChange } from './lib/supabase';
 import * as db from './lib/db';
 
 // ============ 滚动触发数字动画 Hook ============
@@ -484,6 +484,8 @@ function VixCard({ vix, setVix, vixDataDate, setVixDataDate, vixSignal }) {
 }
 
 function MainApp({ user, onLogout }) {
+  const browserWsAllowed = import.meta.env.VITE_ALLOW_BROWSER_EODHD_WS === 'true';
+
   // ============ 核心状态 ============
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
@@ -699,10 +701,20 @@ function MainApp({ user, onLogout }) {
   const [wsEnabled, setWsEnabled] = useState(() => {
     try { return localStorage.getItem('bottomline_ws') === 'true'; } catch { return false; }
   });
-  const [wsStatus, setWsStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
+  const [wsStatus, setWsStatus] = useState('disconnected'); // 'disconnected' | 'disabled' | 'connecting' | 'connected' | 'error'
   const [wsLastTick, setWsLastTick] = useState(null); // 最后收到 tick 的时间
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
   const [priceFlash, setPriceFlash] = useState({});
+
+  const fetchQuote = useCallback(async (symbols) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = {};
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    const params = new URLSearchParams({ symbols });
+    return fetch(`/api/quote?${params.toString()}`, { headers });
+  }, []);
 
   // 🗑 v10.7.9.41: 通用删除确认 Modal (替换 window.confirm)
   // 用法: showConfirm({ title, desc, info, confirmText, onConfirm })
@@ -1016,7 +1028,7 @@ function MainApp({ user, onLogout }) {
     (async () => {
       try {
         const symbols = watchlist.map(s => s.symbol).join('|');
-        const r = await fetch(`/api/quote?symbols=CALENDAR:${symbols}`);
+        const r = await fetchQuote(`CALENDAR:${symbols}`);
         const result = await r.json();
         if (result.success && result.data) {
           const cal = result.data.find(d => d.symbol && d.symbol.startsWith('CALENDAR'));
@@ -1080,7 +1092,7 @@ function MainApp({ user, onLogout }) {
 
     (async () => {
       try {
-        const r = await fetch(`/api/quote?symbols=ANALYST:${selectedEvent.symbol}`);
+        const r = await fetchQuote(`ANALYST:${selectedEvent.symbol}`);
         const result = await r.json();
         if (cancelled) return;
         if (result.success && result.data) {
@@ -1670,7 +1682,7 @@ function MainApp({ user, onLogout }) {
       const coreSymbols = ['QQQ', 'TQQQ'];
       const symbolSet = new Set([...watchlist.map(s => s.symbol), ...coreSymbols]);
       const symbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'].join(',');
-      const r = await fetch(`/api/quote?symbols=${symbols}`);
+      const r = await fetchQuote(symbols);
       const result = await r.json();
       
       if (!result.success) {
@@ -1871,12 +1883,21 @@ function MainApp({ user, onLogout }) {
   // 🧪 WebSocket 实时推送 (EODHD All World Extended)
   // 启用后, 股价实时推送, 替代 REST 轮询
   useEffect(() => {
+    if (!browserWsAllowed) {
+      if (wsEnabled) {
+        setWsEnabled(false);
+        try { localStorage.setItem('bottomline_ws', 'false'); } catch {}
+      }
+      setWsStatus('disabled');
+      return;
+    }
+
     if (!wsEnabled || cloudLoading || watchlist.length === 0) {
       setWsStatus('disconnected');
       return;
     }
 
-    // EODHD token - 从 Vite 环境变量读取 (VITE_ 前缀才能到前端)
+    // EODHD token - 仅在明确允许浏览器直连时读取;默认不暴露到前端
     const token = import.meta.env.VITE_EODHD_TOKEN || '';
     if (!token) {
       console.error('[WebSocket] VITE_EODHD_TOKEN 未配置');
@@ -2036,7 +2057,7 @@ function MainApp({ user, onLogout }) {
       setWsStatus('disconnected');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsEnabled, cloudLoading, watchlist.length]);
+  }, [browserWsAllowed, wsEnabled, cloudLoading, watchlist.length]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -2071,7 +2092,7 @@ function MainApp({ user, onLogout }) {
     setLookupStatus('loading');
     const timer = setTimeout(async () => {
       try {
-        const r = await fetch(`/api/quote?symbols=${sym}`);
+        const r = await fetchQuote(sym);
         const result = await r.json();
         const stockData = result?.data?.find(d => d.symbol === sym);
         if (stockData && stockData.price > 0) {
@@ -6689,48 +6710,55 @@ function MainApp({ user, onLogout }) {
                   <h2 className="font-black text-base flex items-center gap-2" style={{ color: '#4ade80' }}>
                     🧪 实时推送 <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>BETA</span>
                   </h2>
-                  {wsEnabled && (
+                  {(wsEnabled || !browserWsAllowed) && (
                     <span className="flex items-center gap-1.5 text-[10px] font-black">
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'animate-pulse' : ''}`}
                         style={{
                           background: wsStatus === 'connected' ? '#4ade80' :
                                       wsStatus === 'connecting' ? '#fbbf24' :
-                                      wsStatus === 'error' ? '#ef4444' : '#64748b',
+                                      wsStatus === 'error' ? '#ef4444' :
+                                      wsStatus === 'disabled' ? '#fbbf24' : '#64748b',
                         }}
                       />
                       <span style={{ color: '#a3a3a3' }}>
                         {wsStatus === 'connected' ? 'LIVE' :
                          wsStatus === 'connecting' ? '连接中' :
-                         wsStatus === 'error' ? '错误' : '未连接'}
+                         wsStatus === 'error' ? '错误' :
+                         wsStatus === 'disabled' ? '已停用' : '未连接'}
                       </span>
                     </span>
                   )}
                 </div>
                 <p className="text-[11px] leading-relaxed mb-3" style={{ color: '#a3a3a3' }}>
-                  使用 EODHD WebSocket 接收股票实时 tick (延迟 &lt; 50ms)
+                  WebSocket 需要服务端中转后再启用
                   <br/>
-                  开启后 REST 轮询停止, 数字会实时跳动
+                  当前使用已登录的 REST 行情接口
                   <br/>
-                  <span style={{ color: '#fbbf24' }}>⚠️ Token 会暴露在浏览器, 仅个人使用</span>
+                  <span style={{ color: '#fbbf24' }}>已关闭浏览器直连,避免暴露 EODHD token</span>
                 </p>
 
                 <button
                   onClick={() => {
+                    if (!browserWsAllowed) return;
                     const next = !wsEnabled;
                     setWsEnabled(next);
                     try { localStorage.setItem('bottomline_ws', String(next)); } catch {}
                   }}
+                  disabled={!browserWsAllowed}
                   className="w-full py-2.5 rounded-xl font-black text-sm active:scale-95 transition flex items-center justify-center gap-2"
                   style={{
-                    background: wsEnabled
+                    background: !browserWsAllowed
+                      ? 'rgba(255,255,255,0.05)'
+                      : wsEnabled
                       ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
                       : 'rgba(255,255,255,0.08)',
-                    color: wsEnabled ? '#fff' : '#a3a3a3',
-                    border: wsEnabled ? '1px solid #16a34a' : '1px solid rgba(255,255,255,0.1)',
+                    color: !browserWsAllowed ? '#737373' : (wsEnabled ? '#fff' : '#a3a3a3'),
+                    border: wsEnabled && browserWsAllowed ? '1px solid #16a34a' : '1px solid rgba(255,255,255,0.1)',
+                    cursor: browserWsAllowed ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  {wsEnabled ? '✓ 实时模式已开启' : '开启实时模式'}
+                  {!browserWsAllowed ? '等待服务端中转' : (wsEnabled ? '✓ 实时模式已开启' : '开启实时模式')}
                 </button>
 
                 {wsEnabled && wsLastTick && (
@@ -9329,7 +9357,32 @@ function MainApp({ user, onLogout }) {
 
 
 // ============ 外层包装: 处理登录状态 ============
+function ConfigMissingScreen() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
+      <div className="w-full max-w-md rounded-2xl border border-amber-400/30 bg-slate-900 p-5 shadow-2xl">
+        <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-300 flex items-center justify-center mb-4">
+          <AlertTriangle className="w-5 h-5" />
+        </div>
+        <h1 className="text-xl font-black mb-2">Supabase 配置缺失</h1>
+        <p className="text-sm text-slate-300 leading-relaxed mb-4">
+          请先复制 `.env.example` 为 `.env.local`,并填写以下变量后重新启动开发服务器。
+        </p>
+        <div className="rounded-xl bg-black/40 border border-white/10 p-3 text-xs font-mono text-amber-100 space-y-1">
+          <div>VITE_SUPABASE_URL</div>
+          <div>VITE_SUPABASE_ANON_KEY</div>
+          <div>EODHD_API_KEY</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TQQQTracker() {
+  if (!isSupabaseConfigured) {
+    return <ConfigMissingScreen />;
+  }
+
   // 🔑 检测是否是从"重置密码"邮件链接点进来的
   // 必须在外层就挂住 (不让 auth session 自动进主界面)
   const [isRecovery, setIsRecovery] = useState(() => {
