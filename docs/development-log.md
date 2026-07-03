@@ -4,9 +4,36 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 自选默认展开并接入 EODHD 图标
+### 2026-07-03 - 记录自选展开和 EODHD 图标部署验证
 
 - Commit: `same commit`
+- Background: 首页自选默认展开和 EODHD 图标改动已推送到 GitHub `main` 并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
+- Changes:
+  - 回填运行时代码提交 `bc97472c384a8c4b2a6fa53384afb8f33666041a` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和线上产物证据。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BFytG1L8.js` 21.05 kB / gzip 6.05 kB, `SettingsTab-DPrCHReO.js` 29.01 kB / gzip 11.30 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only verification record; runtime code already deployed by commit `bc97472c384a8c4b2a6fa53384afb8f33666041a`.
+- Production verification:
+  - Runtime commit: `bc97472c384a8c4b2a6fa53384afb8f33666041a`
+  - GitHub Actions `CI`: success, run `28668771392`
+  - Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DmxN6reREMuSNhqgowT79KPyGhvk`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-UVcE5qxg.js`, `App-D1a8nJ9d.js`, `HomeTab-BFytG1L8.js`, `SettingsTab-DPrCHReO.js`
+  - `HomeTab-BFytG1L8.js` contains `https://eodhd.com/img/logos/US/`, `object-contain`, `no-referrer`, and `currentTarget.style.display=\`none\`` for failed logo loads.
+  - `SettingsTab-DPrCHReO.js` contains `v10.7.9.55`, "首页自选默认显示全部", and "图片加载失败时直接隐藏"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+- Rollback: 回滚本次 docs-only 提交只会移除验证记录,不影响首页运行时代码。
+
+### 2026-07-03 - 自选默认展开并接入 EODHD 图标
+
+- Commit: `bc97472c384a8c4b2a6fa53384afb8f33666041a`
 - Background: 用户要求首页自选区域默认显示全部,并确认公司图标是否能通过 EODHD 获取;如果不能稳定获取则取消图标功能。
 - Changes:
   - 首页自选 tab 默认显示全部自选股票,不再限制为 3 行预览。
@@ -24,8 +51,8 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local mobile visual check: pass via Chrome DevTools Protocol mobile viewport; no horizontal overflow offenders, default watchlist shows 5 rows, `查看全部` is absent on watchlist, and all 5 list icons use EODHD logo URLs.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28668771392` passed; Vercel status success with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DmxN6reREMuSNhqgowT79KPyGhvk`。
+- Production verification: pass,见上方 `记录自选展开和 EODHD 图标部署验证` 条目。
 - Rollback: 回滚本次提交会恢复自选 3 行预览和字母占位图标;不影响交易、资产或目标逻辑。
 
 ### 2026-07-03 - 记录首页列表字号部署验证
