@@ -85,6 +85,29 @@ async function mockProviderFetch(url) {
     });
   }
 
+  const realtimeMatch = path.match(/\/api\/real-time\/([^/]+)/);
+  if (realtimeMatch) {
+    const realtimeQuotes = {
+      'GSPC.INDX': { price: 5435.21, previousClose: 5439.56, high: 5450, low: 5400 },
+      'NDX.INDX': { price: 19144.23, previousClose: 19138.49, high: 19200, low: 19000 },
+      'DJI.INDX': { price: 39647.1, previousClose: 39706.66, high: 39800, low: 39500 },
+      'XAUUSD.FOREX': { price: 2376.58, previousClose: 2369.71, high: 2380, low: 2358 },
+    };
+    const quote = realtimeQuotes[decodeURIComponent(realtimeMatch[1])];
+    if (quote) {
+      return jsonResponse({
+        close: quote.price,
+        previousClose: quote.previousClose,
+        change: quote.price - quote.previousClose,
+        change_p: ((quote.price - quote.previousClose) / quote.previousClose) * 100,
+        high: quote.high,
+        low: quote.low,
+        open: quote.previousClose,
+        timestamp: 1783000000,
+      });
+    }
+  }
+
   if (parsed.hostname === 'production.dataviz.cnn.io') {
     const now = Date.now();
     return jsonResponse({
@@ -329,15 +352,16 @@ test('INDICES quote response shape is stable', async () => {
   const quote = await callQuote('INDICES');
 
   assert.equal(quote.symbol, 'INDICES');
-  assert.equal(quote.source, 'EODHD-v2');
+  assert.equal(quote.source, 'EODHD');
   assert.equal(Array.isArray(quote.data), true);
-  assert.equal(quote.data.length, 2);
+  assert.equal(quote.data.length, 4);
   assert.deepEqual(Object.keys(quote.data[0]).sort(), [
     'change',
     'changePercent',
     'cn',
     'dayHigh',
     'dayLow',
+    'displaySymbol',
     'intraday',
     'name',
     'previousClose',

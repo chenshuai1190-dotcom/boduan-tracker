@@ -28,6 +28,8 @@ Read in this order before changing code:
 
 The most important rule: GitHub `main` is the code source of truth. Do not edit application code directly in Vercel, Tencent Cloud, browser consoles, or temporary server files.
 
+Default delivery rule: unless the user explicitly says "only implement locally" or "do not deploy", every completed, verified change must be pushed to GitHub `main`, allowed to trigger Vercel production deployment, and followed by production verification.
+
 ## Product Summary
 
 `boduan-tracker` is a personal finance PWA for:

@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState, useEffect, useMemo, useCallback, useRe
 import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
+import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -1395,6 +1396,12 @@ function MainApp({ user, onLogout }) {
   const allTradesGrandTotal = tradesByStock.reduce((sum, g) => sum + g.totalPnl, 0);
   const allTradesCount = trades.length;
   const allTradesStocks = tradesByStock.length;
+  const investmentSummary = useMemo(() => deriveInvestmentSummary({
+    trades,
+    watchlist,
+    cashUsd: 0,
+    usdRate,
+  }), [trades, watchlist, usdRate]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -2005,6 +2012,7 @@ function MainApp({ user, onLogout }) {
     fmtPct,
     hkdRate,
     indices,
+    investmentSummary,
     investmentPlan,
     lastFetched,
     lastSeenAlerts,
@@ -2134,7 +2142,7 @@ function MainApp({ user, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pb-24" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+    <div className={`min-h-screen px-4 pb-24 ${activeTab === 'home' ? 'bg-[#05070b]' : 'bg-slate-50'}`} style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       {/* 🚀 火箭进度条动画 CSS */}
       <style>{`
         @keyframes rocketLaunch {
@@ -2192,8 +2200,8 @@ function MainApp({ user, onLogout }) {
         }
       `}</style>
       <div className="max-w-5xl mx-auto">
-        {/* 顶部总览卡片 - 资产/复盘 tab 专注显示自己的主卡,不展示这个 */}
-        {activeTab !== 'analysis' && activeTab !== 'review' && activeTab !== 'settings' && (
+        {/* 顶部总览卡片 - 仅交易 tab 保留旧波段入口,首页使用独立投资账户总览 */}
+        {activeTab === 'trades' && (
         <div
           className="rounded-2xl p-4 mb-4 text-white relative overflow-hidden"
           style={{

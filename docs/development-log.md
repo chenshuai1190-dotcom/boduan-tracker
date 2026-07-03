@@ -4,6 +4,40 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 重做首页投资账户看板
+
+- Commit: `same commit`
+- Background: 用户提供新的首页效果图并明确首页口径:总资产只统计投资账户,资产/目标模块保持独立,`costBasisData` 继续作为单股票摊薄成本小工具,不参与首页主账本。
+- Changes:
+  - 新增 `src/lib/investmentSummary.js`,从交易记录和自选行情派生首页投资账户汇总。
+  - 首页总资产、今日盈亏、累计盈亏改用交易记录口径;当前现金先固定为 `0`,等待后续交易页手动现金模块接入。
+  - 首页持仓数量改为当前仍持有的股票数量,`笔` 改为卖出交易记录数量。
+  - 重做 `src/tabs/HomeTab.jsx`,改为暗色移动首屏:投资账户资产卡、当前信号卡、四个市场卡、VIX/FGI 卡和自选/持仓表格。
+  - `INDICES` provider 扩展为标普500、纳斯达克100、道琼斯、黄金/美元四张市场卡,价格走服务端 EODHD real-time endpoint。
+  - 设置页用户可见更新日志同步到 `v10.7.9.50`。
+  - `docs/development-process.md` 和 `docs/handoff.md` 补充默认自动部署规则:验证通过后推进到 GitHub `main`,触发 Vercel 生产部署并做线上验证;除非用户明确要求暂不部署。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/investmentSummary.js`
+  - `server/quote/providers/indices.js`
+  - `tests/investment-summary.test.js`
+  - `tests/quote-response-shape.test.js`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,21 tests
+  - `npm run build`: pass,local `HomeTab-BZMrfBOs.js` `20.09 kB`,gzip `5.46 kB`
+  - `npm audit`: pass,0 vulnerabilities
+  - `git diff --check`: pass
+  - Local visual check: pass,390×844 mobile preview of `HomeTab` showed no horizontal overflow and no detected viewport offenders
+- Deployment: pending。
+- Production verification: pending。
+- Rollback: 回滚本次提交会恢复旧首页和旧的两项指数市场卡,不会改动资产/目标模块数据。
+- Follow-up: 在交易页补投资现金手动录入模块,再把首页现金纳入 `investmentSummary.cashUsd`;继续拆 `server/quote/providers/eodhd.js` 并做 RLS metadata 复核。
+
 ### 2026-07-03 - 拆分 quote provider 实现并补响应形状测试
 
 - Commit: `25c79eb`
