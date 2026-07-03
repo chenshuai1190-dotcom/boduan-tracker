@@ -6,6 +6,10 @@
 
 > 阅读这份文档 → 立刻进入状态, 接手开发  
 
+> **先读开发流程**: `docs/development-process.md`
+
+> **每次更新都要写日志**: `docs/development-log.md`
+
 > 最后更新: 2026-04-22 by chenshuai1190 + Claude
 
 

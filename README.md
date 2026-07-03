@@ -20,6 +20,15 @@ npm run dev
 
 Fill `.env.local` with the real Supabase project values and a rotated EODHD API key.
 
+## Development Workflow
+
+Before making or handing off any change, read:
+
+- `docs/development-process.md`
+- `docs/development-log.md`
+
+Current rule: GitHub is the only code source of truth, Vercel deploys automatically from `main`, and every change must update `docs/development-log.md` in the same commit.
+
 ## Required Environment Variables
 
 Frontend:
