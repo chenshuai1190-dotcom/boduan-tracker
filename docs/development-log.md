@@ -4,9 +4,36 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 修复 EODHD 图标大小写 fallback
+### 2026-07-03 - 记录 EODHD 图标 fallback 部署验证
 
 - Commit: `same commit`
+- Background: EODHD logo 大小写 fallback 修复已推送到 GitHub `main` 并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
+- Changes:
+  - 回填运行时代码提交 `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和线上产物证据。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-DgRCQBTf.js` 21.55 kB / gzip 6.26 kB, `SettingsTab-07aPWMBk.js` 29.21 kB / gzip 11.37 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only verification record; runtime code already deployed by commit `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`.
+- Production verification:
+  - Runtime commit: `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`
+  - GitHub Actions `CI`: success, run `28670402550`
+  - Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3JMEhzQqhsJLoxzgoV9pAWQE5vju`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-3PlTfOnE.js`, `App-xepx7EC5.js`, `HomeTab-DgRCQBTf.js`, `SettingsTab-07aPWMBk.js`
+  - `HomeTab-DgRCQBTf.js` contains uppercase and lowercase EODHD logo candidates, `data-logo-fallbacks`, and final hide fallback.
+  - `SettingsTab-07aPWMBk.js` contains `v10.7.9.56` and "修复部分公司图标不显示"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+- Rollback: 回滚本次 docs-only 提交只会移除验证记录,不影响首页运行时代码。
+
+### 2026-07-03 - 修复 EODHD 图标大小写 fallback
+
+- Commit: `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`
 - Background: 用户反馈首页自选列表公司图标拉取不全。实际请求发现 EODHD logo 文件名大小写不统一,例如 `US/AAPL.png` 返回 404,但 `US/aapl.png` 返回 200;上一版只尝试大写路径,导致部分可用图标被隐藏。
 - Changes:
   - 首页自选/持仓列表 logo 加载改为候选 URL 队列,优先使用已有 `logoURL`,再尝试 EODHD 大写路径和小写路径。
@@ -24,8 +51,8 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local logo fallback check: pass; built `HomeTab-DgRCQBTf.js` contains uppercase and lowercase EODHD candidates, `data-logo-fallbacks`, retry-by-setting-`src`, and final hide fallback.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28670402550` passed; Vercel status success with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3JMEhzQqhsJLoxzgoV9pAWQE5vju`。
+- Production verification: pass,见上方 `记录 EODHD 图标 fallback 部署验证` 条目。
 - Rollback: 回滚本次提交会恢复为只尝试单一路径,部分 EODHD 小写 logo 会继续隐藏;不影响交易、资产或目标逻辑。
 
 ### 2026-07-03 - 记录自选展开和 EODHD 图标部署验证

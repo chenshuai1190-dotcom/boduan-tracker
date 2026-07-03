@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `bc97472c384a8c4b2a6fa53384afb8f33666041a`
-- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `bc97472c384a8c4b2a6fa53384afb8f33666041a`.
-- App changelog version shown in Settings: `v10.7.9.55`
+- Runtime code verified on production: `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`
+- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`.
+- App changelog version shown in Settings: `v10.7.9.56`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,14 +123,14 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `bc97472c384a8c4b2a6fa53384afb8f33666041a`
-- GitHub Actions `CI`: success, run `28668771392`
-- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DmxN6reREMuSNhqgowT79KPyGhvk`
-- Production chunks: `index-UVcE5qxg.js`, `App-D1a8nJ9d.js`, `HomeTab-BFytG1L8.js`, `SettingsTab-DPrCHReO.js`
-- `HomeTab-BFytG1L8.js` contains `https://eodhd.com/img/logos/US/`, `object-contain`, `no-referrer`, and `currentTarget.style.display=\`none\`` for failed logo loads.
-- `SettingsTab-DPrCHReO.js` contains `v10.7.9.55`, "首页自选默认显示全部", and "图片加载失败时直接隐藏".
+- Runtime commit: `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`
+- GitHub Actions `CI`: success, run `28670402550`
+- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3JMEhzQqhsJLoxzgoV9pAWQE5vju`
+- Production chunks: `index-3PlTfOnE.js`, `App-xepx7EC5.js`, `HomeTab-DgRCQBTf.js`, `SettingsTab-07aPWMBk.js`
+- `HomeTab-DgRCQBTf.js` contains uppercase and lowercase EODHD logo candidates, `data-logo-fallbacks`, and final hide fallback.
+- `SettingsTab-07aPWMBk.js` contains `v10.7.9.56` and "修复部分公司图标不显示".
 - `/api/quote?symbols=VIX` without auth returns `401`
-- Local Chrome DevTools Protocol mobile preview before deploy showed no horizontal overflow offenders; default watchlist shows 5 stock rows, `查看全部` is absent on watchlist, and all 5 list icons use EODHD logo URLs.
+- Direct EODHD logo checks showed some tickers use uppercase filenames while AAPL/AMZN/GOOGL/HOOD/NFLX/TSM use lowercase filenames; the home list now falls back across both cases before hiding.
 - RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
 
 Known non-blocking CI warning:
@@ -187,6 +187,7 @@ CI:
 
 Recent important commits:
 
+- `8fe2cd2`: added EODHD logo fallback from uppercase to lowercase paths so more self-selected company icons load.
 - `bc97472`: made the home watchlist tab show all rows by default and changed list icons to EODHD company logos with failed images hidden.
 - `eb47a1d`: matched home watchlist/positions table typography and row density to the provided screenshot.
 - `21242f0`: refined home asset-card density, shrank current signal, and changed the fourth market card to BTC/USD.
