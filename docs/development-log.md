@@ -6,7 +6,7 @@
 
 ### 2026-07-03 - 拆分 quote provider 实现并补响应形状测试
 
-- Commit: `same commit`
+- Commit: `25c79eb`
 - Background: 交接后继续 Phase 0,优先把 `/api/quote.js` 中的 provider 业务实现移出入口文件,并补齐主要 quote 响应形状测试,降低后续行情功能改动风险。
 - Changes:
   - 将 `/api/quote.js` 缩成 CORS、鉴权、symbol 校验、provider 调度和统一响应封装。
@@ -30,8 +30,14 @@
   - `npm audit`: pass,0 vulnerabilities
   - `git diff --check`: pass
   - `npm run verify:rls:rest`: pass,12 user-owned tables returned `visibleRows=0` for anonymous REST probes
-- Deployment: 未部署;当前为本地分支 `codex/split-quote-providers`。
-- Production verification: 未执行;合并部署后需复核生产 `/api/quote?symbols=VIX` 未登录仍返回 `401`,并做已登录行情 smoke check。
+- Deployment: 已推送 `main`;Vercel 为 `25c79eb806225adbc5aa53212077db5d90ffa7a9` 创建 Production deployment `5299629938` 并返回 success。
+- Production verification:
+  - GitHub `main`: `25c79eb806225adbc5aa53212077db5d90ffa7a9`
+  - GitHub Actions `CI` run `28661210514`: success
+  - Vercel deployment target: `https://boduan-tracker-69zehu5bo-chenshuai1190-7580s-projects.vercel.app` success;该 preview URL 受 Vercel SSO 保护,生产 alias 已验证
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production `GET /api/quote?symbols=VIX` without auth: `401`
+  - `npm run verify:rls:rest`: pass,12 user-owned tables returned `visibleRows=0` for anonymous REST probes
 - Rollback: 回滚本次提交会把 provider 实现放回旧的单文件 quote API,不影响数据库数据。
 - Follow-up: 继续把较大的 `server/quote/providers/eodhd.js` 拆成 stock/fundamentals/shared parser helpers,并在有 Supabase SQL/admin 权限时做 metadata-level RLS 复核。
 

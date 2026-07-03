@@ -8,10 +8,10 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `7be8caf8a62db137047c051dd3a856c94527ff96`
-- Latest verified docs/deployment record before this handoff: `af69dc966a118a61e0757a852acff551510c1ca3`
+- Runtime code verified on production: `25c79eb806225adbc5aa53212077db5d90ffa7a9`
+- Latest verified docs/deployment record before this handoff: `25c79eb806225adbc5aa53212077db5d90ffa7a9`
 - App changelog version shown in Settings: `v10.7.9.49`
-- Current development branch used by Codex: `codex/optimize-auth-bundle-split`
+- Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
 
@@ -122,7 +122,7 @@ Expected `/api/quote` unauthenticated result: `401`.
 Last runtime verification recorded:
 
 - GitHub Actions `build`: success
-- Vercel deployment: success
+- Vercel deployment: success for runtime commit `25c79eb806225adbc5aa53212077db5d90ffa7a9`
 - Production chunks: `index-BFR1MOM7.js`, `App-CB4Nn09n.js`, `SettingsTab-DMWkNhZg.js`
 - Settings chunk contains `v10.7.9.49`
 - App chunk has no browser EODHD token or direct WebSocket path
