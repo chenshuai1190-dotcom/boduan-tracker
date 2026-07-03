@@ -43,5 +43,5 @@ This project started as a personal hand-built app, so the first priority is to m
 
 - Add a server-side relay before enabling real-time streaming.
 - Continue splitting the large `src/App.jsx` into feature modules.
-- Continue splitting full EODHD/Yahoo/CNN provider implementations out of `api/quote.js`.
+- Continue shrinking the quote provider modules and add error-path coverage for EODHD, Yahoo fallback, CNN, and NASDAQ partial failures.
 - Add metadata-level Supabase RLS verification through SQL/admin access.

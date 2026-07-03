@@ -151,11 +151,14 @@ Data and API:
 - `src/lib/supabase.js`: Supabase client.
 - `src/lib/db.js`: Supabase CRUD layer. Still too broad, about 730 lines.
 - `src/lib/dbGuards.js`: tested delete scoping helpers.
-- `api/quote.js`: Vercel serverless market-data endpoint. Still large, about 1000 lines.
+- `api/quote.js`: Vercel serverless market-data endpoint wrapper for auth, validation, dispatch, and response.
 - `server/quote/auth.js`: quote API auth and CORS.
 - `server/quote/errors.js`: quote API error bodies.
 - `server/quote/http.js`: timeout-aware provider fetch.
+- `server/quote/providerHandlers.js`: provider dispatch from normalized symbol to implementation.
 - `server/quote/providers.js`: symbol-to-provider routing.
+- `server/quote/providers/*`: VIX, CNN FGI, EODHD stock/fundamentals, Google Translate, indices, and NASDAQ calendar providers.
+- `server/quote/response.js`: quote API response envelope.
 - `server/quote/symbols.js`: symbol validation and normalization.
 
 Security and database:
@@ -168,6 +171,7 @@ Tests:
 
 - `tests/quote-handler.test.js`
 - `tests/quote-http.test.js`
+- `tests/quote-response-shape.test.js`
 - `tests/quote-symbols.test.js`
 - `tests/db-guards.test.js`
 
@@ -206,29 +210,24 @@ Main risks:
 
 - `src/App.jsx` is still too large and owns too much state.
 - Tab files are lazy chunks but not true feature modules yet.
-- `api/quote.js` still contains provider business logic and response shaping.
+- Quote provider business logic is now out of `api/quote.js`, but `server/quote/providers/eodhd.js` is still large and should be split further before major market-data features.
 - `src/lib/db.js` lacks schema validation and migration checks.
 - Financial calculations need pure functions and tests.
 - RLS metadata has not been verified through Supabase SQL/admin access.
 
 ## Recommended Next Work
 
-Priority 1: finish quote API modularization.
+Priority 1: finish quote API modularization hardening.
 
-- Move full provider implementations out of `api/quote.js`.
-- Suggested modules:
-  - `server/quote/providers/eodhd.js`
-  - `server/quote/providers/yahoo.js`
-  - `server/quote/providers/cnn.js`
-  - `server/quote/providers/nasdaq.js`
-  - `server/quote/response.js`
-- Add response-shape tests for:
+- Continue splitting `server/quote/providers/eodhd.js` into smaller stock, fundamentals, and shared parsing helpers.
+- Keep response-shape tests current for:
   - `VIX`
   - `FGI`
   - `INDICES`
   - `CALENDAR`
   - `ANALYST:<symbol>`
   - normal stock symbols
+- Add provider error-path tests for EODHD failures, Yahoo fallback, and partial calendar failures.
 
 Priority 2: add a pure finance calculation layer.
 

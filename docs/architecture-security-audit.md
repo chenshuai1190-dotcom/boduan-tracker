@@ -57,9 +57,9 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
    - Before major feature development, confirm in Supabase that every user-owned table has RLS enabled and policies scoped to `auth.uid() = user_id`.
 
 3. **Split and harden `/api/quote.js`**
-   - The endpoint currently handles too many providers and response shapes in one file.
-   - Status: provider routing, timeout fetch, auth/CORS, symbol parsing, and error helpers now have explicit module boundaries.
-   - Continue moving full EODHD/Yahoo/CNN provider implementations out of `api/quote.js` before adding broker-grade or professional data features.
+   - The endpoint now handles auth, validation, dispatch, and response envelope only.
+   - Status: provider routing, timeout fetch, auth/CORS, symbol parsing, response envelope, response-shape tests, and full provider implementation files now have explicit module boundaries.
+   - Continue splitting the large EODHD provider module and add error-path coverage before broker-grade or professional data features.
 
 4. **Add automated checks before business expansion**
    - Status: first `node --test` baseline exists and runs in GitHub Actions.
@@ -94,6 +94,7 @@ Goal: make the current app safer to change without altering product behavior.
   - `/api/quote` unauthenticated returns `401`
   - symbol validation rejects invalid input
   - delete guards scope by `user_id`
+- [x] Add quote response-shape tests for VIX, FGI, INDICES, CALENDAR, ANALYST, and normal stock symbols.
 - Add tests for key portfolio calculations.
 - [~] Verify Supabase RLS live: anonymous REST exposure probe passes for all user-owned tables; metadata-level `relrowsecurity` verification still requires Supabase SQL/admin access.
 
@@ -115,14 +116,10 @@ Goal: stop expanding `App.jsx` and `api/quote.js`.
   - `useCalendarEvents`
   - `useCostBasis`
 - Replace the giant `tabCtx` object with small feature-specific props or hooks.
-- Split `/api/quote.js` into provider modules:
-  - `auth.js`
-  - `symbols.js`
-  - `providers/eodhd.js`
-  - `providers/yahoo.js`
-  - `providers/cnn.js`
-  - `providers/calendar.js`
-  - `response.js`
+- Continue splitting quote provider modules:
+  - `providers/eodhd.js` into stock, fundamentals, and shared parser helpers
+  - Yahoo chart/fallback helpers where reuse grows
+  - additional response and error-path tests
 
 ### Phase 2 - Data Correctness Layer
 
@@ -165,8 +162,8 @@ Only after Phases 0-2:
 
 Start with Phase 0 in this order:
 
-1. Continue splitting full provider implementations out of `api/quote.js`.
-2. Add quote API response-shape tests for VIX, FGI, INDICES, CALENDAR, ANALYST, and normal stocks.
+1. Continue shrinking the large EODHD provider module into stock, fundamentals, and shared parser helpers.
+2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and NASDAQ partial failures.
 3. Verify RLS metadata in Supabase SQL/admin when dashboard or CLI access is available.
 4. Add server-side relay design before enabling real-time streaming.
 

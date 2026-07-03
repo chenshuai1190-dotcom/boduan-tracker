@@ -4,6 +4,37 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 拆分 quote provider 实现并补响应形状测试
+
+- Commit: `same commit`
+- Background: 交接后继续 Phase 0,优先把 `/api/quote.js` 中的 provider 业务实现移出入口文件,并补齐主要 quote 响应形状测试,降低后续行情功能改动风险。
+- Changes:
+  - 将 `/api/quote.js` 缩成 CORS、鉴权、symbol 校验、provider 调度和统一响应封装。
+  - 新增 `server/quote/providerHandlers.js` 和 `server/quote/response.js`。
+  - 新增 `server/quote/providers/*`,拆出 VIX、CNN FGI、Google Translate、EODHD 股票/基本面、指数和 NASDAQ 日历 provider 实现。
+  - 新增 response-shape tests,覆盖 `VIX`、`FGI`、`INDICES`、`CALENDAR`、`ANALYST:<symbol>` 和普通股票。
+  - 更新交接、安全和架构审查文档中的 quote API 当前结构与后续重点。
+- Key files:
+  - `api/quote.js`
+  - `server/quote/providerHandlers.js`
+  - `server/quote/response.js`
+  - `server/quote/providers/*.js`
+  - `tests/quote-response-shape.test.js`
+  - `docs/handoff.md`
+  - `docs/security-hardening.md`
+  - `docs/architecture-security-audit.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,18 tests
+  - `npm run build`: pass
+  - `npm audit`: pass,0 vulnerabilities
+  - `git diff --check`: pass
+  - `npm run verify:rls:rest`: pass,12 user-owned tables returned `visibleRows=0` for anonymous REST probes
+- Deployment: 未部署;当前为本地分支 `codex/split-quote-providers`。
+- Production verification: 未执行;合并部署后需复核生产 `/api/quote?symbols=VIX` 未登录仍返回 `401`,并做已登录行情 smoke check。
+- Rollback: 回滚本次提交会把 provider 实现放回旧的单文件 quote API,不影响数据库数据。
+- Follow-up: 继续把较大的 `server/quote/providers/eodhd.js` 拆成 stock/fundamentals/shared parser helpers,并在有 Supabase SQL/admin 权限时做 metadata-level RLS 复核。
+
 ### 2026-07-03 - 新增开发交接文档
 
 - Commit: `same commit`
