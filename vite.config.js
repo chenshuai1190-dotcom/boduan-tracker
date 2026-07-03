@@ -9,6 +9,11 @@ export default defineConfig({
         return deps.filter(dep => (
           !dep.includes('/App-') &&
           !dep.includes('/Login-') &&
+          !dep.includes('/HomeTab-') &&
+          !dep.includes('/TradesTab-') &&
+          !dep.includes('/AnalysisTab-') &&
+          !dep.includes('/ReviewTab-') &&
+          !dep.includes('/SettingsTab-') &&
           !dep.includes('/icons-') &&
           !dep.includes('/supabase-')
         ));
