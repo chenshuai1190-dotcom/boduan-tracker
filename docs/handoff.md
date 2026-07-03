@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `3ca274c65536642cb462ae96778cb325531a56cf`
-- Latest verified docs/deployment record before this handoff: `3ca274c65536642cb462ae96778cb325531a56cf`
-- App changelog version shown in Settings: `v10.7.9.50`
+- Runtime code verified on production: `5b40b9d2afc14372a65132adb802cae768f8c7f4`
+- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `5b40b9d2afc14372a65132adb802cae768f8c7f4`.
+- App changelog version shown in Settings: `v10.7.9.51`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,13 +123,15 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- GitHub Actions `build`: success
-- Vercel deployment: success for runtime commit `25c79eb806225adbc5aa53212077db5d90ffa7a9`
-- Production chunks: `index-BFR1MOM7.js`, `App-CB4Nn09n.js`, `SettingsTab-DMWkNhZg.js`
-- Settings chunk contains `v10.7.9.49`
-- App chunk has no browser EODHD token or direct WebSocket path
+- Runtime commit: `5b40b9d2afc14372a65132adb802cae768f8c7f4`
+- GitHub Actions `build`: success, run `28664999696`
+- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BeD4vZBihYbB9VjA4EAg9EQ6CGb6`, deployment id `5300500092`
+- Production chunks: `index-C1aFWIrR.js`, `App-Qgn3MtGg.js`, `HomeTab-D9tp3Z_b.js`, `SettingsTab-5CV0bdpD.js`
+- `HomeTab-D9tp3Z_b.js` contains `xmoney_home_currency`, the USD/RMB toggle, and the system font stack.
+- `SettingsTab-5CV0bdpD.js` contains `v10.7.9.51`
 - `/api/quote?symbols=VIX` without auth returns `401`
-- RLS REST probe: 12 user-owned tables returned `visibleRows=0`
+- Local 390x844 preview before deploy showed no horizontal overflow, dark/gold home bottom nav, and RMB selection persisted after reload.
+- RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
 
 Known non-blocking CI warning:
 

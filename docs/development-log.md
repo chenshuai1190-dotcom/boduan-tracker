@@ -4,9 +4,28 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 调整首页字体、底部导航和币种切换
+### 2026-07-03 - 记录首页币种切换发布验证
 
 - Commit: `same commit`
+- Background: 首页字体、底部导航和 USD/RMB 切换的运行时代码已推送并由 Vercel 完成生产部署,需要把部署证据回填到日志并刷新交接文档当前状态。
+- Changes:
+  - 回填运行时代码提交 `5b40b9d2afc14372a65132adb802cae768f8c7f4` 的 GitHub Actions、Vercel 和生产 smoke check 结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和生产 chunk 证据。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-D9tp3Z_b.js` 20.88 kB / gzip 5.86 kB, `App-w46slVPG.js` 126.42 kB / gzip 34.14 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only record; runtime deployment evidence is recorded in the entry below, and this commit does not change runtime assets.
+- Production verification: runtime commit `5b40b9d2afc14372a65132adb802cae768f8c7f4` already verified on production; this commit only records that evidence.
+- Rollback: 回滚本次 docs-only 提交只会移除发布证据记录,不影响线上运行时代码。
+
+### 2026-07-03 - 调整首页字体、底部导航和币种切换
+
+- Commit: `5b40b9d2afc14372a65132adb802cae768f8c7f4`
 - Background: 首页首版与效果图相比字体代码感过重,底部导航仍是浅色导致与暗色首页不协调,且总资产区域需要支持 USD/RMB 切换并记住用户选择。
 - Changes:
   - 首页主字体和数字字体改为系统 iOS 风格字体栈,移除首页数字的 `ui-monospace` 观感。
@@ -25,8 +44,14 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local mobile visual check: pass at 390x844; no horizontal overflow, home bottom nav is dark/gold, RMB selection survives reload, and long RMB P/L values no longer wrap.
-- Deployment: pending。
-- Production verification: pending。
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28664999696` passed; Vercel status success with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BeD4vZBihYbB9VjA4EAg9EQ6CGb6` and deployment id `5300500092`。
+- Production verification:
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production entry chunk: `index-C1aFWIrR.js`, App chunk: `App-Qgn3MtGg.js`.
+  - App chunk maps `HomeTab-D9tp3Z_b.js` and `SettingsTab-5CV0bdpD.js`.
+  - `HomeTab-D9tp3Z_b.js` contains `xmoney_home_currency`, RMB toggle, and system font stack.
+  - `SettingsTab-5CV0bdpD.js` contains `v10.7.9.51` and the USD/RMB update-log text.
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns HTTP 401; `/api/quote` auth remains enabled.
 - Rollback: 回滚本次提交会恢复首页首版字体、浅色底部导航和固定 USD 主金额;不影响交易、资产或目标数据。
 - Follow-up: 后续可继续按效果图细调卡片间距和 VIX/FGI 小组件视觉。
 
