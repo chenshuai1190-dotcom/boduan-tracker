@@ -4,6 +4,31 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 收紧首页数字层级并移除汇率副文案
+
+- Commit: `same commit`
+- Background: 首页首屏仍有部分数字比设计稿偏大,且总资产卡已经提供 USD/RMB 切换后,副行继续展示汇率显得重复。
+- Changes:
+  - 总资产副行删除 `汇率 x.xx` 文案,仅保留另一币种的约等金额。
+  - 首页总资产主金额从 40px 降到 34px。
+  - 当前信号主状态文案从 `text-2xl` 降到 `text-xl`。
+  - 策略状态回撤数字从 30px 降到 24px。
+  - VIX 和 CNN 恐慌贪婪指数主数字从 `text-3xl` 降到 `text-2xl`,CNN 标签同步从 `text-base` 降到 `text-sm`。
+  - 设置页用户可见更新日志同步到 `v10.7.9.52`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BQ-Txk2y.js` 20.82 kB / gzip 5.83 kB, `SettingsTab-ByI5o0mQ.js` 28.22 kB / gzip 11.02 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass at 390x844 in both USD and RMB modes; no horizontal overflow and no `汇率` text in the top asset card.
+- Deployment: pending。
+- Production verification: pending。
+- Rollback: 回滚本次提交会恢复首页上一版数字层级和总资产副行汇率展示;不影响交易、资产或目标逻辑。
+
 ### 2026-07-03 - 记录首页币种切换发布验证
 
 - Commit: `same commit`

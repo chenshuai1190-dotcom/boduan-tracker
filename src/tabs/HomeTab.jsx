@@ -221,8 +221,8 @@ export default function HomeTab({ ctx }) {
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
   const convertedAssetsLabel = isCnyMode
-    ? `≈ ${fmtCurrency(summary.totalAssetsUsd, 'USD', 2)} · 汇率 ${fmtMoney(summary.usdRate, 2)}`
-    : `≈ ${fmtCurrency(summary.totalAssetsCny, 'CNY', 0)} · 汇率 ${fmtMoney(summary.usdRate, 2)}`;
+    ? `≈ ${fmtCurrency(summary.totalAssetsUsd, 'USD', 2)}`
+    : `≈ ${fmtCurrency(summary.totalAssetsCny, 'CNY', 0)}`;
   const displayTodayPnl = summary.todayPnl * displayRate;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
   const pnlAmountClass = isCnyMode ? 'text-[13px]' : 'text-[15px]';
@@ -294,7 +294,7 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
 
-        <div className="mt-3 text-[40px] font-extrabold leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+        <div className="mt-3 text-[34px] font-extrabold leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
           {fmtCurrency(displayAssets, displayCurrency, 2)}
         </div>
         <div className="mt-3 text-[13px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
@@ -345,7 +345,7 @@ export default function HomeTab({ ctx }) {
           <RadarVisual active={signalIsCalm} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <div className="truncate text-2xl font-black text-white">{cleanSignalText(benchmarkStatus?.text)}</div>
+              <div className="truncate text-xl font-black text-white">{cleanSignalText(benchmarkStatus?.text)}</div>
               <span className={`h-4 w-4 shrink-0 rounded-full ${signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_14px_rgba(52,211,153,0.8)]`} />
             </div>
             <div className="mt-2 text-[13px] text-white/50">{benchmarkStatus?.desc || '回撤<5%, 空仓等待'}</div>
@@ -355,7 +355,7 @@ export default function HomeTab({ ctx }) {
             <button
               type="button"
               onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-              className={`text-[30px] font-black leading-none tabular-nums ${num(benchmarkDrawdown) <= -0.1 ? 'text-rose-400' : 'text-emerald-400'}`}
+              className={`text-[24px] font-black leading-none tabular-nums ${num(benchmarkDrawdown) <= -0.1 ? 'text-rose-400' : 'text-emerald-400'}`}
               style={{ fontFamily: NUMBER_FONT }}
             >
               {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}
@@ -412,7 +412,7 @@ export default function HomeTab({ ctx }) {
             {dataDateLabel(vixDataDate) && <span className="text-[10px] text-white/40">{dataDateLabel(vixDataDate)} 收盘</span>}
           </div>
           <div className="mt-4 flex items-center gap-2">
-            <span className="text-3xl font-black text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
+            <span className="text-2xl font-black text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
             <span className="h-4 w-4 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
           </div>
           <div className="mt-3 text-[12px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
@@ -433,8 +433,8 @@ export default function HomeTab({ ctx }) {
             {dataDateLabel(fgiDataDate) && <span className="text-[10px] text-white/40">{dataDateLabel(fgiDataDate)}</span>}
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl font-black tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
-            <span className="text-base font-black" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
+            <span className="text-2xl font-black tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
+            <span className="text-sm font-black" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
           </div>
           <div className="mt-3 text-[12px] text-white/50">{fgiInfo.desc}</div>
           <div className="mt-1">
