@@ -57,6 +57,14 @@ function marketColor(value) {
   return num(value) >= 0 ? '#ef4444' : '#22c55e';
 }
 
+function signalLevelTone(level) {
+  const value = num(level);
+  if (value >= 7) return { border: 'border-rose-400/30', bg: 'bg-rose-500/10', text: 'text-rose-300' };
+  if (value >= 5) return { border: 'border-orange-400/30', bg: 'bg-orange-500/10', text: 'text-orange-300' };
+  if (value >= 3) return { border: 'border-amber-400/30', bg: 'bg-amber-500/10', text: 'text-amber-300' };
+  return { border: 'border-emerald-400/25', bg: 'bg-emerald-500/10', text: 'text-emerald-300' };
+}
+
 function normalizeLogoUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return null;
@@ -183,6 +191,8 @@ function FgiGauge({ value }) {
 export default function HomeTab({ ctx }) {
   const {
     addStock,
+    ALERT_LEVELS,
+    alertsMuted,
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,
@@ -198,21 +208,26 @@ export default function HomeTab({ ctx }) {
     fmtPct,
     indices,
     investmentSummary,
+    lastSeenAlerts,
     newStock,
     RefreshCw,
     removeStock,
+    setAlertsMuted,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setEditingStock,
+    setLastSeenAlerts,
     setNewStock,
     setShowAddStock,
     showAddStock,
     editingStock,
+    triggeredAlerts,
     updateStockPrice,
     vix,
     vixDataDate,
     vixSignal,
     watchlist,
+    watchlistAlerts,
   } = ctx;
 
   const [tableTab, setTableTab] = React.useState('watchlist');
@@ -230,6 +245,13 @@ export default function HomeTab({ ctx }) {
   const fgiInfo = fgiLevel(fgi);
   const marketCards = (indices || []).slice(0, 4);
   const signalIsCalm = num(benchmarkDrawdown) > -0.05;
+  const signalDetailsOpen = alertsMuted !== true;
+  const signalAlerts = triggeredAlerts || [];
+  const signalThresholdLevels = (ALERT_LEVELS || []).filter((item) => num(item.level) >= 1 && num(item.level) <= 6);
+  const nearestSignalRows = React.useMemo(() => (watchlistAlerts || [])
+    .filter((item) => Number.isFinite(num(item.drawdown)) && num(item.high) > 0)
+    .sort((a, b) => num(a.drawdown) - num(b.drawdown))
+    .slice(0, 3), [watchlistAlerts]);
   const isCnyMode = currencyMode === 'CNY';
   const displayCurrency = isCnyMode ? 'CNY' : 'USD';
   const displayCurrencyLabel = isCnyMode ? 'RMB' : 'USD';
@@ -248,6 +270,27 @@ export default function HomeTab({ ctx }) {
   React.useEffect(() => {
     setShowAllRows(false);
   }, [tableTab]);
+
+  const setSignalDetailsOpen = (open) => {
+    const muted = !open;
+    setAlertsMuted?.(muted);
+    try {
+      localStorage.setItem('bottomline_alerts_muted', String(muted));
+    } catch {}
+
+    if (open && signalAlerts.length > 0 && setLastSeenAlerts) {
+      const nextSeen = { ...(lastSeenAlerts || {}) };
+      for (const item of signalAlerts) {
+        if (item?.symbol && item?.alert?.level) nextSeen[item.symbol] = item.alert.level;
+      }
+      setLastSeenAlerts(nextSeen);
+      try {
+        localStorage.setItem('bottomline_last_seen_alerts', JSON.stringify(nextSeen));
+      } catch {}
+    }
+  };
+
+  const toggleSignalDetails = () => setSignalDetailsOpen(!signalDetailsOpen);
 
   const resetNewStock = () => setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
 
@@ -334,10 +377,14 @@ export default function HomeTab({ ctx }) {
           <div className="text-[12px] font-semibold text-white/70">当前信号</div>
           <button
             type="button"
-            onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-            className="relative rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white/50 active:scale-95"
+            onClick={toggleSignalDetails}
+            className="relative flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white/50 active:scale-95"
           >
             策略状态
+            {signalAlerts.length > 0 && (
+              <span className="rounded-full bg-rose-400/15 px-1.5 py-0.5 text-[9px] leading-none text-rose-300">{signalAlerts.length}</span>
+            )}
+            <ChevronRight className={`h-3 w-3 transition-transform ${signalDetailsOpen ? '-rotate-90' : 'rotate-90'}`} />
           </button>
         </div>
         <div className="grid grid-cols-[62px_minmax(0,1fr)_70px] items-center gap-3">
@@ -391,9 +438,98 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
         {benchmarkStock && (
-          <div className="mt-2.5 flex justify-end whitespace-nowrap text-[10px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+          <button
+            type="button"
+            onClick={toggleSignalDetails}
+            className="mt-2.5 flex w-full justify-end whitespace-nowrap text-[10px] text-white/40 tabular-nums active:scale-[0.99]"
+            style={{ fontFamily: NUMBER_FONT }}
+          >
             ${fmtMoney(benchmarkStock.price, 2)} / 52周高 ${fmtMoney(benchmarkStock.high, 2)}
-            <ChevronRight className="ml-1 inline h-3.5 w-3.5 align-[-2px] text-white/25" />
+            <ChevronRight className={`ml-1 inline h-3.5 w-3.5 align-[-2px] text-white/25 transition-transform ${signalDetailsOpen ? '-rotate-90' : 'rotate-90'}`} />
+          </button>
+        )}
+
+        {signalDetailsOpen && (
+          <div className="mt-3 border-t border-white/[0.06] pt-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.035] p-2">
+                <div className="text-[9px] font-semibold leading-none text-white/35">基准</div>
+                <div className="mt-1.5 truncate text-[12px] font-black leading-none text-white">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'}</div>
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.035] p-2 text-right">
+                <div className="text-[9px] font-semibold leading-none text-white/35">现价</div>
+                <div className="mt-1.5 text-[12px] font-black leading-none text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>${fmtMoney(benchmarkStock?.price, 2)}</div>
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.035] p-2 text-right">
+                <div className="text-[9px] font-semibold leading-none text-white/35">52周高</div>
+                <div className="mt-1.5 text-[12px] font-black leading-none text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>${fmtMoney(benchmarkStock?.high, 2)}</div>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-white/55">触发列表</span>
+                <span className="text-[10px] font-semibold text-white/35">{signalAlerts.length > 0 ? `${signalAlerts.length}只触发` : '暂无触发'}</span>
+              </div>
+
+              {signalAlerts.length > 0 ? (
+                <div className="space-y-2">
+                  {signalAlerts.slice(0, 4).map((item) => {
+                    const tone = signalLevelTone(item.alert?.level);
+                    return (
+                      <div key={item.symbol} className={`rounded-xl border ${tone.border} ${tone.bg} p-2.5`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="truncate text-[12px] font-black leading-none text-white">{item.symbol}</div>
+                            <div className="mt-1 truncate text-[10px] leading-none text-white/35">{item.name || item.symbol}</div>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <div className={`text-[12px] font-black leading-none ${tone.text}`}>L{item.alert?.level} {item.alert?.label}</div>
+                            <div className="mt-1 text-[10px] font-bold leading-none text-white/45 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtSignedPct(item.drawdown, 1)}</div>
+                          </div>
+                        </div>
+                        <div className="mt-2 truncate text-[10px] leading-none text-white/45">{item.alert?.action}</div>
+                      </div>
+                    );
+                  })}
+                  {signalAlerts.length > 4 && (
+                    <div className="text-center text-[10px] text-white/35">还有 {signalAlerts.length - 4} 只已触发</div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-2.5">
+                  <div className="text-[11px] font-bold text-emerald-300">暂无触发, 等待更高胜率机会</div>
+                  {nearestSignalRows.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {nearestSignalRows.map((item) => (
+                        <div key={item.symbol} className="flex items-center justify-between gap-2 text-[10px] leading-none">
+                          <span className="truncate font-bold text-white/55">{item.symbol}</span>
+                          <span className="tabular-nums text-white/35" style={{ fontFamily: NUMBER_FONT }}>{fmtSignedPct(item.drawdown, 1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {signalThresholdLevels.length > 0 && (
+              <div className="mt-3">
+                <div className="mb-2 text-[11px] font-bold text-white/55">策略档位 L1-L6</div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {signalThresholdLevels.map((item) => {
+                    const tone = signalLevelTone(item.level);
+                    return (
+                      <div key={item.level} className={`rounded-lg border ${tone.border} bg-white/[0.025] px-2 py-1.5`}>
+                        <div className={`text-[10px] font-black leading-none ${tone.text}`}>L{item.level}</div>
+                        <div className="mt-1 text-[10px] font-bold leading-none text-white/55">{(num(item.dd) * 100).toFixed(0)}%</div>
+                        <div className="mt-1 truncate text-[9px] leading-none text-white/32">{item.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>

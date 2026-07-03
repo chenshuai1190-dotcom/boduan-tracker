@@ -2,11 +2,37 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-04 Asia/Shanghai
+
+### 2026-07-04 - 首页当前信号恢复展开列表
+
+- Commit: `same commit`
+- Background: 用户确认首页当前信号暂时复用原有预警逻辑,并要求展开列表里的策略阈值压缩展示为 L1-L6。
+- Changes:
+  - 首页当前信号右上角 `策略状态` 改为展开/收起详情,回撤数字继续用于切换基准。
+  - 展开面板复用原有 `triggeredAlerts`、`watchlistAlerts`、`ALERT_LEVELS`、`alertsMuted` 和已读等级记录。
+  - 有触发时显示触发股票列表、等级、回撤和动作建议;无触发时显示最近观察的 3 个回撤对象。
+  - 策略档位只压缩展示 L1-L6,不改底层现有预警判断逻辑。
+  - 设置页用户可见更新日志同步到 `v10.7.9.57`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-CZ9_VSeL.js` 26.91 kB / gzip 7.28 kB, `SettingsTab-D6mgFDOR.js` 29.42 kB / gzip 11.45 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local signal detail check: pass; built `HomeTab-CZ9_VSeL.js` contains `触发列表`, `策略档位 L1-L6`, `bottomline_alerts_muted`, and `bottomline_last_seen_alerts`; built `SettingsTab-D6mgFDOR.js` contains `v10.7.9.57`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复当前信号只显示单行基准状态,不影响交易、资产或目标逻辑。
+
 ## 2026-07-03 Asia/Shanghai
 
 ### 2026-07-03 - 记录 EODHD 图标 fallback 部署验证
 
-- Commit: `same commit`
+- Commit: `4dcb6e8d9c20d8b06b1df5617870583e09ef4f28`
 - Background: EODHD logo 大小写 fallback 修复已推送到 GitHub `main` 并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
 - Changes:
   - 回填运行时代码提交 `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
