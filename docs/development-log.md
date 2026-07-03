@@ -4,29 +4,28 @@
 
 ## 2026-07-04 Asia/Shanghai
 
-### 2026-07-04 - 首页当前信号恢复展开列表
+### 2026-07-04 - 回滚首页当前信号展开列表
 
 - Commit: `same commit`
-- Background: 用户确认首页当前信号暂时复用原有预警逻辑,并要求展开列表里的策略阈值压缩展示为 L1-L6。
+- Background: 用户反馈首页当前信号的策略展开样式很难看,要求回滚到上一版紧凑信号卡。
 - Changes:
-  - 首页当前信号右上角 `策略状态` 改为展开/收起详情,回撤数字继续用于切换基准。
-  - 展开面板复用原有 `triggeredAlerts`、`watchlistAlerts`、`ALERT_LEVELS`、`alertsMuted` 和已读等级记录。
-  - 有触发时显示触发股票列表、等级、回撤和动作建议;无触发时显示最近观察的 3 个回撤对象。
-  - 策略档位只压缩展示 L1-L6,不改底层现有预警判断逻辑。
-  - 设置页用户可见更新日志同步到 `v10.7.9.57`。
+  - 回滚提交 `20eba4d31a9f343560b78649bd0116d707916585` 引入的当前信号展开列表 UI。
+  - 首页当前信号恢复为上一版紧凑卡片:只显示当前状态、基准回撤、价格和 52 周高。
+  - 保留回撤数字点击后的基准切换菜单,不展示策略展开列表和 L1-L6 档位。
+  - 设置页用户可见更新日志同步到 `v10.7.9.58`。
 - Key files:
   - `src/tabs/HomeTab.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 21 tests.
-  - `npm run build`: pass; `HomeTab-CZ9_VSeL.js` 26.91 kB / gzip 7.28 kB, `SettingsTab-D6mgFDOR.js` 29.42 kB / gzip 11.45 kB.
+  - `npm run build`: pass; `HomeTab-DgRCQBTf.js` 21.55 kB / gzip 6.26 kB, `SettingsTab-BG2i8XEV.js` 29.40 kB / gzip 11.44 kB.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
-  - Local signal detail check: pass; built `HomeTab-CZ9_VSeL.js` contains `触发列表`, `策略档位 L1-L6`, `bottomline_alerts_muted`, and `bottomline_last_seen_alerts`; built `SettingsTab-D6mgFDOR.js` contains `v10.7.9.57`.
+  - Local rollback check: pass; built `HomeTab-DgRCQBTf.js` does not contain `触发列表` or `策略档位 L1-L6`, and built `SettingsTab-BG2i8XEV.js` contains `v10.7.9.58`.
 - Deployment: pending.
 - Production verification: pending.
-- Rollback: 回滚本次提交会恢复当前信号只显示单行基准状态,不影响交易、资产或目标逻辑。
+- Rollback: 回滚本次提交会重新启用 `20eba4d31a9f343560b78649bd0116d707916585` 的当前信号展开列表;不影响交易、资产或目标逻辑。
 
 ## 2026-07-03 Asia/Shanghai
 
