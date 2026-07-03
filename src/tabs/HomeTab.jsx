@@ -181,17 +181,13 @@ export default function HomeTab({ ctx }) {
     indices,
     investmentSummary,
     newStock,
-    Plus,
     RefreshCw,
     removeStock,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setEditingStock,
-    setLookupStatus,
     setNewStock,
-    setNewTrade,
     setShowAddStock,
-    setShowAddTrade,
     showAddStock,
     editingStock,
     updateStockPrice,
@@ -202,6 +198,7 @@ export default function HomeTab({ ctx }) {
   } = ctx;
 
   const [tableTab, setTableTab] = React.useState('watchlist');
+  const [showAllRows, setShowAllRows] = React.useState(false);
   const [currencyMode, setCurrencyMode] = React.useState(() => {
     try {
       return localStorage.getItem(HOME_CURRENCY_STORAGE_KEY) === 'CNY' ? 'CNY' : 'USD';
@@ -230,24 +227,14 @@ export default function HomeTab({ ctx }) {
     } catch {}
   }, [currencyMode]);
 
-  const resetNewStock = () => setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
-  const startTrade = (symbol = '', name = '') => {
-    if (setNewTrade) {
-      setNewTrade((trade) => ({
-        ...trade,
-        symbol,
-        name,
-        side: 'buy',
-        date: new Date().toISOString().slice(0, 10),
-        price: '',
-        shares: '',
-      }));
-    }
-    if (setLookupStatus) setLookupStatus(symbol ? 'found' : null);
-    if (setShowAddTrade) setShowAddTrade(true);
-  };
+  React.useEffect(() => {
+    setShowAllRows(false);
+  }, [tableTab]);
 
-  const rows = tableTab === 'positions' ? positions : (watchlist || []).slice(0, 6);
+  const resetNewStock = () => setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
+
+  const allRows = tableTab === 'positions' ? positions : (watchlist || []);
+  const rows = showAllRows ? allRows : allRows.slice(0, 3);
 
   return (
     <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
@@ -436,42 +423,44 @@ export default function HomeTab({ ctx }) {
       </section>
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-5">
             <button
               type="button"
               onClick={() => setTableTab('watchlist')}
-              className={`text-sm font-black ${tableTab === 'watchlist' ? 'text-white' : 'text-white/40'}`}
+              className={`text-[14px] font-bold leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/38'}`}
             >
               自选
             </button>
             <button
               type="button"
               onClick={() => setTableTab('positions')}
-              className={`text-sm font-black ${tableTab === 'positions' ? 'text-white' : 'text-white/40'}`}
+              className={`text-[14px] font-bold leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/38'}`}
             >
               持仓
             </button>
           </div>
           <button
             type="button"
-            onClick={() => (tableTab === 'positions' ? startTrade() : setShowAddStock(true))}
-            className="flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-bold text-white/40 active:scale-95"
+            onClick={() => setShowAllRows((value) => !value)}
+            disabled={allRows.length <= 3}
+            className="flex items-center gap-0.5 rounded-full py-1 pl-2 text-[12px] font-semibold leading-none text-white/42 active:scale-95 disabled:opacity-70"
           >
-            {tableTab === 'positions' ? '记一笔' : '添加'} <Plus className="h-3.5 w-3.5" />
+            {showAllRows ? '收起' : '查看全部'} <ChevronRight className={`h-3.5 w-3.5 ${showAllRows ? '-rotate-90' : ''}`} />
           </button>
         </div>
 
-        <div className="grid grid-cols-[1.35fr_0.8fr_0.8fr_0.9fr] px-4 py-2 text-[11px] text-white/40">
+        <div className="grid grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
           <span>名称</span>
           <span className="text-right">价格</span>
           <span className="text-right">涨跌幅</span>
           <span className="text-right">持仓盈亏</span>
+          <span aria-hidden="true" />
         </div>
 
-        <div className="divide-y divide-white/10">
+        <div className="divide-y divide-white/[0.06]">
           {rows.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-white/40">
+            <div className="px-4 py-8 text-center text-[13px] text-white/38">
               {tableTab === 'positions' ? '暂无持仓记录, 先在交易页添加买入记录。' : '暂无自选股票。'}
             </div>
           ) : rows.map((row) => {
@@ -491,20 +480,21 @@ export default function HomeTab({ ctx }) {
                 <button
                   type="button"
                   onClick={() => setEditingStock(editingStock === symbol ? null : symbol)}
-                  className="grid w-full grid-cols-[1.35fr_0.8fr_0.8fr_0.9fr] items-center px-4 py-3 text-left active:bg-white/[0.03]"
+                  className="grid min-h-[43px] w-full grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 py-1.5 text-left active:bg-white/[0.03]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[13px] font-black text-slate-950">{logoText}</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[12px] font-black leading-none text-slate-950">{logoText}</span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-black text-white">{symbol}</span>
-                      <span className="block truncate text-[11px] text-white/40">{row.name || quote?.name || symbol}</span>
+                      <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{symbol}</span>
+                      <span className="block truncate text-[10px] leading-[12px] text-white/40">{row.name || quote?.name || symbol}</span>
                     </span>
                   </span>
-                  <span className="text-right text-sm tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(price, 2)}</span>
-                  <span className="text-right text-sm font-bold tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(changePct)}</span>
-                  <span className={`text-right text-sm font-bold tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue)}`} style={{ fontFamily: NUMBER_FONT }}>
+                  <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(price, 2)}</span>
+                  <span className="text-right text-[13px] font-medium tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(changePct)}</span>
+                  <span className={`text-right text-[13px] font-medium tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue)}`} style={{ fontFamily: NUMBER_FONT }}>
                     {pnlValue === null ? '--' : fmtSignedPct(pnlPct, 2)}
                   </span>
+                  <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />
                 </button>
 
                 {!isPosition && editingStock === symbol && (

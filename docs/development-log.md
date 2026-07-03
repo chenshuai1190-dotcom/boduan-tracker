@@ -4,6 +4,30 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 对齐首页自选持仓列表字号
+
+- Commit: `same commit`
+- Background: 用户要求首页底部 `自选 / 持仓` 和列表文字大小严格参考效果图,当前列表行高、右上角动作和行内文字层级仍不够贴近。
+- Changes:
+  - 首页列表顶部 tab 改为效果图式 14px 加粗文字,右侧动作改为 `查看全部` + 箭头。
+  - 自选/持仓列表默认显示 3 行预览,点击 `查看全部` 展开当前 tab 全部行。
+  - 表头字号、行高、股票代码、公司名、价格、涨跌幅、持仓盈亏和行尾箭头按效果图收紧。
+  - 列表分隔线透明度降低,整体更接近截图的紧凑暗色表格。
+  - 设置页用户可见更新日志同步到 `v10.7.9.54`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-DeL0LtDH.js` 20.83 kB / gzip 5.89 kB, `SettingsTab-Tord0uk8.js` 28.76 kB / gzip 11.23 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass via Chrome DevTools Protocol mobile viewport; no horizontal overflow offenders, default preview shows 3 stock rows, `查看全部` is visible, `添加` / `记一笔` are absent, row height is 43px, symbol font is 13px, company-name font is 10px, and price font is 13px.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复首页列表上一版字号、行高、右上角添加/记一笔入口和最多 6 行自选预览;不影响交易、资产或目标逻辑。
+
 ### 2026-07-03 - 记录首页 BTC 市场卡部署验证
 
 - Commit: `same commit`
