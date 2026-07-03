@@ -833,29 +833,20 @@ function MainApp({ user, onLogout }) {
   // 启动时从 Supabase 拉取所有数据
   useEffect(() => {
     let mounted = true;
-    const startTime = Date.now();
-    const MIN_SPLASH_MS = 1600;  // 最少显示 1.6s (保证 X MONEY 文字完整淡入)
-    const MAX_SPLASH_MS = 2600;  // 最多 2.6s (即使云端连不上, 也跳)
+    const MAX_CLOUD_SYNC_GUARD_MS = 2600;  // 最多阻止自动保存 2.6s, 主界面不再被开屏阻塞
 
-    // 强制超时跳出
+    // 强制解除保存保护, 避免云端长时间无响应时无法继续使用
     const timeoutId = setTimeout(() => {
       if (mounted) {
-        console.warn('[云端加载] 超过 2s 仍未完成, 强制进入主界面');
+        console.warn('[云端加载] 超过 2.6s 仍未完成, 解除启动保护');
         setCloudLoading(false);
       }
-    }, MAX_SPLASH_MS);
+    }, MAX_CLOUD_SYNC_GUARD_MS);
 
-    // 完成后, 保证至少显示 0.8s
     const finishLoading = () => {
       if (!mounted) return;
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
-      setTimeout(() => {
-        if (mounted) {
-          clearTimeout(timeoutId);
-          setCloudLoading(false);
-        }
-      }, remaining);
+      clearTimeout(timeoutId);
+      setCloudLoading(false);
     };
 
     (async () => {
@@ -2138,115 +2129,6 @@ function MainApp({ user, onLogout }) {
 
   const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
-
-  // ⚪ 开屏 (V4-B 全黑流动金线 + 同步徽章 + 邮箱)
-  if (cloudLoading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center px-5 relative overflow-hidden"
-        style={{ background: '#000' }}
-      >
-        <style>{`
-          @keyframes v4FillSimple {
-            0% { width: 0%; }
-            50% { width: 100%; }
-            100% { width: 0%; }
-          }
-          @keyframes xDraw {
-            to { stroke-dashoffset: 0; }
-          }
-          @keyframes splashFadeIn {
-            0% { opacity: 0; transform: translateY(10px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes splashPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-          }
-          .v4-fill {
-            height: 100%;
-            background: linear-gradient(90deg, transparent 0%, #fbbf24 50%, transparent 100%);
-            animation: v4FillSimple 1.8s ease-in-out infinite;
-          }
-          .splash-fade-in {
-            animation: splashFadeIn 1s ease-out 0.2s both;
-          }
-          .splash-fade-in-late {
-            animation: splashFadeIn 1s ease-out 0.4s both;
-          }
-          .splash-sync-dot {
-            width: 5px; height: 5px; border-radius: 50%;
-            background: #4ade80;
-            animation: splashPulse 1.5s ease-in-out infinite;
-          }
-        `}</style>
-
-        {/* 中央: X Logo 直接淡入 + X MONEY 文字 (v10.7.9.45 X 不再描线) */}
-        <div className="text-center relative z-10">
-          <svg width="88" height="88" viewBox="0 0 84 84" style={{ margin: '0 auto 20px', display: 'block', animation: 'splashFadeIn 0.6s ease-out 0.1s both' }}>
-            <defs>
-              <linearGradient id="xLogoGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#fde68a"/>
-                <stop offset="1" stopColor="#d97706"/>
-              </linearGradient>
-            </defs>
-            <path d="M18 18 L66 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none" />
-            <path d="M66 18 L18 66" stroke="url(#xLogoGrad)" strokeWidth="13" strokeLinecap="round" fill="none" />
-          </svg>
-          <div
-            className="text-[22px] splash-fade-in"
-            style={{
-              letterSpacing: '6px',
-              background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #d97706 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              fontWeight: 900,
-              marginBottom: '20px',
-              animationDelay: '0.5s',
-            }}
-          >
-            X MONEY
-          </div>
-          <div
-            className="splash-fade-in"
-            style={{
-              width: '240px',
-              height: '2px',
-              background: 'rgba(251, 191, 36, 0.15)',
-              borderRadius: '2px',
-              overflow: 'hidden',
-              margin: '0 auto',
-              animationDelay: '0.8s',
-            }}
-          >
-            <div className="v4-fill"></div>
-          </div>
-        </div>
-
-        {/* 底部: SUPABASE LIVE 徽章 + 邮箱 */}
-        <div className="absolute bottom-9 left-0 right-0 text-center splash-fade-in-late z-10">
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl mb-3"
-            style={{
-              background: 'rgba(34, 197, 94, 0.08)',
-              border: '1px solid rgba(34, 197, 94, 0.15)',
-            }}
-          >
-            <span className="splash-sync-dot"></span>
-            <span className="text-[9px] font-bold" style={{ color: '#4ade80', letterSpacing: '2px' }}>
-              SUPABASE LIVE
-            </span>
-          </div>
-          {user?.email && (
-            <div className="text-[12px]" style={{ color: '#a3a3a3', fontFamily: 'ui-monospace, monospace' }}>
-              {user.email}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
 
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;

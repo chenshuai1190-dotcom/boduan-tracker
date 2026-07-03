@@ -4,6 +4,29 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 删除已登录启动开屏
+
+- Commit: `same commit`
+- Background: 用户反馈软件首页启动慢,要求删除启动加载图,让首页更快进入可见状态。
+- Changes:
+  - 删除 `App.jsx` 中 `cloudLoading` 期间阻塞渲染的全黑 X MONEY 开屏。
+  - 删除人为最短停留 1.6s 的启动等待。
+  - 保留 `cloudLoading` 状态作为启动保存保护,避免云端数据未返回时把默认数据误写回 Supabase。
+  - 云端同步完成后立即解除保护;若超过 2.6s 未完成,只解除保护,不再挡住主界面。
+- Key files:
+  - `src/App.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run build`: pass
+  - `npm audit`: pass,0 vulnerabilities
+  - `git diff --check`: pass
+  - production App chunk splash scan: pass,`App-t_qgm7p2.js` 不再包含 `splashFadeIn`、`v4FillSimple`、`SUPABASE LIVE` 等开屏标记
+  - local build App chunk: `124.30 kB`,gzip `33.18 kB`
+- Deployment: pending
+- Production verification: pending
+- Rollback: 回滚本次提交即可恢复旧开屏;不建议,因为会重新引入启动等待。
+- Follow-up: 下一步可继续优化登录态认证检查和首页数据同步策略,减少首屏数据闪动。
+
 ### 2026-07-03 - 固化开发流程和更新日志制度
 
 - Commit: `same commit`
