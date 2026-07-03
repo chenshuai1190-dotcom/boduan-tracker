@@ -6,7 +6,7 @@
 
 ### 2026-07-03 - 同步设置页应用内更新日志
 
-- Commit: `same commit`
+- Commit: `223a538`
 - Background: 用户指出更新日志也必须在设置页里更新,不能只写仓库文档。
 - Changes:
   - 在设置页更新日志顶部新增 `v10.7.9.47`。
@@ -20,8 +20,13 @@
   - `npm audit`: pass,0 vulnerabilities
   - `git diff --check`: pass
   - local build SettingsTab chunk: `SettingsTab-B5SIqOMt.js`
-- Deployment: pending
-- Production verification: pending
+- Deployment: 已推送 `main`,Vercel 生产部署完成。
+- Production verification:
+  - 线上 SettingsTab chunk: `/assets/SettingsTab-B5SIqOMt.js`
+  - 线上 SettingsTab chunk 包含 `v10.7.9.47`
+  - 线上 SettingsTab chunk 包含“删除已登录启动开屏”
+  - GitHub Actions `CI`: success
+  - `/api/quote?symbols=VIX` 未登录返回 `401`
 - Rollback: 回滚本次提交即可恢复设置页旧版本号和旧日志。
 - Follow-up: 后续每次用户可见更新,必须同时更新 `docs/development-log.md` 和设置页应用内更新日志。
 
