@@ -4,6 +4,32 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 调整首页字体、底部导航和币种切换
+
+- Commit: `same commit`
+- Background: 首页首版与效果图相比字体代码感过重,底部导航仍是浅色导致与暗色首页不协调,且总资产区域需要支持 USD/RMB 切换并记住用户选择。
+- Changes:
+  - 首页主字体和数字字体改为系统 iOS 风格字体栈,移除首页数字的 `ui-monospace` 观感。
+  - 首页底部导航同步为黑底、金色 active、浅白 inactive,其他 tab 继续使用原浅色导航。
+  - 首页总资产卡新增 USD/RMB 分段切换;主金额、今日盈亏和累计盈亏随币种切换,副行显示另一种货币和汇率。
+  - 币种选择写入 `localStorage` 的 `xmoney_home_currency`,下次进入首页自动恢复。
+  - 设置页用户可见更新日志同步到 `v10.7.9.51`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-D9tp3Z_b.js` 20.88 kB / gzip 5.86 kB, `App-w46slVPG.js` 126.42 kB / gzip 34.14 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass at 390x844; no horizontal overflow, home bottom nav is dark/gold, RMB selection survives reload, and long RMB P/L values no longer wrap.
+- Deployment: pending。
+- Production verification: pending。
+- Rollback: 回滚本次提交会恢复首页首版字体、浅色底部导航和固定 USD 主金额;不影响交易、资产或目标数据。
+- Follow-up: 后续可继续按效果图细调卡片间距和 VIX/FGI 小组件视觉。
+
 ### 2026-07-03 - 记录首页看板部署验证
 
 - Commit: `same commit`

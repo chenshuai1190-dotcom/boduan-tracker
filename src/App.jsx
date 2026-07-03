@@ -4244,7 +4244,10 @@ function MainApp({ user, onLogout }) {
         })()}
 
         {/* 底部 5 tab 导航栏 */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div
+          className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${activeTab === 'home' ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-5">
               {[
@@ -4260,7 +4263,11 @@ function MainApp({ user, onLogout }) {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${isActive ? 'text-blue-600' : 'text-slate-400'}`}
+                    className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${
+                      activeTab === 'home'
+                        ? (isActive ? 'text-[#f6a524]' : 'text-white/40')
+                        : (isActive ? 'text-blue-600' : 'text-slate-400')
+                    }`}
                   >
                     <Icon className={`w-5 h-5 mb-0.5 ${isActive ? 'stroke-[2.5]' : ''}`} />
                     <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{tab.label}</span>
