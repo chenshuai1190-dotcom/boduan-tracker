@@ -4,9 +4,37 @@
 
 ## 2026-07-04 Asia/Shanghai
 
-### 2026-07-04 - 回滚首页当前信号展开列表
+### 2026-07-04 - 记录当前信号回滚部署验证
 
 - Commit: `same commit`
+- Background: 首页当前信号展开列表已回滚并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
+- Changes:
+  - 回填回滚提交 `33dab311f662b357804b69601c91afd0577e3e61` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和线上产物证据。
+  - 记录用户偏好: 当前信号右上角保留策略提醒/入口,但不得默认展开或因预警自动展开;策略详情必须由用户主动点击打开。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-DgRCQBTf.js` 21.55 kB / gzip 6.26 kB, `SettingsTab-BG2i8XEV.js` 29.40 kB / gzip 11.44 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only verification record; runtime rollback already deployed by commit `33dab311f662b357804b69601c91afd0577e3e61`.
+- Production verification:
+  - Runtime commit: `33dab311f662b357804b69601c91afd0577e3e61`
+  - GitHub Actions `CI`: success, run `28673202099`
+  - Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5jnZyUvSdpTQ9bzn5ewfaYJAQ5N5`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-BHNU0-21.js`, `index-CkXPg5ZA.css`, `App-gC5t_xx6.js`, `HomeTab-DgRCQBTf.js`, `SettingsTab-BG2i8XEV.js`
+  - `HomeTab-DgRCQBTf.js` does not contain `触发列表` or `策略档位 L1-L6`; it still contains compact `当前信号` / `策略状态` UI.
+  - `SettingsTab-BG2i8XEV.js` contains `v10.7.9.58` and "回滚首页当前信号展开列表"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+- Rollback: 回滚本次 docs-only 提交只会移除验证记录,不影响首页运行时代码。
+
+### 2026-07-04 - 回滚首页当前信号展开列表
+
+- Commit: `33dab311f662b357804b69601c91afd0577e3e61`
 - Background: 用户反馈首页当前信号的策略展开样式很难看,要求回滚到上一版紧凑信号卡。
 - Changes:
   - 回滚提交 `20eba4d31a9f343560b78649bd0116d707916585` 引入的当前信号展开列表 UI。
@@ -23,8 +51,8 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local rollback check: pass; built `HomeTab-DgRCQBTf.js` does not contain `触发列表` or `策略档位 L1-L6`, and built `SettingsTab-BG2i8XEV.js` contains `v10.7.9.58`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28673202099` passed; Vercel status success with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5jnZyUvSdpTQ9bzn5ewfaYJAQ5N5`。
+- Production verification: pass,见上方 `记录当前信号回滚部署验证` 条目。
 - Rollback: 回滚本次提交会重新启用 `20eba4d31a9f343560b78649bd0116d707916585` 的当前信号展开列表;不影响交易、资产或目标逻辑。
 
 ## 2026-07-03 Asia/Shanghai

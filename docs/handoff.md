@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`
-- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`.
-- App changelog version shown in Settings: `v10.7.9.56`
+- Runtime code verified on production: `33dab311f662b357804b69601c91afd0577e3e61`
+- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `33dab311f662b357804b69601c91afd0577e3e61`.
+- App changelog version shown in Settings: `v10.7.9.58`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,15 +123,22 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `8fe2cd2aec16686aaa1261cf0b7bb7d89165a61b`
-- GitHub Actions `CI`: success, run `28670402550`
-- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3JMEhzQqhsJLoxzgoV9pAWQE5vju`
-- Production chunks: `index-3PlTfOnE.js`, `App-xepx7EC5.js`, `HomeTab-DgRCQBTf.js`, `SettingsTab-07aPWMBk.js`
-- `HomeTab-DgRCQBTf.js` contains uppercase and lowercase EODHD logo candidates, `data-logo-fallbacks`, and final hide fallback.
-- `SettingsTab-07aPWMBk.js` contains `v10.7.9.56` and "修复部分公司图标不显示".
+- Runtime commit: `33dab311f662b357804b69601c91afd0577e3e61`
+- GitHub Actions `CI`: success, run `28673202099`
+- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5jnZyUvSdpTQ9bzn5ewfaYJAQ5N5`
+- Production chunks: `index-BHNU0-21.js`, `index-CkXPg5ZA.css`, `App-gC5t_xx6.js`, `HomeTab-DgRCQBTf.js`, `SettingsTab-BG2i8XEV.js`
+- `HomeTab-DgRCQBTf.js` does not contain `触发列表` or `策略档位 L1-L6`; current signal is back to the compact card.
+- `SettingsTab-BG2i8XEV.js` contains `v10.7.9.58` and "回滚首页当前信号展开列表".
 - `/api/quote?symbols=VIX` without auth returns `401`
-- Direct EODHD logo checks showed some tickers use uppercase filenames while AAPL/AMZN/GOOGL/HOOD/NFLX/TSM use lowercase filenames; the home list now falls back across both cases before hiding.
+- The temporary current-signal detail list from `20eba4d31a9f343560b78649bd0116d707916585` has been rolled back after user feedback.
 - RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
+
+Home current-signal design preference:
+
+- Keep the top-right strategy reminder/entry on the compact current-signal card.
+- Do not default-open strategy details.
+- Do not auto-open strategy details because of alerts or level changes.
+- If strategy details are reintroduced later, open them only after the user taps the entry.
 
 Known non-blocking CI warning:
 
@@ -187,6 +194,8 @@ CI:
 
 Recent important commits:
 
+- `33dab31`: rolled back the home current-signal detail list and restored the compact previous signal card.
+- `20eba4d`: briefly restored the home current-signal detail list; rolled back by `33dab31`.
 - `8fe2cd2`: added EODHD logo fallback from uppercase to lowercase paths so more self-selected company icons load.
 - `bc97472`: made the home watchlist tab show all rows by default and changed list icons to EODHD company logos with failed images hidden.
 - `eb47a1d`: matched home watchlist/positions table typography and row density to the provided screenshot.
