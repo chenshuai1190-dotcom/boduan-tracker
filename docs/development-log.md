@@ -4,9 +4,25 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 移除浏览器直连 EODHD token 路径
+### 2026-07-03 - 记录架构安全升级部署验证
 
 - Commit: `same commit`
+- Background: 架构审查和浏览器直连 EODHD token 路径移除已推送生产环境,需要把线上验证证据补进交接日志。
+- Changes:
+  - 回填架构审查与安全升级条目的 commit、部署状态和线上验证结果。
+  - 记录生产 chunk、SHA256、Vercel 部署状态、GitHub Actions build 状态和未登录行情接口 401 验证。
+- Key files:
+  - `docs/development-log.md`
+- Validation:
+  - `git diff --check`: pass
+- Deployment: 本次为日志回填提交;推送 `main` 后由 Vercel 自动部署,不改变运行时代码。
+- Production verification: 运行时代码已在 `2bb9772` 验证通过;本次提交只补文档证据。
+- Rollback: 回滚本次日志提交只会移除部署记录,不会改变应用行为。
+- Follow-up: 下一步继续 Phase 0,开始 `/api/quote` timeout/provider 边界和测试基线。
+
+### 2026-07-03 - 移除浏览器直连 EODHD token 路径
+
+- Commit: `2bb9772`
 - Background: 架构安全审查确认前端曾保留浏览器直连 EODHD WebSocket 的历史路径;即使默认关闭,未来误配置也可能暴露付费行情 token。
 - Changes:
   - `App.jsx` 不再读取 `VITE_EODHD_TOKEN`,也不再建立浏览器直连 EODHD WebSocket。
@@ -30,14 +46,23 @@
   - `npm audit`: pass,0 vulnerabilities
   - frontend token-path grep: pass,no `import.meta.env.VITE_EODHD*`,no `new WebSocket`,no browser EODHD WS URL
   - production build scan: pass,no browser EODHD WebSocket implementation in `dist/assets`
-- Deployment: pending
-- Production verification: pending
+- Deployment: 已推送 `main`,Vercel 生产部署完成。
+- Production verification:
+  - Remote `main`: `2bb977221dc08d54c53275b1f0be6a126d0fdab9`
+  - Vercel status: success, deployment completed
+  - GitHub Actions `build`: success
+  - Production index chunk: `/assets/index-b3tIKfz9.js`, SHA256 `ecef8c425d14e6011902d0a581c886668be9cf2a5e5f75ed3abab7332431ddee`
+  - Production App chunk: `/assets/App-yVNJsOWc.js`, `123869` bytes, SHA256 `55139c3dadab824f9db39930852f6402a392e1ece43b77547f07b00b97ba1f21`
+  - Production SettingsTab chunk: `/assets/SettingsTab-C4C_Sw5U.js`, `27165` bytes, SHA256 `432291a70d225aad0d01ff1649f751d70cf0a0616836a067e1aa9678367af52b`
+  - SettingsTab chunk contains `v10.7.9.48` and "前端不再读取 VITE_EODHD_TOKEN"
+  - Production App/Settings chunks contain no browser EODHD token or WebSocket direct markers
+  - `/api/quote?symbols=VIX` 未登录返回 `401`
 - Rollback: 回滚本次提交会恢复旧的浏览器直连占位路径;不建议,除非同时有服务端 relay 替代方案。
 - Follow-up: 下一步继续 Phase 0,优先给 `/api/quote` 增加 timeout/helper 边界和第一批自动化测试。
 
 ### 2026-07-03 - 完成架构安全审查和升级路线
 
-- Commit: `same commit`
+- Commit: `2bb9772`
 - Background: 用户要求在正式开发大量专业功能前,确认当前代码是否是最新架构,并做安全审查与代码升级规划,避免给未来留下 bug。
 - Changes:
   - 新增 `docs/architecture-security-audit.md`。
@@ -54,8 +79,11 @@
   - `npm outdated --json`: React 18/Tailwind 3/lucide 旧于 latest,Vite/Supabase 当前可接受
   - code size scan: `App.jsx` 约 4300 行,`api/quote.js` 约 1100 行
   - secret grep: no real EODHD/Supabase service secret found in tracked source
-- Deployment: pending
-- Production verification: pending
+- Deployment: 已随安全升级提交推送 `main`,Vercel 生产部署完成。
+- Production verification:
+  - `docs/architecture-security-audit.md` 已进入 GitHub `main`
+  - Vercel status: success
+  - GitHub Actions `build`: success
 - Rollback: 回滚本次文档提交即可。
 - Follow-up: 已开始 Phase 0 第一项安全代码升级;后续继续 API 边界、测试和 RLS 复核。
 
