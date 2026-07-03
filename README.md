@@ -24,6 +24,7 @@ Fill `.env.local` with the real Supabase project values and a rotated EODHD API 
 
 Before making or handing off any change, read:
 
+- `docs/handoff.md`
 - `docs/development-process.md`
 - `docs/development-log.md`
 - `docs/architecture-security-audit.md`

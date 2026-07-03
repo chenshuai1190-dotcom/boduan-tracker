@@ -4,9 +4,27 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 记录 quote API 安全边界部署验证
+### 2026-07-03 - 新增开发交接文档
 
 - Commit: `same commit`
+- Background: 用户准备把项目移交给下一位开发者,需要一份不依赖聊天记录的交接文档。
+- Changes:
+  - 新增 `docs/handoff.md`,汇总当前生产状态、运行时代码 commit、开发流程、验证命令、架构风险和下一步优先级。
+  - 在 README 开发入口加入 `docs/handoff.md`。
+- Key files:
+  - `docs/handoff.md`
+  - `README.md`
+  - `docs/development-log.md`
+- Validation:
+  - `git diff --check`: pass
+- Deployment: docs-only,推送 `main` 后由 Vercel 自动部署,不改变运行时代码。
+- Production verification: docs-only,沿用上一条运行时代码验证结果。
+- Rollback: 回滚本次提交只会移除交接文档和 README 链接,不会改变应用行为。
+- Follow-up: 下一位开发者应先读 `docs/handoff.md`,再继续 quote provider 拆分、RLS metadata 复核和金融计算测试。
+
+### 2026-07-03 - 记录 quote API 安全边界部署验证
+
+- Commit: `af69dc9`
 - Background: quote API 边界拆分、测试基线和 RLS REST 探针已推送到 `main`,需要把生产验证证据补进交接日志。
 - Changes:
   - 回填本轮运行时代码提交 `7be8caf` 的部署状态和线上验证结果。
