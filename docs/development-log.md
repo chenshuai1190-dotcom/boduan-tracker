@@ -4,6 +4,61 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 移除浏览器直连 EODHD token 路径
+
+- Commit: `same commit`
+- Background: 架构安全审查确认前端曾保留浏览器直连 EODHD WebSocket 的历史路径;即使默认关闭,未来误配置也可能暴露付费行情 token。
+- Changes:
+  - `App.jsx` 不再读取 `VITE_EODHD_TOKEN`,也不再建立浏览器直连 EODHD WebSocket。
+  - 已登录行情刷新统一走 `/api/quote` REST 轮询,继续附带 Supabase access token。
+  - 删除 `VITE_ALLOW_BROWSER_EODHD_WS` 示例环境变量和部署说明。
+  - 更新设置页应用内更新日志到 `v10.7.9.48`。
+  - 更新安全 runbook、README、CONTEXT 和架构安全审查文档。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `.env.example`
+  - `README.md`
+  - `docs/security-hardening.md`
+  - `docs/architecture-security-audit.md`
+  - `docs/development-log.md`
+  - `CONTEXT.md`
+  - `部署指南.md`
+- Validation:
+  - `git diff --check`: pass
+  - `npm run build`: pass, local App chunk `App-CEVMG_lS.js` `124.04 kB`, gzip `33.10 kB`
+  - `npm audit`: pass,0 vulnerabilities
+  - frontend token-path grep: pass,no `import.meta.env.VITE_EODHD*`,no `new WebSocket`,no browser EODHD WS URL
+  - production build scan: pass,no browser EODHD WebSocket implementation in `dist/assets`
+- Deployment: pending
+- Production verification: pending
+- Rollback: 回滚本次提交会恢复旧的浏览器直连占位路径;不建议,除非同时有服务端 relay 替代方案。
+- Follow-up: 下一步继续 Phase 0,优先给 `/api/quote` 增加 timeout/helper 边界和第一批自动化测试。
+
+### 2026-07-03 - 完成架构安全审查和升级路线
+
+- Commit: `same commit`
+- Background: 用户要求在正式开发大量专业功能前,确认当前代码是否是最新架构,并做安全审查与代码升级规划,避免给未来留下 bug。
+- Changes:
+  - 新增 `docs/architecture-security-audit.md`。
+  - 明确当前代码可以维护,但不是适合长期专业功能扩展的最终架构。
+  - 记录依赖现状、架构风险、安全风险和分阶段升级路线。
+  - 在 README 开发入口增加架构安全审查文档。
+- Key files:
+  - `docs/architecture-security-audit.md`
+  - `README.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run build`: pass
+  - `npm audit`: pass,0 vulnerabilities
+  - `npm outdated --json`: React 18/Tailwind 3/lucide 旧于 latest,Vite/Supabase 当前可接受
+  - code size scan: `App.jsx` 约 4300 行,`api/quote.js` 约 1100 行
+  - secret grep: no real EODHD/Supabase service secret found in tracked source
+- Deployment: pending
+- Production verification: pending
+- Rollback: 回滚本次文档提交即可。
+- Follow-up: 已开始 Phase 0 第一项安全代码升级;后续继续 API 边界、测试和 RLS 复核。
+
 ### 2026-07-03 - 同步设置页应用内更新日志
 
 - Commit: `223a538`

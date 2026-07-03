@@ -238,7 +238,7 @@ export default function SettingsTab({ ctx }) {
                 {fetching ? '拉取中…' : '立即手动拉取'}
               </button>
               <div className="mt-2 text-[10px] text-slate-400 text-center italic">
-                💡 WebSocket 连接时无需手动 (实时推送) · 仅在 WS 断开或想强制刷新时用
+                💡 当前使用已登录 REST 行情接口;实时推送需服务端中转后再启用
               </div>
             </div>
 
@@ -249,14 +249,23 @@ export default function SettingsTab({ ctx }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.47
+                  v10.7.9.48
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.47', date: '2026-07-03', latest: true,
+                    ver: 'v10.7.9.48', date: '2026-07-03', latest: true,
+                    items: [
+                      '🛡 移除浏览器直连 EODHD WebSocket token 路径',
+                      '  - 前端不再读取 VITE_EODHD_TOKEN',
+                      '  - 实时行情只允许未来通过服务端中转启用',
+                      '📋 新增架构安全审查与升级路线',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.47', date: '2026-07-03',
                     items: [
                       '⚡ 删除已登录启动开屏,首页直接进入主界面',
                       '  - 移除 X MONEY 黑金加载图和 1.6s 人为等待',
@@ -824,7 +833,7 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.47',
+                      version: 'v10.7.9.48',
                       trades,
                       watchlist,
                       waveNotes,
@@ -875,7 +884,7 @@ export default function SettingsTab({ ctx }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.47</div>
+                <div>📊 版本:v10.7.9.48</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>

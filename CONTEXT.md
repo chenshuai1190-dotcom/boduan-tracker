@@ -266,7 +266,7 @@ Vercel 环境变量:
 
   EODHD_API_KEY = <rotated-token>  (服务端用)
 
-  VITE_EODHD_TOKEN = 不再生产配置;浏览器直连会暴露 token
+  不再配置任何 VITE_ EODHD token;浏览器直连路径已移除
 
 
 
@@ -286,7 +286,7 @@ Supabase Dashboard:
 
   EODHD_API_KEY 只放服务端 (api/quote.js)
 
-  VITE_EODHD_TOKEN 会暴露在浏览器,默认禁用
+  VITE_ EODHD token 会暴露在浏览器,禁止配置
 
   如需 WebSocket 实时推送,先做服务端中转 (Supabase Edge Function 或 Vercel relay)
 
@@ -488,19 +488,19 @@ visibilitychange:       页面隐藏暂停, 显示立即拉一次
 
 
 
-### 4. WebSocket 实时 (v10.7.8 BETA)
+### 4. WebSocket 实时 (v10.7.8 BETA, 已废弃前端直连)
 
 
 
 ```javascript
 
-连接: wss://ws.eodhistoricaldata.com/ws/us?api_token=XXX
+前端直连 EODHD WebSocket 已移除,禁止恢复浏览器 api_token 连接。
 
-订阅: 所有 watchlist symbols
+如需实时推送,先实现服务端 relay,再由前端连接自家 relay。
 
-延迟: < 50ms
+历史目标延迟: < 50ms
 
-消息格式: { s: 'AAPL', p: 150.25, t: 1234567890 }
+历史消息格式: { s: 'AAPL', p: 150.25, t: 1234567890 }
 
 
 

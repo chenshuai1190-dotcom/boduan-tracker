@@ -26,6 +26,7 @@ Before making or handing off any change, read:
 
 - `docs/development-process.md`
 - `docs/development-log.md`
+- `docs/architecture-security-audit.md`
 
 Current rule: GitHub is the only code source of truth, Vercel deploys automatically from `main`, and every change must update `docs/development-log.md` in the same commit.
 
@@ -42,7 +43,7 @@ Server:
 - `QUOTE_API_AUTH_REQUIRED=true`
 - `QUOTE_ALLOWED_ORIGINS=https://boduan-tracker.vercel.app`
 
-Do not set `VITE_EODHD_TOKEN` in production. Browser WebSocket direct mode exposes the paid EODHD token and is disabled by default.
+Do not add any `VITE_` EODHD token. Browser-direct market-data streaming has been removed; real-time streaming must use a server-side relay.
 
 ## Checks
 
@@ -61,6 +62,6 @@ Before treating a deployment as safe:
 2. Remove secrets from public docs and avoid committing real `.env` files.
 3. Apply `supabase/rls.sql` in the Supabase SQL editor.
 4. Keep `/api/quote` authenticated; do not disable `QUOTE_API_AUTH_REQUIRED` in production.
-5. Use a server-side WebSocket relay before re-enabling real-time streaming.
+5. Use a server-side WebSocket relay before enabling real-time streaming.
 
 More details: `docs/security-hardening.md`.

@@ -505,7 +505,8 @@ function VixCard({ vix, setVix, vixDataDate, setVixDataDate, vixSignal }) {
 }
 
 function MainApp({ user, onLogout }) {
-  const browserWsAllowed = import.meta.env.VITE_ALLOW_BROWSER_EODHD_WS === 'true';
+  // Real-time quotes must go through a server-side relay. Never expose EODHD tokens in browser code.
+  const browserWsAllowed = false;
 
   // ============ 核心状态 ============
   const [qqqHigh, setQqqHigh] = useState(640.47);
@@ -717,15 +718,12 @@ function MainApp({ user, onLogout }) {
   // 拉取实时行情状态
   const [fetching, setFetching] = useState(false);
 
-  // 🧪 WebSocket 实时模式 (EODHD All World Extended 套餐)
-  // localStorage 存, 默认关闭 (实验功能)
-  const [wsEnabled, setWsEnabled] = useState(() => {
-    try { return localStorage.getItem('bottomline_ws') === 'true'; } catch { return false; }
-  });
-  const [wsStatus, setWsStatus] = useState('disconnected'); // 'disconnected' | 'disabled' | 'connecting' | 'connected' | 'error'
-  const [wsLastTick, setWsLastTick] = useState(null); // 最后收到 tick 的时间
+  // 🧪 实时模式预留:浏览器直连 EODHD 已移除,等待服务端 relay。
+  const [wsEnabled, setWsEnabled] = useState(false);
+  const [wsStatus] = useState('disabled');
+  const [wsLastTick] = useState(null); // 服务端 relay 接入后再更新最后 tick 时间
   // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
-  const [priceFlash, setPriceFlash] = useState({});
+  const [priceFlash] = useState({});
 
   const fetchQuote = useCallback(async (symbols) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -751,6 +749,10 @@ function MainApp({ user, onLogout }) {
       icon: opts.icon || '🗑',
       onConfirm: opts.onConfirm,
     });
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('bottomline_ws', 'false'); } catch {}
   }, []);
 
   // 💼 v10.7.9.41: 摊薄成本计算器 (独立模块, localStorage 存)
@@ -1833,10 +1835,7 @@ function MainApp({ user, onLogout }) {
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // v10.7.9.41: REST 自动拉只在 "WebSocket 断了 或 没启用" 时才跑
-  //   原因: WebSocket 已经实时推送, REST 慢半拍会"覆盖"WebSocket 已更新的状态
-  //   策略: WebSocket 工作 → 只启动时拉 1 次拿初始数据; 之后全靠 WS
-  //         WebSocket 断了 → 启动 REST 兜底
+  // 浏览器直连 WebSocket 已移除;在服务端 relay 接入前,已登录 REST 行情接口是唯一实时路径。
   useEffect(() => {
     if (cloudLoading) return;
     if (watchlist.length === 0) return;
@@ -1844,16 +1843,7 @@ function MainApp({ user, onLogout }) {
     // 启动时立即拉 1 次 (拿初始数据 + 指数 + VIX/FGI)
     fetchRealtimePrices();
 
-    // 判断是否启用 REST 自动拉:
-    //   WebSocket 已开启 + 已连接 → 不拉 (让 WS 接管)
-    //   WebSocket 没开 / 断了 / 错误 → 启用 REST 兜底
-    const shouldUseRest = !wsEnabled || wsStatus !== 'connected';
-    if (!shouldUseRest) {
-      console.log('[REST] WebSocket 已连接, 跳过 REST 自动拉取');
-      return; // 不启动定时器
-    }
-
-    console.log('[REST] WebSocket 未连接, 启用 REST 自动拉取兜底');
+    console.log('[REST] 启用已登录行情接口轮询');
     let timerId = null;
     let isActive = true;
 
@@ -1890,186 +1880,7 @@ function MainApp({ user, onLogout }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, watchlist.length, wsEnabled, wsStatus]);
-
-  // 🧪 WebSocket 实时推送 (EODHD All World Extended)
-  // 启用后, 股价实时推送, 替代 REST 轮询
-  useEffect(() => {
-    if (!browserWsAllowed) {
-      if (wsEnabled) {
-        setWsEnabled(false);
-        try { localStorage.setItem('bottomline_ws', 'false'); } catch {}
-      }
-      setWsStatus('disabled');
-      return;
-    }
-
-    if (!wsEnabled || cloudLoading || watchlist.length === 0) {
-      setWsStatus('disconnected');
-      return;
-    }
-
-    // EODHD token - 仅在明确允许浏览器直连时读取;默认不暴露到前端
-    const token = import.meta.env.VITE_EODHD_TOKEN || '';
-    if (!token) {
-      console.error('[WebSocket] VITE_EODHD_TOKEN 未配置');
-      setWsStatus('error');
-      return;
-    }
-
-    // 订阅: watchlist 股票 + SPY + QQQ (用于顶部指数实时更新)
-    // 自动去重 (用户 watchlist 可能已含 QQQ)
-    const subscribeSet = new Set([...watchlist.map(s => s.symbol), 'SPY', 'QQQ']);
-    const symbols = Array.from(subscribeSet).join(',');
-    const wsUrl = `wss://ws.eodhistoricaldata.com/ws/us?api_token=${token}`;
-
-    console.log('[WebSocket] 连接中...', symbols);
-    setWsStatus('connecting');
-
-    let ws = null;
-    let reconnectTimer = null;
-    let isUnmounting = false;
-
-    const connect = () => {
-      if (isUnmounting) return;
-      try {
-        ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-          console.log('[WebSocket] ✓ 已连接, 订阅:', symbols);
-          setWsStatus('connected');
-          ws.send(JSON.stringify({ action: 'subscribe', symbols }));
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            // EODHD 消息格式: { s: 'AAPL', p: 150.25, t: 1234567890, v: 100 }
-            if (data.s && typeof data.p === 'number') {
-              const sym = data.s.toUpperCase();
-              const newPrice = data.p;
-              const tickTime = data.t || Math.floor(Date.now() / 1000);
-
-              setWsLastTick(new Date());
-
-              // 🔑 更新顶部指数 (SPY / QQQ)
-              if (sym === 'SPY' || sym === 'QQQ') {
-                setIndices(prev => prev.map(idx => {
-                  // EODHD 返回的 ticker 是 'SPY.US' 或 'QQQ.US'
-                  if (!idx.ticker || !idx.ticker.startsWith(sym + '.')) return idx;
-                  const oldPrice = idx.price || 0;
-                  if (oldPrice === newPrice) return idx;
-                  // 重算当日涨跌 (v10.7.9.41: 跟关注列表逻辑完全一致)
-                  // ⚠️ pc fallback 必须是 0 (不能用 oldPrice, 否则算出来 % 一直≈0 乱跳)
-                  const pc = idx.previousClose || 0;
-                  const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (idx.changePercent || 0);
-                  const newChange = pc > 0 ? (newPrice - pc) : (idx.change || 0);
-                  return {
-                    ...idx,
-                    price: newPrice,
-                    change: newChange,
-                    changePercent: newChangePct,
-                  };
-                }));
-              }
-
-              // 更新 watchlist 中对应股票的价格
-              setWatchlist(prev => prev.map(s => {
-                if (s.symbol !== sym) return s;
-                const oldPrice = s.price || 0;
-                if (oldPrice === newPrice) return s; // 价格没变, 不触发闪烁
-
-                // 触发闪烁效果
-                const flashDir = newPrice > oldPrice ? 'up' : 'down';
-                setPriceFlash(prev => ({ ...prev, [sym]: flashDir }));
-                setTimeout(() => {
-                  setPriceFlash(prev => {
-                    const next = { ...prev };
-                    delete next[sym];
-                    return next;
-                  });
-                }, 500);
-
-                // 当日涨跌重算 (v10.7.9.41: 跟顶部指数逻辑统一, fallback 到 0 不是 oldPrice)
-                const pc = s.previousClose || 0;
-                const newChangePct = pc > 0 ? ((newPrice - pc) / pc) * 100 : (s.changePercent || 0);
-
-                // 🔑 同步更新走势图数据 (intraday + intradayPoints)
-                // 策略: 每分钟合并一个点 (避免数组爆炸)
-                // - 1 分钟内的 tick 覆盖最后一个点
-                // - 1 分钟以上的 tick 新增一个点
-                const BUCKET_MS = 60 * 1000; // 1 分钟桶
-                const nowMs = Date.now();
-                const prevIntraday = Array.isArray(s.intraday) ? s.intraday : [];
-                const prevPoints = Array.isArray(s.intradayPoints) ? s.intradayPoints : [];
-
-                let newIntraday, newPoints;
-                const lastPoint = prevPoints[prevPoints.length - 1];
-                const lastPointMs = lastPoint?.t ? lastPoint.t * 1000 : 0;
-
-                if (lastPoint && (nowMs - lastPointMs) < BUCKET_MS) {
-                  // 同一分钟内: 覆盖最后一个点
-                  newIntraday = [...prevIntraday.slice(0, -1), newPrice];
-                  newPoints = [...prevPoints.slice(0, -1), { ...lastPoint, price: newPrice }];
-                } else {
-                  // 新的一分钟: 追加新点
-                  // 推断 session (根据美东时间)
-                  const etHour = new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false });
-                  const h = parseInt(etHour);
-                  let session = 'regular';
-                  if (h >= 4 && h < 9) session = 'pre';
-                  else if (h >= 16 && h < 20) session = 'post';
-                  newIntraday = [...prevIntraday, newPrice];
-                  newPoints = [...prevPoints, { price: newPrice, t: tickTime, session }];
-                }
-
-                return {
-                  ...s,
-                  price: newPrice,
-                  changePercent: newChangePct,
-                  intraday: newIntraday,
-                  intradayPoints: newPoints,
-                };
-              }));
-            }
-          } catch (e) { /* 忽略非 JSON 消息 (心跳) */ }
-        };
-
-        ws.onerror = (e) => {
-          console.error('[WebSocket] 错误:', e);
-          setWsStatus('error');
-        };
-
-        ws.onclose = (e) => {
-          console.warn('[WebSocket] 已关闭:', e.code, e.reason);
-          setWsStatus('disconnected');
-          // 3 秒后自动重连 (除非是主动关闭)
-          if (!isUnmounting && wsEnabled) {
-            reconnectTimer = setTimeout(() => {
-              console.log('[WebSocket] 尝试重连...');
-              connect();
-            }, 3000);
-          }
-        };
-      } catch (e) {
-        console.error('[WebSocket] 连接失败:', e);
-        setWsStatus('error');
-      }
-    };
-
-    connect();
-
-    return () => {
-      isUnmounting = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ action: 'unsubscribe', symbols }));
-        ws.close();
-      }
-      setWsStatus('disconnected');
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserWsAllowed, wsEnabled, cloudLoading, watchlist.length]);
+  }, [cloudLoading, watchlist.length]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');

@@ -13,7 +13,7 @@ This project started as a personal hand-built app, so the first priority is to m
    - Required: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `EODHD_API_KEY`.
    - Recommended: `QUOTE_API_AUTH_REQUIRED=true`.
    - Recommended: `QUOTE_ALLOWED_ORIGINS=https://boduan-tracker.vercel.app`.
-   - Keep `VITE_ALLOW_BROWSER_EODHD_WS=false`.
+   - Do not add any frontend `VITE_` EODHD token or browser WebSocket toggle.
 
 3. Apply Supabase RLS.
    - Run `supabase/rls.sql` in the Supabase SQL editor.
@@ -31,13 +31,13 @@ This project started as a personal hand-built app, so the first priority is to m
 - `/api/quote` validates and caps the `symbols` parameter.
 - `/api/quote` no longer sends wildcard CORS headers.
 - Frontend quote calls attach the current Supabase access token.
-- Browser-direct EODHD WebSocket mode is disabled by default.
+- Browser-direct EODHD WebSocket mode has been removed from the frontend.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.
 - Stale duplicate quote implementations were removed; `api/quote.js` is the only quote API entry.
 - GitHub Actions CI runs install, build, and audit checks.
 
 ## Known Follow-Up Work
 
-- Replace browser WebSocket direct mode with a server-side relay.
-- Split the 9000+ line `src/App.jsx` into feature modules.
+- Add a server-side relay before enabling real-time streaming.
+- Continue splitting the large `src/App.jsx` into feature modules.
 - Add focused tests around database writes and quote API auth.
