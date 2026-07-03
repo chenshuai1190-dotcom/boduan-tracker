@@ -249,14 +249,24 @@ export default function SettingsTab({ ctx }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.52
+                  v10.7.9.53
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.52', date: '2026-07-03', latest: true,
+                    ver: 'v10.7.9.53', date: '2026-07-03', latest: true,
+                    items: [
+                      '🏠 首页信息密度继续收紧',
+                      '  - 总资产卡删除约等金额副行',
+                      '  - 持仓数量下方说明文字删除',
+                      '📡 当前信号卡整体缩小约 20%',
+                      '₿ 市场卡将黄金/美元替换为 BTC/美元',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.52', date: '2026-07-03',
                     items: [
                       '🎚 首页数字层级继续收紧',
                       '  - 总资产、当前信号、回撤、VIX/CNN 数字减小',
@@ -870,7 +880,7 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.52',
+                      version: 'v10.7.9.53',
                       trades,
                       watchlist,
                       waveNotes,
@@ -921,7 +931,7 @@ export default function SettingsTab({ ctx }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.52</div>
+                <div>📊 版本:v10.7.9.53</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>

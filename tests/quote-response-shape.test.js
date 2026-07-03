@@ -91,7 +91,7 @@ async function mockProviderFetch(url) {
       'GSPC.INDX': { price: 5435.21, previousClose: 5439.56, high: 5450, low: 5400 },
       'NDX.INDX': { price: 19144.23, previousClose: 19138.49, high: 19200, low: 19000 },
       'DJI.INDX': { price: 39647.1, previousClose: 39706.66, high: 39800, low: 39500 },
-      'XAUUSD.FOREX': { price: 2376.58, previousClose: 2369.71, high: 2380, low: 2358 },
+      'BTC-USD.CC': { price: 109500.12, previousClose: 108420.38, high: 110200, low: 107850 },
     };
     const quote = realtimeQuotes[decodeURIComponent(realtimeMatch[1])];
     if (quote) {
@@ -369,6 +369,8 @@ test('INDICES quote response shape is stable', async () => {
     'source',
     'ticker',
   ]);
+  assert.equal(quote.data[3].ticker, 'BTC-USD.CC');
+  assert.equal(quote.data[3].displaySymbol, 'BTCUSD');
 });
 
 test('CALENDAR quote response shape is stable', async () => {

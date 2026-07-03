@@ -4,7 +4,7 @@ const MARKET_CARDS = [
   { ticker: 'GSPC.INDX', displaySymbol: '.SPX', name: '标普500', cn: '标普500', chartSymbol: '^GSPC' },
   { ticker: 'NDX.INDX', displaySymbol: '.NDX', name: '纳斯达克100', cn: '纳斯达克100', chartSymbol: '^NDX' },
   { ticker: 'DJI.INDX', displaySymbol: '.DJI', name: '道琼斯', cn: '道琼斯', chartSymbol: '^DJI' },
-  { ticker: 'XAUUSD.FOREX', displaySymbol: 'XAUUSD', name: '黄金/美元', cn: '黄金/美元', chartSymbol: 'XAUUSD=X' },
+  { ticker: 'BTC-USD.CC', displaySymbol: 'BTCUSD', name: 'BTC/美元', cn: 'BTC/美元', chartSymbol: 'BTC-USD' },
 ];
 
 function asNumber(value) {

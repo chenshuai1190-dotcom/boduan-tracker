@@ -4,6 +4,33 @@
 
 ## 2026-07-03 Asia/Shanghai
 
+### 2026-07-03 - 精简首页资产卡和替换 BTC 市场卡
+
+- Commit: `same commit`
+- Background: 用户继续按效果图收紧首页:总资产卡不再需要任何副行换算,持仓数量下方说明文字冗余,当前信号区域仍偏大,且第四张市场卡希望从黄金/美元换成 BTC/美元。
+- Changes:
+  - 首页总资产卡删除另一币种约等金额副行,保留 USD/RMB 切换和主金额。
+  - 首页持仓数量栏删除 `持仓股票 · 卖出记录` 小字说明。
+  - 当前信号卡整体约缩小 20%:卡片内边距、雷达尺寸、三列宽度、主状态、辅助文案和回撤数字同步收紧。
+  - `INDICES` 市场卡第四项由 `XAUUSD.FOREX` 改为 `BTC-USD.CC`,走势图 symbol 同步为 Yahoo `BTC-USD`。
+  - Quote response-shape 测试明确断言第四张市场卡为 `BTC-USD.CC` / `BTCUSD`。
+  - 设置页用户可见更新日志同步到 `v10.7.9.53`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `server/quote/providers/indices.js`
+  - `tests/quote-response-shape.test.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BAW_INYx.js` 20.56 kB / gzip 5.80 kB, `SettingsTab-Dl_xZT64.js` 28.48 kB / gzip 11.12 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass via Chrome DevTools Protocol mobile viewport; no horizontal overflow offenders, no `≈` text, no `持仓股票` / `卖出记录` helper text, BTC present and gold absent.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复资产卡副行、当前信号上一版尺寸和黄金/美元市场卡;不影响交易、资产或目标逻辑。
+
 ### 2026-07-03 - 记录首页数字层级部署验证
 
 - Commit: `same commit`

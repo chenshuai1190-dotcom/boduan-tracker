@@ -124,13 +124,13 @@ function MiniMarketCard({ item }) {
 
 function RadarVisual({ active }) {
   return (
-    <div className="relative h-[76px] w-[76px] shrink-0 rounded-full border border-emerald-400/10 bg-emerald-400/[0.03]">
+    <div className="relative h-[62px] w-[62px] shrink-0 rounded-full border border-emerald-400/10 bg-emerald-400/[0.03]">
       <div className="absolute inset-2 rounded-full border border-emerald-400/10" />
-      <div className="absolute inset-4 rounded-full border border-emerald-400/10" />
-      <div className="absolute inset-6 rounded-full border border-emerald-400/10" />
+      <div className="absolute inset-[13px] rounded-full border border-emerald-400/10" />
+      <div className="absolute inset-[19px] rounded-full border border-emerald-400/10" />
       <div className="radar-sweep absolute inset-2 rounded-full" />
-      <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
-      <span className={`absolute right-3 top-3 h-4 w-4 rounded-full ${active ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_14px_rgba(52,211,153,0.8)]`} />
+      <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
+      <span className={`absolute right-2.5 top-2.5 h-3 w-3 rounded-full ${active ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_12px_rgba(52,211,153,0.75)]`} />
     </div>
   );
 }
@@ -220,9 +220,6 @@ export default function HomeTab({ ctx }) {
   const displayCurrencyLabel = isCnyMode ? 'RMB' : 'USD';
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
-  const convertedAssetsLabel = isCnyMode
-    ? `≈ ${fmtCurrency(summary.totalAssetsUsd, 'USD', 2)}`
-    : `≈ ${fmtCurrency(summary.totalAssetsCny, 'CNY', 0)}`;
   const displayTodayPnl = summary.todayPnl * displayRate;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
   const pnlAmountClass = isCnyMode ? 'text-[13px]' : 'text-[15px]';
@@ -297,11 +294,7 @@ export default function HomeTab({ ctx }) {
         <div className="mt-3 text-[34px] font-extrabold leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
           {fmtCurrency(displayAssets, displayCurrency, 2)}
         </div>
-        <div className="mt-3 text-[13px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-          {convertedAssetsLabel}
-        </div>
-
-        <div className="mt-7 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
+        <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
           <div className="min-w-0 pr-3">
             <div className="text-[12px] text-white/50">今日盈亏</div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.todayPnl)}`} style={{ fontFamily: NUMBER_FONT }}>
@@ -325,42 +318,41 @@ export default function HomeTab({ ctx }) {
             <div className="mt-3 whitespace-nowrap text-[15px] font-black leading-tight text-white/90">
               {summary.holdingStockCount}只 · {summary.sellTradeCount}笔
             </div>
-            <div className="mt-1 text-[12px] text-white/40">持仓股票 · 卖出记录</div>
           </div>
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="text-[13px] font-semibold text-white/70">当前信号</div>
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-[12px] font-semibold text-white/70">当前信号</div>
           <button
             type="button"
             onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-            className="relative rounded-full px-2 py-1 text-[12px] font-bold text-white/50 active:scale-95"
+            className="relative rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white/50 active:scale-95"
           >
             策略状态
           </button>
         </div>
-        <div className="grid grid-cols-[76px_minmax(0,1fr)_88px] items-center gap-4">
+        <div className="grid grid-cols-[62px_minmax(0,1fr)_70px] items-center gap-3">
           <RadarVisual active={signalIsCalm} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <div className="truncate text-xl font-black text-white">{cleanSignalText(benchmarkStatus?.text)}</div>
-              <span className={`h-4 w-4 shrink-0 rounded-full ${signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_14px_rgba(52,211,153,0.8)]`} />
+            <div className="flex items-center gap-1.5">
+              <div className="truncate text-base font-black text-white">{cleanSignalText(benchmarkStatus?.text)}</div>
+              <span className={`h-3 w-3 shrink-0 rounded-full ${signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_12px_rgba(52,211,153,0.75)]`} />
             </div>
-            <div className="mt-2 text-[13px] text-white/50">{benchmarkStatus?.desc || '回撤<5%, 空仓等待'}</div>
-            <div className="mt-4 truncate text-[13px] text-white/40">耐心等待更高胜率机会</div>
+            <div className="mt-1.5 text-[11px] text-white/50">{benchmarkStatus?.desc || '回撤<5%, 空仓等待'}</div>
+            <div className="mt-2.5 truncate text-[11px] text-white/40">耐心等待更高胜率机会</div>
           </div>
           <div className="relative text-right">
             <button
               type="button"
               onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-              className={`text-[24px] font-black leading-none tabular-nums ${num(benchmarkDrawdown) <= -0.1 ? 'text-rose-400' : 'text-emerald-400'}`}
+              className={`text-[19px] font-black leading-none tabular-nums ${num(benchmarkDrawdown) <= -0.1 ? 'text-rose-400' : 'text-emerald-400'}`}
               style={{ fontFamily: NUMBER_FONT }}
             >
               {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}
             </button>
-            <div className="mt-2 text-[12px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} 回撤</div>
+            <div className="mt-1.5 text-[10px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} 回撤</div>
             {benchmarkMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setBenchmarkMenuOpen(false)} />
@@ -392,7 +384,7 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
         {benchmarkStock && (
-          <div className="mt-3 flex justify-end whitespace-nowrap text-[12px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+          <div className="mt-2.5 flex justify-end whitespace-nowrap text-[10px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
             ${fmtMoney(benchmarkStock.price, 2)} / 52周高 ${fmtMoney(benchmarkStock.high, 2)}
             <ChevronRight className="ml-1 inline h-3.5 w-3.5 align-[-2px] text-white/25" />
           </div>
