@@ -4,9 +4,37 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 记录首页数字层级提交并重触发部署
+### 2026-07-03 - 记录首页数字层级部署验证
 
 - Commit: `same commit`
+- Background: 首页数字层级运行时代码 `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72` 已通过后续 docs-only 触发提交 `81e202cfaf4c52542f6efc29a0b141c7ab2f0856` 完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
+- Changes:
+  - 回填首页数字层级改动的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和线上产物证据。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BQ-Txk2y.js` 20.82 kB / gzip 5.83 kB, `SettingsTab-ByI5o0mQ.js` 28.22 kB / gzip 11.02 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only verification record; runtime code already deployed by trigger commit `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`.
+- Production verification:
+  - Runtime commit: `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72`
+  - Deployment trigger commit: `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`
+  - GitHub Actions `build`: success, runs `28665772588` and `28665980534`
+  - Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7jgaxgSCXKmrpTevRbJp129FaisV`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-CNrhAves.js`, `App-B7iH9a-B.js`, `HomeTab-BQ-Txk2y.js`, `SettingsTab-ByI5o0mQ.js`
+  - `HomeTab-BQ-Txk2y.js` contains the smaller total-asset/drawdown text classes and no `汇率` text in the top asset card payload; it keeps the `≈ $`/`≈ ¥` converted-amount line.
+  - `SettingsTab-ByI5o0mQ.js` contains `v10.7.9.52`, "首页数字层级继续收紧", and "总资产副行删除重复汇率文案"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+- Rollback: 回滚本次 docs-only 提交只会移除验证记录,不影响首页运行时代码。
+
+### 2026-07-03 - 记录首页数字层级提交并重触发部署
+
+- Commit: `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`
 - Background: 首页数字层级运行时代码提交 `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72` 已推送到 GitHub `main`,GitHub Actions 已成功,但 Vercel 未在常规等待窗口内为该 SHA 创建 deployment 记录,需要用 docs-only 提交重触发 GitHub 集成并保留证据。
 - Changes:
   - 回填首页数字层级运行时代码提交 SHA。
@@ -18,8 +46,8 @@
   - `npm run build`: pass; `HomeTab-BQ-Txk2y.js` 20.82 kB / gzip 5.83 kB, `SettingsTab-ByI5o0mQ.js` 28.22 kB / gzip 11.02 kB.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
-- Deployment: pending; this docs-only commit is intended to trigger a fresh Vercel production deployment of latest `main`。
-- Production verification: pending。
+- Deployment: success; this docs-only commit triggered a fresh Vercel production deployment of latest `main`, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7jgaxgSCXKmrpTevRbJp129FaisV`。
+- Production verification: pass,见上方 `记录首页数字层级部署验证` 条目。
 - Rollback: 回滚本次 docs-only 提交只会移除部署触发记录,不影响首页运行时代码。
 
 ### 2026-07-03 - 收紧首页数字层级并移除汇率副文案
@@ -43,8 +71,8 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local mobile visual check: pass at 390x844 in both USD and RMB modes; no horizontal overflow and no `汇率` text in the top asset card.
-- Deployment: pushed to GitHub `main`; GitHub Actions run `28665772588` passed. Vercel did not create a deployment record for this SHA during the normal wait window, so a docs-only follow-up commit was used to re-trigger production deployment for latest `main`。
-- Production verification: pending on follow-up deployment trigger。
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28665772588` passed. Vercel did not create a deployment record for this SHA during the normal wait window, so docs-only follow-up commit `81e202cfaf4c52542f6efc29a0b141c7ab2f0856` re-triggered production deployment for latest `main`。
+- Production verification: pass after follow-up deployment trigger; production `HomeTab-BQ-Txk2y.js` contains the updated typography classes and no `汇率` text, `SettingsTab-ByI5o0mQ.js` contains `v10.7.9.52`, and `/api/quote?symbols=VIX` without auth returns `401`。
 - Rollback: 回滚本次提交会恢复首页上一版数字层级和总资产副行汇率展示;不影响交易、资产或目标逻辑。
 
 ### 2026-07-03 - 记录首页币种切换发布验证

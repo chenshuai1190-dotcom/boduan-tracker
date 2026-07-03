@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `5b40b9d2afc14372a65132adb802cae768f8c7f4`
-- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `5b40b9d2afc14372a65132adb802cae768f8c7f4`.
-- App changelog version shown in Settings: `v10.7.9.51`
+- Runtime code verified on production: `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72`
+- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72` and deployment trigger `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`.
+- App changelog version shown in Settings: `v10.7.9.52`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,14 +123,15 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `5b40b9d2afc14372a65132adb802cae768f8c7f4`
-- GitHub Actions `build`: success, run `28664999696`
-- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BeD4vZBihYbB9VjA4EAg9EQ6CGb6`, deployment id `5300500092`
-- Production chunks: `index-C1aFWIrR.js`, `App-Qgn3MtGg.js`, `HomeTab-D9tp3Z_b.js`, `SettingsTab-5CV0bdpD.js`
-- `HomeTab-D9tp3Z_b.js` contains `xmoney_home_currency`, the USD/RMB toggle, and the system font stack.
-- `SettingsTab-5CV0bdpD.js` contains `v10.7.9.51`
+- Runtime commit: `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72`
+- Deployment trigger commit: `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`
+- GitHub Actions `build`: success, runs `28665772588` and `28665980534`
+- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7jgaxgSCXKmrpTevRbJp129FaisV`
+- Production chunks: `index-CNrhAves.js`, `App-B7iH9a-B.js`, `HomeTab-BQ-Txk2y.js`, `SettingsTab-ByI5o0mQ.js`
+- `HomeTab-BQ-Txk2y.js` contains the smaller total-asset and drawdown text classes, keeps the USD/RMB converted-amount line, and no longer contains `汇率` in the top asset-card payload.
+- `SettingsTab-ByI5o0mQ.js` contains `v10.7.9.52`, "首页数字层级继续收紧", and "总资产副行删除重复汇率文案".
 - `/api/quote?symbols=VIX` without auth returns `401`
-- Local 390x844 preview before deploy showed no horizontal overflow, dark/gold home bottom nav, and RMB selection persisted after reload.
+- Local 390x844 preview before deploy showed no horizontal overflow in both USD and RMB modes, no `汇率` text in the top asset card, dark/gold home bottom nav, and RMB selection persisted after reload.
 - RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
 
 Known non-blocking CI warning:
@@ -187,6 +188,10 @@ CI:
 
 Recent important commits:
 
+- `81e202c`: recorded deployment trigger for the home typography update.
+- `ba94dfa`: tightened home typography hierarchy and removed the duplicate exchange-rate text.
+- `5b40b9d`: refined home currency toggle and dark home bottom navigation styling.
+- `3ca274c`: rebuilt the home investment-account dashboard.
 - `af69dc9`: recorded quote boundary deployment verification.
 - `7be8caf`: split quote API boundaries and added safety tests.
 - `c6be61f`: deleted old `部署指南.md`.
