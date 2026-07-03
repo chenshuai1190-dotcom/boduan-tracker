@@ -4,9 +4,36 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 精简首页资产卡和替换 BTC 市场卡
+### 2026-07-03 - 记录首页 BTC 市场卡部署验证
 
 - Commit: `same commit`
+- Background: 首页资产卡精简、当前信号收紧和 BTC 市场卡运行时代码已推送到 GitHub `main` 并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
+- Changes:
+  - 回填运行时代码提交 `21242f015508d37aa85f7e141f7a548b7e0fae01` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和线上产物证据。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BAW_INYx.js` 20.56 kB / gzip 5.80 kB, `SettingsTab-Dl_xZT64.js` 28.48 kB / gzip 11.12 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only verification record; runtime code already deployed by commit `21242f015508d37aa85f7e141f7a548b7e0fae01`.
+- Production verification:
+  - Runtime commit: `21242f015508d37aa85f7e141f7a548b7e0fae01`
+  - GitHub Actions `CI`: success, run `28667320117`
+  - Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4KzszEVaRnYmWCRjnqUTvGasRbEK`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-DOhTX5qe.js`, `App-DcFWu00c.js`, `HomeTab-BAW_INYx.js`, `SettingsTab-Dl_xZT64.js`
+  - `HomeTab-BAW_INYx.js` contains current-signal shrink classes `h-[62px]`, `text-[19px]`, `grid-cols-[62px_minmax(0,1fr)_70px]`; it no longer contains `≈`, `持仓股票`, or `卖出记录` helper text.
+  - `SettingsTab-Dl_xZT64.js` contains `v10.7.9.53`, "总资产卡删除约等金额副行", "当前信号卡整体缩小约 20%", and "市场卡将黄金/美元替换为 BTC/美元"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+- Rollback: 回滚本次 docs-only 提交只会移除验证记录,不影响首页运行时代码。
+
+### 2026-07-03 - 精简首页资产卡和替换 BTC 市场卡
+
+- Commit: `21242f015508d37aa85f7e141f7a548b7e0fae01`
 - Background: 用户继续按效果图收紧首页:总资产卡不再需要任何副行换算,持仓数量下方说明文字冗余,当前信号区域仍偏大,且第四张市场卡希望从黄金/美元换成 BTC/美元。
 - Changes:
   - 首页总资产卡删除另一币种约等金额副行,保留 USD/RMB 切换和主金额。
@@ -27,8 +54,8 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local mobile visual check: pass via Chrome DevTools Protocol mobile viewport; no horizontal overflow offenders, no `≈` text, no `持仓股票` / `卖出记录` helper text, BTC present and gold absent.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28667320117` passed; Vercel status success with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4KzszEVaRnYmWCRjnqUTvGasRbEK`。
+- Production verification: pass,见上方 `记录首页 BTC 市场卡部署验证` 条目。
 - Rollback: 回滚本次提交会恢复资产卡副行、当前信号上一版尺寸和黄金/美元市场卡;不影响交易、资产或目标逻辑。
 
 ### 2026-07-03 - 记录首页数字层级部署验证

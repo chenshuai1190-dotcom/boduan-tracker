@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72`
-- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72` and deployment trigger `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`.
-- App changelog version shown in Settings: `v10.7.9.52`
+- Runtime code verified on production: `21242f015508d37aa85f7e141f7a548b7e0fae01`
+- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `21242f015508d37aa85f7e141f7a548b7e0fae01`.
+- App changelog version shown in Settings: `v10.7.9.53`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,15 +123,15 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `ba94dfa77b9ee4d5f8cf55b37b93a8ef4c01ec72`
-- Deployment trigger commit: `81e202cfaf4c52542f6efc29a0b141c7ab2f0856`
-- GitHub Actions `build`: success, runs `28665772588` and `28665980534`
-- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7jgaxgSCXKmrpTevRbJp129FaisV`
-- Production chunks: `index-CNrhAves.js`, `App-B7iH9a-B.js`, `HomeTab-BQ-Txk2y.js`, `SettingsTab-ByI5o0mQ.js`
-- `HomeTab-BQ-Txk2y.js` contains the smaller total-asset and drawdown text classes, keeps the USD/RMB converted-amount line, and no longer contains `汇率` in the top asset-card payload.
-- `SettingsTab-ByI5o0mQ.js` contains `v10.7.9.52`, "首页数字层级继续收紧", and "总资产副行删除重复汇率文案".
+- Runtime commit: `21242f015508d37aa85f7e141f7a548b7e0fae01`
+- GitHub Actions `CI`: success, run `28667320117`
+- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4KzszEVaRnYmWCRjnqUTvGasRbEK`
+- Production chunks: `index-DOhTX5qe.js`, `App-DcFWu00c.js`, `HomeTab-BAW_INYx.js`, `SettingsTab-Dl_xZT64.js`
+- `HomeTab-BAW_INYx.js` contains the current-signal shrink classes and no longer contains `≈`, `持仓股票`, or `卖出记录` helper text.
+- `SettingsTab-Dl_xZT64.js` contains `v10.7.9.53`, "总资产卡删除约等金额副行", "当前信号卡整体缩小约 20%", and "市场卡将黄金/美元替换为 BTC/美元".
+- Server quote provider source now maps the fourth market card to EODHD `BTC-USD.CC`; unauthenticated production quote content remains unreadable by design.
 - `/api/quote?symbols=VIX` without auth returns `401`
-- Local 390x844 preview before deploy showed no horizontal overflow in both USD and RMB modes, no `汇率` text in the top asset card, dark/gold home bottom nav, and RMB selection persisted after reload.
+- Local Chrome DevTools Protocol mobile preview before deploy showed no horizontal overflow offenders, no `≈` text, no `持仓股票` / `卖出记录` helper text, BTC present, and gold absent.
 - RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
 
 Known non-blocking CI warning:
@@ -188,6 +188,7 @@ CI:
 
 Recent important commits:
 
+- `21242f0`: refined home asset-card density, shrank current signal, and changed the fourth market card to BTC/USD.
 - `81e202c`: recorded deployment trigger for the home typography update.
 - `ba94dfa`: tightened home typography hierarchy and removed the duplicate exchange-rate text.
 - `5b40b9d`: refined home currency toggle and dark home bottom navigation styling.
