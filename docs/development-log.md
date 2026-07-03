@@ -4,9 +4,36 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 对齐首页自选持仓列表字号
+### 2026-07-03 - 记录首页列表字号部署验证
 
 - Commit: `same commit`
+- Background: 首页 `自选 / 持仓` 列表字号和行高改动已推送到 GitHub `main` 并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
+- Changes:
+  - 回填运行时代码提交 `eb47a1defc56ef44300a25af8930bb4984d28732` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本和线上产物证据。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 21 tests.
+  - `npm run build`: pass; `HomeTab-BQFTB0wJ.js` 20.77 kB / gzip 5.86 kB, `SettingsTab-Tord0uk8.js` 28.76 kB / gzip 11.23 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: docs-only verification record; runtime code already deployed by commit `eb47a1defc56ef44300a25af8930bb4984d28732`.
+- Production verification:
+  - Runtime commit: `eb47a1defc56ef44300a25af8930bb4984d28732`
+  - GitHub Actions `CI`: success, run `28668049380`
+  - Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9UPP3BLCdE2FhyWNybx6XRoHPMd3`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-Dv996v4w.js`, `App-BqYxDnF0.js`, `HomeTab-BQFTB0wJ.js`, `SettingsTab-Tord0uk8.js`
+  - `HomeTab-BQFTB0wJ.js` contains `查看全部`, `min-h-[43px]`, `text-[13px]`, `text-[10px]`, and the tightened table grid class.
+  - `SettingsTab-Tord0uk8.js` contains `v10.7.9.54`, "首页自选/持仓列表按效果图重排", "列表改为 3 行预览", and "行尾箭头、行高和分隔线按效果图调整"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+- Rollback: 回滚本次 docs-only 提交只会移除验证记录,不影响首页运行时代码。
+
+### 2026-07-03 - 对齐首页自选持仓列表字号
+
+- Commit: `eb47a1defc56ef44300a25af8930bb4984d28732`
 - Background: 用户要求首页底部 `自选 / 持仓` 和列表文字大小严格参考效果图,当前列表行高、右上角动作和行内文字层级仍不够贴近。
 - Changes:
   - 首页列表顶部 tab 改为效果图式 14px 加粗文字,右侧动作改为 `查看全部` + 箭头。
@@ -20,12 +47,12 @@
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 21 tests.
-  - `npm run build`: pass; `HomeTab-DeL0LtDH.js` 20.83 kB / gzip 5.89 kB, `SettingsTab-Tord0uk8.js` 28.76 kB / gzip 11.23 kB.
+  - `npm run build`: pass; `HomeTab-BQFTB0wJ.js` 20.77 kB / gzip 5.86 kB, `SettingsTab-Tord0uk8.js` 28.76 kB / gzip 11.23 kB.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local mobile visual check: pass via Chrome DevTools Protocol mobile viewport; no horizontal overflow offenders, default preview shows 3 stock rows, `查看全部` is visible, `添加` / `记一笔` are absent, row height is 43px, symbol font is 13px, company-name font is 10px, and price font is 13px.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions run `28668049380` passed; Vercel status success with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9UPP3BLCdE2FhyWNybx6XRoHPMd3`。
+- Production verification: pass,见上方 `记录首页列表字号部署验证` 条目。
 - Rollback: 回滚本次提交会恢复首页列表上一版字号、行高、右上角添加/记一笔入口和最多 6 行自选预览;不影响交易、资产或目标逻辑。
 
 ### 2026-07-03 - 记录首页 BTC 市场卡部署验证
