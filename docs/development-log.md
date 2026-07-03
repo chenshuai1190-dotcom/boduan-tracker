@@ -4,9 +4,32 @@
 
 ## 2026-07-03 Asia/Shanghai
 
-### 2026-07-03 - 拆分 quote API 安全边界并加入测试
+### 2026-07-03 - 记录 quote API 安全边界部署验证
 
 - Commit: `same commit`
+- Background: quote API 边界拆分、测试基线和 RLS REST 探针已推送到 `main`,需要把生产验证证据补进交接日志。
+- Changes:
+  - 回填本轮运行时代码提交 `7be8caf` 的部署状态和线上验证结果。
+  - 记录 GitHub Actions、Vercel、生产 chunk、未登录 quote API 401 和 Supabase RLS REST 探针结果。
+- Key files:
+  - `docs/development-log.md`
+- Validation:
+  - `git diff --check`: pass
+- Deployment: 本次为日志回填提交;推送 `main` 后由 Vercel 自动部署,不改变运行时代码。
+- Production verification:
+  - Runtime commit: `7be8caf8a62db137047c051dd3a856c94527ff96`
+  - GitHub Actions `build`: success
+  - Vercel status: success, deployment completed
+  - Production chunks: `index-BFR1MOM7.js`, `App-CB4Nn09n.js`, `SettingsTab-DMWkNhZg.js`
+  - Settings chunk contains `v10.7.9.49`; App chunk has no browser EODHD token/WS path
+  - `GET /api/quote?symbols=VIX` without auth: `401`
+  - `npm run verify:rls:rest`: pass,12 user-owned tables returned `visibleRows=0` for anonymous REST probes
+- Rollback: 回滚本次日志提交只会移除部署记录,不会改变应用行为。
+- Follow-up: 继续把 provider 业务解析移出 `api/quote.js`,并在有 Supabase SQL/admin 权限时做 metadata-level RLS 复核。
+
+### 2026-07-03 - 拆分 quote API 安全边界并加入测试
+
+- Commit: `7be8caf`
 - Background: 用户要求继续 Phase 0,先拆 `/api/quote.js` 的 provider/timeout/error 边界,再加第一批自动化测试,并复核 Supabase RLS 线上状态。
 - Changes:
   - 将 quote API 的认证/CORS、错误响应、symbol 解析、provider 路由、timeout fetch 拆到 `server/quote/*`。
@@ -37,8 +60,8 @@
   - `npm audit`: pass,0 vulnerabilities
   - `git diff --check`: pass
   - `npm run verify:rls:rest`: pass,12 user-owned tables returned `visibleRows=0` for anonymous REST probes
-- Deployment: pending
-- Production verification: pending
+- Deployment: 已推送 `main`;Vercel 生产部署完成。
+- Production verification: pass,见上方 `记录 quote API 安全边界部署验证`。
 - Rollback: 回滚本次提交会恢复旧 quote API 单文件边界和无测试基线;如回滚,不要继续新增专业功能。
 - Follow-up: 继续把 EODHD/Yahoo/CNN/Nasdaq provider 的完整实现移出 `api/quote.js`,并在有 Supabase SQL/admin 权限时做 metadata-level RLS 复核。
 
