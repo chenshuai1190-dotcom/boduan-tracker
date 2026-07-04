@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 新增全局下拉刷新并修复工具账本边界
 
-- Commit: `same commit`
+- Commit: `e1eed080f893b0d715e77c2a610c97b52387c79e`
 - Background: 用户反馈添加交易在某些连续录入场景下默认停留在卖出,要求改为买入;同时要求增加全局刷新能力,在页面拉到头部上方时强制刷新内容。随后发现致命边界问题:波段记录工具里的新增买入复用了正式交易弹窗,写入了 `stock_trades` 主交易账本,导致测试波段记录串到正式当日订单/持仓里;用户同时要求波段和摊薄成本提交前必须有确认框并防重复提交。
 - Changes:
   - 添加交易保存后重置表单时不再保留上一笔买/卖方向,下一笔新增默认回到 `买入`;从持仓行主动点击 `卖出` 仍会按卖出打开,修改已有卖出记录也继续保留原方向。
@@ -28,6 +28,7 @@
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-process.md`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 48 tests.
@@ -38,8 +39,20 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` before deployment.
   - Local source marker check: pass; source contains `tradeEntryScope === 'wave'`, `await db.insertTrade`, `await db.insertStockTrade`, wave/cost-basis confirmation copy, `confirmSubmittingRef`, `costBasisSubmittingRef`, `PULL_REFRESH_THRESHOLD` and `v10.7.9.93`.
   - Local build marker check: pass; built chunks contain global pull-refresh labels, `[全局刷新]`, wave/cost-basis confirmation copy, confirmation lock marker `处理中...`, `v10.7.9.93`, and the settings changelog boundary notes.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `e1eed080f893b0d715e77c2a610c97b52387c79e`.
+  - GitHub `main`: `e1eed080f893b0d715e77c2a610c97b52387c79e`.
+  - GitHub Actions `CI`: success, run `28709280717`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7BHnQbEUkuuZWHiVArFD5djAAtEM`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=e1eed08-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CdgM0fN4.js`, `/assets/index-9kY3lAgu.css`.
+  - Production runtime chunks: `/assets/App-6N99t4gr.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-c6sOAuGA.js`, `/assets/SettingsTab-BKE1pb9f.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BHDIU5r6.js`.
+- Production verification:
+  - Production App marker check: `App-6N99t4gr.js` contains `下拉刷新`, `松开刷新`, `刷新中`, `[全局刷新]`, `[云端重试]`, `确认保存摊薄成本记录?`, `摊薄成本独立小工具` and `处理中...`.
+  - Production TradesTab marker check: `TradesTab-c6sOAuGA.js` contains `添加波段记录`, `确认保存到波段记录?`, `不会进入正式持仓、当日订单或总资产计算`, `确认保存正式交易?` and `确认修改正式交易?`.
+  - Production SettingsTab marker check: `SettingsTab-BKE1pb9f.js` contains `v10.7.9.93`, `新增全局下拉刷新并修复工具账本边界`, `波段记录新增只写入波段独立账本` and `防重复提交锁`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-BHDIU5r6.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复新增交易后保留上一笔买/卖方向,移除顶部下拉强制刷新能力,并恢复波段记录入口复用正式交易弹窗的风险;不会影响 RLS、环境变量或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 同步首页头部卡片和指数卡字重

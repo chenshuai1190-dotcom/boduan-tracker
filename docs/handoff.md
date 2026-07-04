@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
-- 最近应用代码提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
+- 当前产品基准提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
+- 最近应用代码提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.92`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`
-- Vercel 部署记录: runtime commit `d435d55bb37f25f8e97d80276c098f73277f0d54`, GitHub Actions `CI` run `28708536097` success
+- 设置页版本: `v10.7.9.93`
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7BHnQbEUkuuZWHiVArFD5djAAtEM`
+- Vercel 部署记录: runtime commit `e1eed080f893b0d715e77c2a610c97b52387c79e`, GitHub Actions `CI` run `28709280717` success
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.92` 的首页头部/指数字重同步、订单操作弹窗可见性和股票中文名兜底。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认。
 
 ## 2. 先读这些文档
 
@@ -138,30 +138,33 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 最近完整验证记录:
 
-- `npm test`: pass,46 tests。
+- `npm test`: pass,48 tests。
 - `npm run build`: pass。
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.92` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `d435d55bb37f25f8e97d80276c098f73277f0d54`, GitHub Actions `CI` run `28708536097` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`。
+- `v10.7.9.93` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `e1eed080f893b0d715e77c2a610c97b52387c79e`, GitHub Actions `CI` run `28709280717` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7BHnQbEUkuuZWHiVArFD5djAAtEM`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/index-BVynd8zx.css`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-F_bNfXlX.js`, `/assets/SettingsTab-CstCni--.js`, `/assets/App-BhFyUqBE.js`。
-- 生产 entry chunks: `/assets/index-C5bS0IWF.js`, `/assets/index-BVynd8zx.css`。
-- 生产 runtime chunks: `/assets/App-04ooeO9p.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-F_bNfXlX.js`, `/assets/SettingsTab-CstCni--.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-erGYhWiQ.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-9kY3lAgu.css`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-c6sOAuGA.js`, `/assets/SettingsTab-BKE1pb9f.js`, `/assets/App-BXhQEAMQ.js`。
+- 生产 entry chunks: `/assets/index-CdgM0fN4.js`, `/assets/index-9kY3lAgu.css`。
+- 生产 runtime chunks: `/assets/App-6N99t4gr.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-c6sOAuGA.js`, `/assets/SettingsTab-BKE1pb9f.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BHDIU5r6.js`。
 
 关键 marker:
 
-- 生产 `App-04ooeO9p.js` 包含 `台积电`,`微软` 和 `英伟达`,确认股票中文名兜底已进入运行时。
-- 生产 `HomeTab-CLLDltlT.js` 包含 `text-[34px] font-normal`,`text-[14px] font-normal leading-none` 和 `text-white/40`,确认首页头部和四大指数卡字重/弱文字修正已进入运行时。
-- 生产 `TradesTab-F_bNfXlX.js` 包含 `订单操作`,`text-white/60`,`text-white/80` 和 `text-white/45`,确认订单操作弹窗中文名、取消按钮和弱文字可见性已修正。
-- 生产 `SettingsTab-CstCni--.js` 包含 `v10.7.9.92`、`同步首页头部卡片和指数卡字重`、`代码式名称自动用中文股票名兜底` 和 `修正部分弱文字的无效透明度 class`。
-- 生产 `HomeTab-CLLDltlT.js` 和 `TradesTab-F_bNfXlX.js` 不再包含 `text-white/38`,`text-white/42` 或 `text-white/72`。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-erGYhWiQ.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `App-6N99t4gr.js` 包含 `下拉刷新`,`松开刷新`,`刷新中`,`[全局刷新]`,`[云端重试]`,`确认保存摊薄成本记录?`,`摊薄成本独立小工具` 和 `处理中...`,确认全局下拉刷新、摊薄工具确认和通用确认提交锁已进入运行时。
+- 生产 `TradesTab-c6sOAuGA.js` 包含 `添加波段记录`,`确认保存到波段记录?`,`不会进入正式持仓、当日订单或总资产计算`,`确认保存正式交易?` 和 `确认修改正式交易?`,确认波段记录入口已和正式主交易账本分流并有提交确认。
+- 生产 `SettingsTab-BKE1pb9f.js` 包含 `v10.7.9.93`,`新增全局下拉刷新并修复工具账本边界`,`波段记录新增只写入波段独立账本` 和 `防重复提交锁`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-BHDIU5r6.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
+
+### 全局刷新和工具账本边界
+
+- `v10.7.9.93`: 添加交易新增完成后默认回到买入;页面滚到顶部继续下拉可强制刷新云端数据、汇率和已登录行情;顶部显示轻量 `下拉刷新/松开刷新/刷新中/已刷新` 状态。
+- `v10.7.9.93`: 波段记录新增入口改为显式 `wave` scope,只写旧账本 `trades`,不再串到正式交易 `stock_trades`;摊薄成本新增交易只写 `cost_basis_trades`;波段记录、摊薄成本和通用确认弹窗都增加提交确认和防重复提交锁。
 
 ### 设置页和账户
 
@@ -277,6 +280,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `tests/fx-*.test.js`
 - `tests/db-guards.test.js`
 - `tests/stock-universe.test.js`
+- `tests/tool-ledger-boundaries.test.js`
 
 ## 10. 产品规则和易错点
 
@@ -293,6 +297,9 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 - 主买卖账本是 `stock_trades`。
 - 旧 `trades` 只作为波段记录兼容表。
+- 波段记录入口只能写 `trades`,不能复用正式主交易保存路径写入 `stock_trades`。
+- 摊薄成本工具只能写 `cost_basis_trades`,不能并入正式主账本或波段记录。
+- 波段记录和摊薄成本新增提交前必须弹确认框,确认文案要说明写入范围,并用提交锁防止重复写入。
 - `deriveInvestmentSummary` 是首页和交易页资产/持仓口径来源。
 - 卖出按时间正序用移动均价结转成本。
 - 累计收益率分母是当前实际持仓成本,不是历史总买入额。
@@ -376,7 +383,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.92` 或更新版本。
+- 设置页显示 `v10.7.9.93` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -391,11 +398,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
-最近应用代码提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
-设置页版本: `v10.7.9.92`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`
-部署记录: GitHub Actions `CI` run `28708536097` success; runtime commit `d435d55bb37f25f8e97d80276c098f73277f0d54`
+当前产品基准提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
+最近应用代码提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
+设置页版本: `v10.7.9.93`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7BHnQbEUkuuZWHiVArFD5djAAtEM`
+部署记录: GitHub Actions `CI` run `28709280717` success; runtime commit `e1eed080f893b0d715e77c2a610c97b52387c79e`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -423,6 +430,8 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 首页自选添加/编辑/排序/删除。
 - 首页自选/持仓表格已收窄名称列并压缩右侧指标列,`52周跌幅` 打开首屏即可完整看到;首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口已改为正常字重。
 - 首页头部总资产卡片已同步交易页字号/位置和正常字重;首页四大指数卡片已取消加粗;当前信号、VIX 和 CNN 保持不动。
+- 添加交易新增完成后默认回到买入;页面滚到顶部继续下拉可强制刷新云端数据、汇率和已登录行情。
+- 波段记录新增只写入旧账本 `trades`,不再串到正式交易记录 `stock_trades`;摊薄成本新增只写 `cost_basis_trades`;波段记录和摊薄成本提交前都有确认框和防重复提交锁。
 - 旧自选/交易记录中 `name=TSM` 这类代码式名称会用中英对照表兜底显示 `台积电` 等中文名。
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。
