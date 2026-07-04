@@ -128,7 +128,7 @@ export default function TradesTab({ ctx }) {
   const displayRate = currencyMode === 'CNY' ? rate : 1;
   const pnlAmountClass = 'text-[13px]';
   const tradeModalInputStyle = { colorScheme: 'dark' };
-  const tradeModalBaseInput = 'w-full rounded-lg border bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#f6b54b]/70 focus:bg-white/[0.075]';
+  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-lg border border-transparent bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1 block text-[10px] font-bold text-white/45';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
@@ -988,7 +988,7 @@ export default function TradesTab({ ctx }) {
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl border border-white/10 bg-[#0b0f16] shadow-[0_-20px_70px_rgba(0,0,0,0.68)] sm:rounded-3xl"
+            className="w-full max-w-md min-w-0 max-h-[90vh] overflow-y-auto rounded-t-3xl border border-white/10 bg-[#0b0f16] shadow-[0_-20px_70px_rgba(0,0,0,0.68)] sm:rounded-3xl"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
               {/* 顶部把手 + 标题 */}
@@ -1005,15 +1005,15 @@ export default function TradesTab({ ctx }) {
                 </div>
               </div>
 
-              <div className="p-4">
+              <div className="min-w-0 p-4">
                 {/* 买/卖切换 */}
-                <div className="mb-4 flex gap-2">
+                <div className="mb-4 flex min-w-0 gap-2">
                   <button
                     onClick={() => setNewTrade({ ...newTrade, side: 'buy' })}
                     className={`flex-1 rounded-xl border py-3 text-sm font-bold transition active:scale-95 ${
                       newTrade.side === 'buy'
-                        ? 'border-rose-400/75 bg-rose-500/22 text-white shadow-[0_0_26px_rgba(244,63,94,0.18)]'
-                        : 'border-white/10 bg-white/[0.045] text-white/55'
+                        ? 'border-rose-500/20 bg-rose-600 text-white shadow-[0_12px_28px_rgba(225,29,72,0.28)]'
+                        : 'border-transparent bg-white/[0.055] text-white/55'
                     }`}
                   >
                     买入
@@ -1022,8 +1022,8 @@ export default function TradesTab({ ctx }) {
                     onClick={() => setNewTrade({ ...newTrade, side: 'sell' })}
                     className={`flex-1 rounded-xl border py-3 text-sm font-bold transition active:scale-95 ${
                       newTrade.side === 'sell'
-                        ? 'border-emerald-400/75 bg-emerald-500/22 text-white shadow-[0_0_26px_rgba(16,185,129,0.18)]'
-                        : 'border-white/10 bg-white/[0.045] text-white/55'
+                        ? 'border-emerald-500/20 bg-emerald-600 text-white shadow-[0_12px_28px_rgba(5,150,105,0.28)]'
+                        : 'border-transparent bg-white/[0.055] text-white/55'
                     }`}
                   >
                     卖出
@@ -1031,8 +1031,8 @@ export default function TradesTab({ ctx }) {
                 </div>
 
                 {/* 股票代码 + 名称 */}
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div>
+                <div className="grid min-w-0 grid-cols-2 gap-2 mb-2">
+                  <div className="min-w-0">
                     <label className={`${tradeModalLabelClass} flex items-center gap-1.5`}>
                       <span>股票代码</span>
                       {lookupStatus === 'loading' && (
@@ -1067,42 +1067,38 @@ export default function TradesTab({ ctx }) {
                           price: '',
                         });
                       }}
-                      className={`${tradeModalBaseInput} font-bold uppercase ${
-                        lookupStatus === 'found' ? 'border-emerald-400/75 focus:border-emerald-300' :
-                        lookupStatus === 'notfound' ? 'border-amber-400/75 focus:border-amber-300' :
-                        'border-white/10'
-                      }`}
+                      className={`${tradeModalBaseInput} font-bold uppercase`}
                       style={tradeModalInputStyle}
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className={tradeModalLabelClass}>中文名(自动)</label>
                     <input
                       type="text"
                       placeholder="自动填充"
                       value={newTrade.name}
                       onChange={(e) => setNewTrade({ ...newTrade, name: e.target.value })}
-                      className={`${tradeModalBaseInput} border-white/10`}
+                      className={tradeModalBaseInput}
                       style={tradeModalInputStyle}
                     />
                   </div>
                 </div>
 
                 {/* 日期(独占一行) */}
-                <div className="mb-2">
+                <div className="mb-2 min-w-0">
                   <label className={tradeModalLabelClass}>日期</label>
                   <input
                     type="date"
                     value={newTrade.date}
                     onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
-                    className={`${tradeModalBaseInput} border-white/10 text-center text-[15px] font-semibold tabular-nums`}
-                    style={tradeModalInputStyle}
+                    className={`${tradeModalBaseInput} appearance-none text-center text-[15px] font-semibold tabular-nums`}
+                    style={{ ...tradeModalInputStyle, WebkitAppearance: 'none' }}
                   />
                 </div>
 
                 {/* 价格 + 股数(共一行) */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div>
+                <div className="grid min-w-0 grid-cols-2 gap-2 mb-4">
+                  <div className="min-w-0">
                     <label className={tradeModalLabelClass}>价格 ($, 自动)</label>
                     <input
                       type="number"
@@ -1111,11 +1107,11 @@ export default function TradesTab({ ctx }) {
                       inputMode="decimal"
                       value={newTrade.price}
                       onChange={(e) => setNewTrade({ ...newTrade, price: e.target.value })}
-                      className={`${tradeModalBaseInput} border-white/10 tabular-nums`}
+                      className={`${tradeModalBaseInput} tabular-nums`}
                       style={tradeModalInputStyle}
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className={tradeModalLabelClass}>股数</label>
                     <input
                       type="number"
@@ -1123,7 +1119,7 @@ export default function TradesTab({ ctx }) {
                       inputMode="numeric"
                       value={newTrade.shares}
                       onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
-                      className={`${tradeModalBaseInput} border-white/10 tabular-nums`}
+                      className={`${tradeModalBaseInput} tabular-nums`}
                       style={tradeModalInputStyle}
                     />
                   </div>
@@ -1131,7 +1127,7 @@ export default function TradesTab({ ctx }) {
 
                 <div className="flex gap-2">
                   <button onClick={addTrade} className="flex-1 rounded-xl border border-emerald-300/30 bg-emerald-500/85 py-3 text-sm font-black text-white shadow-[0_12px_32px_rgba(16,185,129,0.22)] transition active:scale-95">{newTrade.id || newTrade.editingId ? '确认修改' : '确认添加'}</button>
-                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-white/10 bg-white/[0.07] py-3 text-sm font-bold text-white/75 transition active:scale-95">取消</button>
+                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-transparent bg-white/[0.07] py-3 text-sm font-bold text-white/72 transition active:scale-95">取消</button>
                 </div>
               </div>
             </div>

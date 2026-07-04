@@ -4,6 +4,36 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 优化交易录入弹层按钮和输入框细节
+
+- Commit: `same commit`
+- Background: 用户根据手机截图反馈 `v10.7.9.86` 的添加/修改交易弹层仍有三个细节不符合预期:买入/卖出选中态不应只是红绿边框,而应是整块按钮区域红色或绿色;股票代码、中文名、日期、价格和股数输入框的边框效果太多,视觉复杂;移动端日期输入框把底部抽屉撑出屏幕,并要求把该类日期框撑出问题写入开发准则。
+- Changes:
+  - 交易页主账本 `添加交易/修改交易` 共用弹层的买入/卖出选中态改为整块填充:买入选中为红色块,卖出选中为绿色块,未选按钮保持暗灰。
+  - 股票代码、中文名、日期、价格和股数输入框取消可见边框效果,保留深色底和轻微 focus 底色变化;股票查询状态仍保留文字提示,不再通过输入框边框染色。
+  - 日期输入框增加 `w-full max-w-full min-w-0 box-border`、`appearance-none` 和 `WebkitAppearance: 'none'`;弹层、两列网格和输入父级同步补 `min-w-0`,避免 iOS/Safari 原生日期控件按自身最小宽度撑出底部抽屉。
+  - 取消按钮取消可见描边,确认添加/确认修改继续保留绿色主按钮效果。
+  - `docs/development-process.md` 新增移动端弹层原生输入控件防溢出准则,要求日期框和输入框布局按 390px 左右移动端宽度核对不溢出。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.87`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-DRXaDfVe.js` 47.97 kB / gzip 10.62 kB, `SettingsTab-LW98M0Eg.js` 29.60 kB / gzip 11.50 kB, `App-U2TQsLpn.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - Local source marker check: pass; source contains `bg-rose-600`, `bg-emerald-600`, `border-transparent bg-white/[0.06]`, `WebkitAppearance: 'none'`, `min-w-0`, `v10.7.9.87` and the new date-input overflow rule.
+  - Local build marker check: pass; built `TradesTab-DRXaDfVe.js` contains the full-fill buy/sell button markers, borderless input markers and date overflow constraints; built `SettingsTab-LW98M0Eg.js` contains `v10.7.9.87`, `交易录入弹层细节` and `日期输入框在移动端撑出弹层`.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending deployment.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.86` 的买入/卖出边框式选中态、输入框可见边框和缺少日期框防溢出准则的开发流程;交易新增、修改、删除和云端同步逻辑不受影响。
+
 ### 2026-07-04 - 交易录入弹层深色化
 
 - Commit: `ca68dec0f2493e544a7e2288b500a624ded9713e`

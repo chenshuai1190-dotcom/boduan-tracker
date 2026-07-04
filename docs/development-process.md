@@ -32,6 +32,7 @@
    - 不提交真实 `.env`、API token、截图中的密钥或 Supabase service role key。
    - 前端密钥只能使用公开 anon key;付费行情 token 必须只放在服务端环境变量 `EODHD_API_KEY`。
    - 所有用户主动提交类操作(新增、保存、删除、同步、导入、导出等)必须在请求期间禁用重复提交,并在完成后给出明确成功或失败反馈;不能静默完成后让用户猜结果。
+   - 移动端弹层里的 `date`、`number`、`text` 等原生输入控件必须显式限制 `w-full max-w-full min-w-0 box-border`;日期框还应使用 `appearance-none`/`WebkitAppearance: 'none'` 或等效约束,避免 iOS/Safari 原生日期控件按自身最小宽度把底部抽屉撑出屏幕。涉及输入框布局时必须按 390px 左右移动端宽度核对不溢出。
 
 4. **本地验证**
    - 每次可部署改动至少运行:

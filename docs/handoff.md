@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `ca68dec0f2493e544a7e2288b500a624ded9713e`
-- 最近应用代码提交: `ca68dec0f2493e544a7e2288b500a624ded9713e`
+- 当前产品基准提交: `same commit` (`v10.7.9.87` runtime,部署后回填)
+- 最近应用代码提交: `same commit` (`v10.7.9.87` runtime,部署后回填)
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.86`
-- Vercel 最新运行时部署: `v10.7.9.86` runtime 成功
-- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4C6xVK7pfKDDpqJZb4Pop6pHvsBE`
+- 设置页版本: `v10.7.9.87`
+- Vercel 最新运行时部署: `v10.7.9.87` runtime 待 GitHub push 后自动部署
+- Vercel 部署记录: 待部署后回填
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.86` 的交易页添加/修改交易弹层深色化。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.87` 的交易页添加/修改交易弹层按钮和输入框细节优化。
 
 ## 2. 先读这些文档
 
@@ -144,20 +144,19 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.86` runtime commit `ca68dec0f2493e544a7e2288b500a624ded9713e` 已部署;GitHub Actions `CI`: success, run `28705885242`;GitHub commit status `Vercel`: success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4C6xVK7pfKDDpqJZb4Pop6pHvsBE`;生产 `GET https://boduan-tracker.vercel.app/?v=ca68dec-runtime`: HTTP 200。
+- `v10.7.9.87` runtime 待 GitHub push 后由 Vercel 自动部署;当前本地验证已通过,实际 runtime commit、GitHub Actions、Vercel target 和生产 chunk 待部署完成后回填。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/TradesTab-u8qgt3zg.js`, `/assets/SettingsTab-vY8Gf80O.js`, `/assets/App-CKZInmDf.js`。
-- 生产 entry chunks: `/assets/index-CE9yRHNx.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`。
-- 生产 runtime chunks: `/assets/App-CCVSwp4h.js`, `/assets/TradesTab-u8qgt3zg.js`, `/assets/SettingsTab-vY8Gf80O.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C0j6dM7a.js`。
+- 本轮本地构建 runtime chunks: `/assets/TradesTab-DRXaDfVe.js`, `/assets/SettingsTab-LW98M0Eg.js`, `/assets/App-U2TQsLpn.js`。
+- 生产 entry chunks: 待部署后回填。
+- 生产 runtime chunks: 待部署后回填。
 
 关键 marker:
 
-- `App-CCVSwp4h.js` 包含 `updateStockTrade`, `TradesTab-u8qgt3zg.js` 和 `SettingsTab-vY8Gf80O.js`。
-- `TradesTab-u8qgt3zg.js` 包含 `bg-[#0b0f16]`、`border-rose-400/75`、`border-emerald-400/75`、`确认修改` 和 `确认添加`。
-- `SettingsTab-vY8Gf80O.js` 包含 `v10.7.9.86`、`交易录入弹层改为深色版本` 和 `买入选中显示红色`。
-- 生产 RLS REST 复验通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-C0j6dM7a.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 本地 `TradesTab-DRXaDfVe.js` 包含 `bg-rose-600`、`bg-emerald-600`、`border-transparent bg-white/[0.06]`、`WebkitAppearance`、`确认修改` 和 `确认添加`。
+- 本地 `SettingsTab-LW98M0Eg.js` 包含 `v10.7.9.87`、`交易录入弹层细节` 和 `日期输入框在移动端撑出弹层`。
+- 生产 RLS REST 预检通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-C0j6dM7a.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
@@ -188,6 +187,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 交易和收益率
 
+- `v10.7.9.87`: 交易页主账本 `添加交易/修改交易` 共用弹层继续优化细节;买入/卖出选中态改为整块红色/绿色填充,普通输入框取消可见边框效果,日期输入框和弹层网格增加防溢出约束,避免 iOS/Safari 原生日期控件撑出底部抽屉。
 - `v10.7.9.86`: 交易页主账本 `添加交易/修改交易` 共用弹层改为深色 UI;默认买入,买入选中显示红色、卖出选中显示绿色,未选按钮为暗灰色;输入框、日期栏、确认和取消按钮同步适配深色风格,交易保存/修改/同步逻辑不变。
 - `v10.7.9.85`: 列宽改为 `80px/76px/118px/144px/66px`,只扩大最后 `占比` 列,让 `持仓盈亏` 和 `占比` 有更合理间距。
 - `v10.7.9.84`: 保留 `v10.7.9.83` 的当前持仓浮盈口径,但展示层恢复持仓盈亏正号;列宽改为 `80px/76px/118px/144px/46px`,确保当日盈亏不受持仓盈亏加宽影响。
@@ -301,6 +301,12 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - 每次用户可见更新都要同步设置页更新日志和版本。
 - 设置页继续保持深色风格,不要恢复旧的黑金云端账户效果。
 
+移动端弹层:
+
+- `date`、`number`、`text` 等原生输入控件必须显式限制 `w-full max-w-full min-w-0 box-border`。
+- 日期框必须使用 `appearance-none`/`WebkitAppearance: 'none'` 或等效约束;父级弹层、两列网格和输入容器也要补 `min-w-0`,避免 iOS/Safari 原生日期控件按自身最小宽度撑出底部抽屉。
+- 涉及输入框布局时,至少按 390px 左右移动端宽度核对不溢出。
+
 ## 11. 当前主要风险
 
 不要在这些风险解决前上大型专业金融功能:
@@ -360,7 +366,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.86` 或更新版本。
+- 设置页显示 `v10.7.9.87` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -375,11 +381,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `ca68dec0f2493e544a7e2288b500a624ded9713e`
-最近应用代码提交: `ca68dec0f2493e544a7e2288b500a624ded9713e`
-设置页版本: `v10.7.9.86`
-Vercel 最新运行时部署: `v10.7.9.86` runtime 成功
-部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4C6xVK7pfKDDpqJZb4Pop6pHvsBE`
+当前产品基准提交: `same commit` (`v10.7.9.87` runtime,部署后回填)
+最近应用代码提交: `same commit` (`v10.7.9.87` runtime,部署后回填)
+设置页版本: `v10.7.9.87`
+Vercel 最新运行时部署: `v10.7.9.87` runtime 待 GitHub push 后自动部署
+部署记录: 待部署后回填
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -407,7 +413,7 @@ Vercel 最新运行时部署: `v10.7.9.86` runtime 成功
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。
 - 交易主账本持仓和累计收益率修复。
-- 交易页添加/修改交易弹层改为深色 UI,买入红色、卖出绿色、未选灰色。
+- 交易页添加/修改交易弹层改为深色 UI,买入/卖出选中态为整块红色/绿色填充,未选灰色;普通输入框取消明显边框,日期框已加防溢出约束。
 - 交易页持仓盈亏当前浮盈口径修正,当日盈亏首屏显示恢复,持仓盈亏正号恢复,持仓盈亏和占比间距修正,当日订单支持修改/删除。
 - BTC 单币种实时行情 relay。
 - PWA 图标替换和 iOS 白边修复。
