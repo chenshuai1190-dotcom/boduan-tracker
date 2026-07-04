@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.80
+                  v10.7.9.81
                 </span>
               </div>
             </div>
@@ -163,14 +163,22 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.80
+                  v10.7.9.81
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.80', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.81', date: '2026-07-04', latest: true,
+                    items: [
+                      '📏 微调交易持仓分布首屏列宽',
+                      '  - 市值/数量和现价/成本再左移一点',
+                      '  - 保持当日盈亏列宽,首屏末尾数字更容易完整露出',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.80', date: '2026-07-04',
                     items: [
                       '📊 继续优化交易持仓分布',
                       '  - 持仓分布内部左右留白继续收紧,表格更贴近两侧边框',
@@ -845,7 +853,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.80</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.81</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

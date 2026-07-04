@@ -4,6 +4,34 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 微调持仓分布当日盈亏露出宽度
+
+- Commit: same commit
+- Background: 用户根据最新手机截图反馈交易页持仓分布已接近目标,但当日盈亏末尾数字仍差一点点完整露出,希望市值再往左移动一点点。
+- Changes:
+  - 固定名称/代码列从 `minmax(104px,0.78fr)` 微调为 `minmax(100px,0.72fr)`,释放约 4px 首屏宽度。
+  - 名称列右侧 padding 从 `pr-2` 收紧为 `pr-1.5`,避免挤压右侧指标区。
+  - 右侧横向指标区总宽从 `474px` 收紧为 `448px`。
+  - 右侧列宽从 `84px/80px/118px/116px/52px` 微调为 `80px/76px/118px/112px/46px`,保持当日盈亏列 `118px` 不变。
+  - 右侧列间距从 `gap-1.5` 收紧为 `gap-1`,让市值/数量和现价/成本整体更靠左。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.81`。
+  - 同步更新 `docs/handoff.md`,标记本次微调待部署回填。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-4yE9p-D5.js` 46.08 kB / gzip 9.99 kB, `SettingsTab-BAurU2i9.js` 28.09 kB / gzip 11.07 kB, `App-QDn34Osy.js` 131.64 kB / gzip 36.76 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Local build marker check: pass; built TradesTab chunk contains `grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)]`, `pr-1.5`, `min-w-[448px]`, `grid-cols-[80px_76px_118px_112px_46px]` and `gap-1`; built SettingsTab chunk contains `v10.7.9.81`, `微调交易持仓分布首屏列宽` and `市值/数量和现价/成本再左移一点`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 v10.7.9.80 的持仓分布列宽,当日盈亏末尾数字可能再次差一点点露出。
+
 ### 2026-07-04 - 继续优化交易持仓分布首屏宽度
 
 - Commit: `27404fd58bed23a07c4afc2938ad448cf0f62c13`
