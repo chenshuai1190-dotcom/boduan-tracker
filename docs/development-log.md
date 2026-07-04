@@ -4,6 +4,38 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 同步首页头部卡片和指数卡字重
+
+- Commit: `pending runtime commit`
+- Background: 用户反馈交易页字重已调整,但首页头部卡片的字体大小、卡片位置和四大指数卡字重没有同步;明确要求首页头部卡片与交易页同步,当前信号保持不动,四大指数卡取消加粗,VIX 和 CNN 卡片保持不动。随后反馈 `订单操作` 弹窗中股票中文名和取消按钮文字几乎不可见,要求一并修复。用户还指出股票页面只有少量中文公司名,例如 `TSM` 没有显示 `台积电`。
+- Changes:
+  - 首页头部总资产卡片沿用交易页同一组字号、间距和正常字重:总资产标签、币种切换、LIVE、总资产数字、今日盈亏、累计盈亏和持仓数量都改为正常字重。
+  - 首页四大指数卡片内名称、BTC 状态标签、价格和涨跌幅取消加粗。
+  - 首页 `当前信号` 模块、VIX 恐慌指数卡片和 CNN 恐慌贪婪指数卡片保持不变。
+  - `订单操作` 弹窗和当日订单列表中的股票中文名改为有效的 `text-white/60`,取消按钮改为有效的 `text-white/80`,避免无效 Tailwind 透明度 class 导致文字接近不可见。
+  - 交易和自选展示层新增中文名兜底:当旧数据里的 `name` 为空、等于代码或是英文名称时,优先使用既有 `STOCK_NAME_CN` 中英对照表,例如 `TSM` 显示为 `台积电`。
+  - 修正首页/交易页少数弱文字残留的无效 `text-white/38`、`text-white/42` 透明度 class,替换为有效的 `text-white/40`、`text-white/45`。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.92`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是首页和订单操作弹窗展示层调整,不改变 API、鉴权、数据库、安全架构或既有开发准则。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/App.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `index-BVynd8zx.css` 48.55 kB / gzip 9.22 kB, `HomeTab-CLLDltlT.js` 39.10 kB / gzip 10.43 kB, `TradesTab-F_bNfXlX.js` 51.05 kB / gzip 11.19 kB, `SettingsTab-CstCni--.js` 31.40 kB / gzip 12.09 kB, `App-BhFyUqBE.js` 133.04 kB / gzip 37.23 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - Local source marker check: pass; source contains `v10.7.9.92`, homepage normal-weight asset card markers, order modal `text-white/60` and `text-white/80`, stock-name fallback `displayStockName`, `TSM: '台积电'`, and no remaining `text-white/38`, `text-white/42` or `text-white/72` in `HomeTab`/`TradesTab`/`SettingsTab`.
+  - Local build marker check: pass; built chunks contain `v10.7.9.92`, homepage normal-weight markers, order modal visibility markers, `台积电`/`微软`/`英伟达` name fallback markers, and the weak-text transparency fixes.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending Vercel production deployment.
+- Rollback: 回滚本次改动会恢复首页头部卡片和四大指数卡的较重字重,并恢复订单操作弹窗较弱/无效透明度文字;不会影响交易数据、行情接口、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-04 - 回退首屏加载并优化交易页订单操作
 
 - Commit: `6549713a123233ef1b7a2af0991ab37d82a6d42e`

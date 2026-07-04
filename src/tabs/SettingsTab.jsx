@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.91
+                  v10.7.9.92
                 </span>
               </div>
             </div>
@@ -163,14 +163,27 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.91
+                  v10.7.9.92
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.91', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.92', date: '2026-07-04', latest: true,
+                    items: [
+                      '🏠 同步首页头部卡片和指数卡字重',
+                      '  - 首页头部总资产卡片字体大小和位置与交易页同步',
+                      '  - 首页头部总资产、盈亏和持仓数量改为正常字重',
+                      '  - 首页四大指数卡片名称、价格和涨跌幅取消加粗',
+                      '  - 当前信号、VIX 和 CNN 卡片保持不变',
+                      '  - 订单操作弹窗股票中文名和取消按钮改为清晰可见',
+                      '  - 旧自选/交易记录里的代码式名称自动用中文股票名兜底',
+                      '  - 修正部分弱文字的无效透明度 class',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.91', date: '2026-07-04',
                     items: [
                       '🧾 回退首屏加载并优化交易页字重',
                       '  - 首屏加载回到上一版圆环效果',
@@ -942,7 +955,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.91</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.92</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

@@ -338,7 +338,7 @@ export default function TradesTab({ ctx }) {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <div className="text-[14px] font-black text-white">股票设置</div>
-                <div className="mt-1 text-[11px] text-white/38">这里的操作写入主交易账本</div>
+                <div className="mt-1 text-[11px] text-white/40">这里的操作写入主交易账本</div>
               </div>
               <button
                 type="button"
@@ -350,7 +350,7 @@ export default function TradesTab({ ctx }) {
             </div>
             <div className="space-y-2">
               {positions.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-4 text-center text-[12px] text-white/38">还没有持仓, 先新增一笔买入。</div>
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-4 text-center text-[12px] text-white/40">还没有持仓, 先新增一笔买入。</div>
               ) : positions.map((position) => (
                 <div key={position.symbol} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
                   <div className="min-w-0">
@@ -371,8 +371,8 @@ export default function TradesTab({ ctx }) {
         <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-5">
-              <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/38'}`}>持仓分布</button>
-              <button type="button" onClick={() => setMainView('orders')} className={`text-[14px] font-normal leading-none ${mainView === 'orders' ? 'text-[#ffd18a]' : 'text-white/38'}`}>当日订单 ({todayBuys}/{todaySells})</button>
+              <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/40'}`}>持仓分布</button>
+              <button type="button" onClick={() => setMainView('orders')} className={`text-[14px] font-normal leading-none ${mainView === 'orders' ? 'text-[#ffd18a]' : 'text-white/40'}`}>当日订单 ({todayBuys}/{todaySells})</button>
             </div>
             <div className="relative">
               <button
@@ -423,7 +423,7 @@ export default function TradesTab({ ctx }) {
                     <span className="text-white/76 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span>
                   </div>
                 </div>
-                <button type="button" onClick={() => setToolPanel(toolPanel ? '' : 'settings')} className="text-white/42 active:scale-95">⌃</button>
+                <button type="button" onClick={() => setToolPanel(toolPanel ? '' : 'settings')} className="text-white/45 active:scale-95">⌃</button>
               </div>
 
               <div className="mb-4 grid grid-cols-3 gap-2">
@@ -489,11 +489,11 @@ export default function TradesTab({ ctx }) {
                             >
                               <span className="text-left">
                                 <span className="block max-w-full truncate text-[12px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 0)}</span>
-                                <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
+                                <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
                               </span>
                               <span className="text-right">
                                 <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.currentPrice, 3)}</span>
-                                <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
+                                <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
                                 <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(todayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
@@ -543,7 +543,7 @@ export default function TradesTab({ ctx }) {
                       >
                         <div className="min-w-0">
                           <div className="truncate text-[13px] font-normal text-white">{trade.symbol}</div>
-                          <div className="mt-1 text-[11px] text-white/38">{trade.name || trade.symbol}</div>
+                          <div className="mt-1 text-[11px] text-white/60">{trade.name || trade.symbol}</div>
                         </div>
                         <div className="text-right">
                           <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
@@ -590,7 +590,7 @@ export default function TradesTab({ ctx }) {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-[14px] font-normal text-white">{orderActionTrade.symbol || '--'}</div>
-                        <div className="mt-1 truncate text-[11px] text-white/42">{orderActionTrade.name || orderActionTrade.symbol || '--'}</div>
+                        <div className="mt-1 truncate text-[11px] text-white/60">{orderActionTrade.name || orderActionTrade.symbol || '--'}</div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(orderActionTrade.shares, 0)} 股</div>
@@ -622,7 +622,7 @@ export default function TradesTab({ ctx }) {
                   <button
                     type="button"
                     onClick={() => setOrderActionTrade(null)}
-                    className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-[14px] font-normal text-white/72 active:scale-95"
+                    className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-[14px] font-normal text-white/80 active:scale-95"
                   >
                     取消
                   </button>

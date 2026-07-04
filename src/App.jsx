@@ -503,6 +503,36 @@ const STOCK_NAME_CN = {
   MAR: '万豪', HLT: '希尔顿', BKNG: 'Booking', EXPE: 'Expedia',
 };
 
+function normalizeStockSymbolForName(symbol) {
+  return String(symbol || '').trim().toUpperCase();
+}
+
+function isPlaceholderStockName(symbol, name) {
+  const normalizedSymbol = normalizeStockSymbolForName(symbol);
+  const raw = String(name || '').trim();
+  if (!raw) return true;
+  const upper = raw.toUpperCase();
+  return upper === normalizedSymbol || upper === `${normalizedSymbol}.US`;
+}
+
+function displayStockName(symbol, name) {
+  const normalizedSymbol = normalizeStockSymbolForName(symbol);
+  if (!normalizedSymbol) return String(name || '').trim();
+  const mapped = STOCK_NAME_CN[normalizedSymbol];
+  const raw = String(name || '').trim();
+  if (mapped && (isPlaceholderStockName(normalizedSymbol, raw) || /^[A-Za-z0-9 .,&'()/-]+$/.test(raw))) return mapped;
+  return raw || mapped || normalizedSymbol;
+}
+
+function localizeStockNameRow(row) {
+  if (!row?.symbol) return row;
+  return {
+    ...row,
+    symbol: normalizeStockSymbolForName(row.symbol),
+    name: displayStockName(row.symbol, row.name),
+  };
+}
+
 // ============ 股票配色 ============
 // 主流热门股配品牌色,非主流的根据代码 hash 自动分配
 // ============ 股票卡片颜色:统一翠绿色 ============
@@ -1045,7 +1075,13 @@ function MainApp({ user, onLogout }) {
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState(null);
-  const quoteUniverse = useMemo(() => buildLedgerQuoteUniverse(stockTrades, watchlist, quoteCache), [stockTrades, watchlist, quoteCache]);
+  const localizedStockTrades = useMemo(() => stockTrades.map(localizeStockNameRow), [stockTrades]);
+  const localizedWatchlist = useMemo(() => watchlist.map(localizeStockNameRow), [watchlist]);
+  const localizedQuoteCache = useMemo(() => quoteCache.map(localizeStockNameRow), [quoteCache]);
+  const quoteUniverse = useMemo(
+    () => buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache),
+    [localizedStockTrades, localizedWatchlist, localizedQuoteCache],
+  );
   const quoteRows = quoteUniverse.allRows;
   const homeWatchlist = quoteUniverse.watchlistRows;
   const buildSettingsPayload = useCallback((overrides = {}) => ({
@@ -1783,7 +1819,7 @@ function MainApp({ user, onLogout }) {
       return;
     }
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
-    const stockName = newTrade.name || STOCK_NAME_CN[symbol] || symbol;
+    const stockName = displayStockName(symbol, newTrade.name);
 
     // 添加/更新主交易账本记录(走 stock_trades,等返回真正的 id)
     try {
@@ -1925,7 +1961,7 @@ function MainApp({ user, onLogout }) {
     const logoURL = normalizeExternalLogoUrl(draft.logoURL || draft.logoUrl || fresh?.logoURL || fresh?.logoUrl);
     const newItem = {
       symbol,
-      name: draft.name || STOCK_NAME_CN[symbol] || symbol,
+      name: displayStockName(symbol, draft.name || fresh?.name),
       price,
       high,
       cost: parseFloat(draft.cost) || 0,
@@ -2372,7 +2408,7 @@ function MainApp({ user, onLogout }) {
       setLookupStatus('found');
       setNewTrade(t => ({
         ...t,
-        name: t.name || fromWatchlist.name || STOCK_NAME_CN[sym] || sym,
+        name: displayStockName(sym, t.name || fromWatchlist.name),
         price: t.price || (fromWatchlist.price ? fromWatchlist.price.toFixed(2) : ''),
       }));
       return;
@@ -2390,7 +2426,7 @@ function MainApp({ user, onLogout }) {
           setNewTrade(t => ({
             ...t,
             // 优先级:已有名 > 中英对照表 > 代码本身
-            name: t.name || STOCK_NAME_CN[sym] || sym,
+            name: displayStockName(sym, t.name),
             price: t.price || stockData.price.toFixed(2),
           }));
         } else {

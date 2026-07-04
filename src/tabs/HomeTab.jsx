@@ -219,7 +219,7 @@ function MiniMarketCard({ item, marketColorMode }) {
   if (item?.error) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 min-h-[122px]">
-        <div className="text-[10px] font-semibold leading-tight text-white/80">{item.name || item.ticker}</div>
+        <div className="text-[10px] font-normal leading-tight text-white/80">{item.name || item.ticker}</div>
         <div className="mt-3 text-[11px] text-rose-300">拉取失败</div>
       </div>
     );
@@ -237,18 +237,18 @@ function MiniMarketCard({ item, marketColorMode }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5 min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="flex min-w-0 items-start justify-between gap-1.5">
-        <div className="min-w-0 truncate text-[10px] font-semibold leading-tight text-white/80">{item?.name || ticker}</div>
+        <div className="min-w-0 truncate text-[10px] font-normal leading-tight text-white/80">{item?.name || ticker}</div>
         {isBtc && realtimeLabel && (
-          <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[8px] font-black leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
+          <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[8px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
             {realtimeLabel}
           </span>
         )}
       </div>
       <div className="mt-1 text-[11px] text-white/40">{ticker}</div>
-      <div className="mt-2 -ml-1 whitespace-nowrap text-[14px] font-black leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+      <div className="mt-2 -ml-1 whitespace-nowrap text-[14px] font-normal leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtMoney(item?.price, 2)}
       </div>
-      <div className="mt-1 text-[11px] font-bold tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+      <div className="mt-1 text-[11px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtMarketPct(item?.changePercent)}
       </div>
       <Sparkline values={item?.intraday || []} color={color} />
@@ -605,7 +605,7 @@ export default function HomeTab({ ctx }) {
 
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="flex items-center justify-between">
-          <div className="text-[13px] font-semibold text-white/70">总资产 ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+          <div className="text-[13px] font-normal text-white/70">总资产 ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
           <div className="flex items-center gap-1.5">
             <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
               {['USD', 'CNY'].map((mode) => (
@@ -613,7 +613,7 @@ export default function HomeTab({ ctx }) {
                   key={mode}
                   type="button"
                   onClick={() => setCurrencyMode(mode)}
-                  className={`h-7 rounded-full px-2.5 text-[11px] font-bold active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
+                  className={`h-7 rounded-full px-2.5 text-[11px] font-normal active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
                 >
                   {mode === 'CNY' ? 'RMB' : 'USD'}
                 </button>
@@ -623,7 +623,7 @@ export default function HomeTab({ ctx }) {
               type="button"
               onClick={fetchRealtimePrices}
               disabled={fetching}
-              className="flex h-8 items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] font-bold text-emerald-300 active:scale-95 disabled:opacity-50"
+              className="flex h-8 items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] font-normal text-emerald-300 active:scale-95 disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} />
               LIVE
@@ -631,31 +631,31 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
 
-        <div className="mt-3 text-[34px] font-extrabold leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+        <div className="mt-3 text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
           {fmtCurrency(displayAssets, displayCurrency, 2)}
         </div>
         <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
           <div className="min-w-0 pr-3">
             <div className="text-[12px] text-white/50">今日盈亏</div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayTodayPnl, displayCurrency, 2)}
             </div>
-            <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedPct(summary.todayPnlPct, 2)}
             </div>
           </div>
           <div className="min-w-0 px-3">
             <div className="text-[12px] text-white/50">累计盈亏</div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
             </div>
-            <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedPct(summary.cumulativePnlPct, 2)}
             </div>
           </div>
           <div className="min-w-0 pl-3">
             <div className="text-[12px] text-white/50">持仓数量</div>
-            <div className="mt-3 whitespace-nowrap text-[15px] font-black leading-tight text-white/90">
+            <div className="mt-3 whitespace-nowrap text-[15px] font-normal leading-tight text-white/90">
               {summary.holdingStockCount}只 · {summary.sellTradeCount}笔
             </div>
           </div>
@@ -781,14 +781,14 @@ export default function HomeTab({ ctx }) {
             <button
               type="button"
               onClick={() => setTableTab('watchlist')}
-              className={`text-[14px] font-bold leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/38'}`}
+              className={`text-[14px] font-bold leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/40'}`}
             >
               自选
             </button>
             <button
               type="button"
               onClick={() => setTableTab('positions')}
-              className={`text-[14px] font-bold leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/38'}`}
+              className={`text-[14px] font-bold leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/40'}`}
             >
               持仓
             </button>
@@ -797,7 +797,7 @@ export default function HomeTab({ ctx }) {
         </div>
 
         {tableRows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[13px] text-white/38">
+          <div className="px-4 py-8 text-center text-[13px] text-white/40">
             {tableTab === 'positions' ? '暂无持仓记录, 先在交易页添加买入记录。' : '暂无自选股票。'}
           </div>
         ) : (
