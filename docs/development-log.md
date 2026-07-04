@@ -23,8 +23,12 @@
   - `git diff --check`: pass after removing trailing blank line.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables return `visibleRows=0` for anonymous REST probes.
   - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Handoff refresh commit: `4cc1be3a944cd506be50f448c22e3e4cc007b912`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2BaceuAUR88PUrFqdom3xiVYrehH`.
+- Production verification:
+  - `GET https://boduan-tracker.vercel.app/?v=handoff-4cc1be3`: HTTP 200 from Vercel.
+  - Unauthenticated `GET /api/quote?symbols=VIX`: HTTP 401 with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次文档改动会恢复旧交接状态,其中版本、部署和找回密码配置说明会再次过期。
 
 ### 2026-07-04 - 修复找回密码回跳兼容
