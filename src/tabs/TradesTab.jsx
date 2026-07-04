@@ -119,9 +119,11 @@ export default function TradesTab({ ctx }) {
   const todayTrades = (trades || []).filter((trade) => trade.date === todayKey);
   const todayBuys = todayTrades.filter((trade) => trade.side !== 'sell').length;
   const todaySells = todayTrades.filter((trade) => trade.side === 'sell').length;
-  const showWaveTool = toolPanel === 'waves' || toolPanel === 'all';
-  const showCostTool = toolPanel === 'cost' || toolPanel === 'all';
-  const showStockTool = toolPanel === 'settings' || toolPanel === 'all';
+  const showWaveTool = toolPanel === 'waves';
+  const showCostTool = toolPanel === 'cost';
+  const showStockTool = toolPanel === 'settings';
+  const showMainLedger = !showWaveTool && !showCostTool;
+  const positionsMarketValue = toNumber(summary.positionsMarketValue);
 
   const openTradeModal = (position = null, side = 'buy') => {
     setNewTrade({
@@ -209,16 +211,19 @@ export default function TradesTab({ ctx }) {
             { id: 'waves', label: '波段记录', icon: BookOpen },
             { id: 'settings', label: '股票设置', icon: Hexagon },
             { id: 'cost', label: '摊薄工具', icon: Calculator },
-            { id: 'all', label: '全部功能', icon: Grid2X2 },
+            { id: 'all', label: '全部功能', icon: Grid2X2, disabled: true },
           ].map((item, index) => {
             const Icon = item.icon;
-            const active = toolPanel === item.id;
+            const active = !item.disabled && toolPanel === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => toggleToolPanel(item.id)}
-                className={`flex min-h-[96px] flex-col items-center justify-center gap-2 active:bg-white/[0.04] ${index > 0 ? 'border-l border-white/10' : ''}`}
+                onClick={() => {
+                  if (!item.disabled) toggleToolPanel(item.id);
+                }}
+                disabled={item.disabled}
+                className={`flex min-h-[96px] flex-col items-center justify-center gap-2 ${item.disabled ? 'cursor-default opacity-35' : 'active:bg-white/[0.04]'} ${index > 0 ? 'border-l border-white/10' : ''}`}
               >
                 <Icon className={`h-7 w-7 ${active ? 'text-[#f6b54b]' : 'text-white/78'}`} strokeWidth={1.8} />
                 <span className={`text-[13px] font-semibold ${active ? 'text-[#f6b54b]' : 'text-white/78'}`}>{item.label}</span>
@@ -261,6 +266,7 @@ export default function TradesTab({ ctx }) {
           </section>
         )}
 
+        {showMainLedger && (
         <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-5">
@@ -300,50 +306,78 @@ export default function TradesTab({ ctx }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-[minmax(96px,1.18fr)_0.86fr_0.9fr_0.84fr] border-t border-white/[0.06] px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
-                <span>名称/代码</span>
-                <span className="text-right">市值/数量</span>
-                <span className="text-right">现价/成本</span>
-                <span className="text-right">当日盈亏</span>
-              </div>
-
               {positions.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
                   <div className="text-[13px] font-bold text-white/60">还没有持仓</div>
                   <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-black text-[#f6b54b] active:scale-95">记录第一笔买入</button>
                 </div>
               ) : (
-                <div className="divide-y divide-white/[0.06]">
-                  {positions.map((position) => {
-                    const cost = toNumber(position.effectiveCost || position.avgCost);
-                    const marketValue = toNumber(position.marketValue) * displayRate;
-                    const todayPnl = toNumber(position.todayPnl) * displayRate;
-                    return (
-                      <button
-                        key={position.symbol}
-                        type="button"
-                        onClick={() => openTradeModal(position, 'sell')}
-                        className="grid min-h-[60px] w-full grid-cols-[minmax(96px,1.18fr)_0.86fr_0.9fr_0.84fr] items-center gap-2 py-3 text-left active:bg-white/[0.03]"
-                      >
-                        <span className="min-w-0">
+                <div className="grid grid-cols-[minmax(100px,1.05fr)_minmax(0,2.4fr)] border-t border-white/[0.06]">
+                  <div>
+                    <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">名称/代码</div>
+                    <div className="divide-y divide-white/[0.06]">
+                      {positions.map((position) => (
+                        <button
+                          key={position.symbol}
+                          type="button"
+                          onClick={() => openTradeModal(position, 'sell')}
+                          className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-2 text-left active:bg-white/[0.03]"
+                        >
                           <span className="block truncate text-[13px] font-black leading-[15px] text-white">{position.name || position.symbol}</span>
                           <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{position.symbol}</span>
-                        </span>
-                        <span className="text-right">
-                          <span className="block text-[13px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
-                          <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
-                        </span>
-                        <span className="text-right">
-                          <span className="block text-[13px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.currentPrice, 3)}</span>
-                          <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
-                        </span>
-                        <span className="text-right">
-                          <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(todayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
-                          <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto [scrollbar-width:none]">
+                    <div className="min-w-[500px]">
+                      <div className="grid grid-cols-[96px_92px_96px_112px_76px] gap-2 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                        <span className="text-right">市值/数量</span>
+                        <span className="text-right">现价/成本</span>
+                        <span className="text-right">当日盈亏</span>
+                        <span className="text-right">持仓盈亏</span>
+                        <span className="text-right">占比</span>
+                      </div>
+                      <div className="divide-y divide-white/[0.06]">
+                        {positions.map((position) => {
+                          const cost = toNumber(position.effectiveCost || position.avgCost);
+                          const marketValue = toNumber(position.marketValue) * displayRate;
+                          const todayPnl = toNumber(position.todayPnl) * displayRate;
+                          const holdingPnl = toNumber(position.totalPnl) * displayRate;
+                          const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
+                          return (
+                            <button
+                              key={position.symbol}
+                              type="button"
+                              onClick={() => openTradeModal(position, 'sell')}
+                              className="grid min-h-[60px] w-full grid-cols-[96px_92px_96px_112px_76px] items-center gap-2 py-3 text-left active:bg-white/[0.03]"
+                            >
+                              <span className="text-right">
+                                <span className="block text-[13px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
+                                <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
+                              </span>
+                              <span className="text-right">
+                                <span className="block text-[13px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.currentPrice, 3)}</span>
+                                <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
+                              </span>
+                              <span className="text-right">
+                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(todayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
+                              </span>
+                              <span className="text-right">
+                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.totalPnlPct)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.totalPnlPct, 2)}</span>
+                              </span>
+                              <span className="text-right">
+                                <span className="block text-[13px] font-black leading-[15px] text-white/82 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
+                                <span className="mt-1 block text-[11px] leading-[13px] text-white/32">市值</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -384,12 +418,13 @@ export default function TradesTab({ ctx }) {
             </div>
           )}
         </section>
+        )}
       </div>
 
 
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
-        {showWaveTool && wavesByStock.length > 0 && (
-          <>
+        {showWaveTool && (
+          <div className="mx-auto mt-3 max-w-[430px]">
             {/* 顶部总览 - 白卡极简 (v10.7.9.41) */}
             <div
               className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
@@ -448,7 +483,12 @@ export default function TradesTab({ ctx }) {
             </div>
 
             {/* 按股票分组的复盘卡 */}
-            {wavesByStock.map(group => {
+            {wavesByStock.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+                <div className="text-[13px] font-bold text-slate-600">暂无波段记录</div>
+                <div className="mt-1 text-[11px] text-slate-400">通过买入和卖出记录形成完整波段后,这里会自动显示。</div>
+              </div>
+            ) : wavesByStock.map(group => {
               const completedWaves = group.waves.filter(w => !w.isActive);
               const activeWave = group.waves.find(w => w.isActive);
               return (
@@ -827,8 +867,7 @@ export default function TradesTab({ ctx }) {
               </div>
               );
             })}
-
-          </>
+          </div>
         )}
 
         {/* 添加成交表单 - Modal 弹窗 */}
@@ -976,15 +1015,6 @@ export default function TradesTab({ ctx }) {
           </div>
         )}
 
-        {/* 空状态(没有任何交易) */}
-        {trades.length === 0 && !showAddTrade && (
-          <div className="bg-white rounded-2xl p-8 mb-4 shadow text-center">
-            <div className="text-5xl mb-3">📔</div>
-            <h3 className="font-bold text-lg text-slate-700 mb-1">还没有交易记录</h3>
-            <p className="text-sm text-slate-500">点上面「添加交易」开始记录你的高抛低吸</p>
-          </div>
-        )}
-
         {/* ============ 💼 摊薄成本计算器 (v10.7.9.41, iOS 风格) ============ */}
         {showCostTool && (() => {
           const allSymbols = Object.keys(costBasisData);
@@ -995,7 +1025,7 @@ export default function TradesTab({ ctx }) {
           const stats = calcCostBasis(trades);
 
           return (
-            <div className="mt-6 mb-4">
+            <div className="mx-auto mt-3 mb-4 max-w-[430px]">
               {/* 头部 */}
               <div className="px-1 mb-3">
                 <h2 className="font-black text-[20px] text-slate-900 mb-0.5">💼 摊薄成本</h2>

@@ -2086,9 +2086,10 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
+  const darkShell = activeTab === 'home' || activeTab === 'trades';
 
   return (
-    <div className={`min-h-screen px-4 pb-24 ${activeTab === 'home' ? 'bg-[#05070b]' : 'bg-slate-50'}`} style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+    <div className={`min-h-screen px-4 pb-24 ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`} style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       {/* 🚀 火箭进度条动画 CSS */}
       <style>{`
         @keyframes rocketLaunch {
@@ -4030,7 +4031,7 @@ function MainApp({ user, onLogout }) {
 
         {/* 底部 5 tab 导航栏 */}
         <div
-          className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${activeTab === 'home' ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
+          className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${darkShell ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="max-w-5xl mx-auto">
@@ -4049,7 +4050,7 @@ function MainApp({ user, onLogout }) {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${
-                      activeTab === 'home'
+                      darkShell
                         ? (isActive ? 'text-[#f6a524]' : 'text-white/40')
                         : (isActive ? 'text-blue-600' : 'text-slate-400')
                     }`}

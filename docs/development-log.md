@@ -4,6 +4,33 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 交易页黑底和工具箱细节优化
+
+- Commit: `same commit`
+- Background: 用户要求交易页背景与首页黑色风格一致;主持仓列表从 `市值/数量` 开始改为横向滑动指标区,并增加个股持仓盈亏和占比;`全部功能` 未确定前不响应点击;波段记录和摊薄工具点开后显示当前头部加原模块内容。
+- Changes:
+  - App 外层背景和底部导航在 `home` / `trades` 两个 tab 统一使用黑色风格。
+  - 交易页工具箱中 `全部功能` 改为灰显禁用,不触发工具视图。
+  - 点击 `波段记录` 或 `摊薄工具` 时,隐藏主持仓账本卡,保留顶部资产卡和工具箱,下方显示对应原模块内容。
+  - 持仓表改为左侧名称固定、右侧指标横向滑动;右侧新增 `持仓盈亏` 和 `占比`。
+  - 波段记录无数据时也保留模块头部并显示空状态。
+  - 移除旧的重复空交易白卡。
+  - 设置页用户可见更新日志同步到 `v10.7.9.60`。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 22 tests.
+  - `npm run build`: pass; `TradesTab-X2Aflgml.js` 45.13 kB / gzip 9.56 kB, `SettingsTab-WMoYlydN.js` 29.92 kB / gzip 11.63 kB, `App-Di96tjJp.js` 119.83 kB / gzip 33.00 kB, `index-BzNM0xJt.css` 41.26 kB / gzip 8.13 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk check: pass; built `TradesTab-X2Aflgml.js` contains `市值/数量`, `持仓盈亏`, `占比`, `波段记录`, `摊薄工具`, disabled `全部功能` styling, and does not contain `策略订单`; built `SettingsTab-WMoYlydN.js` contains `v10.7.9.60`; built `App-Di96tjJp.js` contains the dark-shell `trades` branch.
+- Deployment: pending GitHub main push and Vercel production verification.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复交易页浅色 App 外壳、旧持仓表布局和可点击 `全部功能`;不影响交易主账本数据结构。
+
 ### 2026-07-04 - 记录交易页主账本部署验证
 
 - Commit: `same commit`
