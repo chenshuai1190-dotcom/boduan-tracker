@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修复 BTC 首屏卡片错位
 
-- Commit: `same commit`
+- Commit: `4fded56e0bcf22cdffb030c890a525ba13657c2f`
 - Background: 用户反馈首页首屏加载时 BTC 卡片位置有小问题。根因是 BTC WebSocket tick 可能早于 `INDICES` REST 首次返回,旧逻辑会在市场卡数组为空时单独创建一张 BTC 卡,导致 BTC 临时出现在市场卡第一格,三大指数为空白。
 - Changes:
   - `applyBtcTickToMarketCards` 不再在市场卡未初始化时追加独立 BTC 卡。
@@ -25,8 +25,17 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local chunk marker check: pass; built chunks contain `v10.7.9.75`, `修复 BTC 首屏卡片错位`, and `BTC-USD.CC`; built frontend chunks contain no `ws.eodhistoricaldata.com` browser-direct URL.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EiwpeSUPH4sHWD9F3RCQkN5QnSEJ`.
+  - `GET https://boduan-tracker.vercel.app/?v=4fded56`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-PNOjm5C0.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-BQcgsNXo.css`.
+  - Production runtime chunks: `/assets/App-BLOPKNTS.js`, `/assets/HomeTab-CHpB9Zxg.js`, `/assets/SettingsTab-CEMAwGfU.js`, `/assets/btcRealtime-BPO454lO.js`.
+- Production verification:
+  - Production chunk marker check: `btcRealtime-BPO454lO.js` contains `BTC-USD.CC` and `BTCUSD`, contains the new no-standalone-card fallback shape, and does not contain `ws.eodhistoricaldata.com`.
+  - Production chunk marker check: `App-BLOPKNTS.js` contains `/api/btc-realtime` and `xmoney-btc`, and does not contain `ws.eodhistoricaldata.com`; `SettingsTab-CEMAwGfU.js` contains `v10.7.9.75` and `修复 BTC 首屏卡片错位`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+  - Production relay HTTP check: `GET /api/btc-realtime` returned `426` with `请使用 WebSocket 连接 /api/btc-realtime`.
+  - GitHub Actions workflow run lookup for `4fded56` returned no workflow runs; combined commit status contains Vercel success.
 - Rollback: 回滚本次改动会恢复 BTC tick 可在市场卡未初始化时单独创建 BTC 卡的旧行为,首屏可能再次出现 BTC 临时占第一格的问题;不影响 `/api/quote` 鉴权、WebSocket relay 鉴权或交易数据。
 
 ### 2026-07-04 - BTC 单币种独立实时行情
