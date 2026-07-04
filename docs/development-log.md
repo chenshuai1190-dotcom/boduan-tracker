@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 修复摊薄成本空股票标签和交易记录入口
 
-- Commit: pending
+- Commit: `007373bf3d1d675233b9e84ee9515543331fcda5`
 - Background: 用户在生产截图中指出摊薄成本股票切换栏仍出现一个空白胶囊按钮,要求删除;同时下拉刷新后底部提示 `拉取失败:Load failed`,需要检查是否由多余代码造成。用户随后指出持仓股票代码点击仍默认打开卖出而不是买入,并要求把工具区 `股票设置` 改成 `交易记录`,用于查看全部主交易记录,并像当日订单一样支持修改和删除。
 - Findings:
   - 空白胶囊不是上轮已删除的虚线 `+`,而是摊薄成本 tab 直接渲染 `Object.keys(costBasisData)` 导致;只要本地缓存或云端 `cost_basis_trades` 混入空 `symbol`,就会生成空按钮并参与股票数量统计。
@@ -41,7 +41,19 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `sanitizeCostBasisData`, cost-basis render filter `Object.keys(costBasisData).map(sym => normalizeCostBasisSymbol(sym)).filter(Boolean)`, db blank-symbol guard `if (!sym) continue;`, `quoteFetchInFlightRef`, `行情网络请求失败,已保留现有数据`, `setTimeout(() => setFetchError(null), 4200)`, `openTradeModal(position, 'buy')`, no `openTradeModal(position, 'sell')`, tool marker `{ id: 'records', label: '交易记录', icon: ListChecks }`, `ledgerTradeRecords`, and Settings source contains `v10.7.9.100`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `007373bf3d1d675233b9e84ee9515543331fcda5`.
+  - GitHub `main`: `007373bf3d1d675233b9e84ee9515543331fcda5`.
+  - GitHub Actions `CI`: success, run `28712744386`, build job `85148884744`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/v2DvnTAnXsjKG9RE7BvhfP593LNm`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=007373b-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-Dj28ScQm.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-CUbvcZ74.css`.
+  - Production runtime chunks: `/assets/App-CakKC1K-.js`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-CbAsV7Os.js`, `/assets/SettingsTab-BUxMlCxy.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C-B2WKl9.js`.
+- Production verification:
+  - Production marker check: fetched runtime chunks contain `v10.7.9.100`, `修复摊薄成本空股票标签和行情拉取提示`, `filter(Boolean)`, `交易记录`, `全部主交易账本`, `行情网络请求失败,已保留现有数据`, and `行情拉取失败:`.
+  - Production marker check: runtime chunks no longer contain the old visible tool label `股票设置</span>`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-C-B2WKl9.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复摊薄成本空 symbol 可渲染为空白 tab、行情重复并发请求、底部原始 `Load failed` 英文提示、持仓点击默认卖出以及工具区 `股票设置` 入口;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 微调摊薄成本工具显示
