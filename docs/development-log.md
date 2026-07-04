@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修正波段已完成归类和字号
 
-- Commit: pending runtime commit before push.
+- Commit: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`
 - Background: 用户反馈上一版波段记录字号压得过小,要求不要继续手工干预,改为对齐交易页资料卡片的数字和文字大小;同时指出顶部 `已完成` 统计卡仍只是展开每只股票底部折叠区,没有形成真正归类,现有 HOOD 已完成波段不能作为独立分类查看。
 - Changes:
   - 波段记录新增 `waveView` 视图状态,顶部 `进行中` 和 `已完成` 统计卡改为分类切换入口。
@@ -33,7 +33,21 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `completedWaveGroups`, `setWaveView('completed')`, `waveView === 'completed' ?`, `key={\`completed-${group.symbol}\`}`, `已完成波段归类`, `HOOD 这类已完成股票会进入已完成分类`, `v10.7.9.97`, and wave card `text-[16px] font-normal` sizing markers.
   - Local build marker check: pass; built chunks contain `v10.7.9.97`, `修正波段已完成归类和字号`, `已完成波段归类`, `completedWaves`, and the completed-only view state path.
-- Deployment: pending GitHub push and Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`.
+  - GitHub `main`: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`.
+  - GitHub Actions `CI`: success, run `28711131474`, build job `85144756465`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DkMcKKq4tBVvyCY5M8kvnTB9Bqxi`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=8f8dfbf-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-DJNp6Rbs.js`, `/assets/index-CgfbcDF1.css`.
+  - Production runtime chunks: `/assets/App-CGmmuY-D.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-DXyN2y8z.js`, `/assets/SettingsTab-C-wtzeJ2.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-NBYa01UD.js`.
+- Production verification:
+  - Production App marker check: `App-CGmmuY-D.js` references `TradesTab-DXyN2y8z.js` and `SettingsTab-C-wtzeJ2.js`.
+  - Production TradesTab marker check: `TradesTab-DXyN2y8z.js` contains `已完成波段归类`, `暂无进行中的波段`, `暂无已完成波段`, `completedWaves`, and `text-[16px] font-normal`.
+  - Production marker check: `TradesTab-DXyN2y8z.js` does not contain old marker `进行中 · #`.
+  - Production SettingsTab marker check: `SettingsTab-C-wtzeJ2.js` contains `v10.7.9.97`, `修正波段已完成归类和字号`, and `HOOD 这类已完成股票会进入已完成分类`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-NBYa01UD.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.96` 的已完成波段底部折叠展示和更小字号;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 继续压缩波段记录并恢复备注入口
