@@ -6,13 +6,13 @@
 
 ### 2026-07-04 - 持仓分布市值改为整数显示
 
-- Commit: same commit
+- Commit: `15c95369dd0738196ae478face0276109879623d`
 - Background: 用户根据最新手机截图反馈,持仓分布当日盈亏已经能完整显示,但市值列仍显示小数并出现截断省略号;要求市值不要显示小数点,如果空间仍不够再继续左移。
 - Changes:
   - 交易页持仓分布表格的 `市值/数量` 第一行从 `fmtAmount(marketValue, 2)` 改为 `fmtAmount(marketValue, 0)`,不再显示小数位。
   - 保留 v10.7.9.81 的列宽微调,不继续压缩当日盈亏列。
   - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.82`。
-  - 同步更新 `docs/handoff.md`,标记本次市值整数显示待部署回填。
+  - 同步更新 `docs/handoff.md`,记录本次市值整数显示和部署验证证据。
 - Key files:
   - `src/tabs/TradesTab.jsx`
   - `src/tabs/SettingsTab.jsx`
@@ -26,8 +26,16 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Local source marker check: pass; `src/tabs/TradesTab.jsx` contains `fmtAmount(marketValue, 0)` and no `fmtAmount(marketValue, 2)`.
   - Local build marker check: pass; built TradesTab chunk contains `grid-cols-[80px_76px_118px_112px_46px]`, `min-w-[448px]` and `市值/数量`; built SettingsTab chunk contains `v10.7.9.82`, `持仓市值改为整数显示` and `市值/数量列不再显示小数`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `15c95369dd0738196ae478face0276109879623d`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/smdFk8Uxod76GjirqwbY3kfr6MPU`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=15c9536-runtime`: HTTP 200.
+  - Production runtime chunks: `/assets/TradesTab-Bl99HyhL.js`, `/assets/SettingsTab-CkXp2ASy.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-B7rzsbEg.js`.
+- Production verification:
+  - Production TradesTab marker check: `TradesTab-Bl99HyhL.js` contains `grid-cols-[80px_76px_118px_112px_46px]`, `min-w-[448px]` and `市值/数量`.
+  - Production SettingsTab marker check: `SettingsTab-CkXp2ASy.js` contains `v10.7.9.82`, `持仓市值改为整数显示` and `市值/数量列不再显示小数`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-B7rzsbEg.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会让持仓表市值列重新显示两位小数,在窄屏上可能再次出现省略号并挤压当日盈亏。
 
 ### 2026-07-04 - 微调持仓分布当日盈亏露出宽度
