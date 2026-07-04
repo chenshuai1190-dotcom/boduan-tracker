@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 首页自选编辑管理
 
-- Commit: `same commit`
+- Commit: `1ce1fa6eb1b48c4a6f7fa738255ddb2641942523`
 - Background: 用户要求首页自选区域在添加自选股票旁边新增并排的编辑自选股票入口;编辑功能需要支持自选股票排序、删除、置顶,风格沿用当前深色设计;同时删除点击股票行展开自选参数的旧功能。
 - Changes:
   - 首页自选列表底部按钮改为两列并排: `添加自选股票` 和 `编辑自选股票`,节约底部空间。
@@ -27,8 +27,14 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local chunk marker check: pass; built `HomeTab-DNjOYbNg.js` contains `编辑自选股票` and `确认删除`; built `App-IJqpZUi8.js` contains `watchlistOrder`; `src/tabs/HomeTab.jsx` and built `HomeTab-DNjOYbNg.js` contain no `自选参数`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AaE3MCtdEgNkbr6RfRuyJGXs5HMW`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-BHRqHAcw.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-Domadpa2.css`.
+  - Production runtime chunks: `/assets/App-B_hJSJx7.js`, `/assets/HomeTab-DNjOYbNg.js`, `/assets/SettingsTab-D0dP5vdW.js`.
+- Production verification:
+  - Production chunk marker check: `HomeTab-DNjOYbNg.js` contains `编辑自选股票` and `确认删除`; `HomeTab-DNjOYbNg.js` no longer contains `自选参数`; `App-B_hJSJx7.js` contains `watchlistOrder`; `SettingsTab-D0dP5vdW.js` contains `v10.7.9.71` and `首页自选编辑管理`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复只有添加自选股票按钮、点击股票展开自选参数面板和无账号级自选排序保存的旧行为;不影响交易主账本、`/api/quote` 鉴权或 Supabase 表结构。
 
 ### 2026-07-04 - 首页自选持仓表格全局横向滑动
