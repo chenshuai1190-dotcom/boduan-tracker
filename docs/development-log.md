@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 更新 PWA 手机桌面图标
 
-- Commit: pending.
+- Commit: `30109e586e1ca3048ec5a19e42423cb7aecaacc6`
 - Background: 用户提供新的黑金 K 线箭头图标,要求替换“保存到网页版到手机”的桌面 logo;原 manifest 和 iOS 主屏图标仍指向旧 `favicon.svg`,手机安装入口不会使用新 PNG 图标。
 - Changes:
   - 从用户提供的图标文件中抠出主体并生成透明 PNG 图标。
@@ -24,7 +24,17 @@
   - `public/favicon-32.png`
   - `src/tabs/SettingsTab.jsx`
   - `docs/development-log.md`
-- Validation: pending.
+- Validation:
+  - 用户提供的源文件为 JPEG 且无透明通道;已用本机图像处理移除边缘连通棋盘格背景,生成 RGBA PNG 图标。
+  - Local icon check: pass; `public/icon-512.png`, `public/icon-192.png`, `public/apple-touch-icon.png`, `public/favicon-32.png`, `public/favicon-16.png` 均为 PNG RGBA,尺寸分别为 `512x512`, `192x192`, `180x180`, `32x32`, `16x16`,且 `hasAlpha=yes`。
+  - Icon SHA256: `icon-512.png` = `5d235acb636d1c7ce21303ecdc8a2188fcf44233884570fb14a9cbea361618e1`, `apple-touch-icon.png` = `06e2000342f98c0665b81b3e042c8d8039a552a3416344661cd7d182239f5d2d`。
+  - Local manifest/index check: pass; `manifest.json` icons point to `/icon-192.png` and `/icon-512.png`, `index.html` points to `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`。
+  - `npm test`: pass, 41 tests.
+  - `npm run build`: pass; `SettingsTab-8PvNnP1R.js` 26.90 kB / gzip 10.66 kB, `App-DLS1Yl4g.js` 131.64 kB / gzip 36.77 kB, `HomeTab-CHpB9Zxg.js` 39.10 kB / gzip 10.43 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local dist marker check: pass; `dist/manifest.json` and `dist/index.html` point to the new PNG icons, dist icon files retain RGBA alpha, and `SettingsTab-8PvNnP1R.js` contains `v10.7.9.76` and `更新手机桌面图标`.
 - Deployment: pending.
 - Production verification: pending.
 - Rollback: 回滚本次改动会恢复旧 `favicon.svg` 作为 PWA/手机桌面图标;不影响 `/api/quote` 鉴权、Supabase RLS、交易账本或行情功能。
