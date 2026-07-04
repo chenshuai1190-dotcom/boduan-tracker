@@ -4,6 +4,35 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 恢复当日盈亏首屏显示并加宽持仓盈亏
+
+- Commit: 待本轮 runtime 提交生成后在部署回填日志中记录。
+- Background: 用户根据手机截图澄清上一轮理解错误:当日盈亏列应恢复上一版首屏显示效果,不能因为加宽右侧指标而只露出标题或数字尾部;真正需要的是只给 `持仓盈亏` 列多一点宽度,让百万和千万级持仓盈亏能放下;同时 `持仓盈亏` 正数的 `+` 号需要恢复。
+- Changes:
+  - 删除专门去掉正号的 `holdingCurrency` / `holdingPct` 展示函数,交易页持仓分布汇总和个股行 `持仓盈亏` 正数重新使用 `signedCurrency` / `signedPct` 显示 `+` 号。
+  - 右侧横向指标区从 `min-w-[548px]` 收回到 `min-w-[480px]`,避免默认首屏把当日盈亏挤到右侧。
+  - 右侧前 3 列恢复上一版的 `80px/76px/118px`,保持 `市值/数量`、`现价/成本` 和 `当日盈亏` 的首屏显示效果。
+  - `持仓盈亏` 列单独从上一版 `112px` 加宽到 `144px`,比当前 `170px` 收窄,但仍给百万和千万级正负金额留出空间。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.84`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-9gMVt7jn.js` 47.63 kB / gzip 10.41 kB, `SettingsTab-PqkG5MfK.js` 28.83 kB / gzip 11.26 kB, `App-MEOiwZpv.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - Local source marker check: pass; `TradesTab.jsx` contains `min-w-[480px]`, `grid-cols-[80px_76px_118px_144px_46px]`, `signedCurrency(holdingPnl`, `signedPct(position.unrealizedPct` and `unrealizedPnl`, and no longer contains `holdingCurrency` or `holdingPct`.
+  - Local build marker check: pass; built `TradesTab-9gMVt7jn.js` contains `min-w-[480px]`, `grid-cols-[80px_76px_118px_144px_46px]`, `unrealizedPnl` and the signed currency formatter with positive `+`; built `SettingsTab-PqkG5MfK.js` contains `v10.7.9.84`, `当日盈亏列恢复上一版首屏显示效果` and `持仓盈亏正数恢复显示 + 号`.
+- Deployment: 待推送 GitHub `main` 后由 Vercel 自动部署,部署完成后回填 runtime commit 和 deployment target。
+- Production verification:
+  - 线上 chunk marker、生产 RLS REST 复验和部署 URL 待部署完成后回填。
+- Rollback: 回滚本次改动会恢复 v10.7.9.83 的 `548px` 右侧指标区和无 `+` 号的持仓盈亏显示,移动端首屏当日盈亏可能再次被挤到右侧。
+
 ### 2026-07-04 - 修正持仓盈亏和今日订单维护
 
 - Commit: `c2b11058c670b26e657ff55e156712bad8f51bb5`

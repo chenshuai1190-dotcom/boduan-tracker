@@ -28,12 +28,6 @@ function signedCurrency(value, currency = 'USD', digits = 2) {
   return `${n >= 0 ? '+' : '-'}${prefix}${fmtAmount(Math.abs(n), digits)}`;
 }
 
-function holdingCurrency(value, currency = 'USD', digits = 2) {
-  const n = toNumber(value);
-  const prefix = currency === 'CNY' ? '¥' : '$';
-  return `${n < 0 ? '-' : ''}${prefix}${fmtAmount(Math.abs(n), digits)}`;
-}
-
 function currencyAmount(value, currency = 'USD', digits = 2) {
   return `${currency === 'CNY' ? '¥' : '$'}${fmtAmount(value, digits)}`;
 }
@@ -41,11 +35,6 @@ function currencyAmount(value, currency = 'USD', digits = 2) {
 function signedPct(value, digits = 2) {
   const n = toNumber(value) * 100;
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
-}
-
-function holdingPct(value, digits = 2) {
-  const n = toNumber(value) * 100;
-  return `${n < 0 ? '-' : ''}${Math.abs(n).toFixed(digits)}%`;
 }
 
 function pnlClass(value, mode) {
@@ -395,7 +384,7 @@ export default function TradesTab({ ctx }) {
                 </div>
                 <div className="text-center">
                   <div className="text-[11px] text-white/40">持仓盈亏</div>
-                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayHoldingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{holdingCurrency(displayHoldingPnl, displayCurrency, 2)}</div>
+                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayHoldingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayHoldingPnl, displayCurrency, 2)}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[11px] text-white/40">当日盈亏</div>
@@ -427,8 +416,8 @@ export default function TradesTab({ ctx }) {
                     </div>
                   </div>
                   <div className="overflow-x-auto [scrollbar-width:none]">
-                    <div className="min-w-[548px]">
-                      <div className="grid grid-cols-[84px_78px_140px_170px_52px] gap-1.5 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                    <div className="min-w-[480px]">
+                      <div className="grid grid-cols-[80px_76px_118px_144px_46px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
                         <span className="text-left">市值/数量</span>
                         <span className="text-right">现价/成本</span>
                         <span className="text-right">当日盈亏</span>
@@ -447,7 +436,7 @@ export default function TradesTab({ ctx }) {
                               key={position.symbol}
                               type="button"
                               onClick={() => openTradeModal(position, 'sell')}
-                              className="grid min-h-[60px] w-full grid-cols-[84px_78px_140px_170px_52px] items-center gap-1.5 py-3 text-left active:bg-white/[0.03]"
+                              className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_144px_46px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
                             >
                               <span className="text-left">
                                 <span className="block max-w-full truncate text-[12px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 0)}</span>
@@ -462,8 +451,8 @@ export default function TradesTab({ ctx }) {
                                 <span className={`mt-1 block whitespace-nowrap text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
                               </span>
                               <span className="text-right">
-                                <span className={`block whitespace-nowrap text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{holdingCurrency(holdingPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.unrealizedPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{holdingPct(position.unrealizedPct, 2)}</span>
+                                <span className={`block whitespace-nowrap text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.unrealizedPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.unrealizedPct, 2)}</span>
                               </span>
                               <span className="text-right">
                                 <span className="block text-[13px] font-black leading-[15px] text-white/82 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
