@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440` (`v10.7.9.97`)
-- 最近应用代码提交: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`
+- 当前产品基准提交: pending runtime commit (`v10.7.9.98`)
+- 最近应用代码提交: pending runtime commit
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.97`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DkMcKKq4tBVvyCY5M8kvnTB9Bqxi`
-- Vercel 部署记录: `v10.7.9.97` runtime commit `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`;GitHub Actions `CI` run `28711131474` build job `85144756465` success;production `GET https://boduan-tracker.vercel.app/?v=8f8dfbf-runtime` HTTP 200
+- 设置页版本: `v10.7.9.98`
+- Vercel 最新运行时部署: pending;上一版 success target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DkMcKKq4tBVvyCY5M8kvnTB9Bqxi`
+- Vercel 部署记录: pending `v10.7.9.98`;上一版 `v10.7.9.97` runtime commit `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`;GitHub Actions `CI` run `28711131474` build job `85144756465` success;production `GET https://boduan-tracker.vercel.app/?v=8f8dfbf-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,以及 `v10.7.9.97` 已完成波段独立归类视图和字号回调。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,以及 `v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除。
 
 ## 2. 先读这些文档
 

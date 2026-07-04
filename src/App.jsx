@@ -996,7 +996,7 @@ function MainApp({ user, onLogout }) {
     try { localStorage.setItem('bottomline_ws', 'false'); } catch {}
   }, []);
 
-  // 💼 v10.7.9.41: 摊薄成本计算器 (独立模块, localStorage 存)
+  // v10.7.9.41: 摊薄成本计算器 (独立模块, localStorage 存)
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
@@ -1947,11 +1947,25 @@ function MainApp({ user, onLogout }) {
     const priceNum = parseFloat(costBasisNewTrade.price);
     const sharesNum = parseFloat(costBasisNewTrade.shares);
     if (!symbol) {
-      alert('请先选择股票');
+      showConfirm({
+        title: '请先选择股票',
+        desc: '先在摊薄成本工具中新增或选择一只股票,再添加交易记录。',
+        confirmText: '关闭',
+        confirmStyle: 'primary',
+        icon: '!',
+        showCancel: false,
+      });
       return;
     }
     if (!priceNum || !sharesNum || priceNum <= 0 || sharesNum <= 0) {
-      alert('请填写正确的价格和股数');
+      showConfirm({
+        title: '请填写正确的价格和股数',
+        desc: '价格和股数都需要大于 0。',
+        confirmText: '关闭',
+        confirmStyle: 'primary',
+        icon: '!',
+        showCancel: false,
+      });
       return;
     }
     const type = costBasisNewTrade.type === 'sell' ? 'sell' : 'buy';
@@ -1962,7 +1976,7 @@ function MainApp({ user, onLogout }) {
       info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} 股 @ ${priceNum.toFixed(2)} · ${costBasisNewTrade.date || '--'}`,
       confirmText: '确认保存',
       confirmStyle: 'primary',
-      icon: '✅',
+      icon: '!',
       onConfirm: async () => {
         if (costBasisSubmittingRef.current) return;
         const tradeRecord = {
@@ -1987,7 +2001,14 @@ function MainApp({ user, onLogout }) {
             ...prev,
             [symbol]: (prev[symbol] || []).filter(item => item.id !== tradeRecord.id),
           }));
-          alert('保存摊薄成本交易失败:' + (e.message || e));
+          showConfirm({
+            title: '保存摊薄成本交易失败',
+            desc: e.message || String(e),
+            confirmText: '关闭',
+            confirmStyle: 'primary',
+            icon: '!',
+            showCancel: false,
+          });
         } finally {
           costBasisSubmittingRef.current = false;
           setCostBasisSubmitting(false);
@@ -4459,35 +4480,47 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* === 💼 摊薄成本 - 新增股票弹窗 === */}
+        {/* === 摊薄成本 - 新增股票弹窗 === */}
         {showCostBasisAdd && (
           <div
-            className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisAdd(false); }}
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md overflow-hidden rounded-t-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:rounded-[22px]"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
               onClick={e => e.stopPropagation()}
             >
-              {/* 顶部把手 */}
-              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
-              <div className="p-5">
-                <div className="font-black text-lg text-slate-900 mb-3">+ 新增股票</div>
-                <input
-                  type="text"
-                  value={costBasisNewSymbol}
-                  onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
-                  placeholder="股票代码 (如 NVDA)"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-base font-bold uppercase mb-3 tabular-nums"
-                  style={{ fontFamily: 'ui-monospace, monospace' }}
-                  autoFocus
-                />
+              <div className="mx-auto mt-3 h-1 w-9 rounded-full bg-white/22 sm:hidden"></div>
+              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div className="text-[15px] font-normal text-white">新增摊薄股票</div>
+                <button
+                  type="button"
+                  onClick={() => setShowCostBasisAdd(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55 active:scale-95"
+                  aria-label="关闭新增摊薄股票"
+                >
+                  <X className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </div>
+              <div className="space-y-3 p-5">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-normal text-white/42">股票代码</span>
+                  <input
+                    type="text"
+                    value={costBasisNewSymbol}
+                    onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
+                    placeholder="股票代码 (如 NVDA)"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3.5 py-3 text-[13px] font-normal uppercase text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/55"
+                    style={{ fontFamily: 'ui-monospace, monospace' }}
+                    autoFocus
+                  />
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setShowCostBasisAdd(false)}
-                    className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold active:scale-95"
+                    className="rounded-xl border border-white/10 bg-white/[0.055] py-2.5 text-[12px] font-normal text-white/72 active:scale-95"
                   >
                     取消
                   </button>
@@ -4496,14 +4529,21 @@ function MainApp({ user, onLogout }) {
                       const sym = costBasisNewSymbol.trim();
                       if (!sym) return;
                       if (costBasisData[sym]) {
-                        alert(`${sym} 已存在`);
+                        showConfirm({
+                          title: `${sym} 已存在`,
+                          desc: '这只股票已经在摊薄成本工具中,可以直接切换查看。',
+                          confirmText: '关闭',
+                          confirmStyle: 'primary',
+                          icon: '!',
+                          showCancel: false,
+                        });
                         return;
                       }
                       setCostBasisData(prev => ({ ...prev, [sym]: [] }));
                       setCostBasisActiveSymbol(sym);
                       setShowCostBasisAdd(false);
                     }}
-                    className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
+                    className="rounded-xl border border-[#f6b54b]/30 bg-[#f6b54b]/15 py-2.5 text-[12px] font-normal text-[#ffd18a] active:scale-95"
                   >
                     确定
                   </button>
@@ -4513,104 +4553,114 @@ function MainApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* === 💼 摊薄成本 - 添加交易弹窗 === */}
+        {/* === 摊薄成本 - 添加交易弹窗 === */}
         {showCostBasisTrade && (
           <div
-            className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisTrade(false); }}
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:rounded-[22px]"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
               onClick={e => e.stopPropagation()}
             >
-              {/* 顶部把手 */}
-              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-2 sm:hidden"></div>
-              <div className="p-5">
-                <div className="font-black text-lg text-slate-900 mb-3">+ 添加交易 ({costBasisActiveSymbol})</div>
-              {/* 类型切换 */}
-              <div className="flex gap-2 mb-3">
+              <div className="mx-auto mt-3 h-1 w-9 rounded-full bg-white/22 sm:hidden"></div>
+              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div>
+                  <div className="text-[15px] font-normal text-white">添加摊薄交易</div>
+                  <div className="mt-0.5 text-[11px] font-normal text-white/42">{costBasisActiveSymbol || '未选择股票'}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCostBasisTrade(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55 active:scale-95"
+                  aria-label="关闭添加摊薄交易"
+                >
+                  <X className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </div>
+              <div className="space-y-3 p-5">
+                <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'buy' }))}
-                  className="flex-1 py-2.5 rounded-lg font-black active:scale-95"
-                  style={{
-                    background: costBasisNewTrade.type === 'buy' ? '#dc2626' : '#f1f5f9',
-                    color: costBasisNewTrade.type === 'buy' ? 'white' : '#94a3b8',
-                  }}
+                  className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
+                    costBasisNewTrade.type === 'buy'
+                      ? 'border-rose-400/35 bg-rose-500/18 text-rose-200 shadow-[0_10px_28px_rgba(244,63,94,0.14)]'
+                      : 'border-white/10 bg-white/[0.055] text-white/45'
+                  }`}
                 >
                   买入
                 </button>
                 <button
                   onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'sell' }))}
-                  className="flex-1 py-2.5 rounded-lg font-black active:scale-95"
-                  style={{
-                    background: costBasisNewTrade.type === 'sell' ? '#16a34a' : '#f1f5f9',
-                    color: costBasisNewTrade.type === 'sell' ? 'white' : '#94a3b8',
-                  }}
+                  className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
+                    costBasisNewTrade.type === 'sell'
+                      ? 'border-emerald-400/35 bg-emerald-500/16 text-emerald-200 shadow-[0_10px_28px_rgba(16,185,129,0.12)]'
+                      : 'border-white/10 bg-white/[0.055] text-white/45'
+                  }`}
                 >
                   卖出
                 </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                  <label className="text-[11px] text-slate-500 block mb-1">价格 ($/股)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={costBasisNewTrade.price}
-                    onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                    style={{ fontFamily: 'ui-monospace, monospace' }}
-                    autoFocus
-                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-normal text-white/42">价格 ($/股)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={costBasisNewTrade.price}
+                      onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/55"
+                      style={{ fontFamily: 'ui-monospace, monospace' }}
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-normal text-white/42">股数</label>
+                    <input
+                      type="number"
+                      value={costBasisNewTrade.shares}
+                      onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
+                      placeholder="0"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/55"
+                      style={{ fontFamily: 'ui-monospace, monospace' }}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-500 block mb-1">股数</label>
+                  <label className="mb-1 block text-[11px] font-normal text-white/42">日期</label>
                   <input
-                    type="number"
-                    value={costBasisNewTrade.shares}
-                    onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
-                    placeholder="0"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                    style={{ fontFamily: 'ui-monospace, monospace' }}
+                    type="date"
+                    value={costBasisNewTrade.date}
+                    onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none [color-scheme:dark] focus:border-[#f6b54b]/55"
                   />
                 </div>
-              </div>
-              <div className="mb-3">
-                <label className="text-[11px] text-slate-500 block mb-1">日期</label>
-                <input
-                  type="date"
-                  value={costBasisNewTrade.date}
-                  onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                />
-              </div>
-              {/* 实时预览金额 */}
-              {costBasisNewTrade.price && costBasisNewTrade.shares && (
-                <div className="text-[12px] text-slate-500 mb-3 p-2 bg-slate-50 rounded text-center">
-                  {costBasisNewTrade.type === 'buy' ? '将投入' : '将收回'}{' '}
-                  <span className="font-black text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    ${(parseFloat(costBasisNewTrade.price) * parseFloat(costBasisNewTrade.shares)).toFixed(2)}
-                  </span>
+                {costBasisNewTrade.price && costBasisNewTrade.shares && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3 text-center text-[12px] font-normal text-white/48">
+                    {costBasisNewTrade.type === 'buy' ? '将投入' : '将收回'}{' '}
+                    <span className="font-normal tabular-nums text-white/88" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                      ${(parseFloat(costBasisNewTrade.price) * parseFloat(costBasisNewTrade.shares)).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setShowCostBasisTrade(false)}
+                    className="rounded-xl border border-white/10 bg-white/[0.055] py-2.5 text-[12px] font-normal text-white/72 active:scale-95"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={confirmCostBasisTradeSubmit}
+                    disabled={costBasisSubmitting}
+                    className="rounded-xl border border-[#f6b54b]/30 bg-[#f6b54b]/15 py-2.5 text-[12px] font-normal text-[#ffd18a] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                  >
+                    {costBasisSubmitting ? '保存中...' : '确定'}
+                  </button>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setShowCostBasisTrade(false)}
-                  className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold active:scale-95"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={confirmCostBasisTradeSubmit}
-                  disabled={costBasisSubmitting}
-                  className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                >
-                  {costBasisSubmitting ? '保存中...' : '确定'}
-                </button>
-              </div>
               </div>
             </div>
           </div>

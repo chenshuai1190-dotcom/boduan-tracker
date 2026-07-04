@@ -4,6 +4,38 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 摊薄成本工具改为深色版本
+
+- Commit: pending
+- Background: 用户在前台做了不破坏结构的黑色版摊薄成本参考图,要求实际运行版本删除 `摊薄成本` 标题前旧图标,并且前台图标方案继续参考当前应用已有的线性图标体系。
+- Changes:
+  - 摊薄成本主工具从旧白色/iOS 遗留风格改为深色卡片体系,标题只保留 `摊薄成本` 纯文字,删除标题前旧图标。
+  - 股票切换、主成本卡、累计投入卡、已实现盈亏卡、交易记录和删除整只股票入口统一为黑色风格。
+  - 辅助图标改用现有 lucide 线性图标体系:累计投入使用 `Database`,已实现盈亏使用 `TrendingUp`,删除整只股票使用 `Trash2`。
+  - 摊薄新增股票和添加摊薄交易弹窗改为深色自绘 UI,不再使用旧白色弹窗。
+  - 摊薄成本提交校验、重复股票提示和保存失败提示从系统原生 `alert` 改为应用内确认弹窗。
+  - 新增回归测试,锁定摊薄成本深色表面、线性图标、无旧标题图标和无原生 `alert`。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.98`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是摊薄成本前端 UI 和提示交互调整,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或既有开发准则。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 51 tests.
+  - `npm run build`: pass; `index-ByPKcqCY.css` 51.53 kB / gzip 9.52 kB, `TradesTab-BjwXXSZk.js` 61.43 kB / gzip 12.15 kB, `SettingsTab-7OOLBxmB.js` 33.90 kB / gzip 12.95 kB, `App-fEDDtosU.js` 139.86 kB / gzip 39.34 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `bg-[#0b0f14]`, `Database`, `TrendingUp`, `新增摊薄股票`, `添加摊薄交易`, `v10.7.9.98`, and does not contain old cost-basis title marker `💼 摊薄成本`.
+  - Remaining before deployment: deployment status and production marker checks.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.97` 的摊薄成本旧白色工具和旧标题图标;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-04 - 修正波段已完成归类和字号
 
 - Commit: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`

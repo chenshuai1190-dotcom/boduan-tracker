@@ -39,6 +39,22 @@ test('trade and wave form validation avoids native alert dialogs', () => {
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
 });
 
+test('cost basis tool uses dark custom UI without legacy title icon or native alerts', () => {
+  const costSubmitStart = appSource.indexOf('const confirmCostBasisTradeSubmit =');
+  const costSubmitEnd = appSource.indexOf('const deleteStockTradeRecord =', costSubmitStart);
+  const costSubmitBlock = appSource.slice(costSubmitStart, costSubmitEnd);
+
+  assert.ok(costSubmitStart > -1, 'missing cost-basis submit implementation');
+  assert.ok(costSubmitEnd > costSubmitStart, 'missing boundary after cost-basis submit implementation');
+  assert.equal(costSubmitBlock.includes('alert('), false, 'cost-basis submit path must not use native alert');
+  assert.ok(tradesTabSource.includes('bg-[#0b0f14]'), 'cost-basis tool should use the dark card surface');
+  assert.ok(tradesTabSource.includes('Database'), 'cost-basis stats should use the existing line icon system');
+  assert.ok(tradesTabSource.includes('TrendingUp'), 'cost-basis realized PnL should use the existing line icon system');
+  assert.equal(tradesTabSource.includes('💼 摊薄成本'), false, 'cost-basis title must not keep the legacy briefcase icon');
+  assert.ok(appSource.includes('新增摊薄股票'), 'cost-basis add stock modal should be custom in-app UI');
+  assert.ok(appSource.includes('添加摊薄交易'), 'cost-basis add trade modal should be custom in-app UI');
+});
+
 test('wave records keep editable notes and completed waves remain reachable', () => {
   assert.ok(tradesTabSource.includes('波段备注/计划'), 'wave add modal must keep a note/plan field');
   assert.ok(tradesTabSource.includes('completedWaveGroups'), 'completed waves need their own grouped data source');
