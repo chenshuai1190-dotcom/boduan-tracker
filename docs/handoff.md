@@ -8,12 +8,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `same commit` (`v10.7.9.88` runtime,部署后回填)
-- 最近应用代码提交: `same commit` (`v10.7.9.88` runtime,部署后回填)
+- 当前产品基准提交: `e7eb546800a93616a148b6c227a156544be805c3` (`v10.7.9.88` runtime)
+- 最近应用代码提交: `e7eb546800a93616a148b6c227a156544be805c3` (`v10.7.9.88` runtime)
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.88`
-- Vercel 最新运行时部署: `v10.7.9.88` runtime 待 GitHub push 后自动部署
-- Vercel 部署记录: 待部署后回填
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8nDpGDkpHUD2ae1gcYTkCt9R5frz`
+- Vercel 部署记录: runtime commit `e7eb546800a93616a148b6c227a156544be805c3`, GitHub Actions `CI` run `28706634362` success
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -144,19 +144,20 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.88` runtime 待 GitHub push 后由 Vercel 自动部署;当前本地验证已通过,实际 runtime commit、GitHub Actions、Vercel target 和生产 chunk 待部署完成后回填。
+- `v10.7.9.88` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `e7eb546800a93616a148b6c227a156544be805c3`, GitHub Actions `CI` run `28706634362` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8nDpGDkpHUD2ae1gcYTkCt9R5frz`。
 
 已验证生产 runtime chunks:
 
 - 本轮本地构建 runtime chunks: `/assets/TradesTab-RhPop83-.js`, `/assets/SettingsTab-C0OmxyST.js`, `/assets/App-4zi_fqeE.js`。
-- 生产 entry chunks: 待部署后回填。
-- 生产 runtime chunks: 待部署后回填。
+- 生产 entry chunks: `/assets/index-CHnkNJnr.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-xZeYJ3dA.css`。
+- 生产 runtime chunks: `/assets/App-BYOPIfkJ.js`, `/assets/TradesTab-RhPop83-.js`, `/assets/SettingsTab-C0OmxyST.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-rarZbTqF.js`。
 
 关键 marker:
 
-- 本地 `TradesTab-RhPop83-.js` 包含 body scroll-lock 逻辑、居中弹层 marker、`rounded-3xl` 和取消按钮 `bg-white/[0.055]`。
-- 本地 `SettingsTab-C0OmxyST.js` 包含 `v10.7.9.88`、`优化交易录入弹层位置和遮罩` 和 `弹层打开后锁定背景页面`。
-- 生产 RLS REST 预检通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-DXkp5Xew.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `App-BYOPIfkJ.js` 包含 `updateStockTrade`, `TradesTab-RhPop83-.js` 和 `SettingsTab-C0OmxyST.js`。
+- 生产 `TradesTab-RhPop83-.js` 包含 body scroll-lock marker、居中弹层 marker、`rounded-3xl`、取消按钮 `bg-white/[0.055]`、`确认修改` 和 `确认添加`。
+- 生产 `SettingsTab-C0OmxyST.js` 包含 `v10.7.9.88`、`优化交易录入弹层位置和遮罩` 和 `弹层打开后锁定背景页面`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-rarZbTqF.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
@@ -384,11 +385,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `same commit` (`v10.7.9.88` runtime,部署后回填)
-最近应用代码提交: `same commit` (`v10.7.9.88` runtime,部署后回填)
+当前产品基准提交: `e7eb546800a93616a148b6c227a156544be805c3` (`v10.7.9.88` runtime)
+最近应用代码提交: `e7eb546800a93616a148b6c227a156544be805c3` (`v10.7.9.88` runtime)
 设置页版本: `v10.7.9.88`
-Vercel 最新运行时部署: `v10.7.9.88` runtime 待 GitHub push 后自动部署
-部署记录: 待部署后回填
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8nDpGDkpHUD2ae1gcYTkCt9R5frz`
+部署记录: GitHub Actions `CI` run `28706634362` success; runtime commit `e7eb546800a93616a148b6c227a156544be805c3`
 
 请先按顺序读:
 1. `docs/handoff.md`

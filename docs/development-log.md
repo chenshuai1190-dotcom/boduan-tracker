@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修正交易录入弹层位置和背景滚动
 
-- Commit: `same commit`
+- Commit: `e7eb546800a93616a148b6c227a156544be805c3`
 - Background: 用户根据手机截图反馈 `添加交易` 弹层还有三个问题:取消按钮颜色太弱几乎看不见;弹层打开后背景页面仍可移动;表单类弹窗位置太靠下,应居中固定并自动适应。
 - Changes:
   - 交易页主账本 `添加交易/修改交易` 共用弹层从移动端贴底抽屉改为全屏遮罩中的居中自适应面板,保留 `max-height` 和内部滚动能力。
@@ -30,8 +30,19 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
   - Local source marker check: pass; source contains `bodyStyle.position = 'fixed'`, `items-center justify-center bg-black/65 px-3 py-4`, `rounded-3xl`, cancel button `bg-white/[0.055]`, `v10.7.9.88` and the new modal scroll-lock development rule.
   - Local build marker check: pass; built `TradesTab-RhPop83-.js` contains the body scroll-lock logic and centered modal markers; built `SettingsTab-C0OmxyST.js` contains `v10.7.9.88`, `优化交易录入弹层位置和遮罩` and `弹层打开后锁定背景页面`.
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `e7eb546800a93616a148b6c227a156544be805c3`.
+  - GitHub Actions `CI`: success, run `28706634362`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8nDpGDkpHUD2ae1gcYTkCt9R5frz`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=e7eb546-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CHnkNJnr.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-xZeYJ3dA.css`.
+  - Production runtime chunks: `/assets/App-BYOPIfkJ.js`, `/assets/TradesTab-RhPop83-.js`, `/assets/SettingsTab-C0OmxyST.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-rarZbTqF.js`.
+- Production verification:
+  - Production App marker check: `App-BYOPIfkJ.js` contains `updateStockTrade`, `TradesTab-RhPop83-.js` and `SettingsTab-C0OmxyST.js`.
+  - Production TradesTab marker check: `TradesTab-RhPop83-.js` contains body scroll-lock markers `overflow=\`hidden\``, `position=\`fixed\``, `overscrollBehavior=\`none\``, the centered overlay class, `rounded-3xl`, cancel button `bg-white/[0.055]`, `确认修改` and `确认添加`.
+  - Production SettingsTab marker check: `SettingsTab-C0OmxyST.js` contains `v10.7.9.88`, `优化交易录入弹层位置和遮罩` and `弹层打开后锁定背景页面`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-rarZbTqF.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复移动端贴底弹层、取消按钮较弱的视觉和未锁背景滚动的行为;交易新增、修改、删除和云端同步逻辑不受影响。
 
 ### 2026-07-04 - 优化交易录入弹层按钮和输入框细节
