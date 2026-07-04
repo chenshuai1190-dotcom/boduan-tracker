@@ -1,6 +1,6 @@
 # Handoff for Next Developer
 
-Date: 2026-07-03 Asia/Shanghai
+Date: 2026-07-04 Asia/Shanghai
 
 This document is the first page to read when taking over `boduan-tracker`.
 
@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `33dab311f662b357804b69601c91afd0577e3e61`
-- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `33dab311f662b357804b69601c91afd0577e3e61`.
-- App changelog version shown in Settings: `v10.7.9.58`
+- Runtime code verified on production: `58663cdd685207d54c0def7bd17bf02830905ebb`
+- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `58663cdd685207d54c0def7bd17bf02830905ebb`.
+- App changelog version shown in Settings: `v10.7.9.59`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,14 +123,15 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `33dab311f662b357804b69601c91afd0577e3e61`
-- GitHub Actions `CI`: success, run `28673202099`
-- Vercel deployment: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5jnZyUvSdpTQ9bzn5ewfaYJAQ5N5`
-- Production chunks: `index-BHNU0-21.js`, `index-CkXPg5ZA.css`, `App-gC5t_xx6.js`, `HomeTab-DgRCQBTf.js`, `SettingsTab-BG2i8XEV.js`
-- `HomeTab-DgRCQBTf.js` does not contain `触发列表` or `策略档位 L1-L6`; current signal is back to the compact card.
-- `SettingsTab-BG2i8XEV.js` contains `v10.7.9.58` and "回滚首页当前信号展开列表".
+- Runtime commit: `58663cdd685207d54c0def7bd17bf02830905ebb`
+- GitHub Actions `CI`: success, run `28692910439`
+- Vercel deployment: success, deployment `5306951776`, target `https://boduan-tracker-3701o64x4-chenshuai1190-7580s-projects.vercel.app`
+- Production chunks: `index-DIlRs9If.js`, `index-C89TU27I.css`, `App-Q0v9E7k3.js`, `HomeTab-CB8aSzcR.js`, `TradesTab-CZdjIIxw.js`, `SettingsTab-pFm5DUJ_.js`
+- `TradesTab-CZdjIIxw.js` contains `持仓分布`, `当日订单`, `波段记录`, `股票设置`, `摊薄工具`, `全部功能`, `effectiveCost`, and local-date helper; it does not contain `策略订单`.
+- `SettingsTab-pFm5DUJ_.js` contains `v10.7.9.59` and "交易页重构为主交易账本".
+- `App-Q0v9E7k3.js` does not contain old outer trade summary text `持仓总市值` / `波段总盈亏`.
 - `/api/quote?symbols=VIX` without auth returns `401`
-- The temporary current-signal detail list from `20eba4d31a9f343560b78649bd0116d707916585` has been rolled back after user feedback.
+- The trade tab now uses the main `trades` ledger for positions and effective cost; wave records and the cost-basis calculator are toolbox tools, not part of the main trade ledger.
 - RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
 
 Home current-signal design preference:
@@ -139,6 +140,14 @@ Home current-signal design preference:
 - Do not default-open strategy details.
 - Do not auto-open strategy details because of alerts or level changes.
 - If strategy details are reintroduced later, open them only after the user taps the entry.
+
+Trading module boundary:
+
+- Main positions must be derived from `trades` via `derivePositionsFromTrades`.
+- `effectiveCost` is the displayed diluted cost for remaining shares: realized sell profit/loss is spread across remaining held shares.
+- Example baseline: buy NVDA 100 shares at 100, sell 10 shares at 150, then held shares are 90 and effective cost is 94.44.
+- `costBasisData` remains an independent small calculator in the toolbox. Do not wire it into total assets, positions, or main trading reports unless the user explicitly changes that product rule.
+- Do not add a "strategy orders" tab in the trade module; the user explicitly said it is not needed.
 
 Known non-blocking CI warning:
 
@@ -185,6 +194,7 @@ Tests:
 - `tests/quote-response-shape.test.js`
 - `tests/quote-symbols.test.js`
 - `tests/db-guards.test.js`
+- `tests/investment-summary.test.js`
 
 CI:
 
@@ -194,6 +204,7 @@ CI:
 
 Recent important commits:
 
+- `58663cd`: rebuilt the trade tab around the main manual trade ledger, added effective diluted cost, moved wave/cost tools into the toolbox, and omitted strategy orders.
 - `33dab31`: rolled back the home current-signal detail list and restored the compact previous signal card.
 - `20eba4d`: briefly restored the home current-signal detail list; rolled back by `33dab31`.
 - `8fe2cd2`: added EODHD logo fallback from uppercase to lowercase paths so more self-selected company icons load.

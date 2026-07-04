@@ -4,9 +4,29 @@
 
 ## 2026-07-04 Asia/Shanghai
 
-### 2026-07-04 - 交易页重构为主交易账本
+### 2026-07-04 - 记录交易页主账本部署验证
 
 - Commit: `same commit`
+- Background: 交易页主账本运行时代码已部署到 Vercel 生产环境,需要回填线上验证证据并刷新交接文档。
+- Changes:
+  - 回填交易页重构提交 `58663cdd685207d54c0def7bd17bf02830905ebb` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码、设置页版本、生产 chunk 和交易模块最新规则。
+  - 记录交易模块主账本边界:主持仓使用 `trades` + `derivePositionsFromTrades`,独立摊薄成本工具继续留在工具箱内,不参与主交易账本。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass, 22 tests.
+  - `npm run build`: pass; docs-only change, runtime chunks unchanged from `58663cdd685207d54c0def7bd17bf02830905ebb` local build (`TradesTab-CZdjIIxw.js`, `SettingsTab-pFm5DUJ_.js`, `App-6jso7Jjy.js`).
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: pending docs-only push after validation.
+- Production verification: runtime commit `58663cdd685207d54c0def7bd17bf02830905ebb` already verified; docs-only verification pending.
+- Rollback: 回滚本次 docs-only 提交只会移除部署记录和交接刷新,不影响交易页运行时代码。
+
+### 2026-07-04 - 交易页重构为主交易账本
+
+- Commit: `58663cdd685207d54c0def7bd17bf02830905ebb`
 - Background: 用户要求重构交易模块:所有股票通过交易页手动记录买入/卖出,主持仓和成本从交易记录推导;波段记录和摊薄成本等小工具收进工具箱,不参与整体交易逻辑改变;不需要策略订单。
 - Changes:
   - 交易页新增深色主交易界面:总资产卡、工具箱、持仓分布和当日订单。
@@ -30,8 +50,17 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local trade-page chunk check: pass; built `TradesTab-CZdjIIxw.js` contains `持仓分布`, `当日订单`, `波段记录`, `股票设置`, `摊薄工具`, `全部功能`, `effectiveCost`, and local-date helper, and does not contain `策略订单`; built `App-6jso7Jjy.js` does not contain old outer trade summary text `持仓总市值` / `波段总盈亏`; built `SettingsTab-pFm5DUJ_.js` contains `v10.7.9.59`.
-- Deployment: pending GitHub main push and Vercel production verification.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `58663cdd685207d54c0def7bd17bf02830905ebb`
+  - GitHub Actions `CI`: success, run `28692910439`
+  - Vercel deployment: success, deployment `5306951776`, target `https://boduan-tracker-3701o64x4-chenshuai1190-7580s-projects.vercel.app`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-DIlRs9If.js`, `index-C89TU27I.css`, `App-Q0v9E7k3.js`, `TradesTab-CZdjIIxw.js`, `SettingsTab-pFm5DUJ_.js`, `HomeTab-CB8aSzcR.js`
+  - `TradesTab-CZdjIIxw.js` contains `持仓分布`, `当日订单`, `波段记录`, `股票设置`, `摊薄工具`, `全部功能`, `effectiveCost`, and local-date helper; it does not contain `策略订单`.
+  - `SettingsTab-pFm5DUJ_.js` contains `v10.7.9.59` and "交易页重构为主交易账本"。
+  - `App-Q0v9E7k3.js` does not contain old outer trade summary text `持仓总市值` / `波段总盈亏`.
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
 - Rollback: 回滚本次提交会恢复旧交易页波段记录优先的布局和独立摊薄工具直出显示;不影响首页、资产或目标逻辑。
 
 ### 2026-07-04 - 记录当前信号回滚部署验证
