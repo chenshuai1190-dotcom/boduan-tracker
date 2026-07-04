@@ -4,6 +4,40 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 收紧波段记录字号并移除原生提示
+
+- Commit: pending runtime commit before push.
+- Background: 用户反馈新版波段记录整体字号仍偏大,要求进一步收紧;进行中的绿色小状态点需要恢复闪烁;`#1` 这类编号没有实际作用,需要移除。用户同时指出波段新增表单仍触发 iOS/系统原生提示框,要求改成应用内自定义交互,并写入开发准则:非必要不要使用浏览器或系统原生交互控件。
+- Changes:
+  - 波段记录首页卡片、统计卡、股票卡、进行中波段卡、明细行、备注和已完成折叠区整体收紧字号、行高和内边距,减少移动端首屏压迫感。
+  - 进行中绿色状态点恢复 `animate-pulse` 闪烁状态。
+  - 进行中波段和已完成波段标题移除 `#1`、`#2` 等无意义编号标识。
+  - 添加/修改交易共用弹窗在波段和正式交易提交前,对缺字段、价格或股数非法的情况改为应用内自定义确认弹窗提示,不再触发系统原生 `alert`。
+  - 通用确认弹窗支持隐藏取消按钮,用于单按钮提示类弹窗。
+  - 新增回归测试,校验交易/波段提交校验路径不再包含原生 `alert`,并确保交易页先拦截无效表单状态。
+  - `docs/development-process.md` 新增准则:提示、确认、选择、编辑、筛选等核心产品交互默认使用应用内自定义弹窗、抽屉、菜单、toast 或受控组件,非必要不使用浏览器/系统原生控件。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.95`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是波段记录前端 UI、表单提示和开发准则调整,不改变环境变量、API 鉴权、RLS SQL 或安全架构结论。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 49 tests.
+  - `npm run build`: pass; `index-w2yQzKP-.css` 49.35 kB / gzip 9.26 kB, `TradesTab-k89Ynj1Q.js` 53.04 kB / gzip 11.59 kB, `SettingsTab-DmEa4ycu.js` 32.71 kB / gzip 12.58 kB, `App-BxDQQRJx.js` 137.11 kB / gzip 38.71 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `animate-pulse`, `showTradeFormNotice`, `showCancel: opts.showCancel !== false`, `新增波段股票`, `v10.7.9.95`, and no source marker `进行中 · #`.
+  - Local build marker check: pass; built chunks contain `请填写完整信息`, `新增波段股票`, `添加波段记录`, `v10.7.9.95` and `收紧波段记录字号并移除原生提示`.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.94` 的波段记录字号、静态状态点、波段编号标识和系统原生表单校验提示;不会影响工具账本边界、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-04 - 波段记录小程序融入深色风格
 
 - Commit: `20383714cc08feefa7faaf79d25e715cb0ad806a`

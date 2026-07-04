@@ -987,6 +987,7 @@ function MainApp({ user, onLogout }) {
       cancelText: opts.cancelText || '取消',
       confirmStyle: opts.confirmStyle || 'danger', // 'danger' | 'primary'
       icon: opts.icon || '🗑',
+      showCancel: opts.showCancel !== false,
       onConfirm: opts.onConfirm,
     });
   }, []);
@@ -1825,8 +1826,19 @@ function MainApp({ user, onLogout }) {
 
   const addTrade = async () => {
     if (tradeSubmittingRef.current) return;
+    const showTradeNotice = (title, desc, info = null) => {
+      showConfirm({
+        title,
+        desc,
+        info,
+        confirmText: '关闭',
+        confirmStyle: 'primary',
+        icon: '!',
+        showCancel: false,
+      });
+    };
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
-      alert('请填写股票代码、价格和股数');
+      showTradeNotice('请填写完整信息', '股票代码、价格和股数都是必填项。');
       return;
     }
     const symbol = newTrade.symbol.trim().toUpperCase();
@@ -1834,7 +1846,7 @@ function MainApp({ user, onLogout }) {
     const priceNum = parseFloat(newTrade.price);
     const editingId = newTrade.id || newTrade.editingId;
     if (sharesNum <= 0 || priceNum <= 0) {
-      alert('股数和价格必须大于 0');
+      showTradeNotice('价格和股数需要大于 0', '请检查输入后再提交。');
       return;
     }
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
@@ -1855,7 +1867,7 @@ function MainApp({ user, onLogout }) {
         });
         setTrades(current => [...current, waveTradeRecord]);
       } catch (e) {
-        alert('添加波段记录失败:' + e.message);
+        showTradeNotice('添加波段记录失败', e.message || '请稍后重试。');
         return;
       } finally {
         tradeSubmittingRef.current = false;
@@ -1896,7 +1908,7 @@ function MainApp({ user, onLogout }) {
         ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
         : [...current, tradeRecord]);
     } catch (e) {
-      alert(`${editingId ? '更新' : '添加'}交易失败:` + e.message);
+      showTradeNotice(`${editingId ? '更新' : '添加'}交易失败`, e.message || '请稍后重试。');
       return;
     } finally {
       tradeSubmittingRef.current = false;
@@ -3087,15 +3099,17 @@ function MainApp({ user, onLogout }) {
                   </div>
                 )}
                 {/* 按钮 */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => { if (!confirmSubmitting) setConfirmModal(null); }}
-                    disabled={confirmSubmitting}
-                    className="py-3 rounded-xl font-bold text-[14px] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                    style={{ background: '#f1f5f9', color: '#64748b' }}
-                  >
-                    {confirmModal.cancelText}
-                  </button>
+                <div className={`grid gap-2 ${confirmModal.showCancel ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {confirmModal.showCancel && (
+                    <button
+                      onClick={() => { if (!confirmSubmitting) setConfirmModal(null); }}
+                      disabled={confirmSubmitting}
+                      className="py-3 rounded-xl font-bold text-[14px] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                      style={{ background: '#f1f5f9', color: '#64748b' }}
+                    >
+                      {confirmModal.cancelText}
+                    </button>
+                  )}
                   <button
                     onClick={async () => {
                       if (confirmSubmittingRef.current) return;

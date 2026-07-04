@@ -26,3 +26,15 @@ test('tool submissions require confirmation and duplicate-submit guards', () => 
   assert.ok(appSource.includes('不会进入正式持仓、当日订单或波段记录'), 'cost-basis confirmation must state its ledger boundary');
   assert.ok(tradesTabSource.includes('不会进入正式持仓、当日订单或总资产计算'), 'wave confirmation must state its ledger boundary');
 });
+
+test('trade and wave form validation avoids native alert dialogs', () => {
+  const addTradeStart = appSource.indexOf('const addTrade = async () =>');
+  const nextToolStart = appSource.indexOf('const confirmCostBasisTradeSubmit =', addTradeStart);
+  const addTradeBlock = appSource.slice(addTradeStart, nextToolStart);
+
+  assert.ok(addTradeStart > -1, 'missing addTrade implementation');
+  assert.ok(nextToolStart > addTradeStart, 'missing boundary after addTrade implementation');
+  assert.equal(addTradeBlock.includes('alert('), false, 'trade/wave submit path must not use native alert');
+  assert.ok(appSource.includes('showCancel: opts.showCancel !== false'), 'custom notice modal must support hiding cancel button');
+  assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
+});
