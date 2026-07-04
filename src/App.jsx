@@ -11,6 +11,7 @@ const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
+const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
 const DEFAULT_HKD_CNY_RATE = 0.87;
 
@@ -53,6 +54,32 @@ function readCachedFxRates() {
     };
   } catch {
     return null;
+  }
+}
+
+function normalizeSymbolKey(symbol) {
+  return String(symbol || '').trim().toUpperCase();
+}
+
+function normalizeExternalLogoUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (raw.startsWith('/')) return `https://eodhd.com${raw}`;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return null;
+}
+
+function readCachedStockLogos() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STOCK_LOGO_CACHE_STORAGE_KEY) || '{}');
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.fromEntries(Object.entries(parsed).flatMap(([key, value]) => {
+      const symbol = normalizeSymbolKey(key);
+      const url = normalizeExternalLogoUrl(value?.url || value);
+      return symbol && url ? [[symbol, { url, updatedAt: value?.updatedAt || '' }]] : [];
+    }));
+  } catch {
+    return {};
   }
 }
 
@@ -568,6 +595,8 @@ function MainApp({ user, onLogout }) {
   // high = 6个月滚动最高价,用于计算回撤预警
   // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
   const [watchlist, setWatchlist] = useState([]);
+  const [quoteCache, setQuoteCache] = useState([]);
+  const [logoCache, setLogoCache] = useState(() => readCachedStockLogos());
   const [editingStock, setEditingStock] = useState(null);
   const [showAddStock, setShowAddStock] = useState(false);
   const [newStock, setNewStock] = useState({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
@@ -786,6 +815,26 @@ function MainApp({ user, onLogout }) {
     return fetch(`/api/quote?${params.toString()}`, { headers });
   }, []);
 
+  const cacheStockLogo = useCallback((symbol, url) => {
+    const key = normalizeSymbolKey(symbol);
+    const normalizedUrl = normalizeExternalLogoUrl(url);
+    if (!key || !normalizedUrl) return;
+    setLogoCache((current) => {
+      if (current[key]?.url === normalizedUrl) return current;
+      const next = {
+        ...current,
+        [key]: {
+          url: normalizedUrl,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+      try {
+        localStorage.setItem(STOCK_LOGO_CACHE_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
   const applyFxRates = useCallback((rates) => {
     const usdCny = validRate(rates?.CNY);
     const hkdCny = validRate(rates?.HKD);
@@ -937,9 +986,9 @@ function MainApp({ user, onLogout }) {
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState(null);
-  const quoteUniverse = useMemo(() => buildLedgerQuoteUniverse(stockTrades, watchlist), [stockTrades, watchlist]);
+  const quoteUniverse = useMemo(() => buildLedgerQuoteUniverse(stockTrades, watchlist, quoteCache), [stockTrades, watchlist, quoteCache]);
   const quoteRows = quoteUniverse.allRows;
-  const homeWatchlist = quoteUniverse.ledgerRows;
+  const homeWatchlist = quoteUniverse.watchlistRows;
 
   useEffect(() => {
     try {
@@ -1010,13 +1059,11 @@ function MainApp({ user, onLogout }) {
         if (cloudStockTrades !== null) setStockTrades(cloudStockTrades);
         else console.warn('[云端加载] ⚠️ stockTrades 拉取失败, 保留本地主交易账本');
 
-        if (cloudWatchlist && cloudWatchlist.length > 0) {
+        if (Array.isArray(cloudWatchlist)) {
           console.log('[云端加载] ✓ 设置 watchlist:', cloudWatchlist.length, '只');
           setWatchlist(cloudWatchlist);
-        } else if (cloudWatchlist === null) {
-          console.warn('[云端加载] ⚠️ watchlist 拉取失败, 保留本地默认');
         } else {
-          console.warn('[云端加载] ⚠️ cloudWatchlist 为空, 保留本地默认 (新用户)');
+          console.warn('[云端加载] ⚠️ watchlist 拉取失败, 保留本地默认');
         }
 
         if (cloudNotes !== null) setWaveNotes(cloudNotes);
@@ -1667,18 +1714,6 @@ function MainApp({ user, onLogout }) {
       return;
     }
 
-    // 如果这只股票不在关注列表里,自动加进去
-    if (!watchlist.find(s => s.symbol === symbol)) {
-      setWatchlist([...watchlist, {
-        symbol,
-        name: stockName,
-        price: priceNum,
-        high: priceNum,
-        cost: 0,
-        shares: 0,
-      }]);
-    }
-
     // 重置表单(保留 symbol/name/side/date,方便下一笔同一股票)
     setNewTrade({
       symbol: newTrade.symbol,           // 保留刚用的代码
@@ -1710,27 +1745,48 @@ function MainApp({ user, onLogout }) {
     // 防抖 useEffect 会自动保存到云端,不需要手动调 db
   };
 
-  const addStock = async () => {
-    if (!newStock.symbol || !newStock.price) {
-      alert('请至少填写股票代码和当前价');
+  const addStock = async (stockDraft = null) => {
+    const draft = stockDraft && typeof stockDraft === 'object'
+      ? { ...newStock, ...stockDraft }
+      : newStock;
+    if (!draft.symbol) {
+      alert('请填写股票代码');
       return;
     }
-    const symbol = newStock.symbol.toUpperCase().trim();
+    const symbol = draft.symbol.toUpperCase().trim();
     if (watchlist.find(s => s.symbol === symbol)) {
       alert('该股票已存在');
       return;
     }
-    const price = parseFloat(newStock.price) || 0;
-    const high = parseFloat(newStock.high) || price;
+    let fresh = null;
+    try {
+      const r = await fetchQuote(symbol);
+      const result = await r.json();
+      fresh = result?.data?.find(d => d.symbol === symbol) || null;
+    } catch (e) {
+      console.warn(`[添加自选 ${symbol}] 行情预拉取失败:`, e.message);
+    }
+    const price = parseFloat(draft.price) || fresh?.price || 0;
+    const high = parseFloat(draft.high) || fresh?.week52High || fresh?.high || price;
+    const logoURL = normalizeExternalLogoUrl(draft.logoURL || draft.logoUrl || fresh?.logoURL || fresh?.logoUrl);
     const newItem = {
       symbol,
-      name: newStock.name || symbol,
+      name: draft.name || STOCK_NAME_CN[symbol] || symbol,
       price,
       high,
-      cost: parseFloat(newStock.cost) || 0,
-      shares: parseInt(newStock.shares) || 0,
+      cost: parseFloat(draft.cost) || 0,
+      shares: parseInt(draft.shares) || 0,
+      previousClose: fresh?.previousClose || 0,
+      changePercent: fresh?.changePercent || 0,
+      intraday: fresh?.intraday || [],
+      ...(logoURL ? { logoURL } : {}),
     };
     setWatchlist([...watchlist, newItem]);
+    setQuoteCache(current => {
+      const next = current.filter(item => item.symbol !== symbol);
+      return [...next, newItem];
+    });
+    if (logoURL) cacheStockLogo(symbol, logoURL);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
     // 🚨 立刻同步到云端 (不等防抖,精确单条写入)
@@ -1751,6 +1807,10 @@ function MainApp({ user, onLogout }) {
       onConfirm: async () => {
         const newList = watchlist.filter(s => s.symbol !== symbol);
         setWatchlist(newList);
+        const stillHeld = stockTrades.some(trade => String(trade?.symbol || '').trim().toUpperCase() === symbol);
+        if (!stillHeld) {
+          setQuoteCache(current => current.filter(item => item.symbol !== symbol));
+        }
         if (editingStock === symbol) setEditingStock(null);
         try {
           await db.removeWatchlistItem(symbol);
@@ -1782,11 +1842,11 @@ function MainApp({ user, onLogout }) {
       }
 
       // 更新股票价格
-      // 🚨 防护: 如果交易账本和 watchlist 当前都空(可能云端还没加载完), 直接跳过更新, 不能 setWatchlist([])
+      // 行情全集写入独立 quoteCache;watchlist 只保存用户主动自选,不能被持仓股票污染。
       if (quoteRows.length === 0) {
         // 只更新指数/VIX/FGI, 不动股票列表
       } else {
-        const updated = quoteRows.map(s => {
+        const updatedQuotes = quoteRows.map(s => {
           const fresh = result.data.find(d => d.symbol === s.symbol);
           if (fresh && fresh.price > 0) {
             // 52 周高的优先级:
@@ -1805,6 +1865,7 @@ function MainApp({ user, onLogout }) {
               ...s,
               price: fresh.price,
               high: newHigh,
+              logoURL: normalizeExternalLogoUrl(fresh.logoURL || fresh.logoUrl) || s.logoURL,
               // 保存当天分时(用于心电图)
               intraday: fresh.intraday || s.intraday || [],
               // 保存昨收(用于当日涨跌色)
@@ -1815,12 +1876,7 @@ function MainApp({ user, onLogout }) {
           }
           return s;
         });
-        // 🚀 性能: 只在真有变化时才 setState (避免无意义重渲)
-        const hasChanges = updated.some((s, i) => {
-          const old = quoteRows[i];
-          return !old || s.price !== old.price || s.high !== old.high || s.changePercent !== old.changePercent;
-        });
-        if (hasChanges) setWatchlist(updated);
+        setQuoteCache(updatedQuotes);
       }
 
       // 同步 TQQQ 和 QQQ 到核心参数
@@ -1916,7 +1972,6 @@ function MainApp({ user, onLogout }) {
   // 浏览器直连 WebSocket 已移除;在服务端 relay 接入前,已登录 REST 行情接口是唯一实时路径。
   useEffect(() => {
     if (cloudLoading) return;
-    if (quoteRows.length === 0) return;
 
     // 启动时立即拉 1 次 (拿初始数据 + 指数 + VIX/FGI)
     fetchRealtimePrices();
@@ -2042,6 +2097,7 @@ function MainApp({ user, onLogout }) {
     calcCostBasis,
     Calendar,
     calendarEvents,
+    cacheStockLogo,
     calmRoomActiveCount,
     calmRoomAvgActiveDays,
     calmRoomCompletedCount,
@@ -2090,6 +2146,7 @@ function MainApp({ user, onLogout }) {
     lastSeenAlerts,
     lastSubmitRef,
     Loader2,
+    logoCache,
     LogModal,
     LogOut,
     lookupStatus,
@@ -2305,7 +2362,7 @@ function MainApp({ user, onLogout }) {
                     // 重试成功, 重新设置所有 state
                     if (result.trades !== null) setTrades(result.trades);
                     if (result.stockTrades !== null) setStockTrades(result.stockTrades);
-                    if (result.watchlist && result.watchlist.length > 0) setWatchlist(result.watchlist);
+                    if (Array.isArray(result.watchlist)) setWatchlist(result.watchlist);
                     if (result.waveNotes !== null) setWaveNotes(result.waveNotes);
                     if (result.accounts !== null) setAccounts(result.accounts);
                     if (result.snapshots !== null) setSnapshots(result.snapshots);

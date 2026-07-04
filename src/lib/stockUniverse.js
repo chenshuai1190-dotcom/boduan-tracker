@@ -7,13 +7,20 @@ function normalizeTradeSymbol(symbol) {
   return String(symbol || '').trim().toUpperCase();
 }
 
-export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = []) {
+export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quoteCache = []) {
   const bySymbol = new Map();
   const ledgerSymbols = new Set();
+  const watchlistSymbols = new Set();
+
+  (stockTrades || []).forEach((trade) => {
+    const symbol = normalizeTradeSymbol(trade?.symbol);
+    if (symbol) ledgerSymbols.add(symbol);
+  });
 
   (watchlist || []).forEach((item) => {
     const symbol = normalizeTradeSymbol(item?.symbol);
     if (!symbol) return;
+    watchlistSymbols.add(symbol);
     bySymbol.set(symbol, {
       ...item,
       symbol,
@@ -27,10 +34,28 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = []) {
     });
   });
 
+  (quoteCache || []).forEach((item) => {
+    const symbol = normalizeTradeSymbol(item?.symbol);
+    if (!symbol || (!watchlistSymbols.has(symbol) && !ledgerSymbols.has(symbol))) return;
+    const existing = bySymbol.get(symbol) || {};
+    bySymbol.set(symbol, {
+      ...existing,
+      ...item,
+      symbol,
+      name: existing.name || item?.name || symbol,
+      price: toFiniteNumber(item?.price) || toFiniteNumber(existing.price),
+      high: toFiniteNumber(item?.high) || toFiniteNumber(existing.high),
+      cost: toFiniteNumber(existing.cost),
+      shares: toFiniteNumber(existing.shares),
+      previousClose: toFiniteNumber(item?.previousClose) || toFiniteNumber(existing.previousClose),
+      changePercent: toFiniteNumber(item?.changePercent),
+      intraday: item?.intraday || existing.intraday || [],
+    });
+  });
+
   (stockTrades || []).forEach((trade) => {
     const symbol = normalizeTradeSymbol(trade?.symbol);
     if (!symbol) return;
-    ledgerSymbols.add(symbol);
 
     const existing = bySymbol.get(symbol) || {};
     const tradePrice = toFiniteNumber(trade?.price);
@@ -58,7 +83,9 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = []) {
 
   return {
     allRows,
-    ledgerRows: ledgerRows.length > 0 ? ledgerRows : allRows,
+    watchlistRows: allRows.filter((item) => watchlistSymbols.has(item.symbol)),
+    ledgerRows,
     ledgerSymbols,
+    watchlistSymbols,
   };
 }

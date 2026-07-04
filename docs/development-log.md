@@ -4,6 +4,38 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 首页自选添加与持仓口径修正
+
+- Commit: local working tree, pending commit.
+- Background: 用户要求首页自选区域新增添加自选股票功能,添加弹层参考截图但不需要港股、ETF、全部等分类;股票图标需要在新增或缺图时自动多源补拉;持仓必须显示和交易页同步的真实持仓;新用户自选默认空。
+- Changes:
+  - 首页自选列表改为只显示用户主动添加的 `watchlist`,不再把 `stock_trades` 交易账本股票回退显示为自选。
+  - 新增独立 `quoteCache`,行情刷新继续覆盖自选和持仓价格,但不再把行情全集写回 `watchlist`。
+  - 添加交易不再自动把股票加入自选;交易只影响真实持仓和行情请求集合。
+  - 云端 `watchlist` 返回空数组时会真实清空本地自选,确保新用户默认自选为空;云端失败 `null` 才保留本地数据。
+  - 首页自选区域新增金色描边 `添加自选股票` 按钮和底部弹层;弹层保留搜索、热门和美股入口,不提供港股、ETF、全部分类。
+  - 添加自选时优先通过已登录 `/api/quote` 预拉当前价和 52 周高,失败时仍允许按代码加入,后续行情轮询补数据。
+  - 股票图标改为多源候选: EODHD 大小写、Financial Modeling Prep、Finnhub;图片成功加载后写入 `localStorage` 缓存,IBKR 等 EODHD 缺图股票会自动兜底。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.68`。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/stockUniverse.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/stock-universe.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 33 tests.
+  - `npm run build`: pass; `HomeTab-CEEkE0OJ.js` 26.49 kB / gzip 7.70 kB, `SettingsTab-B0cgOAT-.js` 24.60 kB / gzip 9.87 kB, `App-DYgWtj7v.js` 125.94 kB / gzip 34.81 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local SSR mock render: pass; `HomeTab` renders with mock self-selected `IBKR`/`NVDA`, active position `MSFT`, and open add-stock sheet.
+  - Direct logo URL check: EODHD `IBKR.png`/`ibkr.png` returned 404; Financial Modeling Prep and Finnhub `IBKR.png` returned 200 image responses, validating the new fallback order.
+- Deployment: not deployed in this change.
+- Notes:
+  - Local browser could not enter the full app because the current dev server has no `.env.local` Supabase config and shows `Supabase 配置缺失`; UI verification used Vite SSR mock rendering instead.
+- Rollback: 回滚本次改动会恢复交易账本股票进入首页自选、实时行情写回 `watchlist`、添加交易自动加入自选、旧内嵌添加股票表单和 EODHD-only 图标逻辑;不影响 `/api/quote` 鉴权、Supabase RLS 或 `stock_trades` 表结构。
+
 ### 2026-07-04 - 设置页深色化和失效入口清理
 
 - Commit: `6e9a5e0377ccd74f4ffea10e6ac40959d5f8b385`

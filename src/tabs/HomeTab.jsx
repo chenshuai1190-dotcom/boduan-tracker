@@ -1,9 +1,20 @@
 import React from 'react';
+import { Flame, Plus, Search, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
+const POPULAR_US_STOCKS = [
+  { symbol: 'NVDA', name: '英伟达', company: 'NVIDIA Corporation' },
+  { symbol: 'MSFT', name: '微软', company: 'Microsoft Corporation' },
+  { symbol: 'AAPL', name: '苹果', company: 'Apple Inc.' },
+  { symbol: 'TSLA', name: '特斯拉', company: 'Tesla, Inc.' },
+  { symbol: 'AMZN', name: '亚马逊', company: 'Amazon.com, Inc.' },
+  { symbol: 'GOOGL', name: '谷歌A', company: 'Alphabet Inc.' },
+  { symbol: 'META', name: 'Meta', company: 'Meta Platforms, Inc.' },
+  { symbol: 'IBKR', name: '盈透证券', company: 'Interactive Brokers Group, Inc.' },
+];
 
 const emptySummary = {
   activePositions: [],
@@ -70,10 +81,48 @@ function logoUrlCandidates(symbol, ...explicitUrls) {
   const urls = explicitUrls.map(normalizeLogoUrl).filter(Boolean);
   const raw = String(symbol || '').trim();
   if (/^[A-Za-z0-9.-]+$/.test(raw)) {
-    urls.push(`https://eodhd.com/img/logos/US/${raw.toUpperCase()}.png`);
+    const upper = raw.toUpperCase();
+    urls.push(`https://eodhd.com/img/logos/US/${upper}.png`);
     urls.push(`https://eodhd.com/img/logos/US/${raw.toLowerCase()}.png`);
+    urls.push(`https://financialmodelingprep.com/image-stock/${upper}.png`);
+    urls.push(`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${upper}.png`);
   }
   return Array.from(new Set(urls));
+}
+
+function LogoPlaceholder({ symbol, className = '' }) {
+  return (
+    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.08] text-[9px] font-black text-white/55 ${className}`}>
+      {String(symbol || '?').slice(0, 2)}
+    </span>
+  );
+}
+
+function StockLogo({ symbol, urls, onLogoLoad, className = '' }) {
+  const candidates = React.useMemo(() => (urls || []).filter(Boolean), [urls]);
+  const candidateKey = candidates.join('|');
+  const [index, setIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    setIndex(0);
+  }, [symbol, candidateKey]);
+
+  if (candidates.length === 0 || index >= candidates.length) {
+    return <LogoPlaceholder symbol={symbol} className={className} />;
+  }
+
+  return (
+    <img
+      src={candidates[index]}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onLoad={(event) => onLogoLoad?.(symbol, event.currentTarget.currentSrc || event.currentTarget.src)}
+      onError={() => setIndex((current) => current + 1)}
+      className={`h-6 w-6 shrink-0 rounded-md bg-white object-contain p-0.5 ${className}`}
+    />
+  );
 }
 
 function cleanSignalText(value) {
@@ -190,6 +239,7 @@ export default function HomeTab({ ctx }) {
     benchmarkStatus,
     benchmarkStock,
     benchmarkSymbol,
+    cacheStockLogo,
     CheckCircle2,
     ChevronRight,
     fetchRealtimePrices,
@@ -200,6 +250,7 @@ export default function HomeTab({ ctx }) {
     homeWatchlist,
     indices,
     investmentSummary,
+    logoCache,
     marketColorMode,
     newStock,
     RefreshCw,
@@ -220,6 +271,7 @@ export default function HomeTab({ ctx }) {
 
   const [tableTab, setTableTab] = React.useState('watchlist');
   const [showAllRows, setShowAllRows] = React.useState(false);
+  const [stockSearch, setStockSearch] = React.useState('');
   const [currencyMode, setCurrencyMode] = React.useState(() => {
     try {
       return localStorage.getItem(HOME_CURRENCY_STORAGE_KEY) === 'CNY' ? 'CNY' : 'USD';
@@ -259,6 +311,31 @@ export default function HomeTab({ ctx }) {
   const allRows = tableTab === 'positions' ? positions : displayWatchlist;
   const rows = isWatchlistTab || showAllRows ? allRows : allRows.slice(0, 3);
   const canToggleRows = !isWatchlistTab && allRows.length > 3;
+  const watchlistSymbols = React.useMemo(
+    () => new Set((watchlist || []).map((item) => String(item?.symbol || '').toUpperCase())),
+    [watchlist],
+  );
+  const quoteBySymbol = React.useMemo(() => {
+    const map = new Map();
+    [...displayWatchlist, ...positions].forEach((item) => {
+      if (item?.symbol) map.set(String(item.symbol).toUpperCase(), item);
+    });
+    return map;
+  }, [displayWatchlist, positions]);
+  const normalizedSearch = stockSearch.trim().toUpperCase();
+  const filteredPopularStocks = POPULAR_US_STOCKS.filter((item) => {
+    if (!normalizedSearch) return true;
+    const haystack = `${item.symbol} ${item.name} ${item.company}`.toUpperCase();
+    return haystack.includes(normalizedSearch);
+  });
+  const canAddCustomStock = /^[A-Z0-9.-]{1,12}$/.test(normalizedSearch)
+    && !POPULAR_US_STOCKS.some((item) => item.symbol === normalizedSearch)
+    && !watchlistSymbols.has(normalizedSearch);
+  const closeAddStockSheet = () => {
+    setShowAddStock(false);
+    setStockSearch('');
+    resetNewStock();
+  };
 
   return (
     <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
@@ -500,8 +577,8 @@ export default function HomeTab({ ctx }) {
             const pnlValue = position ? position.totalPnl : null;
             const pnlPct = position ? position.totalPnlPct : null;
             const color = marketColor(changePct, marketColorMode);
-            const logoUrls = logoUrlCandidates(symbol, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
-            const logoUrl = logoUrls[0];
+            const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
+            const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
 
             return (
               <div key={symbol}>
@@ -511,29 +588,7 @@ export default function HomeTab({ ctx }) {
                   className="grid min-h-[43px] w-full grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 py-1.5 text-left active:bg-white/[0.03]"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    {logoUrl && (
-                      <img
-                        src={logoUrl}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                        data-logo-fallback-index="0"
-                        data-logo-fallbacks={logoUrls.join('|')}
-                        onError={(event) => {
-                          const img = event.currentTarget;
-                          const fallbacks = (img.dataset.logoFallbacks || '').split('|').filter(Boolean);
-                          const nextIndex = Number(img.dataset.logoFallbackIndex || 0) + 1;
-                          if (nextIndex < fallbacks.length) {
-                            img.dataset.logoFallbackIndex = String(nextIndex);
-                            img.src = fallbacks[nextIndex];
-                            return;
-                          }
-                          img.style.display = 'none';
-                        }}
-                        className="h-6 w-6 shrink-0 rounded-md bg-white object-contain p-0.5"
-                      />
-                    )}
+                    <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} />
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{symbol}</span>
                       <span className="block truncate text-[10px] leading-[12px] text-white/40">{row.name || quote?.name || symbol}</span>
@@ -580,58 +635,139 @@ export default function HomeTab({ ctx }) {
           })}
         </div>
 
-        {showAddStock && tableTab === 'watchlist' && (
-          <div className="border-t border-white/10 bg-white/[0.03] p-4">
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={newStock.symbol}
-                onChange={(event) => setNewStock({ ...newStock, symbol: event.target.value.toUpperCase() })}
-                placeholder="代码"
-                className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-emerald-400"
-              />
-              <input
-                value={newStock.name}
-                onChange={(event) => setNewStock({ ...newStock, name: event.target.value })}
-                placeholder="名称"
-                className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-emerald-400"
-              />
-              <input
-                type="number"
-                value={newStock.price}
-                onChange={(event) => setNewStock({ ...newStock, price: event.target.value })}
-                placeholder="当前价"
-                className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-emerald-400"
-              />
-              <input
-                type="number"
-                value={newStock.high}
-                onChange={(event) => setNewStock({ ...newStock, high: event.target.value })}
-                placeholder="52周高"
-                className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-emerald-400"
-              />
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddStock(false);
-                  resetNewStock();
-                }}
-                className="flex-1 rounded-lg bg-white/10 py-2.5 text-sm font-bold text-white/60 active:scale-95"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={addStock}
-                className="flex-1 rounded-lg bg-emerald-400 py-2.5 text-sm font-black text-slate-950 active:scale-95"
-              >
-                保存
-              </button>
-            </div>
-          </div>
-        )}
       </section>
+
+      {isWatchlistTab && (
+        <button
+          type="button"
+          onClick={() => setShowAddStock(true)}
+          className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] text-[15px] font-black text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+        >
+          <Plus className="h-5 w-5" />
+          添加自选股票
+        </button>
+      )}
+
+      {showAddStock && isWatchlistTab && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 backdrop-blur-[2px]"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeAddStockSheet();
+          }}
+        >
+          <div className="w-full max-w-[430px] rounded-t-[22px] border border-white/10 bg-[#0b0f14] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-20px_48px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[17px] font-black text-white">添加自选股票</h3>
+              <button
+                type="button"
+                onClick={closeAddStockSheet}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/55 active:scale-95"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <label className="flex h-12 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 text-white/70 focus-within:border-[#f6b54b]/70">
+              <Search className="h-4 w-4 shrink-0 text-white/35" />
+              <input
+                value={stockSearch}
+                onChange={(event) => setStockSearch(event.target.value.toUpperCase())}
+                placeholder="搜索股票名称或代码"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/25"
+              />
+            </label>
+
+            <div className="mt-3 flex gap-2">
+              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-[#f6b54b]/60 bg-[#f6b54b]/10 px-3 text-[12px] font-black text-[#f6b54b]">
+                <Flame className="h-3.5 w-3.5" />
+                热门
+              </span>
+              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-[12px] font-bold text-white/70">
+                美股
+              </span>
+            </div>
+
+            <div className="mt-4 text-[12px] font-bold text-white/55">
+              {normalizedSearch ? '搜索结果' : '热门股票'}
+            </div>
+
+            <div className="mt-2 max-h-[330px] overflow-y-auto rounded-xl border border-white/[0.06] bg-white/[0.025]">
+              {filteredPopularStocks.length === 0 && !canAddCustomStock ? (
+                <div className="px-4 py-8 text-center text-[13px] text-white/35">没有匹配结果</div>
+              ) : (
+                <>
+                  {filteredPopularStocks.map((item) => {
+                    const symbol = item.symbol;
+                    const quote = quoteBySymbol.get(symbol);
+                    const quotePrice = quote?.price || quote?.currentPrice;
+                    const isAdded = watchlistSymbols.has(symbol);
+                    const color = marketColor(quote?.changePercent, marketColorMode);
+                    const logoUrls = logoUrlCandidates(symbol, logoCache?.[symbol]?.url);
+                    return (
+                      <div key={symbol} className="flex min-h-[61px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
+                        <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-[14px] font-black text-white">{symbol}</span>
+                            <span className="truncate text-[12px] font-semibold text-white/55">{item.name}</span>
+                          </div>
+                          <div className="mt-0.5 truncate text-[11px] text-white/35">{item.company}</div>
+                        </div>
+                        <div className="w-[74px] text-right">
+                          <div className="text-[13px] font-semibold tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>
+                            {quotePrice ? fmtMoney(quotePrice, 2) : '--'}
+                          </div>
+                          <div className="mt-0.5 text-[12px] font-semibold tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+                            {quote?.changePercent !== undefined ? fmtMarketPct(quote.changePercent) : '--'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isAdded}
+                          onClick={() => addStock({ symbol, name: item.name })}
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border active:scale-95 disabled:active:scale-100 ${
+                            isAdded
+                              ? 'border-white/10 bg-white/[0.04] text-white/25'
+                              : 'border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]'
+                          }`}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {canAddCustomStock && (
+                    <button
+                      type="button"
+                      onClick={() => addStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
+                      className="flex min-h-[58px] w-full items-center gap-3 px-3 py-2 text-left active:bg-white/[0.04]"
+                    >
+                      <LogoPlaceholder symbol={normalizedSearch} className="h-9 w-9 rounded-lg" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-black text-white">{normalizedSearch}</span>
+                        <span className="block truncate text-[11px] text-white/35">添加自定义股票代码</span>
+                      </span>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]">
+                        <Plus className="h-4 w-4" />
+                      </span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              disabled={!canAddCustomStock}
+              onClick={() => addStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
+              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-black text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
+            >
+              <Plus className="h-4 w-4" />
+              {normalizedSearch ? `添加 ${normalizedSearch}` : '添加自定义股票'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
