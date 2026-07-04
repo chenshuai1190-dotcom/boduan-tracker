@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -255,6 +255,7 @@ export default function HomeTab({ ctx }) {
     cacheStockLogo,
     CheckCircle2,
     ChevronRight,
+    deleteWatchlistItem,
     fetchRealtimePrices,
     fetching,
     fgi,
@@ -268,15 +269,12 @@ export default function HomeTab({ ctx }) {
     marketColorMode,
     newStock,
     RefreshCw,
-    removeStock,
+    reorderWatchlist,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
-    setEditingStock,
     setNewStock,
     setShowAddStock,
     showAddStock,
-    editingStock,
-    updateStockPrice,
     vix,
     vixDataDate,
     vixSignal,
@@ -287,6 +285,11 @@ export default function HomeTab({ ctx }) {
   const [stockSearch, setStockSearch] = React.useState('');
   const [addingStockSymbol, setAddingStockSymbol] = React.useState(null);
   const [addStockNotice, setAddStockNotice] = React.useState(null);
+  const [showEditWatchlist, setShowEditWatchlist] = React.useState(false);
+  const [editWatchlistSearch, setEditWatchlistSearch] = React.useState('');
+  const [editActionKey, setEditActionKey] = React.useState(null);
+  const [editNotice, setEditNotice] = React.useState(null);
+  const [pendingDeleteSymbol, setPendingDeleteSymbol] = React.useState(null);
   const [currencyMode, setCurrencyMode] = React.useState(() => {
     try {
       return localStorage.getItem(HOME_CURRENCY_STORAGE_KEY) === 'CNY' ? 'CNY' : 'USD';
@@ -344,19 +347,26 @@ export default function HomeTab({ ctx }) {
   const isAddingStock = Boolean(addingStockSymbol);
 
   React.useEffect(() => {
-    if (!showAddStock || typeof document === 'undefined') return undefined;
+    if ((!showAddStock && !showEditWatchlist) || typeof document === 'undefined') return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [showAddStock]);
+  }, [showAddStock, showEditWatchlist]);
 
   const closeAddStockSheet = () => {
     if (isAddingStock) return;
     setShowAddStock(false);
     setStockSearch('');
     resetNewStock();
+  };
+  const closeEditWatchlist = () => {
+    if (editActionKey) return;
+    setShowEditWatchlist(false);
+    setEditWatchlistSearch('');
+    setPendingDeleteSymbol(null);
+    setEditNotice(null);
   };
   const handleAddStock = async (stockDraft) => {
     if (isAddingStock) return;
@@ -420,7 +430,61 @@ export default function HomeTab({ ctx }) {
       logoUrls,
     };
   });
-  const editingTableRow = tableRows.find((item) => !item.isPosition && item.symbol === editingStock);
+  const editSearchKey = editWatchlistSearch.trim().toUpperCase();
+  const editWatchlistRows = (watchlist || []).map((row) => {
+    const symbol = String(row?.symbol || '').toUpperCase();
+    const quote = quoteBySymbol.get(symbol) || row;
+    const cachedLogoUrl = logoCache?.[symbol]?.url;
+    return {
+      ...row,
+      symbol,
+      displayName: row?.name || quote?.name || symbol,
+      price: quote?.price || row?.price,
+      changePercent: quote?.changePercent ?? row?.changePercent,
+      logoUrls: logoUrlCandidates(symbol, cachedLogoUrl, row?.logoURL, row?.logoUrl, quote?.logoURL, quote?.logoUrl),
+    };
+  });
+  const filteredEditWatchlistRows = editWatchlistRows.filter((row) => {
+    if (!editSearchKey) return true;
+    return `${row.symbol} ${row.displayName || ''}`.toUpperCase().includes(editSearchKey);
+  });
+  const moveWatchlistItem = async (symbol, action) => {
+    if (editActionKey) return;
+    const index = (watchlist || []).findIndex((item) => String(item?.symbol || '').toUpperCase() === symbol);
+    if (index < 0) return;
+    const next = [...watchlist];
+    const [target] = next.splice(index, 1);
+    if (action === 'pin') {
+      next.unshift(target);
+    } else if (action === 'up') {
+      next.splice(Math.max(0, index - 1), 0, target);
+    } else if (action === 'down') {
+      next.splice(Math.min(next.length, index + 1), 0, target);
+    }
+    const actionText = action === 'pin' ? '置顶' : action === 'up' ? '上移' : '下移';
+    setEditActionKey(`${symbol}:${action}`);
+    setEditNotice(null);
+    const result = await reorderWatchlist(next);
+    if (result?.success) {
+      setEditNotice({ type: 'success', title: '排序已保存', desc: `${symbol} 已${actionText}` });
+    } else {
+      setEditNotice({ type: 'error', title: '保存失败', desc: result?.error || `${symbol} ${actionText}失败` });
+    }
+    setEditActionKey(null);
+  };
+  const confirmDeleteWatchlistItem = async (symbol) => {
+    if (editActionKey) return;
+    setEditActionKey(`${symbol}:delete`);
+    setEditNotice(null);
+    const result = await deleteWatchlistItem(symbol);
+    if (result?.success) {
+      setPendingDeleteSymbol(null);
+      setEditNotice({ type: 'success', title: '删除成功', desc: `${symbol} 已移出自选股票` });
+    } else {
+      setEditNotice({ type: 'error', title: '删除失败', desc: result?.error || `${symbol} 删除失败` });
+    }
+    setEditActionKey(null);
+  };
 
   return (
     <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
@@ -640,38 +704,33 @@ export default function HomeTab({ ctx }) {
                 <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">名称</div>
                 <div className="divide-y divide-white/[0.06]">
                   {tableRows.map((item) => (
-                    <button
+                    <div
                       key={item.symbol}
-                      type="button"
-                      onClick={() => setEditingStock(editingStock === item.symbol ? null : item.symbol)}
-                      className="flex min-h-[54px] w-full min-w-0 items-center gap-2 py-2 pr-2 text-left active:bg-white/[0.03]"
+                      className="flex min-h-[54px] w-full min-w-0 items-center gap-2 py-2 pr-2 text-left"
                     >
                       <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{item.symbol}</span>
                         <span className="block truncate text-[10px] leading-[12px] text-white/40">{item.row.name || item.quote?.name || item.symbol}</span>
                       </span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
 
               <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="min-w-[404px]">
-                  <div className="grid grid-cols-[82px_82px_102px_120px_18px] gap-2 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
+                <div className="min-w-[410px]">
+                  <div className="grid grid-cols-[82px_82px_102px_120px] gap-2 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
                     <span className="text-right">价格</span>
                     <span className="text-right">涨跌幅</span>
                     <span className="text-right">52周跌幅</span>
                     <span className="text-right">持仓盈亏</span>
-                    <span aria-hidden="true" />
                   </div>
                   <div className="divide-y divide-white/[0.06]">
                     {tableRows.map((item) => (
-                      <button
+                      <div
                         key={item.symbol}
-                        type="button"
-                        onClick={() => setEditingStock(editingStock === item.symbol ? null : item.symbol)}
-                        className="grid min-h-[54px] w-full grid-cols-[82px_82px_102px_120px_18px] items-center gap-2 py-2 text-left active:bg-white/[0.03]"
+                        className="grid min-h-[54px] w-full grid-cols-[82px_82px_102px_120px] items-center gap-2 py-2 text-left"
                       >
                         <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(item.price, 2)}</span>
                         <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
@@ -688,57 +747,36 @@ export default function HomeTab({ ctx }) {
                             </>
                           )}
                         </span>
-                        <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
-
-            {editingTableRow && (
-              <div className="border-t border-white/10 bg-white/[0.03] px-4 py-3">
-                <div className="mb-2 text-[12px] font-black text-white/70">{editingTableRow.symbol} 自选参数</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[11px] font-bold text-white/40">
-                    价格
-                    <input
-                      type="number"
-                      value={editingTableRow.row.price || ''}
-                      onChange={(event) => updateStockPrice(editingTableRow.symbol, 'price', event.target.value)}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-                    />
-                  </label>
-                  <label className="text-[11px] font-bold text-white/40">
-                    52周高
-                    <input
-                      type="number"
-                      value={editingTableRow.row.high || ''}
-                      onChange={(event) => updateStockPrice(editingTableRow.symbol, 'high', event.target.value)}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-                    />
-                  </label>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={() => setEditingStock(null)} className="flex-1 rounded-lg bg-white/10 py-2 text-sm font-bold text-white/60 active:scale-95">完成</button>
-                  <button type="button" onClick={() => removeStock(editingTableRow.symbol)} className="flex-1 rounded-lg bg-rose-500/15 py-2 text-sm font-bold text-rose-300 active:scale-95">删除</button>
-                </div>
-              </div>
-            )}
           </>
         )}
 
       </section>
 
       {isWatchlistTab && (
-        <button
-          type="button"
-          onClick={() => setShowAddStock(true)}
-          className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] text-[15px] font-black text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
-        >
-          <Plus className="h-5 w-5" />
-          添加自选股票
-        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAddStock(true)}
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] px-2 text-[13px] font-black text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="truncate">添加自选股票</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowEditWatchlist(true)}
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0f14] px-2 text-[13px] font-black text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
+          >
+            <Pencil className="h-4 w-4 shrink-0 text-[#f6b54b]" />
+            <span className="truncate">编辑自选股票</span>
+          </button>
+        </div>
       )}
 
       {showAddStock && isWatchlistTab && (
@@ -876,6 +914,169 @@ export default function HomeTab({ ctx }) {
               {isAddingStock && Loader2 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {isAddingStock ? '添加中...' : (normalizedSearch ? `添加 ${normalizedSearch}` : '添加自定义股票')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {showEditWatchlist && isWatchlistTab && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-black/70 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[2px]"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeEditWatchlist();
+          }}
+        >
+          <div className="flex max-h-[min(78dvh,650px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="mb-4 flex shrink-0 items-center justify-between">
+              <h3 className="text-[17px] font-black text-white">编辑自选股票</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={closeEditWatchlist}
+                  disabled={Boolean(editActionKey)}
+                  className="h-8 rounded-full px-3 text-[12px] font-black text-[#f6b54b] active:scale-95 disabled:opacity-40"
+                >
+                  完成
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEditWatchlist}
+                  disabled={Boolean(editActionKey)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/55 active:scale-95 disabled:opacity-40"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <label className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 text-white/70 focus-within:border-[#f6b54b]/70">
+              <Search className="h-4 w-4 shrink-0 text-white/35" />
+              <input
+                value={editWatchlistSearch}
+                onChange={(event) => setEditWatchlistSearch(event.target.value.toUpperCase())}
+                onFocus={(event) => {
+                  const input = event.currentTarget;
+                  setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+                }}
+                placeholder="搜索当前自选股票"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/25"
+              />
+            </label>
+
+            {editNotice && (
+              <div className={`mt-3 shrink-0 rounded-xl border px-3 py-2 text-[12px] leading-5 ${
+                editNotice.type === 'success'
+                  ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+                  : 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+              }`}>
+                <div className="font-black">{editNotice.title}</div>
+                <div className="text-white/60">{editNotice.desc}</div>
+              </div>
+            )}
+
+            <div className="mt-3 shrink-0 text-[12px] font-bold text-white/55">
+              当前自选 · {editWatchlistRows.length} 只
+            </div>
+
+            <div className="mt-2 min-h-[210px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
+              {editWatchlistRows.length === 0 ? (
+                <div className="px-4 py-10 text-center text-[13px] text-white/35">暂无自选股票</div>
+              ) : filteredEditWatchlistRows.length === 0 ? (
+                <div className="px-4 py-10 text-center text-[13px] text-white/35">没有匹配结果</div>
+              ) : (
+                filteredEditWatchlistRows.map((item) => {
+                  const symbol = item.symbol;
+                  const fullIndex = editWatchlistRows.findIndex((row) => row.symbol === symbol);
+                  const isFirst = fullIndex <= 0;
+                  const isLast = fullIndex === editWatchlistRows.length - 1;
+                  const deletePending = pendingDeleteSymbol === symbol;
+                  const busy = Boolean(editActionKey);
+                  const rowBusy = editActionKey?.startsWith(`${symbol}:`);
+                  return (
+                    <div key={symbol} className="flex min-h-[64px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
+                      <StockLogo symbol={symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[14px] font-black text-white">{symbol}</span>
+                          <span className="truncate text-[12px] font-semibold text-white/55">{item.displayName}</span>
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-white/35">
+                          <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                            {item.price ? fmtMoney(item.price, 2) : '--'}
+                          </span>
+                          <span className="tabular-nums" style={{ color: marketColor(item.changePercent, marketColorMode), fontFamily: NUMBER_FONT }}>
+                            {item.changePercent !== undefined ? fmtMarketPct(item.changePercent) : '--'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {deletePending ? (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-rose-200">确认删除?</span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setPendingDeleteSymbol(null)}
+                            className="h-8 rounded-full border border-white/10 px-2.5 text-[11px] font-bold text-white/55 active:scale-95 disabled:opacity-40"
+                          >
+                            取消
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => confirmDeleteWatchlistItem(symbol)}
+                            className="flex h-8 min-w-[2rem] items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 text-[11px] font-black text-rose-200 active:scale-95 disabled:opacity-40"
+                          >
+                            {rowBusy && Loader2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : '删除'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={busy || isFirst}
+                            onClick={() => moveWatchlistItem(symbol, 'pin')}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
+                            title="置顶"
+                          >
+                            <Pin className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || isFirst}
+                            onClick={() => moveWatchlistItem(symbol, 'up')}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
+                            title="上移"
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || isLast}
+                            onClick={() => moveWatchlistItem(symbol, 'down')}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
+                            title="下移"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setPendingDeleteSymbol(symbol)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10 text-rose-200 active:scale-95 disabled:opacity-40"
+                            title="删除"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}

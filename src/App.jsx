@@ -69,6 +69,28 @@ function normalizeExternalLogoUrl(value) {
   return null;
 }
 
+function normalizeWatchlistOrder(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value.flatMap((item) => {
+    const symbol = normalizeSymbolKey(item);
+    if (!symbol || seen.has(symbol)) return [];
+    seen.add(symbol);
+    return [symbol];
+  });
+}
+
+function orderWatchlistRows(list, order) {
+  const rows = Array.isArray(list) ? list : [];
+  const normalizedOrder = normalizeWatchlistOrder(order);
+  if (normalizedOrder.length === 0) return rows;
+  const bySymbol = new Map(rows.map((item) => [normalizeSymbolKey(item?.symbol), item]));
+  const ordered = normalizedOrder.map((symbol) => bySymbol.get(symbol)).filter(Boolean);
+  const orderedSymbols = new Set(ordered.map((item) => normalizeSymbolKey(item?.symbol)));
+  const rest = rows.filter((item) => !orderedSymbols.has(normalizeSymbolKey(item?.symbol)));
+  return [...ordered, ...rest];
+}
+
 function readCachedStockLogos() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STOCK_LOGO_CACHE_STORAGE_KEY) || '{}');
@@ -595,6 +617,7 @@ function MainApp({ user, onLogout }) {
   // high = 6个月滚动最高价,用于计算回撤预警
   // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
   const [watchlist, setWatchlist] = useState([]);
+  const [watchlistOrder, setWatchlistOrder] = useState([]);
   const [quoteCache, setQuoteCache] = useState([]);
   const [logoCache, setLogoCache] = useState(() => readCachedStockLogos());
   const [editingStock, setEditingStock] = useState(null);
@@ -989,6 +1012,38 @@ function MainApp({ user, onLogout }) {
   const quoteUniverse = useMemo(() => buildLedgerQuoteUniverse(stockTrades, watchlist, quoteCache), [stockTrades, watchlist, quoteCache]);
   const quoteRows = quoteUniverse.allRows;
   const homeWatchlist = quoteUniverse.watchlistRows;
+  const buildSettingsPayload = useCallback((overrides = {}) => ({
+    benchmarkSymbol,
+    marketColorMode,
+    fgi,
+    fgiLabel,
+    fgiPrev,
+    fgiWeek,
+    fgiMonth,
+    fgiYear,
+    fgiDataDate,
+    vix,
+    vixDataDate,
+    batches,
+    exitTargets,
+    watchlistOrder: normalizeWatchlistOrder(watchlistOrder),
+    ...overrides,
+  }), [
+    benchmarkSymbol,
+    marketColorMode,
+    fgi,
+    fgiLabel,
+    fgiPrev,
+    fgiWeek,
+    fgiMonth,
+    fgiYear,
+    fgiDataDate,
+    vix,
+    vixDataDate,
+    batches,
+    exitTargets,
+    watchlistOrder,
+  ]);
 
   useEffect(() => {
     try {
@@ -1060,8 +1115,11 @@ function MainApp({ user, onLogout }) {
         else console.warn('[云端加载] ⚠️ stockTrades 拉取失败, 保留本地主交易账本');
 
         if (Array.isArray(cloudWatchlist)) {
-          console.log('[云端加载] ✓ 设置 watchlist:', cloudWatchlist.length, '只');
-          setWatchlist(cloudWatchlist);
+          const cloudWatchlistOrder = normalizeWatchlistOrder(settings?.watchlistOrder);
+          const orderedWatchlist = orderWatchlistRows(cloudWatchlist, cloudWatchlistOrder);
+          console.log('[云端加载] ✓ 设置 watchlist:', orderedWatchlist.length, '只');
+          setWatchlist(orderedWatchlist);
+          setWatchlistOrder(normalizeWatchlistOrder(orderedWatchlist.map((item) => item?.symbol)));
         } else {
           console.warn('[云端加载] ⚠️ watchlist 拉取失败, 保留本地默认');
         }
@@ -1122,15 +1180,10 @@ function MainApp({ user, onLogout }) {
     if (cloudLoading) return; // 加载期间不保存
     clearTimeout(settingsSaveTimerRef.current);
     settingsSaveTimerRef.current = setTimeout(() => {
-      db.upsertSettings({
-        benchmarkSymbol,
-        marketColorMode,
-        fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
-        vix, vixDataDate,
-      }).catch(e => console.error('设置保存失败:', e));
+      db.upsertSettings(buildSettingsPayload()).catch(e => console.error('设置保存失败:', e));
     }, 500);
     return () => clearTimeout(settingsSaveTimerRef.current);
-  }, [benchmarkSymbol, marketColorMode, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
+  }, [buildSettingsPayload, cloudLoading]);
 
   // 🚨 Watchlist 保存策略: 改为精确单条操作 (addStock/removeStock/updateStockPrice 里直接写)
   //     不再用"删光重插"的 replaceWatchlist, 避免竞态和重复问题
@@ -1674,12 +1727,9 @@ function MainApp({ user, onLogout }) {
     setBatches(newBatches);
     // 保存到云端 settings.batches
     try {
-      await db.upsertSettings({
-        benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
-        vix, vixDataDate,
+      await db.upsertSettings(buildSettingsPayload({
         batches: newBatches,
-        exitTargets,
-      });
+      }));
     } catch (e) { console.error('batch 保存失败:', e); }
   };
 
@@ -1745,6 +1795,54 @@ function MainApp({ user, onLogout }) {
     // 防抖 useEffect 会自动保存到云端,不需要手动调 db
   };
 
+  const reorderWatchlist = async (nextList) => {
+    const normalizedList = Array.isArray(nextList)
+      ? nextList.filter((item) => normalizeSymbolKey(item?.symbol))
+      : [];
+    const nextOrder = normalizeWatchlistOrder(normalizedList.map((item) => item?.symbol));
+    const previousList = watchlist;
+    const previousOrder = watchlistOrder;
+    setWatchlist(normalizedList);
+    setWatchlistOrder(nextOrder);
+    try {
+      await db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }));
+      return { success: true };
+    } catch (e) {
+      console.error('[自选排序] 云端失败:', e);
+      setWatchlist(previousList);
+      setWatchlistOrder(previousOrder);
+      return { success: false, error: e.message || '自选排序保存失败' };
+    }
+  };
+
+  const deleteWatchlistItem = async (symbolInput) => {
+    const symbol = normalizeSymbolKey(symbolInput);
+    if (!symbol) return { success: false, error: '股票代码无效' };
+    const previousList = watchlist;
+    const previousOrder = watchlistOrder;
+    const previousQuoteCache = quoteCache;
+    const nextList = watchlist.filter((item) => normalizeSymbolKey(item?.symbol) !== symbol);
+    const nextOrder = normalizeWatchlistOrder(nextList.map((item) => item?.symbol));
+    setWatchlist(nextList);
+    setWatchlistOrder(nextOrder);
+    const stillHeld = stockTrades.some((trade) => normalizeSymbolKey(trade?.symbol) === symbol);
+    if (!stillHeld) {
+      setQuoteCache((current) => current.filter((item) => normalizeSymbolKey(item?.symbol) !== symbol));
+    }
+    if (editingStock === symbol) setEditingStock(null);
+    try {
+      await db.removeWatchlistItem(symbol);
+      await db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }));
+      return { success: true };
+    } catch (e) {
+      console.error('[删除股票] 云端失败:', e);
+      setWatchlist(previousList);
+      setWatchlistOrder(previousOrder);
+      setQuoteCache(previousQuoteCache);
+      return { success: false, error: e.message || `删除 ${symbol} 失败` };
+    }
+  };
+
   const addStock = async (stockDraft = null) => {
     const draft = stockDraft && typeof stockDraft === 'object'
       ? { ...newStock, ...stockDraft }
@@ -1789,15 +1887,23 @@ function MainApp({ user, onLogout }) {
       console.error('[添加股票] 云端失败:', e);
       return { success: false, error: `添加 ${symbol} 失败: ${e.message}` };
     }
+    const nextOrder = normalizeWatchlistOrder([
+      ...watchlistOrder,
+      ...watchlist.map((item) => item?.symbol),
+      symbol,
+    ]);
     setWatchlist(current => (
       current.some(item => String(item?.symbol || '').toUpperCase() === symbol)
         ? current
         : [...current, newItem]
     ));
+    setWatchlistOrder(nextOrder);
     setQuoteCache(current => {
       const next = current.filter(item => item.symbol !== symbol);
       return [...next, newItem];
     });
+    db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }))
+      .catch((e) => console.error('[添加股票] 自选排序保存失败:', e));
     if (logoURL) cacheStockLogo(symbol, logoURL);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
@@ -1811,19 +1917,8 @@ function MainApp({ user, onLogout }) {
       info: symbol,
       confirmText: '删除',
       onConfirm: async () => {
-        const newList = watchlist.filter(s => s.symbol !== symbol);
-        setWatchlist(newList);
-        const stillHeld = stockTrades.some(trade => String(trade?.symbol || '').trim().toUpperCase() === symbol);
-        if (!stillHeld) {
-          setQuoteCache(current => current.filter(item => item.symbol !== symbol));
-        }
-        if (editingStock === symbol) setEditingStock(null);
-        try {
-          await db.removeWatchlistItem(symbol);
-        } catch (e) {
-          console.error('[删除股票] 云端失败:', e);
-          alert(`删除 ${symbol} 失败: ${e.message}`);
-        }
+        const result = await deleteWatchlistItem(symbol);
+        if (!result?.success) alert(result?.error || `删除 ${symbol} 失败`);
       },
     });
   };
@@ -2116,6 +2211,7 @@ function MainApp({ user, onLogout }) {
     costBasisActiveSymbol,
     costBasisData,
     db,
+    deleteWatchlistItem,
     DisciplineModal,
     disciplines,
     displayFgi,
@@ -2170,6 +2266,7 @@ function MainApp({ user, onLogout }) {
     pwdMsg,
     RefreshCw,
     removeStock,
+    reorderWatchlist,
     resetAll,
     reviewLogs,
     RotateCcw,
@@ -2368,7 +2465,12 @@ function MainApp({ user, onLogout }) {
                     // 重试成功, 重新设置所有 state
                     if (result.trades !== null) setTrades(result.trades);
                     if (result.stockTrades !== null) setStockTrades(result.stockTrades);
-                    if (Array.isArray(result.watchlist)) setWatchlist(result.watchlist);
+                    if (Array.isArray(result.watchlist)) {
+                      const retryOrder = normalizeWatchlistOrder(result.settings?.watchlistOrder);
+                      const retryWatchlist = orderWatchlistRows(result.watchlist, retryOrder);
+                      setWatchlist(retryWatchlist);
+                      setWatchlistOrder(normalizeWatchlistOrder(retryWatchlist.map((item) => item?.symbol)));
+                    }
                     if (result.waveNotes !== null) setWaveNotes(result.waveNotes);
                     if (result.accounts !== null) setAccounts(result.accounts);
                     if (result.snapshots !== null) setSnapshots(result.snapshots);

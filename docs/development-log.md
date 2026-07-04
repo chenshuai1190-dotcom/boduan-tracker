@@ -4,6 +4,33 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 首页自选编辑管理
+
+- Commit: `same commit`
+- Background: 用户要求首页自选区域在添加自选股票旁边新增并排的编辑自选股票入口;编辑功能需要支持自选股票排序、删除、置顶,风格沿用当前深色设计;同时删除点击股票行展开自选参数的旧功能。
+- Changes:
+  - 首页自选列表底部按钮改为两列并排: `添加自选股票` 和 `编辑自选股票`,节约底部空间。
+  - 新增深色居中编辑自选股票弹窗,支持搜索当前自选、置顶、上移、下移和删除。
+  - 删除自选时在编辑弹窗内二次确认,删除和排序完成后显示明确成功或失败反馈。
+  - 自选排序写入 `user_settings.data.watchlistOrder`,云端加载和重试加载时按该顺序恢复;不改 Supabase 表结构。
+  - 移除首页点击自选/持仓表格股票行展开 `自选参数` 的旧入口和旧箭头列。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.71`。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 33 tests.
+  - `npm run build`: pass; `HomeTab-DNjOYbNg.js` 36.19 kB / gzip 9.46 kB, `SettingsTab-D0dP5vdW.js` 25.52 kB / gzip 10.17 kB, `App-IJqpZUi8.js` 127.56 kB / gzip 35.38 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local chunk marker check: pass; built `HomeTab-DNjOYbNg.js` contains `编辑自选股票` and `确认删除`; built `App-IJqpZUi8.js` contains `watchlistOrder`; `src/tabs/HomeTab.jsx` and built `HomeTab-DNjOYbNg.js` contain no `自选参数`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复只有添加自选股票按钮、点击股票展开自选参数面板和无账号级自选排序保存的旧行为;不影响交易主账本、`/api/quote` 鉴权或 Supabase 表结构。
+
 ### 2026-07-04 - 首页自选持仓表格全局横向滑动
 
 - Commit: `e59973e080dbd19b382ca87f29ff7bb8124b6675`
