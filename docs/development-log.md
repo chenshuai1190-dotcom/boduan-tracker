@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 优化交易录入弹层按钮和输入框细节
 
-- Commit: `same commit`
+- Commit: `960e55b3d2a131d2d6fed9551d264a4161c2e1cf`
 - Background: 用户根据手机截图反馈 `v10.7.9.86` 的添加/修改交易弹层仍有三个细节不符合预期:买入/卖出选中态不应只是红绿边框,而应是整块按钮区域红色或绿色;股票代码、中文名、日期、价格和股数输入框的边框效果太多,视觉复杂;移动端日期输入框把底部抽屉撑出屏幕,并要求把该类日期框撑出问题写入开发准则。
 - Changes:
   - 交易页主账本 `添加交易/修改交易` 共用弹层的买入/卖出选中态改为整块填充:买入选中为红色块,卖出选中为绿色块,未选按钮保持暗灰。
@@ -30,8 +30,19 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
   - Local source marker check: pass; source contains `bg-rose-600`, `bg-emerald-600`, `border-transparent bg-white/[0.06]`, `WebkitAppearance: 'none'`, `min-w-0`, `v10.7.9.87` and the new date-input overflow rule.
   - Local build marker check: pass; built `TradesTab-DRXaDfVe.js` contains the full-fill buy/sell button markers, borderless input markers and date overflow constraints; built `SettingsTab-LW98M0Eg.js` contains `v10.7.9.87`, `交易录入弹层细节` and `日期输入框在移动端撑出弹层`.
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `960e55b3d2a131d2d6fed9551d264a4161c2e1cf`.
+  - GitHub Actions `CI`: success, run `28706263930`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HXgvYxT8s5XXgkerD9Xd3RXkUUvd`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=960e55b-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BuOPXu6L.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`.
+  - Production runtime chunks: `/assets/App-Cv5Xbdwr.js`, `/assets/TradesTab-DRXaDfVe.js`, `/assets/SettingsTab-LW98M0Eg.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-DXkp5Xew.js`.
+- Production verification:
+  - Production App marker check: `App-Cv5Xbdwr.js` contains `updateStockTrade`, `TradesTab-DRXaDfVe.js` and `SettingsTab-LW98M0Eg.js`.
+  - Production TradesTab marker check: `TradesTab-DRXaDfVe.js` contains `bg-rose-600`, `bg-emerald-600`, `border-transparent bg-white/[0.06]`, `WebkitAppearance`, `确认修改` and `确认添加`.
+  - Production SettingsTab marker check: `SettingsTab-LW98M0Eg.js` contains `v10.7.9.87`, `交易录入弹层细节` and `日期输入框在移动端撑出弹层`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-DXkp5Xew.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.86` 的买入/卖出边框式选中态、输入框可见边框和缺少日期框防溢出准则的开发流程;交易新增、修改、删除和云端同步逻辑不受影响。
 
 ### 2026-07-04 - 交易录入弹层深色化
