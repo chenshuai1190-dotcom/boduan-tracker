@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 交易页头部和工具箱顺序对齐首页
 
-- Commit: `same commit`
+- Commit: `6028bf7b5bcf9c3f55c0fcc00a828438b27a0834`
 - Background: 用户反馈交易页头部卡片和首页头部卡片效果不一致,要求字体大小、按钮和间距完全对齐首页;交易整体字号/图标参考首页;工具箱中 `股票设置` 与 `摊薄工具` 调换顺序;占比列不再显示 `市值` 小字。
 - Changes:
   - 交易页头部资产卡按首页资产卡同步:标题色值/图标、币种按钮高度与字号、LIVE 字重、主数字上间距与字重、统计区上间距和列比例。
@@ -24,8 +24,16 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local chunk check: pass; built `TradesTab-DETFbJEb.js` contains home-aligned header sizing, compact toolbox classes and no `策略订单`; built `SettingsTab-B1V1K9oO.js` contains `v10.7.9.61`; built trade chunk no longer contains allocation sublabel `市值`.
-- Deployment: pending GitHub main push and Vercel production verification.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `6028bf7b5bcf9c3f55c0fcc00a828438b27a0834`
+  - GitHub Actions `CI`: success, run `28693408355`
+  - Vercel deployment: success, deployment `5307063628`, target `https://boduan-tracker-pqk5209bf-chenshuai1190-7580s-projects.vercel.app`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-DtdIVvn6.js`, `index-BKpRRget.css`, `App-DnY3pLpu.js`, `TradesTab-DETFbJEb.js`, `SettingsTab-B1V1K9oO.js`, `HomeTab-CB8aSzcR.js`
+  - `TradesTab-DETFbJEb.js` contains home-aligned header sizing, compact toolbox classes and no `策略订单`; it no longer contains allocation sublabel `市值`.
+  - `SettingsTab-B1V1K9oO.js` contains `v10.7.9.61` and "交易页头部和工具箱细节对齐首页"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
 - Rollback: 回滚本次提交会恢复交易页上一版头部卡、工具箱顺序和占比列副文案;不影响交易数据逻辑。
 
 ### 2026-07-04 - 交易页黑底和工具箱细节优化
