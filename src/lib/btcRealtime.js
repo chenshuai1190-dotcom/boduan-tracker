@@ -27,10 +27,7 @@ export function applyBtcTickToMarketCards(cards = [], tick, realtimeStatus = 'li
   });
 
   if (found) return nextCards;
-  return [
-    ...nextCards,
-    createBtcMarketCard({}, tick, realtimeStatus),
-  ];
+  return cards;
 }
 
 function createBtcMarketCard(card, tick, realtimeStatus) {

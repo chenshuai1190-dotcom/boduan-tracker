@@ -8,6 +8,7 @@ import {
   parseWebSocketProtocols,
   selectRealtimeProtocol,
 } from '../server/realtime/auth.js';
+import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
 
 test('normalizeBtcTick accepts EODHD crypto WebSocket fields', () => {
   const tick = normalizeBtcTick({
@@ -65,4 +66,31 @@ test('realtime auth accepts Authorization header for non-browser clients', () =>
   };
 
   assert.equal(extractRealtimeAccessToken(req), 'terminal-token');
+});
+
+test('BTC realtime tick does not create a standalone first-paint card', () => {
+  const tick = {
+    price: 62521.14,
+    change: 940,
+    changePercent: 1.53,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  };
+
+  assert.deepEqual(applyBtcTickToMarketCards([], tick, 'live'), []);
+
+  const cards = [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7483.24 },
+    { ticker: 'NDX.INDX', displaySymbol: '.NDX', price: 29329.21 },
+    { ticker: 'DJI.INDX', displaySymbol: '.DJI', price: 52900.07 },
+    { ticker: 'BTC-USD.CC', displaySymbol: 'BTCUSD', price: 62000, intraday: [61800, 62000] },
+  ];
+  const updated = applyBtcTickToMarketCards(cards, tick, 'live');
+
+  assert.equal(updated.length, 4);
+  assert.equal(updated[0], cards[0]);
+  assert.equal(updated[3].ticker, 'BTC-USD.CC');
+  assert.equal(updated[3].price, 62521.14);
+  assert.equal(updated[3].realtimeStatus, 'live');
+  assert.deepEqual(updated[3].intraday, [61800, 62000, 62521.14]);
 });

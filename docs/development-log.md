@@ -4,6 +4,31 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 修复 BTC 首屏卡片错位
+
+- Commit: `same commit`
+- Background: 用户反馈首页首屏加载时 BTC 卡片位置有小问题。根因是 BTC WebSocket tick 可能早于 `INDICES` REST 首次返回,旧逻辑会在市场卡数组为空时单独创建一张 BTC 卡,导致 BTC 临时出现在市场卡第一格,三大指数为空白。
+- Changes:
+  - `applyBtcTickToMarketCards` 不再在市场卡未初始化时追加独立 BTC 卡。
+  - BTC 实时 tick 仍会缓存到 `btcRealtimeRef`,等 `INDICES` REST 首次返回四张市场卡后,再覆盖更新第四张 BTC 卡。
+  - 新增单元测试覆盖空市场卡数组收到 BTC tick 时不渲染单张 BTC,以及四张市场卡加载后正确更新 BTC 第四格。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.75`。
+- Key files:
+  - `src/lib/btcRealtime.js`
+  - `tests/btc-realtime.test.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 41 tests.
+  - `npm run build`: pass; `App-5euJp5go.js` 131.64 kB / gzip 36.77 kB, `HomeTab-CHpB9Zxg.js` 39.10 kB / gzip 10.43 kB, `SettingsTab-CEMAwGfU.js` 26.64 kB / gzip 10.54 kB, `btcRealtime-BPO454lO.js` 0.82 kB / gzip 0.46 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local chunk marker check: pass; built chunks contain `v10.7.9.75`, `修复 BTC 首屏卡片错位`, and `BTC-USD.CC`; built frontend chunks contain no `ws.eodhistoricaldata.com` browser-direct URL.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 BTC tick 可在市场卡未初始化时单独创建 BTC 卡的旧行为,首屏可能再次出现 BTC 临时占第一格的问题;不影响 `/api/quote` 鉴权、WebSocket relay 鉴权或交易数据。
+
 ### 2026-07-04 - BTC 单币种独立实时行情
 
 - Commit: `a74433f806067990a31166922163eebd0387e1c6`
