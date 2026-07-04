@@ -4,9 +4,39 @@
 
 ## 2026-07-04 Asia/Shanghai
 
-### 2026-07-04 - 记录当前信号回滚部署验证
+### 2026-07-04 - 交易页重构为主交易账本
 
 - Commit: `same commit`
+- Background: 用户要求重构交易模块:所有股票通过交易页手动记录买入/卖出,主持仓和成本从交易记录推导;波段记录和摊薄成本等小工具收进工具箱,不参与整体交易逻辑改变;不需要策略订单。
+- Changes:
+  - 交易页新增深色主交易界面:总资产卡、工具箱、持仓分布和当日订单。
+  - 持仓分布使用 `investmentSummary.activePositions`,从主 `trades` 买入/卖出记录推导持仓数量、现价、实际摊薄成本、当日盈亏和累计盈亏。
+  - `derivePositionsFromTrades` 增加 `effectiveCost` 和 `effectiveRemainingCost`,卖出盈利会冲减剩余持仓实际成本。
+  - 新增测试覆盖:100 买入 100 股、150 卖出 10 股后剩余 90 股,实际摊薄成本为 94.44。
+  - 波段记录和独立摊薄成本工具改为只在工具箱中展开,保持独立数据逻辑。
+  - 删除 App 外层旧交易总览卡,避免与新交易主界面重复。
+  - 交易页新增本地日期助手,避免今日订单和新增交易默认日期被 UTC 日期偏移影响。
+  - 设置页用户可见更新日志同步到 `v10.7.9.59`。
+- Key files:
+  - `src/lib/investmentSummary.js`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/App.jsx`
+  - `tests/investment-summary.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 22 tests.
+  - `npm run build`: pass; `TradesTab-CZdjIIxw.js` 43.64 kB / gzip 9.36 kB, `SettingsTab-pFm5DUJ_.js` 29.64 kB / gzip 11.53 kB, `App-6jso7Jjy.js` 119.82 kB / gzip 33.00 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local trade-page chunk check: pass; built `TradesTab-CZdjIIxw.js` contains `持仓分布`, `当日订单`, `波段记录`, `股票设置`, `摊薄工具`, `全部功能`, `effectiveCost`, and local-date helper, and does not contain `策略订单`; built `App-6jso7Jjy.js` does not contain old outer trade summary text `持仓总市值` / `波段总盈亏`; built `SettingsTab-pFm5DUJ_.js` contains `v10.7.9.59`.
+- Deployment: pending GitHub main push and Vercel production verification.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复旧交易页波段记录优先的布局和独立摊薄工具直出显示;不影响首页、资产或目标逻辑。
+
+### 2026-07-04 - 记录当前信号回滚部署验证
+
+- Commit: `2e374fa169bdff04fd40bc5fb38918f17c7825b9`
 - Background: 首页当前信号展开列表已回滚并完成 Vercel 生产部署,需要把最终线上证据回填到日志和交接文档。
 - Changes:
   - 回填回滚提交 `33dab311f662b357804b69601c91afd0577e3e61` 的 GitHub Actions、Vercel 和生产 chunk 验证结果。

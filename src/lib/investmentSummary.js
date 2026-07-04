@@ -79,6 +79,8 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     const previousClose = toNumber(quote?.previousClose);
     const changePercent = toNumber(quote?.changePercent);
     const avgCost = heldShares > 0 ? remainingCost / heldShares : 0;
+    const effectiveCost = heldShares > 0 ? avgCost - realizedPnl / heldShares : 0;
+    const effectiveRemainingCost = heldShares > 0 ? effectiveCost * heldShares : 0;
     const marketValue = heldShares * currentPrice;
     const unrealizedPnl = heldShares > 0 ? marketValue - remainingCost : 0;
     const totalPnl = realizedPnl + unrealizedPnl;
@@ -94,7 +96,9 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       sellTradeCount,
       heldShares,
       avgCost,
+      effectiveCost,
       remainingCost,
+      effectiveRemainingCost,
       totalBuyCost,
       currentPrice,
       previousClose,
