@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 首页自选持仓新增年初至今排序
 
-- Commit: `pending final deployment log update`
+- Commit: `ee43da7b548ef3ab484a7774156007228b5e35a2`
 - Background: 用户要求首页自选功能继续升级:在 `52周跌幅` 后新增 `年初至今`,并让 `涨跌幅`、`52周跌幅`、`年初至今`、`持仓盈亏` 等指标支持表头排序;同时确认自选列表不应显示持仓盈亏,持仓盈亏只在持仓 tab 显示。
 - Changes:
   - `/api/quote` 股票行情响应新增 `yearStartPrice`、`yearStartDate` 和 `ytdChangePercent`,从当年首个可用交易日调整收盘价计算年初至今涨跌幅。
@@ -31,7 +31,14 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `watchlist`, `stock_trades` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local chunk marker check: pass; built `HomeTab-C1sT2srr.js` contains `年初至今`, `ytdChangePercent`, and `持仓盈亏`; built `App-M8ebebVt.js` contains `ytdChangePercent`; built `SettingsTab-BbyGTlG2.js` contains `v10.7.9.72` and `首页自选/持仓新增年初至今和排序`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4pDjmD7gNZ7SoTiqLwChMitrqVp4`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-DKIgwaYA.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-n1Upib5J.css`.
+  - Production runtime chunks: `/assets/App-CFe9LP7v.js`, `/assets/HomeTab-C1sT2srr.js`, `/assets/SettingsTab-BbyGTlG2.js`.
+- Production verification:
+  - Production chunk marker check: `HomeTab-C1sT2srr.js` contains `年初至今`, `ytdChangePercent`, and `持仓盈亏`; `App-CFe9LP7v.js` contains `ytdChangePercent`; `SettingsTab-BbyGTlG2.js` contains `v10.7.9.72` and `首页自选/持仓新增年初至今和排序`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复自选/持仓无年初至今、无表头排序、自选显示持仓盈亏列的旧表格行为;不影响 `/api/quote` 鉴权、Supabase RLS 或交易主账本表结构。
 
 ### 2026-07-04 - 首页自选编辑管理
