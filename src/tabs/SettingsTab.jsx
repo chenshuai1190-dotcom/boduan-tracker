@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.89
+                  v10.7.9.90
                 </span>
               </div>
             </div>
@@ -163,14 +163,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.89
+                  v10.7.9.90
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.89', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.90', date: '2026-07-04', latest: true,
+                    items: [
+                      '💰 首屏加载改为钱袋弹跳图标',
+                      '  - 使用新版透明钱袋 PNG 替换圆环加载',
+                      '  - 采用轻微弹跳和阴影压缩动效,位置保持在首屏中间',
+                      '  - 图标按 mini 尺寸展示,动效仅用 CSS,不增加额外脚本',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.89', date: '2026-07-04',
                     items: [
                       '📐 优化首页自选/持仓首屏列宽',
                       '  - 添加自选股票、编辑自选股票和交易页编辑入口改为正常字重',
@@ -923,7 +932,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.89</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.90</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

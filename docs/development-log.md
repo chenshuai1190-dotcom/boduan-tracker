@@ -4,6 +4,37 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 首屏加载改为钱袋弹跳图标
+
+- Commit: `pending runtime commit`
+- Background: 用户确认本地预览中的 D「轻微弹跳」方案,要求把首屏加载从原圆环替换为可爱的 mini 钱袋图标并部署;同时要求使用重新处理后的透明 PNG,避免深色背景出现白边。
+- Changes:
+  - `AuthGate` 首屏 `LoadingScreen` 从深色卡片内的旋转圆环改为居中的钱袋 PNG。
+  - 新增 `public/loading-mascot.png`,由用户提供的第二张钱袋图处理为透明 RGBA PNG;尺寸 `176x222`,文件约 `63 KB`,alpha 范围 `0-255`。
+  - 加载动效采用本地预览 D 方案:图标轻微弹跳,落地时底部光影压缩;淡金色椭圆环保留为静态辅助层,不做旋转。
+  - 动效完全使用 CSS `transform`/`opacity`/`filter`,不增加 JS、远程资源或额外运行时依赖;同时保留 `prefers-reduced-motion` 降级。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.90`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首屏加载视觉资源和 CSS 动效调整,不改变 API、鉴权、数据库或安全架构边界。
+- Key files:
+  - `src/AuthGate.jsx`
+  - `src/index.css`
+  - `src/tabs/SettingsTab.jsx`
+  - `public/loading-mascot.png`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `index-DeBMxw04.css` 49.60 kB / gzip 9.61 kB, `SettingsTab-CQTVIAYT.js` 30.46 kB / gzip 11.81 kB, `App-MMCZlWaT.js` 132.51 kB / gzip 37.06 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - PNG marker check: `public/loading-mascot.png` and `dist/loading-mascot.png` are `PNG (176, 222)`, mode `RGBA`, `has_alpha=true`, alpha extrema `(0, 255)`, size `63,497 bytes`.
+  - Local source marker check: pass; source contains `/loading-mascot.png`, `loading-mascot-bounce`, `loading-mascot-shadow`, static `loading-mascot-orbit`, `prefers-reduced-motion` and `v10.7.9.90`.
+  - Local build marker check: pass; built CSS contains `loading-mascot-bounce`, `loading-mascot-shadow` and the reduced-motion rule; built `SettingsTab-CQTVIAYT.js` contains `v10.7.9.90`, `首屏加载改为钱袋弹跳图标` and `轻微弹跳和阴影压缩动效`.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending Vercel production deployment.
+- Rollback: 回滚本次改动会恢复首屏圆环加载和 `v10.7.9.89`;不会影响登录、行情接口、账本、RLS 或 `/api/quote` 鉴权逻辑。
+
 ### 2026-07-04 - 优化首页自选持仓首屏列宽
 
 - Commit: `0e28ea2b909a8bea516f6e3acaea6b13172761da`

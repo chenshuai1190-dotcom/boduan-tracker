@@ -14,6 +14,87 @@ body {
   transition: background-color 0.3s ease;
 }
 
+.loading-mascot-stage {
+  position: relative;
+  display: grid;
+  width: 112px;
+  height: 112px;
+  place-items: center;
+  isolation: isolate;
+}
+
+.loading-mascot-image {
+  position: relative;
+  z-index: 2;
+  width: 72px;
+  height: auto;
+  transform-origin: 50% 86%;
+  transform: translateZ(0);
+  animation: loading-mascot-bounce 1.35s cubic-bezier(0.28, 0.84, 0.42, 1) infinite;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.32));
+}
+
+.loading-mascot-glow {
+  position: absolute;
+  bottom: 9px;
+  z-index: 0;
+  width: 70px;
+  height: 26px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(246, 181, 75, 0.34) 0%, rgba(246, 181, 75, 0.08) 52%, transparent 74%);
+  filter: blur(7px);
+  animation: loading-mascot-shadow 1.35s cubic-bezier(0.28, 0.84, 0.42, 1) infinite;
+}
+
+.loading-mascot-orbit {
+  position: absolute;
+  z-index: 1;
+  width: 92px;
+  height: 38px;
+  border: 1px solid rgba(246, 181, 75, 0.18);
+  border-radius: 999px;
+  opacity: 0.42;
+  transform: rotate(-8deg);
+}
+
+@keyframes loading-mascot-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  36% {
+    transform: translateY(-9px) scale(1.025);
+  }
+  58% {
+    transform: translateY(1px) scale(1.01, 0.96);
+  }
+  72% {
+    transform: translateY(-2px) scale(1);
+  }
+}
+
+@keyframes loading-mascot-shadow {
+  0%, 100% {
+    opacity: 0.62;
+    transform: scaleX(0.9);
+  }
+  36% {
+    opacity: 0.42;
+    transform: scaleX(0.72);
+  }
+  58% {
+    opacity: 0.92;
+    transform: scaleX(1.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-mascot-image,
+  .loading-mascot-glow,
+  .loading-mascot-orbit {
+    animation: none;
+  }
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
