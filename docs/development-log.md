@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修正持仓盈亏和今日订单维护
 
-- Commit: 待本轮 runtime 提交生成后在部署回填日志中记录。
+- Commit: `c2b11058c670b26e657ff55e156712bad8f51bb5`
 - Background: 用户根据手机截图反馈交易页持仓分布还有四个问题:持仓盈亏正数 `+` 号在窄列里单独换行导致变形;当日盈亏和持仓盈亏列可以加宽并允许横向滑动;累计盈亏应继续代表账户全部买卖综合盈亏,但持仓盈亏必须只计算当前持仓浮动盈亏;当日订单需要支持修改和删除,因为应用是手动记录工具而不是真实券商交易软件。
 - Changes:
   - 交易页持仓分布汇总的 `持仓盈亏` 从 `summary.cumulativePnl` 改为 `summary.unrealizedPnl`,只统计当前持仓浮动盈亏;顶部资产卡 `累计盈亏` 继续使用 `summary.cumulativePnl`。
@@ -18,7 +18,7 @@
   - 当日订单列表新增修改和删除图标按钮;删除复用全局确认弹窗并调用 `deleteStockTradeRecord`,修改复用交易弹窗并同步云端账本。
   - `tests/investment-summary.test.js` 增加 `realizedPnl` 与 `unrealizedPnl` 分离断言,防止持仓盈亏口径再次与累计盈亏混用。
   - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.83`。
-  - 同步更新 `docs/handoff.md`,记录本次持仓盈亏口径、订单维护能力和待部署状态。
+  - 同步更新 `docs/handoff.md`,记录本次持仓盈亏口径、订单维护能力和部署验证证据。
 - Key files:
   - `src/App.jsx`
   - `src/lib/db.js`
@@ -35,10 +35,18 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Local source marker check: pass; `TradesTab.jsx` contains `summary.unrealizedPnl`, `position.unrealizedPnl`, `holdingCurrency`, `min-w-[548px]`, `grid-cols-[84px_78px_140px_170px_52px]`, `确认修改` and `删除这笔订单?`; `db.js` contains `updateStockTrade`.
   - Local build marker check: pass; built `TradesTab-Dnjy-2Is.js` contains `unrealizedPnl`, `min-w-[548px]`, `grid-cols-[84px_78px_140px_170px_52px]`, `确认修改` and `删除这笔订单?`; built `SettingsTab-Bdtq2rVV.js` contains `v10.7.9.83`, `修正持仓盈亏和今日订单维护` and `当日订单支持修改和删除`。
-- Deployment: 待推送 GitHub `main` 后由 Vercel 自动部署,部署完成后回填 runtime commit 和 deployment target。
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `c2b11058c670b26e657ff55e156712bad8f51bb5`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DXQWPBdV24cxDXLF3s2JXAxaMii9`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=c2b1105-runtime-recheck`: HTTP 200.
+  - Production entry chunks: `/assets/index-Du0vvQ4l.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`.
+  - Production runtime chunks: `/assets/App-C9YnD1my.js`, `/assets/TradesTab-Dnjy-2Is.js`, `/assets/SettingsTab-Bdtq2rVV.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-CUd1ybIH.js`.
 - Production verification:
-  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
-  - 线上 chunk marker、生产 RLS REST 复验和部署 URL 待部署完成后回填。
+  - Production App marker check: `App-C9YnD1my.js` contains `updateStockTrade`.
+  - Production TradesTab marker check: `TradesTab-Dnjy-2Is.js` contains `unrealizedPnl`, `min-w-[548px]`, `grid-cols-[84px_78px_140px_170px_52px]`, `确认修改` and `删除这笔订单?`.
+  - Production SettingsTab marker check: `SettingsTab-Bdtq2rVV.js` contains `v10.7.9.83`, `修正持仓盈亏和今日订单维护` and `当日订单支持修改和删除`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-CUd1ybIH.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复持仓盈亏显示为累计口径、个股持仓盈亏重新混入已实现盈亏、持仓盈亏正数重新显示 `+` 号,并移除当日订单修改/删除入口;不影响 `/api/quote` 鉴权或 Supabase RLS 策略。
 
 ### 2026-07-04 - 持仓分布市值改为整数显示
@@ -204,8 +212,8 @@
   - `npm run build`: pass; docs-only change, runtime chunks unchanged from current local build (`SettingsTab-Cm6OKwzN.js`, `App-UM18uLNm.js`, `HomeTab-CHpB9Zxg.js`).
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
-- Deployment: not run; documentation rule update is local pending commit/push.
-- Production verification: not run; no runtime behavior changed.
+- Deployment: documentation rule is present on GitHub `main`; no runtime behavior changed.
+- Production verification: no runtime behavior changed; current production checks are recorded in later entries above.
 - Rollback: 回滚本次文档改动会移除记录文件一致性准则,后续改进更容易出现设置页、交接文档、安全文档和开发日志不同步。
 
 ### 2026-07-04 - 刷新产品交接文档
