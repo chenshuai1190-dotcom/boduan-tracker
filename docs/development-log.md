@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 设置页深色化和失效入口清理
 
-- Commit: `same commit`
+- Commit: `6e9a5e0377ccd74f4ffea10e6ac40959d5f8b385`
 - Background: 用户要求设置页整体色调和首页保持一致,同时清理已经无效的实时推送、数据状态和 JSON 导出等入口;`云端账户` 需要改成正常的账户设置,取消当前黑金效果。
 - Changes:
   - 设置 tab 纳入 App 深色 shell,页面底色和底部导航与首页/交易页一致。
@@ -24,8 +24,15 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local chunk check: pass; built `SettingsTab-C1-vVtYh.js` contains `v10.7.9.67`, `账户设置`, `数据维护`, and no active JSON export implementation.
-- Deployment: not deployed yet in this local implementation pass.
-- Production verification: pending deployment.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `6e9a5e0377ccd74f4ffea10e6ac40959d5f8b385`
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FMUVPLmh2EoM1ynwdNbZtVLicC5A`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-B_2KCKOY.js`, `App-w7k4xFVp.js`, `SettingsTab-C1-vVtYh.js`, `index-_0jfOJrA.css`.
+  - `SettingsTab-C1-vVtYh.js` contains `v10.7.9.67`, `账户设置`, and `数据维护`.
+  - `SettingsTab-C1-vVtYh.js` no longer contains active implementation markers for JSON export, browser WebSocket settings, or manual quote pull controls: `x-money-backup`, `URL.createObjectURL`, `bottomline_ws`, `setWsEnabled`, `fetchRealtimePrices`, `立即手动拉取`, `当前刷新频率`, `最近更新`.
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
 - Rollback: 回滚本次提交会恢复设置页旧白卡/黑金混合样式、实时推送/数据状态/JSON 导出入口和 `云端账户` 黑金卡;不影响行情 API、交易账本或 Supabase 数据结构。
 
 ### 2026-07-04 - 深色加载、涨跌配色与首页交易账本接入
