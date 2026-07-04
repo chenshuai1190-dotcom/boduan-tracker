@@ -1566,7 +1566,7 @@ export default function TradesTab({ ctx }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-[16px] font-normal leading-tight text-white">摊薄成本</h2>
-                    <div className="mt-1 text-[11px] font-normal text-white/45">
+                    <div className="mt-1 text-[11px] font-normal text-white/50">
                       {allSymbols.length > 0 ? `${allSymbols.length} 只股 · 云端存储` : '云端小工具 · 不影响其他模块'}
                     </div>
                   </div>
@@ -1588,7 +1588,7 @@ export default function TradesTab({ ctx }) {
                       onClick={() => setCostBasisActiveSymbol(sym)}
                       className={`h-9 shrink-0 rounded-xl border px-4 text-[13px] font-normal tabular-nums transition active:scale-95 ${
                         activeSymbol === sym
-                          ? 'border-[#f6b54b]/55 bg-[#f6b54b]/12 text-[#ffd18a] shadow-[0_10px_28px_rgba(246,181,75,0.12)]'
+                          ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#ffd18a] shadow-[0_10px_28px_rgba(246,181,75,0.12)]'
                           : 'border-white/10 bg-white/[0.055] text-white/60'
                       }`}
                       style={{ fontFamily: TRADE_NUMBER_FONT }}
@@ -1596,14 +1596,6 @@ export default function TradesTab({ ctx }) {
                       {sym}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => { setCostBasisNewSymbol(''); setShowCostBasisAdd(true); }}
-                    className="flex h-9 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/18 bg-white/[0.035] text-white/65 active:scale-95"
-                    aria-label="新增摊薄股票"
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2} />
-                  </button>
                 </div>
               </section>
 
@@ -1624,7 +1616,7 @@ export default function TradesTab({ ctx }) {
 
                     <div className="mt-4 grid grid-cols-2 divide-x divide-white/10">
                       <div className="min-w-0 pr-4">
-                        <div className="text-[11px] font-normal text-white/45">会计摊薄</div>
+                        <div className="text-[11px] font-normal text-white/50">会计摊薄</div>
                         <div className="mt-2 text-[24px] font-normal leading-none tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           ${stats.avgCost.toFixed(2)}
                         </div>
@@ -1637,10 +1629,10 @@ export default function TradesTab({ ctx }) {
                         </div>
                         {hasPrice ? (
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-normal tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                            <span className={strongPnlClass(gainPct, marketColorMode)}>
+                            <span className={pnlClass(gainPct, marketColorMode)}>
                               {isUp ? '↑ +' : '↓ '}{gainPct.toFixed(2)}%
                             </span>
-                            <span className="text-white/45">现价 ${currentPrice.toFixed(2)}</span>
+                            <span className="text-white/50">现价 ${currentPrice.toFixed(2)}</span>
                           </div>
                         ) : (
                           <div className="mt-2 text-[11px] font-normal text-white/40">扣除已实现盈亏</div>
@@ -1651,22 +1643,22 @@ export default function TradesTab({ ctx }) {
 
                   <div className="grid grid-cols-2 gap-2">
                     <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
-                      <Database className="mb-3 h-6 w-6 text-white/55" strokeWidth={1.7} />
-                      <div className="text-[11px] font-normal text-white/45">累计投入</div>
+                      <Database className="mb-3 h-6 w-6 text-white/60" strokeWidth={1.7} />
+                      <div className="text-[11px] font-normal text-white/50">累计投入</div>
                       <div className="mt-2 text-[20px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         ${stats.totalCost.toFixed(0)}
                       </div>
-                      <div className="mt-1 text-[11px] font-normal tabular-nums text-white/38" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                      <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         ≈ ¥{(stats.totalCost * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </div>
                     </section>
                     <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                       <TrendingUp className={`mb-3 h-6 w-6 ${pnlClass(stats.realizedPnl, marketColorMode)}`} strokeWidth={1.7} />
-                      <div className="text-[11px] font-normal text-white/45">已实现盈亏</div>
-                      <div className={`mt-2 text-[20px] font-normal tabular-nums ${strongPnlClass(stats.realizedPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                      <div className="text-[11px] font-normal text-white/50">已实现盈亏</div>
+                      <div className={`mt-2 text-[20px] font-normal tabular-nums ${pnlClass(stats.realizedPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
                       </div>
-                      <div className="mt-1 text-[11px] font-normal tabular-nums text-white/38" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                      <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         ≈ {stats.realizedPnl >= 0 ? '+' : '-'}¥{(Math.abs(stats.realizedPnl) * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
                       </div>
                     </section>
@@ -1737,8 +1729,8 @@ export default function TradesTab({ ctx }) {
                                     className={`min-w-0 text-[13px] ${isSell ? 'cursor-pointer' : ''}`}
                                     onClick={() => isSell && setExpandedTrades(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
                                   >
-                                    <div className="truncate font-normal text-white/86">{t.date} {isSell ? '卖出' : '买入'} {fmtAmount(shares, 0)} 股</div>
-                                    <div className="mt-0.5 text-[11px] font-normal tabular-nums text-white/42" style={{ fontFamily: TRADE_NUMBER_FONT }}>${price.toFixed(2)}/股</div>
+                                    <div className="truncate font-normal text-white/90">{t.date} {isSell ? '卖出' : '买入'} {fmtAmount(shares, 0)} 股</div>
+                                    <div className="mt-0.5 text-[11px] font-normal tabular-nums text-white/50" style={{ fontFamily: TRADE_NUMBER_FONT }}>${price.toFixed(2)}/股</div>
                                   </div>
                                   <div className={`text-right text-[13px] font-normal tabular-nums ${isSell ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                     {isSell ? '+' : '-'}${amount.toFixed(0)}
@@ -1747,7 +1739,7 @@ export default function TradesTab({ ctx }) {
                                     <button
                                       type="button"
                                       onClick={() => setExpandedTrades(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
-                                      className="px-1 text-[12px] text-white/45 active:scale-95"
+                                      className="px-1 text-[12px] text-white/50 active:scale-95"
                                     >
                                       {isExpanded ? '▲' : '▼'}
                                     </button>
@@ -1790,7 +1782,7 @@ export default function TradesTab({ ctx }) {
                                       <div>卖出成本 = {sellAvg.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${sellCost.toFixed(2)}</span></div>
                                       <div>本次利润 = {amount.toFixed(0)} - {sellCost.toFixed(0)}</div>
                                     </div>
-                                    <div className={`mt-2 border-t border-emerald-400/20 pt-2 text-[15px] font-normal tabular-nums ${strongPnlClass(profit, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                    <div className={`mt-2 border-t border-emerald-400/20 pt-2 text-[15px] font-normal tabular-nums ${pnlClass(profit, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       = {profit >= 0 ? '+' : ''}${profit.toFixed(2)} ({profit >= 0 ? '+' : ''}{profitPct.toFixed(2)}%)
                                     </div>
                                   </div>

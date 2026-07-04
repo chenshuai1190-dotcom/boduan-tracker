@@ -2,6 +2,40 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-05 Asia/Shanghai
+
+### 2026-07-05 - 微调摊薄成本工具显示
+
+- Commit: pending
+- Background: 用户在生产截图中标出摊薄成本工具三个问题:股票切换栏尾部虚线加号是按参考图照搬的无效入口,上方已经有 `新增`;已实现盈亏和卖出展开利润颜色偏红,需要对齐头部资产卡片的粉色体系;新增摊薄股票和添加摊薄交易两个弹窗在键盘打开时文字不可见且仍是底部抽屉,不符合居中弹窗准则。
+- Changes:
+  - 删除摊薄成本股票切换栏尾部多余虚线 `+` 按钮,保留右上角 `新增` 作为唯一新增股票入口。
+  - 摊薄成本 `实际成本` 涨幅、`已实现盈亏` 数字和卖出展开明细的利润颜色统一改用 `pnlClass`,与首页/交易页头部资产卡片使用同一套盈亏色。
+  - `新增摊薄股票` 和 `添加摊薄交易` 弹窗从移动端底部抽屉改为居中弹窗,移除底部抽屉把手和顶部圆角抽屉样式。
+  - 修复摊薄弹窗中的非标准 Tailwind 透明度 class,把 `text-white/42`、`text-white/72`、`bg-white/22` 等替换为标准透明度,避免 iOS 上标签、取消按钮等文字继承成黑色。
+  - 摊薄成本主页面本轮触及区域的弱文字透明度也改为标准值,避免同类显示问题。
+  - 新增回归测试,校验摊薄成本不再有尾部加号、盈亏颜色使用头部同源 class、两个弹窗保持居中且不使用不可见的非标准文字透明度。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.99`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是摊薄成本前端展示、弹窗位置和文字可见性修复,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或既有开发准则。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 51 tests.
+  - `npm run build`: pass; `index-CpnEEVDZ.css` 51.54 kB / gzip 9.51 kB, `TradesTab-Blq_4q0Z.js` 61.07 kB / gzip 12.10 kB, `SettingsTab-afdTYjRq.js` 34.16 kB / gzip 13.03 kB, `App-caoN0_Tg.js` 139.68 kB / gzip 39.31 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source has no cost-basis trailing `aria-label="新增摊薄股票"`, cost-basis PnL uses `pnlClass(stats.realizedPnl, marketColorMode)`, `pnlClass(profit, marketColorMode)` and `pnlClass(gainPct, marketColorMode)`, cost-basis modals contain centered class `flex items-center justify-center bg-black/70 px-4`, App source contains no `text-white/42`, `text-white/72` or `bg-white/22`, and Settings source contains `v10.7.9.99` plus `微调摊薄成本工具显示`.
+  - Local build marker check: pass; built chunks contain `v10.7.9.99`, `微调摊薄成本工具显示`, centered cost-basis modal markers, no cost-basis trailing plus marker, and supported opacity classes for the cost-basis modal.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.98` 的摊薄成本股票栏尾部虚线加号、偏深红的 strong PnL 色以及移动端底部抽屉式摊薄弹窗;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
+
 ## 2026-07-04 Asia/Shanghai
 
 ### 2026-07-04 - 摊薄成本工具改为深色版本

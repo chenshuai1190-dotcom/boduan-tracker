@@ -4483,22 +4483,23 @@ function MainApp({ user, onLogout }) {
         {/* === 摊薄成本 - 新增股票弹窗 === */}
         {showCostBasisAdd && (
           <div
-            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center"
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisAdd(false); }}
-            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            style={{
+              paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+              paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+            }}
           >
             <div
-              className="w-full max-w-md overflow-hidden rounded-t-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:rounded-[22px]"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              className="max-h-[88svh] w-full max-w-md overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
               onClick={e => e.stopPropagation()}
             >
-              <div className="mx-auto mt-3 h-1 w-9 rounded-full bg-white/22 sm:hidden"></div>
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div className="text-[15px] font-normal text-white">新增摊薄股票</div>
                 <button
                   type="button"
                   onClick={() => setShowCostBasisAdd(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55 active:scale-95"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/60 active:scale-95"
                   aria-label="关闭新增摊薄股票"
                 >
                   <X className="h-4 w-4" strokeWidth={1.8} />
@@ -4506,13 +4507,13 @@ function MainApp({ user, onLogout }) {
               </div>
               <div className="space-y-3 p-5">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-normal text-white/42">股票代码</span>
+                  <span className="mb-1 block text-[11px] font-normal text-white/50">股票代码</span>
                   <input
                     type="text"
                     value={costBasisNewSymbol}
                     onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
                     placeholder="股票代码 (如 NVDA)"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3.5 py-3 text-[13px] font-normal uppercase text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/55"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3.5 py-3 text-[13px] font-normal uppercase text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/60"
                     style={{ fontFamily: 'ui-monospace, monospace' }}
                     autoFocus
                   />
@@ -4520,7 +4521,7 @@ function MainApp({ user, onLogout }) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setShowCostBasisAdd(false)}
-                    className="rounded-xl border border-white/10 bg-white/[0.055] py-2.5 text-[12px] font-normal text-white/72 active:scale-95"
+                    className="rounded-xl border border-white/15 bg-white/[0.09] py-2.5 text-[12px] font-normal text-white/80 active:scale-95"
                   >
                     取消
                   </button>
@@ -4556,25 +4557,26 @@ function MainApp({ user, onLogout }) {
         {/* === 摊薄成本 - 添加交易弹窗 === */}
         {showCostBasisTrade && (
           <div
-            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center"
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisTrade(false); }}
-            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            style={{
+              paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+              paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+            }}
           >
             <div
-              className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:rounded-[22px]"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              className="max-h-[88svh] w-full max-w-md overflow-y-auto rounded-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
               onClick={e => e.stopPropagation()}
             >
-              <div className="mx-auto mt-3 h-1 w-9 rounded-full bg-white/22 sm:hidden"></div>
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div>
                   <div className="text-[15px] font-normal text-white">添加摊薄交易</div>
-                  <div className="mt-0.5 text-[11px] font-normal text-white/42">{costBasisActiveSymbol || '未选择股票'}</div>
+                  <div className="mt-0.5 text-[11px] font-normal text-white/50">{costBasisActiveSymbol || '未选择股票'}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCostBasisTrade(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55 active:scale-95"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/60 active:scale-95"
                   aria-label="关闭添加摊薄交易"
                 >
                   <X className="h-4 w-4" strokeWidth={1.8} />
@@ -4586,8 +4588,8 @@ function MainApp({ user, onLogout }) {
                   onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'buy' }))}
                   className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
                     costBasisNewTrade.type === 'buy'
-                      ? 'border-rose-400/35 bg-rose-500/18 text-rose-200 shadow-[0_10px_28px_rgba(244,63,94,0.14)]'
-                      : 'border-white/10 bg-white/[0.055] text-white/45'
+                      ? 'border-rose-400/35 bg-rose-500/20 text-rose-200 shadow-[0_10px_28px_rgba(244,63,94,0.14)]'
+                      : 'border-white/10 bg-white/[0.055] text-white/50'
                   }`}
                 >
                   买入
@@ -4596,8 +4598,8 @@ function MainApp({ user, onLogout }) {
                   onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'sell' }))}
                   className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
                     costBasisNewTrade.type === 'sell'
-                      ? 'border-emerald-400/35 bg-emerald-500/16 text-emerald-200 shadow-[0_10px_28px_rgba(16,185,129,0.12)]'
-                      : 'border-white/10 bg-white/[0.055] text-white/45'
+                      ? 'border-emerald-400/35 bg-emerald-500/20 text-emerald-200 shadow-[0_10px_28px_rgba(16,185,129,0.12)]'
+                      : 'border-white/10 bg-white/[0.055] text-white/50'
                   }`}
                 >
                   卖出
@@ -4605,43 +4607,43 @@ function MainApp({ user, onLogout }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-[11px] font-normal text-white/42">价格 ($/股)</label>
+                    <label className="mb-1 block text-[11px] font-normal text-white/50">价格 ($/股)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={costBasisNewTrade.price}
                       onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
                       placeholder="0.00"
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/55"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/60"
                       style={{ fontFamily: 'ui-monospace, monospace' }}
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-normal text-white/42">股数</label>
+                    <label className="mb-1 block text-[11px] font-normal text-white/50">股数</label>
                     <input
                       type="number"
                       value={costBasisNewTrade.shares}
                       onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
                       placeholder="0"
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/55"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/60"
                       style={{ fontFamily: 'ui-monospace, monospace' }}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px] font-normal text-white/42">日期</label>
+                  <label className="mb-1 block text-[11px] font-normal text-white/50">日期</label>
                   <input
                     type="date"
                     value={costBasisNewTrade.date}
                     onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none [color-scheme:dark] focus:border-[#f6b54b]/55"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none [color-scheme:dark] focus:border-[#f6b54b]/60"
                   />
                 </div>
                 {costBasisNewTrade.price && costBasisNewTrade.shares && (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3 text-center text-[12px] font-normal text-white/48">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3 text-center text-[12px] font-normal text-white/50">
                     {costBasisNewTrade.type === 'buy' ? '将投入' : '将收回'}{' '}
-                    <span className="font-normal tabular-nums text-white/88" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                    <span className="font-normal tabular-nums text-white/90" style={{ fontFamily: 'ui-monospace, monospace' }}>
                       ${(parseFloat(costBasisNewTrade.price) * parseFloat(costBasisNewTrade.shares)).toFixed(2)}
                     </span>
                   </div>
@@ -4649,7 +4651,7 @@ function MainApp({ user, onLogout }) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setShowCostBasisTrade(false)}
-                    className="rounded-xl border border-white/10 bg-white/[0.055] py-2.5 text-[12px] font-normal text-white/72 active:scale-95"
+                    className="rounded-xl border border-white/15 bg-white/[0.09] py-2.5 text-[12px] font-normal text-white/80 active:scale-95"
                   >
                     取消
                   </button>

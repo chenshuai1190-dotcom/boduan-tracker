@@ -1,6 +1,6 @@
 # boduan-tracker 产品交接文档
 
-更新时间: 2026-07-04 Asia/Shanghai
+更新时间: 2026-07-05 Asia/Shanghai
 
 这份文档给下一位接手 `boduan-tracker` 的工程师或 AI 代理使用。先按这里同步状态,再看开发日志和代码。
 
@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d` (`v10.7.9.98`)
-- 最近应用代码提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`
+- 当前产品基准提交: pending runtime commit (`v10.7.9.99`)
+- 最近应用代码提交: pending runtime commit
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.98`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`
-- Vercel 部署记录: `v10.7.9.98` runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`;GitHub Actions `CI` run `28711683937` build job `85146152543` success;production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime` HTTP 200
+- 设置页版本: `v10.7.9.99`
+- Vercel 最新运行时部署: pending;上一版 success target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`
+- Vercel 部署记录: pending `v10.7.9.99`;上一版 `v10.7.9.98` runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`;GitHub Actions `CI` run `28711683937` build job `85146152543` success;production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,以及 `v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,以及 `v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复。
 
 ## 2. 先读这些文档
 
@@ -164,6 +164,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 摊薄成本工具
 
+- `v10.7.9.99`: 摊薄成本股票切换栏删除尾部多余虚线 `+`;实际成本涨幅、已实现盈亏和卖出展开明细利润颜色改为和头部资产卡片同源的 `pnlClass`;新增摊薄股票和添加摊薄交易弹窗改为居中弹窗;修复弹窗标签、取消按钮和输入辅助文字因非标准透明度 class 在 iOS 上变黑的问题。
 - `v10.7.9.98`: 摊薄成本工具改为深色版本;标题删除旧图标,只保留纯文字 `摊薄成本`;主成本卡、累计投入、已实现盈亏、交易记录、新增股票和添加摊薄交易弹窗统一为黑色风格;辅助图标改用现有 lucide 线性图标体系;摊薄成本提交校验和失败提示改为应用内确认弹窗;数据仍只写独立 `cost_basis_trades`,不影响正式交易账本和波段记录。
 
 ### 波段记录小程序 UI
