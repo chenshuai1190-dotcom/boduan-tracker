@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 交易录入弹层深色化
 
-- Commit: `same commit`
+- Commit: `ca68dec0f2493e544a7e2288b500a624ded9713e`
 - Background: 用户提供添加/修改交易弹层效果图,要求把当前白色录入版本改为和现有交易页一致的黑色 UI;默认使用买入按钮,买入选中显示红色、卖出选中显示绿色,未选按钮为灰色;本轮只覆盖主账本的 `添加交易` 和 `修改交易` 两个状态,不改摊薄工具。
 - Changes:
   - 交易页 `添加交易/修改交易` 共用弹层从白底改为深色面板、深色 sticky header、深色输入框和深色取消按钮。
@@ -29,8 +29,19 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `bg-[#0b0f16]`, `border-rose-400/75`, `border-emerald-400/75`, `colorScheme: 'dark'`, `确认修改`, `v10.7.9.86` and `交易录入弹层改为深色版本`.
   - Local build marker check: pass; built `TradesTab-u8qgt3zg.js` contains the dark trade modal markers and built `SettingsTab-vY8Gf80O.js` contains `v10.7.9.86`, `交易录入弹层改为深色版本` and `买入选中显示红色`.
-- Deployment: pending; will push to GitHub `main` after this local validation and wait for Vercel production deployment.
-- Production verification: pending deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `ca68dec0f2493e544a7e2288b500a624ded9713e`.
+  - GitHub Actions `CI`: success, run `28705885242`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4C6xVK7pfKDDpqJZb4Pop6pHvsBE`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=ca68dec-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CE9yRHNx.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`.
+  - Production runtime chunks: `/assets/App-CCVSwp4h.js`, `/assets/TradesTab-u8qgt3zg.js`, `/assets/SettingsTab-vY8Gf80O.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C0j6dM7a.js`.
+- Production verification:
+  - Production App marker check: `App-CCVSwp4h.js` contains `updateStockTrade`, `TradesTab-u8qgt3zg.js` and `SettingsTab-vY8Gf80O.js`.
+  - Production TradesTab marker check: `TradesTab-u8qgt3zg.js` contains `bg-[#0b0f16]`, `border-rose-400/75`, `border-emerald-400/75`, `colorScheme`, `确认修改`, `确认添加` and `添加交易`.
+  - Production SettingsTab marker check: `SettingsTab-vY8Gf80O.js` contains `v10.7.9.86`, `交易录入弹层改为深色版本`, `买入选中显示红色` and `输入框、日期栏`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-C0j6dM7a.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复 `添加交易/修改交易` 弹层白色样式和原来的买卖按钮视觉;交易数据保存、修改、删除和同步逻辑不受影响。
 
 ### 2026-07-04 - 拉开持仓盈亏与占比间距并固化 SSH 推送规则
