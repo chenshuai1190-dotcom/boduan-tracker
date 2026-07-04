@@ -4,6 +4,39 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 继续压缩波段记录并恢复备注入口
+
+- Commit: pending runtime commit before push.
+- Background: 用户反馈波段记录标题、股票名称和整体框架仍偏大,要求参考交易页工具入口字号继续缩小;指出新增波段记录弹窗缺少旧版本的备注/计划输入,无法说明这段波段应该做什么;同时反馈已完成波段入口不够可点、备注无法明显删减。
+- Changes:
+  - 波段记录首页标题、提示文字、统计卡、股票代码、股票名称、个股统计卡、进行中波段、交易明细和已完成波段整体继续收紧字号、间距和卡片高度。
+  - 顶部 `已完成` 统计卡改为可点击入口,点击后展开所有含已完成波段的股票折叠区。
+  - 新增波段记录弹窗恢复 `波段备注/计划` 输入框,用于记录这段波段的操作计划,例如 `250开始陆续卖出`。
+  - 新增波段记录保存后,备注会写入 `wave_notes` 的对应波段 id;追加买入/卖出已有进行中波段时会沿用并更新已有波段备注。
+  - 进行中和已完成波段备注都支持点击编辑,并新增 `清除` 按钮,避免只能改不能删。
+  - 已完成波段行增加明确点击 title,展开后仍可查看交易明细和删除单笔旧账本交易。
+  - 新增回归测试,校验波段备注入口、备注写入、备注清除和已完成展开入口不会被后续改动移除。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.96`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是波段记录前端 UI、备注输入和折叠交互调整,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或既有开发准则。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 50 tests.
+  - `npm run build`: pass; `index-4ZltKMeK.css` 49.53 kB / gzip 9.27 kB, `TradesTab-DBztFE4y.js` 54.09 kB / gzip 11.90 kB, `SettingsTab-CZjXRK8S.js` 33.18 kB / gzip 12.72 kB, `App-2NtKkL1M.js` 137.34 kB / gzip 38.80 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `波段备注/计划`, `清除`, `openCompletedWaves`, `targetWaveId`, `db.upsertWaveNote(targetWaveId, noteValue)`, `v10.7.9.96`, and no source marker `进行中 · #`.
+  - Local build marker check: pass; built chunks contain `波段备注/计划`, `清除`, `已完成`, `v10.7.9.96`, and `继续压缩波段记录并恢复备注入口`.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.95` 的波段记录字号和新增弹窗,并再次移除新增波段时填写备注/计划的入口;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-04 - 收紧波段记录字号并移除原生提示
 
 - Commit: `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`

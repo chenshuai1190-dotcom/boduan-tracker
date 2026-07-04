@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.95
+                  v10.7.9.96
                 </span>
               </div>
             </div>
@@ -163,14 +163,25 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.95
+                  v10.7.9.96
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.95', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.96', date: '2026-07-04', latest: true,
+                    items: [
+                      '📓 继续压缩波段记录并恢复备注入口',
+                      '  - 波段记录标题、股票代码、统计卡和明细字体继续收紧',
+                      '  - 新增波段记录弹窗恢复“波段备注/计划”输入',
+                      '  - 新增波段后备注会写入波段备注库,用于说明这段波段应该怎么做',
+                      '  - 进行中和已完成波段备注支持编辑和一键清除',
+                      '  - 顶部“已完成”统计卡可展开已完成波段列表',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.95', date: '2026-07-04',
                     items: [
                       '📓 收紧波段记录字号并移除原生提示',
                       '  - 波段记录整体字号和卡片留白进一步收紧',
@@ -988,7 +999,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.95</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.96</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

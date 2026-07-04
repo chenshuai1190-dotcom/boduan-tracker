@@ -1857,6 +1857,7 @@ function MainApp({ user, onLogout }) {
     // 波段记录入口必须写 legacy trades,不能污染主交易账本 stock_trades。
     if (tradeEntryScope === 'wave') {
       try {
+        const activeWaveBefore = wavesByStock.find(group => group.symbol === symbol)?.activeWave;
         const waveTradeRecord = await db.insertTrade({
           symbol,
           name: stockName,
@@ -1866,6 +1867,16 @@ function MainApp({ user, onLogout }) {
           shares: sharesNum,
         });
         setTrades(current => [...current, waveTradeRecord]);
+        if (typeof newTrade.note === 'string') {
+          const targetWaveId = activeWaveBefore?.id || `wave-${symbol}-${newTrade.date || waveTradeRecord.id}`;
+          const noteValue = newTrade.note.trim();
+          if (noteValue || activeWaveBefore?.id) {
+            setWaveNotes(current => ({ ...current, [targetWaveId]: noteValue }));
+            db.upsertWaveNote(targetWaveId, noteValue).catch(err => {
+              console.error('波段备注保存失败:', err);
+            });
+          }
+        }
       } catch (e) {
         showTradeNotice('添加波段记录失败', e.message || '请稍后重试。');
         return;
@@ -1881,6 +1892,7 @@ function MainApp({ user, onLogout }) {
         date: new Date().toISOString().split('T')[0],
         price: '',
         shares: '',
+        note: '',
         batch: '第1批',
       });
       setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found');

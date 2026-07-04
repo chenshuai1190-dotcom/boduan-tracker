@@ -38,3 +38,12 @@ test('trade and wave form validation avoids native alert dialogs', () => {
   assert.ok(appSource.includes('showCancel: opts.showCancel !== false'), 'custom notice modal must support hiding cancel button');
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
 });
+
+test('wave records keep editable notes and completed waves remain reachable', () => {
+  assert.ok(tradesTabSource.includes('波段备注/计划'), 'wave add modal must keep a note/plan field');
+  assert.ok(tradesTabSource.includes('openCompletedWaves'), 'completed summary must be able to expand completed wave groups');
+  assert.ok(tradesTabSource.includes('saveWaveNote'), 'wave notes need a shared save helper');
+  assert.ok(tradesTabSource.includes('清除'), 'wave note UI must provide an obvious clear action');
+  assert.ok(appSource.includes('targetWaveId'), 'wave add path must attach notes to the computed wave id');
+  assert.ok(appSource.includes('db.upsertWaveNote(targetWaveId, noteValue)'), 'wave add path must persist note/plan text');
+});
