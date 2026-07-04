@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 首页自选添加体验细节优化
 
-- Commit: `same commit`
+- Commit: `180f00c3e29b094ea7c510b70cd54baaf8bc90df`
 - Background: 用户反馈添加自选股票弹窗偏下,键盘弹出后输入区域容易跑到上方且需要手动拉回;添加成功没有反馈导致快速重复提交容易出错;首页持仓默认只显示 3 条不符合真实持仓浏览;自选列表需要默认显示价格、涨跌幅、距离 52 周高点跌幅和持仓盈亏,并采用交易页同类横向滑动指标区。
 - Changes:
   - 添加自选股票弹窗从贴底 bottom sheet 改为居中自适应对话框,锁定页面滚动,输入框聚焦时滚入可视中心。
@@ -31,7 +31,13 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local chunk marker check: pass; built `HomeTab-B0PgqjBL.js` contains centered add-stock dialog, `添加中...`, `添加成功`, `52周跌幅`, and no old `rounded-t-[22px]` bottom-sheet marker; built `App-rMa6tsQs.js` contains the success-result return path; built `SettingsTab-CiP5Q747.js` contains `v10.7.9.69`; built CSS contains the dynamic viewport `76dvh` modal height.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2FAW1JUbKi6yTFXAL81E7vwzMLzY`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-DRyxIatJ.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-DIQvbhZJ.js`, `/assets/index-23EtP-Fi.css`.
+  - Production runtime chunks: `/assets/App-5zNz64jh.js`, `/assets/HomeTab-B0PgqjBL.js`, `/assets/SettingsTab-CiP5Q747.js`.
+  - Production chunk marker check: `添加中...`, `添加成功`, `52周跌幅`, centered modal dynamic viewport `76dvh`, add-stock success return path, settings `v10.7.9.69`, and settings changelog all present; old `rounded-t-[22px]` bottom-sheet marker absent.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复添加自选底部弹层、无成功提示、持仓 3 条预览和旧单行表格布局;不影响 `/api/quote` 鉴权、Supabase RLS 或 `stock_trades` 表结构。
 
 ### 2026-07-04 - 首页自选添加与持仓口径修正
