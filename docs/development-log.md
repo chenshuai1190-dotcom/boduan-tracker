@@ -20,8 +20,14 @@
   - `npm run build`: pass; docs-only change, runtime chunks unchanged from `58663cdd685207d54c0def7bd17bf02830905ebb` local build (`TradesTab-CZdjIIxw.js`, `SettingsTab-pFm5DUJ_.js`, `App-6jso7Jjy.js`).
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
-- Deployment: pending docs-only push after validation.
-- Production verification: runtime commit `58663cdd685207d54c0def7bd17bf02830905ebb` already verified; docs-only verification pending.
+- Deployment: docs-only record pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Docs/deployment record commit: `59b8d3ede8df5d0d4231d31ea9a48579eb7b571d`
+  - GitHub Actions `CI`: success, run `28692997780`
+  - Vercel deployment: success, deployment `5306970970`, target `https://boduan-tracker-kj91rrn4b-chenshuai1190-7580s-projects.vercel.app`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks remain `index-DIlRs9If.js`, `index-C89TU27I.css`, `App-Q0v9E7k3.js`, `TradesTab-CZdjIIxw.js`, `SettingsTab-pFm5DUJ_.js`, `HomeTab-CB8aSzcR.js`.
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
 - Rollback: 回滚本次 docs-only 提交只会移除部署记录和交接刷新,不影响交易页运行时代码。
 
 ### 2026-07-04 - 交易页重构为主交易账本
