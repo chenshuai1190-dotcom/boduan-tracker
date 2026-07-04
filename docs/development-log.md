@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 修复下拉真刷新和摊薄交易输入显色
 
-- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Commit: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`
 - Background: 用户指出全局下拉刷新只是刷新数据,如果 Vercel 已部署新版本仍必须重新打开网页才能加载新前端包,要求下拉后自动更新到刚部署完成的版本;同时指出摊薄成本添加交易弹窗复现此前问题,不仅标签文字发黑,输入框文字和占位色也在 iOS 键盘状态下不可见。
 - Findings:
   - 当前 `runGlobalPullRefresh` 只执行 `db.fetchAllUserData`、汇率和行情刷新,没有读取最新 `index.html`,也没有比较 Vite `/assets/...` 指纹,所以无法发现生产新 bundle。
@@ -23,6 +23,7 @@
   - `src/App.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 55 tests.
@@ -32,8 +33,20 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source/build marker check: pass; source and built `App-DpHeEsZi.js` contain `checkForAppShellUpdate`, `__xmoney_refresh`, `发现新版本,正在更新`, `text-[#f5f7fb]`, and `placeholder:text-[#707a89]`; built `SettingsTab-A866FEkw.js` contains `v10.7.9.101`; built chunks do not contain visible old label `股票设置</span>`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`.
+  - GitHub `main`: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`.
+  - GitHub Actions `CI`: success, run `28713193216`, build job `85150025999`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DVfxsM3b1R1q9GNcauZte1xPuuqa`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=3482639-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-6mlXxagh.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-D38QBpRO.css`.
+  - Production runtime chunks: `/assets/App-DtIQ6rPB.js`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-CbAsV7Os.js`, `/assets/SettingsTab-A866FEkw.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BSJXb8xT.js`.
+- Production verification:
+  - Production marker check: `App-DtIQ6rPB.js` contains `__xmoney_refresh`, `发现新版本,正在更新`, `text-[#f5f7fb]`, and `placeholder:text-[#707a89]`.
+  - Production marker check: `SettingsTab-A866FEkw.js` contains `v10.7.9.101` and `修复下拉刷新和摊薄交易输入框显示`.
+  - Production marker check: runtime chunks no longer contain the old visible tool label `股票设置</span>`.
+  - Production RLS REST check: pass,13 user-owned tables returned 0 visible rows;source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-BSJXb8xT.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复下拉刷新只刷新数据、不自动切换到最新 Vercel 前端包,并恢复摊薄成本弹窗输入控件弱透明色导致 iOS 键盘状态文字不可见的问题;不会影响正式交易账本、波段账本、摊薄账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 修复摊薄成本空股票标签和交易记录入口
