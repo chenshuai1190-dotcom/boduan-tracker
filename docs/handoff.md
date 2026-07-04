@@ -1,23 +1,27 @@
-# Handoff for Next Developer
+# boduan-tracker 产品交接文档
 
-Date: 2026-07-04 Asia/Shanghai
+更新时间: 2026-07-04 Asia/Shanghai
 
-This document is the first page to read when taking over `boduan-tracker`.
+这份文档给下一位接手 `boduan-tracker` 的工程师或 AI 代理使用。先按这里同步状态,再看开发日志和代码。
 
-## Current State
+## 1. 当前状态
 
-- Repository: `chenshuai1190-dotcom/boduan-tracker`
-- Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `d8014814e17a8f789b304c5facaeb32fab5a6eed`
-- Latest verified deployment record before this handoff: `d8014814e17a8f789b304c5facaeb32fab5a6eed`.
-- App changelog version shown in Settings: `v10.7.9.66`
-- Current development branch used by Codex: `main`
+- 仓库: `chenshuai1190-dotcom/boduan-tracker`
+- 生产地址: `https://boduan-tracker.vercel.app`
+- 当前产品基准提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
+- 最近应用代码提交: `b7a0e48371cf74da200fb2d6e760117afffdf786`
+- 最近文档/配置记录提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
+- 设置页版本: `v10.7.9.78`
+- Vercel 最新部署: 成功
+- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3`
+- Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
+- 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
+产品现在可用,线上部署正常。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路和 Supabase Auth URL 配置。
 
-## Read These First
+## 2. 先读这些文档
 
-Read in this order before changing code:
+按顺序读:
 
 1. `docs/handoff.md`
 2. `README.md`
@@ -26,61 +30,310 @@ Read in this order before changing code:
 5. `docs/security-hardening.md`
 6. `docs/architecture-security-audit.md`
 
-The most important rule: GitHub `main` is the code source of truth. Do not edit application code directly in Vercel, Tencent Cloud, browser consoles, or temporary server files.
+最重要规则: GitHub `main` 是唯一代码源头。不要直接改 Vercel、浏览器控制台、临时服务器文件。Supabase/Vercel 后台只允许做环境变量、Auth URL、数据库策略这类配置,并且必须写入 `docs/development-log.md`。
 
-Default delivery rule: unless the user explicitly says "only implement locally" or "do not deploy", every completed, verified change must be pushed to GitHub `main`, allowed to trigger Vercel production deployment, and followed by production verification.
+## 3. 产品概览
 
-## Product Summary
+`boduan-tracker` 是移动端优先的投资追踪 PWA,当前品牌显示为 X MONEY。核心使用场景:
 
-`boduan-tracker` is a personal finance PWA for:
+- 首页账户看板: 总资产、今日盈亏、累计盈亏、当前信号、市场指标、VIX/CNN 恐慌指标。
+- 自选股票: 用户主动添加的 watchlist,新用户默认空,支持添加、编辑、置顶、排序、删除。
+- 持仓视图: 来自交易主账本的真实持仓,不是自选列表。
+- 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。
+- 资产/分析页: 资产走势和账户分析。
+- 目标页: 投资目标、复盘和纪律相关功能。
+- 设置页: 账户设置、修改密码、更新日志、数据维护。
+- PWA: 支持保存到手机桌面,当前图标为黑金 K 线箭头图标,已修复 iOS 白边。
 
-- wave-trade tracking
-- watchlist and market signals
-- asset and account review
-- investment goals
-- monthly review logs
-- cost-basis calculations
-
-The app uses Supabase Auth and Postgres for user data, Vercel for hosting and serverless API, and `/api/quote` for market data proxying.
-
-## Tech Stack
+## 4. 技术栈
 
 - React 18 + Vite
 - Tailwind CSS
 - Supabase Auth + Postgres
-- Vercel Serverless Function: `api/quote.js`
-- Vercel Serverless Function: `api/fx.js`
-- Market data: EODHD, Yahoo Finance, CNN Fear & Greed, NASDAQ calendar
-- Tests: Node built-in test runner via `node --test`
+- Vercel Serverless Functions
+- `/api/quote`: 已登录行情代理
+- `/api/fx`: 已登录汇率接口
+- `/api/btc-realtime`: 已登录 BTC WebSocket relay
+- 市场数据: EODHD、Yahoo Finance、CNN Fear & Greed、NASDAQ calendar
+- 测试: Node built-in test runner,命令为 `npm test`
 
-Node requirement from `package.json`: `^20.19.0 || >=22.12.0`.
-
-On the current Mac workspace, Node 22 is available at:
+本机 Node 路径:
 
 ```bash
 PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 ```
+## 5. 环境变量和安全边界
 
-## Required Environment
-
-Frontend public env:
+前端公开变量:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Server/private env:
+服务端私密变量:
 
 - `EODHD_API_KEY`
 - `QUOTE_API_AUTH_REQUIRED=true`
 - `QUOTE_ALLOWED_ORIGINS=https://boduan-tracker.vercel.app`
 
-Do not add any `VITE_` EODHD token. Browser-direct EODHD WebSocket access has been removed. Future real-time market data must use a server-side relay.
+禁止事项:
 
-## First Commands
+- 不要提交 token、`.env`、Supabase service role key。
+- 不要添加 `VITE_EODHD_TOKEN`。
+- 不要让浏览器直连 EODHD WebSocket。
+- 不要关闭 `/api/quote` 鉴权。
+- 不要把 Supabase anon key 当 service role 用。
+- 不要绕过 Supabase session 校验。
 
-Start from a clean clone or clean checkout of GitHub `main`:
+当前安全基线:
+
+- `/api/quote?symbols=VIX` 未登录必须返回 `401`。
+- `/api/fx` 未登录必须返回 `401`。
+- `/api/btc-realtime` 普通 HTTP 请求返回 `426`,WebSocket upgrade 未登录返回拒绝。
+- `npm run verify:rls:rest` 当前检查 13 张用户表匿名 REST 暴露,结果应为 `visibleRows=0`。
+- RLS REST 探针不等于 metadata 级 RLS 审计;metadata 还需要 Supabase SQL/admin 权限确认。
+
+## 6. 开发和部署流程
+
+开始前:
 
 ```bash
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+git status --short --branch
+npm ci
+```
+
+每次代码、配置、部署、安全或文档改动,至少跑:
+
+```bash
+npm test
+npm run build
+npm audit
+git diff --check
+```
+
+生产敏感改动还要跑:
+
+```bash
+npm run verify:rls:rest
+curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
+```
+
+默认收尾:
+
+1. 更新 `docs/development-log.md`。
+2. 用户可见更新同步 `src/tabs/SettingsTab.jsx` 更新日志和版本。
+3. 提交并推送 GitHub `main`。
+4. 等 Vercel 自动部署成功。
+5. 做线上验证。
+6. 把部署和线上验证写回 `docs/development-log.md`。
+
+## 7. 当前线上验证证据
+
+最近完整验证记录:
+
+- `npm test`: pass,46 tests。
+- `npm run build`: pass。
+- `npm audit`: pass,0 vulnerabilities。
+- `git diff --check`: pass。
+- `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
+- 生产 `GET https://boduan-tracker.vercel.app/?v=handoff-5811a27`: HTTP 200。
+- 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
+- GitHub commit status for `5811a27`: Vercel success。
+- Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3`。
+
+最新生产 runtime chunks:
+
+- `/assets/index-CQLYX_ud.js`
+- `/assets/Login-Csb10EdR.js`
+- `/assets/App-VS3FgzvJ.js`
+- `/assets/supabase-CcYdvS9P.js`
+- `/assets/supabase-DSYL9ExE.js`
+- `/assets/SettingsTab-Cm6OKwzN.js`
+
+关键 marker:
+
+- `SettingsTab-Cm6OKwzN.js` 包含 `v10.7.9.78` 和 `修复找回密码回跳`。
+- `supabase-CcYdvS9P.js` / `supabase-DSYL9ExE.js` 包含 `exchangeCodeForSession`。
+- `index-CQLYX_ud.js` 包含 `https://boduan-tracker.vercel.app`。
+- `Login-Csb10EdR.js` 包含 `重置链接已失效`。
+
+## 8. 最近完成的产品改动
+
+### 设置页和账户
+
+- `v10.7.9.67`: 设置页整体改为和首页一致的深色风格。
+- 移除无效的实时推送、数据状态、JSON 导出入口。
+- 云端账户改为普通账户设置,去掉黑金炫光效果。
+
+### 首页自选和持仓
+
+- `v10.7.9.68`: 首页新增添加自选股票弹层,只保留美股添加流程;新用户自选默认空。
+- 股票图标增加多源候选和成功缓存,IBKR 等缺图会自动兜底。
+- 自选和持仓拆清楚:自选是用户关注列表,持仓来自交易主账本。
+- `v10.7.9.69`: 添加自选弹窗居中自适应;键盘弹出时输入框保持可用;添加成功后有提示,防重复提交。
+- 首页持仓默认展示全部持仓。
+- `v10.7.9.70`: 自选/持仓表格改为左侧名称固定、右侧指标全局横向滑动。
+- `v10.7.9.71`: 自选新增编辑入口,支持置顶、上移、下移、删除;删除点击股票展开自选参数的旧入口。
+- `v10.7.9.72`: 自选/持仓新增年初至今;价格、涨跌幅、52 周跌幅、年初至今、持仓盈亏支持表头排序。
+- 自选不显示持仓盈亏;持仓 tab 才显示真实持仓盈亏。
+
+### 交易和收益率
+
+- `v10.7.9.73`: 修复卖出后累计收益率口径。
+- 累计收益率分母改为当前实际持仓成本。
+- 卖出盈利会正确摊薄剩余持仓成本,不再被历史总买入额压低收益率。
+- 超过当前持仓数量的异常卖出不会污染盈亏计算。
+- 主交易账本是 `stock_trades`;旧 `trades` 只保留给波段记录兼容。
+
+### BTC 独立实时行情
+
+- `v10.7.9.74`: BTC 改为单币种独立实时行情,前端连接本站 `/api/btc-realtime` WebSocket relay。
+- 浏览器不暴露 EODHD token。
+- 断线后自动重连,并用 REST 兜底。
+- `v10.7.9.75`: 修复 BTC 首屏卡片错位;BTC tick 不再在市场卡未初始化时单独占第一格。
+
+### PWA 图标
+
+- `v10.7.9.76`: 替换手机桌面图标为用户提供的黑金 K 线箭头图标。
+- `v10.7.9.77`: 修复 iOS 主屏图标外侧白边,PNG 改为不透明深色底。
+
+### 找回密码
+
+- `v10.7.9.78`: 修复找回密码回跳。
+- 代码侧固定 `redirectTo=https://boduan-tracker.vercel.app`。
+- 前端兼容 Supabase PKCE `?code=...` 和旧 `#type=recovery`。
+- 过期链接显示“重置链接已失效,请重新发送重置链接”。
+- Supabase Dashboard 已改:
+  - Site URL: `https://boduan-tracker.vercel.app`
+  - Redirect URLs: `https://boduan-tracker.vercel.app/**`
+  - Reset password 邮件模板使用 `{{ .ConfirmationURL }}`。
+
+## 9. 关键代码地图
+
+认证:
+
+- `src/AuthGate.jsx`: Supabase session gate,recovery route 判断。
+- `src/Login.jsx`: 登录、注册、忘记密码、设置新密码。
+- `src/lib/authRecovery.js`: recovery URL 参数解析、生产 redirect 配置。
+- `src/lib/supabase.js`: Supabase client 和 auth API 包装。
+
+主应用:
+
+- `src/App.jsx`: 认证后主 shell 和大量共享状态。仍然过大,后续需要拆。
+- `src/tabs/HomeTab.jsx`: 首页、市场卡、自选/持仓列表 UI。
+- `src/tabs/TradesTab.jsx`: 交易页主账本、持仓分布、工具箱。
+- `src/tabs/AnalysisTab.jsx`: 资产/分析。
+- `src/tabs/ReviewTab.jsx`: 目标/复盘。
+- `src/tabs/SettingsTab.jsx`: 设置页、账户设置、更新日志。
+
+数据:
+
+- `src/lib/db.js`: Supabase CRUD 层,仍偏大。
+- `src/lib/dbGuards.js`: 删除作用域保护。
+- `src/lib/investmentSummary.js`: 交易主账本派生持仓、成本和收益率。
+- `src/lib/btcRealtime.js`: BTC tick 解析和首页市场卡合并逻辑。
+
+服务端:
+
+- `api/quote.js`: 已登录行情代理入口。
+- `server/quote/*`: quote API 的 auth、symbols、provider dispatch、response、provider 实现。
+- `api/fx.js`: 汇率接口。
+- `api/btc-realtime.js`: BTC WebSocket relay 入口。
+- `server/realtime/*`: BTC relay、WebSocket auth、EODHD 上游连接。
+
+数据库和安全:
+
+- `supabase/rls.sql`: RLS 策略。
+- `supabase/stock_trades.sql`: 主交易账本表。
+- `scripts/verify-rls-rest.mjs`: 生产匿名 REST 暴露探针。
+
+测试:
+
+- `tests/auth-recovery.test.js`
+- `tests/btc-realtime.test.js`
+- `tests/investment-summary.test.js`
+- `tests/quote-*.test.js`
+- `tests/fx-*.test.js`
+- `tests/db-guards.test.js`
+- `tests/stock-universe.test.js`
+
+## 10. 产品规则和易错点
+
+自选和持仓:
+
+- 自选只代表用户主动关注的股票;新用户默认空。
+- 持仓来自交易主账本 `stock_trades`,不能从自选推导。
+- 自选列表不显示持仓盈亏。
+- 持仓列表才显示真实持仓盈亏。
+- 自选/持仓右侧指标使用全局横向滑动,不是单行独立滑动。
+- 添加、编辑、删除、保存类操作必须禁用重复提交并显示成功/失败提示。
+
+交易:
+
+- 主买卖账本是 `stock_trades`。
+- 旧 `trades` 只作为波段记录兼容表。
+- `deriveInvestmentSummary` 是首页和交易页资产/持仓口径来源。
+- 卖出按时间正序用移动均价结转成本。
+- 累计收益率分母是当前实际持仓成本,不是历史总买入额。
+- `costBasisData` 是独立摊薄工具,不要并入主账本。
+
+首页:
+
+- 当前信号保持紧凑卡片,不要默认展开策略详情。
+- 三大指数和 BTC 市场卡保持四格布局。
+- BTC tick 只能更新第四张 BTC 卡,不要在首屏单独生成一张 BTC 卡。
+
+设置:
+
+- 每次用户可见更新都要同步设置页更新日志和版本。
+- 设置页继续保持深色风格,不要恢复旧的黑金云端账户效果。
+
+## 11. 当前主要风险
+
+不要在这些风险解决前上大型专业金融功能:
+
+- `src/App.jsx` 仍然过大,状态和业务逻辑集中。
+- `src/lib/db.js` 仍然偏宽,缺少 schema validation 和迁移检查。
+- `server/quote/providers/eodhd.js` 仍然较大,后续应该拆成 stock、fundamentals、calendar/shared parser。
+- 金融计算虽然已有核心测试,但还应继续纯函数化并覆盖更多边界:拆股、空数据、异常卖出、多账户、过期行情。
+- RLS 目前只有 REST 匿名探针;metadata 层还需要 SQL/admin 权限复核 `relrowsecurity=true` 和 policy。
+- 生产忘记密码链路已修复配置,但建议下一次操作时发送一封新 reset email 做完整端到端 smoke;不要复用旧邮件链接。
+
+## 12. 建议下一步
+
+优先级 1: 完成 RLS metadata 审计。
+
+- 用 Supabase SQL/admin 权限确认所有用户表 `relrowsecurity=true`。
+- 检查 policies 均按 `auth.uid() = user_id` 隔离。
+- 继续保留 `npm run verify:rls:rest` 作为外部暴露探针。
+
+优先级 2: 拆 `App.jsx` 和 `db.js`。
+
+- 建 `src/features/*`。
+- 把自选、交易、行情、设置相关状态拆出 hooks。
+- 让 `App.jsx` 只保留 shell 和 orchestrator。
+
+优先级 3: 拆 quote provider。
+
+- 继续拆 `server/quote/providers/eodhd.js`。
+- 补 EODHD 失败、Yahoo fallback、calendar 部分失败的测试。
+- 保持 response-shape tests 不回退。
+
+优先级 4: 加完整视觉/流程 smoke。
+
+- 登录/忘记密码/设置新密码。
+- 首页自选添加、编辑、删除。
+- 交易买入/卖出后首页和交易页收益率一致。
+- PWA icon manifest 和 apple-touch-icon。
+
+## 13. 下一个人接手后的第一步
+
+复制执行:
+
+```bash
+PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 git fetch origin
 git checkout main
 git pull --ff-only origin main
@@ -90,250 +343,64 @@ npm test
 npm run build
 npm audit
 npm run verify:rls:rest
-```
-
-For every change, create a narrow branch:
-
-```bash
-git checkout -b codex/<short-task-name>
-```
-
-## Validation Baseline
-
-Before pushing deployable changes, run:
-
-```bash
-npm test
-npm run build
-npm audit
-git diff --check
-```
-
-For production-sensitive changes, also verify:
-
-```bash
 curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
-npm run verify:rls:rest
 ```
 
-Expected `/api/quote` unauthenticated result: `401`.
+确认:
 
-`npm run verify:rls:rest` currently checks anonymous REST exposure for 13 user-owned Supabase tables, including the new `stock_trades` main ledger table. It does not prove metadata-level RLS settings such as `pg_class.relrowsecurity`; that still needs Supabase SQL/admin access.
+- 工作区干净。
+- 设置页显示 `v10.7.9.78` 或更新版本。
+- `/api/quote?symbols=VIX` 未登录返回 `401`。
+- Supabase Auth URL Configuration 仍是生产域名。
+- Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
 
-## Current Verified Production Evidence
+## 14. 交接给下一位同事的话
 
-Last runtime verification recorded:
+可以直接转发:
 
-- Runtime commit: `d8014814e17a8f789b304c5facaeb32fab5a6eed`
-- Vercel deployment: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/63Eg1owwZyQSADwJ768uA3QviEGc`
-- Production chunks: `index-BhT7eKm6.js`, `App-CD-bBewo.js`, `HomeTab-CvMXmPja.js`, `TradesTab-CLP8y-lz.js`, `SettingsTab-BlOgMv_X.js`, `marketColorMode-DYH4sHWM.js`, `index-dzCkedeL.css`.
-- `index-dzCkedeL.css` contains the deep loading/body background `#05070b`.
-- `HomeTab-CvMXmPja.js` contains `marketColorMode` and `homeWatchlist`.
-- `TradesTab-CLP8y-lz.js` contains `绿涨红跌`, `绿跌红涨`, and `股票涨跌颜色设置`.
-- `SettingsTab-BlOgMv_X.js` contains `v10.7.9.66`, "首页/交易页加载和涨跌颜色设置", and `marketColorMode` in JSON backup.
-- `marketColorMode-DYH4sHWM.js` contains `greenUpRedDown` and `redUpGreenDown`.
-- `/api/quote?symbols=VIX` without auth returns `401`
-- `/api/fx` without auth returns `401`
-- The trade-ledger refactor introduces `stock_trades` as the main buy/sell ledger. `supabase/stock_trades.sql` has been applied in production Supabase project `ykgotnmtqcqdzqtrlayq`.
-- The anonymous REST probe now covers 13 user-owned tables, including `stock_trades`; all returned `visibleRows=0`.
+```markdown
+你接手的是 `boduan-tracker`。
 
-Home current-signal design preference:
+仓库: `chenshuai1190-dotcom/boduan-tracker`
+生产地址: https://boduan-tracker.vercel.app
+当前产品基准提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
+最近应用代码提交: `b7a0e48371cf74da200fb2d6e760117afffdf786`
+设置页版本: `v10.7.9.78`
+Vercel 最新部署: 成功
+部署记录: https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3
 
-- Keep the top-right strategy reminder/entry on the compact current-signal card.
-- Do not default-open strategy details.
-- Do not auto-open strategy details because of alerts or level changes.
-- If strategy details are reintroduced later, open them only after the user taps the entry.
+请先按顺序读:
+1. `docs/handoff.md`
+2. `README.md`
+3. `docs/development-process.md`
+4. `docs/development-log.md`
+5. `docs/security-hardening.md`
+6. `docs/architecture-security-audit.md`
 
-Trading module boundary:
+硬规则:
+- GitHub `main` 是唯一代码源头。
+- 不要直接改 Vercel、浏览器控制台、临时服务器文件。
+- 每次代码、配置、部署、安全或文档改动,都必须更新 `docs/development-log.md`。
+- 用户可见更新必须同步设置页更新日志和版本。
+- 不要提交任何 token、`.env`、Supabase service role key。
+- 不要添加 `VITE_EODHD_TOKEN`。
+- 不要关闭 `/api/quote` 鉴权。
+- 部署前至少跑 `npm test`, `npm run build`, `npm audit`, `git diff --check`。
+- 生产敏感改动还要跑 `npm run verify:rls:rest`,并确认 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
-- Main positions must be derived from `stockTrades` / the `stock_trades` table via `deriveInvestmentSummary`.
-- Legacy `trades` is the wave-record compatibility table only. Do not use it for homepage total assets, trade page positions, or future realized/unrealized stock reports.
-- `effectiveCost` is the displayed diluted cost for remaining shares: realized sell profit/loss is spread across remaining held shares.
-- Example baseline: buy NVDA 100 shares at 100, sell 10 shares at 150, then held shares are 90 and effective cost is 94.44.
-- Trading tab uses the same black shell and dark bottom navigation as the home tab.
-- In the position table, keep the name/code column fixed and put metrics from `市值/数量` onward in a horizontal scroll area; include `持仓盈亏` and `占比`.
-- Keep the trade top asset card visually aligned with `HomeTab` asset card typography, currency toggle sizing, LIVE button weight, numeric weight, spacing, and stat grid proportions.
-- The trade toolbox order is `波段记录` / `摊薄工具` / `股票设置` / `全部功能`.
-- In the position table, the `占比` column should only show the percentage, without a `市值` sublabel.
-- Keep `全部功能` disabled until the user defines what it should open.
-- `波段记录` and `摊薄工具` should open as top asset/toolbox header plus their original module content, not mixed into the main position ledger.
-- `costBasisData` remains an independent small calculator in the toolbox. Do not wire it into total assets, positions, or main trading reports unless the user explicitly changes that product rule.
-- Do not add a "strategy orders" tab in the trade module; the user explicitly said it is not needed.
+当前已完成:
+- 设置页深色化和账户设置整理。
+- 首页自选添加/编辑/排序/删除。
+- 新用户自选默认空。
+- 自选和持仓逻辑拆清。
+- 交易主账本持仓和累计收益率修复。
+- BTC 单币种实时行情 relay。
+- PWA 图标替换和 iOS 白边修复。
+- 找回密码回跳修复,Supabase Site URL 已改生产域名。
 
-Known non-blocking CI warning:
-
-- GitHub Actions reports that `actions/checkout@v4` and `actions/setup-node@v4` target Node.js 20 and are forced onto Node.js 24. The job still passes, but the workflow should be upgraded later.
-
-## Code Map
-
-Core app:
-
-- `src/AuthGate.jsx`: Supabase session gate.
-- `src/Login.jsx`: login screen.
-- `src/App.jsx`: main authenticated app shell. Still large, about 4300 lines.
-- `src/tabs/HomeTab.jsx`: home/dashboard tab.
-- `src/tabs/TradesTab.jsx`: trades tab.
-- `src/tabs/AnalysisTab.jsx`: assets/analysis tab.
-- `src/tabs/ReviewTab.jsx`: goals/review tab.
-- `src/tabs/SettingsTab.jsx`: settings, backup, changelog.
-
-Data and API:
-
-- `src/lib/supabase.js`: Supabase client.
-- `src/lib/db.js`: Supabase CRUD layer. Still too broad, about 730 lines.
-- `src/lib/dbGuards.js`: tested delete scoping helpers.
-- `api/quote.js`: Vercel serverless market-data endpoint wrapper for auth, validation, dispatch, and response.
-- `server/quote/auth.js`: quote API auth and CORS.
-- `server/quote/errors.js`: quote API error bodies.
-- `server/quote/http.js`: timeout-aware provider fetch.
-- `server/quote/providerHandlers.js`: provider dispatch from normalized symbol to implementation.
-- `server/quote/providers.js`: symbol-to-provider routing.
-- `server/quote/providers/*`: VIX, CNN FGI, EODHD stock/fundamentals, Google Translate, indices, and NASDAQ calendar providers.
-- `server/quote/response.js`: quote API response envelope.
-- `server/quote/symbols.js`: symbol validation and normalization.
-
-Security and database:
-
-- `supabase/rls.sql`: RLS enablement and user-scoped policies.
-- `scripts/verify-rls-rest.mjs`: production anonymous REST exposure probe.
-- `docs/security-hardening.md`: security runbook.
-
-Tests:
-
-- `tests/quote-handler.test.js`
-- `tests/quote-http.test.js`
-- `tests/quote-response-shape.test.js`
-- `tests/quote-symbols.test.js`
-- `tests/db-guards.test.js`
-- `tests/investment-summary.test.js`
-
-CI:
-
-- `.github/workflows/ci.yml`: runs `npm ci`, `npm test`, `npm run build`, `npm audit`.
-
-## What Was Recently Done
-
-Recent important commits:
-
-- `6028bf7`: aligned the trade top card with the home asset card, swapped cost/tool settings order, and removed the allocation sublabel.
-- `37df7e3`: refined the trade tab black shell, disabled the undefined all-function entry, and made position metrics horizontally scrollable with P/L and allocation.
-- `58663cd`: rebuilt the trade tab around the main manual trade ledger, added effective diluted cost, moved wave/cost tools into the toolbox, and omitted strategy orders.
-- `33dab31`: rolled back the home current-signal detail list and restored the compact previous signal card.
-- `20eba4d`: briefly restored the home current-signal detail list; rolled back by `33dab31`.
-- `8fe2cd2`: added EODHD logo fallback from uppercase to lowercase paths so more self-selected company icons load.
-- `bc97472`: made the home watchlist tab show all rows by default and changed list icons to EODHD company logos with failed images hidden.
-- `eb47a1d`: matched home watchlist/positions table typography and row density to the provided screenshot.
-- `21242f0`: refined home asset-card density, shrank current signal, and changed the fourth market card to BTC/USD.
-- `81e202c`: recorded deployment trigger for the home typography update.
-- `ba94dfa`: tightened home typography hierarchy and removed the duplicate exchange-rate text.
-- `5b40b9d`: refined home currency toggle and dark home bottom navigation styling.
-- `3ca274c`: rebuilt the home investment-account dashboard.
-- `af69dc9`: recorded quote boundary deployment verification.
-- `7be8caf`: split quote API boundaries and added safety tests.
-- `c6be61f`: deleted old `部署指南.md`.
-- `3d50aad`: recorded architecture security deployment.
-- `2bb9772`: removed browser-direct EODHD WebSocket token path and added architecture audit.
-- `b13efcf`: split authenticated tabs into lazy chunks.
-- `d249b58`: split login/auth and app bundles.
-
-Recent security baseline now in place:
-
-- `/api/quote` requires Supabase access token by default.
-- Frontend no longer reads `VITE_EODHD_TOKEN`.
-- Browser-direct EODHD WebSocket path removed.
-- EODHD key should exist only as server env `EODHD_API_KEY`.
-- `symbols` query is validated and capped before provider calls.
-- Provider requests use timeout-aware helpers.
-- Delete operations are guarded with `user_id` scoping.
-- First test suite exists and runs in CI.
-
-## Current Architecture Risk
-
-Do not start large professional-feature work yet. Finish the safety and structure cleanup first.
-
-Main risks:
-
-- `src/App.jsx` is still too large and owns too much state.
-- Tab files are lazy chunks but not true feature modules yet.
-- Quote provider business logic is now out of `api/quote.js`, but `server/quote/providers/eodhd.js` is still large and should be split further before major market-data features.
-- `src/lib/db.js` lacks schema validation and migration checks.
-- Financial calculations need pure functions and tests.
-- RLS metadata has not been verified through Supabase SQL/admin access.
-
-## Recommended Next Work
-
-Priority 1: finish quote API modularization hardening.
-
-- Continue splitting `server/quote/providers/eodhd.js` into smaller stock, fundamentals, and shared parsing helpers.
-- Keep response-shape tests current for:
-  - `VIX`
-  - `FGI`
-  - `INDICES`
-  - `CALENDAR`
-  - `ANALYST:<symbol>`
-  - normal stock symbols
-- Add provider error-path tests for EODHD failures, Yahoo fallback, and partial calendar failures.
-
-Priority 2: add a pure finance calculation layer.
-
-- Extract cost basis, P/L, drawdown, allocation, and risk calculations.
-- Add tests for empty data, partial sells, multi-account snapshots, splits, stale quotes, and invalid rows.
-
-Priority 3: verify Supabase RLS at metadata level.
-
-- Use Supabase SQL editor or admin connection.
-- Confirm `relrowsecurity = true` for every user-owned table.
-- Confirm policies are scoped to `auth.uid() = user_id`.
-- Keep `npm run verify:rls:rest` as the external exposure probe.
-
-Priority 4: continue feature boundary split.
-
-- Create feature folders under `src/features/*`.
-- Move tab-specific state and calculations into hooks.
-- Shrink `src/App.jsx` into shell/orchestration only.
-
-Priority 5: dependency modernization.
-
-- Upgrade `lucide-react` first.
-- Defer React 19 and Tailwind 4 until tests and visual smoke checks exist.
-
-## Rules That Must Not Be Broken
-
-- Do not commit real `.env` files, API keys, screenshots with secrets, Supabase service role keys, or EODHD tokens.
-- Do not add `VITE_EODHD_TOKEN`.
-- Do not disable quote auth in production.
-- Do not bypass Supabase session verification for startup speed.
-- Do not deploy a change if `/api/quote` unauthenticated no longer returns `401`.
-- Do not treat build success as enough for security-sensitive changes.
-- Every code/config/security/docs change must update `docs/development-log.md` in the same commit.
-- Every user-visible product change must also update the Settings page changelog.
-
-## Deployment Flow
-
-Normal flow:
-
-1. Branch from latest GitHub `main`.
-2. Implement narrowly.
-3. Run local validation.
-4. Update `docs/development-log.md`.
-5. Commit and push.
-6. Open PR when possible, or fast-forward `main` only with explicit user authorization.
-7. Let Vercel deploy from `main`.
-8. Verify production URL, GitHub Actions, Vercel status, and task-specific smoke checks.
-9. Record production verification in `docs/development-log.md`.
-
-## Rollback Guidance
-
-Prefer reverting the specific bad commit instead of broad reset commands.
-
-For the latest runtime safety baseline:
-
-- Reverting `7be8caf` would remove the quote API boundary split, first tests, RLS REST probe, and delete guard tests. Do this only if a production blocker is directly caused by that commit.
-- Reverting `2bb9772` would restore the browser-direct EODHD WebSocket token path. Avoid this unless a secure server-side relay is ready.
-
-## Open Questions for the Next Developer
-
-- Can you access Supabase SQL/admin to verify RLS metadata directly?
-- Should old `CONTEXT.md` be refreshed or deleted after the architecture split?
-- Which professional feature is first after Phase 0: broker integration, risk engine, alerts, or portfolio attribution?
-- Should CI add linting now, or wait until module boundaries are cleaner?
+当前优先事项:
+1. 用 Supabase SQL/admin 权限做 RLS metadata 审计。
+2. 拆 `src/App.jsx` 和 `src/lib/db.js`。
+3. 继续拆 quote provider。
+4. 增加登录、忘记密码、自选、交易收益率的端到端 smoke。
+```

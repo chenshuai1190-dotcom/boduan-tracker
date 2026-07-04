@@ -4,6 +4,29 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 刷新产品交接文档
+
+- Commit: same commit
+- Background: 用户准备把项目交接给下一位同事,原 `docs/handoff.md` 仍停留在 `v10.7.9.66`、`d8014814` 和旧部署证据,已经落后于自选/持仓升级、BTC relay、PWA 图标、找回密码和 Supabase Auth URL 配置修复。
+- Changes:
+  - 将 `docs/handoff.md` 重写为中文产品交接文档。
+  - 更新当前 GitHub main、最近应用代码提交、设置页版本、Vercel 部署、Supabase Auth 配置和线上验证证据。
+  - 补充当前产品规则:自选和持仓拆分、交易主账本口径、BTC 独立实时行情、找回密码 recovery 逻辑和设置页更新纪律。
+  - 补充可直接转发给下一位同事的交接话术。
+- Key files:
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `Login-BhhvU4kS.js` 9.39 kB / gzip 3.23 kB, `SettingsTab-Cm6OKwzN.js` 27.35 kB / gzip 10.82 kB, `App-UM18uLNm.js` 131.64 kB / gzip 36.77 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass after removing trailing blank line.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables return `visibleRows=0` for anonymous REST probes.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次文档改动会恢复旧交接状态,其中版本、部署和找回密码配置说明会再次过期。
+
 ### 2026-07-04 - 修复找回密码回跳兼容
 
 - Commit: `b7a0e48371cf74da200fb2d6e760117afffdf786`
