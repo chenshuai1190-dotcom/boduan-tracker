@@ -332,7 +332,7 @@ export default function TradesTab({ ctx }) {
           </div>
 
           {mainView === 'positions' ? (
-            <div className="p-4">
+            <div className="px-3.5 py-4">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 text-[16px] font-black text-white">
@@ -365,7 +365,7 @@ export default function TradesTab({ ctx }) {
                   <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-black text-[#f6b54b] active:scale-95">记录第一笔买入</button>
                 </div>
               ) : (
-                <div className="grid grid-cols-[minmax(100px,1.05fr)_minmax(0,2.4fr)] border-t border-white/[0.06]">
+                <div className="grid grid-cols-[minmax(118px,1.22fr)_minmax(0,2.55fr)] border-t border-white/[0.06]">
                   <div>
                     <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">名称/代码</div>
                     <div className="divide-y divide-white/[0.06]">
@@ -374,7 +374,7 @@ export default function TradesTab({ ctx }) {
                           key={position.symbol}
                           type="button"
                           onClick={() => openTradeModal(position, 'sell')}
-                          className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-2 text-left active:bg-white/[0.03]"
+                          className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-3 text-left active:bg-white/[0.03]"
                         >
                           <span className="block truncate text-[13px] font-black leading-[15px] text-white">{position.name || position.symbol}</span>
                           <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{position.symbol}</span>
@@ -383,9 +383,9 @@ export default function TradesTab({ ctx }) {
                     </div>
                   </div>
                   <div className="overflow-x-auto [scrollbar-width:none]">
-                    <div className="min-w-[500px]">
-                      <div className="grid grid-cols-[96px_92px_96px_112px_76px] gap-2 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
-                        <span className="text-right">市值/数量</span>
+                    <div className="min-w-[528px]">
+                      <div className="grid grid-cols-[90px_88px_118px_118px_74px] gap-2 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                        <span className="text-left">市值/数量</span>
                         <span className="text-right">现价/成本</span>
                         <span className="text-right">当日盈亏</span>
                         <span className="text-right">持仓盈亏</span>
@@ -403,9 +403,9 @@ export default function TradesTab({ ctx }) {
                               key={position.symbol}
                               type="button"
                               onClick={() => openTradeModal(position, 'sell')}
-                              className="grid min-h-[60px] w-full grid-cols-[96px_92px_96px_112px_76px] items-center gap-2 py-3 text-left active:bg-white/[0.03]"
+                              className="grid min-h-[60px] w-full grid-cols-[90px_88px_118px_118px_74px] items-center gap-2 py-3 text-left active:bg-white/[0.03]"
                             >
-                              <span className="text-right">
+                              <span className="text-left">
                                 <span className="block text-[13px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
                               </span>

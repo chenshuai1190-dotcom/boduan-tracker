@@ -11,13 +11,13 @@
 - 当前产品基准提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
 - 最近应用代码提交: `b7a0e48371cf74da200fb2d6e760117afffdf786`
 - 最近文档/配置记录提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
-- 设置页版本: `v10.7.9.78`
-- Vercel 最新部署: 成功
-- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3`
+- 设置页版本: `v10.7.9.79`
+- Vercel 最新部署: 本次 UI 布局改动待推送后验证
+- Vercel 部署记录: 待本次部署完成后回填
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用,线上部署正常。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路和 Supabase Auth URL 配置。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.79` 的首页指数卡和交易持仓表移动端布局微调。
 
 ## 2. 先读这些文档
 
@@ -131,7 +131,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ## 7. 当前线上验证证据
 
-最近完整验证记录:
+本次 `v10.7.9.79` UI 布局改动待推送部署后回填最新生产证据。最近已验证的上一版生产记录:
 
 - `npm test`: pass,46 tests。
 - `npm run build`: pass。
@@ -143,7 +143,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - GitHub commit status for `5811a27`: Vercel success。
 - Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3`。
 
-最新生产 runtime chunks:
+上一版已验证生产 runtime chunks:
 
 - `/assets/index-CQLYX_ud.js`
 - `/assets/Login-Csb10EdR.js`
@@ -169,6 +169,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.79`: 首页四张市场卡价格数字统一左移并略微收紧,避免右侧被撑出且保持视觉一致;交易页持仓分布加宽股票信息、当日盈亏和持仓盈亏列。
 - `v10.7.9.68`: 首页新增添加自选股票弹层,只保留美股添加流程;新用户自选默认空。
 - 股票图标增加多源候选和成功缓存,IBKR 等缺图会自动兜底。
 - 自选和持仓拆清楚:自选是用户关注列表,持仓来自交易主账本。
@@ -349,7 +350,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.78` 或更新版本。
+- 设置页显示 `v10.7.9.79` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -365,9 +366,9 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 生产地址: https://boduan-tracker.vercel.app
 当前产品基准提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
 最近应用代码提交: `b7a0e48371cf74da200fb2d6e760117afffdf786`
-设置页版本: `v10.7.9.78`
-Vercel 最新部署: 成功
-部署记录: https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3
+设置页版本: `v10.7.9.79`
+Vercel 最新部署: 本次 UI 布局改动待推送后验证
+部署记录: 待本次部署完成后回填
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -397,6 +398,7 @@ Vercel 最新部署: 成功
 - BTC 单币种实时行情 relay。
 - PWA 图标替换和 iOS 白边修复。
 - 找回密码回跳修复,Supabase Site URL 已改生产域名。
+- 首页四大指数卡和交易页持仓分布移动端布局优化。
 
 当前优先事项:
 1. 用 Supabase SQL/admin 权限做 RLS metadata 审计。

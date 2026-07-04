@@ -9,15 +9,18 @@
 - 数据库: Supabase,结构和 RLS 以 `supabase/rls.sql` 及线上 Supabase 项目为准
 - 安全基线: `docs/security-hardening.md`
 - 更新记录: `docs/development-log.md`
+- 交接入口和当前状态快照: `docs/handoff.md`
 
 不要把 Vercel 控制台、腾讯云控制台、服务器临时文件或浏览器在线编辑当作代码源头。所有可维护的代码改动都必须回到 GitHub。
+
+`docs/handoff.md` 是给下一位接手工程师或 AI 代理使用的产品交接入口,不是 `docs/development-log.md` 的替代品。它必须保持一眼可接手:当前生产状态、关键 commit、设置页版本、Vercel 部署、线上验证、读文档顺序、硬规则、产品规则、代码地图、主要风险和下一步优先级都应从这里快速同步。
 
 ## Required Workflow
 
 1. **开始前同步仓库**
    - 从 GitHub 当前 `main` 开始。
    - 运行 `git status --short --branch`,确认工作树状态。
-   - 阅读 `README.md`、本文件、`docs/development-log.md` 和与任务相关的代码。
+   - 先读 `docs/handoff.md`,再阅读 `README.md`、本文件、`docs/development-log.md` 和与任务相关的代码。
 
 2. **创建明确范围的分支**
    - 常规格式: `codex/<short-task-name>`。
@@ -50,6 +53,9 @@
 
 5. **必须更新开发日志**
    - 每次代码、配置、部署、安全或文档改动,都必须在同一个提交中更新 `docs/development-log.md`。
+   - 每次改进收尾时,必须同步核对所有记录面,避免版本、commit、部署、验证和线上状态互相不一致。至少检查 `docs/development-log.md`、`docs/handoff.md`、`README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 和设置页更新日志/版本号;若某个文件不需要改,在日志或交接说明中明确原因。
+   - `docs/handoff.md` 在以下任一情况必须同步更新:当前 `main`/关键 commit/部署状态/线上验证变化,设置页版本变化,产品规则或用户可见流程变化,安全边界/环境变量/Supabase/Vercel 配置变化,代码地图或主要风险变化,下一步优先级或可转发交接话术变化。
+   - 用户可见更新必须同时更新设置页更新日志和版本号;产品状态、部署状态、安全基线或交接规则变化,必须同步更新对应文档,不能只改其中一个记录文件。
    - 日志必须包含:
      - 日期和时区
      - 背景/问题

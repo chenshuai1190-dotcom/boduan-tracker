@@ -245,7 +245,7 @@ function MiniMarketCard({ item, marketColorMode }) {
         )}
       </div>
       <div className="mt-1 text-[11px] text-white/40">{ticker}</div>
-      <div className="mt-2 whitespace-nowrap text-[15px] font-black leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+      <div className="mt-2 -ml-1 whitespace-nowrap text-[14px] font-black leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtMoney(item?.price, 2)}
       </div>
       <div className="mt-1 text-[11px] font-bold tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>

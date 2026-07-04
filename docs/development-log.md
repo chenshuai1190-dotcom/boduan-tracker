@@ -4,6 +4,56 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 优化首页指数卡和交易持仓表宽度
+
+- Commit: same commit
+- Background: 用户根据手机截图反馈两个移动端布局问题:首页四大指数区域的价格数字太靠右,BTC 卡片最明显、几乎被撑出卡片;交易页持仓分布里股票信息显示不够,且当日盈亏列容易显示不完整。
+- Changes:
+  - 首页四张市场卡保留原有标题和状态徽标排版,统一将价格数字左移并略微收紧字号,避免右侧被撑出且保持视觉一致。
+  - 交易页持仓分布外层横向 padding 从 `p-4` 收紧为 `px-3.5 py-4`,给表格更多可用宽度。
+  - 交易页持仓分布左侧股票信息列从 `minmax(100px,1.05fr)` 加宽到 `minmax(118px,1.22fr)`,右侧指标区同步调宽。
+  - 交易页右侧指标列将 `当日盈亏` 和 `持仓盈亏` 加宽到 `118px`,并把 `市值/数量` 改为左对齐,使市值更靠左、盈亏金额更完整。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.79`。
+  - 按记录文件同步准则更新 `docs/handoff.md`,记录本次用户可见版本变化。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `HomeTab-BGMLsK0v.js` 39.11 kB / gzip 10.44 kB, `TradesTab-w_N8hPA8.js` 46.06 kB / gzip 9.98 kB, `SettingsTab-c6HRVu7v.js` 27.62 kB / gzip 10.92 kB, `App-BcMo3SGL.js` 131.64 kB / gzip 36.77 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local build marker check: pass; built HomeTab chunk contains `-ml-1 whitespace-nowrap text-[14px]`, built TradesTab chunk contains `grid-cols-[minmax(118px,1.22fr)_minmax(0,2.55fr)]` and `grid-cols-[90px_88px_118px_118px_74px]`, built SettingsTab chunk contains `v10.7.9.79` and `首页四张市场卡价格数字统一左移`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复首页市场卡较宽的内边距/价格字号和交易页旧持仓表列宽,移动端 BTC 卡片和当日盈亏列可能再次被挤压。
+
+### 2026-07-04 - 固化记录文件同步规则
+
+- Commit: same commit
+- Background: 用户要求把“每次改进都要同步更新相关记录文件的日志内容,避免漏掉或互相不一致”写入开发准则。
+- Changes:
+  - 在 `docs/development-process.md` 的开发日志步骤中新增记录文件同步规则。
+  - 明确 `docs/handoff.md` 是给下一位接手工程师或 AI 代理使用的产品交接入口和当前状态快照,不是开发日志替代品。
+  - 将 `docs/handoff.md` 纳入 source of truth 列表,并要求接手时先读交接文档。
+  - 明确每次改进收尾时必须核对 `docs/development-log.md`、`docs/handoff.md`、`README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 和设置页更新日志/版本号。
+  - 明确当前 `main`/关键 commit/部署状态/线上验证、设置页版本、产品规则、安全边界、配置、代码地图、风险或下一步优先级变化时,必须同步更新 `docs/handoff.md`。
+  - 明确用户可见更新、产品状态、部署状态、安全基线或交接规则变化必须同步更新对应记录面,不能只改其中一个文件。
+- Key files:
+  - `docs/development-process.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; docs-only change, runtime chunks unchanged from current local build (`SettingsTab-Cm6OKwzN.js`, `App-UM18uLNm.js`, `HomeTab-CHpB9Zxg.js`).
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: not run; documentation rule update is local pending commit/push.
+- Production verification: not run; no runtime behavior changed.
+- Rollback: 回滚本次文档改动会移除记录文件一致性准则,后续改进更容易出现设置页、交接文档、安全文档和开发日志不同步。
+
 ### 2026-07-04 - 刷新产品交接文档
 
 - Commit: same commit
