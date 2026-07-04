@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 收紧波段记录字号并移除原生提示
 
-- Commit: pending runtime commit before push.
+- Commit: `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`
 - Background: 用户反馈新版波段记录整体字号仍偏大,要求进一步收紧;进行中的绿色小状态点需要恢复闪烁;`#1` 这类编号没有实际作用,需要移除。用户同时指出波段新增表单仍触发 iOS/系统原生提示框,要求改成应用内自定义交互,并写入开发准则:非必要不要使用浏览器或系统原生交互控件。
 - Changes:
   - 波段记录首页卡片、统计卡、股票卡、进行中波段卡、明细行、备注和已完成折叠区整体收紧字号、行高和内边距,减少移动端首屏压迫感。
@@ -35,7 +35,21 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `animate-pulse`, `showTradeFormNotice`, `showCancel: opts.showCancel !== false`, `新增波段股票`, `v10.7.9.95`, and no source marker `进行中 · #`.
   - Local build marker check: pass; built chunks contain `请填写完整信息`, `新增波段股票`, `添加波段记录`, `v10.7.9.95` and `收紧波段记录字号并移除原生提示`.
-- Deployment: pending GitHub push and Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`.
+  - GitHub `main`: `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`.
+  - GitHub Actions `build`: success, run `28710305213`, job `85142649172`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B3NLvRNzcjBAo6nHTncQMbHCeFc2`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=3400e62-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CWWfdJUg.js`, `/assets/index-w2yQzKP-.css`.
+  - Production runtime chunks: `/assets/App-2Sxb6HyG.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-k89Ynj1Q.js`, `/assets/SettingsTab-DmEa4ycu.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-DbF6dw90.js`.
+- Production verification:
+  - Production SettingsTab marker check: `SettingsTab-DmEa4ycu.js` contains `v10.7.9.95` and `收紧波段记录字号并移除原生提示`.
+  - Production TradesTab marker check: `TradesTab-k89Ynj1Q.js` contains `新增波段股票`, `添加波段记录` and `animate-pulse`.
+  - Production App/Trades marker check: `App-2Sxb6HyG.js` and `TradesTab-k89Ynj1Q.js` contain `请填写完整信息` and `价格和股数需要大于 0`, confirming the form validation path uses custom app prompts.
+  - Production marker check: no production chunk contains the old `进行中 · #` marker.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-DbF6dw90.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.94` 的波段记录字号、静态状态点、波段编号标识和系统原生表单校验提示;不会影响工具账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 波段记录小程序融入深色风格
