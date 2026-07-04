@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 交易主账本独立建库
 
-- Commit: pending
+- Commit: `c6b4d2882b123f503252ec4984a9c5aa51cb4dcf`
 - Background: 用户确认当前交易页持仓仍来自波段旧 `trades` 数据,要求重新建立独立数据库来完整记录股票买入/卖出操作,不再复用老数据库和结构。
 - Changes:
   - 新增 `stock_trades` 主交易账本数据层: `fetchStockTrades` / `insertStockTrade` / `deleteStockTrade`。
@@ -35,7 +35,17 @@
   - `git diff --check`: pass.
   - Local chunk check: pass; built chunks contain `stock_trades`, `stockTrades`, `v10.7.9.63`, and "交易主账本独立建库"。
   - `npm run verify:rls:rest`: pass after migration; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
-- Deployment: pending push.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `c6b4d2882b123f503252ec4984a9c5aa51cb4dcf`
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Ccke1DF4YyU5zjHjjPFpmZKhUkqM`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-Djtos65b.js`, `App-CunFcbVA.js`, `TradesTab-Cre_5I5e.js`, `SettingsTab-PfDVAiR-.js`
+  - `App-CunFcbVA.js` contains `stockTrades`, `stock_trades`, and `insertStockTrade`.
+  - `TradesTab-Cre_5I5e.js` contains `stockTrades`.
+  - `SettingsTab-PfDVAiR-.js` contains `v10.7.9.63`, `stockTrades`, `stock_trades`, and "交易主账本独立建库"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+  - Post-deploy `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
 - Supabase note:
   - Executed `supabase/stock_trades.sql` in production Supabase project `ykgotnmtqcqdzqtrlayq`; SQL Editor returned "Success. No rows returned"。
   - Pre-migration REST probe showed `stock_trades` returned `404`; post-migration probe shows `stock_trades` returns `200` with `visibleRows=0`。
