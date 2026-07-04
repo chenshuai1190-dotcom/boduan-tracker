@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 波段记录小程序融入深色风格
 
-- Commit: `same commit`
+- Commit: `20383714cc08feefa7faaf79d25e715cb0ad806a`
 - Background: 用户指出波段记录小程序仍是白色旧版本遗留,要求重新融入当前深色风格;明确要求不参考设计图粗体,波段区域全部不加粗,红色对齐首页粉色体系,删除波段记录前面的旧图标,新增波段股票入口,已完成波段不要直接铺在列表中而是进入“已完成”,并取消备注斜体显示。随后用户反馈本地预览打不开,要求直接部署。
 - Changes:
   - 波段记录主界面从旧白卡改为深色卡片体系,容器、股票卡、进行中波段、交易明细和空状态均对齐交易页黑色 UI。
@@ -33,8 +33,20 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `openWaveTradeModal`, `新增波段股票`, `点击波段查看明细`, completed fold key `completedKey`, wave modal normal-weight title condition, and `v10.7.9.94`.
   - Local build marker check: pass; built chunks contain `新增波段股票`, `点击波段查看明细`, `添加波段记录`, `font-normal`, `v10.7.9.94`, and `波段记录小程序融入深色风格`.
-- Deployment: pending GitHub `main` push and Vercel production deployment.
-- Production verification: pending after deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `20383714cc08feefa7faaf79d25e715cb0ad806a`.
+  - GitHub `main`: `20383714cc08feefa7faaf79d25e715cb0ad806a`.
+  - GitHub Actions `build`: success, run `28709874834`, job `85141546676`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9bZGvTELANDjuWsu7mujYZ69CJbc`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=2038371-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-cSliql8G.js`, `/assets/index-ppnZO-25.css`.
+  - Production runtime chunks: `/assets/App-Dvbso9cR.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-CHTiQio3.js`, `/assets/SettingsTab-fdpLRq9P.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BXQqwm_c.js`.
+- Production verification:
+  - Production App marker check: `App-Dvbso9cR.js` references `TradesTab-CHTiQio3.js` and `SettingsTab-fdpLRq9P.js`.
+  - Production TradesTab marker check: `TradesTab-CHTiQio3.js` contains `新增波段股票`, `点击波段查看明细`, `添加波段记录`, `已完成` and `font-normal`.
+  - Production SettingsTab marker check: `SettingsTab-fdpLRq9P.js` contains `v10.7.9.94`, `波段记录小程序融入深色风格` and `收益红色对齐首页粉色体系`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-BXQqwm_c.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复波段记录旧白色 UI 和已完成波段直接展示方式;不会改变主交易账本、波段账本、摊薄成本账本、RLS 或 `/api/quote` 鉴权。
 - Follow-up: 本轮只做波段记录小程序视觉融入;摊薄成本工具仍保留旧白色 UI,如继续统一工具风格应单独设计和验证。
 
