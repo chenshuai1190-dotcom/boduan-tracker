@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { isBtcMarketCard } from '../lib/btcRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -226,9 +227,23 @@ function MiniMarketCard({ item, marketColorMode }) {
 
   const color = marketColor(item?.changePercent, marketColorMode);
   const ticker = item?.displaySymbol || item?.symbol || item?.ticker || '--';
+  const isBtc = isBtcMarketCard(item);
+  const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
+  const realtimeLabel = realtimeStatus === 'live'
+    ? 'LIVE'
+    : (realtimeStatus === 'fallback' ? 'REST'
+      : (realtimeStatus === 'connecting' || realtimeStatus === 'reconnecting' ? '连接中'
+        : (realtimeStatus === 'paused' ? '暂停' : (realtimeStatus === 'stale' ? '延迟' : ''))));
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5 min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="text-[10px] font-semibold leading-tight text-white/80">{item?.name || ticker}</div>
+      <div className="flex min-w-0 items-start justify-between gap-1.5">
+        <div className="min-w-0 truncate text-[10px] font-semibold leading-tight text-white/80">{item?.name || ticker}</div>
+        {isBtc && realtimeLabel && (
+          <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[8px] font-black leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
+            {realtimeLabel}
+          </span>
+        )}
+      </div>
       <div className="mt-1 text-[11px] text-white/40">{ticker}</div>
       <div className="mt-2 whitespace-nowrap text-[15px] font-black leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtMoney(item?.price, 2)}
@@ -290,6 +305,8 @@ export default function HomeTab({ ctx }) {
     benchmarkStatus,
     benchmarkStock,
     benchmarkSymbol,
+    btcRealtimeLastTick,
+    btcRealtimeStatus,
     cacheStockLogo,
     CheckCircle2,
     ChevronRight,
@@ -344,7 +361,13 @@ export default function HomeTab({ ctx }) {
   const positionsBySymbol = React.useMemo(() => new Map(positions.map((p) => [p.symbol, p])), [positions]);
   const displayWatchlist = homeWatchlist || watchlist || [];
   const fgiInfo = fgiLevel(fgi);
-  const marketCards = (indices || []).slice(0, 4);
+  const marketCards = React.useMemo(() => (
+    (indices || []).slice(0, 4).map((item) => (
+      isBtcMarketCard(item)
+        ? { ...item, realtimeStatus: btcRealtimeStatus, realtimeAt: item?.realtimeAt || btcRealtimeLastTick }
+        : item
+    ))
+  ), [indices, btcRealtimeStatus, btcRealtimeLastTick]);
   const signalIsCalm = num(benchmarkDrawdown) > -0.05;
   const isCnyMode = currencyMode === 'CNY';
   const displayCurrency = isCnyMode ? 'CNY' : 'USD';

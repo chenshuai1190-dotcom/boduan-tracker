@@ -5,6 +5,7 @@ import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
+import { applyBtcTickToMarketCards } from './lib/btcRealtime.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -14,6 +15,10 @@ const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
 const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
 const DEFAULT_HKD_CNY_RATE = 0.87;
+const BTC_REALTIME_PROTOCOL = 'xmoney-btc';
+const BTC_REALTIME_TOKEN_PROTOCOL_PREFIX = 'supabase.';
+const BTC_REALTIME_STALE_MS = 15_000;
+const BTC_REALTIME_RECONNECT_MAX_MS = 30_000;
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -838,6 +843,24 @@ function MainApp({ user, onLogout }) {
     return fetch(`/api/quote?${params.toString()}`, { headers });
   }, []);
 
+  const applyBtcRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
+    const price = Number(tick?.price);
+    if (!Number.isFinite(price) || price <= 0) return;
+    const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
+    btcRealtimeRef.current.lastTick = tick;
+    btcRealtimeRef.current.lastTickAt = Date.now();
+    setBtcRealtimeStatus(realtimeStatus);
+    setBtcRealtimeLastTick(new Date(tickAt).toISOString());
+    setBtcRealtimeError(null);
+    setIndices((current) => applyBtcTickToMarketCards(current, tick, realtimeStatus));
+  }, []);
+
+  const mergeFreshBtcTickIntoCards = useCallback((cards) => {
+    const ref = btcRealtimeRef.current;
+    if (!ref.lastTick || Date.now() - ref.lastTickAt > BTC_REALTIME_STALE_MS) return cards;
+    return applyBtcTickToMarketCards(cards, ref.lastTick, 'live');
+  }, []);
+
   const cacheStockLogo = useCallback((symbol, url) => {
     const key = normalizeSymbolKey(symbol);
     const normalizedUrl = normalizeExternalLogoUrl(url);
@@ -1006,6 +1029,19 @@ function MainApp({ user, onLogout }) {
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
+  const [btcRealtimeStatus, setBtcRealtimeStatus] = useState('idle');
+  const [btcRealtimeLastTick, setBtcRealtimeLastTick] = useState(null);
+  const [btcRealtimeError, setBtcRealtimeError] = useState(null);
+  const btcRealtimeRef = useRef({
+    socket: null,
+    reconnectTimer: null,
+    staleTimer: null,
+    retryDelayMs: 1000,
+    lastTick: null,
+    lastTickAt: 0,
+    liveAt: 0,
+    intentionalCloseSocket: null,
+  });
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState(null);
@@ -2023,7 +2059,7 @@ function MainApp({ user, onLogout }) {
       // 更新三大指数
       const indicesData = result.data.find(d => d.symbol === 'INDICES');
       if (indicesData?.data && Array.isArray(indicesData.data)) {
-        setIndices(indicesData.data);
+        setIndices(mergeFreshBtcTickIntoCards(indicesData.data));
       }
 
       setLastFetched(new Date());
@@ -2071,9 +2107,184 @@ function MainApp({ user, onLogout }) {
     return 5 * 60 * 1000; // 5 分钟
   };
 
+  const fetchBtcRestFallback = useCallback(async () => {
+    const ref = btcRealtimeRef.current;
+    if (ref.lastTickAt && Date.now() - ref.lastTickAt < BTC_REALTIME_STALE_MS) return;
+    try {
+      const r = await fetchQuote('INDICES');
+      const result = await r.json();
+      if (!result.success) throw new Error(result.error || 'BTC REST 兜底失败');
+      const indicesData = result.data.find(d => d.symbol === 'INDICES');
+      const btc = indicesData?.data?.find((item) => String(item?.ticker || '').toUpperCase() === 'BTC-USD.CC');
+      if (!btc?.price) return;
+      const tick = {
+        type: 'btc_tick',
+        symbol: 'BTC-USD',
+        ticker: 'BTC-USD.CC',
+        displaySymbol: 'BTCUSD',
+        name: 'BTC/美元',
+        price: btc.price,
+        change: btc.change,
+        changePercent: btc.changePercent,
+        timestamp: Date.now(),
+        receivedAt: Date.now(),
+        source: 'EODHD',
+      };
+      setIndices((current) => applyBtcTickToMarketCards(current, tick, 'fallback'));
+      setBtcRealtimeStatus((status) => (status === 'live' ? status : 'fallback'));
+      setBtcRealtimeError(null);
+    } catch (e) {
+      setBtcRealtimeError(e.message || 'BTC REST 兜底失败');
+    }
+  }, [fetchQuote]);
+
+  useEffect(() => {
+    if (cloudLoading || typeof window === 'undefined') return;
+
+    let stopped = false;
+    const ref = btcRealtimeRef.current;
+
+    const clearReconnectTimer = () => {
+      if (ref.reconnectTimer) {
+        clearTimeout(ref.reconnectTimer);
+        ref.reconnectTimer = null;
+      }
+    };
+
+    const closeSocket = () => {
+      if (ref.socket) {
+        const closingSocket = ref.socket;
+        ref.intentionalCloseSocket = closingSocket;
+        try {
+          closingSocket.close(1000, 'client reconnect');
+        } catch {}
+        ref.socket = null;
+      }
+    };
+
+    const scheduleReconnect = (connect) => {
+      if (stopped || document.hidden) return;
+      clearReconnectTimer();
+      const delay = ref.retryDelayMs;
+      ref.retryDelayMs = Math.min(ref.retryDelayMs * 2, BTC_REALTIME_RECONNECT_MAX_MS);
+      ref.reconnectTimer = setTimeout(connect, delay);
+    };
+
+    const connect = async () => {
+      if (stopped || document.hidden) return;
+      clearReconnectTimer();
+      closeSocket();
+      setBtcRealtimeStatus((status) => (status === 'live' ? status : 'connecting'));
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          setBtcRealtimeStatus('disabled');
+          setBtcRealtimeError('未登录或登录已过期');
+          return;
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(
+          `${protocol}//${window.location.host}/api/btc-realtime`,
+          [BTC_REALTIME_PROTOCOL, `${BTC_REALTIME_TOKEN_PROTOCOL_PREFIX}${session.access_token}`],
+        );
+        ref.socket = socket;
+
+        socket.addEventListener('open', () => {
+          ref.retryDelayMs = 1000;
+          setBtcRealtimeStatus('connecting');
+          setBtcRealtimeError(null);
+        });
+
+        socket.addEventListener('message', (event) => {
+          let payload = null;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+          if (payload?.type === 'btc_tick') {
+            applyBtcRealtimeTick(payload, 'live');
+            return;
+          }
+          if (payload?.type === 'btc_status' && payload.status) {
+            if (payload.status === 'live') ref.liveAt = Date.now();
+            setBtcRealtimeStatus(payload.status);
+            if (payload.error) setBtcRealtimeError(payload.error);
+          }
+        });
+
+        socket.addEventListener('close', () => {
+          if (ref.socket === socket) ref.socket = null;
+          if (ref.intentionalCloseSocket === socket) {
+            ref.intentionalCloseSocket = null;
+            return;
+          }
+          if (stopped || document.hidden) return;
+          setBtcRealtimeStatus((status) => (status === 'live' ? 'stale' : 'reconnecting'));
+          scheduleReconnect(connect);
+        });
+
+        socket.addEventListener('error', () => {
+          setBtcRealtimeError('BTC 实时连接中断,正在重连');
+        });
+      } catch (e) {
+        setBtcRealtimeStatus('error');
+        setBtcRealtimeError(e.message || 'BTC 实时连接失败');
+        scheduleReconnect(connect);
+      }
+    };
+
+    ref.staleTimer = setInterval(() => {
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (!lastActivityAt) return;
+      if (Date.now() - lastActivityAt > BTC_REALTIME_STALE_MS) {
+        setBtcRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
+      }
+    }, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearReconnectTimer();
+        closeSocket();
+        setBtcRealtimeStatus('paused');
+      } else {
+        connect();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    connect();
+
+    return () => {
+      stopped = true;
+      clearReconnectTimer();
+      if (ref.staleTimer) {
+        clearInterval(ref.staleTimer);
+        ref.staleTimer = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      closeSocket();
+    };
+  }, [cloudLoading, applyBtcRealtimeTick]);
+
+  useEffect(() => {
+    if (cloudLoading) return;
+    const needsFallback = ['idle', 'disabled', 'error', 'fallback', 'paused', 'reconnecting', 'stale'].includes(btcRealtimeStatus);
+    if (!needsFallback) return;
+
+    if (!document.hidden) fetchBtcRestFallback();
+    const timerId = setInterval(() => {
+      if (!document.hidden) fetchBtcRestFallback();
+    }, BTC_REALTIME_STALE_MS);
+
+    return () => clearInterval(timerId);
+  }, [cloudLoading, btcRealtimeStatus, fetchBtcRestFallback]);
+
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
-  // 浏览器直连 WebSocket 已移除;在服务端 relay 接入前,已登录 REST 行情接口是唯一实时路径。
+  // 浏览器直连 EODHD WebSocket 已移除;BTC 实时行情只连接已登录服务端 relay。
   useEffect(() => {
     if (cloudLoading) return;
 
@@ -2198,6 +2409,9 @@ function MainApp({ user, onLogout }) {
     benchmarkSymbol,
     BookOpen,
     browserWsAllowed,
+    btcRealtimeError,
+    btcRealtimeLastTick,
+    btcRealtimeStatus,
     calcCostBasis,
     Calendar,
     calendarEvents,

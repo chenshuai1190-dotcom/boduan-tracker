@@ -4,6 +4,43 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - BTC 单币种独立实时行情
+
+- Commit: `same commit`
+- Background: 用户确认 BTC 是 24h 交易资产,不应继续完全跟随美股交易时段的 `INDICES` REST 轮询;项目安全基线要求禁止浏览器直连 EODHD WebSocket,因此需要先做单币种服务端 relay,只让前端连接本站已登录 WebSocket。
+- Changes:
+  - 新增 `/api/btc-realtime` Vercel WebSocket Function,在 upgrade 前校验请求 origin、Supabase access token 和服务端 `EODHD_API_KEY`。
+  - 新增服务端 BTC relay,每个 Function 实例共享一个上游 EODHD `wss://ws.eodhistoricaldata.com/ws/crypto` 连接并订阅 `BTC-USD`,下游多浏览器共享同一条上游连接。
+  - 前端首页 BTC 卡独立连接本站 WebSocket relay,接收 `BTC-USD` tick 后只更新 BTC 市场卡,并保留原有指数和股票 REST 刷新逻辑。
+  - BTC tick 前端更新节流到最多每秒一次;连接断开或 15 秒无 tick 时自动重连,并单独用已鉴权 `/api/quote?symbols=INDICES` REST 兜底更新 BTC。
+  - BTC 市场卡新增 `LIVE` / `REST` / `连接中` / `暂停` / `延迟` 状态标识。
+  - 新增 `ws` 服务端依赖和 BTC WebSocket 解析/鉴权单元测试。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.74`。
+- Key files:
+  - `api/btc-realtime.js`
+  - `server/realtime/btc.js`
+  - `server/realtime/btcRelay.js`
+  - `server/realtime/auth.js`
+  - `server/quote/auth.js`
+  - `src/App.jsx`
+  - `src/lib/btcRealtime.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/btc-realtime.test.js`
+  - `package.json`
+  - `package-lock.json`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 40 tests.
+  - `npm run build`: pass; `App-B2E91SOE.js` 131.64 kB / gzip 36.76 kB, `HomeTab-DFb0eupU.js` 39.10 kB / gzip 10.43 kB, `SettingsTab-DkqTFg-n.js` 26.42 kB / gzip 10.45 kB, `btcRealtime-Ko1pACcK.js` 0.84 kB / gzip 0.46 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local chunk marker check: pass; built `App-B2E91SOE.js` contains `/api/btc-realtime` and `xmoney-btc`; built `SettingsTab-DkqTFg-n.js` contains `v10.7.9.74` and `BTC 单币种独立实时行情`; built frontend chunks contain no `ws.eodhistoricaldata.com` browser-direct URL.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会让 BTC 市场卡重新只依赖 `INDICES` REST 轮询;不会影响 `/api/quote` 鉴权、Supabase RLS、交易账本或自选数据。
+
 ### 2026-07-04 - 修复卖出后累计收益率口径
 
 - Commit: `5228f9c7723afdc1cc12b1f513bf40b79e4bf489`

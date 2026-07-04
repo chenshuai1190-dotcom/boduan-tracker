@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.73
+                  v10.7.9.74
                 </span>
               </div>
             </div>
@@ -163,14 +163,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.73
+                  v10.7.9.74
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.73', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.74', date: '2026-07-04', latest: true,
+                    items: [
+                      '₿ BTC 单币种独立实时行情',
+                      '  - 首页 BTC 卡接入已登录服务端 WebSocket relay',
+                      '  - 前端不暴露 EODHD token,断线后自动重连并用 REST 兜底',
+                      '  - BTC 卡显示 LIVE/REST/连接中状态',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.73', date: '2026-07-04',
                     items: [
                       '🧮 修复卖出后累计收益率口径',
                       '  - 累计收益率分母改为当前实际持仓成本',
@@ -786,7 +795,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.73</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.74</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

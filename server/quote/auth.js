@@ -25,6 +25,38 @@ export function setCorsHeaders(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
 }
 
+export async function authenticateAccessToken(token) {
+  const cleanToken = String(token || '').trim();
+  if (!cleanToken) {
+    return { ok: false, status: 401, error: '未授权: 请先登录后再请求行情接口' };
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { ok: false, status: 500, error: '行情接口认证未配置: 缺少 Supabase URL 或 anon key' };
+  }
+
+  try {
+    const authRes = await fetchWithTimeout(
+      `${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`,
+      {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${cleanToken}`,
+        },
+      },
+      { provider: 'supabase-auth', timeoutMs: QUOTE_TIMEOUTS.auth }
+    );
+    if (!authRes.ok) {
+      return { ok: false, status: 401, error: '未授权或登录已过期,请重新登录' };
+    }
+    return { ok: true, user: await authRes.json() };
+  } catch (e) {
+    return { ok: false, status: 503, error: `认证服务暂不可用: ${e.message}` };
+  }
+}
+
 export async function requireQuoteAuth(req, res) {
   if (process.env.QUOTE_API_AUTH_REQUIRED === 'false') {
     return { ok: true, user: null };
@@ -36,32 +68,10 @@ export async function requireQuoteAuth(req, res) {
     return { ok: false };
   }
 
-  const token = authHeader.slice('Bearer '.length).trim();
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    sendError(res, 500, '行情接口认证未配置: 缺少 Supabase URL 或 anon key');
+  const auth = await authenticateAccessToken(authHeader.slice('Bearer '.length));
+  if (!auth.ok) {
+    sendError(res, auth.status, auth.error);
     return { ok: false };
   }
-
-  try {
-    const authRes = await fetchWithTimeout(
-      `${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`,
-      {
-        headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${token}`,
-        },
-      },
-      { provider: 'supabase-auth', timeoutMs: QUOTE_TIMEOUTS.auth }
-    );
-    if (!authRes.ok) {
-      sendError(res, 401, '未授权或登录已过期,请重新登录');
-      return { ok: false };
-    }
-    return { ok: true, user: await authRes.json() };
-  } catch (e) {
-    sendError(res, 503, `认证服务暂不可用: ${e.message}`);
-    return { ok: false };
-  }
+  return auth;
 }
