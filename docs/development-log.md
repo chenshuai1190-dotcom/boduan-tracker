@@ -4,6 +4,43 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 修正持仓盈亏和今日订单维护
+
+- Commit: 待本轮 runtime 提交生成后在部署回填日志中记录。
+- Background: 用户根据手机截图反馈交易页持仓分布还有四个问题:持仓盈亏正数 `+` 号在窄列里单独换行导致变形;当日盈亏和持仓盈亏列可以加宽并允许横向滑动;累计盈亏应继续代表账户全部买卖综合盈亏,但持仓盈亏必须只计算当前持仓浮动盈亏;当日订单需要支持修改和删除,因为应用是手动记录工具而不是真实券商交易软件。
+- Changes:
+  - 交易页持仓分布汇总的 `持仓盈亏` 从 `summary.cumulativePnl` 改为 `summary.unrealizedPnl`,只统计当前持仓浮动盈亏;顶部资产卡 `累计盈亏` 继续使用 `summary.cumulativePnl`。
+  - 个股持仓行的 `持仓盈亏` 从 `position.totalPnl/totalPnlPct` 改为 `position.unrealizedPnl/unrealizedPct`,避免把历史已实现盈亏混入当前持仓浮盈。
+  - 新增 `holdingCurrency` / `holdingPct` 展示函数,持仓盈亏正数不再显示 `+` 号,负数仍保留 `-` 号;当日盈亏和持仓盈亏数字增加 `whitespace-nowrap`。
+  - 交易页持仓分布右侧横向指标区从 `min-w-[448px]` 加宽到 `min-w-[548px]`,列宽调整为 `84px/78px/140px/170px/52px`,让 `当日盈亏` 和 `持仓盈亏` 有更大显示空间。
+  - `src/lib/db.js` 新增 `updateStockTrade(id, trade)`,更新时同时按 `id` 和 `user_id` 过滤,保持用户账本隔离。
+  - 添加交易弹窗支持编辑模式,当 `newTrade.id` 存在时调用 `db.updateStockTrade`,否则继续调用 `db.insertStockTrade`;更新/删除后同步刷新本地 `stockTrades`。
+  - 当日订单列表新增修改和删除图标按钮;删除复用全局确认弹窗并调用 `deleteStockTradeRecord`,修改复用交易弹窗并同步云端账本。
+  - `tests/investment-summary.test.js` 增加 `realizedPnl` 与 `unrealizedPnl` 分离断言,防止持仓盈亏口径再次与累计盈亏混用。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.83`。
+  - 同步更新 `docs/handoff.md`,记录本次持仓盈亏口径、订单维护能力和待部署状态。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/db.js`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/investment-summary.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-Dnjy-2Is.js` 47.82 kB / gzip 10.44 kB, `SettingsTab-Bdtq2rVV.js` 28.58 kB / gzip 11.20 kB, `App-D4mWSKTp.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Local source marker check: pass; `TradesTab.jsx` contains `summary.unrealizedPnl`, `position.unrealizedPnl`, `holdingCurrency`, `min-w-[548px]`, `grid-cols-[84px_78px_140px_170px_52px]`, `确认修改` and `删除这笔订单?`; `db.js` contains `updateStockTrade`.
+  - Local build marker check: pass; built `TradesTab-Dnjy-2Is.js` contains `unrealizedPnl`, `min-w-[548px]`, `grid-cols-[84px_78px_140px_170px_52px]`, `确认修改` and `删除这笔订单?`; built `SettingsTab-Bdtq2rVV.js` contains `v10.7.9.83`, `修正持仓盈亏和今日订单维护` and `当日订单支持修改和删除`。
+- Deployment: 待推送 GitHub `main` 后由 Vercel 自动部署,部署完成后回填 runtime commit 和 deployment target。
+- Production verification:
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - 线上 chunk marker、生产 RLS REST 复验和部署 URL 待部署完成后回填。
+- Rollback: 回滚本次改动会恢复持仓盈亏显示为累计口径、个股持仓盈亏重新混入已实现盈亏、持仓盈亏正数重新显示 `+` 号,并移除当日订单修改/删除入口;不影响 `/api/quote` 鉴权或 Supabase RLS 策略。
+
 ### 2026-07-04 - 持仓分布市值改为整数显示
 
 - Commit: `15c95369dd0738196ae478face0276109879623d`

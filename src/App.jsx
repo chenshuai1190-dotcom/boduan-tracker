@@ -1777,6 +1777,7 @@ function MainApp({ user, onLogout }) {
     const symbol = newTrade.symbol.trim().toUpperCase();
     const sharesNum = parseInt(newTrade.shares);
     const priceNum = parseFloat(newTrade.price);
+    const editingId = newTrade.id || newTrade.editingId;
     if (sharesNum <= 0 || priceNum <= 0) {
       alert('股数和价格必须大于 0');
       return;
@@ -1784,19 +1785,27 @@ function MainApp({ user, onLogout }) {
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
     const stockName = newTrade.name || STOCK_NAME_CN[symbol] || symbol;
 
-    // 添加主交易账本记录(走 stock_trades,等返回真正的 id)
+    // 添加/更新主交易账本记录(走 stock_trades,等返回真正的 id)
     try {
-      const tradeRecord = await db.insertStockTrade({
+      const tradePayload = {
         symbol,
         name: stockName,
         side: newTrade.side || 'buy',
         date: newTrade.date,
         price: priceNum,
         shares: sharesNum,
-      });
-      setStockTrades(current => [...current, tradeRecord]);
+        fee: newTrade.fee || 0,
+        currency: newTrade.currency || 'USD',
+        note: newTrade.note || '',
+      };
+      const tradeRecord = editingId
+        ? await db.updateStockTrade(editingId, tradePayload)
+        : await db.insertStockTrade(tradePayload);
+      setStockTrades(current => editingId
+        ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
+        : [...current, tradeRecord]);
     } catch (e) {
-      alert('添加交易失败:' + e.message);
+      alert(`${editingId ? '更新' : '添加'}交易失败:` + e.message);
       return;
     }
 
@@ -1812,6 +1821,16 @@ function MainApp({ user, onLogout }) {
     });
     setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found'); // 已知代码默认显示已找到
     setShowAddTrade(false);
+  };
+
+  const deleteStockTradeRecord = async (id) => {
+    try {
+      await db.deleteStockTrade(id);
+      setStockTrades(current => current.filter(t => String(t.id) !== String(id)));
+    } catch (e) {
+      alert('删除订单失败:' + e.message);
+      throw e;
+    }
   };
 
   const deleteTrade = async (id) => {
@@ -2429,6 +2448,7 @@ function MainApp({ user, onLogout }) {
     costBasisData,
     db,
     deleteWatchlistItem,
+    deleteStockTradeRecord,
     DisciplineModal,
     disciplines,
     displayFgi,

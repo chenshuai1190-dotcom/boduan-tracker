@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Calculator, Edit3, Grid2X2, Hexagon, Settings2 } from 'lucide-react';
+import { BookOpen, Calculator, Edit3, Grid2X2, Hexagon, Settings2, Trash2 } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -28,6 +28,12 @@ function signedCurrency(value, currency = 'USD', digits = 2) {
   return `${n >= 0 ? '+' : '-'}${prefix}${fmtAmount(Math.abs(n), digits)}`;
 }
 
+function holdingCurrency(value, currency = 'USD', digits = 2) {
+  const n = toNumber(value);
+  const prefix = currency === 'CNY' ? '¥' : '$';
+  return `${n < 0 ? '-' : ''}${prefix}${fmtAmount(Math.abs(n), digits)}`;
+}
+
 function currencyAmount(value, currency = 'USD', digits = 2) {
   return `${currency === 'CNY' ? '¥' : '$'}${fmtAmount(value, digits)}`;
 }
@@ -35,6 +41,11 @@ function currencyAmount(value, currency = 'USD', digits = 2) {
 function signedPct(value, digits = 2) {
   const n = toNumber(value) * 100;
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
+}
+
+function holdingPct(value, digits = 2) {
+  const n = toNumber(value) * 100;
+  return `${n < 0 ? '-' : ''}${Math.abs(n).toFixed(digits)}%`;
 }
 
 function pnlClass(value, mode) {
@@ -64,6 +75,7 @@ export default function TradesTab({ ctx }) {
     costBasisActiveSymbol,
     costBasisData,
     db,
+    deleteStockTradeRecord,
     editingNoteId,
     expandedTrades,
     expandedWaves,
@@ -129,6 +141,7 @@ export default function TradesTab({ ctx }) {
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
+  const displayHoldingPnl = toNumber(summary.unrealizedPnl) * displayRate;
   const todayKey = localDateKey();
   const todayTrades = (stockTrades || []).filter((trade) => trade.date === todayKey);
   const todayBuys = todayTrades.filter((trade) => trade.side !== 'sell').length;
@@ -145,16 +158,47 @@ export default function TradesTab({ ctx }) {
 
   const openTradeModal = (position = null, side = 'buy') => {
     setNewTrade({
-      ...newTrade,
       symbol: position?.symbol || '',
       name: position?.name || '',
       side,
       date: localDateKey(),
       price: position?.currentPrice ? String(position.currentPrice) : '',
       shares: '',
+      batch: '第1批',
     });
     setLookupStatus(position?.symbol ? 'found' : null);
     setShowAddTrade(true);
+  };
+
+  const openTradeEditModal = (trade) => {
+    setNewTrade({
+      id: trade.id,
+      symbol: trade.symbol || '',
+      name: trade.name || '',
+      side: trade.side === 'sell' ? 'sell' : 'buy',
+      date: trade.date || localDateKey(),
+      price: trade.price ? String(trade.price) : '',
+      shares: trade.shares ? String(trade.shares) : '',
+      fee: trade.fee || 0,
+      currency: trade.currency || 'USD',
+      note: trade.note || '',
+      batch: '第1批',
+    });
+    setLookupStatus(trade.symbol ? 'found' : null);
+    setShowAddTrade(true);
+  };
+
+  const confirmDeleteTodayTrade = (trade) => {
+    showConfirm({
+      title: '删除这笔订单?',
+      desc: '删除后会同步云端账本,持仓和盈亏会重新计算。',
+      info: `${trade.symbol || '--'} · ${trade.side === 'sell' ? '卖出' : '买入'} ${fmtAmount(trade.shares, 0)} 股`,
+      confirmText: '删除',
+      icon: '🗑',
+      onConfirm: async () => {
+        await deleteStockTradeRecord(trade.id);
+      },
+    });
   };
 
   const toggleToolPanel = (panel) => {
@@ -351,7 +395,7 @@ export default function TradesTab({ ctx }) {
                 </div>
                 <div className="text-center">
                   <div className="text-[11px] text-white/40">持仓盈亏</div>
-                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</div>
+                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayHoldingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{holdingCurrency(displayHoldingPnl, displayCurrency, 2)}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[11px] text-white/40">当日盈亏</div>
@@ -383,8 +427,8 @@ export default function TradesTab({ ctx }) {
                     </div>
                   </div>
                   <div className="overflow-x-auto [scrollbar-width:none]">
-                    <div className="min-w-[448px]">
-                      <div className="grid grid-cols-[80px_76px_118px_112px_46px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                    <div className="min-w-[548px]">
+                      <div className="grid grid-cols-[84px_78px_140px_170px_52px] gap-1.5 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
                         <span className="text-left">市值/数量</span>
                         <span className="text-right">现价/成本</span>
                         <span className="text-right">当日盈亏</span>
@@ -396,14 +440,14 @@ export default function TradesTab({ ctx }) {
                           const cost = toNumber(position.effectiveCost || position.avgCost);
                           const marketValue = toNumber(position.marketValue) * displayRate;
                           const todayPnl = toNumber(position.todayPnl) * displayRate;
-                          const holdingPnl = toNumber(position.totalPnl) * displayRate;
+                          const holdingPnl = toNumber(position.unrealizedPnl) * displayRate;
                           const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
                           return (
                             <button
                               key={position.symbol}
                               type="button"
                               onClick={() => openTradeModal(position, 'sell')}
-                              className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_112px_46px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
+                              className="grid min-h-[60px] w-full grid-cols-[84px_78px_140px_170px_52px] items-center gap-1.5 py-3 text-left active:bg-white/[0.03]"
                             >
                               <span className="text-left">
                                 <span className="block max-w-full truncate text-[12px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 0)}</span>
@@ -414,12 +458,12 @@ export default function TradesTab({ ctx }) {
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
-                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(todayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
+                                <span className={`block whitespace-nowrap text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(todayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
                               </span>
                               <span className="text-right">
-                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.totalPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.totalPnlPct, 2)}</span>
+                                <span className={`block whitespace-nowrap text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{holdingCurrency(holdingPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.unrealizedPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{holdingPct(position.unrealizedPct, 2)}</span>
                               </span>
                               <span className="text-right">
                                 <span className="block text-[13px] font-black leading-[15px] text-white/82 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
@@ -458,9 +502,31 @@ export default function TradesTab({ ctx }) {
                           <div className="truncate text-[13px] font-black text-white">{trade.symbol}</div>
                           <div className="mt-1 text-[11px] text-white/38">{trade.name || trade.symbol}</div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-[13px] font-black ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
-                          <div className="mt-1 text-[11px] text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          <div className="text-right">
+                            <div className={`text-[13px] font-black ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
+                            <div className="mt-1 text-[11px] text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openTradeEditModal(trade)}
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#f6b54b]/25 bg-[#f6b54b]/10 text-[#f6b54b] active:scale-95"
+                              aria-label={`修改 ${trade.symbol} 订单`}
+                              title="修改订单"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" strokeWidth={2.2} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteTodayTrade(trade)}
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10 text-rose-300 active:scale-95"
+                              aria-label={`删除 ${trade.symbol} 订单`}
+                              title="删除订单"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" strokeWidth={2.2} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -937,7 +1003,7 @@ export default function TradesTab({ ctx }) {
               <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-slate-100 z-10">
                 <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-2 sm:hidden" />
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-black text-slate-900">添加交易</h2>
+                  <h2 className="text-base font-black text-slate-900">{newTrade.id || newTrade.editingId ? '修改交易' : '添加交易'}</h2>
                   <button
                     onClick={() => setShowAddTrade(false)}
                     className="text-slate-400 hover:text-slate-600 active:scale-90 transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100"
@@ -1059,7 +1125,7 @@ export default function TradesTab({ ctx }) {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={addTrade} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-black active:scale-95 shadow">确认添加</button>
+                  <button onClick={addTrade} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-black active:scale-95 shadow">{newTrade.id || newTrade.editingId ? '确认修改' : '确认添加'}</button>
                   <button onClick={() => setShowAddTrade(false)} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl text-sm font-bold active:scale-95">取消</button>
                 </div>
               </div>

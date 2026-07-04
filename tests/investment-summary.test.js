@@ -62,6 +62,8 @@ test('investment summary counts held stocks and sell records only', () => {
   assert.equal(summary.totalAssetsCny, 8208);
   assert.equal(summary.todayPnl, 22);
   assert.equal(summary.todayPnlPct, 22 / 1118);
+  assert.equal(summary.realizedPnl, 80);
+  assert.equal(summary.unrealizedPnl, 140);
   assert.equal(summary.cumulativePnl, 220);
   assert.equal(summary.returnCostBasis, 920);
   assert.equal(summary.cumulativePnlPct, 220 / 920);
@@ -79,6 +81,8 @@ test('cumulative return rate uses current effective cost after sells', () => {
   });
 
   assert.equal(summary.totalAssetsUsd, 720);
+  assert.equal(summary.realizedPnl, 80);
+  assert.equal(summary.unrealizedPnl, 120);
   assert.equal(summary.cumulativePnl, 200);
   assert.equal(summary.totalBuyCost, 1000);
   assert.equal(summary.returnCostBasis, 520);

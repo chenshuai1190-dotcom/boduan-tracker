@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `15c95369dd0738196ae478face0276109879623d`
-- 最近应用代码提交: `15c95369dd0738196ae478face0276109879623d`
+- 当前产品基准提交: 本轮 `v10.7.9.83` runtime 提交待部署后回填
+- 最近应用代码提交: 本轮 `v10.7.9.83` runtime 提交待部署后回填
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.82`
-- Vercel 最新部署: 成功
-- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/smdFk8Uxod76GjirqwbY3kfr6MPU`
+- 设置页版本: `v10.7.9.83`
+- Vercel 最新部署: 本轮 runtime 待推送后自动部署
+- Vercel 部署记录: 待本轮部署完成后回填
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.82` 的交易持仓分布市值整数显示微调。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.83` 的交易页持仓盈亏口径修正和当日订单维护能力。
 
 ## 2. 先读这些文档
 
@@ -138,23 +138,19 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
-- 生产 `GET https://boduan-tracker.vercel.app/?v=15c9536-runtime`: HTTP 200。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- GitHub commit status for `15c9536`: Vercel success。
-- Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/smdFk8Uxod76GjirqwbY3kfr6MPU`。
+- `v10.7.9.83` runtime 部署待推送后回填生产首页 HTTP、GitHub commit status 和 Vercel deployment target。
 
 已验证生产 runtime chunks:
 
-- `/assets/TradesTab-Bl99HyhL.js`
-- `/assets/SettingsTab-CkXp2ASy.js`
-- `/assets/supabase-CcYdvS9P.js`
-- `/assets/supabase-B7rzsbEg.js`
+- 本地构建 runtime chunks: `/assets/TradesTab-Dnjy-2Is.js`, `/assets/SettingsTab-Bdtq2rVV.js`, `/assets/App-D4mWSKTp.js`。
+- 生产 runtime chunks 待本轮部署完成后回填。
 
 关键 marker:
 
-- `SettingsTab-CkXp2ASy.js` 包含 `v10.7.9.82`、`持仓市值改为整数显示` 和 `市值/数量列不再显示小数`。
-- `TradesTab-Bl99HyhL.js` 包含 `grid-cols-[80px_76px_118px_112px_46px]`、`min-w-[448px]` 和 `市值/数量`。
-- `supabase-CcYdvS9P.js` / `supabase-B7rzsbEg.js` 包含 `exchangeCodeForSession`。
+- `SettingsTab-Bdtq2rVV.js` 包含 `v10.7.9.83`、`修正持仓盈亏和今日订单维护` 和 `当日订单支持修改和删除`。
+- `TradesTab-Dnjy-2Is.js` 包含 `unrealizedPnl`、`min-w-[548px]`、`grid-cols-[84px_78px_140px_170px_52px]`、`确认修改` 和 `删除这笔订单?`。
+- 生产 `supabase` chunk marker 待本轮部署完成后回填。
 
 ## 8. 最近完成的产品改动
 
@@ -166,6 +162,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.83`: 交易页持仓盈亏改为只计算当前持仓浮动盈亏;正数不再显示 `+` 号;当日盈亏和持仓盈亏列加宽并继续支持横向滑动;当日订单支持修改和删除并同步云端账本。
 - `v10.7.9.82`: 交易页持仓分布市值/数量列不再显示小数,减少市值列占用并帮助当日盈亏完整露出。
 - `v10.7.9.81`: 交易页持仓分布再次微调列宽;市值/数量和现价/成本略向左收,保持当日盈亏列宽不变,让末尾数字更容易完整露出。
 - `v10.7.9.80`: 交易页持仓分布内部左右留白继续收紧;名称/代码、市值/数量和现价/成本列缩窄,默认首屏更容易完整显示当日盈亏。
@@ -182,6 +179,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 交易和收益率
 
+- `v10.7.9.83`: `累计盈亏` 继续使用账户级 `realizedPnl + unrealizedPnl`;`持仓盈亏` 改用 `unrealizedPnl`,个股行改用 `position.unrealizedPnl/unrealizedPct`,避免历史已实现盈亏混入当前持仓浮盈。
 - `v10.7.9.73`: 修复卖出后累计收益率口径。
 - 累计收益率分母改为当前实际持仓成本。
 - 卖出盈利会正确摊薄剩余持仓成本,不再被历史总买入额压低收益率。
@@ -364,11 +362,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `15c95369dd0738196ae478face0276109879623d`
-最近应用代码提交: `15c95369dd0738196ae478face0276109879623d`
-设置页版本: `v10.7.9.82`
-Vercel 最新部署: 成功
-部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/smdFk8Uxod76GjirqwbY3kfr6MPU`
+当前产品基准提交: 本轮 `v10.7.9.83` runtime 提交待部署后回填
+最近应用代码提交: 本轮 `v10.7.9.83` runtime 提交待部署后回填
+设置页版本: `v10.7.9.83`
+Vercel 最新部署: 本轮 runtime 待推送后自动部署
+部署记录: 待本轮部署完成后回填
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -395,6 +393,7 @@ Vercel 最新部署: 成功
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。
 - 交易主账本持仓和累计收益率修复。
+- 交易页持仓盈亏当前浮盈口径修正,当日订单支持修改/删除。
 - BTC 单币种实时行情 relay。
 - PWA 图标替换和 iOS 白边修复。
 - 找回密码回跳修复,Supabase Site URL 已改生产域名。

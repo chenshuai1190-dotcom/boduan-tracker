@@ -147,6 +147,36 @@ export const insertStockTrade = async (trade) => {
   return mapStockTrade(data);
 };
 
+export const updateStockTrade = async (id, trade) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  if (!id) throw new Error('缺少交易记录 id');
+
+  const symbol = String(trade.symbol || '').trim().toUpperCase();
+  if (!symbol) throw new Error('缺少股票代码');
+
+  const side = trade.side === 'sell' ? 'sell' : 'buy';
+  const { data, error } = await supabase
+    .from('stock_trades')
+    .update({
+      symbol,
+      name: trade.name || symbol,
+      side,
+      trade_date: trade.date || trade.tradeDate,
+      price: trade.price,
+      shares: trade.shares,
+      fee: trade.fee || 0,
+      currency: trade.currency || 'USD',
+      note: trade.note || '',
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapStockTrade(data);
+};
+
 export const deleteStockTrade = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
