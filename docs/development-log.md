@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 优化首页自选持仓首屏列宽
 
-- Commit: `same commit`
+- Commit: `0e28ea2b909a8bea516f6e3acaea6b13172761da`
 - Background: 用户要求快速调整两个移动端显示细节:首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口不要加粗,改为正常字重;首页自选/持仓表格打开首屏就能看到完整 `52周跌幅`,不要再额外横向滑动才能看到。
 - Changes:
   - 首页自选区底部 `添加自选股票` 和 `编辑自选股票` 两个入口按钮从 `font-black` 改为 `font-normal`。
@@ -30,8 +30,20 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
   - Local source marker check: pass; source contains `minmax(92px,0.7fr)`, metric grid `68px 70px 88px 84px`, metric widths `438/322`, `font-normal` on the requested entry buttons, and `v10.7.9.89`.
   - Local build marker check: pass; built `HomeTab-BfYDJhqu.js` contains `68px 70px 88px 84px`, `52周跌幅` and the new metric widths; built `SettingsTab-Drsnb10N.js` contains `v10.7.9.89` and `52周跌幅打开首屏即可完整看到`.
-- Deployment: pending push to GitHub `main` and Vercel production deployment.
-- Production verification: pending Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `0e28ea2b909a8bea516f6e3acaea6b13172761da`.
+  - GitHub Actions `CI`: success, run `28707142939`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BACPDaVbacXJp2cMMHz3KUxczL8A`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=0e28ea2-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-meya0KAZ.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-KNbLQMpQ.css`.
+  - Production runtime chunks: `/assets/App-CkmEdU8W.js`, `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-DhwPvo3m.js`, `/assets/SettingsTab-Drsnb10N.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BVA0H_jt.js`.
+- Production verification:
+  - Production App marker check: `App-CkmEdU8W.js` references `HomeTab-BfYDJhqu.js`, `TradesTab-DhwPvo3m.js` and `SettingsTab-Drsnb10N.js`.
+  - Production HomeTab marker check: `HomeTab-BfYDJhqu.js` contains metric grid `68px 70px 88px 84px`, metric widths `438/322`, `52周跌幅` and `font-normal`.
+  - Production TradesTab marker check: `TradesTab-DhwPvo3m.js` contains `font-normal text-[#f6b54b]` for the `编辑` entry.
+  - Production SettingsTab marker check: `SettingsTab-Drsnb10N.js` contains `v10.7.9.89`, `首页自选/持仓名称列收窄` and `52周跌幅打开首屏即可完整看到`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-BVA0H_jt.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复首页两个自选入口和交易页 `编辑` 入口的重字重,并恢复首页自选/持仓较宽的名称列与指标列;移动端打开首屏时 `52周跌幅` 可能再次需要横向滑动才能完整看到。
 
 ### 2026-07-04 - 修正交易录入弹层位置和背景滚动
