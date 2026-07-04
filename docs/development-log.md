@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 同步首页头部卡片和指数卡字重
 
-- Commit: `pending runtime commit`
+- Commit: `d435d55bb37f25f8e97d80276c098f73277f0d54`
 - Background: 用户反馈交易页字重已调整,但首页头部卡片的字体大小、卡片位置和四大指数卡字重没有同步;明确要求首页头部卡片与交易页同步,当前信号保持不动,四大指数卡取消加粗,VIX 和 CNN 卡片保持不动。随后反馈 `订单操作` 弹窗中股票中文名和取消按钮文字几乎不可见,要求一并修复。用户还指出股票页面只有少量中文公司名,例如 `TSM` 没有显示 `台积电`。
 - Changes:
   - 首页头部总资产卡片沿用交易页同一组字号、间距和正常字重:总资产标签、币种切换、LIVE、总资产数字、今日盈亏、累计盈亏和持仓数量都改为正常字重。
@@ -32,8 +32,22 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
   - Local source marker check: pass; source contains `v10.7.9.92`, homepage normal-weight asset card markers, order modal `text-white/60` and `text-white/80`, stock-name fallback `displayStockName`, `TSM: '台积电'`, and no remaining `text-white/38`, `text-white/42` or `text-white/72` in `HomeTab`/`TradesTab`/`SettingsTab`.
   - Local build marker check: pass; built chunks contain `v10.7.9.92`, homepage normal-weight markers, order modal visibility markers, `台积电`/`微软`/`英伟达` name fallback markers, and the weak-text transparency fixes.
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `d435d55bb37f25f8e97d80276c098f73277f0d54`.
+  - GitHub `main`: `d435d55bb37f25f8e97d80276c098f73277f0d54`.
+  - GitHub Actions `CI`: success, run `28708536097`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=d435d55-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-C5bS0IWF.js`, `/assets/index-BVynd8zx.css`.
+  - Production runtime chunks: `/assets/App-04ooeO9p.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-F_bNfXlX.js`, `/assets/SettingsTab-CstCni--.js`.
+- Production verification:
+  - Production App marker check: `App-04ooeO9p.js` contains `台积电`, `微软` and `英伟达`, confirming stock-name fallback is included in runtime.
+  - Production HomeTab marker check: `HomeTab-CLLDltlT.js` contains `text-[34px] font-normal`, `text-[14px] font-normal leading-none` and `text-white/40`.
+  - Production TradesTab marker check: `TradesTab-F_bNfXlX.js` contains `订单操作`, `text-white/60`, `text-white/80` and `text-white/45`.
+  - Production SettingsTab marker check: `SettingsTab-CstCni--.js` contains `v10.7.9.92`, `同步首页头部卡片和指数卡字重`, `代码式名称自动用中文股票名兜底` and `修正部分弱文字的无效透明度 class`.
+  - Production marker check: `HomeTab-CLLDltlT.js` and `TradesTab-F_bNfXlX.js` no longer contain `text-white/38`, `text-white/42` or `text-white/72`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-erGYhWiQ.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复首页头部卡片和四大指数卡的较重字重,并恢复订单操作弹窗较弱/无效透明度文字;不会影响交易数据、行情接口、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 回退首屏加载并优化交易页订单操作

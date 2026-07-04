@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `6549713a123233ef1b7a2af0991ab37d82a6d42e` (`v10.7.9.91` runtime)
-- 最近应用代码提交: `6549713a123233ef1b7a2af0991ab37d82a6d42e` (`v10.7.9.91` runtime)
+- 当前产品基准提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
+- 最近应用代码提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.91`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CwoaVJHKepTf3dUNFKNyDKBEgraF`
-- Vercel 部署记录: runtime commit `6549713a123233ef1b7a2af0991ab37d82a6d42e`, GitHub Actions `CI` run `28708124332` success
+- 设置页版本: `v10.7.9.92`
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`
+- Vercel 部署记录: runtime commit `d435d55bb37f25f8e97d80276c098f73277f0d54`, GitHub Actions `CI` run `28708536097` success
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.91` 的首屏加载回退、交易页字重和当日订单操作弹窗。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.92` 的首页头部/指数字重同步、订单操作弹窗可见性和股票中文名兜底。
 
 ## 2. 先读这些文档
 
@@ -144,23 +144,22 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.91` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `6549713a123233ef1b7a2af0991ab37d82a6d42e`, GitHub Actions `CI` run `28708124332` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CwoaVJHKepTf3dUNFKNyDKBEgraF`。
+- `v10.7.9.92` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `d435d55bb37f25f8e97d80276c098f73277f0d54`, GitHub Actions `CI` run `28708536097` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/index-D4AJZ4jQ.css`, `/assets/TradesTab-Bgr3Hkgp.js`, `/assets/SettingsTab-Cep1d4LA.js`, `/assets/App-DR1lLtyh.js`。
-- 生产 entry chunks: `/assets/index-0LI8pi_W.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-D4AJZ4jQ.css`。
-- 生产 runtime chunks: `/assets/App-pvBlCTuV.js`, `/assets/Login-ZRjGFTKv.js`, `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-Bgr3Hkgp.js`, `/assets/SettingsTab-Cep1d4LA.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-56gQ36oN.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-BVynd8zx.css`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-F_bNfXlX.js`, `/assets/SettingsTab-CstCni--.js`, `/assets/App-BhFyUqBE.js`。
+- 生产 entry chunks: `/assets/index-C5bS0IWF.js`, `/assets/index-BVynd8zx.css`。
+- 生产 runtime chunks: `/assets/App-04ooeO9p.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-F_bNfXlX.js`, `/assets/SettingsTab-CstCni--.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-erGYhWiQ.js`。
 
 关键 marker:
 
-- 生产 `/loading-mascot.png` 返回 `404`,确认首屏已回退到圆环加载且不再提供钱袋资源。
-- 生产 `index-D4AJZ4jQ.css` 包含通用 `animate-spin` marker,不再包含 `loading-mascot-*` keyframes。
-- 生产 `index-0LI8pi_W.js` 包含 `AuthGate`,`App-pvBlCTuV.js` 和 `Login-ZRjGFTKv.js`,不再包含 `/loading-mascot.png`。
-- 生产 `App-pvBlCTuV.js` 包含 `HomeTab-BfYDJhqu.js`, `TradesTab-Bgr3Hkgp.js` 和 `SettingsTab-Cep1d4LA.js`。
-- 生产 `TradesTab-Bgr3Hkgp.js` 包含 `订单操作`,`修改记录` 和 `删除记录`;未发现 `loading-mascot` marker,也未发现 `持仓盈亏`/`当日盈亏` 附近的 bold-class marker。
-- 生产 `SettingsTab-Cep1d4LA.js` 包含 `v10.7.9.91`、`回退首屏加载并优化交易页字重`、`当日订单行改为点击记录后居中弹窗修改或删除` 和 `普通文本/股票代码/数字/记录行默认不加粗`。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-56gQ36oN.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `App-04ooeO9p.js` 包含 `台积电`,`微软` 和 `英伟达`,确认股票中文名兜底已进入运行时。
+- 生产 `HomeTab-CLLDltlT.js` 包含 `text-[34px] font-normal`,`text-[14px] font-normal leading-none` 和 `text-white/40`,确认首页头部和四大指数卡字重/弱文字修正已进入运行时。
+- 生产 `TradesTab-F_bNfXlX.js` 包含 `订单操作`,`text-white/60`,`text-white/80` 和 `text-white/45`,确认订单操作弹窗中文名、取消按钮和弱文字可见性已修正。
+- 生产 `SettingsTab-CstCni--.js` 包含 `v10.7.9.92`、`同步首页头部卡片和指数卡字重`、`代码式名称自动用中文股票名兜底` 和 `修正部分弱文字的无效透明度 class`。
+- 生产 `HomeTab-CLLDltlT.js` 和 `TradesTab-F_bNfXlX.js` 不再包含 `text-white/38`,`text-white/42` 或 `text-white/72`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-erGYhWiQ.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
@@ -172,6 +171,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.92`: 首页头部总资产卡片同步交易页字号/位置和正常字重;首页四大指数卡片取消加粗;当前信号、VIX 和 CNN 保持不动;订单操作弹窗股票中文名和取消按钮改为清晰可见;旧自选/交易记录中 `name=TSM` 这类代码式名称会用中英对照表兜底显示 `台积电` 等中文名;修正部分弱文字无效透明度 class。
 - `v10.7.9.91`: 首屏加载回退到上一版圆环效果;交易页持仓分布、当日订单、美股、数字、持仓盈亏和个股盈亏统一改为正常字重;当日订单行改为点击记录后通过居中 `订单操作` 弹窗修改或删除;开发准则新增普通文本/股票代码/数字/记录行默认不加粗。
 - `v10.7.9.90`: 首屏加载曾改为 mini 钱袋 PNG 和轻微弹跳 CSS 动效,但已在 `v10.7.9.91` 按用户反馈回退。
 - `v10.7.9.89`: 首页自选/持仓表格收窄名称列并压缩右侧指标列,让 `52周跌幅` 在首屏打开即可完整看到;首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口改为正常字重。
@@ -376,7 +376,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.91` 或更新版本。
+- 设置页显示 `v10.7.9.92` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -391,11 +391,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `6549713a123233ef1b7a2af0991ab37d82a6d42e` (`v10.7.9.91` runtime)
-最近应用代码提交: `6549713a123233ef1b7a2af0991ab37d82a6d42e` (`v10.7.9.91` runtime)
-设置页版本: `v10.7.9.91`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CwoaVJHKepTf3dUNFKNyDKBEgraF`
-部署记录: GitHub Actions `CI` run `28708124332` success; runtime commit `6549713a123233ef1b7a2af0991ab37d82a6d42e`
+当前产品基准提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
+最近应用代码提交: `d435d55bb37f25f8e97d80276c098f73277f0d54` (`v10.7.9.92` runtime)
+设置页版本: `v10.7.9.92`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXvVZxkKPWkCBdYjJw2pNu9VjtBe`
+部署记录: GitHub Actions `CI` run `28708536097` success; runtime commit `d435d55bb37f25f8e97d80276c098f73277f0d54`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -422,11 +422,13 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 设置页深色化和账户设置整理。
 - 首页自选添加/编辑/排序/删除。
 - 首页自选/持仓表格已收窄名称列并压缩右侧指标列,`52周跌幅` 打开首屏即可完整看到;首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口已改为正常字重。
+- 首页头部总资产卡片已同步交易页字号/位置和正常字重;首页四大指数卡片已取消加粗;当前信号、VIX 和 CNN 保持不动。
+- 旧自选/交易记录中 `name=TSM` 这类代码式名称会用中英对照表兜底显示 `台积电` 等中文名。
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。
 - 交易主账本持仓和累计收益率修复。
 - 交易页添加/修改交易弹层改为深色居中 UI,买入/卖出选中态为整块红色/绿色填充,未选灰色;普通输入框取消明显边框,日期框已加防溢出约束;弹层打开时锁定背景页面滚动。
-- 交易页持仓盈亏当前浮盈口径修正,当日盈亏首屏显示恢复,持仓盈亏正号恢复,持仓盈亏和占比间距修正;持仓分布、当日订单、美股、数字、持仓盈亏和个股盈亏已改为正常字重,当日订单支持点击记录后在居中弹窗修改/删除。
+- 交易页持仓盈亏当前浮盈口径修正,当日盈亏首屏显示恢复,持仓盈亏正号恢复,持仓盈亏和占比间距修正;持仓分布、当日订单、美股、数字、持仓盈亏和个股盈亏已改为正常字重,当日订单支持点击记录后在居中弹窗修改/删除;订单操作弹窗股票中文名和取消按钮已改为清晰可见。
 - BTC 单币种实时行情 relay。
 - PWA 图标替换和 iOS 白边修复。
 - 找回密码回跳修复,Supabase Site URL 已改生产域名。
