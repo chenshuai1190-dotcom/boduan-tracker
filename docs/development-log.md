@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 深色加载、涨跌配色与首页交易账本接入
 
-- Commit: pending in this implementation commit; deployment evidence will be appended after Vercel production verification.
+- Commit: `d8014814e17a8f789b304c5facaeb32fab5a6eed`
 - Background: 用户反馈首页和建议加载时会闪现白色页面,要求改掉;同时要求在交易页持仓分布右侧增加股票涨跌颜色设置,默认绿涨红跌并支持绿跌红涨,且全局影响首页和交易;首页自选和持仓需要接入交易主账本最新数据库。
 - Changes:
   - Auth 初始化和懒加载 fallback 改为深色加载态;`body` 默认背景改为首页/交易一致的深黑,避免加载首页、建议等 lazy chunk 时闪白。
@@ -32,8 +32,22 @@
   - `npm run build`: pass; `HomeTab-CvMXmPja.js`, `TradesTab-CLP8y-lz.js`, `SettingsTab-BlOgMv_X.js`, `App-DI5-kdN8.js`, and `marketColorMode-DYH4sHWM.js` generated.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
-- Deployment: pending.
-- Production verification: pending.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` and `cost_basis_trades` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local chunk check: pass; built chunks contain `v10.7.9.66`, `绿涨红跌`, `绿跌红涨`, `homeWatchlist`, `marketColorMode`, `/api/fx`, and `xmoney_fx_rates_v1`.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `d8014814e17a8f789b304c5facaeb32fab5a6eed`
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/63Eg1owwZyQSADwJ768uA3QviEGc`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-BhT7eKm6.js`, `App-CD-bBewo.js`, `HomeTab-CvMXmPja.js`, `TradesTab-CLP8y-lz.js`, `SettingsTab-BlOgMv_X.js`, `marketColorMode-DYH4sHWM.js`, `index-dzCkedeL.css`.
+  - `index-dzCkedeL.css` contains the deep loading/body background `#05070b`.
+  - `HomeTab-CvMXmPja.js` contains `marketColorMode` and `homeWatchlist`.
+  - `TradesTab-CLP8y-lz.js` contains `绿涨红跌`, `绿跌红涨`, and `股票涨跌颜色设置`.
+  - `SettingsTab-BlOgMv_X.js` contains `v10.7.9.66`, "首页/交易页加载和涨跌颜色设置", and `marketColorMode` in JSON backup.
+  - `marketColorMode-DYH4sHWM.js` contains `greenUpRedDown` and `redUpGreenDown`.
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+  - `GET https://boduan-tracker.vercel.app/api/fx` without auth returns `401`; `/api/fx` auth remains enabled.
+  - Post-deploy `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` and `cost_basis_trades` return `200` with `visibleRows=0` for anonymous REST probes.
 - Rollback: 回滚本次改动会恢复浅色加载 fallback、首页自选旧 watchlist 数据源和固定绿涨/红跌逻辑;不影响 `/api/quote` 鉴权、`/api/fx` 或 `stock_trades` 表结构。
 
 ### 2026-07-04 - 汇率每日自动查询
