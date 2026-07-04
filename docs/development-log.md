@@ -4,6 +4,38 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 收紧下拉刷新触发条件
+
+- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Background: 用户在生产截图中指出,在交易页 `交易记录` 工具里只是上下滑动查看记录时,顶部下拉刷新提示仍会频繁被触发。用户要求做强限制,只有真正到页面顶部进行刷新手势时才允许全局刷新。
+- Findings:
+  - 旧逻辑在 `touchmove` 阶段调用 `canStartPull`,只要移动过程中 `window.scrollY` 为 0 就可能进入全局刷新,没有要求“触摸开始时”已经在根页面顶部。
+  - 交易记录列表本身是 `max-h-[360px] overflow-y-auto` 的内部滚动容器,用户在这个容器内上下滑动时不应该冒泡成全局下拉刷新。
+- Changes:
+  - `App.jsx` 新增 `PULL_REFRESH_ACTIVATION_DISTANCE` 和 `PULL_REFRESH_ROOT_TOP_TOLERANCE`,轻微下滑不再立刻显示刷新 UI。
+  - `touchstart` 时记录 `touchStartedAtRootTop`;只有手势开始时根页面已在顶部,后续才允许进入全局刷新,避免列表或页面滚动中途到顶后误触发。
+  - `touchstart` 时检测交互控件、显式阻断区域和通用内部可滚动祖先,命中后本次手势不再参与全局刷新。
+  - 交易页 `交易记录` 列表增加 `data-pull-refresh-block="true"`,在列表内上下滑动只滚动列表,不触发全局刷新。
+  - 新增回归测试,锁定下拉刷新必须从页面顶部开始,且交易记录内部滚动列表必须阻断全局刷新。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.102`。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 56 tests.
+  - `npm run build`: pass; `index-D38QBpRO.css` 52.74 kB / gzip 9.70 kB, `TradesTab-DcIF7XGP.js` 61.74 kB / gzip 12.20 kB, `SettingsTab-CjHcaJ2P.js` 35.52 kB / gzip 13.56 kB, `App-CHMc3PqU.js` 142.51 kB / gzip 40.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source/build marker check: pass; source contains `touchStartedAtRootTop = getScrollTop() <= PULL_REFRESH_ROOT_TOP_TOLERANCE`, `if (!touchStartedAtRootTop) return false;`, `isBlockedPullTarget`, `data-pull-refresh-block="true"`, and Settings source contains `v10.7.9.102`; built `App-CHMc3PqU.js` contains `[data-pull-refresh-block="true"]` plus generic scroll detection markers `auto|scroll|overlay`, `scrollHeight`, `clientHeight`; built `TradesTab-DcIF7XGP.js` contains `data-pull-refresh-block`; built `SettingsTab-CjHcaJ2P.js` contains `v10.7.9.102` and `收紧下拉刷新触发条件`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复交易记录内部列表滑动时可能误触发全局下拉刷新的问题;不会影响下拉刷新检查新版本的逻辑、正式交易账本、波段账本、摊薄账本边界、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 修复下拉真刷新和摊薄交易输入显色
 
 - Commit: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`

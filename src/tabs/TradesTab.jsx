@@ -454,7 +454,7 @@ export default function TradesTab({ ctx }) {
             {ledgerTradeRecords.length === 0 ? (
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-5 text-center text-[12px] text-white/40">还没有交易记录,先新增一笔买入。</div>
             ) : (
-              <div className="max-h-[360px] divide-y divide-white/[0.06] overflow-y-auto [scrollbar-width:none]">
+              <div className="max-h-[360px] divide-y divide-white/[0.06] overflow-y-auto [scrollbar-width:none]" data-pull-refresh-block="true">
                 {ledgerTradeRecords.map((trade) => {
                   const isSell = trade.side === 'sell';
                   const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;

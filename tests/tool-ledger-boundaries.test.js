@@ -100,6 +100,17 @@ test('global pull refresh checks for a new deployed app shell before data refres
   assert.ok(appSource.includes('发现新版本,正在更新'), 'refresh should tell the user when it is switching to a new version');
 });
 
+test('global pull refresh only starts from the page top outside internal scrollers', () => {
+  assert.ok(appSource.includes('PULL_REFRESH_ACTIVATION_DISTANCE'), 'pull-refresh should require a deliberate pull before showing UI');
+  assert.ok(appSource.includes('touchStartedAtRootTop = getScrollTop() <= PULL_REFRESH_ROOT_TOP_TOLERANCE'), 'pull-refresh eligibility must be captured at touch start');
+  assert.ok(appSource.includes('if (!touchStartedAtRootTop) return false;'), 'pull-refresh must not start after a gesture reaches the top mid-scroll');
+  assert.ok(appSource.includes('touchStartedInBlockedRegion = isBlockedPullTarget(startTarget)'), 'pull-refresh should remember blocked start targets');
+  assert.ok(appSource.includes('if (touchStartedInBlockedRegion) return false;'), 'pull-refresh must ignore gestures from internal scrollers');
+  assert.ok(appSource.includes('target.closest(\'[data-pull-refresh-block="true"]\')'), 'pull-refresh should support explicit blocked scroll regions');
+  assert.ok(appSource.includes('isInternalScrollable'), 'pull-refresh should detect generic nested scroll containers');
+  assert.ok(tradesTabSource.includes('data-pull-refresh-block="true"'), 'trade records list should not trigger global pull-refresh while scrolling records');
+});
+
 test('position clicks default to buy and trade records use ledger edit/delete flow', () => {
   assert.equal(tradesTabSource.includes("openTradeModal(position, 'sell')"), false, 'clicking a position row must not default to sell');
   assert.ok(tradesTabSource.includes("openTradeModal(position, 'buy')"), 'clicking a position row should open buy mode');

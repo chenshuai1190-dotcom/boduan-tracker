@@ -21,6 +21,8 @@ const BTC_REALTIME_STALE_MS = 15_000;
 const BTC_REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
 const PULL_REFRESH_MAX_DISTANCE = 96;
+const PULL_REFRESH_ACTIVATION_DISTANCE = 34;
+const PULL_REFRESH_ROOT_TOP_TOLERANCE = 1;
 const APP_SHELL_REFRESH_PARAM = '__xmoney_refresh';
 
 const TAB_COMPONENTS = {
@@ -2499,6 +2501,8 @@ function MainApp({ user, onLogout }) {
     let startY = 0;
     let startX = 0;
     let startTarget = null;
+    let touchStartedAtRootTop = false;
+    let touchStartedInBlockedRegion = false;
     let tracking = false;
 
     const updateDistance = (distance) => {
@@ -2520,13 +2524,33 @@ function MainApp({ user, onLogout }) {
       || 0
     );
 
+    const isInternalScrollable = (node) => {
+      if (!node || node === document.body || node === document.documentElement) return false;
+      const style = window.getComputedStyle(node);
+      const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY || style.overflow || '');
+      return canScrollY && node.scrollHeight > node.clientHeight + 1;
+    };
+
+    const isBlockedPullTarget = (target) => {
+      if (!target?.closest) return false;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return true;
+      if (target.closest('[data-pull-refresh-block="true"]')) return true;
+
+      let node = target instanceof Element ? target : target.parentElement;
+      while (node && node !== document.body && node !== document.documentElement) {
+        if (isInternalScrollable(node)) return true;
+        node = node.parentElement;
+      }
+      return false;
+    };
+
     const canStartPull = () => {
       if (globalRefreshingRef.current) return false;
-      if (getScrollTop() > 0) return false;
+      if (!touchStartedAtRootTop) return false;
+      if (touchStartedInBlockedRegion) return false;
+      if (getScrollTop() > PULL_REFRESH_ROOT_TOP_TOLERANCE) return false;
       if (document.body.style.position === 'fixed') return false;
-      const target = startTarget;
-      const interactive = target?.closest?.('input, textarea, select, [contenteditable="true"]');
-      return !interactive;
+      return true;
     };
 
     const handleTouchStart = (event) => {
@@ -2535,6 +2559,8 @@ function MainApp({ user, onLogout }) {
       startY = touch.clientY;
       startX = touch.clientX;
       startTarget = event.target;
+      touchStartedAtRootTop = getScrollTop() <= PULL_REFRESH_ROOT_TOP_TOLERANCE;
+      touchStartedInBlockedRegion = isBlockedPullTarget(startTarget);
       tracking = false;
     };
 
@@ -2545,7 +2571,7 @@ function MainApp({ user, onLogout }) {
       const deltaX = Math.abs(touch.clientX - startX);
 
       if (!tracking) {
-        if (deltaY <= 8 || deltaY < deltaX || !canStartPull()) return;
+        if (deltaY <= PULL_REFRESH_ACTIVATION_DISTANCE || deltaY < deltaX * 1.2 || !canStartPull()) return;
         tracking = true;
       }
 
