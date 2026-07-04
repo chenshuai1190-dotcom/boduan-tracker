@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 继续优化交易持仓分布首屏宽度
 
-- Commit: same commit
+- Commit: `27404fd58bed23a07c4afc2938ad448cf0f62c13`
 - Background: 用户根据手机截图继续反馈交易页持仓分布移动端首屏宽度问题:持仓表两侧内部留白仍偏宽,名称/代码列和市值列占用空间过多,打开首屏时当日盈亏仍容易只显示一部分。
 - Changes:
   - 交易页持仓分布内容区左右 padding 从 `px-3.5` 继续收紧为 `px-2`,让表格更贴近用户标红的两侧边框。
@@ -15,7 +15,7 @@
   - 右侧前两列从 `90px/88px` 收窄为 `84px/80px`,当日盈亏保持 `118px`,使默认首屏更容易完整显示当日盈亏。
   - 市值数字字号略收紧并增加截断保护,避免窄列内容挤压后续盈亏列。
   - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.80`。
-  - 同步更新 `docs/handoff.md`,标记本次持仓分布布局优化待部署回填。
+  - 同步更新 `docs/handoff.md`,记录本次持仓分布布局优化和部署验证证据。
 - Key files:
   - `src/tabs/TradesTab.jsx`
   - `src/tabs/SettingsTab.jsx`
@@ -28,8 +28,17 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Local build marker check: pass; built TradesTab chunk contains `px-2 py-4`, `grid-cols-[minmax(104px,0.78fr)_minmax(0,3.2fr)]`, `min-w-[474px]`, `grid-cols-[84px_80px_118px_116px_52px]` and `gap-1.5`; built SettingsTab chunk contains `v10.7.9.80`, `继续优化交易持仓分布` and `首屏更完整显示当日盈亏`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `27404fd58bed23a07c4afc2938ad448cf0f62c13`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DXVViZc8RvPC4ngUEm9S3NJtchNd`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=27404fd-runtime`: HTTP 200.
+  - Production entry chunk: `/assets/index-CttjM15V.js`.
+  - Production runtime chunks: `/assets/TradesTab-B94L94JQ.js`, `/assets/SettingsTab-D9Ijm0MX.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BfiA1a3S.js`.
+- Production verification:
+  - Production TradesTab marker check: `TradesTab-B94L94JQ.js` contains `px-2 py-4`, `grid-cols-[minmax(104px,0.78fr)_minmax(0,3.2fr)]`, `min-w-[474px]` and `grid-cols-[84px_80px_118px_116px_52px]`.
+  - Production SettingsTab marker check: `SettingsTab-D9Ijm0MX.js` contains `v10.7.9.80`, `继续优化交易持仓分布` and `首屏更完整显示当日盈亏`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-BfiA1a3S.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复持仓分布较宽的内部留白、名称/代码列和右侧指标列宽,移动端首屏当日盈亏可能再次显示不完整。
 
 ### 2026-07-04 - 优化首页指数卡和交易持仓表宽度
