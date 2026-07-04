@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9` (`v10.7.9.101`)
-- 最近应用代码提交: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`
+- 当前产品基准提交: `a5156f25bb7c4a836367c4615888785204d2fcc5` (`v10.7.9.102`)
+- 最近应用代码提交: `a5156f25bb7c4a836367c4615888785204d2fcc5`
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.101`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DVfxsM3b1R1q9GNcauZte1xPuuqa`
-- Vercel 部署记录: `v10.7.9.101` runtime commit `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`;GitHub Actions `CI` run `28713193216` build job `85150025999` success;production `GET https://boduan-tracker.vercel.app/?v=3482639-runtime` HTTP 200
+- 设置页版本: `v10.7.9.102`
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5ApmU7teeeKFnZi1cNDyroAcCqJJ`
+- Vercel 部署记录: `v10.7.9.102` runtime commit `a5156f25bb7c4a836367c4615888785204d2fcc5`;GitHub Actions `CI` run `28713622768` build job `85151142253` success;production `GET https://boduan-tracker.vercel.app/?v=a5156f2-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,以及 `v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,以及 `v10.7.9.102` 下拉刷新手势触发强限制。
 
 ## 2. 先读这些文档
 
@@ -138,27 +138,28 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 最近完整验证记录:
 
-- `npm test`: pass,55 tests。
+- `npm test`: pass,56 tests。
 - `npm run build`: pass。
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.101` runtime 已推送并部署成功;runtime commit `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`, GitHub Actions `CI` run `28713193216` build job `85150025999` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DVfxsM3b1R1q9GNcauZte1xPuuqa`。
+- `v10.7.9.102` runtime 已推送并部署成功;runtime commit `a5156f25bb7c4a836367c4615888785204d2fcc5`, GitHub Actions `CI` run `28713622768` build job `85151142253` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5ApmU7teeeKFnZi1cNDyroAcCqJJ`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/index-D38QBpRO.css`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-CbAsV7Os.js`, `/assets/SettingsTab-A866FEkw.js`, `/assets/App-DpHeEsZi.js`。
-- 生产 entry chunks: `/assets/index-6mlXxagh.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-D38QBpRO.css`。
-- 生产 runtime chunks: `/assets/App-DtIQ6rPB.js`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-CbAsV7Os.js`, `/assets/SettingsTab-A866FEkw.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BSJXb8xT.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-D38QBpRO.css`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-DcIF7XGP.js`, `/assets/SettingsTab-CjHcaJ2P.js`, `/assets/App-CHMc3PqU.js`。
+- 生产 entry chunks: `/assets/index-wb-B4p8C.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-D38QBpRO.css`。
+- 生产 runtime chunks: `/assets/App-BMA8-6Ao.js`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-DcIF7XGP.js`, `/assets/SettingsTab-CjHcaJ2P.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BW7CGndE.js`。
 
 关键 marker:
 
-- 生产 `App-DtIQ6rPB.js` 引用 `TradesTab-CbAsV7Os.js` 和 `SettingsTab-A866FEkw.js`,确认生产入口加载本轮交易页和设置页 chunk。
-- 生产 runtime chunks 包含 `__xmoney_refresh`, `发现新版本,正在更新`, `text-[#f5f7fb]`, `placeholder:text-[#707a89]`, `v10.7.9.101` 和 `修复下拉刷新和摊薄交易输入框显示`,确认下拉真刷新和摊薄交易输入显色修复已进入运行时。
+- 生产 `App-BMA8-6Ao.js` 引用 `TradesTab-DcIF7XGP.js` 和 `SettingsTab-CjHcaJ2P.js`,确认生产入口加载本轮交易页和设置页 chunk。
+- 生产 `App-BMA8-6Ao.js` 包含 `[data-pull-refresh-block="true"]` 和通用内部滚动检测 marker `auto|scroll|overlay`、`scrollHeight`、`clientHeight`,确认下拉刷新只有手势从根页面顶部开始且不在内部滚动区域时才会触发。
+- 生产 `TradesTab-DcIF7XGP.js` 包含 `data-pull-refresh-block`,确认交易记录内部滚动列表阻断全局下拉刷新。
+- 生产 `SettingsTab-CjHcaJ2P.js` 包含 `v10.7.9.102` 和 `收紧下拉刷新触发条件`。
 - 生产 runtime chunks 不包含旧工具可见标签 `股票设置</span>`。
-- 生产 `SettingsTab-A866FEkw.js` 包含 `v10.7.9.101` 和 `修复下拉刷新和摊薄交易输入框显示`。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-BSJXb8xT.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-BW7CGndE.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
@@ -178,6 +179,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 全局刷新和工具账本边界
 
+- `v10.7.9.102`: 全局下拉刷新增加强触发限制;只有触摸开始时根页面已经在顶部、且手势不在输入控件或内部滚动容器内,才允许触发刷新。交易页 `交易记录` 内部列表增加 `data-pull-refresh-block`,用户在记录列表内上下滑动查看交易时不会再误触发顶部刷新。
 - `v10.7.9.101`: 全局下拉刷新不再只是拉云端数据;会先请求最新入口 HTML 并比对 Vite 资源指纹,发现新部署后自动清理旧缓存并重新载入最新前端包。注意:已经打开在更早旧 JS 里的页面无法被新代码反向热补丁,这次版本加载后才具备后续自动切新包能力。
 - `v10.7.9.93`: 添加交易新增完成后默认回到买入;页面滚到顶部继续下拉可强制刷新云端数据、汇率和已登录行情;顶部显示轻量 `下拉刷新/松开刷新/刷新中/已刷新` 状态。
 - `v10.7.9.93`: 波段记录新增入口改为显式 `wave` scope,只写旧账本 `trades`,不再串到正式交易 `stock_trades`;摊薄成本新增交易只写 `cost_basis_trades`;波段记录、摊薄成本和通用确认弹窗都增加提交确认和防重复提交锁。
@@ -399,7 +401,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.101` 或更新版本。
+- 设置页显示 `v10.7.9.102` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -414,11 +416,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9` (`v10.7.9.101`)
-最近应用代码提交: `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`
-设置页版本: `v10.7.9.101`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DVfxsM3b1R1q9GNcauZte1xPuuqa`
-部署记录: `v10.7.9.101` runtime commit `3482639cb5ac399a5ffdb962b44fddd3957d5ae9`;GitHub Actions `CI` run `28713193216` build job `85150025999` success;production `GET https://boduan-tracker.vercel.app/?v=3482639-runtime` HTTP 200
+当前产品基准提交: `a5156f25bb7c4a836367c4615888785204d2fcc5` (`v10.7.9.102`)
+最近应用代码提交: `a5156f25bb7c4a836367c4615888785204d2fcc5`
+设置页版本: `v10.7.9.102`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5ApmU7teeeKFnZi1cNDyroAcCqJJ`
+部署记录: `v10.7.9.102` runtime commit `a5156f25bb7c4a836367c4615888785204d2fcc5`;GitHub Actions `CI` run `28713622768` build job `85151142253` success;production `GET https://boduan-tracker.vercel.app/?v=a5156f2-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -451,6 +453,7 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 摊薄成本工具已深色化并删除标题旧图标;股票切换栏尾部多余虚线 `+` 已删除;新增摊薄股票和添加摊薄交易都改为居中弹窗;弹窗标签、输入辅助文字和取消按钮已修复可见;已实现盈亏和卖出展开利润颜色对齐头部资产卡片粉色体系。
 - 摊薄成本股票栏已过滤空代码,不再显示空白胶囊按钮;本地缓存和云端摊薄数据都会清洗无效 symbol;行情刷新增加请求锁,避免自动轮询和下拉刷新重复并发;Safari/PWA `Load failed` 网络错误已改为中文行情网络提示并自动消失。
 - 全局下拉刷新已升级为真刷新:会先检查生产入口 HTML 的 Vite 资源指纹,发现新部署包后自动清旧缓存并切换到最新前端;摊薄成本新增/交易弹窗输入框、placeholder、日期输入和取消按钮已使用显式深色字色,避免 iOS 键盘状态发黑。
+- 全局下拉刷新已增加强触发限制:只有手势从根页面顶部开始且不在输入控件或内部滚动容器内才会触发;交易页 `交易记录` 内部列表上下滑动不会再误触发顶部刷新。
 - 交易页持仓股票名称/代码点击默认打开买入;工具区 `股票设置` 已改为 `交易记录`,展示全部主交易账本记录,点击后复用当日订单弹窗修改/删除并同步数据库。
 - 波段记录小程序主界面已改为深色卡片体系;标题旧图标已删除;顶部和空状态新增 `新增波段股票`;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;已完成波段默认收进 `已完成` 折叠区。
 - 波段记录整体字号和留白继续收紧;进行中绿色状态点恢复闪烁;进行中/已完成波段移除 `#1` 等无意义编号;波段和正式交易表单缺字段/非法数值提示改为应用内自定义弹窗;开发准则新增非必要不使用浏览器/系统原生交互控件。

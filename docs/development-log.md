@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 收紧下拉刷新触发条件
 
-- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Commit: `a5156f25bb7c4a836367c4615888785204d2fcc5`
 - Background: 用户在生产截图中指出,在交易页 `交易记录` 工具里只是上下滑动查看记录时,顶部下拉刷新提示仍会频繁被触发。用户要求做强限制,只有真正到页面顶部进行刷新手势时才允许全局刷新。
 - Findings:
   - 旧逻辑在 `touchmove` 阶段调用 `canStartPull`,只要移动过程中 `window.scrollY` 为 0 就可能进入全局刷新,没有要求“触摸开始时”已经在根页面顶部。
@@ -23,6 +23,7 @@
   - `src/tabs/TradesTab.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 56 tests.
@@ -32,8 +33,20 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source/build marker check: pass; source contains `touchStartedAtRootTop = getScrollTop() <= PULL_REFRESH_ROOT_TOP_TOLERANCE`, `if (!touchStartedAtRootTop) return false;`, `isBlockedPullTarget`, `data-pull-refresh-block="true"`, and Settings source contains `v10.7.9.102`; built `App-CHMc3PqU.js` contains `[data-pull-refresh-block="true"]` plus generic scroll detection markers `auto|scroll|overlay`, `scrollHeight`, `clientHeight`; built `TradesTab-DcIF7XGP.js` contains `data-pull-refresh-block`; built `SettingsTab-CjHcaJ2P.js` contains `v10.7.9.102` and `收紧下拉刷新触发条件`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `a5156f25bb7c4a836367c4615888785204d2fcc5`.
+  - GitHub `main`: `a5156f25bb7c4a836367c4615888785204d2fcc5`.
+  - GitHub Actions `CI`: success, run `28713622768`, build job `85151142253`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5ApmU7teeeKFnZi1cNDyroAcCqJJ`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=a5156f2-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-wb-B4p8C.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-D38QBpRO.css`.
+  - Production runtime chunks: `/assets/App-BMA8-6Ao.js`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-DcIF7XGP.js`, `/assets/SettingsTab-CjHcaJ2P.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BW7CGndE.js`.
+- Production verification:
+  - Production marker check: `App-BMA8-6Ao.js` contains `[data-pull-refresh-block="true"]` and generic scroll detection markers `auto|scroll|overlay`, `scrollHeight`, `clientHeight`.
+  - Production marker check: `TradesTab-DcIF7XGP.js` contains `data-pull-refresh-block`, confirming the trade records internal scroll list blocks global pull refresh.
+  - Production marker check: `SettingsTab-CjHcaJ2P.js` contains `v10.7.9.102` and `收紧下拉刷新触发条件`.
+  - Production RLS REST check: pass,13 user-owned tables returned 0 visible rows;source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-BW7CGndE.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复交易记录内部列表滑动时可能误触发全局下拉刷新的问题;不会影响下拉刷新检查新版本的逻辑、正式交易账本、波段账本、摊薄账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 修复下拉真刷新和摊薄交易输入显色
