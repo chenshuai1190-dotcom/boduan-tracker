@@ -8,12 +8,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
-- 最近应用代码提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
+- 当前产品基准提交: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`
+- 最近应用代码提交: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.85`
-- Vercel 最新部署: 本轮 `v10.7.9.85` runtime 待推送后自动部署
-- Vercel 部署记录: 待本轮部署完成后回填
+- Vercel 最新运行时部署: `v10.7.9.85` runtime 成功
+- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5VjXh9dQ9gNE26dYZ8fes3vLZhVL`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -144,22 +144,20 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.85` runtime 部署待推送后回填生产首页 HTTP、GitHub commit status 和 Vercel deployment target。
+- `v10.7.9.85` runtime commit `bea143f6c6b59e20dfd93d5688779fcc30736d5f` 已部署;GitHub commit status `Vercel`: success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5VjXh9dQ9gNE26dYZ8fes3vLZhVL`;生产 `GET https://boduan-tracker.vercel.app/?v=bea143f-runtime`: HTTP 200。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/TradesTab-9gMVt7jn.js`, `/assets/SettingsTab-PqkG5MfK.js`, `/assets/App-MEOiwZpv.js`。
 - 本轮本地构建 runtime chunks: `/assets/TradesTab-DACFYzqP.js`, `/assets/SettingsTab-D0uBeo3w.js`, `/assets/App-UYLEo93J.js`。
-- 生产 runtime chunks 待本轮部署完成后回填。
+- 生产 entry chunks: `/assets/index-C9oM4Oh5.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`。
+- 生产 runtime chunks: `/assets/App-DDIH5-Zk.js`, `/assets/TradesTab-DACFYzqP.js`, `/assets/SettingsTab-D0uBeo3w.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-Dv0BGjZe.js`。
 
 关键 marker:
 
-- `App-d9ns40xc.js` 包含 `updateStockTrade`。
-- `TradesTab-9gMVt7jn.js` 包含 `min-w-[480px]`、`grid-cols-[80px_76px_118px_144px_46px]`、`unrealizedPnl`、`确认修改` 和 `删除这笔订单?`。
-- `SettingsTab-PqkG5MfK.js` 包含 `v10.7.9.84`、`当日盈亏列恢复上一版首屏显示效果` 和 `持仓盈亏正数恢复显示 + 号`。
-- 本轮本地 `TradesTab-DACFYzqP.js` 包含 `min-w-[500px]` 和 `grid-cols-[80px_76px_118px_144px_66px]`。
-- 本轮本地 `SettingsTab-D0uBeo3w.js` 包含 `v10.7.9.85`、`占比列单独加宽` 和 `当日盈亏列宽保持不变`。
-- 生产 `supabase` chunk marker 待本轮部署完成后回填。
+- `App-DDIH5-Zk.js` 包含 `updateStockTrade`。
+- `TradesTab-DACFYzqP.js` 包含 `min-w-[500px]`、`grid-cols-[80px_76px_118px_144px_66px]`、`unrealizedPnl`、`确认修改` 和 `删除这笔订单?`。
+- `SettingsTab-D0uBeo3w.js` 包含 `v10.7.9.85`、`占比列单独加宽` 和 `当日盈亏列宽保持不变`。
+- 生产 RLS REST 复验通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-Dv0BGjZe.js`。
 
 ## 8. 最近完成的产品改动
 
@@ -376,11 +374,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
-最近应用代码提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
+当前产品基准提交: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`
+最近应用代码提交: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`
 设置页版本: `v10.7.9.85`
-Vercel 最新部署: 本轮 `v10.7.9.85` runtime 待推送后自动部署
-部署记录: 待本轮部署完成后回填
+Vercel 最新运行时部署: `v10.7.9.85` runtime 成功
+部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5VjXh9dQ9gNE26dYZ8fes3vLZhVL`
 
 请先按顺序读:
 1. `docs/handoff.md`

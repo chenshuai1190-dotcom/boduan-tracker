@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 拉开持仓盈亏与占比间距并固化 SSH 推送规则
 
-- Commit: 待本轮 runtime 提交生成后在部署回填日志中记录。
+- Commit: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`
 - Background: 用户根据手机截图反馈交易页持仓分布里 `持仓盈亏` 和 `占比` 距离太近,要求调整到更合理的位置,但不能影响前面的 `当日盈亏`;同时要求把今天 HTTPS remote 缺少 GitHub 凭证导致 `could not read Username`、最终改用本机项目 SSH key 推送成功的原因和处理方式写进开发准则,避免下次误判为无权限。
 - Changes:
   - 交易页持仓分布右侧横向指标区从 `min-w-[480px]` 调整为 `min-w-[500px]`。
@@ -29,9 +29,18 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` before deployment.
   - Local source marker check: pass; source contains `min-w-[500px]`, `grid-cols-[80px_76px_118px_144px_66px]`, `v10.7.9.85`, `boduan_tracker_github` and `could not read Username`.
   - Local build marker check: pass; built `TradesTab-DACFYzqP.js` contains `min-w-[500px]` and `grid-cols-[80px_76px_118px_144px_66px]`; built `SettingsTab-D0uBeo3w.js` contains `v10.7.9.85`, `占比列单独加宽` and `当日盈亏列宽保持不变`.
-- Deployment: 待推送 GitHub `main` 后由 Vercel 自动部署,部署完成后回填 runtime commit 和 deployment target。
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5VjXh9dQ9gNE26dYZ8fes3vLZhVL`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=bea143f-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-C9oM4Oh5.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`.
+  - Production runtime chunks: `/assets/App-DDIH5-Zk.js`, `/assets/TradesTab-DACFYzqP.js`, `/assets/SettingsTab-D0uBeo3w.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-Dv0BGjZe.js`.
 - Production verification:
-  - 线上 chunk marker、生产 RLS REST 复验和部署 URL 待部署完成后回填。
+  - Production App marker check: `App-DDIH5-Zk.js` contains `updateStockTrade`.
+  - Production TradesTab marker check: `TradesTab-DACFYzqP.js` contains `min-w-[500px]`, `grid-cols-[80px_76px_118px_144px_66px]`, `unrealizedPnl`, `确认修改` and `删除这笔订单?`.
+  - Production SettingsTab marker check: `SettingsTab-D0uBeo3w.js` contains `v10.7.9.85`, `占比列单独加宽` and `当日盈亏列宽保持不变`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-Dv0BGjZe.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复占比列 `46px`、右侧指标区 `480px` 和缺少 SSH 推送恢复说明的开发流程;当日盈亏列不会被回滚以外的列宽改动影响。
 
 ### 2026-07-04 - 恢复当日盈亏首屏显示并加宽持仓盈亏
