@@ -112,6 +112,7 @@ export default function TradesTab({ ctx }) {
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'RMB' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
+  const pnlAmountClass = currencyMode === 'CNY' ? 'text-[13px]' : 'text-[15px]';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
@@ -145,18 +146,18 @@ export default function TradesTab({ ctx }) {
 
   return (
     <>
-      <div className="mx-auto max-w-[430px] text-white" style={{ fontFamily: TRADE_FONT }}>
+      <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
         <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[13px] font-semibold text-white/65">总资产 ({displayCurrencyLabel}) <span className="ml-1 text-white/35">ⓘ</span></div>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[13px] font-semibold text-white/70">总资产 ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+            <div className="flex items-center gap-1.5">
               <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
                 {['USD', 'CNY'].map((mode) => (
                   <button
                     key={mode}
                     type="button"
                     onClick={() => setCurrencyMode(mode)}
-                    className={`h-8 rounded-full px-3 text-[12px] font-black active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#111318]' : 'text-white/48'}`}
+                    className={`h-7 rounded-full px-2.5 text-[11px] font-bold active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
                   >
                     {mode === 'CNY' ? 'RMB' : 'USD'}
                   </button>
@@ -166,7 +167,7 @@ export default function TradesTab({ ctx }) {
                 type="button"
                 onClick={fetchRealtimePrices}
                 disabled={fetching}
-                className="flex h-8 items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] font-black text-emerald-300 active:scale-95 disabled:opacity-50"
+                className="flex h-8 items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] font-bold text-emerald-300 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} />
                 LIVE
@@ -174,14 +175,14 @@ export default function TradesTab({ ctx }) {
             </div>
           </div>
 
-          <div className="mt-5 text-[34px] font-black leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+          <div className="mt-3 text-[34px] font-extrabold leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
             {currencyAmount(displayAssets, displayCurrency, 2)}
           </div>
 
-          <div className="mt-7 grid grid-cols-[1fr_1.1fr_0.9fr] divide-x divide-white/10">
+          <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
             <div className="min-w-0 pr-3">
-              <div className="text-[12px] text-white/48">今日盈亏</div>
-              <div className={`mt-2 text-[14px] font-black leading-tight tabular-nums ${pnlClass(displayTodayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              <div className="text-[12px] text-white/50">今日盈亏</div>
+              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlClass(displayTodayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayTodayPnl, displayCurrency, 2)}
               </div>
               <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlClass(displayTodayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -189,8 +190,8 @@ export default function TradesTab({ ctx }) {
               </div>
             </div>
             <div className="min-w-0 px-3">
-              <div className="text-[12px] text-white/48">累计盈亏</div>
-              <div className={`mt-2 text-[14px] font-black leading-tight tabular-nums ${pnlClass(displayCumulativePnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              <div className="text-[12px] text-white/50">累计盈亏</div>
+              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlClass(displayCumulativePnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
               </div>
               <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlClass(displayCumulativePnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -198,7 +199,7 @@ export default function TradesTab({ ctx }) {
               </div>
             </div>
             <div className="min-w-0 pl-3">
-              <div className="text-[12px] text-white/48">持仓数量</div>
+              <div className="text-[12px] text-white/50">持仓数量</div>
               <div className="mt-3 whitespace-nowrap text-[15px] font-black leading-tight text-white/90">
                 {summary.holdingStockCount || 0}只 · {summary.sellTradeCount || 0}笔
               </div>
@@ -209,8 +210,8 @@ export default function TradesTab({ ctx }) {
         <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           {[
             { id: 'waves', label: '波段记录', icon: BookOpen },
-            { id: 'settings', label: '股票设置', icon: Hexagon },
             { id: 'cost', label: '摊薄工具', icon: Calculator },
+            { id: 'settings', label: '股票设置', icon: Hexagon },
             { id: 'all', label: '全部功能', icon: Grid2X2, disabled: true },
           ].map((item, index) => {
             const Icon = item.icon;
@@ -223,10 +224,10 @@ export default function TradesTab({ ctx }) {
                   if (!item.disabled) toggleToolPanel(item.id);
                 }}
                 disabled={item.disabled}
-                className={`flex min-h-[96px] flex-col items-center justify-center gap-2 ${item.disabled ? 'cursor-default opacity-35' : 'active:bg-white/[0.04]'} ${index > 0 ? 'border-l border-white/10' : ''}`}
+                className={`flex min-h-[86px] flex-col items-center justify-center gap-2 ${item.disabled ? 'cursor-default opacity-35' : 'active:bg-white/[0.04]'} ${index > 0 ? 'border-l border-white/10' : ''}`}
               >
-                <Icon className={`h-7 w-7 ${active ? 'text-[#f6b54b]' : 'text-white/78'}`} strokeWidth={1.8} />
-                <span className={`text-[13px] font-semibold ${active ? 'text-[#f6b54b]' : 'text-white/78'}`}>{item.label}</span>
+                <Icon className={`h-6 w-6 ${active ? 'text-[#f6b54b]' : 'text-white/70'}`} strokeWidth={1.8} />
+                <span className={`text-[12px] font-semibold ${active ? 'text-[#f6b54b]' : 'text-white/70'}`}>{item.label}</span>
               </button>
             );
           })}
@@ -370,7 +371,6 @@ export default function TradesTab({ ctx }) {
                               </span>
                               <span className="text-right">
                                 <span className="block text-[13px] font-black leading-[15px] text-white/82 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
-                                <span className="mt-1 block text-[11px] leading-[13px] text-white/32">市值</span>
                               </span>
                             </button>
                           );

@@ -4,6 +4,30 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 交易页头部和工具箱顺序对齐首页
+
+- Commit: `same commit`
+- Background: 用户反馈交易页头部卡片和首页头部卡片效果不一致,要求字体大小、按钮和间距完全对齐首页;交易整体字号/图标参考首页;工具箱中 `股票设置` 与 `摊薄工具` 调换顺序;占比列不再显示 `市值` 小字。
+- Changes:
+  - 交易页头部资产卡按首页资产卡同步:标题色值/图标、币种按钮高度与字号、LIVE 字重、主数字上间距与字重、统计区上间距和列比例。
+  - 交易页工具箱密度调整为更接近首页:图标从 28px 收到 24px,标签从 13px 收到 12px,按钮高度从 96px 收到 86px。
+  - 工具箱顺序改为 `波段记录` / `摊薄工具` / `股票设置` / `全部功能`。
+  - 持仓表 `占比` 列只显示百分比,删除下方 `市值` 小字。
+  - 设置页用户可见更新日志同步到 `v10.7.9.61`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 22 tests.
+  - `npm run build`: pass; `TradesTab-DETFbJEb.js` 45.11 kB / gzip 9.61 kB, `SettingsTab-B1V1K9oO.js` 30.18 kB / gzip 11.72 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk check: pass; built `TradesTab-DETFbJEb.js` contains home-aligned header sizing, compact toolbox classes and no `策略订单`; built `SettingsTab-B1V1K9oO.js` contains `v10.7.9.61`; built trade chunk no longer contains allocation sublabel `市值`.
+- Deployment: pending GitHub main push and Vercel production verification.
+- Production verification: pending.
+- Rollback: 回滚本次提交会恢复交易页上一版头部卡、工具箱顺序和占比列副文案;不影响交易数据逻辑。
+
 ### 2026-07-04 - 交易页黑底和工具箱细节优化
 
 - Commit: `37df7e3f50e5248675c374a03942cfef0e5edf53`
