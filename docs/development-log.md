@@ -4,6 +4,36 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 修正交易录入弹层位置和背景滚动
+
+- Commit: `same commit`
+- Background: 用户根据手机截图反馈 `添加交易` 弹层还有三个问题:取消按钮颜色太弱几乎看不见;弹层打开后背景页面仍可移动;表单类弹窗位置太靠下,应居中固定并自动适应。
+- Changes:
+  - 交易页主账本 `添加交易/修改交易` 共用弹层从移动端贴底抽屉改为全屏遮罩中的居中自适应面板,保留 `max-height` 和内部滚动能力。
+  - 弹层打开时记录当前 `scrollY`,把 `body` 临时设为 `position: fixed; overflow: hidden; width: 100%; top: -scrollY`,关闭后恢复原滚动位置,防止遮罩背后的页面跟随手势移动。
+  - 取消按钮背景改为和未选 `卖出` 按钮一致的 `bg-white/[0.055]`,并提高文字可见度。
+  - `docs/development-process.md` 新增弹窗背景锁定和表单类弹窗居中自适应准则。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.88`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是交易录入弹层 UI/交互和开发准则更新,不改变安全边界、API、数据库或架构审计结论。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-RhPop83-.js` 48.62 kB / gzip 10.87 kB, `SettingsTab-C0OmxyST.js` 29.87 kB / gzip 11.59 kB, `App-4zi_fqeE.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - Local source marker check: pass; source contains `bodyStyle.position = 'fixed'`, `items-center justify-center bg-black/65 px-3 py-4`, `rounded-3xl`, cancel button `bg-white/[0.055]`, `v10.7.9.88` and the new modal scroll-lock development rule.
+  - Local build marker check: pass; built `TradesTab-RhPop83-.js` contains the body scroll-lock logic and centered modal markers; built `SettingsTab-C0OmxyST.js` contains `v10.7.9.88`, `优化交易录入弹层位置和遮罩` and `弹层打开后锁定背景页面`.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending deployment.
+- Rollback: 回滚本次改动会恢复移动端贴底弹层、取消按钮较弱的视觉和未锁背景滚动的行为;交易新增、修改、删除和云端同步逻辑不受影响。
+
 ### 2026-07-04 - 优化交易录入弹层按钮和输入框细节
 
 - Commit: `960e55b3d2a131d2d6fed9551d264a4161c2e1cf`

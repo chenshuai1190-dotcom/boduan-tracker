@@ -120,6 +120,36 @@ export default function TradesTab({ ctx }) {
     } catch {}
   }, [currencyMode]);
 
+  React.useEffect(() => {
+    if (!showAddTrade || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const bodyStyle = document.body.style;
+    const htmlStyle = document.documentElement.style;
+    const previous = {
+      bodyOverflow: bodyStyle.overflow,
+      bodyPosition: bodyStyle.position,
+      bodyTop: bodyStyle.top,
+      bodyWidth: bodyStyle.width,
+      htmlOverscrollBehavior: htmlStyle.overscrollBehavior,
+    };
+
+    bodyStyle.overflow = 'hidden';
+    bodyStyle.position = 'fixed';
+    bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.width = '100%';
+    htmlStyle.overscrollBehavior = 'none';
+
+    return () => {
+      bodyStyle.overflow = previous.bodyOverflow;
+      bodyStyle.position = previous.bodyPosition;
+      bodyStyle.top = previous.bodyTop;
+      bodyStyle.width = previous.bodyWidth;
+      htmlStyle.overscrollBehavior = previous.htmlOverscrollBehavior;
+      window.scrollTo(0, scrollY);
+    };
+  }, [showAddTrade]);
+
   const summary = investmentSummary || {};
   const positions = summary.activePositions || [];
   const rate = toNumber(summary.usdRate || usdRate) || 7.2;
@@ -983,13 +1013,16 @@ export default function TradesTab({ ctx }) {
         {/* 添加成交表单 - Modal 弹窗 */}
         {showAddTrade && (
           <div
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-md animate-in fade-in"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-3 py-4 backdrop-blur-md animate-in fade-in"
             onClick={(e) => { if (e.target === e.currentTarget) setShowAddTrade(false); }}
-            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            style={{
+              paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+            }}
           >
             <div
-            className="w-full max-w-md min-w-0 max-h-[90vh] overflow-y-auto rounded-t-3xl border border-white/10 bg-[#0b0f16] shadow-[0_-20px_70px_rgba(0,0,0,0.68)] sm:rounded-3xl"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              className="w-full max-w-md min-w-0 overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]"
+              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px)' }}
             >
               {/* 顶部把手 + 标题 */}
               <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
@@ -1127,7 +1160,7 @@ export default function TradesTab({ ctx }) {
 
                 <div className="flex gap-2">
                   <button onClick={addTrade} className="flex-1 rounded-xl border border-emerald-300/30 bg-emerald-500/85 py-3 text-sm font-black text-white shadow-[0_12px_32px_rgba(16,185,129,0.22)] transition active:scale-95">{newTrade.id || newTrade.editingId ? '确认修改' : '确认添加'}</button>
-                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-transparent bg-white/[0.07] py-3 text-sm font-bold text-white/72 transition active:scale-95">取消</button>
+                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-transparent bg-white/[0.055] py-3 text-sm font-bold text-white/75 transition active:scale-95">取消</button>
                 </div>
               </div>
             </div>
