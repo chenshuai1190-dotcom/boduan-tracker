@@ -4,6 +4,31 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 更新 PWA 手机桌面图标
+
+- Commit: pending.
+- Background: 用户提供新的黑金 K 线箭头图标,要求替换“保存到网页版到手机”的桌面 logo;原 manifest 和 iOS 主屏图标仍指向旧 `favicon.svg`,手机安装入口不会使用新 PNG 图标。
+- Changes:
+  - 从用户提供的图标文件中抠出主体并生成透明 PNG 图标。
+  - 更新 PWA 安装图标为 `192x192` 和 `512x512` PNG。
+  - 更新 iOS `apple-touch-icon` 为 `180x180` PNG。
+  - 更新浏览器 favicon 为 `16x16` 和 `32x32` PNG。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.76`。
+- Key files:
+  - `index.html`
+  - `public/manifest.json`
+  - `public/icon-192.png`
+  - `public/icon-512.png`
+  - `public/apple-touch-icon.png`
+  - `public/favicon-16.png`
+  - `public/favicon-32.png`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation: pending.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复旧 `favicon.svg` 作为 PWA/手机桌面图标;不影响 `/api/quote` 鉴权、Supabase RLS、交易账本或行情功能。
+
 ### 2026-07-04 - 修复 BTC 首屏卡片错位
 
 - Commit: `4fded56e0bcf22cdffb030c890a525ba13657c2f`
