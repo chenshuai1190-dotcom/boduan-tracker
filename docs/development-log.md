@@ -16,9 +16,10 @@
   - 设置新密码前会尝试消费 URL 中的一次性 `code`,避免有效 recovery 链接进入后没有 session 导致更新失败。
   - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.78`。
 - Required Supabase Auth configuration:
-  - Site URL 必须改为 `https://boduan-tracker.vercel.app`。
-  - Redirect URLs 必须允许 `https://boduan-tracker.vercel.app/**`。
-  - 如果 Recovery 邮件模板里自定义了链接并使用 `{{ .SiteURL }}`,需要改用 `{{ .ConfirmationURL }}` 或确保使用 `{{ .RedirectTo }}`,否则邮件仍可能带 `localhost:3000`。
+  - Completed 2026-07-04 via Supabase Dashboard.
+  - Site URL 已从 `http://localhost:3000` 改为 `https://boduan-tracker.vercel.app`。
+  - Redirect URLs 已确认存在 `https://boduan-tracker.vercel.app/**`。
+  - Reset password 邮件模板已确认使用 `{{ .ConfirmationURL }}` 作为重置链接,未使用 `{{ .SiteURL }}` 自行拼链接。
 - Key files:
   - `src/lib/authRecovery.js`
   - `src/lib/supabase.js`
@@ -48,7 +49,7 @@
   - Production login chunk marker check: `Login-Csb10EdR.js` contains `重置链接已失效`.
   - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
   - Production relay HTTP check: `GET /api/btc-realtime` returned `426` with `请使用 WebSocket 连接 /api/btc-realtime`.
-  - Supabase Auth dashboard configuration is still an external requirement: without admin/dashboard access or a Supabase Management API token, this repository deploy cannot itself change the project Site URL, Redirect URLs, or hosted email template.
+  - Supabase Auth dashboard configuration: pass; URL Configuration reload 后 `SITE_URL=https://boduan-tracker.vercel.app`,页面包含 `https://boduan-tracker.vercel.app/**`,Reset password 模板正文为 `{{ .ConfirmationURL }}` 链接。
 - Rollback: 回滚本次改动会恢复找回密码使用当前浏览器 origin 的旧行为,并且前端只识别 `#type=recovery`;Supabase Auth 后台若仍指向 localhost,邮件链接仍会跳到本地地址。
 
 ### 2026-07-04 - 修复 PWA 手机桌面图标白边
