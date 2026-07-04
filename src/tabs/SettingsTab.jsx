@@ -249,14 +249,22 @@ export default function SettingsTab({ ctx }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.61
+                  v10.7.9.62
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.61', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.62', date: '2026-07-04', latest: true,
+                    items: [
+                      '🎨 交易页盈亏色号统一首页',
+                      '  - 持仓盈亏、当日盈亏和订单方向色阶改为首页同款',
+                      '  - 买入/卖出快捷按钮颜色同步收敛',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.61', date: '2026-07-04',
                     items: [
                       '🎚️ 交易页头部和工具箱细节对齐首页',
                       '  - 交易头部卡片字号、按钮和间距对齐首页',
@@ -942,7 +950,7 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.61',
+                      version: 'v10.7.9.62',
                       trades,
                       watchlist,
                       waveNotes,
@@ -993,7 +1001,7 @@ export default function SettingsTab({ ctx }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.61</div>
+                <div>📊 版本:v10.7.9.62</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>

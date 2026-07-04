@@ -33,7 +33,7 @@ function signedPct(value, digits = 2) {
 }
 
 function pnlClass(value) {
-  return toNumber(value) >= 0 ? 'text-emerald-300' : 'text-rose-300';
+  return toNumber(value) >= 0 ? 'text-emerald-400' : 'text-rose-400';
 }
 
 function localDateKey(date = new Date()) {
@@ -258,8 +258,8 @@ export default function TradesTab({ ctx }) {
                     <div className="mt-1 truncate text-[10px] leading-none text-white/36">{position.name}</div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <button type="button" onClick={() => openTradeModal(position, 'buy')} className="rounded-full bg-rose-400/12 px-3 py-1.5 text-[11px] font-black text-rose-300 active:scale-95">买入</button>
-                    <button type="button" onClick={() => openTradeModal(position, 'sell')} className="rounded-full bg-emerald-400/12 px-3 py-1.5 text-[11px] font-black text-emerald-300 active:scale-95">卖出</button>
+                    <button type="button" onClick={() => openTradeModal(position, 'buy')} className="rounded-full bg-rose-400/12 px-3 py-1.5 text-[11px] font-black text-rose-400 active:scale-95">买入</button>
+                    <button type="button" onClick={() => openTradeModal(position, 'sell')} className="rounded-full bg-emerald-400/12 px-3 py-1.5 text-[11px] font-black text-emerald-400 active:scale-95">卖出</button>
                   </div>
                 </div>
               ))}
@@ -407,7 +407,7 @@ export default function TradesTab({ ctx }) {
                           <div className="mt-1 text-[11px] text-white/38">{trade.name || trade.symbol}</div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-[13px] font-black ${isSell ? 'text-emerald-300' : 'text-rose-300'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
+                          <div className={`text-[13px] font-black ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
                           <div className="mt-1 text-[11px] text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
                         </div>
                       </div>
