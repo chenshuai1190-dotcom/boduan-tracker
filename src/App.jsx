@@ -2215,7 +2215,7 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
-  const darkShell = activeTab === 'home' || activeTab === 'trades';
+  const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'settings';
 
   return (
     <div className={`min-h-screen px-4 pb-24 ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`} style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>

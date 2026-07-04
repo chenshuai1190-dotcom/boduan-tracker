@@ -4,6 +4,30 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 设置页深色化和失效入口清理
+
+- Commit: `same commit`
+- Background: 用户要求设置页整体色调和首页保持一致,同时清理已经无效的实时推送、数据状态和 JSON 导出等入口;`云端账户` 需要改成正常的账户设置,取消当前黑金效果。
+- Changes:
+  - 设置 tab 纳入 App 深色 shell,页面底色和底部导航与首页/交易页一致。
+  - 设置页顶部、账户设置、更新日志、数据维护和关于卡统一改为深色半透明卡片。
+  - 删除设置页可见的实时推送卡、数据状态卡和 JSON 导出按钮。
+  - `云端账户` 改为普通 `账户设置`,保留邮箱、修改密码和退出登录;修改密码弹窗同步深色化。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.67`。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 32 tests.
+  - `npm run build`: pass; `SettingsTab-C1-vVtYh.js` 24.20 kB / gzip 9.71 kB, `App-DoxPBnoI.js` 124.38 kB / gzip 34.32 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk check: pass; built `SettingsTab-C1-vVtYh.js` contains `v10.7.9.67`, `账户设置`, `数据维护`, and no active JSON export implementation.
+- Deployment: not deployed yet in this local implementation pass.
+- Production verification: pending deployment.
+- Rollback: 回滚本次提交会恢复设置页旧白卡/黑金混合样式、实时推送/数据状态/JSON 导出入口和 `云端账户` 黑金卡;不影响行情 API、交易账本或 Supabase 数据结构。
+
 ### 2026-07-04 - 深色加载、涨跌配色与首页交易账本接入
 
 - Commit: `d8014814e17a8f789b304c5facaeb32fab5a6eed`
