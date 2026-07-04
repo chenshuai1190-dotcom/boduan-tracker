@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 首页自选持仓表格全局横向滑动
 
-- Commit: `same commit`
+- Commit: `e59973e080dbd19b382ca87f29ff7bb8124b6675`
 - Background: 用户确认首页自选/持仓表格的横向滑动不应是单个股票行独立滑动,而应是整个右侧指标区全局同步滑动;价格和数字需要在左右滑动时保持上下对齐。
 - Changes:
   - 首页自选/持仓表格改为左右两栏结构:左侧名称/图标/代码固定,右侧指标区使用一个全局 `overflow-x-auto` 容器。
@@ -25,7 +25,13 @@
   - `git diff --check`: pass.
   - Source structure check: `src/tabs/HomeTab.jsx` now has exactly one `overflow-x-auto`, the shared right-side metrics scroller.
   - Local chunk marker check: pass; built `HomeTab-DnEjwyar.js` contains global metrics scroll markers, `自选参数`, and `52周跌幅`; built `SettingsTab-BP6j67Zs.js` contains `v10.7.9.70` and `首页自选/持仓表格全局横向滑动`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4H7sjbhMRLswbu1UNuUa7VEB1Ty9`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-mV3RlnwM.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-DIQvbhZJ.js`, `/assets/index-23EtP-Fi.css`.
+  - Production runtime chunks: `/assets/App-CrQfvSM5.js`, `/assets/HomeTab-DnEjwyar.js`, `/assets/SettingsTab-BP6j67Zs.js`.
+  - Production chunk marker check: global metrics scroll container, `自选参数`, `52周跌幅`, settings `v10.7.9.70`, and settings changelog all present.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复每行独立横向滑动的旧表格结构;不影响添加自选、交易主账本、`/api/quote` 鉴权或 Supabase 数据结构。
 
 ### 2026-07-04 - 首页自选添加体验细节优化
