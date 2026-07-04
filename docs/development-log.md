@@ -4,6 +4,38 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 回退首屏加载并优化交易页订单操作
+
+- Commit: `pending runtime commit`
+- Background: 用户反馈 `v10.7.9.90` 钱袋弹跳首屏加载效果未达到预期,要求回退到上一版加载效果;同时要求交易页除重要标题模块外取消加粗,重点覆盖持仓分布、当日订单、美股和数字,并把当日订单行后的修改/删除小按钮改为点击单条记录后在居中弹窗里操作。
+- Changes:
+  - `AuthGate` 首屏 `LoadingScreen` 回退到上一版深色卡片内金色旋转圆环。
+  - 删除 `public/loading-mascot.png`,并移除 `src/index.css` 中 `loading-mascot-*` 相关 CSS 和 keyframes。
+  - 交易页主视图的总资产数字、今日盈亏、累计盈亏、持仓数量、美股标题、持仓分布汇总数字、个股市值/价格/当日盈亏/持仓盈亏/占比和当日订单行统一改为正常字重。
+  - 当日订单列表删除行尾修改/删除按钮,改为点击整条订单记录打开居中 `订单操作` 弹窗;弹窗内提供 `修改记录`、`删除记录` 和 `取消`,并沿用背景滚动锁定。
+  - 添加/修改交易弹层里的买/卖切换、输入标签、股票代码、日期和确认/取消按钮也改为正常字重。
+  - `docs/development-process.md` 新增字重准则:除页面标题、重要模块标题和确有层级需要的标题外,普通文本、股票代码、数字、按钮、列表行和订单记录不要加粗。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.91`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首屏加载回退、交易页展示/交互和开发准则调整,不改变 API、鉴权、数据库或安全架构边界。
+- Key files:
+  - `src/AuthGate.jsx`
+  - `src/index.css`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-process.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `index-D4AJZ4jQ.css` 48.58 kB / gzip 9.23 kB, `TradesTab-Bgr3Hkgp.js` 51.05 kB / gzip 11.19 kB, `SettingsTab-Cep1d4LA.js` 30.83 kB / gzip 11.94 kB, `App-DR1lLtyh.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - Local source marker check: pass; runtime source no longer references `loading-mascot`, `TradesTab` contains `orderActionTrade`, `订单操作`, row-level `setOrderActionTrade(trade)` and `v10.7.9.91`.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending Vercel production deployment.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.90` 钱袋弹跳 loading 和当日订单行内修改/删除按钮;不会影响交易账本数据、收益计算、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-04 - 首屏加载改为钱袋弹跳图标
 
 - Commit: `254a4302305352b829ebfe7c0dc704b9edaf253c`
