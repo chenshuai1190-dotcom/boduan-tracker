@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.100
+                  v10.7.9.101
                 </span>
               </div>
             </div>
@@ -163,14 +163,24 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.99
+                  v10.7.9.101
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.100', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.101', date: '2026-07-05', latest: true,
+                    items: [
+                      '🔄 修复下拉刷新和摊薄交易输入框显示',
+                      '  - 下拉刷新会检查线上新版本资源,发现 Vercel 已更新后自动切换到新包',
+                      '  - 新版本切换前清理旧 App/Logo 缓存,无需重新打开网页',
+                      '  - 摊薄成本新增股票和添加交易弹窗改用显式深色输入框字色',
+                      '  - 修复 iOS 键盘弹出时标签、占位文本、输入内容和取消按钮发黑的问题',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.100', date: '2026-07-05',
                     items: [
                       '🧮 修复摊薄成本空股票标签和行情拉取提示',
                       '  - 摊薄成本股票栏过滤空代码,不再显示空白按钮',
@@ -1040,7 +1050,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.100</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.101</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

@@ -21,6 +21,7 @@ const BTC_REALTIME_STALE_MS = 15_000;
 const BTC_REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
 const PULL_REFRESH_MAX_DISTANCE = 96;
+const APP_SHELL_REFRESH_PARAM = '__xmoney_refresh';
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -82,6 +83,105 @@ function sanitizeCostBasisData(value) {
     acc[symbol] = [...(acc[symbol] || []), ...validTrades];
     return acc;
   }, {});
+}
+
+function normalizeAppShellAssetUrl(value, baseUrl) {
+  try {
+    const url = new URL(value, baseUrl || window.location.href);
+    if (url.origin !== window.location.origin) return '';
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return '';
+  }
+}
+
+function extractAppShellAssetsFromHtml(html, baseUrl) {
+  const assets = new Set();
+  if (!html) return assets;
+  const attrPattern = /(?:src|href)=["']([^"']*\/assets\/[^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g;
+  let match = attrPattern.exec(html);
+  while (match) {
+    const asset = normalizeAppShellAssetUrl(match[1], baseUrl);
+    if (asset) assets.add(asset);
+    match = attrPattern.exec(html);
+  }
+  return assets;
+}
+
+function getCurrentAppShellAssets() {
+  const assets = new Set();
+  if (typeof document === 'undefined') return assets;
+  document.querySelectorAll('script[src*="/assets/"], link[href*="/assets/"]').forEach((node) => {
+    const asset = normalizeAppShellAssetUrl(node.getAttribute('src') || node.getAttribute('href'));
+    if (asset) assets.add(asset);
+  });
+  return assets;
+}
+
+async function clearAppShellCaches() {
+  if (typeof window === 'undefined') return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(reg => reg.unregister().catch(() => false)));
+    }
+  } catch (e) {
+    console.warn('[App Shell] Service Worker 清理失败:', e);
+  }
+
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter(key => /^bottomline-|^xmoney-|vite/i.test(key))
+          .map(key => caches.delete(key).catch(() => false))
+      );
+    }
+  } catch (e) {
+    console.warn('[App Shell] Cache Storage 清理失败:', e);
+  }
+}
+
+async function checkForAppShellUpdate() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  const currentAssets = getCurrentAppShellAssets();
+  if (currentAssets.size === 0) return false;
+
+  const htmlUrl = new URL(window.location.href);
+  htmlUrl.searchParams.set(`${APP_SHELL_REFRESH_PARAM}_check`, String(Date.now()));
+
+  try {
+    const response = await fetch(htmlUrl.toString(), {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
+    if (!response.ok) return false;
+
+    const html = await response.text();
+    const latestAssets = extractAppShellAssetsFromHtml(html, htmlUrl.toString());
+    if (latestAssets.size === 0) return false;
+
+    const changed = [...latestAssets].some(asset => !currentAssets.has(asset));
+    if (!changed) return false;
+
+    await clearAppShellCaches();
+    return true;
+  } catch (e) {
+    console.warn('[App Shell] 更新检查失败:', e);
+    return false;
+  }
+}
+
+function reloadAppShellWithFreshHtml() {
+  if (typeof window === 'undefined') return;
+  const reloadUrl = new URL(window.location.href);
+  reloadUrl.searchParams.set(APP_SHELL_REFRESH_PARAM, String(Date.now()));
+  reloadUrl.searchParams.delete(`${APP_SHELL_REFRESH_PARAM}_check`);
+  window.location.replace(reloadUrl.toString());
 }
 
 function normalizeExternalLogoUrl(value) {
@@ -1122,7 +1222,7 @@ function MainApp({ user, onLogout }) {
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState(null);
   const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
-  const [pullRefreshStatus, setPullRefreshStatus] = useState('idle'); // idle | pulling | ready | refreshing | done
+  const [pullRefreshStatus, setPullRefreshStatus] = useState('idle'); // idle | pulling | ready | refreshing | updating | done
   const pullRefreshDistanceRef = useRef(0);
   const pullRefreshResetTimerRef = useRef(null);
   const globalRefreshingRef = useRef(false);
@@ -2349,6 +2449,7 @@ function MainApp({ user, onLogout }) {
   const runGlobalPullRefresh = async () => {
     if (globalRefreshingRef.current) return;
     globalRefreshingRef.current = true;
+    let appShellReloadQueued = false;
     if (pullRefreshResetTimerRef.current) {
       clearTimeout(pullRefreshResetTimerRef.current);
       pullRefreshResetTimerRef.current = null;
@@ -2359,6 +2460,16 @@ function MainApp({ user, onLogout }) {
     setFetchError(null);
 
     try {
+      const hasNewAppShell = await checkForAppShellUpdate();
+      if (hasNewAppShell) {
+        appShellReloadQueued = true;
+        pullRefreshDistanceRef.current = PULL_REFRESH_MAX_DISTANCE;
+        setPullRefreshDistance(PULL_REFRESH_MAX_DISTANCE);
+        setPullRefreshStatus('updating');
+        setTimeout(reloadAppShellWithFreshHtml, 80);
+        return;
+      }
+
       const cloudResult = await db.fetchAllUserData();
       applyCloudUserData(cloudResult, '[全局刷新]');
       await fetchDailyFxRates({ force: true });
@@ -2372,6 +2483,7 @@ function MainApp({ user, onLogout }) {
       setPullRefreshStatus('idle');
     } finally {
       globalRefreshingRef.current = false;
+      if (appShellReloadQueued) return;
       pullRefreshResetTimerRef.current = setTimeout(() => {
         pullRefreshDistanceRef.current = 0;
         setPullRefreshDistance(0);
@@ -3003,7 +3115,15 @@ function MainApp({ user, onLogout }) {
     yearlyActuals,
   };
   const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'settings';
-  const pullRefreshLabel = pullRefreshStatus === 'refreshing'
+  const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-[#263142] bg-[#171d27] text-[#aab3c2] active:scale-95';
+  const costBasisModalLabelClass = 'mb-1 block text-[11px] font-normal text-[#aab3c2]';
+  const costBasisModalInputClass = 'w-full rounded-xl border border-[#273142] bg-[#171d27] px-3 py-2.5 text-[13px] font-normal text-[#f5f7fb] outline-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] placeholder:text-[#707a89] focus:border-[#f6b54b]/70 focus:bg-[#1a212c]';
+  const costBasisModalSymbolInputClass = `${costBasisModalInputClass} px-3.5 py-3 uppercase`;
+  const costBasisModalCancelClass = 'rounded-xl border border-[#2b3544] bg-[#171d27] py-2.5 text-[12px] font-normal text-[#d8dde7] active:scale-95';
+  const costBasisModalInactiveSegmentClass = 'border-[#273142] bg-[#171d27] text-[#9ca6b5]';
+  const pullRefreshLabel = pullRefreshStatus === 'updating'
+    ? '发现新版本,正在更新'
+    : pullRefreshStatus === 'refreshing'
     ? '刷新中'
     : pullRefreshStatus === 'done'
       ? '已刷新'
@@ -3022,7 +3142,7 @@ function MainApp({ user, onLogout }) {
             transform: `translate(-50%, ${Math.max(0, pullRefreshDistance - 44)}px)`,
           }}
         >
-          <RefreshCw className={`h-3.5 w-3.5 text-[#f6b54b] ${pullRefreshStatus === 'refreshing' ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 text-[#f6b54b] ${pullRefreshStatus === 'refreshing' || pullRefreshStatus === 'updating' ? 'animate-spin' : ''}`} />
           <span>{pullRefreshLabel}</span>
         </div>
       )}
@@ -4551,7 +4671,7 @@ function MainApp({ user, onLogout }) {
                 <button
                   type="button"
                   onClick={() => setShowCostBasisAdd(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/60 active:scale-95"
+                  className={costBasisModalCloseClass}
                   aria-label="关闭新增摊薄股票"
                 >
                   <X className="h-4 w-4" strokeWidth={1.8} />
@@ -4559,13 +4679,13 @@ function MainApp({ user, onLogout }) {
               </div>
               <div className="space-y-3 p-5">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] font-normal text-white/50">股票代码</span>
+                  <span className={costBasisModalLabelClass}>股票代码</span>
                   <input
                     type="text"
                     value={costBasisNewSymbol}
                     onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
                     placeholder="股票代码 (如 NVDA)"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3.5 py-3 text-[13px] font-normal uppercase text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/60"
+                    className={costBasisModalSymbolInputClass}
                     style={{ fontFamily: 'ui-monospace, monospace' }}
                     autoFocus
                   />
@@ -4573,7 +4693,7 @@ function MainApp({ user, onLogout }) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setShowCostBasisAdd(false)}
-                    className="rounded-xl border border-white/15 bg-white/[0.09] py-2.5 text-[12px] font-normal text-white/80 active:scale-95"
+                    className={costBasisModalCancelClass}
                   >
                     取消
                   </button>
@@ -4623,12 +4743,12 @@ function MainApp({ user, onLogout }) {
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div>
                   <div className="text-[15px] font-normal text-white">添加摊薄交易</div>
-                  <div className="mt-0.5 text-[11px] font-normal text-white/50">{costBasisActiveSymbol || '未选择股票'}</div>
+                  <div className="mt-0.5 text-[11px] font-normal text-[#9ca6b5]">{costBasisActiveSymbol || '未选择股票'}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCostBasisTrade(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/60 active:scale-95"
+                  className={costBasisModalCloseClass}
                   aria-label="关闭添加摊薄交易"
                 >
                   <X className="h-4 w-4" strokeWidth={1.8} />
@@ -4641,7 +4761,7 @@ function MainApp({ user, onLogout }) {
                   className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
                     costBasisNewTrade.type === 'buy'
                       ? 'border-rose-400/35 bg-rose-500/20 text-rose-200 shadow-[0_10px_28px_rgba(244,63,94,0.14)]'
-                      : 'border-white/10 bg-white/[0.055] text-white/50'
+                      : costBasisModalInactiveSegmentClass
                   }`}
                 >
                   买入
@@ -4651,7 +4771,7 @@ function MainApp({ user, onLogout }) {
                   className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
                     costBasisNewTrade.type === 'sell'
                       ? 'border-emerald-400/35 bg-emerald-500/20 text-emerald-200 shadow-[0_10px_28px_rgba(16,185,129,0.12)]'
-                      : 'border-white/10 bg-white/[0.055] text-white/50'
+                      : costBasisModalInactiveSegmentClass
                   }`}
                 >
                   卖出
@@ -4659,37 +4779,38 @@ function MainApp({ user, onLogout }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-[11px] font-normal text-white/50">价格 ($/股)</label>
+                    <label className={costBasisModalLabelClass}>价格 ($/股)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={costBasisNewTrade.price}
                       onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
                       placeholder="0.00"
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/60"
+                      className={costBasisModalInputClass}
                       style={{ fontFamily: 'ui-monospace, monospace' }}
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-normal text-white/50">股数</label>
+                    <label className={costBasisModalLabelClass}>股数</label>
                     <input
                       type="number"
                       value={costBasisNewTrade.shares}
                       onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
                       placeholder="0"
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/60"
+                      className={costBasisModalInputClass}
                       style={{ fontFamily: 'ui-monospace, monospace' }}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-[11px] font-normal text-white/50">日期</label>
+                  <label className={costBasisModalLabelClass}>日期</label>
                   <input
                     type="date"
                     value={costBasisNewTrade.date}
                     onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] font-normal text-white outline-none [color-scheme:dark] focus:border-[#f6b54b]/60"
+                    className={costBasisModalInputClass}
+                    style={{ colorScheme: 'dark' }}
                   />
                 </div>
                 {costBasisNewTrade.price && costBasisNewTrade.shares && (
@@ -4703,7 +4824,7 @@ function MainApp({ user, onLogout }) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setShowCostBasisTrade(false)}
-                    className="rounded-xl border border-white/15 bg-white/[0.09] py-2.5 text-[12px] font-normal text-white/80 active:scale-95"
+                    className={costBasisModalCancelClass}
                   >
                     取消
                   </button>

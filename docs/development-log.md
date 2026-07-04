@@ -4,6 +4,38 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 修复下拉真刷新和摊薄交易输入显色
+
+- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Background: 用户指出全局下拉刷新只是刷新数据,如果 Vercel 已部署新版本仍必须重新打开网页才能加载新前端包,要求下拉后自动更新到刚部署完成的版本;同时指出摊薄成本添加交易弹窗复现此前问题,不仅标签文字发黑,输入框文字和占位色也在 iOS 键盘状态下不可见。
+- Findings:
+  - 当前 `runGlobalPullRefresh` 只执行 `db.fetchAllUserData`、汇率和行情刷新,没有读取最新 `index.html`,也没有比较 Vite `/assets/...` 指纹,所以无法发现生产新 bundle。
+  - 旧 Service Worker 已在 `main.jsx` 注销,本次“假刷新”的核心原因不是 SW 仍拦截应用壳,而是下拉刷新没有 app shell 更新检测。
+  - 摊薄成本新增股票/添加交易弹窗仍使用 `text-white/50`、`placeholder:text-white/25`、`bg-white/[0.055]` 等弱透明 class 直接挂在输入控件上;iOS 键盘弹出和系统输入控件渲染时会让 label、placeholder、输入内容或取消按钮变暗。
+- Changes:
+  - `App.jsx` 新增 `checkForAppShellUpdate`,下拉刷新时先用 `cache: 'no-store'` 拉取当前路径最新 HTML,提取 Vite `/assets/*.js|css` 指纹并和当前 DOM 资源比对。
+  - 发现线上资源指纹变化时,清理旧 `bottomline-*`/`xmoney-*`/Vite Cache Storage,注销残留 Service Worker,显示 `发现新版本,正在更新`,并用带时间戳参数的 `window.location.replace` 自动载入最新前端包。
+  - 未发现新前端包时,继续执行原来的云端数据、汇率和行情刷新流程。
+  - 摊薄成本新增股票和添加交易弹窗抽出显式深色主题 class,统一 label、输入框、placeholder、日期输入、取消按钮、关闭按钮和未选买卖按钮的颜色,避免 iOS 下继承成黑色。
+  - 新增回归测试,锁定下拉刷新必须先检查线上 app shell,并锁定摊薄成本弹窗输入文字、占位色和日期输入暗色方案。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.101`。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 55 tests.
+  - `npm run build`: pass; `index-D38QBpRO.css` 52.74 kB / gzip 9.70 kB, `SettingsTab-A866FEkw.js` 35.21 kB / gzip 13.44 kB, `TradesTab-CbAsV7Os.js` 61.70 kB / gzip 12.18 kB, `App-DpHeEsZi.js` 142.02 kB / gzip 40.68 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source/build marker check: pass; source and built `App-DpHeEsZi.js` contain `checkForAppShellUpdate`, `__xmoney_refresh`, `发现新版本,正在更新`, `text-[#f5f7fb]`, and `placeholder:text-[#707a89]`; built `SettingsTab-A866FEkw.js` contains `v10.7.9.101`; built chunks do not contain visible old label `股票设置</span>`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复下拉刷新只刷新数据、不自动切换到最新 Vercel 前端包,并恢复摊薄成本弹窗输入控件弱透明色导致 iOS 键盘状态文字不可见的问题;不会影响正式交易账本、波段账本、摊薄账本边界、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 修复摊薄成本空股票标签和交易记录入口
 
 - Commit: `007373bf3d1d675233b9e84ee9515543331fcda5`

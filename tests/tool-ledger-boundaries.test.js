@@ -61,6 +61,11 @@ test('cost basis tool uses dark custom UI without legacy title icon or native al
   assert.equal(appSource.includes('items-end justify-center bg-black/70'), false, 'cost-basis modals must not use bottom-drawer layout');
   assert.equal(appSource.includes('text-white/42'), false, 'cost-basis modals must not use unsupported opacity classes');
   assert.equal(appSource.includes('text-white/72'), false, 'cost-basis cancel buttons must use visible supported text colors');
+  assert.ok(appSource.includes('costBasisModalLabelClass'), 'cost-basis labels need shared explicit dark-theme colors');
+  assert.ok(appSource.includes('costBasisModalInputClass'), 'cost-basis inputs need shared explicit dark-theme colors');
+  assert.ok(appSource.includes('text-[#f5f7fb]'), 'cost-basis input text should stay visible on iOS keyboards');
+  assert.ok(appSource.includes('placeholder:text-[#707a89]'), 'cost-basis placeholders should stay visible on iOS keyboards');
+  assert.ok(appSource.includes("style={{ colorScheme: 'dark' }}"), 'cost-basis date input must force dark color scheme');
 });
 
 test('cost basis tool filters empty symbols before rendering or saving', () => {
@@ -77,6 +82,22 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('行情网络请求失败,已保留现有数据'), 'raw Load failed text should become a user-facing Chinese message');
   assert.ok(appSource.includes('setTimeout(() => setFetchError(null), 4200)'), 'quote refresh errors should clear automatically');
   assert.ok(appSource.includes('行情拉取失败:{fetchError}'), 'bottom toast should identify quote refresh failures specifically');
+});
+
+test('global pull refresh checks for a new deployed app shell before data refresh', () => {
+  const refreshStart = appSource.indexOf('const runGlobalPullRefresh = async () =>');
+  const appShellCheck = appSource.indexOf('await checkForAppShellUpdate()', refreshStart);
+  const cloudFetch = appSource.indexOf('await db.fetchAllUserData()', refreshStart);
+
+  assert.ok(refreshStart > -1, 'missing global pull-refresh implementation');
+  assert.ok(appShellCheck > refreshStart, 'pull-refresh should check the deployed app shell');
+  assert.ok(cloudFetch > appShellCheck, 'app shell check should run before cloud data refresh');
+  assert.ok(appSource.includes('extractAppShellAssetsFromHtml'), 'refresh should compare deployed asset fingerprints');
+  assert.ok(appSource.includes('getCurrentAppShellAssets'), 'refresh should read the currently loaded asset fingerprints');
+  assert.ok(appSource.includes("cache: 'no-store'"), 'refresh should bypass browser cache when checking index HTML');
+  assert.ok(appSource.includes('clearAppShellCaches'), 'refresh should clear stale app caches before reload');
+  assert.ok(appSource.includes('window.location.replace'), 'refresh should reload the app without requiring the user to reopen it');
+  assert.ok(appSource.includes('发现新版本,正在更新'), 'refresh should tell the user when it is switching to a new version');
 });
 
 test('position clicks default to buy and trade records use ledger edit/delete flow', () => {
