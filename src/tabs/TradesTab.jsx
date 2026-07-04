@@ -127,6 +127,9 @@ export default function TradesTab({ ctx }) {
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'RMB' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
   const pnlAmountClass = 'text-[13px]';
+  const tradeModalInputStyle = { colorScheme: 'dark' };
+  const tradeModalBaseInput = 'w-full rounded-lg border bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#f6b54b]/70 focus:bg-white/[0.075]';
+  const tradeModalLabelClass = 'mb-1 block text-[10px] font-bold text-white/45';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
@@ -980,22 +983,22 @@ export default function TradesTab({ ctx }) {
         {/* 添加成交表单 - Modal 弹窗 */}
         {showAddTrade && (
           <div
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in"
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-md animate-in fade-in"
             onClick={(e) => { if (e.target === e.currentTarget) setShowAddTrade(false); }}
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
-              className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl border border-white/10 bg-[#0b0f16] shadow-[0_-20px_70px_rgba(0,0,0,0.68)] sm:rounded-3xl"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
               {/* 顶部把手 + 标题 */}
-              <div className="sticky top-0 bg-white pt-3 pb-2 px-4 border-b border-slate-100 z-10">
-                <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-2 sm:hidden" />
+              <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
+                <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-black text-slate-900">{newTrade.id || newTrade.editingId ? '修改交易' : '添加交易'}</h2>
+                  <h2 className="text-base font-black text-white">{newTrade.id || newTrade.editingId ? '修改交易' : '添加交易'}</h2>
                   <button
                     onClick={() => setShowAddTrade(false)}
-                    className="text-slate-400 hover:text-slate-600 active:scale-90 transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100"
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
                   >
                     ✕
                   </button>
@@ -1004,16 +1007,24 @@ export default function TradesTab({ ctx }) {
 
               <div className="p-4">
                 {/* 买/卖切换 */}
-                <div className="flex gap-2 mb-3">
+                <div className="mb-4 flex gap-2">
                   <button
                     onClick={() => setNewTrade({ ...newTrade, side: 'buy' })}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition active:scale-95 ${newTrade.side === 'buy' ? 'bg-red-600 text-white shadow' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+                    className={`flex-1 rounded-xl border py-3 text-sm font-bold transition active:scale-95 ${
+                      newTrade.side === 'buy'
+                        ? 'border-rose-400/75 bg-rose-500/22 text-white shadow-[0_0_26px_rgba(244,63,94,0.18)]'
+                        : 'border-white/10 bg-white/[0.045] text-white/55'
+                    }`}
                   >
                     买入
                   </button>
                   <button
                     onClick={() => setNewTrade({ ...newTrade, side: 'sell' })}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition active:scale-95 ${newTrade.side === 'sell' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+                    className={`flex-1 rounded-xl border py-3 text-sm font-bold transition active:scale-95 ${
+                      newTrade.side === 'sell'
+                        ? 'border-emerald-400/75 bg-emerald-500/22 text-white shadow-[0_0_26px_rgba(16,185,129,0.18)]'
+                        : 'border-white/10 bg-white/[0.045] text-white/55'
+                    }`}
                   >
                     卖出
                   </button>
@@ -1022,22 +1033,22 @@ export default function TradesTab({ ctx }) {
                 {/* 股票代码 + 名称 */}
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1 flex items-center gap-1.5">
+                    <label className={`${tradeModalLabelClass} flex items-center gap-1.5`}>
                       <span>股票代码</span>
                       {lookupStatus === 'loading' && (
-                        <span className="text-blue-600 inline-flex items-center gap-0.5">
+                        <span className="inline-flex items-center gap-0.5 text-sky-300">
                           <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                           <span>查询中</span>
                         </span>
                       )}
                       {lookupStatus === 'found' && (
-                        <span className="text-emerald-600 inline-flex items-center gap-0.5">
+                        <span className="inline-flex items-center gap-0.5 text-emerald-300">
                           <CheckCircle2 className="w-2.5 h-2.5" />
                           <span>已找到</span>
                         </span>
                       )}
                       {lookupStatus === 'notfound' && (
-                        <span className="text-amber-600 inline-flex items-center gap-0.5">
+                        <span className="inline-flex items-center gap-0.5 text-amber-300">
                           <AlertCircle className="w-2.5 h-2.5" />
                           <span>未找到,可手动填</span>
                         </span>
@@ -1056,40 +1067,43 @@ export default function TradesTab({ ctx }) {
                           price: '',
                         });
                       }}
-                      className={`w-full px-2 py-2 border rounded-lg text-sm font-bold uppercase ${
-                        lookupStatus === 'found' ? 'border-emerald-400' :
-                        lookupStatus === 'notfound' ? 'border-amber-400' :
-                        'border-slate-300'
+                      className={`${tradeModalBaseInput} font-bold uppercase ${
+                        lookupStatus === 'found' ? 'border-emerald-400/75 focus:border-emerald-300' :
+                        lookupStatus === 'notfound' ? 'border-amber-400/75 focus:border-amber-300' :
+                        'border-white/10'
                       }`}
+                      style={tradeModalInputStyle}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">中文名(自动)</label>
+                    <label className={tradeModalLabelClass}>中文名(自动)</label>
                     <input
                       type="text"
                       placeholder="自动填充"
                       value={newTrade.name}
                       onChange={(e) => setNewTrade({ ...newTrade, name: e.target.value })}
-                      className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
+                      className={`${tradeModalBaseInput} border-white/10`}
+                      style={tradeModalInputStyle}
                     />
                   </div>
                 </div>
 
                 {/* 日期(独占一行) */}
                 <div className="mb-2">
-                  <label className="text-[10px] text-slate-500 block mb-1">日期</label>
+                  <label className={tradeModalLabelClass}>日期</label>
                   <input
                     type="date"
                     value={newTrade.date}
                     onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
-                    className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm"
+                    className={`${tradeModalBaseInput} border-white/10 text-center text-[15px] font-semibold tabular-nums`}
+                    style={tradeModalInputStyle}
                   />
                 </div>
 
                 {/* 价格 + 股数(共一行) */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">价格 ($, 自动)</label>
+                    <label className={tradeModalLabelClass}>价格 ($, 自动)</label>
                     <input
                       type="number"
                       placeholder="自动填充"
@@ -1097,25 +1111,27 @@ export default function TradesTab({ ctx }) {
                       inputMode="decimal"
                       value={newTrade.price}
                       onChange={(e) => setNewTrade({ ...newTrade, price: e.target.value })}
-                      className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm tabular-nums bg-slate-50"
+                      className={`${tradeModalBaseInput} border-white/10 tabular-nums`}
+                      style={tradeModalInputStyle}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">股数</label>
+                    <label className={tradeModalLabelClass}>股数</label>
                     <input
                       type="number"
                       placeholder="0"
                       inputMode="numeric"
                       value={newTrade.shares}
                       onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
-                      className="w-full px-2 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+                      className={`${tradeModalBaseInput} border-white/10 tabular-nums`}
+                      style={tradeModalInputStyle}
                     />
                   </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={addTrade} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-black active:scale-95 shadow">{newTrade.id || newTrade.editingId ? '确认修改' : '确认添加'}</button>
-                  <button onClick={() => setShowAddTrade(false)} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl text-sm font-bold active:scale-95">取消</button>
+                  <button onClick={addTrade} className="flex-1 rounded-xl border border-emerald-300/30 bg-emerald-500/85 py-3 text-sm font-black text-white shadow-[0_12px_32px_rgba(16,185,129,0.22)] transition active:scale-95">{newTrade.id || newTrade.editingId ? '确认修改' : '确认添加'}</button>
+                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-white/10 bg-white/[0.07] py-3 text-sm font-bold text-white/75 transition active:scale-95">取消</button>
                 </div>
               </div>
             </div>

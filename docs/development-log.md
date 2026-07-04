@@ -4,6 +4,35 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 交易录入弹层深色化
+
+- Commit: `same commit`
+- Background: 用户提供添加/修改交易弹层效果图,要求把当前白色录入版本改为和现有交易页一致的黑色 UI;默认使用买入按钮,买入选中显示红色、卖出选中显示绿色,未选按钮为灰色;本轮只覆盖主账本的 `添加交易` 和 `修改交易` 两个状态,不改摊薄工具。
+- Changes:
+  - 交易页 `添加交易/修改交易` 共用弹层从白底改为深色面板、深色 sticky header、深色输入框和深色取消按钮。
+  - 背景遮罩加强为黑色半透明和模糊,弹层保留移动端底部抽屉和桌面居中形态。
+  - 买卖切换按钮按当前 `newTrade.side` 呈现:买入选中为红色,卖出选中为绿色,未选按钮为暗灰色。
+  - 股票代码、中文名、日期、价格和股数输入框使用深色边框、深色 placeholder 和 `colorScheme: dark`;股票查询中的 `查询中/已找到/未找到` 状态同步适配深色文本。
+  - `确认添加/确认修改` 保持绿色主按钮,`取消` 改为暗灰按钮;交易新增、修改、删除和云端同步逻辑不变。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.86`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-u8qgt3zg.js` 47.97 kB / gzip 10.60 kB, `SettingsTab-vY8Gf80O.js` 29.30 kB / gzip 11.41 kB, `App-CKZInmDf.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `bg-[#0b0f16]`, `border-rose-400/75`, `border-emerald-400/75`, `colorScheme: 'dark'`, `确认修改`, `v10.7.9.86` and `交易录入弹层改为深色版本`.
+  - Local build marker check: pass; built `TradesTab-u8qgt3zg.js` contains the dark trade modal markers and built `SettingsTab-vY8Gf80O.js` contains `v10.7.9.86`, `交易录入弹层改为深色版本` and `买入选中显示红色`.
+- Deployment: pending; will push to GitHub `main` after this local validation and wait for Vercel production deployment.
+- Production verification: pending deployment.
+- Rollback: 回滚本次改动会恢复 `添加交易/修改交易` 弹层白色样式和原来的买卖按钮视觉;交易数据保存、修改、删除和同步逻辑不受影响。
+
 ### 2026-07-04 - 拉开持仓盈亏与占比间距并固化 SSH 推送规则
 
 - Commit: `bea143f6c6b59e20dfd93d5688779fcc30736d5f`
