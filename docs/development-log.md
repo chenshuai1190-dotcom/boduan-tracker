@@ -35,8 +35,18 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local dist marker check: pass; `dist/manifest.json` and `dist/index.html` point to the new PNG icons, dist icon files retain RGBA alpha, and `SettingsTab-8PvNnP1R.js` contains `v10.7.9.76` and `更新手机桌面图标`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5wZL6Xjc2Dc19MN1PGig3SdVFNUu`.
+  - `GET https://boduan-tracker.vercel.app/?v=a5e3629`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-2Bu3JjEJ.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-BQcgsNXo.css`.
+  - Production runtime chunks: `/assets/App-CT6agu4P.js`, `/assets/HomeTab-CHpB9Zxg.js`, `/assets/SettingsTab-8PvNnP1R.js`.
+- Production verification:
+  - Production manifest/index check: pass; `manifest.json` points to `/icon-192.png` and `/icon-512.png`, production HTML points to `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`.
+  - Production icon check: pass; `/icon-512.png`, `/icon-192.png`, `/apple-touch-icon.png`, `/favicon-32.png`, `/favicon-16.png` all return PNG RGBA with the expected dimensions and `hasAlpha=yes`.
+  - Production icon SHA256 matches local: `icon-512.png` = `5d235acb636d1c7ce21303ecdc8a2188fcf44233884570fb14a9cbea361618e1`, `apple-touch-icon.png` = `06e2000342f98c0665b81b3e042c8d8039a552a3416344661cd7d182239f5d2d`.
+  - Production chunk marker check: `SettingsTab-8PvNnP1R.js` contains `v10.7.9.76` and `更新手机桌面图标`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+  - GitHub Actions workflow run lookup for `a5e3629` returned no workflow runs; combined commit status contains Vercel success.
 - Rollback: 回滚本次改动会恢复旧 `favicon.svg` 作为 PWA/手机桌面图标;不影响 `/api/quote` 鉴权、Supabase RLS、交易账本或行情功能。
 
 ### 2026-07-04 - 修复 BTC 首屏卡片错位
