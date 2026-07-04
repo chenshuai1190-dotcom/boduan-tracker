@@ -35,7 +35,20 @@
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local dist marker check: pass; `index-B6hUxu6G.js` contains `https://boduan-tracker.vercel.app`, recovery parser markers and `重置链接已失效`; `supabase-VDMVHqcp.js` contains `exchangeCodeForSession`; `SettingsTab-Cm6OKwzN.js` contains `v10.7.9.78` and `修复找回密码回跳`.
   - Pre-deploy production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Code commit: `b7a0e48371cf74da200fb2d6e760117afffdf786`.
+  - Documentation commit: `182366ab0f6ea9e7ac2a276dd55247c85cd935d0`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D1A31LfoKzxpSZST18ALauEDkYZu`.
+  - `GET https://boduan-tracker.vercel.app/?v=182366a`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-CQLYX_ud.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`.
+  - Production runtime chunks: `/assets/Login-Csb10EdR.js`, `/assets/App-VS3FgzvJ.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-DSYL9ExE.js`, `/assets/SettingsTab-Cm6OKwzN.js`.
+- Production verification:
+  - Production chunk marker check: `SettingsTab-Cm6OKwzN.js` contains `v10.7.9.78` and `修复找回密码回跳`.
+  - Production auth chunk marker check: `supabase-CcYdvS9P.js` and `supabase-DSYL9ExE.js` contain `exchangeCodeForSession`; `index-CQLYX_ud.js` contains `https://boduan-tracker.vercel.app`.
+  - Production login chunk marker check: `Login-Csb10EdR.js` contains `重置链接已失效`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+  - Production relay HTTP check: `GET /api/btc-realtime` returned `426` with `请使用 WebSocket 连接 /api/btc-realtime`.
+  - Supabase Auth dashboard configuration is still an external requirement: without admin/dashboard access or a Supabase Management API token, this repository deploy cannot itself change the project Site URL, Redirect URLs, or hosted email template.
 - Rollback: 回滚本次改动会恢复找回密码使用当前浏览器 origin 的旧行为,并且前端只识别 `#type=recovery`;Supabase Auth 后台若仍指向 localhost,邮件链接仍会跳到本地地址。
 
 ### 2026-07-04 - 修复 PWA 手机桌面图标白边
