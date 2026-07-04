@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.68
+                  v10.7.9.69
                 </span>
               </div>
             </div>
@@ -163,14 +163,25 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.68
+                  v10.7.9.69
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.68', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.69', date: '2026-07-04', latest: true,
+                    items: [
+                      '✅ 首页自选添加体验细节优化',
+                      '  - 添加自选窗口改为居中自适应,键盘弹出时输入框保持可操作',
+                      '  - 添加股票时显示添加中状态并禁止重复提交',
+                      '  - 添加成功后弹出成功提示窗口',
+                      '  - 首页持仓默认展示全部持仓股',
+                      '  - 自选/持仓右侧指标改为横向滑动,增加 52 周高点跌幅',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.68', date: '2026-07-04',
                     items: [
                       '⭐ 首页自选添加与持仓口径修正',
                       '  - 自选只显示用户主动添加的股票,新用户默认空列表',
@@ -739,7 +750,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.68</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.69</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

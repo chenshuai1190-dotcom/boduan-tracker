@@ -1750,13 +1750,14 @@ function MainApp({ user, onLogout }) {
       ? { ...newStock, ...stockDraft }
       : newStock;
     if (!draft.symbol) {
-      alert('请填写股票代码');
-      return;
+      return { success: false, error: '请填写股票代码' };
     }
     const symbol = draft.symbol.toUpperCase().trim();
+    if (!symbol) {
+      return { success: false, error: '请填写股票代码' };
+    }
     if (watchlist.find(s => s.symbol === symbol)) {
-      alert('该股票已存在');
-      return;
+      return { success: false, error: `${symbol} 已在自选中` };
     }
     let fresh = null;
     try {
@@ -1781,7 +1782,18 @@ function MainApp({ user, onLogout }) {
       intraday: fresh?.intraday || [],
       ...(logoURL ? { logoURL } : {}),
     };
-    setWatchlist([...watchlist, newItem]);
+    // 🚨 立刻同步到云端 (不等防抖,精确单条写入)
+    try {
+      await db.upsertWatchlistItem(newItem);
+    } catch (e) {
+      console.error('[添加股票] 云端失败:', e);
+      return { success: false, error: `添加 ${symbol} 失败: ${e.message}` };
+    }
+    setWatchlist(current => (
+      current.some(item => String(item?.symbol || '').toUpperCase() === symbol)
+        ? current
+        : [...current, newItem]
+    ));
     setQuoteCache(current => {
       const next = current.filter(item => item.symbol !== symbol);
       return [...next, newItem];
@@ -1789,13 +1801,7 @@ function MainApp({ user, onLogout }) {
     if (logoURL) cacheStockLogo(symbol, logoURL);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
-    // 🚨 立刻同步到云端 (不等防抖,精确单条写入)
-    try {
-      await db.upsertWatchlistItem(newItem);
-    } catch (e) {
-      console.error('[添加股票] 云端失败:', e);
-      alert(`添加 ${symbol} 失败: ${e.message}`);
-    }
+    return { success: true, item: newItem };
   };
 
   const removeStock = (symbol) => {

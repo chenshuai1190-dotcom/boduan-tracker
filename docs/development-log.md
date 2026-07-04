@@ -4,6 +4,36 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 首页自选添加体验细节优化
+
+- Commit: `same commit`
+- Background: 用户反馈添加自选股票弹窗偏下,键盘弹出后输入区域容易跑到上方且需要手动拉回;添加成功没有反馈导致快速重复提交容易出错;首页持仓默认只显示 3 条不符合真实持仓浏览;自选列表需要默认显示价格、涨跌幅、距离 52 周高点跌幅和持仓盈亏,并采用交易页同类横向滑动指标区。
+- Changes:
+  - 添加自选股票弹窗从贴底 bottom sheet 改为居中自适应对话框,锁定页面滚动,输入框聚焦时滚入可视中心。
+  - 添加自选流程增加提交中状态,请求期间禁用关闭和重复提交;添加成功或失败后显示明确提示窗口。
+  - `addStock` 改为返回成功/失败结果,云端写入成功后才更新本地自选并关闭弹窗,避免假成功。
+  - 首页持仓 tab 默认展示全部真实持仓股,不再截断为 3 条预览。
+  - 首页自选/持仓表格改为左侧名称固定、右侧指标横向滑动,默认指标为价格、涨跌幅、52 周高点跌幅和持仓盈亏。
+  - 交易主账本派生持仓补充 `high` 字段,便于首页持仓直接显示 52 周高点跌幅。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.69`。
+  - `docs/development-process.md` 新增提交反馈准则:所有新增/保存/删除/同步等用户提交类操作都必须防重复提交并给出成功或失败反馈。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/investmentSummary.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/investment-summary.test.js`
+  - `docs/development-process.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 33 tests.
+  - `npm run build`: pass; `HomeTab-B0PgqjBL.js` 29.74 kB / gzip 8.49 kB, `SettingsTab-CiP5Q747.js` 25.01 kB / gzip 10.01 kB, `App-rMa6tsQs.js` 126.15 kB / gzip 34.90 kB, `index-23EtP-Fi.css` 45.44 kB / gzip 8.78 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk marker check: pass; built `HomeTab-B0PgqjBL.js` contains centered add-stock dialog, `添加中...`, `添加成功`, `52周跌幅`, and no old `rounded-t-[22px]` bottom-sheet marker; built `App-rMa6tsQs.js` contains the success-result return path; built `SettingsTab-CiP5Q747.js` contains `v10.7.9.69`; built CSS contains the dynamic viewport `76dvh` modal height.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复添加自选底部弹层、无成功提示、持仓 3 条预览和旧单行表格布局;不影响 `/api/quote` 鉴权、Supabase RLS 或 `stock_trades` 表结构。
+
 ### 2026-07-04 - 首页自选添加与持仓口径修正
 
 - Commit: `8f0c99b0eb9f878f752e9f8420b23e9b91ae8ae0`

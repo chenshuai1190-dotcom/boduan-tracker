@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { deriveInvestmentSummary, derivePositionsFromTrades } from '../src/lib/investmentSummary.js';
 
 const watchlist = [
-  { symbol: 'AAPL', name: 'Apple Inc.', price: 120, previousClose: 118, changePercent: 1.69 },
-  { symbol: 'MSFT', name: 'Microsoft', price: 210, previousClose: 205, changePercent: 2.44 },
+  { symbol: 'AAPL', name: 'Apple Inc.', price: 120, high: 140, previousClose: 118, changePercent: 1.69 },
+  { symbol: 'MSFT', name: 'Microsoft', price: 210, high: 240, previousClose: 205, changePercent: 2.44 },
 ];
 
 test('derives active positions from buy and sell records with moving average cost', () => {
@@ -23,6 +23,7 @@ test('derives active positions from buy and sell records with moving average cos
   assert.equal(Number(positions[0].effectiveRemainingCost.toFixed(6)), Number((1575 - 125).toFixed(6)));
   assert.equal(positions[0].realizedPnl, 125);
   assert.equal(positions[0].unrealizedPnl, 225);
+  assert.equal(positions[0].high, 140);
 });
 
 test('effective cost is diluted by realized sell profit for remaining shares', () => {

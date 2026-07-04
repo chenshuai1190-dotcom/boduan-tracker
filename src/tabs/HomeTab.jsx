@@ -61,6 +61,19 @@ function fmtMarketPct(value) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 }
 
+function drawdownFromHigh(price, high) {
+  const p = num(price);
+  const h = num(high);
+  if (p <= 0 || h <= 0) return null;
+  return (p - h) / h;
+}
+
+function fmtDrawdownPct(value) {
+  if (value === null || value === undefined) return '--';
+  const n = num(value) * 100;
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
 function pnlColor(value, mode) {
   return marketTextClass(value, mode);
 }
@@ -250,6 +263,7 @@ export default function HomeTab({ ctx }) {
     homeWatchlist,
     indices,
     investmentSummary,
+    Loader2,
     logoCache,
     marketColorMode,
     newStock,
@@ -270,8 +284,9 @@ export default function HomeTab({ ctx }) {
   } = ctx;
 
   const [tableTab, setTableTab] = React.useState('watchlist');
-  const [showAllRows, setShowAllRows] = React.useState(false);
   const [stockSearch, setStockSearch] = React.useState('');
+  const [addingStockSymbol, setAddingStockSymbol] = React.useState(null);
+  const [addStockNotice, setAddStockNotice] = React.useState(null);
   const [currencyMode, setCurrencyMode] = React.useState(() => {
     try {
       return localStorage.getItem(HOME_CURRENCY_STORAGE_KEY) === 'CNY' ? 'CNY' : 'USD';
@@ -301,16 +316,11 @@ export default function HomeTab({ ctx }) {
     } catch {}
   }, [currencyMode]);
 
-  React.useEffect(() => {
-    setShowAllRows(false);
-  }, [tableTab]);
-
   const resetNewStock = () => setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
 
   const isWatchlistTab = tableTab === 'watchlist';
   const allRows = tableTab === 'positions' ? positions : displayWatchlist;
-  const rows = isWatchlistTab || showAllRows ? allRows : allRows.slice(0, 3);
-  const canToggleRows = !isWatchlistTab && allRows.length > 3;
+  const rows = allRows;
   const watchlistSymbols = React.useMemo(
     () => new Set((watchlist || []).map((item) => String(item?.symbol || '').toUpperCase())),
     [watchlist],
@@ -331,10 +341,53 @@ export default function HomeTab({ ctx }) {
   const canAddCustomStock = /^[A-Z0-9.-]{1,12}$/.test(normalizedSearch)
     && !POPULAR_US_STOCKS.some((item) => item.symbol === normalizedSearch)
     && !watchlistSymbols.has(normalizedSearch);
+  const isAddingStock = Boolean(addingStockSymbol);
+
+  React.useEffect(() => {
+    if (!showAddStock || typeof document === 'undefined') return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showAddStock]);
+
   const closeAddStockSheet = () => {
+    if (isAddingStock) return;
     setShowAddStock(false);
     setStockSearch('');
     resetNewStock();
+  };
+  const handleAddStock = async (stockDraft) => {
+    if (isAddingStock) return;
+    const symbol = String(stockDraft?.symbol || '').trim().toUpperCase();
+    setAddingStockSymbol(symbol || 'CUSTOM');
+    try {
+      const result = await addStock(stockDraft);
+      if (result?.success) {
+        const added = result.item?.symbol || symbol;
+        setStockSearch('');
+        setAddStockNotice({
+          type: 'success',
+          title: '添加成功',
+          desc: `${added} 已加入自选股票`,
+        });
+        return;
+      }
+      setAddStockNotice({
+        type: 'error',
+        title: '添加失败',
+        desc: result?.error || '添加自选股票失败, 请稍后重试',
+      });
+    } catch (error) {
+      setAddStockNotice({
+        type: 'error',
+        title: '添加失败',
+        desc: error?.message || '添加自选股票失败, 请稍后重试',
+      });
+    } finally {
+      setAddingStockSymbol(null);
+    }
   };
 
   return (
@@ -541,25 +594,20 @@ export default function HomeTab({ ctx }) {
               持仓
             </button>
           </div>
-          {canToggleRows ? (
-            <button
-              type="button"
-              onClick={() => setShowAllRows((value) => !value)}
-              className="flex items-center gap-0.5 rounded-full py-1 pl-2 text-[12px] font-semibold leading-none text-white/42 active:scale-95"
-            >
-              {showAllRows ? '收起' : '查看全部'} <ChevronRight className={`h-3.5 w-3.5 ${showAllRows ? '-rotate-90' : ''}`} />
-            </button>
-          ) : (
-            <span className="h-5 w-14" aria-hidden="true" />
-          )}
+          <span className="h-5 w-14" aria-hidden="true" />
         </div>
 
-        <div className="grid grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
+        <div className="grid grid-cols-[minmax(118px,1.08fr)_minmax(0,2.35fr)] items-center px-4 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
           <span>名称</span>
-          <span className="text-right">价格</span>
-          <span className="text-right">涨跌幅</span>
-          <span className="text-right">持仓盈亏</span>
-          <span aria-hidden="true" />
+          <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="grid min-w-[404px] grid-cols-[82px_82px_102px_120px_18px] gap-2">
+              <span className="text-right">价格</span>
+              <span className="text-right">涨跌幅</span>
+              <span className="text-right">52周跌幅</span>
+              <span className="text-right">持仓盈亏</span>
+              <span aria-hidden="true" />
+            </div>
+          </div>
         </div>
 
         <div className="divide-y divide-white/[0.06]">
@@ -570,37 +618,58 @@ export default function HomeTab({ ctx }) {
           ) : rows.map((row) => {
             const isPosition = tableTab === 'positions';
             const symbol = row.symbol;
-            const quote = isPosition ? displayWatchlist.find((item) => item.symbol === symbol) : row;
+            const quote = quoteBySymbol.get(symbol) || row;
             const position = isPosition ? row : positionsBySymbol.get(symbol);
             const price = isPosition ? row.currentPrice : row.price;
             const changePct = isPosition ? row.changePercent : row.changePercent;
             const pnlValue = position ? position.totalPnl : null;
             const pnlPct = position ? position.totalPnlPct : null;
+            const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
+            const high = row.high || row.week52High || quote?.high || quote?.week52High;
+            const highDrawdown = drawdownFromHigh(price, high);
             const color = marketColor(changePct, marketColorMode);
             const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
             const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
 
             return (
               <div key={symbol}>
-                <button
-                  type="button"
-                  onClick={() => setEditingStock(editingStock === symbol ? null : symbol)}
-                  className="grid min-h-[43px] w-full grid-cols-[minmax(104px,1.34fr)_0.76fr_0.82fr_0.9fr_14px] items-center px-4 py-1.5 text-left active:bg-white/[0.03]"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} />
+                <div className="grid grid-cols-[minmax(118px,1.08fr)_minmax(0,2.35fr)] px-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingStock(editingStock === symbol ? null : symbol)}
+                    className="flex min-h-[54px] min-w-0 items-center gap-2 py-2 pr-2 text-left active:bg-white/[0.03]"
+                  >
+                    <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{symbol}</span>
                       <span className="block truncate text-[10px] leading-[12px] text-white/40">{row.name || quote?.name || symbol}</span>
                     </span>
-                  </span>
-                  <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(price, 2)}</span>
-                  <span className="text-right text-[13px] font-medium tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(changePct)}</span>
-                  <span className={`text-right text-[13px] font-medium tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                    {pnlValue === null ? '--' : fmtSignedPct(pnlPct, 2)}
-                  </span>
-                  <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />
-                </button>
+                  </button>
+                  <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setEditingStock(editingStock === symbol ? null : symbol)}
+                      className="grid min-h-[54px] min-w-[404px] grid-cols-[82px_82px_102px_120px_18px] items-center gap-2 py-2 text-left active:bg-white/[0.03]"
+                    >
+                      <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(price, 2)}</span>
+                      <span className="text-right text-[13px] font-medium tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(changePct)}</span>
+                      <span className={`text-right text-[13px] font-medium tabular-nums ${highDrawdown === null ? 'text-white/25' : pnlColor(highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                        {fmtDrawdownPct(highDrawdown)}
+                      </span>
+                      <span className={`text-right tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                        {pnlValue === null ? (
+                          <span className="text-[13px] font-medium">--</span>
+                        ) : (
+                          <>
+                            <span className="block text-[13px] font-black leading-[15px]">{fmtSignedCurrency(pnlDisplayValue, displayCurrency, 2)}</span>
+                            <span className="mt-1 block text-[11px] font-bold leading-[13px]">{fmtSignedPct(pnlPct, 2)}</span>
+                          </>
+                        )}
+                      </span>
+                      <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />
+                    </button>
+                  </div>
+                </div>
 
                 {!isPosition && editingStock === symbol && (
                   <div className="border-t border-white/10 bg-white/[0.03] px-4 py-3">
@@ -650,34 +719,42 @@ export default function HomeTab({ ctx }) {
 
       {showAddStock && isWatchlistTab && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/70 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[2px]"
           onClick={(event) => {
             if (event.target === event.currentTarget) closeAddStockSheet();
           }}
         >
-          <div className="w-full max-w-[430px] rounded-t-[22px] border border-white/10 bg-[#0b0f14] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-20px_48px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)]">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="flex max-h-[min(76dvh,620px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="mb-4 flex shrink-0 items-center justify-between">
               <h3 className="text-[17px] font-black text-white">添加自选股票</h3>
               <button
                 type="button"
                 onClick={closeAddStockSheet}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/55 active:scale-95"
+                disabled={isAddingStock}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/55 active:scale-95 disabled:opacity-40"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <label className="flex h-12 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 text-white/70 focus-within:border-[#f6b54b]/70">
+            <label className="flex h-12 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 text-white/70 focus-within:border-[#f6b54b]/70">
               <Search className="h-4 w-4 shrink-0 text-white/35" />
               <input
                 value={stockSearch}
                 onChange={(event) => setStockSearch(event.target.value.toUpperCase())}
+                onFocus={(event) => {
+                  const input = event.currentTarget;
+                  setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+                }}
                 placeholder="搜索股票名称或代码"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/25"
               />
             </label>
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex shrink-0 gap-2">
               <span className="flex h-9 items-center gap-1.5 rounded-lg border border-[#f6b54b]/60 bg-[#f6b54b]/10 px-3 text-[12px] font-black text-[#f6b54b]">
                 <Flame className="h-3.5 w-3.5" />
                 热门
@@ -687,11 +764,11 @@ export default function HomeTab({ ctx }) {
               </span>
             </div>
 
-            <div className="mt-4 text-[12px] font-bold text-white/55">
+            <div className="mt-4 shrink-0 text-[12px] font-bold text-white/55">
               {normalizedSearch ? '搜索结果' : '热门股票'}
             </div>
 
-            <div className="mt-2 max-h-[330px] overflow-y-auto rounded-xl border border-white/[0.06] bg-white/[0.025]">
+            <div className="mt-2 min-h-[160px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
               {filteredPopularStocks.length === 0 && !canAddCustomStock ? (
                 <div className="px-4 py-8 text-center text-[13px] text-white/35">没有匹配结果</div>
               ) : (
@@ -723,15 +800,20 @@ export default function HomeTab({ ctx }) {
                         </div>
                         <button
                           type="button"
-                          disabled={isAdded}
-                          onClick={() => addStock({ symbol, name: item.name })}
+                          disabled={isAdded || isAddingStock}
+                          onClick={() => handleAddStock({ symbol, name: item.name })}
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border active:scale-95 disabled:active:scale-100 ${
                             isAdded
                               ? 'border-white/10 bg-white/[0.04] text-white/25'
                               : 'border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]'
                           }`}
+                          aria-label={isAdded ? `${symbol} 已添加` : `添加 ${symbol}`}
                         >
-                          <Plus className="h-4 w-4" />
+                          {addingStockSymbol === symbol && Loader2 ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     );
@@ -739,8 +821,9 @@ export default function HomeTab({ ctx }) {
                   {canAddCustomStock && (
                     <button
                       type="button"
-                      onClick={() => addStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
-                      className="flex min-h-[58px] w-full items-center gap-3 px-3 py-2 text-left active:bg-white/[0.04]"
+                      disabled={isAddingStock}
+                      onClick={() => handleAddStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
+                      className="flex min-h-[58px] w-full items-center gap-3 px-3 py-2 text-left active:bg-white/[0.04] disabled:opacity-50"
                     >
                       <LogoPlaceholder symbol={normalizedSearch} className="h-9 w-9 rounded-lg" />
                       <span className="min-w-0 flex-1">
@@ -748,7 +831,11 @@ export default function HomeTab({ ctx }) {
                         <span className="block truncate text-[11px] text-white/35">添加自定义股票代码</span>
                       </span>
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]">
-                        <Plus className="h-4 w-4" />
+                        {addingStockSymbol === normalizedSearch && Loader2 ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
                       </span>
                     </button>
                   )}
@@ -758,12 +845,44 @@ export default function HomeTab({ ctx }) {
 
             <button
               type="button"
-              disabled={!canAddCustomStock}
-              onClick={() => addStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
-              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-black text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
+              disabled={!canAddCustomStock || isAddingStock}
+              onClick={() => handleAddStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
+              className="mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-black text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
             >
-              <Plus className="h-4 w-4" />
-              {normalizedSearch ? `添加 ${normalizedSearch}` : '添加自定义股票'}
+              {isAddingStock && Loader2 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {isAddingStock ? '添加中...' : (normalizedSearch ? `添加 ${normalizedSearch}` : '添加自定义股票')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {addStockNotice && (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 px-4 backdrop-blur-[2px]"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setAddStockNotice(null);
+          }}
+        >
+          <div className="w-full max-w-[310px] rounded-2xl border border-white/10 bg-[#0b0f14] p-5 text-center shadow-[0_22px_54px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
+              addStockNotice.type === 'success'
+                ? 'bg-emerald-400/12 text-emerald-300'
+                : 'bg-rose-400/12 text-rose-300'
+            }`}>
+              {addStockNotice.type === 'success' && CheckCircle2 ? (
+                <CheckCircle2 className="h-6 w-6" />
+              ) : (
+                <X className="h-5 w-5" />
+              )}
+            </div>
+            <div className="mt-3 text-[17px] font-black text-white">{addStockNotice.title}</div>
+            <div className="mt-2 text-[13px] leading-5 text-white/52">{addStockNotice.desc}</div>
+            <button
+              type="button"
+              onClick={() => setAddStockNotice(null)}
+              className="mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-black text-[#111318] active:scale-[0.99]"
+            >
+              知道了
             </button>
           </div>
         </div>
