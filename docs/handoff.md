@@ -8,12 +8,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: pending runtime commit (`v10.7.9.99`)
-- 最近应用代码提交: pending runtime commit
+- 当前产品基准提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6` (`v10.7.9.99`)
+- 最近应用代码提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6`
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.99`
-- Vercel 最新运行时部署: pending;上一版 success target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`
-- Vercel 部署记录: pending `v10.7.9.99`;上一版 `v10.7.9.98` runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`;GitHub Actions `CI` run `28711683937` build job `85146152543` success;production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime` HTTP 200
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`
+- Vercel 部署记录: `v10.7.9.99` runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`;GitHub Actions `CI` run `28712147321` build job `85147322937` success;production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -144,21 +144,21 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.98` runtime 已推送并部署成功;runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`, GitHub Actions `CI` run `28711683937` build job `85146152543` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`。
+- `v10.7.9.99` runtime 已推送并部署成功;runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`, GitHub Actions `CI` run `28712147321` build job `85147322937` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/index-ByPKcqCY.css`, `/assets/HomeTab-BY9LGpWQ.js`, `/assets/TradesTab-BjwXXSZk.js`, `/assets/SettingsTab-7OOLBxmB.js`, `/assets/App-fEDDtosU.js`。
-- 生产 entry chunks: `/assets/index-DcOoVfO4.js`, `/assets/index-ByPKcqCY.css`。
-- 生产 runtime chunks: `/assets/App-CGysEMvT.js`, `/assets/HomeTab-BY9LGpWQ.js`, `/assets/TradesTab-BjwXXSZk.js`, `/assets/SettingsTab-7OOLBxmB.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C8GXcfgT.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-CpnEEVDZ.css`, `/assets/HomeTab-DKqr3mKb.js`, `/assets/TradesTab-Blq_4q0Z.js`, `/assets/SettingsTab-afdTYjRq.js`, `/assets/App-caoN0_Tg.js`。
+- 生产 entry chunks: `/assets/index-C2ylQexf.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-DB2Tx1m8.js`, `/assets/index-CpnEEVDZ.css`。
+- 生产 runtime chunks: `/assets/App-Dx1R4yrs.js`, `/assets/HomeTab-DKqr3mKb.js`, `/assets/TradesTab-Blq_4q0Z.js`, `/assets/SettingsTab-afdTYjRq.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-Cz4EppgE.js`。
 
 关键 marker:
 
-- 生产 `App-CGysEMvT.js` 引用 `TradesTab-BjwXXSZk.js` 和 `SettingsTab-7OOLBxmB.js`,确认生产入口加载本轮交易页和设置页 chunk。
-- 生产 `App-CGysEMvT.js` 包含 `新增摊薄股票`, `添加摊薄交易`, `确认保存摊薄成本记录` 和 `不会进入正式持仓、当日订单或波段记录`,确认摊薄成本深色弹窗和独立账本提示已进入运行时。
-- 生产 `TradesTab-BjwXXSZk.js` 包含 `摊薄成本`, `云端小工具 · 不影响其他模块` 和 `移动加权平均`,且不包含旧标题 marker `💼 摊薄成本`,确认摊薄成本前台已移除旧图标并进入深色 UI。
-- 生产 `SettingsTab-7OOLBxmB.js` 包含 `v10.7.9.98` 和 `摊薄成本工具改为深色版本`。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-C8GXcfgT.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `App-Dx1R4yrs.js` 引用 `TradesTab-Blq_4q0Z.js` 和 `SettingsTab-afdTYjRq.js`,确认生产入口加载本轮交易页和设置页 chunk。
+- 生产 runtime chunks 包含 `v10.7.9.99`, `微调摊薄成本工具显示`, `摊薄成本`, `items-center justify-center bg-black/70 px-4` 和 `text-white/80`,确认摊薄成本两个弹窗已改为居中且取消按钮/标签文字可见。
+- 生产 runtime chunks 不包含 cost-basis trailing `aria-label="新增摊薄股票"`,不包含底部抽屉 class `items-end justify-center bg-black/70`,不包含非标准透明度 `text-white/42`、`text-white/72`,也不包含旧标题 marker `💼 摊薄成本`。
+- 生产 `SettingsTab-afdTYjRq.js` 包含 `v10.7.9.99` 和 `微调摊薄成本工具显示`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-Cz4EppgE.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
@@ -396,7 +396,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.96` 或更新版本。
+- 设置页显示 `v10.7.9.99` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -411,11 +411,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d` (`v10.7.9.98`)
-最近应用代码提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`
-设置页版本: `v10.7.9.98`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`
-部署记录: `v10.7.9.98` runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`;GitHub Actions `CI` run `28711683937` build job `85146152543` success;production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime` HTTP 200
+当前产品基准提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6` (`v10.7.9.99`)
+最近应用代码提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6`
+设置页版本: `v10.7.9.99`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`
+部署记录: `v10.7.9.99` runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`;GitHub Actions `CI` run `28712147321` build job `85147322937` success;production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -445,6 +445,7 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 首页头部总资产卡片已同步交易页字号/位置和正常字重;首页四大指数卡片已取消加粗;当前信号、VIX 和 CNN 保持不动。
 - 添加交易新增完成后默认回到买入;页面滚到顶部继续下拉可强制刷新云端数据、汇率和已登录行情。
 - 波段记录新增只写入旧账本 `trades`,不再串到正式交易记录 `stock_trades`;摊薄成本新增只写 `cost_basis_trades`;波段记录和摊薄成本提交前都有确认框和防重复提交锁。
+- 摊薄成本工具已深色化并删除标题旧图标;股票切换栏尾部多余虚线 `+` 已删除;新增摊薄股票和添加摊薄交易都改为居中弹窗;弹窗标签、输入辅助文字和取消按钮已修复可见;已实现盈亏和卖出展开利润颜色对齐头部资产卡片粉色体系。
 - 波段记录小程序主界面已改为深色卡片体系;标题旧图标已删除;顶部和空状态新增 `新增波段股票`;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;已完成波段默认收进 `已完成` 折叠区。
 - 波段记录整体字号和留白继续收紧;进行中绿色状态点恢复闪烁;进行中/已完成波段移除 `#1` 等无意义编号;波段和正式交易表单缺字段/非法数值提示改为应用内自定义弹窗;开发准则新增非必要不使用浏览器/系统原生交互控件。
 - 波段记录标题、股票代码、股票名称、统计卡、明细和整体框架继续压缩;新增波段记录弹窗恢复 `波段备注/计划`;新增波段后备注写入 `wave_notes`;进行中和已完成波段备注支持编辑和一键清除;顶部 `已完成` 统计卡可展开已完成波段列表。

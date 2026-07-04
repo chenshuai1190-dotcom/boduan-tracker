@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 微调摊薄成本工具显示
 
-- Commit: pending
+- Commit: `8a43670d3f72bee759eb50806fe948d62fb54ad6`
 - Background: 用户在生产截图中标出摊薄成本工具三个问题:股票切换栏尾部虚线加号是按参考图照搬的无效入口,上方已经有 `新增`;已实现盈亏和卖出展开利润颜色偏红,需要对齐头部资产卡片的粉色体系;新增摊薄股票和添加摊薄交易两个弹窗在键盘打开时文字不可见且仍是底部抽屉,不符合居中弹窗准则。
 - Changes:
   - 删除摊薄成本股票切换栏尾部多余虚线 `+` 按钮,保留右上角 `新增` 作为唯一新增股票入口。
@@ -33,7 +33,19 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source has no cost-basis trailing `aria-label="新增摊薄股票"`, cost-basis PnL uses `pnlClass(stats.realizedPnl, marketColorMode)`, `pnlClass(profit, marketColorMode)` and `pnlClass(gainPct, marketColorMode)`, cost-basis modals contain centered class `flex items-center justify-center bg-black/70 px-4`, App source contains no `text-white/42`, `text-white/72` or `bg-white/22`, and Settings source contains `v10.7.9.99` plus `微调摊薄成本工具显示`.
   - Local build marker check: pass; built chunks contain `v10.7.9.99`, `微调摊薄成本工具显示`, centered cost-basis modal markers, no cost-basis trailing plus marker, and supported opacity classes for the cost-basis modal.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `8a43670d3f72bee759eb50806fe948d62fb54ad6`.
+  - GitHub `main`: `8a43670d3f72bee759eb50806fe948d62fb54ad6`.
+  - GitHub Actions `CI`: success, run `28712147321`, build job `85147322937`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-C2ylQexf.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-DB2Tx1m8.js`, `/assets/index-CpnEEVDZ.css`.
+  - Production runtime chunks: `/assets/App-Dx1R4yrs.js`, `/assets/HomeTab-DKqr3mKb.js`, `/assets/TradesTab-Blq_4q0Z.js`, `/assets/SettingsTab-afdTYjRq.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-Cz4EppgE.js`.
+- Production verification:
+  - Production marker check: fetched runtime chunks contain `v10.7.9.99`, `微调摊薄成本工具显示`, `摊薄成本`, centered backdrop class `items-center justify-center bg-black/70 px-4`, visible cancel text class `text-white/80`, and no cost-basis trailing `aria-label="新增摊薄股票"`.
+  - Production marker check: runtime chunks do not contain bottom-drawer backdrop `items-end justify-center bg-black/70`, unsupported text opacity classes `text-white/42` or `text-white/72`, or old cost-basis title marker `💼 摊薄成本`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-Cz4EppgE.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.98` 的摊薄成本股票栏尾部虚线加号、偏深红的 strong PnL 色以及移动端底部抽屉式摊薄弹窗;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
 
 ## 2026-07-04 Asia/Shanghai
