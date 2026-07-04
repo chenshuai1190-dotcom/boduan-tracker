@@ -41,7 +41,10 @@ test('trade and wave form validation avoids native alert dialogs', () => {
 
 test('wave records keep editable notes and completed waves remain reachable', () => {
   assert.ok(tradesTabSource.includes('波段备注/计划'), 'wave add modal must keep a note/plan field');
-  assert.ok(tradesTabSource.includes('openCompletedWaves'), 'completed summary must be able to expand completed wave groups');
+  assert.ok(tradesTabSource.includes('completedWaveGroups'), 'completed waves need their own grouped data source');
+  assert.ok(tradesTabSource.includes("setWaveView('completed')"), 'completed summary must switch into a completed-only view');
+  assert.ok(tradesTabSource.includes("waveView === 'completed' ?"), 'completed waves must render as a separate category view');
+  assert.ok(tradesTabSource.includes('key={`completed-${group.symbol}`}'), 'completed category must group rows by stock symbol');
   assert.ok(tradesTabSource.includes('saveWaveNote'), 'wave notes need a shared save helper');
   assert.ok(tradesTabSource.includes('清除'), 'wave note UI must provide an obvious clear action');
   assert.ok(appSource.includes('targetWaveId'), 'wave add path must attach notes to the computed wave id');

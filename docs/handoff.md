@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: 待本轮部署回填 (`v10.7.9.96` runtime pending; 已部署基准仍是 `3400e6243898f3abeab7ac4fd2c69d63e406d2ec` / `v10.7.9.95`)
-- 最近应用代码提交: 待本轮提交生成 (`v10.7.9.96` runtime pending)
+- 当前产品基准提交: 待本轮部署回填 (`v10.7.9.97` runtime pending;已部署基准仍是 `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0` / `v10.7.9.96`)
+- 最近应用代码提交: 待本轮提交生成 (`v10.7.9.97` runtime pending)
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.96` pending deployment
-- Vercel 最新运行时部署: pending; 当前线上成功部署仍是 `v10.7.9.95`, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B3NLvRNzcjBAo6nHTncQMbHCeFc2`
-- Vercel 部署记录: 本轮 `v10.7.9.96` 待 GitHub push 后由 Vercel 自动部署;上一轮 runtime commit `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`, GitHub Actions `build` run `28710305213` job `85142649172` success
+- 设置页版本: `v10.7.9.97` pending deployment
+- Vercel 最新运行时部署: pending;当前线上成功部署仍是 `v10.7.9.96`, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DaL5WuLzSXzrgV9B5AicWUkHrqme`
+- Vercel 部署记录: 本轮 `v10.7.9.97` 待 GitHub push 后由 Vercel 自动部署;上一轮 `v10.7.9.96` runtime commit `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0`, GitHub Actions `build` run `28710773707` job `85143823054` success
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,以及本轮待部署的 `v10.7.9.96` 波段记录继续压缩、备注入口恢复和已完成波段展开优化。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,以及本轮待部署的 `v10.7.9.97` 已完成波段独立归类视图和字号回调。
 
 ## 2. 先读这些文档
 
@@ -144,28 +144,28 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- 本轮 `v10.7.9.96` runtime 待推送部署;当前线上成功部署仍是 `v10.7.9.95`,runtime commit `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`, GitHub Actions `build` run `28710305213` job `85142649172` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B3NLvRNzcjBAo6nHTncQMbHCeFc2`。
+- 本轮 `v10.7.9.97` runtime 待推送部署;当前线上成功部署仍是 `v10.7.9.96`,runtime commit `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0`, GitHub Actions `build` run `28710773707` job `85143823054` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DaL5WuLzSXzrgV9B5AicWUkHrqme`。
 
 已验证生产 runtime chunks:
 
 - 本轮本地构建 runtime chunks: `/assets/index-4ZltKMeK.css`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-DBztFE4y.js`, `/assets/SettingsTab-CZjXRK8S.js`, `/assets/App-2NtKkL1M.js`。
-- 生产 entry chunks: `/assets/index-CWWfdJUg.js`, `/assets/index-w2yQzKP-.css`。
-- 生产 runtime chunks: `/assets/App-2Sxb6HyG.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-k89Ynj1Q.js`, `/assets/SettingsTab-DmEa4ycu.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-DbF6dw90.js`。
+- 生产 entry chunks: `/assets/index-BJFaxEvy.js`, `/assets/index-4ZltKMeK.css`。
+- 生产 runtime chunks: `/assets/App-k1Tovraf.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-DBztFE4y.js`, `/assets/SettingsTab-CZjXRK8S.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-CzRiDeW7.js`。
 
 关键 marker:
 
-- 生产 `App-2Sxb6HyG.js` 引用 `TradesTab-k89Ynj1Q.js` 和 `SettingsTab-DmEa4ycu.js`,确认生产入口加载本轮交易页和设置页 chunk。
-- 生产 `TradesTab-k89Ynj1Q.js` 包含 `新增波段股票`,`添加波段记录` 和 `animate-pulse`,确认波段记录添加入口、弹窗标题和进行中状态点闪烁已进入运行时。
-- 生产 `App-2Sxb6HyG.js` 和 `TradesTab-k89Ynj1Q.js` 包含 `请填写完整信息` 和 `价格和股数需要大于 0`,确认波段/正式交易表单校验使用应用内自定义提示。
-- 生产所有 chunk 均不包含旧 marker `进行中 · #`,确认无意义编号已从进行中波段显示移除。
-- 生产 `SettingsTab-DmEa4ycu.js` 包含 `v10.7.9.95` 和 `收紧波段记录字号并移除原生提示`。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-DbF6dw90.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `SettingsTab-CZjXRK8S.js` 包含 `v10.7.9.96` 和 `继续压缩波段记录并恢复备注入口`。
+- 生产 `TradesTab-DBztFE4y.js` 包含 `波段备注/计划`, `清除`, `展开已完成波段`,以及紧凑标题 class `text-[12px] font-normal leading-tight tracking-normal text-white`。
+- 生产 `App-k1Tovraf.js` 包含 `波段备注保存失败`,确认波段备注持久化路径已进入运行时。
+- 生产所有 chunk 均不包含旧 marker `进行中 · #`,确认无意义编号未回退。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-CzRiDeW7.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
 ### 波段记录小程序 UI
 
-- `v10.7.9.96` pending: 波段记录标题、股票代码、股票名称、统计卡、明细和整体框架继续压缩;新增波段记录弹窗恢复 `波段备注/计划` 输入;新增波段后备注写入 `wave_notes` 对应波段 id;进行中和已完成波段备注支持编辑和一键清除;顶部 `已完成` 统计卡可展开已完成波段列表。
+- `v10.7.9.97` pending: 顶部 `已完成` 统计卡改为独立归类视图;HOOD 这类已完成股票会进入已完成分类,不再压在股票卡底部;进行中列表只显示仍在持有的波段;波段记录字号回到交易页资料卡片相邻档位。
+- `v10.7.9.96`: 波段记录标题、股票代码、股票名称、统计卡、明细和整体框架继续压缩;新增波段记录弹窗恢复 `波段备注/计划` 输入;新增波段后备注写入 `wave_notes` 对应波段 id;进行中和已完成波段备注支持编辑和一键清除;顶部 `已完成` 统计卡可展开已完成波段列表。
 - `v10.7.9.95`: 波段记录整体字号、行高和卡片留白继续收紧;进行中绿色状态点恢复闪烁;进行中和已完成波段移除 `#1`、`#2` 等无意义编号;添加/修改交易共用弹窗在波段和正式交易缺字段、价格或股数非法时改为应用内自定义提示弹窗,不再触发系统原生 `alert`;开发准则新增非必要不使用浏览器/系统原生交互控件。
 - `v10.7.9.94`: 波段记录主界面从旧白色卡片改为深色卡片体系;删除标题前旧图标;顶部和空状态新增 `新增波段股票` 入口;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;收益红色对齐首页粉色体系;已完成波段默认收进 `已完成` 折叠区;波段新增入口继续显式使用 `wave` scope,只写旧账本 `trades`,不写正式主账本 `stock_trades`。
 
@@ -406,11 +406,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: 待本轮部署回填 (`v10.7.9.96` runtime pending; 已部署基准仍是 `3400e6243898f3abeab7ac4fd2c69d63e406d2ec` / `v10.7.9.95`)
-最近应用代码提交: 待本轮提交生成 (`v10.7.9.96` runtime pending)
-设置页版本: `v10.7.9.96` pending deployment
-Vercel 最新运行时部署: pending; 当前线上成功部署仍是 `v10.7.9.95`, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B3NLvRNzcjBAo6nHTncQMbHCeFc2`
-部署记录: 本轮 `v10.7.9.96` 待 GitHub push 后由 Vercel 自动部署;上一轮 GitHub Actions `build` run `28710305213` job `85142649172` success; runtime commit `3400e6243898f3abeab7ac4fd2c69d63e406d2ec`
+当前产品基准提交: 待本轮部署回填 (`v10.7.9.97` runtime pending;已部署基准仍是 `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0` / `v10.7.9.96`)
+最近应用代码提交: 待本轮提交生成 (`v10.7.9.97` runtime pending)
+设置页版本: `v10.7.9.97` pending deployment
+Vercel 最新运行时部署: pending;当前线上成功部署仍是 `v10.7.9.96`, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DaL5WuLzSXzrgV9B5AicWUkHrqme`
+部署记录: 本轮 `v10.7.9.97` 待 GitHub push 后由 Vercel 自动部署;上一轮 `v10.7.9.96` GitHub Actions `build` run `28710773707` job `85143823054` success;runtime commit `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -442,7 +442,8 @@ Vercel 最新运行时部署: pending; 当前线上成功部署仍是 `v10.7.9.9
 - 波段记录新增只写入旧账本 `trades`,不再串到正式交易记录 `stock_trades`;摊薄成本新增只写 `cost_basis_trades`;波段记录和摊薄成本提交前都有确认框和防重复提交锁。
 - 波段记录小程序主界面已改为深色卡片体系;标题旧图标已删除;顶部和空状态新增 `新增波段股票`;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;已完成波段默认收进 `已完成` 折叠区。
 - 波段记录整体字号和留白继续收紧;进行中绿色状态点恢复闪烁;进行中/已完成波段移除 `#1` 等无意义编号;波段和正式交易表单缺字段/非法数值提示改为应用内自定义弹窗;开发准则新增非必要不使用浏览器/系统原生交互控件。
-- 本轮待部署: 波段记录标题、股票代码、股票名称、统计卡、明细和整体框架继续压缩;新增波段记录弹窗恢复 `波段备注/计划`;新增波段后备注写入 `wave_notes`;进行中和已完成波段备注支持编辑和一键清除;顶部 `已完成` 统计卡可展开已完成波段列表。
+- 波段记录标题、股票代码、股票名称、统计卡、明细和整体框架继续压缩;新增波段记录弹窗恢复 `波段备注/计划`;新增波段后备注写入 `wave_notes`;进行中和已完成波段备注支持编辑和一键清除;顶部 `已完成` 统计卡可展开已完成波段列表。
+- 本轮待部署: 顶部 `已完成` 统计卡改为独立归类视图;HOOD 这类已完成股票会进入已完成分类,不再压在股票卡底部;进行中列表只显示仍在持有的波段;波段记录字号回到交易页资料卡片相邻档位。
 - 旧自选/交易记录中 `name=TSM` 这类代码式名称会用中英对照表兜底显示 `台积电` 等中文名。
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。

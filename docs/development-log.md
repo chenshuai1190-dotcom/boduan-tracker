@@ -4,9 +4,41 @@
 
 ## 2026-07-04 Asia/Shanghai
 
-### 2026-07-04 - 继续压缩波段记录并恢复备注入口
+### 2026-07-04 - 修正波段已完成归类和字号
 
 - Commit: pending runtime commit before push.
+- Background: 用户反馈上一版波段记录字号压得过小,要求不要继续手工干预,改为对齐交易页资料卡片的数字和文字大小;同时指出顶部 `已完成` 统计卡仍只是展开每只股票底部折叠区,没有形成真正归类,现有 HOOD 已完成波段不能作为独立分类查看。
+- Changes:
+  - 波段记录新增 `waveView` 视图状态,顶部 `进行中` 和 `已完成` 统计卡改为分类切换入口。
+  - `进行中` 分类只渲染仍有 active wave 的股票,HOOD 这类只剩已完成波段的股票不再显示在进行中列表。
+  - `已完成` 分类使用独立 `completedWaveGroups` 数据源,按股票代码归类展示已完成波段,点击每条已完成波段可展开交易明细。
+  - 隐藏每只股票卡底部的 inline 已完成折叠区,避免已完成波段继续压在主列表最下方。
+  - 波段记录标题、统计卡、股票代码、股票名称、波段数字、备注和交易明细字号回调到交易页资料卡片相邻档位,避免过小。
+  - 已完成波段备注继续支持编辑和 `清除`,交易明细仍支持删除单笔旧账本交易。
+  - 新增/更新回归测试,校验已完成波段必须有独立归类数据源、点击顶部 `已完成` 会切换 completed-only view,并按股票代码分组。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.97`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是波段记录前端分类和字号调整,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或既有开发准则。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 50 tests.
+  - `npm run build`: pass; `index-CgfbcDF1.css` 49.52 kB / gzip 9.28 kB, `TradesTab-DXyN2y8z.js` 60.63 kB / gzip 12.34 kB, `SettingsTab-C-wtzeJ2.js` 33.53 kB / gzip 12.83 kB, `App-BETnpC-C.js` 137.34 kB / gzip 38.80 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `completedWaveGroups`, `setWaveView('completed')`, `waveView === 'completed' ?`, `key={\`completed-${group.symbol}\`}`, `已完成波段归类`, `HOOD 这类已完成股票会进入已完成分类`, `v10.7.9.97`, and wave card `text-[16px] font-normal` sizing markers.
+  - Local build marker check: pass; built chunks contain `v10.7.9.97`, `修正波段已完成归类和字号`, `已完成波段归类`, `completedWaves`, and the completed-only view state path.
+- Deployment: pending GitHub push and Vercel production deployment.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.96` 的已完成波段底部折叠展示和更小字号;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
+
+### 2026-07-04 - 继续压缩波段记录并恢复备注入口
+
+- Commit: `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0`
 - Background: 用户反馈波段记录标题、股票名称和整体框架仍偏大,要求参考交易页工具入口字号继续缩小;指出新增波段记录弹窗缺少旧版本的备注/计划输入,无法说明这段波段应该做什么;同时反馈已完成波段入口不够可点、备注无法明显删减。
 - Changes:
   - 波段记录首页标题、提示文字、统计卡、股票代码、股票名称、个股统计卡、进行中波段、交易明细和已完成波段整体继续收紧字号、间距和卡片高度。
@@ -34,7 +66,21 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `波段备注/计划`, `清除`, `openCompletedWaves`, `targetWaveId`, `db.upsertWaveNote(targetWaveId, noteValue)`, `v10.7.9.96`, and no source marker `进行中 · #`.
   - Local build marker check: pass; built chunks contain `波段备注/计划`, `清除`, `已完成`, `v10.7.9.96`, and `继续压缩波段记录并恢复备注入口`.
-- Deployment: pending GitHub push and Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0`.
+  - GitHub `main`: `202844fe771d4f7a5fd6321ae7e049eb53d9f5a0`.
+  - GitHub Actions `build`: success, run `28710773707`, job `85143823054`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DaL5WuLzSXzrgV9B5AicWUkHrqme`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=202844f-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BJFaxEvy.js`, `/assets/index-4ZltKMeK.css`.
+  - Production runtime chunks: `/assets/App-k1Tovraf.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-DBztFE4y.js`, `/assets/SettingsTab-CZjXRK8S.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-CzRiDeW7.js`.
+- Production verification:
+  - Production SettingsTab marker check: `SettingsTab-CZjXRK8S.js` contains `v10.7.9.96` and `继续压缩波段记录并恢复备注入口`.
+  - Production TradesTab marker check: `TradesTab-DBztFE4y.js` contains `波段备注/计划`, `清除`, `展开已完成波段`, and compact title class `text-[12px] font-normal leading-tight tracking-normal text-white`.
+  - Production App marker check: `App-k1Tovraf.js` contains `波段备注保存失败`, confirming wave-note persistence path is included in runtime.
+  - Production marker check: no production chunk contains the old `进行中 · #` marker.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-CzRiDeW7.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.95` 的波段记录字号和新增弹窗,并再次移除新增波段时填写备注/计划的入口;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 收紧波段记录字号并移除原生提示

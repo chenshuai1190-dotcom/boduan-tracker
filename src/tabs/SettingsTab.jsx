@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.96
+                  v10.7.9.97
                 </span>
               </div>
             </div>
@@ -163,14 +163,24 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.96
+                  v10.7.9.97
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.96', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.97', date: '2026-07-04', latest: true,
+                    items: [
+                      '📓 修正波段已完成归类和字号',
+                      '  - 顶部“已完成”统计卡改为独立归类视图',
+                      '  - HOOD 这类已完成股票会进入已完成分类,不再压在股票卡底部',
+                      '  - 进行中列表只显示仍在持有的波段',
+                      '  - 波段记录字号回到交易页资料卡片相邻档位',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.96', date: '2026-07-04',
                     items: [
                       '📓 继续压缩波段记录并恢复备注入口',
                       '  - 波段记录标题、股票代码、统计卡和明细字体继续收紧',
@@ -999,7 +1009,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.96</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.97</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>
