@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修复找回密码回跳兼容
 
-- Commit: pending
+- Commit: `b7a0e48371cf74da200fb2d6e760117afffdf786`
 - Background: 用户反馈 Supabase 找回密码邮件打开后跳到 `localhost:3000/#error=access_denied&error_code=otp_expired...`,手机端无法访问,且链接容易失效。排查发现邮件中的 `redirect_to` 仍为 `http://localhost:3000`;这是 Supabase Auth URL Configuration / 邮件模板配置问题。同时前端只识别旧的 `#type=recovery` hash,不能稳定处理 Supabase PKCE `?code=...` 回跳。
 - Changes:
   - 找回密码请求的 `redirectTo` 固定为生产域名 `https://boduan-tracker.vercel.app`。
