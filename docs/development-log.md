@@ -4,6 +4,27 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 修复 PWA 手机桌面图标白边
+
+- Commit: pending.
+- Background: 用户安装到 iOS 主屏后反馈 X MONEY 图标外侧出现明显白色边缘。根因是上一版图标保留透明外沿,在浅色壁纸/系统图标背景上会透出白色边框;手机桌面图标应使用不透明底图。
+- Changes:
+  - 将 `512x512`, `192x192`, `180x180`, `32x32`, `16x16` 五个 PNG 图标全部改为不透明深色底。
+  - 保留黑金 K 线主体和图标构图,只移除透明外沿导致的白边。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.77`。
+- Key files:
+  - `public/icon-512.png`
+  - `public/icon-192.png`
+  - `public/apple-touch-icon.png`
+  - `public/favicon-32.png`
+  - `public/favicon-16.png`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation: pending.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复透明外沿 PNG,在 iOS 浅色壁纸上可能再次显示白色边缘;不影响 `/api/quote` 鉴权、Supabase RLS、交易账本或行情功能。
+
 ### 2026-07-04 - 更新 PWA 手机桌面图标
 
 - Commit: `30109e586e1ca3048ec5a19e42423cb7aecaacc6`
