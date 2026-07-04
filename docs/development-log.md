@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修复卖出后累计收益率口径
 
-- Commit: `pending`
+- Commit: `5228f9c7723afdc1cc12b1f513bf40b79e4bf489`
 - Background: 用户反馈有卖出记录的账户累计收益率明显偏低;截图中总资产 `$670,694.84`、累计盈亏 `$113,086.89` 按当前实际成本应约为 `113,086.89 / (670,694.84 - 113,086.89) = 20.29%`,但页面显示 `11.18%`。根因是收益率分母使用了历史总买入额 `totalBuyCost`,卖出后已结转成本仍留在分母里,导致有卖出记录账户被低估;无卖出记录账户不暴露该问题。
 - Changes:
   - 主交易账本派生逻辑明确区分历史买入总额 `totalBuyCost`、剩余会计成本 `remainingCost` 和当前实际收益率分母 `returnCostBasis`。
@@ -27,7 +27,14 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local chunk marker check: pass; built `App-CN4Z7Q6i.js` contains `returnCostBasis` and `ignoredSellShares`; built `SettingsTab-BLE4HkOM.js` contains `v10.7.9.73` and `修复卖出后累计收益率口径`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9F4EeqRqHC33tBH7D7ruqA3V6DqP`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-By0qzx4L.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-n1Upib5J.css`.
+  - Production runtime chunks: `/assets/App-UIpBHiwm.js`, `/assets/HomeTab-C1sT2srr.js`, `/assets/TradesTab-BnuMo9HL.js`, `/assets/SettingsTab-BLE4HkOM.js`.
+- Production verification:
+  - Production chunk marker check: `App-UIpBHiwm.js` contains `returnCostBasis` and `ignoredSellShares`; `SettingsTab-BLE4HkOM.js` contains `v10.7.9.73` and `修复卖出后累计收益率口径`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复累计收益率使用历史总买入额作为分母的旧行为,有卖出记录的账户收益率会再次被低估;不影响 `/api/quote` 鉴权、Supabase RLS 或交易流水数据本身。
 
 ### 2026-07-04 - 首页自选持仓新增年初至今排序
