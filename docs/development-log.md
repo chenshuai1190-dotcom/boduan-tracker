@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 修复 PWA 手机桌面图标白边
 
-- Commit: pending.
+- Commit: `db79729bfc3e856f5f8064ec4d9874dd7981d88a`
 - Background: 用户安装到 iOS 主屏后反馈 X MONEY 图标外侧出现明显白色边缘。根因是上一版图标保留透明外沿,在浅色壁纸/系统图标背景上会透出白色边框;手机桌面图标应使用不透明底图。
 - Changes:
   - 将 `512x512`, `192x192`, `180x180`, `32x32`, `16x16` 五个 PNG 图标全部改为不透明深色底。
@@ -20,7 +20,16 @@
   - `public/favicon-16.png`
   - `src/tabs/SettingsTab.jsx`
   - `docs/development-log.md`
-- Validation: pending.
+- Validation:
+  - Local icon check: pass; `public/icon-512.png`, `public/icon-192.png`, `public/apple-touch-icon.png`, `public/favicon-32.png`, `public/favicon-16.png` 均为 PNG RGB,尺寸分别为 `512x512`, `192x192`, `180x180`, `32x32`, `16x16`,且 `hasAlpha=no`。
+  - Icon SHA256: `icon-512.png` = `b7b44d3b731f4630f69b5f79aca42639e4de89baf9ab2ffa3a72389e83c9d3e9`, `apple-touch-icon.png` = `9c5418bcfe67cf5302793c4ab4512ac78375215d72c88ef996131554e8942995`。
+  - Local manifest/index check: pass; `manifest.json` icons continue to point to `/icon-192.png` and `/icon-512.png`, `index.html` continues to point to `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`。
+  - `npm test`: pass, 41 tests.
+  - `npm run build`: pass; `SettingsTab-BAP9xbbD.js` 27.10 kB / gzip 10.73 kB, `App-5LIL82wQ.js` 131.64 kB / gzip 36.77 kB, `HomeTab-CHpB9Zxg.js` 39.10 kB / gzip 10.43 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local dist marker check: pass; dist icon files are PNG RGB and `hasAlpha=no`, `SettingsTab-BAP9xbbD.js` contains `v10.7.9.77` and `修复手机桌面图标白边`.
 - Deployment: pending.
 - Production verification: pending.
 - Rollback: 回滚本次改动会恢复透明外沿 PNG,在 iOS 浅色壁纸上可能再次显示白色边缘;不影响 `/api/quote` 鉴权、Supabase RLS、交易账本或行情功能。
