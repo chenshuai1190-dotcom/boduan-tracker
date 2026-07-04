@@ -117,11 +117,13 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
 
 export function deriveInvestmentSummary({
   trades = [],
+  stockTrades = null,
   watchlist = [],
   cashUsd = 0,
   usdRate = 7.2,
 } = {}) {
-  const positions = derivePositionsFromTrades(trades, watchlist);
+  const ledgerTrades = Array.isArray(stockTrades) ? stockTrades : trades;
+  const positions = derivePositionsFromTrades(ledgerTrades, watchlist);
   const activePositions = positions.filter((position) => position.heldShares > 0);
   const positionsMarketValue = activePositions.reduce((sum, position) => sum + position.marketValue, 0);
   const realizedPnl = positions.reduce((sum, position) => sum + position.realizedPnl, 0);
@@ -130,7 +132,7 @@ export function deriveInvestmentSummary({
   const totalBuyCost = positions.reduce((sum, position) => sum + position.totalBuyCost, 0);
   const todayPnl = activePositions.reduce((sum, position) => sum + position.todayPnl, 0);
   const previousMarketValue = activePositions.reduce((sum, position) => sum + position.previousMarketValue, 0);
-  const sellTradeCount = trades.reduce((sum, trade) => sum + (trade.side === 'sell' ? 1 : 0), 0);
+  const sellTradeCount = ledgerTrades.reduce((sum, trade) => sum + (trade.side === 'sell' ? 1 : 0), 0);
   const totalAssetsUsd = positionsMarketValue + toNumber(cashUsd);
   const rate = toNumber(usdRate) || 7.2;
 
@@ -149,7 +151,7 @@ export function deriveInvestmentSummary({
     cumulativePnlPct: totalBuyCost > 0 ? cumulativePnl / totalBuyCost : 0,
     holdingStockCount: activePositions.length,
     sellTradeCount,
-    tradeCount: trades.length,
+    tradeCount: ledgerTrades.length,
     totalBuyCost,
     usdRate: rate,
   };

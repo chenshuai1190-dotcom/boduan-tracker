@@ -1,6 +1,7 @@
 const APP_URL = 'https://boduan-tracker.vercel.app';
 const USER_TABLES = [
   'trades',
+  'stock_trades',
   'watchlist',
   'wave_notes',
   'user_settings',

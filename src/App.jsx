@@ -585,9 +585,10 @@ function MainApp({ user, onLogout }) {
     { id: 3, name: '第3批', drawdown: -0.20, allocation: 0.40 },
   ]);
 
-  // 实际成交记录
-  // 新数据结构:{ id, symbol, name, side: 'buy'|'sell', shares, price, date, batch?(兼容老数据) }
+  // 波段记录旧账本:只给波段工具兼容使用,不再作为首页/交易主持仓来源。
   const [trades, setTrades] = useState([]);
+  // 主交易账本:独立记录真实股票买入/卖出流水,由 stock_trades 表持久化。
+  const [stockTrades, setStockTrades] = useState([]);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [newTrade, setNewTrade] = useState({
     symbol: 'TQQQ',
@@ -860,6 +861,7 @@ function MainApp({ user, onLogout }) {
         console.log('[云端加载] 原始返回:', result);
         const {
           trades: cloudTrades,
+          stockTrades: cloudStockTrades,
           watchlist: cloudWatchlist,
           waveNotes: cloudNotes,
           settings,
@@ -891,6 +893,9 @@ function MainApp({ user, onLogout }) {
 
         if (cloudTrades !== null) setTrades(cloudTrades);
         else console.warn('[云端加载] ⚠️ trades 拉取失败, 保留本地 state');
+
+        if (cloudStockTrades !== null) setStockTrades(cloudStockTrades);
+        else console.warn('[云端加载] ⚠️ stockTrades 拉取失败, 保留本地主交易账本');
 
         if (cloudWatchlist && cloudWatchlist.length > 0) {
           console.log('[云端加载] ✓ 设置 watchlist:', cloudWatchlist.length, '只');
@@ -1191,6 +1196,7 @@ function MainApp({ user, onLogout }) {
     }
 
     setTrades([]);
+    setStockTrades([]);
     setQqqHigh(640.47);
     setQqqCurrent(640.47);
     setTqqqCurrent(58.55);
@@ -1343,11 +1349,11 @@ function MainApp({ user, onLogout }) {
   const totalPnlPct = totalInvested > 0 ? totalPnl / totalInvested : 0;
 
   const investmentSummary = useMemo(() => deriveInvestmentSummary({
-    trades,
+    stockTrades,
     watchlist,
     cashUsd: 0,
     usdRate,
-  }), [trades, watchlist, usdRate]);
+  }), [stockTrades, watchlist, usdRate]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -1526,9 +1532,9 @@ function MainApp({ user, onLogout }) {
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
     const stockName = newTrade.name || STOCK_NAME_CN[symbol] || symbol;
 
-    // 添加交易记录(走云端,等返回真正的 id)
+    // 添加主交易账本记录(走 stock_trades,等返回真正的 id)
     try {
-      const tradeRecord = await db.insertTrade({
+      const tradeRecord = await db.insertStockTrade({
         symbol,
         name: stockName,
         side: newTrade.side || 'buy',
@@ -1536,7 +1542,7 @@ function MainApp({ user, onLogout }) {
         price: priceNum,
         shares: sharesNum,
       });
-      setTrades([...trades, tradeRecord]);
+      setStockTrades(current => [...current, tradeRecord]);
     } catch (e) {
       alert('添加交易失败:' + e.message);
       return;
@@ -2061,6 +2067,7 @@ function MainApp({ user, onLogout }) {
     snapshotDraft,
     snapshots,
     snapshotTab,
+    stockTrades,
     supabase,
     trades,
     Trash2,
@@ -2175,6 +2182,7 @@ function MainApp({ user, onLogout }) {
                   if (!_failedTables || _failedTables.length === 0) {
                     // 重试成功, 重新设置所有 state
                     if (result.trades !== null) setTrades(result.trades);
+                    if (result.stockTrades !== null) setStockTrades(result.stockTrades);
                     if (result.watchlist && result.watchlist.length > 0) setWatchlist(result.watchlist);
                     if (result.waveNotes !== null) setWaveNotes(result.waveNotes);
                     if (result.accounts !== null) setAccounts(result.accounts);
@@ -3982,7 +3990,10 @@ function MainApp({ user, onLogout }) {
             return null;
           }
           // 这只股票相关的交易笔数
-          const relatedTrades = trades.filter(t => (t.symbol || 'TQQQ') === s.symbol).length;
+          const relatedTrades = [
+            ...trades,
+            ...stockTrades,
+          ].filter(t => (t.symbol || 'TQQQ') === s.symbol).length;
           return (
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center px-6"

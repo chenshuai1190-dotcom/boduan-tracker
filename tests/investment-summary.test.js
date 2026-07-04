@@ -70,3 +70,21 @@ test('investment summary ignores independent cost-basis tool data by interface',
   assert.equal(summary.sellTradeCount, 0);
   assert.deepEqual(summary.activePositions, []);
 });
+
+test('investment summary prefers independent stockTrades over legacy wave trades', () => {
+  const summary = deriveInvestmentSummary({
+    trades: [
+      { id: 1, symbol: 'AAPL', side: 'buy', date: '2026-01-01', price: 100, shares: 10 },
+    ],
+    stockTrades: [
+      { id: 'ledger-1', symbol: 'MSFT', side: 'buy', date: '2026-01-03', price: 200, shares: 2 },
+    ],
+    watchlist,
+    usdRate: 7.2,
+  });
+
+  assert.equal(summary.holdingStockCount, 1);
+  assert.equal(summary.activePositions[0].symbol, 'MSFT');
+  assert.equal(summary.totalAssetsUsd, 420);
+  assert.equal(summary.tradeCount, 1);
+});

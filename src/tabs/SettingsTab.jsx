@@ -44,6 +44,7 @@ export default function SettingsTab({ ctx }) {
     showChangePassword,
     showConfirm,
     snapshots,
+    stockTrades,
     supabase,
     trades,
     usdRate,
@@ -249,14 +250,23 @@ export default function SettingsTab({ ctx }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.62
+                  v10.7.9.63
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.62', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.63', date: '2026-07-04', latest: true,
+                    items: [
+                      '📒 交易主账本独立建库',
+                      '  - 首页和交易页持仓改为读取 stock_trades',
+                      '  - 旧 trades 只保留给波段记录兼容',
+                      '  - JSON 备份同步包含新主账本',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.62', date: '2026-07-04',
                     items: [
                       '🎨 交易页盈亏色号统一首页',
                       '  - 持仓盈亏、当日盈亏和订单方向色阶改为首页同款',
@@ -950,8 +960,9 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.62',
+                      version: 'v10.7.9.63',
                       trades,
+                      stockTrades,
                       watchlist,
                       waveNotes,
                       accounts,
@@ -1001,7 +1012,7 @@ export default function SettingsTab({ ctx }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.62</div>
+                <div>📊 版本:v10.7.9.63</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>

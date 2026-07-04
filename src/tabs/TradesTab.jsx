@@ -83,6 +83,7 @@ export default function TradesTab({ ctx }) {
     setWaveNotes,
     showAddTrade,
     showConfirm,
+    stockTrades,
     trades,
     usdRate,
     watchlist,
@@ -117,7 +118,7 @@ export default function TradesTab({ ctx }) {
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
   const todayKey = localDateKey();
-  const todayTrades = (trades || []).filter((trade) => trade.date === todayKey);
+  const todayTrades = (stockTrades || []).filter((trade) => trade.date === todayKey);
   const todayBuys = todayTrades.filter((trade) => trade.side !== 'sell').length;
   const todaySells = todayTrades.filter((trade) => trade.side === 'sell').length;
   const showWaveTool = toolPanel === 'waves';

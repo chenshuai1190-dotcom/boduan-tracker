@@ -4,6 +4,43 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 交易主账本独立建库
+
+- Commit: pending
+- Background: 用户确认当前交易页持仓仍来自波段旧 `trades` 数据,要求重新建立独立数据库来完整记录股票买入/卖出操作,不再复用老数据库和结构。
+- Changes:
+  - 新增 `stock_trades` 主交易账本数据层: `fetchStockTrades` / `insertStockTrade` / `deleteStockTrade`。
+  - App 启动加载新增 `stockTrades` 状态,首页/交易页投资汇总改从 `stockTrades` 派生;旧 `trades` 保留给波段记录工具兼容。
+  - 交易页当日订单改读 `stockTrades`;波段记录和全部旧交易弹窗继续读旧 `trades`。
+  - `supabase/stock_trades.sql` 新增独立建表迁移;`supabase/rls.sql` 同步纳入 `stock_trades` 表结构、索引和 RLS policy。
+  - RLS REST 探针加入 `stock_trades`。
+  - 设置页用户可见更新日志同步到 `v10.7.9.63`,JSON 备份新增 `stockTrades`。
+  - 交接文档更新交易模块边界。
+- Key files:
+  - `src/lib/db.js`
+  - `src/lib/investmentSummary.js`
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `supabase/stock_trades.sql`
+  - `supabase/rls.sql`
+  - `scripts/verify-rls-rest.mjs`
+  - `tests/investment-summary.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 23 tests.
+  - `npm run build`: pass; `App-D3Wzy0Ax.js` 121.45 kB / gzip 33.34 kB, `TradesTab-Cre_5I5e.js` 45.12 kB / gzip 9.62 kB, `SettingsTab-PfDVAiR-.js` 30.64 kB / gzip 11.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk check: pass; built chunks contain `stock_trades`, `stockTrades`, `v10.7.9.63`, and "交易主账本独立建库"。
+  - `npm run verify:rls:rest`: pass after migration; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
+- Deployment: pending push.
+- Supabase note:
+  - Executed `supabase/stock_trades.sql` in production Supabase project `ykgotnmtqcqdzqtrlayq`; SQL Editor returned "Success. No rows returned"。
+  - Pre-migration REST probe showed `stock_trades` returned `404`; post-migration probe shows `stock_trades` returns `200` with `visibleRows=0`。
+- Rollback: 回滚本次提交会让首页/交易页重新从旧 `trades` 派生主持仓;`stock_trades` 表若已创建可保留,不会影响旧模块。
+
 ### 2026-07-04 - 交易页盈亏色号统一首页
 
 - Commit: `ac6e337708f29d9c435e45c10022b670e1e31d11`

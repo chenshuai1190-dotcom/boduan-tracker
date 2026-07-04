@@ -85,6 +85,76 @@ export const deleteTrade = async (id) => {
   if (error) throw error;
 };
 
+// ============ STOCK_TRADES (主交易账本) ============
+
+const mapStockTrade = (trade) => ({
+  id: trade.id,
+  symbol: String(trade.symbol || '').trim().toUpperCase(),
+  name: trade.name || '',
+  side: trade.side === 'sell' ? 'sell' : 'buy',
+  date: trade.trade_date || trade.date,
+  price: Number(trade.price),
+  shares: Number(trade.shares),
+  fee: Number(trade.fee || 0),
+  currency: trade.currency || 'USD',
+  note: trade.note || '',
+});
+
+export const fetchStockTrades = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('stock_trades')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('trade_date', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.error('fetchStockTrades 失败:', error);
+    const cached = cacheGet('stock_trades');
+    if (cached) return cached;
+    throw error;
+  }
+  const stockTrades = (data || []).map(mapStockTrade);
+  cacheSet('stock_trades', stockTrades);
+  return stockTrades;
+};
+
+export const insertStockTrade = async (trade) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const symbol = String(trade.symbol || '').trim().toUpperCase();
+  const side = trade.side === 'sell' ? 'sell' : 'buy';
+  const { data, error } = await supabase
+    .from('stock_trades')
+    .insert({
+      user_id: user.id,
+      symbol,
+      name: trade.name || symbol,
+      side,
+      trade_date: trade.date || trade.tradeDate,
+      price: trade.price,
+      shares: trade.shares,
+      fee: trade.fee || 0,
+      currency: trade.currency || 'USD',
+      note: trade.note || '',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapStockTrade(data);
+};
+
+export const deleteStockTrade = async (id) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await scopedDeleteById(supabase.from('stock_trades'), id, user.id);
+  if (error) throw error;
+};
+
 // ============ WATCHLIST (关注列表) ============
 
 export const fetchWatchlist = async (preUser = null) => {
@@ -236,7 +306,7 @@ export const fetchAllUserData = async () => {
   if (!user) {
     console.warn('[fetchAllUserData] 用户未登录');
     return {
-      trades: null, watchlist: null, waveNotes: null, settings: null,
+      trades: null, stockTrades: null, watchlist: null, waveNotes: null, settings: null,
       accounts: null, snapshots: null, investmentPlan: null,
       marginStatus: null, disciplines: null, reviewLogs: null,
       yearlyActuals: null, _failedTables: [],
@@ -245,23 +315,24 @@ export const fetchAllUserData = async () => {
 
   const results = await Promise.allSettled([
     fetchTrades(user),            // 0
-    fetchWatchlist(user),         // 1
-    fetchWaveNotes(user),         // 2
-    fetchSettings(user),          // 3
-    fetchAccounts(user),          // 4
-    fetchSnapshots(user),         // 5
-    fetchInvestmentPlan(user),    // 6
-    fetchMarginStatus(user),      // 7
-    fetchDisciplines(user),       // 8
-    fetchReviewLogs(user),        // 9
-    fetchYearlyActuals(user),     // 10
+    fetchStockTrades(user),       // 1
+    fetchWatchlist(user),         // 2
+    fetchWaveNotes(user),         // 3
+    fetchSettings(user),          // 4
+    fetchAccounts(user),          // 5
+    fetchSnapshots(user),         // 6
+    fetchInvestmentPlan(user),    // 7
+    fetchMarginStatus(user),      // 8
+    fetchDisciplines(user),       // 9
+    fetchReviewLogs(user),        // 10
+    fetchYearlyActuals(user),     // 11
   ]);
 
   // 🔑 关键: 失败时返回 null (非 []/{}) 这样 App 层能区分
   // "真的没数据" vs "拉取失败"
   // 防止用 || 时把 [] 当成 falsy 意外覆盖本地数据
   const tableNames = [
-    'trades', 'watchlist', 'waveNotes', 'settings',
+    'trades', 'stockTrades', 'watchlist', 'waveNotes', 'settings',
     'accounts', 'snapshots', 'investmentPlan', 'marginStatus',
     'disciplines', 'reviewLogs', 'yearlyActuals',
   ];
@@ -276,16 +347,17 @@ export const fetchAllUserData = async () => {
 
   return {
     trades:         getValue(0),
-    watchlist:      getValue(1),
-    waveNotes:      getValue(2),
-    settings:       getValue(3),
-    accounts:       getValue(4),
-    snapshots:      getValue(5),
-    investmentPlan: getValue(6),
-    marginStatus:   getValue(7),
-    disciplines:    getValue(8),
-    reviewLogs:     getValue(9),
-    yearlyActuals:  getValue(10),
+    stockTrades:    getValue(1),
+    watchlist:      getValue(2),
+    waveNotes:      getValue(3),
+    settings:       getValue(4),
+    accounts:       getValue(5),
+    snapshots:      getValue(6),
+    investmentPlan: getValue(7),
+    marginStatus:   getValue(8),
+    disciplines:    getValue(9),
+    reviewLogs:     getValue(10),
+    yearlyActuals:  getValue(11),
     // 🔑 失败表清单 (App 层决定是否显示警告)
     _failedTables: failedTables,
   };

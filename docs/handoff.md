@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `6028bf7b5bcf9c3f55c0fcc00a828438b27a0834`
-- Latest verified deployment record before this handoff: `6028bf7b5bcf9c3f55c0fcc00a828438b27a0834`.
-- App changelog version shown in Settings: `v10.7.9.61`
+- Runtime code verified on production: `ac6e337708f29d9c435e45c10022b670e1e31d11`
+- Latest verified deployment record before this handoff: `120aa45677df80ec7a8e399352c9eb57cb282527`.
+- App changelog version shown in Settings: `v10.7.9.63` in the current working change; production remains `v10.7.9.62` until this change is deployed.
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -117,21 +117,20 @@ npm run verify:rls:rest
 
 Expected `/api/quote` unauthenticated result: `401`.
 
-`npm run verify:rls:rest` currently checks anonymous REST exposure for 12 user-owned Supabase tables. It does not prove metadata-level RLS settings such as `pg_class.relrowsecurity`; that still needs Supabase SQL/admin access.
+`npm run verify:rls:rest` currently checks anonymous REST exposure for 13 user-owned Supabase tables, including the new `stock_trades` main ledger table. It does not prove metadata-level RLS settings such as `pg_class.relrowsecurity`; that still needs Supabase SQL/admin access.
 
 ## Current Verified Production Evidence
 
 Last runtime verification recorded:
 
-- Runtime commit: `6028bf7b5bcf9c3f55c0fcc00a828438b27a0834`
-- GitHub Actions `CI`: success, run `28693408355`
-- Vercel deployment: success, deployment `5307063628`, target `https://boduan-tracker-pqk5209bf-chenshuai1190-7580s-projects.vercel.app`
-- Production chunks: `index-DtdIVvn6.js`, `index-BKpRRget.css`, `App-DnY3pLpu.js`, `HomeTab-CB8aSzcR.js`, `TradesTab-DETFbJEb.js`, `SettingsTab-B1V1K9oO.js`
-- `TradesTab-DETFbJEb.js` contains home-aligned header sizing, compact toolbox classes and no `策略订单`; it no longer contains allocation sublabel `市值`.
-- `SettingsTab-B1V1K9oO.js` contains `v10.7.9.61` and "交易页头部和工具箱细节对齐首页".
+- Runtime commit: `ac6e337708f29d9c435e45c10022b670e1e31d11`
+- Vercel deployment: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GcGHtrmbtJq1BY1dXL9SKbj2J8FC`
+- Production chunks: `index-ykmMaX1P.js`, `App-sOZfF3zQ.js`, `HomeTab-CB8aSzcR.js`, `TradesTab-CyaUGrGg.js`, `SettingsTab-BOo-UFRG.js`
+- `TradesTab-CyaUGrGg.js` contains `text-rose-400` / `text-emerald-400` for the main trade P/L and order direction.
+- `SettingsTab-BOo-UFRG.js` contains `v10.7.9.62` and "交易页盈亏色号统一首页".
 - `/api/quote?symbols=VIX` without auth returns `401`
-- The trade tab now uses the main `trades` ledger for positions and effective cost; wave records and the cost-basis calculator are toolbox tools, not part of the main trade ledger.
-- RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
+- The trade-ledger refactor introduces `stock_trades` as the main buy/sell ledger. `supabase/stock_trades.sql` has been applied in production Supabase project `ykgotnmtqcqdzqtrlayq`.
+- The anonymous REST probe now covers 13 user-owned tables, including `stock_trades`; all returned `visibleRows=0`.
 
 Home current-signal design preference:
 
@@ -142,7 +141,8 @@ Home current-signal design preference:
 
 Trading module boundary:
 
-- Main positions must be derived from `trades` via `derivePositionsFromTrades`.
+- Main positions must be derived from `stockTrades` / the `stock_trades` table via `deriveInvestmentSummary`.
+- Legacy `trades` is the wave-record compatibility table only. Do not use it for homepage total assets, trade page positions, or future realized/unrealized stock reports.
 - `effectiveCost` is the displayed diluted cost for remaining shares: realized sell profit/loss is spread across remaining held shares.
 - Example baseline: buy NVDA 100 shares at 100, sell 10 shares at 150, then held shares are 90 and effective cost is 94.44.
 - Trading tab uses the same black shell and dark bottom navigation as the home tab.
