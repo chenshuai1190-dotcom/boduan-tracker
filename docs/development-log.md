@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 交易页盈亏色号统一首页
 
-- Commit: pending
+- Commit: `ac6e337708f29d9c435e45c10022b670e1e31d11`
 - Background: 用户反馈交易页粉色与首页粉色不是同一个色号,要求交易页和首页视觉统一;同时确认当前交易页持仓仍来自旧波段记录数据,后续主交易账本需要独立建库。
 - Changes:
   - 交易页盈亏色阶统一为首页同款 `text-rose-400` / `text-emerald-400`。
@@ -22,7 +22,15 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local chunk check: pass; built `TradesTab-CyaUGrGg.js` contains `text-rose-400` / `text-emerald-400` for trade P/L and order direction, while `SettingsTab-BOo-UFRG.js` contains `v10.7.9.62` and "交易页盈亏色号统一首页"。
-- Deployment: pending push.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `ac6e337708f29d9c435e45c10022b670e1e31d11`
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GcGHtrmbtJq1BY1dXL9SKbj2J8FC`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-ykmMaX1P.js`, `App-sOZfF3zQ.js`, `TradesTab-CyaUGrGg.js`, `SettingsTab-BOo-UFRG.js`
+  - `TradesTab-CyaUGrGg.js` contains `text-rose-400` / `text-emerald-400` for the main trade P/L and order direction; the remaining `text-emerald-300` is the unchanged LIVE button style.
+  - `SettingsTab-BOo-UFRG.js` contains `v10.7.9.62` and "交易页盈亏色号统一首页"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
 - Follow-up:
   - 下一步交易重构应新增独立买卖流水表,不再复用旧 `trades` 表作为主持仓数据源;旧 `trades` 保留给波段记录兼容使用。
 - Rollback: 回滚本次提交会恢复交易页上一版盈亏色阶;不影响交易数据逻辑。
