@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `58663cdd685207d54c0def7bd17bf02830905ebb`
-- Latest verified docs/deployment record before this handoff: this handoff/docs-only commit, recording runtime `58663cdd685207d54c0def7bd17bf02830905ebb`.
-- App changelog version shown in Settings: `v10.7.9.59`
+- Runtime code verified on production: `37df7e3f50e5248675c374a03942cfef0e5edf53`
+- Latest verified deployment record before this handoff: `37df7e3f50e5248675c374a03942cfef0e5edf53`.
+- App changelog version shown in Settings: `v10.7.9.60`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,13 +123,13 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `58663cdd685207d54c0def7bd17bf02830905ebb`
-- GitHub Actions `CI`: success, run `28692910439`
-- Vercel deployment: success, deployment `5306951776`, target `https://boduan-tracker-3701o64x4-chenshuai1190-7580s-projects.vercel.app`
-- Production chunks: `index-DIlRs9If.js`, `index-C89TU27I.css`, `App-Q0v9E7k3.js`, `HomeTab-CB8aSzcR.js`, `TradesTab-CZdjIIxw.js`, `SettingsTab-pFm5DUJ_.js`
-- `TradesTab-CZdjIIxw.js` contains `持仓分布`, `当日订单`, `波段记录`, `股票设置`, `摊薄工具`, `全部功能`, `effectiveCost`, and local-date helper; it does not contain `策略订单`.
-- `SettingsTab-pFm5DUJ_.js` contains `v10.7.9.59` and "交易页重构为主交易账本".
-- `App-Q0v9E7k3.js` does not contain old outer trade summary text `持仓总市值` / `波段总盈亏`.
+- Runtime commit: `37df7e3f50e5248675c374a03942cfef0e5edf53`
+- GitHub Actions `CI`: success, run `28693219408`
+- Vercel deployment: success, deployment `5307019723`, target `https://boduan-tracker-jy063ere4-chenshuai1190-7580s-projects.vercel.app`
+- Production chunks: `index-O1ERwYpW.js`, `index-BzNM0xJt.css`, `App-C3fPgYW0.js`, `HomeTab-CB8aSzcR.js`, `TradesTab-X2Aflgml.js`, `SettingsTab-WMoYlydN.js`
+- `TradesTab-X2Aflgml.js` contains `市值/数量`, `持仓盈亏`, `占比`, `波段记录`, `摊薄工具`, disabled `全部功能` styling, and does not contain `策略订单`.
+- `SettingsTab-WMoYlydN.js` contains `v10.7.9.60` and "交易页工具箱和持仓表优化".
+- `App-C3fPgYW0.js` contains the dark-shell branch for `home` / `trades` and dark bottom navigation styling.
 - `/api/quote?symbols=VIX` without auth returns `401`
 - The trade tab now uses the main `trades` ledger for positions and effective cost; wave records and the cost-basis calculator are toolbox tools, not part of the main trade ledger.
 - RLS REST probe was not rerun for this UI-only change; the last recorded probe still showed 12 user-owned tables returned `visibleRows=0`.
@@ -146,6 +146,10 @@ Trading module boundary:
 - Main positions must be derived from `trades` via `derivePositionsFromTrades`.
 - `effectiveCost` is the displayed diluted cost for remaining shares: realized sell profit/loss is spread across remaining held shares.
 - Example baseline: buy NVDA 100 shares at 100, sell 10 shares at 150, then held shares are 90 and effective cost is 94.44.
+- Trading tab uses the same black shell and dark bottom navigation as the home tab.
+- In the position table, keep the name/code column fixed and put metrics from `市值/数量` onward in a horizontal scroll area; include `持仓盈亏` and `占比`.
+- Keep `全部功能` disabled until the user defines what it should open.
+- `波段记录` and `摊薄工具` should open as top asset/toolbox header plus their original module content, not mixed into the main position ledger.
 - `costBasisData` remains an independent small calculator in the toolbox. Do not wire it into total assets, positions, or main trading reports unless the user explicitly changes that product rule.
 - Do not add a "strategy orders" tab in the trade module; the user explicitly said it is not needed.
 
@@ -204,6 +208,7 @@ CI:
 
 Recent important commits:
 
+- `37df7e3`: refined the trade tab black shell, disabled the undefined all-function entry, and made position metrics horizontally scrollable with P/L and allocation.
 - `58663cd`: rebuilt the trade tab around the main manual trade ledger, added effective diluted cost, moved wave/cost tools into the toolbox, and omitted strategy orders.
 - `33dab31`: rolled back the home current-signal detail list and restored the compact previous signal card.
 - `20eba4d`: briefly restored the home current-signal detail list; rolled back by `33dab31`.

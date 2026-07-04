@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 交易页黑底和工具箱细节优化
 
-- Commit: `same commit`
+- Commit: `37df7e3f50e5248675c374a03942cfef0e5edf53`
 - Background: 用户要求交易页背景与首页黑色风格一致;主持仓列表从 `市值/数量` 开始改为横向滑动指标区,并增加个股持仓盈亏和占比;`全部功能` 未确定前不响应点击;波段记录和摊薄工具点开后显示当前头部加原模块内容。
 - Changes:
   - App 外层背景和底部导航在 `home` / `trades` 两个 tab 统一使用黑色风格。
@@ -27,8 +27,17 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local chunk check: pass; built `TradesTab-X2Aflgml.js` contains `市值/数量`, `持仓盈亏`, `占比`, `波段记录`, `摊薄工具`, disabled `全部功能` styling, and does not contain `策略订单`; built `SettingsTab-WMoYlydN.js` contains `v10.7.9.60`; built `App-Di96tjJp.js` contains the dark-shell `trades` branch.
-- Deployment: pending GitHub main push and Vercel production verification.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `37df7e3f50e5248675c374a03942cfef0e5edf53`
+  - GitHub Actions `CI`: success, run `28693219408`
+  - Vercel deployment: success, deployment `5307019723`, target `https://boduan-tracker-jy063ere4-chenshuai1190-7580s-projects.vercel.app`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-O1ERwYpW.js`, `index-BzNM0xJt.css`, `App-C3fPgYW0.js`, `TradesTab-X2Aflgml.js`, `SettingsTab-WMoYlydN.js`, `HomeTab-CB8aSzcR.js`
+  - `TradesTab-X2Aflgml.js` contains `市值/数量`, `持仓盈亏`, `占比`, `波段记录`, `摊薄工具`, disabled `全部功能` styling, and does not contain `策略订单`.
+  - `SettingsTab-WMoYlydN.js` contains `v10.7.9.60` and "交易页工具箱和持仓表优化"。
+  - `App-C3fPgYW0.js` contains the dark-shell branch for `home` / `trades` and dark bottom navigation styling.
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
 - Rollback: 回滚本次提交会恢复交易页浅色 App 外壳、旧持仓表布局和可点击 `全部功能`;不影响交易主账本数据结构。
 
 ### 2026-07-04 - 记录交易页主账本部署验证
