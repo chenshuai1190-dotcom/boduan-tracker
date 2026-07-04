@@ -416,8 +416,8 @@ export default function TradesTab({ ctx }) {
                     </div>
                   </div>
                   <div className="overflow-x-auto [scrollbar-width:none]">
-                    <div className="min-w-[480px]">
-                      <div className="grid grid-cols-[80px_76px_118px_144px_46px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                    <div className="min-w-[500px]">
+                      <div className="grid grid-cols-[80px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
                         <span className="text-left">市值/数量</span>
                         <span className="text-right">现价/成本</span>
                         <span className="text-right">当日盈亏</span>
@@ -436,7 +436,7 @@ export default function TradesTab({ ctx }) {
                               key={position.symbol}
                               type="button"
                               onClick={() => openTradeModal(position, 'sell')}
-                              className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_144px_46px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
+                              className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_144px_66px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
                             >
                               <span className="text-left">
                                 <span className="block max-w-full truncate text-[12px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 0)}</span>

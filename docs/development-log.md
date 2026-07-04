@@ -4,6 +4,36 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 拉开持仓盈亏与占比间距并固化 SSH 推送规则
+
+- Commit: 待本轮 runtime 提交生成后在部署回填日志中记录。
+- Background: 用户根据手机截图反馈交易页持仓分布里 `持仓盈亏` 和 `占比` 距离太近,要求调整到更合理的位置,但不能影响前面的 `当日盈亏`;同时要求把今天 HTTPS remote 缺少 GitHub 凭证导致 `could not read Username`、最终改用本机项目 SSH key 推送成功的原因和处理方式写进开发准则,避免下次误判为无权限。
+- Changes:
+  - 交易页持仓分布右侧横向指标区从 `min-w-[480px]` 调整为 `min-w-[500px]`。
+  - 右侧列宽从 `80px/76px/118px/144px/46px` 改为 `80px/76px/118px/144px/66px`,只加宽最后的 `占比` 列;`市值/数量`、`现价/成本`、`当日盈亏` 和 `持仓盈亏` 列宽保持不变,不影响当日盈亏显示。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.85`。
+  - `docs/development-process.md` 在提交和推送步骤新增 SSH 推送规则:若 HTTPS remote 报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限,应使用本机项目 SSH key `~/.ssh/boduan_tracker_github` 通过 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git` 推送和 fetch。
+  - 同步更新 `docs/handoff.md`,记录本次 UI 调整、版本变化和 SSH 推送准则。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `TradesTab-DACFYzqP.js` 47.63 kB / gzip 10.41 kB, `SettingsTab-D0uBeo3w.js` 29.00 kB / gzip 11.30 kB, `App-UYLEo93J.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` before deployment.
+  - Local source marker check: pass; source contains `min-w-[500px]`, `grid-cols-[80px_76px_118px_144px_66px]`, `v10.7.9.85`, `boduan_tracker_github` and `could not read Username`.
+  - Local build marker check: pass; built `TradesTab-DACFYzqP.js` contains `min-w-[500px]` and `grid-cols-[80px_76px_118px_144px_66px]`; built `SettingsTab-D0uBeo3w.js` contains `v10.7.9.85`, `占比列单独加宽` and `当日盈亏列宽保持不变`.
+- Deployment: 待推送 GitHub `main` 后由 Vercel 自动部署,部署完成后回填 runtime commit 和 deployment target。
+- Production verification:
+  - 线上 chunk marker、生产 RLS REST 复验和部署 URL 待部署完成后回填。
+- Rollback: 回滚本次改动会恢复占比列 `46px`、右侧指标区 `480px` 和缺少 SSH 推送恢复说明的开发流程;当日盈亏列不会被回滚以外的列宽改动影响。
+
 ### 2026-07-04 - 恢复当日盈亏首屏显示并加宽持仓盈亏
 
 - Commit: `c136684925aa95fc266cf3b07de04d66edbf1e24`

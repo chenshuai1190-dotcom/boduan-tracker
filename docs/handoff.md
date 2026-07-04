@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `c136684925aa95fc266cf3b07de04d66edbf1e24`
-- 最近应用代码提交: `c136684925aa95fc266cf3b07de04d66edbf1e24`
+- 当前产品基准提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
+- 最近应用代码提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.84`
-- Vercel 最新运行时部署: `v10.7.9.84` runtime 成功
-- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EM28PXztcDjX4fJZ84icbGPjrkNf`
+- 设置页版本: `v10.7.9.85`
+- Vercel 最新部署: 本轮 `v10.7.9.85` runtime 待推送后自动部署
+- Vercel 部署记录: 待本轮部署完成后回填
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.84` 的交易页持仓盈亏列宽和正号显示修正。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.85` 的交易页持仓盈亏/占比间距修正和 SSH 推送准则固化。
 
 ## 2. 先读这些文档
 
@@ -129,6 +129,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 5. 做线上验证。
 6. 把部署和线上验证写回 `docs/development-log.md`。
 
+推送注意:
+
+- 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限。
+- 本机该项目已有 SSH key `~/.ssh/boduan_tracker_github`;用 `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes"` 推送到 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`。
+
 ## 7. 当前线上验证证据
 
 最近完整验证记录:
@@ -139,20 +144,22 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.84` runtime commit `c136684925aa95fc266cf3b07de04d66edbf1e24` 已部署;GitHub commit status `Vercel`: success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EM28PXztcDjX4fJZ84icbGPjrkNf`;生产 `GET https://boduan-tracker.vercel.app/?v=c136684-runtime`: HTTP 200。
+- `v10.7.9.85` runtime 部署待推送后回填生产首页 HTTP、GitHub commit status 和 Vercel deployment target。
 
 已验证生产 runtime chunks:
 
 - 本轮本地构建 runtime chunks: `/assets/TradesTab-9gMVt7jn.js`, `/assets/SettingsTab-PqkG5MfK.js`, `/assets/App-MEOiwZpv.js`。
-- 生产 entry chunks: `/assets/index-CLUR0eVP.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`。
-- 生产 runtime chunks: `/assets/App-d9ns40xc.js`, `/assets/TradesTab-9gMVt7jn.js`, `/assets/SettingsTab-PqkG5MfK.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-1u3U2fZJ.js`。
+- 本轮本地构建 runtime chunks: `/assets/TradesTab-DACFYzqP.js`, `/assets/SettingsTab-D0uBeo3w.js`, `/assets/App-UYLEo93J.js`。
+- 生产 runtime chunks 待本轮部署完成后回填。
 
 关键 marker:
 
 - `App-d9ns40xc.js` 包含 `updateStockTrade`。
 - `TradesTab-9gMVt7jn.js` 包含 `min-w-[480px]`、`grid-cols-[80px_76px_118px_144px_46px]`、`unrealizedPnl`、`确认修改` 和 `删除这笔订单?`。
 - `SettingsTab-PqkG5MfK.js` 包含 `v10.7.9.84`、`当日盈亏列恢复上一版首屏显示效果` 和 `持仓盈亏正数恢复显示 + 号`。
-- 生产 RLS REST 复验通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-1u3U2fZJ.js`。
+- 本轮本地 `TradesTab-DACFYzqP.js` 包含 `min-w-[500px]` 和 `grid-cols-[80px_76px_118px_144px_66px]`。
+- 本轮本地 `SettingsTab-D0uBeo3w.js` 包含 `v10.7.9.85`、`占比列单独加宽` 和 `当日盈亏列宽保持不变`。
+- 生产 `supabase` chunk marker 待本轮部署完成后回填。
 
 ## 8. 最近完成的产品改动
 
@@ -164,6 +171,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.85`: 交易页持仓分布只加宽 `占比` 列,把 `持仓盈亏` 和 `占比` 拉开距离;前面的 `当日盈亏` 列宽保持不变。
 - `v10.7.9.84`: 交易页持仓分布恢复上一版当日盈亏首屏显示效果;只把 `持仓盈亏` 列单独加宽到 `144px`;持仓盈亏正数恢复显示 `+` 号。
 - `v10.7.9.83`: 交易页持仓盈亏改为只计算当前持仓浮动盈亏;正数不再显示 `+` 号;当日盈亏和持仓盈亏列加宽并继续支持横向滑动;当日订单支持修改和删除并同步云端账本。
 - `v10.7.9.82`: 交易页持仓分布市值/数量列不再显示小数,减少市值列占用并帮助当日盈亏完整露出。
@@ -182,6 +190,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 交易和收益率
 
+- `v10.7.9.85`: 列宽改为 `80px/76px/118px/144px/66px`,只扩大最后 `占比` 列,让 `持仓盈亏` 和 `占比` 有更合理间距。
 - `v10.7.9.84`: 保留 `v10.7.9.83` 的当前持仓浮盈口径,但展示层恢复持仓盈亏正号;列宽改为 `80px/76px/118px/144px/46px`,确保当日盈亏不受持仓盈亏加宽影响。
 - `v10.7.9.83`: `累计盈亏` 继续使用账户级 `realizedPnl + unrealizedPnl`;`持仓盈亏` 改用 `unrealizedPnl`,个股行改用 `position.unrealizedPnl/unrealizedPct`,避免历史已实现盈亏混入当前持仓浮盈。
 - `v10.7.9.73`: 修复卖出后累计收益率口径。
@@ -352,10 +361,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.84` 或更新版本。
+- 设置页显示 `v10.7.9.85` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
+- HTTPS push 缺 GitHub 凭证时报 `could not read Username` 时,使用项目 SSH key `~/.ssh/boduan_tracker_github` 推送。
 
 ## 14. 交接给下一位同事的话
 
@@ -366,11 +376,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `c136684925aa95fc266cf3b07de04d66edbf1e24`
-最近应用代码提交: `c136684925aa95fc266cf3b07de04d66edbf1e24`
-设置页版本: `v10.7.9.84`
-Vercel 最新运行时部署: `v10.7.9.84` runtime 成功
-部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EM28PXztcDjX4fJZ84icbGPjrkNf`
+当前产品基准提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
+最近应用代码提交: 本轮 `v10.7.9.85` runtime 提交待部署后回填
+设置页版本: `v10.7.9.85`
+Vercel 最新部署: 本轮 `v10.7.9.85` runtime 待推送后自动部署
+部署记录: 待本轮部署完成后回填
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -388,6 +398,7 @@ Vercel 最新运行时部署: `v10.7.9.84` runtime 成功
 - 不要提交任何 token、`.env`、Supabase service role key。
 - 不要添加 `VITE_EODHD_TOKEN`。
 - 不要关闭 `/api/quote` 鉴权。
+- HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
 - 部署前至少跑 `npm test`, `npm run build`, `npm audit`, `git diff --check`。
 - 生产敏感改动还要跑 `npm run verify:rls:rest`,并确认 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
@@ -397,7 +408,7 @@ Vercel 最新运行时部署: `v10.7.9.84` runtime 成功
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。
 - 交易主账本持仓和累计收益率修复。
-- 交易页持仓盈亏当前浮盈口径修正,当日盈亏首屏显示恢复,持仓盈亏正号恢复,当日订单支持修改/删除。
+- 交易页持仓盈亏当前浮盈口径修正,当日盈亏首屏显示恢复,持仓盈亏正号恢复,持仓盈亏和占比间距修正,当日订单支持修改/删除。
 - BTC 单币种实时行情 relay。
 - PWA 图标替换和 iOS 白边修复。
 - 找回密码回跳修复,Supabase Site URL 已改生产域名。

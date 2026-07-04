@@ -72,6 +72,13 @@
    - 推送分支后优先开 PR。
    - 合并或快进 `main` 前必须确认构建和必要验证通过。
    - 用户没有明确要求“只本地实现/暂不部署”时,完成改动并验证通过后必须继续推进到 GitHub `main`,触发生产自动部署。
+   - 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限;本机该项目已有 SSH key `~/.ssh/boduan_tracker_github`,应使用:
+
+     ```bash
+     GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git push git@github.com:chenshuai1190-dotcom/boduan-tracker.git main
+     ```
+
+   - 推送后如本地 `origin/main` 仍未刷新,用同一个 SSH key fetch: `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git fetch git@github.com:chenshuai1190-dotcom/boduan-tracker.git main:refs/remotes/origin/main`。
 
 7. **Vercel 自动部署**
    - `main` 更新后由 Vercel 自动部署。
