@@ -8,6 +8,9 @@ const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
+const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
+const DEFAULT_USD_CNY_RATE = 7.20;
+const DEFAULT_HKD_CNY_RATE = 0.87;
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -16,6 +19,40 @@ const TAB_COMPONENTS = {
   review: ReviewTab,
   settings: SettingsTab,
 };
+
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function validRate(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function readCachedFxRates() {
+  try {
+    const raw = localStorage.getItem(FX_RATES_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const usdCny = validRate(parsed?.rates?.CNY);
+    const hkdCny = validRate(parsed?.rates?.HKD);
+    if (!usdCny && !hkdCny) return null;
+    return {
+      dateKey: parsed.dateKey || '',
+      fetchedAt: parsed.fetchedAt || '',
+      source: parsed.source || 'cache',
+      rates: {
+        CNY: usdCny,
+        HKD: hkdCny,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
 
 function TabFallback() {
   return (
@@ -615,8 +652,8 @@ function MainApp({ user, onLogout }) {
   // ===== 家庭资产 =====
   const [accounts, setAccounts] = useState([]);          // [{id, owner, type, name, currency, icon}]
   const [snapshots, setSnapshots] = useState([]);        // [{id, accountId, month, balance}]
-  const [usdRate, setUsdRate] = useState(7.20);          // 美元换人民币汇率
-  const [hkdRate, setHkdRate] = useState(0.87);           // 港币换人民币汇率
+  const [usdRate, setUsdRate] = useState(DEFAULT_USD_CNY_RATE); // 美元换人民币汇率
+  const [hkdRate, setHkdRate] = useState(DEFAULT_HKD_CNY_RATE); // 港币换人民币汇率
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState(null);
@@ -736,6 +773,61 @@ function MainApp({ user, onLogout }) {
     const params = new URLSearchParams({ symbols });
     return fetch(`/api/quote?${params.toString()}`, { headers });
   }, []);
+
+  const applyFxRates = useCallback((rates) => {
+    const usdCny = validRate(rates?.CNY);
+    const hkdCny = validRate(rates?.HKD);
+    if (usdCny) setUsdRate(usdCny);
+    if (hkdCny) setHkdRate(hkdCny);
+  }, []);
+
+  const fetchDailyFxRates = useCallback(async ({ force = false } = {}) => {
+    const todayKey = localDateKey();
+    const cached = readCachedFxRates();
+
+    if (cached?.rates) {
+      applyFxRates(cached.rates);
+      if (!force && cached.dateKey === todayKey) return cached;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return cached;
+
+      const response = await fetch('/api/fx', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || '汇率拉取失败');
+      }
+
+      const nextRates = {
+        CNY: validRate(result?.rates?.CNY),
+        HKD: validRate(result?.rates?.HKD),
+      };
+      if (!nextRates.CNY && !nextRates.HKD) {
+        throw new Error('汇率接口没有返回有效数据');
+      }
+
+      const next = {
+        dateKey: todayKey,
+        fetchedAt: result.fetchedAt || new Date().toISOString(),
+        source: result.source || 'EODHD',
+        rates: nextRates,
+      };
+      try {
+        localStorage.setItem(FX_RATES_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      applyFxRates(nextRates);
+      return next;
+    } catch (e) {
+      console.warn('[FX] 每日汇率拉取失败,保留缓存/默认值:', e.message);
+      return cached;
+    }
+  }, [applyFxRates]);
 
   // 🗑 v10.7.9.41: 通用删除确认 Modal (替换 window.confirm)
   // 用法: showConfirm({ title, desc, info, confirmText, onConfirm })
@@ -950,6 +1042,10 @@ function MainApp({ user, onLogout }) {
     })();
     return () => { mounted = false; clearTimeout(timeoutId); };
   }, []);
+
+  useEffect(() => {
+    fetchDailyFxRates();
+  }, [fetchDailyFxRates]);
 
   // 保存设置到云端(防抖,500ms 内多次改只保存最后一次)
   const settingsSaveTimerRef = useRef(null);

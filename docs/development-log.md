@@ -4,6 +4,34 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 汇率每日自动查询
+
+- Commit: pending
+- Background: 用户确认 USD/RMB 和 RMB/USD 切换需要真实汇率,但每天查询一次即可。
+- Changes:
+  - 新增已登录服务端接口 `/api/fx`,复用 `/api/quote` 的 Supabase Bearer 鉴权和服务端 `EODHD_API_KEY`,不新增前端 token。
+  - 服务端通过 EODHD Forex real-time endpoint 拉取 `USDCNY.FOREX` 和 `USDHKD.FOREX`;`usdRate` 使用 USD/CNY,`hkdRate` 使用 `USDCNY / USDHKD`。
+  - App 启动时读取 `localStorage` 的 `xmoney_fx_rates_v1`;同一自然日直接使用缓存,跨日才请求 `/api/fx`。
+  - 汇率请求失败时保留上次成功缓存;没有缓存时继续使用默认 `7.20` / `0.87`。
+  - 设置页用户可见更新日志同步到 `v10.7.9.65`。
+- Key files:
+  - `api/fx.js`
+  - `server/fx/rates.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/fx-rates.test.js`
+  - `tests/fx-handler.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 28 tests.
+  - `npm run build`: pass; `App-gEJt5Z2Y.js` 122.83 kB / gzip 33.80 kB, `SettingsTab-Wq7N0WSd.js` 31.09 kB / gzip 12.01 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk check: pass; built `App-gEJt5Z2Y.js` contains `/api/fx` and `xmoney_fx_rates_v1`, and `SettingsTab-Wq7N0WSd.js` contains `v10.7.9.65` plus "汇率每日自动查询"。
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
+- Deployment: pending.
+- Rollback: 回滚本次提交会恢复固定默认/手动汇率;不会影响 `/api/quote` 鉴权或交易账本。
+
 ### 2026-07-04 - USD/RMB 盈亏字号统一
 
 - Commit: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
