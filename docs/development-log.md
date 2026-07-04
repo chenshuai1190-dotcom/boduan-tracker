@@ -30,8 +30,18 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local dist marker check: pass; dist icon files are PNG RGB and `hasAlpha=no`, `SettingsTab-BAP9xbbD.js` contains `v10.7.9.77` and `修复手机桌面图标白边`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6UF4seTNFjjqwzgyH6hF1hUCetqU`.
+  - `GET https://boduan-tracker.vercel.app/?v=f5e21b0`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-uTBj8jV3.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-BQcgsNXo.css`.
+  - Production runtime chunks: `/assets/App-DOgJ04H1.js`, `/assets/HomeTab-CHpB9Zxg.js`, `/assets/SettingsTab-BAP9xbbD.js`.
+- Production verification:
+  - Production manifest/index check: pass; `manifest.json` still points to `/icon-192.png` and `/icon-512.png`, production HTML still points to `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`.
+  - Production icon check: pass; `/icon-512.png`, `/icon-192.png`, `/apple-touch-icon.png`, `/favicon-32.png`, `/favicon-16.png` all return PNG RGB with the expected dimensions and `hasAlpha=no`.
+  - Production icon SHA256 matches local: `icon-512.png` = `b7b44d3b731f4630f69b5f79aca42639e4de89baf9ab2ffa3a72389e83c9d3e9`, `apple-touch-icon.png` = `9c5418bcfe67cf5302793c4ab4512ac78375215d72c88ef996131554e8942995`.
+  - Production chunk marker check: `SettingsTab-BAP9xbbD.js` contains `v10.7.9.77` and `修复手机桌面图标白边`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+  - GitHub Actions workflow run lookup for `f5e21b0` returned no workflow runs; combined commit status contains Vercel success.
 - Rollback: 回滚本次改动会恢复透明外沿 PNG,在 iOS 浅色壁纸上可能再次显示白色边缘;不影响 `/api/quote` 鉴权、Supabase RLS、交易账本或行情功能。
 
 ### 2026-07-04 - 更新 PWA 手机桌面图标
