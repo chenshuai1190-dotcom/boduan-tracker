@@ -1,6 +1,7 @@
 // Supabase 客户端
 // URL 和 KEY 从 Vite 环境变量读取(VITE_ 前缀的会被打包进前端)
 import { createClient } from '@supabase/supabase-js';
+import { getPasswordRecoveryRedirectTo, getRecoveryUrlParams } from './authRecovery.js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -62,8 +63,26 @@ export const signOut = async () => {
 // 发送重置密码邮件 (忘记密码)
 export const resetPassword = async (email) => {
   return await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,  // 点邮件链接后回到 App
+    redirectTo: getPasswordRecoveryRedirectTo(),  // 点邮件链接后固定回到生产 App
   });
+};
+
+export const exchangeAuthCodeFromUrl = async () => {
+  if (typeof window === 'undefined') {
+    return { data: null, error: null };
+  }
+
+  const code = getRecoveryUrlParams(window.location).get('code');
+  if (!code) {
+    return { data: null, error: null };
+  }
+
+  const sessionResult = await getSupabase().auth.getSession();
+  if (sessionResult.data?.session?.access_token) {
+    return { data: { session: sessionResult.data.session }, error: null };
+  }
+
+  return await getSupabase().auth.exchangeCodeForSession(code);
 };
 
 // 更新密码 (已登录时用)

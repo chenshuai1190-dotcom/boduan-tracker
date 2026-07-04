@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, UserPlus, Loader2, AlertCircle, Mail, Lock, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { getRecoveryCallbackError, isRecoveryCallbackLocation } from './lib/authRecovery.js';
 
 const loadAuthApi = () => import('./lib/supabase');
 
@@ -14,10 +15,17 @@ export default function Login({ onSuccess }) {
   const [info, setInfo] = useState('');
 
   // 检测是否是从"重置密码"邮件链接点进来的
-  // Supabase 会在 URL 里带上 type=recovery
+  // Supabase 可能返回 #type=recovery,也可能返回 ?code=...
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
+    const recoveryError = getRecoveryCallbackError(window.location);
+    if (recoveryError) {
+      setMode('forgot');
+      setError(recoveryError);
+      window.history.replaceState(null, '', window.location.pathname || '/');
+      return;
+    }
+
+    if (isRecoveryCallbackLocation(window.location)) {
       setMode('newpw');
       setInfo('请设置新密码');
     }
@@ -62,10 +70,22 @@ export default function Login({ onSuccess }) {
       }
       setLoading(true);
       try {
-        const { updatePassword, getCurrentUser } = await loadAuthApi();
+        const { exchangeAuthCodeFromUrl, updatePassword, getCurrentUser } = await loadAuthApi();
+        const exchangeResult = await exchangeAuthCodeFromUrl();
+        if (exchangeResult?.error) {
+          setMode('forgot');
+          setError('重置链接已失效, 请重新发送重置链接');
+          return;
+        }
+
         const { error } = await updatePassword(newPassword);
         if (error) {
-          setError(error.message);
+          if ((error.message || '').toLowerCase().includes('session')) {
+            setMode('forgot');
+            setError('重置链接已失效, 请重新发送重置链接');
+          } else {
+            setError(error.message);
+          }
         } else {
           setInfo('✓ 密码已更新, 2 秒后自动进入...');
           // 清除 URL 里的 hash 参数

@@ -4,6 +4,40 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 修复找回密码回跳兼容
+
+- Commit: pending
+- Background: 用户反馈 Supabase 找回密码邮件打开后跳到 `localhost:3000/#error=access_denied&error_code=otp_expired...`,手机端无法访问,且链接容易失效。排查发现邮件中的 `redirect_to` 仍为 `http://localhost:3000`;这是 Supabase Auth URL Configuration / 邮件模板配置问题。同时前端只识别旧的 `#type=recovery` hash,不能稳定处理 Supabase PKCE `?code=...` 回跳。
+- Changes:
+  - 找回密码请求的 `redirectTo` 固定为生产域名 `https://boduan-tracker.vercel.app`。
+  - 新增 `src/lib/authRecovery.js`,统一解析 Supabase recovery 回跳参数。
+  - `AuthGate` 兼容 `#type=recovery`、`?code=...`、`error_code` 和 `error_description` 等 recovery 回跳。
+  - 登录页在过期链接回跳时直接展示“重置链接已失效,请重新发送重置链接”,并回到找回密码模式。
+  - 设置新密码前会尝试消费 URL 中的一次性 `code`,避免有效 recovery 链接进入后没有 session 导致更新失败。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.78`。
+- Required Supabase Auth configuration:
+  - Site URL 必须改为 `https://boduan-tracker.vercel.app`。
+  - Redirect URLs 必须允许 `https://boduan-tracker.vercel.app/**`。
+  - 如果 Recovery 邮件模板里自定义了链接并使用 `{{ .SiteURL }}`,需要改用 `{{ .ConfirmationURL }}` 或确保使用 `{{ .RedirectTo }}`,否则邮件仍可能带 `localhost:3000`。
+- Key files:
+  - `src/lib/authRecovery.js`
+  - `src/lib/supabase.js`
+  - `src/AuthGate.jsx`
+  - `src/Login.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/auth-recovery.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `Login-BhhvU4kS.js` 9.39 kB / gzip 3.23 kB, `supabase-VDMVHqcp.js` 1.21 kB / gzip 0.65 kB, `SettingsTab-Cm6OKwzN.js` 27.35 kB / gzip 10.82 kB, `App-UM18uLNm.js` 131.64 kB / gzip 36.77 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local dist marker check: pass; `index-B6hUxu6G.js` contains `https://boduan-tracker.vercel.app`, recovery parser markers and `重置链接已失效`; `supabase-VDMVHqcp.js` contains `exchangeCodeForSession`; `SettingsTab-Cm6OKwzN.js` contains `v10.7.9.78` and `修复找回密码回跳`.
+  - Pre-deploy production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复找回密码使用当前浏览器 origin 的旧行为,并且前端只识别 `#type=recovery`;Supabase Auth 后台若仍指向 localhost,邮件链接仍会跳到本地地址。
+
 ### 2026-07-04 - 修复 PWA 手机桌面图标白边
 
 - Commit: `db79729bfc3e856f5f8064ec4d9874dd7981d88a`

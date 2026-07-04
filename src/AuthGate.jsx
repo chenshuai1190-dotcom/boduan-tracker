@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
+import { isRecoveryCallbackLocation } from './lib/authRecovery.js';
 
 const Login = lazy(() => import('./Login.jsx'));
 const MainApp = lazy(() => import('./App.jsx'));
@@ -8,7 +9,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
 function isRecoveryRoute() {
-  return (window.location.hash || '').includes('type=recovery');
+  return isRecoveryCallbackLocation(window.location);
 }
 
 function getSupabaseProjectRef() {
