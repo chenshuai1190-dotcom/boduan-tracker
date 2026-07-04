@@ -237,7 +237,7 @@ export default function HomeTab({ ctx }) {
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
   const displayTodayPnl = summary.todayPnl * displayRate;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
-  const pnlAmountClass = isCnyMode ? 'text-[13px]' : 'text-[15px]';
+  const pnlAmountClass = 'text-[13px]';
 
   React.useEffect(() => {
     try {

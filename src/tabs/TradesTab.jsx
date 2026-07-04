@@ -113,7 +113,7 @@ export default function TradesTab({ ctx }) {
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'RMB' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
-  const pnlAmountClass = currencyMode === 'CNY' ? 'text-[13px]' : 'text-[15px]';
+  const pnlAmountClass = 'text-[13px]';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;

@@ -4,6 +4,29 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - USD/RMB 盈亏字号统一
+
+- Commit: pending
+- Background: 用户反馈 RMB 的数字大小和 USD 不一致,要求以 RMB 当前字号为准;同时询问汇率来源。
+- Changes:
+  - 首页总资产卡的今日盈亏、累计盈亏金额统一使用 RMB 当前的 `text-[13px]`,USD 不再放大到 `text-[15px]`。
+  - 交易页总资产卡的今日盈亏、累计盈亏金额同步使用同一字号。
+  - 设置页用户可见更新日志同步到 `v10.7.9.64`。
+  - 确认当前 `usdRate` 仍为本地默认/手动输入值,没有接入实时或每日自动汇率接口。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 23 tests.
+  - `npm run build`: pass; `HomeTab-CentWHQh.js` 21.54 kB / gzip 6.25 kB, `TradesTab-LpilKs1l.js` 45.10 kB / gzip 9.61 kB, `SettingsTab-B6EfuSRi.js` 30.86 kB / gzip 11.93 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local chunk check: pass; built `HomeTab-CentWHQh.js` and `TradesTab-LpilKs1l.js` use fixed `text-[13px]` for top-card P/L amount class, and `SettingsTab-B6EfuSRi.js` contains `v10.7.9.64` plus "USD/RMB 盈亏数字字号统一"。
+- Deployment: pending.
+- Rollback: 回滚本次提交会恢复 USD 盈亏金额比 RMB 大的字号;不影响交易账本或汇率计算。
+
 ### 2026-07-04 - 交易主账本独立建库
 
 - Commit: `c6b4d2882b123f503252ec4984a9c5aa51cb4dcf`
