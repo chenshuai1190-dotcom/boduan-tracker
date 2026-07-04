@@ -181,9 +181,11 @@ async function mockProviderFetch(url) {
   }
 
   if (path.includes('/api/eod/')) {
+    const currentYear = new Date().getFullYear();
     return jsonResponse([
-      { date: '2026-06-30', high: 150, low: 140, close: 145, adjusted_close: 145 },
-      { date: '2026-07-01', high: 156, low: 148, close: 155, adjusted_close: 155 },
+      { date: `${currentYear}-01-02`, high: 102, low: 98, close: 100, adjusted_close: 100 },
+      { date: `${currentYear}-06-30`, high: 150, low: 140, close: 145, adjusted_close: 145 },
+      { date: `${currentYear}-07-01`, high: 156, low: 148, close: 155, adjusted_close: 155 },
     ]);
   }
 
@@ -406,6 +408,10 @@ test('stock quote response shape is stable', async () => {
   assert.equal(quote.priceSource, 'EODHD-v2');
   assert.equal(typeof quote.price, 'number');
   assert.equal(typeof quote.week52High, 'number');
+  assert.equal(typeof quote.ytdChangePercent, 'number');
+  assert.equal(typeof quote.yearStartPrice, 'number');
+  assert.equal(quote.yearStartPrice, 100);
+  assert.ok(Math.abs(quote.ytdChangePercent - 55) < 0.000001);
   assert.equal(Array.isArray(quote.intraday), true);
   assert.equal(Array.isArray(quote.intradayPoints), true);
   assert.equal(quote.intradayPoints[0].session, 'regular');

@@ -1877,6 +1877,7 @@ function MainApp({ user, onLogout }) {
       shares: parseInt(draft.shares) || 0,
       previousClose: fresh?.previousClose || 0,
       changePercent: fresh?.changePercent || 0,
+      ytdChangePercent: fresh?.ytdChangePercent || 0,
       intraday: fresh?.intraday || [],
       ...(logoURL ? { logoURL } : {}),
     };
@@ -1973,6 +1974,8 @@ function MainApp({ user, onLogout }) {
               previousClose: fresh.previousClose || s.previousClose || 0,
               // 保存当日涨跌
               changePercent: fresh.changePercent || 0,
+              // 保存年初至今涨跌
+              ytdChangePercent: fresh.ytdChangePercent || 0,
             };
           }
           return s;

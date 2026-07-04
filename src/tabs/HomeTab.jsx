@@ -61,6 +61,12 @@ function fmtMarketPct(value) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 }
 
+function fmtOptionalMarketPct(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '--';
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
 function drawdownFromHigh(price, high) {
   const p = num(price);
   const h = num(high);
@@ -80,6 +86,38 @@ function pnlColor(value, mode) {
 
 function marketColor(value, mode) {
   return marketHexColor(value, mode);
+}
+
+function sortMetricValue(item, key) {
+  if (key === 'price') return num(item.price);
+  if (key === 'change') return num(item.changePct);
+  if (key === 'drawdown') return item.highDrawdown === null ? null : num(item.highDrawdown);
+  if (key === 'ytd') return item.ytdChangePercent === null ? null : num(item.ytdChangePercent);
+  if (key === 'pnl') return item.pnlValue === null ? null : num(item.pnlValue);
+  return null;
+}
+
+function SortIcon({ active, direction }) {
+  return (
+    <span className="flex h-4 w-2.5 shrink-0 flex-col items-center justify-center gap-[2px]" aria-hidden="true">
+      <span className={`h-0 w-0 border-x-[4px] border-b-[5px] border-x-transparent ${active && direction === 'asc' ? 'border-b-[#f6b54b]' : 'border-b-white/35'}`} />
+      <span className={`h-0 w-0 border-x-[4px] border-t-[5px] border-x-transparent ${active && direction === 'desc' ? 'border-t-[#f6b54b]' : 'border-t-white/35'}`} />
+    </span>
+  );
+}
+
+function SortHeader({ label, sortKey, sortState, onSort }) {
+  const active = sortState?.key === sortKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={`flex min-w-0 items-center justify-end gap-1 text-right active:scale-95 ${active ? 'text-[#f6b54b]' : 'text-white/40'}`}
+    >
+      <span className="truncate">{label}</span>
+      <SortIcon active={active} direction={sortState?.direction} />
+    </button>
+  );
 }
 
 function normalizeLogoUrl(value) {
@@ -290,6 +328,10 @@ export default function HomeTab({ ctx }) {
   const [editActionKey, setEditActionKey] = React.useState(null);
   const [editNotice, setEditNotice] = React.useState(null);
   const [pendingDeleteSymbol, setPendingDeleteSymbol] = React.useState(null);
+  const [tableSorts, setTableSorts] = React.useState({
+    watchlist: { key: null, direction: 'desc' },
+    positions: { key: null, direction: 'desc' },
+  });
   const [currencyMode, setCurrencyMode] = React.useState(() => {
     try {
       return localStorage.getItem(HOME_CURRENCY_STORAGE_KEY) === 'CNY' ? 'CNY' : 'USD';
@@ -345,6 +387,24 @@ export default function HomeTab({ ctx }) {
     && !POPULAR_US_STOCKS.some((item) => item.symbol === normalizedSearch)
     && !watchlistSymbols.has(normalizedSearch);
   const isAddingStock = Boolean(addingStockSymbol);
+  const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
+  const showPnlColumn = tableTab === 'positions';
+  const metricGridTemplate = showPnlColumn ? '82px 82px 102px 96px 120px' : '82px 82px 102px 96px';
+  const metricMinWidth = showPnlColumn ? 520 : 390;
+  const metricColumns = [
+    { key: 'price', label: '价格' },
+    { key: 'change', label: '涨跌幅' },
+    { key: 'drawdown', label: '52周跌幅' },
+    { key: 'ytd', label: '年初至今' },
+    ...(showPnlColumn ? [{ key: 'pnl', label: '持仓盈亏' }] : []),
+  ];
+  const handleTableSort = (key) => {
+    setTableSorts((current) => {
+      const previous = current[tableTab] || { key: null, direction: 'desc' };
+      const direction = previous.key === key && previous.direction === 'desc' ? 'asc' : 'desc';
+      return { ...current, [tableTab]: { key, direction } };
+    });
+  };
 
   React.useEffect(() => {
     if ((!showAddStock && !showEditWatchlist) || typeof document === 'undefined') return undefined;
@@ -399,7 +459,7 @@ export default function HomeTab({ ctx }) {
       setAddingStockSymbol(null);
     }
   };
-  const tableRows = rows.map((row) => {
+  const rawTableRows = rows.map((row) => {
     const isPosition = tableTab === 'positions';
     const symbol = row.symbol;
     const quote = quoteBySymbol.get(symbol) || row;
@@ -411,7 +471,10 @@ export default function HomeTab({ ctx }) {
     const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
     const high = row.high || row.week52High || quote?.high || quote?.week52High;
     const highDrawdown = drawdownFromHigh(price, high);
+    const ytdRaw = quote?.ytdChangePercent ?? row.ytdChangePercent;
+    const ytdChangePercent = Number.isFinite(Number(ytdRaw)) ? Number(ytdRaw) : null;
     const color = marketColor(changePct, marketColorMode);
+    const ytdColor = ytdChangePercent === null ? '#ffffff40' : marketColor(ytdChangePercent, marketColorMode);
     const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
     const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
 
@@ -426,10 +489,27 @@ export default function HomeTab({ ctx }) {
       pnlPct,
       pnlDisplayValue,
       highDrawdown,
+      ytdChangePercent,
       color,
+      ytdColor,
       logoUrls,
     };
   });
+  const tableRows = React.useMemo(() => {
+    if (!activeTableSort?.key) return rawTableRows;
+    const direction = activeTableSort.direction === 'asc' ? 1 : -1;
+    return [...rawTableRows].sort((a, b) => {
+      const av = sortMetricValue(a, activeTableSort.key);
+      const bv = sortMetricValue(b, activeTableSort.key);
+      const aMissing = av === null || av === undefined || !Number.isFinite(Number(av));
+      const bMissing = bv === null || bv === undefined || !Number.isFinite(Number(bv));
+      if (aMissing && bMissing) return a.symbol.localeCompare(b.symbol);
+      if (aMissing) return 1;
+      if (bMissing) return -1;
+      const diff = (Number(av) - Number(bv)) * direction;
+      return diff || a.symbol.localeCompare(b.symbol);
+    });
+  }, [rawTableRows, activeTableSort]);
   const editSearchKey = editWatchlistSearch.trim().toUpperCase();
   const editWatchlistRows = (watchlist || []).map((row) => {
     const symbol = String(row?.symbol || '').toUpperCase();
@@ -719,34 +799,48 @@ export default function HomeTab({ ctx }) {
               </div>
 
               <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="min-w-[410px]">
-                  <div className="grid grid-cols-[82px_82px_102px_120px] gap-2 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
-                    <span className="text-right">价格</span>
-                    <span className="text-right">涨跌幅</span>
-                    <span className="text-right">52周跌幅</span>
-                    <span className="text-right">持仓盈亏</span>
+                <div style={{ minWidth: `${metricMinWidth}px` }}>
+                  <div
+                    className="grid gap-2 pb-1.5 pt-2 text-[11px] font-medium leading-none"
+                    style={{ gridTemplateColumns: metricGridTemplate }}
+                  >
+                    {metricColumns.map((column) => (
+                      <SortHeader
+                        key={column.key}
+                        label={column.label}
+                        sortKey={column.key}
+                        sortState={activeTableSort}
+                        onSort={handleTableSort}
+                      />
+                    ))}
                   </div>
                   <div className="divide-y divide-white/[0.06]">
                     {tableRows.map((item) => (
                       <div
                         key={item.symbol}
-                        className="grid min-h-[54px] w-full grid-cols-[82px_82px_102px_120px] items-center gap-2 py-2 text-left"
+                        className="grid min-h-[54px] w-full items-center gap-2 py-2 text-left"
+                        style={{ gridTemplateColumns: metricGridTemplate }}
                       >
                         <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(item.price, 2)}</span>
                         <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
                         <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                           {fmtDrawdownPct(item.highDrawdown)}
                         </span>
-                        <span className={`text-right tabular-nums ${item.pnlValue === null ? 'text-white/25' : pnlColor(item.pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                          {item.pnlValue === null ? (
-                            <span className="text-[13px] font-medium">--</span>
-                          ) : (
-                            <>
-                              <span className="block text-[13px] font-black leading-[15px]">{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
-                              <span className="mt-1 block text-[11px] font-bold leading-[13px]">{fmtSignedPct(item.pnlPct, 2)}</span>
-                            </>
-                          )}
+                        <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.ytdColor, fontFamily: NUMBER_FONT }}>
+                          {fmtOptionalMarketPct(item.ytdChangePercent)}
                         </span>
+                        {showPnlColumn && (
+                          <span className={`text-right tabular-nums ${item.pnlValue === null ? 'text-white/25' : pnlColor(item.pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                            {item.pnlValue === null ? (
+                              <span className="text-[13px] font-medium">--</span>
+                            ) : (
+                              <>
+                                <span className="block text-[13px] font-black leading-[15px]">{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
+                                <span className="mt-1 block text-[11px] font-bold leading-[13px]">{fmtSignedPct(item.pnlPct, 2)}</span>
+                              </>
+                            )}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -4,6 +4,36 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 首页自选持仓新增年初至今排序
+
+- Commit: `pending final deployment log update`
+- Background: 用户要求首页自选功能继续升级:在 `52周跌幅` 后新增 `年初至今`,并让 `涨跌幅`、`52周跌幅`、`年初至今`、`持仓盈亏` 等指标支持表头排序;同时确认自选列表不应显示持仓盈亏,持仓盈亏只在持仓 tab 显示。
+- Changes:
+  - `/api/quote` 股票行情响应新增 `yearStartPrice`、`yearStartDate` 和 `ytdChangePercent`,从当年首个可用交易日调整收盘价计算年初至今涨跌幅。
+  - 首页自选/持仓右侧指标区新增 `年初至今` 列,并保持左侧名称固定、右侧全局横向滑动的对齐逻辑。
+  - 首页自选和持仓表头增加排序按钮与上下三角状态;价格、涨跌幅、52 周跌幅、年初至今和持仓盈亏均可按升降序排序。
+  - 自选 tab 只显示价格、涨跌幅、52 周跌幅和年初至今;持仓 tab 才显示真实持仓盈亏。
+  - `quoteCache`、自选股票、交易主账本派生持仓同步透传 `ytdChangePercent`,保证新增股票和持仓股票都能使用同一行情口径。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.72`。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/App.jsx`
+  - `src/lib/investmentSummary.js`
+  - `src/lib/stockUniverse.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/quote-response-shape.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 33 tests.
+  - `npm run build`: pass; `HomeTab-C1sT2srr.js` 38.36 kB / gzip 10.17 kB, `SettingsTab-BbyGTlG2.js` 25.85 kB / gzip 10.24 kB, `App-M8ebebVt.js` 127.83 kB / gzip 35.41 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `watchlist`, `stock_trades` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local chunk marker check: pass; built `HomeTab-C1sT2srr.js` contains `年初至今`, `ytdChangePercent`, and `持仓盈亏`; built `App-M8ebebVt.js` contains `ytdChangePercent`; built `SettingsTab-BbyGTlG2.js` contains `v10.7.9.72` and `首页自选/持仓新增年初至今和排序`.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复自选/持仓无年初至今、无表头排序、自选显示持仓盈亏列的旧表格行为;不影响 `/api/quote` 鉴权、Supabase RLS 或交易主账本表结构。
+
 ### 2026-07-04 - 首页自选编辑管理
 
 - Commit: `1ce1fa6eb1b48c4a6f7fa738255ddb2641942523`

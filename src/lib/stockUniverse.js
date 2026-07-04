@@ -31,6 +31,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       shares: toFiniteNumber(item?.shares),
       previousClose: toFiniteNumber(item?.previousClose),
       changePercent: toFiniteNumber(item?.changePercent),
+      ytdChangePercent: toFiniteNumber(item?.ytdChangePercent),
     });
   });
 
@@ -49,6 +50,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       shares: toFiniteNumber(existing.shares),
       previousClose: toFiniteNumber(item?.previousClose) || toFiniteNumber(existing.previousClose),
       changePercent: toFiniteNumber(item?.changePercent),
+      ytdChangePercent: toFiniteNumber(item?.ytdChangePercent) || toFiniteNumber(existing.ytdChangePercent),
       intraday: item?.intraday || existing.intraday || [],
     });
   });
@@ -74,6 +76,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       shares: toFiniteNumber(existing.shares),
       previousClose: toFiniteNumber(existing.previousClose),
       changePercent: toFiniteNumber(existing.changePercent),
+      ytdChangePercent: toFiniteNumber(existing.ytdChangePercent),
       intraday: existing.intraday || [],
     });
   });

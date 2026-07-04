@@ -450,11 +450,18 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     let week52High = 0;
     let week52Low = Infinity;
     let highSource = 'fallback';
+    let yearStartPrice = 0;
+    let yearStartDate = '';
+    let ytdChangePercent = 0;
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
-          for (const day of eodData) {
+          const currentYearStart = `${today.getFullYear()}-01-01`;
+          const historyRows = eodData
+            .filter((day) => day && day.date)
+            .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+          for (const day of historyRows) {
             const rawHigh = parseFloat(day.high) || 0;
             const rawLow = parseFloat(day.low) || 0;
             const rawClose = parseFloat(day.close) || 0;
@@ -464,9 +471,16 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
             const adjLow = rawLow * adjFactor;
             if (adjHigh > week52High) week52High = adjHigh;
             if (adjLow > 0 && adjLow < week52Low) week52Low = adjLow;
+            if (!yearStartPrice && String(day.date || '') >= currentYearStart && adjClose > 0) {
+              yearStartPrice = adjClose;
+              yearStartDate = day.date || '';
+            }
           }
           if (price > week52High) week52High = price;
           if (price > 0 && price < week52Low) week52Low = price;
+          if (yearStartPrice > 0) {
+            ytdChangePercent = ((price - yearStartPrice) / yearStartPrice) * 100;
+          }
           highSource = 'eodhd-adjusted';
         }
       } catch (e) {
@@ -484,6 +498,9 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       dayLow,
       week52High,
       week52Low,
+      yearStartPrice,
+      yearStartDate,
+      ytdChangePercent,
       high: week52High,
       low: week52Low,
       highSource,
