@@ -389,6 +389,38 @@ export default function HomeTab({ ctx }) {
       setAddingStockSymbol(null);
     }
   };
+  const tableRows = rows.map((row) => {
+    const isPosition = tableTab === 'positions';
+    const symbol = row.symbol;
+    const quote = quoteBySymbol.get(symbol) || row;
+    const position = isPosition ? row : positionsBySymbol.get(symbol);
+    const price = isPosition ? row.currentPrice : row.price;
+    const changePct = isPosition ? row.changePercent : row.changePercent;
+    const pnlValue = position ? position.totalPnl : null;
+    const pnlPct = position ? position.totalPnlPct : null;
+    const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
+    const high = row.high || row.week52High || quote?.high || quote?.week52High;
+    const highDrawdown = drawdownFromHigh(price, high);
+    const color = marketColor(changePct, marketColorMode);
+    const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
+    const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
+
+    return {
+      row,
+      isPosition,
+      symbol,
+      quote,
+      price,
+      changePct,
+      pnlValue,
+      pnlPct,
+      pnlDisplayValue,
+      highDrawdown,
+      color,
+      logoUrls,
+    };
+  });
+  const editingTableRow = tableRows.find((item) => !item.isPosition && item.symbol === editingStock);
 
   return (
     <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
@@ -597,112 +629,104 @@ export default function HomeTab({ ctx }) {
           <span className="h-5 w-14" aria-hidden="true" />
         </div>
 
-        <div className="grid grid-cols-[minmax(118px,1.08fr)_minmax(0,2.35fr)] items-center px-4 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
-          <span>名称</span>
-          <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="grid min-w-[404px] grid-cols-[82px_82px_102px_120px_18px] gap-2">
-              <span className="text-right">价格</span>
-              <span className="text-right">涨跌幅</span>
-              <span className="text-right">52周跌幅</span>
-              <span className="text-right">持仓盈亏</span>
-              <span aria-hidden="true" />
-            </div>
+        {tableRows.length === 0 ? (
+          <div className="px-4 py-8 text-center text-[13px] text-white/38">
+            {tableTab === 'positions' ? '暂无持仓记录, 先在交易页添加买入记录。' : '暂无自选股票。'}
           </div>
-        </div>
-
-        <div className="divide-y divide-white/[0.06]">
-          {rows.length === 0 ? (
-            <div className="px-4 py-8 text-center text-[13px] text-white/38">
-              {tableTab === 'positions' ? '暂无持仓记录, 先在交易页添加买入记录。' : '暂无自选股票。'}
-            </div>
-          ) : rows.map((row) => {
-            const isPosition = tableTab === 'positions';
-            const symbol = row.symbol;
-            const quote = quoteBySymbol.get(symbol) || row;
-            const position = isPosition ? row : positionsBySymbol.get(symbol);
-            const price = isPosition ? row.currentPrice : row.price;
-            const changePct = isPosition ? row.changePercent : row.changePercent;
-            const pnlValue = position ? position.totalPnl : null;
-            const pnlPct = position ? position.totalPnlPct : null;
-            const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
-            const high = row.high || row.week52High || quote?.high || quote?.week52High;
-            const highDrawdown = drawdownFromHigh(price, high);
-            const color = marketColor(changePct, marketColorMode);
-            const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
-            const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
-
-            return (
-              <div key={symbol}>
-                <div className="grid grid-cols-[minmax(118px,1.08fr)_minmax(0,2.35fr)] px-4">
-                  <button
-                    type="button"
-                    onClick={() => setEditingStock(editingStock === symbol ? null : symbol)}
-                    className="flex min-h-[54px] min-w-0 items-center gap-2 py-2 pr-2 text-left active:bg-white/[0.03]"
-                  >
-                    <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{symbol}</span>
-                      <span className="block truncate text-[10px] leading-[12px] text-white/40">{row.name || quote?.name || symbol}</span>
-                    </span>
-                  </button>
-                  <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        ) : (
+          <>
+            <div className="grid grid-cols-[minmax(118px,1.08fr)_minmax(0,2.35fr)] px-4">
+              <div>
+                <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">名称</div>
+                <div className="divide-y divide-white/[0.06]">
+                  {tableRows.map((item) => (
                     <button
+                      key={item.symbol}
                       type="button"
-                      onClick={() => setEditingStock(editingStock === symbol ? null : symbol)}
-                      className="grid min-h-[54px] min-w-[404px] grid-cols-[82px_82px_102px_120px_18px] items-center gap-2 py-2 text-left active:bg-white/[0.03]"
+                      onClick={() => setEditingStock(editingStock === item.symbol ? null : item.symbol)}
+                      className="flex min-h-[54px] w-full min-w-0 items-center gap-2 py-2 pr-2 text-left active:bg-white/[0.03]"
                     >
-                      <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(price, 2)}</span>
-                      <span className="text-right text-[13px] font-medium tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(changePct)}</span>
-                      <span className={`text-right text-[13px] font-medium tabular-nums ${highDrawdown === null ? 'text-white/25' : pnlColor(highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {fmtDrawdownPct(highDrawdown)}
+                      <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{item.symbol}</span>
+                        <span className="block truncate text-[10px] leading-[12px] text-white/40">{item.row.name || item.quote?.name || item.symbol}</span>
                       </span>
-                      <span className={`text-right tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {pnlValue === null ? (
-                          <span className="text-[13px] font-medium">--</span>
-                        ) : (
-                          <>
-                            <span className="block text-[13px] font-black leading-[15px]">{fmtSignedCurrency(pnlDisplayValue, displayCurrency, 2)}</span>
-                            <span className="mt-1 block text-[11px] font-bold leading-[13px]">{fmtSignedPct(pnlPct, 2)}</span>
-                          </>
-                        )}
-                      </span>
-                      <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="min-w-[404px]">
+                  <div className="grid grid-cols-[82px_82px_102px_120px_18px] gap-2 pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">
+                    <span className="text-right">价格</span>
+                    <span className="text-right">涨跌幅</span>
+                    <span className="text-right">52周跌幅</span>
+                    <span className="text-right">持仓盈亏</span>
+                    <span aria-hidden="true" />
+                  </div>
+                  <div className="divide-y divide-white/[0.06]">
+                    {tableRows.map((item) => (
+                      <button
+                        key={item.symbol}
+                        type="button"
+                        onClick={() => setEditingStock(editingStock === item.symbol ? null : item.symbol)}
+                        className="grid min-h-[54px] w-full grid-cols-[82px_82px_102px_120px_18px] items-center gap-2 py-2 text-left active:bg-white/[0.03]"
+                      >
+                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(item.price, 2)}</span>
+                        <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
+                        <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                          {fmtDrawdownPct(item.highDrawdown)}
+                        </span>
+                        <span className={`text-right tabular-nums ${item.pnlValue === null ? 'text-white/25' : pnlColor(item.pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                          {item.pnlValue === null ? (
+                            <span className="text-[13px] font-medium">--</span>
+                          ) : (
+                            <>
+                              <span className="block text-[13px] font-black leading-[15px]">{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
+                              <span className="mt-1 block text-[11px] font-bold leading-[13px]">{fmtSignedPct(item.pnlPct, 2)}</span>
+                            </>
+                          )}
+                        </span>
+                        <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />
+                      </button>
+                    ))}
                   </div>
                 </div>
-
-                {!isPosition && editingStock === symbol && (
-                  <div className="border-t border-white/10 bg-white/[0.03] px-4 py-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="text-[11px] font-bold text-white/40">
-                        价格
-                        <input
-                          type="number"
-                          value={row.price || ''}
-                          onChange={(event) => updateStockPrice(symbol, 'price', event.target.value)}
-                          className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-                        />
-                      </label>
-                      <label className="text-[11px] font-bold text-white/40">
-                        52周高
-                        <input
-                          type="number"
-                          value={row.high || ''}
-                          onChange={(event) => updateStockPrice(symbol, 'high', event.target.value)}
-                          className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-                        />
-                      </label>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={() => setEditingStock(null)} className="flex-1 rounded-lg bg-white/10 py-2 text-sm font-bold text-white/60 active:scale-95">完成</button>
-                      <button type="button" onClick={() => removeStock(symbol)} className="flex-1 rounded-lg bg-rose-500/15 py-2 text-sm font-bold text-rose-300 active:scale-95">删除</button>
-                    </div>
-                  </div>
-                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+
+            {editingTableRow && (
+              <div className="border-t border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="mb-2 text-[12px] font-black text-white/70">{editingTableRow.symbol} 自选参数</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-[11px] font-bold text-white/40">
+                    价格
+                    <input
+                      type="number"
+                      value={editingTableRow.row.price || ''}
+                      onChange={(event) => updateStockPrice(editingTableRow.symbol, 'price', event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                  <label className="text-[11px] font-bold text-white/40">
+                    52周高
+                    <input
+                      type="number"
+                      value={editingTableRow.row.high || ''}
+                      onChange={(event) => updateStockPrice(editingTableRow.symbol, 'high', event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => setEditingStock(null)} className="flex-1 rounded-lg bg-white/10 py-2 text-sm font-bold text-white/60 active:scale-95">完成</button>
+                  <button type="button" onClick={() => removeStock(editingTableRow.symbol)} className="flex-1 rounded-lg bg-rose-500/15 py-2 text-sm font-bold text-rose-300 active:scale-95">删除</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
       </section>
 

@@ -4,6 +4,30 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 首页自选持仓表格全局横向滑动
+
+- Commit: `same commit`
+- Background: 用户确认首页自选/持仓表格的横向滑动不应是单个股票行独立滑动,而应是整个右侧指标区全局同步滑动;价格和数字需要在左右滑动时保持上下对齐。
+- Changes:
+  - 首页自选/持仓表格改为左右两栏结构:左侧名称/图标/代码固定,右侧指标区使用一个全局 `overflow-x-auto` 容器。
+  - 右侧表头和所有股票数字行放在同一个横向滚动坐标系中,左右滑动时价格、涨跌幅、52 周跌幅和持仓盈亏整列同步移动。
+  - 移除每只股票独立横向滚动容器,避免不同行滑动位置不一致导致列错位。
+  - 自选行的价格/52 周高手动编辑面板改为显示在表格下方,避免破坏全局横向滚动结构。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.70`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 33 tests.
+  - `npm run build`: pass; `HomeTab-DnEjwyar.js` 30.26 kB / gzip 8.66 kB, `SettingsTab-BP6j67Zs.js` 25.27 kB / gzip 10.09 kB, `App-CA7OEcOb.js` 126.15 kB / gzip 34.90 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Source structure check: `src/tabs/HomeTab.jsx` now has exactly one `overflow-x-auto`, the shared right-side metrics scroller.
+  - Local chunk marker check: pass; built `HomeTab-DnEjwyar.js` contains global metrics scroll markers, `自选参数`, and `52周跌幅`; built `SettingsTab-BP6j67Zs.js` contains `v10.7.9.70` and `首页自选/持仓表格全局横向滑动`.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复每行独立横向滑动的旧表格结构;不影响添加自选、交易主账本、`/api/quote` 鉴权或 Supabase 数据结构。
+
 ### 2026-07-04 - 首页自选添加体验细节优化
 
 - Commit: `180f00c3e29b094ea7c510b70cd54baaf8bc90df`
