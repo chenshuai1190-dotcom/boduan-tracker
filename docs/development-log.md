@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - BTC 单币种独立实时行情
 
-- Commit: `same commit`
+- Commit: `a74433f806067990a31166922163eebd0387e1c6`
 - Background: 用户确认 BTC 是 24h 交易资产,不应继续完全跟随美股交易时段的 `INDICES` REST 轮询;项目安全基线要求禁止浏览器直连 EODHD WebSocket,因此需要先做单币种服务端 relay,只让前端连接本站已登录 WebSocket。
 - Changes:
   - 新增 `/api/btc-realtime` Vercel WebSocket Function,在 upgrade 前校验请求 origin、Supabase access token 和服务端 `EODHD_API_KEY`。
@@ -37,8 +37,18 @@
   - `git diff --check`: pass.
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
   - Local chunk marker check: pass; built `App-B2E91SOE.js` contains `/api/btc-realtime` and `xmoney-btc`; built `SettingsTab-DkqTFg-n.js` contains `v10.7.9.74` and `BTC 单币种独立实时行情`; built frontend chunks contain no `ws.eodhistoricaldata.com` browser-direct URL.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8aFt9a3ZMA9GwUkFVfoHGKdk7FUu`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-pTmihQos.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-BQcgsNXo.css`.
+  - Production runtime chunks: `/assets/App-CnNRQWBQ.js`, `/assets/HomeTab-DFb0eupU.js`, `/assets/SettingsTab-DkqTFg-n.js`, `/assets/btcRealtime-Ko1pACcK.js`.
+- Production verification:
+  - Production chunk marker check: `App-CnNRQWBQ.js` contains `/api/btc-realtime`, `xmoney-btc`, and `BTC 实时连接中断`; `App-CnNRQWBQ.js` does not contain `ws.eodhistoricaldata.com`.
+  - Production chunk marker check: `HomeTab-DFb0eupU.js` contains `LIVE`, `REST`, `连接中`, and `延迟`; `SettingsTab-DkqTFg-n.js` contains `v10.7.9.74`, `BTC 单币种独立实时行情`, and `服务端 WebSocket relay`; `btcRealtime-Ko1pACcK.js` contains `BTC-USD.CC`, `BTCUSD`, and `BTC/美元`, and does not contain `ws.eodhistoricaldata.com`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
+  - Production relay HTTP check: `GET /api/btc-realtime` returned `426` with `请使用 WebSocket 连接 /api/btc-realtime`.
+  - Production relay auth check: unauthenticated WebSocket upgrade to `wss://boduan-tracker.vercel.app/api/btc-realtime` with origin `https://boduan-tracker.vercel.app` returned `401`.
+  - GitHub Actions workflow run lookup for `a74433f` returned no workflow runs; combined commit status contains Vercel success.
 - Rollback: 回滚本次改动会让 BTC 市场卡重新只依赖 `INDICES` REST 轮询;不会影响 `/api/quote` 鉴权、Supabase RLS、交易账本或自选数据。
 
 ### 2026-07-04 - 修复卖出后累计收益率口径
