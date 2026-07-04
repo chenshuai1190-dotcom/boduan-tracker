@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 恢复当日盈亏首屏显示并加宽持仓盈亏
 
-- Commit: 待本轮 runtime 提交生成后在部署回填日志中记录。
+- Commit: `c136684925aa95fc266cf3b07de04d66edbf1e24`
 - Background: 用户根据手机截图澄清上一轮理解错误:当日盈亏列应恢复上一版首屏显示效果,不能因为加宽右侧指标而只露出标题或数字尾部;真正需要的是只给 `持仓盈亏` 列多一点宽度,让百万和千万级持仓盈亏能放下;同时 `持仓盈亏` 正数的 `+` 号需要恢复。
 - Changes:
   - 删除专门去掉正号的 `holdingCurrency` / `holdingPct` 展示函数,交易页持仓分布汇总和个股行 `持仓盈亏` 正数重新使用 `signedCurrency` / `signedPct` 显示 `+` 号。
@@ -28,9 +28,18 @@
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
   - Local source marker check: pass; `TradesTab.jsx` contains `min-w-[480px]`, `grid-cols-[80px_76px_118px_144px_46px]`, `signedCurrency(holdingPnl`, `signedPct(position.unrealizedPct` and `unrealizedPnl`, and no longer contains `holdingCurrency` or `holdingPct`.
   - Local build marker check: pass; built `TradesTab-9gMVt7jn.js` contains `min-w-[480px]`, `grid-cols-[80px_76px_118px_144px_46px]`, `unrealizedPnl` and the signed currency formatter with positive `+`; built `SettingsTab-PqkG5MfK.js` contains `v10.7.9.84`, `当日盈亏列恢复上一版首屏显示效果` and `持仓盈亏正数恢复显示 + 号`.
-- Deployment: 待推送 GitHub `main` 后由 Vercel 自动部署,部署完成后回填 runtime commit 和 deployment target。
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `c136684925aa95fc266cf3b07de04d66edbf1e24`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EM28PXztcDjX4fJZ84icbGPjrkNf`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=c136684-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CLUR0eVP.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`.
+  - Production runtime chunks: `/assets/App-d9ns40xc.js`, `/assets/TradesTab-9gMVt7jn.js`, `/assets/SettingsTab-PqkG5MfK.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-1u3U2fZJ.js`.
 - Production verification:
-  - 线上 chunk marker、生产 RLS REST 复验和部署 URL 待部署完成后回填。
+  - Production App marker check: `App-d9ns40xc.js` contains `updateStockTrade`.
+  - Production TradesTab marker check: `TradesTab-9gMVt7jn.js` contains `min-w-[480px]`, `grid-cols-[80px_76px_118px_144px_46px]`, `unrealizedPnl`, `确认修改` and `删除这笔订单?`.
+  - Production SettingsTab marker check: `SettingsTab-PqkG5MfK.js` contains `v10.7.9.84`, `当日盈亏列恢复上一版首屏显示效果` and `持仓盈亏正数恢复显示 + 号`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-1u3U2fZJ.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复 v10.7.9.83 的 `548px` 右侧指标区和无 `+` 号的持仓盈亏显示,移动端首屏当日盈亏可能再次被挤到右侧。
 
 ### 2026-07-04 - 修正持仓盈亏和今日订单维护
