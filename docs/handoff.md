@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
-- Latest verified deployment record before this handoff: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`.
-- App changelog version shown in Settings: `v10.7.9.64`
+- Runtime code verified on production: `1c91b7123e0c93b5a4dcc1842782e12830b715cd`
+- Latest verified deployment record before this handoff: `1c91b7123e0c93b5a4dcc1842782e12830b715cd`.
+- App changelog version shown in Settings: `v10.7.9.65`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -49,6 +49,7 @@ The app uses Supabase Auth and Postgres for user data, Vercel for hosting and se
 - Tailwind CSS
 - Supabase Auth + Postgres
 - Vercel Serverless Function: `api/quote.js`
+- Vercel Serverless Function: `api/fx.js`
 - Market data: EODHD, Yahoo Finance, CNN Fear & Greed, NASDAQ calendar
 - Tests: Node built-in test runner via `node --test`
 
@@ -123,12 +124,13 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
-- Vercel deployment: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J1ARsY5PBYGLLr5Trp3M8hSStzbX`
-- Production chunks: `index-CpFcn1nY.js`, `App-DoFunHmg.js`, `HomeTab-CentWHQh.js`, `TradesTab-LpilKs1l.js`, `SettingsTab-B6EfuSRi.js`
-- `HomeTab-CentWHQh.js` and `TradesTab-LpilKs1l.js` contain fixed top-card P/L amount class `text-[13px]`.
-- `SettingsTab-B6EfuSRi.js` contains `v10.7.9.64` and "USD/RMB 盈亏数字字号统一".
+- Runtime commit: `1c91b7123e0c93b5a4dcc1842782e12830b715cd`
+- Vercel deployment: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BbrV57wBnXWGdmajtm99yKFYxs5W`
+- Production chunks: `index-PwnYXs8I.js`, `App-D95X7hSG.js`, `SettingsTab-Wq7N0WSd.js`
+- `App-D95X7hSG.js` contains `/api/fx` and `xmoney_fx_rates_v1`.
+- `SettingsTab-Wq7N0WSd.js` contains `v10.7.9.65` and "汇率每日自动查询".
 - `/api/quote?symbols=VIX` without auth returns `401`
+- `/api/fx` without auth returns `401`
 - The trade-ledger refactor introduces `stock_trades` as the main buy/sell ledger. `supabase/stock_trades.sql` has been applied in production Supabase project `ykgotnmtqcqdzqtrlayq`.
 - The anonymous REST probe now covers 13 user-owned tables, including `stock_trades`; all returned `visibleRows=0`.
 

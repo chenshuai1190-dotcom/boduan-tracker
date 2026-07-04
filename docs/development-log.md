@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 汇率每日自动查询
 
-- Commit: pending
+- Commit: `1c91b7123e0c93b5a4dcc1842782e12830b715cd`
 - Background: 用户确认 USD/RMB 和 RMB/USD 切换需要真实汇率,但每天查询一次即可。
 - Changes:
   - 新增已登录服务端接口 `/api/fx`,复用 `/api/quote` 的 Supabase Bearer 鉴权和服务端 `EODHD_API_KEY`,不新增前端 token。
@@ -29,7 +29,17 @@
   - `git diff --check`: pass.
   - Local chunk check: pass; built `App-gEJt5Z2Y.js` contains `/api/fx` and `xmoney_fx_rates_v1`, and `SettingsTab-Wq7N0WSd.js` contains `v10.7.9.65` plus "汇率每日自动查询"。
   - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `1c91b7123e0c93b5a4dcc1842782e12830b715cd`
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BbrV57wBnXWGdmajtm99yKFYxs5W`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-PwnYXs8I.js`, `App-D95X7hSG.js`, `SettingsTab-Wq7N0WSd.js`
+  - `App-D95X7hSG.js` contains `/api/fx` and `xmoney_fx_rates_v1`.
+  - `SettingsTab-Wq7N0WSd.js` contains `v10.7.9.65` and "汇率每日自动查询"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+  - `GET https://boduan-tracker.vercel.app/api/fx` without auth returns `401`; `/api/fx` auth is enabled.
+  - Post-deploy `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
 - Rollback: 回滚本次提交会恢复固定默认/手动汇率;不会影响 `/api/quote` 鉴权或交易账本。
 
 ### 2026-07-04 - USD/RMB 盈亏字号统一
