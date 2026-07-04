@@ -8,12 +8,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
-- 最近应用代码提交: `b7a0e48371cf74da200fb2d6e760117afffdf786`
-- 最近文档/配置记录提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
+- 当前产品基准提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
+- 最近应用代码提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
+- 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.79`
-- Vercel 最新部署: 本次 UI 布局改动待推送后验证
-- Vercel 部署记录: 待本次部署完成后回填
+- Vercel 最新部署: 成功
+- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FHyovruvLL3L24jfjy85sGAxxy2W`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -131,33 +131,35 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ## 7. 当前线上验证证据
 
-本次 `v10.7.9.79` UI 布局改动待推送部署后回填最新生产证据。最近已验证的上一版生产记录:
+最近完整验证记录:
 
 - `npm test`: pass,46 tests。
 - `npm run build`: pass。
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
-- 生产 `GET https://boduan-tracker.vercel.app/?v=handoff-5811a27`: HTTP 200。
+- 生产 `GET https://boduan-tracker.vercel.app/?v=ccc064b-initial`: HTTP 200。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- GitHub commit status for `5811a27`: Vercel success。
-- Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8HLRiBFGe9JsseHqNfgQn5CjaKc3`。
+- GitHub commit status for `ccc064b`: Vercel success。
+- Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FHyovruvLL3L24jfjy85sGAxxy2W`。
 
-上一版已验证生产 runtime chunks:
+已验证生产 runtime chunks:
 
-- `/assets/index-CQLYX_ud.js`
-- `/assets/Login-Csb10EdR.js`
-- `/assets/App-VS3FgzvJ.js`
+- `/assets/index-kdBrS5rh.js`
+- `/assets/App-FRlt4neK.js`
+- `/assets/HomeTab-BGMLsK0v.js`
+- `/assets/TradesTab-w_N8hPA8.js`
+- `/assets/SettingsTab-c6HRVu7v.js`
 - `/assets/supabase-CcYdvS9P.js`
-- `/assets/supabase-DSYL9ExE.js`
-- `/assets/SettingsTab-Cm6OKwzN.js`
+- `/assets/supabase-BppsoKs-.js`
 
 关键 marker:
 
-- `SettingsTab-Cm6OKwzN.js` 包含 `v10.7.9.78` 和 `修复找回密码回跳`。
-- `supabase-CcYdvS9P.js` / `supabase-DSYL9ExE.js` 包含 `exchangeCodeForSession`。
-- `index-CQLYX_ud.js` 包含 `https://boduan-tracker.vercel.app`。
-- `Login-Csb10EdR.js` 包含 `重置链接已失效`。
+- `SettingsTab-c6HRVu7v.js` 包含 `v10.7.9.79` 和 `首页四张市场卡价格数字统一左移`。
+- `HomeTab-BGMLsK0v.js` 包含 `-ml-1 whitespace-nowrap text-[14px]`。
+- `TradesTab-w_N8hPA8.js` 包含 `grid-cols-[minmax(118px,1.22fr)_minmax(0,2.55fr)]` 和 `grid-cols-[90px_88px_118px_118px_74px]`。
+- `supabase-CcYdvS9P.js` / `supabase-BppsoKs-.js` 包含 `exchangeCodeForSession`。
+- `index-kdBrS5rh.js` 包含 `https://boduan-tracker.vercel.app`。
 
 ## 8. 最近完成的产品改动
 
@@ -364,11 +366,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `5811a27828b2d305b27672ee137311ccbf9754fc`
-最近应用代码提交: `b7a0e48371cf74da200fb2d6e760117afffdf786`
+当前产品基准提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
+最近应用代码提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
 设置页版本: `v10.7.9.79`
-Vercel 最新部署: 本次 UI 布局改动待推送后验证
-部署记录: 待本次部署完成后回填
+Vercel 最新部署: 成功
+部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FHyovruvLL3L24jfjy85sGAxxy2W`
 
 请先按顺序读:
 1. `docs/handoff.md`

@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 优化首页指数卡和交易持仓表宽度
 
-- Commit: same commit
+- Commit: `ccc064bcd1d929106e63f53122aa51491bfdf399`
 - Background: 用户根据手机截图反馈两个移动端布局问题:首页四大指数区域的价格数字太靠右,BTC 卡片最明显、几乎被撑出卡片;交易页持仓分布里股票信息显示不够,且当日盈亏列容易显示不完整。
 - Changes:
   - 首页四张市场卡保留原有标题和状态徽标排版,统一将价格数字左移并略微收紧字号,避免右侧被撑出且保持视觉一致。
@@ -26,9 +26,19 @@
   - `npm run build`: pass; `HomeTab-BGMLsK0v.js` 39.11 kB / gzip 10.44 kB, `TradesTab-w_N8hPA8.js` 46.06 kB / gzip 9.98 kB, `SettingsTab-c6HRVu7v.js` 27.62 kB / gzip 10.92 kB, `App-BcMo3SGL.js` 131.64 kB / gzip 36.77 kB.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Local build marker check: pass; built HomeTab chunk contains `-ml-1 whitespace-nowrap text-[14px]`, built TradesTab chunk contains `grid-cols-[minmax(118px,1.22fr)_minmax(0,2.55fr)]` and `grid-cols-[90px_88px_118px_118px_74px]`, built SettingsTab chunk contains `v10.7.9.79` and `首页四张市场卡价格数字统一左移`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `ccc064bcd1d929106e63f53122aa51491bfdf399`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FHyovruvLL3L24jfjy85sGAxxy2W`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=ccc064b-initial`: HTTP 200.
+  - Production entry chunk: `/assets/index-kdBrS5rh.js`.
+  - Production runtime chunks: `/assets/App-FRlt4neK.js`, `/assets/HomeTab-BGMLsK0v.js`, `/assets/TradesTab-w_N8hPA8.js`, `/assets/SettingsTab-c6HRVu7v.js`.
+- Production verification:
+  - Production HomeTab marker check: `HomeTab-BGMLsK0v.js` contains `-ml-1 whitespace-nowrap text-[14px]` for the unified market-card price line.
+  - Production TradesTab marker check: `TradesTab-w_N8hPA8.js` contains `grid-cols-[minmax(118px,1.22fr)_minmax(0,2.55fr)]` and `grid-cols-[90px_88px_118px_118px_74px]`.
+  - Production SettingsTab marker check: `SettingsTab-c6HRVu7v.js` contains `v10.7.9.79` and `首页四张市场卡价格数字统一左移`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复首页市场卡较宽的内边距/价格字号和交易页旧持仓表列宽,移动端 BTC 卡片和当日盈亏列可能再次被挤压。
 
 ### 2026-07-04 - 固化记录文件同步规则
