@@ -406,7 +406,7 @@ export default function TradesTab({ ctx }) {
                               className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_112px_46px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
                             >
                               <span className="text-left">
-                                <span className="block max-w-full truncate text-[12px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
+                                <span className="block max-w-full truncate text-[12px] font-semibold leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 0)}</span>
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
                               </span>
                               <span className="text-right">

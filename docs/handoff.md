@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `27404fd58bed23a07c4afc2938ad448cf0f62c13`
-- 最近应用代码提交: 本次 `v10.7.9.81` 持仓分布微调待提交部署后回填
+- 当前产品基准提交: `3606df1896848f51422b433d116412909a85da77`
+- 最近应用代码提交: 本次 `v10.7.9.82` 持仓市值整数显示待提交部署后回填
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.81`
-- Vercel 最新部署: 本次 `v10.7.9.81` 持仓分布微调待推送后验证;上一版成功
-- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DXVViZc8RvPC4ngUEm9S3NJtchNd`
+- 设置页版本: `v10.7.9.82`
+- Vercel 最新部署: 本次 `v10.7.9.82` 持仓市值整数显示待推送后验证;上一版成功
+- Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GnnURZ2bnUiamGhNJCW3gGJ9rTwe`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.81` 的交易持仓分布当日盈亏露出宽度微调。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.82` 的交易持仓分布市值整数显示微调。
 
 ## 2. 先读这些文档
 
@@ -131,32 +131,30 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ## 7. 当前线上验证证据
 
-本次 `v10.7.9.81` 持仓分布微调待推送部署后回填最新生产证据。最近完整验证记录:
+本次 `v10.7.9.82` 持仓市值整数显示待推送部署后回填最新生产证据。最近完整验证记录:
 
 - `npm test`: pass,46 tests。
 - `npm run build`: pass。
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
-- 生产 `GET https://boduan-tracker.vercel.app/?v=27404fd-runtime`: HTTP 200。
+- 生产 `GET https://boduan-tracker.vercel.app/?v=3606df1-runtime`: HTTP 200。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- GitHub commit status for `27404fd`: Vercel success。
-- Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DXVViZc8RvPC4ngUEm9S3NJtchNd`。
+- GitHub commit status for `3606df1`: Vercel success。
+- Vercel deployment target: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GnnURZ2bnUiamGhNJCW3gGJ9rTwe`。
 
 已验证生产 runtime chunks:
 
-- `/assets/index-CttjM15V.js`
-- `/assets/TradesTab-B94L94JQ.js`
-- `/assets/SettingsTab-D9Ijm0MX.js`
+- `/assets/TradesTab-4yE9p-D5.js`
+- `/assets/SettingsTab-BAurU2i9.js`
 - `/assets/supabase-CcYdvS9P.js`
-- `/assets/supabase-BfiA1a3S.js`
+- `/assets/supabase-LqVCH99i.js`
 
 关键 marker:
 
-- `SettingsTab-D9Ijm0MX.js` 包含 `v10.7.9.80`、`继续优化交易持仓分布` 和 `首屏更完整显示当日盈亏`。
-- `TradesTab-B94L94JQ.js` 包含 `px-2 py-4`、`grid-cols-[minmax(104px,0.78fr)_minmax(0,3.2fr)]`、`min-w-[474px]` 和 `grid-cols-[84px_80px_118px_116px_52px]`。
-- `supabase-CcYdvS9P.js` / `supabase-BfiA1a3S.js` 包含 `exchangeCodeForSession`。
-- `index-CttjM15V.js` 包含 `https://boduan-tracker.vercel.app`。
+- `SettingsTab-BAurU2i9.js` 包含 `v10.7.9.81`、`微调交易持仓分布首屏列宽` 和 `市值/数量和现价/成本再左移一点`。
+- `TradesTab-4yE9p-D5.js` 包含 `grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)]`、`pr-1.5`、`min-w-[448px]`、`grid-cols-[80px_76px_118px_112px_46px]` 和 `gap-1`。
+- `supabase-CcYdvS9P.js` / `supabase-LqVCH99i.js` 包含 `exchangeCodeForSession`。
 
 ## 8. 最近完成的产品改动
 
@@ -168,6 +166,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.82`: 交易页持仓分布市值/数量列不再显示小数,减少市值列占用并帮助当日盈亏完整露出。
 - `v10.7.9.81`: 交易页持仓分布再次微调列宽;市值/数量和现价/成本略向左收,保持当日盈亏列宽不变,让末尾数字更容易完整露出。
 - `v10.7.9.80`: 交易页持仓分布内部左右留白继续收紧;名称/代码、市值/数量和现价/成本列缩窄,默认首屏更容易完整显示当日盈亏。
 - `v10.7.9.79`: 首页四张市场卡价格数字统一左移并略微收紧,避免右侧被撑出且保持视觉一致;交易页持仓分布加宽股票信息、当日盈亏和持仓盈亏列。
@@ -365,11 +364,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `27404fd58bed23a07c4afc2938ad448cf0f62c13`
-最近应用代码提交: 本次 `v10.7.9.81` 持仓分布微调待提交部署后回填
-设置页版本: `v10.7.9.81`
-Vercel 最新部署: 本次 `v10.7.9.81` 持仓分布微调待推送后验证;上一版成功
-部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DXVViZc8RvPC4ngUEm9S3NJtchNd`
+当前产品基准提交: `3606df1896848f51422b433d116412909a85da77`
+最近应用代码提交: 本次 `v10.7.9.82` 持仓市值整数显示待提交部署后回填
+设置页版本: `v10.7.9.82`
+Vercel 最新部署: 本次 `v10.7.9.82` 持仓市值整数显示待推送后验证;上一版成功
+部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GnnURZ2bnUiamGhNJCW3gGJ9rTwe`
 
 请先按顺序读:
 1. `docs/handoff.md`
