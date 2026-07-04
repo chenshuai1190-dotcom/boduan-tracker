@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 首页自选添加与持仓口径修正
 
-- Commit: local working tree, pending commit.
+- Commit: `8f0c99b0eb9f878f752e9f8420b23e9b91ae8ae0`
 - Background: 用户要求首页自选区域新增添加自选股票功能,添加弹层参考截图但不需要港股、ETF、全部等分类;股票图标需要在新增或缺图时自动多源补拉;持仓必须显示和交易页同步的真实持仓;新用户自选默认空。
 - Changes:
   - 首页自选列表改为只显示用户主动添加的 `watchlist`,不再把 `stock_trades` 交易账本股票回退显示为自选。
