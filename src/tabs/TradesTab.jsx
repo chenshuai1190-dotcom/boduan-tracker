@@ -217,6 +217,21 @@ export default function TradesTab({ ctx }) {
     setShowAddTrade(true);
   };
 
+  const openWaveTradeModal = (symbol = '', name = '') => {
+    setTradeEntryScope('wave');
+    setNewTrade({
+      symbol,
+      name,
+      side: 'buy',
+      date: localDateKey(),
+      price: '',
+      shares: '',
+      batch: '第1批',
+    });
+    setLookupStatus(symbol ? 'found' : null);
+    setShowAddTrade(true);
+  };
+
   const confirmDeleteTodayTrade = (trade) => {
     showConfirm({
       title: '删除这笔订单?',
@@ -537,7 +552,7 @@ export default function TradesTab({ ctx }) {
                                 <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(position.unrealizedPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.unrealizedPct, 2)}</span>
                               </span>
                               <span className="text-right">
-                                <span className="block text-[13px] font-normal leading-[15px] text-white/82 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
+                                <span className="block text-[13px] font-normal leading-[15px] text-white/80 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
                               </span>
                             </button>
                           );
@@ -668,448 +683,448 @@ export default function TradesTab({ ctx }) {
 
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {showWaveTool && (
-          <div className="mx-auto mt-3 max-w-[430px]">
-            {/* 顶部总览 - 白卡极简 (v10.7.9.41) */}
-            <div
-              className="rounded-2xl p-4 mb-3 relative overflow-hidden bg-white shadow-sm"
-              style={{
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <div className="flex items-center justify-between mb-3 relative z-10">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📓</span>
-                  <h2
-                    className="font-black text-sm"
-                    style={{
-                      letterSpacing: '1px',
-                      color: '#0f172a',
-                    }}
-                  >
+          <div className="mx-auto mt-3 max-w-[430px] space-y-3 text-white">
+            <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-[18px] font-normal leading-tight tracking-normal text-white">
                     波段记录
                   </h2>
+                  <div className="mt-1 text-[11px] font-normal text-white/45">
+                    点击波段查看明细
+                  </div>
                 </div>
-                <div className="text-[10px] italic" style={{ color: '#94a3b8' }}>点波段看明细</div>
+                <button
+                  type="button"
+                  onClick={() => openWaveTradeModal()}
+                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/10 px-3 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2} />
+                  新增波段股票
+                </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 relative z-10">
-                <div
-                  className="rounded-xl py-2.5 text-center"
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#dc2626' }}>{calmRoomActiveCount}</div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#94a3b8' }}>进行中</div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-3 text-center">
+                  <div className="text-[22px] font-normal tabular-nums text-rose-400" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                    {calmRoomActiveCount}
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-normal text-white/45">进行中</div>
                 </div>
-                <div
-                  className="rounded-xl py-2.5 text-center"
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomCompletedCount}</div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#94a3b8' }}>已完成</div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-3 text-center">
+                  <div className="text-[22px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                    {calmRoomCompletedCount}
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-normal text-white/45">已完成</div>
                 </div>
-                <div
-                  className="rounded-xl py-2.5 text-center"
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div className="text-xl font-black tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#0f172a' }}>{calmRoomAvgActiveDays}<span className="text-xs font-bold ml-0.5" style={{ color: '#94a3b8' }}>天</span></div>
-                  <div className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: '#94a3b8' }}>均持有</div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-3 text-center">
+                  <div className="text-[22px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                    {calmRoomAvgActiveDays}
+                    <span className="ml-0.5 text-[12px] font-normal text-white/45">天</span>
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-normal text-white/45">均持有</div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* 按股票分组的复盘卡 */}
             {wavesByStock.length === 0 ? (
-              <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-                <div className="text-[13px] font-bold text-slate-600">暂无波段记录</div>
-                <div className="mt-1 text-[11px] text-slate-400">通过买入和卖出记录形成完整波段后,这里会自动显示。</div>
-              </div>
+              <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
+                <div className="text-[13px] font-normal text-white/75">暂无波段记录</div>
+                <div className="mt-1 text-[11px] font-normal text-white/40">添加波段买入或卖出后,这里会自动显示。</div>
+                <button
+                  type="button"
+                  onClick={() => openWaveTradeModal()}
+                  className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/10 px-4 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2} />
+                  新增波段股票
+                </button>
+              </section>
             ) : wavesByStock.map(group => {
               const completedWaves = group.waves.filter(w => !w.isActive);
               const activeWave = group.waves.find(w => w.isActive);
+              const completedKey = `completed-${group.symbol}`;
+              const completedOpen = !!expandedWaves[completedKey];
+              const totalGain = group.waves.reduce((sum, w) => sum + toNumber(w.gainAmount), 0);
+              const completedCount = completedWaves.length;
+              const winCount = completedWaves.filter(w => toNumber(w.gainPct) > 0).length;
+              const winRate = completedCount > 0 ? Math.round(winCount / completedCount * 100) : 0;
+              const avgHeld = group.avgHeldDays || 0;
+
               return (
-              <div key={group.symbol} className="bg-white rounded-2xl mb-3 shadow overflow-hidden">
-                {/* ============ 头部: 灰白 + 3 列统计 ============ */}
-                <div className="p-4 border-b border-slate-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTradeEntryScope('wave');
-                        setNewTrade({
-                          ...newTrade,
-                          symbol: group.symbol,
-                          name: group.name,
-                          side: 'buy',
-                          date: localDateKey(),
-                          price: '',
-                          shares: '',
-                        });
-                        setLookupStatus('found');
-                        setShowAddTrade(true);
-                      }}
-                      className="flex items-center gap-2 text-left active:opacity-70 transition"
-                      title={`点击快速添加 ${group.symbol} 交易`}
-                    >
-                      <div>
-                        <div className="font-black text-[18px] text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{group.symbol}</div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{group.name}</div>
-                      </div>
-                      <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                        <Plus className="w-4 h-4" strokeWidth={2.5} />
-                      </div>
-                    </button>
-                    <div className="flex items-center gap-2">
+                <section key={group.symbol} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[0_16px_40px_rgba(0,0,0,0.26)]">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAllTradesModal({ symbol: group.symbol, name: group.name });
-                        }}
-                        className="text-[11px] text-rose-600 font-bold flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-95 transition"
-                        title="查看所有交易记录"
+                        type="button"
+                        onClick={() => openWaveTradeModal(group.symbol, group.name)}
+                        className="min-w-0 text-left active:opacity-75"
+                        title={`添加 ${group.symbol} 波段交易`}
                       >
-                        📋 全部
+                        <div className="text-[20px] font-normal leading-tight tabular-nums text-white" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                          {group.symbol}
+                        </div>
+                        <div className="mt-1 max-w-[190px] truncate text-[12px] font-normal text-white/45">
+                          {group.name || group.symbol}
+                        </div>
                       </button>
-                      <div className="text-[11px] text-slate-400">
-                        {group.waves.length} 个波段
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAllTradesModal({ symbol: group.symbol, name: group.name });
+                          }}
+                          className="h-8 rounded-full border border-white/10 bg-white/[0.035] px-3 text-[12px] font-normal text-white/70 active:scale-95"
+                          title="查看所有交易记录"
+                        >
+                          全部
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openWaveTradeModal(group.symbol, group.name)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/65 active:scale-95"
+                          title={`添加 ${group.symbol} 波段交易`}
+                        >
+                          <Plus className="h-4 w-4" strokeWidth={2} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-3 text-center">
+                        <div className={`text-[16px] font-normal tabular-nums ${pnlClass(totalGain, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                          {signedCurrency(totalGain, 'USD', 0)}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-normal text-white/40">总盈亏</div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-3 text-center">
+                        <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                          {completedCount > 0 ? `${winRate}%` : '—'}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-normal text-white/40">
+                          胜率{completedCount > 0 ? ` ${winCount}/${completedCount}` : ''}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-3 text-center">
+                        <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                          {avgHeld > 0 ? `${avgHeld}天` : '—'}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-normal text-white/40">均持有</div>
                       </div>
                     </div>
                   </div>
-                  {/* 3 列统计 */}
-                  {(() => {
-                    const totalGain = group.waves.reduce((sum, w) => sum + (w.gainAmount || 0), 0);
-                    const completedCount = completedWaves.length;
-                    const winCount = completedWaves.filter(w => w.gainPct > 0).length;
-                    const winRate = completedCount > 0 ? Math.round(winCount / completedCount * 100) : 0;
-                    const avgHeld = group.avgHeldDays || 0;
+
+                  {activeWave ? (() => {
+                    const w = activeWave;
+                    const noteValue = waveNotes[w.id] || '';
+                    const isEditingNote = editingNoteId === w.id;
+                    const isExpanded = expandedWaves[w.id] || false;
+                    const startD = (w.startDate || '').slice(5);
+                    const waveTrades = [...(w.buys || []), ...(w.sells || [])]
+                      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.id - b.id));
+
                     return (
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-slate-50 rounded-lg p-2 text-center">
-                          <div className={`font-black text-[15px] tabular-nums ${strongPnlClass(totalGain, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {totalGain >= 0 ? '+' : ''}${fmt(Math.abs(totalGain), 0)}
-                          </div>
-                          <div className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">总盈亏</div>
-                        </div>
-                        <div className="bg-slate-50 rounded-lg p-2 text-center">
-                          <div className="font-black text-[15px] text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {completedCount > 0 ? `${winRate}%` : '—'}
-                          </div>
-                          <div className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">胜率 {completedCount > 0 ? `${winCount}/${completedCount}` : ''}</div>
-                        </div>
-                        <div className="bg-slate-50 rounded-lg p-2 text-center">
-                          <div className="font-black text-[15px] text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {avgHeld > 0 ? `${avgHeld}天` : '—'}
-                          </div>
-                          <div className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">均持有</div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* ============ 进行中独立大卡 (如果有) ============ */}
-                {activeWave && (() => {
-                  const w = activeWave;
-                  const noteValue = waveNotes[w.id] || '';
-                  const isEditingNote = editingNoteId === w.id;
-                  const isExpanded = expandedWaves[w.id] || false;
-                  const startD = (w.startDate || '').slice(5);
-                  const waveTrades = [...(w.buys || []), ...(w.sells || [])]
-                    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.id - b.id));
-                  return (
-                    <div
-                      className="m-3 rounded-xl relative"
-                      style={{
-                        background: 'linear-gradient(135deg, #fef2f2 0%, #fff 100%)',
-                        border: '2px solid #fecaca',
-                      }}
-                    >
-                      {/* 悬挂角标 "进行中 #N" */}
-                      <div
-                        className="absolute -top-2.5 left-4 px-2.5 py-0.5 rounded text-[10px] font-black tracking-wider text-white flex items-center gap-1.5"
-                        style={{ background: '#e11d48' }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                        进行中 · #{w.index}
-                      </div>
-
-                      {/* 主行 */}
-                      <button
-                        onClick={() => setExpandedWaves({ ...expandedWaves, [w.id]: !isExpanded })}
-                        className="w-full p-4 pt-5 text-left"
-                      >
-                        <div className="flex items-baseline justify-between mb-3">
-                          <div className="text-[12px] text-slate-500 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                            {startD} 开始 · 第 {w.heldDays} 天
-                          </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className={`font-black text-[24px] tabular-nums ${strongPnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                              {w.gainPct >= 0 ? '+' : ''}{(w.gainPct * 100).toFixed(1)}%
-                            </span>
-                            <span className={`text-slate-400 text-xs transition ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
-                          </div>
-                        </div>
-
-                        {/* 4 列详情: 买入均 / 现价 / 持有 / 浮盈 (v10.7.9.41) */}
-                        <div className="flex gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.7)' }}>
-                          <div className="flex-1">
-                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">买入均</div>
-                            <div className="font-black text-slate-900 tabular-nums text-[13px]" style={{ fontFamily: 'ui-monospace, monospace' }}>${w.avgBuyPrice.toFixed(2)}</div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">现价</div>
-                            <div
-                              className={`font-black tabular-nums text-[13px] ${w.currentPrice === w.avgBuyPrice ? 'text-slate-900' : strongPnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`}
-                              style={{ fontFamily: 'ui-monospace, monospace' }}
-                            >
-                              {w.currentPrice > 0 ? `$${w.currentPrice.toFixed(2)}` : '—'}
+                      <div className="mx-4 mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.035]">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedWaves({ ...expandedWaves, [w.id]: !isExpanded })}
+                          className="w-full p-4 text-left active:bg-white/[0.03]"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
+                              <div className="min-w-0">
+                                <div className="text-[13px] font-normal text-white/90">进行中 · #{w.index}</div>
+                                <div className="mt-1 text-[12px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                  {startD} 开始 · 第 {w.heldDays} 天
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-baseline gap-2">
+                              <span className={`text-[24px] font-normal tabular-nums ${pnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                {signedPct(w.gainPct, 1)}
+                              </span>
+                              <span className={`text-xs text-white/35 transition ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
                             </div>
                           </div>
-                          <div className="flex-1">
-                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">持有</div>
-                            <div className="font-black text-slate-900 tabular-nums text-[13px]" style={{ fontFamily: 'ui-monospace, monospace' }}>{w.heldShares} 股</div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-[10px] text-slate-400 uppercase tracking-wider">浮盈</div>
-                            <div className={`font-black tabular-nums text-[13px] ${strongPnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                              {w.gainAmount >= 0 ? '+' : ''}${fmt(Math.abs(w.gainAmount), 0)}
+
+                          <div className="mt-4 grid grid-cols-4 gap-1.5 rounded-xl border border-white/10 bg-black/15 p-2.5">
+                            <div>
+                              <div className="text-[10px] font-normal text-white/40">买入均</div>
+                              <div className="mt-1 text-[13px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                ${fmt(w.avgBuyPrice)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-normal text-white/40">现价</div>
+                              <div className={`mt-1 text-[13px] font-normal tabular-nums ${w.currentPrice === w.avgBuyPrice ? 'text-white/90' : pnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                {w.currentPrice > 0 ? `$${fmt(w.currentPrice)}` : '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-normal text-white/40">持有</div>
+                              <div className="mt-1 text-[13px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                {fmt(w.heldShares, 0)}股
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-normal text-white/40">浮盈</div>
+                              <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                {signedCurrency(w.gainAmount, 'USD', 0)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
+                        </button>
 
-                      {/* 备注 */}
-                      <div className="px-4 pb-2">
-                        {isEditingNote ? (
-                          <input
-                            type="text"
-                            autoFocus
-                            defaultValue={noteValue}
-                            placeholder="如:关税恐慌、新冠崩盘、AI 浪潮…"
-                            className="w-full px-2 py-1 border border-rose-300 rounded text-[12px]"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
+                        <div className="px-4 pb-3">
+                          {isEditingNote ? (
+                            <input
+                              type="text"
+                              autoFocus
+                              defaultValue={noteValue}
+                              placeholder="如:关税恐慌、新冠崩盘、AI 浪潮…"
+                              className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[12px] font-normal text-white outline-none placeholder:text-white/25"
+                              style={{ colorScheme: 'dark' }}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const newVal = e.target.value;
+                                  setWaveNotes({ ...waveNotes, [w.id]: newVal });
+                                  db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
+                                  setEditingNoteId(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingNoteId(null);
+                                }
+                              }}
+                              onBlur={(e) => {
                                 const newVal = e.target.value;
                                 setWaveNotes({ ...waveNotes, [w.id]: newVal });
                                 db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
                                 setEditingNoteId(null);
-                              } else if (e.key === 'Escape') {
-                                setEditingNoteId(null);
-                              }
-                            }}
-                            onBlur={(e) => {
-                              const newVal = e.target.value;
-                              setWaveNotes({ ...waveNotes, [w.id]: newVal });
-                              db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
-                              setEditingNoteId(null);
-                            }}
-                          />
-                        ) : noteValue ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                            className="text-[12px] text-slate-600 italic px-1 py-0.5 rounded hover:bg-rose-50 active:scale-98 transition w-fit max-w-full text-left"
-                          >
-                            💬 {noteValue}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                            className="text-[11px] text-rose-500 hover:text-rose-700 active:scale-95 transition"
-                          >
-                            + 加备注
-                          </button>
+                              }}
+                            />
+                          ) : noteValue ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
+                              className="max-w-full rounded-lg px-1 py-0.5 text-left text-[12px] font-normal text-white/55 active:scale-95"
+                            >
+                              {noteValue}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
+                              className="text-[11px] font-normal text-[#f6b54b] active:scale-95"
+                            >
+                              + 加备注
+                            </button>
+                          )}
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t border-white/10 px-4 pb-4 pt-3">
+                            <div className="mb-2 text-[11px] font-normal text-white/45">交易明细</div>
+                            <div className="space-y-2">
+                              {waveTrades.map(t => {
+                                const isBuy = !t.side || t.side === 'buy';
+                                const amount = toNumber(t.shares) * toNumber(t.price);
+
+                                return (
+                                  <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                      <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
+                                        {isBuy ? '买' : '卖'}
+                                      </span>
+                                      <span className="shrink-0 text-[12px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                        {(t.date || '').slice(5)}
+                                      </span>
+                                      <span className="truncate text-[12px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                        {fmt(t.shares, 0)}股 @${fmt(t.price)}
+                                      </span>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                      <span className={`text-[12px] font-normal tabular-nums ${isBuy ? 'text-white/70' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                        {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
+                                        className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[12px] font-normal text-white/45 active:scale-90"
+                                        aria-label="删除交易"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
                       </div>
+                    );
+                  })() : (
+                    <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-[12px] font-normal text-white/40">
+                      暂无进行中的波段
+                    </div>
+                  )}
 
-                      {/* 展开:交易明细 */}
-                      {isExpanded && (
-                        <div className="px-4 pb-3 pt-1 border-t border-rose-100">
-                          <div className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2 mt-2">📋 交易明细</div>
-                          <div className="space-y-2">
-                            {waveTrades.map(t => {
-                              const isBuy = !t.side || t.side === 'buy';
-                              const amount = t.shares * t.price;
-                              return (
-                                <div key={t.id} className="flex items-center justify-between py-2 px-2.5 bg-white rounded-lg border border-slate-100">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <span className={`px-1.5 py-0.5 rounded text-[11px] font-black text-white shrink-0 ${isBuy ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                                      {isBuy ? '买' : '卖'}
+                  {completedWaves.length > 0 && (
+                    <div className="border-t border-white/10 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedWaves({ ...expandedWaves, [completedKey]: !completedOpen })}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5 text-left active:bg-white/[0.045]"
+                      >
+                        <span className="text-[13px] font-normal text-white/75">已完成</span>
+                        <span className="flex items-center gap-2 text-[12px] font-normal text-white/40">
+                          {completedWaves.length} 个
+                          <span className={`transition ${completedOpen ? 'rotate-180' : ''}`}>▾</span>
+                        </span>
+                      </button>
+
+                      {completedOpen && (
+                        <div className="mt-2 space-y-2">
+                          {completedWaves.map(w => {
+                            const noteValue = waveNotes[w.id] || '';
+                            const isEditingNote = editingNoteId === w.id;
+                            const isExpanded = expandedWaves[w.id] || false;
+                            const startD = (w.startDate || '').slice(5);
+                            const endD = (w.endDate || '').slice(5);
+                            const waveTrades = [...(w.buys || []), ...(w.sells || [])]
+                              .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.id - b.id));
+
+                            return (
+                              <div key={w.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/15">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedWaves({ ...expandedWaves, [w.id]: !isExpanded })}
+                                  className="grid w-full grid-cols-[36px_1fr_auto] items-center gap-2 px-3 py-3 text-left active:bg-white/[0.03]"
+                                >
+                                  <span className="text-[13px] font-normal tabular-nums text-white/35" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                    #{w.index}
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block text-[13px] font-normal tabular-nums text-white/75" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                      {startD} → {endD}
+                                      <span className="ml-1.5 text-[11px] font-normal text-white/40">· {w.heldDays}天</span>
                                     </span>
-                                    <span className="text-[13px] text-slate-500 tabular-nums shrink-0" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      {(t.date || '').slice(5)}
+                                    <span className="mt-0.5 block text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                      ${fmt(w.avgBuyPrice)} → ${fmt(w.avgSellPrice)}
                                     </span>
-                                    <span className="text-[13px] text-slate-700 tabular-nums truncate" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      {t.shares}股 @${fmt(t.price)}
+                                  </span>
+                                  <span className="text-right">
+                                    <span className={`block text-[15px] font-normal tabular-nums ${pnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                      {signedPct(w.gainPct, 1)}
                                     </span>
+                                    <span className={`block text-[11px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                      {signedCurrency(w.gainAmount, 'USD', 0)}
+                                    </span>
+                                  </span>
+                                </button>
+
+                                {(noteValue || isEditingNote) && (
+                                  <div className="px-3 pb-3">
+                                    {isEditingNote ? (
+                                      <input
+                                        type="text"
+                                        autoFocus
+                                        defaultValue={noteValue}
+                                        placeholder="如:关税恐慌、新冠崩盘、AI 浪潮…"
+                                        className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[12px] font-normal text-white outline-none placeholder:text-white/25"
+                                        style={{ colorScheme: 'dark' }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            const newVal = e.target.value;
+                                            setWaveNotes({ ...waveNotes, [w.id]: newVal });
+                                            db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
+                                            setEditingNoteId(null);
+                                          } else if (e.key === 'Escape') {
+                                            setEditingNoteId(null);
+                                          }
+                                        }}
+                                        onBlur={(e) => {
+                                          const newVal = e.target.value;
+                                          setWaveNotes({ ...waveNotes, [w.id]: newVal });
+                                          db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
+                                          setEditingNoteId(null);
+                                        }}
+                                      />
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
+                                        className="max-w-full rounded-lg px-1 py-0.5 text-left text-[12px] font-normal text-white/48 active:scale-95"
+                                      >
+                                        {noteValue}
+                                      </button>
+                                    )}
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className={`text-[13px] font-bold tabular-nums ${isBuy ? 'text-slate-900' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      {isBuy ? '-' : '+'}${fmt(amount, 0)}
-                                    </span>
+                                )}
+
+                                {!noteValue && !isEditingNote && (
+                                  <div className="px-3 pb-3">
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
-                                      className="w-5 h-5 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-[10px] font-bold transition active:scale-90"
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
+                                      className="text-[11px] font-normal text-white/30 active:scale-95"
                                     >
-                                      ✕
+                                      + 加备注
                                     </button>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                )}
+
+                                {isExpanded && (
+                                  <div className="border-t border-white/10 px-3 pb-3 pt-3">
+                                    <div className="mb-2 text-[11px] font-normal text-white/45">交易明细</div>
+                                    <div className="space-y-2">
+                                      {waveTrades.map(t => {
+                                        const isBuy = !t.side || t.side === 'buy';
+                                        const amount = toNumber(t.shares) * toNumber(t.price);
+
+                                        return (
+                                          <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
+                                                {isBuy ? '买' : '卖'}
+                                              </span>
+                                              <span className="shrink-0 text-[12px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                                {(t.date || '').slice(5)}
+                                              </span>
+                                              <span className="truncate text-[12px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                                {fmt(t.shares, 0)}股 @${fmt(t.price)}
+                                              </span>
+                                            </div>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                              <span className={`text-[12px] font-normal tabular-nums ${isBuy ? 'text-white/70' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                                {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
+                                                className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[12px] font-normal text-white/45 active:scale-90"
+                                                aria-label="删除交易"
+                                              >
+                                                ×
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  );
-                })()}
-
-                {/* ============ 已完成列表 (紧凑) ============ */}
-                {completedWaves.length > 0 && (
-                  <>
-                    <div className="px-4 pt-2 pb-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                      已完成 ({completedWaves.length})
-                    </div>
-                    <div className="divide-y divide-slate-50">
-                      {completedWaves.map(w => {
-                        const noteValue = waveNotes[w.id] || '';
-                        const isEditingNote = editingNoteId === w.id;
-                        const isExpanded = expandedWaves[w.id] || false;
-                        const startD = (w.startDate || '').slice(5);
-                        const endD = (w.endDate || '').slice(5);
-                        const waveTrades = [...(w.buys || []), ...(w.sells || [])]
-                          .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.id - b.id));
-                        return (
-                          <div key={w.id}>
-                            <button
-                              onClick={() => setExpandedWaves({ ...expandedWaves, [w.id]: !isExpanded })}
-                              className="w-full px-4 py-2.5 text-left active:bg-slate-50 transition grid grid-cols-[28px_1fr_auto] items-center gap-2.5"
-                            >
-                              {/* 编号 */}
-                              <span className="text-slate-300 font-bold text-[14px] tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                #{w.index}
-                              </span>
-                              {/* 信息 */}
-                              <div>
-                                <div className="text-[13px] text-slate-900 font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  {startD} → {endD}
-                                  <span className="text-[11px] text-slate-400 font-normal ml-1.5">· {w.heldDays}天</span>
-                                </div>
-                                <div className="text-[11px] text-slate-500 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  ${w.avgBuyPrice.toFixed(2)} → ${w.avgSellPrice.toFixed(2)}
-                                </div>
-                              </div>
-                              {/* 收益 */}
-                              <div className="text-right">
-                                <div className={`font-black text-[15px] tabular-nums ${strongPnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  {w.gainPct >= 0 ? '+' : ''}{(w.gainPct * 100).toFixed(1)}%
-                                </div>
-                                <div className={`text-[11px] tabular-nums ${strongPnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  {w.gainAmount >= 0 ? '+' : ''}${fmt(Math.abs(w.gainAmount), 0)}
-                                </div>
-                              </div>
-                            </button>
-
-                            {/* 备注 */}
-                            {(noteValue || isEditingNote) && (
-                              <div className="px-4 pb-2 -mt-1">
-                                {isEditingNote ? (
-                                  <input
-                                    type="text"
-                                    autoFocus
-                                    defaultValue={noteValue}
-                                    placeholder="如:关税恐慌、新冠崩盘、AI 浪潮…"
-                                    className="w-full px-2 py-1 border border-blue-300 rounded text-[11px]"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        const newVal = e.target.value;
-                                        setWaveNotes({ ...waveNotes, [w.id]: newVal });
-                                        db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
-                                        setEditingNoteId(null);
-                                      } else if (e.key === 'Escape') setEditingNoteId(null);
-                                    }}
-                                    onBlur={(e) => {
-                                      const newVal = e.target.value;
-                                      setWaveNotes({ ...waveNotes, [w.id]: newVal });
-                                      db.upsertWaveNote(w.id, newVal).catch(err => console.error('备注保存失败:', err));
-                                      setEditingNoteId(null);
-                                    }}
-                                  />
-                                ) : (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                    className="text-[11px] text-slate-500 italic px-1 py-0.5 rounded hover:bg-slate-100 active:scale-98 transition w-fit max-w-full text-left"
-                                  >
-                                    💬 {noteValue}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                            {!noteValue && !isEditingNote && (
-                              <div className="px-4 pb-2 -mt-1">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                  className="text-[10px] text-slate-300 hover:text-blue-500 active:scale-95 transition"
-                                >
-                                  + 加备注
-                                </button>
-                              </div>
-                            )}
-
-                            {/* 展开明细 */}
-                            {isExpanded && (
-                              <div className="px-4 pb-3 pt-1 bg-slate-50/50 border-t border-slate-100">
-                                <div className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2 mt-2">📋 交易明细</div>
-                                <div className="space-y-2">
-                                  {waveTrades.map(t => {
-                                    const isBuy = !t.side || t.side === 'buy';
-                                    const amount = t.shares * t.price;
-                                    return (
-                                      <div key={t.id} className="flex items-center justify-between py-2 px-2.5 bg-white rounded-lg border border-slate-100">
-                                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                                          <span className={`px-1.5 py-0.5 rounded text-[11px] font-black text-white shrink-0 ${isBuy ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                                            {isBuy ? '买' : '卖'}
-                                          </span>
-                                          <span className="text-[13px] text-slate-500 tabular-nums shrink-0" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                            {(t.date || '').slice(5)}
-                                          </span>
-                                          <span className="text-[13px] text-slate-700 tabular-nums truncate" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                            {t.shares}股 @${fmt(t.price)}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          <span className={`text-[13px] font-bold tabular-nums ${isBuy ? 'text-slate-900' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                            {isBuy ? '-' : '+'}${fmt(amount, 0)}
-                                          </span>
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
-                                            className="w-5 h-5 rounded-full bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 flex items-center justify-center text-[10px] font-bold transition active:scale-90"
-                                          >
-                                            ✕
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
+                  )}
+                </section>
               );
             })}
           </div>
@@ -1133,7 +1148,7 @@ export default function TradesTab({ ctx }) {
               <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
                 <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-black text-white">
+                  <h2 className={`text-base text-white ${tradeEntryScope === 'wave' ? 'font-normal' : 'font-black'}`}>
                     {tradeEntryScope === 'wave' ? '添加波段记录' : (newTrade.id || newTrade.editingId ? '修改交易' : '添加交易')}
                   </h2>
                   <button

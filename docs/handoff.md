@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
-- 最近应用代码提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
+- 当前产品基准提交: 本轮待推送 (`v10.7.9.94` runtime)
+- 最近应用代码提交: 本轮待推送 (`v10.7.9.94` runtime)
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.93`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7BHnQbEUkuuZWHiVArFD5djAAtEM`
-- Vercel 部署记录: runtime commit `e1eed080f893b0d715e77c2a610c97b52387c79e`, GitHub Actions `CI` run `28709280717` success
+- 设置页版本: `v10.7.9.94`
+- Vercel 最新运行时部署: pending，本轮推送后等待生产部署
+- Vercel 部署记录: pending，本轮推送后回填 runtime commit、GitHub Actions 和 Vercel target
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,以及 `v10.7.9.94` 的波段记录小程序深色 UI 融入。
 
 ## 2. 先读这些文档
 
@@ -160,6 +160,10 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-BHDIU5r6.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
+
+### 波段记录小程序 UI
+
+- `v10.7.9.94`: 波段记录主界面从旧白色卡片改为深色卡片体系;删除标题前旧图标;顶部和空状态新增 `新增波段股票` 入口;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;收益红色对齐首页粉色体系;已完成波段默认收进 `已完成` 折叠区;波段新增入口继续显式使用 `wave` scope,只写旧账本 `trades`,不写正式主账本 `stock_trades`。
 
 ### 全局刷新和工具账本边界
 
@@ -398,11 +402,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
-最近应用代码提交: `e1eed080f893b0d715e77c2a610c97b52387c79e` (`v10.7.9.93` runtime)
-设置页版本: `v10.7.9.93`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7BHnQbEUkuuZWHiVArFD5djAAtEM`
-部署记录: GitHub Actions `CI` run `28709280717` success; runtime commit `e1eed080f893b0d715e77c2a610c97b52387c79e`
+当前产品基准提交: 本轮待推送 (`v10.7.9.94` runtime)
+最近应用代码提交: 本轮待推送 (`v10.7.9.94` runtime)
+设置页版本: `v10.7.9.94`
+Vercel 最新运行时部署: pending，本轮推送后等待生产部署
+部署记录: pending，本轮推送后回填 GitHub Actions、runtime commit 和 Vercel target
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -432,6 +436,7 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 首页头部总资产卡片已同步交易页字号/位置和正常字重;首页四大指数卡片已取消加粗;当前信号、VIX 和 CNN 保持不动。
 - 添加交易新增完成后默认回到买入;页面滚到顶部继续下拉可强制刷新云端数据、汇率和已登录行情。
 - 波段记录新增只写入旧账本 `trades`,不再串到正式交易记录 `stock_trades`;摊薄成本新增只写 `cost_basis_trades`;波段记录和摊薄成本提交前都有确认框和防重复提交锁。
+- 波段记录小程序主界面已改为深色卡片体系;标题旧图标已删除;顶部和空状态新增 `新增波段股票`;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;已完成波段默认收进 `已完成` 折叠区。
 - 旧自选/交易记录中 `name=TSM` 这类代码式名称会用中英对照表兜底显示 `台积电` 等中文名。
 - 新用户自选默认空。
 - 自选和持仓逻辑拆清。

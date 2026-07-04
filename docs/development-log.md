@@ -4,6 +4,40 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 波段记录小程序融入深色风格
+
+- Commit: `same commit`
+- Background: 用户指出波段记录小程序仍是白色旧版本遗留,要求重新融入当前深色风格;明确要求不参考设计图粗体,波段区域全部不加粗,红色对齐首页粉色体系,删除波段记录前面的旧图标,新增波段股票入口,已完成波段不要直接铺在列表中而是进入“已完成”,并取消备注斜体显示。随后用户反馈本地预览打不开,要求直接部署。
+- Changes:
+  - 波段记录主界面从旧白卡改为深色卡片体系,容器、股票卡、进行中波段、交易明细和空状态均对齐交易页黑色 UI。
+  - 删除波段记录标题前的旧图标,顶部新增 `新增波段股票` 入口;空状态也提供同一入口。
+  - 新增 `openWaveTradeModal` 专用入口函数,所有波段新增入口都显式设置 `tradeEntryScope='wave'`,继续只写波段独立旧账本 `trades`,不写正式主账本 `stock_trades`。
+  - 波段区域普通文字、股票代码、数字、记录行、备注和交易明细全部改为正常字重;波段新增弹窗标题在 `wave` scope 下也改为正常字重。
+  - 备注展示移除斜体;交易明细标题移除旧图标。
+  - 收益色使用现有市场色体系里的 `rose-400`/粉色系,避免旧 `#dc2626` 重红色。
+  - 已完成波段默认收进每只股票下方的 `已完成` 折叠区,不再直接铺在主列表里;展开后仍可查看备注、明细和删除单笔记录。
+  - 修正本次波段区域新增的非标准 Tailwind 透明度 class,避免移动端弱文字变得不可见。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.94`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是波段记录前端 UI 融入和用户可见版本更新,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或既有开发准则。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 48 tests.
+  - `npm run build`: pass; `index-ppnZO-25.css` 49.19 kB / gzip 9.21 kB, `TradesTab-CHTiQio3.js` 52.72 kB / gzip 11.39 kB, `SettingsTab-fdpLRq9P.js` 32.29 kB / gzip 12.41 kB, `App-DHjUC8W9.js` 136.82 kB / gzip 38.57 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `openWaveTradeModal`, `新增波段股票`, `点击波段查看明细`, completed fold key `completedKey`, wave modal normal-weight title condition, and `v10.7.9.94`.
+  - Local build marker check: pass; built chunks contain `新增波段股票`, `点击波段查看明细`, `添加波段记录`, `font-normal`, `v10.7.9.94`, and `波段记录小程序融入深色风格`.
+- Deployment: pending GitHub `main` push and Vercel production deployment.
+- Production verification: pending after deployment.
+- Rollback: 回滚本次改动会恢复波段记录旧白色 UI 和已完成波段直接展示方式;不会改变主交易账本、波段账本、摊薄成本账本、RLS 或 `/api/quote` 鉴权。
+- Follow-up: 本轮只做波段记录小程序视觉融入;摊薄成本工具仍保留旧白色 UI,如继续统一工具风格应单独设计和验证。
+
 ### 2026-07-04 - 新增全局下拉刷新并修复工具账本边界
 
 - Commit: `e1eed080f893b0d715e77c2a610c97b52387c79e`
