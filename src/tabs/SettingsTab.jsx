@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.79
+                  v10.7.9.80
                 </span>
               </div>
             </div>
@@ -163,14 +163,22 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.79
+                  v10.7.9.80
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.79', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.80', date: '2026-07-04', latest: true,
+                    items: [
+                      '📊 继续优化交易持仓分布',
+                      '  - 持仓分布内部左右留白继续收紧,表格更贴近两侧边框',
+                      '  - 缩窄名称/代码、市值/数量和现价/成本列,首屏更完整显示当日盈亏',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.79', date: '2026-07-04',
                     items: [
                       '📐 优化首页指数卡和交易持仓表宽度',
                       '  - 首页四张市场卡价格数字统一左移并略微收紧,避免右侧被撑出',
@@ -837,7 +845,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.79</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.80</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

@@ -9,15 +9,15 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前产品基准提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
-- 最近应用代码提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
+- 最近应用代码提交: 本次 `v10.7.9.80` 持仓分布布局改动待提交部署后回填
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.79`
-- Vercel 最新部署: 成功
+- 设置页版本: `v10.7.9.80`
+- Vercel 最新部署: 本次 `v10.7.9.80` 持仓分布布局改动待推送后验证;上一版成功
 - Vercel 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FHyovruvLL3L24jfjy85sGAxxy2W`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.79` 的首页指数卡和交易持仓表移动端布局微调。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.80` 的交易持仓分布移动端首屏宽度微调。
 
 ## 2. 先读这些文档
 
@@ -131,7 +131,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ## 7. 当前线上验证证据
 
-最近完整验证记录:
+本次 `v10.7.9.80` 持仓分布布局改动待推送部署后回填最新生产证据。最近完整验证记录:
 
 - `npm test`: pass,46 tests。
 - `npm run build`: pass。
@@ -171,6 +171,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.80`: 交易页持仓分布内部左右留白继续收紧;名称/代码、市值/数量和现价/成本列缩窄,默认首屏更容易完整显示当日盈亏。
 - `v10.7.9.79`: 首页四张市场卡价格数字统一左移并略微收紧,避免右侧被撑出且保持视觉一致;交易页持仓分布加宽股票信息、当日盈亏和持仓盈亏列。
 - `v10.7.9.68`: 首页新增添加自选股票弹层,只保留美股添加流程;新用户自选默认空。
 - 股票图标增加多源候选和成功缓存,IBKR 等缺图会自动兜底。
@@ -367,9 +368,9 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
 当前产品基准提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
-最近应用代码提交: `ccc064bcd1d929106e63f53122aa51491bfdf399`
-设置页版本: `v10.7.9.79`
-Vercel 最新部署: 成功
+最近应用代码提交: 本次 `v10.7.9.80` 持仓分布布局改动待提交部署后回填
+设置页版本: `v10.7.9.80`
+Vercel 最新部署: 本次 `v10.7.9.80` 持仓分布布局改动待推送后验证;上一版成功
 部署记录: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FHyovruvLL3L24jfjy85sGAxxy2W`
 
 请先按顺序读:
