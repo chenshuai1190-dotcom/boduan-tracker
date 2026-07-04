@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Calculator, Database, Edit3, Grid2X2, Hexagon, Settings2, Trash2, TrendingUp } from 'lucide-react';
+import { BookOpen, Calculator, Database, Edit3, Grid2X2, ListChecks, Settings2, Trash2, TrendingUp } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -50,6 +50,11 @@ function localDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function normalizeCostBasisSymbol(symbol) {
+  const value = String(symbol || '').trim().toUpperCase();
+  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
 }
 
 export default function TradesTab({ ctx }) {
@@ -174,9 +179,12 @@ export default function TradesTab({ ctx }) {
   const todayTrades = (stockTrades || []).filter((trade) => trade.date === todayKey);
   const todayBuys = todayTrades.filter((trade) => trade.side !== 'sell').length;
   const todaySells = todayTrades.filter((trade) => trade.side === 'sell').length;
+  const ledgerTradeRecords = [...(stockTrades || [])].sort((a, b) => (
+    (b.date || '').localeCompare(a.date || '') || String(b.id || '').localeCompare(String(a.id || ''))
+  ));
   const showWaveTool = toolPanel === 'waves';
   const showCostTool = toolPanel === 'cost';
-  const showStockTool = toolPanel === 'settings';
+  const showTradeRecordsTool = toolPanel === 'records';
   const showMainLedger = !showWaveTool && !showCostTool;
   const positionsMarketValue = toNumber(summary.positionsMarketValue);
   const waveGroups = Array.isArray(wavesByStock) ? wavesByStock : [];
@@ -257,8 +265,8 @@ export default function TradesTab({ ctx }) {
 
   const confirmDeleteTodayTrade = (trade) => {
     showConfirm({
-      title: '删除这笔订单?',
-      desc: '删除后会同步云端账本,持仓和盈亏会重新计算。',
+      title: '删除这笔交易记录?',
+      desc: '删除后会同步云端主交易账本,持仓和盈亏会重新计算。',
       info: `${trade.symbol || '--'} · ${trade.side === 'sell' ? '卖出' : '买入'} ${fmtAmount(trade.shares, 0)} 股`,
       confirmText: '删除',
       icon: '🗑',
@@ -406,7 +414,7 @@ export default function TradesTab({ ctx }) {
           {[
             { id: 'waves', label: '波段记录', icon: BookOpen },
             { id: 'cost', label: '摊薄工具', icon: Calculator },
-            { id: 'settings', label: '股票设置', icon: Hexagon },
+            { id: 'records', label: '交易记录', icon: ListChecks },
             { id: 'all', label: '全部功能', icon: Grid2X2, disabled: true },
           ].map((item, index) => {
             const Icon = item.icon;
@@ -428,12 +436,12 @@ export default function TradesTab({ ctx }) {
           })}
         </section>
 
-        {showStockTool && (
+        {showTradeRecordsTool && (
           <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="text-[14px] font-black text-white">股票设置</div>
-                <div className="mt-1 text-[11px] text-white/40">这里的操作写入主交易账本</div>
+                <div className="text-[14px] font-normal text-white">交易记录</div>
+                <div className="mt-1 text-[11px] text-white/40">全部主交易账本 · 点击记录修改或删除</div>
               </div>
               <button
                 type="button"
@@ -443,22 +451,37 @@ export default function TradesTab({ ctx }) {
                 新增交易
               </button>
             </div>
-            <div className="space-y-2">
-              {positions.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-4 text-center text-[12px] text-white/40">还没有持仓, 先新增一笔买入。</div>
-              ) : positions.map((position) => (
-                <div key={position.symbol} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-normal leading-none text-white">{position.symbol}</div>
-                    <div className="mt-1 truncate text-[10px] leading-none text-white/36">{position.name}</div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button type="button" onClick={() => openTradeModal(position, 'buy')} className="rounded-full bg-rose-400/12 px-3 py-1.5 text-[11px] font-normal text-rose-400 active:scale-95">买入</button>
-                    <button type="button" onClick={() => openTradeModal(position, 'sell')} className="rounded-full bg-emerald-400/12 px-3 py-1.5 text-[11px] font-normal text-emerald-400 active:scale-95">卖出</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {ledgerTradeRecords.length === 0 ? (
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-5 text-center text-[12px] text-white/40">还没有交易记录,先新增一笔买入。</div>
+            ) : (
+              <div className="max-h-[360px] divide-y divide-white/[0.06] overflow-y-auto [scrollbar-width:none]">
+                {ledgerTradeRecords.map((trade) => {
+                  const isSell = trade.side === 'sell';
+                  const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
+                  return (
+                    <button
+                      key={trade.id}
+                      type="button"
+                      onClick={() => setOrderActionTrade(trade)}
+                      className="grid w-full grid-cols-[54px_minmax(0,1fr)_auto_16px] items-center gap-3 py-3 text-left active:bg-white/[0.03]"
+                    >
+                      <div className="whitespace-nowrap text-[11px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                        {(trade.date || '--').slice(5) || '--'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-normal text-white">{trade.symbol}</div>
+                        <div className="mt-1 truncate text-[11px] font-normal text-white/50">{trade.name || trade.symbol}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
+                        <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
+                      </div>
+                      <span className="text-right text-[22px] leading-none text-white/26">›</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 
@@ -518,7 +541,7 @@ export default function TradesTab({ ctx }) {
                     <span className="text-white/76 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span>
                   </div>
                 </div>
-                <button type="button" onClick={() => setToolPanel(toolPanel ? '' : 'settings')} className="text-white/45 active:scale-95">⌃</button>
+                <button type="button" onClick={() => setToolPanel(toolPanel ? '' : 'records')} className="text-white/45 active:scale-95">⌃</button>
               </div>
 
               <div className="mb-4 grid grid-cols-3 gap-2">
@@ -550,7 +573,7 @@ export default function TradesTab({ ctx }) {
                         <button
                           key={position.symbol}
                           type="button"
-                          onClick={() => openTradeModal(position, 'sell')}
+                          onClick={() => openTradeModal(position, 'buy')}
                           className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-1.5 text-left active:bg-white/[0.03]"
                         >
                           <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{position.name || position.symbol}</span>
@@ -579,7 +602,7 @@ export default function TradesTab({ ctx }) {
                             <button
                               key={position.symbol}
                               type="button"
-                              onClick={() => openTradeModal(position, 'sell')}
+                              onClick={() => openTradeModal(position, 'buy')}
                               className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_144px_66px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
                             >
                               <span className="text-left">
@@ -1547,9 +1570,10 @@ export default function TradesTab({ ctx }) {
 
         {/* ============ 摊薄成本计算器 ============ */}
         {showCostTool && (() => {
-          const allSymbols = Object.keys(costBasisData);
-          const activeSymbol = costBasisActiveSymbol && costBasisData[costBasisActiveSymbol]
-            ? costBasisActiveSymbol
+          const allSymbols = [...new Set(Object.keys(costBasisData).map(sym => normalizeCostBasisSymbol(sym)).filter(Boolean))];
+          const normalizedActiveSymbol = normalizeCostBasisSymbol(costBasisActiveSymbol);
+          const activeSymbol = normalizedActiveSymbol && allSymbols.includes(normalizedActiveSymbol)
+            ? normalizedActiveSymbol
             : (allSymbols[0] || '');
           const trades = activeSymbol ? (costBasisData[activeSymbol] || []) : [];
           const stats = calcCostBasis(trades);

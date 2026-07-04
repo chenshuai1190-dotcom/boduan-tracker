@@ -68,6 +68,22 @@ function normalizeSymbolKey(symbol) {
   return String(symbol || '').trim().toUpperCase();
 }
 
+function normalizeCostBasisSymbol(symbol) {
+  const value = normalizeSymbolKey(symbol);
+  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
+}
+
+function sanitizeCostBasisData(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.entries(value).reduce((acc, [rawSymbol, trades]) => {
+    const symbol = normalizeCostBasisSymbol(rawSymbol);
+    if (!symbol) return acc;
+    const validTrades = Array.isArray(trades) ? trades.filter(Boolean) : [];
+    acc[symbol] = [...(acc[symbol] || []), ...validTrades];
+    return acc;
+  }, {});
+}
+
 function normalizeExternalLogoUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return null;
@@ -96,6 +112,14 @@ function orderWatchlistRows(list, order) {
   const orderedSymbols = new Set(ordered.map((item) => normalizeSymbolKey(item?.symbol)));
   const rest = rows.filter((item) => !orderedSymbols.has(normalizeSymbolKey(item?.symbol)));
   return [...ordered, ...rest];
+}
+
+function formatRealtimeFetchError(error) {
+  const rawMessage = String(error?.message || error || '').trim();
+  if (/load failed|failed to fetch|networkerror|network request failed|fetch failed/i.test(rawMessage)) {
+    return '行情网络请求失败,已保留现有数据';
+  }
+  return rawMessage || '行情拉取失败';
 }
 
 function readCachedStockLogos() {
@@ -860,6 +884,7 @@ function MainApp({ user, onLogout }) {
 
   // 拉取实时行情状态
   const [fetching, setFetching] = useState(false);
+  const quoteFetchInFlightRef = useRef(false);
 
   // 🧪 实时模式预留:浏览器直连 EODHD 已移除,等待服务端 relay。
   const [wsEnabled, setWsEnabled] = useState(false);
@@ -1001,11 +1026,11 @@ function MainApp({ user, onLogout }) {
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
       const raw = localStorage.getItem('bottomline_cost_basis');
-      return raw ? JSON.parse(raw) : {};
+      return raw ? sanitizeCostBasisData(JSON.parse(raw)) : {};
     } catch { return {}; }
   });
   const [costBasisActiveSymbol, setCostBasisActiveSymbol] = useState(() => {
-    try { return localStorage.getItem('bottomline_cost_basis_active') || ''; } catch { return ''; }
+    try { return normalizeCostBasisSymbol(localStorage.getItem('bottomline_cost_basis_active')) || ''; } catch { return ''; }
   });
   const [showCostBasisAdd, setShowCostBasisAdd] = useState(false);  // 添加新股票 modal
   const [showCostBasisTrade, setShowCostBasisTrade] = useState(false);  // 添加交易 modal
@@ -1023,11 +1048,20 @@ function MainApp({ user, onLogout }) {
 
   // 持久化到 localStorage
   useEffect(() => {
-    try { localStorage.setItem('bottomline_cost_basis', JSON.stringify(costBasisData)); } catch {}
+    try { localStorage.setItem('bottomline_cost_basis', JSON.stringify(sanitizeCostBasisData(costBasisData))); } catch {}
   }, [costBasisData]);
   useEffect(() => {
-    try { localStorage.setItem('bottomline_cost_basis_active', costBasisActiveSymbol); } catch {}
+    try { localStorage.setItem('bottomline_cost_basis_active', normalizeCostBasisSymbol(costBasisActiveSymbol)); } catch {}
   }, [costBasisActiveSymbol]);
+
+  useEffect(() => {
+    const sanitized = sanitizeCostBasisData(costBasisData);
+    const symbols = Object.keys(sanitized);
+    const active = normalizeCostBasisSymbol(costBasisActiveSymbol);
+    if (active && sanitized[active]) return;
+    const nextActive = symbols[0] || '';
+    if (nextActive !== costBasisActiveSymbol) setCostBasisActiveSymbol(nextActive);
+  }, [costBasisActiveSymbol, costBasisData]);
 
   // 核心算法: 移动加权平均 + 扣除已实现盈亏的"实际成本"
   const calcCostBasis = (trades) => {
@@ -1140,6 +1174,12 @@ function MainApp({ user, onLogout }) {
       localStorage.setItem(MARKET_COLOR_MODE_STORAGE_KEY, marketColorMode);
     } catch {}
   }, [marketColorMode]);
+
+  useEffect(() => {
+    if (!fetchError) return undefined;
+    const timerId = setTimeout(() => setFetchError(null), 4200);
+    return () => clearTimeout(timerId);
+  }, [fetchError]);
 
   const applyCloudUserData = useCallback((result, logLabel = '[云端加载]') => {
     const {
@@ -1310,7 +1350,7 @@ function MainApp({ user, onLogout }) {
     let cancelled = false;
     (async () => {
       try {
-        const cloudData = await db.fetchCostBasisTrades();
+        const cloudData = sanitizeCostBasisData(await db.fetchCostBasisTrades());
         if (cancelled) return;
         const cloudHasData = cloudData && Object.keys(cloudData).length > 0;
         // 用函数式 setState 拿当前 state, 避免依赖 costBasisData 引发无限循环
@@ -1325,7 +1365,7 @@ function MainApp({ user, onLogout }) {
             // 云端空, 本地有 → 自动上传迁移 (异步, 不等)
             console.log('[CostBasis] 📤 本地数据自动迁移到云端...');
             (async () => {
-              for (const [sym, trades] of Object.entries(currentLocal)) {
+              for (const [sym, trades] of Object.entries(sanitizeCostBasisData(currentLocal))) {
                 for (const trade of trades) {
                   try {
                     await db.insertCostBasisTrade(sym, trade);
@@ -2185,6 +2225,10 @@ function MainApp({ user, onLogout }) {
 
   // 一键拉取实时行情(从 Vercel API)
   const fetchRealtimePrices = async (rowsOverride = null) => {
+    if (quoteFetchInFlightRef.current) {
+      return { ok: true, skipped: true };
+    }
+    quoteFetchInFlightRef.current = true;
     const rowsForQuote = Array.isArray(rowsOverride) ? rowsOverride : quoteRows;
     setFetching(true);
     setFetchError(null);
@@ -2197,8 +2241,11 @@ function MainApp({ user, onLogout }) {
       const symbolSet = new Set([...rowsForQuote.map(s => s.symbol), ...coreSymbols]);
       const symbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'].join(',');
       const r = await fetchQuote(symbols);
-      const result = await r.json();
+      const result = await r.json().catch(() => ({}));
       
+      if (!r.ok) {
+        throw new Error(result.error || `行情接口返回 ${r.status}`);
+      }
       if (!result.success) {
         throw new Error(result.error || '拉取失败');
       }
@@ -2287,9 +2334,14 @@ function MainApp({ user, onLogout }) {
       }
 
       setLastFetched(new Date());
+      return { ok: true };
     } catch (e) {
-      setFetchError(e.message);
+      const message = formatRealtimeFetchError(e);
+      console.warn('[行情拉取] 失败:', e);
+      setFetchError(message);
+      return { ok: false, error: message };
     } finally {
+      quoteFetchInFlightRef.current = false;
       setFetching(false);
     }
   };
@@ -4527,7 +4579,7 @@ function MainApp({ user, onLogout }) {
                   </button>
                   <button
                     onClick={() => {
-                      const sym = costBasisNewSymbol.trim();
+                      const sym = normalizeCostBasisSymbol(costBasisNewSymbol);
                       if (!sym) return;
                       if (costBasisData[sym]) {
                         showConfirm({
@@ -4961,7 +5013,7 @@ function MainApp({ user, onLogout }) {
             {/* 拉取错误提示(浮在导航栏上方) */}
             {fetchError && (
               <div className="absolute -top-10 left-2 right-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-1 shadow">
-                <WifiOff className="w-3 h-3" /> 拉取失败:{fetchError}
+                <WifiOff className="w-3 h-3" /> 行情拉取失败:{fetchError}
               </div>
             )}
           </div>

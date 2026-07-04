@@ -4,6 +4,46 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 修复摊薄成本空股票标签和交易记录入口
+
+- Commit: pending
+- Background: 用户在生产截图中指出摊薄成本股票切换栏仍出现一个空白胶囊按钮,要求删除;同时下拉刷新后底部提示 `拉取失败:Load failed`,需要检查是否由多余代码造成。用户随后指出持仓股票代码点击仍默认打开卖出而不是买入,并要求把工具区 `股票设置` 改成 `交易记录`,用于查看全部主交易记录,并像当日订单一样支持修改和删除。
+- Findings:
+  - 空白胶囊不是上轮已删除的虚线 `+`,而是摊薄成本 tab 直接渲染 `Object.keys(costBasisData)` 导致;只要本地缓存或云端 `cost_basis_trades` 混入空 `symbol`,就会生成空按钮并参与股票数量统计。
+  - `Load failed` 来自浏览器 `fetch` 网络层错误,不是空股票标签导致;当前行情刷新会把 Safari/PWA 的原始英文网络错误直接显示到 UI。自动行情轮询和手动下拉刷新也可能重叠触发 `/api/quote`,属于可收紧的多余并发请求。
+- Changes:
+  - `App.jsx` 新增 `normalizeCostBasisSymbol` 和 `sanitizeCostBasisData`,启动读取本地 `bottomline_cost_basis`、云端摊薄数据、localStorage 持久化、旧本地迁移上云前都会过滤无效空股票代码。
+  - 摊薄成本 active symbol 会自动回落到第一只有效股票,避免旧空 active 状态继续驻留。
+  - `TradesTab.jsx` 渲染摊薄股票 tab 前会 normalize、去重并过滤空 symbol,空白胶囊不再显示,顶部股票数量也不再计入空项。
+  - `src/lib/db.js` 读取 `cost_basis_trades` 时跳过空 symbol,写入/删除整只摊薄股票时拒绝无效 symbol,避免空代码继续进入云端。
+  - 行情刷新增加 `quoteFetchInFlightRef` 请求锁,避免自动轮询和下拉刷新同时发起重复 `/api/quote` 请求。
+  - 行情刷新错误通过 `formatRealtimeFetchError` 转成中文提示;Safari/PWA 的 `Load failed` 会显示为 `行情网络请求失败,已保留现有数据`,并在 4.2 秒后自动消失。
+  - 底部 toast 文案从泛泛的 `拉取失败` 改为 `行情拉取失败`,和云端数据加载失败区分。
+  - 持仓分布中点击股票名称/代码或右侧持仓行时,默认打开买入模式;只有明确的卖出入口才打开卖出。
+  - 工具区第三项从 `股票设置` 改为 `交易记录`,图标改用 `ListChecks`;面板展示全部 `stock_trades` 主交易记录,按日期倒序排列。
+  - 全量交易记录行点击后复用当日订单同一套居中 `订单操作` 弹窗,支持修改和删除;修改走 `db.updateStockTrade`,删除走 `deleteStockTradeRecord`/`stock_trades` 云端删除路径。
+  - 新增回归测试,锁定摊薄成本空 symbol 过滤、云端写入拒绝空 symbol、行情请求锁、`Load failed` 中文化、持仓点击默认买入和交易记录工具复用数据库修改/删除流。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.100`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md`、`docs/development-process.md` 本轮无需改动:这是摊薄成本前端数据清洗、云端小工具写入防护和行情刷新提示优化,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或既有开发准则。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/db.js`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 54 tests.
+  - `npm run build`: pass; `index-CUbvcZ74.css` 51.73 kB / gzip 9.54 kB, `TradesTab-CbAsV7Os.js` 61.70 kB / gzip 12.18 kB, `SettingsTab-BUxMlCxy.js` 34.75 kB / gzip 13.28 kB, `App-D0DCoy5y.js` 140.89 kB / gzip 39.74 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Local source marker check: pass; source contains `sanitizeCostBasisData`, cost-basis render filter `Object.keys(costBasisData).map(sym => normalizeCostBasisSymbol(sym)).filter(Boolean)`, db blank-symbol guard `if (!sym) continue;`, `quoteFetchInFlightRef`, `行情网络请求失败,已保留现有数据`, `setTimeout(() => setFetchError(null), 4200)`, `openTradeModal(position, 'buy')`, no `openTradeModal(position, 'sell')`, tool marker `{ id: 'records', label: '交易记录', icon: ListChecks }`, `ledgerTradeRecords`, and Settings source contains `v10.7.9.100`.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复摊薄成本空 symbol 可渲染为空白 tab、行情重复并发请求、底部原始 `Load failed` 英文提示、持仓点击默认卖出以及工具区 `股票设置` 入口;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 微调摊薄成本工具显示
 
 - Commit: `8a43670d3f72bee759eb50806fe948d62fb54ad6`

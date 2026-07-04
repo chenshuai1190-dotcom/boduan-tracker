@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6` (`v10.7.9.99`)
-- 最近应用代码提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6`
+- 当前产品基准提交: pending runtime commit (`v10.7.9.100`)
+- 最近应用代码提交: pending runtime commit
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.99`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`
-- Vercel 部署记录: `v10.7.9.99` runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`;GitHub Actions `CI` run `28712147321` build job `85147322937` success;production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime` HTTP 200
+- 设置页版本: `v10.7.9.100`
+- Vercel 最新运行时部署: pending;上一版 success target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`
+- Vercel 部署记录: pending `v10.7.9.100`;上一版 `v10.7.9.99` runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`;GitHub Actions `CI` run `28712147321` build job `85147322937` success;production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,以及 `v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,以及 `v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口。
 
 ## 2. 先读这些文档
 
@@ -164,6 +164,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 摊薄成本工具
 
+- `v10.7.9.100`: 摊薄成本股票栏过滤空股票代码,不再显示空白胶囊按钮;本地缓存和云端 `cost_basis_trades` 读取都会清洗无效 symbol,云端写入/整只删除也会拒绝空 symbol;行情刷新增加请求锁,避免自动轮询和下拉刷新重复并发;Safari/PWA `Load failed` 网络层错误改为中文 `行情网络请求失败,已保留现有数据` 并自动消失;持仓股票名称/代码点击默认打开买入;工具区 `股票设置` 改为 `交易记录`,可查看全部主交易记录并复用当日订单弹窗修改/删除。
 - `v10.7.9.99`: 摊薄成本股票切换栏删除尾部多余虚线 `+`;实际成本涨幅、已实现盈亏和卖出展开明细利润颜色改为和头部资产卡片同源的 `pnlClass`;新增摊薄股票和添加摊薄交易弹窗改为居中弹窗;修复弹窗标签、取消按钮和输入辅助文字因非标准透明度 class 在 iOS 上变黑的问题。
 - `v10.7.9.98`: 摊薄成本工具改为深色版本;标题删除旧图标,只保留纯文字 `摊薄成本`;主成本卡、累计投入、已实现盈亏、交易记录、新增股票和添加摊薄交易弹窗统一为黑色风格;辅助图标改用现有 lucide 线性图标体系;摊薄成本提交校验和失败提示改为应用内确认弹窗;数据仍只写独立 `cost_basis_trades`,不影响正式交易账本和波段记录。
 
@@ -396,7 +397,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.99` 或更新版本。
+- 设置页显示 `v10.7.9.100` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -411,11 +412,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6` (`v10.7.9.99`)
-最近应用代码提交: `8a43670d3f72bee759eb50806fe948d62fb54ad6`
-设置页版本: `v10.7.9.99`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`
-部署记录: `v10.7.9.99` runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`;GitHub Actions `CI` run `28712147321` build job `85147322937` success;production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime` HTTP 200
+当前产品基准提交: pending runtime commit (`v10.7.9.100`)
+最近应用代码提交: pending runtime commit
+设置页版本: `v10.7.9.100`
+Vercel 最新运行时部署: pending;上一版 success target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/D3BpfMQDuVh2fja15TL9jYZT9fw9`
+部署记录: pending `v10.7.9.100`;上一版 `v10.7.9.99` runtime commit `8a43670d3f72bee759eb50806fe948d62fb54ad6`;GitHub Actions `CI` run `28712147321` build job `85147322937` success;production `GET https://boduan-tracker.vercel.app/?v=8a43670-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -446,6 +447,8 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 添加交易新增完成后默认回到买入;页面滚到顶部继续下拉可强制刷新云端数据、汇率和已登录行情。
 - 波段记录新增只写入旧账本 `trades`,不再串到正式交易记录 `stock_trades`;摊薄成本新增只写 `cost_basis_trades`;波段记录和摊薄成本提交前都有确认框和防重复提交锁。
 - 摊薄成本工具已深色化并删除标题旧图标;股票切换栏尾部多余虚线 `+` 已删除;新增摊薄股票和添加摊薄交易都改为居中弹窗;弹窗标签、输入辅助文字和取消按钮已修复可见;已实现盈亏和卖出展开利润颜色对齐头部资产卡片粉色体系。
+- 摊薄成本股票栏已过滤空代码,不再显示空白胶囊按钮;本地缓存和云端摊薄数据都会清洗无效 symbol;行情刷新增加请求锁,避免自动轮询和下拉刷新重复并发;Safari/PWA `Load failed` 网络错误已改为中文行情网络提示并自动消失。
+- 交易页持仓股票名称/代码点击默认打开买入;工具区 `股票设置` 已改为 `交易记录`,展示全部主交易账本记录,点击后复用当日订单弹窗修改/删除并同步数据库。
 - 波段记录小程序主界面已改为深色卡片体系;标题旧图标已删除;顶部和空状态新增 `新增波段股票`;波段区域普通文字、股票代码、数字、记录行、备注和交易明细取消加粗/斜体;已完成波段默认收进 `已完成` 折叠区。
 - 波段记录整体字号和留白继续收紧;进行中绿色状态点恢复闪烁;进行中/已完成波段移除 `#1` 等无意义编号;波段和正式交易表单缺字段/非法数值提示改为应用内自定义弹窗;开发准则新增非必要不使用浏览器/系统原生交互控件。
 - 波段记录标题、股票代码、股票名称、统计卡、明细和整体框架继续压缩;新增波段记录弹窗恢复 `波段备注/计划`;新增波段后备注写入 `wave_notes`;进行中和已完成波段备注支持编辑和一键清除;顶部 `已完成` 统计卡可展开已完成波段列表。

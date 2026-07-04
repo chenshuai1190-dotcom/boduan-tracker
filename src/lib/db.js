@@ -19,6 +19,11 @@ const cacheSet = (key, value) => {
   } catch {}
 };
 
+const normalizeCostBasisSymbol = (symbol) => {
+  const value = String(symbol || '').trim().toUpperCase();
+  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
+};
+
 // ============ TRADES (交易) ============
 
 export const fetchTrades = async (preUser = null) => {
@@ -787,7 +792,8 @@ export const fetchCostBasisTrades = async (preUser = null) => {
   if (error) throw error;
   const grouped = {};
   for (const row of (data || [])) {
-    const sym = row.symbol;
+    const sym = normalizeCostBasisSymbol(row.symbol);
+    if (!sym) continue;
     if (!grouped[sym]) grouped[sym] = [];
     grouped[sym].push({
       id: row.id,
@@ -803,13 +809,15 @@ export const fetchCostBasisTrades = async (preUser = null) => {
 export const insertCostBasisTrade = async (symbol, trade) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
+  const normalizedSymbol = normalizeCostBasisSymbol(symbol);
+  if (!normalizedSymbol) throw new Error('缺少有效股票代码');
 
   const { error } = await supabase
     .from('cost_basis_trades')
     .insert({
       id: trade.id,
       user_id: user.id,
-      symbol: symbol,
+      symbol: normalizedSymbol,
       trade_type: trade.type,
       price: trade.price,
       shares: trade.shares,
@@ -829,7 +837,9 @@ export const deleteCostBasisTrade = async (id) => {
 export const deleteCostBasisSymbol = async (symbol) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
+  const normalizedSymbol = normalizeCostBasisSymbol(symbol);
+  if (!normalizedSymbol) throw new Error('缺少有效股票代码');
 
-  const { error } = await scopedDeleteByField(supabase.from('cost_basis_trades'), 'symbol', symbol, user.id);
+  const { error } = await scopedDeleteByField(supabase.from('cost_basis_trades'), 'symbol', normalizedSymbol, user.id);
   if (error) throw error;
 };

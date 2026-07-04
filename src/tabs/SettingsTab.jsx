@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.99
+                  v10.7.9.100
                 </span>
               </div>
             </div>
@@ -170,7 +170,19 @@ export default function SettingsTab({ ctx }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.99', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.100', date: '2026-07-05', latest: true,
+                    items: [
+                      '🧮 修复摊薄成本空股票标签和行情拉取提示',
+                      '  - 摊薄成本股票栏过滤空代码,不再显示空白按钮',
+                      '  - 云端和本地摊薄数据都会清洗无效股票代码',
+                      '  - 行情刷新增加请求锁,避免自动轮询和下拉刷新重复并发',
+                      '  - Safari 网络层 Load failed 改为中文行情网络提示并自动消失',
+                      '  - 持仓股票代码点击默认打开买入,不再误开卖出',
+                      '  - 工具入口“股票设置”改为“交易记录”,支持查看全部主交易记录并修改/删除',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.99', date: '2026-07-05',
                     items: [
                       '🧮 微调摊薄成本工具显示',
                       '  - 删除股票切换栏尾部多余虚线加号',
@@ -1028,7 +1040,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.99</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.100</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>
