@@ -8,9 +8,9 @@ This document is the first page to read when taking over `boduan-tracker`.
 
 - Repository: `chenshuai1190-dotcom/boduan-tracker`
 - Production: `https://boduan-tracker.vercel.app`
-- Runtime code verified on production: `c6b4d2882b123f503252ec4984a9c5aa51cb4dcf`
-- Latest verified deployment record before this handoff: `c6b4d2882b123f503252ec4984a9c5aa51cb4dcf`.
-- App changelog version shown in Settings: `v10.7.9.63`
+- Runtime code verified on production: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
+- Latest verified deployment record before this handoff: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`.
+- App changelog version shown in Settings: `v10.7.9.64`
 - Current development branch used by Codex: `main`
 
 The product is usable and deployed, but it is still a hand-built MVP that needs more architecture hardening before large professional finance features are added.
@@ -123,12 +123,11 @@ Expected `/api/quote` unauthenticated result: `401`.
 
 Last runtime verification recorded:
 
-- Runtime commit: `c6b4d2882b123f503252ec4984a9c5aa51cb4dcf`
-- Vercel deployment: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Ccke1DF4YyU5zjHjjPFpmZKhUkqM`
-- Production chunks: `index-Djtos65b.js`, `App-CunFcbVA.js`, `HomeTab-CB8aSzcR.js`, `TradesTab-Cre_5I5e.js`, `SettingsTab-PfDVAiR-.js`
-- `App-CunFcbVA.js` contains `stockTrades`, `stock_trades`, and `insertStockTrade`.
-- `TradesTab-Cre_5I5e.js` contains `stockTrades`.
-- `SettingsTab-PfDVAiR-.js` contains `v10.7.9.63` and "交易主账本独立建库".
+- Runtime commit: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
+- Vercel deployment: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J1ARsY5PBYGLLr5Trp3M8hSStzbX`
+- Production chunks: `index-CpFcn1nY.js`, `App-DoFunHmg.js`, `HomeTab-CentWHQh.js`, `TradesTab-LpilKs1l.js`, `SettingsTab-B6EfuSRi.js`
+- `HomeTab-CentWHQh.js` and `TradesTab-LpilKs1l.js` contain fixed top-card P/L amount class `text-[13px]`.
+- `SettingsTab-B6EfuSRi.js` contains `v10.7.9.64` and "USD/RMB 盈亏数字字号统一".
 - `/api/quote?symbols=VIX` without auth returns `401`
 - The trade-ledger refactor introduces `stock_trades` as the main buy/sell ledger. `supabase/stock_trades.sql` has been applied in production Supabase project `ykgotnmtqcqdzqtrlayq`.
 - The anonymous REST probe now covers 13 user-owned tables, including `stock_trades`; all returned `visibleRows=0`.

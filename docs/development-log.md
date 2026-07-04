@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - USD/RMB 盈亏字号统一
 
-- Commit: pending
+- Commit: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
 - Background: 用户反馈 RMB 的数字大小和 USD 不一致,要求以 RMB 当前字号为准;同时询问汇率来源。
 - Changes:
   - 首页总资产卡的今日盈亏、累计盈亏金额统一使用 RMB 当前的 `text-[13px]`,USD 不再放大到 `text-[15px]`。
@@ -24,7 +24,16 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local chunk check: pass; built `HomeTab-CentWHQh.js` and `TradesTab-LpilKs1l.js` use fixed `text-[13px]` for top-card P/L amount class, and `SettingsTab-B6EfuSRi.js` contains `v10.7.9.64` plus "USD/RMB 盈亏数字字号统一"。
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+- Production verification:
+  - Runtime commit: `99d27ce3dab9085edf587c489d12b6c7ea3b66a9`
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J1ARsY5PBYGLLr5Trp3M8hSStzbX`
+  - Production `GET https://boduan-tracker.vercel.app/`: `200`
+  - Production chunks: `index-CpFcn1nY.js`, `App-DoFunHmg.js`, `HomeTab-CentWHQh.js`, `TradesTab-LpilKs1l.js`, `SettingsTab-B6EfuSRi.js`
+  - `HomeTab-CentWHQh.js` and `TradesTab-LpilKs1l.js` contain fixed top-card P/L amount class `text-[13px]`.
+  - `SettingsTab-B6EfuSRi.js` contains `v10.7.9.64` and "USD/RMB 盈亏数字字号统一"。
+  - `GET https://boduan-tracker.vercel.app/api/quote?symbols=VIX` without auth returns `401`; `/api/quote` auth remains enabled.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades` return `200` with `visibleRows=0` for anonymous REST probes.
 - Rollback: 回滚本次提交会恢复 USD 盈亏金额比 RMB 大的字号;不影响交易账本或汇率计算。
 
 ### 2026-07-04 - 交易主账本独立建库
