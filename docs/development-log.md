@@ -4,6 +4,44 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 新增全局下拉刷新并修复工具账本边界
+
+- Commit: `same commit`
+- Background: 用户反馈添加交易在某些连续录入场景下默认停留在卖出,要求改为买入;同时要求增加全局刷新能力,在页面拉到头部上方时强制刷新内容。随后发现致命边界问题:波段记录工具里的新增买入复用了正式交易弹窗,写入了 `stock_trades` 主交易账本,导致测试波段记录串到正式当日订单/持仓里;用户同时要求波段和摊薄成本提交前必须有确认框并防重复提交。
+- Changes:
+  - 添加交易保存后重置表单时不再保留上一笔买/卖方向,下一笔新增默认回到 `买入`;从持仓行主动点击 `卖出` 仍会按卖出打开,修改已有卖出记录也继续保留原方向。
+  - `App.jsx` 抽出 `applyCloudUserData` 公共云端快照应用函数,启动加载、云端错误重试和全局刷新共用同一套“失败保留本地、有效数据覆盖”的规则。
+  - 新增全局顶部下拉刷新手势:页面处于顶部且没有弹窗锁屏时继续下拉,超过阈值后松手会刷新 Supabase 云端数据、汇率和已登录行情接口。
+  - 下拉刷新行情时支持使用本次云端结果里的最新自选/持仓股票集合,避免刚从云端同步的新股票还按旧列表刷新。
+  - 新增 mini 顶部刷新状态胶囊,显示 `下拉刷新`、`松开刷新`、`刷新中`、`已刷新`,不增加远程资源或额外依赖。
+  - 交易弹窗新增显式 `tradeEntryScope`:正式交易入口写 `stock_trades`;波段记录入口写旧账本 `trades`,不再污染正式持仓、当日订单和总资产计算。
+  - 波段记录提交前新增确认框,确认文案明确“只会进入波段记录独立账本”;交易保存增加提交锁,防止快速重复点击写入重复记录。
+  - 摊薄成本新增交易提交前新增确认框,确认文案明确“只会进入摊薄成本独立小工具”;写入 `cost_basis_trades` 期间增加提交锁,失败时回滚本地乐观记录并提示错误。
+  - 通用确认弹窗增加提交锁,确认回调完成前禁用取消/确认按钮,降低所有确认类操作的重复提交风险。
+  - 新增源码级回归测试,校验波段入口必须写 `trades`、正式交易必须写 `stock_trades`,并校验波段/摊薄提交确认和提交锁 marker。
+  - `docs/development-process.md` 新增工具账本边界准则:正式交易、波段记录、摊薄成本不得互相串表;复用弹窗或保存函数必须用显式 scope 分流并在确认文案说明写入范围。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.93`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是前端交互、工具账本写入边界和开发准则调整,不改变 API 鉴权、环境变量、RLS SQL 或安全架构审计结论。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-process.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 48 tests.
+  - `npm run build`: pass; `index-9kY3lAgu.css` 49.08 kB / gzip 9.28 kB, `TradesTab-c6sOAuGA.js` 51.97 kB / gzip 11.54 kB, `SettingsTab-BKE1pb9f.js` 31.85 kB / gzip 12.25 kB, `App-BXhQEAMQ.js` 136.82 kB / gzip 38.58 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` before deployment.
+  - Local source marker check: pass; source contains `tradeEntryScope === 'wave'`, `await db.insertTrade`, `await db.insertStockTrade`, wave/cost-basis confirmation copy, `confirmSubmittingRef`, `costBasisSubmittingRef`, `PULL_REFRESH_THRESHOLD` and `v10.7.9.93`.
+  - Local build marker check: pass; built chunks contain global pull-refresh labels, `[全局刷新]`, wave/cost-basis confirmation copy, confirmation lock marker `处理中...`, `v10.7.9.93`, and the settings changelog boundary notes.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复新增交易后保留上一笔买/卖方向,移除顶部下拉强制刷新能力,并恢复波段记录入口复用正式交易弹窗的风险;不会影响 RLS、环境变量或 `/api/quote` 鉴权。
+
 ### 2026-07-04 - 同步首页头部卡片和指数卡字重
 
 - Commit: `d435d55bb37f25f8e97d80276c098f73277f0d54`

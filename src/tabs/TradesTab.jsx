@@ -91,11 +91,14 @@ export default function TradesTab({ ctx }) {
     setShowAddTrade,
     setShowCostBasisAdd,
     setShowCostBasisTrade,
+    setTradeEntryScope,
     setTradeDeleteConfirmId,
     setWaveNotes,
     showAddTrade,
     showConfirm,
     stockTrades,
+    tradeEntryScope,
+    tradeSubmitting,
     trades,
     usdRate,
     watchlist,
@@ -181,6 +184,7 @@ export default function TradesTab({ ctx }) {
   ];
 
   const openTradeModal = (position = null, side = 'buy') => {
+    setTradeEntryScope('ledger');
     setNewTrade({
       symbol: position?.symbol || '',
       name: position?.name || '',
@@ -195,6 +199,7 @@ export default function TradesTab({ ctx }) {
   };
 
   const openTradeEditModal = (trade) => {
+    setTradeEntryScope('ledger');
     setNewTrade({
       id: trade.id,
       symbol: trade.symbol || '',
@@ -237,6 +242,34 @@ export default function TradesTab({ ctx }) {
     const trade = orderActionTrade;
     setOrderActionTrade(null);
     confirmDeleteTodayTrade(trade);
+  };
+
+  const confirmTradeSubmit = () => {
+    if (tradeSubmitting) return;
+    if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
+      addTrade();
+      return;
+    }
+    const symbol = String(newTrade.symbol || '').trim().toUpperCase();
+    const sideLabel = newTrade.side === 'sell' ? '卖出' : '买入';
+    const shares = Number(newTrade.shares) || 0;
+    const price = Number(newTrade.price) || 0;
+    const isWaveEntry = tradeEntryScope === 'wave';
+    showConfirm({
+      title: isWaveEntry
+        ? '确认保存到波段记录?'
+        : (newTrade.id || newTrade.editingId ? '确认修改正式交易?' : '确认保存正式交易?'),
+      desc: isWaveEntry
+        ? '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。'
+        : '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。',
+      info: `${symbol || '--'} · ${sideLabel} ${fmtAmount(shares, 0)} 股 @ ${price > 0 ? price.toFixed(2) : '--'} · ${newTrade.date || '--'}`,
+      confirmText: '确认保存',
+      confirmStyle: 'primary',
+      icon: '✅',
+      onConfirm: async () => {
+        await addTrade();
+      },
+    });
   };
 
   const toggleToolPanel = (panel) => {
@@ -710,6 +743,7 @@ export default function TradesTab({ ctx }) {
                     <button
                       type="button"
                       onClick={() => {
+                        setTradeEntryScope('wave');
                         setNewTrade({
                           ...newTrade,
                           symbol: group.symbol,
@@ -1099,7 +1133,9 @@ export default function TradesTab({ ctx }) {
               <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
                 <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-black text-white">{newTrade.id || newTrade.editingId ? '修改交易' : '添加交易'}</h2>
+                  <h2 className="text-base font-black text-white">
+                    {tradeEntryScope === 'wave' ? '添加波段记录' : (newTrade.id || newTrade.editingId ? '修改交易' : '添加交易')}
+                  </h2>
                   <button
                     onClick={() => setShowAddTrade(false)}
                     className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
@@ -1230,7 +1266,13 @@ export default function TradesTab({ ctx }) {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={addTrade} className="flex-1 rounded-xl border border-emerald-300/30 bg-emerald-500/85 py-3 text-sm font-normal text-white shadow-[0_12px_32px_rgba(16,185,129,0.22)] transition active:scale-95">{newTrade.id || newTrade.editingId ? '确认修改' : '确认添加'}</button>
+                  <button
+                    onClick={confirmTradeSubmit}
+                    disabled={tradeSubmitting}
+                    className="flex-1 rounded-xl border border-emerald-300/30 bg-emerald-500/85 py-3 text-sm font-normal text-white shadow-[0_12px_32px_rgba(16,185,129,0.22)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                  >
+                    {tradeSubmitting ? '保存中...' : (newTrade.id || newTrade.editingId ? '确认修改' : '确认添加')}
+                  </button>
                   <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-transparent bg-white/[0.055] py-3 text-sm font-normal text-white/75 transition active:scale-95">取消</button>
                 </div>
               </div>

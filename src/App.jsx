@@ -19,6 +19,8 @@ const BTC_REALTIME_PROTOCOL = 'xmoney-btc';
 const BTC_REALTIME_TOKEN_PROTOCOL_PREFIX = 'supabase.';
 const BTC_REALTIME_STALE_MS = 15_000;
 const BTC_REALTIME_RECONNECT_MAX_MS = 30_000;
+const PULL_REFRESH_THRESHOLD = 72;
+const PULL_REFRESH_MAX_DISTANCE = 96;
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -726,6 +728,9 @@ function MainApp({ user, onLogout }) {
   // 主交易账本:独立记录真实股票买入/卖出流水,由 stock_trades 表持久化。
   const [stockTrades, setStockTrades] = useState([]);
   const [showAddTrade, setShowAddTrade] = useState(false);
+  const [tradeEntryScope, setTradeEntryScope] = useState('ledger'); // ledger = 主交易账本, wave = 波段记录旧账本
+  const [tradeSubmitting, setTradeSubmitting] = useState(false);
+  const tradeSubmittingRef = useRef(false);
   const [newTrade, setNewTrade] = useState({
     symbol: 'TQQQ',
     name: '3倍纳指',
@@ -969,7 +974,11 @@ function MainApp({ user, onLogout }) {
   // 🗑 v10.7.9.41: 通用删除确认 Modal (替换 window.confirm)
   // 用法: showConfirm({ title, desc, info, confirmText, onConfirm })
   const [confirmModal, setConfirmModal] = useState(null);
+  const [confirmSubmitting, setConfirmSubmitting] = useState(false);
+  const confirmSubmittingRef = useRef(false);
   const showConfirm = useCallback((opts) => {
+    confirmSubmittingRef.current = false;
+    setConfirmSubmitting(false);
     setConfirmModal({
       title: opts.title || '确认操作?',
       desc: opts.desc || '此操作不可撤销',
@@ -1006,6 +1015,8 @@ function MainApp({ user, onLogout }) {
     shares: '',
     date: new Date().toISOString().slice(0, 10),
   });
+  const [costBasisSubmitting, setCostBasisSubmitting] = useState(false);
+  const costBasisSubmittingRef = useRef(false);
   // 卖出交易展开/收起 state (id → bool)
   const [expandedTrades, setExpandedTrades] = useState({});
 
@@ -1075,6 +1086,12 @@ function MainApp({ user, onLogout }) {
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState(null);
+  const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
+  const [pullRefreshStatus, setPullRefreshStatus] = useState('idle'); // idle | pulling | ready | refreshing | done
+  const pullRefreshDistanceRef = useRef(0);
+  const pullRefreshResetTimerRef = useRef(null);
+  const globalRefreshingRef = useRef(false);
+  const runGlobalPullRefreshRef = useRef(null);
   const localizedStockTrades = useMemo(() => stockTrades.map(localizeStockNameRow), [stockTrades]);
   const localizedWatchlist = useMemo(() => watchlist.map(localizeStockNameRow), [watchlist]);
   const localizedQuoteCache = useMemo(() => quoteCache.map(localizeStockNameRow), [quoteCache]);
@@ -1123,6 +1140,89 @@ function MainApp({ user, onLogout }) {
     } catch {}
   }, [marketColorMode]);
 
+  const applyCloudUserData = useCallback((result, logLabel = '[云端加载]') => {
+    const {
+      trades: cloudTrades,
+      stockTrades: cloudStockTrades,
+      watchlist: cloudWatchlist,
+      waveNotes: cloudNotes,
+      settings,
+      accounts: cloudAccounts,
+      snapshots: cloudSnapshots,
+      investmentPlan: cloudPlan,
+      marginStatus: cloudMargin,
+      disciplines: cloudDisciplines,
+      reviewLogs: cloudLogs,
+      yearlyActuals: cloudActuals,
+      _failedTables,
+    } = result || {};
+
+    console.log(`${logLabel} cloudWatchlist:`, cloudWatchlist, '长度:', cloudWatchlist?.length);
+    console.log(`${logLabel} accounts:`, cloudAccounts?.length, 'snapshots:', cloudSnapshots?.length);
+    console.log(`${logLabel} 复盘 tab: plan`, cloudPlan, 'margin', cloudMargin, 'disciplines', cloudDisciplines?.length, 'logs', cloudLogs?.length);
+
+    if (_failedTables && _failedTables.length > 0) {
+      console.error(`${logLabel} ⚠️ 以下表拉取失败, 保留本地数据:`, _failedTables);
+      setCloudError(`⚠️ ${_failedTables.length} 项数据未能加载: ${_failedTables.join(', ')}`);
+    } else {
+      setCloudError(null);
+    }
+
+    // 防护原则: null = 拉取失败 → 不动本地; []/{} = 真的空 → 可以覆盖。
+    if (cloudTrades !== null && cloudTrades !== undefined) setTrades(cloudTrades);
+    else console.warn(`${logLabel} ⚠️ trades 拉取失败, 保留本地 state`);
+
+    if (cloudStockTrades !== null && cloudStockTrades !== undefined) setStockTrades(cloudStockTrades);
+    else console.warn(`${logLabel} ⚠️ stockTrades 拉取失败, 保留本地主交易账本`);
+
+    if (Array.isArray(cloudWatchlist)) {
+      const cloudWatchlistOrder = normalizeWatchlistOrder(settings?.watchlistOrder);
+      const orderedWatchlist = orderWatchlistRows(cloudWatchlist, cloudWatchlistOrder);
+      console.log(`${logLabel} ✓ 设置 watchlist:`, orderedWatchlist.length, '只');
+      setWatchlist(orderedWatchlist);
+      setWatchlistOrder(normalizeWatchlistOrder(orderedWatchlist.map((item) => item?.symbol)));
+    } else {
+      console.warn(`${logLabel} ⚠️ watchlist 拉取失败, 保留本地默认`);
+    }
+
+    if (cloudNotes !== null && cloudNotes !== undefined) setWaveNotes(cloudNotes);
+    else console.warn(`${logLabel} ⚠️ waveNotes 拉取失败, 保留本地`);
+
+    if (cloudAccounts !== null && cloudAccounts !== undefined) setAccounts(cloudAccounts);
+    else console.warn(`${logLabel} ⚠️ accounts 拉取失败, 保留本地`);
+
+    if (cloudSnapshots !== null && cloudSnapshots !== undefined) setSnapshots(cloudSnapshots);
+    else console.warn(`${logLabel} ⚠️ snapshots 拉取失败, 保留本地`);
+
+    if (cloudPlan) setInvestmentPlan(cloudPlan);
+    if (cloudMargin) setMarginStatus(cloudMargin);
+
+    if (cloudDisciplines !== null && cloudDisciplines !== undefined) setDisciplines(cloudDisciplines);
+    else console.warn(`${logLabel} ⚠️ disciplines 拉取失败, 保留本地`);
+
+    if (cloudLogs !== null && cloudLogs !== undefined) setReviewLogs(cloudLogs);
+    else console.warn(`${logLabel} ⚠️ reviewLogs 拉取失败, 保留本地`);
+
+    if (cloudActuals !== null && cloudActuals !== undefined) setYearlyActuals(cloudActuals);
+    else console.warn(`${logLabel} ⚠️ yearlyActuals 拉取失败, 保留本地`);
+
+    if (settings) {
+      if (settings.benchmarkSymbol) setBenchmarkSymbol(settings.benchmarkSymbol);
+      if (typeof settings.fgi === 'number') setFgi(settings.fgi);
+      if (settings.fgiLabel) setFgiLabel(settings.fgiLabel);
+      if (typeof settings.fgiPrev === 'number') setFgiPrev(settings.fgiPrev);
+      if (typeof settings.fgiWeek === 'number') setFgiWeek(settings.fgiWeek);
+      if (typeof settings.fgiMonth === 'number') setFgiMonth(settings.fgiMonth);
+      if (typeof settings.fgiYear === 'number') setFgiYear(settings.fgiYear);
+      if (settings.fgiDataDate) setFgiDataDate(settings.fgiDataDate);
+      if (settings.vix) setVix(settings.vix);
+      if (settings.vixDataDate) setVixDataDate(settings.vixDataDate);
+      if (Array.isArray(settings.batches) && settings.batches.length > 0) setBatches(settings.batches);
+      if (Array.isArray(settings.exitTargets) && settings.exitTargets.length > 0) setExitTargets(settings.exitTargets);
+      if (settings.marketColorMode) setMarketColorMode(normalizeMarketColorMode(settings.marketColorMode));
+    }
+  }, []);
+
   // 启动时从 Supabase 拉取所有数据
   useEffect(() => {
     let mounted = true;
@@ -1148,90 +1248,8 @@ function MainApp({ user, onLogout }) {
         console.log('[云端加载] 开始拉取...');
         const result = await db.fetchAllUserData();
         console.log('[云端加载] 原始返回:', result);
-        const {
-          trades: cloudTrades,
-          stockTrades: cloudStockTrades,
-          watchlist: cloudWatchlist,
-          waveNotes: cloudNotes,
-          settings,
-          accounts: cloudAccounts,
-          snapshots: cloudSnapshots,
-          investmentPlan: cloudPlan,
-          marginStatus: cloudMargin,
-          disciplines: cloudDisciplines,
-          reviewLogs: cloudLogs,
-          yearlyActuals: cloudActuals,
-          _failedTables,
-        } = result;
-        console.log('[云端加载] cloudWatchlist:', cloudWatchlist, '长度:', cloudWatchlist?.length);
-        console.log('[云端加载] accounts:', cloudAccounts?.length, 'snapshots:', cloudSnapshots?.length);
-        console.log('[云端加载] 复盘 tab: plan', cloudPlan, 'margin', cloudMargin, 'disciplines', cloudDisciplines?.length, 'logs', cloudLogs?.length);
-
-        // 🔑 如果有表拉取失败, 记录到 state 让用户知道
-        if (_failedTables && _failedTables.length > 0) {
-          console.error('[云端加载] ⚠️ 以下表拉取失败, 保留本地数据:', _failedTables);
-          setCloudError(`⚠️ ${_failedTables.length} 项数据未能加载: ${_failedTables.join(', ')}`);
-        }
-
         if (!mounted) return;
-
-        // 🔑 防护原则: 只有云端返回"有效数据"时才覆盖本地
-        // null = 拉取失败 → 不动本地 (最重要)
-        // []/{} = 真的空 (新用户/刚重置) → 可以覆盖
-        // 有数据 → 直接覆盖
-
-        if (cloudTrades !== null) setTrades(cloudTrades);
-        else console.warn('[云端加载] ⚠️ trades 拉取失败, 保留本地 state');
-
-        if (cloudStockTrades !== null) setStockTrades(cloudStockTrades);
-        else console.warn('[云端加载] ⚠️ stockTrades 拉取失败, 保留本地主交易账本');
-
-        if (Array.isArray(cloudWatchlist)) {
-          const cloudWatchlistOrder = normalizeWatchlistOrder(settings?.watchlistOrder);
-          const orderedWatchlist = orderWatchlistRows(cloudWatchlist, cloudWatchlistOrder);
-          console.log('[云端加载] ✓ 设置 watchlist:', orderedWatchlist.length, '只');
-          setWatchlist(orderedWatchlist);
-          setWatchlistOrder(normalizeWatchlistOrder(orderedWatchlist.map((item) => item?.symbol)));
-        } else {
-          console.warn('[云端加载] ⚠️ watchlist 拉取失败, 保留本地默认');
-        }
-
-        if (cloudNotes !== null) setWaveNotes(cloudNotes);
-        else console.warn('[云端加载] ⚠️ waveNotes 拉取失败, 保留本地');
-
-        if (cloudAccounts !== null) setAccounts(cloudAccounts);
-        else console.warn('[云端加载] ⚠️ accounts 拉取失败, 保留本地');
-
-        if (cloudSnapshots !== null) setSnapshots(cloudSnapshots);
-        else console.warn('[云端加载] ⚠️ snapshots 拉取失败, 保留本地');
-
-        if (cloudPlan) setInvestmentPlan(cloudPlan);
-        if (cloudMargin) setMarginStatus(cloudMargin);
-
-        if (cloudDisciplines !== null) setDisciplines(cloudDisciplines);
-        else console.warn('[云端加载] ⚠️ disciplines 拉取失败, 保留本地');
-
-        if (cloudLogs !== null) setReviewLogs(cloudLogs);
-        else console.warn('[云端加载] ⚠️ reviewLogs 拉取失败, 保留本地');
-
-        if (cloudActuals !== null) setYearlyActuals(cloudActuals);
-        else console.warn('[云端加载] ⚠️ yearlyActuals 拉取失败, 保留本地');
-
-        if (settings) {
-          if (settings.benchmarkSymbol) setBenchmarkSymbol(settings.benchmarkSymbol);
-          if (typeof settings.fgi === 'number') setFgi(settings.fgi);
-          if (settings.fgiLabel) setFgiLabel(settings.fgiLabel);
-          if (typeof settings.fgiPrev === 'number') setFgiPrev(settings.fgiPrev);
-          if (typeof settings.fgiWeek === 'number') setFgiWeek(settings.fgiWeek);
-          if (typeof settings.fgiMonth === 'number') setFgiMonth(settings.fgiMonth);
-          if (typeof settings.fgiYear === 'number') setFgiYear(settings.fgiYear);
-          if (settings.fgiDataDate) setFgiDataDate(settings.fgiDataDate);
-          if (settings.vix) setVix(settings.vix);
-          if (settings.vixDataDate) setVixDataDate(settings.vixDataDate);
-          if (Array.isArray(settings.batches) && settings.batches.length > 0) setBatches(settings.batches);
-          if (Array.isArray(settings.exitTargets) && settings.exitTargets.length > 0) setExitTargets(settings.exitTargets);
-          if (settings.marketColorMode) setMarketColorMode(normalizeMarketColorMode(settings.marketColorMode));
-        }
+        applyCloudUserData(result, '[云端加载]');
       } catch (e) {
         console.error('[云端加载] 失败:', e);
         setCloudError(e.message);
@@ -1240,7 +1258,7 @@ function MainApp({ user, onLogout }) {
       }
     })();
     return () => { mounted = false; clearTimeout(timeoutId); };
-  }, []);
+  }, [applyCloudUserData]);
 
   useEffect(() => {
     fetchDailyFxRates();
@@ -1806,6 +1824,7 @@ function MainApp({ user, onLogout }) {
   };
 
   const addTrade = async () => {
+    if (tradeSubmittingRef.current) return;
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
       alert('请填写股票代码、价格和股数');
       return;
@@ -1820,6 +1839,42 @@ function MainApp({ user, onLogout }) {
     }
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
     const stockName = displayStockName(symbol, newTrade.name);
+    tradeSubmittingRef.current = true;
+    setTradeSubmitting(true);
+
+    // 波段记录入口必须写 legacy trades,不能污染主交易账本 stock_trades。
+    if (tradeEntryScope === 'wave') {
+      try {
+        const waveTradeRecord = await db.insertTrade({
+          symbol,
+          name: stockName,
+          side: newTrade.side || 'buy',
+          date: newTrade.date,
+          price: priceNum,
+          shares: sharesNum,
+        });
+        setTrades(current => [...current, waveTradeRecord]);
+      } catch (e) {
+        alert('添加波段记录失败:' + e.message);
+        return;
+      } finally {
+        tradeSubmittingRef.current = false;
+        setTradeSubmitting(false);
+      }
+
+      setNewTrade({
+        symbol: newTrade.symbol,
+        name: newTrade.name,
+        side: 'buy',
+        date: new Date().toISOString().split('T')[0],
+        price: '',
+        shares: '',
+        batch: '第1批',
+      });
+      setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found');
+      setShowAddTrade(false);
+      return;
+    }
 
     // 添加/更新主交易账本记录(走 stock_trades,等返回真正的 id)
     try {
@@ -1843,13 +1898,16 @@ function MainApp({ user, onLogout }) {
     } catch (e) {
       alert(`${editingId ? '更新' : '添加'}交易失败:` + e.message);
       return;
+    } finally {
+      tradeSubmittingRef.current = false;
+      setTradeSubmitting(false);
     }
 
-    // 重置表单(保留 symbol/name/side/date,方便下一笔同一股票)
+    // 重置表单(保留 symbol/name,新增下一笔默认回到买入)
     setNewTrade({
       symbol: newTrade.symbol,           // 保留刚用的代码
       name: newTrade.name,                // 保留中文名
-      side: newTrade.side,                // 保留买/卖方向
+      side: 'buy',
       date: new Date().toISOString().split('T')[0],
       price: '',                          // 价格清空,等待重新输入
       shares: '',                         // 股数清空
@@ -1857,6 +1915,61 @@ function MainApp({ user, onLogout }) {
     });
     setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found'); // 已知代码默认显示已找到
     setShowAddTrade(false);
+  };
+
+  const confirmCostBasisTradeSubmit = () => {
+    if (costBasisSubmittingRef.current) return;
+    const symbol = String(costBasisActiveSymbol || '').trim().toUpperCase();
+    const priceNum = parseFloat(costBasisNewTrade.price);
+    const sharesNum = parseFloat(costBasisNewTrade.shares);
+    if (!symbol) {
+      alert('请先选择股票');
+      return;
+    }
+    if (!priceNum || !sharesNum || priceNum <= 0 || sharesNum <= 0) {
+      alert('请填写正确的价格和股数');
+      return;
+    }
+    const type = costBasisNewTrade.type === 'sell' ? 'sell' : 'buy';
+    const typeLabel = type === 'sell' ? '卖出' : '买入';
+    showConfirm({
+      title: '确认保存摊薄成本记录?',
+      desc: '这笔记录只会进入摊薄成本独立小工具,不会进入正式持仓、当日订单或波段记录。',
+      info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} 股 @ ${priceNum.toFixed(2)} · ${costBasisNewTrade.date || '--'}`,
+      confirmText: '确认保存',
+      confirmStyle: 'primary',
+      icon: '✅',
+      onConfirm: async () => {
+        if (costBasisSubmittingRef.current) return;
+        const tradeRecord = {
+          id: 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+          date: costBasisNewTrade.date,
+          type,
+          price: priceNum,
+          shares: sharesNum,
+        };
+        costBasisSubmittingRef.current = true;
+        setCostBasisSubmitting(true);
+        setCostBasisData(prev => ({
+          ...prev,
+          [symbol]: [...(prev[symbol] || []), tradeRecord],
+        }));
+        try {
+          await db.insertCostBasisTrade(symbol, tradeRecord);
+          setCostBasisNewTrade({ type: 'buy', price: '', shares: '', date: localDateKey() });
+          setShowCostBasisTrade(false);
+        } catch (e) {
+          setCostBasisData(prev => ({
+            ...prev,
+            [symbol]: (prev[symbol] || []).filter(item => item.id !== tradeRecord.id),
+          }));
+          alert('保存摊薄成本交易失败:' + (e.message || e));
+        } finally {
+          costBasisSubmittingRef.current = false;
+          setCostBasisSubmitting(false);
+        }
+      },
+    });
   };
 
   const deleteStockTradeRecord = async (id) => {
@@ -2015,8 +2128,19 @@ function MainApp({ user, onLogout }) {
     });
   };
 
+  const buildQuoteRowsFromCloudResult = useCallback((result) => {
+    const cloudStockRows = Array.isArray(result?.stockTrades)
+      ? result.stockTrades.map(localizeStockNameRow)
+      : localizedStockTrades;
+    const cloudWatchlistRows = Array.isArray(result?.watchlist)
+      ? orderWatchlistRows(result.watchlist, normalizeWatchlistOrder(result?.settings?.watchlistOrder)).map(localizeStockNameRow)
+      : localizedWatchlist;
+    return buildLedgerQuoteUniverse(cloudStockRows, cloudWatchlistRows, localizedQuoteCache).allRows;
+  }, [localizedQuoteCache, localizedStockTrades, localizedWatchlist]);
+
   // 一键拉取实时行情(从 Vercel API)
-  const fetchRealtimePrices = async () => {
+  const fetchRealtimePrices = async (rowsOverride = null) => {
+    const rowsForQuote = Array.isArray(rowsOverride) ? rowsOverride : quoteRows;
     setFetching(true);
     setFetchError(null);
     try {
@@ -2025,7 +2149,7 @@ function MainApp({ user, onLogout }) {
       // 导致 qqqHigh 永远停在写死的初始值 640.47, 猎手状态回撤算不准
       // Set 去重: 交易主账本、旧 watchlist、核心标的若重复不会重复请求
       const coreSymbols = ['QQQ', 'TQQQ'];
-      const symbolSet = new Set([...quoteRows.map(s => s.symbol), ...coreSymbols]);
+      const symbolSet = new Set([...rowsForQuote.map(s => s.symbol), ...coreSymbols]);
       const symbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'].join(',');
       const r = await fetchQuote(symbols);
       const result = await r.json();
@@ -2036,10 +2160,10 @@ function MainApp({ user, onLogout }) {
 
       // 更新股票价格
       // 行情全集写入独立 quoteCache;watchlist 只保存用户主动自选,不能被持仓股票污染。
-      if (quoteRows.length === 0) {
+      if (rowsForQuote.length === 0) {
         // 只更新指数/VIX/FGI, 不动股票列表
       } else {
-        const updatedQuotes = quoteRows.map(s => {
+        const updatedQuotes = rowsForQuote.map(s => {
           const fresh = result.data.find(d => d.symbol === s.symbol);
           if (fresh && fresh.price > 0) {
             // 52 周高的优先级:
@@ -2124,6 +2248,136 @@ function MainApp({ user, onLogout }) {
       setFetching(false);
     }
   };
+
+  const runGlobalPullRefresh = async () => {
+    if (globalRefreshingRef.current) return;
+    globalRefreshingRef.current = true;
+    if (pullRefreshResetTimerRef.current) {
+      clearTimeout(pullRefreshResetTimerRef.current);
+      pullRefreshResetTimerRef.current = null;
+    }
+    pullRefreshDistanceRef.current = PULL_REFRESH_THRESHOLD;
+    setPullRefreshDistance(PULL_REFRESH_THRESHOLD);
+    setPullRefreshStatus('refreshing');
+    setFetchError(null);
+
+    try {
+      const cloudResult = await db.fetchAllUserData();
+      applyCloudUserData(cloudResult, '[全局刷新]');
+      await fetchDailyFxRates({ force: true });
+      await fetchRealtimePrices(buildQuoteRowsFromCloudResult(cloudResult));
+      setPullRefreshStatus('done');
+    } catch (e) {
+      console.error('[全局刷新] 失败:', e);
+      const message = e.message || '刷新失败';
+      setCloudError(message);
+      setFetchError(message);
+      setPullRefreshStatus('idle');
+    } finally {
+      globalRefreshingRef.current = false;
+      pullRefreshResetTimerRef.current = setTimeout(() => {
+        pullRefreshDistanceRef.current = 0;
+        setPullRefreshDistance(0);
+        setPullRefreshStatus('idle');
+      }, 520);
+    }
+  };
+
+  runGlobalPullRefreshRef.current = runGlobalPullRefresh;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    let startY = 0;
+    let startX = 0;
+    let startTarget = null;
+    let tracking = false;
+
+    const updateDistance = (distance) => {
+      pullRefreshDistanceRef.current = distance;
+      setPullRefreshDistance(distance);
+      setPullRefreshStatus(distance >= PULL_REFRESH_THRESHOLD ? 'ready' : 'pulling');
+    };
+
+    const resetPull = () => {
+      pullRefreshDistanceRef.current = 0;
+      setPullRefreshDistance(0);
+      setPullRefreshStatus('idle');
+    };
+
+    const getScrollTop = () => (
+      window.scrollY
+      || document.documentElement?.scrollTop
+      || document.body?.scrollTop
+      || 0
+    );
+
+    const canStartPull = () => {
+      if (globalRefreshingRef.current) return false;
+      if (getScrollTop() > 0) return false;
+      if (document.body.style.position === 'fixed') return false;
+      const target = startTarget;
+      const interactive = target?.closest?.('input, textarea, select, [contenteditable="true"]');
+      return !interactive;
+    };
+
+    const handleTouchStart = (event) => {
+      if (!event.touches?.length) return;
+      const touch = event.touches[0];
+      startY = touch.clientY;
+      startX = touch.clientX;
+      startTarget = event.target;
+      tracking = false;
+    };
+
+    const handleTouchMove = (event) => {
+      if (!event.touches?.length) return;
+      const touch = event.touches[0];
+      const deltaY = touch.clientY - startY;
+      const deltaX = Math.abs(touch.clientX - startX);
+
+      if (!tracking) {
+        if (deltaY <= 8 || deltaY < deltaX || !canStartPull()) return;
+        tracking = true;
+      }
+
+      if (deltaY <= 0) {
+        resetPull();
+        return;
+      }
+
+      event.preventDefault();
+      updateDistance(Math.min(PULL_REFRESH_MAX_DISTANCE, deltaY * 0.48));
+    };
+
+    const handleTouchEnd = () => {
+      if (!tracking) return;
+      const shouldRefresh = pullRefreshDistanceRef.current >= PULL_REFRESH_THRESHOLD;
+      tracking = false;
+      if (shouldRefresh) {
+        runGlobalPullRefreshRef.current?.();
+      } else {
+        resetPull();
+      }
+    };
+
+    const handleTouchCancel = () => {
+      tracking = false;
+      if (!globalRefreshingRef.current) resetPull();
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
+      if (pullRefreshResetTimerRef.current) clearTimeout(pullRefreshResetTimerRef.current);
+    };
+  }, []);
 
   // 智能刷新: 根据市场状态动态调整刷新频率
   // - 开盘 (9:30-16:00 ET)  : 10 秒
@@ -2591,6 +2845,7 @@ function MainApp({ user, onLogout }) {
     setShowChangePassword,
     setShowCostBasisAdd,
     setShowCostBasisTrade,
+    setTradeEntryScope,
     setShowEditMargin,
     setShowFillSnapshot,
     setShowMonthsDetail,
@@ -2624,6 +2879,8 @@ function MainApp({ user, onLogout }) {
     snapshotTab,
     stockTrades,
     supabase,
+    tradeEntryScope,
+    tradeSubmitting,
     trades,
     Trash2,
     TrendingDown,
@@ -2649,9 +2906,29 @@ function MainApp({ user, onLogout }) {
     yearlyActuals,
   };
   const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'settings';
+  const pullRefreshLabel = pullRefreshStatus === 'refreshing'
+    ? '刷新中'
+    : pullRefreshStatus === 'done'
+      ? '已刷新'
+      : pullRefreshStatus === 'ready'
+        ? '松开刷新'
+        : '下拉刷新';
 
   return (
     <div className={`min-h-screen px-4 pb-24 ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`} style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+      {pullRefreshStatus !== 'idle' && (
+        <div
+          className="pointer-events-none fixed left-1/2 z-[140] flex items-center gap-1.5 rounded-full border border-white/10 bg-[#10151d]/95 px-3 py-1.5 text-[11px] font-normal text-white/80 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-md transition-opacity duration-150"
+          style={{
+            top: 'calc(env(safe-area-inset-top) + 8px)',
+            opacity: Math.min(1, 0.45 + pullRefreshDistance / PULL_REFRESH_MAX_DISTANCE),
+            transform: `translate(-50%, ${Math.max(0, pullRefreshDistance - 44)}px)`,
+          }}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 text-[#f6b54b] ${pullRefreshStatus === 'refreshing' ? 'animate-spin' : ''}`} />
+          <span>{pullRefreshLabel}</span>
+        </div>
+      )}
       {/* 🚀 火箭进度条动画 CSS */}
       <style>{`
         @keyframes rocketLaunch {
@@ -2733,28 +3010,7 @@ function MainApp({ user, onLogout }) {
                 setCloudError(null);
                 try {
                   const result = await db.fetchAllUserData();
-                  const { _failedTables } = result;
-                  if (!_failedTables || _failedTables.length === 0) {
-                    // 重试成功, 重新设置所有 state
-                    if (result.trades !== null) setTrades(result.trades);
-                    if (result.stockTrades !== null) setStockTrades(result.stockTrades);
-                    if (Array.isArray(result.watchlist)) {
-                      const retryOrder = normalizeWatchlistOrder(result.settings?.watchlistOrder);
-                      const retryWatchlist = orderWatchlistRows(result.watchlist, retryOrder);
-                      setWatchlist(retryWatchlist);
-                      setWatchlistOrder(normalizeWatchlistOrder(retryWatchlist.map((item) => item?.symbol)));
-                    }
-                    if (result.waveNotes !== null) setWaveNotes(result.waveNotes);
-                    if (result.accounts !== null) setAccounts(result.accounts);
-                    if (result.snapshots !== null) setSnapshots(result.snapshots);
-                    if (result.disciplines !== null) setDisciplines(result.disciplines);
-                    if (result.reviewLogs !== null) setReviewLogs(result.reviewLogs);
-                    if (result.yearlyActuals !== null) setYearlyActuals(result.yearlyActuals);
-                    if (result.investmentPlan) setInvestmentPlan(result.investmentPlan);
-                    if (result.marginStatus) setMarginStatus(result.marginStatus);
-                  } else {
-                    setCloudError(`⚠️ ${_failedTables.length} 项数据未能加载: ${_failedTables.join(', ')}`);
-                  }
+                  applyCloudUserData(result, '[云端重试]');
                 } catch (e) {
                   setCloudError(e.message || '重试失败');
                 }
@@ -2789,7 +3045,7 @@ function MainApp({ user, onLogout }) {
         {confirmModal && (
           <div
             className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={(e) => { if (e.target === e.currentTarget) setConfirmModal(null); }}
+            onClick={(e) => { if (e.target === e.currentTarget && !confirmSubmitting) setConfirmModal(null); }}
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             <div
@@ -2833,24 +3089,38 @@ function MainApp({ user, onLogout }) {
                 {/* 按钮 */}
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => setConfirmModal(null)}
-                    className="py-3 rounded-xl font-bold text-[14px] active:scale-95"
+                    onClick={() => { if (!confirmSubmitting) setConfirmModal(null); }}
+                    disabled={confirmSubmitting}
+                    className="py-3 rounded-xl font-bold text-[14px] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                     style={{ background: '#f1f5f9', color: '#64748b' }}
                   >
                     {confirmModal.cancelText}
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      if (confirmSubmittingRef.current) return;
                       const cb = confirmModal.onConfirm;
-                      setConfirmModal(null);
-                      if (cb) cb();
+                      if (!cb) {
+                        setConfirmModal(null);
+                        return;
+                      }
+                      confirmSubmittingRef.current = true;
+                      setConfirmSubmitting(true);
+                      try {
+                        await cb();
+                        setConfirmModal(null);
+                      } finally {
+                        confirmSubmittingRef.current = false;
+                        setConfirmSubmitting(false);
+                      }
                     }}
-                    className="py-3 rounded-xl font-black text-[14px] text-white active:scale-95"
+                    disabled={confirmSubmitting}
+                    className="py-3 rounded-xl font-black text-[14px] text-white active:scale-95 disabled:opacity-60 disabled:active:scale-100"
                     style={{
                       background: confirmModal.confirmStyle === 'danger' ? '#dc2626' : '#2563eb',
                     }}
                   >
-                    {confirmModal.confirmText}
+                    {confirmSubmitting ? '处理中...' : confirmModal.confirmText}
                   </button>
                 </div>
               </div>
@@ -4308,33 +4578,11 @@ function MainApp({ user, onLogout }) {
                   取消
                 </button>
                 <button
-                  onClick={() => {
-                    const p = parseFloat(costBasisNewTrade.price);
-                    const s = parseFloat(costBasisNewTrade.shares);
-                    if (!p || !s || p <= 0 || s <= 0) {
-                      alert('请填写正确的价格和股数');
-                      return;
-                    }
-                    const newTrade = {
-                      id: 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-                      date: costBasisNewTrade.date,
-                      type: costBasisNewTrade.type,
-                      price: p,
-                      shares: s,
-                    };
-                    setCostBasisData(prev => ({
-                      ...prev,
-                      [costBasisActiveSymbol]: [...(prev[costBasisActiveSymbol] || []), newTrade],
-                    }));
-                    // ☁️ 异步写云端 (失败不影响本地)
-                    db.insertCostBasisTrade(costBasisActiveSymbol, newTrade).catch(e => {
-                      console.error('[CostBasis] 添加云端失败:', e.message);
-                    });
-                    setShowCostBasisTrade(false);
-                  }}
-                  className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95"
+                  onClick={confirmCostBasisTradeSubmit}
+                  disabled={costBasisSubmitting}
+                  className="py-2.5 rounded-lg bg-slate-900 text-white font-black active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                 >
-                  确定
+                  {costBasisSubmitting ? '保存中...' : '确定'}
                 </button>
               </div>
               </div>
