@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.72
+                  v10.7.9.73
                 </span>
               </div>
             </div>
@@ -163,14 +163,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.72
+                  v10.7.9.73
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.72', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.73', date: '2026-07-04', latest: true,
+                    items: [
+                      '🧮 修复卖出后累计收益率口径',
+                      '  - 累计收益率分母改为当前实际持仓成本',
+                      '  - 卖出盈利会正确摊薄剩余持仓成本,不再被历史买入额压低收益率',
+                      '  - 超过当前持仓数量的异常卖出不会污染盈亏计算',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.72', date: '2026-07-04',
                     items: [
                       '📈 首页自选/持仓新增年初至今和排序',
                       '  - 自选和持仓右侧指标新增年初至今涨跌幅',
@@ -777,7 +786,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.72</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.73</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

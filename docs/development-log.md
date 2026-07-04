@@ -4,6 +4,32 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 修复卖出后累计收益率口径
+
+- Commit: `pending`
+- Background: 用户反馈有卖出记录的账户累计收益率明显偏低;截图中总资产 `$670,694.84`、累计盈亏 `$113,086.89` 按当前实际成本应约为 `113,086.89 / (670,694.84 - 113,086.89) = 20.29%`,但页面显示 `11.18%`。根因是收益率分母使用了历史总买入额 `totalBuyCost`,卖出后已结转成本仍留在分母里,导致有卖出记录账户被低估;无卖出记录账户不暴露该问题。
+- Changes:
+  - 主交易账本派生逻辑明确区分历史买入总额 `totalBuyCost`、剩余会计成本 `remainingCost` 和当前实际收益率分母 `returnCostBasis`。
+  - 卖出按时间正序使用移动均价结转成本,只关闭当前实际持有股数;超过当前持仓数量的异常卖出记录计入 `ignoredSellShares`,不参与盈亏。
+  - 个股持仓盈亏百分比改为 `totalPnl / returnCostBasis`,不再使用历史买入总额。
+  - 首页和交易页顶部累计收益率改为 `cumulativePnl / (positionsMarketValue - cumulativePnl)`,正常卖出盈利会正确摊薄当前实际持仓成本。
+  - 补充单元测试覆盖卖出后收益率口径、卖出摊薄成本和超卖边界。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.73`。
+- Key files:
+  - `src/lib/investmentSummary.js`
+  - `tests/investment-summary.test.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 35 tests.
+  - `npm run build`: pass; `App-CN4Z7Q6i.js` 128.12 kB / gzip 35.56 kB, `SettingsTab-BLE4HkOM.js` 26.16 kB / gzip 10.34 kB, `HomeTab-C1sT2srr.js` 38.36 kB / gzip 10.17 kB, `TradesTab-BnuMo9HL.js` 46.05 kB / gzip 9.97 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass; 13 user-owned tables including `stock_trades`, `watchlist` and `user_settings` return `200` with `visibleRows=0` for anonymous REST probes.
+  - Local chunk marker check: pass; built `App-CN4Z7Q6i.js` contains `returnCostBasis` and `ignoredSellShares`; built `SettingsTab-BLE4HkOM.js` contains `v10.7.9.73` and `修复卖出后累计收益率口径`.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复累计收益率使用历史总买入额作为分母的旧行为,有卖出记录的账户收益率会再次被低估;不影响 `/api/quote` 鉴权、Supabase RLS 或交易流水数据本身。
+
 ### 2026-07-04 - 首页自选持仓新增年初至今排序
 
 - Commit: `ee43da7b548ef3ab484a7774156007228b5e35a2`

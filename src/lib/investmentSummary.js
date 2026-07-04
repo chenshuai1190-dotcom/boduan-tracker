@@ -45,7 +45,12 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     let heldShares = 0;
     let remainingCost = 0;
     let totalBuyCost = 0;
+    let totalBuyShares = 0;
+    let totalSellShares = 0;
+    let sellProceeds = 0;
+    let soldCost = 0;
     let realizedPnl = 0;
+    let ignoredSellShares = 0;
     let buyTradeCount = 0;
     let sellTradeCount = 0;
 
@@ -56,11 +61,21 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
 
       if (trade.side === 'sell') {
         sellTradeCount += 1;
-        if (heldShares <= 0) return;
+        if (heldShares <= 0) {
+          ignoredSellShares += shares;
+          return;
+        }
         const closedShares = Math.min(shares, heldShares);
+        const ignoredShares = shares - closedShares;
         const avgCost = heldShares > 0 ? remainingCost / heldShares : 0;
-        realizedPnl += closedShares * (price - avgCost);
-        remainingCost -= closedShares * avgCost;
+        const closeCost = closedShares * avgCost;
+        const closeProceeds = closedShares * price;
+        totalSellShares += closedShares;
+        ignoredSellShares += ignoredShares;
+        sellProceeds += closeProceeds;
+        soldCost += closeCost;
+        realizedPnl += closeProceeds - closeCost;
+        remainingCost -= closeCost;
         heldShares -= closedShares;
         if (heldShares <= 0.0000001) {
           heldShares = 0;
@@ -72,6 +87,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       buyTradeCount += 1;
       heldShares += shares;
       remainingCost += shares * price;
+      totalBuyShares += shares;
       totalBuyCost += shares * price;
     });
 
@@ -86,6 +102,8 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     const marketValue = heldShares * currentPrice;
     const unrealizedPnl = heldShares > 0 ? marketValue - remainingCost : 0;
     const totalPnl = realizedPnl + unrealizedPnl;
+    const rawReturnCostBasis = heldShares > 0 ? marketValue - totalPnl : 0;
+    const returnCostBasis = rawReturnCostBasis > 0 ? rawReturnCostBasis : (heldShares > 0 ? remainingCost : 0);
     const todayPnl = heldShares > 0 && previousClose > 0 ? heldShares * (currentPrice - previousClose) : 0;
     const previousMarketValue = heldShares > 0 && previousClose > 0 ? heldShares * previousClose : 0;
 
@@ -97,11 +115,17 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       buyTradeCount,
       sellTradeCount,
       heldShares,
+      totalBuyShares,
+      totalSellShares,
+      ignoredSellShares,
       avgCost,
       effectiveCost,
       remainingCost,
       effectiveRemainingCost,
+      returnCostBasis,
       totalBuyCost,
+      sellProceeds,
+      soldCost,
       currentPrice,
       high,
       previousClose,
@@ -113,7 +137,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       totalPnl,
       todayPnl,
       previousMarketValue,
-      totalPnlPct: totalBuyCost > 0 ? totalPnl / totalBuyCost : 0,
+      totalPnlPct: returnCostBasis > 0 ? totalPnl / returnCostBasis : 0,
       unrealizedPct: remainingCost > 0 ? unrealizedPnl / remainingCost : 0,
     };
   }).sort((a, b) => b.marketValue - a.marketValue || a.symbol.localeCompare(b.symbol));
@@ -134,6 +158,9 @@ export function deriveInvestmentSummary({
   const unrealizedPnl = activePositions.reduce((sum, position) => sum + position.unrealizedPnl, 0);
   const cumulativePnl = realizedPnl + unrealizedPnl;
   const totalBuyCost = positions.reduce((sum, position) => sum + position.totalBuyCost, 0);
+  const remainingCost = activePositions.reduce((sum, position) => sum + position.remainingCost, 0);
+  const rawReturnCostBasis = positionsMarketValue - cumulativePnl;
+  const returnCostBasis = rawReturnCostBasis > 0 ? rawReturnCostBasis : remainingCost;
   const todayPnl = activePositions.reduce((sum, position) => sum + position.todayPnl, 0);
   const previousMarketValue = activePositions.reduce((sum, position) => sum + position.previousMarketValue, 0);
   const sellTradeCount = ledgerTrades.reduce((sum, trade) => sum + (trade.side === 'sell' ? 1 : 0), 0);
@@ -152,11 +179,13 @@ export function deriveInvestmentSummary({
     realizedPnl,
     unrealizedPnl,
     cumulativePnl,
-    cumulativePnlPct: totalBuyCost > 0 ? cumulativePnl / totalBuyCost : 0,
+    cumulativePnlPct: returnCostBasis > 0 ? cumulativePnl / returnCostBasis : 0,
     holdingStockCount: activePositions.length,
     sellTradeCount,
     tradeCount: ledgerTrades.length,
     totalBuyCost,
+    remainingCost,
+    returnCostBasis,
     usdRate: rate,
   };
 }

@@ -23,6 +23,9 @@ test('derives active positions from buy and sell records with moving average cos
   assert.equal(Number(positions[0].effectiveRemainingCost.toFixed(6)), Number((1575 - 125).toFixed(6)));
   assert.equal(positions[0].realizedPnl, 125);
   assert.equal(positions[0].unrealizedPnl, 225);
+  assert.equal(positions[0].totalPnl, 350);
+  assert.equal(positions[0].returnCostBasis, 1450);
+  assert.equal(positions[0].totalPnlPct, 350 / 1450);
   assert.equal(positions[0].high, 140);
 });
 
@@ -38,6 +41,8 @@ test('effective cost is diluted by realized sell profit for remaining shares', (
   assert.equal(positions[0].realizedPnl, 500);
   assert.equal(Number(positions[0].effectiveCost.toFixed(2)), 94.44);
   assert.equal(positions[0].effectiveRemainingCost, 8500);
+  assert.equal(positions[0].returnCostBasis, 8500);
+  assert.equal(positions[0].totalPnlPct, 2300 / 8500);
 });
 
 test('investment summary counts held stocks and sell records only', () => {
@@ -57,6 +62,44 @@ test('investment summary counts held stocks and sell records only', () => {
   assert.equal(summary.totalAssetsCny, 8208);
   assert.equal(summary.todayPnl, 22);
   assert.equal(summary.todayPnlPct, 22 / 1118);
+  assert.equal(summary.cumulativePnl, 220);
+  assert.equal(summary.returnCostBasis, 920);
+  assert.equal(summary.cumulativePnlPct, 220 / 920);
+});
+
+test('cumulative return rate uses current effective cost after sells', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      { id: 1, symbol: 'AAPL', side: 'buy', date: '2026-01-01', price: 100, shares: 10 },
+      { id: 2, symbol: 'AAPL', side: 'sell', date: '2026-01-02', price: 120, shares: 4 },
+    ],
+    watchlist: [
+      { symbol: 'AAPL', name: 'Apple Inc.', price: 120, previousClose: 118 },
+    ],
+  });
+
+  assert.equal(summary.totalAssetsUsd, 720);
+  assert.equal(summary.cumulativePnl, 200);
+  assert.equal(summary.totalBuyCost, 1000);
+  assert.equal(summary.returnCostBasis, 520);
+  assert.equal(summary.cumulativePnlPct, 200 / 520);
+  assert.equal(summary.activePositions[0].totalPnlPct, 200 / 520);
+});
+
+test('sell records cannot close more shares than currently held', () => {
+  const positions = derivePositionsFromTrades([
+    { id: 1, symbol: 'AAPL', side: 'buy', date: '2026-01-01', price: 100, shares: 10 },
+    { id: 2, symbol: 'AAPL', side: 'sell', date: '2026-01-02', price: 120, shares: 15 },
+  ], [{ symbol: 'AAPL', price: 130, previousClose: 128 }]);
+
+  assert.equal(positions[0].heldShares, 0);
+  assert.equal(positions[0].totalSellShares, 10);
+  assert.equal(positions[0].ignoredSellShares, 5);
+  assert.equal(positions[0].soldCost, 1000);
+  assert.equal(positions[0].sellProceeds, 1200);
+  assert.equal(positions[0].realizedPnl, 200);
+  assert.equal(positions[0].unrealizedPnl, 0);
+  assert.equal(positions[0].returnCostBasis, 0);
 });
 
 test('investment summary ignores independent cost-basis tool data by interface', () => {
