@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.88
+                  v10.7.9.89
                 </span>
               </div>
             </div>
@@ -163,14 +163,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.88
+                  v10.7.9.89
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.88', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.89', date: '2026-07-04', latest: true,
+                    items: [
+                      '📐 优化首页自选/持仓首屏列宽',
+                      '  - 添加自选股票、编辑自选股票和交易页编辑入口改为正常字重',
+                      '  - 首页自选/持仓名称列收窄,价格列左移',
+                      '  - 52周跌幅打开首屏即可完整看到,减少横向滑动',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.88', date: '2026-07-04',
                     items: [
                       '🧾 优化交易录入弹层位置和遮罩',
                       '  - 取消按钮恢复为清晰可见的暗灰底',
@@ -914,7 +923,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.88</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.89</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

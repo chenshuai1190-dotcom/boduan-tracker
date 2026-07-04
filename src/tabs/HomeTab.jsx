@@ -412,8 +412,8 @@ export default function HomeTab({ ctx }) {
   const isAddingStock = Boolean(addingStockSymbol);
   const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
   const showPnlColumn = tableTab === 'positions';
-  const metricGridTemplate = showPnlColumn ? '82px 82px 102px 96px 120px' : '82px 82px 102px 96px';
-  const metricMinWidth = showPnlColumn ? 520 : 390;
+  const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 112px' : '68px 70px 88px 84px';
+  const metricMinWidth = showPnlColumn ? 438 : 322;
   const metricColumns = [
     { key: 'price', label: '价格' },
     { key: 'change', label: '涨跌幅' },
@@ -802,7 +802,7 @@ export default function HomeTab({ ctx }) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[minmax(118px,1.08fr)_minmax(0,2.35fr)] px-4">
+            <div className="grid grid-cols-[minmax(92px,0.7fr)_minmax(0,3.15fr)] px-3">
               <div>
                 <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">名称</div>
                 <div className="divide-y divide-white/[0.06]">
@@ -824,7 +824,7 @@ export default function HomeTab({ ctx }) {
               <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div style={{ minWidth: `${metricMinWidth}px` }}>
                   <div
-                    className="grid gap-2 pb-1.5 pt-2 text-[11px] font-medium leading-none"
+                    className="grid gap-1 pb-1.5 pt-2 text-[11px] font-medium leading-none"
                     style={{ gridTemplateColumns: metricGridTemplate }}
                   >
                     {metricColumns.map((column) => (
@@ -841,7 +841,7 @@ export default function HomeTab({ ctx }) {
                     {tableRows.map((item) => (
                       <div
                         key={item.symbol}
-                        className="grid min-h-[54px] w-full items-center gap-2 py-2 text-left"
+                        className="grid min-h-[54px] w-full items-center gap-1 py-2 text-left"
                         style={{ gridTemplateColumns: metricGridTemplate }}
                       >
                         <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(item.price, 2)}</span>
@@ -880,7 +880,7 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowAddStock(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] px-2 text-[13px] font-black text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] px-2 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span className="truncate">添加自选股票</span>
@@ -888,7 +888,7 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowEditWatchlist(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0f14] px-2 text-[13px] font-black text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0f14] px-2 text-[13px] font-normal text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
           >
             <Pencil className="h-4 w-4 shrink-0 text-[#f6b54b]" />
             <span className="truncate">编辑自选股票</span>

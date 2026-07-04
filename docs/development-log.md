@@ -4,6 +4,36 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 优化首页自选持仓首屏列宽
+
+- Commit: `same commit`
+- Background: 用户要求快速调整两个移动端显示细节:首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口不要加粗,改为正常字重;首页自选/持仓表格打开首屏就能看到完整 `52周跌幅`,不要再额外横向滑动才能看到。
+- Changes:
+  - 首页自选区底部 `添加自选股票` 和 `编辑自选股票` 两个入口按钮从 `font-black` 改为 `font-normal`。
+  - 交易页持仓分布下方 `编辑` 入口从 `font-black` 改为 `font-normal`。
+  - 首页自选/持仓表格左侧名称列从 `minmax(118px,1.08fr)` 收窄为 `minmax(92px,0.7fr)`,外层左右 padding 从 `px-4` 收紧为 `px-3`,把价格和后续指标整体左移。
+  - 首页右侧指标列从 `82px/82px/102px/96px(/120px)` 收紧为 `68px/70px/88px/84px(/112px)`,列间距从 `gap-2` 收紧为 `gap-1`;按 360px 宽度估算,价格+涨跌幅+52 周跌幅首屏需要约 `234px`,右侧可视宽度约 `244px`,能完整露出 `52周跌幅`。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.89`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页/交易页展示密度和按钮字重调整,不改变安全边界、API、数据库或架构审计结论。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 46 tests.
+  - `npm run build`: pass; `HomeTab-BfYDJhqu.js` 39.10 kB / gzip 10.44 kB, `TradesTab-DhwPvo3m.js` 48.63 kB / gzip 10.87 kB, `SettingsTab-Drsnb10N.js` 30.17 kB / gzip 11.68 kB, `App-BlDEAnGW.js` 132.51 kB / gzip 37.05 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
+  - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
+  - Local source marker check: pass; source contains `minmax(92px,0.7fr)`, metric grid `68px 70px 88px 84px`, metric widths `438/322`, `font-normal` on the requested entry buttons, and `v10.7.9.89`.
+  - Local build marker check: pass; built `HomeTab-BfYDJhqu.js` contains `68px 70px 88px 84px`, `52周跌幅` and the new metric widths; built `SettingsTab-Drsnb10N.js` contains `v10.7.9.89` and `52周跌幅打开首屏即可完整看到`.
+- Deployment: pending push to GitHub `main` and Vercel production deployment.
+- Production verification: pending Vercel production deployment.
+- Rollback: 回滚本次改动会恢复首页两个自选入口和交易页 `编辑` 入口的重字重,并恢复首页自选/持仓较宽的名称列与指标列;移动端打开首屏时 `52周跌幅` 可能再次需要横向滑动才能完整看到。
+
 ### 2026-07-04 - 修正交易录入弹层位置和背景滚动
 
 - Commit: `e7eb546800a93616a148b6c227a156544be805c3`

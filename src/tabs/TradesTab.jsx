@@ -500,7 +500,7 @@ export default function TradesTab({ ctx }) {
               )}
 
               <div className="mt-4 flex justify-center">
-                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full border border-[#f6b54b]/38 px-8 py-2.5 text-[13px] font-black text-[#f6b54b] active:scale-95">
+                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full border border-[#f6b54b]/38 px-8 py-2.5 text-[13px] font-normal text-[#f6b54b] active:scale-95">
                   <Edit3 className="h-4 w-4" strokeWidth={2} />
                   编辑
                 </button>
