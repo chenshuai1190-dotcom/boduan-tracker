@@ -31,7 +31,15 @@
   - `git diff --check`: pass.
   - Local SSR mock render: pass; `HomeTab` renders with mock self-selected `IBKR`/`NVDA`, active position `MSFT`, and open add-stock sheet.
   - Direct logo URL check: EODHD `IBKR.png`/`ibkr.png` returned 404; Financial Modeling Prep and Finnhub `IBKR.png` returned 200 image responses, validating the new fallback order.
-- Deployment: not deployed in this change.
+- Deployment: pushed to GitHub `main`; Vercel production deployment completed.
+  - Runtime commit: `8f0c99b0eb9f878f752e9f8420b23e9b91ae8ae0`.
+  - Deployment trigger commit: `45665772051a9016e47752bd685ce3456aabc4cb`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8t6inSQiWyeQbSPhsKoWt8CLYNgM`.
+  - `GET https://boduan-tracker.vercel.app/`: HTTP 200 from Vercel.
+  - Production index assets: `/assets/index-D7ogyxM2.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-DIQvbhZJ.js`, `/assets/index-Cy64uOab.css`.
+  - Production runtime chunks: `/assets/App-D13t57Uf.js`, `/assets/HomeTab-CEEkE0OJ.js`, `/assets/SettingsTab-B0cgOAT-.js`.
+  - Production chunk marker check: `xmoney_stock_logo_cache_v1`, `watchlistRows`, `添加自选股票`, Financial Modeling Prep/Finnhub logo fallback, popular stock list, `v10.7.9.68`, and settings changelog all present.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Notes:
   - Local browser could not enter the full app because the current dev server has no `.env.local` Supabase config and shows `Supabase 配置缺失`; UI verification used Vite SSR mock rendering instead.
 - Rollback: 回滚本次改动会恢复交易账本股票进入首页自选、实时行情写回 `watchlist`、添加交易自动加入自选、旧内嵌添加股票表单和 EODHD-only 图标逻辑;不影响 `/api/quote` 鉴权、Supabase RLS 或 `stock_trades` 表结构。
