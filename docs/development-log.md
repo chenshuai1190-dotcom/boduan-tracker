@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 首屏加载改为钱袋弹跳图标
 
-- Commit: `pending runtime commit`
+- Commit: `254a4302305352b829ebfe7c0dc704b9edaf253c`
 - Background: 用户确认本地预览中的 D「轻微弹跳」方案,要求把首屏加载从原圆环替换为可爱的 mini 钱袋图标并部署;同时要求使用重新处理后的透明 PNG,避免深色背景出现白边。
 - Changes:
   - `AuthGate` 首屏 `LoadingScreen` 从深色卡片内的旋转圆环改为居中的钱袋 PNG。
@@ -20,6 +20,7 @@
   - `src/index.css`
   - `src/tabs/SettingsTab.jsx`
   - `public/loading-mascot.png`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 46 tests.
@@ -31,8 +32,22 @@
   - PNG marker check: `public/loading-mascot.png` and `dist/loading-mascot.png` are `PNG (176, 222)`, mode `RGBA`, `has_alpha=true`, alpha extrema `(0, 255)`, size `63,497 bytes`.
   - Local source marker check: pass; source contains `/loading-mascot.png`, `loading-mascot-bounce`, `loading-mascot-shadow`, static `loading-mascot-orbit`, `prefers-reduced-motion` and `v10.7.9.90`.
   - Local build marker check: pass; built CSS contains `loading-mascot-bounce`, `loading-mascot-shadow` and the reduced-motion rule; built `SettingsTab-CQTVIAYT.js` contains `v10.7.9.90`, `首屏加载改为钱袋弹跳图标` and `轻微弹跳和阴影压缩动效`.
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `254a4302305352b829ebfe7c0dc704b9edaf253c`.
+  - GitHub `main`: `254a4302305352b829ebfe7c0dc704b9edaf253c`.
+  - GitHub Actions `CI`: success, run `28707730224`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CVXqzAnTzxusTwhgc5tJX5YvYzpc`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=254a430-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-B6vs8ZIi.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-DeBMxw04.css`.
+  - Production runtime chunks: `/assets/App-Cd6sBtkI.js`, `/assets/Login-BXhdvDe6.js`, `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-DhwPvo3m.js`, `/assets/SettingsTab-CQTVIAYT.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-Dj9DSCdC.js`.
+- Production verification:
+  - Production `/loading-mascot.png`: HTTP 200, `content-type: image/png`, `content-length: 63497`, `etag: "6220ee7865865ac88f9c061dbdbc3251"`.
+  - Production CSS marker check: `index-DeBMxw04.css` contains `loading-mascot-bounce`, `loading-mascot-shadow`, `loading-mascot-orbit` and `prefers-reduced-motion`.
+  - Production entry marker check: `index-B6vs8ZIi.js` references `AuthGate`, `/loading-mascot.png`, `App-Cd6sBtkI.js` and `Login-BXhdvDe6.js`.
+  - Production App marker check: `App-Cd6sBtkI.js` references `HomeTab-BfYDJhqu.js`, `TradesTab-DhwPvo3m.js` and `SettingsTab-CQTVIAYT.js`.
+  - Production SettingsTab marker check: `SettingsTab-CQTVIAYT.js` contains `v10.7.9.90`, `首屏加载改为钱袋弹跳图标`, `轻微弹跳和阴影压缩动效` and `mini 尺寸`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-Dj9DSCdC.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复首屏圆环加载和 `v10.7.9.89`;不会影响登录、行情接口、账本、RLS 或 `/api/quote` 鉴权逻辑。
 
 ### 2026-07-04 - 优化首页自选持仓首屏列宽

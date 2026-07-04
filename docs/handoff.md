@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `0e28ea2b909a8bea516f6e3acaea6b13172761da` (`v10.7.9.89` runtime)
-- 最近应用代码提交: `0e28ea2b909a8bea516f6e3acaea6b13172761da` (`v10.7.9.89` runtime)
+- 当前产品基准提交: `254a4302305352b829ebfe7c0dc704b9edaf253c` (`v10.7.9.90` runtime)
+- 最近应用代码提交: `254a4302305352b829ebfe7c0dc704b9edaf253c` (`v10.7.9.90` runtime)
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.89`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BACPDaVbacXJp2cMMHz3KUxczL8A`
-- Vercel 部署记录: runtime commit `0e28ea2b909a8bea516f6e3acaea6b13172761da`, GitHub Actions `CI` run `28707142939` success
+- 设置页版本: `v10.7.9.90`
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CVXqzAnTzxusTwhgc5tJX5YvYzpc`
+- Vercel 部署记录: runtime commit `254a4302305352b829ebfe7c0dc704b9edaf253c`, GitHub Actions `CI` run `28707730224` success
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.89` 的首页自选/持仓首屏列宽和入口按钮字重优化。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,以及 `v10.7.9.90` 的首屏加载钱袋 mini 弹跳图标。
 
 ## 2. 先读这些文档
 
@@ -144,21 +144,22 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.89` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `0e28ea2b909a8bea516f6e3acaea6b13172761da`, GitHub Actions `CI` run `28707142939` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BACPDaVbacXJp2cMMHz3KUxczL8A`。
+- `v10.7.9.90` runtime 已由 GitHub `main` 自动部署到 Vercel 生产环境;runtime commit `254a4302305352b829ebfe7c0dc704b9edaf253c`, GitHub Actions `CI` run `28707730224` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CVXqzAnTzxusTwhgc5tJX5YvYzpc`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-DhwPvo3m.js`, `/assets/SettingsTab-Drsnb10N.js`, `/assets/App-BlDEAnGW.js`。
-- 生产 entry chunks: `/assets/index-meya0KAZ.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-KNbLQMpQ.css`。
-- 生产 runtime chunks: `/assets/App-CkmEdU8W.js`, `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-DhwPvo3m.js`, `/assets/SettingsTab-Drsnb10N.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-BVA0H_jt.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-DeBMxw04.css`, `/assets/SettingsTab-CQTVIAYT.js`, `/assets/App-MMCZlWaT.js`。
+- 生产 entry chunks: `/assets/index-B6vs8ZIi.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-DeBMxw04.css`。
+- 生产 runtime chunks: `/assets/App-Cd6sBtkI.js`, `/assets/Login-BXhdvDe6.js`, `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-DhwPvo3m.js`, `/assets/SettingsTab-CQTVIAYT.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-Dj9DSCdC.js`。
 
 关键 marker:
 
-- 生产 `App-CkmEdU8W.js` 包含 `HomeTab-BfYDJhqu.js`, `TradesTab-DhwPvo3m.js` 和 `SettingsTab-Drsnb10N.js`。
-- 生产 `HomeTab-BfYDJhqu.js` 包含首页自选/持仓新指标列宽 `68px 70px 88px 84px`,指标宽度 `438/322`,`52周跌幅` 和入口按钮 `font-normal` marker。
-- 生产 `TradesTab-DhwPvo3m.js` 包含交易页 `编辑` 入口 `font-normal text-[#f6b54b]` marker。
-- 生产 `SettingsTab-Drsnb10N.js` 包含 `v10.7.9.89`、`首页自选/持仓名称列收窄` 和 `52周跌幅打开首屏即可完整看到`。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-BVA0H_jt.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `/loading-mascot.png` 返回 `200`,内容类型 `image/png`,长度 `63,497 bytes`。
+- 生产 `index-DeBMxw04.css` 包含 `loading-mascot-bounce`,`loading-mascot-shadow`,`loading-mascot-orbit` 和 `prefers-reduced-motion`。
+- 生产 `index-B6vs8ZIi.js` 包含 `AuthGate`,`/loading-mascot.png`,`App-Cd6sBtkI.js` 和 `Login-BXhdvDe6.js`。
+- 生产 `App-Cd6sBtkI.js` 包含 `HomeTab-BfYDJhqu.js`, `TradesTab-DhwPvo3m.js` 和 `SettingsTab-CQTVIAYT.js`。
+- 生产 `SettingsTab-CQTVIAYT.js` 包含 `v10.7.9.90`、`首屏加载改为钱袋弹跳图标`、`轻微弹跳和阴影压缩动效` 和 `mini 尺寸`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-Dj9DSCdC.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
 
@@ -170,6 +171,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 ### 首页自选和持仓
 
+- `v10.7.9.90`: 首屏加载改为 mini 钱袋 PNG,采用轻微弹跳和阴影压缩 CSS 动效;PNG 为透明 RGBA,线上 `/loading-mascot.png` 已验证 200。
 - `v10.7.9.89`: 首页自选/持仓表格收窄名称列并压缩右侧指标列,让 `52周跌幅` 在首屏打开即可完整看到;首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口改为正常字重。
 - `v10.7.9.85`: 交易页持仓分布只加宽 `占比` 列,把 `持仓盈亏` 和 `占比` 拉开距离;前面的 `当日盈亏` 列宽保持不变。
 - `v10.7.9.84`: 交易页持仓分布恢复上一版当日盈亏首屏显示效果;只把 `持仓盈亏` 列单独加宽到 `144px`;持仓盈亏正数恢复显示 `+` 号。
@@ -372,7 +374,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.88` 或更新版本。
+- 设置页显示 `v10.7.9.90` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -387,11 +389,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `0e28ea2b909a8bea516f6e3acaea6b13172761da` (`v10.7.9.89` runtime)
-最近应用代码提交: `0e28ea2b909a8bea516f6e3acaea6b13172761da` (`v10.7.9.89` runtime)
-设置页版本: `v10.7.9.89`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BACPDaVbacXJp2cMMHz3KUxczL8A`
-部署记录: GitHub Actions `CI` run `28707142939` success; runtime commit `0e28ea2b909a8bea516f6e3acaea6b13172761da`
+当前产品基准提交: `254a4302305352b829ebfe7c0dc704b9edaf253c` (`v10.7.9.90` runtime)
+最近应用代码提交: `254a4302305352b829ebfe7c0dc704b9edaf253c` (`v10.7.9.90` runtime)
+设置页版本: `v10.7.9.90`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CVXqzAnTzxusTwhgc5tJX5YvYzpc`
+部署记录: GitHub Actions `CI` run `28707730224` success; runtime commit `254a4302305352b829ebfe7c0dc704b9edaf253c`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -414,6 +416,7 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 生产敏感改动还要跑 `npm run verify:rls:rest`,并确认 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 当前已完成:
+- 首屏加载已改为 mini 钱袋 PNG,采用轻微弹跳和阴影压缩 CSS 动效;透明图 `/loading-mascot.png` 已在线上验证。
 - 设置页深色化和账户设置整理。
 - 首页自选添加/编辑/排序/删除。
 - 首页自选/持仓表格已收窄名称列并压缩右侧指标列,`52周跌幅` 打开首屏即可完整看到;首页 `添加自选股票`、`编辑自选股票` 和交易页 `编辑` 入口已改为正常字重。
