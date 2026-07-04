@@ -3,6 +3,8 @@ import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Tra
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
+import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
+import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -56,8 +58,11 @@ function readCachedFxRates() {
 
 function TabFallback() {
   return (
-    <div className="bg-white rounded-2xl p-5 mb-4 shadow text-sm text-slate-500">
-      加载中...
+    <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-5 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] text-sm text-white/50">
+      <div className="flex items-center justify-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-[#f6b54b]" />
+        加载中...
+      </div>
     </div>
   );
 }
@@ -547,6 +552,13 @@ function MainApp({ user, onLogout }) {
   const browserWsAllowed = false;
 
   // ============ 核心状态 ============
+  const [marketColorMode, setMarketColorMode] = useState(() => {
+    try {
+      return normalizeMarketColorMode(localStorage.getItem(MARKET_COLOR_MODE_STORAGE_KEY));
+    } catch {
+      return normalizeMarketColorMode();
+    }
+  });
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
   const [tqqqCurrent, setTqqqCurrent] = useState(58.55);
@@ -925,6 +937,15 @@ function MainApp({ user, onLogout }) {
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState(null);
+  const quoteUniverse = useMemo(() => buildLedgerQuoteUniverse(stockTrades, watchlist), [stockTrades, watchlist]);
+  const quoteRows = quoteUniverse.allRows;
+  const homeWatchlist = quoteUniverse.ledgerRows;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MARKET_COLOR_MODE_STORAGE_KEY, marketColorMode);
+    } catch {}
+  }, [marketColorMode]);
 
   // 启动时从 Supabase 拉取所有数据
   useEffect(() => {
@@ -1032,6 +1053,7 @@ function MainApp({ user, onLogout }) {
           if (settings.vixDataDate) setVixDataDate(settings.vixDataDate);
           if (Array.isArray(settings.batches) && settings.batches.length > 0) setBatches(settings.batches);
           if (Array.isArray(settings.exitTargets) && settings.exitTargets.length > 0) setExitTargets(settings.exitTargets);
+          if (settings.marketColorMode) setMarketColorMode(normalizeMarketColorMode(settings.marketColorMode));
         }
       } catch (e) {
         console.error('[云端加载] 失败:', e);
@@ -1055,12 +1077,13 @@ function MainApp({ user, onLogout }) {
     settingsSaveTimerRef.current = setTimeout(() => {
       db.upsertSettings({
         benchmarkSymbol,
+        marketColorMode,
         fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
         vix, vixDataDate,
       }).catch(e => console.error('设置保存失败:', e));
     }, 500);
     return () => clearTimeout(settingsSaveTimerRef.current);
-  }, [benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
+  }, [benchmarkSymbol, marketColorMode, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate, vix, vixDataDate, cloudLoading]);
 
   // 🚨 Watchlist 保存策略: 改为精确单条操作 (addStock/removeStock/updateStockPrice 里直接写)
   //     不再用"删光重插"的 replaceWatchlist, 避免竞态和重复问题
@@ -1137,13 +1160,13 @@ function MainApp({ user, onLogout }) {
   // 📅 v10.7.9.41: 重要日历 (每天拉 1 次, 缓存 24h)
   useEffect(() => {
     if (cloudLoading) return;
-    if (watchlist.length === 0) return;
+    if (quoteRows.length === 0) return;
 
     // v10.7.9.41: 取消缓存, 每次进 App 都拉新数据
     // (NASDAQ 接口免费 + 财报状态会变 (EPS 实际值刷新))
     (async () => {
       try {
-        const symbols = watchlist.map(s => s.symbol).join('|');
+        const symbols = quoteRows.map(s => s.symbol).join('|');
         const r = await fetchQuote(`CALENDAR:${symbols}`);
         const result = await r.json();
         if (result.success && result.data) {
@@ -1156,7 +1179,7 @@ function MainApp({ user, onLogout }) {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, watchlist.length]);
+  }, [cloudLoading, quoteRows.length]);
 
   // 📊 v10.7.9.41: Modal 打开时按需拉 EODHD Fundamentals (分析师 + 业绩)
   useEffect(() => {
@@ -1320,7 +1343,7 @@ function MainApp({ user, onLogout }) {
       // QQQ 用全局的 qqqCurrent / qqqHigh(数据来自核心参数)
       return { symbol: 'QQQ', name: '纳斯达克100', price: qqqCurrent, high: qqqHigh };
     }
-    return watchlist.find(s => s.symbol === benchmarkSymbol);
+    return quoteRows.find(s => s.symbol === benchmarkSymbol);
   })();
   const benchmarkDrawdown = benchmarkStock && benchmarkStock.high > 0
     ? (benchmarkStock.price - benchmarkStock.high) / benchmarkStock.high
@@ -1337,7 +1360,7 @@ function MainApp({ user, onLogout }) {
   // 可选作为基准的股票列表(关注列表 + QQQ,排除杠杆 ETF)
   const benchmarkOptions = [
     { symbol: 'QQQ', name: '纳斯达克100' },
-    ...watchlist.filter(s => !LEVERAGED_ETFS.includes(s.symbol) && s.symbol !== 'QQQ').map(s => ({ symbol: s.symbol, name: s.name })),
+    ...quoteRows.filter(s => !LEVERAGED_ETFS.includes(s.symbol) && s.symbol !== 'QQQ').map(s => ({ symbol: s.symbol, name: s.name })),
   ];
 
   // ============ 预警等级系统 ============
@@ -1356,7 +1379,7 @@ function MainApp({ user, onLogout }) {
 
   // 计算每只股票的预警等级
   // 🚀 useMemo: watchlist 变化才重算 (WebSocket 时, 价格变化频繁会触发)
-  const watchlistAlerts = useMemo(() => watchlist.map(s => {
+  const watchlistAlerts = useMemo(() => quoteRows.map(s => {
     const dd = s.high > 0 ? (s.price - s.high) / s.high : 0;
     let alert = null;
     for (let i = ALERT_LEVELS.length - 1; i >= 0; i--) {
@@ -1366,7 +1389,7 @@ function MainApp({ user, onLogout }) {
       }
     }
     return { ...s, drawdown: dd, alert };
-  }), [watchlist]);
+  }), [quoteRows]);
 
   // 触发预警的股票(按等级降序)
   const triggeredAlerts = useMemo(() => watchlistAlerts
@@ -1446,10 +1469,10 @@ function MainApp({ user, onLogout }) {
 
   const investmentSummary = useMemo(() => deriveInvestmentSummary({
     stockTrades,
-    watchlist,
+    watchlist: quoteRows,
     cashUsd: 0,
     usdRate,
-  }), [stockTrades, watchlist, usdRate]);
+  }), [stockTrades, quoteRows, usdRate]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -1747,9 +1770,9 @@ function MainApp({ user, onLogout }) {
       // v10.7.9.41: 显式把 QQQ/TQQQ 加进请求 (走完整 stock 接口, 有真实 week52High)
       // 之前只请求 watchlist+VIX+FGI+INDICES, QQQ 数据藏在 INDICES 里但只有 dayHigh 没有 52周高
       // 导致 qqqHigh 永远停在写死的初始值 640.47, 猎手状态回撤算不准
-      // Set 去重: 用户 watchlist 若已有 QQQ/TQQQ 不会重复请求
+      // Set 去重: 交易主账本、旧 watchlist、核心标的若重复不会重复请求
       const coreSymbols = ['QQQ', 'TQQQ'];
-      const symbolSet = new Set([...watchlist.map(s => s.symbol), ...coreSymbols]);
+      const symbolSet = new Set([...quoteRows.map(s => s.symbol), ...coreSymbols]);
       const symbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'].join(',');
       const r = await fetchQuote(symbols);
       const result = await r.json();
@@ -1759,11 +1782,11 @@ function MainApp({ user, onLogout }) {
       }
 
       // 更新股票价格
-      // 🚨 防护: 如果 watchlist 当前是空(可能云端还没加载完), 直接跳过更新, 不能 setWatchlist([])
-      if (watchlist.length === 0) {
-        // 只更新指数/VIX/FGI, 不动 watchlist
+      // 🚨 防护: 如果交易账本和 watchlist 当前都空(可能云端还没加载完), 直接跳过更新, 不能 setWatchlist([])
+      if (quoteRows.length === 0) {
+        // 只更新指数/VIX/FGI, 不动股票列表
       } else {
-        const updated = watchlist.map(s => {
+        const updated = quoteRows.map(s => {
           const fresh = result.data.find(d => d.symbol === s.symbol);
           if (fresh && fresh.price > 0) {
             // 52 周高的优先级:
@@ -1794,7 +1817,7 @@ function MainApp({ user, onLogout }) {
         });
         // 🚀 性能: 只在真有变化时才 setState (避免无意义重渲)
         const hasChanges = updated.some((s, i) => {
-          const old = watchlist[i];
+          const old = quoteRows[i];
           return !old || s.price !== old.price || s.high !== old.high || s.changePercent !== old.changePercent;
         });
         if (hasChanges) setWatchlist(updated);
@@ -1893,7 +1916,7 @@ function MainApp({ user, onLogout }) {
   // 浏览器直连 WebSocket 已移除;在服务端 relay 接入前,已登录 REST 行情接口是唯一实时路径。
   useEffect(() => {
     if (cloudLoading) return;
-    if (watchlist.length === 0) return;
+    if (quoteRows.length === 0) return;
 
     // 启动时立即拉 1 次 (拿初始数据 + 指数 + VIX/FGI)
     fetchRealtimePrices();
@@ -1935,7 +1958,7 @@ function MainApp({ user, onLogout }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, watchlist.length]);
+  }, [cloudLoading, quoteRows.length]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -1954,8 +1977,8 @@ function MainApp({ user, onLogout }) {
       return;
     }
 
-    // 1) 先从关注列表里看,有的话立刻填(不用网络)
-    const fromWatchlist = watchlist.find(s => s.symbol === sym);
+    // 1) 先从合并后的 quote cache 里看,有的话立刻填(不用网络)
+    const fromWatchlist = quoteRows.find(s => s.symbol === sym);
     if (fromWatchlist) {
       setLookupStatus('found');
       setNewTrade(t => ({
@@ -2059,6 +2082,7 @@ function MainApp({ user, onLogout }) {
     fmt,
     fmtPct,
     hkdRate,
+    homeWatchlist,
     indices,
     investmentSummary,
     investmentPlan,
@@ -2070,6 +2094,7 @@ function MainApp({ user, onLogout }) {
     LogOut,
     lookupStatus,
     marginStatus,
+    marketColorMode,
     newAccount,
     newPwd,
     newStock,
@@ -2113,6 +2138,7 @@ function MainApp({ user, onLogout }) {
     setLastSeenAlerts,
     setLookupStatus,
     setMarginStatus,
+    setMarketColorMode,
     setNewAccount,
     setNewPwd,
     setNewStock,

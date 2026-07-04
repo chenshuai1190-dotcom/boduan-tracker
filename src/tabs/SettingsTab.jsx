@@ -27,6 +27,7 @@ export default function SettingsTab({ ctx }) {
     Loader2,
     LogOut,
     marginStatus,
+    marketColorMode,
     newPwd,
     onLogout,
     pwdLoading,
@@ -250,14 +251,23 @@ export default function SettingsTab({ ctx }) {
                   📜 更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'ui-monospace, monospace', color: '#94a3b8' }}>
-                  v10.7.9.65
+                  v10.7.9.66
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.65', date: '2026-07-04', latest: true,
+                    ver: 'v10.7.9.66', date: '2026-07-04', latest: true,
+                    items: [
+                      '🎨 首页/交易页加载和涨跌颜色设置',
+                      '  - 首页、交易和建议加载态改为深色,避免闪白',
+                      '  - 持仓分布右侧新增绿涨红跌/绿跌红涨切换',
+                      '  - 首页自选和持仓改为接入交易主账本股票集合',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.65', date: '2026-07-04',
                     items: [
                       '💱 汇率每日自动查询',
                       '  - 新增已登录 /api/fx 服务端接口',
@@ -977,7 +987,7 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => {
                     const backup = {
                       exportedAt: new Date().toISOString(),
-                      version: 'v10.7.9.65',
+                      version: 'v10.7.9.66',
                       trades,
                       stockTrades,
                       watchlist,
@@ -991,7 +1001,7 @@ export default function SettingsTab({ ctx }) {
                       yearlyActuals,
                       settings: {
                         benchmarkSymbol, fgi, fgiLabel, fgiPrev, fgiWeek, fgiMonth, fgiYear, fgiDataDate,
-                        vix, vixDataDate, batches, exitTargets, usdRate, hkdRate,
+                        vix, vixDataDate, batches, exitTargets, usdRate, hkdRate, marketColorMode,
                       },
                     };
                     const json = JSON.stringify(backup, null, 2);
@@ -1029,7 +1039,7 @@ export default function SettingsTab({ ctx }) {
             <div className="bg-white rounded-2xl p-5 shadow">
               <h2 className="font-bold text-lg mb-3">关于 X MONEY</h2>
               <div className="text-sm text-slate-600 space-y-1.5">
-                <div>📊 版本:v10.7.9.65</div>
+                <div>📊 版本:v10.7.9.66</div>
                 <div>📡 数据源:EODHD + Yahoo Finance</div>
                 <div>💡 提示:把这个页面"添加到主屏幕"获得 App 体验</div>
               </div>

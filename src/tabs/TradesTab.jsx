@@ -1,5 +1,10 @@
 import React from 'react';
 import { BookOpen, Calculator, Edit3, Grid2X2, Hexagon, Settings2 } from 'lucide-react';
+import {
+  MARKET_COLOR_MODES,
+  marketStrongTextClass,
+  marketTextClass,
+} from '../lib/marketColorMode.js';
 
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
 const TRADE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -32,8 +37,12 @@ function signedPct(value, digits = 2) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
 }
 
-function pnlClass(value) {
-  return toNumber(value) >= 0 ? 'text-emerald-400' : 'text-rose-400';
+function pnlClass(value, mode) {
+  return marketTextClass(value, mode);
+}
+
+function strongPnlClass(value, mode) {
+  return marketStrongTextClass(value, mode);
 }
 
 function localDateKey(date = new Date()) {
@@ -63,6 +72,7 @@ export default function TradesTab({ ctx }) {
     fmt,
     investmentSummary,
     lookupStatus,
+    marketColorMode,
     newTrade,
     Plus,
     RefreshCw,
@@ -75,6 +85,7 @@ export default function TradesTab({ ctx }) {
     setExpandedTrades,
     setExpandedWaves,
     setLookupStatus,
+    setMarketColorMode,
     setNewTrade,
     setShowAddTrade,
     setShowCostBasisAdd,
@@ -100,6 +111,7 @@ export default function TradesTab({ ctx }) {
   });
   const [mainView, setMainView] = React.useState('positions');
   const [toolPanel, setToolPanel] = React.useState('');
+  const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
     try {
@@ -126,6 +138,10 @@ export default function TradesTab({ ctx }) {
   const showStockTool = toolPanel === 'settings';
   const showMainLedger = !showWaveTool && !showCostTool;
   const positionsMarketValue = toNumber(summary.positionsMarketValue);
+  const colorModeOptions = [
+    { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: '绿涨红跌', upClass: 'bg-emerald-400', downClass: 'bg-rose-400' },
+    { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: '绿跌红涨', upClass: 'bg-rose-400', downClass: 'bg-emerald-400' },
+  ];
 
   const openTradeModal = (position = null, side = 'buy') => {
     setNewTrade({
@@ -142,6 +158,7 @@ export default function TradesTab({ ctx }) {
   };
 
   const toggleToolPanel = (panel) => {
+    setColorMenuOpen(false);
     setToolPanel((current) => (current === panel ? '' : panel));
   };
 
@@ -183,19 +200,19 @@ export default function TradesTab({ ctx }) {
           <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
             <div className="min-w-0 pr-3">
               <div className="text-[12px] text-white/50">今日盈亏</div>
-              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlClass(displayTodayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayTodayPnl, displayCurrency, 2)}
               </div>
-              <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlClass(displayTodayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedPct(summary.todayPnlPct, 2)}
               </div>
             </div>
             <div className="min-w-0 px-3">
               <div className="text-[12px] text-white/50">累计盈亏</div>
-              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlClass(displayCumulativePnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
               </div>
-              <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlClass(displayCumulativePnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedPct(summary.cumulativePnlPct, 2)}
               </div>
             </div>
@@ -275,9 +292,43 @@ export default function TradesTab({ ctx }) {
               <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-black leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/38'}`}>持仓分布</button>
               <button type="button" onClick={() => setMainView('orders')} className={`text-[14px] font-black leading-none ${mainView === 'orders' ? 'text-[#ffd18a]' : 'text-white/38'}`}>当日订单 ({todayBuys}/{todaySells})</button>
             </div>
-            <button type="button" onClick={() => toggleToolPanel('settings')} className="text-white/55 active:scale-95">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setColorMenuOpen((value) => !value)}
+                className="text-white/55 active:scale-95"
+                aria-label="股票涨跌颜色设置"
+              >
               <Settings2 className="h-5 w-5" strokeWidth={1.8} />
-            </button>
+              </button>
+              {colorMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setColorMenuOpen(false)} />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-xl border border-white/10 bg-[#111820] p-1.5 shadow-2xl">
+                    {colorModeOptions.map((option) => {
+                      const active = marketColorMode === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => {
+                            setMarketColorMode(option.id);
+                            setColorMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12px] font-black ${active ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/66 active:bg-white/[0.05]'}`}
+                        >
+                          <span>{option.label}</span>
+                          <span className="flex items-center gap-1">
+                            <span className={`h-2.5 w-2.5 rounded-full ${option.upClass}`} />
+                            <span className={`h-2.5 w-2.5 rounded-full ${option.downClass}`} />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {mainView === 'positions' ? (
@@ -300,11 +351,11 @@ export default function TradesTab({ ctx }) {
                 </div>
                 <div className="text-center">
                   <div className="text-[11px] text-white/40">持仓盈亏</div>
-                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayCumulativePnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</div>
+                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[11px] text-white/40">当日盈亏</div>
-                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayTodayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayTodayPnl, displayCurrency, 2)}</div>
+                  <div className={`mt-1 text-[13px] font-black tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayTodayPnl, displayCurrency, 2)}</div>
                 </div>
               </div>
 
@@ -363,12 +414,12 @@ export default function TradesTab({ ctx }) {
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/42 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
-                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(todayPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
+                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(todayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.changePercent, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
                               </span>
                               <span className="text-right">
-                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.totalPnlPct)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.totalPnlPct, 2)}</span>
+                                <span className={`block text-[13px] font-black leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block text-[11px] font-bold leading-[13px] tabular-nums ${pnlClass(position.totalPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.totalPnlPct, 2)}</span>
                               </span>
                               <span className="text-right">
                                 <span className="block text-[13px] font-black leading-[15px] text-white/82 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
@@ -549,7 +600,7 @@ export default function TradesTab({ ctx }) {
                     return (
                       <div className="grid grid-cols-3 gap-2">
                         <div className="bg-slate-50 rounded-lg p-2 text-center">
-                          <div className={`font-black text-[15px] tabular-nums ${totalGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          <div className={`font-black text-[15px] tabular-nums ${strongPnlClass(totalGain, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                             {totalGain >= 0 ? '+' : ''}${fmt(Math.abs(totalGain), 0)}
                           </div>
                           <div className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">总盈亏</div>
@@ -607,7 +658,7 @@ export default function TradesTab({ ctx }) {
                             {startD} 开始 · 第 {w.heldDays} 天
                           </div>
                           <div className="flex items-baseline gap-2">
-                            <span className={`font-black text-[24px] tabular-nums ${w.gainPct >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            <span className={`font-black text-[24px] tabular-nums ${strongPnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                               {w.gainPct >= 0 ? '+' : ''}{(w.gainPct * 100).toFixed(1)}%
                             </span>
                             <span className={`text-slate-400 text-xs transition ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
@@ -623,7 +674,7 @@ export default function TradesTab({ ctx }) {
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">现价</div>
                             <div
-                              className={`font-black tabular-nums text-[13px] ${w.currentPrice > w.avgBuyPrice ? 'text-rose-600' : w.currentPrice < w.avgBuyPrice ? 'text-emerald-600' : 'text-slate-900'}`}
+                              className={`font-black tabular-nums text-[13px] ${w.currentPrice === w.avgBuyPrice ? 'text-slate-900' : strongPnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`}
                               style={{ fontFamily: 'ui-monospace, monospace' }}
                             >
                               {w.currentPrice > 0 ? `$${w.currentPrice.toFixed(2)}` : '—'}
@@ -635,7 +686,7 @@ export default function TradesTab({ ctx }) {
                           </div>
                           <div className="flex-1">
                             <div className="text-[10px] text-slate-400 uppercase tracking-wider">浮盈</div>
-                            <div className={`font-black tabular-nums text-[13px] ${w.gainAmount >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            <div className={`font-black tabular-nums text-[13px] ${strongPnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                               {w.gainAmount >= 0 ? '+' : ''}${fmt(Math.abs(w.gainAmount), 0)}
                             </div>
                           </div>
@@ -765,10 +816,10 @@ export default function TradesTab({ ctx }) {
                               </div>
                               {/* 收益 */}
                               <div className="text-right">
-                                <div className={`font-black text-[15px] tabular-nums ${w.gainPct >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                <div className={`font-black text-[15px] tabular-nums ${strongPnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                   {w.gainPct >= 0 ? '+' : ''}{(w.gainPct * 100).toFixed(1)}%
                                 </div>
-                                <div className={`text-[11px] tabular-nums ${w.gainAmount >= 0 ? 'text-slate-500' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                <div className={`text-[11px] tabular-nums ${strongPnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                   {w.gainAmount >= 0 ? '+' : ''}${fmt(Math.abs(w.gainAmount), 0)}
                                 </div>
                               </div>
@@ -1114,7 +1165,7 @@ export default function TradesTab({ ctx }) {
                             {/* v10.7.9.41: 涨幅% + 现价 一行紧凑 (11px 长股价也能装下) */}
                             {hasPrice ? (
                               <div className="mt-0.5" style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                <span className={isUp ? 'text-rose-600' : 'text-emerald-600'}>
+                                <span className={strongPnlClass(gainPct, marketColorMode)}>
                                   {isUp ? '↑ +' : '↓ '}{gainPct.toFixed(2)}%
                                 </span>
                                 <span style={{ color: '#94a3b8', fontWeight: 600, marginLeft: '4px' }}>
@@ -1144,7 +1195,7 @@ export default function TradesTab({ ctx }) {
                     </div>
                     <div className="rounded-2xl p-4" style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">已实现盈亏</div>
-                      <div className={`font-black tabular-nums mt-1 text-[18px] ${stats.realizedPnl >= 0 ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                      <div className={`font-black tabular-nums mt-1 text-[18px] ${strongPnlClass(stats.realizedPnl, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                         {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
                       </div>
                       {/* v10.7.9.41: CNY 副显示 */}
@@ -1273,7 +1324,7 @@ export default function TradesTab({ ctx }) {
                                       <div><strong style={{ color: '#14532d' }}>卖出成本</strong> = {sellAvg.toFixed(2)} × {shares} = <strong style={{ color: '#14532d' }}>${sellCost.toFixed(2)}</strong></div>
                                       <div><strong style={{ color: '#14532d' }}>本次利润</strong> = {amount.toFixed(0)} − {sellCost.toFixed(0)}</div>
                                     </div>
-                                    <div className={`mt-2 pt-2 font-black ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '15px', borderTop: '1px dashed #86efac' }}>
+                                    <div className={`mt-2 pt-2 font-black ${strongPnlClass(profit, marketColorMode)}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '15px', borderTop: '1px dashed #86efac' }}>
                                       = {profit >= 0 ? '+' : ''}${profit.toFixed(2)} ({profit >= 0 ? '+' : ''}{profitPct.toFixed(2)}%)
                                     </div>
                                   </div>

@@ -4,6 +4,38 @@
 
 ## 2026-07-04 Asia/Shanghai
 
+### 2026-07-04 - 深色加载、涨跌配色与首页交易账本接入
+
+- Commit: pending in this implementation commit; deployment evidence will be appended after Vercel production verification.
+- Background: 用户反馈首页和建议加载时会闪现白色页面,要求改掉;同时要求在交易页持仓分布右侧增加股票涨跌颜色设置,默认绿涨红跌并支持绿跌红涨,且全局影响首页和交易;首页自选和持仓需要接入交易主账本最新数据库。
+- Changes:
+  - Auth 初始化和懒加载 fallback 改为深色加载态;`body` 默认背景改为首页/交易一致的深黑,避免加载首页、建议等 lazy chunk 时闪白。
+  - 新增 `marketColorMode` 全局偏好,默认 `绿涨红跌`,支持切换 `绿跌红涨`;偏好写入 `localStorage` 和 `user_settings.data`。
+  - 交易页持仓分布右侧齿轮改为涨跌颜色设置菜单;颜色切换后影响首页资产卡、当前信号、市场卡、自选/持仓列表和交易页主账本收益显示。
+  - 新增 `buildLedgerQuoteUniverse`,将 `stock_trades` 主交易账本股票集合与 quote cache 合并;首页自选优先显示主交易账本股票,持仓继续读取 `investmentSummary.activePositions`。
+  - 行情自动刷新、日历请求和添加交易本地查询改用合并后的股票集合,避免交易账本里有股票但首页不更新行情。
+  - 设置页用户可见更新日志、JSON 备份版本和关于页版本同步到 `v10.7.9.66`。
+- Key files:
+  - `src/App.jsx`
+  - `src/AuthGate.jsx`
+  - `src/index.css`
+  - `src/lib/marketColorMode.js`
+  - `src/lib/stockUniverse.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/market-color-mode.test.js`
+  - `tests/stock-universe.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 32 tests.
+  - `npm run build`: pass; `HomeTab-CvMXmPja.js`, `TradesTab-CLP8y-lz.js`, `SettingsTab-BlOgMv_X.js`, `App-DI5-kdN8.js`, and `marketColorMode-DYH4sHWM.js` generated.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复浅色加载 fallback、首页自选旧 watchlist 数据源和固定绿涨/红跌逻辑;不影响 `/api/quote` 鉴权、`/api/fx` 或 `stock_trades` 表结构。
+
 ### 2026-07-04 - 汇率每日自动查询
 
 - Commit: `1c91b7123e0c93b5a4dcc1842782e12830b715cd`

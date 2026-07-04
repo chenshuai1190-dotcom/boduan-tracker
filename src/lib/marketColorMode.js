@@ -1,0 +1,50 @@
+export const MARKET_COLOR_MODE_STORAGE_KEY = 'xmoney_market_color_mode';
+
+export const MARKET_COLOR_MODES = {
+  GREEN_UP_RED_DOWN: 'greenUpRedDown',
+  RED_UP_GREEN_DOWN: 'redUpGreenDown',
+};
+
+export function normalizeMarketColorMode(value) {
+  return value === MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
+    ? MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
+    : MARKET_COLOR_MODES.GREEN_UP_RED_DOWN;
+}
+
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function isPositive(value) {
+  return toNumber(value) >= 0;
+}
+
+function usesGreenForPositive(mode) {
+  return normalizeMarketColorMode(mode) === MARKET_COLOR_MODES.GREEN_UP_RED_DOWN;
+}
+
+export function marketTextClass(value, mode) {
+  const green = isPositive(value) === usesGreenForPositive(mode);
+  return green ? 'text-emerald-400' : 'text-rose-400';
+}
+
+export function marketStrongTextClass(value, mode) {
+  const green = isPositive(value) === usesGreenForPositive(mode);
+  return green ? 'text-emerald-600' : 'text-rose-600';
+}
+
+export function marketBgClass(value, mode) {
+  const green = isPositive(value) === usesGreenForPositive(mode);
+  return green ? 'bg-emerald-600' : 'bg-rose-600';
+}
+
+export function marketSoftBgClass(value, mode) {
+  const green = isPositive(value) === usesGreenForPositive(mode);
+  return green ? 'bg-emerald-400/12' : 'bg-rose-400/12';
+}
+
+export function marketHexColor(value, mode) {
+  const green = isPositive(value) === usesGreenForPositive(mode);
+  return green ? '#22c55e' : '#fb7185';
+}

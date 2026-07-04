@@ -1,4 +1,5 @@
 import React from 'react';
+import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -49,12 +50,12 @@ function fmtMarketPct(value) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 }
 
-function pnlColor(value) {
-  return num(value) >= 0 ? 'text-emerald-400' : 'text-rose-400';
+function pnlColor(value, mode) {
+  return marketTextClass(value, mode);
 }
 
-function marketColor(value) {
-  return num(value) >= 0 ? '#ef4444' : '#22c55e';
+function marketColor(value, mode) {
+  return marketHexColor(value, mode);
 }
 
 function normalizeLogoUrl(value) {
@@ -113,7 +114,7 @@ function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
   );
 }
 
-function MiniMarketCard({ item }) {
+function MiniMarketCard({ item, marketColorMode }) {
   if (item?.error) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 min-h-[122px]">
@@ -123,7 +124,7 @@ function MiniMarketCard({ item }) {
     );
   }
 
-  const color = marketColor(item?.changePercent);
+  const color = marketColor(item?.changePercent, marketColorMode);
   const ticker = item?.displaySymbol || item?.symbol || item?.ticker || '--';
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5 min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -196,8 +197,10 @@ export default function HomeTab({ ctx }) {
     fgi,
     fgiDataDate,
     fmtPct,
+    homeWatchlist,
     indices,
     investmentSummary,
+    marketColorMode,
     newStock,
     RefreshCw,
     removeStock,
@@ -227,6 +230,7 @@ export default function HomeTab({ ctx }) {
   const summary = investmentSummary || emptySummary;
   const positions = summary.activePositions || [];
   const positionsBySymbol = React.useMemo(() => new Map(positions.map((p) => [p.symbol, p])), [positions]);
+  const displayWatchlist = homeWatchlist || watchlist || [];
   const fgiInfo = fgiLevel(fgi);
   const marketCards = (indices || []).slice(0, 4);
   const signalIsCalm = num(benchmarkDrawdown) > -0.05;
@@ -252,7 +256,7 @@ export default function HomeTab({ ctx }) {
   const resetNewStock = () => setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
 
   const isWatchlistTab = tableTab === 'watchlist';
-  const allRows = tableTab === 'positions' ? positions : (watchlist || []);
+  const allRows = tableTab === 'positions' ? positions : displayWatchlist;
   const rows = isWatchlistTab || showAllRows ? allRows : allRows.slice(0, 3);
   const canToggleRows = !isWatchlistTab && allRows.length > 3;
 
@@ -304,19 +308,19 @@ export default function HomeTab({ ctx }) {
         <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
           <div className="min-w-0 pr-3">
             <div className="text-[12px] text-white/50">今日盈亏</div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.todayPnl)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayTodayPnl, displayCurrency, 2)}
             </div>
-            <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlColor(summary.todayPnl)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedPct(summary.todayPnlPct, 2)}
             </div>
           </div>
           <div className="min-w-0 px-3">
             <div className="text-[12px] text-white/50">累计盈亏</div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.cumulativePnl)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-extrabold leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
             </div>
-            <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlColor(summary.cumulativePnl)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className={`mt-1 text-[12px] font-bold tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedPct(summary.cumulativePnlPct, 2)}
             </div>
           </div>
@@ -354,7 +358,7 @@ export default function HomeTab({ ctx }) {
             <button
               type="button"
               onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-              className={`text-[19px] font-black leading-none tabular-nums ${num(benchmarkDrawdown) <= -0.1 ? 'text-rose-400' : 'text-emerald-400'}`}
+              className={`text-[19px] font-black leading-none tabular-nums ${pnlColor(benchmarkDrawdown, marketColorMode)}`}
               style={{ fontFamily: NUMBER_FONT }}
             >
               {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}
@@ -400,7 +404,7 @@ export default function HomeTab({ ctx }) {
 
       {marketCards.length > 0 && (
       <section className="mt-3 grid grid-cols-4 gap-2">
-        {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} />)}
+        {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} marketColorMode={marketColorMode} />)}
       </section>
       )}
 
@@ -489,13 +493,13 @@ export default function HomeTab({ ctx }) {
           ) : rows.map((row) => {
             const isPosition = tableTab === 'positions';
             const symbol = row.symbol;
-            const quote = isPosition ? (watchlist || []).find((item) => item.symbol === symbol) : row;
+            const quote = isPosition ? displayWatchlist.find((item) => item.symbol === symbol) : row;
             const position = isPosition ? row : positionsBySymbol.get(symbol);
             const price = isPosition ? row.currentPrice : row.price;
             const changePct = isPosition ? row.changePercent : row.changePercent;
             const pnlValue = position ? position.totalPnl : null;
             const pnlPct = position ? position.totalPnlPct : null;
-            const color = marketColor(changePct);
+            const color = marketColor(changePct, marketColorMode);
             const logoUrls = logoUrlCandidates(symbol, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
             const logoUrl = logoUrls[0];
 
@@ -537,7 +541,7 @@ export default function HomeTab({ ctx }) {
                   </span>
                   <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(price, 2)}</span>
                   <span className="text-right text-[13px] font-medium tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(changePct)}</span>
-                  <span className={`text-right text-[13px] font-medium tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue)}`} style={{ fontFamily: NUMBER_FONT }}>
+                  <span className={`text-right text-[13px] font-medium tabular-nums ${pnlValue === null ? 'text-white/25' : pnlColor(pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                     {pnlValue === null ? '--' : fmtSignedPct(pnlPct, 2)}
                   </span>
                   <ChevronRight className="ml-auto h-3.5 w-3.5 text-white/22" />

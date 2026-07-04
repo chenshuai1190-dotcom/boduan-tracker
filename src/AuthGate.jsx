@@ -37,8 +37,10 @@ function hasStoredSupabaseSession() {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-slate-500 animate-spin" />
+    <div className="min-h-screen bg-[#05070b] flex items-center justify-center">
+      <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#f6b54b] animate-spin" />
+      </div>
     </div>
   );
 }
