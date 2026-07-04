@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 回退首屏加载并优化交易页订单操作
 
-- Commit: `pending runtime commit`
+- Commit: `6549713a123233ef1b7a2af0991ab37d82a6d42e`
 - Background: 用户反馈 `v10.7.9.90` 钱袋弹跳首屏加载效果未达到预期,要求回退到上一版加载效果;同时要求交易页除重要标题模块外取消加粗,重点覆盖持仓分布、当日订单、美股和数字,并把当日订单行后的修改/删除小按钮改为点击单条记录后在居中弹窗里操作。
 - Changes:
   - `AuthGate` 首屏 `LoadingScreen` 回退到上一版深色卡片内金色旋转圆环。
@@ -32,8 +32,23 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}` before deployment.
   - Local source marker check: pass; runtime source no longer references `loading-mascot`, `TradesTab` contains `orderActionTrade`, `订单操作`, row-level `setOrderActionTrade(trade)` and `v10.7.9.91`.
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending Vercel production deployment.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `6549713a123233ef1b7a2af0991ab37d82a6d42e`.
+  - GitHub `main`: `6549713a123233ef1b7a2af0991ab37d82a6d42e`.
+  - GitHub Actions `CI`: success, run `28708124332`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CwoaVJHKepTf3dUNFKNyDKBEgraF`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=6549713a123-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-0LI8pi_W.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-wvNJKiFO.js`, `/assets/index-D4AJZ4jQ.css`.
+  - Production runtime chunks: `/assets/App-pvBlCTuV.js`, `/assets/Login-ZRjGFTKv.js`, `/assets/HomeTab-BfYDJhqu.js`, `/assets/TradesTab-Bgr3Hkgp.js`, `/assets/SettingsTab-Cep1d4LA.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-56gQ36oN.js`.
+- Production verification:
+  - Production `/loading-mascot.png`: HTTP 404, confirming the reverted loading no longer serves the mascot asset.
+  - Production entry marker check: `index-0LI8pi_W.js` references `AuthGate`, `App-pvBlCTuV.js` and `Login-ZRjGFTKv.js`; it no longer references `/loading-mascot.png`.
+  - Production CSS marker check: `index-D4AJZ4jQ.css` contains the generic `animate-spin` marker and no `loading-mascot-*` keyframes.
+  - Production App marker check: `App-pvBlCTuV.js` references `HomeTab-BfYDJhqu.js`, `TradesTab-Bgr3Hkgp.js` and `SettingsTab-Cep1d4LA.js`.
+  - Production TradesTab marker check: `TradesTab-Bgr3Hkgp.js` contains `订单操作`, `修改记录` and `删除记录`; grep found no `loading-mascot` marker and no bold-class marker adjacent to `持仓盈亏` or `当日盈亏`.
+  - Production SettingsTab marker check: `SettingsTab-Cep1d4LA.js` contains `v10.7.9.91`, `回退首屏加载并优化交易页字重`, `当日订单行改为点击记录后居中弹窗修改或删除` and `普通文本/股票代码/数字/记录行默认不加粗`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-56gQ36oN.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `{"error":"未授权: 请先登录后再请求行情接口"}`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.90` 钱袋弹跳 loading 和当日订单行内修改/删除按钮;不会影响交易账本数据、收益计算、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 首屏加载改为钱袋弹跳图标
