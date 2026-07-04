@@ -6,7 +6,7 @@
 
 ### 2026-07-04 - 摊薄成本工具改为深色版本
 
-- Commit: pending
+- Commit: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`
 - Background: 用户在前台做了不破坏结构的黑色版摊薄成本参考图,要求实际运行版本删除 `摊薄成本` 标题前旧图标,并且前台图标方案继续参考当前应用已有的线性图标体系。
 - Changes:
   - 摊薄成本主工具从旧白色/iOS 遗留风格改为深色卡片体系,标题只保留 `摊薄成本` 纯文字,删除标题前旧图标。
@@ -32,8 +32,22 @@
   - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Production auth pre-check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
   - Local source marker check: pass; source contains `bg-[#0b0f14]`, `Database`, `TrendingUp`, `新增摊薄股票`, `添加摊薄交易`, `v10.7.9.98`, and does not contain old cost-basis title marker `💼 摊薄成本`.
-  - Remaining before deployment: deployment status and production marker checks.
-- Deployment: pending.
+  - Local build marker check: pass; built chunks contain `v10.7.9.98`, `摊薄成本工具改为深色版本`, `新增摊薄股票`, `添加摊薄交易`, `确认保存摊薄成本记录`, and no old `💼 摊薄成本` title marker in the Trades chunk.
+- Deployment: pushed to GitHub `main`; GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`.
+  - GitHub `main`: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`.
+  - GitHub Actions `CI`: success, run `28711683937`, build job `85146152543`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-DcOoVfO4.js`, `/assets/index-ByPKcqCY.css`.
+  - Production runtime chunks: `/assets/App-CGysEMvT.js`, `/assets/HomeTab-BY9LGpWQ.js`, `/assets/TradesTab-BjwXXSZk.js`, `/assets/SettingsTab-7OOLBxmB.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C8GXcfgT.js`.
+- Production verification:
+  - Production App marker check: `App-CGysEMvT.js` contains `新增摊薄股票`, `添加摊薄交易`, `确认保存摊薄成本记录`, and `不会进入正式持仓、当日订单或波段记录`.
+  - Production TradesTab marker check: `TradesTab-BjwXXSZk.js` contains `摊薄成本`, `云端小工具 · 不影响其他模块`, and `移动加权平均`.
+  - Production marker check: `TradesTab-BjwXXSZk.js` does not contain old title marker `💼 摊薄成本`.
+  - Production SettingsTab marker check: `SettingsTab-7OOLBxmB.js` contains `v10.7.9.98` and `摊薄成本工具改为深色版本`.
+  - Production RLS REST check: pass, 13 user-owned tables returned 0 visible rows; source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-C8GXcfgT.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.97` 的摊薄成本旧白色工具和旧标题图标;不会影响正式交易账本、波段账本边界、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-04 - 修正波段已完成归类和字号

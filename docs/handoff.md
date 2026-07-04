@@ -8,12 +8,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: pending runtime commit (`v10.7.9.98`)
-- 最近应用代码提交: pending runtime commit
+- 当前产品基准提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d` (`v10.7.9.98`)
+- 最近应用代码提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.98`
-- Vercel 最新运行时部署: pending;上一版 success target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DkMcKKq4tBVvyCY5M8kvnTB9Bqxi`
-- Vercel 部署记录: pending `v10.7.9.98`;上一版 `v10.7.9.97` runtime commit `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`;GitHub Actions `CI` run `28711131474` build job `85144756465` success;production `GET https://boduan-tracker.vercel.app/?v=8f8dfbf-runtime` HTTP 200
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`
+- Vercel 部署记录: `v10.7.9.98` runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`;GitHub Actions `CI` run `28711683937` build job `85146152543` success;production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -138,29 +138,33 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 最近完整验证记录:
 
-- `npm test`: pass,50 tests。
+- `npm test`: pass,51 tests。
 - `npm run build`: pass。
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - `npm run verify:rls:rest`: pass,13 张用户表匿名 REST 可见行数均为 0。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.97` runtime 已推送并部署成功;runtime commit `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`, GitHub Actions `CI` run `28711131474` build job `85144756465` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DkMcKKq4tBVvyCY5M8kvnTB9Bqxi`。
+- `v10.7.9.98` runtime 已推送并部署成功;runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`, GitHub Actions `CI` run `28711683937` build job `85146152543` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/index-CgfbcDF1.css`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-DXyN2y8z.js`, `/assets/SettingsTab-C-wtzeJ2.js`, `/assets/App-BETnpC-C.js`。
-- 生产 entry chunks: `/assets/index-DJNp6Rbs.js`, `/assets/index-CgfbcDF1.css`。
-- 生产 runtime chunks: `/assets/App-CGmmuY-D.js`, `/assets/HomeTab-CLLDltlT.js`, `/assets/TradesTab-DXyN2y8z.js`, `/assets/SettingsTab-C-wtzeJ2.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-NBYa01UD.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-ByPKcqCY.css`, `/assets/HomeTab-BY9LGpWQ.js`, `/assets/TradesTab-BjwXXSZk.js`, `/assets/SettingsTab-7OOLBxmB.js`, `/assets/App-fEDDtosU.js`。
+- 生产 entry chunks: `/assets/index-DcOoVfO4.js`, `/assets/index-ByPKcqCY.css`。
+- 生产 runtime chunks: `/assets/App-CGysEMvT.js`, `/assets/HomeTab-BY9LGpWQ.js`, `/assets/TradesTab-BjwXXSZk.js`, `/assets/SettingsTab-7OOLBxmB.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C8GXcfgT.js`。
 
 关键 marker:
 
-- 生产 `App-CGmmuY-D.js` 引用 `TradesTab-DXyN2y8z.js` 和 `SettingsTab-C-wtzeJ2.js`,确认生产入口加载本轮交易页和设置页 chunk。
-- 生产 `TradesTab-DXyN2y8z.js` 包含 `已完成波段归类`, `暂无进行中的波段`, `暂无已完成波段`, `completedWaves` 和 `text-[16px] font-normal`,确认已完成分类视图和字号回调已进入运行时。
-- 生产 `SettingsTab-C-wtzeJ2.js` 包含 `v10.7.9.97`, `修正波段已完成归类和字号` 和 `HOOD 这类已完成股票会进入已完成分类`。
-- 生产所有 chunk 均不包含旧 marker `进行中 · #`,确认无意义编号未回退。
-- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-NBYa01UD.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
+- 生产 `App-CGysEMvT.js` 引用 `TradesTab-BjwXXSZk.js` 和 `SettingsTab-7OOLBxmB.js`,确认生产入口加载本轮交易页和设置页 chunk。
+- 生产 `App-CGysEMvT.js` 包含 `新增摊薄股票`, `添加摊薄交易`, `确认保存摊薄成本记录` 和 `不会进入正式持仓、当日订单或波段记录`,确认摊薄成本深色弹窗和独立账本提示已进入运行时。
+- 生产 `TradesTab-BjwXXSZk.js` 包含 `摊薄成本`, `云端小工具 · 不影响其他模块` 和 `移动加权平均`,且不包含旧标题 marker `💼 摊薄成本`,确认摊薄成本前台已移除旧图标并进入深色 UI。
+- 生产 `SettingsTab-7OOLBxmB.js` 包含 `v10.7.9.98` 和 `摊薄成本工具改为深色版本`。
+- 生产 RLS REST 通过,`supabase` source chunks 为 `/assets/supabase-CcYdvS9P.js` 和 `/assets/supabase-C8GXcfgT.js`;生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
 ## 8. 最近完成的产品改动
+
+### 摊薄成本工具
+
+- `v10.7.9.98`: 摊薄成本工具改为深色版本;标题删除旧图标,只保留纯文字 `摊薄成本`;主成本卡、累计投入、已实现盈亏、交易记录、新增股票和添加摊薄交易弹窗统一为黑色风格;辅助图标改用现有 lucide 线性图标体系;摊薄成本提交校验和失败提示改为应用内确认弹窗;数据仍只写独立 `cost_basis_trades`,不影响正式交易账本和波段记录。
 
 ### 波段记录小程序 UI
 
@@ -406,11 +410,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440` (`v10.7.9.97`)
-最近应用代码提交: `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`
-设置页版本: `v10.7.9.97`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DkMcKKq4tBVvyCY5M8kvnTB9Bqxi`
-部署记录: `v10.7.9.97` runtime commit `8f8dfbf4ea8ef133ac03a85b94545dd35eb3d440`;GitHub Actions `CI` run `28711131474` build job `85144756465` success;production `GET https://boduan-tracker.vercel.app/?v=8f8dfbf-runtime` HTTP 200
+当前产品基准提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d` (`v10.7.9.98`)
+最近应用代码提交: `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`
+设置页版本: `v10.7.9.98`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiXnmzdbFsZPbZMkJDMaAf8kMw1u`
+部署记录: `v10.7.9.98` runtime commit `0becd6049cf1442e8ae4be9f70ec84e9d8c3027d`;GitHub Actions `CI` run `28711683937` build job `85146152543` success;production `GET https://boduan-tracker.vercel.app/?v=0becd60-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
