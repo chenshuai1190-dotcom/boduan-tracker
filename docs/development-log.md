@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 复盘和戒律列表细节对齐
 
-- Commit: pending.
+- Commit: `27aa337337e909c4dc2a9e73aa90737ac92b2754`
 - Background: 用户反馈复盘日志首页的日期和情绪使用复盘详情弹窗里的灰色效果更好,并要求复盘日志首页的字号、行距和颜色与投资戒律列表完全一致;同时投资戒律列表的日期和置顶标记也要改成详情弹窗同款灰色效果。
 - Changes:
   - 复盘日志列表正文从旧 `13px / 1.62 / text-white/72` 调整为投资戒律同款 `14px / 1.52 / text-white/80`。
@@ -27,8 +27,18 @@
   - `git diff --check`: pass.
   - Build marker check: `ReviewTab-Do_QlTJz.js` contains `text-[14px] font-normal leading-[1.52] text-white/80`, `mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35` and `tabular-nums`;it no longer contains old review log marker `text-[13px] font-normal leading-[1.62] text-white/72`;`SettingsTab-B60-thTq.js` contains `v10.7.9.125` and `复盘和戒律列表细节对齐`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;投资戒律列表正文和复盘日志列表正文均为 `14px/400`,行高 `21.28px`,颜色 `rgba(255,255,255,0.8)`;戒律日期/置顶和复盘日期/情绪所在 meta 行均为 `12px`,颜色 `rgba(255,255,255,0.35)`,间距 `8px`;复盘日志列表卡片在 390px 视口内无横向溢出。
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `27aa337337e909c4dc2a9e73aa90737ac92b2754`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G3k8bevhm11x6eb6hHsKcXCTD2WB`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=27aa337-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-_-S7fxoX.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-qDrKxQ7M.css`.
+  - Production runtime chunks include: `/assets/App-DIuIeqT_.js`, `/assets/ReviewTab-Do_QlTJz.js`, `/assets/SettingsTab-B60-thTq.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-Do_QlTJz.js` contains `text-[14px] font-normal leading-[1.52] text-white/80`, `mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35` and `tabular-nums`;it no longer contains old review log marker `text-[13px] font-normal leading-[1.62] text-white/72`.
+  - Production SettingsTab marker check: `SettingsTab-B60-thTq.js` contains `v10.7.9.125` and `复盘和戒律列表细节对齐`.
+  - Production CSS/App marker check: `index-qDrKxQ7M.css` does not contain `overscroll-behavior-y:none`;`App-DIuIeqT_.js` does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.125` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.124` 的复盘日志列表小一档正文和戒律列表旧日期间距/颜色;不影响复盘日志数据、投资戒律数据、置顶/取消置顶、年度目标、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 复盘日志卡片和详情弹窗
