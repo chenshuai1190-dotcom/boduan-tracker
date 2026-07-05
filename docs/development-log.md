@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 目标页未开始年度降色
 
-- Commit: pending runtime commit.
+- Commit: `b3652214d4e0d08ef6aa2d2fc1f7b825668d0b54`
 - Background: 用户反馈目标页色彩过多、视觉复杂,要求降低未开始年度区域的色彩:北极星头卡设置按钮取消黄色改为正常颜色;未开始年度的起点和目标金额从黄色改为和计划一样的灰色;起点/目标文案去掉括号里的年份;未开始年度增长目标虚线从黄色改为灰色。
 - Changes:
   - 北极星头卡 `设置` 按钮从金色边框/文字改为中性白色弱边框、弱白底和灰白文字,保留原先单独上移位置。
@@ -28,8 +28,19 @@
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;北极星头卡 `设置` 按钮实际为 `rgba(255,255,255,0.65)` 文本、`rgba(255,255,255,0.1)` 边框和中性弱白底;2027 未开始卡片不再出现 `起点 (2026目标)` 或 `目标 (2027)`;增长目标虚线为 `rgba(255,255,255,0.25)`;页面 `scrollWidth=390`,无横向溢出。
   - Build marker check: pass; built ReviewTab chunk contains the neutral settings button, no old future-year parenthesized labels, gray future-year amount marker and gray dashed line marker;built `SettingsTab-36bzzT0X.js` contains `v10.7.9.118` and `目标页未开始年度降色`;built CSS does not contain `overscroll-behavior-y:none`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `b3652214d4e0d08ef6aa2d2fc1f7b825668d0b54`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/E6yeWy5nHv9w6h3oTEHjyubo1TeU`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=b365221-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BxfmOm0V.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-Cfhv6Pw8.css`.
+  - Production runtime chunks include `/assets/App-DPuE5fc0.js`, `/assets/ReviewTab-CnsFy6T4.js`, `/assets/SettingsTab-36bzzT0X.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-CnsFy6T4.js` contains the neutral North Star settings button, gray future-year amount marker, no old parenthesized future-year labels and gray dashed growth guide.
+  - Production SettingsTab marker check: `SettingsTab-36bzzT0X.js` contains `v10.7.9.118` and `目标页未开始年度降色`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-Cfhv6Pw8.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status and `v10.7.9.117` deployment references with the actual `v10.7.9.118` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次目标页降色会恢复北极星设置按钮金色样式、未开始年度起点/目标黄色金额、括号年份和黄色增长目标虚线;不影响目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 目标页细节修正
