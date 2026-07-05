@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 复利明细内部层级降色
 
-- Commit: pending.
+- Commit: `f82785e31b5f1ec16886b03edb636f2596033da6`
 - Background: 用户反馈 `v10.7.9.127` 复利明细弹窗内部小卡片做错了,统计卡、实际进度和每年收益区域出现太多偏白边框/分割线,同时 `目标`、`累计`、`复利`、`实际进度`、`每年收益`、`期末资产` 等标签层级偏白,要求参考图二或恢复上版内部样式风格;其它宽度、滚动、十年年份和收益粉色效果保留。
 - Changes:
   - 复利明细顶部统计卡、实际进度卡的内部边框从偏亮金色/白色视觉改为低对比暗线 `#232b36`。
@@ -29,8 +29,18 @@
   - `git diff --check`: pass.
   - Build marker check: `ReviewTab-DvF47Fsk.js` contains `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, outer weak gold border marker `border-[#f6b54b]/35`, dark inner card border marker `border-[#232b36]/80`, dark summary divider `border-l border-[#232b36]/90`, dark section border and row dividers `border-[#202733]` / `divide-y divide-[#202733]`, muted labels `text-[#8a909a]`, and no old bright summary border, white yearly dividers, or white chart grid line marker;`SettingsTab-DRKSQz2w.js` contains `v10.7.9.128` and `复利明细内部层级降色`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `374px`,高 `816px`,页面 `scrollWidth=390`,弹窗 `scrollHeight=877` / `clientHeight=814`,可内部滚动;外层边框色 `rgba(246,181,75,0.35)`;统计卡/实际进度边框色 `rgba(35,43,54,0.8)`,曲线卡和每年收益卡边框色 `rgb(32,39,51)`;`目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 标签均为 `rgb(138,144,154)`;曲线网格为暗线;收益颜色保持 `rgb(251,113,133)`;无横向溢出。
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `f82785e31b5f1ec16886b03edb636f2596033da6`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CnERzTwG.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-B21CJLxn.css`.
+  - Production runtime chunks include: `/assets/App-rex7fF_2.js`, `/assets/ReviewTab-DvF47Fsk.js`, `/assets/SettingsTab-DRKSQz2w.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-DvF47Fsk.js` contains `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, outer weak gold border marker `border-[#f6b54b]/35`, dark inner card border marker `border-[#232b36]/80`, dark summary divider `border-l border-[#232b36]/90`, dark section border and row dividers `border-[#202733]` / `divide-y divide-[#202733]`, muted labels `text-[#8a909a]`, and no old bright summary border, white yearly dividers, or white chart grid line marker.
+  - Production SettingsTab marker check: `SettingsTab-DRKSQz2w.js` contains `v10.7.9.128` and `复利明细内部层级降色`.
+  - Production CSS/App marker check: `index-B21CJLxn.css` does not contain `overscroll-behavior-y:none`;`App-rex7fF_2.js` does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.128` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.127` 的复利明细内部边框和分割线亮度;不影响北极星目标计算、年度目标数据、投资戒律、复盘日志、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 北极星复利明细视觉微调
