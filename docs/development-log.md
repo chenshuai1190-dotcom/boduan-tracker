@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 三大指数 WebSocket 秒级推送
 
-- Commit: `same commit`
+- Commit: `edd464346c29d37f59ff08cda06413ff897c5710`
 - Background: 用户确认 EODHD WebSocket 权限可用,要求首页标普500、纳斯达克100、道琼斯从当前 EODHD REST 轮询升级为 WebSocket 秒级推送;仍必须保持 EODHD token 服务端隔离和 `/api/quote` 鉴权。
 - Changes:
   - 新增已登录服务端 WebSocket endpoint `/api/indices-realtime`,复用 Supabase access token 鉴权、origin allowlist、服务端 `EODHD_API_KEY` 和 `ws` relay 模式;未登录 upgrade 应返回 401。
@@ -39,9 +39,14 @@
   - Build marker scan: pass;active App/Home/indexRealtime bundles contain `/api/indices-realtime` and `/api/btc-realtime`,do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;settings history chunk still contains old `VITE_EODHD_TOKEN` text as changelog only.
   - Local upstream limitation: local shell has no `EODHD_API_KEY`,so real upstream EODHD index tick delivery could not be verified locally;production should be observed from logged-in homepage during market hours.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`.
+  - GitHub Actions `build` check passed for `edd464346c29d37f59ff08cda06413ff897c5710` (run `28746827766`, job `85239025567`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9hModFkZkFs94wqGNcwFasfCJ3eb`.
 - Production verification:
-  - Pending.
+  - Production `GET https://boduan-tracker.vercel.app/?v=edd4643-indices-ws-140`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-nPossmo6.js`, `HomeTab-BWFZMagC.js`, `SettingsTab-DyYpnVPf.js`, `indexRealtime-09d_xcFN.js`;assets contain `/api/indices-realtime`, `/api/btc-realtime`, `v10.7.9.140`, and `三大指数 WebSocket 秒级推送`.
+  - Production active runtime marker check: pass;`App` + `HomeTab` + `indexRealtime` chunks do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`;`SettingsTab` only contains old `VITE_EODHD_TOKEN` text in historical changelog.
+  - Production auth checks: unauthenticated `GET /api/quote?symbols=VIX` returns HTTP 401;plain `GET /api/indices-realtime` returns HTTP 426;unauthenticated WebSocket upgrade to `wss://boduan-tracker.vercel.app/api/indices-realtime` returns HTTP 401.
 - Rollback: 回退本次新增的 `/api/indices-realtime`、`server/realtime/indices*`、`src/lib/indexRealtime.js`、`App.jsx` 指数 WebSocket 客户端、`HomeTab` 实时徽标扩展、`v10.7.9.140` 设置页更新日志、测试和文档条目即可;现有 `/api/quote?symbols=INDICES` REST 轮询和 BTC relay 可继续工作。
 
 ## 2026-07-05 Asia/Shanghai
