@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 投资戒律字体整体收紧
+
+- Commit: pending runtime commit.
+- Background: 用户反馈投资戒律整体字体仍然偏大,包括模块标题和戒律内容,需要继续压低视觉层级。
+- Changes:
+  - 投资戒律标题从 24px 下调到 21px,数量从 13px 下调到 12px,竖向橙色短条同步缩短。
+  - `+ 添加` 按钮从 44px 高、15px 文本收紧为 40px 高、13px 文本,加号从 24px 降到 20px。
+  - 筛选胶囊从 40px 高、13px 文本收紧为 36px 高、12px 文本,等级圆点从 10px 降到 8px。
+  - 戒律卡片正文从 15px/1.58 降到 14px/1.52,卡片上下内边距同步略收紧。
+  - 日期、置顶、展开全文入口从 13px/12px 体系继续下调到 12px/11px 体系。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.121`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页投资戒律字体和控件密度微调,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test` pass,65 tests.
+  - `npm run build` pass;build output includes `index-g9a9dZt8.css` 52.92 kB / gzip 9.85 kB,`ReviewTab-wndgD-Gl.js` 33.04 kB / gzip 8.16 kB,`SettingsTab-O-01VLtQ.js` 42.01 kB / gzip 15.87 kB,`App-BJ_DIG30.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit` pass,0 vulnerabilities.
+  - `git diff --check` pass.
+  - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;投资戒律区域 `scrollWidth=390`,body background `rgb(5, 7, 11)`;标题实际 `21px/600`,数量 `12px/400`,添加按钮 `40px` 高、`13px/400`;筛选行 `358px` 宽、`scrollWidth=358`,5 个筛选胶囊一行完整显示,筛选文字 `12px/400`,等级圆点 `8px`;首张戒律卡 `358px` 宽、正文实际 `14px/400`、行高 `21.28px`,日期 `12px/400`,置顶胶囊 `11px/400`;旧 emoji 等级图标未显示;点击第一条戒律可打开 `戒律操作`,包含修改、取消置顶、删除和取消。
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次字体收紧会恢复 `v10.7.9.120` 的 24px 标题、15px 戒律正文、较高添加/筛选按钮和较大的日期/置顶/展开入口;不影响戒律数据、置顶/取消置顶、编辑/删除、目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 投资戒律低色彩重设计
 
 - Commit: `4d8d0f76c9c4af9276252f3aac954f4504c448a4`

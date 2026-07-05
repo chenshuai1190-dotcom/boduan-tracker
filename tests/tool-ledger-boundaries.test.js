@@ -263,17 +263,17 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('targetGap'), 'current year card should show target gap/lag information');
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
-  assert.ok(reviewTabSource.includes('text-[24px] font-semibold leading-none tracking-normal text-white">投资戒律'), 'discipline section title should match the redesigned larger heading');
-  assert.ok(reviewTabSource.includes('h-8 w-1 shrink-0 rounded-full bg-[#f6a524]'), 'discipline section should use the vertical accent bar from the redesign');
-  assert.ok(reviewTabSource.includes('flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035]'), 'discipline add button should use a low-color pill style');
+  assert.ok(reviewTabSource.includes('text-[21px] font-semibold leading-none tracking-normal text-white">投资戒律'), 'discipline section title should use the tightened heading size');
+  assert.ok(reviewTabSource.includes('h-7 w-1 shrink-0 rounded-full bg-[#f6a524]'), 'discipline section should use a compact vertical accent bar');
+  assert.ok(reviewTabSource.includes('flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035]'), 'discipline add button should use a smaller low-color pill style');
   assert.ok(reviewTabSource.includes("dotColor: '#18d66b'"), 'discipline level metadata should use colored dots instead of icons');
-  assert.ok(reviewTabSource.includes('mb-5 flex gap-2.5 overflow-x-auto'), 'discipline filters should stay compact enough for the mobile reference row');
-  assert.ok(reviewTabSource.includes('flex h-10 min-w-[58px] shrink-0 items-center justify-center gap-2'), 'discipline level filter pills should remain compact on 390px mobile');
-  assert.ok(reviewTabSource.includes('className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.dotColor'), 'discipline filters should render colored dots');
+  assert.ok(reviewTabSource.includes('mb-4 flex gap-2.5 overflow-x-auto'), 'discipline filters should stay compact enough for the mobile reference row');
+  assert.ok(reviewTabSource.includes('flex h-9 min-w-[54px] shrink-0 items-center justify-center gap-2'), 'discipline level filter pills should remain compact on 390px mobile');
+  assert.ok(reviewTabSource.includes('className="h-2 w-2 rounded-full" style={{ backgroundColor: item.dotColor'), 'discipline filters should render compact colored dots');
   assert.ok(reviewTabSource.includes('style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}'), 'discipline rows should render muted color rings');
-  assert.ok(reviewTabSource.includes('className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-4'), 'discipline rows should use the redesigned card surface');
-  assert.ok(reviewTabSource.includes('text-[15px] font-normal leading-[1.58] text-white/82'), 'discipline text should use the larger redesigned body size');
-  assert.ok(reviewTabSource.includes('rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-0.5 text-[12px] text-white/42'), 'discipline pinned badge should be muted gray');
+  assert.ok(reviewTabSource.includes('className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5'), 'discipline rows should use the tightened card surface');
+  assert.ok(reviewTabSource.includes('text-[14px] font-normal leading-[1.52] text-white/80'), 'discipline text should use the tightened body size');
+  assert.ok(reviewTabSource.includes('rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42'), 'discipline pinned badge should be muted and smaller');
   assert.ok(reviewTabSource.includes('inline-flex items-center gap-1 text-white/38'), 'discipline expand action should be muted gray');
   assert.equal(reviewTabSource.includes('<span className="text-[15px]">{discipline.level}</span>'), false, 'discipline rows should not render legacy emoji level icons');
   assert.ok(appSource.includes('style={{ backgroundColor: l.ringColor, borderColor: l.ringBorder }}'), 'discipline edit modal should use colored dots for level choices');
@@ -287,8 +287,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.120'), 'settings version should document the discipline redesign');
-  assert.ok(settingsTabSource.includes('投资戒律低色彩重设计'), 'settings changelog should describe the discipline redesign');
+  assert.ok(settingsTabSource.includes('v10.7.9.121'), 'settings version should document the discipline typography tune');
+  assert.ok(settingsTabSource.includes('投资戒律字体整体收紧'), 'settings changelog should describe the discipline typography tune');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

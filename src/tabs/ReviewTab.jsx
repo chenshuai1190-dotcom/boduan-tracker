@@ -584,29 +584,29 @@ export default function ReviewTab({ ctx }) {
       </section>
 
       <section className="mt-5">
-        <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="mb-4 flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-1 h-8 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
+            <span className="mt-0.5 h-7 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[24px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
-              <div className="mt-2 text-[13px] font-normal text-white/38">{disciplines.length} 条</div>
+              <div className="truncate text-[21px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
+              <div className="mt-1.5 text-[12px] font-normal text-white/38">{disciplines.length} 条</div>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setShowAddDiscipline(true)}
-            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-4 text-[15px] font-normal text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] active:scale-95"
+            className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-3.5 text-[13px] font-normal text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] active:scale-95"
           >
-            <span className="text-[24px] font-light leading-none text-white/78">+</span>
+            <span className="text-[20px] font-light leading-none text-white/78">+</span>
             <span>添加</span>
           </button>
         </div>
 
-        <div className="mb-5 flex gap-2.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-pull-refresh-block="true">
+        <div className="mb-4 flex gap-2.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-pull-refresh-block="true">
           <button
             type="button"
             onClick={() => setFilterLevel('all')}
-            className={`h-10 shrink-0 rounded-full border px-2.5 text-[13px] font-normal active:scale-95 ${filterLevel === 'all' ? 'border-white/[0.09] bg-white/[0.055] text-white/82' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
+            className={`h-9 shrink-0 rounded-full border px-2.5 text-[12px] font-normal active:scale-95 ${filterLevel === 'all' ? 'border-white/[0.09] bg-white/[0.055] text-white/82' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
           >
             全部 ({disciplines.length})
           </button>
@@ -617,9 +617,9 @@ export default function ReviewTab({ ctx }) {
                 key={item.level}
                 type="button"
                 onClick={() => setFilterLevel(item.level)}
-                className={`flex h-10 min-w-[58px] shrink-0 items-center justify-center gap-2 rounded-full border px-3 text-[13px] font-normal active:scale-95 ${filterLevel === item.level ? 'border-white/[0.09] bg-white/[0.055] text-white/80' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
+                className={`flex h-9 min-w-[54px] shrink-0 items-center justify-center gap-2 rounded-full border px-2.5 text-[12px] font-normal active:scale-95 ${filterLevel === item.level ? 'border-white/[0.09] bg-white/[0.055] text-white/80' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
               >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.dotColor, boxShadow: `0 0 12px ${item.dotColor}55` }} />
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.dotColor, boxShadow: `0 0 10px ${item.dotColor}55` }} />
                 <span>{count}</span>
               </button>
             );
@@ -632,7 +632,7 @@ export default function ReviewTab({ ctx }) {
           </div>
         ) : (
           <>
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {visibleDisciplines.map((discipline) => {
                 const meta = levelMeta(discipline.level);
                 const isLong = (discipline.text || '').length > 60;
@@ -650,7 +650,7 @@ export default function ReviewTab({ ctx }) {
                         setDisciplineAction(discipline);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -660,10 +660,10 @@ export default function ReviewTab({ ctx }) {
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.dotColor, boxShadow: `0 0 13px ${meta.dotColor}66` }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.58] text-white/82">{displayText}</div>
-                        <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-white/33">
+                        <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[12px] text-white/33">
                           <span>{discipline.date}</span>
-                          {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-0.5 text-[12px] text-white/42">置顶</span>}
+                          {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">置顶</span>}
                           {isLong && (
                             <span
                               role="button"
@@ -681,7 +681,7 @@ export default function ReviewTab({ ctx }) {
                               }}
                               className="inline-flex items-center gap-1 text-white/38"
                             >
-                              {isExpanded ? '收起全文' : '展开全文'} <span className="text-[15px] leading-none text-white/28">›</span>
+                              {isExpanded ? '收起全文' : '展开全文'} <span className="text-[13px] leading-none text-white/28">›</span>
                             </span>
                           )}
                         </div>
