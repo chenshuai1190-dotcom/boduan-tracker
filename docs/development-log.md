@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 老版无效代码清理和股票实时渲染减负
 
-- Commit: `same commit`
+- Commit: `6253fcdb85f81276a824aed2ac2cbd070c184c23`
 - Background: 用户要求重新梳理老版本无效代码,在不影响现有功能的前提下提升系统运行效率,并把涉及业务逻辑或不合理口径的问题先拿出来确认。审计后确认当前 `/api/quote` 鉴权、服务端 BTC/指数/股票 WebSocket relay、交易主账本、波段旧账本和摊薄工具账本边界不应改动;本轮只处理没有 tab 消费的旧运行时代码和不可见状态更新。
 - Changes:
   - 删除 `App.jsx` 中已经没有任何 tab 引用的老版独立 `VixCard` 和只服务它的 `useCountUpOnScroll` 滚动计数 Hook;当前首页 VIX/CNN 小卡仍由 `HomeTab.jsx` 内联渲染。
@@ -25,8 +25,16 @@
   - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
   - `git diff --check`: pass.
   - Source cleanup scan: pass;`App.jsx` no longer contains `function VixCard`, `useCountUpOnScroll`, `browserWsAllowed`, `wsEnabled`, `setStockRealtimeStatus`, `tqqqCurrent` or `computedExits`;`/api/stocks-realtime` and `applyStockTickToQuoteRows` remain.
-- Deployment: 待本地验证完成后推送 GitHub `main`,由 Vercel 自动部署。
-- Production verification: 待部署后补充。
+- Deployment:
+  - Pushed to GitHub `main` as runtime commit `6253fcdb85f81276a824aed2ac2cbd070c184c23`.
+  - GitHub Actions `CI` check passed for `6253fcdb85f81276a824aed2ac2cbd070c184c23` (run `28748702825`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G5LhsNe8XHYEWqRVsQTWF7cTojnd`.
+- Production verification:
+  - Production `GET https://boduan-tracker.vercel.app/?v=6253fcd-runtime-cleanup-3`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-BIVcrVdu.js`, `HomeTab-4NbUE9pN.js`, `TradesTab-uyI19HGM.js`, `SettingsTab-DQJSM5zg.js`.
+  - Production cleanup marker check: pass;active App/Home/Trades runtime assets do not contain `function VixCard`, `useCountUpOnScroll`, `browserWsAllowed`, `wsEnabled`, `setStockRealtimeStatus`, `tqqqCurrent`, `computedExits`, `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`.
+  - Production realtime marker check: pass;active runtime assets still contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`;Settings chunk still contains `v10.7.9.143` and `行情诊断日志`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/App.jsx` 的清理和 `tests/tool-ledger-boundaries.test.js` 新增断言即可;不会影响 `/api/quote` 鉴权、EODHD token 服务端隔离、三套 WebSocket relay、交易主账本、波段记录或摊薄工具数据。
 - Follow-up: 需用户确认的潜在优化包括:是否继续把 `resetAll` 的原生 `confirm/prompt/alert` 改为应用内二次确认弹窗;是否处理已注销的 `public/sw.js` 历史文件;是否拆分设置页超长历史更新日志以继续降低设置页 chunk。
 

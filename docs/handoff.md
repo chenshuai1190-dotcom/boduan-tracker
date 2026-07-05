@@ -6,27 +6,27 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `345a9481a5d7599b2a987106071f636b3b18a1da`。
-- 当前运行时代码提交: `345a9481a5d7599b2a987106071f636b3b18a1da`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `6253fcdb85f81276a824aed2ac2cbd070c184c23`。
+- 当前运行时代码提交: `6253fcdb85f81276a824aed2ac2cbd070c184c23`。
 - 设置页版本: `v10.7.9.143`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, production marker verified for runtime commit `345a9481a5d7599b2a987106071f636b3b18a1da`。
+- 最新运行时 Vercel 部署: success, production marker verified for runtime commit `6253fcdb85f81276a824aed2ac2cbd070c184c23`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 生产 assets 包含 `/api/stocks-realtime`、`v10.7.9.143`、`行情诊断日志`、`xmoney_quote_diagnostic_log_v1`、`auto-silent`、`manual-visible`;active App/Home/Trades runtime assets 不含 `ws.eodhistoricaldata.com` / `VITE_EODHD_TOKEN` / `VITE_ALLOW_BROWSER_EODHD_WS`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
-- 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;后台 REST 兜底失败静默写入设置页行情诊断日志,手动刷新失败仍提示;后续视觉任务务必先用本地 390×844 视口验证。
+- 线上关键验证: 生产 active App/Home/Trades runtime assets 包含 `/api/stocks-realtime`、`/api/indices-realtime`、`/api/btc-realtime` 和 `stock_tick`,不含 `function VixCard`、`useCountUpOnScroll`、`browserWsAllowed`、`wsEnabled`、`setStockRealtimeStatus`、`tqqqCurrent`、`computedExits`、`ws.eodhistoricaldata.com`、`VITE_EODHD_TOKEN` 或 `VITE_ALLOW_BROWSER_EODHD_WS`;Settings chunk 包含 `v10.7.9.143` 和 `行情诊断日志`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
+- 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;后台 REST 兜底失败静默写入设置页行情诊断日志,手动刷新失败仍提示;`v10.7.9.143` 运行时代码已额外清理老 VIX 卡、浏览器 WS 占位、旧 TQQQ-only 汇总和不可见股票 WS state 更新;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `345a9481a5d7599b2a987106071f636b3b18a1da` (`v10.7.9.143`,行情诊断日志和自动失败静默)
-- 最近应用代码提交: `345a9481a5d7599b2a987106071f636b3b18a1da`
+- 当前产品基准提交: `6253fcdb85f81276a824aed2ac2cbd070c184c23` (`v10.7.9.143`,老版无效代码清理和股票实时渲染减负)
+- 最近应用代码提交: `6253fcdb85f81276a824aed2ac2cbd070c184c23`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.143`
-- Vercel 最新运行时部署: success, `v10.7.9.143` production marker verified for runtime commit `345a9481a5d7599b2a987106071f636b3b18a1da`
+- Vercel 最新运行时部署: success, `v10.7.9.143` production marker verified for runtime commit `6253fcdb85f81276a824aed2ac2cbd070c184c23`
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.143` runtime commit `345a9481a5d7599b2a987106071f636b3b18a1da`;GitHub Actions run `28748329288` pass;production `GET https://boduan-tracker.vercel.app/?v=345a948-quote-diag-143` HTTP 200;production assets contain `/api/stocks-realtime`, `v10.7.9.143`, `行情诊断日志`, `xmoney_quote_diagnostic_log_v1`, `auto-silent`, and `manual-visible`;active App/Home/Trades runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+- Vercel 部署记录: `v10.7.9.143` runtime commit `6253fcdb85f81276a824aed2ac2cbd070c184c23`;GitHub Actions run `28748702825` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G5LhsNe8XHYEWqRVsQTWF7cTojnd`;production `GET https://boduan-tracker.vercel.app/?v=6253fcd-runtime-cleanup-3` HTTP 200;loaded `App-BIVcrVdu.js`, `HomeTab-4NbUE9pN.js`, `TradesTab-uyI19HGM.js`, `SettingsTab-DQJSM5zg.js`;active App/Home/Trades runtime assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`,and do not contain `function VixCard`, `useCountUpOnScroll`, `browserWsAllowed`, `wsEnabled`, `setStockRealtimeStatus`, `tqqqCurrent`, `computedExits`, `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`;Settings chunk contains `v10.7.9.143` and `行情诊断日志`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -591,13 +591,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `345a9481a5d7599b2a987106071f636b3b18a1da`
-当前产品基准提交: `345a9481a5d7599b2a987106071f636b3b18a1da` (`v10.7.9.143`,行情诊断日志和自动失败静默)
-最近应用代码提交: `345a9481a5d7599b2a987106071f636b3b18a1da`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `6253fcdb85f81276a824aed2ac2cbd070c184c23`
+当前产品基准提交: `6253fcdb85f81276a824aed2ac2cbd070c184c23` (`v10.7.9.143`,老版无效代码清理和股票实时渲染减负)
+最近应用代码提交: `6253fcdb85f81276a824aed2ac2cbd070c184c23`
 设置页版本: `v10.7.9.143`
-Vercel 最新运行时部署: success, `v10.7.9.143` production marker verified for runtime commit `345a9481a5d7599b2a987106071f636b3b18a1da`
+Vercel 最新运行时部署: success, `v10.7.9.143` production marker verified for runtime commit `6253fcdb85f81276a824aed2ac2cbd070c184c23`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: `v10.7.9.143` runtime commit `345a9481a5d7599b2a987106071f636b3b18a1da`;GitHub Actions run `28748329288` pass;production `GET https://boduan-tracker.vercel.app/?v=345a948-quote-diag-143` HTTP 200;production marker check confirms assets contain `/api/stocks-realtime`, `v10.7.9.143`, `行情诊断日志`, `xmoney_quote_diagnostic_log_v1`, `auto-silent` and `manual-visible`;active App/Home/Trades runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+部署记录: `v10.7.9.143` runtime commit `6253fcdb85f81276a824aed2ac2cbd070c184c23`;GitHub Actions run `28748702825` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G5LhsNe8XHYEWqRVsQTWF7cTojnd`;production `GET https://boduan-tracker.vercel.app/?v=6253fcd-runtime-cleanup-3` HTTP 200;production marker check confirms loaded `App-BIVcrVdu.js`, `HomeTab-4NbUE9pN.js`, `TradesTab-uyI19HGM.js`, `SettingsTab-DQJSM5zg.js`;active App/Home/Trades runtime assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime` and `stock_tick`,and do not contain `function VixCard`, `useCountUpOnScroll`, `browserWsAllowed`, `wsEnabled`, `setStockRealtimeStatus`, `tqqqCurrent`, `computedExits`, `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;Settings chunk contains `v10.7.9.143` and `行情诊断日志`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -627,6 +627,7 @@ Vercel 最新运行时部署: success, `v10.7.9.143` production marker verified 
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.143` 运行时代码清理和股票实时渲染减负已完成部署和本地/线上验证:删除老版独立 `VixCard`、滚动计数 Hook、浏览器直连 WS 占位、旧 TQQQ-only 汇总/止盈线白算和不可见股票 WS React state 更新;股票 tick 仍写入 `quoteCache`,三套服务端 realtime relay 和 `/api/quote` 鉴权保持不变;设置页版本不变,因为没有用户可见功能变化。
 - `v10.7.9.143` 行情诊断日志和自动失败静默已完成部署和本地/线上验证:自动启动、定时轮询和回到前台触发的 REST 兜底刷新失败只写诊断日志和 console,不再弹底部红条;下拉刷新和首页/交易页手动刷新失败仍会提示;设置页新增 `行情诊断日志`,记录根因、来源、触发方式、请求范围、HTTP 状态、耗时和重复次数。
 - `v10.7.9.142` 工具行情 WebSocket 秒级推送已完成部署和本地/线上验证:摊薄工具和波段记录的股票代码加入统一 `quoteRows`,并进入已登录 `/api/stocks-realtime` 订阅;工具现价优先从 `quoteRows/quoteCache` 读取,但摊薄成本仍只写 `cost_basis_trades`,波段记录仍只写旧 `trades`,不污染自选或正式主账本。
 - `v10.7.9.141` 交易持仓 WebSocket 秒级推送已完成部署和本地/线上验证:新增已登录 `/api/stocks-realtime` 服务端 relay,股票 tick 写入 `quoteCache`,首页持仓、交易页头部总资产/今日盈亏/累计盈亏和交易页持仓列表通过 `investmentSummary` 同步刷新;三大指数继续秒级更新价格和曲线,但不再显示重复连接态;只有 BTC 卡保留实时状态徽标。
