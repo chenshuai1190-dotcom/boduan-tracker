@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.107
+                  v10.7.9.108
                 </span>
               </div>
             </div>
@@ -163,14 +163,25 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.107
+                  v10.7.9.108
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.107', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.108', date: '2026-07-05', latest: true,
+                    items: [
+                      '📐 对齐资产页字号和走势图细节',
+                      '  - 家庭总资产、走势图标题、账户列表和弹窗字号继续按首页层级收紧',
+                      '  - 填月度余额和新增账户按钮文字/图标尺寸同步首页按钮规格',
+                      '  - 12 个月走势图点选提示补回较上月金额和百分比',
+                      '  - 走势图左侧点位右移,避免初始圆圈碰到纵轴数字',
+                      '  - 走势图底部补充中间月份标注,让 08 月、01 月、07 月更均衡',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.107', date: '2026-07-05',
                     items: [
                       '🧩 修复资产页深色视觉和本地预览',
                       '  - 资产页外层壳同步为首页同款深色背景和深色底部导航',
@@ -1107,7 +1118,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.107</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.108</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

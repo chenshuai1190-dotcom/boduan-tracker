@@ -162,7 +162,7 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.equal(analysisTabSource.includes('setUsdRate'), false, 'asset tab should not expose manual USD rate editing');
   assert.equal(analysisTabSource.includes('setHkdRate'), false, 'asset tab should not expose manual HKD rate editing');
   assert.equal(analysisTabSource.includes('alert('), false, 'asset tab validation should not use native alert dialogs');
-  assert.ok(settingsTabSource.includes('v10.7.9.107'), 'settings version should reflect the asset visual fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.108'), 'settings version should reflect the latest asset visual fix');
   assert.ok(settingsTabSource.includes('资产模块 UI 深色重设计'), 'settings changelog should describe the asset module redesign');
 });
 
@@ -175,9 +175,12 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes('assetDrawLine'), 'asset chart should keep the line drawing animation');
   assert.ok(analysisTabSource.includes('assetAreaFadeIn'), 'asset chart area should keep the fade-in animation');
   assert.ok(analysisTabSource.includes('assetDotPop'), 'asset chart points should keep the pop animation');
+  assert.ok(analysisTabSource.includes('selectedChartChangePct'), 'asset chart point tooltip should include the month-over-month percentage');
+  assert.ok(analysisTabSource.includes('chartLabelIndices'), 'asset chart x-axis should include a middle month label');
+  assert.ok(analysisTabSource.includes('const chartLeft = 64'), 'asset chart first point should stay clear of y-axis labels');
   assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
   assert.equal(analysisTabSource.includes('text-[48px]'), false, 'asset header number should not return to the oversized mobile font');
-  assert.ok(settingsTabSource.includes('修复资产页深色视觉和本地预览'), 'settings changelog should document the asset visual fix');
+  assert.ok(settingsTabSource.includes('对齐资产页字号和走势图细节'), 'settings changelog should document the asset typography and chart fix');
 });
 
 test('order action modal stays compact like the current trade record reference', () => {

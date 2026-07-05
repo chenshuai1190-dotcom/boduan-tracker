@@ -4,6 +4,32 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产页字号和走势图细节对齐
+
+- Commit: pending.
+- Background: 用户反馈资产页当前深色版方向正确,但标题、普通文本、数字字号仍需继续按首页文字层级对齐;12 个月走势图点选圆圈疑似缺少上版的百分比信息,初始圆圈贴近纵轴数字,底部月份只显示 08 月和 07 月显得不均衡;同时要求 `填月度余额` 和 `新增账户` 弹窗/按钮的标题、普通文字和图标尺寸也参考首页标准。
+- Changes:
+  - `AnalysisTab` 将家庭总资产主数字降为首页头卡同档 `34px`,标题维持 `13px`,走势图标题降为 `14px`,主操作按钮文字降为 `13px`、图标降为 `14px`,继续保持 46px 紧凑按钮高度。
+  - 账户分组、账户行、添加账户弹窗、填月度余额弹窗和 12 个月详情弹窗继续收紧字号和图标,避免标题/数字在 390px 手机上显得过大。
+  - 走势图点击圆圈后的提示补充 `较上月 金额 · 百分比`,复用详情列表里的月环比口径。
+  - 走势图绘图区左边界从 `58` 右移到 `64`,让初始圆圈和纵轴数字保持稳定间距。
+  - 走势图底部月份标注从首尾两点扩展为 `08月 / 01月 / 07月` 三点,视觉节奏更均衡。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.108`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是资产页前端视觉细节修复,不改变环境变量、API 鉴权、RLS SQL、账户快照数据结构或安全架构结论。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 61 tests.
+  - `npm run build`: pass; `index-Dtk1wtsT.css` 54.09 kB / gzip 9.92 kB, `index-Cu29_MXW.js` 5.15 kB / gzip 2.50 kB, `AnalysisTab-CnslJxxl.js` 29.89 kB / gzip 7.71 kB, `SettingsTab-DCNn0vqE.js` 37.76 kB / gzip 14.33 kB, `App-BEzmvHze.js` 142.49 kB / gzip 40.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/`, in-app browser viewport `390x844`;verified body background `rgb(5, 7, 11)`, `家庭总资产` label `13px`, main number `34px`, chart title `14px`, `填月度余额` / `新增账户` buttons `173x46` with `13px` text, chart animation `assetDrawLine`, x-axis labels include `08月` / `01月` / `07月`, first transparent chart hit area starts at `85px` while y-axis label right edge is `75px`, clicking the latest chart point shows `较上月 -¥108.4万 · -3.8%`, and browser console error/warn logs are empty.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复资产页 `v10.7.9.107` 的较大标题/数字字号、走势图首尾月份标注和较靠左的初始点位;不影响账户、月度快照、汇率拉取、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 资产页深色视觉修复和本地预览
 
 - Commit: `858869a8442e6d575c858a5f5c792971161e26cf`

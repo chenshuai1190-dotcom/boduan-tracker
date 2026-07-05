@@ -48,7 +48,7 @@ const ACCOUNT_PRESETS = {
   其他: ['房产', '车', '黄金', '保险'],
 };
 
-const inputClassName = 'w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[14px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]';
+const inputClassName = 'w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]';
 
 function numberValue(value) {
   const n = Number(value);
@@ -203,10 +203,17 @@ export default function AnalysisTab({ ctx }) {
     { label: '近一年', value: yearChange, pct: yearChangePct, enabled: totalYearAgo > 0 },
   ];
 
+  const chartLeft = 64;
+  const chartRight = 306;
+  const chartTop = 18;
+  const chartBottom = 124;
+  const chartWidth = chartRight - chartLeft;
+  const chartHeight = chartBottom - chartTop;
+  const chartLabelIndices = new Set([0, Math.floor((last12Months.length - 1) / 2), last12Months.length - 1]);
   const chartPoints = chartData
     .map((v, i) => {
-      const x = 44 + (i / Math.max(chartData.length - 1, 1)) * 260;
-      const y = 112 - (v / chartVisualMax) * 92;
+      const x = chartLeft + (i / Math.max(chartData.length - 1, 1)) * chartWidth;
+      const y = chartBottom - (v / chartVisualMax) * chartHeight;
       return { x, y, v, i };
     })
     .filter(p => p.v > 0);
@@ -215,7 +222,7 @@ export default function AnalysisTab({ ctx }) {
     ? `M ${chartPoints[0].x} ${chartPoints[0].y} ${chartPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`
     : '';
   const chartArea = chartPath
-    ? `${chartPath} L ${chartPoints[chartPoints.length - 1].x} 124 L ${chartPoints[0].x} 124 Z`
+    ? `${chartPath} L ${chartPoints[chartPoints.length - 1].x} ${chartBottom} L ${chartPoints[0].x} ${chartBottom} Z`
     : '';
   const chartPathLength = Math.max(1, chartPoints.reduce((sum, point, idx) => {
     if (idx === 0) return sum;
@@ -225,6 +232,11 @@ export default function AnalysisTab({ ctx }) {
 
   const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0;
   const selectedChartMonth = chartSelectedMonthIdx !== null ? last12Months[chartSelectedMonthIdx] : '';
+  const selectedChartPrevValue = chartSelectedMonthIdx !== null && chartSelectedMonthIdx > 0
+    ? chartData[chartSelectedMonthIdx - 1]
+    : 0;
+  const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
+  const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
 
   return (
     <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
@@ -238,21 +250,21 @@ export default function AnalysisTab({ ctx }) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[13px] tracking-[0.12em]" style={{ color: ASSET_GOLD }}>
+            <div className="flex items-center gap-1.5 text-[13px]" style={{ color: ASSET_GOLD }}>
               <span>家庭总资产</span>
               <Info className="h-3.5 w-3.5 text-white/[0.35]" strokeWidth={1.8} />
             </div>
             <div
-              className="mt-5 text-[38px] leading-none tracking-normal sm:text-[42px]"
+              className="mt-4 text-[34px] leading-none tracking-normal sm:text-[38px]"
               style={{ color: '#ffd37d', fontFamily: ASSET_NUMBER_FONT, fontWeight: 400 }}
             >
-              ¥{fmtWan(totalNow)}<span className="ml-1 text-[16px]">万</span>
+              ¥{fmtWan(totalNow)}<span className="ml-1 text-[14px]">万</span>
             </div>
           </div>
 
           <button
             onClick={() => setShowMonthsDetail(true)}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-2 text-[13px] active:scale-95 transition"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-1.5 text-[12px] active:scale-95 transition"
             style={{ color: ASSET_GOLD }}
             title="查看 12 个月走势"
           >
@@ -262,7 +274,7 @@ export default function AnalysisTab({ ctx }) {
           </button>
         </div>
 
-        <div className="mt-7 grid grid-cols-3 gap-0">
+        <div className="mt-6 grid grid-cols-3 gap-0">
           {metricItems.map((item, idx) => {
             const positive = item.value >= 0;
             const color = positive ? ASSET_PINK : ASSET_GREEN;
@@ -293,27 +305,34 @@ export default function AnalysisTab({ ctx }) {
           style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}
         >
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[16px] text-white/90">
-              <LineChart className="h-[18px] w-[18px]" style={{ color: ASSET_PINK }} strokeWidth={1.8} />
+            <div className="flex items-center gap-1.5 text-[14px] text-white/90">
+              <LineChart className="h-4 w-4" style={{ color: ASSET_PINK }} strokeWidth={1.8} />
               <span>12 个月走势</span>
             </div>
             <button
               onClick={() => setShowMonthsDetail(true)}
-              className="text-[12px] text-white/[0.45] active:text-white/70"
+              className="text-[11px] text-white/[0.45] active:text-white/70"
             >
               月度 · 点圆查看
             </button>
           </div>
 
           {selectedChartValue > 0 && (
-            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-center text-[12px] text-white/60">
-              <span>{monthText(selectedChartMonth)} · </span>
-              <span className="tabular-nums" style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(selectedChartValue)}万</span>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-[12px] text-white/60">
+              <div className="min-w-0">
+                <div className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{monthText(selectedChartMonth)}</div>
+                {selectedChartChange !== null && (
+                  <div className="mt-1 truncate tabular-nums" style={{ color: selectedChartChange >= 0 ? ASSET_PINK : ASSET_GREEN, fontFamily: ASSET_NUMBER_FONT }}>
+                    较上月 {fmtSignedWan(selectedChartChange)} · {fmtSignedPct(selectedChartChangePct)}
+                  </div>
+                )}
+              </div>
+              <span className="shrink-0 text-[13px] tabular-nums" style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(selectedChartValue)}万</span>
             </div>
           )}
 
           <div className="mt-3">
-            <svg viewBox="0 0 320 138" className="h-[150px] w-full overflow-visible" style={{ '--asset-chart-path-length': chartPathLength }}>
+            <svg viewBox="0 0 320 138" className="h-[142px] w-full overflow-visible" style={{ '--asset-chart-path-length': chartPathLength }}>
               <defs>
                 <linearGradient id="assetChartArea" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={ASSET_PINK} stopOpacity="0.36" />
@@ -359,12 +378,12 @@ export default function AnalysisTab({ ctx }) {
               `}</style>
 
               {[0, 0.33, 0.66, 1].map((t) => {
-                const y = 20 + t * 92;
+                const y = chartTop + t * chartHeight;
                 const labelValue = chartVisualMax * (1 - t);
                 return (
                   <g key={t}>
-                    <line x1="44" x2="304" y1={y} y2={y} stroke="rgba(255,255,255,0.13)" strokeDasharray="4 5" strokeWidth="0.7" />
-                    <text x="4" y={y + 4} fill="rgba(255,255,255,0.42)" fontSize="9" fontFamily={ASSET_NUMBER_FONT}>
+                    <line x1={chartLeft} x2={chartRight} y1={y} y2={y} stroke="rgba(255,255,255,0.13)" strokeDasharray="4 5" strokeWidth="0.7" />
+                    <text x="2" y={y + 4} fill="rgba(255,255,255,0.42)" fontSize="8.5" fontFamily={ASSET_NUMBER_FONT}>
                       {labelValue <= 0 ? '0' : `${fmtWan(labelValue)}万`}
                     </text>
                   </g>
@@ -378,7 +397,7 @@ export default function AnalysisTab({ ctx }) {
                 const selected = chartSelectedMonthIdx === p.i;
                 return (
                   <g key={p.i}>
-                    {selected && <line x1={p.x} x2={p.x} y1={p.y} y2="124" stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />}
+                    {selected && <line x1={p.x} x2={p.x} y1={p.y} y2={chartBottom} stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />}
                     <circle className="asset-chart-dot" cx={p.x} cy={p.y} r={selected ? 5.8 : 4.4} fill={ASSET_CARD} stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${180 + idx * 52}ms` }} />
                     <circle className="asset-chart-dot" cx={p.x} cy={p.y} r={selected ? 2.2 : 1.8} fill={ASSET_PINK} style={{ animationDelay: `${220 + idx * 52}ms` }} />
                     <circle
@@ -389,12 +408,16 @@ export default function AnalysisTab({ ctx }) {
                       onClick={() => setChartSelectedMonthIdx(prev => (prev === p.i ? null : p.i))}
                       style={{ cursor: 'pointer' }}
                     />
-                    {(idx === 0 || idx === chartPoints.length - 1) && (
-                      <text x={p.x} y="136" fill="rgba(255,255,255,0.45)" fontSize="11" textAnchor="middle" fontFamily={ASSET_NUMBER_FONT}>
-                        {last12Months[p.i].slice(5)}月
-                      </text>
-                    )}
                   </g>
+                );
+              })}
+              {last12Months.map((month, idx) => {
+                if (!chartLabelIndices.has(idx)) return null;
+                const x = chartLeft + (idx / Math.max(last12Months.length - 1, 1)) * chartWidth;
+                return (
+                  <text key={month} x={x} y="136" fill="rgba(255,255,255,0.45)" fontSize="11" textAnchor="middle" fontFamily={ASSET_NUMBER_FONT}>
+                    {month.slice(5)}月
+                  </text>
                 );
               })}
             </svg>
@@ -407,8 +430,8 @@ export default function AnalysisTab({ ctx }) {
               ['区间', chartRange],
             ].map(([label, value], idx) => (
               <div key={label} className={idx === 0 ? '' : 'border-l border-white/10'}>
-                <div className="text-[12px] text-white/[0.42]">{label}</div>
-                <div className="mt-1.5 text-[15px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(value)}万</div>
+                <div className="text-[11px] text-white/[0.42]">{label}</div>
+                <div className="mt-1.5 text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(value)}万</div>
               </div>
             ))}
           </div>
@@ -423,10 +446,10 @@ export default function AnalysisTab({ ctx }) {
             setShowFillSnapshot(true);
           }}
           disabled={accounts.length === 0}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[14px] active:scale-95 transition disabled:opacity-35"
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[13px] active:scale-95 transition disabled:opacity-35"
           style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.06)' }}
         >
-          <CalendarDays className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+          <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span className="truncate">填月度余额</span>
         </button>
         <button
@@ -434,9 +457,9 @@ export default function AnalysisTab({ ctx }) {
             setAssetMessage(null);
             setShowAddAccount(true);
           }}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[14px] text-white/[0.82] active:scale-95 transition"
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition"
         >
-          <Plus className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+          <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span className="truncate">新增账户</span>
         </button>
       </div>
@@ -446,14 +469,14 @@ export default function AnalysisTab({ ctx }) {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/25 text-white/[0.65]">
             <PiggyBank className="h-7 w-7" strokeWidth={1.8} />
           </div>
-          <div className="text-[18px] text-white/[0.88]">还没有账户</div>
-          <div className="mt-2 text-[13px] text-white/[0.45]">添加你和家人的账户,记录每月余额</div>
+          <div className="text-[16px] text-white/[0.88]">还没有账户</div>
+          <div className="mt-2 text-[12px] text-white/[0.45]">添加你和家人的账户,记录每月余额</div>
           <button
             onClick={() => {
               setAssetMessage(null);
               setShowAddAccount(true);
             }}
-            className="mt-5 rounded-xl border px-5 py-2.5 text-[14px] active:scale-95 transition"
+            className="mt-5 rounded-xl border px-5 py-2.5 text-[13px] active:scale-95 transition"
             style={{ borderColor: 'rgba(246,197,111,0.6)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
           >
             添加第一个账户
@@ -471,10 +494,10 @@ export default function AnalysisTab({ ctx }) {
         >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[18px] leading-none text-white/[0.92]">{owner}</div>
+                <div className="text-[16px] leading-none text-white/[0.92]">{owner}</div>
                 <div className="mt-2 text-[12px] text-white/[0.45]">{ownerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
               </div>
-              <div className="text-right text-[23px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
+              <div className="text-right text-[21px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
                 ¥{fmtWan(total)}万
               </div>
             </div>
@@ -492,15 +515,15 @@ export default function AnalysisTab({ ctx }) {
                     key={acc.id}
                     className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5"
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
-                      <AccountTypeIcon type={acc.type} className="h-5 w-5" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
+                      <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
-                      <div className="truncate text-[14px] text-white/[0.88]">{acc.name}</div>
+                      <div className="truncate text-[13px] text-white/[0.88]">{acc.name}</div>
                       <div className="mt-1 text-[11px] text-white/[0.42]">{acc.type}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                      <div className="text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
                         {acc.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(acc.currency)}${fmt(bal, 0)}`}
                       </div>
                       {acc.currency !== 'CNY' && (
@@ -532,22 +555,22 @@ export default function AnalysisTab({ ctx }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[22px] text-white/[0.92]">添加账户</h3>
-              <button onClick={closeAddAccount} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-5 w-5" strokeWidth={1.8} />
+              <h3 className="text-[17px] text-white/[0.92]">添加账户</h3>
+              <button onClick={closeAddAccount} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
+                <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
             </div>
 
             <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-[13px] text-white/[0.55]">拥有人</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">拥有人</label>
                   <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
                     {['我', '老婆'].map(owner => (
                       <button
                         key={owner}
                         onClick={() => setNewAccount({ ...newAccount, owner })}
-                        className="rounded-lg py-2.5 text-[15px] transition"
+                        className="rounded-lg py-2.5 text-[13px] transition"
                         style={newAccount.owner === owner ? { background: 'rgba(37,99,235,0.34)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.7)' } : { color: 'rgba(255,255,255,0.52)' }}
                       >
                         {owner}
@@ -557,7 +580,7 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[13px] text-white/[0.55]">类型</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">类型</label>
                   <div className="grid grid-cols-4 gap-2">
                     {ACCOUNT_TYPE_OPTIONS.map(({ type, Icon }) => {
                       const active = newAccount.type === type;
@@ -565,12 +588,12 @@ export default function AnalysisTab({ ctx }) {
                         <button
                           key={type}
                           onClick={() => setNewAccount({ ...newAccount, type, icon: type })}
-                          className="flex aspect-square min-h-[76px] flex-col items-center justify-center gap-2 rounded-xl border text-[13px] transition"
+                          className="flex aspect-square min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl border text-[12px] transition"
                           style={active
                             ? { borderColor: '#2563eb', color: ASSET_GOLD, background: 'rgba(37,99,235,0.18)', boxShadow: '0 0 18px rgba(37,99,235,0.18)' }
                             : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
                         >
-                          <Icon className="h-7 w-7" strokeWidth={1.7} />
+                          <Icon className="h-5 w-5" strokeWidth={1.7} />
                           <span>{type}</span>
                         </button>
                       );
@@ -579,13 +602,13 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[13px] text-white/[0.55]">账户名</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">账户名</label>
                   <div className="mb-2 flex flex-wrap gap-2">
                     {(ACCOUNT_PRESETS[newAccount.type] || []).map(name => (
                       <button
                         key={name}
                         onClick={() => setNewAccount({ ...newAccount, name })}
-                        className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[13px] text-white/[0.65] active:scale-95 transition"
+                        className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] text-white/[0.65] active:scale-95 transition"
                         style={newAccount.name === name ? { color: ASSET_GOLD, borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' } : undefined}
                       >
                         {name}
@@ -602,13 +625,13 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[13px] text-white/[0.55]">币种</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">币种</label>
                   <div className="grid grid-cols-3 gap-3">
                     {['CNY', 'USD', 'HKD'].map(currency => (
                       <button
                         key={currency}
                         onClick={() => setNewAccount({ ...newAccount, currency })}
-                        className="rounded-xl border py-3 text-[16px] tabular-nums transition"
+                        className="rounded-xl border py-2.5 text-[13px] tabular-nums transition"
                         style={newAccount.currency === currency
                           ? { borderColor: '#2563eb', color: '#f7fbff', background: 'rgba(37,99,235,0.34)', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.45)' }
                           : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.56)', background: 'rgba(255,255,255,0.035)' }}
@@ -620,7 +643,7 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[13px] text-white/[0.55]">当前余额 (可稍后填)</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">当前余额 (可稍后填)</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -643,7 +666,7 @@ export default function AnalysisTab({ ctx }) {
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <button
                   onClick={closeAddAccount}
-                  className="min-h-[52px] rounded-xl border border-white/10 bg-white/[0.055] text-[16px] text-white/70 active:scale-95 transition"
+                  className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
                 >
                   取消
                 </button>
@@ -685,7 +708,7 @@ export default function AnalysisTab({ ctx }) {
                       setAssetMessage({ type: 'error', text: `添加失败: ${e.message || '未知错误'}` });
                     }
                   }}
-                  className="min-h-[52px] rounded-xl bg-[#2563eb] text-[16px] text-white active:scale-95 transition"
+                  className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
                 >
                   添加
                 </button>
@@ -699,12 +722,12 @@ export default function AnalysisTab({ ctx }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 backdrop-blur-sm" onClick={() => setAccountDeleteConfirmId(null)}>
           <div className="w-full max-w-[360px] rounded-[22px] border border-white/[0.12] bg-[#0b1018] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-[20px] text-white/[0.92]">删除账户</h3>
+              <h3 className="text-[17px] text-white/[0.92]">删除账户</h3>
               <button onClick={() => setAccountDeleteConfirmId(null)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
                 <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
             </div>
-            <p className="mt-3 text-[14px] leading-relaxed text-white/[0.55]">
+            <p className="mt-3 text-[13px] leading-relaxed text-white/[0.55]">
               删除 <span className="text-white/[0.86]">{accounts.find(a => a.id === accountDeleteConfirmId)?.name}</span>?
               <br />
               该账户所有月度快照也会一起删除。
@@ -717,7 +740,7 @@ export default function AnalysisTab({ ctx }) {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 onClick={() => setAccountDeleteConfirmId(null)}
-                className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[15px] text-white/70 active:scale-95 transition"
+                className="min-h-[44px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
               >
                 取消
               </button>
@@ -734,7 +757,7 @@ export default function AnalysisTab({ ctx }) {
                     setAssetMessage({ type: 'error', text: `删除失败: ${e.message || '未知错误'}` });
                   }
                 }}
-                className="min-h-[46px] rounded-xl border border-rose-400/[0.35] bg-rose-400/[0.12] text-[15px] text-rose-200 active:scale-95 transition"
+                className="min-h-[44px] rounded-xl border border-rose-400/[0.35] bg-rose-400/[0.12] text-[13px] text-rose-200 active:scale-95 transition"
               >
                 删除
               </button>
@@ -747,8 +770,8 @@ export default function AnalysisTab({ ctx }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 backdrop-blur-sm" onClick={() => setShowMonthsDetail(false)}>
           <div className="w-full max-w-[390px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <div className="flex items-center gap-2 text-[20px] text-white/[0.92]">
-                <CalendarDays className="h-5 w-5" style={{ color: ASSET_GOLD }} strokeWidth={1.8} />
+              <div className="flex items-center gap-1.5 text-[16px] text-white/[0.92]">
+                <CalendarDays className="h-4 w-4" style={{ color: ASSET_GOLD }} strokeWidth={1.8} />
                 <span>12 个月资产走势</span>
               </div>
               <button onClick={() => setShowMonthsDetail(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
@@ -773,11 +796,11 @@ export default function AnalysisTab({ ctx }) {
                       : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}
                   >
                     <div>
-                      <div className="text-[15px] tabular-nums text-white/[0.82]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{m}</div>
+                      <div className="text-[13px] tabular-nums text-white/[0.82]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{m}</div>
                       {isCurrent && <div className="mt-1 text-[11px]" style={{ color: ASSET_GOLD }}>本月</div>}
                     </div>
                     <div className="text-right">
-                      <div className="text-[16px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                      <div className="text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
                         {hasData ? `¥${fmtWan(total)}万` : '无数据'}
                       </div>
                       {hasData && changeAmt !== null && (
@@ -797,10 +820,10 @@ export default function AnalysisTab({ ctx }) {
                   setFillMonth(currentMonth);
                   setShowFillSnapshot(true);
                 }}
-                className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border text-[15px] active:scale-95 transition"
+                className="flex min-h-[46px] w-full items-center justify-center gap-1.5 rounded-xl border text-[13px] active:scale-95 transition"
                 style={{ borderColor: 'rgba(246,197,111,0.55)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
               >
-                <Plus className="h-4 w-4" strokeWidth={1.8} />
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
                 补录/修改月度余额
               </button>
             </div>
@@ -812,39 +835,39 @@ export default function AnalysisTab({ ctx }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 py-8 backdrop-blur-sm" onClick={closeFillSnapshot}>
           <div className="w-full max-w-[420px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[22px] text-white/[0.92]">填月度余额</h3>
-              <button onClick={closeFillSnapshot} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-5 w-5" strokeWidth={1.8} />
+              <h3 className="text-[17px] text-white/[0.92]">填月度余额</h3>
+              <button onClick={closeFillSnapshot} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
+                <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
             </div>
 
             <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
               <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                <div className="mb-3 text-[13px] text-white/[0.52]">选择月份</div>
+                <div className="mb-3 text-[12px] text-white/[0.52]">选择月份</div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => {
                       setFillMonth(shiftMonth(fillMonth, -1));
                       setSnapshotDraft({});
                     }}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/75 active:scale-95 transition"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/75 active:scale-95 transition"
                   >
-                    <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+                    <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
                   </button>
                   <div className="min-w-0 flex-1 text-center">
-                    <div className="text-[20px] tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>{fillMonth}</div>
-                    {fillMonth === currentMonth && <div className="mt-1 text-[12px] text-blue-300">本月</div>}
-                    {fillMonth > currentMonth && <div className="mt-1 text-[12px] text-amber-300">未来月</div>}
-                    {fillMonth < currentMonth && <div className="mt-1 text-[12px] text-white/[0.42]">历史月</div>}
+                    <div className="text-[17px] tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>{fillMonth}</div>
+                    {fillMonth === currentMonth && <div className="mt-1 text-[11px] text-blue-300">本月</div>}
+                    {fillMonth > currentMonth && <div className="mt-1 text-[11px] text-amber-300">未来月</div>}
+                    {fillMonth < currentMonth && <div className="mt-1 text-[11px] text-white/[0.42]">历史月</div>}
                   </div>
                   <button
                     onClick={() => {
                       setFillMonth(shiftMonth(fillMonth, 1));
                       setSnapshotDraft({});
                     }}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/75 active:scale-95 transition"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/75 active:scale-95 transition"
                   >
-                    <ChevronRight className="h-5 w-5" strokeWidth={1.8} />
+                    <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
                   </button>
                 </div>
               </div>
@@ -874,11 +897,11 @@ export default function AnalysisTab({ ctx }) {
                             <button
                               key={owner}
                               onClick={() => setSnapshotTab(owner)}
-                              className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-[15px] transition"
+                              className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-[13px] transition"
                               style={active ? { background: 'rgba(37,99,235,0.32)', color: '#f7fbff' } : { color: 'rgba(255,255,255,0.52)' }}
                             >
                               <span>{owner}</span>
-                              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[12px]">{accs.length}</span>
+                              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{accs.length}</span>
                             </button>
                           );
                         })}
@@ -886,7 +909,7 @@ export default function AnalysisTab({ ctx }) {
                     )}
 
                     {hasMulti && (
-                      <div className="mt-4 flex items-center justify-between text-[13px] text-white/[0.52]">
+                      <div className="mt-4 flex items-center justify-between text-[12px] text-white/[0.52]">
                         <span>{snapshotTab} · {currentAccs.length} 个账户</span>
                         <span className="tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 0)}</span>
                       </div>
@@ -899,12 +922,12 @@ export default function AnalysisTab({ ctx }) {
                         const accent = acc.owner === '老婆' ? ASSET_PINK : ASSET_GOLD;
                         return (
                           <div key={acc.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
-                              <AccountTypeIcon type={acc.type} className="h-6 w-6" />
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
+                              <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[15px] text-white/[0.86]">{acc.name}</div>
-                              <div className="mt-1 text-[12px] text-white/[0.42]">{acc.currency}</div>
+                              <div className="truncate text-[13px] text-white/[0.86]">{acc.name}</div>
+                              <div className="mt-1 text-[11px] text-white/[0.42]">{acc.currency}</div>
                             </div>
                             <input
                               type="number"
@@ -913,7 +936,7 @@ export default function AnalysisTab({ ctx }) {
                               value={draftVal}
                               onChange={(e) => setSnapshotDraft({ ...snapshotDraft, [acc.id]: e.target.value })}
                               placeholder="0"
-                              className="w-[128px] min-w-0 max-w-full box-border rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-right text-[15px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]"
+                              className="w-[116px] min-w-0 max-w-full box-border rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-right text-[13px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]"
                               style={{ colorScheme: 'dark', fontFamily: ASSET_NUMBER_FONT }}
                             />
                           </div>
@@ -933,7 +956,7 @@ export default function AnalysisTab({ ctx }) {
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <button
                   onClick={closeFillSnapshot}
-                  className="min-h-[52px] rounded-xl border border-white/10 bg-white/[0.055] text-[16px] text-white/70 active:scale-95 transition"
+                  className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
                 >
                   取消
                 </button>
@@ -974,7 +997,7 @@ export default function AnalysisTab({ ctx }) {
                       setAssetMessage({ type: 'error', text: `保存失败: ${e.message || '未知错误'}` });
                     }
                   }}
-                  className="min-h-[52px] rounded-xl bg-[#2563eb] text-[16px] text-white active:scale-95 transition"
+                  className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
                 >
                   保存 {fillMonth}
                 </button>
