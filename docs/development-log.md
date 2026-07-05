@@ -4,6 +4,36 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 复盘日志卡片和详情弹窗
+
+- Commit: `pending`
+- Background: 用户要求把复盘日志同步成投资戒律的新标题和卡片体系,复盘内容卡片可以展示更多正文;点击复盘后先进入可预览的详情弹窗,修改/删除按钮放到底部;日期和情绪放在卡片底部同一行;年度目标默认只展示 2 年,剩余 8 年进入展开按钮。
+- Changes:
+  - 复盘日志模块去掉旧外层卡片和旧 `SectionTitle`,改为与投资戒律一致的独立标题行、左侧橙色短竖条和右侧低色彩 `+ 写复盘` 胶囊按钮。
+  - 复盘日志列表改为深色大圆角卡片,正文优先展示,最多预览 150 字并用低色彩 `查看全文` 提示长内容;日期和情绪统一移动到卡片底部同一行。
+  - 新增 `复盘详情` 居中详情弹窗,正文完整显示并保留换行;短内容也保留 `220px` 最小预览空间,底部只保留 `修改`、`删除` 两个 36px 小号按钮。
+  - 复盘详情里的 `修改` 先关闭详情弹窗,再进入原有编辑复盘流程;`删除` 复用原确认逻辑,不引入浏览器原生弹窗。
+  - 年度目标默认展示从 3 年改为 2 年,10 年计划下按钮显示 `展开剩余 8 年`。
+  - 本地视觉预览 `DevVisualPreview` 的复盘编辑占位弹窗改为显示 `编辑复盘`,避免本地点击链路误判。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.124`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页复盘日志和年度默认展示数量的前端视觉/交互调整,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-CCleSwoD.css` 54.35 kB / gzip 10.00 kB,`ReviewTab-3jD8px9N.js` 37.80 kB / gzip 8.73 kB,`SettingsTab-BNBYWZsK.js` 43.08 kB / gzip 16.18 kB,`App-CqImk6tp.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;页面 `scrollWidth=390`,body background `rgb(5, 7, 11)`;年度目标默认只显示 `2026` 和 `2027`,展开按钮为 `展开剩余 8 年`;复盘日志标题与右侧 `+ 写复盘` 同排,添加按钮 `40px`;首条复盘卡片 `358px` 宽、圆角 `22px`、背景 `rgb(11, 17, 25)`,正文 `13px/400`,行高 `21.06px`,日期和情绪位于正文下方同一行;点击首条复盘打开 `复盘详情`,详情正文区 `300x220`,正文 `14px/400`,行高 `25.48px`,日期和情绪位于正文下方同一行,底部只有 `修改`、`删除` 两个 `146x36` / `12px` 小按钮,无底部 `取消`;点击 `修改` 后详情关闭并打开 `编辑复盘` 预览弹窗。
+  - Build marker check: `ReviewTab-3jD8px9N.js` contains `复盘详情`, `min-h-[220px]`, `查看全文`, `展开剩余`, `删除这条复盘?`;`SettingsTab-BNBYWZsK.js` contains `v10.7.9.124` and `复盘日志卡片和详情弹窗`;`App-CqImk6tp.js` contains `编辑复盘`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
+- Deployment: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.123` 的旧复盘日志卡片、点击直接编辑复盘、年度目标默认展示 3 年和本地预览编辑标题旧逻辑;不影响复盘日志数据、投资戒律数据、目标计划数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 投资戒律记录详情弹窗
 
 - Commit: `806ad0daf09266f9d1b05f9681e7b4fe4a315817`

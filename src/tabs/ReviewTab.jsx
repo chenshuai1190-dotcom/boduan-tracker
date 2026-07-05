@@ -34,31 +34,6 @@ function levelMeta(level) {
   return DISCIPLINE_LEVELS.find((item) => item.level === level) || DISCIPLINE_LEVELS[0];
 }
 
-function SectionTitle({ icon, title, count, actionLabel, onAction }) {
-  return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-[#f6b54b]/20 bg-[#f6b54b]/10 text-[15px] text-[#f6b54b]">
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-[15px] font-semibold text-white">{title}</div>
-          {count !== undefined && <div className="mt-0.5 text-[10px] text-white/35">{count}</div>}
-        </div>
-      </div>
-      {actionLabel && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="shrink-0 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-3 py-1.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
-        >
-          {actionLabel}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function ReviewActionSheet({ title, desc, children, onClose }) {
   return (
     <div
@@ -180,6 +155,77 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
   );
 }
 
+function formatReviewLogDetailText(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  return lines.map((line, index) => {
+    if (!line.trim()) {
+      return <div key={`blank-${index}`} className="h-3" />;
+    }
+    return (
+      <p key={`${line}-${index}`} className="whitespace-pre-wrap break-words text-white/72">
+        {line}
+      </p>
+    );
+  });
+}
+
+function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6 py-8 backdrop-blur-lg"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 32px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
+      }}
+    >
+      <div className="w-full max-w-[360px] rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[18px] font-semibold tracking-normal text-white">复盘详情</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/52 active:scale-90"
+            aria-label="关闭复盘详情"
+          >
+            {X ? <X className="h-4 w-4" strokeWidth={1.8} /> : '×'}
+          </button>
+        </div>
+
+        <div className="mt-4 max-h-[58vh] min-h-[220px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {formatReviewLogDetailText(log.text)}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
+          <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
+          {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+          >
+            {Edit2 && <Edit2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
+            <span>修改</span>
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
+          >
+            {Trash2 && <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
+            <span>删除</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReviewTab({ ctx }) {
   const {
     BookOpen,
@@ -231,6 +277,7 @@ export default function ReviewTab({ ctx }) {
 
   const [yearAction, setYearAction] = React.useState(null);
   const [disciplineAction, setDisciplineAction] = React.useState(null);
+  const [reviewLogAction, setReviewLogAction] = React.useState(null);
 
   const plan = investmentPlan || {};
   const startYear = toNumber(plan.startYear, new Date().getFullYear());
@@ -317,8 +364,8 @@ export default function ReviewTab({ ctx }) {
   const visibleYears = showAllYears
     ? yearlyFinal
     : yearlyFinal.filter((_, index) => {
-      if (currentYearIndex === -1) return index < 3;
-      return index >= currentYearIndex && index < currentYearIndex + 3;
+      if (currentYearIndex === -1) return index < 2;
+      return index >= currentYearIndex && index < currentYearIndex + 2;
     });
   const hiddenYearCount = yearlyFinal.length - visibleYears.length;
 
@@ -376,6 +423,29 @@ export default function ReviewTab({ ctx }) {
   const openDisciplineEdit = (discipline) => {
     setDisciplineAction(null);
     setEditingDisciplineId(discipline.id);
+  };
+
+  const deleteReviewLog = (log) => {
+    const logId = log?.id || ctx.editingLogId;
+    if (!logId) return;
+    setReviewLogAction(null);
+    showConfirm({
+      title: '删除这条复盘?',
+      desc: '此操作不可撤销',
+      info: `${log?.date || ''} · ${(log?.text || '').slice(0, 40)}${(log?.text || '').length > 40 ? '...' : ''}`,
+      confirmText: '删除',
+      onConfirm: async () => {
+        await db.deleteReviewLog(logId);
+        setReviewLogs((reviewLogs || []).filter((item) => item.id !== logId));
+        setEditingLogId(null);
+        setShowAddLog(false);
+      },
+    });
+  };
+
+  const openReviewLogEdit = (log) => {
+    setReviewLogAction(null);
+    setEditingLogId(log.id);
   };
 
   const openYearEdit = (year) => {
@@ -792,14 +862,23 @@ export default function ReviewTab({ ctx }) {
         )}
       </section>
 
-      <section className="mt-4 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <SectionTitle
-          icon="✎"
-          title="复盘日志"
-          count={`${reviewLogs.length} 条`}
-          actionLabel="+ 写复盘"
-          onAction={() => setShowAddLog(true)}
-        />
+      <section className="mt-5">
+        <div className="mb-4 flex min-h-10 items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
+            <div className="min-w-0">
+              <div className="truncate text-[19px] font-semibold leading-none tracking-normal text-white">复盘日志</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAddLog(true)}
+            className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-3.5 text-[13px] font-normal text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] active:scale-95"
+          >
+            <span className="text-[20px] font-light leading-none text-white/78">+</span>
+            <span>写复盘</span>
+          </button>
+        </div>
 
         {reviewLogs.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
@@ -808,28 +887,43 @@ export default function ReviewTab({ ctx }) {
         ) : (
           <>
             <div className="space-y-2">
-              {visibleLogs.map((log) => (
-                <button
-                  key={log.id}
-                  type="button"
-                  onClick={() => setEditingLogId(log.id)}
-                  className="block w-full rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left active:scale-[0.99]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-semibold text-white/78 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</div>
-                      <div className="mt-1.5 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/62">{log.text}</div>
+              {visibleLogs.map((log) => {
+                const text = log.text || '';
+                const isLong = text.length > 150;
+                const displayText = isLong ? `${text.slice(0, 150)}...` : text;
+                return (
+                  <div
+                    key={log.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setReviewLogAction(log)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setReviewLogAction(log);
+                      }
+                    }}
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
+                  >
+                    <div className="whitespace-pre-wrap break-words text-[13px] font-normal leading-[1.62] text-white/72">{displayText}</div>
+                    {isLong && (
+                      <div className="mt-2 text-[12px] text-white/38">
+                        查看全文 <span className="text-[13px] leading-none text-white/28">›</span>
+                      </div>
+                    )}
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[12px] text-white/33">
+                      <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
+                      {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}
                     </div>
-                    {log.mood && <span className="shrink-0 rounded-lg border border-sky-400/20 bg-sky-400/10 px-2 py-1 text-[11px] text-sky-300">{log.mood}</span>}
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
             {reviewLogs.length > 10 && (
               <button
                 type="button"
                 onClick={() => setShowAllLogs(!showAllLogs)}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/10 py-2.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-white/[0.07] bg-white/[0.035] py-2.5 text-[12px] font-normal text-white/48 active:scale-95"
               >
                 {showAllLogs ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 {showAllLogs ? '收起, 只看前 10 条' : `查看全部 ${reviewLogs.length} 条`}
@@ -873,6 +967,18 @@ export default function ReviewTab({ ctx }) {
           onEdit={() => openDisciplineEdit(disciplineAction)}
           onTogglePin={() => togglePinDiscipline(disciplineAction)}
           onDelete={() => deleteDiscipline(disciplineAction)}
+        />
+      )}
+
+      {reviewLogAction && (
+        <ReviewLogDetailModal
+          log={reviewLogAction}
+          Edit2={Edit2}
+          Trash2={Trash2}
+          X={X}
+          onClose={() => setReviewLogAction(null)}
+          onEdit={() => openReviewLogEdit(reviewLogAction)}
+          onDelete={() => deleteReviewLog(reviewLogAction)}
         />
       )}
 
@@ -1021,20 +1127,7 @@ export default function ReviewTab({ ctx }) {
           <LogModal
             initial={current || { date: new Date().toISOString().slice(0, 10), mood: '', text: '' }}
             onCancel={() => { setShowAddLog(false); setEditingLogId(null); }}
-            onDelete={isEdit ? () => {
-              showConfirm({
-                title: '删除这条复盘?',
-                desc: '此操作不可撤销',
-                info: `${current?.date || ''} · ${(current?.text || '').slice(0, 40)}${(current?.text || '').length > 40 ? '...' : ''}`,
-                confirmText: '删除',
-                onConfirm: async () => {
-                  await db.deleteReviewLog(ctx.editingLogId);
-                  setReviewLogs(reviewLogs.filter((item) => item.id !== ctx.editingLogId));
-                  setEditingLogId(null);
-                  setShowAddLog(false);
-                },
-              });
-            } : null}
+            onDelete={isEdit ? () => deleteReviewLog(current) : null}
             onSave={async (data) => {
               try {
                 if (isEdit) {

@@ -289,14 +289,25 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('flex h-9 items-center justify-center gap-1.5 rounded-full'), 'discipline detail action buttons should be compact pills');
   assert.equal(reviewTabSource.includes('删除戒律'), false, 'discipline detail modal should not keep the large legacy delete label');
   assert.equal(reviewTabSource.includes('修改戒律'), false, 'discipline detail modal should not keep the large legacy edit label');
+  assert.ok(reviewTabSource.includes('return index >= currentYearIndex && index < currentYearIndex + 2'), 'annual target list should show only two years by default');
+  assert.ok(reviewTabSource.includes('function ReviewLogDetailModal'), 'review logs should open a detail preview modal before editing');
+  assert.ok(reviewTabSource.includes('复盘详情'), 'review log detail modal should use a dedicated detail title');
+  assert.ok(reviewTabSource.includes('min-h-[220px]'), 'review log detail modal should allow more preview space than discipline detail');
+  assert.ok(reviewTabSource.includes('formatReviewLogDetailText(log.text)'), 'review log detail modal should render full review text');
+  assert.ok(reviewTabSource.includes('setReviewLogAction(log)'), 'review log cards should open the preview modal');
+  assert.ok(reviewTabSource.includes('openReviewLogEdit(reviewLogAction)'), 'review log detail modal should expose edit action');
+  assert.ok(reviewTabSource.includes('deleteReviewLog(reviewLogAction)'), 'review log detail modal should expose delete action');
+  assert.ok(reviewTabSource.includes('查看全文'), 'review log cards should preview longer text with a muted full-text hint');
+  assert.ok(reviewTabSource.includes('text-[13px] font-normal leading-[1.62] text-white/72'), 'review log cards should use the new readable body style');
   assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.123'), 'settings version should document the discipline detail modal tune');
-  assert.ok(settingsTabSource.includes('投资戒律记录详情弹窗'), 'settings changelog should describe the discipline detail modal tune');
+  assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
+  assert.ok(settingsTabSource.includes('v10.7.9.124'), 'settings version should document the review log card and modal tune');
+  assert.ok(settingsTabSource.includes('复盘日志卡片和详情弹窗'), 'settings changelog should describe the review log card and modal tune');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

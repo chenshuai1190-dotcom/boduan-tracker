@@ -210,7 +210,7 @@ export default function DevVisualPreview() {
     filterLevel,
     investmentPlan,
     lastSubmitRef,
-    LogModal: (props) => <DevModal title={props.initial?.date ? '写复盘' : '复盘'} onCancel={props.onCancel} />,
+    LogModal: (props) => <DevModal title={props.onDelete ? '编辑复盘' : '写复盘'} onCancel={props.onCancel} />,
     marketColorMode: 'redUpGreenDown',
     reviewLogs,
     setDisciplines,
