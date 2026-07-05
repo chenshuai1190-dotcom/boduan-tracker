@@ -6,12 +6,12 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;写入本交接更新前已确认 `origin/main` 为 `d847f259da72f8fcd46e982b260dc11a4c37e34b`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮交接刷新内容提交为 `669b0707be61e6e032dc183e15373e51669fcba2`。
 - 当前运行时代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`。
 - 设置页版本: `v10.7.9.128`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`。
-- 最新文档同步 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2juZVknqSnSPetoVJ3YQScvXqdCY`。
+- 交接刷新内容已验证 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`。
 - 线上关键验证: `ReviewTab-DvF47Fsk.js` 包含 `v10.7.9.128` 复利明细暗色内部分割线 marker;`SettingsTab-DRKSQz2w.js` 包含 `v10.7.9.128` 和 `复利明细内部层级降色`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`。
 - 当前产品焦点: 目标页已经完成北极星头卡、年度目标、投资戒律、复盘日志、复利明细弹窗的一轮移动端深色化和视觉收敛;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
@@ -22,10 +22,10 @@
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前产品基准提交: `f82785e31b5f1ec16886b03edb636f2596033da6` (`v10.7.9.128`,复利明细内部层级降色)
 - 最近应用代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`
-- 最近文档/配置记录提交: 本文件所在最新提交;上一轮文档同步提交为 `d847f259da72f8fcd46e982b260dc11a4c37e34b`
+- 最近文档/配置记录提交: 本文件所在最新提交;本轮交接刷新内容提交为 `669b0707be61e6e032dc183e15373e51669fcba2`
 - 设置页版本: `v10.7.9.128`
 - Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`
-- Vercel 最新文档同步部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2juZVknqSnSPetoVJ3YQScvXqdCY`
+- 交接刷新内容已验证 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`
 - Vercel 部署记录: `v10.7.9.128` runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
@@ -570,12 +570,12 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;写入本交接更新前已确认 `origin/main = d847f259da72f8fcd46e982b260dc11a4c37e34b`
+当前 GitHub main: 以本文件所在最新提交为准;本轮交接刷新内容提交为 `669b0707be61e6e032dc183e15373e51669fcba2`
 当前产品基准提交: `f82785e31b5f1ec16886b03edb636f2596033da6` (`v10.7.9.128`,复利明细内部层级降色)
 最近应用代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`
 设置页版本: `v10.7.9.128`
 Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`
-Vercel 最新文档同步部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2juZVknqSnSPetoVJ3YQScvXqdCY`
+交接刷新内容已验证 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`
 部署记录: `v10.7.9.128` runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime` HTTP 200;production marker check confirms `ReviewTab-DvF47Fsk.js` has the dark compound-detail internals, `SettingsTab-DRKSQz2w.js` has `v10.7.9.128`, and unauthenticated `/api/quote?symbols=VIX` returns `401`
 
 请先按顺序读:

@@ -6,11 +6,11 @@
 
 ### 2026-07-05 - 产品交接文档刷新
 
-- Commit: `same commit`
+- Commit: `669b0707be61e6e032dc183e15373e51669fcba2`
 - Background: 用户要求写一份可以交接给下一位同事的产品交接文档。现有 `docs/handoff.md` 顶部状态已经到 `v10.7.9.128`,但尾部第 14 节可直接转发话术仍停留在 `v10.7.9.124`,容易让下一位接手者从旧目标页基准开始。
 - Changes:
   - 在 `docs/handoff.md` 顶部新增“给下一位同事的直接接手摘要”,集中列出当前 GitHub main 复核方式、运行时代码提交、设置页版本、生产地址、最新运行时/文档 Vercel 部署、线上关键验证和当前产品焦点。
-  - 当前状态区补充上一轮文档同步提交 `d847f259da72f8fcd46e982b260dc11a4c37e34b` 和最新文档同步 Vercel target `2juZVknqSnSPetoVJ3YQScvXqdCY`。
+  - 当前状态区补充本轮交接刷新内容提交 `669b0707be61e6e032dc183e15373e51669fcba2` 和已验证 Vercel target `JBQozMcgzpZsqUH7BzuybJ6whP7k`。
   - “最近完成的产品改动”和第 14 节“可以直接转发”补齐 `v10.7.9.125` 到 `v10.7.9.128` 的目标页、复盘/戒律、复利明细状态。
   - 第 13 节接手确认项从 `v10.7.9.118` 刷新到 `v10.7.9.128` 或更新版本。
   - 本轮不改 `src/tabs/SettingsTab.jsx`:这是仓库交接文档刷新,不改变用户可见产品功能、设置页版本、线上运行时代码或安全边界。
@@ -24,8 +24,14 @@
   - `npm run build`: pass;build output remains `index-B21CJLxn.css`, `ReviewTab-DvF47Fsk.js`, `SettingsTab-DRKSQz2w.js`, `App-B6-vRVoS.js`.
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities.
   - Documentation consistency checks: pass;第 14 节可直接转发交接块不再包含旧 `v10.7.9.124` 产品基准提交、旧 Vercel target 或旧 `bfaac66-runtime` marker。
-- Deployment: pending;文档提交推送到 GitHub `main` 后由 Vercel 自动部署。
-- Production verification: pending;部署后复核生产 URL、设置页版本 marker 和 `/api/quote` 未鉴权 401。
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed for the handoff refresh content.
+  - Handoff refresh content commit: `669b0707be61e6e032dc183e15373e51669fcba2`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=669b070-handoff`: HTTP 200.
+- Production verification:
+  - Production chunk check: `/assets/ReviewTab-DvF47Fsk.js`, `/assets/SettingsTab-DRKSQz2w.js`, `/assets/App-rex7fF_2.js`, and `/assets/index-B21CJLxn.css` returned HTTP 200.
+  - Production marker check: `ReviewTab-DvF47Fsk.js` contains `data-compound-detail`, dark inner border markers `border-[#232b36]/80`, `border-[#202733]`, `divide-y divide-[#202733]`, and muted label marker `text-[#8a909a]`;`SettingsTab-DRKSQz2w.js` contains `v10.7.9.128` and `复利明细内部层级降色`;production CSS/App chunks do not contain `overscroll-behavior-y:none` or `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次文档更新只会恢复旧交接话术和旧摘要,不影响 `v10.7.9.128` 运行时代码、目标页 UI、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 复利明细内部层级降色
