@@ -268,15 +268,15 @@ export default function AnalysisTab({ ctx }) {
     return sum + Math.hypot(point.x - prev.x, point.y - prev.y);
   }, 0));
   const latestChartPoint = chartPoints[chartPoints.length - 1] || null;
-  const effectiveChartSelectedMonthIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
+  const visibleChartMarkerMonthIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
     ? chartSelectedMonthIdx
     : latestChartPoint?.i ?? null;
   const selectedChartDotDelay = chartSelectedMonthIdx !== null ? 0 : 900;
 
-  const selectedChartValue = effectiveChartSelectedMonthIdx !== null ? chartData[effectiveChartSelectedMonthIdx] : 0;
-  const selectedChartMonth = effectiveChartSelectedMonthIdx !== null ? last12Months[effectiveChartSelectedMonthIdx] : '';
-  const selectedChartPrevValue = effectiveChartSelectedMonthIdx !== null && effectiveChartSelectedMonthIdx > 0
-    ? chartData[effectiveChartSelectedMonthIdx - 1]
+  const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0;
+  const selectedChartMonth = chartSelectedMonthIdx !== null ? last12Months[chartSelectedMonthIdx] : '';
+  const selectedChartPrevValue = chartSelectedMonthIdx !== null && chartSelectedMonthIdx > 0
+    ? chartData[chartSelectedMonthIdx - 1]
     : 0;
   const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
   const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
@@ -530,8 +530,8 @@ export default function AnalysisTab({ ctx }) {
               {chartArea && <path d={chartArea} className="asset-chart-area" fill="url(#assetChartArea)" />}
               {chartPath && <path d={chartPath} className="asset-chart-line" fill="none" stroke={ASSET_PINK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#assetChartGlow)" />}
 
-              {chartPoints.map((p, idx) => {
-                const selected = effectiveChartSelectedMonthIdx === p.i;
+              {chartPoints.map((p) => {
+                const selected = visibleChartMarkerMonthIdx === p.i;
                 return (
                   <g key={p.i}>
                     {selected && (

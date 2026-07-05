@@ -188,9 +188,10 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes('assetDotPop'), 'asset chart points should keep the pop animation');
   assert.ok(analysisTabSource.includes('selectedChartChangePct'), 'asset chart point tooltip should include the month-over-month percentage');
   assert.ok(analysisTabSource.includes('const latestChartPoint = chartPoints[chartPoints.length - 1] || null'), 'asset chart should default the visible marker to the latest valid month');
-  assert.ok(analysisTabSource.includes('const effectiveChartSelectedMonthIdx'), 'asset chart should use an effective selected point instead of showing every point');
+  assert.ok(analysisTabSource.includes('const visibleChartMarkerMonthIdx'), 'asset chart should separate the visible marker from the clicked detail state');
   assert.ok(analysisTabSource.includes('const selectedChartDotDelay = chartSelectedMonthIdx !== null ? 0 : 900'), 'asset chart should let the default final marker appear after the line draw animation');
-  assert.ok(analysisTabSource.includes('const selected = effectiveChartSelectedMonthIdx === p.i'), 'asset chart visible marker should only render for the selected month');
+  assert.ok(analysisTabSource.includes('const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0'), 'asset chart should keep the detail panel hidden until the user clicks a month');
+  assert.ok(analysisTabSource.includes('const selected = visibleChartMarkerMonthIdx === p.i'), 'asset chart visible marker should only render for the selected or latest month');
   assert.ok(analysisTabSource.includes('r="13"'), 'asset chart should keep transparent hit targets for every month');
   assert.equal(analysisTabSource.includes('r={selected ? 5.8 : 4.4}'), false, 'asset chart should not render visible circles for every month');
   assert.ok(analysisTabSource.includes('chartLabelIndices'), 'asset chart x-axis should include a middle month label');
@@ -366,8 +367,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.138'), 'settings version should document the asset chart point update');
-  assert.ok(settingsTabSource.includes('资产走势图点位修正'), 'settings changelog should describe the asset chart point update');
+  assert.ok(settingsTabSource.includes('v10.7.9.139'), 'settings version should document the asset chart detail visibility update');
+  assert.ok(settingsTabSource.includes('资产走势图详情恢复点击显示'), 'settings changelog should describe the asset chart detail visibility update');
+  assert.ok(settingsTabSource.includes('资产走势图点位修正'), 'settings changelog should retain the asset chart point history');
   assert.ok(settingsTabSource.includes('资产页粉色对齐首页'), 'settings changelog should retain the asset pink alignment history');
   assert.ok(settingsTabSource.includes('弹窗国旗背景保留'), 'settings changelog should retain the modal-only review flag background history');
   assert.ok(settingsTabSource.includes('投资戒律国旗背景增强'), 'settings changelog should retain the stronger review flag background history');

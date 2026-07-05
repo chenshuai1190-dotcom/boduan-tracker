@@ -4,6 +4,37 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产走势图详情恢复点击显示
+
+- Commit: `same commit`
+- Background: 用户反馈上一版修正圆点显示时误把最新月份也设为默认选中,导致资产页 `12 个月走势` 默认显示当月盈亏详情;原交互应为默认不显示详情,只有点击月份后才显示。
+- Changes:
+  - `AnalysisTab` 将圆点显示状态和详情选中状态拆开:新增 `visibleChartMarkerMonthIdx` 只负责默认显示最新月份圆点;月度盈亏详情继续只由 `chartSelectedMonthIdx` 控制。
+  - 默认进入资产页时保留最新月份外圈/内点,但不显示月份、较上月变化和金额详情卡。
+  - 点击任意月份后显示该月份详情并移动圆点;再次点击当前月份可收起详情,圆点回到最新月份。
+  - 保留 12 个透明点击热区、曲线动画、面积渐变、资产计算、快照和数据库逻辑不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.139`,新增 `资产走势图详情恢复点击显示` 更新记录。
+  - 测试更新为保护圆点显示状态和详情选中状态分离,防止默认再次显示当月盈亏详情。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是资产页前端交互修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay、资产计算或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;65 tests passed.
+  - `npm run build`: pass;Vite built `AnalysisTab-FL5TmrnT.js`, `SettingsTab-CB3JWNjI.js`, `App-C11MnC6j.js`.
+  - `npm audit`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Source marker check: pass;`selectedChartValue` / `selectedChartMonth` / `selectedChartPrevValue` only read `chartSelectedMonthIdx`,while `visibleChartMarkerMonthIdx` only controls the visible chart marker.
+  - Build marker check: pass;production build contains `月度 · 点击查看`, `v10.7.9.139`, `资产走势图详情恢复点击显示`, does not contain the old visible-every-point radius branch, and does not bundle `DevVisualPreview` in `App`.
+  - Local mobile visual check (`127.0.0.1:5173`, 390x844): pass;default `12 个月走势` shows only the latest outer/inner point and 12 transparent hit targets, no `较上月` detail text, no horizontal overflow;clicking a month shows month/`较上月`/amount detail with one marker;clicking that point again hides the detail and returns the marker to the latest month.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 回退 `AnalysisTab` 的 `visibleChartMarkerMonthIdx` 拆分逻辑和 `v10.7.9.139` 设置页更新日志、开发日志条目、测试断言即可;不影响资产数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 资产走势图只显示选中圆点
 
 - Commit: `414621cb0a0d8e7996d15f1e125dfb28a624cb02`
