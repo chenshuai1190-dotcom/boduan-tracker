@@ -226,6 +226,202 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
   );
 }
 
+function CompoundDetailModal({
+  X,
+  currentBalance,
+  money,
+  onClose,
+  planRows,
+  progressPct,
+  signedMoney,
+  startCapital,
+  startYear,
+  symbol,
+  targetAnnualRate,
+  targetValue,
+  totalYears,
+  rate,
+}) {
+  const displayRows = planRows.map((row) => ({
+    ...row,
+    displayAnnualGain: row.annualGain * rate,
+    displayEndBalance: row.endBalance * rate,
+  }));
+  const displayStart = startCapital * rate;
+  const displayTarget = targetValue * rate;
+  const displayCurrent = currentBalance * rate;
+  const displayMax = Math.max(displayTarget, displayCurrent, displayStart, 1);
+  const chartMax = Math.ceil((displayMax * 1.08) / 1000000 / 4) * 4 * 1000000 || 4000000;
+  const chartWidth = 300;
+  const chartHeight = 132;
+  const padLeft = 32;
+  const padRight = 18;
+  const padTop = 12;
+  const padBottom = 24;
+  const plotWidth = chartWidth - padLeft - padRight;
+  const plotHeight = chartHeight - padTop - padBottom;
+  const pointCount = Math.max(2, totalYears);
+  const chartPoints = Array.from({ length: pointCount }, (_, index) => {
+    const progress = pointCount <= 1 ? 1 : index / (pointCount - 1);
+    const balance = startCapital * Math.pow(1 + targetAnnualRate, progress * totalYears) * rate;
+    const x = padLeft + progress * plotWidth;
+    const y = padTop + plotHeight - (Math.min(balance, chartMax) / chartMax) * plotHeight;
+    return { x, y, balance, year: startYear + index };
+  });
+  const curvePath = chartPoints
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(' ');
+  const areaPath = `${curvePath} L ${chartPoints[chartPoints.length - 1].x.toFixed(1)} ${padTop + plotHeight} L ${chartPoints[0].x.toFixed(1)} ${padTop + plotHeight} Z`;
+  const tickValues = [chartMax, chartMax * 0.75, chartMax * 0.5, chartMax * 0.25, 0];
+  const xLabelIndexes = pointCount <= 6
+    ? chartPoints.map((_, index) => index)
+    : [0, Math.floor((pointCount - 1) / 3), Math.floor((pointCount - 1) * 2 / 3), pointCount - 1];
+  const actualGain = currentBalance - startCapital;
+  const targetGain = targetValue - startCapital;
+  const multiple = startCapital > 0 ? targetValue / startCapital : 0;
+  const actualIndex = clamp(new Date().getFullYear() - startYear, 0, pointCount - 1);
+  const actualX = padLeft + (pointCount <= 1 ? 0 : (actualIndex / (pointCount - 1)) * plotWidth);
+  const actualY = padTop + plotHeight - (Math.min(displayCurrent, chartMax) / chartMax) * plotHeight;
+
+  const formatMillion = (value) => {
+    if (value <= 0) return '0';
+    const million = value / 1000000;
+    return `${million >= 10 ? million.toFixed(0) : million.toFixed(1).replace(/\.0$/, '')}M`;
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-3 py-6 backdrop-blur-lg"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+      }}
+    >
+      <div data-compound-detail="true" className="max-h-[88dvh] w-full max-w-[368px] overflow-y-auto rounded-[22px] border border-white/12 bg-[#0b0f16] px-4 pb-4 pt-4 shadow-[0_26px_90px_rgba(0,0,0,0.74),inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative text-center">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-0 top-[-2px] flex h-8 w-8 items-center justify-center rounded-full text-white/45 active:scale-90"
+            aria-label="关闭复利明细"
+          >
+            {X ? <X className="h-4 w-4" strokeWidth={1.7} /> : '×'}
+          </button>
+          <h2 className="text-[16px] font-semibold leading-none text-[#ffd18a]">{totalYears}年复利明细</h2>
+          <div className="mt-2 text-[12px] leading-none text-white/45">
+            本金 {money(startCapital)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3">
+          {[
+            { label: '目标终值', value: money(targetValue) },
+            { label: '累计收益', value: signedMoney(targetGain) },
+            { label: '复利倍数', value: `${multiple.toFixed(2)}x` },
+          ].map((item, index) => (
+            <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-white/[0.07]' : ''}`}>
+              <div className="text-[11px] text-white/38">{item.label}</div>
+              <div className="mt-2 whitespace-nowrap text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] text-white/38">实际进度</div>
+              <div className="mt-1 truncate text-[12px] text-white/68">
+                当前 <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
+                <span className="mx-1.5 text-white/22">·</span>
+                实际收益 <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-[15px] leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</div>
+              <div className="mt-1 text-[10px] text-white/35">完成度</div>
+            </div>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+            <div
+              className="h-full rounded-full bg-[#f6b54b]"
+              style={{ width: `${Math.min(100, progressPct)}%`, boxShadow: '0 0 12px rgba(246,181,75,0.35)' }}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <h3 className="text-[14px] font-semibold text-white">账户曲线</h3>
+          <span className="text-[11px] text-white/40">金额单位: {symbol === '¥' ? '百万元人民币' : '百万美元'}</span>
+        </div>
+
+        <div className="mt-2 rounded-[18px] border border-white/[0.05] bg-black/[0.12] px-2 py-2.5">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[164px] w-full overflow-visible" aria-label="复利账户曲线">
+            <defs>
+              <linearGradient id="compoundLineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#f6b54b" />
+                <stop offset="100%" stopColor="#ffd18a" />
+              </linearGradient>
+              <linearGradient id="compoundAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f6b54b" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="#f6b54b" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {tickValues.map((tick) => {
+              const y = padTop + plotHeight - (tick / chartMax) * plotHeight;
+              return (
+                <g key={tick}>
+                  <line x1={padLeft} x2={chartWidth - padRight} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="0.7" />
+                  <text x="4" y={y + 3} fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>{formatMillion(tick)}</text>
+                </g>
+              );
+            })}
+            {xLabelIndexes.map((index) => {
+              const point = chartPoints[index];
+              return (
+                <g key={point.year}>
+                  <line x1={point.x} x2={point.x} y1={padTop} y2={padTop + plotHeight} stroke="rgba(255,255,255,0.045)" strokeWidth="0.7" />
+                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="10" fontFamily={NUMBER_FONT}>{point.year}</text>
+                </g>
+              );
+            })}
+            <path d={areaPath} fill="url(#compoundAreaGradient)" />
+            <path d={curvePath} fill="none" stroke="url(#compoundLineGradient)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx={chartPoints[0].x} cy={chartPoints[0].y} r="3.4" fill="#ffd18a" stroke="#0b0f16" strokeWidth="1.5" />
+            <circle cx={chartPoints[chartPoints.length - 1].x} cy={chartPoints[chartPoints.length - 1].y} r="4" fill="#ffd18a" stroke="#0b0f16" strokeWidth="1.6" />
+            <circle cx={actualX} cy={actualY} r="3" fill="#ffffff" fillOpacity="0.88" stroke="#f6b54b" strokeWidth="1.4" />
+            <text x={chartPoints[0].x - 2} y={chartPoints[0].y - 9} textAnchor="start" fill="#ffd18a" fontSize="10.5" fontFamily={NUMBER_FONT}>{money(startCapital)}</text>
+            <text x={chartPoints[chartPoints.length - 1].x} y={chartPoints[chartPoints.length - 1].y - 10} textAnchor="end" fill="#ffd18a" fontSize="10.5" fontFamily={NUMBER_FONT}>{money(targetValue)}</text>
+          </svg>
+        </div>
+
+        <div className="mt-4 rounded-[18px] border border-white/[0.06] bg-white/[0.035] px-3 py-3">
+          <h3 className="text-[14px] font-semibold text-white">每年收益</h3>
+          <div className="mt-3 grid grid-cols-[0.75fr_1fr_1.15fr] border-b border-white/[0.06] pb-2 text-[11px] text-white/38">
+            <span>年份</span>
+            <span className="text-right">年收益</span>
+            <span className="text-right">期末资产</span>
+          </div>
+          <div className="divide-y divide-white/[0.055]">
+            {displayRows.map((row) => (
+              <div key={row.year} className="grid grid-cols-[0.75fr_1fr_1.15fr] py-2 text-[12px] leading-none">
+                <span className="text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.year}</span>
+                <span className="text-right text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+{symbol}{fmtMoney(row.displayAnnualGain)}</span>
+                <span className="text-right text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{symbol}{fmtMoney(row.displayEndBalance)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-center text-[11px] text-white/35">收益按年复利计算</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReviewTab({ ctx }) {
   const {
     BookOpen,
@@ -278,6 +474,7 @@ export default function ReviewTab({ ctx }) {
   const [yearAction, setYearAction] = React.useState(null);
   const [disciplineAction, setDisciplineAction] = React.useState(null);
   const [reviewLogAction, setReviewLogAction] = React.useState(null);
+  const [showCompoundDetails, setShowCompoundDetails] = React.useState(false);
 
   const plan = investmentPlan || {};
   const startYear = toNumber(plan.startYear, new Date().getFullYear());
@@ -368,6 +565,14 @@ export default function ReviewTab({ ctx }) {
       return index >= currentYearIndex && index < currentYearIndex + 2;
     });
   const hiddenYearCount = yearlyFinal.length - visibleYears.length;
+  const compoundPlanRows = React.useMemo(() => yearlyFinal.map((yearItem, index) => {
+    const previousPlanEnd = index === 0 ? startCapital : yearlyFinal[index - 1].planEndBalance;
+    return {
+      year: yearItem.year,
+      annualGain: Math.round(yearItem.planEndBalance - previousPlanEnd),
+      endBalance: yearItem.planEndBalance,
+    };
+  }), [startCapital, yearlyFinal]);
 
   const sortedDisciplines = React.useMemo(() => (
     [...(disciplines || [])].sort((a, b) => {
@@ -497,7 +702,19 @@ export default function ReviewTab({ ctx }) {
         }
       `}</style>
 
-      <section className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <section
+        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.995]"
+        role="button"
+        tabIndex={0}
+        onClick={() => setShowCompoundDetails(true)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setShowCompoundDetails(true);
+          }
+        }}
+        aria-label="查看北极星复利明细"
+      >
         <span className="review-star left-[58%] top-[16%] h-1 w-1" />
         <span className="review-star left-[74%] top-[34%] h-0.5 w-0.5" style={{ animationDelay: '0.7s' }} />
         <span className="review-star left-[63%] top-[56%] h-0.5 w-0.5" style={{ animationDelay: '1.4s' }} />
@@ -517,7 +734,11 @@ export default function ReviewTab({ ctx }) {
               <button
                 key={item.key}
                 type="button"
-                onClick={() => switchCurrency(item.key)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  switchCurrency(item.key);
+                }}
+                onKeyDown={(event) => event.stopPropagation()}
                 className={`h-7 rounded-full px-2.5 text-[11px] font-normal active:scale-95 ${displayCurrency === item.key ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
               >
                 {item.label}
@@ -562,7 +783,11 @@ export default function ReviewTab({ ctx }) {
           )}
           <button
             type="button"
-            onClick={() => setShowPlanSettings(true)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowPlanSettings(true);
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
             className="shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] font-normal text-white/65 active:scale-95"
           >
             设置
@@ -932,6 +1157,25 @@ export default function ReviewTab({ ctx }) {
           </>
         )}
       </section>
+
+      {showCompoundDetails && (
+        <CompoundDetailModal
+          X={X}
+          currentBalance={currentBalance}
+          money={money}
+          onClose={() => setShowCompoundDetails(false)}
+          planRows={compoundPlanRows}
+          progressPct={progressPct}
+          signedMoney={signedMoney}
+          startCapital={startCapital}
+          startYear={startYear}
+          symbol={symbol}
+          targetAnnualRate={targetAnnualRate}
+          targetValue={ageGoalAmountExact}
+          totalYears={totalYears}
+          rate={rate}
+        />
+      )}
 
       {yearAction && (
         <ReviewActionSheet

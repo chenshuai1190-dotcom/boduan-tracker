@@ -236,6 +236,17 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('headlineGoalMoney.decimal'), 'north-star headline should render the decimal suffix separately');
   assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller and normal weight');
   assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'other target amount surfaces should not return to two decimals');
+  assert.ok(reviewTabSource.includes('function CompoundDetailModal'), 'north-star card should open a compound detail modal');
+  assert.ok(reviewTabSource.includes('data-compound-detail="true"'), 'compound detail modal should have a stable visual verification hook');
+  assert.ok(reviewTabSource.includes('{totalYears}年复利明细'), 'compound detail should title itself from the current plan years');
+  assert.ok(reviewTabSource.includes('账户曲线'), 'compound detail should render the account curve section');
+  assert.ok(reviewTabSource.includes('实际进度'), 'compound detail should compare actual progress with the plan');
+  assert.ok(reviewTabSource.includes('每年收益'), 'compound detail should render the yearly income table');
+  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums'), 'compound summary numbers should stay compact for mobile');
+  assert.ok(reviewTabSource.includes('setShowCompoundDetails(true)'), 'north-star card should open compound details on click');
+  assert.ok(reviewTabSource.includes('switchCurrency(item.key);'), 'currency switch should remain available inside the north-star card');
+  assert.ok(reviewTabSource.includes('setShowPlanSettings(true);'), 'settings button should remain available inside the north-star card');
+  assert.ok(reviewTabSource.includes('onKeyDown={(event) => event.stopPropagation()}'), 'nested north-star buttons should stop keyboard propagation');
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
   assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex items-center justify-between gap-3'), 'north-star motto row should stay at the natural bottom position');
   assert.ok(reviewTabSource.includes('shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045]'), 'north-star settings button should stay lifted with neutral styling');
@@ -308,8 +319,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
-  assert.ok(settingsTabSource.includes('v10.7.9.125'), 'settings version should document the review and discipline meta alignment');
-  assert.ok(settingsTabSource.includes('复盘和戒律列表细节对齐'), 'settings changelog should describe the review and discipline meta alignment');
+  assert.ok(settingsTabSource.includes('v10.7.9.126'), 'settings version should document the compound detail modal');
+  assert.ok(settingsTabSource.includes('北极星复利明细弹窗'), 'settings changelog should describe the compound detail modal');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

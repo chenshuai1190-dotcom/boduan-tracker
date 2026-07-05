@@ -4,6 +4,35 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 北极星复利明细弹窗
+
+- Commit: pending.
+- Background: 用户希望点击北极星目标卡片后,弹出一个一目了然的复利系统,数据和当前目标逻辑完全一致,使用本金、年化收益率和时间展示复利路径;与参考图相比需要额外加入实际收益/目标完成度,并特别要求文字大小贴近参考图,避免偏大。
+- Changes:
+  - 北极星目标卡片新增点击入口,打开 `10年复利明细` 弹窗;USD/RMB 切换和 `设置` 按钮都阻止事件冒泡,不会误打开复利弹窗。
+  - 新增 `CompoundDetailModal`,复用当前目标页的 `startCapital`、`targetAnnualRate`、`totalYears`、`ageGoalAmountExact`、`currentBalance`、`progressPct`、`yearlyFinal.planEndBalance` 和 USD/RMB 汇率显示逻辑,不新增第二套目标口径。
+  - 弹窗顶部展示目标终值、累计收益、复利倍数;单独增加实际进度区,显示当前资产、实际收益和目标完成度。
+  - 账户曲线用内联 SVG 绘制计划复利曲线、起点/终点标签和当前实际点,不引入新依赖。
+  - 每年收益表展示年份、年收益和期末资产,使用紧凑 11px/12px/13px/14px 字号体系;顶部三项数字压到 13px,兼容 RMB 长数字。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.126`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页北极星卡片的只读前端解释弹窗,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-Cx-T4_k3.css` 55.28 kB / gzip 10.08 kB,`ReviewTab-GIfYKcLP.js` 46.06 kB / gzip 10.70 kB,`SettingsTab-ClWlObgz.js` 43.71 kB / gzip 16.36 kB,`App-o8-UUWe0.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker check: `ReviewTab-GIfYKcLP.js` contains compound detail markers `data-compound-detail`, `复利明细`, `账户曲线`, `实际进度`, `每年收益` and compact summary font marker `text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums`;`SettingsTab-ClWlObgz.js` contains `v10.7.9.126` and `北极星复利明细弹窗`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
+  - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `366px`,高 `742.7px`,max-height `88dvh`,页面 `scrollWidth=390`;标题 `16px/600`,顶部三项数字 `13px/400`,实际进度标签 `11px/400`,完成度 `15px/400`,账户曲线标题 `14px/600`,每年收益标题 `14px/600`,表格正文 `12px`;USD 状态无横向溢出;点击 USD/RMB 切换不会打开复利弹窗,点击 `设置` 只打开北极星设置;RMB 长数字状态复查无非 SVG 横向溢出。
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.125` 的北极星卡片只展示目标摘要、点击卡片不打开复利明细;不影响目标设置、年度目标数据、投资戒律、复盘日志、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 复盘和戒律列表细节对齐
 
 - Commit: `27aa337337e909c4dc2a9e73aa90737ac92b2754`
