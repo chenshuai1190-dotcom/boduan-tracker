@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 首页恐慌卡片继续压缩
 
-- Commit: pending
+- Commit: `e72625b38fcfa779b5bd6eb928282b6bfd0f379b`
 - Background: 用户根据生产截图继续反馈两张恐慌卡片仍然偏高,VIX/CNN 曲线图都不需要;VIX 风险定位下方 `15.8` 小数字突兀;并补充说明 VIX 不是压缩横条宽度,而是横条高度/厚度看起来太厚;CNN 恐慌贪婪仪表盘厚度仍偏肥,取消曲线后整体高度还需要继续缩减。
 - Changes:
   - `src/components/FearIndexCards.tsx` 删除 VIX 和 CNN 恐慌卡片内的 `TinySparkline` 曲线图和相关 sparkline SVG 辅助逻辑,保留首页四个市场指数小卡自己的走势线。
