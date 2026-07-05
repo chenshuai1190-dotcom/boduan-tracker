@@ -106,6 +106,15 @@ export default function AuthGate() {
     };
   }, [authState.loading, authState.user?.id, isRecovery]);
 
+  if (!isSupabaseConfigured && import.meta.env.DEV) {
+    const DevVisualPreview = lazy(() => import('./DevVisualPreview.jsx'));
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <DevVisualPreview />
+      </Suspense>
+    );
+  }
+
   if (!isSupabaseConfigured) {
     return <ConfigMissingScreen />;
   }

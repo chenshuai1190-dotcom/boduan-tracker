@@ -3141,7 +3141,7 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
-  const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'settings';
+  const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'settings';
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-[#263142] bg-[#171d27] text-[#aab3c2] active:scale-95';
   const costBasisModalLabelClass = 'mb-1 block text-[11px] font-normal text-[#aab3c2]';
   const costBasisModalInputClass = 'w-full rounded-xl border border-[#273142] bg-[#171d27] px-3 py-2.5 text-[13px] font-normal text-[#f5f7fb] outline-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] placeholder:text-[#707a89] focus:border-[#f6b54b]/70 focus:bg-[#1a212c]';

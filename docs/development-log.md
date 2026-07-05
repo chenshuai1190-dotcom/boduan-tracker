@@ -4,6 +4,36 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产页深色视觉修复和本地预览
+
+- Commit: `TBD`
+- Background: 用户根据线上截图反馈资产模块外层仍是白底、部分卡片显示错乱、数字字号偏大、`填月度余额` / `新增账户` 按钮显示不清,且 12 个月走势图动效消失;同时要求先补齐本地开发视觉问题,避免继续盲改。
+- Changes:
+  - `App.jsx` 将 `analysis` 资产页纳入深色外层壳,底层背景和底部导航同步首页/交易页深色风格,避免资产页继续露出白底。
+  - `AnalysisTab` 收紧家庭总资产卡、三列指标、走势图、主按钮和账户列表字号/间距;总资产数字从移动端超大字号降回当前 UI 可读档位,三列指标改为不带趋势图标的紧凑单行数字,避免 390px 手机上换行错乱。
+  - `填月度余额` 和 `新增账户` 主按钮改为 46px 紧凑高度、显式暗底/金色或白色文本、图标和文字不挤压。
+  - 12 个月走势图恢复 `assetDrawLine` 线条绘制、`assetAreaFadeIn` 面积淡入、`assetDotPop` 点位弹出动效,并保留点击点位查看月份数值。
+  - 新增 `DevVisualPreview` 只读资产视觉预览:本地开发环境缺少 Supabase 配置时不再卡在配置缺失页,而是渲染 mock 资产数据和深色底部导航,方便 390px 手机宽度视觉调试;该路径仅在 `import.meta.env.DEV` 且无 Supabase 配置时启用,不连接真实 Supabase、不提交 `.env`、不影响生产登录。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.107`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是资产页前端视觉和本地调试能力修复,不改变环境变量、API 鉴权、RLS SQL 或安全架构结论。
+- Key files:
+  - `src/App.jsx`
+  - `src/AuthGate.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 61 tests.
+  - `npm run build`: pass; `index-CTmL2_1m.css` 54.23 kB / gzip 9.94 kB, `index-BNvTa11o.js` 5.15 kB / gzip 2.50 kB, `AnalysisTab-ColUmi0M.js` 29.46 kB / gzip 7.68 kB, `SettingsTab-BYl2JxUY.js` 37.26 kB / gzip 14.16 kB, `App-DjWmCN5J.js` 142.49 kB / gzip 40.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/`, in-app browser viewport `390x844`;verified body/root background `rgb(5, 7, 11)`, no `Supabase 配置缺失`, `家庭总资产` / `填月度余额` / `新增账户` visible, primary buttons `173x46`, and chart line animation name `assetDrawLine`;browser console error/warn logs empty.
+- Deployment: pending.
+- Rollback: 回滚本次改动会让资产页外层回到旧白底条件、移除本地只读资产视觉预览,并恢复资产模块较大的字号和无走势图入场动效;不影响账户、月度快照、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 资产模块 UI 深色重设计
 
 - Commit: `58331825607af6e9dcdfd0579c6c024e0f87d175`

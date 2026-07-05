@@ -14,8 +14,6 @@ import {
   PiggyBank,
   Plus,
   Trash2,
-  TrendingDown,
-  TrendingUp,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -50,7 +48,7 @@ const ACCOUNT_PRESETS = {
   其他: ['房产', '车', '黄金', '保险'],
 };
 
-const inputClassName = 'w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-3 text-[15px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]';
+const inputClassName = 'w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[14px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]';
 
 function numberValue(value) {
   const n = Number(value);
@@ -219,14 +217,19 @@ export default function AnalysisTab({ ctx }) {
   const chartArea = chartPath
     ? `${chartPath} L ${chartPoints[chartPoints.length - 1].x} 124 L ${chartPoints[0].x} 124 Z`
     : '';
+  const chartPathLength = Math.max(1, chartPoints.reduce((sum, point, idx) => {
+    if (idx === 0) return sum;
+    const prev = chartPoints[idx - 1];
+    return sum + Math.hypot(point.x - prev.x, point.y - prev.y);
+  }, 0));
 
   const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0;
   const selectedChartMonth = chartSelectedMonthIdx !== null ? last12Months[chartSelectedMonthIdx] : '';
 
   return (
-    <div className="space-y-4 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
+    <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
       <section
-        className="rounded-[22px] border p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        className="rounded-[20px] border px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
         style={{
           background: 'linear-gradient(145deg, rgba(17,22,31,0.98), rgba(8,12,18,0.98))',
           borderColor: ASSET_BORDER,
@@ -235,50 +238,48 @@ export default function AnalysisTab({ ctx }) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[14px] tracking-[0.18em]" style={{ color: ASSET_GOLD }}>
+            <div className="flex items-center gap-2 text-[13px] tracking-[0.12em]" style={{ color: ASSET_GOLD }}>
               <span>家庭总资产</span>
-              <Info className="h-4 w-4 text-white/[0.35]" strokeWidth={1.8} />
+              <Info className="h-3.5 w-3.5 text-white/[0.35]" strokeWidth={1.8} />
             </div>
             <div
-              className="mt-6 text-[48px] leading-none tracking-normal sm:text-[54px]"
-              style={{ color: '#ffd37d', fontFamily: ASSET_NUMBER_FONT, fontWeight: 500 }}
+              className="mt-5 text-[38px] leading-none tracking-normal sm:text-[42px]"
+              style={{ color: '#ffd37d', fontFamily: ASSET_NUMBER_FONT, fontWeight: 400 }}
             >
-              ¥{fmtWan(totalNow)}<span className="ml-1 text-[21px]">万</span>
+              ¥{fmtWan(totalNow)}<span className="ml-1 text-[16px]">万</span>
             </div>
           </div>
 
           <button
             onClick={() => setShowMonthsDetail(true)}
-            className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-[15px] active:scale-95 transition"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-2 text-[13px] active:scale-95 transition"
             style={{ color: ASSET_GOLD }}
             title="查看 12 个月走势"
           >
-            <CalendarDays className="h-4 w-4" strokeWidth={1.8} />
+            <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
             <span className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{currentMonth}</span>
-            <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.8} />
           </button>
         </div>
 
-        <div className="mt-8 grid grid-cols-3 gap-0">
+        <div className="mt-7 grid grid-cols-3 gap-0">
           {metricItems.map((item, idx) => {
             const positive = item.value >= 0;
             const color = positive ? ASSET_PINK : ASSET_GREEN;
-            const TrendIcon = positive ? TrendingUp : TrendingDown;
             return (
-              <div key={item.label} className={idx === 0 ? 'pr-3' : 'border-l border-white/10 px-3'}>
-                <div className="text-[13px] text-white/[0.45]">{item.label}</div>
+              <div key={item.label} className={idx === 0 ? 'min-w-0 pr-2' : 'min-w-0 border-l border-white/10 px-2'}>
+                <div className="text-[12px] text-white/[0.45]">{item.label}</div>
                 {item.enabled ? (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-1 text-[16px] tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
-                      <TrendIcon className="h-4 w-4" strokeWidth={1.8} />
-                      <span>{fmtSignedWan(item.value)}</span>
+                  <div className="mt-2.5 space-y-1">
+                    <div className="text-[13px] leading-tight tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
+                      <span className="whitespace-nowrap">{fmtSignedWan(item.value)}</span>
                     </div>
-                    <div className="text-[15px] tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
+                    <div className="text-[13px] tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
                       {fmtSignedPct(item.pct)}
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-3 text-[14px] text-white/25">无数据</div>
+                  <div className="mt-2.5 text-[12px] text-white/25">无数据</div>
                 )}
               </div>
             );
@@ -288,31 +289,31 @@ export default function AnalysisTab({ ctx }) {
 
       {nonZero.length >= 2 && (
         <section
-          className="rounded-[22px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          className="rounded-[20px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
           style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}
         >
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[18px] text-white/90">
-              <LineChart className="h-5 w-5" style={{ color: ASSET_PINK }} strokeWidth={1.8} />
+            <div className="flex items-center gap-2 text-[16px] text-white/90">
+              <LineChart className="h-[18px] w-[18px]" style={{ color: ASSET_PINK }} strokeWidth={1.8} />
               <span>12 个月走势</span>
             </div>
             <button
               onClick={() => setShowMonthsDetail(true)}
-              className="text-[13px] text-white/[0.45] active:text-white/70"
+              className="text-[12px] text-white/[0.45] active:text-white/70"
             >
               月度 · 点圆查看
             </button>
           </div>
 
           {selectedChartValue > 0 && (
-            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-center text-[13px] text-white/60">
+            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-center text-[12px] text-white/60">
               <span>{monthText(selectedChartMonth)} · </span>
               <span className="tabular-nums" style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(selectedChartValue)}万</span>
             </div>
           )}
 
           <div className="mt-3">
-            <svg viewBox="0 0 320 138" className="h-[170px] w-full overflow-visible">
+            <svg viewBox="0 0 320 138" className="h-[150px] w-full overflow-visible" style={{ '--asset-chart-path-length': chartPathLength }}>
               <defs>
                 <linearGradient id="assetChartArea" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={ASSET_PINK} stopOpacity="0.36" />
@@ -326,6 +327,36 @@ export default function AnalysisTab({ ctx }) {
                   </feMerge>
                 </filter>
               </defs>
+              <style>{`
+                @keyframes assetDrawLine {
+                  from { stroke-dashoffset: var(--asset-chart-path-length); }
+                  to { stroke-dashoffset: 0; }
+                }
+                @keyframes assetAreaFadeIn {
+                  from { opacity: 0; transform: translateY(8px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes assetDotPop {
+                  0% { opacity: 0; transform: scale(0.52); }
+                  60% { opacity: 1; transform: scale(1.16); }
+                  100% { opacity: 1; transform: scale(1); }
+                }
+                .asset-chart-line {
+                  animation: assetDrawLine 900ms ease-out both;
+                  stroke-dasharray: var(--asset-chart-path-length);
+                  stroke-dashoffset: var(--asset-chart-path-length);
+                }
+                .asset-chart-area {
+                  animation: assetAreaFadeIn 680ms ease-out both;
+                  transform-box: fill-box;
+                  transform-origin: center bottom;
+                }
+                .asset-chart-dot {
+                  animation: assetDotPop 440ms cubic-bezier(0.2, 0.85, 0.28, 1.2) both;
+                  transform-box: fill-box;
+                  transform-origin: center;
+                }
+              `}</style>
 
               {[0, 0.33, 0.66, 1].map((t) => {
                 const y = 20 + t * 92;
@@ -333,23 +364,23 @@ export default function AnalysisTab({ ctx }) {
                 return (
                   <g key={t}>
                     <line x1="44" x2="304" y1={y} y2={y} stroke="rgba(255,255,255,0.13)" strokeDasharray="4 5" strokeWidth="0.7" />
-                    <text x="4" y={y + 4} fill="rgba(255,255,255,0.42)" fontSize="10" fontFamily={ASSET_NUMBER_FONT}>
+                    <text x="4" y={y + 4} fill="rgba(255,255,255,0.42)" fontSize="9" fontFamily={ASSET_NUMBER_FONT}>
                       {labelValue <= 0 ? '0' : `${fmtWan(labelValue)}万`}
                     </text>
                   </g>
                 );
               })}
 
-              {chartArea && <path d={chartArea} fill="url(#assetChartArea)" />}
-              {chartPath && <path d={chartPath} fill="none" stroke={ASSET_PINK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#assetChartGlow)" />}
+              {chartArea && <path d={chartArea} className="asset-chart-area" fill="url(#assetChartArea)" />}
+              {chartPath && <path d={chartPath} className="asset-chart-line" fill="none" stroke={ASSET_PINK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#assetChartGlow)" />}
 
               {chartPoints.map((p, idx) => {
                 const selected = chartSelectedMonthIdx === p.i;
                 return (
                   <g key={p.i}>
                     {selected && <line x1={p.x} x2={p.x} y1={p.y} y2="124" stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />}
-                    <circle cx={p.x} cy={p.y} r={selected ? 5.8 : 4.4} fill={ASSET_CARD} stroke={ASSET_PINK} strokeWidth="2.5" />
-                    <circle cx={p.x} cy={p.y} r={selected ? 2.2 : 1.8} fill={ASSET_PINK} />
+                    <circle className="asset-chart-dot" cx={p.x} cy={p.y} r={selected ? 5.8 : 4.4} fill={ASSET_CARD} stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${180 + idx * 52}ms` }} />
+                    <circle className="asset-chart-dot" cx={p.x} cy={p.y} r={selected ? 2.2 : 1.8} fill={ASSET_PINK} style={{ animationDelay: `${220 + idx * 52}ms` }} />
                     <circle
                       cx={p.x}
                       cy={p.y}
@@ -369,15 +400,15 @@ export default function AnalysisTab({ ctx }) {
             </svg>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 border-t border-white/10 pt-4 text-center">
+          <div className="mt-3 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
             {[
               ['最低', chartMin],
               ['最高', chartMax],
               ['区间', chartRange],
             ].map(([label, value], idx) => (
               <div key={label} className={idx === 0 ? '' : 'border-l border-white/10'}>
-                <div className="text-[13px] text-white/[0.42]">{label}</div>
-                <div className="mt-2 text-[18px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(value)}万</div>
+                <div className="text-[12px] text-white/[0.42]">{label}</div>
+                <div className="mt-1.5 text-[15px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(value)}万</div>
               </div>
             ))}
           </div>
@@ -392,21 +423,21 @@ export default function AnalysisTab({ ctx }) {
             setShowFillSnapshot(true);
           }}
           disabled={accounts.length === 0}
-          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border text-[17px] active:scale-95 transition disabled:opacity-35"
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[14px] active:scale-95 transition disabled:opacity-35"
           style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.06)' }}
         >
-          <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
-          <span>填月度余额</span>
+          <CalendarDays className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+          <span className="truncate">填月度余额</span>
         </button>
         <button
           onClick={() => {
             setAssetMessage(null);
             setShowAddAccount(true);
           }}
-          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.045] text-[17px] text-white/[0.82] active:scale-95 transition"
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[14px] text-white/[0.82] active:scale-95 transition"
         >
-          <Plus className="h-5 w-5" strokeWidth={1.8} />
-          <span>新增账户</span>
+          <Plus className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+          <span className="truncate">新增账户</span>
         </button>
       </div>
 
@@ -435,15 +466,15 @@ export default function AnalysisTab({ ctx }) {
         return (
           <section
             key={owner}
-            className="rounded-[22px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-            style={{ background: ASSET_CARD, borderColor: accent === ASSET_GOLD ? 'rgba(246,197,111,0.38)' : 'rgba(245,111,152,0.38)' }}
-          >
+          className="rounded-[20px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          style={{ background: ASSET_CARD, borderColor: accent === ASSET_GOLD ? 'rgba(246,197,111,0.38)' : 'rgba(245,111,152,0.38)' }}
+        >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[22px] leading-none text-white/[0.92]">{owner}</div>
-                <div className="mt-2 text-[13px] text-white/[0.45]">{ownerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
+                <div className="text-[18px] leading-none text-white/[0.92]">{owner}</div>
+                <div className="mt-2 text-[12px] text-white/[0.45]">{ownerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
               </div>
-              <div className="text-right text-[28px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
+              <div className="text-right text-[23px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
                 ¥{fmtWan(total)}万
               </div>
             </div>
@@ -459,21 +490,21 @@ export default function AnalysisTab({ ctx }) {
                 return (
                   <div
                     key={acc.id}
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3"
+                    className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
-                      <AccountTypeIcon type={acc.type} className="h-6 w-6" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
+                      <AccountTypeIcon type={acc.type} className="h-5 w-5" />
                     </div>
-                    <div className="min-w-0 flex-1 border-l border-white/10 pl-3">
-                      <div className="truncate text-[16px] text-white/[0.88]">{acc.name}</div>
-                      <div className="mt-1 text-[12px] text-white/[0.42]">{acc.type}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
+                    <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
+                      <div className="truncate text-[14px] text-white/[0.88]">{acc.name}</div>
+                      <div className="mt-1 text-[11px] text-white/[0.42]">{acc.type}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="text-[16px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                      <div className="text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
                         {acc.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(acc.currency)}${fmt(bal, 0)}`}
                       </div>
                       {acc.currency !== 'CNY' && (
-                        <div className="mt-1 text-[12px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmtWan(balCNY)}万</div>
+                        <div className="mt-1 text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmtWan(balCNY)}万</div>
                       )}
                     </div>
                     <button

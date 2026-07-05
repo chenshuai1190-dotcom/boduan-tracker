@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
+const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
@@ -160,8 +162,22 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.equal(analysisTabSource.includes('setUsdRate'), false, 'asset tab should not expose manual USD rate editing');
   assert.equal(analysisTabSource.includes('setHkdRate'), false, 'asset tab should not expose manual HKD rate editing');
   assert.equal(analysisTabSource.includes('alert('), false, 'asset tab validation should not use native alert dialogs');
-  assert.ok(settingsTabSource.includes('v10.7.9.106'), 'settings version should reflect the asset module redesign');
+  assert.ok(settingsTabSource.includes('v10.7.9.107'), 'settings version should reflect the asset visual fix');
   assert.ok(settingsTabSource.includes('资产模块 UI 深色重设计'), 'settings changelog should describe the asset module redesign');
+});
+
+test('asset page visual shell and local preview stay debuggable', () => {
+  assert.ok(appSource.includes("activeTab === 'analysis'"), 'asset tab must use the same dark shell as home and trades');
+  assert.ok(authGateSource.includes("!isSupabaseConfigured && import.meta.env.DEV"), 'local missing-env mode must be development-only');
+  assert.ok(authGateSource.includes('<DevVisualPreview />'), 'development missing-env mode should render the asset visual preview');
+  assert.ok(devVisualPreviewSource.includes('makeSnapshots(baseAccounts)'), 'asset visual preview should provide deterministic local mock snapshots');
+  assert.ok(devVisualPreviewSource.includes("deleteAccount: async () => ({})"), 'asset visual preview must not perform real database deletes');
+  assert.ok(analysisTabSource.includes('assetDrawLine'), 'asset chart should keep the line drawing animation');
+  assert.ok(analysisTabSource.includes('assetAreaFadeIn'), 'asset chart area should keep the fade-in animation');
+  assert.ok(analysisTabSource.includes('assetDotPop'), 'asset chart points should keep the pop animation');
+  assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
+  assert.equal(analysisTabSource.includes('text-[48px]'), false, 'asset header number should not return to the oversized mobile font');
+  assert.ok(settingsTabSource.includes('修复资产页深色视觉和本地预览'), 'settings changelog should document the asset visual fix');
 });
 
 test('order action modal stays compact like the current trade record reference', () => {
