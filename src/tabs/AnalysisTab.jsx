@@ -11,6 +11,7 @@ import {
   Landmark,
   LineChart,
   MessageCircle,
+  Pencil,
   PiggyBank,
   Plus,
   Trash2,
@@ -83,7 +84,6 @@ function monthText(monthKey) {
 
 export default function AnalysisTab({ ctx }) {
   const {
-    accountDeleteConfirmId,
     accounts,
     chartSelectedMonthIdx,
     db,
@@ -91,7 +91,6 @@ export default function AnalysisTab({ ctx }) {
     fmt,
     hkdRate,
     newAccount,
-    setAccountDeleteConfirmId,
     setAccounts,
     setChartSelectedMonthIdx,
     setFillMonth,
@@ -103,6 +102,7 @@ export default function AnalysisTab({ ctx }) {
     setSnapshots,
     setSnapshotTab,
     showAddAccount,
+    showConfirm = ({ onConfirm }) => onConfirm?.(),
     showFillSnapshot,
     showMonthsDetail,
     snapshotDraft,
@@ -112,6 +112,9 @@ export default function AnalysisTab({ ctx }) {
   } = ctx;
 
   const [assetMessage, setAssetMessage] = React.useState(null);
+  const [accountActionId, setAccountActionId] = React.useState(null);
+  const [editingAccountId, setEditingAccountId] = React.useState(null);
+  const [accountEditDraft, setAccountEditDraft] = React.useState(null);
 
   const currentMonth = localMonthKey();
   const lastMonth = shiftMonth(currentMonth, -1);
@@ -186,10 +189,42 @@ export default function AnalysisTab({ ctx }) {
     setShowAddAccount(false);
   };
 
+  const openAddAccount = () => {
+    setAssetMessage(null);
+    setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' });
+    setShowAddAccount(true);
+  };
+
   const closeFillSnapshot = () => {
     setAssetMessage(null);
     setSnapshotDraft({});
     setShowFillSnapshot(false);
+  };
+
+  const closeAccountAction = () => {
+    setAssetMessage(null);
+    setAccountActionId(null);
+  };
+
+  const closeAccountEdit = () => {
+    setAssetMessage(null);
+    setEditingAccountId(null);
+    setAccountEditDraft(null);
+  };
+
+  const openAccountEdit = (account) => {
+    if (!account) return;
+    setAssetMessage(null);
+    setAccountActionId(null);
+    setEditingAccountId(account.id);
+    setAccountEditDraft({
+      owner: account.owner || '我',
+      type: account.type || '',
+      name: account.name || '',
+      currency: account.currency || 'CNY',
+      icon: account.icon || account.type || '',
+      balance: String(getBalance(account.id, currentMonth) || ''),
+    });
   };
 
   const ownerGroups = [
@@ -237,6 +272,99 @@ export default function AnalysisTab({ ctx }) {
     : 0;
   const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
   const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
+  const selectedActionAccount = accounts.find(acc => acc.id === accountActionId);
+  const editingAccount = accounts.find(acc => acc.id === editingAccountId);
+
+  const currentVisibleAccounts = (items) =>
+    items.filter(acc => balanceAtMonthCNY(acc.id, currentMonth) !== 0);
+
+  const accountBalanceText = (account) => {
+    if (!account) return '--';
+    const bal = getBalance(account.id, currentMonth);
+    return account.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(account.currency)}${fmt(bal, 0)}`;
+  };
+
+  const accountApproxText = (account) => {
+    if (!account || account.currency === 'CNY') return '';
+    const balCNY = balanceAtMonthCNY(account.id, currentMonth);
+    return `≈¥${fmtWan(balCNY)}万`;
+  };
+
+  const confirmDeleteAccount = (account) => {
+    if (!account) return;
+    setAccountActionId(null);
+    showConfirm({
+      title: '删除这个账户?',
+      desc: '删除后会同步云端,该账户所有月度快照也会一起删除。',
+      info: `${account.name || '--'} · ${account.type || '--'} · ${accountBalanceText(account)}`,
+      confirmText: '删除',
+      icon: '🗑',
+      onConfirm: async () => {
+        try {
+          await db.deleteAccount(account.id);
+          setAccounts(accounts.filter(a => a.id !== account.id));
+          setSnapshots(snapshots.filter(s => s.accountId !== account.id));
+        } catch (e) {
+          console.error('[删除账户] 失败:', e);
+          setAssetMessage({ type: 'error', text: `删除失败: ${e.message || '未知错误'}` });
+        }
+      },
+    });
+  };
+
+  const saveAccountEdit = async () => {
+    if (!editingAccount || !accountEditDraft) return;
+    const accountName = accountEditDraft.name.trim();
+    if (!accountEditDraft.type) {
+      setAssetMessage({ type: 'error', text: '请选择账户类型' });
+      return;
+    }
+    if (!accountName) {
+      setAssetMessage({ type: 'error', text: '请填写账户名' });
+      return;
+    }
+    if (accounts.find(a => a.id !== editingAccount.id && a.owner === accountEditDraft.owner && a.name === accountName)) {
+      setAssetMessage({ type: 'error', text: '该账户已存在' });
+      return;
+    }
+    const balanceValue = parseFloat(accountEditDraft.balance);
+    if (accountEditDraft.balance !== '' && (!Number.isFinite(balanceValue) || balanceValue < 0)) {
+      setAssetMessage({ type: 'error', text: '请填写有效余额' });
+      return;
+    }
+
+    try {
+      const updated = await db.updateAccount(editingAccount.id, {
+        owner: accountEditDraft.owner,
+        type: accountEditDraft.type,
+        name: accountName,
+        currency: accountEditDraft.currency,
+        icon: accountEditDraft.type,
+        sortOrder: editingAccount.sortOrder || 0,
+      });
+      setAccounts(accounts.map(acc => (acc.id === editingAccount.id ? updated : acc)));
+      if (accountEditDraft.balance !== '') {
+        await db.upsertSnapshot(editingAccount.id, currentMonth, balanceValue);
+        const nextSnapshots = [...snapshots];
+        const idx = nextSnapshots.findIndex(s => s.accountId === editingAccount.id && s.month === currentMonth);
+        if (idx >= 0) {
+          nextSnapshots[idx] = { ...nextSnapshots[idx], balance: balanceValue };
+        } else {
+          nextSnapshots.push({
+            id: `new_${Date.now()}_${editingAccount.id}`,
+            accountId: editingAccount.id,
+            month: currentMonth,
+            balance: balanceValue,
+          });
+        }
+        setSnapshots(nextSnapshots);
+      }
+      closeAccountEdit();
+    } catch (e) {
+      console.error('[修改账户] 失败:', e);
+      setAssetMessage({ type: 'error', text: `保存失败: ${e.message || '未知错误'}` });
+    }
+  };
 
   return (
     <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
@@ -453,10 +581,7 @@ export default function AnalysisTab({ ctx }) {
           <span className="truncate">填月度余额</span>
         </button>
         <button
-          onClick={() => {
-            setAssetMessage(null);
-            setShowAddAccount(true);
-          }}
+          onClick={openAddAccount}
           className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
@@ -472,10 +597,7 @@ export default function AnalysisTab({ ctx }) {
           <div className="text-[16px] text-white/[0.88]">还没有账户</div>
           <div className="mt-2 text-[12px] text-white/[0.45]">添加你和家人的账户,记录每月余额</div>
           <button
-            onClick={() => {
-              setAssetMessage(null);
-              setShowAddAccount(true);
-            }}
+            onClick={openAddAccount}
             className="mt-5 rounded-xl border px-5 py-2.5 text-[13px] active:scale-95 transition"
             style={{ borderColor: 'rgba(246,197,111,0.6)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
           >
@@ -485,7 +607,8 @@ export default function AnalysisTab({ ctx }) {
       )}
 
       {ownerGroups.map(({ owner, accounts: ownerAccs, total, pct, accent }) => {
-        if (ownerAccs.length === 0) return null;
+        const visibleOwnerAccs = currentVisibleAccounts(ownerAccs);
+        if (visibleOwnerAccs.length === 0) return null;
         return (
           <section
             key={owner}
@@ -495,7 +618,7 @@ export default function AnalysisTab({ ctx }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[16px] leading-none text-white/[0.92]">{owner}</div>
-                <div className="mt-2 text-[12px] text-white/[0.45]">{ownerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
+                <div className="mt-2 text-[12px] text-white/[0.45]">{visibleOwnerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
               </div>
               <div className="text-right text-[21px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
                 ¥{fmtWan(total)}万
@@ -507,13 +630,18 @@ export default function AnalysisTab({ ctx }) {
             </div>
 
             <div className="mt-4 space-y-2">
-              {ownerAccs.map(acc => {
+              {visibleOwnerAccs.map(acc => {
                 const bal = getBalance(acc.id, currentMonth);
                 const balCNY = toCNY(bal, acc.currency);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={acc.id}
-                    className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5"
+                    onClick={() => {
+                      setAssetMessage(null);
+                      setAccountActionId(acc.id);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-left active:scale-[0.99] transition"
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
                       <AccountTypeIcon type={acc.type} className="h-4 w-4" />
@@ -530,17 +658,8 @@ export default function AnalysisTab({ ctx }) {
                         <div className="mt-1 text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmtWan(balCNY)}万</div>
                       )}
                     </div>
-                    <button
-                      onClick={() => {
-                        setAssetMessage(null);
-                        setAccountDeleteConfirmId(acc.id);
-                      }}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/[0.18] text-white/[0.38] active:scale-95 active:text-rose-300 transition"
-                      title="删除"
-                    >
-                      <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                    </button>
-                  </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-white/35" strokeWidth={1.8} />
+                  </button>
                 );
               })}
             </div>
@@ -619,7 +738,7 @@ export default function AnalysisTab({ ctx }) {
                     type="text"
                     value={newAccount.name}
                     onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
-                    placeholder="点上面快捷选或自己输入"
+                    placeholder={newAccount.type ? '点上面快捷选或自己输入' : '先选择类型,再输入账户名'}
                     className={inputClassName}
                   />
                 </div>
@@ -673,6 +792,10 @@ export default function AnalysisTab({ ctx }) {
                 <button
                   onClick={async () => {
                     const accountName = newAccount.name.trim();
+                    if (!newAccount.type) {
+                      setAssetMessage({ type: 'error', text: '请选择账户类型' });
+                      return;
+                    }
                     if (!accountName) {
                       setAssetMessage({ type: 'error', text: '请填写账户名' });
                       return;
@@ -687,7 +810,7 @@ export default function AnalysisTab({ ctx }) {
                         type: newAccount.type,
                         name: accountName,
                         currency: newAccount.currency,
-                        icon: newAccount.icon || newAccount.type,
+                        icon: newAccount.type,
                         sortOrder: accounts.length,
                       });
                       setAccounts([...accounts, saved]);
@@ -701,7 +824,7 @@ export default function AnalysisTab({ ctx }) {
                           balance: val,
                         }]);
                       }
-                      setNewAccount({ owner: '我', type: '银行', name: '', currency: 'CNY', icon: '银行', balance: '' });
+                      setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' });
                       closeAddAccount();
                     } catch (e) {
                       console.error('[添加账户] 失败:', e);
@@ -718,49 +841,208 @@ export default function AnalysisTab({ ctx }) {
         </div>
       )}
 
-      {accountDeleteConfirmId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 backdrop-blur-sm" onClick={() => setAccountDeleteConfirmId(null)}>
-          <div className="w-full max-w-[360px] rounded-[22px] border border-white/[0.12] bg-[#0b1018] p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-[17px] text-white/[0.92]">删除账户</h3>
-              <button onClick={() => setAccountDeleteConfirmId(null)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-white/[0.55]">
-              删除 <span className="text-white/[0.86]">{accounts.find(a => a.id === accountDeleteConfirmId)?.name}</span>?
-              <br />
-              该账户所有月度快照也会一起删除。
-            </p>
-            {assetMessage && (
-              <div className="mt-3 rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-[13px] text-rose-100">
-                {assetMessage.text}
+      {selectedActionAccount && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
+          onClick={(e) => { if (e.target === e.currentTarget) closeAccountAction(); }}
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+          }}
+        >
+          <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
+            <div className="border-b border-white/10 px-4 pb-3 pt-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[15px] text-white">账户操作</h2>
+                <button
+                  type="button"
+                  onClick={closeAccountAction}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
+                  aria-label="关闭账户操作"
+                >
+                  ×
+                </button>
               </div>
-            )}
-            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] text-white">{selectedActionAccount.name || '--'}</div>
+                    <div className="mt-1 truncate text-[11px] text-white/60">
+                      {selectedActionAccount.owner || '--'} · {selectedActionAccount.type || '--'} · {selectedActionAccount.currency || 'CNY'}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountBalanceText(selectedActionAccount)}</div>
+                    {accountApproxText(selectedActionAccount) && (
+                      <div className="mt-1 text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountApproxText(selectedActionAccount)}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 px-4 pb-4 pt-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => openAccountEdit(selectedActionAccount)}
+                  className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-[#f6c56f]/35 bg-[#f6c56f]/10 text-[13px] text-[#f6c56f] active:scale-95"
+                >
+                  <Pencil className="h-4 w-4" strokeWidth={2} />
+                  修改账户
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmDeleteAccount(selectedActionAccount)}
+                  className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/10 text-[13px] text-rose-300 active:scale-95"
+                >
+                  <Trash2 className="h-4 w-4" strokeWidth={2} />
+                  删除账户
+                </button>
+              </div>
               <button
-                onClick={() => setAccountDeleteConfirmId(null)}
-                className="min-h-[44px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
+                type="button"
+                onClick={closeAccountAction}
+                className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] text-white/80 active:scale-95"
               >
                 取消
               </button>
-              <button
-                onClick={async () => {
-                  const accId = accountDeleteConfirmId;
-                  try {
-                    await db.deleteAccount(accId);
-                    setAccounts(accounts.filter(a => a.id !== accId));
-                    setSnapshots(snapshots.filter(s => s.accountId !== accId));
-                    setAccountDeleteConfirmId(null);
-                  } catch (e) {
-                    console.error('[删除账户] 失败:', e);
-                    setAssetMessage({ type: 'error', text: `删除失败: ${e.message || '未知错误'}` });
-                  }
-                }}
-                className="min-h-[44px] rounded-xl border border-rose-400/[0.35] bg-rose-400/[0.12] text-[13px] text-rose-200 active:scale-95 transition"
-              >
-                删除
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingAccount && accountEditDraft && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 py-8 backdrop-blur-sm" onClick={closeAccountEdit}>
+          <div
+            className="w-full max-w-[420px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+              <h3 className="text-[17px] text-white/[0.92]">修改账户</h3>
+              <button onClick={closeAccountEdit} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
+                <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
+            </div>
+
+            <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">拥有人</label>
+                  <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
+                    {['我', '老婆'].map(owner => (
+                      <button
+                        key={owner}
+                        onClick={() => setAccountEditDraft({ ...accountEditDraft, owner })}
+                        className="rounded-lg py-2.5 text-[13px] transition"
+                        style={accountEditDraft.owner === owner ? { background: 'rgba(37,99,235,0.34)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.7)' } : { color: 'rgba(255,255,255,0.52)' }}
+                      >
+                        {owner}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">类型</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {ACCOUNT_TYPE_OPTIONS.map(({ type, Icon }) => {
+                      const active = accountEditDraft.type === type;
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setAccountEditDraft({ ...accountEditDraft, type, icon: type })}
+                          className="flex aspect-square min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl border text-[12px] transition"
+                          style={active
+                            ? { borderColor: '#2563eb', color: ASSET_GOLD, background: 'rgba(37,99,235,0.18)', boxShadow: '0 0 18px rgba(37,99,235,0.18)' }
+                            : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
+                        >
+                          <Icon className="h-5 w-5" strokeWidth={1.7} />
+                          <span>{type}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">账户名</label>
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {(ACCOUNT_PRESETS[accountEditDraft.type] || []).map(name => (
+                      <button
+                        key={name}
+                        onClick={() => setAccountEditDraft({ ...accountEditDraft, name })}
+                        className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] text-white/[0.65] active:scale-95 transition"
+                        style={accountEditDraft.name === name ? { color: ASSET_GOLD, borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' } : undefined}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={accountEditDraft.name}
+                    onChange={(e) => setAccountEditDraft({ ...accountEditDraft, name: e.target.value })}
+                    placeholder="账户名称"
+                    className={inputClassName}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">币种</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {['CNY', 'USD', 'HKD'].map(currency => (
+                      <button
+                        key={currency}
+                        onClick={() => setAccountEditDraft({ ...accountEditDraft, currency })}
+                        className="rounded-xl border py-2.5 text-[13px] tabular-nums transition"
+                        style={accountEditDraft.currency === currency
+                          ? { borderColor: '#2563eb', color: '#f7fbff', background: 'rgba(37,99,235,0.34)', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.45)' }
+                          : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.56)', background: 'rgba(255,255,255,0.035)' }}
+                      >
+                        {currency}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">本月余额</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={accountEditDraft.balance}
+                    onChange={(e) => setAccountEditDraft({ ...accountEditDraft, balance: e.target.value })}
+                    placeholder="0"
+                    className={`${inputClassName} tabular-nums`}
+                    style={{ colorScheme: 'dark', fontFamily: ASSET_NUMBER_FONT }}
+                  />
+                </div>
+
+                {assetMessage && (
+                  <div className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-[13px] text-rose-100">
+                    {assetMessage.text}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={closeAccountEdit}
+                  className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={saveAccountEdit}
+                  className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
+                >
+                  保存修改
+                </button>
+              </div>
             </div>
           </div>
         </div>

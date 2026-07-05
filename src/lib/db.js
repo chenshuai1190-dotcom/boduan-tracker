@@ -455,6 +455,35 @@ export const insertAccount = async (account) => {
   };
 };
 
+export const updateAccount = async (id, account) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  const { data, error } = await supabase
+    .from('accounts')
+    .update({
+      owner: account.owner,
+      type: account.type,
+      name: account.name,
+      currency: account.currency || 'CNY',
+      icon: account.icon || account.type || '💰',
+      sort_order: account.sortOrder || 0,
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    owner: data.owner,
+    type: data.type,
+    name: data.name,
+    currency: data.currency,
+    icon: data.icon,
+    sortOrder: data.sort_order,
+  };
+};
+
 export const deleteAccount = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');

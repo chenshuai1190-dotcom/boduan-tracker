@@ -58,10 +58,10 @@ export default function DevVisualPreview() {
   const [snapshotTab, setSnapshotTab] = React.useState('我');
   const [newAccount, setNewAccount] = React.useState({
     owner: '我',
-    type: '银行',
+    type: '',
     name: '',
     currency: 'CNY',
-    icon: '银行',
+    icon: '',
     balance: '',
   });
 
@@ -69,6 +69,10 @@ export default function DevVisualPreview() {
     insertAccount: async (account) => ({
       ...account,
       id: `dev_account_${Date.now()}`,
+    }),
+    updateAccount: async (id, account) => ({
+      ...account,
+      id,
     }),
     upsertSnapshot: async () => ({}),
     deleteAccount: async () => ({}),

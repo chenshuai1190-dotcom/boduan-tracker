@@ -155,6 +155,8 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.ok(analysisTabSource.includes('db.insertAccount'), 'add account must keep the existing account insert path');
   assert.ok(analysisTabSource.includes('db.upsertSnapshot'), 'monthly balance saves must keep the existing snapshot upsert path');
   assert.ok(analysisTabSource.includes('db.deleteAccount'), 'account delete must keep the existing database-backed delete path');
+  assert.ok(analysisTabSource.includes('db.updateAccount'), 'account edits must use the database-backed update path');
+  assert.ok(dbSource.includes('export const updateAccount = async'), 'account metadata updates need a shared database helper');
   assert.ok(analysisTabSource.includes("if (currency === 'USD') return value * usdRate;"), 'USD balances must still convert with the existing daily fx rate');
   assert.ok(analysisTabSource.includes("if (currency === 'HKD') return value * hkdRate;"), 'HKD balances must still convert with the existing daily fx rate');
   assert.equal(analysisTabSource.includes('美元汇率'), false, 'manual USD rate control should not remain visible');
@@ -162,7 +164,8 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.equal(analysisTabSource.includes('setUsdRate'), false, 'asset tab should not expose manual USD rate editing');
   assert.equal(analysisTabSource.includes('setHkdRate'), false, 'asset tab should not expose manual HKD rate editing');
   assert.equal(analysisTabSource.includes('alert('), false, 'asset tab validation should not use native alert dialogs');
-  assert.ok(settingsTabSource.includes('v10.7.9.108'), 'settings version should reflect the latest asset visual fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.109'), 'settings version should reflect the latest asset account behavior');
+  assert.ok(settingsTabSource.includes('优化资产账户显示和操作'), 'settings changelog should describe the asset account behavior update');
   assert.ok(settingsTabSource.includes('资产模块 UI 深色重设计'), 'settings changelog should describe the asset module redesign');
 });
 
@@ -171,6 +174,7 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(authGateSource.includes("!isSupabaseConfigured && import.meta.env.DEV"), 'local missing-env mode must be development-only');
   assert.ok(authGateSource.includes('<DevVisualPreview />'), 'development missing-env mode should render the asset visual preview');
   assert.ok(devVisualPreviewSource.includes('makeSnapshots(baseAccounts)'), 'asset visual preview should provide deterministic local mock snapshots');
+  assert.ok(devVisualPreviewSource.includes('updateAccount: async'), 'asset visual preview should support account edit smoke checks');
   assert.ok(devVisualPreviewSource.includes("deleteAccount: async () => ({})"), 'asset visual preview must not perform real database deletes');
   assert.ok(analysisTabSource.includes('assetDrawLine'), 'asset chart should keep the line drawing animation');
   assert.ok(analysisTabSource.includes('assetAreaFadeIn'), 'asset chart area should keep the fade-in animation');
@@ -181,6 +185,21 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
   assert.equal(analysisTabSource.includes('text-[48px]'), false, 'asset header number should not return to the oversized mobile font');
   assert.ok(settingsTabSource.includes('对齐资产页字号和走势图细节'), 'settings changelog should document the asset typography and chart fix');
+});
+
+test('asset account list hides zero-balance rows and uses action modal for edit/delete', () => {
+  assert.ok(appSource.includes("type: ''"), 'new account state should not preselect bank type');
+  assert.ok(analysisTabSource.includes("setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' })"), 'opening add account should reset to no selected type');
+  assert.ok(analysisTabSource.includes('请选择账户类型'), 'add/edit account should require the user to choose a type');
+  assert.ok(analysisTabSource.includes('const currentVisibleAccounts = (items) =>'), 'asset owner lists need a current-month visibility filter');
+  assert.ok(analysisTabSource.includes('items.filter(acc => balanceAtMonthCNY(acc.id, currentMonth) !== 0)'), 'only zero current-month accounts should be hidden from owner lists');
+  assert.ok(analysisTabSource.includes('visibleOwnerAccs.length'), 'owner account counts should reflect only visible current-month accounts');
+  assert.ok(analysisTabSource.includes('setAccountActionId(acc.id)'), 'clicking an account row should open the action modal');
+  assert.ok(analysisTabSource.includes('账户操作'), 'asset account action modal should be present');
+  assert.ok(analysisTabSource.includes('修改账户'), 'asset account action modal should offer editing');
+  assert.ok(analysisTabSource.includes('删除账户'), 'asset account action modal should offer deletion');
+  assert.ok(analysisTabSource.includes('保存修改'), 'asset account edit modal should save changes');
+  assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
 });
 
 test('order action modal stays compact like the current trade record reference', () => {

@@ -4,6 +4,36 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产账户显示和操作优化
+
+- Commit: pending
+- Background: 用户要求资产模块继续收口账户交互:新增账户不能默认勾选银行,由用户自由选择;`我` 和 `老婆` 列表中本月余额为 0 的账户不在首页展示,但历史月度快照和统计逻辑继续保留;账户行后方删除按钮取消,改为像交易记录一样点击单条账户后弹出操作面板,再选择修改或删除。
+- Changes:
+  - `AnalysisTab` 新增账户入口每次打开都会重置为未选择类型,保存时必须先选择账户类型,避免默认把新账户归为银行。
+  - `我` / `老婆` 账户列表渲染前按当前月折算人民币余额过滤,本月为 0 的账户不显示;分组总额、家庭总资产、走势图和历史快照仍继续按完整账户和快照数据计算。
+  - 账户列表行取消右侧直接删除按钮,整行可点击并打开居中的 `账户操作` 面板,面板提供 `修改账户`、`删除账户` 和 `取消`。
+  - 新增账户修改弹窗,支持修改拥有人、类型、账户名、币种和本月余额;账户资料写入 `accounts`,本月余额继续写入 `account_snapshots`。
+  - `src/lib/db.js` 新增 `updateAccount`,所有更新继续按当前登录用户 `user_id` 约束,删除仍走既有 `deleteAccount` 和快照级联逻辑。
+  - 本地资产视觉预览补齐 `updateAccount` mock,方便无 Supabase 配置时继续检查修改弹窗。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.109`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是资产账户前端交互和现有账户表更新入口补齐,不改变环境变量、API 鉴权、RLS SQL、安全架构结论或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/App.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/lib/db.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 62 tests.
+  - `npm run build`: pass; `index-CQxa_nU7.css` 54.02 kB / gzip 9.91 kB, `index-Gd5V_hBF.js` 5.15 kB / gzip 2.50 kB, `AnalysisTab-S1iYuxfx.js` 37.13 kB / gzip 8.79 kB, `SettingsTab-DMb_eqzF.js` 38.23 kB / gzip 14.52 kB, `App-CeOFEQzN.js` 142.94 kB / gzip 40.95 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/`, in-app browser viewport `390x844`;verified body background `rgb(5, 7, 11)`, `老婆` mock group shows 5 visible accounts instead of 6 because the 0-balance account is hidden, add-account modal opens with no selected account type and placeholder `先选择类型,再输入账户名`, account rows expose no trailing direct delete button, clicking `招商银行` opens `账户操作` with `修改账户` / `删除账户` / `取消`, `修改账户` opens the edit modal with owner/type/name/currency/month-balance fields, input text color is `rgb(245, 247, 251)`, and browser console error/warn logs are empty.
+- Deployment: pending
+- Rollback: 回滚本次改动会恢复资产页 `v10.7.9.108` 的新增账户默认银行、账户行右侧直接删除按钮和本月 0 余额账户仍显示;不会影响既有账户、月度快照、汇率拉取、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 资产页字号和走势图细节对齐
 
 - Commit: `d0096fd8426f1313070b71a2c6eae981f006f292`

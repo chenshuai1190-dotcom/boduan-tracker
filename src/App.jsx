@@ -890,10 +890,10 @@ function MainApp({ user, onLogout }) {
   const [accountDeleteConfirmId, setAccountDeleteConfirmId] = useState(null);
   const [newAccount, setNewAccount] = useState({
     owner: '我',
-    type: '银行',
+    type: '',
     name: '',
     currency: 'CNY',
-    icon: '🏦',
+    icon: '',
     balance: '',
   });
   const [snapshotDraft, setSnapshotDraft] = useState({}); // { account_id: '12345' } 填快照时的暂存值

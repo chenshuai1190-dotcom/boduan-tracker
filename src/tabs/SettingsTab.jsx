@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.108
+                  v10.7.9.109
                 </span>
               </div>
             </div>
@@ -163,14 +163,24 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.108
+                  v10.7.9.109
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.108', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.109', date: '2026-07-05', latest: true,
+                    items: [
+                      '🧾 优化资产账户显示和操作',
+                      '  - 新增账户不再默认选择银行类型,必须由用户自由选择',
+                      '  - 我/老婆账户列表隐藏本月余额为 0 的账户,历史月度快照和总资产统计逻辑保持不变',
+                      '  - 账户行删除右侧直接删除按钮,改为点击单条记录弹出账户操作',
+                      '  - 账户操作弹窗支持修改账户资料、本月余额和删除账户,继续同步云端数据库',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.108', date: '2026-07-05',
                     items: [
                       '📐 对齐资产页字号和走势图细节',
                       '  - 家庭总资产、走势图标题、账户列表和弹窗字号继续按首页层级收紧',
@@ -1118,7 +1128,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.108</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.109</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>
