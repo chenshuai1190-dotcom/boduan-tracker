@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 交易持仓 WebSocket 秒级推送
 
-- Commit: pending
+- Commit: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
 - Background: 用户指出首页三大指数卡不需要各自显示连接状态,只保留 BTC 卡连接态即可;同时询问交易页头部和持仓是否也已走 WebSocket 秒级推送。核对后确认交易页头部/持仓由 `quoteCache -> quoteRows -> investmentSummary` 派生,此前仍主要依赖 `/api/quote` REST 轮询。
 - Changes:
   - 首页 `MiniMarketCard` 只在 BTC 卡显示 `LIVE/REST/连接中/延迟` 状态;三大指数继续接收 WebSocket tick 更新价格和小曲线,但不再显示重复连接徽标。
@@ -40,8 +40,15 @@
   - Build marker scan: pass;active App bundle contains `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`;settings bundle contains `v10.7.9.141` and `交易持仓 WebSocket 秒级推送`;active runtime bundles do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`.
   - Local mobile browser check (`127.0.0.1:5173`, 390x844): pass;首页实时徽标数量为 1,所在父级为 `BTC/USD LIVE`;标普500、纳斯达克100、道琼斯卡不显示连接状态。
   - Local upstream limitation: 本地 shell 未配置 `EODHD_API_KEY` 和真实登录 session,所以真实 EODHD 股票 tick delivery 需在生产登录态、交易时段继续观察。
-- Deployment: pending.
-- Production verification: pending.
+- Deployment:
+  - Pushed to GitHub `main`.
+  - GitHub Actions `CI` check passed for `6d495b52eb2a8d8ade727cac0afcff47bedd65e2` (run `28747184268`, job `85239962676`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`.
+- Production verification:
+  - Production `GET https://boduan-tracker.vercel.app/?v=6d495b5-stocks-ws-141-final`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-DdS3FYEs.js`, `HomeTab-4NbUE9pN.js`, `TradesTab-CMxJkAZP.js`, `SettingsTab-BDsSF93O.js`;assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, `v10.7.9.141`, and `交易持仓 WebSocket 秒级推送`.
+  - Production active runtime marker check: pass;active runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`.
+  - Production auth checks: unauthenticated `GET /api/quote?symbols=VIX` returns HTTP 401;plain `GET /api/stocks-realtime` returns HTTP 426;unauthenticated WebSocket upgrade to `wss://boduan-tracker.vercel.app/api/stocks-realtime?symbols=NVDA` returns HTTP 401.
 - Rollback: 回退 `/api/stocks-realtime`、`server/realtime/stocks*`、`src/lib/stockRealtime.js`、`App.jsx` 股票 WebSocket 客户端、`HomeTab` 只显示 BTC 连接态的改动、`v10.7.9.141` 设置页更新日志、测试和文档条目即可;现有 `/api/quote` REST 轮询、BTC relay 和三大指数 relay 可继续工作。
 
 ### 2026-07-06 - 三大指数 WebSocket 秒级推送
