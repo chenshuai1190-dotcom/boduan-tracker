@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 目标页头卡和年度层级微调
 
-- Commit: pending runtime commit.
+- Commit: `80b941f797623afcfd053932dadd15517fbde2e6`
 - Background: 用户继续降低目标页视觉层级,要求删除北极星头卡里的 `1 USD = xx RMB` 文案;把 `10 年目标 · 46 岁实现`、`还剩 x 年 · 本金 x · 年化 20%`、`年度目标进度` 标题字号再缩小;年度目标年份数字看起来仍偏粗,需要继续减轻字重。
 - Changes:
   - 北极星头卡继续保留 USD/RMB 切换和现有汇率换算逻辑,但不再在副标题行显示 `1 USD = ... RMB`。
@@ -29,8 +29,19 @@
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;RMB 状态下页面不含 `1 USD =` 文案;北极星副标题为 12px/400;`还剩 ...` 为 12px/400;`年度目标进度` 标题为 15px/600;年度 `2026` 为 28px/600,`2027` 为 22px/600;页面 `scrollWidth=390`,无横向溢出。
   - Build marker check: pass; built ReviewTab chunk does not contain `1 USD =`, and contains the 12px subtitle, 12px remaining line, 15px annual title, semibold current year and semibold future year markers;built `SettingsTab-D7CvfPsV.js` contains `v10.7.9.119` and `目标页头卡和年度层级微调`;built CSS does not contain `overscroll-behavior-y:none`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `80b941f797623afcfd053932dadd15517fbde2e6`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BGcYru5uraG1wyLy6z6W3axSk34b`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=80b941f-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BhyCkeDx.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-BiGy84K3.css`.
+  - Production runtime chunks include `/assets/App-D39F0jru.js`, `/assets/ReviewTab-Di8dsjgl.js`, `/assets/SettingsTab-D7CvfPsV.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-Di8dsjgl.js` does not contain `1 USD =`, and contains the 12px subtitle, 12px remaining line, 15px annual title, semibold current year and semibold future year markers.
+  - Production SettingsTab marker check: `SettingsTab-D7CvfPsV.js` contains `v10.7.9.119` and `目标页头卡和年度层级微调`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-BiGy84K3.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status and `v10.7.9.118` deployment references with the actual `v10.7.9.119` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次目标页层级微调会恢复 RMB 汇率辅助文案、较大的目标说明/剩余年限/年度标题字号和年度年份 `font-bold`;不影响目标数据、USD/RMB 实际换算、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 目标页未开始年度降色
