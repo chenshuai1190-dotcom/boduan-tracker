@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产页粉色对齐首页
+
+- Commit: `same commit`
+- Background: 用户要求检查资产页和首页粉色是否一致,如果不一致则以首页为准校准。检查发现首页市场金额/涨跌粉色由 `marketHexColor(-1)` 输出 `#fb7185` / `text-rose-400`,资产页 `ASSET_PINK` 仍为 `#f56f98`,颜色偏紫且和首页不一致。
+- Changes:
+  - `AnalysisTab` 引入首页同源的 `marketHexColor`,将 `ASSET_PINK` 改为 `marketHexColor(-1)`,让资产页走势图、选中月份数值、月度变化、老婆账户强调色等统一使用首页粉色 `#fb7185`。
+  - 保留资产页 `ASSET_GREEN`、金色主资产数字、账户列表、快照、汇率换算和数据库读写逻辑不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.137`,新增 `资产页粉色对齐首页` 更新记录。
+  - 测试更新为保护资产页粉色复用首页市场颜色 helper,并防止旧 `#f56f98` 回归。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页/资产页视觉 token 对齐,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-BmBrKMRW.css`,`AnalysisTab-JzmGUTFW.js`,`SettingsTab-BFPQGXfK.js`,`marketColorMode-DqRpGks3.js`,`App-IK8AbzSG.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Source color check: pass;首页 `marketHexColor(-1)` 为 `#fb7185`,资产页旧 `ASSET_PINK = '#f56f98'` 已移除,改为 `ASSET_PINK = marketHexColor(-1)`,实际资产页粉色与首页同源。
+  - Build marker check: pass;built `AnalysisTab-JzmGUTFW.js` does not contain old `#f56f98` and imports `marketColorMode-DqRpGks3.js`;built `marketColorMode-DqRpGks3.js` contains home pink `#fb7185`;built `SettingsTab-BFPQGXfK.js` contains `v10.7.9.137` and `资产页粉色对齐首页`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 将 `AnalysisTab` 的 `ASSET_PINK` 恢复为 `#f56f98`,并回退设置页 `v10.7.9.137` 更新日志、开发日志条目和对应测试断言即可;不影响资产计算、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 投资戒律国旗背景仅保留弹窗
 
 - Commit: `9a323f22b851ecc08f71f4a45df2180a3d1def5a`

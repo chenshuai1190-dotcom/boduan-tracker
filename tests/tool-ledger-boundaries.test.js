@@ -149,6 +149,9 @@ test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
 
 test('asset module redesign keeps database logic while removing legacy controls', () => {
   assert.ok(analysisTabSource.includes('ASSET_GOLD'), 'asset page should use the redesigned dark/gold theme tokens');
+  assert.ok(analysisTabSource.includes("import { marketHexColor } from '../lib/marketColorMode.js';"), 'asset page should reuse the home market color helper');
+  assert.ok(analysisTabSource.includes('const ASSET_PINK = marketHexColor(-1);'), 'asset page pink accent should match the home pink token');
+  assert.equal(analysisTabSource.includes("const ASSET_PINK = '#f56f98';"), false, 'asset page should not keep the old mismatched pink accent');
   assert.ok(analysisTabSource.includes('ASSET_PINK'), 'asset page should keep the pink accent for positive values and spouse assets');
   assert.ok(analysisTabSource.includes('ACCOUNT_TYPE_OPTIONS'), 'asset accounts should use the custom line-icon type grid');
   assert.ok(analysisTabSource.includes('Landmark'), 'bank accounts should use lucide line icons rather than emoji');
@@ -357,8 +360,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.136'), 'settings version should document the modal-only review flag background update');
-  assert.ok(settingsTabSource.includes('弹窗国旗背景保留'), 'settings changelog should describe the modal-only review flag background update');
+  assert.ok(settingsTabSource.includes('v10.7.9.137'), 'settings version should document the asset pink alignment update');
+  assert.ok(settingsTabSource.includes('资产页粉色对齐首页'), 'settings changelog should describe the asset pink alignment update');
+  assert.ok(settingsTabSource.includes('弹窗国旗背景保留'), 'settings changelog should retain the modal-only review flag background history');
   assert.ok(settingsTabSource.includes('投资戒律国旗背景增强'), 'settings changelog should retain the stronger review flag background history');
   assert.ok(settingsTabSource.includes('投资戒律和复盘日志国旗背景'), 'settings changelog should retain the previous review flag background history');
   assert.ok(settingsTabSource.includes('首页恐慌模块回退旧版小卡'), 'settings changelog should retain the fear card rollback history');

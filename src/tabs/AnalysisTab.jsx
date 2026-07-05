@@ -19,11 +19,12 @@ import {
   X,
 } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { marketHexColor } from '../lib/marketColorMode.js';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const ASSET_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const ASSET_GOLD = '#f6c56f';
-const ASSET_PINK = '#f56f98';
+const ASSET_PINK = marketHexColor(-1);
 const ASSET_GREEN = '#50d0a2';
 const ASSET_CARD = '#0d131c';
 const ASSET_BORDER = 'rgba(255,255,255,0.11)';
