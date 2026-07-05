@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.110
+                  v10.7.9.109
                 </span>
               </div>
             </div>
@@ -163,23 +163,14 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.110
+                  v10.7.9.109
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.110', date: '2026-07-05', latest: true,
-                    items: [
-                      '🧭 隐藏全局原生滚动条指示',
-                      '  - 取消下拉刷新和页面滚动时右侧灰白原生滚动条露出',
-                      '  - 保留页面、表格和弹窗内部滚动能力,只隐藏滚动条视觉',
-                      '  - 根页面禁用原生纵向 overscroll 跟随效果,减少和应用内下拉刷新冲突',
-                    ],
-                  },
-                  {
-                    ver: 'v10.7.9.109', date: '2026-07-05',
+                    ver: 'v10.7.9.109', date: '2026-07-05', latest: true,
                     items: [
                       '🧾 优化资产账户显示和操作',
                       '  - 新增账户不再默认选择银行类型,必须由用户自由选择',
@@ -1137,7 +1128,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.110</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.109</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

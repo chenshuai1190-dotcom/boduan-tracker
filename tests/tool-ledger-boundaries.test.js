@@ -7,7 +7,6 @@ const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.u
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
-const indexCssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
@@ -115,15 +114,6 @@ test('global pull refresh only starts from the page top outside internal scrolle
   assert.ok(appSource.includes('target.closest(\'[data-pull-refresh-block="true"]\')'), 'pull-refresh should support explicit blocked scroll regions');
   assert.ok(appSource.includes('isInternalScrollable'), 'pull-refresh should detect generic nested scroll containers');
   assert.ok(tradesTabSource.includes('data-pull-refresh-block="true"'), 'trade records list should not trigger global pull-refresh while scrolling records');
-});
-
-test('native scrollbars are hidden globally while keeping scrollable content usable', () => {
-  assert.ok(indexCssSource.includes('html, body, #root'), 'root scroll containers need shared global scrollbar rules');
-  assert.ok(indexCssSource.includes('scrollbar-width: none'), 'Firefox scrollbar visuals should be hidden globally');
-  assert.ok(indexCssSource.includes('-ms-overflow-style: none'), 'legacy Edge scrollbar visuals should be hidden globally');
-  assert.ok(indexCssSource.includes('*::-webkit-scrollbar'), 'WebKit scrollbar visuals should be hidden globally');
-  assert.ok(indexCssSource.includes('display: none'), 'WebKit scrollbar pseudo-element should not render');
-  assert.ok(indexCssSource.includes('overscroll-behavior-y: none'), 'root overscroll should not expose native pull chrome during app refresh');
 });
 
 test('position clicks default to buy and trade records use ledger edit/delete flow', () => {

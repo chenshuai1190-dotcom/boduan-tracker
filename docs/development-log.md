@@ -4,6 +4,30 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 回退全局滚动条隐藏
+
+- Commit: rollback commit;以本条所在提交为准。
+- Background: 用户反馈上一版全局取消右侧原生滚动条后,页面下拉和滚动手感不再丝滑,要求回退到上一个版本的滚动行为。
+- Changes:
+  - 撤回 `src/index.css` 中全局隐藏原生 scrollbar 视觉和根页面 `overscroll-behavior-y: none` 的规则,恢复浏览器/系统原生滚动与回弹手感。
+  - 移除 `tests/tool-ledger-boundaries.test.js` 中锁定全局隐藏 scrollbar 的回归断言,避免继续把该体验固化为要求。
+  - 设置页版本和更新日志回到 `v10.7.9.109`,最新可见更新重新指向资产账户显示和操作优化。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是前端滚动体验回退,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库或 `/api/quote` 鉴权。
+- Key files:
+  - `src/index.css`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 62 tests.
+  - `npm run build`: pass; `index-CQxa_nU7.css` 54.02 kB / gzip 9.91 kB, `SettingsTab-DMb_eqzF.js` 38.23 kB / gzip 14.52 kB, `App-CeOFEQzN.js` 142.94 kB / gzip 40.95 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Source marker check: pass; `src/index.css` / `src/tabs/SettingsTab.jsx` / `tests/tool-ledger-boundaries.test.js` no longer contain the reverted global scrollbar-hide rules, `v10.7.9.110`, `隐藏全局原生滚动条指示` or `右侧灰白原生滚动条`.
+  - Build marker check: pass; built CSS/Settings chunks do not contain root global scrollbar-hide markers, `v10.7.9.110`, `隐藏全局原生滚动条指示` or `右侧灰白原生滚动条`, and Settings chunk contains `v10.7.9.109`.
+- Deployment: pending.
+- Rollback: 如需再次隐藏右侧灰白原生滚动条,需重新评估 iOS/PWA 下拉和滚动手感,避免恢复全局 `overscroll-behavior-y: none` 后造成卡顿感。
+
 ### 2026-07-05 - 隐藏全局原生滚动条指示
 
 - Commit: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`
