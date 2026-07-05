@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产走势图只显示选中圆点
 
-- Commit: `same commit`
+- Commit: `414621cb0a0d8e7996d15f1e125dfb28a624cb02`
 - Background: 用户反馈资产页 `12 个月走势` 动画结束后所有月份圆圈一起显示,视觉像柱状/点阵图,预期应该只显示最后一个圆圈,点击其它月份时也只突出当前圆圈。
 - Changes:
   - `AnalysisTab` 新增 `effectiveChartSelectedMonthIdx`,当用户未手动选择月份时默认选中最后一个有效月份,让进入资产页后只显示最新月份圆点和对应月度摘要。
@@ -30,9 +30,17 @@
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=analysis`;default chart SVG has visible circle count `2` (outer ring `r=5.8` + inner dot `r=2.2`) at the latest month, transparent hit target count `12`, selected guide line count `1`, `scrollWidth=390` / `clientWidth=390`;after clicking a historical month, visible circle count remains `2`, transparent hit target count remains `12`, and month detail switches to the clicked month.
   - Build marker check: pass;built `AnalysisTab-qNHneavM.js` contains `月度 · 点击查看` and no old every-point radius marker;built `SettingsTab-CuTZAWWY.js` contains `v10.7.9.138` and `资产走势图点位修正`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`;Vercel production deployment completed for the asset chart selected-point release.
+  - Runtime code commit: `414621cb0a0d8e7996d15f1e125dfb28a624cb02`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Ajk67jm9u3Tnuu78p9DviGc3trs5`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=414621c-asset-chart-point-138`: HTTP 200.
+  - Production entry chunks: `/assets/index-OsqTx8H6.js`,`/assets/rolldown-runtime-QTnfLwEv.js`,`/assets/react-vendor-0zZBvgmv.js`,`/assets/index-BmBrKMRW.css`.
+  - Production runtime chunks include: `/assets/AnalysisTab-qNHneavM.js`,`/assets/SettingsTab-CuTZAWWY.js`.
 - Production verification:
-  - Pending.
+  - Production AnalysisTab marker check: `AnalysisTab-qNHneavM.js` contains `月度 · 点击查看` and does not contain old every-point radius marker `selected?5.8:4.4` / `selected ? 5.8 : 4.4`.
+  - Production SettingsTab marker check: `SettingsTab-CuTZAWWY.js` contains `v10.7.9.138` and `资产走势图点位修正`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回退 `AnalysisTab` 的 `effectiveChartSelectedMonthIdx` / 选中点渲染逻辑和 `v10.7.9.138` 设置页更新日志、开发日志条目、测试断言即可;不影响资产数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 资产页粉色对齐首页
