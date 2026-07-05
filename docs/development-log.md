@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律记录详情弹窗
 
-- Commit: pending runtime commit.
+- Commit: `806ad0daf09266f9d1b05f9681e7b4fe4a315817`
 - Background: 用户提供新的投资戒律单条记录详情效果图,要求点击记录后在详情弹窗中完整展示正文排版,并把修改、删除、取消置顶按钮缩小;图中的底部取消按钮不要做,因为右上角关闭已经可以取消。
 - Changes:
   - 投资戒律点击弹窗从旧 `戒律操作` 操作面板改为 `记录详情` 居中详情卡片,保留遮罩和背景模糊。
@@ -30,8 +30,18 @@
   - `git diff --check`: pass.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;页面 `scrollWidth=390`,body background `rgb(5, 7, 11)`;长文本 `TSM` 戒律点击后打开 `记录详情`,详情卡片 `342x314`,正文区 `300x168`,正文实际 `14px/400`,行高 `25.48px`,正文不含列表截断省略号,前缀颜色 `rgba(246, 181, 75, 0.9)`;底部只有 `修改`、`删除`、`置顶` 三个操作按钮,每个 `95x36`,文字 `12px`,没有重复底部 `取消`;短文本戒律详情正文区仍保持 `168px` 高,不塌缩;置顶的 `VIX 法则:` 戒律前缀同样高亮,第三个按钮显示 `取消置顶`。
   - Build marker check: `ReviewTab-aXtuzmSs.js` contains `记录详情`, `min-h-[168px]`, `grid grid-cols-3 gap-2`, `flex h-9 items-center justify-center gap-1.5 rounded-full`, `border-[#f6b54b]/30`, `border-emerald-300/20`, and no longer contains `删除戒律` / `修改戒律`;`SettingsTab-7OfakMAN.js` contains `v10.7.9.123` and `投资戒律记录详情弹窗`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `806ad0daf09266f9d1b05f9681e7b4fe4a315817`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/22CRqnoeRVyzkX68U8n9oQFqQ8N3`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=806ad0d-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-B4-3F3aL.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CMFmKKNK.css`.
+  - Production runtime chunks include: `/assets/App-CzyBdNt7.js`, `/assets/ReviewTab-aXtuzmSs.js`, `/assets/SettingsTab-7OfakMAN.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-aXtuzmSs.js` contains `记录详情`, `min-h-[168px]`, `grid grid-cols-3 gap-2`, compact `h-9` pill actions, `border-[#f6b54b]/30` and `border-emerald-300/20`;it no longer contains `删除戒律` / `修改戒律`.
+  - Production SettingsTab marker check: `SettingsTab-7OfakMAN.js` contains `v10.7.9.123` and `投资戒律记录详情弹窗`.
+  - Production CSS/App marker check: `index-CMFmKKNK.css` does not contain `overscroll-behavior-y:none`;`App-CzyBdNt7.js` does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.123` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次详情弹窗会恢复 `v10.7.9.122` 的旧 `戒律操作` 面板、大按钮和底部取消按钮;不影响戒律数据、筛选数量、置顶/取消置顶、编辑/删除、目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律标题行精简
