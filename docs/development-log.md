@@ -15,10 +15,12 @@
   - REST 成功但返回第三方局部错误时也写入诊断日志,例如 CNN、Yahoo、EODHD、NASDAQ 某一项失败但整体响应仍成功。
   - 设置页新增 `行情诊断日志` 卡片,展示最近 8 条诊断,可查看根因、来源、触发方式、请求范围、HTTP 状态和重复次数,并支持清空本地日志。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.143`,新增 `行情诊断日志`。
+  - `docs/handoff.md` 同步当前运行时代码、设置页版本、CI/生产验证和可转发交接块;`README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动,因为没有新增环境变量、API 鉴权/RLS 变化或安全架构边界变化。
 - Key files:
   - `src/App.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass;71 tests passed.
@@ -27,7 +29,12 @@
   - `git diff --check`: pass.
   - Build marker scan: pass;built assets contain `v10.7.9.143`, `行情诊断日志`, `xmoney_quote_diagnostic_log_v1`, `auto-silent`, `manual-visible`, and `/api/stocks-realtime`;active App/Home/Trades bundles do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`. `SettingsTab` still contains historical changelog text `VITE_EODHD_TOKEN` only.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `345a9481a5d7599b2a987106071f636b3b18a1da`.
+  - GitHub Actions `CI` check passed for `345a9481a5d7599b2a987106071f636b3b18a1da` (run `28748329288`).
+  - Production `GET https://boduan-tracker.vercel.app/?v=345a948-quote-diag-143`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-CgYFtlGg.js`, `SettingsTab-DQJSM5zg.js`, `HomeTab-4NbUE9pN.js`, `TradesTab-uyI19HGM.js`;assets contain `v10.7.9.143`, `行情诊断日志`, `xmoney_quote_diagnostic_log_v1`, `auto-silent`, `manual-visible`, and `/api/stocks-realtime`.
+  - Production active runtime marker check: pass;active App/Home/Trades runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `App.jsx` 的 quote diagnostic helpers、`notifyOnError` 调用区分和设置页 context,回退 `SettingsTab` 的 `行情诊断日志` 卡片与 `v10.7.9.143` 更新日志,并回退对应测试断言和本条开发日志即可;不影响 `/api/quote` 鉴权、`/api/stocks-realtime`、BTC/指数 relay、交易账本或 Supabase 数据。
 
 ### 2026-07-06 - 工具行情 WebSocket 秒级推送
