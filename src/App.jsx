@@ -317,10 +317,10 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
   const isEdit = Boolean(initial?.isEdit || onDelete);
 
   const LEVELS = [
-    { level: '🟢', label: '一般' },
-    { level: '🔺', label: '重要' },
-    { level: '📣', label: '强调' },
-    { level: '❗', label: '警告' },
+    { level: '🟢', label: '一般', dotColor: '#18d66b', ringColor: 'rgba(24, 214, 107, 0.12)', ringBorder: 'rgba(24, 214, 107, 0.14)' },
+    { level: '🔺', label: '重要', dotColor: '#ff0f35', ringColor: 'rgba(255, 15, 53, 0.13)', ringBorder: 'rgba(255, 15, 53, 0.15)' },
+    { level: '📣', label: '强调', dotColor: '#ffa42b', ringColor: 'rgba(255, 164, 43, 0.13)', ringBorder: 'rgba(255, 164, 43, 0.16)' },
+    { level: '❗', label: '警告', dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
   ];
 
   return (
@@ -340,9 +340,14 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
                 <button
                   key={l.level}
                   onClick={() => setLevel(l.level)}
-                  className={`flex flex-col items-center gap-0.5 rounded-xl border py-2 text-xs font-semibold active:scale-95 ${level === l.level ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.045] text-white/55'}`}
+                  className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-xs font-normal active:scale-95 ${level === l.level ? 'border-white/[0.12] bg-white/[0.06] text-white/82' : 'border-white/10 bg-white/[0.045] text-white/55'}`}
                 >
-                  <span className="text-base">{l.level}</span>
+                  <span
+                    className="flex h-6 w-6 items-center justify-center rounded-full border"
+                    style={{ backgroundColor: l.ringColor, borderColor: l.ringBorder }}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: l.dotColor, boxShadow: `0 0 10px ${l.dotColor}66` }} />
+                  </span>
                   <span>{l.label}</span>
                 </button>
               ))}

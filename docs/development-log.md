@@ -4,6 +4,35 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 投资戒律低色彩重设计
+
+- Commit: pending runtime commit.
+- Background: 用户提供新的投资戒律效果图,要求该模块严格按截图降低色彩复杂度:旧图标全部取消,改为彩色圆点;置顶和按钮都降低色彩;颜色和字体大小按效果图执行。
+- Changes:
+  - 投资戒律模块取消外层卡片壳,改为独立标题区、竖向橙色短条、灰色 `+ 添加` 胶囊按钮和灰色筛选胶囊;筛选胶囊收紧到 390px 移动端一行完整显示 5 个选项。
+  - 戒律分类仍沿用现有 `level` 数据值,但列表和筛选不再渲染 🟢/🔺/📣/❗ 字符,统一使用绿色、红粉、橙色和红色圆点及低饱和底圈。
+  - 戒律卡片改为深色大圆角独立卡片,正文放大到 15px,日期、置顶和展开全文入口改为低饱和灰色。
+  - 添加/编辑戒律弹窗的等级选择同步从 emoji 图标改为颜色圆点。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.120`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页投资戒律视觉重设计,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass; `index-CRa94lVp.css` 53.10 kB / gzip 9.86 kB, `ReviewTab-ZMBJLBy2.js` 33.04 kB / gzip 8.17 kB, `SettingsTab-DCwFIKfg.js` 41.72 kB / gzip 15.80 kB, `App-BH87booL.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;投资戒律区域 `scrollWidth=390`, body background `rgb(5, 7, 11)`;标题为 24px/600,数量为 13px/400,添加按钮为 44px 高低色彩灰色胶囊;5 个筛选胶囊在 390px 视口一行完整显示,宽度约 `75.4px + 58px * 4`;首张戒律卡宽 358px、圆角 22px、正文 15px/400,等级显示为 40px 低饱和底圈 + 10px 实心圆点,未显示旧 emoji;置顶为 12px 低色彩灰色胶囊;点击戒律卡可打开 `戒律操作`,并包含修改、置顶/取消置顶、删除和取消。
+  - Build marker check: pass;built `ReviewTab-ZMBJLBy2.js` contains `dotColor`, `ringColor`, compact `h-10 min-w-[58px]` filter marker, redesigned `text-[24px] font-semibold` title marker, `戒律操作` and `删除戒律`;does not contain `1 USD =` helper or legacy row emoji marker;built `App-BH87booL.js` contains discipline modal `dotColor`/`ringColor`;built `SettingsTab-DCwFIKfg.js` contains `v10.7.9.120` and `投资戒律低色彩重设计`;built CSS does not contain `overscroll-behavior-y:none`;built assets do not contain `DevVisualPreview`.
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次投资戒律重设计会恢复外层卡片壳、emoji 等级图标、金色筛选/置顶/展开入口和旧的添加按钮视觉;不影响戒律数据、置顶/取消置顶、编辑/删除、目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 目标页头卡和年度层级微调
 
 - Commit: `80b941f797623afcfd053932dadd15517fbde2e6`

@@ -8,10 +8,10 @@ const REVIEW_CARD = '#0b0f14';
 const REVIEW_PANEL = '#0b0f16';
 
 const DISCIPLINE_LEVELS = [
-  { level: '🟢', label: '一般', dot: 'bg-emerald-400', border: 'border-emerald-400/20', text: 'text-emerald-300', bg: 'bg-emerald-400/10' },
-  { level: '🔺', label: '重要', dot: 'bg-rose-400', border: 'border-rose-400/20', text: 'text-rose-300', bg: 'bg-rose-400/10' },
-  { level: '📣', label: '强调', dot: 'bg-amber-400', border: 'border-amber-400/20', text: 'text-amber-300', bg: 'bg-amber-400/10' },
-  { level: '❗', label: '警告', dot: 'bg-red-500', border: 'border-red-400/25', text: 'text-red-300', bg: 'bg-red-400/10' },
+  { level: '🟢', label: '一般', dotColor: '#18d66b', ringColor: 'rgba(24, 214, 107, 0.12)', ringBorder: 'rgba(24, 214, 107, 0.14)' },
+  { level: '🔺', label: '重要', dotColor: '#ff0f35', ringColor: 'rgba(255, 15, 53, 0.13)', ringBorder: 'rgba(255, 15, 53, 0.15)' },
+  { level: '📣', label: '强调', dotColor: '#ffa42b', ringColor: 'rgba(255, 164, 43, 0.13)', ringBorder: 'rgba(255, 164, 43, 0.16)' },
+  { level: '❗', label: '警告', dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
 ];
 
 function toNumber(value, fallback = 0) {
@@ -583,20 +583,30 @@ export default function ReviewTab({ ctx }) {
         )}
       </section>
 
-      <section className="mt-4 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <SectionTitle
-          icon={<BookOpen className="h-4 w-4" />}
-          title="投资戒律"
-          count={`${disciplines.length} 条`}
-          actionLabel="+ 添加"
-          onAction={() => setShowAddDiscipline(true)}
-        />
+      <section className="mt-5">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="mt-1 h-8 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
+            <div className="min-w-0">
+              <div className="truncate text-[24px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
+              <div className="mt-2 text-[13px] font-normal text-white/38">{disciplines.length} 条</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAddDiscipline(true)}
+            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-4 text-[15px] font-normal text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] active:scale-95"
+          >
+            <span className="text-[24px] font-light leading-none text-white/78">+</span>
+            <span>添加</span>
+          </button>
+        </div>
 
-        <div className="mb-3 flex gap-2 overflow-x-auto" data-pull-refresh-block="true">
+        <div className="mb-5 flex gap-2.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-pull-refresh-block="true">
           <button
             type="button"
             onClick={() => setFilterLevel('all')}
-            className={`shrink-0 rounded-xl border px-3 py-1.5 text-[12px] font-normal active:scale-95 ${filterLevel === 'all' ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.035] text-white/45'}`}
+            className={`h-10 shrink-0 rounded-full border px-2.5 text-[13px] font-normal active:scale-95 ${filterLevel === 'all' ? 'border-white/[0.09] bg-white/[0.055] text-white/82' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
           >
             全部 ({disciplines.length})
           </button>
@@ -607,9 +617,9 @@ export default function ReviewTab({ ctx }) {
                 key={item.level}
                 type="button"
                 onClick={() => setFilterLevel(item.level)}
-                className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-normal active:scale-95 ${filterLevel === item.level ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.035] text-white/50'}`}
+                className={`flex h-10 min-w-[58px] shrink-0 items-center justify-center gap-2 rounded-full border px-3 text-[13px] font-normal active:scale-95 ${filterLevel === item.level ? 'border-white/[0.09] bg-white/[0.055] text-white/80' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
               >
-                <span className={`h-2 w-2 rounded-full ${item.dot}`} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.dotColor, boxShadow: `0 0 12px ${item.dotColor}55` }} />
                 <span>{count}</span>
               </button>
             );
@@ -622,7 +632,7 @@ export default function ReviewTab({ ctx }) {
           </div>
         ) : (
           <>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {visibleDisciplines.map((discipline) => {
                 const meta = levelMeta(discipline.level);
                 const isLong = (discipline.text || '').length > 60;
@@ -640,17 +650,20 @@ export default function ReviewTab({ ctx }) {
                         setDisciplineAction(discipline);
                       }
                     }}
-                    className="block w-full rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left active:scale-[0.99]"
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${meta.border} ${meta.bg}`}>
-                        <span className="text-[15px]">{discipline.level}</span>
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
+                        style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.dotColor, boxShadow: `0 0 13px ${meta.dotColor}66` }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-white/78">{displayText}</div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/35">
+                        <div className="whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.58] text-white/82">{displayText}</div>
+                        <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-white/33">
                           <span>{discipline.date}</span>
-                          {discipline.pinned && <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[#f6b54b]">置顶</span>}
+                          {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-0.5 text-[12px] text-white/42">置顶</span>}
                           {isLong && (
                             <span
                               role="button"
@@ -666,9 +679,9 @@ export default function ReviewTab({ ctx }) {
                                   setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
                                 }
                               }}
-                              className="text-[#f6b54b]"
+                              className="inline-flex items-center gap-1 text-white/38"
                             >
-                              {isExpanded ? '收起全文' : '展开全文'}
+                              {isExpanded ? '收起全文' : '展开全文'} <span className="text-[15px] leading-none text-white/28">›</span>
                             </span>
                           )}
                         </div>
@@ -683,7 +696,7 @@ export default function ReviewTab({ ctx }) {
               <button
                 type="button"
                 onClick={() => setShowAllDisciplines(!showAllDisciplines)}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/10 py-2.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-white/[0.07] bg-white/[0.035] py-2.5 text-[12px] font-normal text-white/48 active:scale-95"
               >
                 {showAllDisciplines ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 {showAllDisciplines ? '收起, 只看前 10 条' : `查看全部 ${filteredDisciplines.length} 条`}
