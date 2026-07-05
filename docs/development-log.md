@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 首页恐慌指标高保真卡片
 
-- Commit: `87513eebaa76b0d4906d3d8a55e4b41d3641ffbd`
+- Commit: `edce5caa4ef15380f2373b3fd078a988ff95b3e4`
 - Background: 用户提供 VIX 恐慌指数和 CNN 恐慌贪婪指数两张高保真效果图,要求首页这两个模块按参考图实现暗黑高级金融卡片,包含 SVG sparkline、VIX 横向风险条和 CNN 半圆仪表盘,不能停留在原两列小卡片效果。
 - Changes:
   - 新增 `src/components/FearIndexCards.tsx`,提供 `VixFearIndexCard` 和 `FearGreedIndexCard` 两个单文件 React + TypeScript + SVG 金融卡片组件。
