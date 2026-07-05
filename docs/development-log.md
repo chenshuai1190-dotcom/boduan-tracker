@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产页粉色对齐首页
 
-- Commit: `same commit`
+- Commit: `f63e05a72750b1303a3e6cc2ef6c3f095f6f363c`
 - Background: 用户要求检查资产页和首页粉色是否一致,如果不一致则以首页为准校准。检查发现首页市场金额/涨跌粉色由 `marketHexColor(-1)` 输出 `#fb7185` / `text-rose-400`,资产页 `ASSET_PINK` 仍为 `#f56f98`,颜色偏紫且和首页不一致。
 - Changes:
   - `AnalysisTab` 引入首页同源的 `marketHexColor`,将 `ASSET_PINK` 改为 `marketHexColor(-1)`,让资产页走势图、选中月份数值、月度变化、老婆账户强调色等统一使用首页粉色 `#fb7185`。
@@ -27,9 +27,18 @@
   - Source color check: pass;首页 `marketHexColor(-1)` 为 `#fb7185`,资产页旧 `ASSET_PINK = '#f56f98'` 已移除,改为 `ASSET_PINK = marketHexColor(-1)`,实际资产页粉色与首页同源。
   - Build marker check: pass;built `AnalysisTab-JzmGUTFW.js` does not contain old `#f56f98` and imports `marketColorMode-DqRpGks3.js`;built `marketColorMode-DqRpGks3.js` contains home pink `#fb7185`;built `SettingsTab-BFPQGXfK.js` contains `v10.7.9.137` and `资产页粉色对齐首页`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`;Vercel production deployment completed for the asset pink alignment release.
+  - Runtime code commit: `f63e05a72750b1303a3e6cc2ef6c3f095f6f363c`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/453PwL3FEVKjrmekKbExnXtMJvpk`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=f63e05a-asset-pink-137`: HTTP 200.
+  - Production entry chunks: `/assets/index-JiDJRygD.js`,`/assets/rolldown-runtime-QTnfLwEv.js`,`/assets/react-vendor-0zZBvgmv.js`,`/assets/index-BmBrKMRW.css`.
+  - Production runtime chunks include: `/assets/AnalysisTab-JzmGUTFW.js`,`/assets/SettingsTab-BFPQGXfK.js`,`/assets/marketColorMode-DqRpGks3.js`.
 - Production verification:
-  - Pending.
+  - Production AnalysisTab marker check: `AnalysisTab-JzmGUTFW.js` does not contain old `#f56f98` and imports `marketColorMode-DqRpGks3.js`.
+  - Production market color marker check: `marketColorMode-DqRpGks3.js` contains home pink `#fb7185`.
+  - Production SettingsTab marker check: `SettingsTab-BFPQGXfK.js` contains `v10.7.9.137` and `资产页粉色对齐首页`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 将 `AnalysisTab` 的 `ASSET_PINK` 恢复为 `#f56f98`,并回退设置页 `v10.7.9.137` 更新日志、开发日志条目和对应测试断言即可;不影响资产计算、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律国旗背景仅保留弹窗
