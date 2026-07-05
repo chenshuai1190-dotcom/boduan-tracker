@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 投资戒律国旗背景仅保留弹窗
+
+- Commit: `same commit`
+- Background: 用户反馈目标页列表卡片背景不应改变,只需要详情弹窗带美国国旗;同时当前弹窗国旗过亮,长文本在红白条纹上可读性下降,要求背景蒙版稍微加深。
+- Changes:
+  - `ReviewTab` 移除投资戒律列表和复盘日志列表卡片内的 `UsFlagBackground` 调用,列表恢复纯深色卡片背景、普通层级和原有低干扰正文/日期/标签效果。
+  - 记录详情和复盘详情弹窗继续保留美国国旗背景,但将弹窗 `shade` 提高到 `0.5` / `0.52`,并加深 SVG 顶部遮罩和 CSS 线性/径向暗遮罩,让正文、金色前缀和底部操作按钮更清晰。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.136`,新增 `弹窗国旗背景保留` 更新记录,并保留 `v10.7.9.135` 历史记录。
+  - 测试更新为保护“列表无国旗背景、弹窗保留国旗且遮罩更深、设置页版本/更新日志同步”的回归点。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-BmBrKMRW.css`,`ReviewTab-O-gadXpQ.js`,`SettingsTab-C1sm_Saq.js`,`App-ChiV97JR.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=review`;列表态 `data-us-flag-bg` count `0`,VIX 戒律卡片 class 为纯深色 `block w-full rounded-[22px] ... bg-[#0b1119]`,页面 `scrollWidth=390` / `clientWidth=390`;点击 `VIX 法则` 后 `记录详情` 弹窗宽 `342px` 高约 `314px`,弹窗内 `data-us-flag-bg` count `1`,背景遮罩为更深 `rgba(5,7,11,0.24/0.18/0.52)` 且 SVG 顶部遮罩 `opacity="0.3"`;关闭后列表态 count 回到 `0`;点击首条复盘后 `复盘详情` 弹窗宽 `342px` 高约 `401px`,弹窗内 count `1`,同样无横向溢出。
+  - Build marker check: pass;built `ReviewTab-O-gadXpQ.js` contains `data-us-flag-bg`, `scale(1.7)`, `rgba(5,7,11,0.24)`, `strength:.64` / `shade:.5`, and `strength:.58` / `shade:.52`;it does not contain old list background markers `strength:.2` / `shade:.48` or `strength:.18` / `shade:.5`;built `SettingsTab-C1sm_Saq.js` contains `v10.7.9.136` and `弹窗国旗背景保留`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 回退本条对 `ReviewTab` 列表卡片、弹窗 `UsFlagBackground` shade/遮罩、设置页 `v10.7.9.136` 更新日志和对应测试断言的改动即可;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 投资戒律国旗背景增强
 
 - Commit: `0b8d8ec1a337749706de3c38de8101d417a23906`
