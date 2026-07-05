@@ -96,6 +96,90 @@ function ReviewActionSheet({ title, desc, children, onClose }) {
   );
 }
 
+function formatDisciplineDetailText(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  return lines.map((line, index) => {
+    if (!line.trim()) {
+      return <div key={`blank-${index}`} className="h-2" />;
+    }
+    const match = line.match(/^(\s*[\w.$&/+·\-\s\u4e00-\u9fa5]{1,18}\s*[：:])(\s*)(.*)$/);
+    if (!match) {
+      return (
+        <p key={`${line}-${index}`} className="whitespace-pre-wrap break-words text-white/72">
+          {line}
+        </p>
+      );
+    }
+    return (
+      <p key={`${line}-${index}`} className="whitespace-pre-wrap break-words">
+        <span className="text-[#f6b54b]/90">{match[1]}</span>
+        {match[2] && <span> </span>}
+        <span className="text-white/72">{match[3]}</span>
+      </p>
+    );
+  });
+}
+
+function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onEdit, onTogglePin, onDelete }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6 py-8 backdrop-blur-lg"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 32px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
+      }}
+    >
+      <div className="w-full max-w-[360px] rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[18px] font-semibold tracking-normal text-white">记录详情</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/52 active:scale-90"
+            aria-label="关闭记录详情"
+          >
+            {X ? <X className="h-4 w-4" strokeWidth={1.8} /> : '×'}
+          </button>
+        </div>
+
+        <div className="mt-5 max-h-[52vh] min-h-[168px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {formatDisciplineDetailText(discipline.text)}
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+          >
+            {Edit2 && <Edit2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
+            <span>修改</span>
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
+          >
+            {Trash2 && <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
+            <span>删除</span>
+          </button>
+          <button
+            type="button"
+            onClick={onTogglePin}
+            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/[0.045] px-2 text-[12px] font-normal text-emerald-200/80 active:scale-95"
+          >
+            {Pin && <Pin className="h-3.5 w-3.5" strokeWidth={1.8} />}
+            <span>{discipline.pinned ? '取消置顶' : '置顶'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReviewTab({ ctx }) {
   const {
     BookOpen,
@@ -105,6 +189,7 @@ export default function ReviewTab({ ctx }) {
     db,
     DisciplineModal,
     disciplines,
+    Edit2,
     editYearlyActualId,
     expandedDisciplines,
     filterLevel,
@@ -136,6 +221,8 @@ export default function ReviewTab({ ctx }) {
     showConfirm,
     showPlanSettings,
     Target,
+    Pin,
+    Trash2,
     usdRate,
     X,
     YearlyActualModal,
@@ -776,42 +863,17 @@ export default function ReviewTab({ ctx }) {
       )}
 
       {disciplineAction && (
-        <ReviewActionSheet
-          title="戒律操作"
-          desc={disciplineAction.text}
+        <DisciplineDetailModal
+          discipline={disciplineAction}
+          Edit2={Edit2}
+          Pin={Pin}
+          Trash2={Trash2}
+          X={X}
           onClose={() => setDisciplineAction(null)}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => openDisciplineEdit(disciplineAction)}
-              className="flex min-h-[48px] items-center justify-center rounded-xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[13px] font-normal text-[#f6b54b] active:scale-95"
-            >
-              修改戒律
-            </button>
-            <button
-              type="button"
-              onClick={() => togglePinDiscipline(disciplineAction)}
-              className="flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-400/10 text-[13px] font-normal text-emerald-300 active:scale-95"
-            >
-              {disciplineAction.pinned ? '取消置顶' : '置顶戒律'}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => deleteDiscipline(disciplineAction)}
-            className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-rose-400/30 bg-rose-400/10 text-[13px] font-normal text-rose-300 active:scale-95"
-          >
-            删除戒律
-          </button>
-          <button
-            type="button"
-            onClick={() => setDisciplineAction(null)}
-            className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/80 active:scale-95"
-          >
-            取消
-          </button>
-        </ReviewActionSheet>
+          onEdit={() => openDisciplineEdit(disciplineAction)}
+          onTogglePin={() => togglePinDiscipline(disciplineAction)}
+          onDelete={() => deleteDiscipline(disciplineAction)}
+        />
       )}
 
       {showPlanSettings && (

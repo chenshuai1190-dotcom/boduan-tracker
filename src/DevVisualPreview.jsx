@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BookOpen, Calendar, ChevronDown, ChevronUp, Home, ListChecks, Settings, Target, Wallet, X } from 'lucide-react';
+import { BookOpen, Calendar, ChevronDown, ChevronUp, Edit2, Home, ListChecks, Pin, Settings, Target, Trash2, Wallet, X } from 'lucide-react';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
@@ -202,6 +202,7 @@ export default function DevVisualPreview() {
     db,
     DisciplineModal: (props) => <DevModal title={props.initial?.isEdit ? '编辑戒律' : '添加戒律'} onCancel={props.onCancel} />,
     disciplines,
+    Edit2,
     editingDisciplineId,
     editingLogId,
     editYearlyActualId,
@@ -235,6 +236,8 @@ export default function DevVisualPreview() {
     showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
     showPlanSettings,
     Target,
+    Pin,
+    Trash2,
     usdRate: USD_RATE,
     X,
     YearlyActualModal: (props) => <DevModal title={`${props.year} 年实际数据`} onCancel={props.onCancel} />,

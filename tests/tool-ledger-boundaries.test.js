@@ -280,17 +280,23 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('<span className="text-[15px]">{discipline.level}</span>'), false, 'discipline rows should not render legacy emoji level icons');
   assert.ok(appSource.includes('style={{ backgroundColor: l.ringColor, borderColor: l.ringBorder }}'), 'discipline edit modal should use colored dots for level choices');
   assert.equal(appSource.includes('<span className="text-base">{l.level}</span>'), false, 'discipline edit modal should not render emoji level icons');
-  assert.ok(reviewTabSource.includes('戒律操作'), 'discipline rows should open an action panel');
-  assert.ok(reviewTabSource.includes("disciplineAction.pinned ? '取消置顶' : '置顶戒律'"), 'discipline action panel must keep pin/unpin');
-  assert.ok(reviewTabSource.includes('删除戒律'), 'discipline action panel must offer deletion');
+  assert.ok(reviewTabSource.includes('function DisciplineDetailModal'), 'discipline rows should open a record detail modal');
+  assert.ok(reviewTabSource.includes('记录详情'), 'discipline detail modal should use the record detail title');
+  assert.ok(reviewTabSource.includes('min-h-[168px]'), 'discipline detail modal should reserve enough space for short content');
+  assert.ok(reviewTabSource.includes('formatDisciplineDetailText(discipline.text)'), 'discipline detail modal should render the full text body');
+  assert.ok(reviewTabSource.includes("discipline.pinned ? '取消置顶' : '置顶'"), 'discipline detail modal must keep pin/unpin');
+  assert.ok(reviewTabSource.includes('grid grid-cols-3 gap-2'), 'discipline detail actions should use compact three-button layout');
+  assert.ok(reviewTabSource.includes('flex h-9 items-center justify-center gap-1.5 rounded-full'), 'discipline detail action buttons should be compact pills');
+  assert.equal(reviewTabSource.includes('删除戒律'), false, 'discipline detail modal should not keep the large legacy delete label');
+  assert.equal(reviewTabSource.includes('修改戒律'), false, 'discipline detail modal should not keep the large legacy edit label');
   assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.122'), 'settings version should document the discipline heading tune');
-  assert.ok(settingsTabSource.includes('投资戒律标题行精简'), 'settings changelog should describe the discipline heading tune');
+  assert.ok(settingsTabSource.includes('v10.7.9.123'), 'settings version should document the discipline detail modal tune');
+  assert.ok(settingsTabSource.includes('投资戒律记录详情弹窗'), 'settings changelog should describe the discipline detail modal tune');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {
