@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 首页恐慌卡片双列瘦身
 
-- Commit: pending
+- Commit: `d18c16cffa1fc9dc90f2bcfc1e132ffe5514b485`
 - Background: 用户确认新 VIX/CNN 恐慌卡片效果已经达标,但当前全宽纵向卡片过大,需要恢复到之前一列两排区域中的并排双列效果,整体同比例缩小,保留新暗黑金融样式;同时两张卡片底部分区文字可删除,CNN 恐慌贪婪半圆仪表盘需要瘦身。
 - Changes:
   - 首页 `HomeTab` 将 VIX 和 CNN 恐慌卡片容器从纵向 `space-y-3` 恢复为 `grid grid-cols-2 gap-3`,回到并排双列布局。
