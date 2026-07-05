@@ -7,7 +7,7 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 - React 18 + Vite
 - Tailwind CSS
 - Supabase Auth + Postgres
-- Vercel Serverless Function at `api/quote.js`
+- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, and `api/indices-realtime.js`
 - EODHD, Yahoo Finance, CNN FGI, and NASDAQ calendar data
 
 ## Local Setup
@@ -44,7 +44,7 @@ Server:
 - `QUOTE_API_AUTH_REQUIRED=true`
 - `QUOTE_ALLOWED_ORIGINS=https://boduan-tracker.vercel.app`
 
-Do not add any `VITE_` EODHD token. Browser-direct market-data streaming has been removed; real-time streaming must use a server-side relay.
+Do not add any `VITE_` EODHD token. Browser-direct market-data streaming has been removed; real-time streaming must use authenticated server-side relays.
 
 ## Checks
 
@@ -70,6 +70,6 @@ Before treating a deployment as safe:
 2. Remove secrets from public docs and avoid committing real `.env` files.
 3. Apply `supabase/rls.sql` in the Supabase SQL editor.
 4. Keep `/api/quote` authenticated; do not disable `QUOTE_API_AUTH_REQUIRED` in production.
-5. Use a server-side WebSocket relay before enabling real-time streaming.
+5. Keep WebSocket streaming behind authenticated server-side relays (`/api/btc-realtime`, `/api/indices-realtime`); never expose EODHD tokens in the browser.
 
 More details: `docs/security-hardening.md`.

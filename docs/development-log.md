@@ -2,6 +2,48 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-06 Asia/Shanghai
+
+### 2026-07-06 - 三大指数 WebSocket 秒级推送
+
+- Commit: `same commit`
+- Background: 用户确认 EODHD WebSocket 权限可用,要求首页标普500、纳斯达克100、道琼斯从当前 EODHD REST 轮询升级为 WebSocket 秒级推送;仍必须保持 EODHD token 服务端隔离和 `/api/quote` 鉴权。
+- Changes:
+  - 新增已登录服务端 WebSocket endpoint `/api/indices-realtime`,复用 Supabase access token 鉴权、origin allowlist、服务端 `EODHD_API_KEY` 和 `ws` relay 模式;未登录 upgrade 应返回 401。
+  - 新增 `server/realtime/indices.js` 和 `server/realtime/indicesRelay.js`,默认订阅 `GSPC.INDX,NDX.INDX,DJI.INDX`,并把 EODHD WebSocket tick 归一为 `index_tick`。
+  - `App.jsx` 增加指数 WebSocket 客户端,连接 `/api/indices-realtime`,tick 到达后直接更新现有三张指数卡和小曲线;REST 轮询刷新时优先合并新鲜指数 tick,避免 10 秒轮询把秒级价格冲回旧值。
+  - `HomeTab` 指数卡支持实时状态徽标;只有收到 tick 后才显示 `LIVE`,连接中/重连/延迟状态仍可提示。
+  - 保留现有 `INDICES` REST provider 和 Yahoo `5m/1d` 分时曲线作为兜底;本轮不新增前端 EODHD token、不添加 `VITE_EODHD_TOKEN`、不关闭 `/api/quote` 鉴权。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.140`,新增 `三大指数 WebSocket 秒级推送`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 同步记录当前实时行情必须继续走已登录服务端 relay。
+- Key files:
+  - `api/indices-realtime.js`
+  - `server/realtime/indices.js`
+  - `server/realtime/indicesRelay.js`
+  - `server/realtime/auth.js`
+  - `src/App.jsx`
+  - `src/lib/indexRealtime.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `README.md`
+  - `docs/security-hardening.md`
+  - `docs/architecture-security-audit.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;67 tests passed.
+  - `npm run build`: pass;Vite built `App-DeiQTIEx.js`, `HomeTab-BWFZMagC.js`, `SettingsTab-DyYpnVPf.js`, `indexRealtime-09d_xcFN.js`.
+  - `npm audit`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker scan: pass;active App/Home/indexRealtime bundles contain `/api/indices-realtime` and `/api/btc-realtime`,do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;settings history chunk still contains old `VITE_EODHD_TOKEN` text as changelog only.
+  - Local upstream limitation: local shell has no `EODHD_API_KEY`,so real upstream EODHD index tick delivery could not be verified locally;production should be observed from logged-in homepage during market hours.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 回退本次新增的 `/api/indices-realtime`、`server/realtime/indices*`、`src/lib/indexRealtime.js`、`App.jsx` 指数 WebSocket 客户端、`HomeTab` 实时徽标扩展、`v10.7.9.140` 设置页更新日志、测试和文档条目即可;现有 `/api/quote?symbols=INDICES` REST 轮询和 BTC relay 可继续工作。
+
 ## 2026-07-05 Asia/Shanghai
 
 ### 2026-07-05 - 资产走势图详情恢复点击显示

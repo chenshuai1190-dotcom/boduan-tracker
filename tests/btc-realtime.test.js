@@ -4,11 +4,14 @@ import assert from 'node:assert/strict';
 import { normalizeBtcTick, sanitizeEodhdKey } from '../server/realtime/btc.js';
 import {
   BTC_REALTIME_PROTOCOL,
+  INDICES_REALTIME_PROTOCOL,
   extractRealtimeAccessToken,
   parseWebSocketProtocols,
   selectRealtimeProtocol,
 } from '../server/realtime/auth.js';
+import { INDEX_REALTIME_SYMBOLS, normalizeIndexTick } from '../server/realtime/indices.js';
 import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
+import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
 
 test('normalizeBtcTick accepts EODHD crypto WebSocket fields', () => {
   const tick = normalizeBtcTick({
@@ -55,6 +58,7 @@ test('realtime auth extracts Supabase token from WebSocket protocol', () => {
   ]);
   assert.equal(extractRealtimeAccessToken(req), 'test.jwt.token');
   assert.equal(selectRealtimeProtocol(new Set([BTC_REALTIME_PROTOCOL, 'supabase.test.jwt.token'])), BTC_REALTIME_PROTOCOL);
+  assert.equal(selectRealtimeProtocol(new Set([INDICES_REALTIME_PROTOCOL, 'supabase.test.jwt.token'])), INDICES_REALTIME_PROTOCOL);
 });
 
 test('realtime auth accepts Authorization header for non-browser clients', () => {
@@ -93,4 +97,57 @@ test('BTC realtime tick does not create a standalone first-paint card', () => {
   assert.equal(updated[3].price, 62521.14);
   assert.equal(updated[3].realtimeStatus, 'live');
   assert.deepEqual(updated[3].intraday, [61800, 62000, 62521.14]);
+});
+
+test('normalizeIndexTick accepts EODHD index WebSocket fields', () => {
+  assert.equal(INDEX_REALTIME_SYMBOLS, 'GSPC.INDX,NDX.INDX,DJI.INDX');
+
+  const tick = normalizeIndexTick({
+    s: 'GSPC.INDX',
+    p: 7489.12,
+    dc: 0.35,
+    dd: 26.08,
+    ms: 'open',
+    t: 1783000000123,
+  }, { receivedAt: 1783000000999 });
+
+  assert.equal(tick.type, 'index_tick');
+  assert.equal(tick.symbol, 'GSPC.INDX');
+  assert.equal(tick.ticker, 'GSPC.INDX');
+  assert.equal(tick.displaySymbol, '.SPX');
+  assert.equal(tick.name, '标普500');
+  assert.equal(tick.price, 7489.12);
+  assert.equal(tick.changePercent, 0.35);
+  assert.equal(tick.change, 26.08);
+  assert.equal(tick.marketStatus, 'open');
+  assert.equal(tick.timestamp, 1783000000123);
+  assert.equal(tick.source, 'EODHD_WS');
+});
+
+test('index realtime tick updates only its matching market card', () => {
+  const cards = [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7483.24, intraday: [7470, 7483.24] },
+    { ticker: 'NDX.INDX', displaySymbol: '.NDX', price: 29329.21 },
+    { ticker: 'DJI.INDX', displaySymbol: '.DJI', price: 52900.07 },
+    { ticker: 'BTC-USD.CC', displaySymbol: 'BTCUSD', price: 62000 },
+  ];
+  const tick = {
+    type: 'index_tick',
+    symbol: 'GSPC.INDX',
+    ticker: 'GSPC.INDX',
+    displaySymbol: '.SPX',
+    price: 7489.12,
+    change: 26.08,
+    changePercent: 0.35,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  };
+  const updated = applyIndexTickToMarketCards(cards, tick, 'live');
+
+  assert.equal(updated.length, 4);
+  assert.equal(updated[0].price, 7489.12);
+  assert.equal(updated[0].realtimeStatus, 'live');
+  assert.deepEqual(updated[0].intraday, [7470, 7483.24, 7489.12]);
+  assert.equal(updated[1], cards[1]);
+  assert.equal(updated[3], cards[3]);
 });

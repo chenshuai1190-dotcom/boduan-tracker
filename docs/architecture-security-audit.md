@@ -12,6 +12,7 @@ Date: 2026-07-03 Asia/Shanghai
 - GitHub Actions 构建和 `npm audit`
 - `/api/quote` 默认要求 Supabase access token
 - EODHD token 放在服务端 `EODHD_API_KEY`
+- BTC 和三大指数实时推送已走服务端 WebSocket relay,浏览器只连接已登录的 `/api/btc-realtime` / `/api/indices-realtime`
 - Supabase RLS SQL 已纳入仓库
 - 登录前/登录后 bundle 已拆分
 - 已登录后五个业务 tab 已拆分为 lazy chunks
@@ -23,7 +24,7 @@ Date: 2026-07-03 Asia/Shanghai
 - `api/quote.js` 约 1100 行,同时处理认证、行情源请求、日历、财报、新闻、分析师、指数、VIX、FGI 和降级逻辑。
 - 缺少 lint、单元测试、集成测试和关键金融计算测试。
 - 数据库访问集中在 `src/lib/db.js`,没有类型约束、schema validator 或迁移检查。
-- 浏览器直连 EODHD WebSocket token path 已作为 Phase 0 第一项移除;实时行情未来必须走服务端 relay。
+- 浏览器直连 EODHD WebSocket token path 已作为 Phase 0 第一项移除;实时行情必须继续走已登录服务端 relay。
 
 结论: **不要直接进入大量专业功能开发。先做一次架构安全升级,再扩功能。**
 
@@ -50,7 +51,7 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 1. **Remove browser-direct EODHD WebSocket path**
    - Status: completed in the Phase 0 baseline.
    - The frontend no longer reads `VITE_EODHD_TOKEN` or exposes a browser WebSocket toggle env var.
-   - Future real-time quotes should use a server-side relay.
+   - BTC and three-index live cards now use authenticated server-side relays; future real-time quotes should follow the same pattern.
 
 2. **Verify RLS live, not just SQL file**
    - `supabase/rls.sql` is present and correct in shape.
@@ -155,7 +156,7 @@ Only after Phases 0-2:
 - Multi-currency accounting
 - Tax lots
 - Alerts and push notifications
-- Server-side real-time quote relay
+- Server-side real-time quote relay expansion beyond BTC and core indices
 - Admin/diagnostics panel
 
 ## Recommended Next Step
@@ -165,6 +166,6 @@ Start with Phase 0 in this order:
 1. Continue shrinking the large EODHD provider module into stock, fundamentals, and shared parser helpers.
 2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and NASDAQ partial failures.
 3. Verify RLS metadata in Supabase SQL/admin when dashboard or CLI access is available.
-4. Add server-side relay design before enabling real-time streaming.
+4. Extend server-side relay tests before adding more streamed symbols or user-configurable realtime watchlists.
 
 This sequence reduces future bug risk before adding new professional features.
