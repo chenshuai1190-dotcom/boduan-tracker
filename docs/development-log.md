@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 同步持仓和交易记录中文名显示
 
-- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Commit: `02b5c6c509d846ba1b721c9fb1df6734dfbf70db`
 - Background: 用户指出股票中文名称目前只在首页自选做了显示兜底,首页持仓和交易页里的持仓/交易记录仍会显示 `TSM`、`MSFT` 这类代码式名称,要求交易页和首页持仓同步股票中文名称显示。
 - Changes:
   - `investmentSummary` 改用 `localizedStockTrades` 派生持仓,首页持仓 tab 也能从同一套 `STOCK_NAME_CN` 中英对照表取得中文名。
@@ -21,15 +21,30 @@
   - `src/tabs/TradesTab.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 58 tests.
   - `npm run build`: pass; `index-1qzFTd70.css` 52.85 kB / gzip 9.73 kB, `HomeTab-DuHpPcu5.js` 39.20 kB / gzip 10.48 kB, `TradesTab-CPImoQBk.js` 61.90 kB / gzip 12.29 kB, `SettingsTab-CBGS2Lu3.js` 36.14 kB / gzip 13.75 kB, `App-Zd6HsMH0.js` 142.53 kB / gzip 40.88 kB.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Local source/build marker check: pass; source contains `stockTrades: localizedStockTrades`, tab context `displayStockName`, Home table `{item.displayName}`, Trades display helpers for positions/trade records/order action modal, and Settings source contains `v10.7.9.104`; built chunks contain `台积电`/`英伟达`/`微软`, `HomeTab-DuHpPcu5.js`, `TradesTab-CPImoQBk.js`, `SettingsTab-CBGS2Lu3.js`, and Settings chunk contains `同步持仓和交易记录中文名显示`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `02b5c6c509d846ba1b721c9fb1df6734dfbf70db`.
+  - GitHub `main`: `02b5c6c509d846ba1b721c9fb1df6734dfbf70db`.
+  - GitHub Actions `CI`: success, run `28726320442`, build job `85184254880`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9aEr2VJ2VW1dVsKdfJoQkRex4yxQ`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=02b5c6c-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-DZ_Kp5jK.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-1qzFTd70.css`.
+  - Production runtime chunks: `/assets/App-EeuHdw0q.js`, `/assets/HomeTab-DuHpPcu5.js`, `/assets/TradesTab-CPImoQBk.js`, `/assets/SettingsTab-CBGS2Lu3.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-B57m66a5.js`.
+- Production verification:
+  - Production marker check: `App-EeuHdw0q.js` contains `台积电`, `英伟达` and `微软`, and references `HomeTab-DuHpPcu5.js`, `TradesTab-CPImoQBk.js` and `SettingsTab-CBGS2Lu3.js`.
+  - Production marker check: `HomeTab-DuHpPcu5.js` contains `displayName`, `持仓` and `自选`.
+  - Production marker check: `TradesTab-CPImoQBk.js` contains `订单操作`, `持仓分布` and `交易记录`.
+  - Production marker check: `SettingsTab-CBGS2Lu3.js` contains `v10.7.9.104` and `同步持仓和交易记录中文名显示`.
+  - Production RLS REST check: pass,13 user-owned tables returned 0 visible rows;source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-B57m66a5.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复首页持仓和交易页交易记录继续显示代码式名称的问题;不会影响股票历史交易数据、交易记录修改/删除逻辑、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 调整订单操作弹窗尺寸
