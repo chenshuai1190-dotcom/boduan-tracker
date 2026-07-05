@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 工具行情 WebSocket 秒级推送
 
-- Commit: `same commit`
+- Commit: `46cda40f887262059a77c5e908389f186774931c`
 - Background: 用户继续追问首页自选/持仓、交易页摊薄工具和波段记录是否也走 WebSocket 秒级推送。核对后确认首页自选、首页持仓、交易页头部和主持仓已通过 `quoteCache -> quoteRows -> investmentSummary` 接入股票 WebSocket;但摊薄工具和波段记录仍从原始 `watchlist` 取现价,工具-only 股票不会进入 `/api/stocks-realtime` 订阅集合。
 - Changes:
   - `stockUniverse` 增加 `toolQuoteRows` 输入,允许摊薄工具 `cost_basis_trades` 和旧波段账本 `trades` 里的股票代码进入统一 quote universe,但不污染首页自选 `watchlistRows` 或正式持仓 `ledgerRows`。
@@ -36,9 +36,14 @@
   - Build marker scan: pass;`App-DUwIuMvh.js` contains `/api/stocks-realtime`;`TradesTab-uyI19HGM.js` contains the tool price UI;`SettingsTab-DJHEZNKf.js` contains `v10.7.9.142` and `工具行情 WebSocket 秒级推送`;active App/Trades runtime bundles do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`.
   - Local upstream limitation: 本地 shell 未配置 `EODHD_API_KEY` 和真实登录 session,所以真实 EODHD 股票 tick delivery 仍需在生产登录态、交易时段继续观察。
 - Deployment:
-  - Pending push to GitHub `main`;Vercel deployment and target URL will be recorded after CI/deploy completes.
+  - Pushed to GitHub `main`.
+  - GitHub Actions `CI` check passed for `46cda40f887262059a77c5e908389f186774931c` (run `28747778595`, job `85241538861`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2x5pAQ3sd2ks2Zwf3pA2exVnkw4q`.
 - Production verification:
-  - Pending after Vercel production deployment.
+  - Production `GET https://boduan-tracker.vercel.app/?v=46cda40-tools-ws-142`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-D3Wcxoaw.js`, `TradesTab-uyI19HGM.js`, `SettingsTab-DJHEZNKf.js`;assets contain `/api/stocks-realtime`, `v10.7.9.142`, `工具行情 WebSocket 秒级推送`, and tool price UI markers.
+  - Production active runtime marker check: pass;active App/Trades runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`.
+  - Production auth checks: unauthenticated `GET /api/quote?symbols=VIX` returns HTTP 401;plain `GET /api/stocks-realtime` returns HTTP 426;unauthenticated WebSocket upgrade to `wss://boduan-tracker.vercel.app/api/stocks-realtime?symbols=NVDA` returns HTTP 401.
 - Rollback: 回退 `stockUniverse` 的 `toolQuoteRows` 支持、`App.jsx` 的 `buildToolQuoteRows`/`quoteBySymbol` 工具行情接入、`TradesTab` 摊薄工具 `quoteRows` 现价读取、`v10.7.9.142` 设置页更新日志、测试和文档条目即可;现有首页自选/持仓、交易页主账本、BTC/指数/股票 relay 和 `/api/quote` REST 兜底可继续工作。
 
 ### 2026-07-06 - 交易持仓 WebSocket 秒级推送

@@ -6,13 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交待推送后以最新 `main` 为准。
-- 当前运行时代码提交: 本文件所在最新提交待推送后补齐;上一版运行时代码提交为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `46cda40f887262059a77c5e908389f186774931c`。
+- 当前运行时代码提交: `46cda40f887262059a77c5e908389f186774931c`。
 - 设置页版本: `v10.7.9.142`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`。
+- 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2x5pAQ3sd2ks2Zwf3pA2exVnkw4q`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: `v10.7.9.142` 待推送部署后补齐;上一版 `v10.7.9.141` 生产 assets 包含 `/api/stocks-realtime`、`/api/indices-realtime`、`/api/btc-realtime` 和 `交易持仓 WebSocket 秒级推送`;active runtime assets 不含 `ws.eodhistoricaldata.com` / `VITE_EODHD_TOKEN` / `VITE_ALLOW_BROWSER_EODHD_WS`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`;未登录 WebSocket upgrade 到 `/api/stocks-realtime?symbols=NVDA` 返回 `401`。
+- 线上关键验证: 生产 assets 包含 `/api/stocks-realtime`、`v10.7.9.142`、`工具行情 WebSocket 秒级推送` 和工具现价 UI marker;active App/Trades runtime assets 不含 `ws.eodhistoricaldata.com` / `VITE_EODHD_TOKEN` / `VITE_ALLOW_BROWSER_EODHD_WS`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`;未登录 WebSocket upgrade 到 `/api/stocks-realtime?symbols=NVDA` 返回 `401`。
 - 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -20,13 +20,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: 本文件所在最新提交待推送后补齐 (`v10.7.9.142`,工具行情 WebSocket 秒级推送)
-- 最近应用代码提交: 本文件所在最新提交待推送后补齐;上一版为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
+- 当前产品基准提交: `46cda40f887262059a77c5e908389f186774931c` (`v10.7.9.142`,工具行情 WebSocket 秒级推送)
+- 最近应用代码提交: `46cda40f887262059a77c5e908389f186774931c`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.142`
-- Vercel 最新运行时部署: pending for `v10.7.9.142`;上一版 `v10.7.9.141` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`
+- Vercel 最新运行时部署: success, `v10.7.9.142` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2x5pAQ3sd2ks2Zwf3pA2exVnkw4q`
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.141` runtime commit `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`;GitHub Actions run `28747184268` pass;production `GET https://boduan-tracker.vercel.app/?v=6d495b5-stocks-ws-141-final` HTTP 200;production assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, `v10.7.9.141`, and `交易持仓 WebSocket 秒级推送`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`;unauthenticated stock WebSocket upgrade returns `401`
+- Vercel 部署记录: `v10.7.9.142` runtime commit `46cda40f887262059a77c5e908389f186774931c`;GitHub Actions run `28747778595` pass;production `GET https://boduan-tracker.vercel.app/?v=46cda40-tools-ws-142` HTTP 200;production assets contain `/api/stocks-realtime`, `v10.7.9.142`, `工具行情 WebSocket 秒级推送`, and tool price UI markers;active App/Trades runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`;unauthenticated stock WebSocket upgrade returns `401`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -591,13 +591,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交待推送后补齐
-当前产品基准提交: 本文件所在最新提交待推送后补齐 (`v10.7.9.142`,工具行情 WebSocket 秒级推送)
-最近应用代码提交: 本文件所在最新提交待推送后补齐;上一版为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `46cda40f887262059a77c5e908389f186774931c`
+当前产品基准提交: `46cda40f887262059a77c5e908389f186774931c` (`v10.7.9.142`,工具行情 WebSocket 秒级推送)
+最近应用代码提交: `46cda40f887262059a77c5e908389f186774931c`
 设置页版本: `v10.7.9.142`
-Vercel 最新运行时部署: pending for `v10.7.9.142`;上一版 `v10.7.9.141` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`
+Vercel 最新运行时部署: success, `v10.7.9.142` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2x5pAQ3sd2ks2Zwf3pA2exVnkw4q`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: `v10.7.9.141` runtime commit `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`;GitHub Actions run `28747184268` pass;production `GET https://boduan-tracker.vercel.app/?v=6d495b5-stocks-ws-141-final` HTTP 200;production marker check confirms assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, `v10.7.9.141` and `交易持仓 WebSocket 秒级推送`;active runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`;unauthenticated stock WebSocket upgrade returns `401`
+部署记录: `v10.7.9.142` runtime commit `46cda40f887262059a77c5e908389f186774931c`;GitHub Actions run `28747778595` pass;production `GET https://boduan-tracker.vercel.app/?v=46cda40-tools-ws-142` HTTP 200;production marker check confirms assets contain `/api/stocks-realtime`, `v10.7.9.142`, `工具行情 WebSocket 秒级推送` and tool price UI markers;active App/Trades runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`;unauthenticated stock WebSocket upgrade returns `401`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -627,7 +627,7 @@ Vercel 最新运行时部署: pending for `v10.7.9.142`;上一版 `v10.7.9.141` 
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.142` 工具行情 WebSocket 秒级推送已完成本地验证,待推送部署:摊薄工具和波段记录的股票代码加入统一 `quoteRows`,并进入已登录 `/api/stocks-realtime` 订阅;工具现价优先从 `quoteRows/quoteCache` 读取,但摊薄成本仍只写 `cost_basis_trades`,波段记录仍只写旧 `trades`,不污染自选或正式主账本。
+- `v10.7.9.142` 工具行情 WebSocket 秒级推送已完成部署和本地/线上验证:摊薄工具和波段记录的股票代码加入统一 `quoteRows`,并进入已登录 `/api/stocks-realtime` 订阅;工具现价优先从 `quoteRows/quoteCache` 读取,但摊薄成本仍只写 `cost_basis_trades`,波段记录仍只写旧 `trades`,不污染自选或正式主账本。
 - `v10.7.9.141` 交易持仓 WebSocket 秒级推送已完成部署和本地/线上验证:新增已登录 `/api/stocks-realtime` 服务端 relay,股票 tick 写入 `quoteCache`,首页持仓、交易页头部总资产/今日盈亏/累计盈亏和交易页持仓列表通过 `investmentSummary` 同步刷新;三大指数继续秒级更新价格和曲线,但不再显示重复连接态;只有 BTC 卡保留实时状态徽标。
 - `v10.7.9.130` 首页恐慌指标高保真卡片已完成部署和本地/线上验证:VIX 恐慌指数改为全宽暗黑金融卡片,增加 sparkline、发光状态点和 0-50 精确风险条;CNN 恐慌贪婪指数改为 SVG 半圆仪表盘、红黄绿渐变弧线、发光指针和五段情绪区间;现有 VIX/FGI 数据、日期和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.129` 首页恐慌指数视觉降重已完成部署和线上验证:VIX 恐慌指数标题改为 CNN 同款灰色,VIX/CNN 主数字取消过粗字重,CNN `恐惧` / `恐慌` 状态文字同步降为正常字重;指数数值、颜色、说明文案和 CNN 仪表盘逻辑不变。
