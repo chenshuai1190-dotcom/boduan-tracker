@@ -23,7 +23,7 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function fmtMoney(value, digits = 2) {
+function fmtMoney(value, digits = 0) {
   return toNumber(value).toLocaleString('en-US', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -158,8 +158,8 @@ export default function ReviewTab({ ctx }) {
   const symbol = isCNY ? '¥' : '$';
   const thisYear = new Date().getFullYear();
 
-  const money = (usdValue, digits = 2) => `${symbol}${fmtMoney(toNumber(usdValue) * rate, digits)}`;
-  const signedMoney = (usdValue, digits = 2) => {
+  const money = (usdValue, digits = 0) => `${symbol}${fmtMoney(toNumber(usdValue) * rate, digits)}`;
+  const signedMoney = (usdValue, digits = 0) => {
     const n = toNumber(usdValue);
     return `${n >= 0 ? '+' : '-'}${money(Math.abs(n), digits)}`;
   };
@@ -361,7 +361,7 @@ export default function ReviewTab({ ctx }) {
         </div>
 
         <div className="relative z-10 mt-3 text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-          {money(ageGoalAmount, 2)}
+          {money(ageGoalAmount)}
         </div>
         <div className="relative z-10 mt-2 text-[13px] text-white/55">
           {totalYears} 年目标 · {ageGoalAge || '--'} 岁实现
@@ -370,7 +370,7 @@ export default function ReviewTab({ ctx }) {
 
         <div className="relative z-10 mt-5">
           <div className="mb-2 flex items-center justify-between text-[13px] font-normal text-[#ffd18a]">
-            <span>当前 {money(currentBalance, 2)}</span>
+            <span>当前 {money(currentBalance)}</span>
             <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</span>
           </div>
           <div className="h-2.5 rounded-full bg-white/[0.075]">
@@ -384,11 +384,11 @@ export default function ReviewTab({ ctx }) {
             />
           </div>
           <div className="mt-3 text-[13px] text-white/50">
-            还剩 {yearsLeft} 年 · 本金 {money(startCapital, 2)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
+            还剩 {yearsLeft} 年 · 本金 {money(startCapital)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
           </div>
         </div>
 
-        <div className="relative z-10 mt-auto flex items-center justify-between gap-3">
+        <div className="relative z-10 mb-1.5 mt-auto flex -translate-y-2 items-center justify-between gap-3">
           {plan.motto ? (
             <div className="min-w-0 truncate text-[12px] leading-tight text-[#ffd18a]">“{plan.motto}”</div>
           ) : (
@@ -446,7 +446,7 @@ export default function ReviewTab({ ctx }) {
                   key={yearItem.year}
                   type="button"
                   onClick={() => setYearAction(yearItem)}
-                  className="block w-full rounded-[20px] border border-[#f6b54b]/65 bg-[#0d1016] p-4 text-left shadow-[0_0_22px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+                  className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.99]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
@@ -459,20 +459,20 @@ export default function ReviewTab({ ctx }) {
                   <div className="mt-5 grid grid-cols-[minmax(0,1fr)_124px] items-start gap-2.5">
                     <div className="min-w-0 pt-1">
                       <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[12px] text-white/50">
-                        <span className="whitespace-nowrap">计划 {signedMoney(yearItem.planTarget, 2)}</span>
+                        <span className="whitespace-nowrap">计划 {signedMoney(yearItem.planTarget)}</span>
                         <span className="text-white/25">→</span>
                         <span>实际</span>
                       </div>
                       <div className={`mt-1 whitespace-nowrap text-[20px] font-normal tabular-nums ${hasActual ? pnlTextClass(yearItem.actualGain) : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {hasActual ? signedMoney(yearItem.actualGain, 2) : '待填写'}
+                        {hasActual ? signedMoney(yearItem.actualGain) : '待填写'}
                       </div>
                     </div>
                     <div className="w-full shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2 text-[11px] leading-relaxed">
                       <div className="whitespace-nowrap text-white/62">
-                        目标 <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget, 2)}</span>
+                        目标 <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</span>
                       </div>
                       <div className={`mt-0.5 whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : pnlTextClass(targetGap)}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {targetGap === null ? '待填写' : `${targetGap < 0 ? '超额' : '落后'} ${money(Math.abs(targetGap), 2)}`}
+                        {targetGap === null ? '待填写' : `${targetGap < 0 ? '超额' : '落后'} ${money(Math.abs(targetGap))}`}
                       </div>
                     </div>
                   </div>
@@ -480,17 +480,17 @@ export default function ReviewTab({ ctx }) {
                   <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-white/[0.035] px-3 py-3">
                     <div>
                       <div className="text-[11px] text-white/40">起点</div>
-                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance, 2)}</div>
+                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-center">
                       <div className="text-[11px] text-white/40">当前</div>
-                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance, 2)}</div>
+                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-right">
                       <div className="text-[11px] text-white/40">目标</div>
-                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget, 2)}</div>
+                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
                     </div>
                   </div>
 
@@ -522,7 +522,7 @@ export default function ReviewTab({ ctx }) {
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                       <span className="text-[25px] font-black leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
-                      <span className="text-[11px] text-white/35">计划 {signedMoney(yearItem.planTarget, 2)} → 目标 {money(yearItem.endBalance, 2)}</span>
+                      <span className="text-[11px] text-white/35">计划 {signedMoney(yearItem.planTarget)} → 目标 {money(yearItem.endBalance)}</span>
                     </div>
                   </div>
                   <span className="shrink-0 rounded-lg border border-sky-400/15 bg-sky-400/10 px-2.5 py-1 text-[11px] text-sky-200/70">{projectedLabel}</span>
@@ -531,12 +531,12 @@ export default function ReviewTab({ ctx }) {
                 <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-black/15 px-3 py-3">
                   <div>
                     <div className="text-[11px] text-white/38">起点 ({yearItem.year - 1}目标)</div>
-                    <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance, 2)}</div>
+                    <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance)}</div>
                   </div>
                   <div className="px-4 text-white/25">→</div>
                   <div className="text-right">
                     <div className="text-[11px] text-white/38">目标 ({yearItem.year})</div>
-                    <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance, 2)}</div>
+                    <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                   </div>
                 </div>
 
@@ -546,7 +546,7 @@ export default function ReviewTab({ ctx }) {
                       增长目标
                       <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/20 text-[9px] text-white/45">i</span>
                     </span>
-                    <span className="text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget, 2)}</span>
+                    <span className="text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget)}</span>
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-white" />
@@ -554,8 +554,8 @@ export default function ReviewTab({ ctx }) {
                     <span className="h-2 w-2 rounded-full bg-white" />
                   </div>
                   <div className="mt-1 flex justify-between text-[11px] text-white/35">
-                    <span>{money(plannedStartBalance, 2)}</span>
-                    <span>{money(yearItem.endBalance, 2)}</span>
+                    <span>{money(plannedStartBalance)}</span>
+                    <span>{money(yearItem.endBalance)}</span>
                   </div>
                 </div>
               </button>
@@ -734,7 +734,7 @@ export default function ReviewTab({ ctx }) {
       {yearAction && (
         <ReviewActionSheet
           title="年度目标操作"
-          desc={`${yearAction.year} · 计划 ${signedMoney(yearAction.planTarget, 2)} · 目标 ${money(yearAction.startBalance + yearAction.planTarget, 2)}`}
+          desc={`${yearAction.year} · 计划 ${signedMoney(yearAction.planTarget)} · 目标 ${money(yearAction.startBalance + yearAction.planTarget)}`}
           onClose={() => setYearAction(null)}
         >
           <button
@@ -876,7 +876,7 @@ export default function ReviewTab({ ctx }) {
                 />
               </label>
               <div className="rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/10 px-3 py-2 text-[11px] text-[#ffd18a]">
-                按此计划 {totalYears} 年后将达 {money(ageGoalAmount, 2)}
+                按此计划 {totalYears} 年后将达 {money(ageGoalAmount)}
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">

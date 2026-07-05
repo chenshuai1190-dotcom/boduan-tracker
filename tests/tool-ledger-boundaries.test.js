@@ -209,11 +209,15 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('年度目标操作'), 'year cards should open an action panel');
   assert.ok(reviewTabSource.includes('修改年度数据'), 'year action panel should offer editing instead of a trailing edit icon');
   assert.ok(reviewTabSource.includes('SF Pro Display'), 'review money should use the same system number font as the home header');
-  assert.ok(reviewTabSource.includes('fmtMoney(value, digits = 2)'), 'review money should render full comma-separated amounts instead of wan shorthand');
+  assert.ok(reviewTabSource.includes('fmtMoney(value, digits = 0)'), 'review money should render full comma-separated amounts without dense decimals');
   assert.equal(reviewTabSource.includes('fmtWan'), false, 'review money must not return to wan shorthand');
+  assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'review headline target amount should not return to two decimals');
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
+  assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex -translate-y-2'), 'north-star settings button row should stay lifted from the card bottom');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
   assert.ok(reviewTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-'), 'north-star card should use the same weak border/shadow style as the home header');
+  assert.ok(reviewTabSource.includes('rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-'), 'current year card should use the same weak border color as the north-star card');
+  assert.equal(reviewTabSource.includes('border-[#f6b54b]/65'), false, 'current year card should not keep the bright yellow outline');
   assert.equal(reviewTabSource.includes('bottom-[-78px] h-48 w-48'), false, 'north-star card should not keep the lower-right semicircle decoration');
   assert.ok(reviewTabSource.includes('mt-5 -mx-2'), 'annual target section should expand wider than the page padding');
   assert.ok(reviewTabSource.includes('marketTextClass'), 'review pink/green amount colors should share the home market color helper');
@@ -232,8 +236,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.113'), 'settings version should document the review page number style correction');
-  assert.ok(settingsTabSource.includes('目标页数字对齐首页样式'), 'settings changelog should describe the review page number style correction');
+  assert.ok(settingsTabSource.includes('v10.7.9.114'), 'settings version should document the review page density correction');
+  assert.ok(settingsTabSource.includes('目标页数字密度微调'), 'settings changelog should describe the review page density correction');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

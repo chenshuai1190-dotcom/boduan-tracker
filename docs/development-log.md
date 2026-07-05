@@ -4,6 +4,32 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 目标页数字密度微调
+
+- Commit: pending runtime commit.
+- Background: 用户继续检查目标页后提出三点微调:本年目标卡黄色边框需要改成和北极星头卡一样的弱边框颜色;北极星头卡右下 `设置` 按钮和卡片底部贴得太近,需要上移一点;目标页金额末尾两位小数让数字过密,可以取消小数。
+- Changes:
+  - 目标页金额 formatter 默认改为 0 位小数,北极星目标、当前、本金、年度计划/实际/目标/落后、未来年度起点/目标和操作面板摘要都保留完整千分位数字但不显示 `.00`。
+  - 本年目标卡从亮黄色 `border-[#f6b54b]/65` 改为和北极星头卡一致的 `border-white/10`、`bg-[#0b0f14]` 和同源阴影,降低当前年卡外框突兀感。
+  - 北极星头卡底部操作行增加 `-translate-y-2`,本地 390px 视口实测 `设置` 按钮离卡片底边约 `7px`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.114`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉和数字显示密度修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 64 tests.
+  - `npm run build`: pass; `index-CuyJMdZj.css` 52.42 kB / gzip 9.78 kB, `ReviewTab-BoRRo5hi.js` 31.63 kB / gzip 7.77 kB, `SettingsTab-i-nStSeY.js` 39.96 kB / gzip 15.20 kB, `App-B90sqG3G.js` 144.69 kB / gzip 41.20 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;目标页 mock 可见,北极星卡 `358x244`,年度区域 `374px` 宽,2026 本年卡 `374px` 宽,页面 `scrollWidth=390`;本年卡边框和头卡边框同为 `rgba(255,255,255,0.1)`;`设置` 按钮离头卡底边约 `7px`;首屏金额均无两位小数,包含 `$14,860,167`, `当前 $2,470,000`, `+$70,000`, `目标 $2,880,000`, `落后 $410,000`;浏览器 console error/warn 为空。
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次目标页数字密度微调会恢复 `v10.7.9.113` 的两位小数、本年卡黄色外框和原设置按钮位置;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 目标页数字对齐首页样式
 
 - Commit: `c601bd7bb33d01b5b458a75256a4b4268f40c356`
