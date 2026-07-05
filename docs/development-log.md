@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律低色彩重设计
 
-- Commit: pending runtime commit.
+- Commit: `4d8d0f76c9c4af9276252f3aac954f4504c448a4`
 - Background: 用户提供新的投资戒律效果图,要求该模块严格按截图降低色彩复杂度:旧图标全部取消,改为彩色圆点;置顶和按钮都降低色彩;颜色和字体大小按效果图执行。
 - Changes:
   - 投资戒律模块取消外层卡片壳,改为独立标题区、竖向橙色短条、灰色 `+ 添加` 胶囊按钮和灰色筛选胶囊;筛选胶囊收紧到 390px 移动端一行完整显示 5 个选项。
@@ -29,8 +29,20 @@
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;投资戒律区域 `scrollWidth=390`, body background `rgb(5, 7, 11)`;标题为 24px/600,数量为 13px/400,添加按钮为 44px 高低色彩灰色胶囊;5 个筛选胶囊在 390px 视口一行完整显示,宽度约 `75.4px + 58px * 4`;首张戒律卡宽 358px、圆角 22px、正文 15px/400,等级显示为 40px 低饱和底圈 + 10px 实心圆点,未显示旧 emoji;置顶为 12px 低色彩灰色胶囊;点击戒律卡可打开 `戒律操作`,并包含修改、置顶/取消置顶、删除和取消。
   - Build marker check: pass;built `ReviewTab-ZMBJLBy2.js` contains `dotColor`, `ringColor`, compact `h-10 min-w-[58px]` filter marker, redesigned `text-[24px] font-semibold` title marker, `戒律操作` and `删除戒律`;does not contain `1 USD =` helper or legacy row emoji marker;built `App-BH87booL.js` contains discipline modal `dotColor`/`ringColor`;built `SettingsTab-DCwFIKfg.js` contains `v10.7.9.120` and `投资戒律低色彩重设计`;built CSS does not contain `overscroll-behavior-y:none`;built assets do not contain `DevVisualPreview`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `4d8d0f76c9c4af9276252f3aac954f4504c448a4`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2jZMvFYo5NM7g8p6DRfgXNNfRXcR`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=4d8d0f-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BoU7DIW_.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CRa94lVp.css`.
+  - Production runtime chunks include: `/assets/App-BkmZzdUe.js`, `/assets/ReviewTab-ZMBJLBy2.js`, `/assets/SettingsTab-DCwFIKfg.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-ZMBJLBy2.js` contains `dotColor`, `ringColor`, compact `h-10 min-w-[58px]` filter marker, `text-[24px] font-semibold` investment discipline title marker, `戒律操作` and `删除戒律`;it does not contain `1 USD =`.
+  - Production App marker check: `App-BkmZzdUe.js` contains discipline modal `dotColor`/`ringColor` and references `ReviewTab-ZMBJLBy2.js` / `SettingsTab-DCwFIKfg.js`.
+  - Production SettingsTab marker check: `SettingsTab-DCwFIKfg.js` contains `v10.7.9.120` and `投资戒律低色彩重设计`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the local visual preview remains development-only.
+  - Production CSS marker check: `index-CRa94lVp.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.120` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次投资戒律重设计会恢复外层卡片壳、emoji 等级图标、金色筛选/置顶/展开入口和旧的添加按钮视觉;不影响戒律数据、置顶/取消置顶、编辑/删除、目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 目标页头卡和年度层级微调

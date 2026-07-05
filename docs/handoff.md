@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: pending runtime commit (`v10.7.9.120`,投资戒律低色彩重设计)
-- 最近应用代码提交: pending runtime commit
+- 当前产品基准提交: `4d8d0f76c9c4af9276252f3aac954f4504c448a4` (`v10.7.9.120`,投资戒律低色彩重设计)
+- 最近应用代码提交: `4d8d0f76c9c4af9276252f3aac954f4504c448a4`
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.120`
-- Vercel 最新运行时部署: pending, latest deployed runtime remains `v10.7.9.119` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BGcYru5uraG1wyLy6z6W3axSk34b`
-- Vercel 部署记录: `v10.7.9.120` pending;latest deployed `v10.7.9.119` runtime commit `80b941f797623afcfd053932dadd15517fbde2e6`;production `GET https://boduan-tracker.vercel.app/?v=80b941f-runtime` HTTP 200
+- Vercel 最新运行时部署: success, `v10.7.9.120` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2jZMvFYo5NM7g8p6DRfgXNNfRXcR`
+- Vercel 部署记录: `v10.7.9.120` runtime commit `4d8d0f76c9c4af9276252f3aac954f4504c448a4`;production `GET https://boduan-tracker.vercel.app/?v=4d8d0f-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退;`v10.7.9.111` 目标页深色化第一阶段已部署;`v10.7.9.112` 修正目标页视觉对齐已部署;`v10.7.9.113` 目标页数字对齐首页样式已部署;`v10.7.9.114` 目标页数字密度微调已部署;`v10.7.9.115` 北极星目标小数层级优化已部署;`v10.7.9.116` 主资产数字小数层级同步已部署;`v10.7.9.117` 目标页细节修正已部署;`v10.7.9.118` 目标页未开始年度降色已部署;`v10.7.9.119` 目标页头卡和年度层级微调已部署;`v10.7.9.120` 投资戒律低色彩重设计待部署。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退;`v10.7.9.111` 目标页深色化第一阶段已部署;`v10.7.9.112` 修正目标页视觉对齐已部署;`v10.7.9.113` 目标页数字对齐首页样式已部署;`v10.7.9.114` 目标页数字密度微调已部署;`v10.7.9.115` 北极星目标小数层级优化已部署;`v10.7.9.116` 主资产数字小数层级同步已部署;`v10.7.9.117` 目标页细节修正已部署;`v10.7.9.118` 目标页未开始年度降色已部署;`v10.7.9.119` 目标页头卡和年度层级微调已部署;`v10.7.9.120` 投资戒律低色彩重设计已部署。
 
 ## 2. 先读这些文档
 
@@ -161,7 +161,8 @@ npm run dev -- --host 127.0.0.1
 
 - `v10.7.9.120` local validation: `npm test` pass,65 tests;`npm run build` pass;`npm audit` pass,0 vulnerabilities;`git diff --check` pass.
 - `v10.7.9.120` local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;投资戒律区域 `scrollWidth=390`,body background `rgb(5, 7, 11)`;标题 24px/600,数量 13px/400,添加按钮 44px 高低色彩灰色胶囊;5 个筛选胶囊在 390px 视口一行完整显示,宽度约 `75.4px + 58px * 4`;首张戒律卡宽 358px、圆角 22px、正文 15px/400,等级显示为 40px 低饱和底圈 + 10px 实心圆点,未显示旧 emoji;置顶为 12px 低色彩灰色胶囊;点击戒律卡可打开 `戒律操作`,并包含修改、置顶/取消置顶、删除和取消。
-- `v10.7.9.120` deployment: pending Vercel production deployment;latest deployed runtime remains `v10.7.9.119` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BGcYru5uraG1wyLy6z6W3axSk34b`。
+- `v10.7.9.120` deployment: pushed to GitHub `main`;runtime commit `4d8d0f76c9c4af9276252f3aac954f4504c448a4`;Vercel production target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2jZMvFYo5NM7g8p6DRfgXNNfRXcR`。
+- Production `GET https://boduan-tracker.vercel.app/?v=4d8d0f-runtime`: HTTP 200。
 - `v10.7.9.119` local validation: `npm test` pass,65 tests;`npm run build` pass;`npm audit` pass,0 vulnerabilities;`git diff --check` pass.
 - `v10.7.9.119` local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;RMB 状态下页面不含 `1 USD =` 文案;北极星副标题为 12px/400;`还剩 ...` 为 12px/400;`年度目标进度` 标题为 15px/600;年度 `2026` 为 28px/600,`2027` 为 22px/600;页面 `scrollWidth=390`,无横向溢出。
 - `v10.7.9.119` deployment: pushed to GitHub `main`;runtime commit `80b941f797623afcfd053932dadd15517fbde2e6`;Vercel production target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BGcYru5uraG1wyLy6z6W3axSk34b`。
@@ -183,6 +184,8 @@ npm run dev -- --host 127.0.0.1
 已验证生产 runtime chunks:
 
 - 本轮本地构建 runtime chunks: `/assets/index-CRa94lVp.css`, `/assets/ReviewTab-ZMBJLBy2.js`, `/assets/SettingsTab-DCwFIKfg.js`, `/assets/App-BH87booL.js`。
+- 生产 entry chunks: `/assets/index-BoU7DIW_.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CRa94lVp.css`。
+- 生产 runtime chunks include: `/assets/App-BkmZzdUe.js`, `/assets/ReviewTab-ZMBJLBy2.js`, `/assets/SettingsTab-DCwFIKfg.js`。
 - 本轮本地构建 runtime chunks: `/assets/index-BiGy84K3.css`, `/assets/ReviewTab-Di8dsjgl.js`, `/assets/SettingsTab-D7CvfPsV.js`, `/assets/App-DKGUHviZ.js`。
 - 生产 entry chunks: `/assets/index-BhyCkeDx.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-BiGy84K3.css`。
 - 生产 runtime chunks include: `/assets/App-D39F0jru.js`, `/assets/ReviewTab-Di8dsjgl.js`, `/assets/SettingsTab-D7CvfPsV.js`。
@@ -196,6 +199,11 @@ npm run dev -- --host 127.0.0.1
 关键 marker:
 
 - 本轮本地 marker: `ReviewTab-ZMBJLBy2.js` 包含 `dotColor`、`ringColor`、紧凑筛选 `h-10 min-w-[58px]`、投资戒律标题 `text-[24px] font-semibold`、`戒律操作` 和 `删除戒律`;不包含 `1 USD =` 辅助文案或旧行内 emoji marker;`App-BH87booL.js` 包含添加/编辑戒律等级圆点 `dotColor`/`ringColor`;`SettingsTab-DCwFIKfg.js` 包含 `v10.7.9.120` 和 `投资戒律低色彩重设计`;`index-CRa94lVp.css` 不包含全局 `overscroll-behavior-y:none`;构建资产不包含 `DevVisualPreview`。
+- 生产 `ReviewTab-ZMBJLBy2.js` 包含 `dotColor`、`ringColor`、紧凑筛选 `h-10 min-w-[58px]`、投资戒律标题 `text-[24px] font-semibold`、`戒律操作` 和 `删除戒律`;不包含 `1 USD =` 辅助文案。
+- 生产 `App-BkmZzdUe.js` 包含添加/编辑戒律等级圆点 `dotColor`/`ringColor`,并引用 `ReviewTab-ZMBJLBy2.js` 和 `SettingsTab-DCwFIKfg.js`。
+- 生产 `SettingsTab-DCwFIKfg.js` 包含 `v10.7.9.120` 和 `投资戒律低色彩重设计`。
+- 生产 `index-CRa94lVp.css` 不包含全局 `overscroll-behavior-y:none`,已回退的全局 scrollbar/overscroll suppression 没有恢复。
+- 生产 entry/App/Review/Settings/CSS chunks 不包含 `DevVisualPreview`;开发态视觉预览只在 `import.meta.env.DEV` 且缺少 Supabase 配置时启用。
 - 生产 `index-BiGy84K3.css` 不包含全局 `overscroll-behavior-y:none`,已回退的全局 scrollbar/overscroll suppression 没有恢复。
 - 生产 `ReviewTab-Di8dsjgl.js` 不包含 `1 USD =`,并包含 12px 北极星副标题、12px 剩余年限说明、15px 年度目标标题、`text-[28px] font-semibold` 当前年份和 `text-[22px] font-semibold` 未来年份 marker。
 - 生产 `SettingsTab-D7CvfPsV.js` 包含 `v10.7.9.119` 和 `目标页头卡和年度层级微调`。
@@ -213,7 +221,7 @@ npm run dev -- --host 127.0.0.1
 
 ### 目标页
 
-- `v10.7.9.120`: 投资戒律低色彩重设计待部署;模块改为独立标题、竖向橙色短条、灰色 `+ 添加` 胶囊和灰色筛选胶囊;等级图标从 emoji 改为彩色圆点和低饱和底圈;筛选项在 390px 移动端一行完整显示;戒律卡片正文放大到 15px,日期、置顶、展开全文和等级选择都降为低色彩。
+- `v10.7.9.120`: 投资戒律低色彩重设计已部署;模块改为独立标题、竖向橙色短条、灰色 `+ 添加` 胶囊和灰色筛选胶囊;等级图标从 emoji 改为彩色圆点和低饱和底圈;筛选项在 390px 移动端一行完整显示;戒律卡片正文放大到 15px,日期、置顶、展开全文和等级选择都降为低色彩。
 - `v10.7.9.119`: 目标页头卡和年度层级微调;北极星头卡删除 RMB 汇率辅助文案;年目标和剩余年限说明字号缩小到 12px;年度目标进度标题缩小到 15px;年度目标年份数字从 `font-bold` 降到 `font-semibold`。
 - `v10.7.9.118`: 目标页未开始年度降色;北极星头卡 `设置` 按钮从金色改为中性色;未开始年度起点/目标金额改为灰色;未开始年度起点和目标去掉括号年份;未开始年度增长目标虚线改为灰色。
 - `v10.7.9.117`: 目标页细节修正;行情失败 toast 限制到首页/交易页,目标页不再显示全局行情网络提示;北极星头卡目标提醒文案单独下移,`设置` 按钮保持原上移位置;年度目标年份数字缩小并从 `font-black` 降到 `font-bold`。
@@ -495,11 +503,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: pending runtime commit (`v10.7.9.120`,投资戒律低色彩重设计)
-最近应用代码提交: pending runtime commit
+当前产品基准提交: `4d8d0f76c9c4af9276252f3aac954f4504c448a4` (`v10.7.9.120`,投资戒律低色彩重设计)
+最近应用代码提交: `4d8d0f76c9c4af9276252f3aac954f4504c448a4`
 设置页版本: `v10.7.9.120`
-Vercel 最新运行时部署: pending, latest deployed runtime remains `v10.7.9.119` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BGcYru5uraG1wyLy6z6W3axSk34b`
-部署记录: `v10.7.9.120` pending;latest deployed `v10.7.9.119` runtime commit `80b941f797623afcfd053932dadd15517fbde2e6`;production `GET https://boduan-tracker.vercel.app/?v=80b941f-runtime` HTTP 200
+Vercel 最新运行时部署: success, `v10.7.9.120` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2jZMvFYo5NM7g8p6DRfgXNNfRXcR`
+部署记录: `v10.7.9.120` runtime commit `4d8d0f76c9c4af9276252f3aac954f4504c448a4`;production `GET https://boduan-tracker.vercel.app/?v=4d8d0f-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -529,7 +537,7 @@ Vercel 最新运行时部署: pending, latest deployed runtime remains `v10.7.9.
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.120` 投资戒律低色彩重设计待部署:投资戒律模块改为独立标题、灰色添加按钮、彩色圆点筛选和深色大圆角卡片;390px 移动端一行完整显示 5 个筛选项;旧 emoji 等级图标不再直接渲染,置顶、展开全文和等级选择都降为低色彩。
+- `v10.7.9.120` 投资戒律低色彩重设计已完成部署和本地/线上验证:投资戒律模块改为独立标题、灰色添加按钮、彩色圆点筛选和深色大圆角卡片;390px 移动端一行完整显示 5 个筛选项;旧 emoji 等级图标不再直接渲染,置顶、展开全文和等级选择都降为低色彩。
 - `v10.7.9.119` 目标页头卡和年度层级微调已完成部署和本地/线上验证:北极星头卡删除 RMB 汇率辅助文案;年目标和剩余年限说明字号缩小;年度目标进度标题缩小;年度目标年份数字进一步降字重。
 - `v10.7.9.118` 目标页未开始年度降色已完成部署和本地/线上验证:北极星头卡 `设置` 按钮改为中性色;未开始年度起点/目标金额改为灰色;未开始年度起点和目标去掉括号年份;未开始年度增长目标虚线改为灰色。
 - `v10.7.9.117` 目标页细节修正已完成部署和本地/线上验证:目标页不再显示首页/交易页行情失败 toast;北极星头卡目标提醒文案单独下移,`设置` 按钮保持原上移位置;年度目标年份数字缩小并降低字重。
