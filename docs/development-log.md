@@ -28,7 +28,19 @@
   - `git diff --check`: pass.
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;VIX/CNN fear section remains `grid grid-cols-2 gap-3`,both inline cards render side-by-side at `173px` wide and about `210px` high;there is no `data-home-fear-card` high-fidelity marker,VIX card has no SVG,CNN card has only the old `FgiGauge` SVG.
   - Build marker check: pass;built `HomeTab-4NbUE9pN.js` contains `VIX 恐慌指数`, `CNN 恐慌贪婪指数`, old `FgiGauge` marker `viewBox:\`0 0 160 90\`` and old gray title marker `text-[12px] font-normal text-white/60`;built `HomeTab-4NbUE9pN.js` does not contain `FearIndexCards`, `VixFearIndexCard`, `FearGreedIndexCard` or `data-home-fear-card`;built `SettingsTab-DEnHetEB.js` contains `v10.7.9.133` and `首页恐慌模块回退旧版小卡`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed for the fear card rollback.
+  - Runtime code commit: `04a56415bd34f24bfd2b1ee8cb167fca9b36030a`.
+  - Latest deployed main commit at verification time: `e258c7c6275f96de4a2c3f7d715a93435d6824f4`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CgiuFxh9wPwF7eeuWzfKPjRk8Wp5`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=e258c7c-fear-rollback-133`: HTTP 200.
+  - Production entry chunks: `/assets/index-DtNz_gxY.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`.
+  - Production runtime chunks include: `/assets/App-CCor9otN.js`, `/assets/HomeTab-4NbUE9pN.js`, `/assets/SettingsTab-DEnHetEB.js`.
+- Production verification:
+  - Production HomeTab marker check: `HomeTab-4NbUE9pN.js` contains `VIX 恐慌指数`, `CNN 恐慌贪婪指数`, old `FgiGauge` marker `viewBox:\`0 0 160 90\`` and old gray title marker `text-[12px] font-normal text-white/60`.
+  - Production HomeTab negative marker check: `HomeTab-4NbUE9pN.js` does not contain `FearIndexCards`, `VixFearIndexCard`, `FearGreedIndexCard` or `data-home-fear-card`.
+  - Production SettingsTab marker check: `SettingsTab-DEnHetEB.js` contains `v10.7.9.133` and `首页恐慌模块回退旧版小卡`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 如需回到高保真卡片,恢复 `src/components/FearIndexCards.tsx` 并重新在 `HomeTab` 引用 `VixFearIndexCard` / `FearGreedIndexCard`;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 首页恐慌卡片继续压缩
