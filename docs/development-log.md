@@ -4,6 +4,36 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 目标页数字对齐首页样式
+
+- Commit: pending runtime commit.
+- Background: 用户继续对比首页和目标页后反馈目标页金额数字过粗、目标金额仍用几百几千万简写、头部卡片仍偏高、`北极星目标` 和 USD/RMB 切换没有压到同一行、USD 按钮偏大、目标金额位置偏低、头部卡片右下角半圆装饰和金色边框不应保留、年度目标进度宽度还不够,并要求目标页粉色金额同步首页粉色体系。
+- Changes:
+  - 目标页金额格式从 `万` 简写改为和首页一致的完整数字展示,例如年度目标、当前金额、起点/当前/目标、目标/落后、计划增长和未来年度两端金额都使用完整金额。
+  - 目标页数字字体改为首页同源系统字体并取消金额加粗,主目标金额、年度金额、实际/落后金额都用正常字重,避免比首页数字更粗。
+  - 北极星目标头部继续压缩为 `h-[244px]`,标题和 USD/RMB 切换固定在同一行,目标金额上移,币种切换按钮尺寸同步首页头卡。
+  - 删除头部卡片右下角半圆装饰和金色边框效果,改为首页头部卡片同款深色底、弱边框和内高光阴影。
+  - 年度目标进度容器继续外扩为 `-mx-2`,390px 视口下年度区域和 2026 卡实测约 `374px` 宽,减少内容被压窄。
+  - 目标页实际/落后等涨跌色改用 `marketTextClass` 和用户市场颜色模式,本地目标页预览补充 `redUpGreenDown` mock,让目标页粉色和首页涨跌色体系一致。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.113`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉、数字格式和本地预览样式修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 64 tests.
+  - `npm run build`: pass; `index-B0KThAHA.css` 52.55 kB / gzip 9.80 kB, `ReviewTab-Byn3MNMo.js` 31.61 kB / gzip 7.79 kB, `SettingsTab-BLBzPYg4.js` 39.68 kB / gzip 15.10 kB, `App-BLUdXyBa.js` 144.69 kB / gzip 41.20 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;首屏截图确认目标页 mock 可见、背景深色、北极星卡 `358x244`,年度区域 `374px` 宽,2026 卡 `374px` 宽,页面 `scrollWidth=390`,无横向溢出;USD 按钮约 `43x28`;主目标金额为完整数字且 `font-weight: 400`;2026 当前年包含完整数字 `+$70,000.00`、`$2,880,000.00`、`落后 $410,000.00`;2027/2028 未开始卡包含完整数字 `$2,964,000.00`、`$3,556,800.00`;正收益粉色为 `rgb(251, 113, 133)`;未出现 `融资杠杆监控`;浏览器 console error/warn 为空。
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次目标页数字/卡片样式修正会恢复 `v10.7.9.112` 的目标页视觉对齐版本;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 修正目标页视觉对齐
 
 - Commit: `4111f4e74797eb0d9b099b55b5c4551aeb0467b0`

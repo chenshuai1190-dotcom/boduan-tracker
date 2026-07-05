@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.112
+                  v10.7.9.113
                 </span>
               </div>
             </div>
@@ -163,14 +163,26 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.111
+                  v10.7.9.113
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.112', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.113', date: '2026-07-05', latest: true,
+                    items: [
+                      '🎯 目标页数字对齐首页样式',
+                      '  - 北极星目标金额改为首页同款完整数字和正常字重',
+                      '  - USD/RMB 切换按钮尺寸同步首页头卡',
+                      '  - 头部卡片继续压缩,北极星目标和币种切换保持同一行',
+                      '  - 删除头部卡右下角半圆装饰和金色边框,改为首页同款弱边框阴影',
+                      '  - 年度目标区域继续外扩,金额改为完整数字',
+                      '  - 目标页粉色金额同步首页涨跌颜色体系',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.112', date: '2026-07-05',
                     items: [
                       '🎯 修正目标页视觉对齐',
                       '  - 修复年度进度条扫光跑到整页形成动态竖条的问题',
@@ -1150,7 +1162,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.112</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.113</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>
