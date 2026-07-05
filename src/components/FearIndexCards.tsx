@@ -67,20 +67,25 @@ function TinySparkline({
   color,
   glowColor,
   id,
+  width = 140,
+  height = 40,
+  strokeWidth = 2,
 }: {
   values: number[];
   color: string;
   glowColor: string;
   id: string;
+  width?: number;
+  height?: number;
+  strokeWidth?: number;
 }) {
-  const width = 140;
-  const height = 40;
   const line = sparklinePath(values, width, height);
+  const baselineY = Math.round(height * 0.42);
 
   return (
-    <svg width="140" height="40" viewBox={`0 0 ${width} ${height}`} className="block overflow-visible" aria-hidden="true">
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block w-full overflow-visible" aria-hidden="true">
       <defs>
-        <linearGradient id={`${id}-spark-stroke`} x1="0" y1="0" x2="140" y2="0">
+        <linearGradient id={`${id}-spark-stroke`} x1="0" y1="0" x2={width} y2="0">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
           <stop offset="60%" stopColor={color} stopOpacity="0.72" />
           <stop offset="100%" stopColor={color} stopOpacity="1" />
@@ -97,19 +102,19 @@ function TinySparkline({
           </feMerge>
         </filter>
       </defs>
-      <path d="M 0 17 H 140" stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" strokeDasharray="2 3" />
+      <path d={`M 0 ${baselineY} H ${width}`} stroke="rgba(255,255,255,0.08)" strokeWidth="0.7" strokeDasharray="2 3" />
       <path d={line.fill} fill={`url(#${id}-spark-fill)`} />
       <path
         d={line.path}
         fill="none"
         stroke={`url(#${id}-spark-stroke)`}
-        strokeWidth="2"
+        strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         filter={`url(#${id}-spark-glow)`}
       />
-      <circle cx={line.last.x} cy={line.last.y} r="4" fill={color} filter={`url(#${id}-spark-glow)`} />
-      <circle cx={line.last.x} cy={line.last.y} r="10" fill={glowColor} opacity="0.16" />
+      <circle cx={line.last.x} cy={line.last.y} r={Math.max(2.7, strokeWidth * 1.8)} fill={color} filter={`url(#${id}-spark-glow)`} />
+      <circle cx={line.last.x} cy={line.last.y} r={Math.max(7, strokeWidth * 4.5)} fill={glowColor} opacity="0.16" />
     </svg>
   );
 }
@@ -126,48 +131,39 @@ export function VixFearIndexCard({ value, date, sparkline }: Props) {
   const id = `vix-fear-${rawId}`;
   const v = clamp(safeNumber(value), 0, 50);
   const position = getPosition(v);
-  const x = 16 + (position / 100) * 288;
+  const x = 10 + (position / 100) * 140;
   const state = getVixState(v);
   const series = normalizeSparkline(sparkline, v || 15.8);
   const majorTicks = [0, 20, 30, 50];
-  const sections = [
-    { label: '低恐慌', range: '0-20', color: '#52df88' },
-    { label: '中等恐慌', range: '20-30', color: '#ffe258' },
-    { label: '高恐慌', range: '30-50', color: '#ff5b76' },
-  ];
 
   return (
     <article
-      className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-4 py-4 text-white shadow-[0_18px_46px_rgba(0,0,0,0.54),0_0_28px_rgba(73,222,128,0.06),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-34px_68px_rgba(3,7,12,0.42)]"
+      className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-3 py-3 text-white shadow-[0_14px_34px_rgba(0,0,0,0.5),0_0_22px_rgba(73,222,128,0.055),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-24px_48px_rgba(3,7,12,0.42)]"
       style={{ fontFamily: CARD_FONT }}
       data-home-fear-card="vix"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_20%,rgba(78,222,129,0.105),transparent_32%),radial-gradient(circle_at_86%_12%,rgba(72,121,96,0.08),transparent_34%)]" />
       <div className="relative z-10">
-        <div className="grid grid-cols-[minmax(0,1fr)_140px] items-start gap-2">
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <h3 className="whitespace-nowrap text-[20px] font-normal leading-none tracking-[0.02em] text-white/[0.92]">VIX 恐慌指数</h3>
-              {date && <span className="whitespace-nowrap text-[12px] font-normal text-white/[0.36]">{date}</span>}
-            </div>
-            <div className="mt-5 flex items-center gap-2.5">
-              <span className="text-[52px] font-normal leading-[0.82] tracking-normal text-[#53e089] tabular-nums drop-shadow-[0_0_18px_rgba(83,224,137,0.25)]">
-                {v.toFixed(1)}
-              </span>
-              <span className="relative mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-400/10">
-                <span className="absolute h-14 w-14 rounded-full bg-emerald-400/10 blur-md" />
-                <span className="absolute h-8 w-8 rounded-full border border-emerald-300/20 bg-emerald-400/10" />
-                <span className="relative h-4 w-4 rounded-full bg-[#53e089] shadow-[0_0_18px_rgba(83,224,137,0.82)]" />
-              </span>
-            </div>
-            <div className="mt-3 text-[16px] font-normal leading-none text-white/[0.48]">{state.desc}</div>
-          </div>
-          <div className="pt-[58px]">
-            <TinySparkline values={series} color={state.color} glowColor={state.color} id={id} />
-          </div>
+        <div className="flex items-baseline gap-1.5">
+          <h3 className="min-w-0 truncate text-[12px] font-normal leading-none tracking-normal text-white/[0.92]">VIX 恐慌指数</h3>
+          {date && <span className="shrink-0 whitespace-nowrap text-[9px] font-normal text-white/[0.36]">{date}</span>}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-[36px] font-normal leading-[0.82] tracking-normal text-[#53e089] tabular-nums drop-shadow-[0_0_14px_rgba(83,224,137,0.25)]">
+            {v.toFixed(1)}
+          </span>
+          <span className="relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400/10">
+            <span className="absolute h-9 w-9 rounded-full bg-emerald-400/10 blur-md" />
+            <span className="absolute h-5 w-5 rounded-full border border-emerald-300/20 bg-emerald-400/10" />
+            <span className="relative h-2.5 w-2.5 rounded-full bg-[#53e089] shadow-[0_0_14px_rgba(83,224,137,0.82)]" />
+          </span>
+        </div>
+        <div className="mt-2 truncate text-[11px] font-normal leading-none text-white/[0.48]">{state.desc}</div>
+        <div className="mt-3">
+          <TinySparkline values={series} color={state.color} glowColor={state.color} id={id} height={26} strokeWidth={1.5} />
         </div>
 
-        <svg viewBox="0 0 320 84" className="mt-6 block w-full overflow-visible" aria-hidden="true">
+        <svg viewBox="0 0 160 60" className="mt-3 block w-full overflow-visible" aria-hidden="true">
           <defs>
             <linearGradient id={`${id}-bar`} x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#4cdd87" />
@@ -188,48 +184,39 @@ export function VixFearIndexCard({ value, date, sparkline }: Props) {
               <stop offset="100%" stopColor="#57e48b" />
             </linearGradient>
           </defs>
-          <rect x="16" y="12" width="288" height="9" rx="4.5" fill={`url(#${id}-bar)`} filter={`url(#${id}-bar-glow)`} />
+          <rect x="10" y="10" width="140" height="6" rx="3" fill={`url(#${id}-bar)`} filter={`url(#${id}-bar-glow)`} />
           {Array.from({ length: 25 }).map((_, index) => {
-            const tickX = 16 + (index / 24) * 288;
+            const tickX = 10 + (index / 24) * 140;
             const isMajor = majorTicks.some((tick) => Math.abs((tick / 50) * 100 - (index / 24) * 100) < 2);
             return (
               <line
                 key={index}
                 x1={tickX}
                 x2={tickX}
-                y1={isMajor ? 34 : 36}
-                y2={isMajor ? 43 : 40}
+                y1={isMajor ? 27 : 29}
+                y2={isMajor ? 35 : 33}
                 stroke={isMajor ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.18)'}
-                strokeWidth={isMajor ? 1.3 : 0.9}
+                strokeWidth={isMajor ? 1 : 0.75}
                 strokeLinecap="round"
               />
             );
           })}
           {majorTicks.map((tick) => {
-            const tickX = 16 + (tick / 50) * 288;
+            const tickX = 10 + (tick / 50) * 140;
             return (
-              <text key={tick} x={tickX} y="58" textAnchor="middle" fill="rgba(255,255,255,0.38)" fontSize="12" fontWeight="400">
+              <text key={tick} x={tickX} y="48" textAnchor="middle" fill="rgba(255,255,255,0.38)" fontSize="8" fontWeight="400">
                 {tick}
               </text>
             );
           })}
-          <line x1={x} x2={x} y1="23" y2="68" stroke="rgba(255,255,255,0.26)" strokeWidth="1" strokeDasharray="2 3" />
-          <circle cx={x} cy="16.5" r="20" fill="#52df88" opacity="0.13" filter={`url(#${id}-bar-glow)`} />
-          <circle cx={x} cy="16.5" r="13" fill="rgba(11,15,20,0.85)" stroke="rgba(255,255,255,0.92)" strokeWidth="2.8" />
-          <circle cx={x} cy="16.5" r="5" fill={`url(#${id}-indicator)`} />
-          <text x={x} y="78" textAnchor="middle" fill="#76f0a0" fontSize="13" fontWeight="500" letterSpacing="0.4">
+          <line x1={x} x2={x} y1="19" y2="51" stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="2 3" />
+          <circle cx={x} cy="13" r="13" fill="#52df88" opacity="0.13" filter={`url(#${id}-bar-glow)`} />
+          <circle cx={x} cy="13" r="8" fill="rgba(11,15,20,0.85)" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
+          <circle cx={x} cy="13" r="3.2" fill={`url(#${id}-indicator)`} />
+          <text x={x} y="59" textAnchor="middle" fill="#76f0a0" fontSize="8.5" fontWeight="500" letterSpacing="0.2">
             {v.toFixed(1)}
           </text>
         </svg>
-
-        <div className="mt-1 grid grid-cols-3 items-start text-center">
-          {sections.map((item, index) => (
-            <div key={item.label} className={`relative ${index > 0 ? 'before:absolute before:left-0 before:top-1 before:h-9 before:w-px before:bg-white/[0.12]' : ''}`}>
-              <div className="text-[13px] font-normal leading-none" style={{ color: item.color }}>{item.label}</div>
-              <div className="mt-2 text-[12px] font-normal leading-none text-white/[0.38]">{item.range}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </article>
   );
@@ -249,49 +236,38 @@ export function FearGreedIndexCard({ value, date, sparkline }: Props) {
   const id = `fear-greed-${rawId}`;
   const v = clamp(safeNumber(value), 0, 100);
   const angle = valueToAngle(v);
-  const center = { x: 160, y: 139 };
-  const arcRadius = 103;
-  const pointer = polarPoint(center.x, center.y, 89, angle);
+  const center = { x: 80, y: 84 };
+  const arcRadius = 56;
+  const pointer = polarPoint(center.x, center.y, 47, angle);
   const state = getFearGreedState(v);
   const series = normalizeSparkline(sparkline, v || 32);
-  const labelSections = [
-    { label: '极度恐惧', range: '0-20', color: '#ff5c72' },
-    { label: '恐惧', range: '20-40', color: '#ff6678' },
-    { label: '中性', range: '40-60', color: '#f7d957' },
-    { label: '贪婪', range: '60-80', color: '#6cda67' },
-    { label: '极度贪婪', range: '80-100', color: '#39ca70' },
-  ];
 
   return (
     <article
-      className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-4 py-4 text-white shadow-[0_18px_46px_rgba(0,0,0,0.56),0_0_30px_rgba(255,94,115,0.045),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-34px_68px_rgba(3,7,12,0.42)]"
+      className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-3 py-3 text-white shadow-[0_14px_34px_rgba(0,0,0,0.52),0_0_24px_rgba(255,94,115,0.045),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-24px_48px_rgba(3,7,12,0.42)]"
       style={{ fontFamily: CARD_FONT }}
       data-home-fear-card="fear-greed"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(255,84,108,0.105),transparent_33%),radial-gradient(circle_at_80%_46%,rgba(253,224,71,0.07),transparent_34%)]" />
       <div className="relative z-10">
-        <div className="grid grid-cols-[minmax(0,1fr)_140px] items-start gap-2">
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <h3 className="whitespace-nowrap text-[20px] font-normal leading-none tracking-normal text-white/[0.92]">恐慌贪婪指数</h3>
-              {date && <span className="whitespace-nowrap text-[12px] font-normal text-white/[0.36]">{date}</span>}
-            </div>
-            <div className="mt-5 flex items-baseline gap-3">
-              <span className="text-[52px] font-normal leading-[0.82] tracking-normal tabular-nums drop-shadow-[0_0_16px_rgba(255,99,121,0.2)]" style={{ color: state.color }}>
-                {Math.round(v)}
-              </span>
-              <span className="text-[19px] font-normal leading-none" style={{ color: state.color }}>{state.label}</span>
-            </div>
-            <div className="mt-3 text-[16px] font-normal leading-none text-white/[0.48]">{state.desc}</div>
-          </div>
-          <div className="pt-[58px]">
-            <TinySparkline values={series} color={state.color} glowColor={state.color} id={id} />
-          </div>
+        <div className="flex items-baseline gap-1.5">
+          <h3 className="min-w-0 truncate text-[12px] font-normal leading-none tracking-normal text-white/[0.92]">恐慌贪婪指数</h3>
+          {date && <span className="shrink-0 whitespace-nowrap text-[9px] font-normal text-white/[0.36]">{date}</span>}
+        </div>
+        <div className="mt-3 flex items-baseline gap-2">
+          <span className="text-[36px] font-normal leading-[0.82] tracking-normal tabular-nums drop-shadow-[0_0_14px_rgba(255,99,121,0.2)]" style={{ color: state.color }}>
+            {Math.round(v)}
+          </span>
+          <span className="text-[12px] font-normal leading-none" style={{ color: state.color }}>{state.label}</span>
+        </div>
+        <div className="mt-2 truncate text-[11px] font-normal leading-none text-white/[0.48]">{state.desc}</div>
+        <div className="mt-3">
+          <TinySparkline values={series} color={state.color} glowColor={state.color} id={id} height={26} strokeWidth={1.5} />
         </div>
 
-        <svg viewBox="0 0 320 176" className="-mt-2 block w-full overflow-visible" aria-hidden="true">
+        <svg viewBox="0 0 160 104" className="mt-1 block w-full overflow-visible" aria-hidden="true">
           <defs>
-            <linearGradient id={`${id}-gauge`} gradientUnits="userSpaceOnUse" x1="44" y1="139" x2="276" y2="139">
+            <linearGradient id={`${id}-gauge`} gradientUnits="userSpaceOnUse" x1="24" y1="84" x2="136" y2="84">
               <stop offset="0%" stopColor="#e44359" />
               <stop offset="22%" stopColor="#ff6655" />
               <stop offset="46%" stopColor="#f6a83e" />
@@ -313,26 +289,26 @@ export function FearGreedIndexCard({ value, date, sparkline }: Props) {
           </defs>
           {Array.from({ length: 43 }).map((_, index) => {
             const tickAngle = 180 + (index / 42) * 180;
-            const tick = polarPoint(center.x, center.y, 115, tickAngle);
+            const tick = polarPoint(center.x, center.y, 64, tickAngle);
             return (
               <circle
                 key={index}
                 cx={tick.x}
                 cy={tick.y}
-                r="1.1"
+                r="0.65"
                 fill={index < 17 ? '#ff5d75' : index < 26 ? '#f6da54' : '#5ed172'}
-                opacity="0.26"
+                opacity="0.22"
               />
             );
           })}
-          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="25" strokeLinecap="round" />
-          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke={`url(#${id}-gauge)`} strokeWidth="22" strokeLinecap="round" filter={`url(#${id}-glow)`} />
-          <path d={describeArc(center.x, center.y, 74, 185, 355)} fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="1.2" />
-          <path d={describeArc(center.x, center.y, 50, 195, 345)} fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="1" />
+          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="10" strokeLinecap="round" />
+          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke={`url(#${id}-gauge)`} strokeWidth="8" strokeLinecap="round" filter={`url(#${id}-glow)`} />
+          <path d={describeArc(center.x, center.y, 39, 185, 355)} fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="0.8" />
+          <path d={describeArc(center.x, center.y, 27, 195, 345)} fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="0.7" />
           {[20, 40, 60, 80].map((tick) => {
             const tickAngle = valueToAngle(tick);
-            const outer = polarPoint(center.x, center.y, arcRadius + 13, tickAngle);
-            const inner = polarPoint(center.x, center.y, arcRadius - 14, tickAngle);
+            const outer = polarPoint(center.x, center.y, arcRadius + 7, tickAngle);
+            const inner = polarPoint(center.x, center.y, arcRadius - 7, tickAngle);
             return (
               <line
                 key={tick}
@@ -341,40 +317,31 @@ export function FearGreedIndexCard({ value, date, sparkline }: Props) {
                 x2={outer.x}
                 y2={outer.y}
                 stroke="rgba(4,8,13,0.45)"
-                strokeWidth="1.6"
+                strokeWidth="1"
                 strokeLinecap="round"
               />
             );
           })}
-          <text x="38" y="164" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="13">0</text>
-          <text x="160" y="78" textAnchor="middle" fill="rgba(255,255,255,0.52)" fontSize="13">50</text>
-          <text x="282" y="164" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="13">100</text>
+          <text x="18" y="95" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="8">0</text>
+          <text x="80" y="53" textAnchor="middle" fill="rgba(255,255,255,0.52)" fontSize="8">50</text>
+          <text x="142" y="95" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="8">100</text>
           <line
             x1={center.x}
             y1={center.y}
             x2={pointer.x}
             y2={pointer.y}
             stroke={`url(#${id}-needle)`}
-            strokeWidth="3"
+            strokeWidth="1.4"
             strokeLinecap="round"
             filter={`url(#${id}-glow)`}
           />
-          <circle cx={center.x} cy={center.y} r="27" fill="rgba(255,88,111,0.08)" stroke="rgba(255,92,113,0.24)" strokeWidth="1.4" />
-          <circle cx={center.x} cy={center.y} r="12" fill="rgba(7,10,15,0.78)" stroke="rgba(255,92,113,0.45)" strokeWidth="1.6" filter={`url(#${id}-glow)`} />
-          <circle cx={center.x} cy={center.y} r="4.2" fill="#ffd6dc" />
-          <circle cx={pointer.x} cy={pointer.y} r="17" fill={state.color} opacity="0.16" filter={`url(#${id}-glow)`} />
-          <circle cx={pointer.x} cy={pointer.y} r="12" fill="rgba(11,15,20,0.88)" stroke="rgba(255,255,255,0.9)" strokeWidth="3" />
-          <circle cx={pointer.x} cy={pointer.y} r="5.5" fill={state.color} filter={`url(#${id}-glow)`} />
+          <circle cx={center.x} cy={center.y} r="12" fill="rgba(255,88,111,0.08)" stroke="rgba(255,92,113,0.24)" strokeWidth="0.9" />
+          <circle cx={center.x} cy={center.y} r="5.5" fill="rgba(7,10,15,0.78)" stroke="rgba(255,92,113,0.45)" strokeWidth="0.9" filter={`url(#${id}-glow)`} />
+          <circle cx={center.x} cy={center.y} r="2.2" fill="#ffd6dc" />
+          <circle cx={pointer.x} cy={pointer.y} r="10" fill={state.color} opacity="0.16" filter={`url(#${id}-glow)`} />
+          <circle cx={pointer.x} cy={pointer.y} r="6.5" fill="rgba(11,15,20,0.88)" stroke="rgba(255,255,255,0.9)" strokeWidth="1.7" />
+          <circle cx={pointer.x} cy={pointer.y} r="2.9" fill={state.color} filter={`url(#${id}-glow)`} />
         </svg>
-
-        <div className="-mt-1 grid grid-cols-5 text-center">
-          {labelSections.map((item, index) => (
-            <div key={item.label} className={`relative ${index > 0 ? 'before:absolute before:left-0 before:top-1 before:h-9 before:w-px before:bg-white/[0.12]' : ''}`}>
-              <div className="text-[11px] font-normal leading-none" style={{ color: item.color }}>{item.label}</div>
-              <div className="mt-2 text-[11px] font-normal leading-none text-white/[0.36]">{item.range}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </article>
   );

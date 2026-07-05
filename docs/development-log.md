@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 首页恐慌卡片双列瘦身
+
+- Commit: pending
+- Background: 用户确认新 VIX/CNN 恐慌卡片效果已经达标,但当前全宽纵向卡片过大,需要恢复到之前一列两排区域中的并排双列效果,整体同比例缩小,保留新暗黑金融样式;同时两张卡片底部分区文字可删除,CNN 恐慌贪婪半圆仪表盘需要瘦身。
+- Changes:
+  - 首页 `HomeTab` 将 VIX 和 CNN 恐慌卡片容器从纵向 `space-y-3` 恢复为 `grid grid-cols-2 gap-3`,回到并排双列布局。
+  - `src/components/FearIndexCards.tsx` 保留高保真深色卡片、发光数值、sparkline、VIX 风险条和 CNN 半圆仪表盘,但整体字号、间距、图表尺寸和内边距同步压缩以适配 390px 手机双列宽度。
+  - 删除 VIX 底部低/中/高恐慌分区标签和 CNN 底部五段情绪区间标签,降低卡片高度,避免底部说明抢主视觉。
+  - CNN 半圆 gauge 主弧线从高保真全宽版厚线改为更细的 `strokeWidth="8"`,指针同步降为 `strokeWidth="1.4"`,保留红黄绿渐变、tick、中心 glow ring 和发光指针头。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.131`。
+  - 测试更新首页恐慌卡片双列布局、底部标签删除、CNN gauge 瘦身和设置页版本保护点。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页前端视觉布局压缩,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/components/FearIndexCards.tsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-DRghdNgG.css`,`HomeTab-CajT2Rf1.js`,`SettingsTab-CdUeizfs.js`,`App-Csp_qzhF.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;fear card section is `grid grid-cols-2 gap-3`,container width `358px`,both cards render side-by-side at `173px` wide and about `239px` high,no document-level horizontal overflow;bottom zone labels are absent;CNN gauge main arc is `strokeWidth="8"` and pointer is `strokeWidth="1.4"`.
+  - Build marker check: pass;built `HomeTab-CajT2Rf1.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `grid grid-cols-2 gap-3`, `strokeWidth:\`8\`` and `strokeWidth:\`1.4\``;built `HomeTab-CajT2Rf1.js` does not contain `低恐慌` / `中等恐慌` / `高恐慌`;built `SettingsTab-CdUeizfs.js` contains `v10.7.9.131` and `首页恐慌卡片双列瘦身`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment: pending.
+- Rollback: 恢复 `src/tabs/HomeTab.jsx` 中恐慌卡片纵向全宽容器,还原 `FearIndexCards.tsx` 高保真大卡尺寸和底部分区标签,并回退设置页 `v10.7.9.131` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 首页恐慌指标高保真卡片
 
 - Commit: `edce5caa4ef15380f2373b3fd078a988ff95b3e4`

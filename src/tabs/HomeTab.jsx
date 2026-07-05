@@ -779,7 +779,7 @@ export default function HomeTab({ ctx }) {
       </section>
       )}
 
-      <section className="mt-3 space-y-3">
+      <section className="mt-3 grid grid-cols-2 gap-3">
         <VixFearIndexCard
           value={num(vix)}
           date={vixDateLabel ? `${vixDateLabel} 收盘` : ''}
