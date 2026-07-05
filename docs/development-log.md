@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产走势图详情恢复点击显示
 
-- Commit: `same commit`
+- Commit: `591875ed557524205db5870a6debb6f1c67a0011`
 - Background: 用户反馈上一版修正圆点显示时误把最新月份也设为默认选中,导致资产页 `12 个月走势` 默认显示当月盈亏详情;原交互应为默认不显示详情,只有点击月份后才显示。
 - Changes:
   - `AnalysisTab` 将圆点显示状态和详情选中状态拆开:新增 `visibleChartMarkerMonthIdx` 只负责默认显示最新月份圆点;月度盈亏详情继续只由 `chartSelectedMonthIdx` 控制。
@@ -30,9 +30,13 @@
   - Build marker check: pass;production build contains `月度 · 点击查看`, `v10.7.9.139`, `资产走势图详情恢复点击显示`, does not contain the old visible-every-point radius branch, and does not bundle `DevVisualPreview` in `App`.
   - Local mobile visual check (`127.0.0.1:5173`, 390x844): pass;default `12 个月走势` shows only the latest outer/inner point and 12 transparent hit targets, no `较上月` detail text, no horizontal overflow;clicking a month shows month/`较上月`/amount detail with one marker;clicking that point again hides the detail and returns the marker to the latest month.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`.
+  - GitHub Actions `build` check passed for `591875ed557524205db5870a6debb6f1c67a0011` (run `28746411346`, job `85237952864`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/51gZkZXtyyYWcXLp8KKe5LMA9AVU`.
 - Production verification:
-  - Pending.
+  - Production `GET https://boduan-tracker.vercel.app/?v=591875e-asset-chart-detail-139`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `AnalysisTab-FL5TmrnT.js`, `SettingsTab-CB3JWNjI.js`, `App-Cl__OcDo.js`;assets contain `月度 · 点击查看`, `v10.7.9.139`, `资产走势图详情恢复点击显示`;old visible-every-point marker branch absent;`DevVisualPreview` / `mockHomeWatchlist` absent from production assets.
+  - Production `/api/quote?symbols=VIX` without auth returns HTTP 401;`/api/quote` auth remains enabled.
 - Rollback: 回退 `AnalysisTab` 的 `visibleChartMarkerMonthIdx` 拆分逻辑和 `v10.7.9.139` 设置页更新日志、开发日志条目、测试断言即可;不影响资产数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 资产走势图只显示选中圆点
