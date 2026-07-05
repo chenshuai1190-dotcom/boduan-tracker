@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 北极星复利明细视觉微调
+
+- Commit: pending.
+- Background: 用户反馈复利明细整体效果已出来,但白色边框偏突兀、弹窗偏窄、内容过长需要可滚动、曲线下方需要完整显示十年年份,并要求收益颜色统一使用首页粉色。
+- Changes:
+  - 复利明细弹窗外层从白色弱边框改为参考图同款弱金色边框,内部统计、实际进度、账户曲线和每年收益卡片边框也同步降为低饱和金色。
+  - 弹窗宽度从约 `366px` 加宽到 `374px`(390px 视口),外层使用 `w-[calc(100vw-16px)] max-w-[386px]`,并保留内部 `overflow-y-auto` / `overscroll-contain` 滚动。
+  - 账户曲线宽度加到 `324`,x 轴改为渲染全部年份标签,390px 视口下完整显示 `2026` 到 `2035`,年份字号降为 `8`。
+  - 顶部 `累计收益`、实际进度里的 `实际收益`、每年收益表的 `年收益` 统一改为首页粉色 `text-rose-400`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.127`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页复利明细弹窗的前端视觉微调,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-o_AHniHQ.css` 55.35 kB / gzip 10.09 kB,`ReviewTab-B87rKDT0.js` 46.22 kB / gzip 10.79 kB,`SettingsTab-VOO0enLZ.js` 44.09 kB / gzip 16.49 kB,`App-CG5AnaJY.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker check: `ReviewTab-B87rKDT0.js` contains `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, weak gold border marker `border-[#f6b54b]/35`, full-year x-axis mapping, small year font `fontSize: 8`, and `text-rose-400`;`SettingsTab-VOO0enLZ.js` contains `v10.7.9.127` and `北极星复利明细视觉微调`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
+  - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `374px`,高 `816px`,页面 `scrollWidth=390`,弹窗 `scrollHeight=877` / `clientHeight=814`,可内部滚动;外层边框色 `rgba(246,181,75,0.35)`;曲线下方完整显示 `2026`-`2035` 共 10 个年份标签且字号为 `8`;累计收益、实际收益和每年收益颜色均为 `rgb(251,113,133)`;无横向溢出。
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.126` 的复利明细弹窗宽度、白色弱边框、曲线抽样年份和金色收益;不影响北极星目标计算、年度目标数据、投资戒律、复盘日志、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 北极星复利明细弹窗
 
 - Commit: `f87d5c40ffe01dde9608f70dd6fae27293437c31`

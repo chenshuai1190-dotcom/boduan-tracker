@@ -252,10 +252,10 @@ function CompoundDetailModal({
   const displayCurrent = currentBalance * rate;
   const displayMax = Math.max(displayTarget, displayCurrent, displayStart, 1);
   const chartMax = Math.ceil((displayMax * 1.08) / 1000000 / 4) * 4 * 1000000 || 4000000;
-  const chartWidth = 300;
+  const chartWidth = 324;
   const chartHeight = 132;
-  const padLeft = 32;
-  const padRight = 18;
+  const padLeft = 34;
+  const padRight = 14;
   const padTop = 12;
   const padBottom = 24;
   const plotWidth = chartWidth - padLeft - padRight;
@@ -273,9 +273,7 @@ function CompoundDetailModal({
     .join(' ');
   const areaPath = `${curvePath} L ${chartPoints[chartPoints.length - 1].x.toFixed(1)} ${padTop + plotHeight} L ${chartPoints[0].x.toFixed(1)} ${padTop + plotHeight} Z`;
   const tickValues = [chartMax, chartMax * 0.75, chartMax * 0.5, chartMax * 0.25, 0];
-  const xLabelIndexes = pointCount <= 6
-    ? chartPoints.map((_, index) => index)
-    : [0, Math.floor((pointCount - 1) / 3), Math.floor((pointCount - 1) * 2 / 3), pointCount - 1];
+  const xLabelIndexes = chartPoints.map((_, index) => index);
   const actualGain = currentBalance - startCapital;
   const targetGain = targetValue - startCapital;
   const multiple = startCapital > 0 ? targetValue / startCapital : 0;
@@ -291,16 +289,20 @@ function CompoundDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-3 py-6 backdrop-blur-lg"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-hidden bg-black/70 px-2 py-4 backdrop-blur-lg"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
       style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+        paddingTop: 'calc(env(safe-area-inset-top) + 14px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 14px)',
       }}
     >
-      <div data-compound-detail="true" className="max-h-[88dvh] w-full max-w-[368px] overflow-y-auto rounded-[22px] border border-white/12 bg-[#0b0f16] px-4 pb-4 pt-4 shadow-[0_26px_90px_rgba(0,0,0,0.74),inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        data-compound-detail="true"
+        className="w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain rounded-[22px] border border-[#f6b54b]/35 bg-[#0b0f16] px-4 pb-4 pt-4 shadow-[0_26px_90px_rgba(0,0,0,0.74),inset_0_1px_0_rgba(246,181,75,0.12)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)' }}
+      >
         <div className="relative text-center">
           <button
             type="button"
@@ -316,29 +318,29 @@ function CompoundDetailModal({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3">
+        <div className="mt-4 grid grid-cols-3 rounded-2xl border border-[#f6b54b]/15 bg-white/[0.032] py-3">
           {[
-            { label: '目标终值', value: money(targetValue) },
-            { label: '累计收益', value: signedMoney(targetGain) },
-            { label: '复利倍数', value: `${multiple.toFixed(2)}x` },
+            { label: '目标终值', value: money(targetValue), valueClass: 'text-[#ffd18a]' },
+            { label: '累计收益', value: signedMoney(targetGain), valueClass: 'text-rose-400' },
+            { label: '复利倍数', value: `${multiple.toFixed(2)}x`, valueClass: 'text-[#ffd18a]' },
           ].map((item, index) => (
-            <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-white/[0.07]' : ''}`}>
+            <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-[#f6b54b]/12' : ''}`}>
               <div className="text-[11px] text-white/38">{item.label}</div>
-              <div className="mt-2 whitespace-nowrap text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              <div className={`mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums ${item.valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
                 {item.value}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5">
+        <div className="mt-2.5 rounded-2xl border border-[#f6b54b]/12 bg-white/[0.025] px-3 py-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[11px] text-white/38">实际进度</div>
               <div className="mt-1 truncate text-[12px] text-white/68">
                 当前 <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
                 <span className="mx-1.5 text-white/22">·</span>
-                实际收益 <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
+                实际收益 <span className="text-rose-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -359,7 +361,7 @@ function CompoundDetailModal({
           <span className="text-[11px] text-white/40">金额单位: {symbol === '¥' ? '百万元人民币' : '百万美元'}</span>
         </div>
 
-        <div className="mt-2 rounded-[18px] border border-white/[0.05] bg-black/[0.12] px-2 py-2.5">
+        <div className="mt-2 rounded-[18px] border border-[#f6b54b]/10 bg-black/[0.12] px-2 py-2.5">
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[164px] w-full overflow-visible" aria-label="复利账户曲线">
             <defs>
               <linearGradient id="compoundLineGradient" x1="0" y1="0" x2="1" y2="0">
@@ -385,7 +387,7 @@ function CompoundDetailModal({
               return (
                 <g key={point.year}>
                   <line x1={point.x} x2={point.x} y1={padTop} y2={padTop + plotHeight} stroke="rgba(255,255,255,0.045)" strokeWidth="0.7" />
-                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="10" fontFamily={NUMBER_FONT}>{point.year}</text>
+                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>
                 </g>
               );
             })}
@@ -399,7 +401,7 @@ function CompoundDetailModal({
           </svg>
         </div>
 
-        <div className="mt-4 rounded-[18px] border border-white/[0.06] bg-white/[0.035] px-3 py-3">
+        <div className="mt-4 rounded-[18px] border border-[#f6b54b]/12 bg-white/[0.035] px-3 py-3">
           <h3 className="text-[14px] font-semibold text-white">每年收益</h3>
           <div className="mt-3 grid grid-cols-[0.75fr_1fr_1.15fr] border-b border-white/[0.06] pb-2 text-[11px] text-white/38">
             <span>年份</span>
@@ -410,7 +412,7 @@ function CompoundDetailModal({
             {displayRows.map((row) => (
               <div key={row.year} className="grid grid-cols-[0.75fr_1fr_1.15fr] py-2 text-[12px] leading-none">
                 <span className="text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.year}</span>
-                <span className="text-right text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+{symbol}{fmtMoney(row.displayAnnualGain)}</span>
+                <span className="text-right text-rose-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+{symbol}{fmtMoney(row.displayAnnualGain)}</span>
                 <span className="text-right text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{symbol}{fmtMoney(row.displayEndBalance)}</span>
               </div>
             ))}

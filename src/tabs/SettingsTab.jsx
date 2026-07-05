@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.126
+                  v10.7.9.127
                 </span>
               </div>
             </div>
@@ -163,14 +163,24 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.126
+                  v10.7.9.127
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.126', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.127', date: '2026-07-05', latest: true,
+                    items: [
+                      '🎯 北极星复利明细视觉微调',
+                      '  - 弹窗边框改为参考图同款弱金色,减少白边突兀感',
+                      '  - 弹窗宽度加大并保持内部可滚动,小屏也能看完整内容',
+                      '  - 账户曲线底部完整显示 10 年年份,年份字号进一步缩小',
+                      '  - 累计收益、实际收益和每年收益统一首页粉色',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.126', date: '2026-07-05',
                     items: [
                       '🎯 北极星复利明细弹窗',
                       '  - 点击北极星目标卡片可查看 10 年复利明细',
@@ -1289,7 +1299,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.126</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.127</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

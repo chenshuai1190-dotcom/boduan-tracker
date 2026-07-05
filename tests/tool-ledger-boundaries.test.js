@@ -242,7 +242,14 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('账户曲线'), 'compound detail should render the account curve section');
   assert.ok(reviewTabSource.includes('实际进度'), 'compound detail should compare actual progress with the plan');
   assert.ok(reviewTabSource.includes('每年收益'), 'compound detail should render the yearly income table');
-  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums'), 'compound summary numbers should stay compact for mobile');
+  assert.ok(reviewTabSource.includes('w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain'), 'compound detail modal should be wider while remaining scrollable on mobile');
+  assert.ok(reviewTabSource.includes('border border-[#f6b54b]/35'), 'compound detail modal should use the muted gold reference border instead of a bright white border');
+  assert.ok(reviewTabSource.includes('const xLabelIndexes = chartPoints.map((_, index) => index);'), 'compound chart should show every year label across the full plan');
+  assert.ok(reviewTabSource.includes('fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>'), 'compound chart year labels should stay small enough to fit all ten years');
+  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums'), 'compound summary numbers should stay compact for mobile');
+  assert.ok(reviewTabSource.includes("valueClass: 'text-rose-400'"), 'compound accumulated gain should use the home pink amount color');
+  assert.ok(reviewTabSource.includes('实际收益 <span className="text-rose-400 tabular-nums"'), 'compound actual gain should use the home pink amount color');
+  assert.ok(reviewTabSource.includes('text-right text-rose-400 tabular-nums'), 'compound yearly gains should use the home pink amount color');
   assert.ok(reviewTabSource.includes('setShowCompoundDetails(true)'), 'north-star card should open compound details on click');
   assert.ok(reviewTabSource.includes('switchCurrency(item.key);'), 'currency switch should remain available inside the north-star card');
   assert.ok(reviewTabSource.includes('setShowPlanSettings(true);'), 'settings button should remain available inside the north-star card');
@@ -319,8 +326,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
-  assert.ok(settingsTabSource.includes('v10.7.9.126'), 'settings version should document the compound detail modal');
-  assert.ok(settingsTabSource.includes('北极星复利明细弹窗'), 'settings changelog should describe the compound detail modal');
+  assert.ok(settingsTabSource.includes('v10.7.9.127'), 'settings version should document the compound detail visual tuning');
+  assert.ok(settingsTabSource.includes('北极星复利明细视觉微调'), 'settings changelog should describe the compound detail visual tuning');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {
