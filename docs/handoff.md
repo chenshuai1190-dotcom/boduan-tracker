@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `pending` (`v10.7.9.124`,复盘日志卡片和详情弹窗;本地验证通过,待推送部署)
-- 最近应用代码提交: `pending`
+- 当前产品基准提交: `bfaac6673e4a187121c978a8e6701db3e360f347` (`v10.7.9.124`,复盘日志卡片和详情弹窗)
+- 最近应用代码提交: `bfaac6673e4a187121c978a8e6701db3e360f347`
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.124`
-- Vercel 最新运行时部署: pending `v10.7.9.124`;last successful runtime remains `v10.7.9.123` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/22CRqnoeRVyzkX68U8n9oQFqQ8N3`
-- Vercel 部署记录: `v10.7.9.124` pending;last production `GET https://boduan-tracker.vercel.app/?v=806ad0d-runtime` HTTP 200 for `v10.7.9.123`
+- Vercel 最新运行时部署: success, `v10.7.9.124` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2GUSsdSu2t7GfvdLr8X3NC1M355a`
+- Vercel 部署记录: `v10.7.9.124` runtime commit `bfaac6673e4a187121c978a8e6701db3e360f347`;production `GET https://boduan-tracker.vercel.app/?v=bfaac66-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退;`v10.7.9.111` 目标页深色化第一阶段已部署;`v10.7.9.112` 修正目标页视觉对齐已部署;`v10.7.9.113` 目标页数字对齐首页样式已部署;`v10.7.9.114` 目标页数字密度微调已部署;`v10.7.9.115` 北极星目标小数层级优化已部署;`v10.7.9.116` 主资产数字小数层级同步已部署;`v10.7.9.117` 目标页细节修正已部署;`v10.7.9.118` 目标页未开始年度降色已部署;`v10.7.9.119` 目标页头卡和年度层级微调已部署;`v10.7.9.120` 投资戒律低色彩重设计已部署;`v10.7.9.121` 投资戒律字体整体收紧已部署;`v10.7.9.122` 投资戒律标题行精简已部署;`v10.7.9.123` 投资戒律记录详情弹窗已部署;`v10.7.9.124` 复盘日志卡片和详情弹窗已完成本地验证,待部署。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退;`v10.7.9.111` 目标页深色化第一阶段已部署;`v10.7.9.112` 修正目标页视觉对齐已部署;`v10.7.9.113` 目标页数字对齐首页样式已部署;`v10.7.9.114` 目标页数字密度微调已部署;`v10.7.9.115` 北极星目标小数层级优化已部署;`v10.7.9.116` 主资产数字小数层级同步已部署;`v10.7.9.117` 目标页细节修正已部署;`v10.7.9.118` 目标页未开始年度降色已部署;`v10.7.9.119` 目标页头卡和年度层级微调已部署;`v10.7.9.120` 投资戒律低色彩重设计已部署;`v10.7.9.121` 投资戒律字体整体收紧已部署;`v10.7.9.122` 投资戒律标题行精简已部署;`v10.7.9.123` 投资戒律记录详情弹窗已部署;`v10.7.9.124` 复盘日志卡片和详情弹窗已部署。
 
 ## 2. 先读这些文档
 
@@ -161,7 +161,10 @@ npm run dev -- --host 127.0.0.1
 
 - `v10.7.9.124` local validation: `npm test` pass,65 tests;`npm run build` pass (`index-CCleSwoD.css`,`ReviewTab-3jD8px9N.js`,`SettingsTab-BNBYWZsK.js`,`App-CqImk6tp.js`);`npm audit` pass,0 vulnerabilities;`git diff --check` pass;build marker check confirms `复盘详情`, `min-h-[220px]`, `查看全文`, `展开剩余`, `删除这条复盘?`, `v10.7.9.124` changelog, `编辑复盘` preview marker, no `overscroll-behavior-y:none`, no `DevVisualPreview` in App chunk.
 - `v10.7.9.124` local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;页面 `scrollWidth=390`,body background `rgb(5, 7, 11)`;年度目标默认只显示 `2026` 和 `2027`,展开按钮为 `展开剩余 8 年`;复盘日志标题与右侧 `+ 写复盘` 同排,添加按钮 `40px`;首条复盘卡片 `358px` 宽、圆角 `22px`、背景 `rgb(11, 17, 25)`,正文 `13px/400`,行高 `21.06px`,日期和情绪位于正文下方同一行;点击首条复盘打开 `复盘详情`,详情正文区 `300x220`,正文 `14px/400`,行高 `25.48px`,日期和情绪位于正文下方同一行,底部只有 `修改`、`删除` 两个 `146x36` / `12px` 小按钮,无底部 `取消`;点击 `修改` 后详情关闭并打开 `编辑复盘` 预览弹窗。
-- `v10.7.9.124` deployment: pending.
+- `v10.7.9.124` deployment: pushed to GitHub `main`;runtime commit `bfaac6673e4a187121c978a8e6701db3e360f347`;Vercel production target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2GUSsdSu2t7GfvdLr8X3NC1M355a`。
+- Production `GET https://boduan-tracker.vercel.app/?v=bfaac66-runtime`: HTTP 200。
+- Production entry chunks: `/assets/index-LzxsZAa9.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CCleSwoD.css`;production runtime chunks include `/assets/App-DT4OuoBn.js`, `/assets/ReviewTab-3jD8px9N.js`, `/assets/SettingsTab-BNBYWZsK.js`。
+- Production marker check: `ReviewTab-3jD8px9N.js` contains `复盘详情`, `min-h-[220px]`, `查看全文`, `展开剩余` and `删除这条复盘?`;`SettingsTab-BNBYWZsK.js` contains `v10.7.9.124` and `复盘日志卡片和详情弹窗`;`App-DT4OuoBn.js` contains `编辑复盘`;production CSS/App chunks do not contain `overscroll-behavior-y:none` or `DevVisualPreview`;unauthenticated `GET /api/quote?symbols=VIX` returns `401`。
 - `v10.7.9.123` local validation: `npm test` pass,65 tests;`npm run build` pass (`index-CMFmKKNK.css`,`ReviewTab-aXtuzmSs.js`,`SettingsTab-7OfakMAN.js`,`App-CxAlDERj.js`);`npm audit` pass,0 vulnerabilities;`git diff --check` pass;build marker check confirms `记录详情`, `min-h-[168px]`, compact 3-button detail actions, `border-[#f6b54b]/30`, `border-emerald-300/20`, no `删除戒律` / `修改戒律`, `v10.7.9.123` changelog, no `overscroll-behavior-y:none`, no `DevVisualPreview` in App chunk.
 - `v10.7.9.123` local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;页面 `scrollWidth=390`,body background `rgb(5, 7, 11)`;长文本 `TSM` 戒律详情卡片 `342x314`,正文区 `300x168`,正文 `14px/400`,行高 `25.48px`,正文无列表省略号,前缀颜色 `rgba(246, 181, 75, 0.9)`;底部只有 `修改`、`删除`、`置顶` 三个 `95x36` / `12px` 小按钮,无重复底部 `取消`;短文本戒律详情正文区保持 `168px` 高;置顶 `VIX 法则:` 前缀高亮,第三个按钮显示 `取消置顶`。
 - `v10.7.9.123` deployment: pushed to GitHub `main`;runtime commit `806ad0daf09266f9d1b05f9681e7b4fe4a315817`;Vercel production target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/22CRqnoeRVyzkX68U8n9oQFqQ8N3`。
@@ -240,7 +243,7 @@ npm run dev -- --host 127.0.0.1
 
 ### 目标页
 
-- `v10.7.9.124`: 复盘日志卡片和详情弹窗已完成本地验证,待部署;复盘日志标题同步投资戒律标题效果,列表改为正文优先的深色大圆角卡片,日期和情绪放在卡片底部同一行,点击复盘先打开 `复盘详情`,底部只保留修改和删除两个小号按钮;年度目标默认只展示 2 年,其余 8 年收进展开按钮。
+- `v10.7.9.124`: 复盘日志卡片和详情弹窗已部署;复盘日志标题同步投资戒律标题效果,列表改为正文优先的深色大圆角卡片,日期和情绪放在卡片底部同一行,点击复盘先打开 `复盘详情`,底部只保留修改和删除两个小号按钮;年度目标默认只展示 2 年,其余 8 年收进展开按钮。
 - `v10.7.9.123`: 投资戒律记录详情弹窗已部署;点击戒律后改为 `记录详情` 卡片,正文完整显示并支持前缀高亮,短内容保留最小展示空间,底部操作改为修改、删除、置顶/取消置顶三个小号胶囊按钮,删除重复取消按钮。
 - `v10.7.9.122`: 投资戒律标题行精简已部署;标题从 21px 降到 19px,删除标题下方数量,标题行和右侧添加按钮同排居中,标题竖条同步缩短。
 - `v10.7.9.121`: 投资戒律字体整体收紧已部署;标题从 24px 降到 21px,正文从 15px 降到 14px,数量/筛选/日期降到 12px,置顶降到 11px,添加按钮和筛选胶囊高度同步降低。
@@ -526,11 +529,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `pending` (`v10.7.9.124`,复盘日志卡片和详情弹窗;本地验证通过,待推送部署)
-最近应用代码提交: `pending`
+当前产品基准提交: `bfaac6673e4a187121c978a8e6701db3e360f347` (`v10.7.9.124`,复盘日志卡片和详情弹窗)
+最近应用代码提交: `bfaac6673e4a187121c978a8e6701db3e360f347`
 设置页版本: `v10.7.9.124`
-Vercel 最新运行时部署: pending `v10.7.9.124`;last successful runtime remains `v10.7.9.123` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/22CRqnoeRVyzkX68U8n9oQFqQ8N3`
-部署记录: `v10.7.9.124` pending;last production `GET https://boduan-tracker.vercel.app/?v=806ad0d-runtime` HTTP 200 for `v10.7.9.123`
+Vercel 最新运行时部署: success, `v10.7.9.124` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2GUSsdSu2t7GfvdLr8X3NC1M355a`
+部署记录: `v10.7.9.124` runtime commit `bfaac6673e4a187121c978a8e6701db3e360f347`;production `GET https://boduan-tracker.vercel.app/?v=bfaac66-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -560,7 +563,7 @@ Vercel 最新运行时部署: pending `v10.7.9.124`;last successful runtime rema
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.124` 复盘日志卡片和详情弹窗已完成本地验证,待部署:复盘日志标题同步投资戒律标题效果,列表改为正文优先的深色大圆角卡片,日期和情绪放在卡片底部同一行,点击复盘先打开 `复盘详情`,底部只保留修改和删除两个小号按钮;年度目标默认只展示 2 年,其余 8 年收进展开按钮。
+- `v10.7.9.124` 复盘日志卡片和详情弹窗已完成部署和本地/线上验证:复盘日志标题同步投资戒律标题效果,列表改为正文优先的深色大圆角卡片,日期和情绪放在卡片底部同一行,点击复盘先打开 `复盘详情`,底部只保留修改和删除两个小号按钮;年度目标默认只展示 2 年,其余 8 年收进展开按钮。
 - `v10.7.9.123` 投资戒律记录详情弹窗已完成部署和本地/线上验证:点击戒律后改为记录详情卡片,正文完整显示并支持前缀高亮,短内容保留最小展示空间,底部操作改为修改、删除、置顶/取消置顶三个小号胶囊按钮,删除重复取消按钮。
 - `v10.7.9.122` 投资戒律标题行精简已完成部署和本地/线上验证:投资戒律标题继续缩小,删除标题下方数量,标题行和右侧添加按钮同排居中,标题竖条同步缩短。
 - `v10.7.9.121` 投资戒律字体整体收紧已完成部署和本地/线上验证:投资戒律标题、正文、数量、添加按钮、筛选胶囊、日期、置顶和展开全文入口整体降一档字号,降低模块视觉抢占。

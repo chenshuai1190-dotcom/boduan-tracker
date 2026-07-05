@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 复盘日志卡片和详情弹窗
 
-- Commit: `pending`
+- Commit: `bfaac6673e4a187121c978a8e6701db3e360f347`
 - Background: 用户要求把复盘日志同步成投资戒律的新标题和卡片体系,复盘内容卡片可以展示更多正文;点击复盘后先进入可预览的详情弹窗,修改/删除按钮放到底部;日期和情绪放在卡片底部同一行;年度目标默认只展示 2 年,剩余 8 年进入展开按钮。
 - Changes:
   - 复盘日志模块去掉旧外层卡片和旧 `SectionTitle`,改为与投资戒律一致的独立标题行、左侧橙色短竖条和右侧低色彩 `+ 写复盘` 胶囊按钮。
@@ -31,7 +31,18 @@
   - `git diff --check`: pass.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;页面 `scrollWidth=390`,body background `rgb(5, 7, 11)`;年度目标默认只显示 `2026` 和 `2027`,展开按钮为 `展开剩余 8 年`;复盘日志标题与右侧 `+ 写复盘` 同排,添加按钮 `40px`;首条复盘卡片 `358px` 宽、圆角 `22px`、背景 `rgb(11, 17, 25)`,正文 `13px/400`,行高 `21.06px`,日期和情绪位于正文下方同一行;点击首条复盘打开 `复盘详情`,详情正文区 `300x220`,正文 `14px/400`,行高 `25.48px`,日期和情绪位于正文下方同一行,底部只有 `修改`、`删除` 两个 `146x36` / `12px` 小按钮,无底部 `取消`;点击 `修改` 后详情关闭并打开 `编辑复盘` 预览弹窗。
   - Build marker check: `ReviewTab-3jD8px9N.js` contains `复盘详情`, `min-h-[220px]`, `查看全文`, `展开剩余`, `删除这条复盘?`;`SettingsTab-BNBYWZsK.js` contains `v10.7.9.124` and `复盘日志卡片和详情弹窗`;`App-CqImk6tp.js` contains `编辑复盘`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `bfaac6673e4a187121c978a8e6701db3e360f347`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2GUSsdSu2t7GfvdLr8X3NC1M355a`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=bfaac66-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-LzxsZAa9.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CCleSwoD.css`.
+  - Production runtime chunks include: `/assets/App-DT4OuoBn.js`, `/assets/ReviewTab-3jD8px9N.js`, `/assets/SettingsTab-BNBYWZsK.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-3jD8px9N.js` contains `复盘详情`, `min-h-[220px]`, `查看全文`, `展开剩余` and `删除这条复盘?`.
+  - Production SettingsTab marker check: `SettingsTab-BNBYWZsK.js` contains `v10.7.9.124` and `复盘日志卡片和详情弹窗`.
+  - Production CSS/App marker check: `index-CCleSwoD.css` does not contain `overscroll-behavior-y:none`;`App-DT4OuoBn.js` contains `编辑复盘` and does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.124` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.123` 的旧复盘日志卡片、点击直接编辑复盘、年度目标默认展示 3 年和本地预览编辑标题旧逻辑;不影响复盘日志数据、投资戒律数据、目标计划数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律记录详情弹窗
