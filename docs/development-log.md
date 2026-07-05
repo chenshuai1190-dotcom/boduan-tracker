@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 隐藏全局原生滚动条指示
 
-- Commit: `same commit`
+- Commit: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`
 - Background: 用户截图反馈全局下拉刷新时页面最右侧出现灰白色跟随条。排查确认该条不是应用自绘的顶部下拉刷新胶囊,而是 iOS/WebKit 在页面或内部滚动容器滚动时自动显示的原生 scrollbar / overscroll 指示器,在深色界面里非常显眼。
 - Changes:
   - `src/index.css` 对 `html`、`body`、`#root` 和所有滚动元素增加全局隐藏滚动条视觉规则: `scrollbar-width: none`、`-ms-overflow-style: none` 和 `*::-webkit-scrollbar { display: none; width: 0; height: 0; }`。
@@ -19,6 +19,7 @@
   - `src/index.css`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm ci`: pass, 0 vulnerabilities.
@@ -27,8 +28,19 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local source/build marker check: pass; source contains global `scrollbar-width: none`, `-ms-overflow-style: none`, `*::-webkit-scrollbar`, `display: none`, `overscroll-behavior-y: none`, Settings source contains `v10.7.9.110` and `隐藏全局原生滚动条指示`, and built `index-CbmD0bwK.css` contains compressed root scrollbar/overscroll rules plus hidden WebKit scrollbar rule.
-- Deployment: Not deployed yet; current changes are local and validated.
-- Production verification: Not performed yet; requires deployment before production marker/API verification.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`.
+  - GitHub `main`: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`.
+  - GitHub Actions `CI`: success, run `28731137129`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8SzdCPcsKvgG63nWGpQHCAkUsaKa`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=535fdca-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BFwrnkun.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CbmD0bwK.css`.
+  - Production runtime chunks: `/assets/App-DSuBgBLx.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/SettingsTab-CeddnGEn.js`, `/assets/ReviewTab-Bb_Mto4f.js`.
+- Production verification:
+  - Production CSS marker check: `index-CbmD0bwK.css` contains `scrollbar-width:none`, `::-webkit-scrollbar`, `display:none` and `overscroll-behavior-y:none`.
+  - Production App marker check: `App-DSuBgBLx.js` references `SettingsTab-CeddnGEn.js`, `AnalysisTab-S1iYuxfx.js`, `HomeTab-MC5TFijP.js` and `TradesTab-GTTATZ2u.js`.
+  - Production SettingsTab marker check: `SettingsTab-CeddnGEn.js` contains `v10.7.9.110`, `隐藏全局原生滚动条指示` and `右侧灰白原生滚动条`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复浏览器/系统原生滚动条在页面滚动或全局下拉时可见的问题;不影响全局下拉刷新数据逻辑、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 交接文档补强本地调试提效说明
