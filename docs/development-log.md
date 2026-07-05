@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律和复盘日志国旗背景
 
-- Commit: `same commit`
+- Commit: `b29ed58bc5ba2707bd69f5fa7d47d3aea8b1b102`
 - Background: 用户希望目标页投资戒律/复盘日志的记录背景加入参考图中的美国国旗氛围,要求淡淡的,只作为深色金融卡片背景纹理。
 - Changes:
   - `ReviewTab` 新增共享 `UsFlagBackground` SVG 背景层,用波浪红白条纹、蓝色星区和低透明度星点模拟淡淡美国国旗,不引入外部图片资源。
@@ -28,9 +28,17 @@
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=review`;目标页列表可见卡片存在 `data-us-flag-bg` 背景层且 `scrollWidth=390` / `clientWidth=390`;投资戒律 `记录详情` 弹窗宽 `342px` 高约 `314px`,弹窗内 1 个国旗背景层,透明度 `0.14`,正文和按钮在 `z-10` 前景;复盘日志 `复盘详情` 弹窗宽 `342px` 高约 `400.5px`,弹窗内 1 个国旗背景层,透明度 `0.13`;两张弹窗截图确认国旗背景足够淡,未遮挡文字或按钮。
   - Build marker check: pass;built `ReviewTab-o2KI3o-b.js` contains `data-us-flag-bg` and four opacity markers `.14` / `.13` / `.055` / `.05`;built `SettingsTab-BJpKJ68t.js` contains `v10.7.9.134` and `投资戒律和复盘日志国旗背景`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`;Vercel production deployment completed for the review flag background release.
+  - Runtime code commit: `b29ed58bc5ba2707bd69f5fa7d47d3aea8b1b102`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7zGVShzXDXZLx2YQ9EH3CKnJoFDM`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=b29ed58-review-flag-134b`: HTTP 200.
+  - Production entry chunks: `/assets/index-DAB5IfLd.js`,`/assets/rolldown-runtime-QTnfLwEv.js`,`/assets/react-vendor-0zZBvgmv.js`.
+  - Production runtime chunks include: `/assets/App-BRGBl5uV.js`,`/assets/ReviewTab-o2KI3o-b.js`,`/assets/SettingsTab-BJpKJ68t.js`.
 - Production verification:
-  - Pending.
+  - Production ReviewTab marker check: `ReviewTab-o2KI3o-b.js` contains `data-us-flag-bg` and four opacity markers `.14` / `.13` / `.055` / `.05`.
+  - Production SettingsTab marker check: `SettingsTab-BJpKJ68t.js` contains `v10.7.9.134` and `投资戒律和复盘日志国旗背景`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 删除 `ReviewTab` 的 `UsFlagBackground` 组件及四处调用,回退设置页 `v10.7.9.134` 更新日志和对应测试断言;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 首页恐慌模块回退旧版小卡
