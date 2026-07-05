@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 首页恐慌指数视觉降重
 
-- Commit: `same commit`
+- Commit: `512fc644ef90636e6d266219f4dcfbb46adfa79c`
 - Background: 用户根据首页截图反馈 VIX 恐慌指数标题需要改成 CNN 同款灰色,VIX 和 CNN 的主数字过粗,同时 CNN 旁边的 `恐惧` / `恐慌` 状态文字也过粗。
 - Changes:
   - 首页 VIX 恐慌指数标题从金色强调改为 CNN 同款 `text-white/60` 灰色,字重同步降为 `font-normal`。
@@ -14,11 +14,13 @@
   - CNN 恐慌贪婪指数标题、主数字和状态文字同步降为正常字重,保留原有 FGI 颜色、文案和仪表盘逻辑。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.129`。
   - 测试补充首页恐慌指数视觉 marker,防止 VIX 标题回到金色强调或 VIX/CNN 数字回到 `font-black`。
+  - 运行时部署和线上验证完成后,`docs/handoff.md` 同步刷新到 `v10.7.9.129` 当前运行时代码、Vercel target、生产 chunk marker 和可转发交接块。
   - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页前端视觉层级微调,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
 - Key files:
   - `src/tabs/HomeTab.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass,65 tests.
@@ -27,8 +29,17 @@
   - `npm audit`: pass,0 vulnerabilities.
   - `git diff --check`: pass.
   - Build/source marker check: source and built HomeTab contain `text-[12px] font-normal text-white/60`, `text-2xl font-normal text-emerald-400 tabular-nums`, `text-2xl font-normal tabular-nums`, and `text-sm font-normal`;old VIX amber title marker `text-[12px] font-semibold text-amber-300/90` and old VIX/CNN `font-black` numeric markers are absent;built SettingsTab contains `v10.7.9.129` and `首页恐慌指数视觉降重`。
-- Deployment: pending push to GitHub `main` and Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `512fc644ef90636e6d266219f4dcfbb46adfa79c`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AtmC4EMx4t8DWspPuvisNh3GhqGT`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=512fc64-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BCEsqBqn.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-BQhRIRN9.css`.
+  - Production runtime chunks include: `/assets/App-C6TkG5yr.js`, `/assets/HomeTab-gGyUoKXz.js`, `/assets/SettingsTab-BS6v8Daa.js`.
+- Production verification:
+  - Production HomeTab marker check: `HomeTab-gGyUoKXz.js` contains `VIX 恐慌指数`, `CNN 恐慌贪婪指数`, `text-[12px] font-normal text-white/60`, `text-2xl font-normal text-emerald-400 tabular-nums`, `text-2xl font-normal tabular-nums`, and `text-sm font-normal`.
+  - Production HomeTab negative marker check: `HomeTab-gGyUoKXz.js` does not contain old VIX amber title marker `text-[12px] font-semibold text-amber-300/90`, old VIX numeric marker `text-2xl font-black text-emerald-400 tabular-nums`, old CNN numeric marker `text-2xl font-black tabular-nums`, or old CNN label marker `text-sm font-black`.
+  - Production SettingsTab marker check: `SettingsTab-BS6v8Daa.js` contains `v10.7.9.129` and `首页恐慌指数视觉降重`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 恢复 `src/tabs/HomeTab.jsx` 中 VIX 标题为旧金色强调、VIX/CNN 数字和 CNN 状态文字为旧粗字重,并回退设置页 `v10.7.9.129` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 产品交接文档刷新

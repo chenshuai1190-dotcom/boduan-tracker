@@ -6,31 +6,31 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮交接刷新内容提交为 `669b0707be61e6e032dc183e15373e51669fcba2`。
-- 当前运行时代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`。
-- 设置页版本: `v10.7.9.128`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `512fc644ef90636e6d266219f4dcfbb46adfa79c`。
+- 当前运行时代码提交: `512fc644ef90636e6d266219f4dcfbb46adfa79c`。
+- 设置页版本: `v10.7.9.129`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`。
-- 交接刷新内容已验证 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`。
-- 线上关键验证: `ReviewTab-DvF47Fsk.js` 包含 `v10.7.9.128` 复利明细暗色内部分割线 marker;`SettingsTab-DRKSQz2w.js` 包含 `v10.7.9.128` 和 `复利明细内部层级降色`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`。
-- 当前产品焦点: 目标页已经完成北极星头卡、年度目标、投资戒律、复盘日志、复利明细弹窗的一轮移动端深色化和视觉收敛;后续视觉任务务必先用本地 390×844 视口验证。
+- 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AtmC4EMx4t8DWspPuvisNh3GhqGT`。
+- 最近交接文档刷新部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`。
+- 线上关键验证: `HomeTab-gGyUoKXz.js` 包含 VIX/CNN 灰色标题和正常字重 marker,不含旧 VIX 金色标题或 VIX/CNN `font-black` 数字 marker;`SettingsTab-BS6v8Daa.js` 包含 `v10.7.9.129` 和 `首页恐慌指数视觉降重`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`。
+- 当前产品焦点: 首页 VIX/CNN 恐慌指标视觉层级已降重;目标页已经完成北极星头卡、年度目标、投资戒律、复盘日志、复利明细弹窗的一轮移动端深色化和视觉收敛;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `f82785e31b5f1ec16886b03edb636f2596033da6` (`v10.7.9.128`,复利明细内部层级降色)
-- 最近应用代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`
-- 最近文档/配置记录提交: 本文件所在最新提交;本轮交接刷新内容提交为 `669b0707be61e6e032dc183e15373e51669fcba2`
-- 设置页版本: `v10.7.9.128`
-- Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`
-- 交接刷新内容已验证 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`
-- Vercel 部署记录: `v10.7.9.128` runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime` HTTP 200
+- 当前产品基准提交: `512fc644ef90636e6d266219f4dcfbb46adfa79c` (`v10.7.9.129`,首页恐慌指数视觉降重)
+- 最近应用代码提交: `512fc644ef90636e6d266219f4dcfbb46adfa79c`
+- 最近文档/配置记录提交: 本文件所在最新提交。
+- 设置页版本: `v10.7.9.129`
+- Vercel 最新运行时部署: success, `v10.7.9.129` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AtmC4EMx4t8DWspPuvisNh3GhqGT`
+- 最近交接文档刷新部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`
+- Vercel 部署记录: `v10.7.9.129` runtime commit `512fc644ef90636e6d266219f4dcfbb46adfa79c`;production `GET https://boduan-tracker.vercel.app/?v=512fc64-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退;`v10.7.9.111` 目标页深色化第一阶段已部署;`v10.7.9.112` 修正目标页视觉对齐已部署;`v10.7.9.113` 目标页数字对齐首页样式已部署;`v10.7.9.114` 目标页数字密度微调已部署;`v10.7.9.115` 北极星目标小数层级优化已部署;`v10.7.9.116` 主资产数字小数层级同步已部署;`v10.7.9.117` 目标页细节修正已部署;`v10.7.9.118` 目标页未开始年度降色已部署;`v10.7.9.119` 目标页头卡和年度层级微调已部署;`v10.7.9.120` 投资戒律低色彩重设计已部署;`v10.7.9.121` 投资戒律字体整体收紧已部署;`v10.7.9.122` 投资戒律标题行精简已部署;`v10.7.9.123` 投资戒律记录详情弹窗已部署;`v10.7.9.124` 复盘日志卡片和详情弹窗已部署;`v10.7.9.125` 复盘和戒律列表细节对齐已部署;`v10.7.9.126` 北极星复利明细弹窗已部署;`v10.7.9.127` 北极星复利明细视觉微调已部署;`v10.7.9.128` 复利明细内部层级降色已部署。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退;`v10.7.9.111` 目标页深色化第一阶段已部署;`v10.7.9.112` 修正目标页视觉对齐已部署;`v10.7.9.113` 目标页数字对齐首页样式已部署;`v10.7.9.114` 目标页数字密度微调已部署;`v10.7.9.115` 北极星目标小数层级优化已部署;`v10.7.9.116` 主资产数字小数层级同步已部署;`v10.7.9.117` 目标页细节修正已部署;`v10.7.9.118` 目标页未开始年度降色已部署;`v10.7.9.119` 目标页头卡和年度层级微调已部署;`v10.7.9.120` 投资戒律低色彩重设计已部署;`v10.7.9.121` 投资戒律字体整体收紧已部署;`v10.7.9.122` 投资戒律标题行精简已部署;`v10.7.9.123` 投资戒律记录详情弹窗已部署;`v10.7.9.124` 复盘日志卡片和详情弹窗已部署;`v10.7.9.125` 复盘和戒律列表细节对齐已部署;`v10.7.9.126` 北极星复利明细弹窗已部署;`v10.7.9.127` 北极星复利明细视觉微调已部署;`v10.7.9.128` 复利明细内部层级降色已部署;`v10.7.9.129` 首页恐慌指数视觉降重已部署。
 
 ## 2. 先读这些文档
 
@@ -49,7 +49,7 @@
 
 `boduan-tracker` 是移动端优先的投资追踪 PWA,当前品牌显示为 X MONEY。核心使用场景:
 
-- 首页账户看板: 总资产、今日盈亏、累计盈亏、当前信号、市场指标、VIX/CNN 恐慌指标。`v10.7.9.116` 起首页总资产主数字使用大整数 + 小号两位小数显示。
+- 首页账户看板: 总资产、今日盈亏、累计盈亏、当前信号、市场指标、VIX/CNN 恐慌指标。`v10.7.9.116` 起首页总资产主数字使用大整数 + 小号两位小数显示;`v10.7.9.129` 起 VIX 标题同步 CNN 灰色标题层级,VIX/CNN 主数字和 CNN 状态文字取消过粗字重。
 - 自选股票: 用户主动添加的 watchlist,新用户默认空,支持添加、编辑、置顶、排序、删除。
 - 持仓视图: 来自交易主账本的真实持仓,不是自选列表。
 - 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示。
@@ -172,6 +172,11 @@ npm run dev -- --host 127.0.0.1
 
 最近完整验证记录:
 
+- `v10.7.9.129` local validation: `npm test` pass,65 tests;`npm ci` pass,0 vulnerabilities;`npm run build` pass (`index-BQhRIRN9.css`,`HomeTab-gGyUoKXz.js`,`SettingsTab-BS6v8Daa.js`,`App-Cz3yQnoI.js`);`npm audit` pass,0 vulnerabilities;`git diff --check` pass;build/source marker check confirms HomeTab contains `text-[12px] font-normal text-white/60`, `text-2xl font-normal text-emerald-400 tabular-nums`, `text-2xl font-normal tabular-nums`, and `text-sm font-normal`;old VIX amber title and VIX/CNN `font-black` markers are absent;SettingsTab contains `v10.7.9.129` and `首页恐慌指数视觉降重`。
+- `v10.7.9.129` deployment: pushed to GitHub `main`;runtime commit `512fc644ef90636e6d266219f4dcfbb46adfa79c`;Vercel production target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AtmC4EMx4t8DWspPuvisNh3GhqGT`。
+- Production `GET https://boduan-tracker.vercel.app/?v=512fc64-runtime`: HTTP 200。
+- Production entry chunks: `/assets/index-BCEsqBqn.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-BQhRIRN9.css`;production runtime chunks include `/assets/App-C6TkG5yr.js`, `/assets/HomeTab-gGyUoKXz.js`, `/assets/SettingsTab-BS6v8Daa.js`。
+- Production marker check: `HomeTab-gGyUoKXz.js` contains `VIX 恐慌指数`, `CNN 恐慌贪婪指数`, `text-[12px] font-normal text-white/60`, `text-2xl font-normal text-emerald-400 tabular-nums`, `text-2xl font-normal tabular-nums`, and `text-sm font-normal`;it does not contain old VIX amber title marker `text-[12px] font-semibold text-amber-300/90`, old VIX numeric marker `text-2xl font-black text-emerald-400 tabular-nums`, old CNN numeric marker `text-2xl font-black tabular-nums`, or old CNN label marker `text-sm font-black`;`SettingsTab-BS6v8Daa.js` contains `v10.7.9.129` and `首页恐慌指数视觉降重`;unauthenticated `GET /api/quote?symbols=VIX` returns `401`。
 - `v10.7.9.128` local validation: `npm test` pass,65 tests;`npm run build` pass (`index-B21CJLxn.css`,`ReviewTab-DvF47Fsk.js`,`SettingsTab-DRKSQz2w.js`,`App-B6-vRVoS.js`);`npm audit --audit-level=moderate` pass,0 vulnerabilities;`git diff --check` pass;build marker check confirms `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, outer weak gold border marker `border-[#f6b54b]/35`, dark inner card border marker `border-[#232b36]/80`, dark summary divider `border-l border-[#232b36]/90`, dark section border and row dividers `border-[#202733]` / `divide-y divide-[#202733]`, muted labels `text-[#8a909a]`, no old bright summary border, white yearly dividers, or white chart grid line marker, `v10.7.9.128` changelog, no `overscroll-behavior-y:none`, no `DevVisualPreview` in App chunk.
 - `v10.7.9.128` local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `374px`,高 `816px`,页面 `scrollWidth=390`,弹窗 `scrollHeight=877` / `clientHeight=814`,可内部滚动;外层边框色 `rgba(246,181,75,0.35)`;统计卡/实际进度边框色 `rgba(35,43,54,0.8)`,曲线卡和每年收益卡边框色 `rgb(32,39,51)`;`目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 标签均为 `rgb(138,144,154)`;曲线网格为暗线;收益颜色保持 `rgb(251,113,133)`;无横向溢出。
 - `v10.7.9.128` deployment: pushed to GitHub `main`;runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;Vercel production target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`。
@@ -340,6 +345,7 @@ npm run dev -- --host 127.0.0.1
 
 ### 首页自选和持仓
 
+- `v10.7.9.129`: 首页恐慌指数视觉降重已部署;VIX 恐慌指数标题改为 CNN 同款灰色,VIX/CNN 主数字取消 `font-black`,CNN `恐惧` / `恐慌` 状态文字同步降为正常字重;指数数值、颜色、说明文案和 CNN 仪表盘逻辑不变。
 - `v10.7.9.116`: 首页头部总资产主数字同步北极星目标的小数层级,整数部分保持 34px 正常字重,两位小数后缀缩小到 20px 正常字重。
 - `v10.7.9.105`: 中文名兜底库中 `QQQ` 和 `TQQQ` 改为直接显示英文代码;QQQ 默认基准股票名称和基准候选项也同步显示 `QQQ`,避免同一页面仍出现旧中文名。
 - `v10.7.9.104`: 首页持仓、交易页持仓分布、当日订单、全部交易记录、订单操作弹窗和编辑交易表单统一使用 `displayStockName` / `STOCK_NAME_CN` 中文名兜底;旧 `name=TSM`、`name=MSFT` 这类代码式名称会显示为 `台积电`、`微软` 等中文名。
@@ -555,7 +561,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.128` 或更新版本。
+- 设置页显示 `v10.7.9.129` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -570,13 +576,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮交接刷新内容提交为 `669b0707be61e6e032dc183e15373e51669fcba2`
-当前产品基准提交: `f82785e31b5f1ec16886b03edb636f2596033da6` (`v10.7.9.128`,复利明细内部层级降色)
-最近应用代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`
-设置页版本: `v10.7.9.128`
-Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`
-交接刷新内容已验证 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`
-部署记录: `v10.7.9.128` runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime` HTTP 200;production marker check confirms `ReviewTab-DvF47Fsk.js` has the dark compound-detail internals, `SettingsTab-DRKSQz2w.js` has `v10.7.9.128`, and unauthenticated `/api/quote?symbols=VIX` returns `401`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `512fc644ef90636e6d266219f4dcfbb46adfa79c`
+当前产品基准提交: `512fc644ef90636e6d266219f4dcfbb46adfa79c` (`v10.7.9.129`,首页恐慌指数视觉降重)
+最近应用代码提交: `512fc644ef90636e6d266219f4dcfbb46adfa79c`
+设置页版本: `v10.7.9.129`
+Vercel 最新运行时部署: success, `v10.7.9.129` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AtmC4EMx4t8DWspPuvisNh3GhqGT`
+最近交接文档刷新部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBQozMcgzpZsqUH7BzuybJ6whP7k`
+部署记录: `v10.7.9.129` runtime commit `512fc644ef90636e6d266219f4dcfbb46adfa79c`;production `GET https://boduan-tracker.vercel.app/?v=512fc64-runtime` HTTP 200;production marker check confirms `HomeTab-gGyUoKXz.js` has the VIX/CNN muted title and normal-weight number markers, old VIX amber title and VIX/CNN `font-black` markers are absent, `SettingsTab-BS6v8Daa.js` has `v10.7.9.129`, and unauthenticated `/api/quote?symbols=VIX` returns `401`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -606,6 +612,7 @@ Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.129` 首页恐慌指数视觉降重已完成部署和线上验证:VIX 恐慌指数标题改为 CNN 同款灰色,VIX/CNN 主数字取消过粗字重,CNN `恐惧` / `恐慌` 状态文字同步降为正常字重;指数数值、颜色、说明文案和 CNN 仪表盘逻辑不变。
 - `v10.7.9.128` 复利明细内部层级降色已完成部署和本地/线上验证:统计卡、实际进度、曲线卡和每年收益表的白色边框/分割线已改为暗线;`目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 等标签统一降为灰色;收益数字继续使用首页粉色。
 - `v10.7.9.127` 北极星复利明细视觉微调已完成部署和本地/线上验证:弹窗外层改弱金色边框,宽度加大并支持内部滚动,曲线下方完整显示 2026-2035 十年年份,累计收益、实际收益和每年收益统一为首页粉色。
 - `v10.7.9.126` 北极星复利明细弹窗已完成部署和本地/线上验证:点击北极星目标卡片可打开 `10年复利明细`,复用当前本金、年化收益率、年限、目标终值和完成度逻辑,展示顶部三项、实际进度、账户曲线和每年收益表。
