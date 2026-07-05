@@ -376,62 +376,6 @@ function TabFallback() {
   );
 }
 
-
-// ============ 滚动触发数字动画 Hook ============
-// 当元素进入视口时触发,数字从 0 动画到 target
-// 离开视口再回来时,会重新动画一次
-function useCountUpOnScroll(target, duration = 800) {
-  const [value, setValue] = useState(0);
-  const ref = useRef(null);
-  const animationRef = useRef(null);
-  const wasInView = useRef(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting) {
-          if (!wasInView.current) {
-            wasInView.current = true;
-            // 取消之前的动画
-            if (animationRef.current) cancelAnimationFrame(animationRef.current);
-            // 启动动画: 0 → target
-            const startTime = performance.now();
-            const animate = (now) => {
-              const elapsed = now - startTime;
-              const progress = Math.min(elapsed / duration, 1);
-              // easeOutCubic 缓动函数,有"哒哒哒到位"的感觉
-              const eased = 1 - Math.pow(1 - progress, 3);
-              setValue(target * eased);
-              if (progress < 1) {
-                animationRef.current = requestAnimationFrame(animate);
-              } else {
-                setValue(target); // 确保终点精确
-              }
-            };
-            animationRef.current = requestAnimationFrame(animate);
-          }
-        } else {
-          // 离开视口,重置标志(下次进入会再次触发动画)
-          wasInView.current = false;
-        }
-      },
-      { threshold: 0.4 } // 40% 的元素可见才触发,避免轻微滑动也重播
-    );
-
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, [target, duration]);
-
-  return [value, ref];
-}
-
 // ============ 复盘 tab 专用 Modal 组件 ============
 
 // 添加/编辑戒律 Modal
@@ -832,100 +776,8 @@ const UNIFIED_GREEN = { from: '#10b981', to: '#047857' };  // emerald 500→700
 
 const getStockColor = (symbol) => UNIFIED_GREEN;
 
-
-
 // ============ 内部主 App 组件(要求已登录) ============
-// ============ VIX 恐慌指数卡片(独立组件,支持滚动入场动画) ============
-function VixCard({ vix, setVix, vixDataDate, setVixDataDate, vixSignal }) {
-  const [animatedVix, vixCardRef] = useCountUpOnScroll(vix, 900);
-  return (
-    <div ref={vixCardRef} className={`rounded-2xl p-5 mb-4 shadow border-2 ${vixSignal.color}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs opacity-80 font-medium">VIX 恐慌指数</span>
-            {vixDataDate && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/30 font-bold">
-                📅 {(() => {
-                  const d = new Date(vixDataDate);
-                  return `${d.getMonth() + 1}/${d.getDate()} 收盘`;
-                })()}
-              </span>
-            )}
-          </div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-4xl font-black tabular-nums">{animatedVix.toFixed(1)}</span>
-            <span className="text-2xl">{vixSignal.icon}</span>
-          </div>
-          <div className="text-sm opacity-90 mt-0.5">{vixSignal.desc}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs opacity-80">操作信号</div>
-          <div className="text-xl font-black mt-1">{vixSignal.label}</div>
-        </div>
-      </div>
-
-      {/* VIX 进度条 */}
-      <div className="relative h-3 bg-white/30 rounded-full overflow-hidden mb-2">
-        <div
-          className="absolute inset-y-0 left-0 bg-white/60 rounded-full"
-          style={{ width: `${Math.min((animatedVix / 50) * 100, 100)}%` }}
-        />
-        {/* 阈值刻度 */}
-        {[20, 25, 30, 35].map(v => (
-          <div
-            key={v}
-            className="absolute inset-y-0 w-0.5 bg-white/80"
-            style={{ left: `${(v / 50) * 100}%` }}
-          />
-        ))}
-      </div>
-      <div className="flex justify-between text-[10px] opacity-80 font-bold mb-3">
-        <span>0</span>
-        <span>20 准备</span>
-        <span>25 买入</span>
-        <span>30 重点</span>
-        <span>35 梭哈</span>
-        <span>50</span>
-      </div>
-
-      <div className="bg-white/20 rounded-lg px-3 py-2 text-sm font-bold">
-        💡 {vixSignal.action}
-      </div>
-
-      {/* VIX 输入(手动覆盖) */}
-      <div className="mt-3">
-        <div className="flex items-center gap-2">
-          <label className="text-xs opacity-80 font-bold">手动覆盖 VIX:</label>
-          <input
-            type="number"
-            step="0.1"
-            value={vix}
-            onChange={(e) => { setVix(parseFloat(e.target.value) || 0); setVixDataDate(null); }}
-            className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-900 bg-white/90 border border-white/50"
-          />
-          <a
-            href="https://finance.yahoo.com/quote/%5EVIX/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2 py-1.5 rounded-lg text-xs font-bold bg-white/30 hover:bg-white/50 transition active:scale-95"
-            title="在 Yahoo 查询实时 VIX"
-          >
-            查实时↗
-          </a>
-        </div>
-        <div className="text-[10px] opacity-70 mt-1">
-          💡 自动拉取 FRED 收盘价;盘中实时点「查实时」手动填
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function MainApp({ user, onLogout }) {
-  // Real-time quotes must go through a server-side relay. Never expose EODHD tokens in browser code.
-  const browserWsAllowed = false;
-
   // ============ 核心状态 ============
   const [marketColorMode, setMarketColorMode] = useState(() => {
     try {
@@ -936,7 +788,6 @@ function MainApp({ user, onLogout }) {
   });
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
-  const [tqqqCurrent, setTqqqCurrent] = useState(58.55);
   const [totalCapital, setTotalCapital] = useState(500000);
 
   // 关注股票列表(可编辑价格)
@@ -1151,13 +1002,6 @@ function MainApp({ user, onLogout }) {
   const [fetching, setFetching] = useState(false);
   const quoteFetchInFlightRef = useRef(false);
 
-  // 🧪 实时模式预留:浏览器直连 EODHD 已移除,等待服务端 relay。
-  const [wsEnabled, setWsEnabled] = useState(false);
-  const [wsStatus] = useState('disabled');
-  const [wsLastTick] = useState(null); // 服务端 relay 接入后再更新最后 tick 时间
-  // 价格变化闪烁: { symbol: 'up' | 'down' }, 300ms 后清空
-  const [priceFlash] = useState({});
-
   const fetchQuote = useCallback(async (symbols) => {
     const { data: { session } } = await supabase.auth.getSession();
     const headers = {};
@@ -1200,13 +1044,13 @@ function MainApp({ user, onLogout }) {
     const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
     const key = normalizeSymbolKey(tick?.symbol || tick?.ticker || tick?.displaySymbol);
     if (!key) return;
-    stockRealtimeRef.current.lastTicks.set(key, tick);
-    stockRealtimeRef.current.lastTickAt = Date.now();
-    setStockRealtimeStatus(realtimeStatus);
-    setStockRealtimeLastTick(new Date(tickAt).toISOString());
-    setStockRealtimeError(null);
+    const ref = stockRealtimeRef.current;
+    ref.lastTicks.set(key, tick);
+    ref.lastTickAt = Date.now();
+    ref.lastTickIso = new Date(tickAt).toISOString();
+    ref.status = realtimeStatus;
+    ref.error = null;
     setQuoteCache((current) => applyStockTickToQuoteRows(current, tick, realtimeStatus, quoteRowsRef.current));
-    if (key === 'TQQQ') setTqqqCurrent(price);
     if (key === 'QQQ') {
       setQqqCurrent(price);
       setQqqHigh((prev) => Math.max(prev || 0, price));
@@ -1426,9 +1270,6 @@ function MainApp({ user, onLogout }) {
   const [indexRealtimeStatus, setIndexRealtimeStatus] = useState('idle');
   const [indexRealtimeLastTick, setIndexRealtimeLastTick] = useState(null);
   const [indexRealtimeError, setIndexRealtimeError] = useState(null);
-  const [stockRealtimeStatus, setStockRealtimeStatus] = useState('idle');
-  const [stockRealtimeLastTick, setStockRealtimeLastTick] = useState(null);
-  const [stockRealtimeError, setStockRealtimeError] = useState(null);
   const btcRealtimeRef = useRef({
     socket: null,
     reconnectTimer: null,
@@ -1444,8 +1285,11 @@ function MainApp({ user, onLogout }) {
     reconnectTimer: null,
     staleTimer: null,
     retryDelayMs: 1000,
+    status: 'idle',
+    error: null,
     lastTicks: new Map(),
     lastTickAt: 0,
+    lastTickIso: null,
     liveAt: 0,
     intentionalCloseSocket: null,
   });
@@ -1939,7 +1783,6 @@ function MainApp({ user, onLogout }) {
     setStockTrades([]);
     setQqqHigh(640.47);
     setQqqCurrent(640.47);
-    setTqqqCurrent(58.55);
     setTotalCapital(500000);
     try { localStorage.removeItem('tqqq_state'); } catch {}  // 兼容隐私模式
     alert('本地数据已清空 (云端数据保留)');
@@ -2072,21 +1915,6 @@ function MainApp({ user, onLogout }) {
     };
   };
   const vixSignal = getVixSignal();
-
-  // (computedBatches 已废弃 - v1 时代死代码, 新逻辑用 wavesByStock)
-
-  // 持仓汇总(老逻辑:仅 TQQQ 全合,假设都是买入,用于止盈触发线兼容)
-  const tqqqTrades = trades.filter(t => !t.symbol || t.symbol === 'TQQQ');
-  const tqqqBuys = tqqqTrades.filter(t => !t.side || t.side === 'buy');
-  const tqqqSells = tqqqTrades.filter(t => t.side === 'sell');
-  const tqqqBuyShares = tqqqBuys.reduce((sum, t) => sum + Number(t.shares), 0);
-  const tqqqSellShares = tqqqSells.reduce((sum, t) => sum + Number(t.shares), 0);
-  const totalShares = Math.max(0, tqqqBuyShares - tqqqSellShares);
-  const totalInvested = tqqqBuys.reduce((sum, t) => sum + Number(t.shares) * Number(t.price), 0);
-  const avgCost = tqqqBuyShares > 0 ? totalInvested / tqqqBuyShares : 0;
-  const currentValue = totalShares * tqqqCurrent;
-  const totalPnl = currentValue - totalInvested;
-  const totalPnlPct = totalInvested > 0 ? totalPnl / totalInvested : 0;
 
   const investmentSummary = useMemo(() => deriveInvestmentSummary({
     stockTrades: localizedStockTrades,
@@ -2233,27 +2061,7 @@ function MainApp({ user, onLogout }) {
     .reduce((s, g) => s + g.activeWave.heldDays, 0), [wavesByStock]);
   const calmRoomAvgActiveDays = calmRoomActiveCount > 0 ? Math.round(calmRoomActiveDays / calmRoomActiveCount) : 0;
 
-  // 止盈线
-  const computedExits = exitTargets.map(e => {
-    const targetPrice = avgCost * (1 + e.gain);
-    const sellShares = Math.round(totalShares * e.sellRatio);
-    const cashOut = sellShares * targetPrice;
-    const triggered = avgCost > 0 && tqqqCurrent >= targetPrice;
-    return { ...e, targetPrice, sellShares, cashOut, triggered };
-  });
-
   // ============ 操作函数 ============
-  const updateBatch = async (id, field, value) => {
-    const newBatches = batches.map(b => b.id === id ? { ...b, [field]: parseFloat(value) || 0 } : b);
-    setBatches(newBatches);
-    // 保存到云端 settings.batches
-    try {
-      await db.upsertSettings(buildSettingsPayload({
-        batches: newBatches,
-      }));
-    } catch (e) { console.error('batch 保存失败:', e); }
-  };
-
   const addTrade = async () => {
     if (tradeSubmittingRef.current) return;
     const showTradeNotice = (title, desc, info = null) => {
@@ -2469,7 +2277,6 @@ function MainApp({ user, onLogout }) {
   const updateStockPrice = (symbol, field, value) => {
     const newList = watchlist.map(s => s.symbol === symbol ? { ...s, [field]: parseFloat(value) || 0 } : s);
     setWatchlist(newList);
-    if (symbol === 'TQQQ' && field === 'price') setTqqqCurrent(parseFloat(value) || 0);
     if (symbol === 'QQQ' && field === 'price') setQqqCurrent(parseFloat(value) || 0);
     // 防抖 useEffect 会自动保存到云端,不需要手动调 db
   };
@@ -2703,10 +2510,8 @@ function MainApp({ user, onLogout }) {
         setQuoteCache(mergeFreshStockTicksIntoQuoteRows(updatedQuotes));
       }
 
-      // 同步 TQQQ 和 QQQ 到核心参数
-      const tqqqData = result.data.find(d => d.symbol === 'TQQQ');
+      // 同步 QQQ 到核心信号参数
       const qqqData = result.data.find(d => d.symbol === 'QQQ');
-      if (tqqqData?.price > 0) setTqqqCurrent(tqqqData.price);
       if (qqqData?.price > 0) {
         setQqqCurrent(qqqData.price);
         // v10.7.9.41: QQQ 52周高直接信任 API 的 week52High (本身就是滚动52周最高)
@@ -3274,8 +3079,8 @@ function MainApp({ user, onLogout }) {
     if (cloudLoading || typeof window === 'undefined') return undefined;
     const symbolsSnapshot = stockRealtimeSymbols;
     if (symbolsSnapshot.length === 0) {
-      setStockRealtimeStatus('idle');
-      setStockRealtimeError(null);
+      stockRealtimeRef.current.status = 'idle';
+      stockRealtimeRef.current.error = null;
       return undefined;
     }
 
@@ -3312,13 +3117,13 @@ function MainApp({ user, onLogout }) {
       if (stopped || document.hidden) return;
       clearReconnectTimer();
       closeSocket();
-      setStockRealtimeStatus((status) => (status === 'live' ? status : 'connecting'));
+      if (ref.status !== 'live') ref.status = 'connecting';
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) {
-          setStockRealtimeStatus('disabled');
-          setStockRealtimeError('未登录或登录已过期');
+          ref.status = 'disabled';
+          ref.error = '未登录或登录已过期';
           return;
         }
 
@@ -3331,8 +3136,8 @@ function MainApp({ user, onLogout }) {
 
         socket.addEventListener('open', () => {
           ref.retryDelayMs = 1000;
-          setStockRealtimeStatus('connecting');
-          setStockRealtimeError(null);
+          ref.status = 'connecting';
+          ref.error = null;
         });
 
         socket.addEventListener('message', (event) => {
@@ -3348,8 +3153,8 @@ function MainApp({ user, onLogout }) {
           }
           if (payload?.type === 'stocks_status' && payload.status) {
             if (payload.status === 'live') ref.liveAt = Date.now();
-            setStockRealtimeStatus(payload.status);
-            if (payload.error) setStockRealtimeError(payload.error);
+            ref.status = payload.status;
+            if (payload.error) ref.error = payload.error;
           }
         });
 
@@ -3360,16 +3165,16 @@ function MainApp({ user, onLogout }) {
             return;
           }
           if (stopped || document.hidden) return;
-          setStockRealtimeStatus((status) => (status === 'live' ? 'stale' : 'reconnecting'));
+          ref.status = ref.status === 'live' ? 'stale' : 'reconnecting';
           scheduleReconnect(connect);
         });
 
         socket.addEventListener('error', () => {
-          setStockRealtimeError('股票实时连接中断,正在重连');
+          ref.error = '股票实时连接中断,正在重连';
         });
       } catch (e) {
-        setStockRealtimeStatus('error');
-        setStockRealtimeError(e.message || '股票实时连接失败');
+        ref.status = 'error';
+        ref.error = e.message || '股票实时连接失败';
         scheduleReconnect(connect);
       }
     };
@@ -3378,7 +3183,7 @@ function MainApp({ user, onLogout }) {
       const lastActivityAt = ref.lastTickAt || ref.liveAt;
       if (!lastActivityAt) return;
       if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
-        setStockRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
+        if (ref.status === 'live') ref.status = 'stale';
       }
     }, 5000);
 
@@ -3386,7 +3191,7 @@ function MainApp({ user, onLogout }) {
       if (document.hidden) {
         clearReconnectTimer();
         closeSocket();
-        setStockRealtimeStatus('paused');
+        ref.status = 'paused';
       } else {
         connect();
       }
@@ -3547,7 +3352,6 @@ function MainApp({ user, onLogout }) {
     benchmarkStock,
     benchmarkSymbol,
     BookOpen,
-    browserWsAllowed,
     btcRealtimeError,
     btcRealtimeLastTick,
     btcRealtimeStatus,
@@ -3622,7 +3426,6 @@ function MainApp({ user, onLogout }) {
     onLogout,
     Pin,
     Plus,
-    priceFlash,
     pwdLoading,
     pwdMsg,
     quoteDiagnosticLogs,
@@ -3695,7 +3498,6 @@ function MainApp({ user, onLogout }) {
     setVix,
     setVixDataDate,
     setWaveNotes,
-    setWsEnabled,
     setYearlyActuals,
     showAddAccount,
     showAddDiscipline,
@@ -3728,7 +3530,6 @@ function MainApp({ user, onLogout }) {
     usdRate,
     user,
     vix,
-    VixCard,
     vixDataDate,
     vixSignal,
     watchlist,
@@ -3736,9 +3537,6 @@ function MainApp({ user, onLogout }) {
     waveNotes,
     wavesByStock,
     WifiOff,
-    wsEnabled,
-    wsLastTick,
-    wsStatus,
     X,
     YearlyActualModal,
     yearlyActuals,

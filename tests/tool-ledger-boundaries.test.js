@@ -122,6 +122,18 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(homeTabSource.includes('{isBtc && realtimeLabel && ('), 'only the BTC market card should render realtime connection status');
 });
 
+test('legacy realtime and fear-card placeholders stay out of the runtime shell', () => {
+  assert.equal(appSource.includes('function VixCard'), false, 'old standalone VIX card should not remain in App');
+  assert.equal(appSource.includes('useCountUpOnScroll'), false, 'unused scroll count-up hook should not remain after VIX card rollback');
+  assert.equal(appSource.includes('browserWsAllowed'), false, 'browser-direct websocket placeholder should not be passed through tab context');
+  assert.equal(appSource.includes('wsEnabled'), false, 'old browser websocket toggle state should stay removed');
+  assert.equal(appSource.includes('setStockRealtimeStatus'), false, 'stock websocket internal status should not trigger visible React state updates');
+  assert.equal(appSource.includes('tqqqCurrent'), false, 'old TQQQ-only summary state should not be recalculated after ledger split');
+  assert.equal(appSource.includes('computedExits'), false, 'old TQQQ exit-line calculation should stay removed from render');
+  assert.ok(appSource.includes('/api/stocks-realtime'), 'stock realtime relay itself must remain active');
+  assert.ok(appSource.includes('applyStockTickToQuoteRows'), 'stock ticks must still update quote rows after the cleanup');
+});
+
 test('global pull refresh checks for a new deployed app shell before data refresh', () => {
   const refreshStart = appSource.indexOf('const runGlobalPullRefresh = async () =>');
   const appShellCheck = appSource.indexOf('await checkForAppShellUpdate()', refreshStart);
