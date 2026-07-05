@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 目标页深色化第一阶段
 
-- Commit: `same commit`
+- Commit: `9f25cde5e98c9d690d430bec493e1ccdc678eb51`
 - Background: 用户提供目标页三张移动端设计参考图,要求第一阶段先统一首页深色风格:北极星目标头部加入 USD/RMB 切换并使用现有汇率接口结果,保留动态进度条;删除融资杠杆监控;年度目标进度重构为更清晰卡片;投资戒律适配黑色界面,右侧多余图标和直接修改图标删除,但保留置顶能力;年度目标卡和投资戒律都改为点击记录后弹出操作面板。
 - Changes:
   - `ReviewTab` 重做目标页深色移动端界面:北极星目标卡、年度目标进度、投资戒律和复盘日志统一使用首页/资产页同源深色背景和黑金色系。
@@ -32,8 +32,18 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;verified body background dark, target page mock visible without `Supabase 配置缺失`, no horizontal overflow (`scrollWidth=390`), no leverage monitor text, active bottom nav is `目标`, annual year card opens `年度目标操作`, `修改年度数据` button is full width and opens `2026 年实际数据`, discipline row opens `戒律操作`, pin/unpin toggles the `置顶` badge and panel text, `修改戒律` opens edit modal, RMB switch shows `1 USD = 6.77 RMB`, and console error/warn logs are empty.
-- Deployment: pending;will push to GitHub `main` and wait for Vercel production deployment.
-- Production verification: pending after Vercel deployment.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `9f25cde5e98c9d690d430bec493e1ccdc678eb51`.
+  - GitHub Actions `CI`: success, run `28732197779`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9n2NAurxh96yXEppycvggdKTd4Y4`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=9f25cde-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CoT7dbWS.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-B7-jZclJ.css`.
+  - Production runtime chunks include `/assets/App-9EoLo5Tn.js`, `/assets/ReviewTab-B2EETJPP.js`, `/assets/SettingsTab-Db4qDhxe.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`.
+- Production verification:
+  - Production marker check: `ReviewTab-B2EETJPP.js` contains `年度目标操作`, `修改年度数据`, `戒律操作`, `置顶戒律`, `取消置顶` and `1 USD =`;it does not contain `融资杠杆监控` or `setShowEditMargin`.
+  - Production marker check: `SettingsTab-Db4qDhxe.js` contains `v10.7.9.111` and `目标页深色化第一阶段`.
+  - Production marker check: entry/App/Review/Settings chunks do not contain `DevVisualPreview`;the target-page mock remains development-only.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次 runtime commit 可恢复 `v10.7.9.109` 旧目标页;不影响全局下拉刷新回退、交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 回退全局滚动条隐藏
