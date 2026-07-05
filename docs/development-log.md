@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 目标页数字对齐首页样式
 
-- Commit: pending runtime commit.
+- Commit: `c601bd7bb33d01b5b458a75256a4b4268f40c356`
 - Background: 用户继续对比首页和目标页后反馈目标页金额数字过粗、目标金额仍用几百几千万简写、头部卡片仍偏高、`北极星目标` 和 USD/RMB 切换没有压到同一行、USD 按钮偏大、目标金额位置偏低、头部卡片右下角半圆装饰和金色边框不应保留、年度目标进度宽度还不够,并要求目标页粉色金额同步首页粉色体系。
 - Changes:
   - 目标页金额格式从 `万` 简写改为和首页一致的完整数字展示,例如年度目标、当前金额、起点/当前/目标、目标/落后、计划增长和未来年度两端金额都使用完整金额。
@@ -30,8 +30,21 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;首屏截图确认目标页 mock 可见、背景深色、北极星卡 `358x244`,年度区域 `374px` 宽,2026 卡 `374px` 宽,页面 `scrollWidth=390`,无横向溢出;USD 按钮约 `43x28`;主目标金额为完整数字且 `font-weight: 400`;2026 当前年包含完整数字 `+$70,000.00`、`$2,880,000.00`、`落后 $410,000.00`;2027/2028 未开始卡包含完整数字 `$2,964,000.00`、`$3,556,800.00`;正收益粉色为 `rgb(251, 113, 133)`;未出现 `融资杠杆监控`;浏览器 console error/warn 为空。
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `c601bd7bb33d01b5b458a75256a4b4268f40c356`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GbpagLj2mv79LsTtYZDuhh85GfMR`.
+  - GitHub Actions API check for this commit returned `total_count=0` workflow runs;commit status API only reported Vercel.
+  - Production `GET https://boduan-tracker.vercel.app/?v=c601bd7-runtime3`: HTTP 200.
+  - Production entry chunks: `/assets/index-Dl1JoOvE.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-B0KThAHA.css`.
+  - Production runtime chunks include `/assets/App-BwADn851.js`, `/assets/ReviewTab-Byn3MNMo.js`, `/assets/SettingsTab-BLBzPYg4.js`, `/assets/marketColorMode-DqRpGks3.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/Login-DWsPIiY3.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-Byn3MNMo.js` contains `h-[244px]`, `SF Pro Display`, `toLocaleString`, `minimumFractionDigits`, `mt-5 -mx-2`, `h-7 rounded-full px-2.5 text-[11px] font-normal`, `年度目标操作`, `戒律操作` and `1 USD =`;it does not contain `fmtWan`, ` 万`, `bottom-[-78px] h-48 w-48`, `融资杠杆监控` or `rocket-particle rocket-particle`.
+  - Production market color marker check: `ReviewTab-Byn3MNMo.js` imports `marketColorMode-DqRpGks3.js`;`marketColorMode-DqRpGks3.js` contains home pink markers `#fb7185` and `text-rose-400`.
+  - Production SettingsTab marker check: `SettingsTab-BLBzPYg4.js` contains `v10.7.9.113` and `目标页数字对齐首页样式`.
+  - Production App marker check: `App-BwADn851.js` references `ReviewTab` and `SettingsTab`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-B0KThAHA.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次目标页数字/卡片样式修正会恢复 `v10.7.9.112` 的目标页视觉对齐版本;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 修正目标页视觉对齐
