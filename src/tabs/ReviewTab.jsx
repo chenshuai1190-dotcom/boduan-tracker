@@ -14,6 +14,30 @@ const DISCIPLINE_LEVELS = [
   { level: '❗', label: '警告', dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
 ];
 
+const US_FLAG_STRIPES = Array.from({ length: 7 }, (_, index) => {
+  const y = 34 + index * 30;
+  const h = 15;
+  return {
+    color: index % 2 === 0 ? '#bf1e3a' : '#f8fafc',
+    opacity: index % 2 === 0 ? 0.62 : 0.38,
+    d: [
+      `M -28 ${y}`,
+      `C 44 ${y - 18} 98 ${y + 17} 168 ${y}`,
+      `S 302 ${y - 14} 388 ${y + 2}`,
+      `L 388 ${y + h + 2}`,
+      `C 302 ${y + h - 14} 238 ${y + h + 17} 168 ${y + h}`,
+      `S 44 ${y + h - 18} -28 ${y + h}`,
+      'Z',
+    ].join(' '),
+  };
+});
+
+const US_FLAG_STARS = Array.from({ length: 22 }, (_, index) => ({
+  x: 32 + (index % 6) * 21 + (Math.floor(index / 6) % 2) * 8,
+  y: 35 + Math.floor(index / 6) * 18,
+  rotation: index % 2 === 0 ? 0 : 18,
+}));
+
 function toNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -32,6 +56,41 @@ function fmtMoney(value, digits = 0) {
 
 function levelMeta(level) {
   return DISCIPLINE_LEVELS.find((item) => item.level === level) || DISCIPLINE_LEVELS[0];
+}
+
+function UsFlagBackground({ opacity = 0.14 }) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      aria-hidden="true"
+      data-us-flag-bg
+      style={{ opacity }}
+    >
+      <svg className="h-full w-full" viewBox="0 0 360 240" preserveAspectRatio="xMidYMid slice" focusable="false">
+        <rect width="360" height="240" fill="#08111d" opacity="0.62" />
+        <g style={{ filter: 'drop-shadow(0 0 16px rgba(59, 130, 246, 0.16))' }}>
+          {US_FLAG_STRIPES.map((stripe, index) => (
+            <path key={`stripe-${index}`} d={stripe.d} fill={stripe.color} opacity={stripe.opacity} />
+          ))}
+          <path
+            d="M -10 24 C 22 10 64 21 94 14 C 125 8 148 18 174 14 L 174 108 C 132 119 96 101 57 111 C 31 118 9 115 -10 124 Z"
+            fill="#14336b"
+            opacity="0.58"
+          />
+          {US_FLAG_STARS.map((star, index) => (
+            <polygon
+              key={`star-${index}`}
+              points="0,-3.5 0.9,-1.1 3.4,-1.1 1.35,0.35 2.1,3 -0.05,1.45 -2.15,3 -1.35,0.35 -3.4,-1.1 -0.9,-1.1"
+              transform={`translate(${star.x} ${star.y}) rotate(${star.rotation})`}
+              fill="#f8fafc"
+              opacity="0.5"
+            />
+          ))}
+        </g>
+        <rect width="360" height="240" fill="#05070b" opacity="0.34" />
+      </svg>
+    </div>
+  );
 }
 
 function ReviewActionSheet({ title, desc, children, onClose }) {
@@ -107,8 +166,9 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
       }}
     >
-      <div className="w-full max-w-[360px] rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-between gap-3">
+      <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <UsFlagBackground opacity={0.14} />
+        <div className="relative z-10 flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold tracking-normal text-white">记录详情</h2>
           <button
             type="button"
@@ -120,11 +180,11 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
           </button>
         </div>
 
-        <div className="mt-5 max-h-[52vh] min-h-[168px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative z-10 mt-5 max-h-[52vh] min-h-[168px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {formatDisciplineDetailText(discipline.text)}
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
+        <div className="relative z-10 mt-5 grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={onEdit}
@@ -181,8 +241,9 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
       }}
     >
-      <div className="w-full max-w-[360px] rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-between gap-3">
+      <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <UsFlagBackground opacity={0.13} />
+        <div className="relative z-10 flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold tracking-normal text-white">复盘详情</h2>
           <button
             type="button"
@@ -194,16 +255,16 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
           </button>
         </div>
 
-        <div className="mt-4 max-h-[58vh] min-h-[220px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative z-10 mt-4 max-h-[58vh] min-h-[220px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {formatReviewLogDetailText(log.text)}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
+        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
           <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
           {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className="relative z-10 mt-5 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onEdit}
@@ -1033,9 +1094,10 @@ export default function ReviewTab({ ctx }) {
                         setDisciplineAction(discipline);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
+                    className="relative block w-full overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
-                    <div className="flex items-start gap-4">
+                    <UsFlagBackground opacity={0.055} />
+                    <div className="relative z-10 flex items-start gap-4">
                       <div
                         className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
                         style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}
@@ -1130,15 +1192,16 @@ export default function ReviewTab({ ctx }) {
                         setReviewLogAction(log);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
+                    className="relative block w-full overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
-                    <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
+                    <UsFlagBackground opacity={0.05} />
+                    <div className="relative z-10 whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
                     {isLong && (
-                      <div className="mt-2 text-[12px] text-white/38">
+                      <div className="relative z-10 mt-2 text-[12px] text-white/38">
                         查看全文 <span className="text-[13px] leading-none text-white/28">›</span>
                       </div>
                     )}
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
+                    <div className="relative z-10 mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
                       <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
                       {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}
                     </div>

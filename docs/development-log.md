@@ -4,6 +4,35 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 投资戒律和复盘日志国旗背景
+
+- Commit: `same commit`
+- Background: 用户希望目标页投资戒律/复盘日志的记录背景加入参考图中的美国国旗氛围,要求淡淡的,只作为深色金融卡片背景纹理。
+- Changes:
+  - `ReviewTab` 新增共享 `UsFlagBackground` SVG 背景层,用波浪红白条纹、蓝色星区和低透明度星点模拟淡淡美国国旗,不引入外部图片资源。
+  - 投资戒律 `记录详情` 和复盘日志 `复盘详情` 弹窗加入稍明显的国旗背景,正文、标题、关闭、修改、删除、置顶按钮全部保持在背景层之上。
+  - 投资戒律列表卡片和复盘日志列表卡片加入更低透明度的国旗纹理,保持原有深色卡片、弱边框、正文尺寸和移动端紧凑布局。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.134`。
+  - 测试新增背景组件、稳定 marker、详情弹窗透明度、列表卡片透明度和设置页版本/更新日志保护点。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉背景增强,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-BA90dht7.css`,`ReviewTab-o2KI3o-b.js`,`SettingsTab-BJpKJ68t.js`,`App-BByRQXCI.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=review`;目标页列表可见卡片存在 `data-us-flag-bg` 背景层且 `scrollWidth=390` / `clientWidth=390`;投资戒律 `记录详情` 弹窗宽 `342px` 高约 `314px`,弹窗内 1 个国旗背景层,透明度 `0.14`,正文和按钮在 `z-10` 前景;复盘日志 `复盘详情` 弹窗宽 `342px` 高约 `400.5px`,弹窗内 1 个国旗背景层,透明度 `0.13`;两张弹窗截图确认国旗背景足够淡,未遮挡文字或按钮。
+  - Build marker check: pass;built `ReviewTab-o2KI3o-b.js` contains `data-us-flag-bg` and four opacity markers `.14` / `.13` / `.055` / `.05`;built `SettingsTab-BJpKJ68t.js` contains `v10.7.9.134` and `投资戒律和复盘日志国旗背景`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 删除 `ReviewTab` 的 `UsFlagBackground` 组件及四处调用,回退设置页 `v10.7.9.134` 更新日志和对应测试断言;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 首页恐慌模块回退旧版小卡
 
 - Commit: `04a56415bd34f24bfd2b1ee8cb167fca9b36030a`
