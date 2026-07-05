@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产模块 UI 深色重设计
 
-- Commit: `same commit`
+- Commit: `58331825607af6e9dcdfd0579c6c024e0f87d175`
 - Background: 用户提供资产模块新设计图,要求前期只做界面美化、暂时不动账户/快照/汇率等旧逻辑;同时删除底部手动港币和美元汇率输入,继续使用现有每日自动汇率接口做换算。
 - Changes:
   - 资产页 `AnalysisTab` 改为深色卡片体系,重做家庭总资产卡、12 个月走势卡、我/老婆账户分组列表和空状态。
@@ -29,8 +29,19 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: blocked by missing local `.env.local`; dev server showed the expected Supabase configuration missing screen, so authenticated visual smoke will be deferred to production marker verification after deploy.
-- Deployment: pending push to GitHub `main` and Vercel automatic deployment.
-- Production verification: pending deployment.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `58331825607af6e9dcdfd0579c6c024e0f87d175`.
+  - GitHub `main`: `58331825607af6e9dcdfd0579c6c024e0f87d175`.
+  - GitHub Actions `build`: success, run `28728652873`, build job `85190456607`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2asdjG97vakK8eBPEqdNxgXf7f6R`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=5833182-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BkA9LhNS.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-7IKKBvW8.css`.
+  - Production runtime chunks: `/assets/App-DBv2F314.js`, `/assets/AnalysisTab-COUkDGPu.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/SettingsTab-DGVckMLi.js`, `/assets/supabase-CcYdvS9P.js`.
+- Production verification:
+  - Production marker check: `AnalysisTab-COUkDGPu.js` contains `家庭总资产`、`填月度余额`、`新增账户`, contains `bg-black/[0.72]`, `text-[#f5f7fb]` and `placeholder:text-[#6f7887]`, and does not contain visible old manual rate labels `美元汇率` / `港币汇率`.
+  - Production marker check: `SettingsTab-DGVckMLi.js` contains `v10.7.9.106` and `资产模块 UI 深色重设计`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+  - Production browser smoke: opening production in the in-app browser reached the unauthenticated login screen; no authenticated visual click-through was performed.
 - Rollback: 回滚本次改动会恢复资产模块旧白色卡片、emoji 图标、底部手动 USD/HKD 汇率输入和旧弹窗;不影响账户、月度快照、交易账本、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - QQQ 和 TQQQ 改为英文显示
