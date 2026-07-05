@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律国旗背景增强
 
-- Commit: `same commit`
+- Commit: `0b8d8ec1a337749706de3c38de8101d417a23906`
 - Background: 用户反馈上一版国旗背景过淡,缺少美国国旗识别度,要求严格参考效果图:在深色记录详情卡片里能清楚看到左侧星区和右侧红白波浪条纹,但文字仍保持可读。
 - Changes:
   - `ReviewTab` 重写 `UsFlagBackground` SVG 构图:红白条纹改为覆盖全卡片的宽波浪形,左侧蓝色星区改为斜向大面积覆盖,星星放大并增加数量,整体更接近参考图。
@@ -29,9 +29,17 @@
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=review`;目标页 `scrollWidth=390` / `clientWidth=390`;投资戒律 `记录详情` 弹窗宽 `342px` 高约 `314px`,背景已清楚显示左侧星区和右侧红白波浪条纹,正文和底部三个按钮仍清晰可读;复盘日志 `复盘详情` 弹窗宽 `342px` 高约 `400.5px`,背景同样明确呈现美国国旗效果且不遮挡正文、日期、情绪和操作按钮。
   - Build marker check: pass;built `ReviewTab-BjneXzfN.js` contains `data-us-flag-bg`, `scale(1.7)`, `strength:.64`, `shade:.33`, `strength:.58`, `shade:.38` and `linear-gradient`;built `SettingsTab-CrRQb183.js` contains `v10.7.9.135` and `投资戒律国旗背景增强`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`;Vercel production deployment completed for the stronger review flag background release.
+  - Runtime code commit: `0b8d8ec1a337749706de3c38de8101d417a23906`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BNwDmy9z8xptX4P5cFEQ7KMhfErH`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=0b8d8ec-flag-strong-135`: HTTP 200.
+  - Production entry chunks: `/assets/index-mn2O6hjP.js`,`/assets/rolldown-runtime-QTnfLwEv.js`,`/assets/react-vendor-0zZBvgmv.js`,`/assets/index-BmBrKMRW.css`.
+  - Production runtime chunks include: `/assets/ReviewTab-BjneXzfN.js`,`/assets/SettingsTab-CrRQb183.js`.
 - Production verification:
-  - Pending.
+  - Production ReviewTab marker check: `ReviewTab-BjneXzfN.js` contains `data-us-flag-bg`, `scale(1.7)`, `strength:.64`, `shade:.33`, `strength:.58`, `shade:.38` and `linear-gradient`.
+  - Production SettingsTab marker check: `SettingsTab-CrRQb183.js` contains `v10.7.9.135` and `投资戒律国旗背景增强`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回退 `ReviewTab` 的 `UsFlagBackground` 构图和四处 `strength` / `shade` 调用到 `v10.7.9.134`,同时回退设置页 `v10.7.9.135` 更新日志和对应测试断言;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律和复盘日志国旗背景
