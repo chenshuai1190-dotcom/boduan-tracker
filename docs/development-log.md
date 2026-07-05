@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 目标页数字密度微调
 
-- Commit: pending runtime commit.
+- Commit: `a0c79b5a42f5284c2ab93103e8b409d1fdf7162a`
 - Background: 用户继续检查目标页后提出三点微调:本年目标卡黄色边框需要改成和北极星头卡一样的弱边框颜色;北极星头卡右下 `设置` 按钮和卡片底部贴得太近,需要上移一点;目标页金额末尾两位小数让数字过密,可以取消小数。
 - Changes:
   - 目标页金额 formatter 默认改为 0 位小数,北极星目标、当前、本金、年度计划/实际/目标/落后、未来年度起点/目标和操作面板摘要都保留完整千分位数字但不显示 `.00`。
@@ -26,8 +26,20 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;目标页 mock 可见,北极星卡 `358x244`,年度区域 `374px` 宽,2026 本年卡 `374px` 宽,页面 `scrollWidth=390`;本年卡边框和头卡边框同为 `rgba(255,255,255,0.1)`;`设置` 按钮离头卡底边约 `7px`;首屏金额均无两位小数,包含 `$14,860,167`, `当前 $2,470,000`, `+$70,000`, `目标 $2,880,000`, `落后 $410,000`;浏览器 console error/warn 为空。
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `a0c79b5a42f5284c2ab93103e8b409d1fdf7162a`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GptMiYxiSqezAJHF3n53iS968aoM`.
+  - GitHub Actions API check for this commit returned `total_count=0` workflow runs;commit status API only reported Vercel.
+  - Production `GET https://boduan-tracker.vercel.app/?v=a0c79b5-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CVgvhXEq.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CuyJMdZj.css`.
+  - Production runtime chunks include `/assets/App-B1ojJ4p1.js`, `/assets/ReviewTab-BoRRo5hi.js`, `/assets/SettingsTab-i-nStSeY.js`, `/assets/marketColorMode-DqRpGks3.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/Login-D5hE3XbQ.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-BoRRo5hi.js` contains 0-decimal amount formatter output markers, `mb-1.5 mt-auto flex -translate-y-2`, `rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-` and `h-[244px]`;it does not contain `fmtWan`, ` 万`, `money(ageGoalAmount, 2)`, `border-[#f6b54b]/65`, `bottom-[-78px] h-48 w-48` or `融资杠杆监控`.
+  - Production SettingsTab marker check: `SettingsTab-i-nStSeY.js` contains `v10.7.9.114` and `目标页数字密度微调`.
+  - Production App marker check: `App-B1ojJ4p1.js` references `ReviewTab` and `SettingsTab`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-CuyJMdZj.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次目标页数字密度微调会恢复 `v10.7.9.113` 的两位小数、本年卡黄色外框和原设置按钮位置;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 目标页数字对齐首页样式
