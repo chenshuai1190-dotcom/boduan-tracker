@@ -4,15 +4,28 @@
 
 这份文档给下一位接手 `boduan-tracker` 的工程师或 AI 代理使用。先按这里同步状态,再看开发日志和代码。
 
+## 0. 给下一位同事的直接接手摘要
+
+- 当前 GitHub `main`: 本文件所在最新提交为准;写入本交接更新前已确认 `origin/main` 为 `d847f259da72f8fcd46e982b260dc11a4c37e34b`。
+- 当前运行时代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`。
+- 设置页版本: `v10.7.9.128`。
+- 当前生产地址: `https://boduan-tracker.vercel.app`。
+- 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`。
+- 最新文档同步 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2juZVknqSnSPetoVJ3YQScvXqdCY`。
+- 线上关键验证: `ReviewTab-DvF47Fsk.js` 包含 `v10.7.9.128` 复利明细暗色内部分割线 marker;`SettingsTab-DRKSQz2w.js` 包含 `v10.7.9.128` 和 `复利明细内部层级降色`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`。
+- 当前产品焦点: 目标页已经完成北极星头卡、年度目标、投资戒律、复盘日志、复利明细弹窗的一轮移动端深色化和视觉收敛;后续视觉任务务必先用本地 390×844 视口验证。
+- 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
+
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前产品基准提交: `f82785e31b5f1ec16886b03edb636f2596033da6` (`v10.7.9.128`,复利明细内部层级降色)
 - 最近应用代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`
-- 最近文档/配置记录提交: 本文件所在最新提交
+- 最近文档/配置记录提交: 本文件所在最新提交;上一轮文档同步提交为 `d847f259da72f8fcd46e982b260dc11a4c37e34b`
 - 设置页版本: `v10.7.9.128`
 - Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`
+- Vercel 最新文档同步部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2juZVknqSnSPetoVJ3YQScvXqdCY`
 - Vercel 部署记录: `v10.7.9.128` runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
@@ -267,6 +280,10 @@ npm run dev -- --host 127.0.0.1
 
 ### 目标页
 
+- `v10.7.9.128`: 复利明细内部层级降色已部署;统计卡、实际进度、曲线卡和每年收益表的白色边框/分割线改为暗线,`目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 等标签统一降为灰色,收益数字继续使用首页粉色。
+- `v10.7.9.127`: 北极星复利明细视觉微调已部署;弹窗外层改弱金色边框,宽度加大并支持内部滚动,曲线下方完整显示 2026-2035 十年年份,累计收益、实际收益和每年收益统一为首页粉色。
+- `v10.7.9.126`: 北极星复利明细弹窗已部署;点击北极星目标卡片可打开 `10年复利明细`,复用当前本金、年化收益率、年限、目标终值和完成度逻辑,展示顶部三项、实际进度、账户曲线和每年收益表。
+- `v10.7.9.125`: 复盘和戒律列表细节对齐已部署;复盘日志首页正文的字号、行距和颜色与投资戒律列表一致,复盘日期/情绪和戒律日期/置顶都改为详情弹窗同款低饱和灰色 meta 效果。
 - `v10.7.9.124`: 复盘日志卡片和详情弹窗已部署;复盘日志标题同步投资戒律标题效果,列表改为正文优先的深色大圆角卡片,日期和情绪放在卡片底部同一行,点击复盘先打开 `复盘详情`,底部只保留修改和删除两个小号按钮;年度目标默认只展示 2 年,其余 8 年收进展开按钮。
 - `v10.7.9.123`: 投资戒律记录详情弹窗已部署;点击戒律后改为 `记录详情` 卡片,正文完整显示并支持前缀高亮,短内容保留最小展示空间,底部操作改为修改、删除、置顶/取消置顶三个小号胶囊按钮,删除重复取消按钮。
 - `v10.7.9.122`: 投资戒律标题行精简已部署;标题从 21px 降到 19px,删除标题下方数量,标题行和右侧添加按钮同排居中,标题竖条同步缩短。
@@ -538,7 +555,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.118` 或更新版本。
+- 设置页显示 `v10.7.9.128` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -553,11 +570,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `bfaac6673e4a187121c978a8e6701db3e360f347` (`v10.7.9.124`,复盘日志卡片和详情弹窗)
-最近应用代码提交: `bfaac6673e4a187121c978a8e6701db3e360f347`
-设置页版本: `v10.7.9.124`
-Vercel 最新运行时部署: success, `v10.7.9.124` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2GUSsdSu2t7GfvdLr8X3NC1M355a`
-部署记录: `v10.7.9.124` runtime commit `bfaac6673e4a187121c978a8e6701db3e360f347`;production `GET https://boduan-tracker.vercel.app/?v=bfaac66-runtime` HTTP 200
+当前 GitHub main: 以本文件所在最新提交为准;写入本交接更新前已确认 `origin/main = d847f259da72f8fcd46e982b260dc11a4c37e34b`
+当前产品基准提交: `f82785e31b5f1ec16886b03edb636f2596033da6` (`v10.7.9.128`,复利明细内部层级降色)
+最近应用代码提交: `f82785e31b5f1ec16886b03edb636f2596033da6`
+设置页版本: `v10.7.9.128`
+Vercel 最新运行时部署: success, `v10.7.9.128` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3QvBZ9pKdvydw6S9KshNmXEy7879`
+Vercel 最新文档同步部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2juZVknqSnSPetoVJ3YQScvXqdCY`
+部署记录: `v10.7.9.128` runtime commit `f82785e31b5f1ec16886b03edb636f2596033da6`;production `GET https://boduan-tracker.vercel.app/?v=f82785e-runtime` HTTP 200;production marker check confirms `ReviewTab-DvF47Fsk.js` has the dark compound-detail internals, `SettingsTab-DRKSQz2w.js` has `v10.7.9.128`, and unauthenticated `/api/quote?symbols=VIX` returns `401`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -587,6 +606,10 @@ Vercel 最新运行时部署: success, `v10.7.9.124` target `https://vercel.com/
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.128` 复利明细内部层级降色已完成部署和本地/线上验证:统计卡、实际进度、曲线卡和每年收益表的白色边框/分割线已改为暗线;`目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 等标签统一降为灰色;收益数字继续使用首页粉色。
+- `v10.7.9.127` 北极星复利明细视觉微调已完成部署和本地/线上验证:弹窗外层改弱金色边框,宽度加大并支持内部滚动,曲线下方完整显示 2026-2035 十年年份,累计收益、实际收益和每年收益统一为首页粉色。
+- `v10.7.9.126` 北极星复利明细弹窗已完成部署和本地/线上验证:点击北极星目标卡片可打开 `10年复利明细`,复用当前本金、年化收益率、年限、目标终值和完成度逻辑,展示顶部三项、实际进度、账户曲线和每年收益表。
+- `v10.7.9.125` 复盘和戒律列表细节对齐已完成部署和本地/线上验证:复盘日志首页正文的字号、行距和颜色与投资戒律列表一致,复盘日期/情绪和戒律日期/置顶都改为详情弹窗同款低饱和灰色 meta 效果。
 - `v10.7.9.124` 复盘日志卡片和详情弹窗已完成部署和本地/线上验证:复盘日志标题同步投资戒律标题效果,列表改为正文优先的深色大圆角卡片,日期和情绪放在卡片底部同一行,点击复盘先打开 `复盘详情`,底部只保留修改和删除两个小号按钮;年度目标默认只展示 2 年,其余 8 年收进展开按钮。
 - `v10.7.9.123` 投资戒律记录详情弹窗已完成部署和本地/线上验证:点击戒律后改为记录详情卡片,正文完整显示并支持前缀高亮,短内容保留最小展示空间,底部操作改为修改、删除、置顶/取消置顶三个小号胶囊按钮,删除重复取消按钮。
 - `v10.7.9.122` 投资戒律标题行精简已完成部署和本地/线上验证:投资戒律标题继续缩小,删除标题下方数量,标题行和右侧添加按钮同排居中,标题竖条同步缩短。
