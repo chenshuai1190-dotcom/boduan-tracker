@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律标题行精简
 
-- Commit: pending runtime commit.
+- Commit: `2cce942a0ad8a2ec8a46b70c80c78a8b8415c49c`
 - Background: 用户反馈投资戒律标题还可以继续缩小,并且标题下方的 `xx 条` 与筛选里的 `全部 (xx)` 重复;删除数量后标题需要和右侧 `添加` 按钮对齐。
 - Changes:
   - 投资戒律标题从 21px 继续下调到 19px。
@@ -28,8 +28,18 @@
   - `git diff --check` pass.
   - Build marker check: `ReviewTab-DYUy-Vmo.js` contains `text-[19px]`, `min-h-10 items-center`, `h-5 w-1`, and no longer contains title duplicate `{disciplines.length} 条`;`SettingsTab-DL8y-df1.js` contains `v10.7.9.122` and `投资戒律标题行精简`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;投资戒律标题实际 `19px/600`,标题行高 `40px`,右侧 `+ 添加` 按钮 `40px` 高,标题与添加按钮中心线差 `0px`;标题下方重复数量已删除,`全部 (10)` 筛选胶囊仍保留;标题竖条实际 `20px` 高;页面 `scrollWidth=390`。
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `2cce942a0ad8a2ec8a46b70c80c78a8b8415c49c`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4Z5986QN9A4tQ9aaV6k9o149zfwj`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=2cce942-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CBmFeJ7Q.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-4yZywl3J.css`.
+  - Production runtime chunks include: `/assets/ReviewTab-DYUy-Vmo.js`, `/assets/SettingsTab-DL8y-df1.js`, `/assets/App-DwOXKVd8.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-DYUy-Vmo.js` contains `text-[19px] font-semibold leading-none tracking-normal text-white`, `mb-4 flex min-h-10 items-center justify-between gap-4`, `h-5 w-1 shrink-0 rounded-full bg-[#f6a524]`;it no longer contains title duplicate `{disciplines.length} 条` or the old title count class, while `全部 (...)` count remains.
+  - Production SettingsTab marker check: `SettingsTab-DL8y-df1.js` contains `v10.7.9.122` and `投资戒律标题行精简`.
+  - Production CSS/App marker check: `index-4yZywl3J.css` does not contain `overscroll-behavior-y:none`;`App-DwOXKVd8.js` does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.122` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次标题行精简会恢复 `v10.7.9.121` 的 21px 标题、标题下方数量和较长标题竖条;不影响戒律数据、筛选数量、置顶/取消置顶、编辑/删除、目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律字体整体收紧
