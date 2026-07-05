@@ -4,6 +4,33 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 首页恐慌模块回退旧版小卡
+
+- Commit: pending
+- Background: 用户反馈连续调整后的 VIX/CNN 高保真恐慌模块不如最初旧版效果,要求回退到没有重做这两个模块之前的版本。回退目标选择为 `512fc644ef90636e6d266219f4dcfbb46adfa79c` 后的首页小卡状态:保留 VIX 标题灰色和正常字重修正,但撤销后续 `FearIndexCards.tsx` 高保真组件和 SVG 大卡样式。
+- Changes:
+  - 首页 `HomeTab` 删除 `FearGreedIndexCard` / `VixFearIndexCard` 组件引用,恢复旧版 inline VIX 和 CNN 两列小卡。
+  - 恢复旧版 `FgiGauge` 和 `fgiLevel` 逻辑,CNN 恐慌贪婪指数回到原小号半圆仪表盘。
+  - 删除 `src/components/FearIndexCards.tsx`,移除后续高保真 SVG 卡片、sparkline、发光大卡、细化 gauge 等实现。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.133`。
+  - 测试更新为保护旧版小卡回退状态:禁止再引用 `FearIndexCards.tsx`,要求保留 inline VIX/CNN 标题、旧 `FgiGauge` 和 VIX 灰色正常字重标题/数值。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页前端视觉回退,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `src/components/FearIndexCards.tsx`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-BQhRIRN9.css`,`HomeTab-4NbUE9pN.js`,`SettingsTab-DEnHetEB.js`,`App-DQm0n_Xe.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;VIX/CNN fear section remains `grid grid-cols-2 gap-3`,both inline cards render side-by-side at `173px` wide and about `210px` high;there is no `data-home-fear-card` high-fidelity marker,VIX card has no SVG,CNN card has only the old `FgiGauge` SVG.
+  - Build marker check: pass;built `HomeTab-4NbUE9pN.js` contains `VIX 恐慌指数`, `CNN 恐慌贪婪指数`, old `FgiGauge` marker `viewBox:\`0 0 160 90\`` and old gray title marker `text-[12px] font-normal text-white/60`;built `HomeTab-4NbUE9pN.js` does not contain `FearIndexCards`, `VixFearIndexCard`, `FearGreedIndexCard` or `data-home-fear-card`;built `SettingsTab-DEnHetEB.js` contains `v10.7.9.133` and `首页恐慌模块回退旧版小卡`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment: pending.
+- Rollback: 如需回到高保真卡片,恢复 `src/components/FearIndexCards.tsx` 并重新在 `HomeTab` 引用 `VixFearIndexCard` / `FearGreedIndexCard`;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 首页恐慌卡片继续压缩
 
 - Commit: `e72625b38fcfa779b5bd6eb928282b6bfd0f379b`
