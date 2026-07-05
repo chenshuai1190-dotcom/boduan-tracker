@@ -684,30 +684,30 @@ export default function TradesTab({ ctx }) {
           const amount = toNumber(orderActionTrade.price) * toNumber(orderActionTrade.shares) * displayRate;
           return (
             <div
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-md"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
               onClick={(e) => { if (e.target === e.currentTarget) setOrderActionTrade(null); }}
               style={{
                 paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
                 paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
               }}
             >
-              <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
+              <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
                 <div className="border-b border-white/10 px-4 pb-3 pt-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-white">订单操作</h2>
+                    <h2 className="text-[15px] font-semibold text-white">订单操作</h2>
                     <button
                       type="button"
                       onClick={() => setOrderActionTrade(null)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[18px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
                       aria-label="关闭订单操作"
                     >
                       ×
                     </button>
                   </div>
-                  <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-3">
+                  <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-[14px] font-normal text-white">{orderActionTrade.symbol || '--'}</div>
+                        <div className="truncate text-[13px] font-normal text-white">{orderActionTrade.symbol || '--'}</div>
                         <div className="mt-1 truncate text-[11px] text-white/60">{orderActionTrade.name || orderActionTrade.symbol || '--'}</div>
                       </div>
                       <div className="shrink-0 text-right">
@@ -718,29 +718,29 @@ export default function TradesTab({ ctx }) {
                   </div>
                 </div>
 
-                <div className="space-y-2 p-4">
+                <div className="space-y-2 px-4 pb-4 pt-3">
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={editOrderFromAction}
-                      className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[14px] font-normal text-[#f6b54b] active:scale-95"
+                      className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[13px] font-normal text-[#f6b54b] active:scale-95"
                     >
-                      <Edit3 className="h-5 w-5" strokeWidth={2} />
+                      <Edit3 className="h-4 w-4" strokeWidth={2} />
                       修改记录
                     </button>
                     <button
                       type="button"
                       onClick={deleteOrderFromAction}
-                      className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl border border-rose-400/30 bg-rose-400/10 text-[14px] font-normal text-rose-300 active:scale-95"
+                      className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/10 text-[13px] font-normal text-rose-300 active:scale-95"
                     >
-                      <Trash2 className="h-5 w-5" strokeWidth={2} />
+                      <Trash2 className="h-4 w-4" strokeWidth={2} />
                       删除记录
                     </button>
                   </div>
                   <button
                     type="button"
                     onClick={() => setOrderActionTrade(null)}
-                    className="flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-[14px] font-normal text-white/80 active:scale-95"
+                    className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/80 active:scale-95"
                   >
                     取消
                   </button>

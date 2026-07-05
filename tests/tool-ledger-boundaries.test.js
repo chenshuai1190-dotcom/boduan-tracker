@@ -120,6 +120,14 @@ test('position clicks default to buy and trade records use ledger edit/delete fl
   assert.ok(tradesTabSource.includes('deleteStockTradeRecord(trade.id)'), 'trade records delete flow should still use the database-backed stock_trades delete path');
 });
 
+test('order action modal stays compact like the current trade record reference', () => {
+  assert.ok(tradesTabSource.includes('w-[calc(100vw-72px)] max-w-[360px]'), 'order action modal should use the narrower centered reference width');
+  assert.ok(tradesTabSource.includes('rounded-[22px]'), 'order action modal should keep a compact rounded panel');
+  assert.ok(tradesTabSource.includes('min-h-[48px]'), 'order action edit/delete buttons should not return to oversized cards');
+  assert.ok(tradesTabSource.includes('min-h-[42px]'), 'order action cancel button should stay compact');
+  assert.ok(tradesTabSource.includes('px-4 pb-4 pt-3'), 'order action button area should use compact vertical padding');
+});
+
 test('wave records keep editable notes and completed waves remain reachable', () => {
   assert.ok(tradesTabSource.includes('波段备注/计划'), 'wave add modal must keep a note/plan field');
   assert.ok(tradesTabSource.includes('completedWaveGroups'), 'completed waves need their own grouped data source');

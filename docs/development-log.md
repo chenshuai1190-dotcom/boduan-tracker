@@ -4,6 +4,31 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 调整订单操作弹窗尺寸
+
+- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Background: 用户在生产截图中指出,当前股票交易记录里的 `订单操作` 弹窗仍偏大、偏接近满屏,要求改成参考图二的更紧凑居中尺寸。
+- Changes:
+  - `订单操作` 弹窗外层宽度从接近满屏的 `w-full max-w-sm` 改为 `w-[calc(100vw-72px)] max-w-[360px]`,移动端显示更窄、更接近参考图二比例。
+  - 标题、关闭按钮、订单摘要卡和按钮区的字号/高度/间距同步压缩。
+  - `修改记录`、`删除记录` 按钮高度从 72px 收到 48px,`取消` 按钮高度从 52px 收到 42px。
+  - 新增回归测试,锁定 `订单操作` 弹窗紧凑宽度和按钮高度,避免后续回到大弹窗。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.103`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 57 tests.
+  - `npm run build`: pass; `index-1qzFTd70.css` 52.85 kB / gzip 9.73 kB, `TradesTab-VftY7rVx.js` 61.77 kB / gzip 12.21 kB, `SettingsTab-EvajnqBu.js` 35.81 kB / gzip 13.67 kB, `App-BAGZgWaJ.js` 142.51 kB / gzip 40.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local source/build marker check: pass; source and built `TradesTab-VftY7rVx.js` contain `w-[calc(100vw-72px)]`, `max-w-[360px]`, `min-h-[48px]` and `min-h-[42px]`; source and built `SettingsTab-EvajnqBu.js` contain `v10.7.9.103` and `调整订单操作弹窗尺寸`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 `订单操作` 弹窗较宽、按钮较高的旧尺寸;不会影响交易记录修改/删除逻辑、数据库写入、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 收紧下拉刷新触发条件
 
 - Commit: `a5156f25bb7c4a836367c4615888785204d2fcc5`
