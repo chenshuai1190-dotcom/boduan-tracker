@@ -4,6 +4,35 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 目标页头卡和年度层级微调
+
+- Commit: pending runtime commit.
+- Background: 用户继续降低目标页视觉层级,要求删除北极星头卡里的 `1 USD = xx RMB` 文案;把 `10 年目标 · 46 岁实现`、`还剩 x 年 · 本金 x · 年化 20%`、`年度目标进度` 标题字号再缩小;年度目标年份数字看起来仍偏粗,需要继续减轻字重。
+- Changes:
+  - 北极星头卡继续保留 USD/RMB 切换和现有汇率换算逻辑,但不再在副标题行显示 `1 USD = ... RMB`。
+  - 北极星副标题从 `13px` 降到 `12px`。
+  - 北极星进度说明 `还剩 ...` 从 `13px` 降到 `12px`。
+  - `年度目标进度` 标题从 `16px` 降到 `15px`。
+  - 年度目标当前年和未来年份数字从 `font-bold` 降到 `font-semibold`,保留当前尺寸和颜色层级。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.119`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页视觉层级微调,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass; `index-BiGy84K3.css` 52.52 kB / gzip 9.79 kB, `ReviewTab-Di8dsjgl.js` 31.80 kB / gzip 7.85 kB, `SettingsTab-D7CvfPsV.js` 41.42 kB / gzip 15.69 kB, `App-DKGUHviZ.js` 144.78 kB / gzip 41.25 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;RMB 状态下页面不含 `1 USD =` 文案;北极星副标题为 12px/400;`还剩 ...` 为 12px/400;`年度目标进度` 标题为 15px/600;年度 `2026` 为 28px/600,`2027` 为 22px/600;页面 `scrollWidth=390`,无横向溢出。
+  - Build marker check: pass; built ReviewTab chunk does not contain `1 USD =`, and contains the 12px subtitle, 12px remaining line, 15px annual title, semibold current year and semibold future year markers;built `SettingsTab-D7CvfPsV.js` contains `v10.7.9.119` and `目标页头卡和年度层级微调`;built CSS does not contain `overscroll-behavior-y:none`.
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次目标页层级微调会恢复 RMB 汇率辅助文案、较大的目标说明/剩余年限/年度标题字号和年度年份 `font-bold`;不影响目标数据、USD/RMB 实际换算、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 目标页未开始年度降色
 
 - Commit: `b3652214d4e0d08ef6aa2d2fc1f7b825668d0b54`

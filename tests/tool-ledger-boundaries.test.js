@@ -239,8 +239,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
   assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex items-center justify-between gap-3'), 'north-star motto row should stay at the natural bottom position');
   assert.ok(reviewTabSource.includes('shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045]'), 'north-star settings button should stay lifted with neutral styling');
-  assert.ok(reviewTabSource.includes('text-[28px] font-bold leading-none text-[#ffd18a]'), 'current annual year should be smaller while remaining bold');
-  assert.ok(reviewTabSource.includes('text-[22px] font-bold leading-none text-white/55'), 'future annual years should be smaller while remaining bold');
+  assert.ok(reviewTabSource.includes('relative z-10 mt-2 text-[12px] text-white/55'), 'north-star target subtitle should stay visually quieter');
+  assert.ok(reviewTabSource.includes('mt-3 text-[12px] text-white/50'), 'north-star remaining-years line should match the smaller subtitle size');
+  assert.ok(reviewTabSource.includes('text-[15px] font-semibold text-white">年度目标进度'), 'annual target section title should be slightly smaller');
+  assert.ok(reviewTabSource.includes('text-[28px] font-semibold leading-none text-[#ffd18a]'), 'current annual year should use a lighter weight');
+  assert.ok(reviewTabSource.includes('text-[22px] font-semibold leading-none text-white/55'), 'future annual years should use a lighter weight');
   assert.ok(reviewTabSource.includes('<div className="text-[11px] text-white/38">起点</div>'), 'future year start label should omit the parenthesized year');
   assert.ok(reviewTabSource.includes('<div className="text-[11px] text-white/38">目标</div>'), 'future year target label should omit the parenthesized year');
   assert.equal(reviewTabSource.includes('起点 ({yearItem.year - 1}目标)'), false, 'future year start label should not include the old year suffix');
@@ -266,11 +269,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
-  assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
+  assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.118'), 'settings version should document the target page color reduction');
-  assert.ok(settingsTabSource.includes('目标页未开始年度降色'), 'settings changelog should describe the target page color reduction');
+  assert.ok(settingsTabSource.includes('v10.7.9.119'), 'settings version should document the target page hierarchy tune');
+  assert.ok(settingsTabSource.includes('目标页头卡和年度层级微调'), 'settings changelog should describe the target page hierarchy tune');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

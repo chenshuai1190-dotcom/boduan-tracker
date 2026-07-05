@@ -373,9 +373,8 @@ export default function ReviewTab({ ctx }) {
           <span>{headlineGoalMoney.main}</span>
           <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{headlineGoalMoney.decimal}</span>
         </div>
-        <div className="relative z-10 mt-2 text-[13px] text-white/55">
+        <div className="relative z-10 mt-2 text-[12px] text-white/55">
           {totalYears} 年目标 · {ageGoalAge || '--'} 岁实现
-          {isCNY && <span className="ml-2 text-white/35">1 USD = {fxRate.toFixed(2)} RMB</span>}
         </div>
 
         <div className="relative z-10 mt-5">
@@ -393,7 +392,7 @@ export default function ReviewTab({ ctx }) {
               }}
             />
           </div>
-          <div className="mt-3 text-[13px] text-white/50">
+          <div className="mt-3 text-[12px] text-white/50">
             还剩 {yearsLeft} 年 · 本金 {money(startCapital)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
           </div>
         </div>
@@ -418,7 +417,7 @@ export default function ReviewTab({ ctx }) {
         <div className="mb-3 flex items-center justify-between gap-3 px-2">
           <div className="flex items-center gap-2">
             {Target ? <Target className="h-4 w-4 text-[#f6b54b]" /> : <Calendar className="h-4 w-4 text-[#f6b54b]" />}
-            <div className="text-[16px] font-semibold text-white">年度目标进度</div>
+            <div className="text-[15px] font-semibold text-white">年度目标进度</div>
           </div>
           {yearlyFinal.length > 3 && (
             <button
@@ -460,7 +459,7 @@ export default function ReviewTab({ ctx }) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <div className="text-[28px] font-bold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
+                      <div className="text-[28px] font-semibold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
                       <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-2 py-1 text-[11px] text-[#f6b54b]">本年</span>
                       <span className={`rounded-md border px-2 py-1 text-[11px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
                     </div>
@@ -531,7 +530,7 @@ export default function ReviewTab({ ctx }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className="text-[22px] font-bold leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
+                      <span className="text-[22px] font-semibold leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
                       <span className="text-[11px] text-white/35">计划 {signedMoney(yearItem.planTarget)} → 目标 {money(yearItem.endBalance)}</span>
                     </div>
                   </div>

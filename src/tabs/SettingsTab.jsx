@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.118
+                  v10.7.9.119
                 </span>
               </div>
             </div>
@@ -163,14 +163,24 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.118
+                  v10.7.9.119
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.118', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.119', date: '2026-07-05', latest: true,
+                    items: [
+                      '🎯 目标页头卡和年度层级微调',
+                      '  - 北极星头卡删除 RMB 汇率文案',
+                      '  - 年目标和剩余年限说明字号缩小',
+                      '  - 年度目标进度标题字号缩小',
+                      '  - 年度目标年份数字进一步降字重',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.118', date: '2026-07-05',
                     items: [
                       '🎯 目标页未开始年度降色',
                       '  - 北极星头卡设置按钮改为中性色',
@@ -1209,7 +1219,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.118</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.119</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>
