@@ -371,7 +371,7 @@ export default function ReviewTab({ ctx }) {
 
         <div className="relative z-10 mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
           <span>{headlineGoalMoney.main}</span>
-          <span className="ml-0.5 align-baseline text-[20px] leading-none text-[#ffd18a]/90">{headlineGoalMoney.decimal}</span>
+          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{headlineGoalMoney.decimal}</span>
         </div>
         <div className="relative z-10 mt-2 text-[13px] text-white/55">
           {totalYears} 年目标 · {ageGoalAge || '--'} 岁实现

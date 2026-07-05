@@ -5,6 +5,7 @@ import {
   marketStrongTextClass,
   marketTextClass,
 } from '../lib/marketColorMode.js';
+import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
 const TRADE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -173,6 +174,7 @@ export default function TradesTab({ ctx }) {
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-lg border border-transparent bg-white/[0.06] px-3 py-2 text-[12px] text-white outline-none transition placeholder:text-white/25 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1 block text-[9px] font-normal text-white/45';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
+  const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
   const displayHoldingPnl = toNumber(summary.unrealizedPnl) * displayRate;
@@ -384,8 +386,9 @@ export default function TradesTab({ ctx }) {
             </div>
           </div>
 
-          <div className="mt-3 text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-            {currencyAmount(displayAssets, displayCurrency, 2)}
+          <div className="mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+            <span>{displayAssetMoney.main}</span>
+            <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
           </div>
 
           <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">

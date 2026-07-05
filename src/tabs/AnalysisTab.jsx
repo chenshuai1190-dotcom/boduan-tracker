@@ -18,6 +18,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
+import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const ASSET_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -159,6 +160,7 @@ export default function AnalysisTab({ ctx }) {
   };
 
   const totalNow = totalAtMonth(currentMonth);
+  const totalNowMoney = splitCurrencyAmount(totalNow, 'CNY', 2);
   const totalLast = totalAtMonth(lastMonth);
   const totalYearStart = totalAtMonth(yearStart);
   const totalYearAgo = totalAtMonth(yearAgo);
@@ -383,10 +385,11 @@ export default function AnalysisTab({ ctx }) {
               <Info className="h-3.5 w-3.5 text-white/[0.35]" strokeWidth={1.8} />
             </div>
             <div
-              className="mt-4 text-[34px] leading-none tracking-normal sm:text-[38px]"
+              className="mt-4 whitespace-nowrap text-[34px] leading-none tracking-normal sm:text-[38px]"
               style={{ color: '#ffd37d', fontFamily: ASSET_NUMBER_FONT, fontWeight: 400 }}
             >
-              ¥{fmtWan(totalNow)}<span className="ml-1 text-[14px]">万</span>
+              <span>{totalNowMoney.main}</span>
+              <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd37d]/90">{totalNowMoney.decimal}</span>
             </div>
           </div>
 

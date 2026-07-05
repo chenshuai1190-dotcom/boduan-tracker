@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isBtcMarketCard } from '../lib/btcRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
@@ -378,6 +379,7 @@ export default function HomeTab({ ctx }) {
   const displayCurrencyLabel = isCnyMode ? 'RMB' : 'USD';
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
+  const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
   const displayTodayPnl = summary.todayPnl * displayRate;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
   const pnlAmountClass = 'text-[13px]';
@@ -637,8 +639,9 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
 
-        <div className="mt-3 text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-          {fmtCurrency(displayAssets, displayCurrency, 2)}
+        <div className="mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+          <span>{displayAssetMoney.main}</span>
+          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
         </div>
         <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
           <div className="min-w-0 pr-3">

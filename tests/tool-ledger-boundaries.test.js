@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
+const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
@@ -203,6 +204,23 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
 });
 
+test('primary asset totals split decimal suffixes consistently', () => {
+  assert.ok(amountDisplaySource.includes('splitCurrencyAmount'), 'shared amount helper should split integer and decimal parts');
+  assert.ok(amountDisplaySource.includes("if (currency === 'CNY') return '¥'"), 'shared amount helper should preserve CNY prefix');
+  assert.ok(homeTabSource.includes("import { splitCurrencyAmount } from '../lib/amountDisplay.js';"), 'home tab should use the shared split amount helper');
+  assert.ok(homeTabSource.includes('const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2)'), 'home total assets should split the decimal suffix');
+  assert.ok(homeTabSource.includes('displayAssetMoney.decimal'), 'home total assets should render the decimal suffix separately');
+  assert.ok(tradesTabSource.includes("import { splitCurrencyAmount } from '../lib/amountDisplay.js';"), 'trades tab should use the shared split amount helper');
+  assert.ok(tradesTabSource.includes('const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2)'), 'trades total assets should split the decimal suffix');
+  assert.ok(tradesTabSource.includes('displayAssetMoney.decimal'), 'trades total assets should render the decimal suffix separately');
+  assert.ok(analysisTabSource.includes("import { splitCurrencyAmount } from '../lib/amountDisplay.js';"), 'asset tab should use the shared split amount helper');
+  assert.ok(analysisTabSource.includes("const totalNowMoney = splitCurrencyAmount(totalNow, 'CNY', 2)"), 'family total assets should split the decimal suffix');
+  assert.ok(analysisTabSource.includes('totalNowMoney.decimal'), 'family total assets should render the decimal suffix separately');
+  assert.ok(homeTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'home decimal suffix should be smaller and normal weight');
+  assert.ok(tradesTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'trades decimal suffix should be smaller and normal weight');
+  assert.ok(analysisTabSource.includes('text-[20px] font-normal leading-none text-[#ffd37d]/90'), 'family asset decimal suffix should be smaller and normal weight');
+});
+
 test('review target page uses dark mobile cards and click action modals', () => {
   assert.ok(appSource.includes("activeTab === 'review'"), 'review tab must use the same dark shell as home and assets');
   assert.ok(reviewTabSource.includes("const REVIEW_CARD = '#0b0f14'"), 'review page should share the dark card surface');
@@ -214,7 +232,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('const splitMoney = (usdValue, digits = 2)'), 'north-star headline should split the decimal part for small-type rendering');
   assert.ok(reviewTabSource.includes('headlineGoalMoney = splitMoney(ageGoalAmountExact, 2)'), 'only the north-star headline should restore two decimals');
   assert.ok(reviewTabSource.includes('headlineGoalMoney.decimal'), 'north-star headline should render the decimal suffix separately');
-  assert.ok(reviewTabSource.includes('text-[20px] leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller');
+  assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller and normal weight');
   assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'other target amount surfaces should not return to two decimals');
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
   assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex -translate-y-2'), 'north-star settings button row should stay lifted from the card bottom');
@@ -240,8 +258,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.115'), 'settings version should document the north-star decimal hierarchy correction');
-  assert.ok(settingsTabSource.includes('北极星目标小数层级优化'), 'settings changelog should describe the north-star decimal hierarchy correction');
+  assert.ok(settingsTabSource.includes('v10.7.9.116'), 'settings version should document the primary asset decimal hierarchy sync');
+  assert.ok(settingsTabSource.includes('主资产数字小数层级同步'), 'settings changelog should describe the primary asset decimal hierarchy sync');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

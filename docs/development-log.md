@@ -4,6 +4,38 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 主资产数字小数层级同步
+
+- Commit: pending runtime commit.
+- Background: 用户确认北极星目标小数层级效果很好,但希望确认小数后缀是否和前面正常数字一样保持正常字重;如果没有则补齐,并把同样的大整数 + 小号两位小数效果同步到首页、交易页两个总资产和资产页家庭总资产数字卡片。
+- Changes:
+  - 新增 `splitCurrencyAmount` 共享金额拆分 helper,统一把完整金额拆成主金额和两位小数后缀。
+  - 首页头部总资产、交易页头部总资产改为完整金额大整数 + 小号两位小数显示,保留正常字重和原有 USD/RMB 切换。
+  - 资产页家庭总资产卡从 `万` 简写主数字改为完整人民币金额,并把小数后缀改为小字号显示;其它走势图、账户列表和指标仍保留原有 `万` 简写。
+  - 北极星目标头卡小数后缀显式增加 `font-normal`,避免依赖父级继承导致看起来不一致。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.116`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是主资产数字显示层级修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/amountDisplay.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass; `index-BuKhz2It.css` 52.53 kB / gzip 9.80 kB, `amountDisplay-BSJvHQHL.js` 0.36 kB / gzip 0.26 kB, `HomeTab-BHNhL_RW.js` 39.37 kB / gzip 10.52 kB, `TradesTab-CMxJkAZP.js` 62.14 kB / gzip 12.35 kB, `AnalysisTab-D6PBEIMl.js` 37.31 kB / gzip 8.84 kB, `ReviewTab-D0dsBIPH.js` 31.94 kB / gzip 7.87 kB, `SettingsTab-CX8pdpz-.js` 40.59 kB / gzip 15.47 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=analysis`, in-app browser viewport `390x844`;资产页家庭总资产实际渲染为 `¥27,102,105.74`,拆成 `¥27,102,105` 34px 正常字重和 `.74` 20px 正常字重两段;页面 `scrollWidth=390`,无横向溢出。
+  - Build marker check: pass; built Home/Trades/Analysis/Review chunks all contain the small decimal `text-[20px] font-normal leading-none` markers, built `SettingsTab-CX8pdpz-.js` contains `v10.7.9.116` and `主资产数字小数层级同步`, built CSS does not contain `overscroll-behavior-y:none`.
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次主资产数字小数层级同步会恢复首页/交易页总资产整串同字号两位小数、资产页家庭总资产 `万` 简写主数字和北极星目标小数后缀继承字重;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 北极星目标小数层级优化
 
 - Commit: `f88e459b89c540e9590ae7e56e580c1c05a22b26`
