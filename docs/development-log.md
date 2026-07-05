@@ -4,6 +4,36 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 投资戒律国旗背景增强
+
+- Commit: `same commit`
+- Background: 用户反馈上一版国旗背景过淡,缺少美国国旗识别度,要求严格参考效果图:在深色记录详情卡片里能清楚看到左侧星区和右侧红白波浪条纹,但文字仍保持可读。
+- Changes:
+  - `ReviewTab` 重写 `UsFlagBackground` SVG 构图:红白条纹改为覆盖全卡片的宽波浪形,左侧蓝色星区改为斜向大面积覆盖,星星放大并增加数量,整体更接近参考图。
+  - 投资戒律 `记录详情` 背景强度提高到 `strength={0.64}` / `shade={0.33}`,复盘日志 `复盘详情` 提高到 `strength={0.58}` / `shade={0.38}`,让国旗效果一眼可见。
+  - 列表卡片也同步从极淡纹理提高到可识别但低强度的国旗背景,仍低于详情弹窗,不抢正文。
+  - 背景层增加深色线性/径向遮罩,保证标题、正文、关闭按钮、修改/删除/置顶按钮仍在前景清晰可读。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.135`。
+  - 测试更新为保护更清晰的国旗构图、放大星星、暗遮罩、详情弹窗强度、列表强度和设置页版本/更新日志。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉增强,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-BmBrKMRW.css`,`ReviewTab-BjneXzfN.js`,`SettingsTab-CrRQb183.js`,`App-BdFEIKtU.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=review`;目标页 `scrollWidth=390` / `clientWidth=390`;投资戒律 `记录详情` 弹窗宽 `342px` 高约 `314px`,背景已清楚显示左侧星区和右侧红白波浪条纹,正文和底部三个按钮仍清晰可读;复盘日志 `复盘详情` 弹窗宽 `342px` 高约 `400.5px`,背景同样明确呈现美国国旗效果且不遮挡正文、日期、情绪和操作按钮。
+  - Build marker check: pass;built `ReviewTab-BjneXzfN.js` contains `data-us-flag-bg`, `scale(1.7)`, `strength:.64`, `shade:.33`, `strength:.58`, `shade:.38` and `linear-gradient`;built `SettingsTab-CrRQb183.js` contains `v10.7.9.135` and `投资戒律国旗背景增强`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 回退 `ReviewTab` 的 `UsFlagBackground` 构图和四处 `strength` / `shade` 调用到 `v10.7.9.134`,同时回退设置页 `v10.7.9.135` 更新日志和对应测试断言;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 投资戒律和复盘日志国旗背景
 
 - Commit: `b29ed58bc5ba2707bd69f5fa7d47d3aea8b1b102`

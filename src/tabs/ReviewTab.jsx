@@ -14,27 +14,27 @@ const DISCIPLINE_LEVELS = [
   { level: '❗', label: '警告', dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
 ];
 
-const US_FLAG_STRIPES = Array.from({ length: 7 }, (_, index) => {
-  const y = 34 + index * 30;
-  const h = 15;
+const US_FLAG_STRIPES = Array.from({ length: 8 }, (_, index) => {
+  const y = 8 + index * 32;
+  const h = 17;
   return {
     color: index % 2 === 0 ? '#bf1e3a' : '#f8fafc',
-    opacity: index % 2 === 0 ? 0.62 : 0.38,
+    opacity: index % 2 === 0 ? 0.72 : 0.5,
     d: [
-      `M -28 ${y}`,
-      `C 44 ${y - 18} 98 ${y + 17} 168 ${y}`,
-      `S 302 ${y - 14} 388 ${y + 2}`,
-      `L 388 ${y + h + 2}`,
-      `C 302 ${y + h - 14} 238 ${y + h + 17} 168 ${y + h}`,
-      `S 44 ${y + h - 18} -28 ${y + h}`,
+      `M -44 ${y}`,
+      `C 40 ${y - 24} 98 ${y + 24} 178 ${y + 2}`,
+      `C 250 ${y - 18} 306 ${y - 7} 416 ${y - 26}`,
+      `L 416 ${y + h + 4}`,
+      `C 308 ${y + h - 14} 252 ${y + h + 4} 178 ${y + h + 2}`,
+      `C 96 ${y + h + 30} 38 ${y + h - 20} -44 ${y + h + 8}`,
       'Z',
     ].join(' '),
   };
 });
 
-const US_FLAG_STARS = Array.from({ length: 22 }, (_, index) => ({
-  x: 32 + (index % 6) * 21 + (Math.floor(index / 6) % 2) * 8,
-  y: 35 + Math.floor(index / 6) * 18,
+const US_FLAG_STARS = Array.from({ length: 30 }, (_, index) => ({
+  x: 28 + (index % 6) * 28 + (Math.floor(index / 6) % 2) * 12,
+  y: 34 + Math.floor(index / 6) * 28,
   rotation: index % 2 === 0 ? 0 : 18,
 }));
 
@@ -58,37 +58,51 @@ function levelMeta(level) {
   return DISCIPLINE_LEVELS.find((item) => item.level === level) || DISCIPLINE_LEVELS[0];
 }
 
-function UsFlagBackground({ opacity = 0.14 }) {
+function UsFlagBackground({ strength = 0.56, shade = 0.36 }) {
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#07111d]"
       aria-hidden="true"
       data-us-flag-bg
-      style={{ opacity }}
     >
       <svg className="h-full w-full" viewBox="0 0 360 240" preserveAspectRatio="xMidYMid slice" focusable="false">
-        <rect width="360" height="240" fill="#08111d" opacity="0.62" />
-        <g style={{ filter: 'drop-shadow(0 0 16px rgba(59, 130, 246, 0.16))' }}>
+        <rect width="360" height="240" fill="#08111d" />
+        <g opacity={strength} style={{ filter: 'drop-shadow(0 0 18px rgba(248, 250, 252, 0.1))' }}>
           {US_FLAG_STRIPES.map((stripe, index) => (
             <path key={`stripe-${index}`} d={stripe.d} fill={stripe.color} opacity={stripe.opacity} />
           ))}
           <path
-            d="M -10 24 C 22 10 64 21 94 14 C 125 8 148 18 174 14 L 174 108 C 132 119 96 101 57 111 C 31 118 9 115 -10 124 Z"
-            fill="#14336b"
-            opacity="0.58"
+            d="M -26 18 C 28 -8 103 18 157 4 C 175 24 189 54 205 84 C 224 120 246 151 264 182 C 210 169 150 187 91 201 C 43 213 3 203 -26 224 Z"
+            fill="#102a5f"
+            opacity="0.86"
+          />
+          <path
+            d="M -28 58 C 38 42 94 68 156 52 C 182 86 202 122 230 154 C 168 145 104 169 44 176 C 10 180 -11 175 -28 172 Z"
+            fill="#071426"
+            opacity="0.42"
           />
           {US_FLAG_STARS.map((star, index) => (
             <polygon
               key={`star-${index}`}
               points="0,-3.5 0.9,-1.1 3.4,-1.1 1.35,0.35 2.1,3 -0.05,1.45 -2.15,3 -1.35,0.35 -3.4,-1.1 -0.9,-1.1"
-              transform={`translate(${star.x} ${star.y}) rotate(${star.rotation})`}
+              transform={`translate(${star.x} ${star.y}) rotate(${star.rotation}) scale(1.7)`}
               fill="#f8fafc"
-              opacity="0.5"
+              opacity="0.62"
             />
           ))}
+          <ellipse cx="228" cy="106" rx="72" ry="38" fill="#f8fafc" opacity="0.12" />
+          <ellipse cx="242" cy="116" rx="58" ry="34" fill="#dc223d" opacity="0.14" />
         </g>
-        <rect width="360" height="240" fill="#05070b" opacity="0.34" />
+        <rect width="360" height="240" fill="#05070b" opacity={shade} />
+        <rect width="360" height="88" fill="#05070b" opacity="0.22" />
       </svg>
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(5,7,11,0.1) 0%, rgba(5,7,11,0.06) 40%, rgba(5,7,11,0.34) 100%), radial-gradient(circle at 62% 45%, rgba(255,255,255,0.07), transparent 26%), radial-gradient(circle at 8% 92%, rgba(5,7,11,0.62), transparent 46%)',
+        }}
+      />
     </div>
   );
 }
@@ -167,7 +181,7 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
       }}
     >
       <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <UsFlagBackground opacity={0.14} />
+        <UsFlagBackground strength={0.64} shade={0.33} />
         <div className="relative z-10 flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold tracking-normal text-white">记录详情</h2>
           <button
@@ -242,7 +256,7 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
       }}
     >
       <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <UsFlagBackground opacity={0.13} />
+        <UsFlagBackground strength={0.58} shade={0.38} />
         <div className="relative z-10 flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold tracking-normal text-white">复盘详情</h2>
           <button
@@ -1096,7 +1110,7 @@ export default function ReviewTab({ ctx }) {
                     }}
                     className="relative block w-full overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
-                    <UsFlagBackground opacity={0.055} />
+                    <UsFlagBackground strength={0.2} shade={0.48} />
                     <div className="relative z-10 flex items-start gap-4">
                       <div
                         className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
@@ -1194,7 +1208,7 @@ export default function ReviewTab({ ctx }) {
                     }}
                     className="relative block w-full overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
-                    <UsFlagBackground opacity={0.05} />
+                    <UsFlagBackground strength={0.18} shade={0.5} />
                     <div className="relative z-10 whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
                     {isLong && (
                       <div className="relative z-10 mt-2 text-[12px] text-white/38">

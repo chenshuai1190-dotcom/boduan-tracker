@@ -303,8 +303,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}'), 'discipline rows should render muted color rings');
   assert.ok(reviewTabSource.includes('function UsFlagBackground'), 'review page should define the shared faint US flag background');
   assert.ok(reviewTabSource.includes('data-us-flag-bg'), 'review page should expose a stable marker for the US flag background layer');
+  assert.ok(reviewTabSource.includes('scale(1.7)'), 'review flag background should render recognizable larger stars');
+  assert.ok(reviewTabSource.includes('linear-gradient(180deg, rgba(5,7,11,0.1)'), 'review flag background should keep a dark readability overlay');
   assert.ok(reviewTabSource.includes('className="relative block w-full overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5'), 'discipline rows should use the tightened card surface with clipped background texture');
-  assert.ok(reviewTabSource.includes('<UsFlagBackground opacity={0.055} />'), 'discipline rows should use a very faint US flag texture');
+  assert.ok(reviewTabSource.includes('<UsFlagBackground strength={0.2} shade={0.48} />'), 'discipline rows should use a quiet but recognizable US flag texture');
   assert.ok(reviewTabSource.includes('text-[14px] font-normal leading-[1.52] text-white/80'), 'discipline text should use the tightened body size');
   assert.ok(reviewTabSource.includes('mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35'), 'discipline and review metadata should match the detail modal gray treatment');
   assert.ok(reviewTabSource.includes('<span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>'), 'discipline date should use the same muted numeric meta treatment as review details');
@@ -315,7 +317,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(appSource.includes('<span className="text-base">{l.level}</span>'), false, 'discipline edit modal should not render emoji level icons');
   assert.ok(reviewTabSource.includes('function DisciplineDetailModal'), 'discipline rows should open a record detail modal');
   assert.ok(reviewTabSource.includes('记录详情'), 'discipline detail modal should use the record detail title');
-  assert.ok(reviewTabSource.includes('<UsFlagBackground opacity={0.14} />'), 'discipline detail modal should include the faint US flag background');
+  assert.ok(reviewTabSource.includes('<UsFlagBackground strength={0.64} shade={0.33} />'), 'discipline detail modal should include a clearly recognizable US flag background');
   assert.ok(reviewTabSource.includes('min-h-[168px]'), 'discipline detail modal should reserve enough space for short content');
   assert.ok(reviewTabSource.includes('formatDisciplineDetailText(discipline.text)'), 'discipline detail modal should render the full text body');
   assert.ok(reviewTabSource.includes("discipline.pinned ? '取消置顶' : '置顶'"), 'discipline detail modal must keep pin/unpin');
@@ -326,14 +328,14 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('return index >= currentYearIndex && index < currentYearIndex + 2'), 'annual target list should show only two years by default');
   assert.ok(reviewTabSource.includes('function ReviewLogDetailModal'), 'review logs should open a detail preview modal before editing');
   assert.ok(reviewTabSource.includes('复盘详情'), 'review log detail modal should use a dedicated detail title');
-  assert.ok(reviewTabSource.includes('<UsFlagBackground opacity={0.13} />'), 'review log detail modal should include the faint US flag background');
+  assert.ok(reviewTabSource.includes('<UsFlagBackground strength={0.58} shade={0.38} />'), 'review log detail modal should include a clearly recognizable US flag background');
   assert.ok(reviewTabSource.includes('min-h-[220px]'), 'review log detail modal should allow more preview space than discipline detail');
   assert.ok(reviewTabSource.includes('formatReviewLogDetailText(log.text)'), 'review log detail modal should render full review text');
   assert.ok(reviewTabSource.includes('setReviewLogAction(log)'), 'review log cards should open the preview modal');
   assert.ok(reviewTabSource.includes('openReviewLogEdit(reviewLogAction)'), 'review log detail modal should expose edit action');
   assert.ok(reviewTabSource.includes('deleteReviewLog(reviewLogAction)'), 'review log detail modal should expose delete action');
   assert.ok(reviewTabSource.includes('查看全文'), 'review log cards should preview longer text with a muted full-text hint');
-  assert.ok(reviewTabSource.includes('<UsFlagBackground opacity={0.05} />'), 'review log cards should use a very faint US flag texture');
+  assert.ok(reviewTabSource.includes('<UsFlagBackground strength={0.18} shade={0.5} />'), 'review log cards should use a quiet but recognizable US flag texture');
   assert.equal(reviewTabSource.includes('text-[13px] font-normal leading-[1.62] text-white/72'), false, 'review log cards should not keep the mismatched smaller body style');
   assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
@@ -355,8 +357,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.134'), 'settings version should document the review flag background update');
-  assert.ok(settingsTabSource.includes('投资戒律和复盘日志国旗背景'), 'settings changelog should describe the review flag background update');
+  assert.ok(settingsTabSource.includes('v10.7.9.135'), 'settings version should document the stronger review flag background update');
+  assert.ok(settingsTabSource.includes('投资戒律国旗背景增强'), 'settings changelog should describe the stronger review flag background update');
+  assert.ok(settingsTabSource.includes('投资戒律和复盘日志国旗背景'), 'settings changelog should retain the previous review flag background history');
   assert.ok(settingsTabSource.includes('首页恐慌模块回退旧版小卡'), 'settings changelog should retain the fear card rollback history');
 });
 
