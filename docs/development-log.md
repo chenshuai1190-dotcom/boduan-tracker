@@ -4,6 +4,33 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 复盘和戒律列表细节对齐
+
+- Commit: pending.
+- Background: 用户反馈复盘日志首页的日期和情绪使用复盘详情弹窗里的灰色效果更好,并要求复盘日志首页的字号、行距和颜色与投资戒律列表完全一致;同时投资戒律列表的日期和置顶标记也要改成详情弹窗同款灰色效果。
+- Changes:
+  - 复盘日志列表正文从旧 `13px / 1.62 / text-white/72` 调整为投资戒律同款 `14px / 1.52 / text-white/80`。
+  - 复盘日志列表底部日期和情绪 meta 调整为详情弹窗同款低饱和灰色体系:`12px`、`text-white/35`、`8px` 间距,情绪继续使用低色彩灰色胶囊。
+  - 投资戒律列表底部日期同步改为 `NUMBER_FONT` tabular 数字和同款灰色 meta 行;置顶胶囊保留功能,但和复盘详情的日期/情绪灰色层级一致。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.125`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页复盘日志和投资戒律列表的前端视觉细节对齐,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-qDrKxQ7M.css` 54.31 kB / gzip 9.99 kB,`ReviewTab-Do_QlTJz.js` 37.84 kB / gzip 8.71 kB,`SettingsTab-B60-thTq.js` 43.38 kB / gzip 16.24 kB,`App-DLWysUaW.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker check: `ReviewTab-Do_QlTJz.js` contains `text-[14px] font-normal leading-[1.52] text-white/80`, `mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35` and `tabular-nums`;it no longer contains old review log marker `text-[13px] font-normal leading-[1.62] text-white/72`;`SettingsTab-B60-thTq.js` contains `v10.7.9.125` and `复盘和戒律列表细节对齐`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
+  - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;投资戒律列表正文和复盘日志列表正文均为 `14px/400`,行高 `21.28px`,颜色 `rgba(255,255,255,0.8)`;戒律日期/置顶和复盘日期/情绪所在 meta 行均为 `12px`,颜色 `rgba(255,255,255,0.35)`,间距 `8px`;复盘日志列表卡片在 390px 视口内无横向溢出。
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.124` 的复盘日志列表小一档正文和戒律列表旧日期间距/颜色;不影响复盘日志数据、投资戒律数据、置顶/取消置顶、年度目标、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 复盘日志卡片和详情弹窗
 
 - Commit: `bfaac6673e4a187121c978a8e6701db3e360f347`

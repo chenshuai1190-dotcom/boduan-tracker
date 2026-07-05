@@ -275,6 +275,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}'), 'discipline rows should render muted color rings');
   assert.ok(reviewTabSource.includes('className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5'), 'discipline rows should use the tightened card surface');
   assert.ok(reviewTabSource.includes('text-[14px] font-normal leading-[1.52] text-white/80'), 'discipline text should use the tightened body size');
+  assert.ok(reviewTabSource.includes('mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35'), 'discipline and review metadata should match the detail modal gray treatment');
+  assert.ok(reviewTabSource.includes('<span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>'), 'discipline date should use the same muted numeric meta treatment as review details');
   assert.ok(reviewTabSource.includes('rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42'), 'discipline pinned badge should be muted and smaller');
   assert.ok(reviewTabSource.includes('inline-flex items-center gap-1 text-white/38'), 'discipline expand action should be muted gray');
   assert.equal(reviewTabSource.includes('<span className="text-[15px]">{discipline.level}</span>'), false, 'discipline rows should not render legacy emoji level icons');
@@ -298,7 +300,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('openReviewLogEdit(reviewLogAction)'), 'review log detail modal should expose edit action');
   assert.ok(reviewTabSource.includes('deleteReviewLog(reviewLogAction)'), 'review log detail modal should expose delete action');
   assert.ok(reviewTabSource.includes('查看全文'), 'review log cards should preview longer text with a muted full-text hint');
-  assert.ok(reviewTabSource.includes('text-[13px] font-normal leading-[1.62] text-white/72'), 'review log cards should use the new readable body style');
+  assert.equal(reviewTabSource.includes('text-[13px] font-normal leading-[1.62] text-white/72'), false, 'review log cards should not keep the mismatched smaller body style');
   assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
@@ -306,8 +308,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
-  assert.ok(settingsTabSource.includes('v10.7.9.124'), 'settings version should document the review log card and modal tune');
-  assert.ok(settingsTabSource.includes('复盘日志卡片和详情弹窗'), 'settings changelog should describe the review log card and modal tune');
+  assert.ok(settingsTabSource.includes('v10.7.9.125'), 'settings version should document the review and discipline meta alignment');
+  assert.ok(settingsTabSource.includes('复盘和戒律列表细节对齐'), 'settings changelog should describe the review and discipline meta alignment');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

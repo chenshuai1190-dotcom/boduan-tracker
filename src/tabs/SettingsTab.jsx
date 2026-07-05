@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.124
+                  v10.7.9.125
                 </span>
               </div>
             </div>
@@ -163,14 +163,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.124
+                  v10.7.9.125
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.124', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.125', date: '2026-07-05', latest: true,
+                    items: [
+                      '🎯 复盘和戒律列表细节对齐',
+                      '  - 复盘日志列表正文字号、行距和颜色同步投资戒律卡片',
+                      '  - 复盘日志日期和情绪改为详情弹窗同款灰色效果',
+                      '  - 投资戒律日期和置顶标记同步详情弹窗灰色效果',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.124', date: '2026-07-05',
                     items: [
                       '🎯 复盘日志卡片和详情弹窗',
                       '  - 复盘日志标题同步投资戒律标题效果',
@@ -1270,7 +1279,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.124</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.125</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

@@ -817,8 +817,8 @@ export default function ReviewTab({ ctx }) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
-                        <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[12px] text-white/33">
-                          <span>{discipline.date}</span>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
+                          <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>
                           {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">置顶</span>}
                           {isLong && (
                             <span
@@ -905,13 +905,13 @@ export default function ReviewTab({ ctx }) {
                     }}
                     className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
                   >
-                    <div className="whitespace-pre-wrap break-words text-[13px] font-normal leading-[1.62] text-white/72">{displayText}</div>
+                    <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
                     {isLong && (
                       <div className="mt-2 text-[12px] text-white/38">
                         查看全文 <span className="text-[13px] leading-none text-white/28">›</span>
                       </div>
                     )}
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2.5 text-[12px] text-white/33">
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
                       <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
                       {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}
                     </div>
