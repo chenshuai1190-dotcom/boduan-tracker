@@ -263,8 +263,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('targetGap'), 'current year card should show target gap/lag information');
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
-  assert.ok(reviewTabSource.includes('text-[21px] font-semibold leading-none tracking-normal text-white">投资戒律'), 'discipline section title should use the tightened heading size');
-  assert.ok(reviewTabSource.includes('h-7 w-1 shrink-0 rounded-full bg-[#f6a524]'), 'discipline section should use a compact vertical accent bar');
+  assert.ok(reviewTabSource.includes('mb-4 flex min-h-10 items-center justify-between gap-4'), 'discipline section title row should align with the add button');
+  assert.ok(reviewTabSource.includes('text-[19px] font-semibold leading-none tracking-normal text-white">投资戒律'), 'discipline section title should use the smaller heading size');
+  assert.ok(reviewTabSource.includes('h-5 w-1 shrink-0 rounded-full bg-[#f6a524]'), 'discipline section should use a shorter vertical accent bar');
+  assert.equal(reviewTabSource.includes('{disciplines.length} 条'), false, 'discipline section should not show a duplicate count under the title');
   assert.ok(reviewTabSource.includes('flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035]'), 'discipline add button should use a smaller low-color pill style');
   assert.ok(reviewTabSource.includes("dotColor: '#18d66b'"), 'discipline level metadata should use colored dots instead of icons');
   assert.ok(reviewTabSource.includes('mb-4 flex gap-2.5 overflow-x-auto'), 'discipline filters should stay compact enough for the mobile reference row');
@@ -287,8 +289,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.121'), 'settings version should document the discipline typography tune');
-  assert.ok(settingsTabSource.includes('投资戒律字体整体收紧'), 'settings changelog should describe the discipline typography tune');
+  assert.ok(settingsTabSource.includes('v10.7.9.122'), 'settings version should document the discipline heading tune');
+  assert.ok(settingsTabSource.includes('投资戒律标题行精简'), 'settings changelog should describe the discipline heading tune');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

@@ -584,12 +584,11 @@ export default function ReviewTab({ ctx }) {
       </section>
 
       <section className="mt-5">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-0.5 h-7 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
+        <div className="mb-4 flex min-h-10 items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[21px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
-              <div className="mt-1.5 text-[12px] font-normal text-white/38">{disciplines.length} 条</div>
+              <div className="truncate text-[19px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
             </div>
           </div>
           <button
