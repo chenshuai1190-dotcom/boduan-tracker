@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 首页恐慌模块回退旧版小卡
 
-- Commit: pending
+- Commit: `04a56415bd34f24bfd2b1ee8cb167fca9b36030a`
 - Background: 用户反馈连续调整后的 VIX/CNN 高保真恐慌模块不如最初旧版效果,要求回退到没有重做这两个模块之前的版本。回退目标选择为 `512fc644ef90636e6d266219f4dcfbb46adfa79c` 后的首页小卡状态:保留 VIX 标题灰色和正常字重修正,但撤销后续 `FearIndexCards.tsx` 高保真组件和 SVG 大卡样式。
 - Changes:
   - 首页 `HomeTab` 删除 `FearGreedIndexCard` / `VixFearIndexCard` 组件引用,恢复旧版 inline VIX 和 CNN 两列小卡。
