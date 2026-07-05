@@ -8,16 +8,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d` (`v10.7.9.110`)
-- 最近应用代码提交: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`
+- 当前产品基准提交: `cf9261d19198a746d904caca87d951adfced1b8d` (`v10.7.9.109`,已回退 `v10.7.9.110` 滚动条隐藏)
+- 最近应用代码提交: `cf9261d19198a746d904caca87d951adfced1b8d`
 - 最近文档/配置记录提交: 本文件所在最新提交
-- 设置页版本: `v10.7.9.110`
-- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8SzdCPcsKvgG63nWGpQHCAkUsaKa`
-- Vercel 部署记录: `v10.7.9.110` runtime commit `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`;production `GET https://boduan-tracker.vercel.app/?v=535fdca-runtime` HTTP 200
+- 设置页版本: `v10.7.9.109`
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5txhWXLfii1GHrwqcNsLbCSaZf2r`
+- Vercel 部署记录: `v10.7.9.109` rollback runtime commit `cf9261d19198a746d904caca87d951adfced1b8d`;production `GET https://boduan-tracker.vercel.app/?v=cf9261d-rollback` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化,以及 `v10.7.9.110` 全局原生滚动条指示隐藏。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 的全局下拉刷新、添加交易默认买入、波段/摊薄工具账本边界修复和防重复提交确认,`v10.7.9.94` 的波段记录小程序深色 UI 融入,`v10.7.9.95` 的波段记录字号收紧、状态点闪烁和自定义提示弹窗,`v10.7.9.96` 的波段记录继续压缩、备注入口恢复和已完成波段展开优化,`v10.7.9.97` 已完成波段独立归类视图和字号回调,`v10.7.9.98` 摊薄成本工具深色化和标题旧图标移除,`v10.7.9.99` 摊薄成本尾部加号、盈亏色、弹窗居中和文字可见性修复,`v10.7.9.100` 摊薄成本空股票标签过滤、行情拉取提示优化和交易记录入口,`v10.7.9.101` 下拉真刷新和摊薄交易输入显色修复,`v10.7.9.102` 下拉刷新手势触发强限制,`v10.7.9.103` 订单操作弹窗尺寸调整,`v10.7.9.104` 首页持仓和交易记录中文名同步,`v10.7.9.105` QQQ/TQQQ 英文显示修正,`v10.7.9.106` 资产模块深色 UI 重设计,`v10.7.9.107` 资产页深色外壳、字号按钮和走势图动效修复,`v10.7.9.108` 资产页字号和走势图细节对齐,`v10.7.9.109` 资产账户显示和操作优化;`v10.7.9.110` 全局原生滚动条隐藏已因滚动手感不够丝滑按用户反馈回退。
 
 ## 2. 先读这些文档
 
@@ -159,26 +159,26 @@ npm run dev -- --host 127.0.0.1
 
 最近完整验证记录:
 
-- `npm test`: pass,63 tests。
+- `npm test`: pass,62 tests。
 - `npm run build`: pass。
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.110` runtime 已推送并部署成功;runtime commit `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`, Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8SzdCPcsKvgG63nWGpQHCAkUsaKa`。
+- `v10.7.9.109` rollback runtime 已推送并部署成功;runtime commit `cf9261d19198a746d904caca87d951adfced1b8d`, Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5txhWXLfii1GHrwqcNsLbCSaZf2r`。
 
 已验证生产 runtime chunks:
 
-- 本轮本地构建 runtime chunks: `/assets/index-CbmD0bwK.css`, `/assets/index-DER_XfMB.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/SettingsTab-CeddnGEn.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/App-CM-n7vci.js`。
-- 生产 entry chunks: `/assets/index-BFwrnkun.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CbmD0bwK.css`。
-- 生产 runtime chunks: `/assets/App-DSuBgBLx.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/SettingsTab-CeddnGEn.js`, `/assets/ReviewTab-Bb_Mto4f.js`, `/assets/supabase-Bum0c5Lm.js`。
+- 本轮本地构建 runtime chunks: `/assets/index-CQxa_nU7.css`, `/assets/index-Gd5V_hBF.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/SettingsTab-DMb_eqzF.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/App-CeOFEQzN.js`。
+- 生产 entry chunks: `/assets/index-CdiGG0sE.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CQxa_nU7.css`。
+- 生产 runtime chunks: `/assets/App-DmhNKH-o.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/SettingsTab-DMb_eqzF.js`, `/assets/ReviewTab-Bb_Mto4f.js`。
 
 关键 marker:
 
-- 生产 `index-CbmD0bwK.css` 包含全局隐藏滚动条视觉规则 `scrollbar-width:none`、`::-webkit-scrollbar`、`display:none` 和 `overscroll-behavior-y:none`,用于取消页面滚动或全局下拉时右侧灰白原生滚动条指示。
-- 生产 `App-DSuBgBLx.js` 引用最新业务 chunks,包括 `SettingsTab-CeddnGEn.js`、`AnalysisTab-S1iYuxfx.js`、`HomeTab-MC5TFijP.js` 和 `TradesTab-GTTATZ2u.js`。
+- 生产 `index-CQxa_nU7.css` 的根 `html,body,#root` 规则只保留 margin/padding/font-family,不再包含全局隐藏 scrollbar 或 `overscroll-behavior-y:none`;保留的 `[scrollbar-width\:none]` 是局部 Tailwind utility,不是已回退的全局规则。
+- 生产 `App-DmhNKH-o.js` 引用最新业务 chunks,包括 `SettingsTab-DMb_eqzF.js`、`AnalysisTab-S1iYuxfx.js`、`HomeTab-MC5TFijP.js` 和 `TradesTab-GTTATZ2u.js`。
 - 生产 `AnalysisTab-S1iYuxfx.js` 包含资产模块深色 UI、`assetDrawLine` / `assetAreaFadeIn` / `assetDotPop` 走势图动效、自动汇率换算逻辑、`账户操作`、`修改账户`、`保存修改`、`请选择账户类型` 和 `先选择类型,再输入账户名`;且不包含旧手动汇率控件文案 `美元汇率` / `港币汇率`。
 - 生产 entry/App/Analysis/Settings chunks 不包含 `DevVisualPreview`;开发态资产视觉预览只在 `import.meta.env.DEV` 且缺少 Supabase 配置时启用。
-- 生产 `SettingsTab-CeddnGEn.js` 包含 `v10.7.9.110`、`隐藏全局原生滚动条指示` 和 `右侧灰白原生滚动条`。
+- 生产 `SettingsTab-DMb_eqzF.js` 包含 `v10.7.9.109`,且不包含 `v10.7.9.110`、`隐藏全局原生滚动条指示` 或 `右侧灰白原生滚动条`。
 - 生产 runtime chunks 不包含旧工具可见标签 `股票设置</span>`。
 - 生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
@@ -186,7 +186,7 @@ npm run dev -- --host 127.0.0.1
 
 ### 全局显示和滚动
 
-- `v10.7.9.110`: 全局隐藏浏览器/系统原生 scrollbar 视觉和根页面纵向 overscroll 跟随效果,取消全局下拉刷新或页面滚动时最右侧灰白滚动条露出;页面、表格、弹窗和内部列表仍可正常滚动,只是隐藏原生滚动条指示。
+- `v10.7.9.110` 已回退: 全局隐藏浏览器/系统原生 scrollbar 视觉和根页面 `overscroll-behavior-y:none` 会让下拉和滚动手感不够丝滑,当前 `cf9261d` 已撤回这些全局 CSS 规则,恢复上一版原生滚动与回弹手感。右侧灰白原生滚动条指示可能按系统规则短暂出现,这是本次回退后的预期取舍。
 
 ### 资产模块
 
@@ -437,7 +437,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.110` 或更新版本。
+- 设置页显示 `v10.7.9.109` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -452,11 +452,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d` (`v10.7.9.110`)
-最近应用代码提交: `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`
-设置页版本: `v10.7.9.110`
-Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8SzdCPcsKvgG63nWGpQHCAkUsaKa`
-部署记录: `v10.7.9.110` runtime commit `535fdca51d3ccdaa718e5b16e152c9bfc6138f7d`;production `GET https://boduan-tracker.vercel.app/?v=535fdca-runtime` HTTP 200
+当前产品基准提交: `cf9261d19198a746d904caca87d951adfced1b8d` (`v10.7.9.109`,已回退 `v10.7.9.110` 滚动条隐藏)
+最近应用代码提交: `cf9261d19198a746d904caca87d951adfced1b8d`
+设置页版本: `v10.7.9.109`
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5txhWXLfii1GHrwqcNsLbCSaZf2r`
+部署记录: `v10.7.9.109` rollback runtime commit `cf9261d19198a746d904caca87d951adfced1b8d`;production `GET https://boduan-tracker.vercel.app/?v=cf9261d-rollback` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -486,7 +486,7 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- 全局已隐藏浏览器/系统原生滚动条视觉和根页面纵向 overscroll 跟随效果;全局下拉刷新或页面滚动时最右侧灰白原生滚动条不再露出,但页面、表格、弹窗和内部列表仍可正常滚动。
+- 已按用户反馈回退 `v10.7.9.110` 全局隐藏原生滚动条方案;当前恢复上一版原生滚动与回弹手感,右侧灰白原生滚动条指示可能按系统规则短暂出现。
 - 首屏加载已按用户反馈从 mini 钱袋动效回退到上一版圆环效果;线上 `/loading-mascot.png` 已返回 404。
 - 设置页深色化和账户设置整理。
 - 首页自选添加/编辑/排序/删除。
