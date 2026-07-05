@@ -4,6 +4,33 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 隐藏全局原生滚动条指示
+
+- Commit: `same commit`
+- Background: 用户截图反馈全局下拉刷新时页面最右侧出现灰白色跟随条。排查确认该条不是应用自绘的顶部下拉刷新胶囊,而是 iOS/WebKit 在页面或内部滚动容器滚动时自动显示的原生 scrollbar / overscroll 指示器,在深色界面里非常显眼。
+- Changes:
+  - `src/index.css` 对 `html`、`body`、`#root` 和所有滚动元素增加全局隐藏滚动条视觉规则: `scrollbar-width: none`、`-ms-overflow-style: none` 和 `*::-webkit-scrollbar { display: none; width: 0; height: 0; }`。
+  - 根滚动容器增加 `overscroll-behavior-y: none`,减少系统原生纵向 overscroll 跟随效果和应用内下拉刷新手势叠在一起。
+  - 保留页面、表格、弹窗和内部列表的滚动能力;本次只隐藏原生滚动条视觉,不关闭滚动。
+  - `tests/tool-ledger-boundaries.test.js` 增加源码级回归测试,锁定全局隐藏滚动条规则和根页面 overscroll 约束。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.110`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是全局前端视觉层修复,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库或 `/api/quote` 鉴权。
+- Key files:
+  - `src/index.css`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm ci`: pass, 0 vulnerabilities.
+  - `npm test`: pass, 63 tests.
+  - `npm run build`: pass; `index-CbmD0bwK.css` 54.21 kB / gzip 9.96 kB, `SettingsTab-CeddnGEn.js` 38.57 kB / gzip 14.64 kB, `App-CM-n7vci.js` 142.94 kB / gzip 40.95 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local source/build marker check: pass; source contains global `scrollbar-width: none`, `-ms-overflow-style: none`, `*::-webkit-scrollbar`, `display: none`, `overscroll-behavior-y: none`, Settings source contains `v10.7.9.110` and `隐藏全局原生滚动条指示`, and built `index-CbmD0bwK.css` contains compressed root scrollbar/overscroll rules plus hidden WebKit scrollbar rule.
+- Deployment: Not deployed yet; current changes are local and validated.
+- Production verification: Not performed yet; requires deployment before production marker/API verification.
+- Rollback: 回滚本次改动会恢复浏览器/系统原生滚动条在页面滚动或全局下拉时可见的问题;不影响全局下拉刷新数据逻辑、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 交接文档补强本地调试提效说明
 
 - Commit: docs-only handoff refresh commit;以本条所在提交为准。
