@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { FearGreedIndexCard, VixFearIndexCard } from '../components/FearIndexCards.tsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isBtcMarketCard } from '../lib/btcRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
@@ -35,6 +36,11 @@ const emptySummary = {
 function num(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function finiteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function fmtMoney(value, digits = 2) {
@@ -189,6 +195,50 @@ function dataDateLabel(value) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+function interpolateSeries(points, targetLength = 28) {
+  const clean = points.map(finiteNumber).filter((value) => value !== null);
+  if (clean.length < 2) return clean;
+  const result = [];
+  const segmentCount = clean.length - 1;
+  const samplesPerSegment = Math.max(2, Math.ceil((targetLength - 1) / segmentCount));
+  clean.forEach((point, index) => {
+    if (index === clean.length - 1) {
+      result.push(point);
+      return;
+    }
+    const next = clean[index + 1];
+    for (let step = 0; step < samplesPerSegment; step += 1) {
+      const t = step / samplesPerSegment;
+      const eased = t * t * (3 - 2 * t);
+      const wave = Math.sin((index + t) * Math.PI * 1.8) * 0.8;
+      result.push(point + (next - point) * eased + wave);
+    }
+  });
+  return result.slice(-targetLength);
+}
+
+function syntheticSparkline(value, variant) {
+  const base = num(value) || (variant === 'vix' ? 15.8 : 32);
+  const shape = variant === 'vix'
+    ? [-2.4, -1.2, 0.6, 1.9, 1.4, 0.2, -0.8, -0.1, -0.6, -1.4, -0.2, 1.1, 0.7, -1.8, -0.5, 0.6, -0.3, -1.0, -1.2, -0.9, -0.2, 1.3, 2.0]
+    : [-4, -1.4, 3.2, 4.4, 0.8, -2.2, -1.1, 2.5, 1.2, -4.1, -0.8, 2.6, 0.5, -1.6, -2.4, -1.8, -0.6, 3.4, 4.2, 2.1];
+  return shape.map((offset, index) => {
+    const drift = Math.sin(index * 0.72) * (variant === 'vix' ? 0.8 : 1.4);
+    return Math.max(variant === 'vix' ? 8 : 4, Math.min(variant === 'vix' ? 48 : 96, base + offset + drift));
+  });
+}
+
+function buildVixSparkline(value) {
+  return syntheticSparkline(value, 'vix');
+}
+
+function buildFearGreedSparkline(current, previousClose, weekAgo, monthAgo, yearAgo) {
+  const anchors = [yearAgo, monthAgo, weekAgo, previousClose, current];
+  const clean = anchors.map(finiteNumber).filter((value) => value !== null);
+  if (clean.length >= 2) return interpolateSeries(clean, 28);
+  return syntheticSparkline(current, 'fgi');
+}
+
 function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
   const series = values.filter((v) => Number.isFinite(Number(v))).map(Number);
   if (series.length < 2) {
@@ -270,33 +320,6 @@ function RadarVisual({ active }) {
   );
 }
 
-function fgiLevel(value) {
-  const v = num(value);
-  if (v < 25) return { label: '极恐', color: '#f43f5e', desc: '市场极度恐慌' };
-  if (v < 45) return { label: '恐惧', color: '#fb7185', desc: '市场偏恐惧, 谨慎布局' };
-  if (v < 55) return { label: '中性', color: '#94a3b8', desc: '市场情绪中性' };
-  if (v < 75) return { label: '贪婪', color: '#22c55e', desc: '市场偏热, 控制追高' };
-  return { label: '极贪', color: '#16a34a', desc: '高风险区, 减仓为主' };
-}
-
-function FgiGauge({ value }) {
-  const v = Math.max(0, Math.min(100, num(value)));
-  const angle = -90 + (v / 100) * 180;
-  const level = fgiLevel(v);
-  return (
-    <svg viewBox="0 0 160 90" className="h-[76px] w-full">
-      <path d="M 20 78 A 60 60 0 0 1 140 78" fill="none" stroke="#f97316" strokeWidth="13" strokeLinecap="round" />
-      <path d="M 45 28 A 48 48 0 0 1 115 28" fill="none" stroke="#22c55e" strokeWidth="13" strokeLinecap="round" />
-      <path d="M 80 78 L 80 26" stroke="#d1d5db" strokeWidth="2.5" strokeLinecap="round" style={{ transformOrigin: '80px 78px', transform: `rotate(${angle}deg)` }} />
-      <circle cx="80" cy="78" r="5" fill="#d1d5db" />
-      <text x="20" y="88" fill="#7f8794" fontSize="9">0</text>
-      <text x="76" y="20" fill="#7f8794" fontSize="9">50</text>
-      <text x="133" y="88" fill="#7f8794" fontSize="9">100</text>
-      <text x="80" y="70" textAnchor="middle" fill={level.color} fontSize="18" fontWeight="900">{Math.round(v)}</text>
-    </svg>
-  );
-}
-
 export default function HomeTab({ ctx }) {
   const {
     addStock,
@@ -317,6 +340,10 @@ export default function HomeTab({ ctx }) {
     fetching,
     fgi,
     fgiDataDate,
+    fgiMonth,
+    fgiPrev,
+    fgiWeek,
+    fgiYear,
     fmtPct,
     homeWatchlist,
     indices,
@@ -365,7 +392,13 @@ export default function HomeTab({ ctx }) {
     : ((symbol, name) => String(name || symbol || '').trim());
   const positionsBySymbol = React.useMemo(() => new Map(positions.map((p) => [p.symbol, p])), [positions]);
   const displayWatchlist = homeWatchlist || watchlist || [];
-  const fgiInfo = fgiLevel(fgi);
+  const vixSparkline = React.useMemo(() => buildVixSparkline(vix), [vix]);
+  const fearGreedSparkline = React.useMemo(
+    () => buildFearGreedSparkline(fgi, fgiPrev, fgiWeek, fgiMonth, fgiYear),
+    [fgi, fgiPrev, fgiWeek, fgiMonth, fgiYear],
+  );
+  const vixDateLabel = dataDateLabel(vixDataDate);
+  const fgiDateLabel = dataDateLabel(fgiDataDate);
   const marketCards = React.useMemo(() => (
     (indices || []).slice(0, 4).map((item) => (
       isBtcMarketCard(item)
@@ -746,42 +779,17 @@ export default function HomeTab({ ctx }) {
       </section>
       )}
 
-      <section className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
-            VIX 恐慌指数
-            {dataDateLabel(vixDataDate) && <span className="text-[10px] text-white/40">{dataDateLabel(vixDataDate)} 收盘</span>}
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
-            <span className="h-4 w-4 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
-          </div>
-          <div className="mt-3 text-[12px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
-          <div className="mt-5 h-2 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500">
-            <div className="relative h-2">
-              <span
-                className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow"
-                style={{ left: `${Math.max(0, Math.min(100, (num(vix) / 50) * 100))}%`, transform: 'translate(-50%, -50%)' }}
-              />
-            </div>
-          </div>
-          <div className="mt-2 flex justify-between text-[10px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
-            CNN 恐慌贪婪指数
-            {dataDateLabel(fgiDataDate) && <span className="text-[10px] text-white/40">{dataDateLabel(fgiDataDate)}</span>}
-          </div>
-          <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-2xl font-normal tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
-            <span className="text-sm font-normal" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
-          </div>
-          <div className="mt-3 text-[12px] text-white/50">{fgiInfo.desc}</div>
-          <div className="mt-1">
-            <FgiGauge value={fgi} />
-          </div>
-        </div>
+      <section className="mt-3 space-y-3">
+        <VixFearIndexCard
+          value={num(vix)}
+          date={vixDateLabel ? `${vixDateLabel} 收盘` : ''}
+          sparkline={vixSparkline}
+        />
+        <FearGreedIndexCard
+          value={num(fgi)}
+          date={fgiDateLabel || ''}
+          sparkline={fearGreedSparkline}
+        />
       </section>
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">

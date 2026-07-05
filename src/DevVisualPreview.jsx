@@ -1,7 +1,26 @@
 import React, { lazy, Suspense } from 'react';
-import { BookOpen, Calendar, ChevronDown, ChevronUp, Edit2, Home, ListChecks, Pin, Settings, Target, Trash2, Wallet, X } from 'lucide-react';
+import {
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Edit2,
+  Home,
+  ListChecks,
+  Loader2,
+  Pin,
+  RefreshCw,
+  Settings,
+  Target,
+  Trash2,
+  Wallet,
+  X,
+} from 'lucide-react';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
+const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 
 const USD_RATE = 6.77;
@@ -52,6 +71,27 @@ const mockReviewLogs = [
   { id: 'dev_log_5', date: '2026-04-30', mood: '满意', text: '今天 meta 大跌, 按照我以前性格融资早就干进去了, 现在我考虑的是更多的是风险控制和仓位管理。市场永远有机会, 活下来才有未来。' },
 ];
 
+const mockMarketIntraday = {
+  red: [44, 43.5, 42.8, 42.2, 41.4, 40.8, 39.6, 38.9, 39.4, 38.2, 37.9, 38.4, 39.8, 40.6],
+  green: [36, 34.5, 32.8, 31.9, 30.7, 29.4, 28.8, 28.2, 27.9, 28.3, 29.6, 30.8, 30.9, 30.9],
+  pink: [30, 31.4, 30.2, 31.7, 30.9, 30.1, 29.8, 30.4, 32.1, 31.2, 33.4, 34.8, 36.2, 39.1],
+  btc: [34, 37.2, 36.5, 31.1, 27.2, 28.6, 29.5, 30.4, 31.2, 30.5, 31.8, 32.6, 33.4, 34.7],
+};
+
+const mockIndices = [
+  { ticker: '.SPX', displaySymbol: '.SPX', name: '标普500', price: 7483.24, changePercent: 0, intraday: mockMarketIntraday.red },
+  { ticker: '.NDX', displaySymbol: '.NDX', name: '纳斯达克100', price: 29329.21, changePercent: -1.61, intraday: mockMarketIntraday.green },
+  { ticker: '.DJI', displaySymbol: '.DJI', name: '道琼斯', price: 52900.07, changePercent: 1.14, intraday: mockMarketIntraday.pink },
+  { ticker: 'BTCUSD', displaySymbol: 'BTCUSD', name: 'BTC/USD', price: 62781.92, changePercent: 0.31, intraday: mockMarketIntraday.btc, realtime: true },
+];
+
+const mockHomeWatchlist = [
+  { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },
+  { symbol: 'MSFT', name: '微软', price: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, intraday: mockMarketIntraday.red },
+  { symbol: 'AAPL', name: '苹果', price: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, intraday: mockMarketIntraday.green },
+  { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
+];
+
 function DevModal({ title, onCancel }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md" onClick={onCancel}>
@@ -88,7 +128,20 @@ function makeSnapshots(accounts) {
 export default function DevVisualPreview() {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (typeof window === 'undefined') return 'analysis';
-    return new URLSearchParams(window.location.search).get('tab') === 'review' ? 'review' : 'analysis';
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    return ['home', 'analysis', 'review'].includes(requestedTab) ? requestedTab : 'analysis';
+  });
+  const [homeWatchlist, setHomeWatchlist] = React.useState(() => mockHomeWatchlist);
+  const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
+  const [benchmarkSymbol, setBenchmarkSymbol] = React.useState('QQQ');
+  const [showAddStock, setShowAddStock] = React.useState(false);
+  const [newStock, setNewStock] = React.useState({
+    symbol: '',
+    name: '',
+    price: '',
+    high: '',
+    cost: '0',
+    shares: '0',
   });
   const [accounts, setAccounts] = React.useState(() => baseAccounts);
   const [snapshots, setSnapshots] = React.useState(() => makeSnapshots(baseAccounts));
@@ -194,6 +247,90 @@ export default function DevVisualPreview() {
     usdRate: USD_RATE,
   };
 
+  const homeCtx = {
+    addStock: async (stock) => {
+      const symbol = String(stock?.symbol || '').trim().toUpperCase();
+      if (!symbol) return { success: false, error: '请输入股票代码' };
+      const item = {
+        symbol,
+        name: stock?.name || symbol,
+        price: Number(stock?.price) || 0,
+        changePercent: 0,
+        high: Number(stock?.high) || Number(stock?.price) || 0,
+        ytdChangePercent: null,
+        intraday: mockMarketIntraday.red,
+      };
+      setHomeWatchlist((current) => [item, ...current.filter((row) => row.symbol !== symbol)]);
+      return { success: true, item };
+    },
+    benchmarkDrawdown: -0.045,
+    benchmarkMenuOpen,
+    benchmarkOptions: [
+      { symbol: 'QQQ', name: 'QQQ' },
+      { symbol: 'SPY', name: 'SPY' },
+      { symbol: 'TQQQ', name: 'TQQQ' },
+    ],
+    benchmarkStatus: { text: '等待中', desc: '回撤<5%, 空仓等待' },
+    benchmarkStock: { symbol: benchmarkSymbol, price: 714.22, high: 747.82 },
+    benchmarkSymbol,
+    btcRealtimeLastTick: Date.now(),
+    btcRealtimeStatus: 'live',
+    cacheStockLogo: () => {},
+    CheckCircle2,
+    ChevronRight,
+    deleteWatchlistItem: async (symbol) => {
+      setHomeWatchlist((current) => current.filter((row) => row.symbol !== symbol));
+      return { success: true };
+    },
+    displayStockName: (symbol, name) => name || symbol,
+    fetchRealtimePrices: async () => {},
+    fetching: false,
+    fgi: 32,
+    fgiDataDate: '2026-07-03T00:00:00.000Z',
+    fgiMonth: 28,
+    fgiPrev: 34,
+    fgiWeek: 36,
+    fgiYear: 42,
+    fmtPct: null,
+    homeWatchlist,
+    indices: mockIndices,
+    investmentSummary: {
+      activePositions: [
+        { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },
+        { symbol: 'MSFT', name: '微软', currentPrice: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, totalPnl: 31400, totalPnlPct: 0.19 },
+        { symbol: 'AAPL', name: '苹果', currentPrice: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, totalPnl: -4200, totalPnlPct: -0.03 },
+      ],
+      positions: [],
+      totalAssetsUsd: 3365931,
+      totalAssetsCny: 24286383.55,
+      todayPnl: -1485.6,
+      todayPnlPct: -0.0004,
+      cumulativePnl: 118433.6,
+      cumulativePnlPct: 0.0365,
+      holdingStockCount: 6,
+      sellTradeCount: 0,
+      usdRate: 7.215,
+    },
+    Loader2,
+    logoCache: {},
+    marketColorMode: 'redUpGreenDown',
+    newStock,
+    RefreshCw,
+    reorderWatchlist: async (next) => {
+      setHomeWatchlist(next);
+      return { success: true };
+    },
+    setBenchmarkMenuOpen,
+    setBenchmarkSymbol,
+    setNewStock,
+    setShowAddStock,
+    showAddStock,
+    vix: 15.8,
+    vixDataDate: '2026-07-03T00:00:00.000Z',
+    vixSignal: 'calm',
+    watchlist: homeWatchlist,
+  };
+
   const reviewCtx = {
     BookOpen,
     Calendar,
@@ -255,7 +392,9 @@ export default function DevVisualPreview() {
   return (
     <div className="min-h-screen bg-[#05070b] px-4 pb-24 text-white" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
-        {activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />}
+        {activeTab === 'home'
+          ? <HomeTab ctx={homeCtx} />
+          : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
       </Suspense>
 
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>

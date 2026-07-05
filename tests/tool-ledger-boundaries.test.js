@@ -7,6 +7,7 @@ const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.u
 const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+const fearIndexCardsSource = readFileSync(new URL('../src/components/FearIndexCards.tsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
@@ -333,18 +334,30 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
-  assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
+  assert.ok(devVisualPreviewSource.includes("['home', 'analysis', 'review'].includes(requestedTab)"), 'local visual preview should support opening home and review tabs directly');
+  assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
+  assert.ok(devVisualPreviewSource.includes('<HomeTab ctx={homeCtx} />'), 'local visual preview should render the home page mock');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
-  assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'VIX/CNN card titles should stay muted and normal-weight');
-  assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'VIX number should not use the previous heavy weight');
-  assert.ok(homeTabSource.includes('text-2xl font-normal tabular-nums'), 'CNN number should not use the previous heavy weight');
-  assert.ok(homeTabSource.includes('text-sm font-normal'), 'CNN fear/greed label should not use the previous heavy weight');
-  assert.equal(homeTabSource.includes('text-[12px] font-semibold text-amber-300/90'), false, 'VIX title should not keep the old amber emphasis');
-  assert.equal(homeTabSource.includes('text-2xl font-black text-emerald-400 tabular-nums'), false, 'VIX number should not return to font-black');
-  assert.equal(homeTabSource.includes('text-2xl font-black tabular-nums'), false, 'CNN number should not return to font-black');
-  assert.ok(settingsTabSource.includes('v10.7.9.129'), 'settings version should document the home fear index visual weight tuning');
-  assert.ok(settingsTabSource.includes('首页恐慌指数视觉降重'), 'settings changelog should describe the home fear index visual weight tuning');
+  assert.ok(homeTabSource.includes("import { FearGreedIndexCard, VixFearIndexCard } from '../components/FearIndexCards.tsx';"), 'home should import the high-fidelity fear index cards');
+  assert.ok(homeTabSource.includes('<VixFearIndexCard'), 'home should render the redesigned VIX fear index card');
+  assert.ok(homeTabSource.includes('<FearGreedIndexCard'), 'home should render the redesigned fear greed index card');
+  assert.ok(homeTabSource.includes('buildFearGreedSparkline(fgi, fgiPrev, fgiWeek, fgiMonth, fgiYear)'), 'home should derive fear greed sparkline data from available FGI history');
+  assert.equal(homeTabSource.includes('grid grid-cols-2 gap-3'), false, 'home fear cards should not remain as two-column mini cards');
+  assert.ok(fearIndexCardsSource.includes('export const getPosition'), 'VIX risk bar must keep a value-to-position mapping helper');
+  assert.ok(fearIndexCardsSource.includes('export const valueToAngle'), 'fear greed gauge must keep a value-to-angle mapping helper');
+  assert.ok(fearIndexCardsSource.includes('export const describeArc'), 'fear greed gauge must keep the SVG arc path helper');
+  assert.ok(fearIndexCardsSource.includes('data-home-fear-card="vix"'), 'VIX card should expose a stable visual marker');
+  assert.ok(fearIndexCardsSource.includes('data-home-fear-card="fear-greed"'), 'fear greed card should expose a stable visual marker');
+  assert.ok(fearIndexCardsSource.includes('VIX 恐慌指数'), 'VIX card title should stay in the dedicated component');
+  assert.ok(fearIndexCardsSource.includes('恐慌贪婪指数'), 'fear greed card title should stay in the dedicated component');
+  assert.ok(fearIndexCardsSource.includes('低恐慌'), 'VIX card should keep the low fear zone label');
+  assert.ok(fearIndexCardsSource.includes('中等恐慌'), 'VIX card should keep the medium fear zone label');
+  assert.ok(fearIndexCardsSource.includes('高恐慌'), 'VIX card should keep the high fear zone label');
+  assert.ok(fearIndexCardsSource.includes('极度恐惧'), 'fear greed card should keep the extreme fear zone label');
+  assert.ok(fearIndexCardsSource.includes('极度贪婪'), 'fear greed card should keep the extreme greed zone label');
+  assert.ok(settingsTabSource.includes('v10.7.9.130'), 'settings version should document the high-fidelity fear card redesign');
+  assert.ok(settingsTabSource.includes('首页恐慌指标高保真卡片'), 'settings changelog should describe the high-fidelity fear card redesign');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

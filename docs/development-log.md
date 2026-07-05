@@ -4,6 +4,38 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 首页恐慌指标高保真卡片
+
+- Commit: `87513eebaa76b0d4906d3d8a55e4b41d3641ffbd`
+- Background: 用户提供 VIX 恐慌指数和 CNN 恐慌贪婪指数两张高保真效果图,要求首页这两个模块按参考图实现暗黑高级金融卡片,包含 SVG sparkline、VIX 横向风险条和 CNN 半圆仪表盘,不能停留在原两列小卡片效果。
+- Changes:
+  - 新增 `src/components/FearIndexCards.tsx`,提供 `VixFearIndexCard` 和 `FearGreedIndexCard` 两个单文件 React + TypeScript + SVG 金融卡片组件。
+  - `VixFearIndexCard` 实现全宽深色卡片、绿色发光大数值、状态圆点、140x40 SVG sparkline、0-50 横向风险条、0/20/30/50 主刻度、密集细分刻度、发光 indicator 和三段低/中/高恐慌标签。
+  - `FearGreedIndexCard` 实现全宽深色卡片、红色发光大数值、状态文本、140x40 SVG sparkline、0-100 半圆 gauge、红黄绿渐变弧线、tick 分割线、发光指针、中心 glow ring 和五段情绪标签。
+  - 首页 `HomeTab` 从旧两列 VIX/CNN 小卡改为纵向全宽高保真卡片,复用现有 VIX/FGI 数值和日期,并基于现有 FGI 历史字段生成 sparkline。
+  - Tailwind 扫描范围扩展到 `ts/tsx`,确保新组件中的原子样式会进入生产 CSS。
+  - 本地缺 Supabase 配置时的 `DevVisualPreview` 新增 `?tab=home` 首页 mock,方便直接在 390px 手机视口验证首页恐慌卡片,仍不连接真实 Supabase、不提交 `.env`、不改生产数据。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.130`。
+  - 测试更新首页恐慌卡片 marker、SVG helper 和设置页版本保护点,防止回退到旧两列小卡片。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页展示组件重构,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/components/FearIndexCards.tsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tailwind.config.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-Dsv8WFFh.css`,`HomeTab-D9pJyb08.js`,`SettingsTab-D6Cq8s1c.js`,`App-B_ap-HHi.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;both fear cards rendered full-width `358px`,VIX card height `294px`,CNN card height `344px`,sparkline SVGs `140x40`,no document-level horizontal overflow;CNN gauge gradient uses `gradientUnits="userSpaceOnUse"` so red/yellow/green arc is visible.
+  - Build marker check: pass;built `HomeTab-D9pJyb08.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `gradientUnits`;built `SettingsTab-D6Cq8s1c.js` contains `v10.7.9.130` and `首页恐慌指标高保真卡片`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment: pending.
+- Rollback: 恢复 `src/tabs/HomeTab.jsx` 中旧 VIX/CNN 两列小卡片,删除 `src/components/FearIndexCards.tsx` 引用并回退设置页 `v10.7.9.130` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 首页恐慌指数视觉降重
 
 - Commit: `512fc644ef90636e6d266219f4dcfbb46adfa79c`
