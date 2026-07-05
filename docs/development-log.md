@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 目标页细节修正
 
-- Commit: pending runtime commit.
+- Commit: `331d5178c7ab5c4c0b5d991800b24e1c2d11ab03`
 - Background: 用户在目标页截图中反馈三点:底部出现 `行情拉取失败:行情网络请求失败,已保留现有数据` toast,需要确认是否旧接口残留;北极星头卡 `我要变的很有钱` 目标提醒文案在上次调整 `设置` 按钮时被同步上移,需要单独下调且不再移动设置按钮;年度目标里的年份数字比效果图更粗更大,需要保留粗体但缩小并降低字重。
 - Findings:
   - 红色 toast 不是旧直连行情接口残留。浏览器直连 EODHD 仍然移除,实时行情继续只通过已登录 `/api/quote` relay。
@@ -31,8 +31,20 @@
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;北极星卡 `358x244`;目标提醒文案 `“我要变的很有钱! 有钱有钱有钱!”` 为 12px 正常字重且无 transform,离卡片底边约 `7px`;`设置` 按钮仍单独 `translateY(-8px)`,离卡片底边约 `6.5px`;年度 `2026` 为 28px/700,`2027` 为 22px/700;目标页未显示行情失败 toast;页面 `scrollWidth=390`,无横向溢出。
   - Build marker check: pass; built App chunk gates the quote error toast to `['home', 'trades']`, built ReviewTab chunk contains the natural motto row, independently lifted settings button, `text-[28px] font-bold` current year and `text-[22px] font-bold` future year markers;built `SettingsTab-BJIarOOw.js` contains `v10.7.9.117` and `目标页细节修正`;built CSS does not contain `overscroll-behavior-y:none`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `331d5178c7ab5c4c0b5d991800b24e1c2d11ab03`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9WAMfEBKvXXG7yaLmTQqdpjDno54`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=331d517-runtime3`: HTTP 200.
+  - Production entry chunks: `/assets/index-iuBhIWkq.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-DUpTtqGm.css`.
+  - Production runtime chunks include `/assets/App-CZk7kq2l.js`, `/assets/ReviewTab-9pzZj3Y2.js`, `/assets/SettingsTab-BJIarOOw.js`.
+- Production verification:
+  - Production App marker check: `App-CZk7kq2l.js` references `ReviewTab-9pzZj3Y2.js` and `SettingsTab-BJIarOOw.js`, and gates the quote failure toast to `home` / `trades`.
+  - Production ReviewTab marker check: `ReviewTab-9pzZj3Y2.js` contains the natural motto row, independently lifted settings button, `text-[28px] font-bold` current year and `text-[22px] font-bold` future year markers.
+  - Production SettingsTab marker check: `SettingsTab-BJIarOOw.js` contains `v10.7.9.117` and `目标页细节修正`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-DUpTtqGm.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status and `v10.7.9.116` deployment references with the actual `v10.7.9.117` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次目标页细节修正会恢复行情失败 toast 在所有 tab 显示、北极星底部整行一起上移、年度年份数字回到更大的 `font-black`;不影响 `/api/quote` 鉴权、行情 relay、交易账本、目标数据或 RLS。
 
 ### 2026-07-05 - 主资产数字小数层级同步
