@@ -407,7 +407,7 @@ export default function ReviewTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowPlanSettings(true)}
-            className="shrink-0 -translate-y-2 rounded-xl border border-[#f6b54b]/20 bg-black/20 px-3 py-1.5 text-[12px] font-normal text-[#ffd18a] active:scale-95"
+            className="shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] font-normal text-white/65 active:scale-95"
           >
             设置
           </button>
@@ -540,13 +540,13 @@ export default function ReviewTab({ ctx }) {
 
                 <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-black/15 px-3 py-3">
                   <div>
-                    <div className="text-[11px] text-white/38">起点 ({yearItem.year - 1}目标)</div>
-                    <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance)}</div>
+                    <div className="text-[11px] text-white/38">起点</div>
+                    <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance)}</div>
                   </div>
                   <div className="px-4 text-white/25">→</div>
                   <div className="text-right">
-                    <div className="text-[11px] text-white/38">目标 ({yearItem.year})</div>
-                    <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
+                    <div className="text-[11px] text-white/38">目标</div>
+                    <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                   </div>
                 </div>
 
@@ -560,7 +560,7 @@ export default function ReviewTab({ ctx }) {
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-white" />
-                    <span className="h-px flex-1 border-t border-dashed border-[#f6b54b]/45" />
+                    <span className="h-px flex-1 border-t border-dashed border-white/25" />
                     <span className="h-2 w-2 rounded-full bg-white" />
                   </div>
                   <div className="mt-1 flex justify-between text-[11px] text-white/35">

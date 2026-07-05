@@ -238,9 +238,15 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'other target amount surfaces should not return to two decimals');
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
   assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex items-center justify-between gap-3'), 'north-star motto row should stay at the natural bottom position');
-  assert.ok(reviewTabSource.includes('shrink-0 -translate-y-2 rounded-xl'), 'north-star settings button should stay lifted independently from the motto text');
+  assert.ok(reviewTabSource.includes('shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045]'), 'north-star settings button should stay lifted with neutral styling');
   assert.ok(reviewTabSource.includes('text-[28px] font-bold leading-none text-[#ffd18a]'), 'current annual year should be smaller while remaining bold');
   assert.ok(reviewTabSource.includes('text-[22px] font-bold leading-none text-white/55'), 'future annual years should be smaller while remaining bold');
+  assert.ok(reviewTabSource.includes('<div className="text-[11px] text-white/38">起点</div>'), 'future year start label should omit the parenthesized year');
+  assert.ok(reviewTabSource.includes('<div className="text-[11px] text-white/38">目标</div>'), 'future year target label should omit the parenthesized year');
+  assert.equal(reviewTabSource.includes('起点 ({yearItem.year - 1}目标)'), false, 'future year start label should not include the old year suffix');
+  assert.equal(reviewTabSource.includes('目标 ({yearItem.year})'), false, 'future year target label should not include the old year suffix');
+  assert.ok(reviewTabSource.includes('mt-1 text-[12px] font-normal text-white/35 tabular-nums'), 'future year start and target amounts should use neutral gray');
+  assert.ok(reviewTabSource.includes('border-dashed border-white/25'), 'future year growth target guide line should be gray');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
   assert.ok(reviewTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-'), 'north-star card should use the same weak border/shadow style as the home header');
   assert.ok(reviewTabSource.includes('rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-'), 'current year card should use the same weak border color as the north-star card');
@@ -253,7 +259,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('.progress-shine {'), 'review local preview should carry its own clipped progress shine styles');
   assert.ok(reviewTabSource.includes('targetGap'), 'current year card should show target gap/lag information');
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
-  assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list should keep the dashed expand button from the reference');
+  assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
   assert.ok(reviewTabSource.includes('戒律操作'), 'discipline rows should open an action panel');
   assert.ok(reviewTabSource.includes("disciplineAction.pinned ? '取消置顶' : '置顶戒律'"), 'discipline action panel must keep pin/unpin');
   assert.ok(reviewTabSource.includes('删除戒律'), 'discipline action panel must offer deletion');
@@ -263,8 +269,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.117'), 'settings version should document the target page detail fixes');
-  assert.ok(settingsTabSource.includes('目标页细节修正'), 'settings changelog should describe the target page detail fixes');
+  assert.ok(settingsTabSource.includes('v10.7.9.118'), 'settings version should document the target page color reduction');
+  assert.ok(settingsTabSource.includes('目标页未开始年度降色'), 'settings changelog should describe the target page color reduction');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

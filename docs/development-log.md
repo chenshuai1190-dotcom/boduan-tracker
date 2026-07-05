@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 目标页未开始年度降色
+
+- Commit: pending runtime commit.
+- Background: 用户反馈目标页色彩过多、视觉复杂,要求降低未开始年度区域的色彩:北极星头卡设置按钮取消黄色改为正常颜色;未开始年度的起点和目标金额从黄色改为和计划一样的灰色;起点/目标文案去掉括号里的年份;未开始年度增长目标虚线从黄色改为灰色。
+- Changes:
+  - 北极星头卡 `设置` 按钮从金色边框/文字改为中性白色弱边框、弱白底和灰白文字,保留原先单独上移位置。
+  - 未开始年度卡片中间起点/目标金额从 `#ffd18a` 改为 `text-white/35`,降低和当前年度重点数据的竞争。
+  - 未开始年度中间信息块的 `起点 (2026目标)` / `目标 (2027)` 改为 `起点` / `目标`。
+  - 未开始年度增长目标虚线从 `border-[#f6b54b]/45` 改为 `border-white/25`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.118`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页视觉降色,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass; `index-Cfhv6Pw8.css` 52.54 kB / gzip 9.80 kB, `ReviewTab-CnsFy6T4.js` 31.89 kB / gzip 7.88 kB, `SettingsTab-36bzzT0X.js` 41.15 kB / gzip 15.63 kB, `App-pvxrZ9X8.js` 144.78 kB / gzip 41.25 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;北极星头卡 `设置` 按钮实际为 `rgba(255,255,255,0.65)` 文本、`rgba(255,255,255,0.1)` 边框和中性弱白底;2027 未开始卡片不再出现 `起点 (2026目标)` 或 `目标 (2027)`;增长目标虚线为 `rgba(255,255,255,0.25)`;页面 `scrollWidth=390`,无横向溢出。
+  - Build marker check: pass; built ReviewTab chunk contains the neutral settings button, no old future-year parenthesized labels, gray future-year amount marker and gray dashed line marker;built `SettingsTab-36bzzT0X.js` contains `v10.7.9.118` and `目标页未开始年度降色`;built CSS does not contain `overscroll-behavior-y:none`.
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次目标页降色会恢复北极星设置按钮金色样式、未开始年度起点/目标黄色金额、括号年份和黄色增长目标虚线;不影响目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 目标页细节修正
 
 - Commit: `331d5178c7ab5c4c0b5d991800b24e1c2d11ab03`
