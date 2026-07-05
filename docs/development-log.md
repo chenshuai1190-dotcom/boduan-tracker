@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 北极星目标小数层级优化
 
-- Commit: pending runtime commit.
+- Commit: `f88e459b89c540e9590ae7e56e580c1c05a22b26`
 - Background: 用户给出新的头部金额参考图,要求只改目标页北极星头卡里的大目标金额这一处:恢复两位小数,并让小数部分 `.67` 这类后缀变小;其它目标页金额继续保持 `v10.7.9.114` 的无小数显示。
 - Changes:
   - `ReviewTab` 新增 `splitMoney`,只用于北极星头卡主目标金额,把完整目标金额拆成大字号整数部分和小字号两位小数部分。
@@ -27,8 +27,20 @@
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;北极星头卡大目标金额实际渲染为 `$14,860,167.41`,拆成 `$14,860,167` 34px 正常字重和 `.41` 20px 正常字重两段;北极星卡 `358x244`,年度区域 `374px` 宽,2026 本年卡 `374px` 宽,页面 `scrollWidth=390`;年度目标金额仍无小数,包含 `当前 $2,470,000`, `+$70,000`, `目标 $2,880,000`, `落后 $410,000`;浏览器 console error/warn 为空。
   - Build marker check: pass; built `ReviewTab-BuY1rSX-.js` contains the small decimal class `text-[20px] leading-none text-[#ffd18a]/90`, does not contain `fmtWan`, ` 万`, `money(ageGoalAmount, 2)` or `融资杠杆监控`;built `SettingsTab-COqZ2H_O.js` contains `v10.7.9.115` and `北极星目标小数层级优化`;built CSS does not contain `overscroll-behavior-y:none`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `f88e459b89c540e9590ae7e56e580c1c05a22b26`.
+  - GitHub Actions `CI`: success, run `28735179759`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AiJ3MmuBNjsTQgXnKid7tnp2E9pf`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=f88e459-runtime3`: HTTP 200.
+  - Production entry chunks: `/assets/index-DbrszJJZ.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-HiTgp2o9.css`.
+  - Production runtime chunks include `/assets/App-DxyMQR5F.js`, `/assets/ReviewTab-BuY1rSX-.js`, `/assets/SettingsTab-COqZ2H_O.js`, `/assets/marketColorMode-DqRpGks3.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/Login-Ctn260AZ.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-BuY1rSX-.js` contains the small decimal class `text-[20px] leading-none text-[#ffd18a]/90`;it does not contain `fmtWan`, ` 万`, `money(ageGoalAmount, 2)` or `融资杠杆监控`.
+  - Production SettingsTab marker check: `SettingsTab-COqZ2H_O.js` contains `v10.7.9.115` and `北极星目标小数层级优化`.
+  - Production App marker check: `App-DxyMQR5F.js` references `ReviewTab` and `SettingsTab`.
+  - Production entry/App/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-HiTgp2o9.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次北极星主目标金额小数层级优化会恢复 `v10.7.9.114` 的头卡主目标金额无小数显示;不影响年度目标、交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 目标页数字密度微调
