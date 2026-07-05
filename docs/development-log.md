@@ -4,6 +4,33 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 首页恐慌指数视觉降重
+
+- Commit: `same commit`
+- Background: 用户根据首页截图反馈 VIX 恐慌指数标题需要改成 CNN 同款灰色,VIX 和 CNN 的主数字过粗,同时 CNN 旁边的 `恐惧` / `恐慌` 状态文字也过粗。
+- Changes:
+  - 首页 VIX 恐慌指数标题从金色强调改为 CNN 同款 `text-white/60` 灰色,字重同步降为 `font-normal`。
+  - VIX 主数字从 `font-black` 降为 `font-normal`,保留原有绿色数值和圆点效果。
+  - CNN 恐慌贪婪指数标题、主数字和状态文字同步降为正常字重,保留原有 FGI 颜色、文案和仪表盘逻辑。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.129`。
+  - 测试补充首页恐慌指数视觉 marker,防止 VIX 标题回到金色强调或 VIX/CNN 数字回到 `font-black`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页前端视觉层级微调,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm ci`: pass,0 vulnerabilities;本机 fresh clone 初次 build 前缺少 `node_modules`,已按流程安装依赖。
+  - `npm run build`: pass;build output includes `index-BQhRIRN9.css`,`HomeTab-gGyUoKXz.js`,`SettingsTab-BS6v8Daa.js`,`App-Cz3yQnoI.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build/source marker check: source and built HomeTab contain `text-[12px] font-normal text-white/60`, `text-2xl font-normal text-emerald-400 tabular-nums`, `text-2xl font-normal tabular-nums`, and `text-sm font-normal`;old VIX amber title marker `text-[12px] font-semibold text-amber-300/90` and old VIX/CNN `font-black` numeric markers are absent;built SettingsTab contains `v10.7.9.129` and `首页恐慌指数视觉降重`。
+- Deployment: pending push to GitHub `main` and Vercel production deployment.
+- Production verification: pending.
+- Rollback: 恢复 `src/tabs/HomeTab.jsx` 中 VIX 标题为旧金色强调、VIX/CNN 数字和 CNN 状态文字为旧粗字重,并回退设置页 `v10.7.9.129` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 产品交接文档刷新
 
 - Commit: `669b0707be61e6e032dc183e15373e51669fcba2`

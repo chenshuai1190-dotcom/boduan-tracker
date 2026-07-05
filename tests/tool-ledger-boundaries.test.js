@@ -336,8 +336,15 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
-  assert.ok(settingsTabSource.includes('v10.7.9.128'), 'settings version should document the compound detail inner hierarchy tuning');
-  assert.ok(settingsTabSource.includes('复利明细内部层级降色'), 'settings changelog should describe the compound detail inner hierarchy tuning');
+  assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'VIX/CNN card titles should stay muted and normal-weight');
+  assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'VIX number should not use the previous heavy weight');
+  assert.ok(homeTabSource.includes('text-2xl font-normal tabular-nums'), 'CNN number should not use the previous heavy weight');
+  assert.ok(homeTabSource.includes('text-sm font-normal'), 'CNN fear/greed label should not use the previous heavy weight');
+  assert.equal(homeTabSource.includes('text-[12px] font-semibold text-amber-300/90'), false, 'VIX title should not keep the old amber emphasis');
+  assert.equal(homeTabSource.includes('text-2xl font-black text-emerald-400 tabular-nums'), false, 'VIX number should not return to font-black');
+  assert.equal(homeTabSource.includes('text-2xl font-black tabular-nums'), false, 'CNN number should not return to font-black');
+  assert.ok(settingsTabSource.includes('v10.7.9.129'), 'settings version should document the home fear index visual weight tuning');
+  assert.ok(settingsTabSource.includes('首页恐慌指数视觉降重'), 'settings changelog should describe the home fear index visual weight tuning');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

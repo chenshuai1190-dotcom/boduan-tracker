@@ -748,12 +748,12 @@ export default function HomeTab({ ctx }) {
 
       <section className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="flex items-center gap-1.5 text-[12px] font-semibold text-amber-300/90">
+          <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
             VIX 恐慌指数
             {dataDateLabel(vixDataDate) && <span className="text-[10px] text-white/40">{dataDateLabel(vixDataDate)} 收盘</span>}
           </div>
           <div className="mt-4 flex items-center gap-2">
-            <span className="text-2xl font-black text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
+            <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
             <span className="h-4 w-4 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
           </div>
           <div className="mt-3 text-[12px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
@@ -769,13 +769,13 @@ export default function HomeTab({ ctx }) {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="flex items-center gap-1.5 text-[12px] font-semibold text-white/60">
+          <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
             CNN 恐慌贪婪指数
             {dataDateLabel(fgiDataDate) && <span className="text-[10px] text-white/40">{dataDateLabel(fgiDataDate)}</span>}
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-2xl font-black tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
-            <span className="text-sm font-black" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
+            <span className="text-2xl font-normal tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
+            <span className="text-sm font-normal" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
           </div>
           <div className="mt-3 text-[12px] text-white/50">{fgiInfo.desc}</div>
           <div className="mt-1">
