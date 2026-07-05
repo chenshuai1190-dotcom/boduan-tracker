@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - QQQ 和 TQQQ 改为英文显示
 
-- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Commit: `cfb1cbe0451fba53d7250a77ad1bbe56ad88042c`
 - Background: 用户要求中文名兜底库里的 `QQQ` 和 `TQQQ` 不再显示中文名称,改为直接显示英文股票代码。
 - Changes:
   - `STOCK_NAME_CN` 中 `QQQ` 从 `纳斯达克100` 改为 `QQQ`。
@@ -18,6 +18,7 @@
   - `src/App.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 59 tests.
@@ -25,8 +26,17 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local source/build marker check: pass; source and built `App-B7m4GHX7.js` contain `QQQ` and `TQQQ` English display mappings, do not contain old mapping fragments `QQQ: '纳斯达克100'` / `TQQQ: '3倍纳指'`, and Settings built chunk contains `v10.7.9.105` plus `QQQ 和 TQQQ 改为英文显示`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `cfb1cbe0451fba53d7250a77ad1bbe56ad88042c`.
+  - GitHub `main`: `cfb1cbe0451fba53d7250a77ad1bbe56ad88042c`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXngL9xe7aXqGuUajicufxgANQi8`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=cfb1cbe-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-DG_UJMUz.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-1qzFTd70.css`.
+  - Production runtime chunks: `/assets/App-Dt2g7ClJ.js`, `/assets/HomeTab-DuHpPcu5.js`, `/assets/TradesTab-CPImoQBk.js`, `/assets/SettingsTab-C9zJy2s_.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-C3dVhWqG.js`.
+- Production verification:
+  - Production marker check: `App-Dt2g7ClJ.js` contains `QQQ` and `TQQQ` English display mappings, and does not contain old mapping fragments `QQQ:\`纳斯达克100\`` / `TQQQ:\`3倍纳指\``.
+  - Production marker check: `SettingsTab-C9zJy2s_.js` contains `v10.7.9.105` and `QQQ 和 TQQQ 改为英文显示`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会让 `QQQ` / `TQQQ` 在中文名兜底显示中恢复为旧中文名称;不影响交易数据、行情数据、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 同步持仓和交易记录中文名显示
