@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产账户显示和操作优化
 
-- Commit: pending
+- Commit: `651b2f01467278123e8dec5186500b065cf0c788`
 - Background: 用户要求资产模块继续收口账户交互:新增账户不能默认勾选银行,由用户自由选择;`我` 和 `老婆` 列表中本月余额为 0 的账户不在首页展示,但历史月度快照和统计逻辑继续保留;账户行后方删除按钮取消,改为像交易记录一样点击单条账户后弹出操作面板,再选择修改或删除。
 - Changes:
   - `AnalysisTab` 新增账户入口每次打开都会重置为未选择类型,保存时必须先选择账户类型,避免默认把新账户归为银行。
@@ -31,7 +31,19 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/`, in-app browser viewport `390x844`;verified body background `rgb(5, 7, 11)`, `老婆` mock group shows 5 visible accounts instead of 6 because the 0-balance account is hidden, add-account modal opens with no selected account type and placeholder `先选择类型,再输入账户名`, account rows expose no trailing direct delete button, clicking `招商银行` opens `账户操作` with `修改账户` / `删除账户` / `取消`, `修改账户` opens the edit modal with owner/type/name/currency/month-balance fields, input text color is `rgb(245, 247, 251)`, and browser console error/warn logs are empty.
-- Deployment: pending
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `651b2f01467278123e8dec5186500b065cf0c788`.
+  - GitHub `main`: `651b2f01467278123e8dec5186500b065cf0c788`.
+  - GitHub Actions `build`: success, job `85193625274`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HryAaNfLf7EKAC969XY2y6WgqSb5`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=651b2f-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CdiGG0sE.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CQxa_nU7.css`.
+  - Production runtime chunks include `/assets/App-DmhNKH-o.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/SettingsTab-DMb_eqzF.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/ReviewTab-Bb_Mto4f.js`.
+- Production verification:
+  - Production marker check: `AnalysisTab-S1iYuxfx.js` contains `账户操作`, `修改账户`, `保存修改`, `请选择账户类型`, `先选择类型,再输入账户名` and `updateAccount`.
+  - Production marker check: `SettingsTab-DMb_eqzF.js` contains `v10.7.9.109` and `优化资产账户显示和操作`.
+  - Production marker check: `App-DmhNKH-o.js` contains `updateAccount`, confirming the Supabase account-update helper is bundled.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复资产页 `v10.7.9.108` 的新增账户默认银行、账户行右侧直接删除按钮和本月 0 余额账户仍显示;不会影响既有账户、月度快照、汇率拉取、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 资产页字号和走势图细节对齐
