@@ -267,11 +267,16 @@ export default function AnalysisTab({ ctx }) {
     const prev = chartPoints[idx - 1];
     return sum + Math.hypot(point.x - prev.x, point.y - prev.y);
   }, 0));
+  const latestChartPoint = chartPoints[chartPoints.length - 1] || null;
+  const effectiveChartSelectedMonthIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
+    ? chartSelectedMonthIdx
+    : latestChartPoint?.i ?? null;
+  const selectedChartDotDelay = chartSelectedMonthIdx !== null ? 0 : 900;
 
-  const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0;
-  const selectedChartMonth = chartSelectedMonthIdx !== null ? last12Months[chartSelectedMonthIdx] : '';
-  const selectedChartPrevValue = chartSelectedMonthIdx !== null && chartSelectedMonthIdx > 0
-    ? chartData[chartSelectedMonthIdx - 1]
+  const selectedChartValue = effectiveChartSelectedMonthIdx !== null ? chartData[effectiveChartSelectedMonthIdx] : 0;
+  const selectedChartMonth = effectiveChartSelectedMonthIdx !== null ? last12Months[effectiveChartSelectedMonthIdx] : '';
+  const selectedChartPrevValue = effectiveChartSelectedMonthIdx !== null && effectiveChartSelectedMonthIdx > 0
+    ? chartData[effectiveChartSelectedMonthIdx - 1]
     : 0;
   const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
   const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
@@ -445,7 +450,7 @@ export default function AnalysisTab({ ctx }) {
               onClick={() => setShowMonthsDetail(true)}
               className="text-[11px] text-white/[0.45] active:text-white/70"
             >
-              月度 · 点圆查看
+              月度 · 点击查看
             </button>
           </div>
 
@@ -526,12 +531,16 @@ export default function AnalysisTab({ ctx }) {
               {chartPath && <path d={chartPath} className="asset-chart-line" fill="none" stroke={ASSET_PINK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#assetChartGlow)" />}
 
               {chartPoints.map((p, idx) => {
-                const selected = chartSelectedMonthIdx === p.i;
+                const selected = effectiveChartSelectedMonthIdx === p.i;
                 return (
                   <g key={p.i}>
-                    {selected && <line x1={p.x} x2={p.x} y1={p.y} y2={chartBottom} stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />}
-                    <circle className="asset-chart-dot" cx={p.x} cy={p.y} r={selected ? 5.8 : 4.4} fill={ASSET_CARD} stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${180 + idx * 52}ms` }} />
-                    <circle className="asset-chart-dot" cx={p.x} cy={p.y} r={selected ? 2.2 : 1.8} fill={ASSET_PINK} style={{ animationDelay: `${220 + idx * 52}ms` }} />
+                    {selected && (
+                      <>
+                        <line x1={p.x} x2={p.x} y1={p.y} y2={chartBottom} stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />
+                        <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="5.8" fill={ASSET_CARD} stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${selectedChartDotDelay}ms` }} />
+                        <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="2.2" fill={ASSET_PINK} style={{ animationDelay: `${selectedChartDotDelay + 40}ms` }} />
+                      </>
+                    )}
                     <circle
                       cx={p.x}
                       cy={p.y}

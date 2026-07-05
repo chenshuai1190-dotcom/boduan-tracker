@@ -4,6 +4,37 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产走势图只显示选中圆点
+
+- Commit: `same commit`
+- Background: 用户反馈资产页 `12 个月走势` 动画结束后所有月份圆圈一起显示,视觉像柱状/点阵图,预期应该只显示最后一个圆圈,点击其它月份时也只突出当前圆圈。
+- Changes:
+  - `AnalysisTab` 新增 `effectiveChartSelectedMonthIdx`,当用户未手动选择月份时默认选中最后一个有效月份,让进入资产页后只显示最新月份圆点和对应月度摘要。
+  - 资产走势图可见外圈/内点改为只在当前选中点渲染,不再为每个历史月份渲染可见圆圈;默认最后圆点延迟到线条绘制动画结束后出现。
+  - 所有历史月份仍保留透明 `r="13"` 点击热区,点击其它月份会切换选中圆点和月度信息,交互能力不变。
+  - 顶部提示文案从 `月度 · 点圆查看` 调整为 `月度 · 点击查看`,避免再暗示所有月份都有可见圆点。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.138`,新增 `资产走势图点位修正` 更新记录。
+  - 测试更新为保护默认最后点、有效选中点、只渲染选中可见圆圈、保留透明点击热区和设置页版本/更新日志。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是资产页前端视觉/交互细节修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay、资产计算或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-BmBrKMRW.css`,`AnalysisTab-qNHneavM.js`,`SettingsTab-CuTZAWWY.js`,`App-Dgroh3-J.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Source marker check: pass;`AnalysisTab` contains `latestChartPoint`, `effectiveChartSelectedMonthIdx`, `selectedChartDotDelay`, selected-only circle rendering and transparent `r="13"` hit targets;old visible-every-point marker `r={selected ? 5.8 : 4.4}` is absent.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=analysis`;default chart SVG has visible circle count `2` (outer ring `r=5.8` + inner dot `r=2.2`) at the latest month, transparent hit target count `12`, selected guide line count `1`, `scrollWidth=390` / `clientWidth=390`;after clicking a historical month, visible circle count remains `2`, transparent hit target count remains `12`, and month detail switches to the clicked month.
+  - Build marker check: pass;built `AnalysisTab-qNHneavM.js` contains `月度 · 点击查看` and no old every-point radius marker;built `SettingsTab-CuTZAWWY.js` contains `v10.7.9.138` and `资产走势图点位修正`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 回退 `AnalysisTab` 的 `effectiveChartSelectedMonthIdx` / 选中点渲染逻辑和 `v10.7.9.138` 设置页更新日志、开发日志条目、测试断言即可;不影响资产数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 资产页粉色对齐首页
 
 - Commit: `f63e05a72750b1303a3e6cc2ef6c3f095f6f363c`
