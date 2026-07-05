@@ -17,6 +17,7 @@
   - 本地缺 Supabase 配置时的 `DevVisualPreview` 新增 `?tab=home` 首页 mock,方便直接在 390px 手机视口验证首页恐慌卡片,仍不连接真实 Supabase、不提交 `.env`、不改生产数据。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.130`。
   - 测试更新首页恐慌卡片 marker、SVG helper 和设置页版本保护点,防止回退到旧两列小卡片。
+  - 运行时部署和线上验证完成后,`docs/handoff.md` 同步刷新到 `v10.7.9.130` 当前运行时代码、Vercel target、生产 chunk marker 和可转发交接块。
   - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页展示组件重构,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
 - Key files:
   - `src/components/FearIndexCards.tsx`
@@ -25,6 +26,7 @@
   - `src/tabs/SettingsTab.jsx`
   - `tailwind.config.js`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass,65 tests.
@@ -33,7 +35,18 @@
   - `git diff --check`: pass.
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;both fear cards rendered full-width `358px`,VIX card height `294px`,CNN card height `344px`,sparkline SVGs `140x40`,no document-level horizontal overflow;CNN gauge gradient uses `gradientUnits="userSpaceOnUse"` so red/yellow/green arc is visible.
   - Build marker check: pass;built `HomeTab-D9pJyb08.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `gradientUnits`;built `SettingsTab-D6Cq8s1c.js` contains `v10.7.9.130` and `首页恐慌指标高保真卡片`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `edce5caa4ef15380f2373b3fd078a988ff95b3e4`.
+  - Latest deployed main commit: `b70c5c35f4390f40245f2f9718183c2a6eed55d3`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/dfa7AXhRfKT9WxxtZARpmzMozEUP`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=b70c5c3-fearcards`: HTTP 200.
+  - Production entry chunks: `/assets/index-Btu8Bw6D.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-Dsv8WFFh.css`.
+  - Production runtime chunks include: `/assets/App-DsY184f1.js`, `/assets/HomeTab-D9pJyb08.js`, `/assets/SettingsTab-D6Cq8s1c.js`.
+- Production verification:
+  - Production HomeTab marker check: `HomeTab-D9pJyb08.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, and `gradientUnits`.
+  - Production SettingsTab marker check: `SettingsTab-D6Cq8s1c.js` contains `v10.7.9.130` and `首页恐慌指标高保真卡片`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 恢复 `src/tabs/HomeTab.jsx` 中旧 VIX/CNN 两列小卡片,删除 `src/components/FearIndexCards.tsx` 引用并回退设置页 `v10.7.9.130` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 首页恐慌指数视觉降重
