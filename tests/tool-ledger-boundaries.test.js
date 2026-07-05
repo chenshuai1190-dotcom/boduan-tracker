@@ -342,7 +342,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes("import { FearGreedIndexCard, VixFearIndexCard } from '../components/FearIndexCards.tsx';"), 'home should import the high-fidelity fear index cards');
   assert.ok(homeTabSource.includes('<VixFearIndexCard'), 'home should render the redesigned VIX fear index card');
   assert.ok(homeTabSource.includes('<FearGreedIndexCard'), 'home should render the redesigned fear greed index card');
-  assert.ok(homeTabSource.includes('buildFearGreedSparkline(fgi, fgiPrev, fgiWeek, fgiMonth, fgiYear)'), 'home should derive fear greed sparkline data from available FGI history');
+  assert.equal(homeTabSource.includes('sparkline={'), false, 'home fear cards should not pass sparkline data after removing card curve charts');
   assert.ok(homeTabSource.includes('mt-3 grid grid-cols-2 gap-3'), 'home fear cards should render as compact side-by-side cards');
   assert.equal(homeTabSource.includes('mt-3 space-y-3'), false, 'home fear cards should not remain as stacked full-width cards');
   assert.ok(fearIndexCardsSource.includes('export const getPosition'), 'VIX risk bar must keep a value-to-position mapping helper');
@@ -355,12 +355,15 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(fearIndexCardsSource.includes('低恐慌'), false, 'VIX compact card should not render the low fear bottom label');
   assert.equal(fearIndexCardsSource.includes('中等恐慌'), false, 'VIX compact card should not render the medium fear bottom label');
   assert.equal(fearIndexCardsSource.includes('高恐慌'), false, 'VIX compact card should not render the high fear bottom label');
-  assert.ok(fearIndexCardsSource.includes('strokeWidth="8"'), 'fear greed compact gauge should use a slimmer main arc');
-  assert.ok(fearIndexCardsSource.includes('strokeWidth="1.4"'), 'fear greed compact pointer should stay slim');
+  assert.equal(fearIndexCardsSource.includes('TinySparkline'), false, 'fear cards should not render curve charts');
+  assert.equal(fearIndexCardsSource.includes('fill="#76f0a0"'), false, 'VIX indicator should not render a bottom numeric value');
+  assert.ok(fearIndexCardsSource.includes('width="140" height="4"'), 'VIX risk bar should keep width while reducing bar thickness');
+  assert.ok(fearIndexCardsSource.includes('strokeWidth="6"'), 'fear greed compact gauge should use a slimmer main arc');
+  assert.ok(fearIndexCardsSource.includes('strokeWidth="1.2"'), 'fear greed compact pointer should stay extra slim');
   assert.ok(fearIndexCardsSource.includes('极度恐惧'), 'fear greed card should keep the extreme fear zone label');
   assert.ok(fearIndexCardsSource.includes('极度贪婪'), 'fear greed card should keep the extreme greed zone label');
-  assert.ok(settingsTabSource.includes('v10.7.9.131'), 'settings version should document the compact fear card layout');
-  assert.ok(settingsTabSource.includes('首页恐慌卡片双列瘦身'), 'settings changelog should describe the compact fear card layout');
+  assert.ok(settingsTabSource.includes('v10.7.9.132'), 'settings version should document the tighter fear card layout');
+  assert.ok(settingsTabSource.includes('首页恐慌卡片继续压缩'), 'settings changelog should describe the tighter fear card layout');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

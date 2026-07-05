@@ -3,7 +3,6 @@ import React from 'react';
 type Props = {
   value: number;
   date: string;
-  sparkline: number[];
 };
 
 const CARD_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -36,89 +35,6 @@ export const describeArc = (
   return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 };
 
-const normalizeSparkline = (values: number[], fallback: number) => {
-  const clean = values.filter((item) => Number.isFinite(Number(item))).map(Number);
-  if (clean.length >= 2) return clean;
-  return [fallback * 0.86, fallback * 0.95, fallback * 0.9, fallback * 1.04, fallback];
-};
-
-const sparklinePath = (values: number[], width: number, height: number) => {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const points = values.map((value, index) => {
-    const x = (index / Math.max(1, values.length - 1)) * width;
-    const y = height - ((value - min) / range) * height;
-    return {
-      x,
-      y: clamp(y, 3, height - 3),
-    };
-  });
-  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
-  return {
-    path,
-    fill: `${path} L ${width} ${height} L 0 ${height} Z`,
-    last: points[points.length - 1],
-  };
-};
-
-function TinySparkline({
-  values,
-  color,
-  glowColor,
-  id,
-  width = 140,
-  height = 40,
-  strokeWidth = 2,
-}: {
-  values: number[];
-  color: string;
-  glowColor: string;
-  id: string;
-  width?: number;
-  height?: number;
-  strokeWidth?: number;
-}) {
-  const line = sparklinePath(values, width, height);
-  const baselineY = Math.round(height * 0.42);
-
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block w-full overflow-visible" aria-hidden="true">
-      <defs>
-        <linearGradient id={`${id}-spark-stroke`} x1="0" y1="0" x2={width} y2="0">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="60%" stopColor={color} stopOpacity="0.72" />
-          <stop offset="100%" stopColor={color} stopOpacity="1" />
-        </linearGradient>
-        <linearGradient id={`${id}-spark-fill`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-        <filter id={`${id}-spark-glow`} x="-30%" y="-80%" width="160%" height="260%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <path d={`M 0 ${baselineY} H ${width}`} stroke="rgba(255,255,255,0.08)" strokeWidth="0.7" strokeDasharray="2 3" />
-      <path d={line.fill} fill={`url(#${id}-spark-fill)`} />
-      <path
-        d={line.path}
-        fill="none"
-        stroke={`url(#${id}-spark-stroke)`}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        filter={`url(#${id}-spark-glow)`}
-      />
-      <circle cx={line.last.x} cy={line.last.y} r={Math.max(2.7, strokeWidth * 1.8)} fill={color} filter={`url(#${id}-spark-glow)`} />
-      <circle cx={line.last.x} cy={line.last.y} r={Math.max(7, strokeWidth * 4.5)} fill={glowColor} opacity="0.16" />
-    </svg>
-  );
-}
-
 const getVixState = (value: number) => {
   const v = safeNumber(value);
   if (v < 20) return { label: '市场平静', desc: '市场平静, 无操作', color: '#53e089' };
@@ -126,19 +42,18 @@ const getVixState = (value: number) => {
   return { label: '风险上升', desc: '风险上升, 保持防守', color: '#ff5973' };
 };
 
-export function VixFearIndexCard({ value, date, sparkline }: Props) {
+export function VixFearIndexCard({ value, date }: Props) {
   const rawId = React.useId().replace(/:/g, '');
   const id = `vix-fear-${rawId}`;
   const v = clamp(safeNumber(value), 0, 50);
   const position = getPosition(v);
   const x = 10 + (position / 100) * 140;
   const state = getVixState(v);
-  const series = normalizeSparkline(sparkline, v || 15.8);
   const majorTicks = [0, 20, 30, 50];
 
   return (
     <article
-      className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-3 py-3 text-white shadow-[0_14px_34px_rgba(0,0,0,0.5),0_0_22px_rgba(73,222,128,0.055),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-24px_48px_rgba(3,7,12,0.42)]"
+      className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-3 py-2.5 text-white shadow-[0_14px_34px_rgba(0,0,0,0.5),0_0_22px_rgba(73,222,128,0.055),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-24px_48px_rgba(3,7,12,0.42)]"
       style={{ fontFamily: CARD_FONT }}
       data-home-fear-card="vix"
     >
@@ -159,11 +74,8 @@ export function VixFearIndexCard({ value, date, sparkline }: Props) {
           </span>
         </div>
         <div className="mt-2 truncate text-[11px] font-normal leading-none text-white/[0.48]">{state.desc}</div>
-        <div className="mt-3">
-          <TinySparkline values={series} color={state.color} glowColor={state.color} id={id} height={26} strokeWidth={1.5} />
-        </div>
 
-        <svg viewBox="0 0 160 60" className="mt-3 block w-full overflow-visible" aria-hidden="true">
+        <svg viewBox="0 0 160 42" className="mt-4 block w-full overflow-visible" aria-hidden="true">
           <defs>
             <linearGradient id={`${id}-bar`} x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#4cdd87" />
@@ -184,7 +96,7 @@ export function VixFearIndexCard({ value, date, sparkline }: Props) {
               <stop offset="100%" stopColor="#57e48b" />
             </linearGradient>
           </defs>
-          <rect x="10" y="10" width="140" height="6" rx="3" fill={`url(#${id}-bar)`} filter={`url(#${id}-bar-glow)`} />
+          <rect x="10" y="10" width="140" height="4" rx="2" fill={`url(#${id}-bar)`} filter={`url(#${id}-bar-glow)`} />
           {Array.from({ length: 25 }).map((_, index) => {
             const tickX = 10 + (index / 24) * 140;
             const isMajor = majorTicks.some((tick) => Math.abs((tick / 50) * 100 - (index / 24) * 100) < 2);
@@ -193,8 +105,8 @@ export function VixFearIndexCard({ value, date, sparkline }: Props) {
                 key={index}
                 x1={tickX}
                 x2={tickX}
-                y1={isMajor ? 27 : 29}
-                y2={isMajor ? 35 : 33}
+                y1={isMajor ? 23 : 25}
+                y2={isMajor ? 30 : 29}
                 stroke={isMajor ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.18)'}
                 strokeWidth={isMajor ? 1 : 0.75}
                 strokeLinecap="round"
@@ -204,18 +116,15 @@ export function VixFearIndexCard({ value, date, sparkline }: Props) {
           {majorTicks.map((tick) => {
             const tickX = 10 + (tick / 50) * 140;
             return (
-              <text key={tick} x={tickX} y="48" textAnchor="middle" fill="rgba(255,255,255,0.38)" fontSize="8" fontWeight="400">
+              <text key={tick} x={tickX} y="40" textAnchor="middle" fill="rgba(255,255,255,0.38)" fontSize="7.5" fontWeight="400">
                 {tick}
               </text>
             );
           })}
-          <line x1={x} x2={x} y1="19" y2="51" stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="2 3" />
-          <circle cx={x} cy="13" r="13" fill="#52df88" opacity="0.13" filter={`url(#${id}-bar-glow)`} />
-          <circle cx={x} cy="13" r="8" fill="rgba(11,15,20,0.85)" stroke="rgba(255,255,255,0.92)" strokeWidth="2" />
-          <circle cx={x} cy="13" r="3.2" fill={`url(#${id}-indicator)`} />
-          <text x={x} y="59" textAnchor="middle" fill="#76f0a0" fontSize="8.5" fontWeight="500" letterSpacing="0.2">
-            {v.toFixed(1)}
-          </text>
+          <line x1={x} x2={x} y1="17" y2="30" stroke="rgba(255,255,255,0.2)" strokeWidth="0.7" strokeDasharray="2 3" />
+          <circle cx={x} cy="12" r="11" fill="#52df88" opacity="0.12" filter={`url(#${id}-bar-glow)`} />
+          <circle cx={x} cy="12" r="7" fill="rgba(11,15,20,0.85)" stroke="rgba(255,255,255,0.92)" strokeWidth="1.8" />
+          <circle cx={x} cy="12" r="2.8" fill={`url(#${id}-indicator)`} />
         </svg>
       </div>
     </article>
@@ -231,20 +140,19 @@ const getFearGreedState = (value: number) => {
   return { label: '极度贪婪', desc: '市场过热，防守减仓', color: '#36c96e' };
 };
 
-export function FearGreedIndexCard({ value, date, sparkline }: Props) {
+export function FearGreedIndexCard({ value, date }: Props) {
   const rawId = React.useId().replace(/:/g, '');
   const id = `fear-greed-${rawId}`;
   const v = clamp(safeNumber(value), 0, 100);
   const angle = valueToAngle(v);
-  const center = { x: 80, y: 84 };
-  const arcRadius = 56;
-  const pointer = polarPoint(center.x, center.y, 47, angle);
+  const center = { x: 80, y: 76 };
+  const arcRadius = 48;
+  const pointer = polarPoint(center.x, center.y, 40, angle);
   const state = getFearGreedState(v);
-  const series = normalizeSparkline(sparkline, v || 32);
 
   return (
     <article
-      className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-3 py-3 text-white shadow-[0_14px_34px_rgba(0,0,0,0.52),0_0_24px_rgba(255,94,115,0.045),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-24px_48px_rgba(3,7,12,0.42)]"
+      className="relative h-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0b0f14] px-3 py-2.5 text-white shadow-[0_14px_34px_rgba(0,0,0,0.52),0_0_24px_rgba(255,94,115,0.045),inset_0_1px_0_rgba(255,255,255,0.055),inset_0_-24px_48px_rgba(3,7,12,0.42)]"
       style={{ fontFamily: CARD_FONT }}
       data-home-fear-card="fear-greed"
     >
@@ -261,13 +169,10 @@ export function FearGreedIndexCard({ value, date, sparkline }: Props) {
           <span className="text-[12px] font-normal leading-none" style={{ color: state.color }}>{state.label}</span>
         </div>
         <div className="mt-2 truncate text-[11px] font-normal leading-none text-white/[0.48]">{state.desc}</div>
-        <div className="mt-3">
-          <TinySparkline values={series} color={state.color} glowColor={state.color} id={id} height={26} strokeWidth={1.5} />
-        </div>
 
-        <svg viewBox="0 0 160 104" className="mt-1 block w-full overflow-visible" aria-hidden="true">
+        <svg viewBox="0 0 160 90" className="mt-1.5 block w-full overflow-visible" aria-hidden="true">
           <defs>
-            <linearGradient id={`${id}-gauge`} gradientUnits="userSpaceOnUse" x1="24" y1="84" x2="136" y2="84">
+            <linearGradient id={`${id}-gauge`} gradientUnits="userSpaceOnUse" x1="32" y1="76" x2="128" y2="76">
               <stop offset="0%" stopColor="#e44359" />
               <stop offset="22%" stopColor="#ff6655" />
               <stop offset="46%" stopColor="#f6a83e" />
@@ -289,26 +194,26 @@ export function FearGreedIndexCard({ value, date, sparkline }: Props) {
           </defs>
           {Array.from({ length: 43 }).map((_, index) => {
             const tickAngle = 180 + (index / 42) * 180;
-            const tick = polarPoint(center.x, center.y, 64, tickAngle);
+            const tick = polarPoint(center.x, center.y, 55, tickAngle);
             return (
               <circle
                 key={index}
                 cx={tick.x}
                 cy={tick.y}
-                r="0.65"
+                r="0.55"
                 fill={index < 17 ? '#ff5d75' : index < 26 ? '#f6da54' : '#5ed172'}
-                opacity="0.22"
+                opacity="0.2"
               />
             );
           })}
-          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="10" strokeLinecap="round" />
-          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke={`url(#${id}-gauge)`} strokeWidth="8" strokeLinecap="round" filter={`url(#${id}-glow)`} />
-          <path d={describeArc(center.x, center.y, 39, 185, 355)} fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="0.8" />
-          <path d={describeArc(center.x, center.y, 27, 195, 345)} fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="0.7" />
+          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="8" strokeLinecap="round" />
+          <path d={describeArc(center.x, center.y, arcRadius, 180, 360)} fill="none" stroke={`url(#${id}-gauge)`} strokeWidth="6" strokeLinecap="round" filter={`url(#${id}-glow)`} />
+          <path d={describeArc(center.x, center.y, 33, 185, 355)} fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="0.7" />
+          <path d={describeArc(center.x, center.y, 23, 195, 345)} fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="0.6" />
           {[20, 40, 60, 80].map((tick) => {
             const tickAngle = valueToAngle(tick);
-            const outer = polarPoint(center.x, center.y, arcRadius + 7, tickAngle);
-            const inner = polarPoint(center.x, center.y, arcRadius - 7, tickAngle);
+            const outer = polarPoint(center.x, center.y, arcRadius + 5, tickAngle);
+            const inner = polarPoint(center.x, center.y, arcRadius - 5, tickAngle);
             return (
               <line
                 key={tick}
@@ -317,30 +222,30 @@ export function FearGreedIndexCard({ value, date, sparkline }: Props) {
                 x2={outer.x}
                 y2={outer.y}
                 stroke="rgba(4,8,13,0.45)"
-                strokeWidth="1"
+                strokeWidth="0.8"
                 strokeLinecap="round"
               />
             );
           })}
-          <text x="18" y="95" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="8">0</text>
-          <text x="80" y="53" textAnchor="middle" fill="rgba(255,255,255,0.52)" fontSize="8">50</text>
-          <text x="142" y="95" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="8">100</text>
+          <text x="25" y="84" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="7">0</text>
+          <text x="80" y="45" textAnchor="middle" fill="rgba(255,255,255,0.52)" fontSize="7">50</text>
+          <text x="135" y="84" textAnchor="middle" fill="rgba(255,255,255,0.48)" fontSize="7">100</text>
           <line
             x1={center.x}
             y1={center.y}
             x2={pointer.x}
             y2={pointer.y}
             stroke={`url(#${id}-needle)`}
-            strokeWidth="1.4"
+            strokeWidth="1.2"
             strokeLinecap="round"
             filter={`url(#${id}-glow)`}
           />
-          <circle cx={center.x} cy={center.y} r="12" fill="rgba(255,88,111,0.08)" stroke="rgba(255,92,113,0.24)" strokeWidth="0.9" />
-          <circle cx={center.x} cy={center.y} r="5.5" fill="rgba(7,10,15,0.78)" stroke="rgba(255,92,113,0.45)" strokeWidth="0.9" filter={`url(#${id}-glow)`} />
-          <circle cx={center.x} cy={center.y} r="2.2" fill="#ffd6dc" />
-          <circle cx={pointer.x} cy={pointer.y} r="10" fill={state.color} opacity="0.16" filter={`url(#${id}-glow)`} />
-          <circle cx={pointer.x} cy={pointer.y} r="6.5" fill="rgba(11,15,20,0.88)" stroke="rgba(255,255,255,0.9)" strokeWidth="1.7" />
-          <circle cx={pointer.x} cy={pointer.y} r="2.9" fill={state.color} filter={`url(#${id}-glow)`} />
+          <circle cx={center.x} cy={center.y} r="10" fill="rgba(255,88,111,0.08)" stroke="rgba(255,92,113,0.24)" strokeWidth="0.8" />
+          <circle cx={center.x} cy={center.y} r="4.6" fill="rgba(7,10,15,0.78)" stroke="rgba(255,92,113,0.45)" strokeWidth="0.8" filter={`url(#${id}-glow)`} />
+          <circle cx={center.x} cy={center.y} r="1.9" fill="#ffd6dc" />
+          <circle cx={pointer.x} cy={pointer.y} r="8" fill={state.color} opacity="0.15" filter={`url(#${id}-glow)`} />
+          <circle cx={pointer.x} cy={pointer.y} r="5.6" fill="rgba(11,15,20,0.88)" stroke="rgba(255,255,255,0.9)" strokeWidth="1.4" />
+          <circle cx={pointer.x} cy={pointer.y} r="2.4" fill={state.color} filter={`url(#${id}-glow)`} />
         </svg>
       </div>
     </article>

@@ -38,11 +38,6 @@ function num(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function finiteNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
 function fmtMoney(value, digits = 2) {
   return num(value).toLocaleString('en-US', {
     minimumFractionDigits: digits,
@@ -193,50 +188,6 @@ function dataDateLabel(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function interpolateSeries(points, targetLength = 28) {
-  const clean = points.map(finiteNumber).filter((value) => value !== null);
-  if (clean.length < 2) return clean;
-  const result = [];
-  const segmentCount = clean.length - 1;
-  const samplesPerSegment = Math.max(2, Math.ceil((targetLength - 1) / segmentCount));
-  clean.forEach((point, index) => {
-    if (index === clean.length - 1) {
-      result.push(point);
-      return;
-    }
-    const next = clean[index + 1];
-    for (let step = 0; step < samplesPerSegment; step += 1) {
-      const t = step / samplesPerSegment;
-      const eased = t * t * (3 - 2 * t);
-      const wave = Math.sin((index + t) * Math.PI * 1.8) * 0.8;
-      result.push(point + (next - point) * eased + wave);
-    }
-  });
-  return result.slice(-targetLength);
-}
-
-function syntheticSparkline(value, variant) {
-  const base = num(value) || (variant === 'vix' ? 15.8 : 32);
-  const shape = variant === 'vix'
-    ? [-2.4, -1.2, 0.6, 1.9, 1.4, 0.2, -0.8, -0.1, -0.6, -1.4, -0.2, 1.1, 0.7, -1.8, -0.5, 0.6, -0.3, -1.0, -1.2, -0.9, -0.2, 1.3, 2.0]
-    : [-4, -1.4, 3.2, 4.4, 0.8, -2.2, -1.1, 2.5, 1.2, -4.1, -0.8, 2.6, 0.5, -1.6, -2.4, -1.8, -0.6, 3.4, 4.2, 2.1];
-  return shape.map((offset, index) => {
-    const drift = Math.sin(index * 0.72) * (variant === 'vix' ? 0.8 : 1.4);
-    return Math.max(variant === 'vix' ? 8 : 4, Math.min(variant === 'vix' ? 48 : 96, base + offset + drift));
-  });
-}
-
-function buildVixSparkline(value) {
-  return syntheticSparkline(value, 'vix');
-}
-
-function buildFearGreedSparkline(current, previousClose, weekAgo, monthAgo, yearAgo) {
-  const anchors = [yearAgo, monthAgo, weekAgo, previousClose, current];
-  const clean = anchors.map(finiteNumber).filter((value) => value !== null);
-  if (clean.length >= 2) return interpolateSeries(clean, 28);
-  return syntheticSparkline(current, 'fgi');
 }
 
 function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
@@ -392,11 +343,6 @@ export default function HomeTab({ ctx }) {
     : ((symbol, name) => String(name || symbol || '').trim());
   const positionsBySymbol = React.useMemo(() => new Map(positions.map((p) => [p.symbol, p])), [positions]);
   const displayWatchlist = homeWatchlist || watchlist || [];
-  const vixSparkline = React.useMemo(() => buildVixSparkline(vix), [vix]);
-  const fearGreedSparkline = React.useMemo(
-    () => buildFearGreedSparkline(fgi, fgiPrev, fgiWeek, fgiMonth, fgiYear),
-    [fgi, fgiPrev, fgiWeek, fgiMonth, fgiYear],
-  );
   const vixDateLabel = dataDateLabel(vixDataDate);
   const fgiDateLabel = dataDateLabel(fgiDataDate);
   const marketCards = React.useMemo(() => (
@@ -783,12 +729,10 @@ export default function HomeTab({ ctx }) {
         <VixFearIndexCard
           value={num(vix)}
           date={vixDateLabel ? `${vixDateLabel} 收盘` : ''}
-          sparkline={vixSparkline}
         />
         <FearGreedIndexCard
           value={num(fgi)}
           date={fgiDateLabel || ''}
-          sparkline={fearGreedSparkline}
         />
       </section>
 

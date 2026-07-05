@@ -4,6 +4,34 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 首页恐慌卡片继续压缩
+
+- Commit: pending
+- Background: 用户根据生产截图继续反馈两张恐慌卡片仍然偏高,VIX/CNN 曲线图都不需要;VIX 风险定位下方 `15.8` 小数字突兀;并补充说明 VIX 不是压缩横条宽度,而是横条高度/厚度看起来太厚;CNN 恐慌贪婪仪表盘厚度仍偏肥,取消曲线后整体高度还需要继续缩减。
+- Changes:
+  - `src/components/FearIndexCards.tsx` 删除 VIX 和 CNN 恐慌卡片内的 `TinySparkline` 曲线图和相关 sparkline SVG 辅助逻辑,保留首页四个市场指数小卡自己的走势线。
+  - VIX 风险条保持 `140` 宽度,但条高从 `6` 降到 `4`,SVG 高度从 `60` 压到 `42`,刻度、虚线和 indicator 光圈同步缩小,并删除指示器下方 `15.8` 小数字。
+  - CNN 恐慌贪婪 gauge 从 `160x104` 压到 `160x90`,主弧线从 `strokeWidth="8"` 降到 `strokeWidth="6"`,指针从 `strokeWidth="1.4"` 降到 `strokeWidth="1.2"`,中心和指针头光圈同步缩小。
+  - 首页 `HomeTab` 不再为 VIX/CNN 恐慌卡片生成或传入 sparkline 数据,避免删除曲线后保留无用计算。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.132`。
+  - 测试更新删除曲线、VIX 小数字移除、VIX 风险条压薄、CNN gauge 继续瘦身和设置页版本保护点。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是首页前端视觉压缩,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/components/FearIndexCards.tsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-DRghdNgG.css`,`HomeTab-D185PnZV.js`,`SettingsTab-BhmAXd-B.js`,`App-VcHCFlPW.js`.
+  - `npm audit`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;fear cards remain side-by-side at `173px` wide,each card height is about `186px` versus previous about `239px`;VIX card has one SVG only,`viewBox="0 0 160 42"`,risk bar rect remains `width="140"` but height is `4`;VIX card text no longer includes the bottom duplicate `15.8`;CNN card has one SVG only,`viewBox="0 0 160 90"`,main gauge arc is `strokeWidth="6"` and pointer is `strokeWidth="1.2"`;no document-level horizontal overflow.
+  - Build marker check: pass;built `HomeTab-D185PnZV.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `grid grid-cols-2 gap-3`, `viewBox:\`0 0 160 42\``, `width:\`140\``, `height:\`4\``, `viewBox:\`0 0 160 90\``, `strokeWidth:\`6\`` and `strokeWidth:\`1.2\``;built `HomeTab-D185PnZV.js` does not contain fear-card `sparkline` props or `#76f0a0`;built `SettingsTab-BhmAXd-B.js` contains `v10.7.9.132` and `首页恐慌卡片继续压缩`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+- Deployment: pending.
+- Rollback: 恢复 `src/components/FearIndexCards.tsx` 中 VIX/CNN 曲线图、VIX 指示器下方数值和上一版 VIX/CNN 图表尺寸,并回退设置页 `v10.7.9.132` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 首页恐慌卡片双列瘦身
 
 - Commit: `d18c16cffa1fc9dc90f2bcfc1e132ffe5514b485`
