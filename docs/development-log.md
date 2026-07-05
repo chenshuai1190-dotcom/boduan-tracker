@@ -29,7 +29,19 @@
   - `git diff --check`: pass.
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;fear cards remain side-by-side at `173px` wide,each card height is about `186px` versus previous about `239px`;VIX card has one SVG only,`viewBox="0 0 160 42"`,risk bar rect remains `width="140"` but height is `4`;VIX card text no longer includes the bottom duplicate `15.8`;CNN card has one SVG only,`viewBox="0 0 160 90"`,main gauge arc is `strokeWidth="6"` and pointer is `strokeWidth="1.2"`;no document-level horizontal overflow.
   - Build marker check: pass;built `HomeTab-D185PnZV.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `grid grid-cols-2 gap-3`, `viewBox:\`0 0 160 42\``, `width:\`140\``, `height:\`4\``, `viewBox:\`0 0 160 90\``, `strokeWidth:\`6\`` and `strokeWidth:\`1.2\``;built `HomeTab-D185PnZV.js` does not contain fear-card `sparkline` props or `#76f0a0`;built `SettingsTab-BhmAXd-B.js` contains `v10.7.9.132` and `首页恐慌卡片继续压缩`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed for the tighter fear card release.
+  - Runtime code commit: `e72625b38fcfa779b5bd6eb928282b6bfd0f379b`.
+  - Latest deployed main commit at verification time: `0b31253f4647be300f4c44cf04ce0524b27cc964`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6YgoZkqyiWSEdjsFZvuJtU4AgcjC`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=0b31253-fear-compact-132`: HTTP 200.
+  - Production entry chunks: `/assets/index-vT7LfaW4.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`.
+  - Production runtime chunks include: `/assets/App-UWwN77w9.js`, `/assets/HomeTab-D185PnZV.js`, `/assets/SettingsTab-BhmAXd-B.js`.
+- Production verification:
+  - Production HomeTab marker check: `HomeTab-D185PnZV.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `grid grid-cols-2 gap-3`, `viewBox:\`0 0 160 42\``, `width:\`140\``, `height:\`4\``, `viewBox:\`0 0 160 90\``, `strokeWidth:\`6\`` and `strokeWidth:\`1.2\``.
+  - Production HomeTab negative marker check: `HomeTab-D185PnZV.js` does not contain fear-card `sparkline` props or old VIX bottom value color `#76f0a0`.
+  - Production SettingsTab marker check: `SettingsTab-BhmAXd-B.js` contains `v10.7.9.132` and `首页恐慌卡片继续压缩`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 恢复 `src/components/FearIndexCards.tsx` 中 VIX/CNN 曲线图、VIX 指示器下方数值和上一版 VIX/CNN 图表尺寸,并回退设置页 `v10.7.9.132` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 首页恐慌卡片双列瘦身
