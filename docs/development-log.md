@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产页字号和走势图细节对齐
 
-- Commit: pending.
+- Commit: `d0096fd8426f1313070b71a2c6eae981f006f292`
 - Background: 用户反馈资产页当前深色版方向正确,但标题、普通文本、数字字号仍需继续按首页文字层级对齐;12 个月走势图点选圆圈疑似缺少上版的百分比信息,初始圆圈贴近纵轴数字,底部月份只显示 08 月和 07 月显得不均衡;同时要求 `填月度余额` 和 `新增账户` 弹窗/按钮的标题、普通文字和图标尺寸也参考首页标准。
 - Changes:
   - `AnalysisTab` 将家庭总资产主数字降为首页头卡同档 `34px`,标题维持 `13px`,走势图标题降为 `14px`,主操作按钮文字降为 `13px`、图标降为 `14px`,继续保持 46px 紧凑按钮高度。
@@ -27,7 +27,18 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/`, in-app browser viewport `390x844`;verified body background `rgb(5, 7, 11)`, `家庭总资产` label `13px`, main number `34px`, chart title `14px`, `填月度余额` / `新增账户` buttons `173x46` with `13px` text, chart animation `assetDrawLine`, x-axis labels include `08月` / `01月` / `07月`, first transparent chart hit area starts at `85px` while y-axis label right edge is `75px`, clicking the latest chart point shows `较上月 -¥108.4万 · -3.8%`, and browser console error/warn logs are empty.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `d0096fd8426f1313070b71a2c6eae981f006f292`.
+  - GitHub `main`: `d0096fd8426f1313070b71a2c6eae981f006f292`.
+  - GitHub Actions `build`: success, job `85192414135`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HhrQqDe66CNkNVu6Ps29QmJBMcSf`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=d0096fd-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-ELU2ojLw.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-Dtk1wtsT.css`.
+  - Production runtime chunks include `/assets/App-yPJ3EWhQ.js`, `/assets/AnalysisTab-CnslJxxl.js`, `/assets/SettingsTab-DCNn0vqE.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/ReviewTab-Bb_Mto4f.js`.
+- Production verification:
+  - Production marker check: `AnalysisTab-CnslJxxl.js` contains `text-[34px]`, `h-[142px]`, `较上月`, `assetDrawLine`, `assetAreaFadeIn`, `assetDotPop`, `new Set([0,Math.floor((P.length-1)/2),P.length-1])` and `x:64+`.
+  - Production marker check: `SettingsTab-DCNn0vqE.js` contains `v10.7.9.108` and `对齐资产页字号和走势图细节`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复资产页 `v10.7.9.107` 的较大标题/数字字号、走势图首尾月份标注和较靠左的初始点位;不影响账户、月度快照、汇率拉取、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 资产页深色视觉修复和本地预览
