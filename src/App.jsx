@@ -593,7 +593,7 @@ const STOCK_NAME_CN = {
   // 房地产
   PLD: '安博', AMT: '美国电塔', CCI: '冠城国际', EQIX: 'Equinix', SPG: '西蒙地产',
   // ETF - 大盘指数
-  SPY: '标普500', QQQ: '纳斯达克100', DIA: '道琼斯', IWM: '罗素2000',
+  SPY: '标普500', QQQ: 'QQQ', DIA: '道琼斯', IWM: '罗素2000',
   VTI: '全市场', VOO: '标普500(先锋)', VEA: '发达市场', VWO: '新兴市场',
   IVV: '标普500(贝莱德)', VUG: '成长股', VTV: '价值股',
   // ETF - 行业
@@ -603,7 +603,7 @@ const STOCK_NAME_CN = {
   KWEB: '中概互联', FXI: '中国大盘', MCHI: '中国MSCI', YINN: '中国3X多',
   EWJ: '日本', EWZ: '巴西', INDA: '印度',
   // ETF - 杠杆
-  TQQQ: '3倍纳指', SQQQ: '3倍做空纳指', QLD: '2倍纳指', PSQ: '反向纳指',
+  TQQQ: 'TQQQ', SQQQ: '3倍做空纳指', QLD: '2倍纳指', PSQ: '反向纳指',
   SOXL: '3倍半导体', SOXS: '3倍做空半导体',
   UPRO: '3倍标普', SPXU: '3倍做空标普', SDS: '2倍做空标普',
   UDOW: '3倍道指', SDOW: '3倍做空道指',
@@ -1674,7 +1674,7 @@ function MainApp({ user, onLogout }) {
   const benchmarkStock = (() => {
     if (benchmarkSymbol === 'QQQ') {
       // QQQ 用全局的 qqqCurrent / qqqHigh(数据来自核心参数)
-      return { symbol: 'QQQ', name: '纳斯达克100', price: qqqCurrent, high: qqqHigh };
+      return { symbol: 'QQQ', name: 'QQQ', price: qqqCurrent, high: qqqHigh };
     }
     return quoteRows.find(s => s.symbol === benchmarkSymbol);
   })();
@@ -1692,7 +1692,7 @@ function MainApp({ user, onLogout }) {
 
   // 可选作为基准的股票列表(关注列表 + QQQ,排除杠杆 ETF)
   const benchmarkOptions = [
-    { symbol: 'QQQ', name: '纳斯达克100' },
+    { symbol: 'QQQ', name: 'QQQ' },
     ...quoteRows.filter(s => !LEVERAGED_ETFS.includes(s.symbol) && s.symbol !== 'QQQ').map(s => ({ symbol: s.symbol, name: s.name })),
   ];
 

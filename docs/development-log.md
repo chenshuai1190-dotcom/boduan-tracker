@@ -4,6 +4,31 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - QQQ 和 TQQQ 改为英文显示
+
+- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Background: 用户要求中文名兜底库里的 `QQQ` 和 `TQQQ` 不再显示中文名称,改为直接显示英文股票代码。
+- Changes:
+  - `STOCK_NAME_CN` 中 `QQQ` 从 `纳斯达克100` 改为 `QQQ`。
+  - `STOCK_NAME_CN` 中 `TQQQ` 从 `3倍纳指` 改为 `TQQQ`。
+  - QQQ 默认基准股票名称和基准候选项同步显示为 `QQQ`,避免同一页面仍出现旧中文名。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.105`。
+  - 新增回归测试,锁定 `QQQ` / `TQQQ` 后续不能再被映射回旧中文显示名。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 59 tests.
+  - `npm run build`: pass; `index-1qzFTd70.css` 52.85 kB / gzip 9.73 kB, `SettingsTab-C9zJy2s_.js` 36.38 kB / gzip 13.81 kB, `HomeTab-DuHpPcu5.js` 39.20 kB / gzip 10.48 kB, `TradesTab-CPImoQBk.js` 61.90 kB / gzip 12.29 kB, `App-B7m4GHX7.js` 142.48 kB / gzip 40.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local source/build marker check: pass; source and built `App-B7m4GHX7.js` contain `QQQ` and `TQQQ` English display mappings, do not contain old mapping fragments `QQQ: '纳斯达克100'` / `TQQQ: '3倍纳指'`, and Settings built chunk contains `v10.7.9.105` plus `QQQ 和 TQQQ 改为英文显示`.
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回滚本次改动会让 `QQQ` / `TQQQ` 在中文名兜底显示中恢复为旧中文名称;不影响交易数据、行情数据、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 同步持仓和交易记录中文名显示
 
 - Commit: `02b5c6c509d846ba1b721c9fb1df6734dfbf70db`

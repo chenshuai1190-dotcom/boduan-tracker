@@ -131,6 +131,14 @@ test('stock Chinese names are shared by home positions and trade records', () =>
   assert.ok(tradesTabSource.includes('stockDisplayName(orderActionTrade.symbol, orderActionTrade.name)'), 'order action modal should render localized stock names');
 });
 
+test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
+  assert.ok(appSource.includes("QQQ: 'QQQ'"), 'QQQ should display as the English code');
+  assert.ok(appSource.includes("TQQQ: 'TQQQ'"), 'TQQQ should display as the English code');
+  assert.equal(appSource.includes("QQQ: '纳斯达克100'"), false, 'QQQ must not be remapped to the old Chinese display name');
+  assert.equal(appSource.includes("TQQQ: '3倍纳指'"), false, 'TQQQ must not be remapped to the old Chinese display name');
+  assert.ok(appSource.includes("{ symbol: 'QQQ', name: 'QQQ' }"), 'QQQ benchmark option should also display in English');
+});
+
 test('order action modal stays compact like the current trade record reference', () => {
   assert.ok(tradesTabSource.includes('w-[calc(100vw-72px)] max-w-[360px]'), 'order action modal should use the narrower centered reference width');
   assert.ok(tradesTabSource.includes('rounded-[22px]'), 'order action modal should keep a compact rounded panel');
