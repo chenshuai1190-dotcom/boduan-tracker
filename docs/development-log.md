@@ -4,6 +4,37 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 目标页细节修正
+
+- Commit: pending runtime commit.
+- Background: 用户在目标页截图中反馈三点:底部出现 `行情拉取失败:行情网络请求失败,已保留现有数据` toast,需要确认是否旧接口残留;北极星头卡 `我要变的很有钱` 目标提醒文案在上次调整 `设置` 按钮时被同步上移,需要单独下调且不再移动设置按钮;年度目标里的年份数字比效果图更粗更大,需要保留粗体但缩小并降低字重。
+- Findings:
+  - 红色 toast 不是旧直连行情接口残留。浏览器直连 EODHD 仍然移除,实时行情继续只通过已登录 `/api/quote` relay。
+  - toast 来源是 `App.jsx` 的全局行情刷新失败提示,此前挂在底部导航上方并对所有 tab 显示;目标页不消费这块行情,因此会误显示在目标页。
+- Changes:
+  - 新增 `QUOTE_ERROR_VISIBLE_TABS`,把行情失败 toast 限制为首页和交易页显示;目标页、资产页和设置页不再继承行情刷新错误提示。
+  - 北极星头卡底部行取消整体 `-translate-y-2`,目标提醒文案回到底部自然位置;`设置` 按钮单独保留 `-translate-y-2`,维持原来的上移位置。
+  - 年度目标当前年 `2026` 从 `31px font-black` 调整为 `28px font-bold`;未来年份从 `25px font-black` 调整为 `22px font-bold`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.117`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是前端显示范围和目标页视觉修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass; `index-DUpTtqGm.css` 52.50 kB / gzip 9.79 kB, `ReviewTab-9pzZj3Y2.js` 31.94 kB / gzip 7.88 kB, `SettingsTab-BJIarOOw.js` 40.85 kB / gzip 15.57 kB, `App-EZc8GBZk.js` 144.78 kB / gzip 41.25 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;北极星卡 `358x244`;目标提醒文案 `“我要变的很有钱! 有钱有钱有钱!”` 为 12px 正常字重且无 transform,离卡片底边约 `7px`;`设置` 按钮仍单独 `translateY(-8px)`,离卡片底边约 `6.5px`;年度 `2026` 为 28px/700,`2027` 为 22px/700;目标页未显示行情失败 toast;页面 `scrollWidth=390`,无横向溢出。
+  - Build marker check: pass; built App chunk gates the quote error toast to `['home', 'trades']`, built ReviewTab chunk contains the natural motto row, independently lifted settings button, `text-[28px] font-bold` current year and `text-[22px] font-bold` future year markers;built `SettingsTab-BJIarOOw.js` contains `v10.7.9.117` and `目标页细节修正`;built CSS does not contain `overscroll-behavior-y:none`.
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次目标页细节修正会恢复行情失败 toast 在所有 tab 显示、北极星底部整行一起上移、年度年份数字回到更大的 `font-black`;不影响 `/api/quote` 鉴权、行情 relay、交易账本、目标数据或 RLS。
+
 ### 2026-07-05 - 主资产数字小数层级同步
 
 - Commit: `557b8cad4ac155fb802f91dcc5f7e3718a2672c6`

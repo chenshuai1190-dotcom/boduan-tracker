@@ -88,6 +88,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('formatRealtimeFetchError'), 'quote refresh should normalize browser network errors');
   assert.ok(appSource.includes('行情网络请求失败,已保留现有数据'), 'raw Load failed text should become a user-facing Chinese message');
   assert.ok(appSource.includes('setTimeout(() => setFetchError(null), 4200)'), 'quote refresh errors should clear automatically');
+  assert.ok(appSource.includes("const QUOTE_ERROR_VISIBLE_TABS = ['home', 'trades'];"), 'quote refresh errors should only surface on quote-consuming tabs');
+  assert.ok(appSource.includes('const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab)'), 'target/asset/settings tabs should not inherit quote refresh toasts');
   assert.ok(appSource.includes('行情拉取失败:{fetchError}'), 'bottom toast should identify quote refresh failures specifically');
 });
 
@@ -235,7 +237,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller and normal weight');
   assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'other target amount surfaces should not return to two decimals');
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
-  assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex -translate-y-2'), 'north-star settings button row should stay lifted from the card bottom');
+  assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex items-center justify-between gap-3'), 'north-star motto row should stay at the natural bottom position');
+  assert.ok(reviewTabSource.includes('shrink-0 -translate-y-2 rounded-xl'), 'north-star settings button should stay lifted independently from the motto text');
+  assert.ok(reviewTabSource.includes('text-[28px] font-bold leading-none text-[#ffd18a]'), 'current annual year should be smaller while remaining bold');
+  assert.ok(reviewTabSource.includes('text-[22px] font-bold leading-none text-white/55'), 'future annual years should be smaller while remaining bold');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
   assert.ok(reviewTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-'), 'north-star card should use the same weak border/shadow style as the home header');
   assert.ok(reviewTabSource.includes('rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-'), 'current year card should use the same weak border color as the north-star card');
@@ -258,8 +263,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.116'), 'settings version should document the primary asset decimal hierarchy sync');
-  assert.ok(settingsTabSource.includes('主资产数字小数层级同步'), 'settings changelog should describe the primary asset decimal hierarchy sync');
+  assert.ok(settingsTabSource.includes('v10.7.9.117'), 'settings version should document the target page detail fixes');
+  assert.ok(settingsTabSource.includes('目标页细节修正'), 'settings changelog should describe the target page detail fixes');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

@@ -398,7 +398,7 @@ export default function ReviewTab({ ctx }) {
           </div>
         </div>
 
-        <div className="relative z-10 mb-1.5 mt-auto flex -translate-y-2 items-center justify-between gap-3">
+        <div className="relative z-10 mb-1.5 mt-auto flex items-center justify-between gap-3">
           {plan.motto ? (
             <div className="min-w-0 truncate text-[12px] leading-tight text-[#ffd18a]">“{plan.motto}”</div>
           ) : (
@@ -407,7 +407,7 @@ export default function ReviewTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowPlanSettings(true)}
-            className="shrink-0 rounded-xl border border-[#f6b54b]/20 bg-black/20 px-3 py-1.5 text-[12px] font-normal text-[#ffd18a] active:scale-95"
+            className="shrink-0 -translate-y-2 rounded-xl border border-[#f6b54b]/20 bg-black/20 px-3 py-1.5 text-[12px] font-normal text-[#ffd18a] active:scale-95"
           >
             设置
           </button>
@@ -460,7 +460,7 @@ export default function ReviewTab({ ctx }) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <div className="text-[31px] font-black leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
+                      <div className="text-[28px] font-bold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
                       <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-2 py-1 text-[11px] text-[#f6b54b]">本年</span>
                       <span className={`rounded-md border px-2 py-1 text-[11px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
                     </div>
@@ -531,7 +531,7 @@ export default function ReviewTab({ ctx }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className="text-[25px] font-black leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
+                      <span className="text-[22px] font-bold leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
                       <span className="text-[11px] text-white/35">计划 {signedMoney(yearItem.planTarget)} → 目标 {money(yearItem.endBalance)}</span>
                     </div>
                   </div>

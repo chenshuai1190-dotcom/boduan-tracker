@@ -32,6 +32,7 @@ const TAB_COMPONENTS = {
   review: ReviewTab,
   settings: SettingsTab,
 };
+const QUOTE_ERROR_VISIBLE_TABS = ['home', 'trades'];
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -3153,6 +3154,7 @@ function MainApp({ user, onLogout }) {
     yearlyActuals,
   };
   const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
+  const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-[#263142] bg-[#171d27] text-[#aab3c2] active:scale-95';
   const costBasisModalLabelClass = 'mb-1 block text-[11px] font-normal text-[#aab3c2]';
   const costBasisModalInputClass = 'w-full rounded-xl border border-[#273142] bg-[#171d27] px-3 py-2.5 text-[13px] font-normal text-[#f5f7fb] outline-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] placeholder:text-[#707a89] focus:border-[#f6b54b]/70 focus:bg-[#1a212c]';
@@ -5172,7 +5174,7 @@ function MainApp({ user, onLogout }) {
               })}
             </div>
             {/* 拉取错误提示(浮在导航栏上方) */}
-            {fetchError && (
+            {showQuoteFetchError && (
               <div className="absolute -top-10 left-2 right-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-1 shadow">
                 <WifiOff className="w-3 h-3" /> 行情拉取失败:{fetchError}
               </div>
