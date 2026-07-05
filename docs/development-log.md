@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 修正目标页视觉对齐
 
-- Commit: `same commit`
+- Commit: `4111f4e74797eb0d9b099b55b5c4551aeb0467b0`
 - Background: 用户本地截图反馈目标页仍有三个明显偏差:年度进度条微光动画跑成整页左侧持续移动的竖条;北极星目标头部卡片高度过高,没有贴近效果图;年度目标进度多了外层边框导致宽度不足,2026 当前年缺少右侧目标/落后信息,未开始年度缺少起点、目标、增长目标虚线和两端金额结构。用户要求逐项对比效果图并用本地工具验证视觉。
 - Changes:
   - 修复年度进度条微光动画作用域:`rocket-bar` 和 `progress-shine` 都显式增加 `position: relative` 与 `overflow: hidden`,目标页本地预览也携带同一套局部样式,避免伪元素脱离进度条形成整页动态竖条。
@@ -31,8 +31,20 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;首屏截图确认北极星卡 `358x270`,年度区域 `358px` 宽,2026 卡 `358px` 宽,页面 `scrollWidth=390`,无横向溢出;`progress-shine` 为 `position: relative`, `overflow: hidden`,伪元素高度 `10px`,不再形成整页竖条;2026 卡包含 `目标 $288.0万` 和 `落后 $41.0万`;2027/2028 卡包含上一年目标起点、目标、增长目标虚线和两端金额;未出现 `融资杠杆监控`;浏览器 console error/warn 为空。
-- Deployment: pending push to GitHub `main` and Vercel production deployment.
-- Production verification: pending deployment;部署后需验证 `ReviewTab` 生产 chunk 包含 `修正目标页视觉对齐` 对应 UI marker、`targetGap`、`plannedStartBalance`、`review-progress-shine`,且不包含 `融资杠杆监控` 或游离 `rocket-particle rocket-particle`;并确认 `/api/quote?symbols=VIX` 未登录仍返回 `401`。
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `4111f4e74797eb0d9b099b55b5c4551aeb0467b0`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3GSQWfD1aGjpty3w4ALBTVqo9FsL`.
+  - GitHub Actions API check for this commit returned `total_count=0` workflow runs;commit status API only reported Vercel.
+  - Production `GET https://boduan-tracker.vercel.app/?v=4111f4e-runtime3`: HTTP 200.
+  - Production entry chunks: `/assets/index-CP5PGETf.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-Cac1kro_.css`.
+  - Production runtime chunks include `/assets/App-D5tGlYh0.js`, `/assets/ReviewTab-CH-E0H_d.js`, `/assets/SettingsTab-BJLlp04c.js`, `/assets/AnalysisTab-S1iYuxfx.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/Login-BHTI7ybk.js`.
+- Production verification:
+  - Production CSS marker check: `index-Cac1kro_.css` contains root `html,body,#root` styling and does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production App marker check: `App-D5tGlYh0.js` references `ReviewTab`, `SettingsTab`, `AnalysisTab`, `HomeTab` and `TradesTab`.
+  - Production ReviewTab marker check: `ReviewTab-CH-E0H_d.js` contains `review-progress-shine`, `h-[270px]`, `目标`, `落后`, `起点 (`, `增长目标`, `展开剩余`, `年度目标操作`, `戒律操作`, `置顶戒律`, `取消置顶` and `1 USD =`;it does not contain `融资杠杆监控`, `setShowEditMargin` or `rocket-particle rocket-particle`.
+  - Production SettingsTab marker check: `SettingsTab-BJLlp04c.js` contains `v10.7.9.112` and `修正目标页视觉对齐`.
+  - Production entry/App/Review/Settings runtime chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次目标页视觉修正会恢复 `v10.7.9.111` 第一阶段目标页深色版;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 目标页深色化第一阶段
