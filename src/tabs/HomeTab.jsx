@@ -311,6 +311,7 @@ export default function HomeTab({ ctx }) {
     CheckCircle2,
     ChevronRight,
     deleteWatchlistItem,
+    displayStockName,
     fetchRealtimePrices,
     fetching,
     fgi,
@@ -358,6 +359,9 @@ export default function HomeTab({ ctx }) {
   });
   const summary = investmentSummary || emptySummary;
   const positions = summary.activePositions || [];
+  const stockDisplayName = typeof displayStockName === 'function'
+    ? displayStockName
+    : ((symbol, name) => String(name || symbol || '').trim());
   const positionsBySymbol = React.useMemo(() => new Map(positions.map((p) => [p.symbol, p])), [positions]);
   const displayWatchlist = homeWatchlist || watchlist || [];
   const fgiInfo = fgiLevel(fgi);
@@ -500,6 +504,7 @@ export default function HomeTab({ ctx }) {
     const ytdColor = ytdChangePercent === null ? '#ffffff40' : marketColor(ytdChangePercent, marketColorMode);
     const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
     const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
+    const displayName = stockDisplayName(symbol, row.name || quote?.name);
 
     return {
       row,
@@ -516,6 +521,7 @@ export default function HomeTab({ ctx }) {
       color,
       ytdColor,
       logoUrls,
+      displayName,
     };
   });
   const tableRows = React.useMemo(() => {
@@ -541,7 +547,7 @@ export default function HomeTab({ ctx }) {
     return {
       ...row,
       symbol,
-      displayName: row?.name || quote?.name || symbol,
+      displayName: stockDisplayName(symbol, row?.name || quote?.name),
       price: quote?.price || row?.price,
       changePercent: quote?.changePercent ?? row?.changePercent,
       logoUrls: logoUrlCandidates(symbol, cachedLogoUrl, row?.logoURL, row?.logoUrl, quote?.logoURL, quote?.logoUrl),
@@ -814,7 +820,7 @@ export default function HomeTab({ ctx }) {
                       <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{item.symbol}</span>
-                        <span className="block truncate text-[10px] leading-[12px] text-white/40">{item.row.name || item.quote?.name || item.symbol}</span>
+                        <span className="block truncate text-[10px] leading-[12px] text-white/40">{item.displayName}</span>
                       </span>
                     </div>
                   ))}

@@ -102,6 +102,7 @@ export default function TradesTab({ ctx }) {
     showAddTrade,
     showConfirm,
     stockTrades,
+    displayStockName,
     tradeEntryScope,
     tradeSubmitting,
     trades,
@@ -187,6 +188,9 @@ export default function TradesTab({ ctx }) {
   const showTradeRecordsTool = toolPanel === 'records';
   const showMainLedger = !showWaveTool && !showCostTool;
   const positionsMarketValue = toNumber(summary.positionsMarketValue);
+  const stockDisplayName = typeof displayStockName === 'function'
+    ? displayStockName
+    : ((symbol, name) => String(name || symbol || '').trim());
   const waveGroups = Array.isArray(wavesByStock) ? wavesByStock : [];
   const activeWaveGroups = waveGroups.filter(group => group.activeWave);
   const completedWaveGroups = waveGroups
@@ -198,10 +202,11 @@ export default function TradesTab({ ctx }) {
   ];
 
   const openTradeModal = (position = null, side = 'buy') => {
+    const symbol = position?.symbol || '';
     setTradeEntryScope('ledger');
     setNewTrade({
-      symbol: position?.symbol || '',
-      name: position?.name || '',
+      symbol,
+      name: stockDisplayName(symbol, position?.name),
       side,
       date: localDateKey(),
       price: position?.currentPrice ? String(position.currentPrice) : '',
@@ -213,11 +218,12 @@ export default function TradesTab({ ctx }) {
   };
 
   const openTradeEditModal = (trade) => {
+    const symbol = trade?.symbol || '';
     setTradeEntryScope('ledger');
     setNewTrade({
       id: trade.id,
-      symbol: trade.symbol || '',
-      name: trade.name || '',
+      symbol,
+      name: stockDisplayName(symbol, trade.name),
       side: trade.side === 'sell' ? 'sell' : 'buy',
       date: trade.date || localDateKey(),
       price: trade.price ? String(trade.price) : '',
@@ -458,6 +464,7 @@ export default function TradesTab({ ctx }) {
                 {ledgerTradeRecords.map((trade) => {
                   const isSell = trade.side === 'sell';
                   const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
+                  const displayName = stockDisplayName(trade.symbol, trade.name);
                   return (
                     <button
                       key={trade.id}
@@ -470,7 +477,7 @@ export default function TradesTab({ ctx }) {
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-[13px] font-normal text-white">{trade.symbol}</div>
-                        <div className="mt-1 truncate text-[11px] font-normal text-white/50">{trade.name || trade.symbol}</div>
+                        <div className="mt-1 truncate text-[11px] font-normal text-white/50">{displayName}</div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
@@ -569,17 +576,20 @@ export default function TradesTab({ ctx }) {
                   <div>
                     <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">名称/代码</div>
                     <div className="divide-y divide-white/[0.06]">
-                      {positions.map((position) => (
-                        <button
-                          key={position.symbol}
-                          type="button"
-                          onClick={() => openTradeModal(position, 'buy')}
-                          className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-1.5 text-left active:bg-white/[0.03]"
-                        >
-                          <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{position.name || position.symbol}</span>
-                          <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{position.symbol}</span>
-                        </button>
-                      ))}
+                      {positions.map((position) => {
+                        const displayName = stockDisplayName(position.symbol, position.name);
+                        return (
+                          <button
+                            key={position.symbol}
+                            type="button"
+                            onClick={() => openTradeModal(position, 'buy')}
+                            className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-1.5 text-left active:bg-white/[0.03]"
+                          >
+                            <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{displayName}</span>
+                            <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{position.symbol}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="overflow-x-auto [scrollbar-width:none]">
@@ -652,6 +662,7 @@ export default function TradesTab({ ctx }) {
                   {todayTrades.map((trade) => {
                     const isSell = trade.side === 'sell';
                     const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
+                    const displayName = stockDisplayName(trade.symbol, trade.name);
                     return (
                       <button
                         key={trade.id}
@@ -661,7 +672,7 @@ export default function TradesTab({ ctx }) {
                       >
                         <div className="min-w-0">
                           <div className="truncate text-[13px] font-normal text-white">{trade.symbol}</div>
-                          <div className="mt-1 text-[11px] text-white/60">{trade.name || trade.symbol}</div>
+                          <div className="mt-1 text-[11px] text-white/60">{displayName}</div>
                         </div>
                         <div className="text-right">
                           <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
@@ -682,6 +693,7 @@ export default function TradesTab({ ctx }) {
         {orderActionTrade && (() => {
           const isSell = orderActionTrade.side === 'sell';
           const amount = toNumber(orderActionTrade.price) * toNumber(orderActionTrade.shares) * displayRate;
+          const displayName = stockDisplayName(orderActionTrade.symbol, orderActionTrade.name);
           return (
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
@@ -708,7 +720,7 @@ export default function TradesTab({ ctx }) {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-[13px] font-normal text-white">{orderActionTrade.symbol || '--'}</div>
-                        <div className="mt-1 truncate text-[11px] text-white/60">{orderActionTrade.name || orderActionTrade.symbol || '--'}</div>
+                        <div className="mt-1 truncate text-[11px] text-white/60">{displayName || orderActionTrade.symbol || '--'}</div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(orderActionTrade.shares, 0)} 股</div>

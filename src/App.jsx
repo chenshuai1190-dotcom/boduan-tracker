@@ -1801,11 +1801,11 @@ function MainApp({ user, onLogout }) {
   const totalPnlPct = totalInvested > 0 ? totalPnl / totalInvested : 0;
 
   const investmentSummary = useMemo(() => deriveInvestmentSummary({
-    stockTrades,
+    stockTrades: localizedStockTrades,
     watchlist: quoteRows,
     cashUsd: 0,
     usdRate,
-  }), [stockTrades, quoteRows, usdRate]);
+  }), [localizedStockTrades, quoteRows, usdRate]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -2977,6 +2977,7 @@ function MainApp({ user, onLogout }) {
     DisciplineModal,
     disciplines,
     displayFgi,
+    displayStockName,
     Edit2,
     editingDisciplineId,
     editingLogId,

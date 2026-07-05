@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
 
@@ -118,6 +119,16 @@ test('position clicks default to buy and trade records use ledger edit/delete fl
   assert.ok(tradesTabSource.includes('const ledgerTradeRecords ='), 'trade records tool should render all stock_trades records');
   assert.ok(tradesTabSource.includes('setOrderActionTrade(trade)'), 'trade records should reuse the order action modal for edit/delete');
   assert.ok(tradesTabSource.includes('deleteStockTradeRecord(trade.id)'), 'trade records delete flow should still use the database-backed stock_trades delete path');
+});
+
+test('stock Chinese names are shared by home positions and trade records', () => {
+  assert.ok(appSource.includes('stockTrades: localizedStockTrades'), 'investment summary should derive positions from localized stock trades');
+  assert.ok(appSource.includes('displayStockName,'), 'tabs should receive the shared stock-name display helper');
+  assert.ok(homeTabSource.includes('displayName: stockDisplayName(symbol, row?.name || quote?.name)'), 'home watchlist edit rows should use shared stock-name fallback');
+  assert.ok(homeTabSource.includes('{item.displayName}'), 'home watchlist/positions table should render the localized display name');
+  assert.ok(tradesTabSource.includes('stockDisplayName(position.symbol, position.name)'), 'trade positions should render localized stock names');
+  assert.ok(tradesTabSource.includes('stockDisplayName(trade.symbol, trade.name)'), 'trade records and today orders should render localized stock names');
+  assert.ok(tradesTabSource.includes('stockDisplayName(orderActionTrade.symbol, orderActionTrade.name)'), 'order action modal should render localized stock names');
 });
 
 test('order action modal stays compact like the current trade record reference', () => {

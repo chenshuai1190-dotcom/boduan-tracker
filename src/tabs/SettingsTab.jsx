@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.103
+                  v10.7.9.104
                 </span>
               </div>
             </div>
@@ -163,14 +163,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.103
+                  v10.7.9.104
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.103', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.104', date: '2026-07-05', latest: true,
+                    items: [
+                      '🏷️ 同步持仓和交易记录中文名显示',
+                      '  - 首页持仓名称同步使用股票中文名兜底',
+                      '  - 交易页持仓分布、当日订单和全部交易记录同步显示中文名',
+                      '  - 订单操作弹窗和编辑交易表单也使用同一套中文名显示口径',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.103', date: '2026-07-05',
                     items: [
                       '🧾 调整订单操作弹窗尺寸',
                       '  - 当前股票交易记录的订单操作弹窗改为更窄的居中尺寸',
@@ -1068,7 +1077,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.103</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.104</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>
