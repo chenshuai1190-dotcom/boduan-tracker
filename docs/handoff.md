@@ -8,12 +8,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `TBD` (`v10.7.9.107`)
-- 最近应用代码提交: `TBD`
+- 当前产品基准提交: `858869a8442e6d575c858a5f5c792971161e26cf` (`v10.7.9.107`)
+- 最近应用代码提交: `858869a8442e6d575c858a5f5c792971161e26cf`
 - 最近文档/配置记录提交: 本文件所在最新提交
 - 设置页版本: `v10.7.9.107`
-- Vercel 最新运行时部署: pending
-- Vercel 部署记录: `v10.7.9.107` runtime commit `TBD`;deployment pending
+- Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7gBtGXLyXR2D4Hd85zHxYhwUNhHY`
+- Vercel 部署记录: `v10.7.9.107` runtime commit `858869a8442e6d575c858a5f5c792971161e26cf`;production `GET https://boduan-tracker.vercel.app/?v=858869a-runtime` HTTP 200
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -143,20 +143,21 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - `npm audit`: pass,0 vulnerabilities。
 - `git diff --check`: pass。
 - 生产未登录 `GET /api/quote?symbols=VIX`: HTTP 401。
-- `v10.7.9.107` runtime 待推送部署;本地已完成源码测试、构建、审计、diff 检查和 390px 资产页视觉预览。
+- `v10.7.9.107` runtime 已推送并部署成功;runtime commit `858869a8442e6d575c858a5f5c792971161e26cf`, Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7gBtGXLyXR2D4Hd85zHxYhwUNhHY`。
 
 已验证生产 runtime chunks:
 
 - 本轮本地构建 runtime chunks: `/assets/index-CTmL2_1m.css`, `/assets/index-BNvTa11o.js`, `/assets/AnalysisTab-ColUmi0M.js`, `/assets/SettingsTab-BYl2JxUY.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/App-DjWmCN5J.js`。
-- 生产 entry chunks: `/assets/index-BkA9LhNS.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-7IKKBvW8.css`。
-- 生产 runtime chunks: `/assets/App-DBv2F314.js`, `/assets/AnalysisTab-COUkDGPu.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/SettingsTab-DGVckMLi.js`, `/assets/supabase-CcYdvS9P.js`。
+- 生产 entry chunks: `/assets/index-PPuvOsBx.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CTmL2_1m.css`。
+- 生产 runtime chunks: `/assets/App-CkaF-E5i.js`, `/assets/AnalysisTab-ColUmi0M.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/SettingsTab-BYl2JxUY.js`, `/assets/ReviewTab-Bb_Mto4f.js`, `/assets/supabase-D8jmctq6.js`。
 
 关键 marker:
 
-- 生产 `App-DBv2F314.js` 包含 `QQQ` 和 `TQQQ` 英文显示映射,且不包含旧映射片段 `QQQ:\`纳斯达克100\`` / `TQQQ:\`3倍纳指\``。
-- 本地构建 `AnalysisTab-ColUmi0M.js` 包含资产模块深色 UI、走势图动效和自动汇率换算逻辑,且不包含旧手动汇率控件文案 `美元汇率` / `港币汇率`。
-- 本地生产构建不包含 `DevVisualPreview` 独立 chunk;开发态资产视觉预览只在 `import.meta.env.DEV` 且缺少 Supabase 配置时启用。
-- 本地构建 `SettingsTab-BYl2JxUY.js` 包含 `v10.7.9.107` 和 `修复资产页深色视觉和本地预览`。
+- 生产 `App-CkaF-E5i.js` 包含 `QQQ` 和 `TQQQ` 英文显示映射,且不包含旧映射片段 `QQQ:\`纳斯达克100\`` / `TQQQ:\`3倍纳指\``。
+- 生产 `App-CkaF-E5i.js` 包含资产页深色壳条件 `analysis`,资产页外层使用 `bg-[#05070b]`。
+- 生产 `AnalysisTab-ColUmi0M.js` 包含资产模块深色 UI、`assetDrawLine` / `assetAreaFadeIn` / `assetDotPop` 走势图动效和自动汇率换算逻辑,且不包含旧手动汇率控件文案 `美元汇率` / `港币汇率`。
+- 生产 entry/App/Analysis/Settings chunks 不包含 `DevVisualPreview`;开发态资产视觉预览只在 `import.meta.env.DEV` 且缺少 Supabase 配置时启用。
+- 生产 `SettingsTab-BYl2JxUY.js` 包含 `v10.7.9.107` 和 `修复资产页深色视觉和本地预览`。
 - 生产 runtime chunks 不包含旧工具可见标签 `股票设置</span>`。
 - 生产 `/api/quote?symbols=VIX` 未登录返回 `401`。
 
@@ -424,11 +425,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前产品基准提交: `TBD` (`v10.7.9.107`)
-最近应用代码提交: `TBD`
+当前产品基准提交: `858869a8442e6d575c858a5f5c792971161e26cf` (`v10.7.9.107`)
+最近应用代码提交: `858869a8442e6d575c858a5f5c792971161e26cf`
 设置页版本: `v10.7.9.107`
-Vercel 最新运行时部署: pending
-部署记录: `v10.7.9.107` runtime commit `TBD`;deployment pending
+Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7gBtGXLyXR2D4Hd85zHxYhwUNhHY`
+部署记录: `v10.7.9.107` runtime commit `858869a8442e6d575c858a5f5c792971161e26cf`;production `GET https://boduan-tracker.vercel.app/?v=858869a-runtime` HTTP 200
 
 请先按顺序读:
 1. `docs/handoff.md`

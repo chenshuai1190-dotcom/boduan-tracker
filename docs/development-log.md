@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 资产页深色视觉修复和本地预览
 
-- Commit: `TBD`
+- Commit: `858869a8442e6d575c858a5f5c792971161e26cf`
 - Background: 用户根据线上截图反馈资产模块外层仍是白底、部分卡片显示错乱、数字字号偏大、`填月度余额` / `新增账户` 按钮显示不清,且 12 个月走势图动效消失;同时要求先补齐本地开发视觉问题,避免继续盲改。
 - Changes:
   - `App.jsx` 将 `analysis` 资产页纳入深色外层壳,底层背景和底部导航同步首页/交易页深色风格,避免资产页继续露出白底。
@@ -31,7 +31,20 @@
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/`, in-app browser viewport `390x844`;verified body/root background `rgb(5, 7, 11)`, no `Supabase 配置缺失`, `家庭总资产` / `填月度余额` / `新增账户` visible, primary buttons `173x46`, and chart line animation name `assetDrawLine`;browser console error/warn logs empty.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `858869a8442e6d575c858a5f5c792971161e26cf`.
+  - GitHub `main`: `858869a8442e6d575c858a5f5c792971161e26cf`.
+  - GitHub Actions `CI`: success, run `28729078448`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7gBtGXLyXR2D4Hd85zHxYhwUNhHY`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=858869a-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-PPuvOsBx.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-CTmL2_1m.css`.
+  - Production runtime chunks: `/assets/App-CkaF-E5i.js`, `/assets/AnalysisTab-ColUmi0M.js`, `/assets/SettingsTab-BYl2JxUY.js`, `/assets/HomeTab-MC5TFijP.js`, `/assets/TradesTab-GTTATZ2u.js`, `/assets/ReviewTab-Bb_Mto4f.js`, `/assets/supabase-D8jmctq6.js`.
+- Production verification:
+  - Production marker check: `App-CkaF-E5i.js` contains the dark shell condition including `analysis`, so asset page uses `bg-[#05070b]`.
+  - Production marker check: `AnalysisTab-ColUmi0M.js` contains `assetDrawLine`、`assetAreaFadeIn`、`assetDotPop`, contains compact `min-h-[46px]` asset action buttons and `text-[38px]` header number, and no longer contains `text-[48px]`.
+  - Production marker check: `SettingsTab-BYl2JxUY.js` contains `v10.7.9.107` and `修复资产页深色视觉和本地预览`.
+  - Production marker check: entry/App/Analysis/Settings chunks do not contain `DevVisualPreview`;the visual preview remains dev-only.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会让资产页外层回到旧白底条件、移除本地只读资产视觉预览,并恢复资产模块较大的字号和无走势图入场动效;不影响账户、月度快照、交易账本、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 资产模块 UI 深色重设计
