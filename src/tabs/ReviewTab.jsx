@@ -163,6 +163,13 @@ export default function ReviewTab({ ctx }) {
     const n = toNumber(usdValue);
     return `${n >= 0 ? '+' : '-'}${money(Math.abs(n), digits)}`;
   };
+  const splitMoney = (usdValue, digits = 2) => {
+    const [main, decimal = ''.padEnd(digits, '0')] = fmtMoney(toNumber(usdValue) * rate, digits).split('.');
+    return {
+      main: `${symbol}${main}`,
+      decimal: digits > 0 ? `.${decimal}` : '',
+    };
+  };
   const pnlTextClass = (value) => marketTextClass(value, marketColorMode);
 
   const yearlyFinal = React.useMemo(() => {
@@ -208,7 +215,9 @@ export default function ReviewTab({ ctx }) {
     return rows;
   }, [startCapital, startYear, targetAnnualRate, totalYears, yearlyActuals]);
 
-  const ageGoalAmount = Math.round(startCapital * Math.pow(1 + targetAnnualRate, totalYears));
+  const ageGoalAmountExact = startCapital * Math.pow(1 + targetAnnualRate, totalYears);
+  const ageGoalAmount = Math.round(ageGoalAmountExact);
+  const headlineGoalMoney = splitMoney(ageGoalAmountExact, 2);
   const currentBalance = React.useMemo(() => {
     for (let i = yearlyFinal.length - 1; i >= 0; i -= 1) {
       if (!yearlyFinal[i].isProjected) return yearlyFinal[i].endBalance;
@@ -360,8 +369,9 @@ export default function ReviewTab({ ctx }) {
           </div>
         </div>
 
-        <div className="relative z-10 mt-3 text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-          {money(ageGoalAmount)}
+        <div className="relative z-10 mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+          <span>{headlineGoalMoney.main}</span>
+          <span className="ml-0.5 align-baseline text-[20px] leading-none text-[#ffd18a]/90">{headlineGoalMoney.decimal}</span>
         </div>
         <div className="relative z-10 mt-2 text-[13px] text-white/55">
           {totalYears} 年目标 · {ageGoalAge || '--'} 岁实现

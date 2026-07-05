@@ -4,6 +4,33 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 北极星目标小数层级优化
+
+- Commit: pending runtime commit.
+- Background: 用户给出新的头部金额参考图,要求只改目标页北极星头卡里的大目标金额这一处:恢复两位小数,并让小数部分 `.67` 这类后缀变小;其它目标页金额继续保持 `v10.7.9.114` 的无小数显示。
+- Changes:
+  - `ReviewTab` 新增 `splitMoney`,只用于北极星头卡主目标金额,把完整目标金额拆成大字号整数部分和小字号两位小数部分。
+  - 北极星主目标金额使用未四舍五入的 `ageGoalAmountExact` 渲染两位小数;进度条、设置摘要和年度目标数据仍使用原本 `ageGoalAmount` / `money(..., 0)` 逻辑。
+  - 年度目标、计划、实际、目标、落后、未来年度起点/目标和操作面板摘要继续无小数,避免重新增加数字密度。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.115`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页头卡单点视觉显示修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,64 tests.
+  - `npm run build`: pass; `index-HiTgp2o9.css` 52.49 kB / gzip 9.79 kB, `ReviewTab-BuY1rSX-.js` 31.93 kB / gzip 7.88 kB, `SettingsTab-COqZ2H_O.js` 40.26 kB / gzip 15.30 kB, `App-D_0SIy2l.js` 144.69 kB / gzip 41.20 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;北极星头卡大目标金额实际渲染为 `$14,860,167.41`,拆成 `$14,860,167` 34px 正常字重和 `.41` 20px 正常字重两段;北极星卡 `358x244`,年度区域 `374px` 宽,2026 本年卡 `374px` 宽,页面 `scrollWidth=390`;年度目标金额仍无小数,包含 `当前 $2,470,000`, `+$70,000`, `目标 $2,880,000`, `落后 $410,000`;浏览器 console error/warn 为空。
+  - Build marker check: pass; built `ReviewTab-BuY1rSX-.js` contains the small decimal class `text-[20px] leading-none text-[#ffd18a]/90`, does not contain `fmtWan`, ` 万`, `money(ageGoalAmount, 2)` or `融资杠杆监控`;built `SettingsTab-COqZ2H_O.js` contains `v10.7.9.115` and `北极星目标小数层级优化`;built CSS does not contain `overscroll-behavior-y:none`.
+- Deployment: pending Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次北极星主目标金额小数层级优化会恢复 `v10.7.9.114` 的头卡主目标金额无小数显示;不影响年度目标、交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 目标页数字密度微调
 
 - Commit: `a0c79b5a42f5284c2ab93103e8b409d1fdf7162a`

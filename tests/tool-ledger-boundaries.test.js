@@ -211,7 +211,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('SF Pro Display'), 'review money should use the same system number font as the home header');
   assert.ok(reviewTabSource.includes('fmtMoney(value, digits = 0)'), 'review money should render full comma-separated amounts without dense decimals');
   assert.equal(reviewTabSource.includes('fmtWan'), false, 'review money must not return to wan shorthand');
-  assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'review headline target amount should not return to two decimals');
+  assert.ok(reviewTabSource.includes('const splitMoney = (usdValue, digits = 2)'), 'north-star headline should split the decimal part for small-type rendering');
+  assert.ok(reviewTabSource.includes('headlineGoalMoney = splitMoney(ageGoalAmountExact, 2)'), 'only the north-star headline should restore two decimals');
+  assert.ok(reviewTabSource.includes('headlineGoalMoney.decimal'), 'north-star headline should render the decimal suffix separately');
+  assert.ok(reviewTabSource.includes('text-[20px] leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller');
+  assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'other target amount surfaces should not return to two decimals');
   assert.ok(reviewTabSource.includes('h-[244px]'), 'north-star header card should stay more compact on mobile');
   assert.ok(reviewTabSource.includes('mb-1.5 mt-auto flex -translate-y-2'), 'north-star settings button row should stay lifted from the card bottom');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
@@ -236,8 +240,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.114'), 'settings version should document the review page density correction');
-  assert.ok(settingsTabSource.includes('目标页数字密度微调'), 'settings changelog should describe the review page density correction');
+  assert.ok(settingsTabSource.includes('v10.7.9.115'), 'settings version should document the north-star decimal hierarchy correction');
+  assert.ok(settingsTabSource.includes('北极星目标小数层级优化'), 'settings changelog should describe the north-star decimal hierarchy correction');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {
