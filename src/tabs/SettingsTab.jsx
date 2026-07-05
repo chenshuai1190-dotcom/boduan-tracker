@@ -5,12 +5,14 @@ export default function SettingsTab({ ctx }) {
     changelogExpanded,
     ChevronDown,
     ChevronUp,
+    clearQuoteDiagnosticLogs,
     Loader2,
     LogOut,
     newPwd,
     onLogout,
     pwdLoading,
     pwdMsg,
+    quoteDiagnosticLogs = [],
     resetAll,
     RotateCcw,
     setChangelogExpanded,
@@ -25,6 +27,37 @@ export default function SettingsTab({ ctx }) {
     X,
   } = ctx;
 
+  const formatDiagnosticTime = (value) => {
+    if (!value) return '--';
+    try {
+      return new Date(value).toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '--';
+    }
+  };
+  const triggerLabel = (trigger) => ({
+    'auto-start': '自动启动',
+    'auto-interval': '自动轮询',
+    'auto-visible': '回到前台',
+    'manual-button': '手动刷新',
+    'manual-pull-refresh': '下拉刷新',
+  }[trigger] || trigger || '未知触发');
+  const rootLabel = (root) => ({
+    'browser-network': '浏览器网络',
+    'auth': '登录鉴权',
+    'request-params': '请求参数',
+    'rate-limit': '频率限制',
+    'server-config': '服务端配置',
+    'provider-partial': '第三方局部',
+    'quote-api': '行情接口',
+  }[root] || root || '未知根因');
+  const visibleQuoteLogs = Array.isArray(quoteDiagnosticLogs) ? quoteDiagnosticLogs.slice(0, 8) : [];
+
   return (
     <>
 
@@ -36,7 +69,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.142
+                  v10.7.9.143
                 </span>
               </div>
             </div>
@@ -156,6 +189,82 @@ export default function SettingsTab({ ctx }) {
               </div>
             )}
 
+            {/* 行情诊断日志 */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-white">行情诊断日志</h2>
+                  <div className="mt-1 text-[11px] font-medium text-white/35">
+                    最近 {quoteDiagnosticLogs.length || 0} 条
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearQuoteDiagnosticLogs}
+                  disabled={quoteDiagnosticLogs.length === 0}
+                  className="rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-[11px] font-bold text-white/60 active:scale-95 disabled:opacity-35"
+                >
+                  清空
+                </button>
+              </div>
+
+              {visibleQuoteLogs.length === 0 ? (
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/45">
+                  暂无行情错误
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {visibleQuoteLogs.map((log) => (
+                    <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                              log.mode === 'manual-visible'
+                                ? 'border border-rose-300/25 bg-rose-300/10 text-rose-200'
+                                : 'border border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+                            }`}>
+                              {log.mode === 'manual-visible' ? '已提示' : '静默'}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/55">
+                              {triggerLabel(log.trigger)}
+                            </span>
+                            {log.count > 1 && (
+                              <span className="rounded-full border border-[#f6a524]/20 bg-[#f6a524]/10 px-2 py-0.5 text-[10px] font-black text-[#f6a524]">
+                                x{log.count}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 text-sm font-semibold text-white/85">
+                            {rootLabel(log.root)} · {log.provider || '未知来源'}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right text-[10px] tabular-nums text-white/35" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                          {formatDiagnosticTime(log.lastAt || log.at)}
+                        </div>
+                      </div>
+                      <div className="break-words text-[12px] leading-relaxed text-white/60">
+                        {log.message || '--'}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-white/35">
+                        <div className="truncate">范围: {log.symbols || '--'}</div>
+                        <div className="text-right tabular-nums">HTTP: {log.status || '--'} · {log.durationMs || 0}ms</div>
+                      </div>
+                      {Array.isArray(log.providerErrors) && log.providerErrors.length > 0 && (
+                        <div className="mt-2 space-y-1 border-t border-white/10 pt-2">
+                          {log.providerErrors.slice(0, 3).map((item, idx) => (
+                            <div key={`${item.symbol}_${idx}`} className="text-[10px] leading-relaxed text-white/40">
+                              {item.symbol} · {item.provider}: {item.message}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* 📜 更新日志 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="flex items-center justify-between mb-3">
@@ -163,14 +272,23 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.142
+                  v10.7.9.143
                 </span>
               </div>
 
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.142', date: '2026-07-06', latest: true,
+                    ver: 'v10.7.9.143', date: '2026-07-06', latest: true,
+                    items: [
+                      '🧭 行情诊断日志',
+                      '  - 股票已有 WebSocket 时,自动 REST 兜底失败不再弹底部红条',
+                      '  - 用户主动下拉刷新或手动刷新失败仍会提示',
+                      '  - 设置页新增行情诊断日志,记录根因、来源、触发方式和请求范围',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.142', date: '2026-07-06',
                     items: [
                       '⚡ 工具行情 WebSocket 秒级推送',
                       '  - 摊薄工具和波段记录的股票代码加入已登录服务端股票 WebSocket relay',
@@ -1448,7 +1566,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.142</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.143</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

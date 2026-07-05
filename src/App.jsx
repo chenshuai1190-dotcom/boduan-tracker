@@ -28,6 +28,8 @@ const PULL_REFRESH_MAX_DISTANCE = 96;
 const PULL_REFRESH_ACTIVATION_DISTANCE = 34;
 const PULL_REFRESH_ROOT_TOP_TOLERANCE = 1;
 const APP_SHELL_REFRESH_PARAM = '__xmoney_refresh';
+const QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY = 'xmoney_quote_diagnostic_log_v1';
+const QUOTE_DIAGNOSTIC_LOG_LIMIT = 30;
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -227,6 +229,126 @@ function formatRealtimeFetchError(error) {
     return '行情网络请求失败,已保留现有数据';
   }
   return rawMessage || '行情拉取失败';
+}
+
+function readQuoteDiagnosticLogs() {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistQuoteDiagnosticLogs(logs) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY, JSON.stringify(logs.slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT)));
+  } catch {
+    // ignore storage failures, diagnostics should never block quotes
+  }
+}
+
+function inferQuoteProvider(message = '') {
+  const text = String(message || '').toLowerCase();
+  if (/supabase|auth|未授权|登录/.test(text)) return 'Supabase Auth';
+  if (/cnn|fear|fgi/.test(text)) return 'CNN FGI';
+  if (/nasdaq|calendar|日历/.test(text)) return 'NASDAQ Calendar';
+  if (/yahoo/.test(text)) return 'Yahoo Finance';
+  if (/eodhd|vix|api key|real-time|us-quote|eod/.test(text)) return 'EODHD';
+  if (/vercel|function|timeout/.test(text)) return 'Vercel Function';
+  if (/load failed|failed to fetch|networkerror|network request failed|fetch failed/.test(text)) return 'Browser Network';
+  return 'Quote API';
+}
+
+function inferQuoteRoot(message = '', status = 0) {
+  const text = String(message || '').toLowerCase();
+  if (/load failed|failed to fetch|networkerror|network request failed|fetch failed/.test(text)) return 'browser-network';
+  if (status === 401 || status === 403 || /未授权|登录|auth|supabase/.test(text)) return 'auth';
+  if (status === 400 || /symbols|参数|代码不合法/.test(text)) return 'request-params';
+  if (status === 429 || /rate|limit|quota|too many/.test(text)) return 'rate-limit';
+  if (status >= 500 || /timeout|function|vercel/.test(text)) return 'quote-api';
+  if (/api key|eodhd_api_key/.test(text)) return 'server-config';
+  return 'quote-api';
+}
+
+function collectQuoteProviderErrors(data) {
+  const errors = [];
+  const visit = (item, parentSymbol = '') => {
+    if (!item || typeof item !== 'object') return;
+    const symbol = String(item.symbol || item.ticker || item.displaySymbol || parentSymbol || 'UNKNOWN');
+    if (item.error) {
+      const message = String(item.error).slice(0, 180);
+      errors.push({
+        symbol,
+        provider: inferQuoteProvider(message),
+        message,
+      });
+    }
+    if (Array.isArray(item.data)) item.data.forEach(child => visit(child, symbol));
+  };
+  if (Array.isArray(data)) data.forEach(item => visit(item));
+  return errors.slice(0, 12);
+}
+
+function compactQuoteSymbolsForLog(symbols = []) {
+  const list = Array.isArray(symbols)
+    ? symbols.map(symbol => String(symbol || '').trim()).filter(Boolean)
+    : String(symbols || '').split(',').map(symbol => symbol.trim()).filter(Boolean);
+  const preview = list.slice(0, 12);
+  return {
+    count: list.length,
+    preview,
+    text: `${preview.join(',')}${list.length > preview.length ? ` +${list.length - preview.length}` : ''}`,
+  };
+}
+
+function buildQuoteDiagnosticEntry({
+  trigger = 'auto',
+  notifyOnError = false,
+  symbols = [],
+  rowsCount = 0,
+  status = 0,
+  result = null,
+  error = null,
+  durationMs = 0,
+}) {
+  const providerErrors = collectQuoteProviderErrors(result?.data);
+  const rawMessage = String(error?.message || result?.error || providerErrors[0]?.message || '').trim();
+  const userMessage = error ? formatRealtimeFetchError(error) : (rawMessage || '第三方行情部分失败');
+  const symbolsInfo = compactQuoteSymbolsForLog(symbols);
+  const root = providerErrors.length > 0 && !error && !result?.error
+    ? 'provider-partial'
+    : inferQuoteRoot(rawMessage || userMessage, status);
+  const provider = providerErrors[0]?.provider || inferQuoteProvider(rawMessage || userMessage);
+
+  return {
+    id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    at: new Date().toISOString(),
+    lastAt: new Date().toISOString(),
+    count: 1,
+    endpoint: '/api/quote',
+    trigger,
+    mode: notifyOnError ? 'manual-visible' : 'auto-silent',
+    root,
+    provider,
+    status: status || null,
+    message: userMessage,
+    symbols: symbolsInfo.text,
+    symbolCount: symbolsInfo.count,
+    rowsCount,
+    durationMs,
+    providerErrors,
+    fingerprint: [
+      trigger,
+      root,
+      provider,
+      status || '',
+      userMessage,
+      providerErrors.map(item => `${item.symbol}:${item.provider}:${item.message}`).join('|'),
+    ].join('::'),
+  };
 }
 
 function readCachedStockLogos() {
@@ -1297,6 +1419,7 @@ function MainApp({ user, onLogout }) {
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
+  const [quoteDiagnosticLogs, setQuoteDiagnosticLogs] = useState(() => readQuoteDiagnosticLogs());
   const [btcRealtimeStatus, setBtcRealtimeStatus] = useState('idle');
   const [btcRealtimeLastTick, setBtcRealtimeLastTick] = useState(null);
   const [btcRealtimeError, setBtcRealtimeError] = useState(null);
@@ -1415,6 +1538,38 @@ function MainApp({ user, onLogout }) {
     const timerId = setTimeout(() => setFetchError(null), 4200);
     return () => clearTimeout(timerId);
   }, [fetchError]);
+
+  const recordQuoteDiagnosticLog = useCallback((entry) => {
+    if (!entry) return;
+    setQuoteDiagnosticLogs(current => {
+      const currentLogs = Array.isArray(current) ? current : [];
+      const latest = currentLogs[0];
+      let next;
+      if (latest?.fingerprint && latest.fingerprint === entry.fingerprint) {
+        next = [
+          {
+            ...latest,
+            lastAt: entry.at,
+            count: (latest.count || 1) + 1,
+            durationMs: entry.durationMs,
+            status: entry.status,
+            message: entry.message,
+            providerErrors: entry.providerErrors,
+          },
+          ...currentLogs.slice(1),
+        ];
+      } else {
+        next = [entry, ...currentLogs].slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT);
+      }
+      persistQuoteDiagnosticLogs(next);
+      return next;
+    });
+  }, []);
+
+  const clearQuoteDiagnosticLogs = useCallback(() => {
+    persistQuoteDiagnosticLogs([]);
+    setQuoteDiagnosticLogs([]);
+  }, []);
 
   const applyCloudUserData = useCallback((result, logLabel = '[云端加载]') => {
     const {
@@ -2459,14 +2614,21 @@ function MainApp({ user, onLogout }) {
   }, [localizedQuoteCache, localizedStockTrades, localizedWatchlist, toolQuoteRows]);
 
   // 一键拉取实时行情(从 Vercel API)
-  const fetchRealtimePrices = async (rowsOverride = null) => {
+  const fetchRealtimePrices = async (rowsOverride = null, options = {}) => {
+    const requestOptions = (options && typeof options === 'object') ? options : {};
+    const trigger = requestOptions.trigger || 'auto';
+    const notifyOnError = requestOptions.notifyOnError === true;
+    const startedAt = Date.now();
+    let requestedSymbols = [];
+    let responseStatus = 0;
+    let responseResult = null;
     if (quoteFetchInFlightRef.current) {
       return { ok: true, skipped: true };
     }
     quoteFetchInFlightRef.current = true;
     const rowsForQuote = Array.isArray(rowsOverride) ? rowsOverride : quoteRows;
     setFetching(true);
-    setFetchError(null);
+    if (notifyOnError) setFetchError(null);
     try {
       // v10.7.9.41: 显式把 QQQ/TQQQ 加进请求 (走完整 stock 接口, 有真实 week52High)
       // 之前只请求 watchlist+VIX+FGI+INDICES, QQQ 数据藏在 INDICES 里但只有 dayHigh 没有 52周高
@@ -2474,15 +2636,31 @@ function MainApp({ user, onLogout }) {
       // Set 去重: 交易主账本、旧 watchlist、核心标的若重复不会重复请求
       const coreSymbols = ['QQQ', 'TQQQ'];
       const symbolSet = new Set([...rowsForQuote.map(s => s.symbol), ...coreSymbols]);
-      const symbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'].join(',');
+      requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
+      const symbols = requestedSymbols.join(',');
       const r = await fetchQuote(symbols);
+      responseStatus = r.status;
       const result = await r.json().catch(() => ({}));
+      responseResult = result;
       
       if (!r.ok) {
         throw new Error(result.error || `行情接口返回 ${r.status}`);
       }
       if (!result.success) {
         throw new Error(result.error || '拉取失败');
+      }
+
+      const providerErrors = collectQuoteProviderErrors(result.data);
+      if (providerErrors.length > 0) {
+        recordQuoteDiagnosticLog(buildQuoteDiagnosticEntry({
+          trigger,
+          notifyOnError,
+          symbols: requestedSymbols,
+          rowsCount: rowsForQuote.length,
+          status: r.status,
+          result,
+          durationMs: Date.now() - startedAt,
+        }));
       }
 
       // 更新股票价格
@@ -2572,8 +2750,20 @@ function MainApp({ user, onLogout }) {
       return { ok: true };
     } catch (e) {
       const message = formatRealtimeFetchError(e);
+      const diagnostic = buildQuoteDiagnosticEntry({
+        trigger,
+        notifyOnError,
+        symbols: requestedSymbols,
+        rowsCount: rowsForQuote.length,
+        status: responseStatus,
+        result: responseResult,
+        error: e,
+        durationMs: Date.now() - startedAt,
+      });
       console.warn('[行情拉取] 失败:', e);
-      setFetchError(message);
+      console.warn('[行情诊断]', diagnostic);
+      recordQuoteDiagnosticLog(diagnostic);
+      if (notifyOnError) setFetchError(message);
       return { ok: false, error: message };
     } finally {
       quoteFetchInFlightRef.current = false;
@@ -2608,7 +2798,10 @@ function MainApp({ user, onLogout }) {
       const cloudResult = await db.fetchAllUserData();
       applyCloudUserData(cloudResult, '[全局刷新]');
       await fetchDailyFxRates({ force: true });
-      await fetchRealtimePrices(buildQuoteRowsFromCloudResult(cloudResult));
+      await fetchRealtimePrices(buildQuoteRowsFromCloudResult(cloudResult), {
+        trigger: 'manual-pull-refresh',
+        notifyOnError: true,
+      });
       setPullRefreshStatus('done');
     } catch (e) {
       console.error('[全局刷新] 失败:', e);
@@ -3235,7 +3428,7 @@ function MainApp({ user, onLogout }) {
     if (cloudLoading) return;
 
     // 启动时立即拉 1 次 (拿初始数据 + 指数 + VIX/FGI)
-    fetchRealtimePrices();
+    fetchRealtimePrices(null, { trigger: 'auto-start', notifyOnError: false });
 
     console.log('[REST] 启用已登录行情接口轮询');
     let timerId = null;
@@ -3243,7 +3436,7 @@ function MainApp({ user, onLogout }) {
 
     const runFetchAndReschedule = () => {
       if (!isActive) return;
-      fetchRealtimePrices();
+      fetchRealtimePrices(null, { trigger: 'auto-interval', notifyOnError: false });
       const interval = getMarketRefreshInterval();
       timerId = setTimeout(runFetchAndReschedule, interval);
     };
@@ -3260,7 +3453,7 @@ function MainApp({ user, onLogout }) {
         }
       } else {
         if (isActive && !timerId) {
-          fetchRealtimePrices();
+          fetchRealtimePrices(null, { trigger: 'auto-visible', notifyOnError: false });
           const interval = getMarketRefreshInterval();
           timerId = setTimeout(runFetchAndReschedule, interval);
         }
@@ -3395,7 +3588,7 @@ function MainApp({ user, onLogout }) {
     expandedWaves,
     fetchError,
     fetching,
-    fetchRealtimePrices,
+    fetchRealtimePrices: () => fetchRealtimePrices(null, { trigger: 'manual-button', notifyOnError: true }),
     fgi,
     fgiDataDate,
     fgiLabel,
@@ -3432,6 +3625,7 @@ function MainApp({ user, onLogout }) {
     priceFlash,
     pwdLoading,
     pwdMsg,
+    quoteDiagnosticLogs,
     quoteRows,
     RefreshCw,
     removeStock,
@@ -3439,6 +3633,7 @@ function MainApp({ user, onLogout }) {
     resetAll,
     reviewLogs,
     RotateCcw,
+    clearQuoteDiagnosticLogs,
     setAccountDeleteConfirmId,
     setAccounts,
     setAlertsMuted,

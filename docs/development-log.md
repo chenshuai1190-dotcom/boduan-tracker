@@ -4,6 +4,32 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 行情诊断日志和自动失败静默
+
+- Commit: `same commit`
+- Background: 用户截图反馈交易页底部出现 `行情拉取失败:行情网络请求失败,已保留现有数据`,并指出此前接入了多个第三方免费行情源,需要先从代码确认根因。复查后确认底部 toast 来自全局 `/api/quote` REST 兜底刷新,它一次请求股票 quote rows、`QQQ/TQQQ`、`VIX`、`FGI` 和 `INDICES`,服务端会再访问 EODHD、Yahoo、CNN、NASDAQ 和 Supabase Auth。股票已有 `/api/stocks-realtime` WebSocket 后,后台 REST 偶发失败不应再打扰用户,但需要留下可定位根因的诊断日志。
+- Changes:
+  - `App.jsx` 新增本地 `quoteDiagnosticLogs` 诊断日志,记录 `/api/quote` 失败触发方式、是否已提示、根因分类、归因来源、HTTP 状态、请求范围、耗时和第三方局部错误。
+  - 自动启动、定时轮询和回到前台触发的 REST 兜底刷新改为 `notifyOnError:false`,失败只写诊断日志和 console,不再弹底部红条;现有行情数据继续保留。
+  - 下拉刷新和首页/交易页手动刷新改为 `notifyOnError:true`,失败仍显示底部 toast,避免用户主动动作没有反馈。
+  - REST 成功但返回第三方局部错误时也写入诊断日志,例如 CNN、Yahoo、EODHD、NASDAQ 某一项失败但整体响应仍成功。
+  - 设置页新增 `行情诊断日志` 卡片,展示最近 8 条诊断,可查看根因、来源、触发方式、请求范围、HTTP 状态和重复次数,并支持清空本地日志。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.143`,新增 `行情诊断日志`。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;71 tests passed.
+  - `npm run build`: pass;Vite built `App-CpCCEO_y.js`, `SettingsTab-DQJSM5zg.js`, `TradesTab-uyI19HGM.js`, `HomeTab-4NbUE9pN.js`.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker scan: pass;built assets contain `v10.7.9.143`, `行情诊断日志`, `xmoney_quote_diagnostic_log_v1`, `auto-silent`, `manual-visible`, and `/api/stocks-realtime`;active App/Home/Trades bundles do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`. `SettingsTab` still contains historical changelog text `VITE_EODHD_TOKEN` only.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `App.jsx` 的 quote diagnostic helpers、`notifyOnError` 调用区分和设置页 context,回退 `SettingsTab` 的 `行情诊断日志` 卡片与 `v10.7.9.143` 更新日志,并回退对应测试断言和本条开发日志即可;不影响 `/api/quote` 鉴权、`/api/stocks-realtime`、BTC/指数 relay、交易账本或 Supabase 数据。
+
 ### 2026-07-06 - 工具行情 WebSocket 秒级推送
 
 - Commit: `46cda40f887262059a77c5e908389f186774931c`
