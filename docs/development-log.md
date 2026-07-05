@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 北极星复利明细视觉微调
 
-- Commit: pending.
+- Commit: `c685192e5a33150ae5fa016b40fb0f88f238bb3d`
 - Background: 用户反馈复利明细整体效果已出来,但白色边框偏突兀、弹窗偏窄、内容过长需要可滚动、曲线下方需要完整显示十年年份,并要求收益颜色统一使用首页粉色。
 - Changes:
   - 复利明细弹窗外层从白色弱边框改为参考图同款弱金色边框,内部统计、实际进度、账户曲线和每年收益卡片边框也同步降为低饱和金色。
@@ -28,8 +28,18 @@
   - `git diff --check`: pass.
   - Build marker check: `ReviewTab-B87rKDT0.js` contains `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, weak gold border marker `border-[#f6b54b]/35`, full-year x-axis mapping, small year font `fontSize: 8`, and `text-rose-400`;`SettingsTab-VOO0enLZ.js` contains `v10.7.9.127` and `北极星复利明细视觉微调`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `374px`,高 `816px`,页面 `scrollWidth=390`,弹窗 `scrollHeight=877` / `clientHeight=814`,可内部滚动;外层边框色 `rgba(246,181,75,0.35)`;曲线下方完整显示 `2026`-`2035` 共 10 个年份标签且字号为 `8`;累计收益、实际收益和每年收益颜色均为 `rgb(251,113,133)`;无横向溢出。
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `c685192e5a33150ae5fa016b40fb0f88f238bb3d`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5Qn8Xsy9ZvDBzohBNXpkPWZ343Ai`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=c685192-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-DtvStkZ7.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-o_AHniHQ.css`.
+  - Production runtime chunks include: `/assets/App-pTfXC-2E.js`, `/assets/ReviewTab-B87rKDT0.js`, `/assets/SettingsTab-VOO0enLZ.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-B87rKDT0.js` contains `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, weak gold border marker `border-[#f6b54b]/35`, full-year x-axis mapping, small year font `fontSize: 8`, and `text-rose-400`.
+  - Production SettingsTab marker check: `SettingsTab-VOO0enLZ.js` contains `v10.7.9.127` and `北极星复利明细视觉微调`.
+  - Production CSS/App marker check: `index-o_AHniHQ.css` does not contain `overscroll-behavior-y:none`;`App-pTfXC-2E.js` does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.127` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.126` 的复利明细弹窗宽度、白色弱边框、曲线抽样年份和金色收益;不影响北极星目标计算、年度目标数据、投资戒律、复盘日志、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 北极星复利明细弹窗
