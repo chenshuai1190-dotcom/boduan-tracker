@@ -318,14 +318,14 @@ function CompoundDetailModal({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 rounded-2xl border border-[#f6b54b]/15 bg-white/[0.032] py-3">
+        <div className="mt-4 grid grid-cols-3 rounded-2xl border border-[#232b36]/80 bg-white/[0.032] py-3">
           {[
             { label: '目标终值', value: money(targetValue), valueClass: 'text-[#ffd18a]' },
             { label: '累计收益', value: signedMoney(targetGain), valueClass: 'text-rose-400' },
             { label: '复利倍数', value: `${multiple.toFixed(2)}x`, valueClass: 'text-[#ffd18a]' },
           ].map((item, index) => (
-            <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-[#f6b54b]/12' : ''}`}>
-              <div className="text-[11px] text-white/38">{item.label}</div>
+            <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-[#232b36]/90' : ''}`}>
+              <div className="text-[11px] text-[#8a909a]">{item.label}</div>
               <div className={`mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums ${item.valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
                 {item.value}
               </div>
@@ -333,10 +333,10 @@ function CompoundDetailModal({
           ))}
         </div>
 
-        <div className="mt-2.5 rounded-2xl border border-[#f6b54b]/12 bg-white/[0.025] px-3 py-2.5">
+        <div className="mt-2.5 rounded-2xl border border-[#232b36]/80 bg-white/[0.025] px-3 py-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[11px] text-white/38">实际进度</div>
+              <div className="text-[11px] text-[#8a909a]">实际进度</div>
               <div className="mt-1 truncate text-[12px] text-white/68">
                 当前 <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
                 <span className="mx-1.5 text-white/22">·</span>
@@ -345,7 +345,7 @@ function CompoundDetailModal({
             </div>
             <div className="shrink-0 text-right">
               <div className="text-[15px] leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</div>
-              <div className="mt-1 text-[10px] text-white/35">完成度</div>
+              <div className="mt-1 text-[10px] text-[#8a909a]">完成度</div>
             </div>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
@@ -357,11 +357,11 @@ function CompoundDetailModal({
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <h3 className="text-[14px] font-semibold text-white">账户曲线</h3>
+          <h3 className="text-[14px] font-semibold text-[#d9dde4]">账户曲线</h3>
           <span className="text-[11px] text-white/40">金额单位: {symbol === '¥' ? '百万元人民币' : '百万美元'}</span>
         </div>
 
-        <div className="mt-2 rounded-[18px] border border-[#f6b54b]/10 bg-black/[0.12] px-2 py-2.5">
+        <div className="mt-2 rounded-[18px] border border-[#202733] bg-black/[0.12] px-2 py-2.5">
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[164px] w-full overflow-visible" aria-label="复利账户曲线">
             <defs>
               <linearGradient id="compoundLineGradient" x1="0" y1="0" x2="1" y2="0">
@@ -377,8 +377,8 @@ function CompoundDetailModal({
               const y = padTop + plotHeight - (tick / chartMax) * plotHeight;
               return (
                 <g key={tick}>
-                  <line x1={padLeft} x2={chartWidth - padRight} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="0.7" />
-                  <text x="4" y={y + 3} fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>{formatMillion(tick)}</text>
+                  <line x1={padLeft} x2={chartWidth - padRight} y1={y} y2={y} stroke="rgba(86,99,120,0.16)" strokeWidth="0.7" />
+                  <text x="4" y={y + 3} fill="rgba(141,148,160,0.68)" fontSize="10" fontFamily={NUMBER_FONT}>{formatMillion(tick)}</text>
                 </g>
               );
             })}
@@ -386,8 +386,8 @@ function CompoundDetailModal({
               const point = chartPoints[index];
               return (
                 <g key={point.year}>
-                  <line x1={point.x} x2={point.x} y1={padTop} y2={padTop + plotHeight} stroke="rgba(255,255,255,0.045)" strokeWidth="0.7" />
-                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>
+                  <line x1={point.x} x2={point.x} y1={padTop} y2={padTop + plotHeight} stroke="rgba(86,99,120,0.12)" strokeWidth="0.7" />
+                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(141,148,160,0.66)" fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>
                 </g>
               );
             })}
@@ -401,14 +401,14 @@ function CompoundDetailModal({
           </svg>
         </div>
 
-        <div className="mt-4 rounded-[18px] border border-[#f6b54b]/12 bg-white/[0.035] px-3 py-3">
-          <h3 className="text-[14px] font-semibold text-white">每年收益</h3>
-          <div className="mt-3 grid grid-cols-[0.75fr_1fr_1.15fr] border-b border-white/[0.06] pb-2 text-[11px] text-white/38">
+        <div className="mt-4 rounded-[18px] border border-[#202733] bg-white/[0.035] px-3 py-3">
+          <h3 className="text-[14px] font-semibold text-[#d9dde4]">每年收益</h3>
+          <div className="mt-3 grid grid-cols-[0.75fr_1fr_1.15fr] border-b border-[#202733] pb-2 text-[11px] text-[#8a909a]">
             <span>年份</span>
             <span className="text-right">年收益</span>
             <span className="text-right">期末资产</span>
           </div>
-          <div className="divide-y divide-white/[0.055]">
+          <div className="divide-y divide-[#202733]">
             {displayRows.map((row) => (
               <div key={row.year} className="grid grid-cols-[0.75fr_1fr_1.15fr] py-2 text-[12px] leading-none">
                 <span className="text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.year}</span>

@@ -4,6 +4,35 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 复利明细内部层级降色
+
+- Commit: pending.
+- Background: 用户反馈 `v10.7.9.127` 复利明细弹窗内部小卡片做错了,统计卡、实际进度和每年收益区域出现太多偏白边框/分割线,同时 `目标`、`累计`、`复利`、`实际进度`、`每年收益`、`期末资产` 等标签层级偏白,要求参考图二或恢复上版内部样式风格;其它宽度、滚动、十年年份和收益粉色效果保留。
+- Changes:
+  - 复利明细顶部统计卡、实际进度卡的内部边框从偏亮金色/白色视觉改为低对比暗线 `#232b36`。
+  - 统计卡竖向分割线改为 `border-[#232b36]/90`,取消偏白分隔感。
+  - 曲线卡和每年收益卡改用 `#202733` 暗色边框,每年收益表行分割线和表头分割线同步改为 `#202733`。
+  - 曲线网格线从白色透明线改为 `rgba(86,99,120,0.16)` / `rgba(86,99,120,0.12)` 低对比暗线。
+  - `目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 等标签统一为灰色 `#8a909a`;收益数值继续保持上一版首页粉色 `text-rose-400`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.128`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页复利明细弹窗的前端视觉层级微调,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构、行情 relay 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,65 tests.
+  - `npm run build`: pass;build output includes `index-B21CJLxn.css` 55.71 kB / gzip 10.15 kB,`ReviewTab-DvF47Fsk.js` 46.21 kB / gzip 10.82 kB,`SettingsTab-DRKSQz2w.js` 44.45 kB / gzip 16.59 kB,`App-B6-vRVoS.js` 145.37 kB / gzip 41.49 kB.
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker check: `ReviewTab-DvF47Fsk.js` contains `data-compound-detail`, wider scroll modal marker `w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain`, outer weak gold border marker `border-[#f6b54b]/35`, dark inner card border marker `border-[#232b36]/80`, dark summary divider `border-l border-[#232b36]/90`, dark section border and row dividers `border-[#202733]` / `divide-y divide-[#202733]`, muted labels `text-[#8a909a]`, and no old bright summary border, white yearly dividers, or white chart grid line marker;`SettingsTab-DRKSQz2w.js` contains `v10.7.9.128` and `复利明细内部层级降色`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
+  - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `374px`,高 `816px`,页面 `scrollWidth=390`,弹窗 `scrollHeight=877` / `clientHeight=814`,可内部滚动;外层边框色 `rgba(246,181,75,0.35)`;统计卡/实际进度边框色 `rgba(35,43,54,0.8)`,曲线卡和每年收益卡边框色 `rgb(32,39,51)`;`目标终值`、`累计收益`、`复利倍数`、`实际进度`、`年份`、`年收益`、`期末资产` 标签均为 `rgb(138,144,154)`;曲线网格为暗线;收益颜色保持 `rgb(251,113,133)`;无横向溢出。
+- Deployment: pending GitHub push and Vercel production deployment.
+- Production verification: pending.
+- Rollback: 回滚本次改动会恢复 `v10.7.9.127` 的复利明细内部边框和分割线亮度;不影响北极星目标计算、年度目标数据、投资戒律、复盘日志、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 北极星复利明细视觉微调
 
 - Commit: `c685192e5a33150ae5fa016b40fb0f88f238bb3d`

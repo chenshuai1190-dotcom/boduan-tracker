@@ -244,6 +244,16 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('每年收益'), 'compound detail should render the yearly income table');
   assert.ok(reviewTabSource.includes('w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain'), 'compound detail modal should be wider while remaining scrollable on mobile');
   assert.ok(reviewTabSource.includes('border border-[#f6b54b]/35'), 'compound detail modal should use the muted gold reference border instead of a bright white border');
+  assert.ok(reviewTabSource.includes('border border-[#232b36]/80'), 'compound inner cards should not use bright white or gold borders');
+  assert.ok(reviewTabSource.includes('border-l border-[#232b36]/90'), 'compound summary dividers should use low-contrast dark lines');
+  assert.ok(reviewTabSource.includes('border border-[#202733]'), 'compound chart and yearly table should use muted dark borders');
+  assert.ok(reviewTabSource.includes('divide-y divide-[#202733]'), 'compound yearly rows should use muted dark dividers');
+  assert.ok(reviewTabSource.includes('text-[11px] text-[#8a909a]'), 'compound summary labels should use muted gray text');
+  assert.ok(reviewTabSource.includes('text-[11px] text-[#8a909a]">实际进度'), 'compound actual-progress label should use muted gray text');
+  assert.ok(reviewTabSource.includes('border-b border-[#202733] pb-2 text-[11px] text-[#8a909a]'), 'compound yearly table headers should use muted gray text and dividers');
+  assert.equal(reviewTabSource.includes('border border-[#f6b54b]/15 bg-white/[0.032]'), false, 'compound summary card should not keep the overly bright accent border');
+  assert.equal(reviewTabSource.includes('divide-y divide-white/[0.055]'), false, 'compound yearly table should not keep white row dividers');
+  assert.equal(reviewTabSource.includes('stroke="rgba(255,255,255,0.07)"'), false, 'compound chart grid should not use white grid lines');
   assert.ok(reviewTabSource.includes('const xLabelIndexes = chartPoints.map((_, index) => index);'), 'compound chart should show every year label across the full plan');
   assert.ok(reviewTabSource.includes('fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>'), 'compound chart year labels should stay small enough to fit all ten years');
   assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums'), 'compound summary numbers should stay compact for mobile');
@@ -326,8 +336,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? '编辑复盘' : '写复盘'"), 'local visual preview should reflect review log edit state');
-  assert.ok(settingsTabSource.includes('v10.7.9.127'), 'settings version should document the compound detail visual tuning');
-  assert.ok(settingsTabSource.includes('北极星复利明细视觉微调'), 'settings changelog should describe the compound detail visual tuning');
+  assert.ok(settingsTabSource.includes('v10.7.9.128'), 'settings version should document the compound detail inner hierarchy tuning');
+  assert.ok(settingsTabSource.includes('复利明细内部层级降色'), 'settings changelog should describe the compound detail inner hierarchy tuning');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {
