@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律字体整体收紧
 
-- Commit: pending runtime commit.
+- Commit: `2c7002ab36e29f4b9ebfa830a752b9d554781ad2`
 - Background: 用户反馈投资戒律整体字体仍然偏大,包括模块标题和戒律内容,需要继续压低视觉层级。
 - Changes:
   - 投资戒律标题从 24px 下调到 21px,数量从 13px 下调到 12px,竖向橙色短条同步缩短。
@@ -28,8 +28,18 @@
   - `npm audit` pass,0 vulnerabilities.
   - `git diff --check` pass.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;投资戒律区域 `scrollWidth=390`,body background `rgb(5, 7, 11)`;标题实际 `21px/600`,数量 `12px/400`,添加按钮 `40px` 高、`13px/400`;筛选行 `358px` 宽、`scrollWidth=358`,5 个筛选胶囊一行完整显示,筛选文字 `12px/400`,等级圆点 `8px`;首张戒律卡 `358px` 宽、正文实际 `14px/400`、行高 `21.28px`,日期 `12px/400`,置顶胶囊 `11px/400`;旧 emoji 等级图标未显示;点击第一条戒律可打开 `戒律操作`,包含修改、取消置顶、删除和取消。
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `2c7002ab36e29f4b9ebfa830a752b9d554781ad2`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Bf2QeWCsERUgVqqsY4gUeaJB8b2i`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=2c7002a-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-CTW1t7kr.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-g9a9dZt8.css`.
+  - Production runtime chunks include: `/assets/ReviewTab-wndgD-Gl.js`, `/assets/SettingsTab-O-01VLtQ.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-wndgD-Gl.js` contains `text-[21px] font-semibold leading-none tracking-normal text-white`, `投资戒律`, `mt-1.5 text-[12px]`, `text-[14px] font-normal leading-[1.52] text-white/80`, `px-2.5 py-0.5 text-[11px]`, `h-9 min-w-[54px]` and `h-2 w-2`;it does not contain `1 USD =`.
+  - Production SettingsTab marker check: `SettingsTab-O-01VLtQ.js` contains `v10.7.9.121` and `投资戒律字体整体收紧`.
+  - Production CSS/App marker check: `index-g9a9dZt8.css` and `index-CTW1t7kr.js` do not contain `overscroll-behavior-y:none` or `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.121` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次字体收紧会恢复 `v10.7.9.120` 的 24px 标题、15px 戒律正文、较高添加/筛选按钮和较大的日期/置顶/展开入口;不影响戒律数据、置顶/取消置顶、编辑/删除、目标数据、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律低色彩重设计
