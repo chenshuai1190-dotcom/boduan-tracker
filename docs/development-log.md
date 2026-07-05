@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 调整订单操作弹窗尺寸
 
-- Commit: 本运行时代码提交;最终 SHA 在推送和部署完成后回填。
+- Commit: `3b669c7f37e89044ea5bf685dc894d556d5d7e48`
 - Background: 用户在生产截图中指出,当前股票交易记录里的 `订单操作` 弹窗仍偏大、偏接近满屏,要求改成参考图二的更紧凑居中尺寸。
 - Changes:
   - `订单操作` 弹窗外层宽度从接近满屏的 `w-full max-w-sm` 改为 `w-[calc(100vw-72px)] max-w-[360px]`,移动端显示更窄、更接近参考图二比例。
@@ -18,15 +18,28 @@
   - `src/tabs/TradesTab.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass, 57 tests.
   - `npm run build`: pass; `index-1qzFTd70.css` 52.85 kB / gzip 9.73 kB, `TradesTab-VftY7rVx.js` 61.77 kB / gzip 12.21 kB, `SettingsTab-EvajnqBu.js` 35.81 kB / gzip 13.67 kB, `App-BAGZgWaJ.js` 142.51 kB / gzip 40.88 kB.
   - `npm audit`: pass, found 0 vulnerabilities.
   - `git diff --check`: pass.
+  - `npm run verify:rls:rest`: pass, 13 user-owned tables returned 0 visible rows for anonymous REST probes.
   - Local source/build marker check: pass; source and built `TradesTab-VftY7rVx.js` contain `w-[calc(100vw-72px)]`, `max-w-[360px]`, `min-h-[48px]` and `min-h-[42px]`; source and built `SettingsTab-EvajnqBu.js` contain `v10.7.9.103` and `调整订单操作弹窗尺寸`.
-- Deployment: pending.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `3b669c7f37e89044ea5bf685dc894d556d5d7e48`.
+  - GitHub `main`: `3b669c7f37e89044ea5bf685dc894d556d5d7e48`.
+  - GitHub Actions `CI`: success, run `28725297174`, build job `85181552496`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BvK99VdbYHnEc1rxgcXeXTQ4TQxW`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=3b669c7-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-BxFWwQi1.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-KE86Rqdd.js`, `/assets/index-1qzFTd70.css`.
+  - Production runtime chunks: `/assets/App-DenQWP-t.js`, `/assets/HomeTab-ChUp87bV.js`, `/assets/TradesTab-VftY7rVx.js`, `/assets/SettingsTab-EvajnqBu.js`, `/assets/supabase-CcYdvS9P.js`, `/assets/supabase-GP2KKexS.js`.
+- Production verification:
+  - Production marker check: `TradesTab-VftY7rVx.js` contains `w-[calc(100vw-72px)]`, `max-w-[360px]`, `min-h-[48px]` and `min-h-[42px]`.
+  - Production marker check: `SettingsTab-EvajnqBu.js` contains `v10.7.9.103` and `调整订单操作弹窗尺寸`.
+  - Production RLS REST check: pass,13 user-owned tables returned 0 visible rows;source chunks `/assets/supabase-CcYdvS9P.js` and `/assets/supabase-GP2KKexS.js`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回滚本次改动会恢复 `订单操作` 弹窗较宽、按钮较高的旧尺寸;不会影响交易记录修改/删除逻辑、数据库写入、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 收紧下拉刷新触发条件
