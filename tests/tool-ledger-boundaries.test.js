@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
 
@@ -137,6 +139,29 @@ test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
   assert.equal(appSource.includes("QQQ: '纳斯达克100'"), false, 'QQQ must not be remapped to the old Chinese display name');
   assert.equal(appSource.includes("TQQQ: '3倍纳指'"), false, 'TQQQ must not be remapped to the old Chinese display name');
   assert.ok(appSource.includes("{ symbol: 'QQQ', name: 'QQQ' }"), 'QQQ benchmark option should also display in English');
+});
+
+test('asset module redesign keeps database logic while removing legacy controls', () => {
+  assert.ok(analysisTabSource.includes('ASSET_GOLD'), 'asset page should use the redesigned dark/gold theme tokens');
+  assert.ok(analysisTabSource.includes('ASSET_PINK'), 'asset page should keep the pink accent for positive values and spouse assets');
+  assert.ok(analysisTabSource.includes('ACCOUNT_TYPE_OPTIONS'), 'asset accounts should use the custom line-icon type grid');
+  assert.ok(analysisTabSource.includes('Landmark'), 'bank accounts should use lucide line icons rather than emoji');
+  assert.ok(analysisTabSource.includes('WalletCards'), 'payment accounts should use lucide line icons rather than emoji');
+  assert.ok(analysisTabSource.includes('bg-black/[0.72]'), 'asset modals should use centered dark in-app overlays');
+  assert.ok(analysisTabSource.includes('text-[#f5f7fb]'), 'asset modal inputs should force visible dark-theme text');
+  assert.ok(analysisTabSource.includes('placeholder:text-[#6f7887]'), 'asset modal placeholders should stay visible on iOS keyboards');
+  assert.ok(analysisTabSource.includes('db.insertAccount'), 'add account must keep the existing account insert path');
+  assert.ok(analysisTabSource.includes('db.upsertSnapshot'), 'monthly balance saves must keep the existing snapshot upsert path');
+  assert.ok(analysisTabSource.includes('db.deleteAccount'), 'account delete must keep the existing database-backed delete path');
+  assert.ok(analysisTabSource.includes("if (currency === 'USD') return value * usdRate;"), 'USD balances must still convert with the existing daily fx rate');
+  assert.ok(analysisTabSource.includes("if (currency === 'HKD') return value * hkdRate;"), 'HKD balances must still convert with the existing daily fx rate');
+  assert.equal(analysisTabSource.includes('美元汇率'), false, 'manual USD rate control should not remain visible');
+  assert.equal(analysisTabSource.includes('港币汇率'), false, 'manual HKD rate control should not remain visible');
+  assert.equal(analysisTabSource.includes('setUsdRate'), false, 'asset tab should not expose manual USD rate editing');
+  assert.equal(analysisTabSource.includes('setHkdRate'), false, 'asset tab should not expose manual HKD rate editing');
+  assert.equal(analysisTabSource.includes('alert('), false, 'asset tab validation should not use native alert dialogs');
+  assert.ok(settingsTabSource.includes('v10.7.9.106'), 'settings version should reflect the asset module redesign');
+  assert.ok(settingsTabSource.includes('资产模块 UI 深色重设计'), 'settings changelog should describe the asset module redesign');
 });
 
 test('order action modal stays compact like the current trade record reference', () => {

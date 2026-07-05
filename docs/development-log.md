@@ -4,6 +4,35 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 资产模块 UI 深色重设计
+
+- Commit: `same commit`
+- Background: 用户提供资产模块新设计图,要求前期只做界面美化、暂时不动账户/快照/汇率等旧逻辑;同时删除底部手动港币和美元汇率输入,继续使用现有每日自动汇率接口做换算。
+- Changes:
+  - 资产页 `AnalysisTab` 改为深色卡片体系,重做家庭总资产卡、12 个月走势卡、我/老婆账户分组列表和空状态。
+  - `填月度余额` 和 `新增账户` 改为居中深色弹窗,输入框使用显式深色文字、占位符和 `colorScheme: dark`,避免 iOS 键盘状态文字发黑。
+  - 账户类型图标从旧 emoji 改为 lucide 线性图标体系;账户列表和弹窗不再依赖旧 `acc.icon` emoji 展示。
+  - 删除资产页底部手动 `美元汇率` / `港币汇率` 输入控件;换算仍使用 `usdRate` / `hkdRate`,由 `App.jsx` 现有每日 `/api/fx` 自动拉取逻辑维护。
+  - 资产新增/删除/月度余额保存仍沿用 `db.insertAccount`、`db.deleteAccount`、`db.upsertSnapshot`,没有改数据库表、RLS、账户快照数据结构或汇率接口。
+  - 添加源码回归测试,锁定资产模块深色 UI、无手动汇率控件、无原生 `alert`、数据库写入路径不变。
+  - 设置页用户可见更新日志和关于页版本同步到 `v10.7.9.106`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是资产模块前端 UI 重设计,不改变环境变量、API 鉴权、RLS SQL 或安全架构结论。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 60 tests.
+  - `npm run build`: pass; `index-7IKKBvW8.css` 53.91 kB / gzip 9.93 kB, `AnalysisTab-COUkDGPu.js` 27.67 kB / gzip 7.19 kB, `SettingsTab-DGVckMLi.js` 36.77 kB / gzip 13.98 kB, `HomeTab-MC5TFijP.js` 39.20 kB / gzip 10.47 kB, `TradesTab-GTTATZ2u.js` 61.90 kB / gzip 12.29 kB, `App-5v3cHtRv.js` 142.48 kB / gzip 40.88 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: blocked by missing local `.env.local`; dev server showed the expected Supabase configuration missing screen, so authenticated visual smoke will be deferred to production marker verification after deploy.
+- Deployment: pending push to GitHub `main` and Vercel automatic deployment.
+- Production verification: pending deployment.
+- Rollback: 回滚本次改动会恢复资产模块旧白色卡片、emoji 图标、底部手动 USD/HKD 汇率输入和旧弹窗;不影响账户、月度快照、交易账本、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - QQQ 和 TQQQ 改为英文显示
 
 - Commit: `cfb1cbe0451fba53d7250a77ad1bbe56ad88042c`
