@@ -45,3 +45,19 @@ test('quote universe exposes watchlist when no ledger exists', () => {
   assert.equal(universe.watchlistRows.length, 1);
   assert.equal(universe.watchlistRows[0].symbol, 'QQQ');
 });
+
+test('quote universe includes tool-only symbols without polluting watchlist or ledger rows', () => {
+  const universe = buildLedgerQuoteUniverse([], [], [
+    { symbol: 'HOOD', price: 98.76, high: 101.23, previousClose: 97, changePercent: 1.81 },
+  ], [
+    { symbol: 'hood', name: 'Robinhood' },
+    { symbol: 'tsm', name: '台积电' },
+  ]);
+
+  assert.deepEqual([...universe.toolSymbols].sort(), ['HOOD', 'TSM']);
+  assert.deepEqual(universe.toolRows.map((row) => row.symbol).sort(), ['HOOD', 'TSM']);
+  assert.equal(universe.watchlistRows.length, 0);
+  assert.equal(universe.ledgerRows.length, 0);
+  assert.equal(universe.allRows.find((row) => row.symbol === 'HOOD').price, 98.76);
+  assert.equal(universe.allRows.find((row) => row.symbol === 'TSM').price, 0);
+});

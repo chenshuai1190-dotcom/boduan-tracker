@@ -7,10 +7,11 @@ function normalizeTradeSymbol(symbol) {
   return String(symbol || '').trim().toUpperCase();
 }
 
-export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quoteCache = []) {
+export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quoteCache = [], toolQuoteRows = []) {
   const bySymbol = new Map();
   const ledgerSymbols = new Set();
   const watchlistSymbols = new Set();
+  const toolSymbols = new Set();
 
   (stockTrades || []).forEach((trade) => {
     const symbol = normalizeTradeSymbol(trade?.symbol);
@@ -35,9 +36,30 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
     });
   });
 
+  (toolQuoteRows || []).forEach((item) => {
+    const symbol = normalizeTradeSymbol(item?.symbol);
+    if (!symbol) return;
+    toolSymbols.add(symbol);
+    const existing = bySymbol.get(symbol) || {};
+    bySymbol.set(symbol, {
+      ...existing,
+      ...item,
+      symbol,
+      name: existing.name || item?.name || symbol,
+      price: toFiniteNumber(item?.price) || toFiniteNumber(existing.price),
+      high: toFiniteNumber(item?.high) || toFiniteNumber(existing.high),
+      cost: toFiniteNumber(existing.cost),
+      shares: toFiniteNumber(existing.shares),
+      previousClose: toFiniteNumber(item?.previousClose) || toFiniteNumber(existing.previousClose),
+      changePercent: toFiniteNumber(item?.changePercent),
+      ytdChangePercent: toFiniteNumber(item?.ytdChangePercent) || toFiniteNumber(existing.ytdChangePercent),
+      intraday: item?.intraday || existing.intraday || [],
+    });
+  });
+
   (quoteCache || []).forEach((item) => {
     const symbol = normalizeTradeSymbol(item?.symbol);
-    if (!symbol || (!watchlistSymbols.has(symbol) && !ledgerSymbols.has(symbol))) return;
+    if (!symbol || (!watchlistSymbols.has(symbol) && !ledgerSymbols.has(symbol) && !toolSymbols.has(symbol))) return;
     const existing = bySymbol.get(symbol) || {};
     bySymbol.set(symbol, {
       ...existing,
@@ -88,7 +110,9 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
     allRows,
     watchlistRows: allRows.filter((item) => watchlistSymbols.has(item.symbol)),
     ledgerRows,
+    toolRows: allRows.filter((item) => toolSymbols.has(item.symbol)),
     ledgerSymbols,
     watchlistSymbols,
+    toolSymbols,
   };
 }

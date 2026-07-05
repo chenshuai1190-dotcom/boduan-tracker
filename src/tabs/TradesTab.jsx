@@ -82,6 +82,7 @@ export default function TradesTab({ ctx }) {
     marketColorMode,
     newTrade,
     Plus,
+    quoteRows,
     RefreshCw,
     setAllTradesModal,
     setCostBasisActiveSymbol,
@@ -165,6 +166,14 @@ export default function TradesTab({ ctx }) {
 
   const summary = investmentSummary || {};
   const positions = summary.activePositions || [];
+  const quoteBySymbol = React.useMemo(() => {
+    const map = new Map();
+    (quoteRows || []).forEach((row) => {
+      const symbol = String(row?.symbol || '').trim().toUpperCase();
+      if (symbol) map.set(symbol, row);
+    });
+    return map;
+  }, [quoteRows]);
   const rate = toNumber(summary.usdRate || usdRate) || 7.2;
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'RMB' : 'USD';
@@ -1592,8 +1601,9 @@ export default function TradesTab({ ctx }) {
             : (allSymbols[0] || '');
           const trades = activeSymbol ? (costBasisData[activeSymbol] || []) : [];
           const stats = calcCostBasis(trades);
+          const quoteStock = activeSymbol ? quoteBySymbol.get(activeSymbol) : null;
           const watchStock = activeSymbol ? watchlist.find(w => w.symbol === activeSymbol) : null;
-          const currentPrice = toNumber(watchStock?.price);
+          const currentPrice = toNumber(quoteStock?.price || watchStock?.price);
           const hasPrice = currentPrice > 0 && stats.effectiveCost > 0;
           const gainPct = hasPrice ? ((currentPrice - stats.effectiveCost) / stats.effectiveCost) * 100 : 0;
           const isUp = gainPct >= 0;

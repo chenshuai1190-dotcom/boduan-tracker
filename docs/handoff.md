@@ -6,25 +6,25 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`。
-- 当前运行时代码提交: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`。
-- 设置页版本: `v10.7.9.141`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交待推送后以最新 `main` 为准。
+- 当前运行时代码提交: 本文件所在最新提交待推送后补齐;上一版运行时代码提交为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`。
+- 设置页版本: `v10.7.9.142`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最新运行时 Vercel 部署: success, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 生产 assets 包含 `/api/stocks-realtime`、`/api/indices-realtime`、`/api/btc-realtime`、`v10.7.9.141` 和 `交易持仓 WebSocket 秒级推送`;active runtime assets 不含 `ws.eodhistoricaldata.com` / `VITE_EODHD_TOKEN` / `VITE_ALLOW_BROWSER_EODHD_WS`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`;未登录 WebSocket upgrade 到 `/api/stocks-realtime?symbols=NVDA` 返回 `401`。
-- 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;交易页头部总资产/今日盈亏/累计盈亏和持仓列表通过股票 WebSocket tick 写入 `quoteCache` 后由 `investmentSummary` 同步刷新;后续视觉任务务必先用本地 390×844 视口验证。
+- 线上关键验证: `v10.7.9.142` 待推送部署后补齐;上一版 `v10.7.9.141` 生产 assets 包含 `/api/stocks-realtime`、`/api/indices-realtime`、`/api/btc-realtime` 和 `交易持仓 WebSocket 秒级推送`;active runtime assets 不含 `ws.eodhistoricaldata.com` / `VITE_EODHD_TOKEN` / `VITE_ALLOW_BROWSER_EODHD_WS`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`;未登录 WebSocket upgrade 到 `/api/stocks-realtime?symbols=NVDA` 返回 `401`。
+- 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2` (`v10.7.9.141`,交易持仓 WebSocket 秒级推送)
-- 最近应用代码提交: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
+- 当前产品基准提交: 本文件所在最新提交待推送后补齐 (`v10.7.9.142`,工具行情 WebSocket 秒级推送)
+- 最近应用代码提交: 本文件所在最新提交待推送后补齐;上一版为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.141`
-- Vercel 最新运行时部署: success, `v10.7.9.141` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`
+- 设置页版本: `v10.7.9.142`
+- Vercel 最新运行时部署: pending for `v10.7.9.142`;上一版 `v10.7.9.141` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
 - Vercel 部署记录: `v10.7.9.141` runtime commit `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`;GitHub Actions run `28747184268` pass;production `GET https://boduan-tracker.vercel.app/?v=6d495b5-stocks-ws-141-final` HTTP 200;production assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, `v10.7.9.141`, and `交易持仓 WebSocket 秒级推送`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`;unauthenticated stock WebSocket upgrade returns `401`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
@@ -52,7 +52,7 @@
 - 首页账户看板: 总资产、今日盈亏、累计盈亏、当前信号、市场指标、VIX/CNN 恐慌指标。`v10.7.9.116` 起首页总资产主数字使用大整数 + 小号两位小数显示;`v10.7.9.129` 起 VIX 标题同步 CNN 灰色标题层级,VIX/CNN 主数字和 CNN 状态文字取消过粗字重;`v10.7.9.130` 起 VIX/CNN 恐慌指标重做为全宽高保真 SVG 金融卡片;`v10.7.9.141` 起三大指数不再显示重复连接态,只有 BTC 卡显示实时状态。
 - 自选股票: 用户主动添加的 watchlist,新用户默认空,支持添加、编辑、置顶、排序、删除。
 - 持仓视图: 来自交易主账本的真实持仓,不是自选列表。
-- 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示;`v10.7.9.141` 起持仓股票 tick 写入 `quoteCache`,交易页头部和持仓列表通过 `investmentSummary` 秒级刷新。
+- 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示;`v10.7.9.141` 起持仓股票 tick 写入 `quoteCache`,交易页头部和持仓列表通过 `investmentSummary` 秒级刷新;`v10.7.9.142` 起摊薄工具和波段记录的工具-only symbol 也进入 `quoteRows`,现价通过同一股票 WebSocket/REST 行情口径刷新,但仍不写入正式主账本。
 - 资产/分析页: 深色家庭总资产卡、12 个月走势、我/老婆账户分组、月度余额填报和新增账户。`v10.7.9.116` 起家庭总资产主数字改为完整金额 + 小号两位小数,其它走势图和账户列表仍保留 `万` 简写。
 - 目标页: 北极星目标、年度目标进度、复盘和投资戒律。`v10.7.9.111` 起目标页第一阶段统一深色移动端风格,北极星目标支持 USD/RMB 切换并使用现有汇率状态,年度目标和投资戒律都改为点击记录后弹出操作面板,投资戒律保留置顶/取消置顶;`v10.7.9.112` 修正目标页视觉对齐,头部卡片压回移动端紧凑高度,年度进度条微光限制在进度条内,年度目标区域删除多余外层卡片,当前年补回右侧目标/落后信息,未开始年度补回起点、目标、增长目标虚线和两端金额结构;`v10.7.9.113` 目标页金额改为首页同款完整数字和正常字重,头部卡片进一步压缩,USD/RMB 切换同步首页尺寸,头部卡删除右下角半圆和金色边框,年度目标区域继续外扩,涨跌粉色同步首页颜色体系;`v10.7.9.114` 目标页金额取消两位小数,本年卡边框同步北极星头卡弱边框,头卡 `设置` 按钮上移;`v10.7.9.115` 只在北极星头卡大目标金额恢复两位小数,小数后缀用小字号显示,年度目标等其它金额仍保持无小数;`v10.7.9.116` 小数后缀显式保持正常字重;`v10.7.9.117` 目标页不再显示行情失败 toast,北极星提醒文案单独下移,年度年份数字缩小并降为 `font-bold`;`v10.7.9.118` 北极星设置按钮和未开始年度起点/目标/虚线进一步降为中性色,并移除未开始年度起点/目标括号年份;`v10.7.9.119` 删除北极星头卡 RMB 汇率辅助文案,年目标说明和剩余年限说明降到 12px,年度目标标题降到 15px,年度年份字重降到 `font-semibold`;`v10.7.9.120` 投资戒律模块按新图改为独立标题、灰色胶囊按钮、彩色圆点筛选和深色卡片,筛选项在 390px 移动端一行完整显示,置顶/展开/等级选择都降为低色彩;`v10.7.9.121` 投资戒律标题、正文、按钮、筛选、日期、置顶和展开入口整体降一档字号;`v10.7.9.122` 投资戒律标题继续缩小,删除标题下方数量,标题与添加按钮同排居中对齐;`v10.7.9.123` 投资戒律点击后改为记录详情弹窗,正文完整显示,底部只保留三个小号操作按钮;`v10.7.9.124` 复盘日志同步投资戒律标题和深色卡片,日期/情绪放卡片底部同一行,点击先打开 `复盘详情`,年度目标默认只展示 2 年;`v10.7.9.125` 复盘日志列表正文同步投资戒律正文,复盘日期/情绪和戒律日期/置顶同步详情弹窗灰色 meta 效果;`v10.7.9.126` 点击北极星目标卡片可打开复利明细弹窗,复用当前本金/年化/年限/目标完成度逻辑,展示目标终值、累计收益、复利倍数、实际进度、账户曲线和每年收益表;`v10.7.9.127` 复利明细弹窗加宽、改弱金色边框、完整显示十年年份并将收益统一为首页粉色;`v10.7.9.128` 复利明细内部统计卡、实际进度、曲线和每年收益表边框/分割线降为暗线,标签统一降为灰色。
 - 设置页: 账户设置、修改密码、更新日志、数据维护。
@@ -68,7 +68,7 @@
 - `/api/fx`: 已登录汇率接口
 - `/api/btc-realtime`: 已登录 BTC WebSocket relay
 - `/api/indices-realtime`: 已登录三大指数 WebSocket relay
-- `/api/stocks-realtime`: 已登录持仓/自选股票 WebSocket relay
+- `/api/stocks-realtime`: 已登录用户股票 WebSocket relay,覆盖自选、正式持仓、波段记录和摊薄工具 quote rows
 - 市场数据: EODHD、Yahoo Finance、CNN Fear & Greed、NASDAQ calendar
 - 测试: Node built-in test runner,命令为 `npm test`
 
@@ -443,7 +443,7 @@ npm run dev -- --host 127.0.0.1
 - `src/lib/dbGuards.js`: 删除作用域保护。
 - `src/lib/investmentSummary.js`: 交易主账本派生持仓、成本和收益率。
 - `src/lib/btcRealtime.js`: BTC tick 解析和首页市场卡合并逻辑。
-- `src/lib/stockRealtime.js`: 交易持仓/自选股票 tick 解析到 quote cache 的前端合并逻辑。
+- `src/lib/stockRealtime.js`: 用户股票 tick 解析到 quote cache 的前端合并逻辑,覆盖自选、正式持仓、波段记录和摊薄工具 quote rows。
 
 服务端:
 
@@ -452,7 +452,7 @@ npm run dev -- --host 127.0.0.1
 - `api/fx.js`: 汇率接口。
 - `api/btc-realtime.js`: BTC WebSocket relay 入口。
 - `api/indices-realtime.js`: 三大指数 WebSocket relay 入口。
-- `api/stocks-realtime.js`: 交易持仓/自选股票 WebSocket relay 入口。
+- `api/stocks-realtime.js`: 用户股票 WebSocket relay 入口,覆盖自选、正式持仓、波段记录和摊薄工具 quote rows。
 - `server/realtime/*`: BTC、三大指数、股票 relay、WebSocket auth、EODHD 上游连接。
 
 数据库和安全:
@@ -489,6 +489,7 @@ npm run dev -- --host 127.0.0.1
 - 旧 `trades` 只作为波段记录兼容表。
 - 波段记录入口只能写 `trades`,不能复用正式主交易保存路径写入 `stock_trades`。
 - 摊薄成本工具只能写 `cost_basis_trades`,不能并入正式主账本或波段记录。
+- 波段记录和摊薄成本工具可以进入 `quoteRows` 获取实时现价,但这只是行情读取,不能反向写入自选、正式持仓或其它账本。
 - 波段记录和摊薄成本新增提交前必须弹确认框,确认文案要说明写入范围,并用提交锁防止重复写入。
 - `deriveInvestmentSummary` 是首页和交易页资产/持仓口径来源。
 - 交易页头部和持仓价格从 `quoteCache -> quoteRows -> investmentSummary` 派生;股票 WebSocket tick 必须写入 `quoteCache`,不要绕过汇总口径单独改交易页 UI。
@@ -590,11 +591,11 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
-当前产品基准提交: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2` (`v10.7.9.141`,交易持仓 WebSocket 秒级推送)
-最近应用代码提交: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
-设置页版本: `v10.7.9.141`
-Vercel 最新运行时部署: success, `v10.7.9.141` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交待推送后补齐
+当前产品基准提交: 本文件所在最新提交待推送后补齐 (`v10.7.9.142`,工具行情 WebSocket 秒级推送)
+最近应用代码提交: 本文件所在最新提交待推送后补齐;上一版为 `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`
+设置页版本: `v10.7.9.142`
+Vercel 最新运行时部署: pending for `v10.7.9.142`;上一版 `v10.7.9.141` target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2cxAc7ihr3NKJzcaK5oQMNWB9hVp`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
 部署记录: `v10.7.9.141` runtime commit `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`;GitHub Actions run `28747184268` pass;production `GET https://boduan-tracker.vercel.app/?v=6d495b5-stocks-ws-141-final` HTTP 200;production marker check confirms assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, `v10.7.9.141` and `交易持仓 WebSocket 秒级推送`;active runtime assets do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`;unauthenticated stock WebSocket upgrade returns `401`
 
@@ -626,6 +627,7 @@ Vercel 最新运行时部署: success, `v10.7.9.141` target `https://vercel.com/
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.142` 工具行情 WebSocket 秒级推送已完成本地验证,待推送部署:摊薄工具和波段记录的股票代码加入统一 `quoteRows`,并进入已登录 `/api/stocks-realtime` 订阅;工具现价优先从 `quoteRows/quoteCache` 读取,但摊薄成本仍只写 `cost_basis_trades`,波段记录仍只写旧 `trades`,不污染自选或正式主账本。
 - `v10.7.9.141` 交易持仓 WebSocket 秒级推送已完成部署和本地/线上验证:新增已登录 `/api/stocks-realtime` 服务端 relay,股票 tick 写入 `quoteCache`,首页持仓、交易页头部总资产/今日盈亏/累计盈亏和交易页持仓列表通过 `investmentSummary` 同步刷新;三大指数继续秒级更新价格和曲线,但不再显示重复连接态;只有 BTC 卡保留实时状态徽标。
 - `v10.7.9.130` 首页恐慌指标高保真卡片已完成部署和本地/线上验证:VIX 恐慌指数改为全宽暗黑金融卡片,增加 sparkline、发光状态点和 0-50 精确风险条;CNN 恐慌贪婪指数改为 SVG 半圆仪表盘、红黄绿渐变弧线、发光指针和五段情绪区间;现有 VIX/FGI 数据、日期和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.129` 首页恐慌指数视觉降重已完成部署和线上验证:VIX 恐慌指数标题改为 CNN 同款灰色,VIX/CNN 主数字取消过粗字重,CNN `恐惧` / `恐慌` 状态文字同步降为正常字重;指数数值、颜色、说明文案和 CNN 仪表盘逻辑不变。

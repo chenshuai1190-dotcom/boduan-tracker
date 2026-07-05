@@ -681,6 +681,27 @@ function localizeStockNameRow(row) {
   };
 }
 
+function buildToolQuoteRows({ trades = [], costBasisData = {} } = {}) {
+  const bySymbol = new Map();
+  const addSymbol = (symbol, name = '') => {
+    const normalizedSymbol = normalizeStockSymbolForName(symbol);
+    if (!normalizedSymbol) return;
+    const existing = bySymbol.get(normalizedSymbol) || {};
+    bySymbol.set(normalizedSymbol, {
+      ...existing,
+      symbol: normalizedSymbol,
+      name: displayStockName(normalizedSymbol, name || existing.name || normalizedSymbol),
+      price: existing.price || 0,
+      high: existing.high || 0,
+    });
+  };
+
+  Object.keys(sanitizeCostBasisData(costBasisData)).forEach((symbol) => addSymbol(symbol));
+  (trades || []).forEach((trade) => addSymbol(trade?.symbol || 'TQQQ', trade?.name));
+
+  return Array.from(bySymbol.values());
+}
+
 // ============ 股票配色 ============
 // 主流热门股配品牌色,非主流的根据代码 hash 自动分配
 // ============ 股票卡片颜色:统一翠绿色 ============
@@ -1328,12 +1349,23 @@ function MainApp({ user, onLogout }) {
   const localizedStockTrades = useMemo(() => stockTrades.map(localizeStockNameRow), [stockTrades]);
   const localizedWatchlist = useMemo(() => watchlist.map(localizeStockNameRow), [watchlist]);
   const localizedQuoteCache = useMemo(() => quoteCache.map(localizeStockNameRow), [quoteCache]);
+  const toolQuoteRows = useMemo(() => (
+    buildToolQuoteRows({ trades, costBasisData }).map(localizeStockNameRow)
+  ), [trades, costBasisData]);
   const quoteUniverse = useMemo(
-    () => buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache),
-    [localizedStockTrades, localizedWatchlist, localizedQuoteCache],
+    () => buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows),
+    [localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows],
   );
   const quoteRows = quoteUniverse.allRows;
   const homeWatchlist = quoteUniverse.watchlistRows;
+  const quoteBySymbol = useMemo(() => {
+    const map = new Map();
+    quoteRows.forEach((row) => {
+      const symbol = normalizeSymbolKey(row?.symbol);
+      if (symbol) map.set(symbol, row);
+    });
+    return map;
+  }, [quoteRows]);
   const stockRealtimeSymbols = useMemo(() => selectStockRealtimeSymbols(quoteRows), [quoteRows]);
   const stockRealtimeSymbolsKey = stockRealtimeSymbols.join(',');
   useEffect(() => {
@@ -1910,7 +1942,7 @@ function MainApp({ user, onLogout }) {
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
-  // 🚀 useMemo: 只依赖 trades + watchlist (价格), 其他 state 变化不重算
+  // 🚀 useMemo: 只依赖 trades + quoteBySymbol (实时现价), 其他 state 变化不重算
   const wavesByStock = useMemo(() => {
     const groups = {};
     trades.forEach(t => {
@@ -1969,7 +2001,7 @@ function MainApp({ user, onLogout }) {
       }
 
       // 给每个波段算指标
-      const stockInfo = watchlist.find(s => s.symbol === g.symbol);
+      const stockInfo = quoteBySymbol.get(normalizeSymbolKey(g.symbol));
       const currentPrice = stockInfo?.price || 0;
       const computed = waves.map((w, idx) => {
         const totalBuyShares = w.buys.reduce((s, t) => s + Number(t.shares), 0);
@@ -2036,7 +2068,7 @@ function MainApp({ user, onLogout }) {
         activeWave,
       };
     }).filter(g => g.waves.length > 0);
-  }, [trades, watchlist]);  // 🚀 只依赖 trades 和 watchlist
+  }, [trades, quoteBySymbol]);  // 🚀 只依赖 trades 和实时 quote map
 
   // 顶部"持仓冷静室"总览 (基于 wavesByStock, 自动 memo)
   const calmRoomActiveCount = useMemo(() => wavesByStock.filter(g => g.activeWave).length, [wavesByStock]);
@@ -2423,8 +2455,8 @@ function MainApp({ user, onLogout }) {
     const cloudWatchlistRows = Array.isArray(result?.watchlist)
       ? orderWatchlistRows(result.watchlist, normalizeWatchlistOrder(result?.settings?.watchlistOrder)).map(localizeStockNameRow)
       : localizedWatchlist;
-    return buildLedgerQuoteUniverse(cloudStockRows, cloudWatchlistRows, localizedQuoteCache).allRows;
-  }, [localizedQuoteCache, localizedStockTrades, localizedWatchlist]);
+    return buildLedgerQuoteUniverse(cloudStockRows, cloudWatchlistRows, localizedQuoteCache, toolQuoteRows).allRows;
+  }, [localizedQuoteCache, localizedStockTrades, localizedWatchlist, toolQuoteRows]);
 
   // 一键拉取实时行情(从 Vercel API)
   const fetchRealtimePrices = async (rowsOverride = null) => {
@@ -3400,6 +3432,7 @@ function MainApp({ user, onLogout }) {
     priceFlash,
     pwdLoading,
     pwdMsg,
+    quoteRows,
     RefreshCw,
     removeStock,
     reorderWatchlist,

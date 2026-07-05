@@ -4,6 +4,43 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 工具行情 WebSocket 秒级推送
+
+- Commit: `same commit`
+- Background: 用户继续追问首页自选/持仓、交易页摊薄工具和波段记录是否也走 WebSocket 秒级推送。核对后确认首页自选、首页持仓、交易页头部和主持仓已通过 `quoteCache -> quoteRows -> investmentSummary` 接入股票 WebSocket;但摊薄工具和波段记录仍从原始 `watchlist` 取现价,工具-only 股票不会进入 `/api/stocks-realtime` 订阅集合。
+- Changes:
+  - `stockUniverse` 增加 `toolQuoteRows` 输入,允许摊薄工具 `cost_basis_trades` 和旧波段账本 `trades` 里的股票代码进入统一 quote universe,但不污染首页自选 `watchlistRows` 或正式持仓 `ledgerRows`。
+  - `App.jsx` 新增 `buildToolQuoteRows`,把摊薄工具和波段记录股票代码合入 `quoteRows`;REST 初始 `/api/quote` 拉取和 `/api/stocks-realtime` WebSocket 订阅都会看到这些工具-only symbol。
+  - 波段记录保持旧 `trades` 账本切波段逻辑不变,只把进行中波段的 `currentPrice` 改为从统一 `quoteBySymbol` 实时行情 map 读取。
+  - 交易页摊薄工具新增共享 `quoteRows` 输入,现价优先读取 `quoteRows/quoteCache`,找不到时才回退原始自选列表。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.142`,新增 `工具行情 WebSocket 秒级推送`。
+  - `README.md`、`docs/handoff.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 同步记录 `/api/stocks-realtime` 已覆盖自选、正式持仓、波段记录和摊薄工具 quote rows。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/stockUniverse.js`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/stock-universe.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `README.md`
+  - `docs/handoff.md`
+  - `docs/security-hardening.md`
+  - `docs/architecture-security-audit.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;71 tests passed.
+  - `npm run build`: pass;Vite built `App-DUwIuMvh.js`, `TradesTab-uyI19HGM.js`, `SettingsTab-DJHEZNKf.js`, `HomeTab-4NbUE9pN.js`.
+  - `npm audit`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Targeted test precheck: pass;new `quote universe includes tool-only symbols without polluting watchlist or ledger rows` and realtime-source guard assertions passed.
+  - Build marker scan: pass;`App-DUwIuMvh.js` contains `/api/stocks-realtime`;`TradesTab-uyI19HGM.js` contains the tool price UI;`SettingsTab-DJHEZNKf.js` contains `v10.7.9.142` and `工具行情 WebSocket 秒级推送`;active App/Trades runtime bundles do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`.
+  - Local upstream limitation: 本地 shell 未配置 `EODHD_API_KEY` 和真实登录 session,所以真实 EODHD 股票 tick delivery 仍需在生产登录态、交易时段继续观察。
+- Deployment:
+  - Pending push to GitHub `main`;Vercel deployment and target URL will be recorded after CI/deploy completes.
+- Production verification:
+  - Pending after Vercel production deployment.
+- Rollback: 回退 `stockUniverse` 的 `toolQuoteRows` 支持、`App.jsx` 的 `buildToolQuoteRows`/`quoteBySymbol` 工具行情接入、`TradesTab` 摊薄工具 `quoteRows` 现价读取、`v10.7.9.142` 设置页更新日志、测试和文档条目即可;现有首页自选/持仓、交易页主账本、BTC/指数/股票 relay 和 `/api/quote` REST 兜底可继续工作。
+
 ### 2026-07-06 - 交易持仓 WebSocket 秒级推送
 
 - Commit: `6d495b52eb2a8d8ade727cac0afcff47bedd65e2`

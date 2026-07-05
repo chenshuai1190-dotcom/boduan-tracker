@@ -34,7 +34,7 @@ This project started as a personal hand-built app, so the first priority is to m
 - `/api/quote` no longer sends wildcard CORS headers.
 - Frontend quote calls attach the current Supabase access token.
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
-- BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side.
+- BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side. User stock streaming covers watchlist, main ledger positions, wave-record quote rows, and cost-basis tool quote rows.
 - Quote provider requests now go through timeout-aware provider fetch helpers.
 - First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.

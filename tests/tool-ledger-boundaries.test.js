@@ -99,6 +99,11 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('/api/stocks-realtime'), 'held stock quotes should connect to the server-side stock realtime relay');
   assert.ok(appSource.includes('STOCKS_REALTIME_PROTOCOL'), 'stock realtime relay should use an explicit WebSocket subprotocol');
   assert.ok(appSource.includes('applyStockTickToQuoteRows'), 'stock realtime ticks should update quoteCache for investment summary');
+  assert.ok(appSource.includes('buildToolQuoteRows({ trades, costBasisData })'), 'wave and cost-basis tool symbols should join the realtime quote universe');
+  assert.ok(appSource.includes('buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows)'), 'tool-only symbols must be included in quote rows for REST and WebSocket quotes');
+  assert.ok(appSource.includes('quoteBySymbol.get(normalizeSymbolKey(g.symbol))'), 'wave records should read current prices from the realtime quote map');
+  assert.ok(tradesTabSource.includes('quoteRows,'), 'trades tools should receive the shared realtime quote rows');
+  assert.ok(tradesTabSource.includes('const quoteStock = activeSymbol ? quoteBySymbol.get(activeSymbol) : null'), 'cost-basis tool should prefer realtime quote rows for current price');
   assert.equal(appSource.includes('VITE_EODHD_TOKEN'), false, 'frontend must not reintroduce a browser EODHD token path');
   assert.ok(indicesRealtimeApiSource.includes('authenticateAccessToken'), 'indices realtime relay must require the same Supabase token boundary');
   assert.ok(indicesRealtimeApiSource.includes('attachIndicesRealtimeClient'), 'indices realtime endpoint should attach the server-side EODHD relay');

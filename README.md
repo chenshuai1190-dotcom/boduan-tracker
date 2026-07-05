@@ -8,6 +8,7 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 - Tailwind CSS
 - Supabase Auth + Postgres
 - Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, and `api/stocks-realtime.js`
+- Authenticated stock streaming covers watchlist, main ledger positions, wave records, and cost-basis tool quote rows.
 - EODHD, Yahoo Finance, CNN FGI, and NASDAQ calendar data
 
 ## Local Setup
@@ -70,6 +71,6 @@ Before treating a deployment as safe:
 2. Remove secrets from public docs and avoid committing real `.env` files.
 3. Apply `supabase/rls.sql` in the Supabase SQL editor.
 4. Keep `/api/quote` authenticated; do not disable `QUOTE_API_AUTH_REQUIRED` in production.
-5. Keep WebSocket streaming behind authenticated server-side relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`); never expose EODHD tokens in the browser.
+5. Keep WebSocket streaming behind authenticated server-side relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`); never expose EODHD tokens in the browser. User stock streaming includes watchlist, main ledger positions, wave records, and cost-basis tool quote rows.
 
 More details: `docs/security-hardening.md`.
