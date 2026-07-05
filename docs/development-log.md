@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 投资戒律国旗背景仅保留弹窗
 
-- Commit: `same commit`
+- Commit: `9a323f22b851ecc08f71f4a45df2180a3d1def5a`
 - Background: 用户反馈目标页列表卡片背景不应改变,只需要详情弹窗带美国国旗;同时当前弹窗国旗过亮,长文本在红白条纹上可读性下降,要求背景蒙版稍微加深。
 - Changes:
   - `ReviewTab` 移除投资戒律列表和复盘日志列表卡片内的 `UsFlagBackground` 调用,列表恢复纯深色卡片背景、普通层级和原有低干扰正文/日期/标签效果。
@@ -27,9 +27,17 @@
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=review`;列表态 `data-us-flag-bg` count `0`,VIX 戒律卡片 class 为纯深色 `block w-full rounded-[22px] ... bg-[#0b1119]`,页面 `scrollWidth=390` / `clientWidth=390`;点击 `VIX 法则` 后 `记录详情` 弹窗宽 `342px` 高约 `314px`,弹窗内 `data-us-flag-bg` count `1`,背景遮罩为更深 `rgba(5,7,11,0.24/0.18/0.52)` 且 SVG 顶部遮罩 `opacity="0.3"`;关闭后列表态 count 回到 `0`;点击首条复盘后 `复盘详情` 弹窗宽 `342px` 高约 `401px`,弹窗内 count `1`,同样无横向溢出。
   - Build marker check: pass;built `ReviewTab-O-gadXpQ.js` contains `data-us-flag-bg`, `scale(1.7)`, `rgba(5,7,11,0.24)`, `strength:.64` / `shade:.5`, and `strength:.58` / `shade:.52`;it does not contain old list background markers `strength:.2` / `shade:.48` or `strength:.18` / `shade:.5`;built `SettingsTab-C1sm_Saq.js` contains `v10.7.9.136` and `弹窗国旗背景保留`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`;Vercel production deployment completed for the modal-only review flag background release.
+  - Runtime code commit: `9a323f22b851ecc08f71f4a45df2180a3d1def5a`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CEkFNwUDizRss7arZkp3ePhJjw6E`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=9a323f2-modal-only-136`: HTTP 200.
+  - Production entry chunks: `/assets/index-DizriUyp.js`,`/assets/rolldown-runtime-QTnfLwEv.js`,`/assets/react-vendor-0zZBvgmv.js`,`/assets/index-BmBrKMRW.css`.
+  - Production runtime chunks include: `/assets/ReviewTab-O-gadXpQ.js`,`/assets/SettingsTab-C1sm_Saq.js`.
 - Production verification:
-  - Pending.
+  - Production ReviewTab marker check: `ReviewTab-O-gadXpQ.js` contains `data-us-flag-bg`, `scale(1.7)`, `rgba(5,7,11,0.24)`, `strength:.64` / `shade:.5`, and `strength:.58` / `shade:.52`;it does not contain old list background markers `strength:.2` / `shade:.48` or `strength:.18` / `shade:.5`.
+  - Production SettingsTab marker check: `SettingsTab-C1sm_Saq.js` contains `v10.7.9.136` and `弹窗国旗背景保留`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 回退本条对 `ReviewTab` 列表卡片、弹窗 `UsFlagBackground` shade/遮罩、设置页 `v10.7.9.136` 更新日志和对应测试断言的改动即可;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 投资戒律国旗背景增强
