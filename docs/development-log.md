@@ -29,7 +29,19 @@
   - `git diff --check`: pass.
   - Local mobile visual check: pass;`npm run dev -- --host 127.0.0.1` at `390x844`,opened `http://127.0.0.1:5173/?tab=home`;fear card section is `grid grid-cols-2 gap-3`,container width `358px`,both cards render side-by-side at `173px` wide and about `239px` high,no document-level horizontal overflow;bottom zone labels are absent;CNN gauge main arc is `strokeWidth="8"` and pointer is `strokeWidth="1.4"`.
   - Build marker check: pass;built `HomeTab-CajT2Rf1.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `grid grid-cols-2 gap-3`, `strokeWidth:\`8\`` and `strokeWidth:\`1.4\``;built `HomeTab-CajT2Rf1.js` does not contain `低恐慌` / `中等恐慌` / `高恐慌`;built `SettingsTab-CdUeizfs.js` contains `v10.7.9.131` and `首页恐慌卡片双列瘦身`;built production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
-- Deployment: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed for the compact fear card release.
+  - Runtime code commit: `d18c16cffa1fc9dc90f2bcfc1e132ffe5514b485`.
+  - Latest deployed main commit at verification time: `f0325d8d3e43eaf99d6eb1a938d766f2a1cfdaef`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6juGBkynNvD4GLkrWKchMCAokr8V`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=f0325d8-compact-fear`: HTTP 200.
+  - Production entry chunks: `/assets/index-BkAAvkRz.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`.
+  - Production runtime chunks include: `/assets/App-D61-lPwz.js`, `/assets/HomeTab-CajT2Rf1.js`, `/assets/SettingsTab-CdUeizfs.js`.
+- Production verification:
+  - Production HomeTab marker check: `HomeTab-CajT2Rf1.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `grid grid-cols-2 gap-3`, `strokeWidth:\`8\`` and `strokeWidth:\`1.4\``.
+  - Production HomeTab negative marker check: `HomeTab-CajT2Rf1.js` does not contain the removed VIX bottom zone labels `低恐慌` / `中等恐慌` / `高恐慌`.
+  - Production SettingsTab marker check: `SettingsTab-CdUeizfs.js` contains `v10.7.9.131` and `首页恐慌卡片双列瘦身`.
+  - Production dev-only leak check: production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
 - Rollback: 恢复 `src/tabs/HomeTab.jsx` 中恐慌卡片纵向全宽容器,还原 `FearIndexCards.tsx` 高保真大卡尺寸和底部分区标签,并回退设置页 `v10.7.9.131` 更新日志;不影响行情数据、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 首页恐慌指标高保真卡片
