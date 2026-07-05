@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 主资产数字小数层级同步
 
-- Commit: pending runtime commit.
+- Commit: `557b8cad4ac155fb802f91dcc5f7e3718a2672c6`
 - Background: 用户确认北极星目标小数层级效果很好,但希望确认小数后缀是否和前面正常数字一样保持正常字重;如果没有则补齐,并把同样的大整数 + 小号两位小数效果同步到首页、交易页两个总资产和资产页家庭总资产数字卡片。
 - Changes:
   - 新增 `splitCurrencyAmount` 共享金额拆分 helper,统一把完整金额拆成主金额和两位小数后缀。
@@ -32,8 +32,21 @@
   - `git diff --check`: pass.
   - Local browser smoke: Vite dev server `http://127.0.0.1:5173/?tab=analysis`, in-app browser viewport `390x844`;资产页家庭总资产实际渲染为 `¥27,102,105.74`,拆成 `¥27,102,105` 34px 正常字重和 `.74` 20px 正常字重两段;页面 `scrollWidth=390`,无横向溢出。
   - Build marker check: pass; built Home/Trades/Analysis/Review chunks all contain the small decimal `text-[20px] font-normal leading-none` markers, built `SettingsTab-CX8pdpz-.js` contains `v10.7.9.116` and `主资产数字小数层级同步`, built CSS does not contain `overscroll-behavior-y:none`.
-- Deployment: pending Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;GitHub Actions and Vercel production deployment completed.
+  - Runtime commit: `557b8cad4ac155fb802f91dcc5f7e3718a2672c6`.
+  - GitHub Actions `CI`: success, run `28735781205`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CTf8d5cXrr6PdR82vwT1vWi5mVnA`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=557b8ca-runtime`: HTTP 200.
+  - Production runtime chunks include `/assets/App-CYPvn73g.js`, `/assets/amountDisplay-BSJvHQHL.js`, `/assets/HomeTab-BHNhL_RW.js`, `/assets/TradesTab-CMxJkAZP.js`, `/assets/AnalysisTab-D6PBEIMl.js`, `/assets/ReviewTab-D0dsBIPH.js`, `/assets/SettingsTab-CX8pdpz-.js`, `/assets/index-BuKhz2It.css`.
+- Production verification:
+  - Production amount helper marker check: `amountDisplay-BSJvHQHL.js` contains `toLocaleString` and `minimumFractionDigits`.
+  - Production Home/Trades/Analysis marker check: `HomeTab-BHNhL_RW.js` and `TradesTab-CMxJkAZP.js` contain `text-[20px] font-normal leading-none text-[#ffd18a]/90`;`AnalysisTab-D6PBEIMl.js` contains `text-[20px] font-normal leading-none text-[#ffd37d]/90`.
+  - Production ReviewTab marker check: `ReviewTab-D0dsBIPH.js` contains `text-[20px] font-normal leading-none text-[#ffd18a]/90`.
+  - Production SettingsTab marker check: `SettingsTab-CX8pdpz-.js` contains `v10.7.9.116` and `主资产数字小数层级同步`.
+  - Production entry/App/Home/Trades/Analysis/Review/Settings/CSS chunks do not contain `DevVisualPreview`;the asset/target mock remains development-only.
+  - Production CSS marker check: `index-BuKhz2It.css` does not contain `overscroll-behavior-y:none`, so the reverted global scrollbar/overscroll suppression did not return.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status and `v10.7.9.115` chunk references with the actual `v10.7.9.116` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次主资产数字小数层级同步会恢复首页/交易页总资产整串同字号两位小数、资产页家庭总资产 `万` 简写主数字和北极星目标小数后缀继承字重;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 北极星目标小数层级优化
