@@ -4,6 +4,38 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 目标页深色化第一阶段
+
+- Commit: `same commit`
+- Background: 用户提供目标页三张移动端设计参考图,要求第一阶段先统一首页深色风格:北极星目标头部加入 USD/RMB 切换并使用现有汇率接口结果,保留动态进度条;删除融资杠杆监控;年度目标进度重构为更清晰卡片;投资戒律适配黑色界面,右侧多余图标和直接修改图标删除,但保留置顶能力;年度目标卡和投资戒律都改为点击记录后弹出操作面板。
+- Changes:
+  - `ReviewTab` 重做目标页深色移动端界面:北极星目标卡、年度目标进度、投资戒律和复盘日志统一使用首页/资产页同源深色背景和黑金色系。
+  - 北极星目标新增 USD/RMB 分段切换;人民币金额通过 `App.jsx` 现有 `usdRate` 状态换算,并在 RMB 状态显示 `1 USD = {fxRate.toFixed(2)} RMB`,没有新增 `VITE_EODHD_TOKEN` 或前端行情密钥。
+  - 保留头部 `rocket-bar` / `rocket-particle` 动态进度条,删除目标页融资杠杆监控模块和 `setShowEditMargin` 入口。
+  - 年度目标卡删除右侧修改按钮,改为点击整张年度卡打开 `年度目标操作` 面板,再进入 `修改年度数据`;当前年操作摘要改为显示年度目标值而不是当前余额。
+  - 投资戒律列表删除右侧置顶/修改图标,整行点击打开 `戒律操作` 面板,提供 `修改戒律`、`置顶戒律`/`取消置顶`、`删除戒律` 和 `取消`;列表仍显示 `置顶` 标记,置顶排序逻辑保留。
+  - 戒律长文本行改为 `div role="button"` 结构,避免行点击和 `展开全文` 产生嵌套原生按钮;戒律/复盘编辑弹窗改为深色并把空内容校验从原生 `alert` 改成弹窗内提示。
+  - `DevVisualPreview` 新增 `?tab=review` 目标页 mock 数据和底部导航切换,方便无 Supabase 本地配置时按 390px 手机视口调试目标页。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.111`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉和交互重构,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/App.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 64 tests.
+  - `npm run build`: pass; `index-B7-jZclJ.css` 52.45 kB / gzip 9.79 kB, `ReviewTab-B2EETJPP.js` 29.43 kB / gzip 7.31 kB, `SettingsTab-Db4qDhxe.js` 38.73 kB / gzip 14.71 kB, `App-CeG1QBZU.js` 144.60 kB / gzip 41.18 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;verified body background dark, target page mock visible without `Supabase 配置缺失`, no horizontal overflow (`scrollWidth=390`), no leverage monitor text, active bottom nav is `目标`, annual year card opens `年度目标操作`, `修改年度数据` button is full width and opens `2026 年实际数据`, discipline row opens `戒律操作`, pin/unpin toggles the `置顶` badge and panel text, `修改戒律` opens edit modal, RMB switch shows `1 USD = 6.77 RMB`, and console error/warn logs are empty.
+- Deployment: pending;will push to GitHub `main` and wait for Vercel production deployment.
+- Production verification: pending after Vercel deployment.
+- Rollback: 回滚本次 runtime commit 可恢复 `v10.7.9.109` 旧目标页;不影响全局下拉刷新回退、交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 回退全局滚动条隐藏
 
 - Commit: `cf9261d19198a746d904caca87d951adfced1b8d`

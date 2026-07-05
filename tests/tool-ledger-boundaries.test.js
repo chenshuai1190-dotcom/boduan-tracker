@@ -7,6 +7,7 @@ const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.u
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
@@ -200,6 +201,40 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.ok(analysisTabSource.includes('删除账户'), 'asset account action modal should offer deletion');
   assert.ok(analysisTabSource.includes('保存修改'), 'asset account edit modal should save changes');
   assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
+});
+
+test('review target page uses dark mobile cards and click action modals', () => {
+  assert.ok(appSource.includes("activeTab === 'review'"), 'review tab must use the same dark shell as home and assets');
+  assert.ok(reviewTabSource.includes("const REVIEW_CARD = '#0b0f14'"), 'review page should share the dark card surface');
+  assert.ok(reviewTabSource.includes('年度目标操作'), 'year cards should open an action panel');
+  assert.ok(reviewTabSource.includes('修改年度数据'), 'year action panel should offer editing instead of a trailing edit icon');
+  assert.ok(reviewTabSource.includes('戒律操作'), 'discipline rows should open an action panel');
+  assert.ok(reviewTabSource.includes("disciplineAction.pinned ? '取消置顶' : '置顶戒律'"), 'discipline action panel must keep pin/unpin');
+  assert.ok(reviewTabSource.includes('删除戒律'), 'discipline action panel must offer deletion');
+  assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
+  assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
+  assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
+  assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
+  assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
+  assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
+  assert.ok(settingsTabSource.includes('v10.7.9.111'), 'settings version should document the review page redesign');
+  assert.ok(settingsTabSource.includes('目标页深色化第一阶段'), 'settings changelog should describe the review page redesign');
+});
+
+test('review edit modals use in-app validation instead of native alerts', () => {
+  const disciplineStart = appSource.indexOf('function DisciplineModal');
+  const disciplineEnd = appSource.indexOf('// 添加/编辑日志 Modal', disciplineStart);
+  const disciplineBlock = appSource.slice(disciplineStart, disciplineEnd);
+  const logStart = appSource.indexOf('function LogModal');
+  const logEnd = appSource.indexOf('// 编辑年度实际数据 Modal', logStart);
+  const logBlock = appSource.slice(logStart, logEnd);
+
+  assert.ok(disciplineStart > -1 && disciplineEnd > disciplineStart, 'missing discipline modal boundary');
+  assert.ok(logStart > -1 && logEnd > logStart, 'missing review log modal boundary');
+  assert.equal(disciplineBlock.includes('alert('), false, 'discipline modal validation should not use native alert');
+  assert.equal(logBlock.includes('alert('), false, 'review log modal validation should not use native alert');
+  assert.ok(disciplineBlock.includes("setError('请输入内容')"), 'discipline modal should show an in-app validation message');
+  assert.ok(logBlock.includes("setError('请输入内容')"), 'review log modal should show an in-app validation message');
 });
 
 test('order action modal stays compact like the current trade record reference', () => {

@@ -312,7 +312,8 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
   const [level, setLevel] = useState(initial.level || '🟢');
   const [text, setText] = useState(initial.text || '');
   const [pinned, setPinned] = useState(initial.pinned || false);
-  const isEdit = !!onDelete;
+  const [error, setError] = useState('');
+  const isEdit = Boolean(initial?.isEdit || onDelete);
 
   const LEVELS = [
     { level: '🟢', label: '一般' },
@@ -322,23 +323,23 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
+      <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-base">{isEdit ? '编辑戒律' : '添加戒律'}</h3>
-          <button onClick={onCancel} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+          <h3 className="font-semibold text-base text-white">{isEdit ? '编辑戒律' : '添加戒律'}</h3>
+          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-slate-500 block mb-1">等级</label>
+            <label className="mb-1 block text-xs text-white/50">等级</label>
             <div className="grid grid-cols-4 gap-1.5">
               {LEVELS.map(l => (
                 <button
                   key={l.level}
                   onClick={() => setLevel(l.level)}
-                  className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-0.5 ${level === l.level ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                  className={`flex flex-col items-center gap-0.5 rounded-xl border py-2 text-xs font-semibold active:scale-95 ${level === l.level ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.045] text-white/55'}`}
                 >
                   <span className="text-base">{l.level}</span>
                   <span>{l.label}</span>
@@ -347,16 +348,18 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
             </div>
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">内容</label>
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="写下你的投资戒律..."
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
-            <div className="text-[10px] text-slate-400 mt-0.5">超过 60 字会折叠, 点"展开"查看全文</div>
-          </div>
+            <label className="mb-1 block text-xs text-white/50">内容</label>
+              <textarea
+                value={text}
+                onChange={e => { setText(e.target.value); if (error) setError(''); }}
+                placeholder="写下你的投资戒律..."
+                rows={4}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                style={{ colorScheme: 'dark' }}
+              />
+              <div className="mt-0.5 text-[10px] text-white/35">超过 60 字会折叠, 点"展开"查看全文</div>
+              {error && <div className="mt-1 text-[11px] text-rose-300">{error}</div>}
+            </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -364,22 +367,22 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
               onChange={e => setPinned(e.target.checked)}
               className="w-4 h-4"
             />
-            <span className="text-sm text-slate-700">置顶 📌 (重要戒律永远显示在最上)</span>
+            <span className="text-sm text-white/70">置顶 (重要戒律永远显示在最上)</span>
           </label>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
-          {isEdit && (
-            <button onClick={onDelete} className="px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-bold">
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">取消</button>
+          {onDelete && (
+            <button onClick={onDelete} className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-2.5 text-sm font-normal text-rose-300">
               <Trash2 className="w-4 h-4 inline"/>
             </button>
           )}
           <button
             onClick={() => {
-              if (!text.trim()) { alert('请输入内容'); return; }
+              if (!text.trim()) { setError('请输入内容'); return; }
               onSave({ level, text: text.trim(), pinned });
             }}
-            className="flex-1 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-bold"
+            className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
           >保存</button>
         </div>
       </div>
@@ -392,37 +395,39 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
   const [date, setDate] = useState(initial.date || new Date().toISOString().slice(0, 10));
   const [mood, setMood] = useState(initial.mood || '');
   const [text, setText] = useState(initial.text || '');
+  const [error, setError] = useState('');
   const isEdit = !!onDelete;
 
   const MOODS = ['谨慎乐观', '满意', '焦虑', '贪婪', '恐惧', '冷静'];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
+      <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-base">{isEdit ? '编辑复盘' : '写复盘'}</h3>
-          <button onClick={onCancel} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+          <h3 className="text-base font-semibold text-white">{isEdit ? '编辑复盘' : '写复盘'}</h3>
+          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-slate-500 block mb-1">日期</label>
+            <label className="mb-1 block text-xs text-white/50">日期</label>
             <input
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none focus:border-[#f6b54b]/70"
+              style={{ colorScheme: 'dark' }}
             />
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">当时心情 (可选)</label>
+            <label className="mb-1 block text-xs text-white/50">当时心情 (可选)</label>
             <div className="flex flex-wrap gap-1.5 mb-1.5">
               {MOODS.map(m => (
                 <button
                   key={m}
                   onClick={() => setMood(m === mood ? '' : m)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold ${mood === m ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                  className={`rounded-lg border px-2.5 py-1 text-xs font-normal ${mood === m ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.045] text-white/55'}`}
                 >{m}</button>
               ))}
             </div>
@@ -431,33 +436,36 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
               value={mood}
               onChange={e => setMood(e.target.value)}
               placeholder="或自己写"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              style={{ colorScheme: 'dark' }}
             />
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">复盘内容</label>
+            <label className="mb-1 block text-xs text-white/50">复盘内容</label>
             <textarea
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={e => { setText(e.target.value); if (error) setError(''); }}
               placeholder="今天做了什么操作? 对错? 下周计划? 市场感受?"
               rows={6}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              style={{ colorScheme: 'dark' }}
             />
+            {error && <div className="mt-1 text-[11px] text-rose-300">{error}</div>}
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">取消</button>
           {isEdit && (
-            <button onClick={onDelete} className="px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-bold">
+            <button onClick={onDelete} className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-2.5 text-sm font-normal text-rose-300">
               <Trash2 className="w-4 h-4 inline"/>
             </button>
           )}
           <button
             onClick={() => {
-              if (!text.trim()) { alert('请输入内容'); return; }
+              if (!text.trim()) { setError('请输入内容'); return; }
               onSave({ date, mood: mood.trim(), text: text.trim() });
             }}
-            className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
+            className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
           >保存</button>
         </div>
       </div>
@@ -475,43 +483,45 @@ function YearlyActualModal({ year, initial, onCancel, onSave, currency, rate }) 
   const [endBalance, setEndBalance] = useState(initial.endBalance !== null && initial.endBalance !== undefined ? String(Math.round(initial.endBalance * rate)) : '');
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl p-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
+      <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-base">{year} 年 实际数据</h3>
-          <button onClick={onCancel} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+          <h3 className="text-base font-semibold text-white">{year} 年实际数据</h3>
+          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-slate-500 block mb-1">实际增长 ({symbol})</label>
+            <label className="mb-1 block text-xs text-white/50">实际增长 ({symbol})</label>
             <input
               type="number"
               value={actualGain}
               onChange={e => setActualGain(e.target.value)}
               placeholder={isCNY ? '例: 1440000 (144万¥)' : '例: 200000 (20万$)'}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              style={{ colorScheme: 'dark' }}
             />
-            <div className="text-[10px] text-slate-400 mt-0.5">这一年涨了多少 (留空则按年末余额倒算)</div>
+            <div className="mt-0.5 text-[10px] text-white/35">这一年涨了多少 (留空则按年末余额倒算)</div>
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">年末余额 ({symbol})</label>
+            <label className="mb-1 block text-xs text-white/50">年末余额 ({symbol})</label>
             <input
               type="number"
               value={endBalance}
               onChange={e => setEndBalance(e.target.value)}
               placeholder={isCNY ? '例: 19440000 (1944万¥)' : '例: 2600000 (260万$)'}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              style={{ colorScheme: 'dark' }}
             />
-            <div className="text-[10px] text-slate-400 mt-0.5">这一年结束总共多少 (留空则按上年余额+本年增长自动算)</div>
+            <div className="mt-0.5 text-[10px] text-white/35">这一年结束总共多少 (留空则按上年余额+本年增长自动算)</div>
           </div>
-          <div className="text-[11px] text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-            💡 当前币种: <span className="font-bold">{currency}</span> (汇率 1 USD = {rate} CNY){isCNY ? ' · 保存时自动换算为 USD 存储' : ''}
+          <div className="rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/10 px-3 py-2 text-[11px] text-[#ffd18a]">
+            当前币种: <span className="font-semibold">{currency}</span>{isCNY ? ` · 汇率 1 USD = ${rate} CNY · 保存时自动换算为 USD 存储` : ''}
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">取消</button>
           <button
             onClick={() => {
               // 输入的是当前显示币种的数字
@@ -521,7 +531,7 @@ function YearlyActualModal({ year, initial, onCancel, onSave, currency, rate }) 
               const eb = endBalance === '' ? null : parseFloat(endBalance) / divisor;
               onSave(ag, eb);
             }}
-            className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
+            className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
           >保存</button>
         </div>
       </div>
@@ -3141,7 +3151,7 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
-  const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'settings';
+  const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-[#263142] bg-[#171d27] text-[#aab3c2] active:scale-95';
   const costBasisModalLabelClass = 'mb-1 block text-[11px] font-normal text-[#aab3c2]';
   const costBasisModalInputClass = 'w-full rounded-xl border border-[#273142] bg-[#171d27] px-3 py-2.5 text-[13px] font-normal text-[#f5f7fb] outline-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] placeholder:text-[#707a89] focus:border-[#f6b54b]/70 focus:bg-[#1a212c]';

@@ -1,8 +1,103 @@
 import React from 'react';
 
+const NUMBER_FONT = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace';
+const REVIEW_GOLD = '#f6b54b';
+const REVIEW_BG = '#05070b';
+const REVIEW_CARD = '#0b0f14';
+const REVIEW_PANEL = '#0b0f16';
+
+const DISCIPLINE_LEVELS = [
+  { level: '🟢', label: '一般', dot: 'bg-emerald-400', border: 'border-emerald-400/20', text: 'text-emerald-300', bg: 'bg-emerald-400/10' },
+  { level: '🔺', label: '重要', dot: 'bg-rose-400', border: 'border-rose-400/20', text: 'text-rose-300', bg: 'bg-rose-400/10' },
+  { level: '📣', label: '强调', dot: 'bg-amber-400', border: 'border-amber-400/20', text: 'text-amber-300', bg: 'bg-amber-400/10' },
+  { level: '❗', label: '警告', dot: 'bg-red-500', border: 'border-red-400/25', text: 'text-red-300', bg: 'bg-red-400/10' },
+];
+
+function toNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function fmtWan(value, digits = 1) {
+  const n = Math.abs(toNumber(value)) / 10000;
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function levelMeta(level) {
+  return DISCIPLINE_LEVELS.find((item) => item.level === level) || DISCIPLINE_LEVELS[0];
+}
+
+function SectionTitle({ icon, title, count, actionLabel, onAction }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-[#f6b54b]/20 bg-[#f6b54b]/10 text-[15px] text-[#f6b54b]">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-[15px] font-semibold text-white">{title}</div>
+          {count !== undefined && <div className="mt-0.5 text-[10px] text-white/35">{count}</div>}
+        </div>
+      </div>
+      {actionLabel && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="shrink-0 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-3 py-1.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ReviewActionSheet({ title, desc, children, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+      }}
+    >
+      <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
+        <div className="border-b border-white/10 px-4 pb-3 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[15px] font-semibold text-white">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 active:scale-90"
+              aria-label="关闭操作面板"
+            >
+              ×
+            </button>
+          </div>
+          {desc && (
+            <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5 text-[12px] leading-relaxed text-white/65">
+              {desc}
+            </div>
+          )}
+        </div>
+        <div className="space-y-2 px-4 pb-4 pt-3">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReviewTab({ ctx }) {
   const {
-    AlertTriangle,
     BookOpen,
     Calendar,
     ChevronDown,
@@ -10,18 +105,12 @@ export default function ReviewTab({ ctx }) {
     db,
     DisciplineModal,
     disciplines,
-    Edit2,
-    editingDisciplineId,
-    editingLogId,
     editYearlyActualId,
     expandedDisciplines,
     filterLevel,
     investmentPlan,
     lastSubmitRef,
     LogModal,
-    marginStatus,
-    Pin,
-    Plus,
     reviewLogs,
     setDisciplines,
     setEditingDisciplineId,
@@ -30,14 +119,12 @@ export default function ReviewTab({ ctx }) {
     setExpandedDisciplines,
     setFilterLevel,
     setInvestmentPlan,
-    setMarginStatus,
     setReviewLogs,
     setShowAddDiscipline,
     setShowAddLog,
     setShowAllDisciplines,
     setShowAllLogs,
     setShowAllYears,
-    setShowEditMargin,
     setShowPlanSettings,
     setYearlyActuals,
     showAddDiscipline,
@@ -46,7 +133,6 @@ export default function ReviewTab({ ctx }) {
     showAllLogs,
     showAllYears,
     showConfirm,
-    showEditMargin,
     showPlanSettings,
     usdRate,
     X,
@@ -54,1154 +140,813 @@ export default function ReviewTab({ ctx }) {
     yearlyActuals,
   } = ctx;
 
+  const [yearAction, setYearAction] = React.useState(null);
+  const [disciplineAction, setDisciplineAction] = React.useState(null);
+
+  const plan = investmentPlan || {};
+  const startYear = toNumber(plan.startYear, new Date().getFullYear());
+  const totalYears = Math.max(1, toNumber(plan.totalYears, 10));
+  const startCapital = toNumber(plan.startCapital, 0);
+  const targetAnnualRate = toNumber(plan.targetAnnualRate, 0.2);
+  const ageGoalAge = toNumber(plan.ageGoalAge, 0);
+  const displayCurrency = plan.displayCurrency === 'CNY' ? 'CNY' : 'USD';
+  const isCNY = displayCurrency === 'CNY';
+  const fxRate = toNumber(usdRate, 1);
+  const rate = isCNY ? (fxRate > 0 ? fxRate : 1) : 1;
+  const symbol = isCNY ? '¥' : '$';
+  const currencyLabel = isCNY ? 'RMB' : 'USD';
+  const thisYear = new Date().getFullYear();
+
+  const money = (usdValue, digits = 1) => `${symbol}${fmtWan(toNumber(usdValue) * rate, digits)} 万`;
+  const signedMoney = (usdValue, digits = 1) => {
+    const n = toNumber(usdValue);
+    return `${n >= 0 ? '+' : '-'}${money(Math.abs(n), digits)}`;
+  };
+
+  const yearlyFinal = React.useMemo(() => {
+    const rows = [];
+    let prevEnd = startCapital;
+
+    for (let i = 0; i < totalYears; i += 1) {
+      const year = startYear + i;
+      const actual = (yearlyActuals || []).find((item) => item.year === year);
+      const startBalance = prevEnd;
+      const planTarget = Math.round(startBalance * targetAnnualRate);
+      let actualGain = actual?.actualGain ?? null;
+      let endBalance = actual?.endBalance ?? null;
+      let isProjected = false;
+
+      if (actualGain !== null && endBalance !== null) {
+        actualGain = toNumber(actualGain);
+        endBalance = toNumber(endBalance);
+      } else if (endBalance !== null) {
+        endBalance = toNumber(endBalance);
+        actualGain = endBalance - startBalance;
+      } else if (actualGain !== null) {
+        actualGain = toNumber(actualGain);
+        endBalance = startBalance + actualGain;
+      } else {
+        actualGain = null;
+        endBalance = Math.round(startBalance * (1 + targetAnnualRate));
+        isProjected = true;
+      }
+
+      rows.push({
+        year,
+        startBalance: Math.round(startBalance),
+        planTarget,
+        actualGain,
+        endBalance: Math.round(endBalance),
+        isProjected,
+        planEndBalance: Math.round(startCapital * Math.pow(1 + targetAnnualRate, i + 1)),
+      });
+      prevEnd = endBalance;
+    }
+
+    return rows;
+  }, [startCapital, startYear, targetAnnualRate, totalYears, yearlyActuals]);
+
+  const ageGoalAmount = Math.round(startCapital * Math.pow(1 + targetAnnualRate, totalYears));
+  const currentBalance = React.useMemo(() => {
+    for (let i = yearlyFinal.length - 1; i >= 0; i -= 1) {
+      if (!yearlyFinal[i].isProjected) return yearlyFinal[i].endBalance;
+    }
+    return startCapital;
+  }, [startCapital, yearlyFinal]);
+  const progressPct = ageGoalAmount > 0 ? clamp((currentBalance / ageGoalAmount) * 100, 0, 100) : 0;
+  const yearsLeft = Math.max(0, startYear + totalYears - 1 - thisYear);
+  const currentYearIndex = yearlyFinal.findIndex((item) => item.year === thisYear);
+  const visibleYears = showAllYears
+    ? yearlyFinal
+    : yearlyFinal.filter((_, index) => {
+      if (currentYearIndex === -1) return index < 3;
+      return index >= currentYearIndex && index < currentYearIndex + 3;
+    });
+  const hiddenYearCount = yearlyFinal.length - visibleYears.length;
+
+  const sortedDisciplines = React.useMemo(() => (
+    [...(disciplines || [])].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
+    })
+  ), [disciplines]);
+  const filteredDisciplines = filterLevel === 'all'
+    ? sortedDisciplines
+    : sortedDisciplines.filter((item) => item.level === filterLevel);
+  const visibleDisciplines = showAllDisciplines ? filteredDisciplines : filteredDisciplines.slice(0, 10);
+  const visibleLogs = showAllLogs ? (reviewLogs || []) : (reviewLogs || []).slice(0, 10);
+
+  const switchCurrency = async (nextCurrency) => {
+    if (nextCurrency === displayCurrency) return;
+    const next = { ...plan, displayCurrency: nextCurrency };
+    setInvestmentPlan(next);
+    try {
+      await db.upsertInvestmentPlan(next);
+    } catch (error) {
+      console.error('[目标页币种切换] 保存失败:', error);
+    }
+  };
+
+  const togglePinDiscipline = async (discipline) => {
+    const nextPinned = !discipline.pinned;
+    try {
+      await db.updateDiscipline(discipline.id, { ...discipline, pinned: nextPinned });
+      setDisciplines((disciplines || []).map((item) => (
+        item.id === discipline.id ? { ...item, pinned: nextPinned } : item
+      )));
+      setDisciplineAction(null);
+    } catch (error) {
+      console.error('[目标页戒律置顶] 保存失败:', error);
+    }
+  };
+
+  const deleteDiscipline = (discipline) => {
+    setDisciplineAction(null);
+    showConfirm({
+      title: '删除这条戒律?',
+      desc: '此操作不可撤销',
+      info: (discipline?.text || '').slice(0, 50) + ((discipline?.text || '').length > 50 ? '...' : ''),
+      confirmText: '删除',
+      onConfirm: async () => {
+        await db.deleteDiscipline(discipline.id);
+        setDisciplines((disciplines || []).filter((item) => item.id !== discipline.id));
+      },
+    });
+  };
+
+  const openDisciplineEdit = (discipline) => {
+    setDisciplineAction(null);
+    setEditingDisciplineId(discipline.id);
+  };
+
+  const openYearEdit = (year) => {
+    setYearAction(null);
+    setEditYearlyActualId(year);
+  };
+
   return (
-    <>
+    <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif' }}>
+      <style>{`
+        @keyframes polar-twinkle {
+          0%, 100% { opacity: 0.28; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.35); }
+        }
+        .review-star {
+          position: absolute;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.86);
+          animation: polar-twinkle 3.5s ease-in-out infinite;
+          pointer-events: none;
+        }
+      `}</style>
 
-          {(() => {
-            // === 工具函数 ===
-            const fmtWan = (n, d = 0) => {
-              const v = Math.abs(n) / 10000;
-              return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-            };
-            // 📌 核心: 统一金额显示函数 (根据 displayCurrency 切换)
-            // 数据库永远存 USD, CNY 模式时显示 × usdRate
-            const displayCurrency = investmentPlan.displayCurrency || 'USD';
-            const isCNY = displayCurrency === 'CNY';
-            const symbol = isCNY ? '¥' : '$';
-            const rate = isCNY ? (usdRate || 7.2) : 1;
-            // 金额带"万"单位显示 (USD: $240 万, CNY: ¥1728 万)
-            const fmtMoney = (usdValue, d = 1) => `${symbol}${fmtWan(usdValue * rate, d)} 万`;
-            const fmtWanUSD = fmtMoney;  // 兼容旧调用, 自动切
+      <section className="relative overflow-hidden rounded-[24px] border border-[#f6b54b]/20 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="pointer-events-none absolute -right-16 bottom-[-84px] h-52 w-52 rounded-full border border-[#f6b54b]/10 bg-[#f6b54b]/[0.035]" />
+        <span className="review-star left-[58%] top-[16%] h-1 w-1" />
+        <span className="review-star left-[74%] top-[34%] h-0.5 w-0.5" style={{ animationDelay: '0.7s' }} />
+        <span className="review-star left-[63%] top-[56%] h-0.5 w-0.5" style={{ animationDelay: '1.4s' }} />
 
-            // ============================================
-            // 🧠 复利计划核心计算 (柔性目标 + 宽松推演)
-            // ============================================
-            const PLAN = investmentPlan;
-            // 规则:
-            //   1. 每年起点 = 上年终点 (实际或推演)
-            //   2. 计划增长 = 起点 × 年化率 (柔性, 联动上年实际)
-            //   3. 实际增长 = 用户填的 (可空)
-            //   4. 终点 = 起点 + 实际增长
-            //   5. 未填年: 假设达标 20%, 标记为 isProjected
-            //   6. 智能补全: 填一个自动算另一个
-            // ============================================
+        <div className="relative z-10 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[13px] font-normal tracking-[0.18em] text-[#ffd18a]">
+              <span className="text-[15px]">★</span>
+              <span>北极星目标</span>
+            </div>
+          </div>
+          <div className="flex shrink-0 rounded-full border border-white/10 bg-black/25 p-0.5">
+            {[
+              { key: 'USD', label: 'USD' },
+              { key: 'CNY', label: 'RMB' },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => switchCurrency(item.key)}
+                className={`h-8 rounded-full px-3 text-[12px] font-semibold active:scale-95 ${displayCurrency === item.key ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            // 第 1 步: 合并用户填的原始数据
-            const yearlyRaw = [];
-            for (let i = 0; i < PLAN.totalYears; i++) {
-              const year = PLAN.startYear + i;
-              const actual = yearlyActuals.find(a => a.year === year);
-              yearlyRaw.push({
-                year,
-                actualGain: actual?.actualGain ?? null,
-                endBalance: actual?.endBalance ?? null,
-              });
+        <div className="relative z-10 mt-6 text-[38px] font-black leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+          {money(ageGoalAmount, 0)}
+        </div>
+        <div className="relative z-10 mt-3 text-[13px] text-white/55">
+          {totalYears} 年目标 · {ageGoalAge || '--'} 岁实现
+          {isCNY && <span className="ml-2 text-white/35">1 USD = {fxRate.toFixed(2)} RMB</span>}
+        </div>
+
+        <div className="relative z-10 mt-8">
+          <div className="mb-2 flex items-center justify-between text-[13px] font-normal text-[#ffd18a]">
+            <span>当前 {money(currentBalance, 0)}</span>
+            <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</span>
+          </div>
+          <div className="h-3 rounded-full bg-white/[0.075]">
+            <div
+              className="rocket-bar h-full rounded-full"
+              style={{
+                '--target-width': `${progressPct}%`,
+                background: 'linear-gradient(90deg, #f8c46a 0%, #f6b54b 58%, #ffd18a 100%)',
+                boxShadow: '0 0 14px rgba(246,181,75,0.34)',
+              }}
+            >
+              <div className="rocket-particle rocket-particle-1" />
+              <div className="rocket-particle rocket-particle-2" />
+              <div className="rocket-particle rocket-particle-3" />
+            </div>
+          </div>
+          <div className="mt-4 text-[13px] text-white/50">
+            还剩 {yearsLeft} 年 · 本金 {money(startCapital, 0)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
+          </div>
+        </div>
+
+        <div className="relative z-10 mt-5 flex items-end justify-between gap-3">
+          {plan.motto ? (
+            <div className="min-w-0 text-[13px] leading-relaxed text-[#ffd18a]">“{plan.motto}”</div>
+          ) : (
+            <div className="text-[13px] text-white/35">设置一句目标提醒</div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPlanSettings(true)}
+            className="shrink-0 rounded-2xl border border-[#f6b54b]/20 bg-black/20 px-3 py-2 text-[13px] font-normal text-[#ffd18a] active:scale-95"
+          >
+            设置
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-[#f6b54b]" />
+            <div className="text-[15px] font-semibold text-white">年度目标进度</div>
+          </div>
+          {yearlyFinal.length > 3 && (
+            <button
+              type="button"
+              onClick={() => setShowAllYears(!showAllYears)}
+              className="flex items-center gap-1 rounded-xl px-2 py-1 text-[12px] text-white/45 active:scale-95"
+            >
+              {showAllYears ? '收起' : `展开剩余 ${hiddenYearCount} 年`}
+              {showAllYears ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          {visibleYears.map((yearItem) => {
+            const isCurrent = yearItem.year === thisYear;
+            const hasActual = yearItem.actualGain !== null;
+            const diff = hasActual ? yearItem.actualGain - yearItem.planTarget : null;
+            const isOverTarget = diff !== null && diff >= 0;
+            const yearProgressPct = isCurrent && hasActual && yearItem.planTarget > 0
+              ? clamp((yearItem.actualGain / yearItem.planTarget) * 100, 0, 150)
+              : 0;
+            const projectedLabel = yearItem.isProjected ? '未开始' : isOverTarget ? '达标' : '未达';
+
+            if (isCurrent) {
+              return (
+                <button
+                  key={yearItem.year}
+                  type="button"
+                  onClick={() => setYearAction(yearItem)}
+                  className="block w-full rounded-[20px] border border-[#f6b54b]/55 bg-[#0d1016] p-4 text-left shadow-[0_0_22px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="text-[30px] font-black leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
+                      <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-2 py-1 text-[11px] text-[#f6b54b]">本年</span>
+                      <span className={`rounded-md border px-2 py-1 text-[11px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[14px] text-white/50">
+                    <span>计划 {signedMoney(yearItem.planTarget, 1)}</span>
+                    <span className="text-white/25">→</span>
+                    <span className={`text-[23px] font-black tabular-nums ${hasActual ? 'text-rose-300' : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
+                      {hasActual ? signedMoney(yearItem.actualGain, 1) : '待填写'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-white/[0.035] px-3 py-3">
+                    <div>
+                      <div className="text-[11px] text-white/40">起点</div>
+                      <div className="mt-1 text-[14px] font-semibold text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance, 1)}</div>
+                    </div>
+                    <div className="px-2 text-white/25">→</div>
+                    <div className="text-center">
+                      <div className="text-[11px] text-white/40">当前</div>
+                      <div className="mt-1 text-[14px] font-semibold text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance, 1)}</div>
+                    </div>
+                    <div className="px-2 text-white/25">→</div>
+                    <div className="text-right">
+                      <div className="text-[11px] text-white/40">目标</div>
+                      <div className="mt-1 text-[14px] font-semibold text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance + yearItem.planTarget, 1)}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <span className="shrink-0 text-[13px] text-white/65">本年完成</span>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.075]">
+                      <div
+                        className="progress-shine h-full rounded-full"
+                        style={{
+                          width: `${Math.min(100, yearProgressPct)}%`,
+                          background: 'linear-gradient(90deg, #f8c46a 0%, #f6b54b 62%, #ffd18a 100%)',
+                        }}
+                      />
+                    </div>
+                    <span className="w-11 text-right text-[14px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearProgressPct.toFixed(0)}%</span>
+                  </div>
+                </button>
+              );
             }
-
-            // 第 2 步: 按年顺序计算 (起点 / 计划 / 实际 / 终点 / 是否推演)
-            const yearlyFinal = [];
-            let prevEnd = PLAN.startCapital;  // 第 1 年起点 = 起始本金
-
-            for (let i = 0; i < yearlyRaw.length; i++) {
-              const r = yearlyRaw[i];
-              const startBalance = prevEnd;  // 本年起点 = 上年终点
-              const planTarget = Math.round(startBalance * PLAN.targetAnnualRate);  // 柔性: 基于动态起点
-
-              let actualGain, endBalance, isProjected;
-
-              if (r.actualGain !== null && r.endBalance !== null) {
-                // 都填了: 用 endBalance, actualGain 显示用户填的
-                actualGain = r.actualGain;
-                endBalance = r.endBalance;
-                isProjected = false;
-              } else if (r.endBalance !== null) {
-                // 只填了余额: 倒算增长
-                actualGain = r.endBalance - startBalance;
-                endBalance = r.endBalance;
-                isProjected = false;
-              } else if (r.actualGain !== null) {
-                // 只填了增长: 算余额
-                actualGain = r.actualGain;
-                endBalance = startBalance + r.actualGain;
-                isProjected = false;
-              } else {
-                // 都没填: 推演 = 起点 × 1.20 (假设达标)
-                actualGain = null;  // 实际显示 TBD
-                endBalance = Math.round(startBalance * (1 + PLAN.targetAnnualRate));
-                isProjected = true;
-              }
-
-              yearlyFinal.push({
-                year: r.year,
-                startBalance: Math.round(startBalance),
-                planTarget,
-                actualGain,  // null = TBD
-                endBalance: Math.round(endBalance),
-                isProjected,
-                planEndBalance: Math.round(PLAN.startCapital * Math.pow(1 + PLAN.targetAnnualRate, i + 1)),  // 原计划余额 (北极星硬目标)
-              });
-              prevEnd = endBalance;  // 下年起点
-            }
-
-            // 北极星目标 (永远固定)
-            const ageGoalAmount = Math.round(PLAN.startCapital * Math.pow(1 + PLAN.targetAnnualRate, PLAN.totalYears));
-            // 现实推演终点 (根据柔性 + 宽松推演)
-            const projectedFinal = yearlyFinal[yearlyFinal.length - 1]?.endBalance || 0;
-            const shortfall = ageGoalAmount - projectedFinal;
-
-            // === 当前进度 ===
-            // 用复盘 tab 自己的数据: 取最近一个已填实际数据的年份 endBalance
-            // 如果一个都没填, 用起始本金
-            const currentMonth = new Date().toISOString().slice(0, 7);
-            // 旧逻辑: 读资产 tab 家庭总资产 (不合适, 因为复盘追踪的是投资账户)
-            // 新逻辑: 基于复盘 tab 填入的数据
-            let currentBalance = PLAN.startCapital;
-            // 找最近一个"实际"填写的年份 (不是推演)
-            const thisYear = new Date().getFullYear();
-            for (let i = yearlyFinal.length - 1; i >= 0; i--) {
-              if (!yearlyFinal[i].isProjected) {
-                currentBalance = yearlyFinal[i].endBalance;
-                break;
-              }
-            }
-
-            const progressPct = ageGoalAmount > 0 ? (currentBalance / ageGoalAmount) * 100 : 0;
-            const yearsLeft = (PLAN.startYear + PLAN.totalYears - 1) - thisYear;
-
-            // === 融资杠杆状态 (基于总仓位倍率) ===
-            // 总仓位倍率 = (账户净值 + 融资金额) / 账户净值
-            // 1.0 = 无融资, 1.5 = 杠杆到 1.5 倍
-            // 账户净值 = currentBalance (来自复盘数据)
-            // 融资 marginStatus.currentMargin 是人民币, 但复盘是 USD, 需要统一
-            // 约定: currentMargin 也是 USD (和 startCapital 一致)
-            const marginRatio = currentBalance > 0
-              ? 1 + (marginStatus.currentMargin / currentBalance)
-              : 1;
-            const marginState = marginRatio >= 1.5 ? 'red'
-              : marginRatio >= 1.3 ? 'orange'
-              : 'green';
-            // 进度条位置: 1.0 → 0%, 2.0 → 100% (以 2x 为刻度上限)
-            const marginPct = Math.max(0, Math.min(100, (marginRatio - 1.0) / 1.0 * 100));
-
-            // === 戒律筛选 ===
-            const LEVELS = [
-              { level: '🟢', label: '一般', colorClass: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
-              { level: '🔺', label: '重要', colorClass: 'bg-amber-50 border-amber-200 text-amber-800' },
-              { level: '📣', label: '强调', colorClass: 'bg-violet-50 border-violet-200 text-violet-800' },
-              { level: '❗', label: '警告', colorClass: 'bg-rose-50 border-rose-200 text-rose-800' },
-            ];
-            const LEVEL_COLORS = Object.fromEntries(LEVELS.map(l => [l.level, l.colorClass]));
-            // 🐛 修复 (v10.7.9.3): 按 pinned 优先排序
-            //   之前: 直接用 disciplines, 置顶按钮无效
-            //   现在: pinned=true 的永远在前
-            const sortedDisciplines = [...disciplines].sort((a, b) => {
-              if (a.pinned && !b.pinned) return -1;
-              if (!a.pinned && b.pinned) return 1;
-              return 0;  // 都置顶 / 都不置顶 → 保持原顺序
-            });
-            const filteredDisciplines = filterLevel === 'all' ? sortedDisciplines : sortedDisciplines.filter(d => d.level === filterLevel);
 
             return (
-              <>
-                {/* ============ 货币切换按钮 (USD/CNY) ============ */}
-                {(() => {
-                  const isCNY = investmentPlan.displayCurrency === 'CNY';
-                  const switchCurrency = async (newCurrency) => {
-                    if (newCurrency === investmentPlan.displayCurrency) return;
-                    const next = { ...investmentPlan, displayCurrency: newCurrency };
-                    setInvestmentPlan(next);
-                    try {
-                      await db.upsertInvestmentPlan(next);
-                    } catch (e) {
-                      console.error('[切换币种] 云端保存失败:', e);
-                    }
-                  };
-                  return (
-                    <div className="flex justify-end mb-3">
-                      <div className="inline-flex rounded-lg p-0.5 bg-slate-200">
-                        <button
-                          onClick={() => switchCurrency('USD')}
-                          className={`px-3 py-1 rounded-md text-[11px] font-bold transition ${!isCNY ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`}
-                        >$ USD</button>
-                        <button
-                          onClick={() => switchCurrency('CNY')}
-                          className={`px-3 py-1 rounded-md text-[11px] font-bold transition ${isCNY ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`}
-                        >¥ CNY</button>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* ============ 模块 1: 复利计划卡 (烈焰红金 + 北极星宇宙动效) ============ */}
-                <div
-                  className="rounded-2xl p-5 mb-4 text-white relative overflow-hidden"
-                  style={{
-                    background: `
-                      radial-gradient(circle at 0% 100%, rgba(220, 38, 38, 0.25) 0%, transparent 50%),
-                      radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.18) 0%, transparent 50%),
-                      linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0505 100%)
-                    `,
-                    border: '1px solid rgba(251, 191, 36, 0.3)',
-                    boxShadow: '0 10px 40px rgba(127, 29, 29, 0.4)',
-                  }}
-                >
-                  {/* 🌌 宇宙动效层 (纯 CSS 动画, 不阻塞 React 渲染) */}
-                  <style>{`
-                    @keyframes polar-twinkle {
-                      0%, 100% { opacity: 0.3; transform: scale(1); }
-                      50% { opacity: 1; transform: scale(1.5); }
-                    }
-                    @keyframes polar-star-pulse {
-                      0%, 100% { box-shadow: 0 0 15px #fbbf24, 0 0 30px rgba(251, 191, 36, 0.6), 0 0 50px rgba(251, 191, 36, 0.3); }
-                      50% { box-shadow: 0 0 20px #fbbf24, 0 0 40px rgba(251, 191, 36, 0.8), 0 0 70px rgba(251, 191, 36, 0.5); }
-                    }
-                    @keyframes polar-meteor {
-                      0% { transform: translate(-50px, -20px) rotate(25deg); opacity: 0; }
-                      5% { opacity: 1; }
-                      20% { opacity: 1; }
-                      25% { transform: translate(400px, 150px) rotate(25deg); opacity: 0; }
-                      100% { transform: translate(400px, 150px) rotate(25deg); opacity: 0; }
-                    }
-                    .polar-bg-star {
-                      position: absolute;
-                      background: white;
-                      border-radius: 50%;
-                      animation: polar-twinkle infinite;
-                      pointer-events: none;
-                      z-index: 1;
-                    }
-                    .polar-main-star {
-                      position: absolute;
-                      bottom: 24px;
-                      right: 24px;
-                      width: 6px;
-                      height: 6px;
-                      background: #fbbf24;
-                      border-radius: 50%;
-                      animation: polar-star-pulse 2s ease-in-out infinite;
-                      pointer-events: none;
-                      z-index: 2;
-                    }
-                    .polar-meteor {
-                      position: absolute;
-                      width: 60px;
-                      height: 1px;
-                      background: linear-gradient(90deg, transparent, #fbbf24, white);
-                      animation: polar-meteor linear infinite;
-                      opacity: 0;
-                      pointer-events: none;
-                      z-index: 1;
-                    }
-                  `}</style>
-                  {/* ⭐ 北极星 (右上角主星, 脉动发光) */}
-                  <div className="polar-main-star"></div>
-                  {/* 闪烁背景星星 */}
-                  <div className="polar-bg-star" style={{ top: '20%', left: '15%', width: '2px', height: '2px', animationDuration: '2s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '45%', left: '40%', width: '1.5px', height: '1.5px', animationDuration: '3s', animationDelay: '0.5s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '65%', left: '20%', width: '2px', height: '2px', animationDuration: '2.5s', animationDelay: '1s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '75%', left: '60%', width: '1.5px', height: '1.5px', animationDuration: '3.5s', animationDelay: '1.5s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '30%', left: '70%', width: '1px', height: '1px', animationDuration: '4s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '55%', left: '80%', width: '1.5px', height: '1.5px', animationDuration: '2s', animationDelay: '0.8s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '85%', left: '40%', width: '1px', height: '1px', animationDuration: '3s' }}></div>
-                  <div className="polar-bg-star" style={{ top: '15%', left: '50%', width: '1px', height: '1px', animationDuration: '3.5s', animationDelay: '0.3s' }}></div>
-                  {/* 流星 (偶尔划过) */}
-                  <div className="polar-meteor" style={{ top: '40%', left: '30%', animationDuration: '10s', animationDelay: '2s' }}></div>
-                  <div className="polar-meteor" style={{ top: '70%', left: '50%', animationDuration: '12s', animationDelay: '7s' }}></div>
-
-                  <div className="flex items-center justify-between mb-3 relative z-10">
-                    {/* 金红渐变标题 */}
-                    <div
-                      className="text-[10px] uppercase font-bold"
-                      style={{
-                        letterSpacing: '3px',
-                        background: 'linear-gradient(135deg, #fbbf24 0%, #dc2626 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                      }}
-                    >
-                      ★ 北极星目标
-                    </div>
-                    {/* 红色边框按钮 */}
-                    <button
-                      onClick={() => setShowPlanSettings(true)}
-                      className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-md active:scale-95 transition"
-                      style={{
-                        color: '#fca5a5',
-                        background: 'rgba(220, 38, 38, 0.15)',
-                        border: '1px solid rgba(220, 38, 38, 0.3)',
-                      }}
-                    >
-                      <Edit2 className="w-3 h-3" /> 设置
-                    </button>
-                  </div>
-
-                  {/* 主数字 - 金色渐变 */}
-                  <div
-                    className="text-3xl font-black tabular-nums mb-1 relative z-10"
-                    style={{
-                      fontFamily: 'ui-monospace, "SF Mono", monospace',
-                      background: 'linear-gradient(135deg, #fef3c7 0%, #fbbf24 40%, #f59e0b 80%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                      letterSpacing: '-0.5px',
-                    }}
-                  >
-                    {fmtWanUSD(ageGoalAmount, 0)}
-                  </div>
-                  <div className="text-xs relative z-10" style={{ color: '#fca5a5' }}>
-                    {PLAN.totalYears} 年目标 · {PLAN.ageGoalAge} 岁实现
-                  </div>
-
-                  {/* 进度条 (🚀 粒子尾气动画) */}
-                  <div className="mt-4 relative z-10">
-                    <div className="flex justify-between text-[10px] font-bold mb-1" style={{ color: '#fbbf24' }}>
-                      <span>当前 {fmtWanUSD(currentBalance, 0)}</span>
-                      <span>{progressPct.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 rounded-full relative" style={{ background: 'rgba(220, 38, 38, 0.15)', overflow: 'visible' }}>
-                      {/* 主进度条 */}
-                      <div
-                        className="h-full rounded-full rocket-bar"
-                        style={{
-                          '--target-width': `${Math.min(progressPct, 100)}%`,
-                          background: 'linear-gradient(90deg, #dc2626 0%, #fbbf24 100%)',
-                          boxShadow: '0 0 10px rgba(251, 191, 36, 0.4)',
-                          position: 'relative',
-                        }}
-                      >
-                        {/* 3 个粒子 (尾气) */}
-                        <div className="rocket-particle rocket-particle-1"></div>
-                        <div className="rocket-particle rocket-particle-2"></div>
-                        <div className="rocket-particle rocket-particle-3"></div>
-                      </div>
-                    </div>
-                    <div className="text-[10px] mt-1.5" style={{ color: '#737373' }}>
-                      还剩 {yearsLeft} 年 · 本金 {fmtWanUSD(PLAN.startCapital, 0)} · 年化 {(PLAN.targetAnnualRate * 100).toFixed(0)}%
+              <button
+                key={yearItem.year}
+                type="button"
+                onClick={() => setYearAction(yearItem)}
+                className="block w-full rounded-[18px] border border-white/10 bg-white/[0.035] p-4 text-left active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[25px] font-black leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
+                      <span className="text-[12px] text-white/35">计划 {signedMoney(yearItem.planTarget, 1)} → 目标 {money(yearItem.endBalance, 1)}</span>
                     </div>
                   </div>
-
-                  {/* 个人箴言 (红色分隔线 + 金色字) */}
-                  {PLAN.motto && (
-                    <div
-                      className="mt-4 pt-3 text-[11px] italic relative z-10"
-                      style={{
-                        borderTop: '1px solid rgba(220, 38, 38, 0.3)',
-                        color: '#fbbf24',
-                      }}
-                    >
-                      "{PLAN.motto}"
-                    </div>
-                  )}
+                  <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/45">{projectedLabel}</span>
                 </div>
 
-                {/* ============ 模块 2: 融资杠杆监控 (基于总仓位倍率) ============ */}
-                <div className={`rounded-2xl p-4 shadow border-2 mb-4 ${marginState === 'red' ? 'bg-rose-50 border-rose-300' : marginState === 'orange' ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <AlertTriangle className={`w-4 h-4 ${marginState === 'red' ? 'text-rose-600' : marginState === 'orange' ? 'text-amber-600' : 'text-emerald-600'}`}/>
-                      <div className="text-sm font-black text-slate-800">融资杠杆监控</div>
-                    </div>
-                    <button onClick={() => setShowEditMargin(true)} className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
-                      <Edit2 className="w-3 h-3"/> 修改
-                    </button>
+                <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-black/15 px-3 py-3">
+                  <div>
+                    <div className="text-[11px] text-white/38">起点 ({yearItem.year - 1}目标)</div>
+                    <div className="mt-1 text-[14px] font-semibold text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance, 1)}</div>
                   </div>
-
-                  {/* 主数字: 总仓位倍率 + 状态 */}
-                  <div className="flex items-baseline justify-between mb-3">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">总仓位倍率</div>
-                      <div className={`text-2xl font-black tabular-nums ${marginState === 'red' ? 'text-rose-700' : marginState === 'orange' ? 'text-amber-700' : 'text-emerald-700'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                        {marginRatio.toFixed(2)}x
-                      </div>
-                    </div>
-                    <div className={`text-xs font-bold ${marginState === 'red' ? 'text-rose-700' : marginState === 'orange' ? 'text-amber-700' : 'text-emerald-700'}`}>
-                      {marginState === 'red' ? '🚨 危险' : marginState === 'orange' ? '⚠️ 中等' : '✅ 安全'}
-                    </div>
-                  </div>
-
-                  {/* 金额明细 */}
-                  <div className="grid grid-cols-3 gap-2 mb-3 text-[11px]">
-                    <div className="bg-white/60 rounded-md p-2">
-                      <div className="text-[9px] text-slate-500 font-bold uppercase mb-0.5">账户净值</div>
-                      <div className="font-bold text-slate-800 tabular-nums">{fmtWanUSD(currentBalance, 1)}</div>
-                    </div>
-                    <div className="bg-white/60 rounded-md p-2">
-                      <div className="text-[9px] text-slate-500 font-bold uppercase mb-0.5">融资金额</div>
-                      <div className="font-bold text-slate-800 tabular-nums">{fmtWanUSD(marginStatus.currentMargin, 1)}</div>
-                    </div>
-                    <div className="bg-white/60 rounded-md p-2">
-                      <div className="text-[9px] text-slate-500 font-bold uppercase mb-0.5">总仓位</div>
-                      <div className="font-bold text-slate-800 tabular-nums">{fmtWanUSD(currentBalance + marginStatus.currentMargin, 1)}</div>
-                    </div>
-                  </div>
-
-                  {/* 倍率进度条 (1.0 → 2.0) */}
-                  <div className="relative h-3 bg-white rounded-full overflow-hidden border border-slate-200">
-                    {/* 3 档背景色 */}
-                    <div className="absolute inset-0 flex">
-                      <div style={{ width: '30%' }} className="bg-emerald-100"></div>
-                      <div style={{ width: '20%' }} className="bg-amber-100"></div>
-                      <div style={{ width: '50%' }} className="bg-rose-100"></div>
-                    </div>
-                    {/* 当前进度 */}
-                    <div className={`absolute top-0 left-0 h-full rounded-full ${marginState === 'red' ? 'bg-rose-500' : marginState === 'orange' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${marginPct}%` }}></div>
-                  </div>
-                  <div className="flex justify-between mt-1 text-[9px] text-slate-500 font-medium">
-                    <span>1.0x</span>
-                    <span className="text-emerald-600 font-bold" style={{ marginLeft: '6%' }}>安全</span>
-                    <span className="text-amber-600 font-bold">1.3x</span>
-                    <span className="text-rose-600 font-bold">1.5x</span>
-                    <span>2.0x</span>
-                  </div>
-
-                  {/* 提示 */}
-                  <div className={`mt-3 text-[11px] font-medium ${marginState === 'red' ? 'text-rose-700' : marginState === 'orange' ? 'text-amber-700' : 'text-emerald-700'}`}>
-                    {marginState === 'red'
-                      ? '🚨 融资过度, 强烈建议降杠杆'
-                      : marginState === 'orange'
-                      ? '⚠️ 杠杆偏高, 注意风险控制'
-                      : '✅ 杠杆安全, 风险可控'}
+                  <div className="px-4 text-white/25">→</div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-white/38">目标 ({yearItem.year})</div>
+                    <div className="mt-1 text-[14px] font-semibold text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance, 1)}</div>
                   </div>
                 </div>
 
-                {/* ============ 模块 3: 年度目标进度表 ============ */}
-                <div className="rounded-2xl bg-white p-2.5 shadow mb-4">
-                  <div className="flex items-center justify-between mb-3 px-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-blue-600"/>
-                      <div className="text-[15px] font-black text-slate-800">年度目标进度</div>
-                    </div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-[12px] text-white/45">
+                    <span>增长目标</span>
+                    <span className="text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget, 1)}</span>
                   </div>
-
-                  {/* 年度列表 (V5B 布局: 本年夕阳粉金 + 微光扫过 + 起点→终点 胶囊) */}
-                  <div className="space-y-1.5">
-                    {(() => {
-                      const thisYear = new Date().getFullYear();
-                      // 默认显示: 本年 + 本年之后的 2 个 = 3 个
-                      // 展开后: 全部
-                      const visibleYears = showAllYears
-                        ? yearlyFinal
-                        : yearlyFinal.filter((y, i) => {
-                            // 只显示本年及其后 2 年, 如果本年不在列表 (过去了) 就显示前 3 个
-                            const currentIdx = yearlyFinal.findIndex(yy => yy.year === thisYear);
-                            if (currentIdx === -1) return i < 3;
-                            return i >= currentIdx && i < currentIdx + 3;
-                          });
-                      const hiddenCount = yearlyFinal.length - visibleYears.length;
-
-                      return (
-                        <>
-                          {visibleYears.map(y => {
-                            const isCurrent = y.year === thisYear;
-                            const hasActual = y.actualGain !== null;
-                            const diff = hasActual ? y.actualGain - y.planTarget : null;
-                            const isOverTarget = diff !== null && diff >= 0;
-
-                            // 当年进度: 基于实际收益完成度 (而非时间)
-                            // 例如: 目标 +20%, 实际已经 +12% → 完成度 = 60%
-                            const currentMonth = new Date().getMonth() + 1;
-                            const yearProgressPct = isCurrent && hasActual && y.planTarget > 0
-                              ? Math.max(0, Math.min(150, (y.actualGain / y.planTarget) * 100))  // 上限 150% (超额完成)
-                              : 0;
-
-                            if (isCurrent) {
-                              // ============ 本年大卡: 夕阳粉金 ============
-                              return (
-                                <div
-                                  key={y.year}
-                                  className="rounded-xl p-3.5 relative"
-                                  style={{
-                                    background: `
-                                      radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
-                                      radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.12) 0%, transparent 50%),
-                                      linear-gradient(135deg, #fdf2f8 0%, #fff 100%)
-                                    `,
-                                    border: '1px solid #fbcfe8',
-                                  }}
-                                >
-                                  {/* 第 1 行: 年份 + 标签 + 编辑 */}
-                                  <div className="flex items-center justify-between mb-2.5">
-                                    <div className="flex items-center gap-2">
-                                      <div className="text-[20px] font-black tabular-nums" style={{ color: '#db2777', fontFamily: 'ui-monospace, monospace' }}>
-                                        {y.year}
-                                      </div>
-                                      <span className="px-2 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: '#db2777' }}>本年</span>
-                                      {hasActual && (
-                                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold text-white ${isOverTarget ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                                          {isOverTarget ? '↑达标' : '↓未达'}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <button
-                                      onClick={() => setEditYearlyActualId(y.year)}
-                                      className="w-8 h-8 rounded-md hover:bg-pink-200 flex items-center justify-center active:scale-95 transition"
-                                      style={{ background: 'rgba(219, 39, 119, 0.1)', color: '#db2777' }}
-                                    >
-                                      <Edit2 className="w-[15px] h-[15px]"/>
-                                    </button>
-                                  </div>
-
-                                  {/* 第 2 行: 计划 → 实际 + 差额 */}
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-baseline gap-2" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                      <span className="text-slate-500 text-[14px]">计划 +{symbol}{fmtWan(y.planTarget * rate, 1)}</span>
-                                      <span className="text-[14px]" style={{ color: '#f9a8d4' }}>→</span>
-                                      <span className={`font-black text-[18px] ${!hasActual ? 'text-slate-400 italic font-normal' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                        {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${symbol}${fmtWan(y.actualGain * rate, 1)}万` : 'TBD'}
-                                      </span>
-                                    </div>
-                                    {hasActual ? (
-                                      <span className={`text-[13px] font-black tabular-nums px-2.5 py-1 rounded-md ${isOverTarget ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                                        {diff >= 0 ? '+' : ''}{symbol}{fmtWan(diff * rate, 1)}万
-                                      </span>
-                                    ) : (
-                                      <span className="text-[13px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md">TBD</span>
-                                    )}
-                                  </div>
-
-                                  {/* 第 3 行: 起点 → 终点 胶囊 */}
-                                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[13px] mb-3" style={{ background: 'rgba(219, 39, 119, 0.08)' }}>
-                                    <span>
-                                      <span className="text-slate-500 text-[12px]">起点</span>{' '}
-                                      <span className="font-black tabular-nums text-[14px]" style={{ color: '#be185d', fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.startBalance * rate, 1)}万</span>
-                                    </span>
-                                    <span style={{ color: '#f9a8d4', fontSize: '15px' }}>→</span>
-                                    <span>
-                                      <span className="text-slate-500 text-[12px]">终点</span>{' '}
-                                      <span className="font-black tabular-nums text-[14px]" style={{ color: '#be185d', fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.endBalance * rate, 1)}万</span>
-                                    </span>
-                                  </div>
-
-                                  {/* 第 4 行: 年度收益完成度进度条 (PE 微光扫过) */}
-                                  <div className="flex items-center gap-2 mb-2 text-[13px] font-bold" style={{ color: '#db2777' }}>
-                                    <span className="whitespace-nowrap">{hasActual ? '本年完成' : '尚未填收益'}</span>
-                                    <div className="flex-1 h-[9px] rounded-full overflow-hidden relative" style={{ background: 'rgba(219, 39, 119, 0.12)' }}>
-                                      <div
-                                        className="h-full rounded-full relative progress-shine"
-                                        style={{
-                                          width: `${Math.min(100, yearProgressPct)}%`,
-                                          background: yearProgressPct >= 100
-                                            ? 'linear-gradient(90deg, #f43f5e 0%, #fb923c 50%, #fbbf24 100%)'  // 达标: 红橙金
-                                            : 'linear-gradient(90deg, #10b981 0%, #fbbf24 50%, #e11d48 100%)',  // 未达: 绿黄红
-                                          boxShadow: '0 0 6px rgba(251, 191, 36, 0.4)',
-                                        }}
-                                      ></div>
-                                    </div>
-                                    <span className="tabular-nums">{yearProgressPct.toFixed(0)}%</span>
-                                  </div>
-
-                                  {/* 北极星对比 */}
-                                  <div className="text-[12px] text-slate-400">
-                                    北极星 <span className="tabular-nums">{symbol}{fmtWan(y.planEndBalance * rate, 1)}万</span>
-                                    {' · '}
-                                    {y.endBalance >= y.planEndBalance ? (
-                                      <span className="text-rose-500 font-bold">领先 {symbol}{fmtWan((y.endBalance - y.planEndBalance) * rate, 1)}万</span>
-                                    ) : (
-                                      <span className="text-emerald-500 font-bold">落后 {symbol}{fmtWan((y.planEndBalance - y.endBalance) * rate, 1)}万</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            // ============ 其他年份紧凑行 ============
-                            return (
-                              <div key={y.year} className="rounded-lg px-3 py-2.5 bg-slate-50/60">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="text-[17px] font-black tabular-nums text-slate-500 w-14 flex-shrink-0" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    {y.year}
-                                  </div>
-                                  <div className="flex-1 flex items-center justify-between text-[14px]" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                    <div className="flex items-baseline gap-1.5">
-                                      <span className="text-slate-500 text-[13px]">+{symbol}{fmtWan(y.planTarget * rate, 1)}</span>
-                                      <span className="text-slate-300">→</span>
-                                      <span className={`font-black ${!hasActual ? 'text-slate-400 italic font-normal' : y.actualGain >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                        {hasActual ? `${y.actualGain >= 0 ? '+' : ''}${symbol}${fmtWan(y.actualGain * rate, 1)}万` : 'TBD'}
-                                      </span>
-                                    </div>
-                                    {hasActual ? (
-                                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded tabular-nums ${isOverTarget ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                                        {diff >= 0 ? '+' : ''}{symbol}{fmtWan(diff * rate, 1)}万
-                                      </span>
-                                    ) : (
-                                      <span className="text-[12px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-bold">TBD</span>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => setEditYearlyActualId(y.year)}
-                                    className="w-7 h-7 rounded bg-slate-200 hover:bg-blue-500 hover:text-white flex items-center justify-center active:scale-95 transition text-slate-500 flex-shrink-0"
-                                  >
-                                    <Edit2 className="w-3 h-3"/>
-                                  </button>
-                                </div>
-
-                                {/* 起点 → 终点 小胶囊 */}
-                                <div className="flex items-center justify-between mt-1.5 ml-14 mr-9 px-2.5 py-1 rounded text-[12px] bg-white">
-                                  <span>
-                                    <span className="text-slate-400 text-[11px]">起点</span>{' '}
-                                    <span className="font-bold text-slate-600 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.startBalance * rate, 1)}万</span>
-                                  </span>
-                                  <span className="text-slate-300">→</span>
-                                  <span>
-                                    <span className="text-slate-400 text-[11px]">终点</span>{' '}
-                                    <span className={`font-bold tabular-nums italic ${y.isProjected ? 'text-slate-400' : 'text-slate-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>{symbol}{fmtWan(y.endBalance * rate, 1)}万</span>
-                                  </span>
-                                </div>
-
-                                {/* 北极星对比 */}
-                                <div className="text-[12px] text-slate-400 mt-1.5 ml-14">
-                                  北极星 <span className="tabular-nums">{symbol}{fmtWan(y.planEndBalance * rate, 1)}万</span>
-                                  {' · '}
-                                  {y.endBalance >= y.planEndBalance ? (
-                                    <span className="text-rose-500 font-bold">领先 {symbol}{fmtWan((y.endBalance - y.planEndBalance) * rate, 1)}万</span>
-                                  ) : (
-                                    <span className="text-emerald-500 font-bold">落后 {symbol}{fmtWan((y.planEndBalance - y.endBalance) * rate, 1)}万</span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          {/* 展开/收起按钮 */}
-                          {yearlyFinal.length > 3 && (
-                            <button
-                              onClick={() => setShowAllYears(!showAllYears)}
-                              className="w-full py-3 mt-2 rounded-lg active:scale-95 transition flex items-center justify-center gap-1.5 text-[13px] font-bold"
-                              style={{
-                                background: '#fff8f5',
-                                border: '1px dashed #fbcfe8',
-                                color: '#db2777',
-                              }}
-                            >
-                              {showAllYears ? (
-                                <>
-                                  <ChevronUp className="w-4 h-4"/>
-                                  收起 · 只看前 3 年
-                                </>
-                              ) : (
-                                <>
-                                  <ChevronDown className="w-4 h-4"/>
-                                  展开剩余 {hiddenCount} 年
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </>
-                      );
-                    })()}
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-white" />
+                    <span className="h-px flex-1 border-t border-dashed border-[#f6b54b]/45" />
+                    <span className="h-2 w-2 rounded-full bg-white" />
+                  </div>
+                  <div className="mt-1 flex justify-between text-[11px] text-white/35">
+                    <span>{money(yearItem.startBalance, 1)}</span>
+                    <span>{money(yearItem.endBalance, 1)}</span>
                   </div>
                 </div>
-
-                {/* ============ 模块 4: 投资戒律 ============ */}
-                <div className="rounded-2xl bg-white p-4 shadow mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4 text-violet-600"/>
-                      <div className="text-sm font-black text-slate-800">投资戒律</div>
-                      <span className="text-[10px] text-slate-400">({disciplines.length})</span>
-                    </div>
-                    <button
-                      onClick={() => setShowAddDiscipline(true)}
-                      className="px-2 py-1 rounded-md bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-bold flex items-center gap-1 active:scale-95 transition"
-                    >
-                      <Plus className="w-3 h-3"/> 添加
-                    </button>
-                  </div>
-
-                  {/* 等级筛选 */}
-                  <div className="flex gap-1 mb-3 overflow-x-auto">
-                    <button
-                      onClick={() => setFilterLevel('all')}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap ${filterLevel === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}
-                    >全部 ({disciplines.length})</button>
-                    {LEVELS.map(l => {
-                      const count = disciplines.filter(d => d.level === l.level).length;
-                      return (
-                        <button
-                          key={l.level}
-                          onClick={() => setFilterLevel(l.level)}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap flex items-center gap-1 ${filterLevel === l.level ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}
-                        >
-                          <span>{l.level}</span><span>{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* 戒律列表 */}
-                  {disciplines.length === 0 ? (
-                    <div className="text-center py-8 px-3 bg-slate-50 rounded-xl text-slate-500 text-sm">
-                      <div className="text-3xl mb-2">📖</div>
-                      <div className="mb-2 font-bold">还没有戒律</div>
-                      <div className="text-xs">记录你的投资经验教训, 防止重复犯错</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        {(showAllDisciplines ? filteredDisciplines : filteredDisciplines.slice(0, 10)).map(d => {
-                          const isLong = d.text.length > 60;
-                          const isExpanded = expandedDisciplines[d.id];
-                          const displayText = (isLong && !isExpanded) ? d.text.slice(0, 60) + '...' : d.text;
-                          return (
-                            <div key={d.id} className={`relative rounded-xl border p-3 ${LEVEL_COLORS[d.level] || ''}`}>
-                              {d.pinned && (
-                                <div className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shadow">
-                                  <Pin className="w-2.5 h-2.5 text-white" fill="white"/>
-                                </div>
-                              )}
-                              <div className="flex items-start gap-2">
-                                <div className="text-base shrink-0">{d.level}</div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-sm leading-relaxed font-medium whitespace-pre-wrap break-words">{displayText}</div>
-                                  {isLong && (
-                                    <button
-                                      onClick={() => setExpandedDisciplines(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
-                                      className="text-[11px] mt-1 font-bold underline opacity-70"
-                                    >
-                                      {isExpanded ? '收起' : '展开全文'}
-                                    </button>
-                                  )}
-                                  <div className="text-[10px] mt-1 opacity-60">{d.date}</div>
-                                </div>
-                                <div className="flex flex-col gap-1 shrink-0">
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        await db.updateDiscipline(d.id, { ...d, pinned: !d.pinned });
-                                        setDisciplines(disciplines.map(x => x.id === d.id ? { ...x, pinned: !x.pinned } : x));
-                                      } catch (e) { alert('Pin 失败: ' + e.message); }
-                                    }}
-                                    className={`p-1 rounded ${d.pinned ? 'bg-amber-200' : 'hover:bg-white/50'}`}
-                                  >
-                                    <Pin className="w-3 h-3 opacity-70"/>
-                                  </button>
-                                  <button onClick={() => setEditingDisciplineId(d.id)} className="p-1 rounded hover:bg-white/50">
-                                    <Edit2 className="w-3 h-3 opacity-70"/>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {filteredDisciplines.length > 10 && (
-                        <button
-                          onClick={() => setShowAllDisciplines(!showAllDisciplines)}
-                          className="w-full mt-3 py-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition border border-violet-200"
-                        >
-                          {showAllDisciplines ? (<><ChevronUp className="w-3.5 h-3.5"/>收起, 只看前 10 条</>) : (<><ChevronDown className="w-3.5 h-3.5"/>展开剩余 {filteredDisciplines.length - 10} 条</>)}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* ============ 模块 5: 月度复盘日志 ============ */}
-                <div className="rounded-2xl bg-white p-4 shadow mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <Edit2 className="w-4 h-4 text-blue-600"/>
-                      <div className="text-sm font-black text-slate-800">复盘日志</div>
-                      <span className="text-[10px] text-slate-400">({reviewLogs.length})</span>
-                    </div>
-                    <button
-                      onClick={() => setShowAddLog(true)}
-                      className="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1 active:scale-95 transition"
-                    >
-                      <Plus className="w-3 h-3"/> 写复盘
-                    </button>
-                  </div>
-
-                  {reviewLogs.length === 0 ? (
-                    <div className="text-center py-8 px-3 bg-slate-50 rounded-xl text-slate-500 text-sm">
-                      <div className="text-3xl mb-2">📝</div>
-                      <div className="mb-2 font-bold">还没有复盘</div>
-                      <div className="text-xs">每周/每月记录一下操作和思考</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        {(showAllLogs ? reviewLogs : reviewLogs.slice(0, 10)).map(l => (
-                          <div key={l.id} className="rounded-xl border border-slate-200 p-3 bg-slate-50">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-xs font-black text-slate-700 tabular-nums">{l.date}</div>
-                              <div className="flex items-center gap-1.5">
-                                {l.mood && <span className="text-[10px] text-blue-600 font-bold bg-blue-100 px-1.5 py-0.5 rounded">{l.mood}</span>}
-                                <button onClick={() => setEditingLogId(l.id)} className="p-1 rounded hover:bg-white">
-                                  <Edit2 className="w-3 h-3 text-slate-400"/>
-                                </button>
-                              </div>
-                            </div>
-                            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap break-words">{l.text}</div>
-                          </div>
-                        ))}
-                      </div>
-                      {/* 展开/收起按钮 (跟戒律一致样式) */}
-                      {reviewLogs.length > 10 && (
-                        <button
-                          onClick={() => setShowAllLogs(!showAllLogs)}
-                          className="w-full mt-2 py-2.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 active:scale-95 transition flex items-center justify-center gap-1.5"
-                        >
-                          {showAllLogs ? (
-                            <><ChevronUp className="w-3.5 h-3.5"/>收起, 只看前 10 条</>
-                          ) : (
-                            <><ChevronDown className="w-3.5 h-3.5"/>展开剩余 {reviewLogs.length - 10} 条</>
-                          )}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* ====== 复利计划设置 Modal ====== */}
-                {showPlanSettings && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPlanSettings(false)}>
-                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-base">复利计划设置</h3>
-                        <button onClick={() => setShowPlanSettings(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-                          <X className="w-4 h-4"/>
-                        </button>
-                      </div>
-                      {(() => {
-                        const [draft, setDraft] = [investmentPlan, setInvestmentPlan];
-                        const settingCurrency = draft.displayCurrency || 'USD';
-                        const isCNYSetting = settingCurrency === 'CNY';
-                        const settingSymbol = isCNYSetting ? '¥' : '$';
-                        const settingRate = isCNYSetting ? (usdRate || 7.2) : 1;
-                        // 输入框显示值 (当前币种)
-                        const displayStartCapital = draft.startCapital * settingRate;
-                        return (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-xs text-slate-500 block mb-1">基础本金 ({settingSymbol})</label>
-                              <input
-                                type="number"
-                                value={Math.round(displayStartCapital)}
-                                onChange={e => {
-                                  const inputVal = parseFloat(e.target.value) || 0;
-                                  // 存回 USD
-                                  setDraft({ ...draft, startCapital: inputVal / settingRate });
-                                }}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                              />
-                              <div className="text-[10px] text-slate-400 mt-0.5">
-                                当前: {fmtWanUSD(draft.startCapital, 0)}
-                                {isCNYSetting && <span> (输入 ¥ 自动换算为 USD 存储, 汇率 1 USD = {settingRate} CNY)</span>}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs text-slate-500 block mb-1">年化目标 (%)</label>
-                              <input
-                                type="number"
-                                step="1"
-                                value={(draft.targetAnnualRate * 100).toFixed(0)}
-                                onChange={e => setDraft({ ...draft, targetAnnualRate: (parseFloat(e.target.value) || 0) / 100 })}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs text-slate-500 block mb-1">起始年</label>
-                                <input
-                                  type="number"
-                                  value={draft.startYear === '' ? '' : draft.startYear}
-                                  onChange={e => {
-                                    const v = e.target.value;
-                                    setDraft({ ...draft, startYear: v === '' ? '' : (parseInt(v) || 0) });
-                                  }}
-                                  onBlur={e => {
-                                    const v = parseInt(e.target.value);
-                                    if (!v || v < 2000) setDraft({ ...draft, startYear: 2026 });
-                                  }}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-slate-500 block mb-1">总年数</label>
-                                <input
-                                  type="number"
-                                  value={draft.totalYears === '' ? '' : draft.totalYears}
-                                  onChange={e => {
-                                    const v = e.target.value;
-                                    // 空 → 保持空 (允许删除); 否则解析为数字
-                                    setDraft({ ...draft, totalYears: v === '' ? '' : (parseInt(v) || 0) });
-                                  }}
-                                  onBlur={e => {
-                                    // 失焦时: 如果是空 / 0, fallback 到 10
-                                    const v = parseInt(e.target.value);
-                                    if (!v || v < 1) setDraft({ ...draft, totalYears: 10 });
-                                  }}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs text-slate-500 block mb-1">目标年龄</label>
-                              <input
-                                type="number"
-                                value={draft.ageGoalAge === '' ? '' : (draft.ageGoalAge || '')}
-                                onChange={e => {
-                                  const v = e.target.value;
-                                  setDraft({ ...draft, ageGoalAge: v === '' ? '' : (parseInt(v) || 0) });
-                                }}
-                                onBlur={e => {
-                                  const v = parseInt(e.target.value);
-                                  if (!v || v < 1) setDraft({ ...draft, ageGoalAge: 40 });
-                                }}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-slate-500 block mb-1">个人箴言 (可选)</label>
-                              <textarea
-                                value={draft.motto || ''}
-                                onChange={e => setDraft({ ...draft, motto: e.target.value })}
-                                placeholder="例: 40 岁主账户 $500 万"
-                                rows={2}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                              />
-                            </div>
-                            <div className="text-[10px] text-slate-500 bg-slate-50 rounded p-2">
-                              按此计划 {draft.totalYears} 年后将达 <span className="font-bold text-amber-700">{fmtWanUSD(draft.startCapital * Math.pow(1 + draft.targetAnnualRate, draft.totalYears), 0)}</span>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                      <div className="flex gap-2 mt-4">
-                        <button onClick={() => setShowPlanSettings(false)} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await db.upsertInvestmentPlan(investmentPlan);
-                              setShowPlanSettings(false);
-                            } catch (e) { alert('保存失败: ' + e.message); }
-                          }}
-                          className="flex-1 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-bold"
-                        >保存</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ====== 融资修改 Modal ====== */}
-                {showEditMargin && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEditMargin(false)}>
-                    <div className="bg-white rounded-2xl p-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-base">融资杠杆</h3>
-                        <button onClick={() => setShowEditMargin(false)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-                          <X className="w-4 h-4"/>
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        {/* 账户净值显示 (自动, 不可改) */}
-                        <div className="bg-slate-50 rounded-lg p-3">
-                          <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">账户净值 (自动)</div>
-                          <div className="font-bold text-slate-800 tabular-nums text-sm">{fmtWanUSD(currentBalance, 1)}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">来自目标 tab 最近填写的余额</div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs text-slate-500 block mb-1">当前融资额 ({investmentPlan.displayCurrency === 'CNY' ? '¥' : '$'})</label>
-                          {(() => {
-                            const isCNYMargin = investmentPlan.displayCurrency === 'CNY';
-                            const rateMargin = isCNYMargin ? (usdRate || 7.2) : 1;
-                            const displayMargin = marginStatus.currentMargin * rateMargin;
-                            return (
-                              <>
-                                <input
-                                  type="number"
-                                  value={Math.round(displayMargin)}
-                                  onChange={e => {
-                                    const val = parseFloat(e.target.value) || 0;
-                                    setMarginStatus({ ...marginStatus, currentMargin: val / rateMargin });
-                                  }}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm tabular-nums"
-                                  placeholder={isCNYMargin ? '例: 3600000 (360 万¥)' : '例: 500000 (50 万$)'}
-                                />
-                                <div className="text-[10px] text-slate-400 mt-0.5">
-                                  当前: {fmtWanUSD(marginStatus.currentMargin, 1)}
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-
-                        {/* 实时计算预览 */}
-                        {currentBalance > 0 && (
-                          <div className={`rounded-lg p-3 border ${marginRatio >= 1.5 ? 'bg-rose-50 border-rose-200' : marginRatio >= 1.3 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                            <div className="text-[10px] font-bold uppercase mb-1 tracking-widest">
-                              {marginRatio >= 1.5 ? '🚨 危险区' : marginRatio >= 1.3 ? '⚠️ 中等区' : '✅ 安全区'}
-                            </div>
-                            <div className="flex items-baseline justify-between">
-                              <span className="text-xs text-slate-600">总仓位倍率:</span>
-                              <span className={`text-lg font-black tabular-nums ${marginRatio >= 1.5 ? 'text-rose-700' : marginRatio >= 1.3 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                                {marginRatio.toFixed(2)}x
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-500 mt-1">
-                              1.0-1.3x 安全 · 1.3-1.5x 中等 · 1.5x+ 危险
-                            </div>
-                          </div>
-                        )}
-                        {currentBalance === 0 && (
-                          <div className="text-[11px] text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-                            💡 先在目标 tab 填年度数据, 才能自动算杠杆倍率
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2 mt-4">
-                        <button onClick={() => setShowEditMargin(false)} className="flex-1 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold">取消</button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await db.upsertMarginStatus(marginStatus);
-                              setShowEditMargin(false);
-                            } catch (e) { alert('保存失败: ' + e.message); }
-                          }}
-                          className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold"
-                        >保存</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ====== 添加/编辑 戒律 Modal ====== */}
-                {(showAddDiscipline || editingDisciplineId) && (() => {
-                  const isEdit = !!editingDisciplineId;
-                  const current = isEdit ? disciplines.find(d => d.id === editingDisciplineId) : null;
-                  return (
-                    <DisciplineModal
-                      initial={current || { level: '🟢', text: '', pinned: false }}
-                      onCancel={() => { setShowAddDiscipline(false); setEditingDisciplineId(null); }}
-                      onDelete={isEdit ? () => {
-                        showConfirm({
-                          title: '删除这条戒律?',
-                          desc: '此操作不可撤销',
-                          info: (current?.text || '').slice(0, 50) + ((current?.text || '').length > 50 ? '...' : ''),
-                          confirmText: '删除',
-                          onConfirm: async () => {
-                            try {
-                              await db.deleteDiscipline(editingDisciplineId);
-                              setDisciplines(disciplines.filter(d => d.id !== editingDisciplineId));
-                              setEditingDisciplineId(null);
-                              setShowAddDiscipline(false);
-                            } catch (e) { alert('删除失败: ' + e.message); }
-                          },
-                        });
-                      } : null}
-                      onSave={async (data) => {
-                        try {
-                          if (isEdit) {
-                            await db.updateDiscipline(editingDisciplineId, data);
-                            setDisciplines(disciplines.map(d => d.id === editingDisciplineId ? { ...d, ...data } : d));
-                            setEditingDisciplineId(null);
-                          } else {
-                            // 防重复: 10 秒内相同内容拒绝
-                            const text = (data.text || '').trim();
-                            const last = lastSubmitRef.current['discipline'];
-                            const now = Date.now();
-                            if (last && last.text === text && (now - last.at) < 10000) {
-                              alert('⚠️ 10 秒内已提交过相同内容, 请勿重复');
-                              return;
-                            }
-                            const saved = await db.insertDiscipline(data);
-                            lastSubmitRef.current['discipline'] = { text, at: now };
-                            setDisciplines([saved, ...disciplines]);
-                            setShowAddDiscipline(false);
-                          }
-                        } catch (e) { alert('保存失败: ' + e.message); }
-                      }}
-                    />
-                  );
-                })()}
-
-                {/* ====== 添加/编辑 日志 Modal ====== */}
-                {(showAddLog || editingLogId) && (() => {
-                  const isEdit = !!editingLogId;
-                  const current = isEdit ? reviewLogs.find(l => l.id === editingLogId) : null;
-                  return (
-                    <LogModal
-                      initial={current || { date: new Date().toISOString().slice(0, 10), mood: '', text: '' }}
-                      onCancel={() => { setShowAddLog(false); setEditingLogId(null); }}
-                      onDelete={isEdit ? () => {
-                        showConfirm({
-                          title: '删除这条复盘?',
-                          desc: '此操作不可撤销',
-                          info: current?.date + ' · ' + (current?.text || '').slice(0, 40) + ((current?.text || '').length > 40 ? '...' : ''),
-                          confirmText: '删除',
-                          onConfirm: async () => {
-                            try {
-                              await db.deleteReviewLog(editingLogId);
-                              setReviewLogs(reviewLogs.filter(l => l.id !== editingLogId));
-                              setEditingLogId(null);
-                              setShowAddLog(false);
-                            } catch (e) { alert('删除失败: ' + e.message); }
-                          },
-                        });
-                      } : null}
-                      onSave={async (data) => {
-                        try {
-                          if (isEdit) {
-                            await db.updateReviewLog(editingLogId, data);
-                            setReviewLogs(reviewLogs.map(l => l.id === editingLogId ? { ...l, ...data } : l));
-                            setEditingLogId(null);
-                          } else {
-                            // 防重复: 10 秒内相同内容拒绝
-                            const text = (data.text || '').trim();
-                            const last = lastSubmitRef.current['log'];
-                            const now = Date.now();
-                            if (last && last.text === text && (now - last.at) < 10000) {
-                              alert('⚠️ 10 秒内已提交过相同内容, 请勿重复');
-                              return;
-                            }
-                            const saved = await db.insertReviewLog(data);
-                            lastSubmitRef.current['log'] = { text, at: now };
-                            setReviewLogs([saved, ...reviewLogs]);
-                            setShowAddLog(false);
-                          }
-                        } catch (e) { alert('保存失败: ' + e.message); }
-                      }}
-                    />
-                  );
-                })()}
-
-                {/* ====== 编辑年度实际数据 Modal ====== */}
-                {editYearlyActualId && (() => {
-                  const year = editYearlyActualId;
-                  const existing = yearlyActuals.find(a => a.year === year);
-                  return (
-                    <YearlyActualModal
-                      year={year}
-                      initial={existing || { actualGain: null, endBalance: null }}
-                      currency={investmentPlan.displayCurrency || 'USD'}
-                      rate={(investmentPlan.displayCurrency === 'CNY') ? (usdRate || 7.2) : 1}
-                      onCancel={() => setEditYearlyActualId(null)}
-                      onSave={async (actualGain, endBalance) => {
-                        try {
-                          await db.upsertYearlyActual(year, actualGain, endBalance);
-                          const idx = yearlyActuals.findIndex(a => a.year === year);
-                          if (idx >= 0) {
-                            const next = [...yearlyActuals];
-                            next[idx] = { ...next[idx], actualGain, endBalance };
-                            setYearlyActuals(next);
-                          } else {
-                            setYearlyActuals([...yearlyActuals, { year, actualGain, endBalance }]);
-                          }
-                          setEditYearlyActualId(null);
-                        } catch (e) { alert('保存失败: ' + e.message); }
-                      }}
-                    />
-                  );
-                })()}
-              </>
+              </button>
             );
-          })()}
+          })}
+        </div>
+      </section>
 
-    </>
+      <section className="mt-4 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <SectionTitle
+          icon={<BookOpen className="h-4 w-4" />}
+          title="投资戒律"
+          count={`${disciplines.length} 条`}
+          actionLabel="+ 添加"
+          onAction={() => setShowAddDiscipline(true)}
+        />
+
+        <div className="mb-3 flex gap-2 overflow-x-auto" data-pull-refresh-block="true">
+          <button
+            type="button"
+            onClick={() => setFilterLevel('all')}
+            className={`shrink-0 rounded-xl border px-3 py-1.5 text-[12px] font-normal active:scale-95 ${filterLevel === 'all' ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.035] text-white/45'}`}
+          >
+            全部 ({disciplines.length})
+          </button>
+          {DISCIPLINE_LEVELS.map((item) => {
+            const count = disciplines.filter((discipline) => discipline.level === item.level).length;
+            return (
+              <button
+                key={item.level}
+                type="button"
+                onClick={() => setFilterLevel(item.level)}
+                className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-normal active:scale-95 ${filterLevel === item.level ? 'border-[#f6b54b]/45 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.035] text-white/50'}`}
+              >
+                <span className={`h-2 w-2 rounded-full ${item.dot}`} />
+                <span>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {disciplines.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
+            还没有投资戒律
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {visibleDisciplines.map((discipline) => {
+                const meta = levelMeta(discipline.level);
+                const isLong = (discipline.text || '').length > 60;
+                const isExpanded = Boolean(expandedDisciplines[discipline.id]);
+                const displayText = isLong && !isExpanded ? `${discipline.text.slice(0, 60)}...` : discipline.text;
+                return (
+                  <div
+                    key={discipline.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDisciplineAction(discipline)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setDisciplineAction(discipline);
+                      }
+                    }}
+                    className="block w-full rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left active:scale-[0.99]"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${meta.border} ${meta.bg}`}>
+                        <span className="text-[15px]">{discipline.level}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-white/78">{displayText}</div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/35">
+                          <span>{discipline.date}</span>
+                          {discipline.pinned && <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[#f6b54b]">置顶</span>}
+                          {isLong && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
+                                }
+                              }}
+                              className="text-[#f6b54b]"
+                            >
+                              {isExpanded ? '收起全文' : '展开全文'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {filteredDisciplines.length > 10 && (
+              <button
+                type="button"
+                onClick={() => setShowAllDisciplines(!showAllDisciplines)}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/10 py-2.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+              >
+                {showAllDisciplines ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {showAllDisciplines ? '收起, 只看前 10 条' : `查看全部 ${filteredDisciplines.length} 条`}
+              </button>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <SectionTitle
+          icon="✎"
+          title="复盘日志"
+          count={`${reviewLogs.length} 条`}
+          actionLabel="+ 写复盘"
+          onAction={() => setShowAddLog(true)}
+        />
+
+        {reviewLogs.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
+            还没有复盘
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {visibleLogs.map((log) => (
+                <button
+                  key={log.id}
+                  type="button"
+                  onClick={() => setEditingLogId(log.id)}
+                  className="block w-full rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left active:scale-[0.99]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-white/78 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</div>
+                      <div className="mt-1.5 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/62">{log.text}</div>
+                    </div>
+                    {log.mood && <span className="shrink-0 rounded-lg border border-sky-400/20 bg-sky-400/10 px-2 py-1 text-[11px] text-sky-300">{log.mood}</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {reviewLogs.length > 10 && (
+              <button
+                type="button"
+                onClick={() => setShowAllLogs(!showAllLogs)}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/10 py-2.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
+              >
+                {showAllLogs ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {showAllLogs ? '收起, 只看前 10 条' : `查看全部 ${reviewLogs.length} 条`}
+              </button>
+            )}
+          </>
+        )}
+      </section>
+
+      {yearAction && (
+        <ReviewActionSheet
+          title="年度目标操作"
+          desc={`${yearAction.year} · 计划 ${signedMoney(yearAction.planTarget, 1)} · 目标 ${money(yearAction.startBalance + yearAction.planTarget, 1)}`}
+          onClose={() => setYearAction(null)}
+        >
+          <button
+            type="button"
+            onClick={() => openYearEdit(yearAction.year)}
+            className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[13px] font-normal text-[#f6b54b] active:scale-95"
+          >
+            修改年度数据
+          </button>
+          <button
+            type="button"
+            onClick={() => setYearAction(null)}
+            className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/80 active:scale-95"
+          >
+            取消
+          </button>
+        </ReviewActionSheet>
+      )}
+
+      {disciplineAction && (
+        <ReviewActionSheet
+          title="戒律操作"
+          desc={disciplineAction.text}
+          onClose={() => setDisciplineAction(null)}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => openDisciplineEdit(disciplineAction)}
+              className="flex min-h-[48px] items-center justify-center rounded-xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[13px] font-normal text-[#f6b54b] active:scale-95"
+            >
+              修改戒律
+            </button>
+            <button
+              type="button"
+              onClick={() => togglePinDiscipline(disciplineAction)}
+              className="flex min-h-[48px] items-center justify-center rounded-xl border border-emerald-400/25 bg-emerald-400/10 text-[13px] font-normal text-emerald-300 active:scale-95"
+            >
+              {disciplineAction.pinned ? '取消置顶' : '置顶戒律'}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => deleteDiscipline(disciplineAction)}
+            className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-rose-400/30 bg-rose-400/10 text-[13px] font-normal text-rose-300 active:scale-95"
+          >
+            删除戒律
+          </button>
+          <button
+            type="button"
+            onClick={() => setDisciplineAction(null)}
+            className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/80 active:scale-95"
+          >
+            取消
+          </button>
+        </ReviewActionSheet>
+      )}
+
+      {showPlanSettings && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-md"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setShowPlanSettings(false);
+          }}
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+          }}
+        >
+          <div className="w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 40px)' }} onClick={(event) => event.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[16px] font-semibold text-white">北极星设置</h3>
+              <button type="button" onClick={() => setShowPlanSettings(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/50">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-[11px] text-white/50">基础本金 ({symbol})</span>
+                <input
+                  type="number"
+                  value={Math.round(startCapital * rate)}
+                  onChange={(event) => setInvestmentPlan({ ...plan, startCapital: (parseFloat(event.target.value) || 0) / rate })}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                  style={{ colorScheme: 'dark' }}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] text-white/50">年化目标 (%)</span>
+                <input
+                  type="number"
+                  value={(targetAnnualRate * 100).toFixed(0)}
+                  onChange={(event) => setInvestmentPlan({ ...plan, targetAnnualRate: (parseFloat(event.target.value) || 0) / 100 })}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                  style={{ colorScheme: 'dark' }}
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] text-white/50">起始年</span>
+                  <input
+                    type="number"
+                    value={plan.startYear === '' ? '' : startYear}
+                    onChange={(event) => setInvestmentPlan({ ...plan, startYear: event.target.value === '' ? '' : (parseInt(event.target.value, 10) || 0) })}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] text-white/50">总年数</span>
+                  <input
+                    type="number"
+                    value={plan.totalYears === '' ? '' : totalYears}
+                    onChange={(event) => setInvestmentPlan({ ...plan, totalYears: event.target.value === '' ? '' : (parseInt(event.target.value, 10) || 0) })}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </label>
+              </div>
+              <label className="block">
+                <span className="mb-1 block text-[11px] text-white/50">目标年龄</span>
+                <input
+                  type="number"
+                  value={plan.ageGoalAge === '' ? '' : ageGoalAge}
+                  onChange={(event) => setInvestmentPlan({ ...plan, ageGoalAge: event.target.value === '' ? '' : (parseInt(event.target.value, 10) || 0) })}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
+                  style={{ colorScheme: 'dark' }}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] text-white/50">个人箴言</span>
+                <textarea
+                  value={plan.motto || ''}
+                  onChange={(event) => setInvestmentPlan({ ...plan, motto: event.target.value })}
+                  rows={2}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                  style={{ colorScheme: 'dark' }}
+                  placeholder="例: 我要变得很有钱!"
+                />
+              </label>
+              <div className="rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/10 px-3 py-2 text-[11px] text-[#ffd18a]">
+                按此计划 {totalYears} 年后将达 {money(ageGoalAmount, 0)}
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setShowPlanSettings(false)} className="rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-[13px] text-white/70 active:scale-95">取消</button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await db.upsertInvestmentPlan(investmentPlan);
+                    setShowPlanSettings(false);
+                  } catch (error) {
+                    console.error('[目标页设置] 保存失败:', error);
+                  }
+                }}
+                className="rounded-xl bg-[#f6b54b] py-2.5 text-[13px] font-semibold text-[#101318] active:scale-95"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(showAddDiscipline || ctx.editingDisciplineId) && (() => {
+        const isEdit = Boolean(ctx.editingDisciplineId);
+        const current = isEdit ? disciplines.find((item) => item.id === ctx.editingDisciplineId) : null;
+        return (
+          <DisciplineModal
+            initial={current ? { ...current, isEdit: true } : { level: '🟢', text: '', pinned: false }}
+            onCancel={() => { setShowAddDiscipline(false); setEditingDisciplineId(null); }}
+            onSave={async (data) => {
+              try {
+                if (isEdit) {
+                  await db.updateDiscipline(ctx.editingDisciplineId, data);
+                  setDisciplines(disciplines.map((item) => item.id === ctx.editingDisciplineId ? { ...item, ...data } : item));
+                  setEditingDisciplineId(null);
+                } else {
+                  const text = (data.text || '').trim();
+                  const last = lastSubmitRef.current.discipline;
+                  const now = Date.now();
+                  if (last && last.text === text && now - last.at < 10000) return;
+                  const saved = await db.insertDiscipline(data);
+                  lastSubmitRef.current.discipline = { text, at: now };
+                  setDisciplines([saved, ...disciplines]);
+                  setShowAddDiscipline(false);
+                }
+              } catch (error) {
+                console.error('[目标页戒律] 保存失败:', error);
+              }
+            }}
+          />
+        );
+      })()}
+
+      {(showAddLog || ctx.editingLogId) && (() => {
+        const isEdit = Boolean(ctx.editingLogId);
+        const current = isEdit ? reviewLogs.find((item) => item.id === ctx.editingLogId) : null;
+        return (
+          <LogModal
+            initial={current || { date: new Date().toISOString().slice(0, 10), mood: '', text: '' }}
+            onCancel={() => { setShowAddLog(false); setEditingLogId(null); }}
+            onDelete={isEdit ? () => {
+              showConfirm({
+                title: '删除这条复盘?',
+                desc: '此操作不可撤销',
+                info: `${current?.date || ''} · ${(current?.text || '').slice(0, 40)}${(current?.text || '').length > 40 ? '...' : ''}`,
+                confirmText: '删除',
+                onConfirm: async () => {
+                  await db.deleteReviewLog(ctx.editingLogId);
+                  setReviewLogs(reviewLogs.filter((item) => item.id !== ctx.editingLogId));
+                  setEditingLogId(null);
+                  setShowAddLog(false);
+                },
+              });
+            } : null}
+            onSave={async (data) => {
+              try {
+                if (isEdit) {
+                  await db.updateReviewLog(ctx.editingLogId, data);
+                  setReviewLogs(reviewLogs.map((item) => item.id === ctx.editingLogId ? { ...item, ...data } : item));
+                  setEditingLogId(null);
+                } else {
+                  const text = (data.text || '').trim();
+                  const last = lastSubmitRef.current.log;
+                  const now = Date.now();
+                  if (last && last.text === text && now - last.at < 10000) return;
+                  const saved = await db.insertReviewLog(data);
+                  lastSubmitRef.current.log = { text, at: now };
+                  setReviewLogs([saved, ...reviewLogs]);
+                  setShowAddLog(false);
+                }
+              } catch (error) {
+                console.error('[目标页复盘] 保存失败:', error);
+              }
+            }}
+          />
+        );
+      })()}
+
+      {editYearlyActualId && (() => {
+        const year = editYearlyActualId;
+        const existing = yearlyActuals.find((item) => item.year === year);
+        return (
+          <YearlyActualModal
+            year={year}
+            initial={existing || { actualGain: null, endBalance: null }}
+            currency={displayCurrency}
+            rate={isCNY ? rate : 1}
+            onCancel={() => setEditYearlyActualId(null)}
+            onSave={async (actualGain, endBalance) => {
+              try {
+                await db.upsertYearlyActual(year, actualGain, endBalance);
+                const idx = yearlyActuals.findIndex((item) => item.year === year);
+                if (idx >= 0) {
+                  const next = [...yearlyActuals];
+                  next[idx] = { ...next[idx], actualGain, endBalance };
+                  setYearlyActuals(next);
+                } else {
+                  setYearlyActuals([...yearlyActuals, { year, actualGain, endBalance }]);
+                }
+                setEditYearlyActualId(null);
+              } catch (error) {
+                console.error('[目标页年度数据] 保存失败:', error);
+              }
+            }}
+          />
+        );
+      })()}
+    </div>
   );
 }
