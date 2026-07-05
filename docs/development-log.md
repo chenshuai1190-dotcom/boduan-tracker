@@ -6,7 +6,7 @@
 
 ### 2026-07-05 - 北极星复利明细弹窗
 
-- Commit: pending.
+- Commit: `f87d5c40ffe01dde9608f70dd6fae27293437c31`
 - Background: 用户希望点击北极星目标卡片后,弹出一个一目了然的复利系统,数据和当前目标逻辑完全一致,使用本金、年化收益率和时间展示复利路径;与参考图相比需要额外加入实际收益/目标完成度,并特别要求文字大小贴近参考图,避免偏大。
 - Changes:
   - 北极星目标卡片新增点击入口,打开 `10年复利明细` 弹窗;USD/RMB 切换和 `设置` 按钮都阻止事件冒泡,不会误打开复利弹窗。
@@ -29,8 +29,18 @@
   - `git diff --check`: pass.
   - Build marker check: `ReviewTab-GIfYKcLP.js` contains compound detail markers `data-compound-detail`, `复利明细`, `账户曲线`, `实际进度`, `每年收益` and compact summary font marker `text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums`;`SettingsTab-ClWlObgz.js` contains `v10.7.9.126` and `北极星复利明细弹窗`;built CSS does not contain `overscroll-behavior-y:none`;built App chunk does not contain `DevVisualPreview`.
   - Local visual verification: Vite dev server `http://127.0.0.1:5173/?tab=review`,in-app browser viewport `390x844`;点击北极星卡打开复利弹窗,弹窗宽 `366px`,高 `742.7px`,max-height `88dvh`,页面 `scrollWidth=390`;标题 `16px/600`,顶部三项数字 `13px/400`,实际进度标签 `11px/400`,完成度 `15px/400`,账户曲线标题 `14px/600`,每年收益标题 `14px/600`,表格正文 `12px`;USD 状态无横向溢出;点击 USD/RMB 切换不会打开复利弹窗,点击 `设置` 只打开北极星设置;RMB 长数字状态复查无非 SVG 横向溢出。
-- Deployment: pending GitHub push and Vercel production deployment.
-- Production verification: pending.
+- Deployment: pushed to GitHub `main`;Vercel production deployment completed.
+  - Runtime commit: `f87d5c40ffe01dde9608f70dd6fae27293437c31`.
+  - GitHub commit status `Vercel`: success, deployment target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5cBEQLoFj2wbYGEFW4iDasskYauk`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=f87d5c4-runtime`: HTTP 200.
+  - Production entry chunks: `/assets/index-Cm1ZGgl0.js`, `/assets/rolldown-runtime-QTnfLwEv.js`, `/assets/react-vendor-0zZBvgmv.js`, `/assets/index-Cx-T4_k3.css`.
+  - Production runtime chunks include: `/assets/App-CYknR7lG.js`, `/assets/ReviewTab-GIfYKcLP.js`, `/assets/SettingsTab-ClWlObgz.js`.
+- Production verification:
+  - Production ReviewTab marker check: `ReviewTab-GIfYKcLP.js` contains `data-compound-detail`, `复利明细`, `账户曲线`, `实际进度`, `每年收益` and compact summary font marker `text-[13px] font-normal leading-none text-[#ffd18a] tabular-nums`.
+  - Production SettingsTab marker check: `SettingsTab-ClWlObgz.js` contains `v10.7.9.126` and `北极星复利明细弹窗`.
+  - Production CSS/App marker check: `index-Cx-T4_k3.css` does not contain `overscroll-behavior-y:none`;`App-CYknR7lG.js` does not contain `DevVisualPreview`.
+  - Production auth check: unauthenticated `GET /api/quote?symbols=VIX` returned `401`.
+- Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.126` runtime commit, Vercel target, production chunk markers and transfer template.
 - Rollback: 回滚本次改动会恢复 `v10.7.9.125` 的北极星卡片只展示目标摘要、点击卡片不打开复利明细;不影响目标设置、年度目标数据、投资戒律、复盘日志、交易账本、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-05 - 复盘和戒律列表细节对齐
