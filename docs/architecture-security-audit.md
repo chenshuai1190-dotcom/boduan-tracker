@@ -12,7 +12,7 @@ Date: 2026-07-03 Asia/Shanghai
 - GitHub Actions 构建和 `npm audit`
 - `/api/quote` 默认要求 Supabase access token
 - EODHD token 放在服务端 `EODHD_API_KEY`
-- BTC 和三大指数实时推送已走服务端 WebSocket relay,浏览器只连接已登录的 `/api/btc-realtime` / `/api/indices-realtime`
+- BTC、三大指数和交易持仓股票实时推送已走服务端 WebSocket relay,浏览器只连接已登录的 `/api/btc-realtime` / `/api/indices-realtime` / `/api/stocks-realtime`
 - Supabase RLS SQL 已纳入仓库
 - 登录前/登录后 bundle 已拆分
 - 已登录后五个业务 tab 已拆分为 lazy chunks
@@ -51,7 +51,7 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 1. **Remove browser-direct EODHD WebSocket path**
    - Status: completed in the Phase 0 baseline.
    - The frontend no longer reads `VITE_EODHD_TOKEN` or exposes a browser WebSocket toggle env var.
-   - BTC and three-index live cards now use authenticated server-side relays; future real-time quotes should follow the same pattern.
+   - BTC、三大指数和交易持仓股票已使用已登录服务端 relay;future real-time quotes should follow the same pattern.
 
 2. **Verify RLS live, not just SQL file**
    - `supabase/rls.sql` is present and correct in shape.
@@ -156,7 +156,7 @@ Only after Phases 0-2:
 - Multi-currency accounting
 - Tax lots
 - Alerts and push notifications
-- Server-side real-time quote relay expansion beyond BTC and core indices
+- Server-side real-time quote relay expansion beyond BTC, core indices, and current user quote rows
 - Admin/diagnostics panel
 
 ## Recommended Next Step

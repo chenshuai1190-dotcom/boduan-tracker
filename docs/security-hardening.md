@@ -24,7 +24,7 @@ This project started as a personal hand-built app, so the first priority is to m
    - Login works.
    - Add/delete a trade only affects the current user.
    - `/api/quote` returns `401` without a Supabase access token.
-   - `/api/btc-realtime` and `/api/indices-realtime` reject unauthenticated WebSocket upgrades.
+   - `/api/btc-realtime`, `/api/indices-realtime`, and `/api/stocks-realtime` reject unauthenticated WebSocket upgrades.
    - `/api/quote` returns data when called from the logged-in app.
 
 ## Code-Level Changes In This Baseline
@@ -34,7 +34,7 @@ This project started as a personal hand-built app, so the first priority is to m
 - `/api/quote` no longer sends wildcard CORS headers.
 - Frontend quote calls attach the current Supabase access token.
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
-- BTC and three-index streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`) and keep `EODHD_API_KEY` server-side.
+- BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side.
 - Quote provider requests now go through timeout-aware provider fetch helpers.
 - First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.

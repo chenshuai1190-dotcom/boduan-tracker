@@ -7,6 +7,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCards } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from './lib/indexRealtime.js';
+import { applyStockTickToQuoteRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -18,6 +19,7 @@ const DEFAULT_USD_CNY_RATE = 7.20;
 const DEFAULT_HKD_CNY_RATE = 0.87;
 const BTC_REALTIME_PROTOCOL = 'xmoney-btc';
 const INDICES_REALTIME_PROTOCOL = 'xmoney-indices';
+const STOCKS_REALTIME_PROTOCOL = 'xmoney-stocks';
 const REALTIME_TOKEN_PROTOCOL_PREFIX = 'supabase.';
 const REALTIME_STALE_MS = 15_000;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
@@ -1049,6 +1051,25 @@ function MainApp({ user, onLogout }) {
     setIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus));
   }, []);
 
+  const applyStockRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
+    const price = Number(tick?.price);
+    if (!Number.isFinite(price) || price <= 0) return;
+    const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
+    const key = normalizeSymbolKey(tick?.symbol || tick?.ticker || tick?.displaySymbol);
+    if (!key) return;
+    stockRealtimeRef.current.lastTicks.set(key, tick);
+    stockRealtimeRef.current.lastTickAt = Date.now();
+    setStockRealtimeStatus(realtimeStatus);
+    setStockRealtimeLastTick(new Date(tickAt).toISOString());
+    setStockRealtimeError(null);
+    setQuoteCache((current) => applyStockTickToQuoteRows(current, tick, realtimeStatus, quoteRowsRef.current));
+    if (key === 'TQQQ') setTqqqCurrent(price);
+    if (key === 'QQQ') {
+      setQqqCurrent(price);
+      setQqqHigh((prev) => Math.max(prev || 0, price));
+    }
+  }, []);
+
   const mergeFreshBtcTickIntoCards = useCallback((cards) => {
     const ref = btcRealtimeRef.current;
     if (!ref.lastTick || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return cards;
@@ -1063,6 +1084,12 @@ function MainApp({ user, onLogout }) {
       next = applyIndexTickToMarketCards(next, tick, 'live');
     }
     return next;
+  }, []);
+
+  const mergeFreshStockTicksIntoQuoteRows = useCallback((rows) => {
+    const ref = stockRealtimeRef.current;
+    if (!ref.lastTickAt || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return rows;
+    return mergeStockTicksIntoQuoteRows(rows, [...ref.lastTicks.values()], 'live', quoteRowsRef.current);
   }, []);
 
   const cacheStockLogo = useCallback((symbol, url) => {
@@ -1255,6 +1282,9 @@ function MainApp({ user, onLogout }) {
   const [indexRealtimeStatus, setIndexRealtimeStatus] = useState('idle');
   const [indexRealtimeLastTick, setIndexRealtimeLastTick] = useState(null);
   const [indexRealtimeError, setIndexRealtimeError] = useState(null);
+  const [stockRealtimeStatus, setStockRealtimeStatus] = useState('idle');
+  const [stockRealtimeLastTick, setStockRealtimeLastTick] = useState(null);
+  const [stockRealtimeError, setStockRealtimeError] = useState(null);
   const btcRealtimeRef = useRef({
     socket: null,
     reconnectTimer: null,
@@ -1265,6 +1295,17 @@ function MainApp({ user, onLogout }) {
     liveAt: 0,
     intentionalCloseSocket: null,
   });
+  const stockRealtimeRef = useRef({
+    socket: null,
+    reconnectTimer: null,
+    staleTimer: null,
+    retryDelayMs: 1000,
+    lastTicks: new Map(),
+    lastTickAt: 0,
+    liveAt: 0,
+    intentionalCloseSocket: null,
+  });
+  const quoteRowsRef = useRef([]);
   const indexRealtimeRef = useRef({
     socket: null,
     reconnectTimer: null,
@@ -1293,6 +1334,11 @@ function MainApp({ user, onLogout }) {
   );
   const quoteRows = quoteUniverse.allRows;
   const homeWatchlist = quoteUniverse.watchlistRows;
+  const stockRealtimeSymbols = useMemo(() => selectStockRealtimeSymbols(quoteRows), [quoteRows]);
+  const stockRealtimeSymbolsKey = stockRealtimeSymbols.join(',');
+  useEffect(() => {
+    quoteRowsRef.current = quoteRows;
+  }, [quoteRows]);
   const buildSettingsPayload = useCallback((overrides = {}) => ({
     benchmarkSymbol,
     marketColorMode,
@@ -2444,7 +2490,7 @@ function MainApp({ user, onLogout }) {
           }
           return s;
         });
-        setQuoteCache(updatedQuotes);
+        setQuoteCache(mergeFreshStockTicksIntoQuoteRows(updatedQuotes));
       }
 
       // 同步 TQQQ 和 QQQ 到核心参数
@@ -2998,6 +3044,144 @@ function MainApp({ user, onLogout }) {
       closeSocket();
     };
   }, [cloudLoading, applyIndexRealtimeTick]);
+
+  useEffect(() => {
+    if (cloudLoading || typeof window === 'undefined') return undefined;
+    const symbolsSnapshot = stockRealtimeSymbols;
+    if (symbolsSnapshot.length === 0) {
+      setStockRealtimeStatus('idle');
+      setStockRealtimeError(null);
+      return undefined;
+    }
+
+    let stopped = false;
+    const ref = stockRealtimeRef.current;
+
+    const clearReconnectTimer = () => {
+      if (ref.reconnectTimer) {
+        clearTimeout(ref.reconnectTimer);
+        ref.reconnectTimer = null;
+      }
+    };
+
+    const closeSocket = () => {
+      if (ref.socket) {
+        const closingSocket = ref.socket;
+        ref.intentionalCloseSocket = closingSocket;
+        try {
+          closingSocket.close(1000, 'client reconnect');
+        } catch {}
+        ref.socket = null;
+      }
+    };
+
+    const scheduleReconnect = (connect) => {
+      if (stopped || document.hidden) return;
+      clearReconnectTimer();
+      const delay = ref.retryDelayMs;
+      ref.retryDelayMs = Math.min(ref.retryDelayMs * 2, REALTIME_RECONNECT_MAX_MS);
+      ref.reconnectTimer = setTimeout(connect, delay);
+    };
+
+    const connect = async () => {
+      if (stopped || document.hidden) return;
+      clearReconnectTimer();
+      closeSocket();
+      setStockRealtimeStatus((status) => (status === 'live' ? status : 'connecting'));
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          setStockRealtimeStatus('disabled');
+          setStockRealtimeError('未登录或登录已过期');
+          return;
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(
+          `${protocol}//${window.location.host}/api/stocks-realtime?symbols=${encodeURIComponent(symbolsSnapshot.join(','))}`,
+          [STOCKS_REALTIME_PROTOCOL, `${REALTIME_TOKEN_PROTOCOL_PREFIX}${session.access_token}`],
+        );
+        ref.socket = socket;
+
+        socket.addEventListener('open', () => {
+          ref.retryDelayMs = 1000;
+          setStockRealtimeStatus('connecting');
+          setStockRealtimeError(null);
+        });
+
+        socket.addEventListener('message', (event) => {
+          let payload = null;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+          if (payload?.type === 'stock_tick') {
+            applyStockRealtimeTick(payload, 'live');
+            return;
+          }
+          if (payload?.type === 'stocks_status' && payload.status) {
+            if (payload.status === 'live') ref.liveAt = Date.now();
+            setStockRealtimeStatus(payload.status);
+            if (payload.error) setStockRealtimeError(payload.error);
+          }
+        });
+
+        socket.addEventListener('close', () => {
+          if (ref.socket === socket) ref.socket = null;
+          if (ref.intentionalCloseSocket === socket) {
+            ref.intentionalCloseSocket = null;
+            return;
+          }
+          if (stopped || document.hidden) return;
+          setStockRealtimeStatus((status) => (status === 'live' ? 'stale' : 'reconnecting'));
+          scheduleReconnect(connect);
+        });
+
+        socket.addEventListener('error', () => {
+          setStockRealtimeError('股票实时连接中断,正在重连');
+        });
+      } catch (e) {
+        setStockRealtimeStatus('error');
+        setStockRealtimeError(e.message || '股票实时连接失败');
+        scheduleReconnect(connect);
+      }
+    };
+
+    ref.staleTimer = setInterval(() => {
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (!lastActivityAt) return;
+      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
+        setStockRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
+      }
+    }, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearReconnectTimer();
+        closeSocket();
+        setStockRealtimeStatus('paused');
+      } else {
+        connect();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    connect();
+
+    return () => {
+      stopped = true;
+      clearReconnectTimer();
+      if (ref.staleTimer) {
+        clearInterval(ref.staleTimer);
+        ref.staleTimer = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      closeSocket();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudLoading, stockRealtimeSymbolsKey, applyStockRealtimeTick]);
 
   useEffect(() => {
     if (cloudLoading) return;

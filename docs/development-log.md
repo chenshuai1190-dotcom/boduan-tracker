@@ -4,6 +4,46 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 交易持仓 WebSocket 秒级推送
+
+- Commit: pending
+- Background: 用户指出首页三大指数卡不需要各自显示连接状态,只保留 BTC 卡连接态即可;同时询问交易页头部和持仓是否也已走 WebSocket 秒级推送。核对后确认交易页头部/持仓由 `quoteCache -> quoteRows -> investmentSummary` 派生,此前仍主要依赖 `/api/quote` REST 轮询。
+- Changes:
+  - 首页 `MiniMarketCard` 只在 BTC 卡显示 `LIVE/REST/连接中/延迟` 状态;三大指数继续接收 WebSocket tick 更新价格和小曲线,但不再显示重复连接徽标。
+  - 新增已登录服务端 WebSocket endpoint `/api/stocks-realtime`,复用 Supabase access token 鉴权、origin allowlist、服务端 `EODHD_API_KEY` 和 `ws` relay 模式;前端仍不暴露 EODHD token。
+  - 新增 `server/realtime/stocks.js`、`server/realtime/stocksRelay.js` 和 `src/lib/stockRealtime.js`,把用户当前 quote rows 的股票代码订阅到 EODHD `/ws/us`,并把 `stock_tick` 合并回 `quoteCache`。
+  - `App.jsx` 增加股票 WebSocket 客户端,订阅当前持仓/自选 quote universe;tick 写入 `quoteCache` 后,首页持仓、交易页头部总资产/今日盈亏/累计盈亏和交易页持仓列表都会通过 `investmentSummary` 同步刷新。
+  - REST `/api/quote` 轮询保留为初始数据、52 周高、VIX/FGI/指数兜底;REST 返回后会重新合并新鲜股票 tick,避免把秒级价格冲回旧值。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.141`,新增 `交易持仓 WebSocket 秒级推送`。
+  - `README.md`、`docs/handoff.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 同步记录新增股票实时 relay 和连接态显示规则。
+- Key files:
+  - `api/stocks-realtime.js`
+  - `server/realtime/stocks.js`
+  - `server/realtime/stocksRelay.js`
+  - `server/realtime/auth.js`
+  - `src/App.jsx`
+  - `src/lib/stockRealtime.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `README.md`
+  - `docs/handoff.md`
+  - `docs/security-hardening.md`
+  - `docs/architecture-security-audit.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;70 tests passed.
+  - `npm run build`: pass;Vite built `App-C7nLGwUi.js`, `HomeTab-4NbUE9pN.js`, `SettingsTab-BDsSF93O.js`, `TradesTab-CMxJkAZP.js`.
+  - `npm audit`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker scan: pass;active App bundle contains `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`;settings bundle contains `v10.7.9.141` and `交易持仓 WebSocket 秒级推送`;active runtime bundles do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`.
+  - Local mobile browser check (`127.0.0.1:5173`, 390x844): pass;首页实时徽标数量为 1,所在父级为 `BTC/USD LIVE`;标普500、纳斯达克100、道琼斯卡不显示连接状态。
+  - Local upstream limitation: 本地 shell 未配置 `EODHD_API_KEY` 和真实登录 session,所以真实 EODHD 股票 tick delivery 需在生产登录态、交易时段继续观察。
+- Deployment: pending.
+- Production verification: pending.
+- Rollback: 回退 `/api/stocks-realtime`、`server/realtime/stocks*`、`src/lib/stockRealtime.js`、`App.jsx` 股票 WebSocket 客户端、`HomeTab` 只显示 BTC 连接态的改动、`v10.7.9.141` 设置页更新日志、测试和文档条目即可;现有 `/api/quote` REST 轮询、BTC relay 和三大指数 relay 可继续工作。
+
 ### 2026-07-06 - 三大指数 WebSocket 秒级推送
 
 - Commit: `edd464346c29d37f59ff08cda06413ff897c5710`

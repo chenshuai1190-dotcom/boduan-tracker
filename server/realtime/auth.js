@@ -2,6 +2,7 @@ import { configuredOrigins } from '../quote/auth.js';
 
 export const BTC_REALTIME_PROTOCOL = 'xmoney-btc';
 export const INDICES_REALTIME_PROTOCOL = 'xmoney-indices';
+export const STOCKS_REALTIME_PROTOCOL = 'xmoney-stocks';
 export const SUPABASE_PROTOCOL_PREFIX = 'supabase.';
 
 export function parseWebSocketProtocols(value) {
@@ -15,6 +16,7 @@ export function selectRealtimeProtocol(protocols) {
   const offered = protocols instanceof Set ? protocols : new Set(protocols || []);
   if (offered.has(BTC_REALTIME_PROTOCOL)) return BTC_REALTIME_PROTOCOL;
   if (offered.has(INDICES_REALTIME_PROTOCOL)) return INDICES_REALTIME_PROTOCOL;
+  if (offered.has(STOCKS_REALTIME_PROTOCOL)) return STOCKS_REALTIME_PROTOCOL;
   return false;
 }
 

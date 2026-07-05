@@ -441,6 +441,7 @@ npm run dev -- --host 127.0.0.1
 - `src/lib/dbGuards.js`: 删除作用域保护。
 - `src/lib/investmentSummary.js`: 交易主账本派生持仓、成本和收益率。
 - `src/lib/btcRealtime.js`: BTC tick 解析和首页市场卡合并逻辑。
+- `src/lib/stockRealtime.js`: 交易持仓/自选股票 tick 解析到 quote cache 的前端合并逻辑。
 
 服务端:
 
@@ -448,7 +449,9 @@ npm run dev -- --host 127.0.0.1
 - `server/quote/*`: quote API 的 auth、symbols、provider dispatch、response、provider 实现。
 - `api/fx.js`: 汇率接口。
 - `api/btc-realtime.js`: BTC WebSocket relay 入口。
-- `server/realtime/*`: BTC relay、WebSocket auth、EODHD 上游连接。
+- `api/indices-realtime.js`: 三大指数 WebSocket relay 入口。
+- `api/stocks-realtime.js`: 交易持仓/自选股票 WebSocket relay 入口。
+- `server/realtime/*`: BTC、三大指数、股票 relay、WebSocket auth、EODHD 上游连接。
 
 数据库和安全:
 
@@ -486,6 +489,7 @@ npm run dev -- --host 127.0.0.1
 - 摊薄成本工具只能写 `cost_basis_trades`,不能并入正式主账本或波段记录。
 - 波段记录和摊薄成本新增提交前必须弹确认框,确认文案要说明写入范围,并用提交锁防止重复写入。
 - `deriveInvestmentSummary` 是首页和交易页资产/持仓口径来源。
+- 交易页头部和持仓价格从 `quoteCache -> quoteRows -> investmentSummary` 派生;股票 WebSocket tick 必须写入 `quoteCache`,不要绕过汇总口径单独改交易页 UI。
 - 卖出按时间正序用移动均价结转成本。
 - 累计收益率分母是当前实际持仓成本,不是历史总买入额。
 - `costBasisData` 是独立摊薄工具,不要并入主账本。
@@ -494,6 +498,7 @@ npm run dev -- --host 127.0.0.1
 
 - 当前信号保持紧凑卡片,不要默认展开策略详情。
 - 三大指数和 BTC 市场卡保持四格布局。
+- 三大指数卡可以秒级更新价格和曲线,但不单独显示连接状态;只让 BTC 卡显示 `LIVE/REST/连接中`。
 - BTC tick 只能更新第四张 BTC 卡,不要在首屏单独生成一张 BTC 卡。
 
 设置:

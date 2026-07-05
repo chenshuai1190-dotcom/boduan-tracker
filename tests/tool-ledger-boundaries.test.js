@@ -13,6 +13,7 @@ const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', im
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
 const indicesRealtimeApiSource = readFileSync(new URL('../api/indices-realtime.js', import.meta.url), 'utf8');
+const stocksRealtimeApiSource = readFileSync(new URL('../api/stocks-realtime.js', import.meta.url), 'utf8');
 
 test('wave record entry writes legacy trades before main ledger stock_trades', () => {
   const waveBranch = appSource.indexOf("tradeEntryScope === 'wave'");
@@ -95,9 +96,16 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('/api/indices-realtime'), 'home indices should connect to the server-side indices realtime relay');
   assert.ok(appSource.includes('INDICES_REALTIME_PROTOCOL'), 'indices realtime relay should use an explicit WebSocket subprotocol');
   assert.ok(appSource.includes('applyIndexTickToMarketCards'), 'index realtime ticks should update existing market cards');
+  assert.ok(appSource.includes('/api/stocks-realtime'), 'held stock quotes should connect to the server-side stock realtime relay');
+  assert.ok(appSource.includes('STOCKS_REALTIME_PROTOCOL'), 'stock realtime relay should use an explicit WebSocket subprotocol');
+  assert.ok(appSource.includes('applyStockTickToQuoteRows'), 'stock realtime ticks should update quoteCache for investment summary');
   assert.equal(appSource.includes('VITE_EODHD_TOKEN'), false, 'frontend must not reintroduce a browser EODHD token path');
   assert.ok(indicesRealtimeApiSource.includes('authenticateAccessToken'), 'indices realtime relay must require the same Supabase token boundary');
   assert.ok(indicesRealtimeApiSource.includes('attachIndicesRealtimeClient'), 'indices realtime endpoint should attach the server-side EODHD relay');
+  assert.ok(stocksRealtimeApiSource.includes('authenticateAccessToken'), 'stock realtime relay must require the same Supabase token boundary');
+  assert.ok(stocksRealtimeApiSource.includes('attachStocksRealtimeClient'), 'stock realtime endpoint should attach the server-side EODHD relay');
+  assert.equal(homeTabSource.includes("import { isIndexMarketCard } from '../lib/indexRealtime.js';"), false, 'index cards should not import index matching just to render connection badges');
+  assert.ok(homeTabSource.includes('{isBtc && realtimeLabel && ('), 'only the BTC market card should render realtime connection status');
 });
 
 test('global pull refresh checks for a new deployed app shell before data refresh', () => {
@@ -374,7 +382,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.140'), 'settings version should document the indices websocket update');
+  assert.ok(settingsTabSource.includes('v10.7.9.141'), 'settings version should document the stock websocket update');
+  assert.ok(settingsTabSource.includes('交易持仓 WebSocket 秒级推送'), 'settings changelog should describe the stock websocket update');
+  assert.ok(settingsTabSource.includes('v10.7.9.140'), 'settings changelog should retain the indices websocket update');
   assert.ok(settingsTabSource.includes('三大指数 WebSocket 秒级推送'), 'settings changelog should describe the indices websocket update');
   assert.ok(settingsTabSource.includes('v10.7.9.139'), 'settings changelog should retain the asset chart detail visibility update');
   assert.ok(settingsTabSource.includes('资产走势图详情恢复点击显示'), 'settings changelog should describe the asset chart detail visibility update');

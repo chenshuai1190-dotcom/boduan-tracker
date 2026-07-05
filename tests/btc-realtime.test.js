@@ -5,13 +5,16 @@ import { normalizeBtcTick, sanitizeEodhdKey } from '../server/realtime/btc.js';
 import {
   BTC_REALTIME_PROTOCOL,
   INDICES_REALTIME_PROTOCOL,
+  STOCKS_REALTIME_PROTOCOL,
   extractRealtimeAccessToken,
   parseWebSocketProtocols,
   selectRealtimeProtocol,
 } from '../server/realtime/auth.js';
 import { INDEX_REALTIME_SYMBOLS, normalizeIndexTick } from '../server/realtime/indices.js';
+import { normalizeStockTick, parseStockRealtimeSymbolsParam } from '../server/realtime/stocks.js';
 import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
+import { applyStockTickToQuoteRows, selectStockRealtimeSymbols } from '../src/lib/stockRealtime.js';
 
 test('normalizeBtcTick accepts EODHD crypto WebSocket fields', () => {
   const tick = normalizeBtcTick({
@@ -59,6 +62,7 @@ test('realtime auth extracts Supabase token from WebSocket protocol', () => {
   assert.equal(extractRealtimeAccessToken(req), 'test.jwt.token');
   assert.equal(selectRealtimeProtocol(new Set([BTC_REALTIME_PROTOCOL, 'supabase.test.jwt.token'])), BTC_REALTIME_PROTOCOL);
   assert.equal(selectRealtimeProtocol(new Set([INDICES_REALTIME_PROTOCOL, 'supabase.test.jwt.token'])), INDICES_REALTIME_PROTOCOL);
+  assert.equal(selectRealtimeProtocol(new Set([STOCKS_REALTIME_PROTOCOL, 'supabase.test.jwt.token'])), STOCKS_REALTIME_PROTOCOL);
 });
 
 test('realtime auth accepts Authorization header for non-browser clients', () => {
@@ -150,4 +154,68 @@ test('index realtime tick updates only its matching market card', () => {
   assert.deepEqual(updated[0].intraday, [7470, 7483.24, 7489.12]);
   assert.equal(updated[1], cards[1]);
   assert.equal(updated[3], cards[3]);
+});
+
+test('stock realtime symbols are sanitized and capped for user quote streams', () => {
+  const parsed = parseStockRealtimeSymbolsParam('nvda,NVDA,msft,tqqq');
+  assert.deepEqual(parsed.symbols, ['NVDA', 'MSFT', 'TQQQ']);
+  assert.equal(parseStockRealtimeSymbolsParam('NVDA,<script>').error, '股票代码不合法: <script>');
+
+  const rows = Array.from({ length: 55 }, (_, index) => ({ symbol: `T${index}` }));
+  assert.equal(selectStockRealtimeSymbols(rows).length, 50);
+  assert.deepEqual(selectStockRealtimeSymbols([{ symbol: 'nvda.us' }, { symbol: 'NVDA' }, { symbol: 'MSFT' }]), ['NVDA', 'MSFT']);
+});
+
+test('normalizeStockTick accepts EODHD US stock WebSocket fields', () => {
+  const tick = normalizeStockTick({
+    s: 'NVDA.US',
+    p: 188.42,
+    dc: 1.25,
+    dd: 2.32,
+    ms: 'open',
+    t: 1783000000123,
+  }, {
+    symbols: new Set(['NVDA']),
+    receivedAt: 1783000000999,
+  });
+
+  assert.equal(tick.type, 'stock_tick');
+  assert.equal(tick.symbol, 'NVDA');
+  assert.equal(tick.price, 188.42);
+  assert.equal(tick.changePercent, 1.25);
+  assert.equal(tick.change, 2.32);
+  assert.equal(tick.previousClose, 186.1);
+  assert.equal(tick.marketStatus, 'open');
+  assert.equal(tick.timestamp, 1783000000123);
+  assert.equal(tick.source, 'EODHD_WS');
+});
+
+test('stock realtime tick updates quote cache and can insert a held-only row', () => {
+  const baseRows = [
+    { symbol: 'NVDA', name: '英伟达', price: 180, previousClose: 176, intraday: [178, 180], high: 185 },
+    { symbol: 'MSFT', name: '微软', price: 512 },
+  ];
+  const tick = {
+    type: 'stock_tick',
+    symbol: 'NVDA',
+    price: 188.42,
+    change: 2.32,
+    changePercent: 1.25,
+    previousClose: 186.1,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  };
+  const updated = applyStockTickToQuoteRows([], tick, 'live', baseRows);
+
+  assert.equal(updated.length, 1);
+  assert.equal(updated[0].symbol, 'NVDA');
+  assert.equal(updated[0].price, 188.42);
+  assert.equal(updated[0].previousClose, 186.1);
+  assert.equal(updated[0].changePercent, 1.25);
+  assert.equal(updated[0].realtimeStatus, 'live');
+  assert.deepEqual(updated[0].intraday, [178, 180, 188.42]);
+
+  const next = applyStockTickToQuoteRows(updated, { ...tick, price: 189 }, 'live', baseRows);
+  assert.equal(next.length, 1);
+  assert.equal(next[0].price, 189);
 });
