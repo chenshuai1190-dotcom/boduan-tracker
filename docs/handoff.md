@@ -134,6 +134,27 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 - 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限。
 - 本机该项目已有 SSH key `~/.ssh/boduan_tracker_github`;用 `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes"` 推送到 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`。
 
+### 本地调试提效细节
+
+本轮资产模块验证确认:先本地看 UI 比直接部署更快,尤其适合字号、间距、弹窗、按钮显色这类视觉问题。
+
+推荐流程:
+
+```bash
+PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+npm run dev -- --host 127.0.0.1
+```
+
+然后打开 `http://127.0.0.1:5173/`,用 390×844 左右的手机视口检查。检查完成后停止 dev server。
+
+关键点:
+
+- `src/AuthGate.jsx` 在 `import.meta.env.DEV` 且本地缺少 Supabase 配置时,会渲染 `src/DevVisualPreview.jsx`,不会卡在 `Supabase 配置缺失` 页面。
+- `DevVisualPreview` 是只读 mock 资产预览,提供固定账户、月度快照、`updateAccount` / `deleteAccount` / `upsertSnapshot` mock,用于快速检查资产页 UI、弹窗、输入框显色、0 余额账户隐藏和账户操作面板。
+- 这个预览不连接真实 Supabase,不提交 `.env`,不修改生产数据;不要把它当真实数据来源。
+- 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署后的缓存切换时,仍必须用生产地址和线上 marker/API 验证。
+- UI 任务建议先用本地预览收敛 80% 视觉问题,再跑 `npm test` / `npm run build` / `npm audit` / `git diff --check`,最后部署验证。这样能明显减少“部署后才发现字号或弹窗不对”的往返时间。
+
 ## 7. 当前线上验证证据
 
 最近完整验证记录:
@@ -451,6 +472,13 @@ Vercel 最新运行时部署: success, target `https://vercel.com/chenshuai1190-
 - HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
 - 部署前至少跑 `npm test`, `npm run build`, `npm audit`, `git diff --check`。
 - 生产敏感改动还要跑 `npm run verify:rls:rest`,并确认 `/api/quote?symbols=VIX` 未登录返回 `401`。
+
+本地调试提效:
+- 本机 Node 路径: `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`。
+- UI/视觉任务先跑 `npm run dev -- --host 127.0.0.1`,打开 `http://127.0.0.1:5173/`,用 390×844 左右手机视口检查,不要每个字号/弹窗问题都直接靠部署验证。
+- 本地没有 Supabase 配置时,开发环境会通过 `src/AuthGate.jsx` 自动进入 `src/DevVisualPreview.jsx` 的只读 mock 资产预览,可以快速检查资产页深色背景、卡片间距、按钮、输入框显色、0 余额账户隐藏和账户操作弹窗。
+- `DevVisualPreview` 不连接真实 Supabase,不会提交 `.env`,不会改生产数据;只能用于视觉和交互烟测,不能当真实数据来源。
+- 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
 - 首屏加载已按用户反馈从 mini 钱袋动效回退到上一版圆环效果;线上 `/loading-mascot.png` 已返回 404。

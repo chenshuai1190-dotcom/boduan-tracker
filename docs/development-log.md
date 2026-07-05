@@ -4,6 +4,26 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 交接文档补强本地调试提效说明
+
+- Commit: docs-only handoff refresh commit;以本条所在提交为准。
+- Background: 用户准备把项目交接给下一位同事,要求交接文档完整,并特别写清楚本轮确认有效的本地调试小细节:用本地 dev server 和开发态资产视觉预览先收敛 UI 问题,可以明显提升开发效率,减少反复部署后才发现字号/弹窗问题的时间。
+- Changes:
+  - `docs/handoff.md` 新增 `本地调试提效细节` 小节,明确推荐先跑 `npm run dev -- --host 127.0.0.1`,打开 `http://127.0.0.1:5173/`,用 390×844 左右手机视口检查 UI。
+  - 说明 `src/AuthGate.jsx` 在开发环境且缺少 Supabase 配置时会进入 `src/DevVisualPreview.jsx`,避免本地卡在 `Supabase 配置缺失` 页。
+  - 说明 `DevVisualPreview` 是只读 mock 资产预览,可快速检查资产页深色背景、卡片间距、按钮、输入框显色、0 余额账户隐藏和账户操作弹窗。
+  - 明确 `DevVisualPreview` 不连接真实 Supabase、不提交 `.env`、不修改生产数据,只适合视觉和交互烟测;真实登录、真实数据、行情、RLS、鉴权和部署缓存切换仍需线上验证。
+  - 将同一套本地调试说明补入 `docs/handoff.md` 尾部可直接转发给下一位同事的交接块。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是文档交接说明增强,不改变运行时代码、配置、环境变量、API 鉴权、RLS SQL 或安全架构结论。
+- Key files:
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `git diff --check`: pass.
+  - Handoff grep: pass; `docs/handoff.md` and `docs/development-log.md` contain `本地调试提效`, `DevVisualPreview`, `390×844`, `npm run dev -- --host 127.0.0.1`, `Supabase 配置缺失`, `只读 mock`, current runtime commit `651b2f01467278123e8dec5186500b065cf0c788` and `v10.7.9.109`.
+- Deployment: docs-only handoff refresh;推送到 GitHub `main` 后 Vercel 可能创建文档变更部署,但运行时代码仍是 `651b2f01467278123e8dec5186500b065cf0c788` / `v10.7.9.109`。
+- Rollback: 回滚本次 docs-only 提交只会移除本地调试提效说明和交接文档补强,不改变应用行为、生产运行时代码、数据库、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 资产账户显示和操作优化
 
 - Commit: `651b2f01467278123e8dec5186500b065cf0c788`
