@@ -4,6 +4,37 @@
 
 ## 2026-07-05 Asia/Shanghai
 
+### 2026-07-05 - 修正目标页视觉对齐
+
+- Commit: `same commit`
+- Background: 用户本地截图反馈目标页仍有三个明显偏差:年度进度条微光动画跑成整页左侧持续移动的竖条;北极星目标头部卡片高度过高,没有贴近效果图;年度目标进度多了外层边框导致宽度不足,2026 当前年缺少右侧目标/落后信息,未开始年度缺少起点、目标、增长目标虚线和两端金额结构。用户要求逐项对比效果图并用本地工具验证视觉。
+- Changes:
+  - 修复年度进度条微光动画作用域:`rocket-bar` 和 `progress-shine` 都显式增加 `position: relative` 与 `overflow: hidden`,目标页本地预览也携带同一套局部样式,避免伪元素脱离进度条形成整页动态竖条。
+  - 目标页北极星卡固定为更接近效果图的移动端紧凑高度 `h-[270px]`,压缩主数字、说明文字和进度条间距,同时保留头部目标进度条的动态增长效果。
+  - 年度目标进度删除多余外层卡片边框和内边距,让 2026 / 2027 / 2028 年度卡回到 358px 宽度,避免内容被二次容器压窄。
+  - 2026 当前年卡补回右侧 `目标 $288.0万` / `落后 $41.0万` 摘要盒,计划/实际行、起点/当前/目标三段和本年完成进度条按参考图重排。
+  - 未开始年度卡补回 `计划 -> 目标` 顶部摘要、`起点 (上一年目标)` / `目标 (本年)` 双列卡、`增长目标` 虚线、两端金额和底部虚线展开按钮;未来年度起点改用上一年计划目标,2027 起点显示 `$288.0万`,2028 起点显示 `$296.4万`。
+  - 投资戒律继续保留点击记录后弹出 `戒律操作`,并保留置顶/取消置顶能力;年度目标继续点击卡片后弹出 `年度目标操作`,不恢复右侧直接修改图标。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.112`。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动:这是目标页前端视觉和本地预览样式修正,不改变环境变量、API 鉴权、RLS SQL、安全架构结论、数据库表结构或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/App.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 64 tests.
+  - `npm run build`: pass; `index-Cac1kro_.css` 52.65 kB / gzip 9.82 kB, `ReviewTab-CH-E0H_d.js` 31.73 kB / gzip 7.84 kB, `SettingsTab-BJLlp04c.js` 39.18 kB / gzip 14.97 kB, `App-DMEzE5x_.js` 144.69 kB / gzip 41.20 kB.
+  - `npm audit`: pass, found 0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local browser smoke: Vite dev server at `http://127.0.0.1:5173/?tab=review`, in-app browser viewport `390x844`;首屏截图确认北极星卡 `358x270`,年度区域 `358px` 宽,2026 卡 `358px` 宽,页面 `scrollWidth=390`,无横向溢出;`progress-shine` 为 `position: relative`, `overflow: hidden`,伪元素高度 `10px`,不再形成整页竖条;2026 卡包含 `目标 $288.0万` 和 `落后 $41.0万`;2027/2028 卡包含上一年目标起点、目标、增长目标虚线和两端金额;未出现 `融资杠杆监控`;浏览器 console error/warn 为空。
+- Deployment: pending push to GitHub `main` and Vercel production deployment.
+- Production verification: pending deployment;部署后需验证 `ReviewTab` 生产 chunk 包含 `修正目标页视觉对齐` 对应 UI marker、`targetGap`、`plannedStartBalance`、`review-progress-shine`,且不包含 `融资杠杆监控` 或游离 `rocket-particle rocket-particle`;并确认 `/api/quote?symbols=VIX` 未登录仍返回 `401`。
+- Rollback: 回滚本次目标页视觉修正会恢复 `v10.7.9.111` 第一阶段目标页深色版;不影响交易账本、资产账户、RLS、`/api/fx` 或 `/api/quote` 鉴权。
+
 ### 2026-07-05 - 目标页深色化第一阶段
 
 - Commit: `9f25cde5e98c9d690d430bec493e1ccdc678eb51`

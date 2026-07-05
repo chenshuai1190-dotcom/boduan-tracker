@@ -36,7 +36,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.111
+                  v10.7.9.112
                 </span>
               </div>
             </div>
@@ -170,7 +170,18 @@ export default function SettingsTab({ ctx }) {
               {(() => {
                 const changelog = [
                   {
-                    ver: 'v10.7.9.111', date: '2026-07-05', latest: true,
+                    ver: 'v10.7.9.112', date: '2026-07-05', latest: true,
+                    items: [
+                      '🎯 修正目标页视觉对齐',
+                      '  - 修复年度进度条扫光跑到整页形成动态竖条的问题',
+                      '  - 北极星目标卡按效果图压低高度,保留进度条动态增长',
+                      '  - 年度目标进度去掉多余外层卡片,恢复接近效果图的宽度',
+                      '  - 2026 年度卡补回右侧目标/落后信息',
+                      '  - 未开始年度补回起点、目标、增长目标虚线和两端金额结构',
+                    ],
+                  },
+                  {
+                    ver: 'v10.7.9.111', date: '2026-07-05',
                     items: [
                       '🎯 目标页深色化第一阶段',
                       '  - 北极星目标卡同步首页深色风格,保留动态进度条',
@@ -1139,7 +1150,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.111</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.112</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

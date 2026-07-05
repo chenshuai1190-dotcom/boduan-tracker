@@ -3125,6 +3125,7 @@ function MainApp({ user, onLogout }) {
     snapshotTab,
     stockTrades,
     supabase,
+    Target,
     tradeEntryScope,
     tradeSubmitting,
     trades,
@@ -3190,6 +3191,8 @@ function MainApp({ user, onLogout }) {
           100% { width: var(--target-width); }
         }
         .rocket-bar {
+          position: relative;
+          overflow: hidden;
           width: var(--target-width);
           animation: rocketLaunch 1.2s cubic-bezier(0.25, 0.85, 0.25, 1) forwards;
         }
@@ -3226,7 +3229,7 @@ function MainApp({ user, onLogout }) {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(400%); }
         }
-        .progress-shine { overflow: hidden; }
+        .progress-shine { position: relative; overflow: hidden; }
         .progress-shine::after {
           content: '';
           position: absolute;

@@ -208,6 +208,13 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("const REVIEW_CARD = '#0b0f14'"), 'review page should share the dark card surface');
   assert.ok(reviewTabSource.includes('年度目标操作'), 'year cards should open an action panel');
   assert.ok(reviewTabSource.includes('修改年度数据'), 'year action panel should offer editing instead of a trailing edit icon');
+  assert.ok(reviewTabSource.includes('h-[270px]'), 'north-star header card should stay compact on mobile');
+  assert.equal(reviewTabSource.includes('rocket-particle rocket-particle'), false, 'review header should not render loose moving particle strips');
+  assert.ok(appSource.includes('.progress-shine { position: relative; overflow: hidden; }'), 'progress shine must stay clipped inside the progress bar');
+  assert.ok(reviewTabSource.includes('.progress-shine {'), 'review local preview should carry its own clipped progress shine styles');
+  assert.ok(reviewTabSource.includes('targetGap'), 'current year card should show target gap/lag information');
+  assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
+  assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list should keep the dashed expand button from the reference');
   assert.ok(reviewTabSource.includes('戒律操作'), 'discipline rows should open an action panel');
   assert.ok(reviewTabSource.includes("disciplineAction.pinned ? '取消置顶' : '置顶戒律'"), 'discipline action panel must keep pin/unpin');
   assert.ok(reviewTabSource.includes('删除戒律'), 'discipline action panel must offer deletion');
@@ -217,8 +224,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), 'review header should display the live fx rate from app state');
   assert.ok(devVisualPreviewSource.includes("get('tab') === 'review'"), 'local visual preview should support opening review tab directly');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
-  assert.ok(settingsTabSource.includes('v10.7.9.111'), 'settings version should document the review page redesign');
-  assert.ok(settingsTabSource.includes('目标页深色化第一阶段'), 'settings changelog should describe the review page redesign');
+  assert.ok(settingsTabSource.includes('v10.7.9.112'), 'settings version should document the review page visual correction');
+  assert.ok(settingsTabSource.includes('修正目标页视觉对齐'), 'settings changelog should describe the review page visual correction');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {

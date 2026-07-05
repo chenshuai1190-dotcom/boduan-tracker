@@ -233,6 +233,7 @@ export default function DevVisualPreview() {
     showAllYears,
     showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
     showPlanSettings,
+    Target,
     usdRate: USD_RATE,
     X,
     YearlyActualModal: (props) => <DevModal title={`${props.year} 年实际数据`} onCancel={props.onCancel} />,
