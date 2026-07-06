@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 盘前稀疏成交实时价保护
 
-- Commit: `same commit`
+- Commit: `2ded1660d828defd4c52c1f548fb75d251f62ec1`
 - Background: 用户继续反馈交易页持仓分布会在两套价格之间跳动:NOK 一会显示盘前实时价约 `12.454`,一会又被打回常规盘价格 `12.070`,导致总资产、持仓市值和当日盈亏明显跳变。对比截图确认其它高频成交股票能持续拿到真实盘前 tick,NOK 因盘前成交不密集,几分钟没有新 WebSocket tick 后会被 REST 轮询结果覆盖。
 - Root cause:
   - `v10.7.9.157` 已修复“价格-only tick 缺昨收导致当日盈亏清零”,但实时价保护窗口仍只有 120 秒,且全局 `REALTIME_STALE_MS` 只有 15 秒。
@@ -34,7 +34,12 @@
   - `git diff --check` pass。
   - 本地 dist marker: `SettingsTab-CckdNb3K.js` / `settingsChangelog-DbSFKm1d.js` 包含 `v10.7.9.158` 和 `盘前稀疏成交实时价保护`;`App--LcDfTJY.js` 包含 `marketStatus`、`stock_tick`、`stocks_status` 和延长实时价保护逻辑。
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main`;GitHub Actions `build` run `28779366557` completed successfully.
+  - Vercel production deployment completed for commit `2ded1660d828defd4c52c1f548fb75d251f62ec1`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/A3e6oWVJ4ELnn6DQUa59Sk7iyqez`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=2ded166-extended-hours-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:49:27 GMT`;active entry assets include `index-B16PAN-U.js`, `rolldown-runtime-QTnfLwEv.js`, `react-vendor-CSFRxu9F.js`, and `index-miL5oI9h.css`。
+  - Production runtime chunks verified: `index-B16PAN-U.js` imports `App-DHstK7zI.js`;`App-DHstK7zI.js` imports `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, `ReviewTab-CZxjqcb1.js`, and `SettingsTab-BEMuXxlM.js`;`SettingsTab-BEMuXxlM.js` lazy-loads `settingsChangelog-DbSFKm1d.js`。
+  - Production marker verified: `App-DHstK7zI.js` contains `marketStatus`, `stock_tick`, `stocks_status`, `America/New_York`, extended/pre/post status checks, and minified `extendedMaxAgeMs:r=30*6e4`;`SettingsTab-BEMuXxlM.js` contains `v10.7.9.158`;`settingsChangelog-DbSFKm1d.js` contains `v10.7.9.158`, `盘前稀疏成交实时价保护`, and `marketStatus`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退 `src/lib/stockRealtime.js` 的 `marketStatus` 写入和 extended-hours 实时价保护窗口、设置页版本/更新日志、测试和本开发日志即可;不会影响交易记录、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 盘前实时当日盈亏修复

@@ -6,13 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交随 `v10.7.9.158` 修复提交生成。
-- 当前运行时代码提交: 本轮 `v10.7.9.158` 修复提交生成后以 `git log -1 --oneline` 为准。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `2ded1660d828defd4c52c1f548fb75d251f62ec1`。
+- 当前运行时代码提交: `2ded1660d828defd4c52c1f548fb75d251f62ec1`。
 - 设置页版本: `v10.7.9.158`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: pending for `v10.7.9.158`;推送后补充 GitHub/Vercel 生产 marker 验证结果。
+- 最新运行时 Vercel 部署: success, `v10.7.9.158` production marker verified for runtime code commit `2ded1660d828defd4c52c1f548fb75d251f62ec1`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: `v10.7.9.158` 本地验证完成后推送;生产需确认 active runtime assets 包含 `v10.7.9.158`、`盘前稀疏成交实时价保护`、`extendedMaxAgeMs`/`marketStatus` 实时价保护 marker;未登录 `GET /api/quote?symbols=VIX` 仍必须返回 `401`;普通 `GET /api/stocks-realtime` 仍必须返回 `426`。
+- 线上关键验证: 生产 active assets 包含 `index-B16PAN-U.js`、`App-DHstK7zI.js`、`SettingsTab-BEMuXxlM.js`、`settingsChangelog-DbSFKm1d.js`、`HomeTab-DMu2X-yC.js`、`TradesTab-BCtDUDej.js`、`AnalysisTab-BlUdJr6F.js` 和 `ReviewTab-CZxjqcb1.js`;`App-DHstK7zI.js` 包含 `marketStatus`、`stock_tick`、`stocks_status`、`America/New_York`、extended/pre/post 状态检查和 minified `extendedMaxAgeMs:r=30*6e4`;Settings/changelog chunk 包含 `v10.7.9.158`、`盘前稀疏成交实时价保护` 和 `marketStatus`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: `v10.7.9.158` 修复 NOK 这类盘前成交不密集股票被 REST 延迟/常规盘价格反复覆盖的问题:股票 WebSocket tick 会保存 `marketStatus`,美股盘前/盘后把实时价保护窗口放宽到 30 分钟,避免真实盘前成交价几分钟无新 tick 后被打回常规盘价。`v10.7.9.157` 的价格-only tick 昨收补齐逻辑和 `v10.7.9.156` 英文模式第一阶段保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -20,13 +20,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: 本文件所在最新提交 (`v10.7.9.158`,盘前稀疏成交实时价保护)
-- 最近应用代码提交: 本轮 `v10.7.9.158` 修复提交生成后以 `git log -1 --oneline` 为准。
+- 当前产品基准提交: `2ded1660d828defd4c52c1f548fb75d251f62ec1` (`v10.7.9.158`,盘前稀疏成交实时价保护)
+- 最近应用代码提交: `2ded1660d828defd4c52c1f548fb75d251f62ec1`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.158`
-- Vercel 最新运行时部署: pending for `v10.7.9.158`;推送后补充生产 marker 验证结果。
+- Vercel 最新运行时部署: success, `v10.7.9.158` production marker verified for runtime code commit `2ded1660d828defd4c52c1f548fb75d251f62ec1`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.158` pending;本地验证完成后推送并补充 GitHub Actions run、production HTTP 200、active runtime assets、`v10.7.9.158`/`盘前稀疏成交实时价保护` marker、`/api/quote` 401 和 `/api/stocks-realtime` 426。
+- Vercel 部署记录: runtime code commit `2ded1660d828defd4c52c1f548fb75d251f62ec1`;GitHub Actions `build` run `28779366557` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/A3e6oWVJ4ELnn6DQUa59Sk7iyqez`;production `GET https://boduan-tracker.vercel.app/?v=2ded166-extended-hours-*` HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:49:27 GMT`;active runtime assets include `index-B16PAN-U.js`, `App-DHstK7zI.js`, `SettingsTab-BEMuXxlM.js`, `settingsChangelog-DbSFKm1d.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`App-DHstK7zI.js` contains `marketStatus`, `stock_tick`, `stocks_status`, `America/New_York`, extended/pre/post checks, and minified `extendedMaxAgeMs:r=30*6e4`;`SettingsTab-BEMuXxlM.js` contains `v10.7.9.158`;`settingsChangelog-DbSFKm1d.js` contains `v10.7.9.158`, `盘前稀疏成交实时价保护`, and `marketStatus`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交随 `v10.7.9.158` 修复提交生成
-当前产品基准提交: 本文件所在最新提交 (`v10.7.9.158`,盘前稀疏成交实时价保护)
-最近应用代码提交: 本轮 `v10.7.9.158` 修复提交生成后以 `git log -1 --oneline` 为准
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `2ded1660d828defd4c52c1f548fb75d251f62ec1`
+当前产品基准提交: `2ded1660d828defd4c52c1f548fb75d251f62ec1` (`v10.7.9.158`,盘前稀疏成交实时价保护)
+最近应用代码提交: `2ded1660d828defd4c52c1f548fb75d251f62ec1`
 设置页版本: `v10.7.9.158`
-Vercel 最新运行时部署: pending for `v10.7.9.158`;推送后补充生产 marker 验证结果
+Vercel 最新运行时部署: success, `v10.7.9.158` production marker verified for runtime code commit `2ded1660d828defd4c52c1f548fb75d251f62ec1`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: `v10.7.9.158` pending;本地验证完成后推送并补充 GitHub Actions run、production HTTP 200、active runtime assets、`v10.7.9.158`/`盘前稀疏成交实时价保护` marker、`/api/quote` 401 和 `/api/stocks-realtime` 426
+部署记录: runtime code commit `2ded1660d828defd4c52c1f548fb75d251f62ec1`;GitHub Actions `build` run `28779366557` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/A3e6oWVJ4ELnn6DQUa59Sk7iyqez`;production HTTP 200;active runtime assets include `index-B16PAN-U.js`, `App-DHstK7zI.js`, `SettingsTab-BEMuXxlM.js`, `settingsChangelog-DbSFKm1d.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`App-DHstK7zI.js` contains `marketStatus`, `stock_tick`, `stocks_status`, `America/New_York`, extended/pre/post checks, and minified `extendedMaxAgeMs:r=30*6e4`;Settings/changelog chunks contain `v10.7.9.158` and `盘前稀疏成交实时价保护`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,7 +629,7 @@ Vercel 最新运行时部署: pending for `v10.7.9.158`;推送后补充生产 ma
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.158` 盘前稀疏成交实时价保护已完成本地实现,待验证和部署:NOK 这类盘前成交不密集股票的 WebSocket tick 会保存 `marketStatus`;美股盘前/盘后实时价保护窗口放宽到 30 分钟,避免几分钟前真实盘前成交价被自动/手动 REST 刷新打回常规盘价格。交易账本、成本、持仓数量、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。
+- `v10.7.9.158` 盘前稀疏成交实时价保护已完成部署和线上验证:NOK 这类盘前成交不密集股票的 WebSocket tick 会保存 `marketStatus`;美股盘前/盘后实时价保护窗口放宽到 30 分钟,避免几分钟前真实盘前成交价被自动/手动 REST 刷新打回常规盘价格。生产 `App-DHstK7zI.js`、`SettingsTab-BEMuXxlM.js` 和 `settingsChangelog-DbSFKm1d.js` marker 验证通过;交易账本、成本、持仓数量、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.157` 盘前实时当日盈亏修复已完成部署和线上验证:股票 WebSocket 只推实时价时会从基础行情补 `previousClose` / `changePercent` 等基准字段;REST 手动/下拉刷新后 120 秒内保留更新鲜实时 `quoteCache` 行;`investmentSummary` 可在 `previousClose` 缺失但 `change`/`changePercent` 存在时反推昨收,避免总资产按盘前价变化但今日盈亏清零。生产 `App-DlsKa9Q6.js`、`SettingsTab-CbGXXJez.js` 和 `settingsChangelog-BjTR6oqk.js` marker 验证通过;交易账本、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.156` 英文模式第一阶段已完成部署和本地/线上验证:新增本地语言框架 `xmoney_language`,设置页加入 `简体中文` / `English` 切换;底部导航和首页头卡、信号卡、VIX/CNN 恐慌指标、自选/持仓表格、添加/编辑自选弹窗支持英文系统文案;英文模式下首页股票主副标题显示 ticker 缩写;中文默认显示、用户自写日志/复盘/备注/历史记录、行情 relay、交易账本、资产/目标业务逻辑、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.149` 资产和目标模块缩放移除已完成部署和本地/线上验证:资产页账户行、目标页北极星头卡、当前/未来年度目标、年度展开控件、投资戒律卡片和复盘日志卡片均移除老版模块级 `active:scale-[0.99]` / `active:scale-[0.995]`;点击账户、复利明细、年度目标、戒律和复盘详情仍按原流程打开;设置页更新日志和版本同步到 `v10.7.9.149`;生产 `ReviewTab-BSclOsB3.js` marker 验证通过;行情、交易账本、WebSocket relay、RLS 和 `/api/quote` 鉴权保持不变。
