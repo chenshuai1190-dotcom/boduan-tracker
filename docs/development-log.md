@@ -35,6 +35,7 @@
   - GitHub Actions `CI` run `28801658061` completed successfully。
   - Vercel status for `2a4b2c1` returned `failure`: `Deployment rate limited — retry in 24 hours.`
   - Production alias `https://boduan-tracker.vercel.app` still serves `v10.7.9.177`:active entry `/assets/index-VYBFOlGe.js`,and unauthenticated `GET /api/quote?symbols=VIX` still returns `401` with old `cache-control: private, max-age=15`;therefore `v10.7.9.178` is on GitHub `main` but not yet live on Vercel。
+  - 2026-07-06 23:11 CST: 用户明确要求再次部署;部署前重新执行 `npm test`、`npm run build`、`npm audit --audit-level=moderate` 和 `git diff --check` 均通过。本文件所在提交用于触发一次新的 GitHub-integrated Vercel deployment;若 Vercel 仍返回 rate limit,生产仍保持 `v10.7.9.177`。
 - Rollback: 回退本条涉及的 `/api/quote` no-store 响应头、`fetchQuote(..., { fresh: true })` fresh 请求、`v10.7.9.178` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓/收益率计算、涨跌幅重算口径、EODHD 服务端 token、WebSocket relay、Supabase、RLS 或数据库结构。
 
 ### 2026-07-06 - 股票行情即时刷新

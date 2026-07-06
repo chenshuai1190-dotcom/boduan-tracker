@@ -6,12 +6,12 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.178` 代码提交 `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b` 已推送,GitHub Actions `CI` run `28801658061` success,但 Vercel 因 build rate limit 未部署。
+- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.178` 代码提交 `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b` 已推送,GitHub Actions `CI` run `28801658061` success。本文件所在提交是 2026-07-06 23:11 CST 用户要求的部署重试触发提交。
 - 当前生产运行时代码提交: `7c24e6892704bbf19dc9cb16f78cd4118f57fa7a` (`v10.7.9.177`,follow-up deployment commit `7542d0a8e1475708b7f3aa8585ca911de69af086`)。
 - 设置页版本: GitHub source `v10.7.9.178`;生产仍是 `v10.7.9.177`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: `2a4b2c1` deployment `failure` (`Deployment rate limited — retry in 24 hours`);生产仍为 `v10.7.9.177` marker verified。
-- 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
+- 最新 Vercel 状态: `2a4b2c1` deployment `failure` (`Deployment rate limited — retry in 24 hours`);本文件所在部署重试提交推送后需重新检查 Vercel status。生产在重试成功前仍为 `v10.7.9.177` marker verified。
+- 最近交接文档刷新部署: 本文件所在提交用于触发 Vercel Git 集成部署重试;推送后以 GitHub/Vercel 最新状态为准。
 - 线上关键验证: 生产入口 `/assets/index-VYBFOlGe.js`;runtime imports `/assets/App-diyx1qIs.js` and `/assets/SettingsTab-MGrCaUBt.js`;`App-diyx1qIs.js` contains `auto-start-cloud`, `auto-focus`, `auto-pageshow`, `auto-tab`, `auto-realtime-open` and quick refresh scheduler markers;`SettingsTab-MGrCaUBt.js` contains `v10.7.9.177`;`settingsChangelog-DHVKCFxY.js` contains `v10.7.9.177` and `股票行情即时刷新`;未登录 `GET /api/quote?symbols=VIX` 返回 `401` 且仍是旧 `cache-control: private, max-age=15`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线启动云端账本加载完成、回到前台、窗口聚焦、页面恢复、切到首页/交易页和股票 WebSocket 打开后的快速行情刷新。`v10.7.9.178` 已推送 GitHub `main`,修复主行情刷新被浏览器 15 秒 cache 吃掉的问题,但尚未部署到生产。用户自写内容、交易账本、摊薄工具、行情鉴权和数据库结构不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
@@ -25,8 +25,8 @@
 - 最近应用代码提交: `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b` (pending Vercel deploy)
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: GitHub source `v10.7.9.178`;生产仍是 `v10.7.9.177`。
-- Vercel 最新运行时部署: `2a4b2c1` failure (`Deployment rate limited — retry in 24 hours`);production remains `v10.7.9.177` marker verified。
-- 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
+- Vercel 最新运行时部署: `2a4b2c1` failure (`Deployment rate limited — retry in 24 hours`);本文件所在提交推送后会再次触发部署。production remains `v10.7.9.177` marker verified until retry succeeds。
+- 最近交接文档刷新部署: 本文件所在提交用于触发 Vercel Git 集成部署重试;推送后以 GitHub/Vercel 最新状态为准。
 - Vercel 部署记录: `v10.7.9.177` runtime commit `7c24e6892704bbf19dc9cb16f78cd4118f57fa7a`;GitHub Actions `CI` run `28800760867` success;initial Vercel status for `7c24e68` hit `Deployment rate limited — retry in 24 hours`;follow-up GitHub-integrated deployment commit `7542d0a8e1475708b7f3aa8585ca911de69af086` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Dmeakp5DpaAVwyvE6Ear6T87Qaph`;production alias `https://boduan-tracker.vercel.app` updated。`v10.7.9.178` commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b` CI run `28801658061` success,但 Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
