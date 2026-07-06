@@ -95,13 +95,13 @@ function UsFlagBackground({ strength = 0.56, shade = 0.36 }) {
           <ellipse cx="242" cy="116" rx="58" ry="34" fill="#dc223d" opacity="0.14" />
         </g>
         <rect width="360" height="240" fill="#05070b" opacity={shade} />
-        <rect width="360" height="88" fill="#05070b" opacity="0.3" />
+        <rect width="360" height="88" fill="#05070b" opacity="0.46" />
       </svg>
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(5,7,11,0.24) 0%, rgba(5,7,11,0.18) 40%, rgba(5,7,11,0.52) 100%), radial-gradient(circle at 62% 45%, rgba(255,255,255,0.04), transparent 26%), radial-gradient(circle at 8% 92%, rgba(5,7,11,0.76), transparent 46%)',
+            'linear-gradient(180deg, rgba(5,7,11,0.42) 0%, rgba(5,7,11,0.36) 40%, rgba(5,7,11,0.74) 100%), radial-gradient(circle at 62% 45%, rgba(255,255,255,0.03), transparent 26%), radial-gradient(circle at 8% 92%, rgba(5,7,11,0.86), transparent 46%)',
         }}
       />
     </div>
@@ -183,7 +183,7 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, language = '
       }}
     >
       <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <UsFlagBackground strength={0.64} shade={0.5} />
+        <UsFlagBackground strength={0.42} shade={0.7} />
         <div className="relative z-10 flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold tracking-normal text-white">{tt('review.recordDetails', '记录详情')}</h2>
           <button
@@ -259,7 +259,7 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, language = 'zh', onClose,
       }}
     >
       <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <UsFlagBackground strength={0.58} shade={0.52} />
+        <UsFlagBackground strength={0.38} shade={0.72} />
         <div className="relative z-10 flex items-center justify-between gap-3">
           <h2 className="text-[18px] font-semibold tracking-normal text-white">{tt('review.reviewDetails', '复盘详情')}</h2>
           <button
@@ -698,7 +698,7 @@ export default function ReviewTab({ ctx }) {
   const deleteDiscipline = (discipline) => {
     setDisciplineAction(null);
     showConfirm({
-      title: tt('review.deleteDisciplineTitle', '删除这条戒律?'),
+      title: tt('review.deleteDisciplineTitle', '删除这条心得?'),
       desc: tt('review.irreversible', '此操作不可撤销'),
       info: (discipline?.text || '').slice(0, 50) + ((discipline?.text || '').length > 50 ? '...' : ''),
       confirmText: tt('review.delete', '删除'),
@@ -1060,7 +1060,7 @@ export default function ReviewTab({ ctx }) {
           <div className="flex min-w-0 items-center gap-3">
             <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">{tt('review.disciplines', '投资戒律')}</div>
+              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">{tt('review.disciplines', '投资心得')}</div>
             </div>
           </div>
           <button
@@ -1099,7 +1099,7 @@ export default function ReviewTab({ ctx }) {
 
         {disciplines.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
-            {tt('review.noDisciplines', '还没有投资戒律')}
+            {tt('review.noDisciplines', '还没有投资心得')}
           </div>
         ) : (
           <>

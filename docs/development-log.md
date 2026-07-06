@@ -4,6 +4,40 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 目标页文案和弹窗可读性
+
+- Commit: `same commit`
+- Background: 用户要求新做的交易页编辑弹出卡片标题“新增交易”取消加粗并加大 2px;目标页“投资戒律”模块改名为“投资心得”;投资心得和复盘日志详情弹窗的背景图继续加深蒙版,淡化背景以突出文字。
+- Changes:
+  - 交易页新增/编辑交易弹窗标题从 `text-[14px]` 调整为 `text-[16px] font-normal`,取消主交易标题的加粗显示。
+  - 目标页“投资戒律”系统文案改为“投资心得”,同步标题、空状态、添加/编辑弹窗、删除确认、输入占位和置顶说明;英文模式对应从 `Investment Rules` 改为 `Investment Notes`。
+  - 投资心得和复盘日志详情弹窗的国旗背景层降低 `strength` 并提高 `shade`,同时加深背景渐变和顶部遮罩,让正文更突出。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.172`,新增“目标页文案和弹窗可读性”。
+  - 本轮不改 `disciplines` 数据表、用户自写心得/复盘内容、交易账本、摊薄工具数据、行情 relay、RLS、Supabase 配置或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/App.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,27 tests passed;覆盖交易弹窗标题字号/字重、投资心得中英文文案、详情背景蒙版参数和设置页版本/更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,85 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BHmH9d87.js`、`dist/assets/TradesTab-jtoZCMkE.js`、`dist/assets/ReviewTab-D0QwHV5_.js`、`dist/assets/i18n-CPX81kKq.js`、`dist/assets/SettingsTab-Dw6-fh9q.js` 和 `dist/assets/settingsChangelog-kbO7oX-_.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `SettingsTab-Dw6-fh9q.js` contains `v10.7.9.172`;`settingsChangelog-kbO7oX-_.js` contains `目标页文案和弹窗可读性` and `投资心得`;`TradesTab-jtoZCMkE.js` contains `text-[16px] font-normal text-white`;`i18n-CPX81kKq.js` contains `投资心得` and `Investment Notes`;`ReviewTab-D0QwHV5_.js` contains `rgba(5,7,11,0.42)`, `opacity:\`0.46\``, `strength:.42` / `shade:.7` and `strength:.38` / `shade:.72`。
+- Deployment:
+  - Pending push to GitHub `main` and Vercel production deployment.
+- Production verification:
+  - Pending production marker and auth boundary checks after Vercel deployment.
+- Rollback: 回退本条涉及的交易弹窗标题样式、目标页“投资心得”文案、详情背景蒙版、`v10.7.9.172` 设置页版本/更新日志、测试断言和本日志即可;不影响 `disciplines` 数据结构、用户自写内容、交易账本、摊薄工具、行情 relay、汇率、RLS 或鉴权。
+
 ### 2026-07-06 - 工具弹窗和币种同步
 
 - Commit: `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`

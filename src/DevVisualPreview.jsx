@@ -357,7 +357,7 @@ export default function DevVisualPreview() {
     ChevronDown,
     ChevronUp,
     db,
-    DisciplineModal: (props) => <DevModal title={props.initial?.isEdit ? t(language, 'review.editDiscipline', '编辑戒律') : t(language, 'review.addDiscipline', '添加戒律')} onCancel={props.onCancel} />,
+    DisciplineModal: (props) => <DevModal title={props.initial?.isEdit ? t(language, 'review.editDiscipline', '编辑心得') : t(language, 'review.addDiscipline', '添加心得')} onCancel={props.onCancel} />,
     disciplines,
     Edit2,
     editingDisciplineId,

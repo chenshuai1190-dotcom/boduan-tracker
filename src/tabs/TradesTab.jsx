@@ -1474,7 +1474,7 @@ export default function TradesTab({ ctx }) {
               <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
                 <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
                 <div className="flex items-center justify-between">
-                  <h2 className={`text-[14px] text-white ${tradeEntryScope === 'wave' ? 'font-normal' : 'font-black'}`}>
+                  <h2 className="text-[16px] font-normal text-white">
                     {tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
                   </h2>
                   <button

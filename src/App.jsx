@@ -411,7 +411,7 @@ function TabFallback() {
 
 // ============ 复盘 tab 专用 Modal 组件 ============
 
-// 添加/编辑戒律 Modal
+// 添加/编辑心得 Modal
 function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
   const [level, setLevel] = useState(initial.level || '🟢');
   const [text, setText] = useState(initial.text || '');
@@ -431,7 +431,7 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.65] p-4 backdrop-blur-md" onClick={onCancel}>
       <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-base text-white">{isEdit ? tt('review.editDiscipline', '编辑戒律') : tt('review.addDiscipline', '添加戒律')}</h3>
+          <h3 className="font-semibold text-base text-white">{isEdit ? tt('review.editDiscipline', '编辑心得') : tt('review.addDiscipline', '添加心得')}</h3>
           <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
@@ -462,7 +462,7 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
               <textarea
                 value={text}
                 onChange={e => { setText(e.target.value); if (error) setError(''); }}
-                placeholder={tt('review.disciplinePlaceholder', '写下你的投资戒律...')}
+                placeholder={tt('review.disciplinePlaceholder', '写下你的投资心得...')}
                 rows={4}
                 className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
                 style={{ colorScheme: 'dark' }}
@@ -477,7 +477,7 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
               onChange={e => setPinned(e.target.checked)}
               className="w-4 h-4"
             />
-            <span className="text-sm text-white/70">{tt('review.pinImportant', '置顶 (重要戒律永远显示在最上)')}</span>
+            <span className="text-sm text-white/70">{tt('review.pinImportant', '置顶 (重要心得永远显示在最上)')}</span>
           </label>
         </div>
         <div className="flex gap-2 mt-4">
