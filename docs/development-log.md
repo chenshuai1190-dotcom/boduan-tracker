@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 资产和目标模块缩放移除
+
+- Commit: `same commit`
+- Background: 用户反馈资产页和目标页部分模块在滑过/按压时会出现缩放效果,这是老版本遗留的模块级交互,要求定位并取消。
+- Changes:
+  - 移除资产页账户行卡片的 `active:scale-[0.99]`,点击账户仍打开账户操作弹窗。
+  - 移除目标页北极星头卡的 `active:scale-[0.995]`,点击仍打开复利明细弹窗。
+  - 移除目标页当前年度目标、未来年度目标、年度展开控件、投资戒律卡片和复盘日志卡片的 `active:scale-[0.99]`,点击仍打开对应操作/详情弹窗。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.149`,新增“资产和目标模块缩放移除”。
+  - 保留普通按钮按压反馈和图表绘制动画;不改变资产账户、年度目标、投资戒律、复盘日志、行情 relay、交易账本、Supabase RLS 或 `/api/quote` 鉴权逻辑。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including new `asset and review module cards do not keep legacy scale interactions`.
+  - Source marker check: pass;资产页账户行不再包含 `text-left active:scale-[0.99] transition`;目标页北极星、年度目标、年度展开控件、投资戒律和复盘日志卡片不再包含模块级 `active:scale-[0.99]` / `active:scale-[0.995]`;仅保留按钮级 `active:scale-95` / `active:scale-90` 反馈。
+  - `npm run build`: pass;Vite built `AnalysisTab-3BefPaux.js`, `ReviewTab-BSclOsB3.js`, `SettingsTab-C7YbVIYY.js`, `settingsChangelog-B6QgoKpy.js`, `App-B3CLr5Ij.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`SettingsTab-C7YbVIYY.js` contains `v10.7.9.149`;`settingsChangelog-B6QgoKpy.js` contains `v10.7.9.149` and `资产和目标模块缩放移除`;`ReviewTab-BSclOsB3.js` contains the target card class markers without old module-level scale.
+- Deployment:
+  - Pending GitHub push, CI and Vercel production verification.
+- Rollback: 回退 `src/tabs/AnalysisTab.jsx`、`src/tabs/ReviewTab.jsx` 的模块 class 调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.149` 条目、测试和本开发日志即可;不会影响账户数据、目标数据、复盘/戒律数据、行情、交易账本、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 资产头卡对齐首页
 
 - Commit: `a2848a30bc12a8b97f0904bcaedeb6b886a526db`

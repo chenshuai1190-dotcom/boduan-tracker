@@ -780,7 +780,7 @@ export default function ReviewTab({ ctx }) {
       `}</style>
 
       <section
-        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.995]"
+        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
         role="button"
         tabIndex={0}
         onClick={() => setShowCompoundDetails(true)}
@@ -914,7 +914,7 @@ export default function ReviewTab({ ctx }) {
                   key={yearItem.year}
                   type="button"
                   onClick={() => setYearAction(yearItem)}
-                  className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.99]"
+                  className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
@@ -984,7 +984,7 @@ export default function ReviewTab({ ctx }) {
                 key={yearItem.year}
                 type="button"
                 onClick={() => setYearAction(yearItem)}
-                className="block w-full rounded-[18px] border border-white/10 bg-[#0b0f14] p-4 text-left active:scale-[0.99]"
+                className="block w-full rounded-[18px] border border-white/10 bg-[#0b0f14] p-4 text-left"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1034,7 +1034,7 @@ export default function ReviewTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowAllYears(!showAllYears)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b]"
           >
             {showAllYears ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             {showAllYears ? '收起年度目标' : `展开剩余 ${hiddenYearCount} 年`}
@@ -1108,7 +1108,7 @@ export default function ReviewTab({ ctx }) {
                         setDisciplineAction(discipline);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -1205,7 +1205,7 @@ export default function ReviewTab({ ctx }) {
                         setReviewLogAction(log);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]"
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
                     <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
                     {isLong && (

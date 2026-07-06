@@ -416,6 +416,18 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(settingsChangelogSource.includes('资产头卡对齐首页'), 'settings changelog should describe the asset header alignment update');
 });
 
+test('asset and review module cards do not keep legacy scale interactions', () => {
+  assert.equal(analysisTabSource.includes('text-left active:scale-[0.99] transition'), false, 'asset account rows should not scale on press or hover');
+  assert.equal(reviewTabSource.includes('shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.995]'), false, 'north-star card should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.99]'), false, 'current annual target card should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
+  assert.ok(settingsTabSource.includes('v10.7.9.149'), 'settings version badge should document the module scale removal update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.149'), 'settings changelog should document the module scale removal update');
+  assert.ok(settingsChangelogSource.includes('资产和目标模块缩放移除'), 'settings changelog should describe the module scale removal update');
+});
+
 test('review target page uses dark mobile cards and click action modals', () => {
   assert.ok(appSource.includes("activeTab === 'review'"), 'review tab must use the same dark shell as home and assets');
   assert.ok(reviewTabSource.includes("const REVIEW_CARD = '#0b0f14'"), 'review page should share the dark card surface');
@@ -550,7 +562,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.148'), 'settings version badge should document the asset header alignment update');
+  assert.ok(settingsTabSource.includes('v10.7.9.149'), 'settings version badge should document the latest module scale removal update');
   assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
   assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
   assert.ok(settingsChangelogSource.includes('v10.7.9.148'), 'settings changelog should document the asset header alignment update');

@@ -646,7 +646,7 @@ export default function AnalysisTab({ ctx }) {
                       setAssetMessage(null);
                       setAccountActionId(acc.id);
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-left active:scale-[0.99] transition"
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-left transition"
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
                       <AccountTypeIcon type={acc.type} className="h-4 w-4" />
