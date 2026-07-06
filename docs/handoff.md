@@ -6,7 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.179` 运行时代码提交 `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc` 已推送,部署重试/status commit `411f18d2d7a0d406096cd6a9c5cd08dac238f4dc` 也已推送;两次 Vercel 状态均为 rate limited。
+- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.179` 运行时代码提交 `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc` 已推送,部署重试/status commit `411f18d2d7a0d406096cd6a9c5cd08dac238f4dc` 也已推送;两次 Vercel 状态均为 rate limited。2026-07-06 23:28 CST 按用户要求再次走 SSH 推送重试部署,本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
 - 当前生产运行时代码提交: 部署完成前仍为 `7e84d3508297e54a7f24b161def867375a617bc0`,其部署产物包含 `v10.7.9.178` 运行时代码。
 - 设置页版本: 源码已同步到 `v10.7.9.179`;生产部署完成前仍以线上验证为准。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。

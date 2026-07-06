@@ -36,6 +36,7 @@
   - Production alias `https://boduan-tracker.vercel.app` still serves `v10.7.9.178`:active entry `/assets/index-C6-UhbcK.js`;therefore `v10.7.9.179` is on GitHub `main` but not yet live on Vercel。
   - Deployment retry/status commit `411f18d2d7a0d406096cd6a9c5cd08dac238f4dc` pushed to GitHub `main`;Vercel status also returned `failure`: `Deployment rate limited — retry in 24 hours.`
   - Latest production remains `v10.7.9.178` until Vercel build rate limit resets or the GitHub-integrated deployment is retried successfully;no direct Vercel changes were made。
+  - 2026-07-06 23:28 CST: 用户要求“再次部署,走 ssh”;部署前重新执行 `npm test`、`npm run build`、`npm audit --audit-level=moderate` 和 `git diff --check` 均通过。本文件所在部署重试提交将使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
 - Rollback: 回退本条涉及的 iOS standalone PWA 恢复监听、触发来源标签、`v10.7.9.179` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay、Supabase、RLS 或数据库结构。
 
 ### 2026-07-06 - 行情请求禁用浏览器缓存
