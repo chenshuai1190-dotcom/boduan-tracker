@@ -54,6 +54,7 @@ export function mergeStockTicksIntoQuoteRows(rows = [], ticks = [], realtimeStat
 
 export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
   maxAgeMs = 120_000,
+  extendedMaxAgeMs = 30 * 60_000,
   now = Date.now(),
 } = {}) {
   let next = rows || [];
@@ -61,12 +62,13 @@ export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
     const symbol = normalizeStockRealtimeSymbol(row?.symbol);
     const price = asNumber(row?.price);
     const realtimeAt = asNumber(row?.realtimeAt);
+    const freshWindowMs = isExtendedStockRealtimeRow(row, now) ? extendedMaxAgeMs : maxAgeMs;
     const isFreshRealtime = symbol
       && price
       && price > 0
       && row?.realtime
       && realtimeAt
-      && now - realtimeAt <= maxAgeMs;
+      && now - realtimeAt <= freshWindowMs;
     if (!isFreshRealtime) continue;
     next = applyStockTickToQuoteRows(next, row, row?.realtimeStatus || 'live', rows);
   }
@@ -87,7 +89,43 @@ function mergeQuoteBaseline(row = {}, baseRow = null) {
     changePercent: asNumber(row?.changePercent) ?? asNumber(baseRow?.changePercent) ?? 0,
     ytdChangePercent: asNumber(row?.ytdChangePercent) || asNumber(baseRow?.ytdChangePercent) || 0,
     intraday: Array.isArray(row?.intraday) && row.intraday.length > 0 ? row.intraday : (baseRow?.intraday || []),
+    marketStatus: row?.marketStatus || baseRow?.marketStatus || null,
   };
+}
+
+function isExtendedStockRealtimeRow(row, now) {
+  const status = String(row?.marketStatus || '').trim().toLowerCase();
+  if (
+    status.includes('extended')
+    || status.includes('pre')
+    || status.includes('post')
+  ) {
+    return true;
+  }
+  return isUsExtendedTradingHours(now);
+}
+
+function isUsExtendedTradingHours(now) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(now));
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    const weekday = getPart('weekday');
+    if (weekday === 'Sat' || weekday === 'Sun') return false;
+    const hour = Number(getPart('hour'));
+    const minute = Number(getPart('minute'));
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
+    const minutes = hour * 60 + minute;
+    return (minutes >= 4 * 60 && minutes < 9 * 60 + 30)
+      || (minutes >= 16 * 60 && minutes < 20 * 60);
+  } catch {
+    return false;
+  }
 }
 
 function createStockQuoteRow(row, tick, realtimeStatus) {
@@ -129,5 +167,6 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
     realtime: tick?.source === 'EODHD_WS' || realtimeStatus === 'live',
     realtimeStatus,
     realtimeAt: tick?.timestamp || tick?.receivedAt || Date.now(),
+    marketStatus: tick?.marketStatus || row?.marketStatus || null,
   };
 }

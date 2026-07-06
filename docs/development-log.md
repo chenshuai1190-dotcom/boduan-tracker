@@ -4,6 +4,39 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 盘前稀疏成交实时价保护
+
+- Commit: `same commit`
+- Background: 用户继续反馈交易页持仓分布会在两套价格之间跳动:NOK 一会显示盘前实时价约 `12.454`,一会又被打回常规盘价格 `12.070`,导致总资产、持仓市值和当日盈亏明显跳变。对比截图确认其它高频成交股票能持续拿到真实盘前 tick,NOK 因盘前成交不密集,几分钟没有新 WebSocket tick 后会被 REST 轮询结果覆盖。
+- Root cause:
+  - `v10.7.9.157` 已修复“价格-only tick 缺昨收导致当日盈亏清零”,但实时价保护窗口仍只有 120 秒,且全局 `REALTIME_STALE_MS` 只有 15 秒。
+  - 对 NOK 这类盘前低频成交股票,上一个真实盘前成交 tick 可能 3-5 分钟内都没有更新;REST `/api/quote` 轮询返回的仍可能是常规盘/延迟价,于是把真实盘前价格覆盖掉。
+  - 旧 `createStockQuoteRow` 没有把 EODHD tick 的 `marketStatus` 写入 `quoteCache`,前端无法区分常规盘和 extended-hours tick。
+- Changes:
+  - `stockRealtime` 写入 `marketStatus`,保留 EODHD 股票 tick 的 `open` / `extended hours` 等状态。
+  - `mergeFreshStockRealtimeRows` 新增 `extendedMaxAgeMs`,美股盘前/盘后或 tick 自带 extended/pre/post 状态时,实时价保护窗口放宽到 30 分钟。
+  - 自动/手动 REST 刷新仍保留昨收、52 周高、logo 等基础字段,但盘前/盘后不会把几分钟前的真实股票 WebSocket 成交价打回常规盘 REST 价。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.158`,新增“盘前稀疏成交实时价保护”。
+  - 本轮不改交易账本、持仓数量、成本计算、股票 WebSocket 鉴权、`/api/quote` 鉴权、Supabase、RLS、英文模式或 VIX/CNN 数据来源。
+- Key files:
+  - `src/lib/stockRealtime.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass;新增 NOK 盘前稀疏 tick 场景和设置页版本/更新日志断言通过。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,82 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App--LcDfTJY.js`、`dist/assets/SettingsTab-CckdNb3K.js`、`dist/assets/settingsChangelog-DbSFKm1d.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 dist marker: `SettingsTab-CckdNb3K.js` / `settingsChangelog-DbSFKm1d.js` 包含 `v10.7.9.158` 和 `盘前稀疏成交实时价保护`;`App--LcDfTJY.js` 包含 `marketStatus`、`stock_tick`、`stocks_status` 和延长实时价保护逻辑。
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/lib/stockRealtime.js` 的 `marketStatus` 写入和 extended-hours 实时价保护窗口、设置页版本/更新日志、测试和本开发日志即可;不会影响交易记录、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 盘前实时当日盈亏修复
 
 - Commit: `c676ac015370393e69ccf593688ca24aef32a176`

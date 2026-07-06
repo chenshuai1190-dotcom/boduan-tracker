@@ -6,31 +6,31 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `c676ac015370393e69ccf593688ca24aef32a176`。
-- 当前运行时代码提交: `c676ac015370393e69ccf593688ca24aef32a176`。
-- 设置页版本: `v10.7.9.157`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交随 `v10.7.9.158` 修复提交生成。
+- 当前运行时代码提交: 本轮 `v10.7.9.158` 修复提交生成后以 `git log -1 --oneline` 为准。
+- 设置页版本: `v10.7.9.158`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, production marker verified for `v10.7.9.157` runtime assets;runtime code commit `c676ac015370393e69ccf593688ca24aef32a176`。
+- 最新运行时 Vercel 部署: pending for `v10.7.9.158`;推送后补充 GitHub/Vercel 生产 marker 验证结果。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 生产 active runtime assets 包含 `index-Cphopcsc.js`、`App-DlsKa9Q6.js`、`SettingsTab-CbGXXJez.js`、`settingsChangelog-BjTR6oqk.js`、`HomeTab-DMu2X-yC.js` 和 `i18n-DJgOZT0p.js`;`App-DlsKa9Q6.js` 包含 minified fresh realtime overlay `maxAgeMs:n=12e4`、`previousClose`、`changePercent`、`realtimeAt`、`stock_tick`、`stocks_status`;Settings/changelog chunk 包含 `v10.7.9.157` 和 `盘前实时当日盈亏修复`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
-- 当前产品焦点: `v10.7.9.157` 修复盘前实时当日盈亏:股票 WebSocket tick 只推实时价时会沿用基础行情昨收/涨跌幅计算今日盈亏;手动/下拉刷新 REST 兜底返回延迟价时,120 秒内更新鲜的实时 `quoteCache` 行会重新叠回,避免把 MSFT 等盘前实时价打回旧价并让当日盈亏清零。`v10.7.9.156` 英文模式第一阶段保持不变;英文模式下首页股票主副标题都显示 ticker 缩写,用户自己写的日志、复盘、备注和历史记录保持原文。
+- 线上关键验证: `v10.7.9.158` 本地验证完成后推送;生产需确认 active runtime assets 包含 `v10.7.9.158`、`盘前稀疏成交实时价保护`、`extendedMaxAgeMs`/`marketStatus` 实时价保护 marker;未登录 `GET /api/quote?symbols=VIX` 仍必须返回 `401`;普通 `GET /api/stocks-realtime` 仍必须返回 `426`。
+- 当前产品焦点: `v10.7.9.158` 修复 NOK 这类盘前成交不密集股票被 REST 延迟/常规盘价格反复覆盖的问题:股票 WebSocket tick 会保存 `marketStatus`,美股盘前/盘后把实时价保护窗口放宽到 30 分钟,避免真实盘前成交价几分钟无新 tick 后被打回常规盘价。`v10.7.9.157` 的价格-only tick 昨收补齐逻辑和 `v10.7.9.156` 英文模式第一阶段保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `c676ac015370393e69ccf593688ca24aef32a176` (`v10.7.9.157`,盘前实时当日盈亏修复)
-- 最近应用代码提交: `c676ac015370393e69ccf593688ca24aef32a176`
+- 当前产品基准提交: 本文件所在最新提交 (`v10.7.9.158`,盘前稀疏成交实时价保护)
+- 最近应用代码提交: 本轮 `v10.7.9.158` 修复提交生成后以 `git log -1 --oneline` 为准。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.157`
-- Vercel 最新运行时部署: success, `v10.7.9.157` production marker verified for runtime code commit `c676ac015370393e69ccf593688ca24aef32a176`
+- 设置页版本: `v10.7.9.158`
+- Vercel 最新运行时部署: pending for `v10.7.9.158`;推送后补充生产 marker 验证结果。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: runtime code commit `c676ac015370393e69ccf593688ca24aef32a176`;GitHub Actions `CI` run `28778300956` pass;production `GET https://boduan-tracker.vercel.app/?v=c676ac0-premarket-pnl-*` HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:29:38 GMT`;active runtime assets include `index-Cphopcsc.js`, `App-DlsKa9Q6.js`, `SettingsTab-CbGXXJez.js`, `settingsChangelog-BjTR6oqk.js`, `HomeTab-DMu2X-yC.js`, and `i18n-DJgOZT0p.js`;`App-DlsKa9Q6.js` contains minified fresh realtime overlay `maxAgeMs:n=12e4`, `previousClose`, `changePercent`, `realtimeAt`, `stock_tick`, and `stocks_status`;`SettingsTab-CbGXXJez.js` contains `v10.7.9.157`;`settingsChangelog-BjTR6oqk.js` contains `v10.7.9.157`, `盘前实时当日盈亏修复`, and `英文模式第一阶段`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+- Vercel 部署记录: `v10.7.9.158` pending;本地验证完成后推送并补充 GitHub Actions run、production HTTP 200、active runtime assets、`v10.7.9.158`/`盘前稀疏成交实时价保护` marker、`/api/quote` 401 和 `/api/stocks-realtime` 426。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 修复盘前实时价与今日盈亏基准断开的问题,中文默认显示、英文模式和核心交易账本保持不变。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 修复盘前实时价与今日盈亏基准断开的问题;`v10.7.9.158` 修复 NOK 这类盘前稀疏成交股票被 REST 常规盘价格覆盖的问题,中文默认显示、英文模式和核心交易账本保持不变。
 
 ## 2. 先读这些文档
 
@@ -52,10 +52,10 @@
 - 首页账户看板: 总资产、今日盈亏、累计盈亏、当前信号、市场指标、VIX/CNN 恐慌指标。`v10.7.9.116` 起首页总资产主数字使用大整数 + 小号两位小数显示;`v10.7.9.129` 起 VIX 标题同步 CNN 灰色标题层级,VIX/CNN 主数字和 CNN 状态文字取消过粗字重;`v10.7.9.130` 起 VIX/CNN 恐慌指标重做为全宽高保真 SVG 金融卡片;`v10.7.9.141` 起三大指数不再显示重复连接态,只有 BTC 卡显示实时状态;`v10.7.9.156` 起首页系统文案支持英文模式,英文模式下股票主副标题都显示 ticker 缩写。
 - 自选股票: 用户主动添加的 watchlist,新用户默认空,支持添加、编辑、置顶、排序、删除;英文模式仅翻译系统文案,不自动翻译用户输入内容。
 - 持仓视图: 来自交易主账本的真实持仓,不是自选列表。
-- 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示;`v10.7.9.141` 起持仓股票 tick 写入 `quoteCache`,交易页头部和持仓列表通过 `investmentSummary` 秒级刷新;`v10.7.9.142` 起摊薄工具和波段记录的工具-only symbol 也进入 `quoteRows`,现价通过同一股票 WebSocket/REST 行情口径刷新,但仍不写入正式主账本;`v10.7.9.157` 起股票实时 tick 只有价格时也会沿用 REST/基础行情昨收计算当日盈亏,并避免手动/下拉刷新用延迟 REST 价覆盖更新鲜实时价。
+- 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示;`v10.7.9.141` 起持仓股票 tick 写入 `quoteCache`,交易页头部和持仓列表通过 `investmentSummary` 秒级刷新;`v10.7.9.142` 起摊薄工具和波段记录的工具-only symbol 也进入 `quoteRows`,现价通过同一股票 WebSocket/REST 行情口径刷新,但仍不写入正式主账本;`v10.7.9.157` 起股票实时 tick 只有价格时也会沿用 REST/基础行情昨收计算当日盈亏,并避免手动/下拉刷新用延迟 REST 价覆盖更新鲜实时价;`v10.7.9.158` 起盘前/盘后低频成交股票的实时价保护窗口放宽到 30 分钟,避免 NOK 这类股票被 REST 常规盘价反复冲回。
 - 资产/分析页: 深色家庭总资产卡、12 个月走势、我/老婆账户分组、月度余额填报和新增账户。`v10.7.9.116` 起家庭总资产主数字改为完整金额 + 小号两位小数,其它走势图和账户列表仍保留 `万` 简写;`v10.7.9.148` 起资产页家庭总资产头卡尺寸、外壳、金额颜色和金额位置与首页/交易页头卡对齐;`v10.7.9.149` 起账户行不再保留老版模块级缩放。
 - 目标页: 北极星目标、年度目标进度、复盘和投资戒律。`v10.7.9.111` 起目标页第一阶段统一深色移动端风格,北极星目标支持 USD/RMB 切换并使用现有汇率状态,年度目标和投资戒律都改为点击记录后弹出操作面板,投资戒律保留置顶/取消置顶;`v10.7.9.112` 修正目标页视觉对齐,头部卡片压回移动端紧凑高度,年度进度条微光限制在进度条内,年度目标区域删除多余外层卡片,当前年补回右侧目标/落后信息,未开始年度补回起点、目标、增长目标虚线和两端金额结构;`v10.7.9.113` 目标页金额改为首页同款完整数字和正常字重,头部卡片进一步压缩,USD/RMB 切换同步首页尺寸,头部卡删除右下角半圆和金色边框,年度目标区域继续外扩,涨跌粉色同步首页颜色体系;`v10.7.9.114` 目标页金额取消两位小数,本年卡边框同步北极星头卡弱边框,头卡 `设置` 按钮上移;`v10.7.9.115` 只在北极星头卡大目标金额恢复两位小数,小数后缀用小字号显示,年度目标等其它金额仍保持无小数;`v10.7.9.116` 小数后缀显式保持正常字重;`v10.7.9.117` 目标页不再显示行情失败 toast,北极星提醒文案单独下移,年度年份数字缩小并降为 `font-bold`;`v10.7.9.118` 北极星设置按钮和未开始年度起点/目标/虚线进一步降为中性色,并移除未开始年度起点/目标括号年份;`v10.7.9.119` 删除北极星头卡 RMB 汇率辅助文案,年目标说明和剩余年限说明降到 12px,年度目标标题降到 15px,年度年份字重降到 `font-semibold`;`v10.7.9.120` 投资戒律模块按新图改为独立标题、灰色胶囊按钮、彩色圆点筛选和深色卡片,筛选项在 390px 移动端一行完整显示,置顶/展开/等级选择都降为低色彩;`v10.7.9.121` 投资戒律标题、正文、按钮、筛选、日期、置顶和展开入口整体降一档字号;`v10.7.9.122` 投资戒律标题继续缩小,删除标题下方数量,标题与添加按钮同排居中对齐;`v10.7.9.123` 投资戒律点击后改为记录详情弹窗,正文完整显示,底部只保留三个小号操作按钮;`v10.7.9.124` 复盘日志同步投资戒律标题和深色卡片,日期/情绪放卡片底部同一行,点击先打开 `复盘详情`,年度目标默认只展示 2 年;`v10.7.9.125` 复盘日志列表正文同步投资戒律正文,复盘日期/情绪和戒律日期/置顶同步详情弹窗灰色 meta 效果;`v10.7.9.126` 点击北极星目标卡片可打开复利明细弹窗,复用当前本金/年化/年限/目标完成度逻辑,展示目标终值、累计收益、复利倍数、实际进度、账户曲线和每年收益表;`v10.7.9.127` 复利明细弹窗加宽、改弱金色边框、完整显示十年年份并将收益统一为首页粉色;`v10.7.9.128` 复利明细内部统计卡、实际进度、曲线和每年收益表边框/分割线降为暗线,标签统一降为灰色。
-- 设置页: 账户设置、修改密码、语言切换、行情诊断日志、更新日志。`v10.7.9.143` 起自动 REST 行情兜底失败只写本地诊断日志不弹底部红条,下拉刷新和手动刷新失败仍提示;诊断日志记录根因、来源、触发方式、请求范围、HTTP 状态、耗时和重复次数。`v10.7.9.144` 起历史更新日志拆为 `settingsChangelog` 懒加载 chunk;`v10.7.9.145` 起删除“数据维护/重置本地数据”入口和运行时代码,自动回到前台这类 `auto-silent + browser-network` 抖动不再写入设置页报警列表;`v10.7.9.156` 起新增 `简体中文` / `English` 本地语言开关,用户自己写的日志、复盘、备注和历史记录保持原文;`v10.7.9.157` 起更新日志记录盘前实时当日盈亏修复。
+- 设置页: 账户设置、修改密码、语言切换、行情诊断日志、更新日志。`v10.7.9.143` 起自动 REST 行情兜底失败只写本地诊断日志不弹底部红条,下拉刷新和手动刷新失败仍提示;诊断日志记录根因、来源、触发方式、请求范围、HTTP 状态、耗时和重复次数。`v10.7.9.144` 起历史更新日志拆为 `settingsChangelog` 懒加载 chunk;`v10.7.9.145` 起删除“数据维护/重置本地数据”入口和运行时代码,自动回到前台这类 `auto-silent + browser-network` 抖动不再写入设置页报警列表;`v10.7.9.156` 起新增 `简体中文` / `English` 本地语言开关,用户自己写的日志、复盘、备注和历史记录保持原文;`v10.7.9.158` 起更新日志记录盘前稀疏成交实时价保护。
 - PWA: 支持保存到手机桌面,当前图标为用户提供的蓝绿 K 线箭头 Logo;`v10.7.9.147` 起 512/192/180/32/16 五套最终发布 PNG 均为 RGB 不透明深色底,避免 iOS 主屏把透明区域垫成白边。
 
 ## 4. 技术栈
@@ -578,7 +578,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.157` 或更新版本。
+- 设置页显示 `v10.7.9.158` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `c676ac015370393e69ccf593688ca24aef32a176`
-当前产品基准提交: `c676ac015370393e69ccf593688ca24aef32a176` (`v10.7.9.157`,盘前实时当日盈亏修复)
-最近应用代码提交: `c676ac015370393e69ccf593688ca24aef32a176`
-设置页版本: `v10.7.9.157`
-Vercel 最新运行时部署: success, `v10.7.9.157` production marker verified for runtime code commit `c676ac015370393e69ccf593688ca24aef32a176`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交随 `v10.7.9.158` 修复提交生成
+当前产品基准提交: 本文件所在最新提交 (`v10.7.9.158`,盘前稀疏成交实时价保护)
+最近应用代码提交: 本轮 `v10.7.9.158` 修复提交生成后以 `git log -1 --oneline` 为准
+设置页版本: `v10.7.9.158`
+Vercel 最新运行时部署: pending for `v10.7.9.158`;推送后补充生产 marker 验证结果
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: runtime code commit `c676ac015370393e69ccf593688ca24aef32a176`;GitHub Actions `CI` run `28778300956` pass;production `GET https://boduan-tracker.vercel.app/?v=c676ac0-premarket-pnl-*` HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:29:38 GMT`;active runtime assets include `index-Cphopcsc.js`, `App-DlsKa9Q6.js`, `SettingsTab-CbGXXJez.js`, `settingsChangelog-BjTR6oqk.js`, `HomeTab-DMu2X-yC.js`, and `i18n-DJgOZT0p.js`;`App-DlsKa9Q6.js` contains minified fresh realtime overlay `maxAgeMs:n=12e4`, `previousClose`, `changePercent`, `realtimeAt`, `stock_tick`, and `stocks_status`;`SettingsTab-CbGXXJez.js` contains `v10.7.9.157`;`settingsChangelog-BjTR6oqk.js` contains `v10.7.9.157`, `盘前实时当日盈亏修复`, and `英文模式第一阶段`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+部署记录: `v10.7.9.158` pending;本地验证完成后推送并补充 GitHub Actions run、production HTTP 200、active runtime assets、`v10.7.9.158`/`盘前稀疏成交实时价保护` marker、`/api/quote` 401 和 `/api/stocks-realtime` 426
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,6 +629,7 @@ Vercel 最新运行时部署: success, `v10.7.9.157` production marker verified 
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.158` 盘前稀疏成交实时价保护已完成本地实现,待验证和部署:NOK 这类盘前成交不密集股票的 WebSocket tick 会保存 `marketStatus`;美股盘前/盘后实时价保护窗口放宽到 30 分钟,避免几分钟前真实盘前成交价被自动/手动 REST 刷新打回常规盘价格。交易账本、成本、持仓数量、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.157` 盘前实时当日盈亏修复已完成部署和线上验证:股票 WebSocket 只推实时价时会从基础行情补 `previousClose` / `changePercent` 等基准字段;REST 手动/下拉刷新后 120 秒内保留更新鲜实时 `quoteCache` 行;`investmentSummary` 可在 `previousClose` 缺失但 `change`/`changePercent` 存在时反推昨收,避免总资产按盘前价变化但今日盈亏清零。生产 `App-DlsKa9Q6.js`、`SettingsTab-CbGXXJez.js` 和 `settingsChangelog-BjTR6oqk.js` marker 验证通过;交易账本、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.156` 英文模式第一阶段已完成部署和本地/线上验证:新增本地语言框架 `xmoney_language`,设置页加入 `简体中文` / `English` 切换;底部导航和首页头卡、信号卡、VIX/CNN 恐慌指标、自选/持仓表格、添加/编辑自选弹窗支持英文系统文案;英文模式下首页股票主副标题显示 ticker 缩写;中文默认显示、用户自写日志/复盘/备注/历史记录、行情 relay、交易账本、资产/目标业务逻辑、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.149` 资产和目标模块缩放移除已完成部署和本地/线上验证:资产页账户行、目标页北极星头卡、当前/未来年度目标、年度展开控件、投资戒律卡片和复盘日志卡片均移除老版模块级 `active:scale-[0.99]` / `active:scale-[0.995]`;点击账户、复利明细、年度目标、戒律和复盘详情仍按原流程打开;设置页更新日志和版本同步到 `v10.7.9.149`;生产 `ReviewTab-BSclOsB3.js` marker 验证通过;行情、交易账本、WebSocket relay、RLS 和 `/api/quote` 鉴权保持不变。

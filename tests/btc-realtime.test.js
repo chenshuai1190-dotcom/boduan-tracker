@@ -213,6 +213,7 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
   assert.equal(updated[0].previousClose, 186.1);
   assert.equal(updated[0].changePercent, 1.25);
   assert.equal(updated[0].realtimeStatus, 'live');
+  assert.equal(updated[0].marketStatus, null);
   assert.deepEqual(updated[0].intraday, [178, 180, 188.42]);
 
   const next = applyStockTickToQuoteRows(updated, { ...tick, price: 189 }, 'live', baseRows);
@@ -266,5 +267,34 @@ test('REST refresh preserves fresh realtime stock prices while keeping REST prev
   assert.equal(merged[0].previousClose, 390.507);
   assert.equal(Number(merged[0].change.toFixed(3)), 0.323);
   assert.equal(Number(merged[0].changePercent.toFixed(4)), 0.0827);
+  assert.equal(merged[0].realtimeStatus, 'live');
+});
+
+test('extended-hours stock realtime price is not overwritten by delayed REST rows after sparse ticks', () => {
+  const now = Date.UTC(2026, 6, 6, 8, 35, 0); // 04:35 New York, premarket
+  const refreshedRows = [
+    { symbol: 'NOK', name: 'NOK', price: 12.07, previousClose: 12.91, changePercent: -6.51, high: 12.91 },
+  ];
+  const quoteCache = [
+    {
+      symbol: 'NOK',
+      name: 'NOK',
+      price: 12.454,
+      previousClose: 12.91,
+      change: -0.456,
+      changePercent: -3.532,
+      realtime: true,
+      realtimeStatus: 'live',
+      realtimeAt: now - 4 * 60_000,
+      marketStatus: 'extended hours',
+      source: 'EODHD_WS',
+    },
+  ];
+  const merged = mergeFreshStockRealtimeRows(refreshedRows, quoteCache, { now, maxAgeMs: 120_000 });
+
+  assert.equal(merged[0].price, 12.454);
+  assert.equal(merged[0].previousClose, 12.91);
+  assert.equal(Number(merged[0].changePercent.toFixed(3)), -3.532);
+  assert.equal(merged[0].marketStatus, 'extended hours');
   assert.equal(merged[0].realtimeStatus, 'live');
 });

@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.157', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.158', date: '2026-07-06', latest: true,
+    items: [
+      '⚡ 盘前稀疏成交实时价保护',
+      '  - 修复 NOK 这类盘前成交不密集股票被 REST 延迟价反复覆盖的问题',
+      '  - 股票 WebSocket 行情保存 marketStatus,盘前/盘后使用更长实时价保护窗口',
+      '  - 盘前真实成交价不再因几分钟无新 tick 被打回常规盘价格',
+      '  - 不影响交易账本、行情鉴权、RLS、英文模式或 VIX/CNN 数据来源',
+    ],
+  },
+  {
+    ver: 'v10.7.9.157', date: '2026-07-06',
     items: [
       '⚡ 盘前实时当日盈亏修复',
       '  - 股票 WebSocket 只推实时价时,自动沿用基础行情昨收计算当日盈亏',
