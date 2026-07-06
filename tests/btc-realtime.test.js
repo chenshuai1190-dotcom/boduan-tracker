@@ -207,6 +207,7 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
     change: 2.32,
     changePercent: 1.25,
     previousClose: 186.1,
+    marketStatus: 'open',
     timestamp: 1783000000123,
     source: 'EODHD_WS',
   };
@@ -218,7 +219,7 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
   assert.equal(updated[0].previousClose, 186.1);
   assert.equal(Number(updated[0].changePercent.toFixed(4)), 1.2466);
   assert.equal(updated[0].realtimeStatus, 'live');
-  assert.equal(updated[0].marketStatus, null);
+  assert.equal(updated[0].marketStatus, 'open');
   assert.deepEqual(updated[0].intraday, [178, 180, 188.42]);
 
   const next = applyStockTickToQuoteRows(updated, { ...tick, price: 189 }, 'live', baseRows);
@@ -355,4 +356,37 @@ test('extended-hours stock realtime price is not overwritten by delayed REST row
   assert.equal(Number(merged[0].changePercent.toFixed(3)), -3.532);
   assert.equal(merged[0].marketStatus, 'extended hours');
   assert.equal(merged[0].realtimeStatus, 'live');
+});
+
+test('extended-hours stock realtime tick preserves locked broker-style daily baseline', () => {
+  const currentRows = [
+    {
+      symbol: 'NVDA',
+      name: '英伟达',
+      price: 195.55,
+      previousClose: 194.8,
+      dailyBaselineClose: 194.8,
+      dailyBaselineDate: '2026-07-02',
+      changePercent: 0.38,
+      high: 197.55,
+    },
+  ];
+  const tick = {
+    type: 'stock_tick',
+    symbol: 'NVDA',
+    price: 195.274,
+    previousClose: 195.55,
+    changePercent: -0.14,
+    marketStatus: 'extended hours',
+    timestamp: 1783366740000,
+    source: 'EODHD_WS',
+  };
+  const updated = applyStockTickToQuoteRows(currentRows, tick, 'live');
+
+  assert.equal(updated[0].price, 195.274);
+  assert.equal(updated[0].previousClose, 194.8);
+  assert.equal(updated[0].dailyBaselineClose, 194.8);
+  assert.equal(updated[0].sessionPreviousClose, 195.55);
+  assert.equal(Number(updated[0].change.toFixed(3)), 0.474);
+  assert.equal(Number(updated[0].changePercent.toFixed(4)), 0.2433);
 });

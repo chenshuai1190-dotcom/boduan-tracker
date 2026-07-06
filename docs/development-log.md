@@ -4,6 +4,42 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 盘后当日盈亏券商口径
+
+- Runtime code commit: this commit
+- Background: 用户用同一时间 IBKR 和本应用截图对比,确认持仓股数一致,但本应用盘后当日盈亏从券商口径的 `当前价 - 昨日收盘价` 变成了类似 `盘后价 - 当天收盘价`。本地复现显示 NVDA 在 `ethPrice=195.274`、provider 盘后 `previousClosePrice=195.55` 时旧逻辑会算出约 `-1931`,而 IBKR 口径应继续以 `194.80` 一类的上一交易日收盘价为基准。
+- Changes:
+  - `server/quote/providers/eodhd.js` 增加 `getUsEquityMarketDate` 和 `findDailyBaselineCloseFromEodRows`,从 EODHD EOD 日线里提取当前美股市场日期之前的收盘价作为 `dailyBaselineClose`。
+  - 股票 quote 归一化保留 `sessionPreviousClose` / `providerPreviousClose`,但盘前、盘后、休市或 quote 缺少昨收时,当日涨跌统一用 `dailyBaselineClose` 重算。
+  - `src/lib/stockRealtime.js` 在 WebSocket tick 合并时保护已锁定的 `dailyBaselineClose`;盘后 tick 继续更新价格,但不能把当日盈亏基准覆盖为当天收盘价。
+  - `src/lib/investmentSummary.js` 优先使用 `dailyBaselineClose` 计算 `todayPnl` 和 `todayPnlPct`,保持公式为 `持仓股数 × (当前价 - 昨日收盘价)`。
+  - `src/App.jsx` 将服务端新增的 daily/session baseline 字段写入 quote cache,新增自选和常规 REST 刷新都保持字段完整。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.185`,新增“盘后当日盈亏券商口径”。
+  - 保持交易账本、持仓数量、成本、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、Supabase、RLS 和数据库结构不变。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/lib/stockRealtime.js`
+  - `src/lib/investmentSummary.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/investment-summary.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/investment-summary.test.js tests/quote-response-shape.test.js tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,68 tests passed。
+  - Local repro marker: 同样使用截图型数据 `ethPrice=195.274`、`providerPreviousClose=195.55`、`dailyBaselineClose=194.8` 时,归一化结果 `previousClose=194.8`,NVDA 7,000 股 `todayPnl=+3318.00`,不再按盘后价减当天收盘价算成负数。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,96 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BTzOvtCn.js`、`dist/assets/SettingsTab-DGX6TpdI.js`、`dist/assets/settingsChangelog-D9gj1Gou.js`、`dist/assets/index-DVk2yX2b.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Build marker: `SettingsTab-DGX6TpdI.js` contains `v10.7.9.185`;`settingsChangelog-D9gj1Gou.js` contains `v10.7.9.185` and `盘后当日盈亏券商口径`;`App-BTzOvtCn.js` contains `dailyBaselineClose`、`sessionPreviousClose` and `providerPreviousClose`。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending: 完成全量验证后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+- Rollback: 回退本条涉及的 EODHD daily baseline 字段、实时 tick baseline 保护、投资汇总 baseline 优先级、`v10.7.9.185` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓数量、成本、鉴权、数据库或 RLS。
+
 ### 2026-07-07 - 全局行情红色调整
 
 - Runtime code commit: `5dd171dad1f4ab016eb269dacc6e013c97f79a0a`

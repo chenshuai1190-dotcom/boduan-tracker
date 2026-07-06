@@ -2588,6 +2588,11 @@ function MainApp({ user, onLogout }) {
       cost: parseFloat(draft.cost) || 0,
       shares: parseInt(draft.shares) || 0,
       previousClose: fresh?.previousClose || 0,
+      dailyBaselineClose: fresh?.dailyBaselineClose || fresh?.previousClose || 0,
+      dailyBaselineDate: fresh?.dailyBaselineDate || '',
+      dailyBaselineSource: fresh?.dailyBaselineSource || '',
+      sessionPreviousClose: fresh?.sessionPreviousClose || 0,
+      providerPreviousClose: fresh?.providerPreviousClose || 0,
       changePercent: fresh?.changePercent || 0,
       ytdChangePercent: fresh?.ytdChangePercent || 0,
       intraday: fresh?.intraday || [],
@@ -2739,6 +2744,11 @@ function MainApp({ user, onLogout }) {
               intraday: fresh.intraday || s.intraday || [],
               // 保存昨收(用于当日涨跌色)
               previousClose: fresh.previousClose || s.previousClose || 0,
+              dailyBaselineClose: fresh.dailyBaselineClose || fresh.previousClose || s.dailyBaselineClose || s.previousClose || 0,
+              dailyBaselineDate: fresh.dailyBaselineDate || s.dailyBaselineDate || '',
+              dailyBaselineSource: fresh.dailyBaselineSource || s.dailyBaselineSource || '',
+              sessionPreviousClose: fresh.sessionPreviousClose || s.sessionPreviousClose || 0,
+              providerPreviousClose: fresh.providerPreviousClose || s.providerPreviousClose || 0,
               // 保存当日涨跌
               changePercent: fresh.changePercent || 0,
               // 保存年初至今涨跌

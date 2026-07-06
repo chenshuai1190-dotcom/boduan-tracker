@@ -84,10 +84,21 @@ function findStockRealtimeRow(rows = [], symbol) {
 
 function mergeQuoteBaseline(row = {}, baseRow = null) {
   if (!baseRow) return row || {};
+  const rowDailyBaseline = asNumber(row?.dailyBaselineClose);
+  const baseDailyBaseline = asNumber(baseRow?.dailyBaselineClose);
+  const rowPreviousClose = asNumber(row?.previousClose);
+  const basePreviousClose = asNumber(baseRow?.previousClose);
+  const dailyBaselineClose = rowDailyBaseline || baseDailyBaseline || 0;
+  const previousClose = dailyBaselineClose || rowPreviousClose || basePreviousClose || 0;
   return {
     ...baseRow,
     ...row,
-    previousClose: asNumber(row?.previousClose) || asNumber(baseRow?.previousClose) || 0,
+    previousClose,
+    dailyBaselineClose,
+    dailyBaselineDate: row?.dailyBaselineDate || baseRow?.dailyBaselineDate || '',
+    dailyBaselineSource: row?.dailyBaselineSource || baseRow?.dailyBaselineSource || '',
+    sessionPreviousClose: asNumber(row?.sessionPreviousClose) || asNumber(baseRow?.sessionPreviousClose) || 0,
+    providerPreviousClose: asNumber(row?.providerPreviousClose) || asNumber(baseRow?.providerPreviousClose) || 0,
     change: asNumber(row?.change) ?? asNumber(baseRow?.change) ?? 0,
     changePercent: asNumber(row?.changePercent) ?? asNumber(baseRow?.changePercent) ?? 0,
     ytdChangePercent: asNumber(row?.ytdChangePercent) || asNumber(baseRow?.ytdChangePercent) || 0,
@@ -97,14 +108,21 @@ function mergeQuoteBaseline(row = {}, baseRow = null) {
 }
 
 function hasRealtimeDailyBaseline(row = {}, tick = {}) {
+  const tickDailyBaselineClose = asNumber(tick?.dailyBaselineClose);
+  if (tickDailyBaselineClose && tickDailyBaselineClose > 0) return true;
   const tickPreviousClose = asNumber(tick?.previousClose);
   if (tickPreviousClose && tickPreviousClose > 0) return true;
+  const rowDailyBaselineClose = asNumber(row?.dailyBaselineClose);
+  if (rowDailyBaselineClose && rowDailyBaselineClose > 0) return true;
   const rowPreviousClose = asNumber(row?.previousClose);
   return Boolean(rowPreviousClose && rowPreviousClose > 0);
 }
 
 function isExtendedStockRealtimeRow(row, now) {
   const status = String(row?.marketStatus || '').trim().toLowerCase();
+  if (status.includes('open') || status.includes('regular')) {
+    return false;
+  }
   if (
     status.includes('extended')
     || status.includes('pre')
@@ -143,13 +161,25 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
   const price = asNumber(tick?.price) || 0;
   const previousIntraday = Array.isArray(row?.intraday) ? row.intraday : [];
   const intraday = [...previousIntraday, price].slice(-80);
+  const tickDailyBaselineClose = asNumber(tick?.dailyBaselineClose);
   const tickPreviousClose = asNumber(tick?.previousClose);
   const tickChange = asNumber(tick?.change);
   const tickChangePercent = asNumber(tick?.changePercent);
+  const rowDailyBaselineClose = asNumber(row?.dailyBaselineClose);
   const rowPreviousClose = asNumber(row?.previousClose);
-  const previousClose = tickPreviousClose && tickPreviousClose > 0
-    ? tickPreviousClose
-    : (rowPreviousClose && rowPreviousClose > 0 ? rowPreviousClose : null);
+  const hasLockedRowBaseline = rowDailyBaselineClose && rowDailyBaselineClose > 0;
+  const extendedTick = isExtendedStockRealtimeRow({
+    ...row,
+    marketStatus: tick?.marketStatus || row?.marketStatus,
+  }, Date.now());
+  const fallbackPreviousClose = extendedTick
+    ? (rowPreviousClose && rowPreviousClose > 0 ? rowPreviousClose : tickPreviousClose)
+    : (tickPreviousClose && tickPreviousClose > 0 ? tickPreviousClose : rowPreviousClose);
+  const previousClose = hasLockedRowBaseline
+    ? rowDailyBaselineClose
+    : (tickDailyBaselineClose && tickDailyBaselineClose > 0
+      ? tickDailyBaselineClose
+      : (fallbackPreviousClose && fallbackPreviousClose > 0 ? fallbackPreviousClose : null));
   const change = previousClose && previousClose > 0
     ? price - previousClose
     : (tickChange ?? asNumber(row?.change) ?? 0);
@@ -170,6 +200,11 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
     week52High: Math.max(asNumber(row?.week52High) || 0, high),
     intraday,
     previousClose: previousClose || row?.previousClose || 0,
+    dailyBaselineClose: previousClose || row?.dailyBaselineClose || 0,
+    dailyBaselineDate: row?.dailyBaselineDate || tick?.dailyBaselineDate || '',
+    dailyBaselineSource: row?.dailyBaselineSource || tick?.dailyBaselineSource || '',
+    sessionPreviousClose: asNumber(tick?.sessionPreviousClose) || asNumber(row?.sessionPreviousClose) || tickPreviousClose || 0,
+    providerPreviousClose: asNumber(tick?.providerPreviousClose) || asNumber(row?.providerPreviousClose) || tickPreviousClose || 0,
     change,
     changePercent,
     source: tick?.source || 'EODHD_WS',

@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import handler from '../api/quote.js';
-import { normalizeEodhdStockQuoteFields } from '../server/quote/providers/eodhd.js';
+import {
+  findDailyBaselineCloseFromEodRows,
+  normalizeEodhdStockQuoteFields,
+} from '../server/quote/providers/eodhd.js';
 
 function createResponse() {
   return {
@@ -193,7 +196,7 @@ async function mockProviderFetch(url) {
     return jsonResponse([
       { date: `${currentYear}-01-02`, high: 102, low: 98, close: 100, adjusted_close: 100 },
       { date: `${currentYear}-06-30`, high: 150, low: 140, close: 145, adjusted_close: 145 },
-      { date: `${currentYear}-07-01`, high: 156, low: 148, close: 155, adjusted_close: 155 },
+      { date: `${currentYear}-07-01`, high: 156, low: 148, close: 150, adjusted_close: 150 },
     ]);
   }
 
@@ -431,6 +434,40 @@ test('EODHD stock normalizer recomputes extended-session change from ethPrice', 
   assert.equal(quote.changeSource, 'computed-extended');
 });
 
+test('EODHD stock normalizer uses locked daily baseline during extended session', () => {
+  const dailyBaseline = findDailyBaselineCloseFromEodRows([
+    { date: '2026-07-02', close: 194.8, adjusted_close: 194.8 },
+    { date: '2026-07-06', close: 195.55, adjusted_close: 195.55 },
+  ], '2026-07-06');
+  const quote = normalizeEodhdStockQuoteFields({
+    lastTradePrice: 195.55,
+    ethPrice: 195.274,
+    previousClosePrice: 195.55,
+    high: 197.55,
+    low: 194,
+    open: 194.48,
+    timestamp: 1783366740,
+    change: 0,
+    changePercent: 0,
+  }, {
+    now: Date.UTC(2026, 6, 6, 23, 39, 0),
+    dailyBaselineClose: dailyBaseline.close,
+    dailyBaselineDate: dailyBaseline.date,
+    dailyBaselineSource: dailyBaseline.source,
+  });
+
+  assert.equal(quote.quoteSession, 'extended');
+  assert.equal(quote.priceMode, 'extended');
+  assert.equal(quote.price, 195.274);
+  assert.equal(quote.sessionPreviousClose, 195.55);
+  assert.equal(quote.previousClose, 194.8);
+  assert.equal(quote.dailyBaselineClose, 194.8);
+  assert.equal(quote.dailyBaselineDate, '2026-07-02');
+  assert.equal(Number(quote.change.toFixed(3)), 0.474);
+  assert.equal(Number(quote.changePercent.toFixed(4)), 0.2433);
+  assert.equal(quote.changeSource, 'computed-extended');
+});
+
 test('EODHD stock normalizer recomputes stale zero change when selected price moved', () => {
   const quote = normalizeEodhdStockQuoteFields({
     lastTradePrice: 100,
@@ -537,6 +574,7 @@ test('stock quote response shape is stable', async () => {
   assert.equal(quote.yearStartPrice, 100);
   assert.ok(Math.abs(quote.ytdChangePercent - 55) < 0.000001);
   assert.equal(quote.previousClose, 150);
+  assert.equal(quote.dailyBaselineClose, 150);
   assert.ok(Math.abs(quote.changePercent - ((155 - 150) / 150) * 100) < 0.000001);
   assert.equal(Array.isArray(quote.intraday), true);
   assert.equal(Array.isArray(quote.intradayPoints), true);
@@ -552,15 +590,16 @@ test('stock quote core fields do not fall back to Yahoo chart data', async () =>
   assert.equal(quote.priceSource, undefined);
 });
 
-test('stock quote missing EODHD previous close does not use Yahoo chart previous close', async () => {
+test('stock quote missing EODHD quote previous close does not use Yahoo chart previous close', async () => {
   const quote = await callQuote('NOPREV');
 
   assert.equal(quote.symbol, 'NOPREV');
   assert.equal(quote.source, 'EODHD');
   assert.equal(quote.priceSource, 'EODHD-v2');
   assert.equal(quote.price, 155);
-  assert.equal(quote.previousClose, 0);
-  assert.equal(quote.change, 0);
-  assert.equal(quote.changePercent, 0);
+  assert.equal(quote.previousClose, 150);
+  assert.equal(quote.dailyBaselineClose, 150);
+  assert.equal(quote.change, 5);
+  assert.ok(Math.abs(quote.changePercent - ((155 - 150) / 150) * 100) < 0.000001);
   assert.deepEqual(quote.intraday, [151, 153, 155]);
 });

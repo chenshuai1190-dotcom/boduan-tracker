@@ -15,6 +15,24 @@ function isPositiveNumber(value) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+export function getUsEquityMarketDate(now = Date.now()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(now));
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+    return year && month && day ? `${year}-${month}-${day}` : '';
+  } catch {
+    return '';
+  }
+}
+
 export function getUsEquityQuoteSession(now = Date.now()) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -44,13 +62,41 @@ export function getUsEquityQuoteSession(now = Date.now()) {
   }
 }
 
-export function normalizeEodhdStockQuoteFields(data, { now = Date.now() } = {}) {
+export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
+  if (!marketDate || !Array.isArray(rows)) return null;
+  const candidates = rows
+    .filter((day) => day && day.date && String(day.date) < marketDate)
+    .map((day) => {
+      const adjustedClose = parseQuoteNumber(day.adjusted_close);
+      const rawClose = parseQuoteNumber(day.close);
+      const close = isPositiveNumber(adjustedClose) ? adjustedClose : rawClose;
+      return isPositiveNumber(close)
+        ? { date: String(day.date), close, source: isPositiveNumber(adjustedClose) ? 'eodhd-adjusted-close' : 'eodhd-close' }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return candidates[candidates.length - 1] || null;
+}
+
+export function normalizeEodhdStockQuoteFields(data, {
+  now = Date.now(),
+  dailyBaselineClose = null,
+  dailyBaselineDate = '',
+  dailyBaselineSource = '',
+} = {}) {
   const lastTradePrice = parseQuoteNumber(data?.lastTradePrice);
   const ethPrice = parseQuoteNumber(data?.ethPrice);
-  const previousClose = parseQuoteNumber(data?.previousClosePrice) || 0;
+  const providerPreviousClose = parseQuoteNumber(data?.previousClosePrice) || 0;
   const rawChange = parseQuoteNumber(data?.change);
   const rawChangePercent = parseQuoteNumber(data?.changePercent);
   const quoteSession = getUsEquityQuoteSession(now);
+  const historicalDailyBaselineClose = parseQuoteNumber(dailyBaselineClose);
+  const useHistoricalDailyBaseline = isPositiveNumber(historicalDailyBaselineClose)
+    && (quoteSession !== 'regular' || !isPositiveNumber(providerPreviousClose));
+  const previousClose = useHistoricalDailyBaseline
+    ? historicalDailyBaselineClose
+    : providerPreviousClose;
   const hasLastTradePrice = isPositiveNumber(lastTradePrice);
   const hasEthPrice = isPositiveNumber(ethPrice);
   const useExtendedPrice = quoteSession === 'extended' && hasEthPrice;
@@ -86,6 +132,11 @@ export function normalizeEodhdStockQuoteFields(data, { now = Date.now() } = {}) 
     previousClose,
     change,
     changePercent,
+    dailyBaselineClose: previousClose,
+    dailyBaselineDate: useHistoricalDailyBaseline ? dailyBaselineDate : '',
+    dailyBaselineSource: useHistoricalDailyBaseline ? dailyBaselineSource : 'eodhd-quote-previous-close',
+    sessionPreviousClose: providerPreviousClose,
+    providerPreviousClose,
     dayHigh: parseQuoteNumber(data?.high) || 0,
     dayLow: parseQuoteNumber(data?.low) || 0,
     open: parseQuoteNumber(data?.open) || 0,
@@ -450,12 +501,14 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null),
     ]);
 
+    let rawEodhdQuoteData = null;
     let eodhdQuote = null;
     if (quoteRes.ok) {
       try {
         const json = await quoteRes.json();
         const data = json?.data?.[`${symbol}.US`];
         if (data) {
+          rawEodhdQuoteData = data;
           eodhdQuote = normalizeEodhdStockQuoteFields(data);
         }
       } catch (e) {
@@ -508,13 +561,6 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       };
     }
 
-    const previousClose = eodhdQuote.previousClose;
-    const changePercent = eodhdQuote.changePercent;
-    const change = eodhdQuote.change;
-    const dayHigh = eodhdQuote.dayHigh || price;
-    const dayLow = eodhdQuote.dayLow || price;
-    const open = eodhdQuote.open || price;
-    const timestamp = eodhdQuote.timestamp || Math.floor(Date.now() / 1000);
     const priceSource = 'EODHD-v2';
 
     let week52High = 0;
@@ -523,10 +569,12 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     let yearStartPrice = 0;
     let yearStartDate = '';
     let ytdChangePercent = 0;
+    let dailyBaseline = null;
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
+          dailyBaseline = findDailyBaselineCloseFromEodRows(eodData, getUsEquityMarketDate());
           const currentYearStart = `${today.getFullYear()}-01-01`;
           const historyRows = eodData
             .filter((day) => day && day.date)
@@ -559,6 +607,22 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     }
     if (week52Low === Infinity) week52Low = 0;
 
+    if (rawEodhdQuoteData && dailyBaseline?.close) {
+      eodhdQuote = normalizeEodhdStockQuoteFields(rawEodhdQuoteData, {
+        dailyBaselineClose: dailyBaseline.close,
+        dailyBaselineDate: dailyBaseline.date,
+        dailyBaselineSource: dailyBaseline.source,
+      });
+    }
+
+    const previousClose = eodhdQuote.previousClose;
+    const changePercent = eodhdQuote.changePercent;
+    const change = eodhdQuote.change;
+    const dayHigh = eodhdQuote.dayHigh || price;
+    const dayLow = eodhdQuote.dayLow || price;
+    const open = eodhdQuote.open || price;
+    const timestamp = eodhdQuote.timestamp || Math.floor(Date.now() / 1000);
+
     return {
       symbol,
       price,
@@ -576,6 +640,11 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       highSource,
       open,
       previousClose,
+      dailyBaselineClose: eodhdQuote.dailyBaselineClose,
+      dailyBaselineDate: eodhdQuote.dailyBaselineDate,
+      dailyBaselineSource: eodhdQuote.dailyBaselineSource,
+      sessionPreviousClose: eodhdQuote.sessionPreviousClose,
+      providerPreviousClose: eodhdQuote.providerPreviousClose,
       timestamp,
       intraday,
       intradayPoints,

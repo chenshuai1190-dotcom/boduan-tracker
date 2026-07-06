@@ -4,6 +4,8 @@ function toNumber(value) {
 }
 
 function inferPreviousClose(quote, currentPrice) {
+  const dailyBaselineClose = toNumber(quote?.dailyBaselineClose);
+  if (dailyBaselineClose > 0) return dailyBaselineClose;
   const explicitPreviousClose = toNumber(quote?.previousClose);
   if (explicitPreviousClose > 0) return explicitPreviousClose;
   const change = toNumber(quote?.change);
@@ -139,6 +141,8 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       currentPrice,
       high,
       previousClose,
+      dailyBaselineClose: previousClose,
+      dailyBaselineDate: quote?.dailyBaselineDate || '',
       changePercent,
       ytdChangePercent,
       marketValue,
