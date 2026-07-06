@@ -6,14 +6,14 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.179` 运行时代码提交 `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc` 已推送,部署重试/status commit `411f18d2d7a0d406096cd6a9c5cd08dac238f4dc` 也已推送;两次 Vercel 状态均为 rate limited。2026-07-06 23:28 CST 按用户要求再次走 SSH 推送重试部署,本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 当前生产运行时代码提交: 部署完成前仍为 `7e84d3508297e54a7f24b161def867375a617bc0`,其部署产物包含 `v10.7.9.178` 运行时代码。
-- 设置页版本: 源码已同步到 `v10.7.9.179`;生产部署完成前仍以线上验证为准。
+- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.179` 运行时代码提交 `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc` 已推送;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` 已触发 Vercel success。
+- 当前生产运行时代码提交: `297fb19adfd76caacaa74cee1b42cbcac3280631`,部署产物包含 `v10.7.9.179` 运行时代码。
+- 设置页版本: `v10.7.9.179`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: `a2a93fe` and `411f18d` both returned `failure`: `Deployment rate limited — retry in 24 hours`;最近成功部署仍为 `7e84d35` (`Deployment has completed`),target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。
+- 最新 Vercel 状态: `297fb19` deployment `success` (`Deployment has completed`),target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 当前生产入口仍为 `/assets/index-C6-UhbcK.js`;runtime imports `/assets/App-LL_kdpY6.js` and `/assets/SettingsTab-Cp0Y-uFi.js`;`App-LL_kdpY6.js` contains `fresh:!0`, `_ts`, `no-store`, `no-cache`, `auto-start-cloud`, `auto-focus`, `auto-pageshow`, `auto-tab`, `auto-realtime-open`;`SettingsTab-Cp0Y-uFi.js` contains `v10.7.9.178`;`settingsChangelog-BXOg8av5.js` contains `v10.7.9.178`, `行情请求禁用浏览器缓存` and `股票行情即时刷新`;未登录 `GET /api/quote?symbols=VIX` 返回 `401` 且 `cache-control: private, no-store, max-age=0, must-revalidate`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。`v10.7.9.179` 部署后需重新验证新的 production marker。
-- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线启动云端账本加载完成、回到前台、窗口聚焦、页面恢复、切到首页/交易页和股票 WebSocket 打开后的快速行情刷新。`v10.7.9.178` 已上线,修复主行情刷新被浏览器 15 秒 cache 吃掉的问题。`v10.7.9.179` 源码新增 iOS 添加到主屏幕后回到前台/恢复触摸的秒级 fresh 行情刷新。用户自写内容、交易账本、摊薄工具、行情鉴权和数据库结构不变。
+- 线上关键验证: 生产入口 `/assets/index-CRPd3mTF.js`;entry imports `/assets/App-D9Mx_Z7I.js`;`App-D9Mx_Z7I.js` contains `auto-ios-resume`, `auto-ios-touch-resume`, `auto-ios-online`, `pagehide`, `pointerdown`, `touchstart`, `_ts`, `no-store` and `no-cache`;`SettingsTab-DrDcSIBt.js` contains `v10.7.9.179`, `iOS 回到前台` and `iOS 触摸恢复`;`settingsChangelog-C-FefGlk.js` contains `v10.7.9.179` and `iOS 主屏幕秒级恢复刷新`;未登录 `GET /api/quote?symbols=VIX` 返回 `401` 且 `cache-control: private, no-store, max-age=0, must-revalidate`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线启动云端账本加载完成、回到前台、窗口聚焦、页面恢复、切到首页/交易页和股票 WebSocket 打开后的快速行情刷新。`v10.7.9.178` 已上线,修复主行情刷新被浏览器 15 秒 cache 吃掉的问题。`v10.7.9.179` 已上线 iOS 添加到主屏幕后回到前台/恢复触摸的秒级 fresh 行情刷新。用户自写内容、交易账本、摊薄工具、行情鉴权和数据库结构不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
@@ -21,17 +21,17 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
-- 当前生产运行时基准提交: 部署完成前仍为 `7e84d3508297e54a7f24b161def867375a617bc0`
+- 当前生产运行时基准提交: `297fb19adfd76caacaa74cee1b42cbcac3280631`
 - 最近应用代码提交: `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`,包含 `v10.7.9.179` iOS PWA 恢复刷新代码。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: 源码 `v10.7.9.179`;生产部署完成前仍以线上验证为准。
-- Vercel 最新运行时部署: 部署完成前仍为 success,`v10.7.9.178` production marker verified。
+- 设置页版本: `v10.7.9.179`。
+- Vercel 最新运行时部署: success,`v10.7.9.179` production marker verified。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。
+- Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 到 `v10.7.9.161` 梳理盘前实时行情和股票核心行情来源;`v10.7.9.162` 到 `v10.7.9.166` 分阶段把英文模式扩展到交易页、资产页和目标页;`v10.7.9.167` 修复交易页持仓列表市值小数显示;`v10.7.9.168` 统一 CNY 显示并隐藏首页/交易页头部 `LIVE` 视觉入口;`v10.7.9.169` 优化交易录入弹窗结构;`v10.7.9.170` 修正交易录入弹窗字号、步骤标记和二次确认样式;`v10.7.9.171` 同步摊薄成本工具弹窗、目标页详情遮罩和首页/交易页币种状态;`v10.7.9.172` 调整交易弹窗标题、目标页“投资心得”命名和详情背景蒙版;`v10.7.9.173` 收紧首页自选/成功提示和交易确认弹窗字重、图标、信息行及金色描边;`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线前台/切页/实时连接后的快速行情刷新;`v10.7.9.178` 已上线主行情刷新禁用浏览器缓存;`v10.7.9.179` 源码新增 iOS 主屏幕 Web App 恢复/触摸兜底刷新。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 到 `v10.7.9.161` 梳理盘前实时行情和股票核心行情来源;`v10.7.9.162` 到 `v10.7.9.166` 分阶段把英文模式扩展到交易页、资产页和目标页;`v10.7.9.167` 修复交易页持仓列表市值小数显示;`v10.7.9.168` 统一 CNY 显示并隐藏首页/交易页头部 `LIVE` 视觉入口;`v10.7.9.169` 优化交易录入弹窗结构;`v10.7.9.170` 修正交易录入弹窗字号、步骤标记和二次确认样式;`v10.7.9.171` 同步摊薄成本工具弹窗、目标页详情遮罩和首页/交易页币种状态;`v10.7.9.172` 调整交易弹窗标题、目标页“投资心得”命名和详情背景蒙版;`v10.7.9.173` 收紧首页自选/成功提示和交易确认弹窗字重、图标、信息行及金色描边;`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线前台/切页/实时连接后的快速行情刷新;`v10.7.9.178` 已上线主行情刷新禁用浏览器缓存;`v10.7.9.179` 已上线 iOS 主屏幕 Web App 恢复/触摸兜底刷新。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
 ## 2. 先读这些文档
 
