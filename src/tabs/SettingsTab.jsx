@@ -13,8 +13,6 @@ export default function SettingsTab({ ctx }) {
     pwdLoading,
     pwdMsg,
     quoteDiagnosticLogs = [],
-    resetAll,
-    RotateCcw,
     setChangelogExpanded,
     setNewPwd,
     setPwdLoading,
@@ -94,7 +92,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.144
+                  v10.7.9.145
                 </span>
               </div>
             </div>
@@ -297,7 +295,7 @@ export default function SettingsTab({ ctx }) {
                   更新日志
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.144
+                  v10.7.9.145
                 </span>
               </div>
 
@@ -374,27 +372,13 @@ export default function SettingsTab({ ctx }) {
               )}
             </div>
 
-            {/* 数据维护 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <h2 className="mb-3 text-lg font-black text-white">数据维护</h2>
-              <div className="mb-3 rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-xs leading-relaxed text-white/55">
-                数据会随账号自动同步。这里仅保留本机重置入口。
-              </div>
-              <button
-                onClick={resetAll}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.07] py-2.5 text-sm font-bold text-white active:scale-95 transition"
-              >
-                <RotateCcw className="w-4 h-4" /> 重置本地数据
-              </button>
-            </div>
-
             {/* 关于 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <h2 className="mb-3 text-lg font-black text-white">关于 X MONEY</h2>
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.144</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.145</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>数据源</span>

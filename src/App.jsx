@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RotateCcw, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
@@ -30,7 +30,7 @@ const PULL_REFRESH_ROOT_TOP_TOLERANCE = 1;
 const APP_SHELL_REFRESH_PARAM = '__xmoney_refresh';
 const QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY = 'xmoney_quote_diagnostic_log_v1';
 const QUOTE_DIAGNOSTIC_LOG_LIMIT = 30;
-const RESET_LOCAL_DATA_CONFIRM_PHRASE = '确认清空';
+const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set(['auto-start', 'auto-interval', 'auto-visible']);
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -350,6 +350,18 @@ function buildQuoteDiagnosticEntry({
       providerErrors.map(item => `${item.symbol}:${item.provider}:${item.message}`).join('|'),
     ].join('::'),
   };
+}
+
+function shouldRecordQuoteDiagnosticEntry(entry) {
+  if (!entry) return false;
+  if (
+    entry.mode === 'auto-silent'
+    && entry.root === 'browser-network'
+    && AUTO_NETWORK_DIAGNOSTIC_TRIGGERS.has(entry.trigger)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function readCachedStockLogos() {
@@ -1160,10 +1172,6 @@ function MainApp({ user, onLogout }) {
   const [confirmModal, setConfirmModal] = useState(null);
   const [confirmSubmitting, setConfirmSubmitting] = useState(false);
   const confirmSubmittingRef = useRef(false);
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [resetConfirmText, setResetConfirmText] = useState('');
-  const [resetConfirmSubmitting, setResetConfirmSubmitting] = useState(false);
-  const resetConfirmMatched = resetConfirmText.trim() === RESET_LOCAL_DATA_CONFIRM_PHRASE;
   const showConfirm = useCallback((opts) => {
     confirmSubmittingRef.current = false;
     setConfirmSubmitting(false);
@@ -1765,33 +1773,6 @@ function MainApp({ user, onLogout }) {
     })();
     return () => { cancelled = true; };
   }, [selectedEvent]);
-
-  const resetAll = () => {
-    setResetConfirmText('');
-    setResetConfirmOpen(true);
-  };
-
-  const confirmResetAll = async () => {
-    if (!resetConfirmMatched || resetConfirmSubmitting) return;
-    setResetConfirmSubmitting(true);
-    setTrades([]);
-    setStockTrades([]);
-    setQqqHigh(640.47);
-    setQqqCurrent(640.47);
-    setTotalCapital(500000);
-    try { localStorage.removeItem('tqqq_state'); } catch {}  // 兼容隐私模式
-    setResetConfirmOpen(false);
-    setResetConfirmText('');
-    setResetConfirmSubmitting(false);
-    showConfirm({
-      title: '本地数据已清空',
-      desc: '云端数据保留,刷新后仍会按账号重新同步。',
-      icon: '✓',
-      confirmText: '知道了',
-      confirmStyle: 'primary',
-      showCancel: false,
-    });
-  };
 
   // ============ 计算逻辑 ============
   const drawdown = (qqqCurrent - qqqHigh) / qqqHigh;
@@ -2464,7 +2445,7 @@ function MainApp({ user, onLogout }) {
 
       const providerErrors = collectQuoteProviderErrors(result.data);
       if (providerErrors.length > 0) {
-        recordQuoteDiagnosticLog(buildQuoteDiagnosticEntry({
+        const diagnostic = buildQuoteDiagnosticEntry({
           trigger,
           notifyOnError,
           symbols: requestedSymbols,
@@ -2472,7 +2453,10 @@ function MainApp({ user, onLogout }) {
           status: r.status,
           result,
           durationMs: Date.now() - startedAt,
-        }));
+        });
+        if (shouldRecordQuoteDiagnosticEntry(diagnostic)) {
+          recordQuoteDiagnosticLog(diagnostic);
+        }
       }
 
       // 更新股票价格
@@ -2572,7 +2556,11 @@ function MainApp({ user, onLogout }) {
       });
       console.warn('[行情拉取] 失败:', e);
       console.warn('[行情诊断]', diagnostic);
-      recordQuoteDiagnosticLog(diagnostic);
+      if (shouldRecordQuoteDiagnosticEntry(diagnostic)) {
+        recordQuoteDiagnosticLog(diagnostic);
+      } else {
+        console.info('[行情诊断] 自动网络抖动已忽略,不写入设置页日志:', diagnostic);
+      }
       if (notifyOnError) setFetchError(message);
       return { ok: false, error: message };
     } finally {
@@ -3438,9 +3426,7 @@ function MainApp({ user, onLogout }) {
     RefreshCw,
     removeStock,
     reorderWatchlist,
-    resetAll,
     reviewLogs,
-    RotateCcw,
     clearQuoteDiagnosticLogs,
     setAccountDeleteConfirmId,
     setAccounts,
@@ -3692,87 +3678,6 @@ function MainApp({ user, onLogout }) {
 
         {/* ====== 设置 tab ====== */}
 
-
-        {/* === 重置本地数据二次确认 Modal === */}
-        {resetConfirmOpen && (
-          <div
-            className="fixed inset-0 z-[125] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !resetConfirmSubmitting) {
-                setResetConfirmOpen(false);
-                setResetConfirmText('');
-              }
-            }}
-            style={{ paddingTop: 'env(safe-area-inset-top)' }}
-          >
-            <div
-              className="w-full max-w-md rounded-t-3xl border border-white/10 bg-[#0b0f14] shadow-[0_24px_80px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)] sm:rounded-3xl"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mx-auto mb-2 mt-3 h-1 w-10 rounded-full bg-white/20 sm:hidden"></div>
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-rose-300/70">
-                      危险操作
-                    </div>
-                    <h3 className="mt-1 text-lg font-black text-white">重置本地数据</h3>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (resetConfirmSubmitting) return;
-                      setResetConfirmOpen(false);
-                      setResetConfirmText('');
-                    }}
-                    disabled={resetConfirmSubmitting}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/70 active:scale-95 disabled:opacity-50"
-                    aria-label="关闭"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-rose-400/15 bg-rose-400/[0.08] px-3 py-3 text-[12px] leading-relaxed text-rose-100/80">
-                  此操作只清空本机交易记录、TQQQ 状态和本机资金设置。云端数据不会被删除,刷新后仍会按账号重新同步。
-                </div>
-
-                <label className="mt-4 block text-[12px] font-bold text-white/65">
-                  输入“{RESET_LOCAL_DATA_CONFIRM_PHRASE}”继续
-                </label>
-                <input
-                  value={resetConfirmText}
-                  onChange={(e) => setResetConfirmText(e.target.value)}
-                  placeholder={RESET_LOCAL_DATA_CONFIRM_PHRASE}
-                  disabled={resetConfirmSubmitting}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-3 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-[#f6a524]/45 focus:bg-black/45 disabled:opacity-60"
-                  autoFocus
-                />
-
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      if (resetConfirmSubmitting) return;
-                      setResetConfirmOpen(false);
-                      setResetConfirmText('');
-                    }}
-                    disabled={resetConfirmSubmitting}
-                    className="rounded-xl border border-white/10 bg-white/[0.07] py-3 text-sm font-bold text-white/65 active:scale-95 disabled:opacity-50"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={confirmResetAll}
-                    disabled={!resetConfirmMatched || resetConfirmSubmitting}
-                    className="rounded-xl border border-rose-400/25 bg-rose-500/20 py-3 text-sm font-black text-rose-100 active:scale-95 disabled:opacity-35 disabled:active:scale-100"
-                  >
-                    {resetConfirmSubmitting ? '处理中...' : '确认清空'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* === 🗑 通用删除确认 Modal (v10.7.9.41) === */}
         {confirmModal && (

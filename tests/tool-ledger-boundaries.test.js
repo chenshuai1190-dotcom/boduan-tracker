@@ -51,20 +51,15 @@ test('trade and wave form validation avoids native alert dialogs', () => {
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
 });
 
-test('local data reset uses typed in-app confirmation instead of native dialogs', () => {
-  const resetStart = appSource.indexOf('const resetAll = () =>');
-  const resetEnd = appSource.indexOf('// ============ 计算逻辑', resetStart);
-  const resetBlock = appSource.slice(resetStart, resetEnd);
-
-  assert.ok(resetStart > -1, 'missing local reset entry point');
-  assert.ok(resetEnd > resetStart, 'missing reset implementation boundary');
-  assert.equal(resetBlock.includes('window.confirm'), false, 'local reset must not use native confirm');
-  assert.equal(resetBlock.includes('window.prompt'), false, 'local reset must not use native prompt');
-  assert.equal(resetBlock.includes('alert('), false, 'local reset must not use native alert');
-  assert.ok(appSource.includes('RESET_LOCAL_DATA_CONFIRM_PHRASE'), 'local reset needs one shared typed-confirmation phrase');
-  assert.ok(appSource.includes('resetConfirmOpen'), 'local reset should open an in-app confirmation modal');
-  assert.ok(appSource.includes('disabled={!resetConfirmMatched || resetConfirmSubmitting}'), 'danger confirm button should stay disabled until the typed phrase matches');
-  assert.ok(appSource.includes('云端数据不会被删除'), 'local reset modal must explain that cloud data is preserved');
+test('settings data maintenance reset entry and runtime reset code stay removed', () => {
+  assert.equal(settingsTabSource.includes('数据维护'), false, 'settings should not show the unused data maintenance card');
+  assert.equal(settingsTabSource.includes('重置本地数据'), false, 'settings should not show the local reset entry');
+  assert.equal(settingsTabSource.includes('resetAll'), false, 'settings should not receive a local reset handler');
+  assert.equal(settingsTabSource.includes('RotateCcw'), false, 'settings should not keep the reset icon dependency');
+  assert.equal(appSource.includes('const resetAll ='), false, 'app runtime should not keep the local reset implementation');
+  assert.equal(appSource.includes('RESET_LOCAL_DATA_CONFIRM_PHRASE'), false, 'app runtime should not keep the reset typed-confirmation phrase');
+  assert.equal(appSource.includes('resetConfirmOpen'), false, 'app runtime should not keep the reset modal state');
+  assert.equal(appSource.includes('云端数据不会被删除'), false, 'app runtime should not keep the removed reset modal copy');
 });
 
 test('legacy service worker file stays removed while old registrations are still cleaned up', () => {
@@ -117,6 +112,11 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY'), 'quote failures should be persisted in local diagnostics');
   assert.ok(appSource.includes('buildQuoteDiagnosticEntry'), 'quote failures should capture root cause diagnostics');
   assert.ok(appSource.includes('recordQuoteDiagnosticLog(diagnostic)'), 'quote refresh failures should write a diagnostic log');
+  assert.ok(appSource.includes('shouldRecordQuoteDiagnosticEntry'), 'quote diagnostics should filter noisy automatic browser-network failures');
+  assert.ok(appSource.includes("const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set(['auto-start', 'auto-interval', 'auto-visible'])"), 'automatic foreground/start/interval browser-network errors should be classified as transient');
+  assert.ok(appSource.includes("entry.mode === 'auto-silent'"), 'diagnostic filter should only suppress automatic silent failures');
+  assert.ok(appSource.includes("entry.root === 'browser-network'"), 'diagnostic filter should only suppress browser-network failures');
+  assert.ok(appSource.includes('自动网络抖动已忽略'), 'suppressed automatic browser-network failures should remain visible in console for debugging');
   assert.ok(appSource.includes("fetchRealtimePrices(null, { trigger: 'auto-start', notifyOnError: false })"), 'automatic quote refresh failures should stay silent');
   assert.ok(appSource.includes("trigger: 'manual-pull-refresh'"), 'pull refresh should be identified as a manual quote trigger');
   assert.ok(appSource.includes('if (notifyOnError) setFetchError(message);'), 'only manual quote failures should surface bottom toasts');
@@ -432,9 +432,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.144'), 'settings version badge should document the reset and lazy-log update');
+  assert.ok(settingsTabSource.includes('v10.7.9.145'), 'settings version badge should document the data maintenance cleanup update');
   assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
   assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.145'), 'settings changelog should document the data maintenance cleanup update');
+  assert.ok(settingsChangelogSource.includes('设置页维护入口清理'), 'settings changelog should describe the data maintenance cleanup update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.144'), 'settings changelog should document the reset and lazy-log update');
   assert.ok(settingsChangelogSource.includes('设置页日志懒加载与重置确认'), 'settings changelog should describe the reset and lazy-log update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.143'), 'settings changelog should retain the quote diagnostics update');

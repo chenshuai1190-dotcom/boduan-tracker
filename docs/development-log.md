@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 设置页数据维护删除和诊断报警降噪
+
+- Commit: `same commit`
+- Background: 用户要求删除设置页不用的“数据维护”功能,包括对应代码;同时截图反馈设置页“行情诊断日志”新增 `浏览器网络 · Browser Network` 报警,触发方式为 `回到前台`,HTTP 为空且耗时约 1036ms。复查代码确认该报警来自 `visibilitychange` 回到前台时自动触发的 `/api/quote` REST 兜底,浏览器层 fetch 失败会被归因为 `browser-network`。股票已有 WebSocket 时这类自动回前台网络抖动不会影响现有行情数据,也不应进入设置页报警列表;手动刷新失败仍需要提示并记录。
+- Changes:
+  - 删除设置页“数据维护”卡片和“重置本地数据”入口。
+  - 删除 `App.jsx` 中对应的 `resetAll`、输入 `确认清空` 的二次确认弹窗、状态变量、context 传参和 `RotateCcw` 图标依赖。
+  - 行情诊断日志新增自动网络抖动过滤: `auto-start`、`auto-interval`、`auto-visible` 触发的 `auto-silent + browser-network` 失败只写 console,不再写入设置页报警列表。
+  - 手动刷新、下拉刷新、服务端错误、鉴权错误、限流、第三方局部错误仍会写入行情诊断日志;用户主动触发失败仍显示底部提示。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.145`,新增“设置页维护入口清理”。
+  - 增加源码回归测试,保护数据维护入口和运行时重置代码不回流,并保护自动浏览器网络抖动过滤逻辑。
+  - `README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动,因为没有新增环境变量、API 鉴权/RLS 变化或安全架构边界变化。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;74 tests passed.
+  - `npm run build`: pass;Vite built `App-CHErE9SX.js` (`153.95 kB`, gzip `43.34 kB`), `SettingsTab-BnPN_Ej4.js` (`12.00 kB`, gzip `3.71 kB`) and `settingsChangelog-DiOA572X.js`.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker scan: pass;built `SettingsTab` contains `v10.7.9.145` and no `数据维护` / `重置本地数据` / `resetAll`;built `App` no longer contains reset code/copy and contains automatic browser-network diagnostic suppression markers;`settingsChangelog` contains current `v10.7.9.145` and historical `v10.7.9.144`.
+- Deployment:
+  - Pending GitHub push, CI and Vercel production verification.
+- Rollback: 回退 `src/App.jsx` 的诊断过滤和 reset 代码删除、恢复 `SettingsTab.jsx` 的数据维护卡、回退 `v10.7.9.145` 设置页日志和本条测试/开发日志即可;不影响 `/api/quote` 鉴权、EODHD token 服务端隔离、三套 WebSocket relay、交易主账本、波段记录、摊薄工具或 Supabase 数据。
+
 ### 2026-07-06 - 设置页日志懒加载与重置确认
 
 - Commit: `89827b855fbb7a6239da162066a4158e5738c808`
