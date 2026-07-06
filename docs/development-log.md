@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 设置页数据维护删除和诊断报警降噪
 
-- Commit: `same commit`
+- Commit: `5e417ce4578d4d44da746658b37201cc625e9fb4`
 - Background: 用户要求删除设置页不用的“数据维护”功能,包括对应代码;同时截图反馈设置页“行情诊断日志”新增 `浏览器网络 · Browser Network` 报警,触发方式为 `回到前台`,HTTP 为空且耗时约 1036ms。复查代码确认该报警来自 `visibilitychange` 回到前台时自动触发的 `/api/quote` REST 兜底,浏览器层 fetch 失败会被归因为 `browser-network`。股票已有 WebSocket 时这类自动回前台网络抖动不会影响现有行情数据,也不应进入设置页报警列表;手动刷新失败仍需要提示并记录。
 - Changes:
   - 删除设置页“数据维护”卡片和“重置本地数据”入口。
@@ -21,6 +21,7 @@
   - `src/tabs/SettingsTab.jsx`
   - `src/lib/settingsChangelog.js`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass;74 tests passed.
@@ -29,7 +30,15 @@
   - `git diff --check`: pass.
   - Build marker scan: pass;built `SettingsTab` contains `v10.7.9.145` and no `数据维护` / `重置本地数据` / `resetAll`;built `App` no longer contains reset code/copy and contains automatic browser-network diagnostic suppression markers;`settingsChangelog` contains current `v10.7.9.145` and historical `v10.7.9.144`.
 - Deployment:
-  - Pending GitHub push, CI and Vercel production verification.
+  - Pushed to GitHub `main` as runtime commit `5e417ce4578d4d44da746658b37201cc625e9fb4`.
+  - GitHub Actions `CI` check passed for `5e417ce4578d4d44da746658b37201cc625e9fb4` (run `28762171064`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/399qrgQmPrckFhtSkQ1uKwfutmDS`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=5e417ce-maintenance-cleanup-145`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-DZt0pDG1.js`, `SettingsTab-DcFjBcya.js`, `settingsChangelog-DiOA572X.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js`, and `ReviewTab-qTkuZOCn.js`.
+  - Production settings cleanup check: pass;`SettingsTab` contains `v10.7.9.145` and no `数据维护` / `重置本地数据` / `resetAll`;`settingsChangelog` contains current `v10.7.9.145` and historical `v10.7.9.144`.
+  - Production runtime cleanup check: pass;active `App` chunk no longer contains reset code/copy and contains automatic browser-network diagnostic suppression markers.
+  - Production realtime/security marker check: pass;active runtime assets still contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`;active runtime assets do not contain `VITE_EODHD_TOKEN`, `VITE_ALLOW_BROWSER_EODHD_WS`, or `ws.eodhistoricaldata.com`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/App.jsx` 的诊断过滤和 reset 代码删除、恢复 `SettingsTab.jsx` 的数据维护卡、回退 `v10.7.9.145` 设置页日志和本条测试/开发日志即可;不影响 `/api/quote` 鉴权、EODHD token 服务端隔离、三套 WebSocket relay、交易主账本、波段记录、摊薄工具或 Supabase 数据。
 
 ### 2026-07-06 - 设置页日志懒加载与重置确认
