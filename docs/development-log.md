@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 设置页日志懒加载与重置确认
 
-- Commit: `same commit`
+- Commit: `89827b855fbb7a6239da162066a4158e5738c808`
 - Background: 用户确认继续处理三项低风险提效:把 `resetAll` 的浏览器原生二次确认改为应用内弹窗、删除已废弃的历史 `public/sw.js`、并把设置页超长历史更新日志拆出去懒加载。当前 `/api/quote` 鉴权、EODHD token 服务端隔离、Supabase RLS、交易主账本、波段旧账本和摊薄工具边界均不需要变更。
 - Changes:
   - `resetAll` 不再调用 `window.confirm` / `window.prompt` / `alert`;设置页“重置本地数据”改为深色应用内二次确认弹窗,要求输入 `确认清空` 后才允许执行。
@@ -15,11 +15,13 @@
   - 将设置页历史更新日志数组移到 `src/lib/settingsChangelog.js`,并由 `SettingsTab.jsx` 通过动态 `import('../lib/settingsChangelog.js')` 加载;设置页主 chunk 不再内联全部历史文案。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.144`,新增“设置页日志懒加载与重置确认”。
   - 增加源码回归测试,保护本地重置不回退到原生弹窗、`public/sw.js` 不再被打包、设置页历史日志保持懒加载。
+  - `docs/handoff.md` 同步当前运行时代码、设置页版本、CI/Vercel/生产验证和可转发交接块;`README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 本轮无需改动,因为没有新增环境变量、API 鉴权/RLS 变化或安全架构边界变化。
 - Key files:
   - `src/App.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `src/lib/settingsChangelog.js`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass;74 tests passed.
@@ -28,7 +30,15 @@
   - `git diff --check`: pass.
   - Build marker scan: pass;`SettingsTab` chunk contains `v10.7.9.144` and lazy chunk reference,does not contain old historical changelog strings such as `v10.7.9.143` or `首页恐慌模块回退旧版小卡`;`settingsChangelog` chunk contains current and historical changelog;built `App` chunk no longer contains reset-path `window.confirm` / `window.prompt` markers and contains the typed confirmation UI.
 - Deployment:
-  - Pending GitHub push, CI and Vercel production verification.
+  - Pushed to GitHub `main` as runtime commit `89827b855fbb7a6239da162066a4158e5738c808`.
+  - GitHub Actions `CI` check passed for `89827b855fbb7a6239da162066a4158e5738c808` (run `28761558905`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EQjL1XP75UFVtMju2GFVnxgw5pQi`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=89827b8-reset-lazy-144c`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App-IPhFd_W3.js`, `SettingsTab-DtW_k2_j.js`, `settingsChangelog-CHONosaG.js`, `HomeTab-4NbUE9pN.js`, `TradesTab-uyI19HGM.js`, `AnalysisTab-FL5TmrnT.js`, and `ReviewTab-O-gadXpQ.js`.
+  - Production settings split check: pass;`SettingsTab` chunk contains `v10.7.9.144` and lazy `settingsChangelog` reference,does not contain old historical changelog strings;`settingsChangelog` chunk contains `v10.7.9.144` and historical entries.
+  - Production reset marker check: pass;active `App` chunk does not contain reset-path `window.confirm` or `window.prompt` markers and contains typed confirmation copy `确认清空` / `云端数据不会被删除`.
+  - Production realtime/security marker check: pass;active runtime assets still contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`;active runtime assets do not contain `VITE_EODHD_TOKEN`, `VITE_ALLOW_BROWSER_EODHD_WS`, or `ws.eodhistoricaldata.com`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/App.jsx` 的重置确认 modal、恢复 `SettingsTab.jsx` 内联 changelog 并删除 `src/lib/settingsChangelog.js`,如确需恢复旧 SW 文件则恢复 `public/sw.js`;同时回退 `v10.7.9.144` 设置页日志和本条测试/开发日志即可。不影响 `/api/quote` 鉴权、EODHD token 服务端隔离、三套 WebSocket relay、交易主账本、波段记录或摊薄工具数据。
 
 ### 2026-07-06 - 老版无效代码清理和股票实时渲染减负
