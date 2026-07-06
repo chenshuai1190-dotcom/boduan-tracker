@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 交易页持仓市值两位小数
 
-- Commit: same commit
+- Commit: `223dcf34be620344980b2b959cb28c0fd75184b8`
 - Background: 用户检查交易页持仓列表时指出 `市值` 相比同一行的 `当日盈亏` 和 `持仓盈亏` 少了两位小数,要求如果属实就修复并保持一致。
 - Changes:
   - 确认交易页持仓列表 `市值/数量` 列使用 `fmtAmount(marketValue, 0)`,确实会把持仓市值显示为整数。
@@ -19,6 +19,7 @@
   - `src/lib/settingsChangelog.js`
   - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-log.md`
+  - `docs/handoff.md`
 - Validation:
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖交易页持仓市值两位小数、设置页版本和更新日志。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
@@ -26,9 +27,14 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
 - Deployment:
-  - Not deployed yet;本轮先完成本地修复和验证,可与后续需求合并发布。
+  - Pushed to GitHub `main` as runtime commit `223dcf34be620344980b2b959cb28c0fd75184b8`。
+  - GitHub Actions `CI` run `28788466456` completed successfully.
+  - Vercel production deployment completed with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7kZbRt9PsadWkTpS8YKszczepQE7`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=trade-value-decimals-167-223dcf3-*` returned HTTP 200;active entry asset is `index-RKQ9Q74C.js`。
+  - Production runtime chunks verified: `index-RKQ9Q74C.js` imports `App-CKDPn9n4.js`;runtime assets include `TradesTab-DdZ59l3X.js`, `SettingsTab--wAyAC6k.js`, and `settingsChangelog-DcOrU-lb.js`。
 - Production verification:
-  - Not run yet;待发布后做生产 marker 和鉴权边界验证。
+  - Production marker verified: `SettingsTab--wAyAC6k.js` contains `v10.7.9.167`;`settingsChangelog-DcOrU-lb.js` contains `v10.7.9.167`, `交易页持仓市值两位小数`, and `市值格式和当日盈亏`;`TradesTab-DdZ59l3X.js` renders the position-row market value with two fraction digits before the held-shares line。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的 `fmtAmount(marketValue, 2)`、`v10.7.9.167` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
 
 ### 2026-07-06 - 目标页英文模式
