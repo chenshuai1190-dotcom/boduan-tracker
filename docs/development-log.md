@@ -35,7 +35,10 @@
 - Deployment:
   - Runtime commit `a7c67489c0b2ecdb5ff3d11530cd17fa5d69a961` pushed to GitHub `main`;GitHub Actions `CI` run `28799268571` completed successfully.
   - Vercel deployment list did not show a deployment for `a7c6748` after CI and repeated production marker polling, so a follow-up GitHub `main` documentation commit was used to retrigger the Git-integrated deployment path instead of making direct Vercel changes.
-  - pending production marker
+  - Follow-up documentation commit `bf3b83614f3ad43b42d03e5345cf2b4a383c4b00` reached GitHub `main`;GitHub Actions `CI` run `28799696805` completed successfully.
+  - GitHub combined status for `bf3b836` returned Vercel `failure`: `Deployment rate limited — retry in 24 hours.`
+  - Production alias remains on old runtime `v10.7.9.175`: root entry `/assets/index-Ct1xpAha.js`,active settings chunk reports `v10.7.9.175`,and active changelog does not contain `股票涨跌幅按现价和昨收重算`.
+  - Production rollout is pending Vercel rate-limit reset;no direct Vercel changes were made.
 - Rollback: 回退本条涉及的 REST quote 强制重算、WebSocket tick previousClose 反推移除、前端实时合并重算、`v10.7.9.176` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、Yahoo 小曲线或鉴权。
 
 ### 2026-07-06 - EODHD 股票价格口径统一
