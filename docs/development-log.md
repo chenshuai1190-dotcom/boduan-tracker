@@ -4,6 +4,36 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 首页恐慌指数小卡压缩
+
+- Commit: `pending`
+- Background: 用户提供首页参考图,要求 VIX/CNN 恐慌指数区域继续压缩高度,同时把 CNN 恐慌贪婪指数圆弧图做成参考图里的细半圆仪表盘效果;明确不能改出超过效果图的大小,并保持双列小卡布局。
+- Changes:
+  - 首页 VIX/CNN 恐慌小卡继续保持 `grid grid-cols-2 gap-3` 双列布局,不恢复之前的大卡组件。
+  - 两张恐慌小卡内边距从 `p-4` 收紧为 `px-3.5 py-2.5`,标题、数值、说明和图形之间的纵向间距同步压缩。
+  - VIX 风险横条高度从 `8px` 收到 `6px`,滑块从 `16px` 收到 `14px`,继续保留 0/20/30/50 刻度和现有 VIX 数据逻辑。
+  - CNN `FgiGauge` 改为 `160x70` / `54px` 高的 SVG 细半圆仪表盘,新增 `fgiValueToAngle`、`fgiPolarPoint` 和 `describeFgiArc` 辅助函数,用真实 FGI 数值映射指针角度。
+  - CNN 仪表盘使用红-橙-黄-绿 SVG 渐变弧线、`fgiGaugeGlow` / `fgiPointGlow` 发光 filter、细指针、中心同心 ripple 和指针端发光节点。
+  - FGI 状态文案按 0-20 极度恐惧、20-40 恐惧、40-60 中性、60-80 贪婪、80+ 极度贪婪重校准;现有 `/api/quote` FGI 数据链路保持不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.151`,新增“首页恐慌指数小卡压缩”。
+  - 本轮只调整首页恐慌指数视觉和 FGI 状态阈值;不改变行情 relay、交易账本、资产、目标、Supabase RLS 或 `/api/quote` 鉴权逻辑。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including updated homepage fear-card marker checks.
+  - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/?tab=home`,Chrome headless viewport `390x844`;VIX/CNN fear cards remain side-by-side at `173px` wide and `160px` high;CNN SVG measures `143px x 54px` with `viewBox="0 0 160 70"`;document `scrollWidth=390`,no horizontal overflow;`#fgiGaugeGlow` is present.
+  - `npm run build`: pass;Vite built `HomeTab-BWzquU9N.js`, `SettingsTab-Cbe8xIkJ.js`, `settingsChangelog-B9EZ5nfK.js`, `App-Dnv70FWN.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`HomeTab-BWzquU9N.js` contains compact `0 0 160 70` / `h-[54px]` CNN gauge, `fgiGaugeGlow`, slim `strokeWidth="6"` arc, slim `strokeWidth="1.7"` pointer, and thin VIX `mt-3 h-1.5` risk bar;it no longer contains old `0 0 160 90` / thick `strokeWidth="13"` gauge markers;`SettingsTab-Cbe8xIkJ.js` contains `v10.7.9.151`;`settingsChangelog-B9EZ5nfK.js` contains `v10.7.9.151` and `首页恐慌指数小卡压缩`.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/tabs/HomeTab.jsx` 的 `FgiGauge`、FGI 阈值和恐慌小卡 class 调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.151` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 目标标题和操作弹窗收紧
 
 - Commit: `ea1742b7ab6369b93bfb7508796be15a93fe03a8`

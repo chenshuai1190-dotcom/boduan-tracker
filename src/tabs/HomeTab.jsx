@@ -272,27 +272,93 @@ function RadarVisual({ active }) {
 
 function fgiLevel(value) {
   const v = num(value);
-  if (v < 25) return { label: '极恐', color: '#f43f5e', desc: '市场极度恐慌' };
-  if (v < 45) return { label: '恐惧', color: '#fb7185', desc: '市场偏恐惧, 谨慎布局' };
-  if (v < 55) return { label: '中性', color: '#94a3b8', desc: '市场情绪中性' };
-  if (v < 75) return { label: '贪婪', color: '#22c55e', desc: '市场偏热, 控制追高' };
-  return { label: '极贪', color: '#16a34a', desc: '高风险区, 减仓为主' };
+  if (v <= 20) return { label: '极度恐惧', color: '#f43f5e', desc: '市场极度恐惧' };
+  if (v <= 40) return { label: '恐惧', color: '#fb7185', desc: '市场偏恐惧, 谨慎布局' };
+  if (v <= 60) return { label: '中性', color: '#facc15', desc: '市场情绪中性' };
+  if (v <= 80) return { label: '贪婪', color: '#22c55e', desc: '市场偏贪婪, 控制追高' };
+  return { label: '极度贪婪', color: '#16a34a', desc: '高风险区, 减仓为主' };
+}
+
+function fgiValueToAngle(value) {
+  return 180 - (Math.max(0, Math.min(100, num(value))) / 100) * 180;
+}
+
+function fgiPolarPoint(cx, cy, radius, angle) {
+  const radians = (angle * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(radians),
+    y: cy - radius * Math.sin(radians),
+  };
+}
+
+function describeFgiArc(cx, cy, radius, startValue, endValue) {
+  const startAngle = fgiValueToAngle(startValue);
+  const endAngle = fgiValueToAngle(endValue);
+  const start = fgiPolarPoint(cx, cy, radius, startAngle);
+  const end = fgiPolarPoint(cx, cy, radius, endAngle);
+  const largeArcFlag = Math.abs(startAngle - endAngle) > 180 ? 1 : 0;
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
 function FgiGauge({ value }) {
   const v = Math.max(0, Math.min(100, num(value)));
-  const angle = -90 + (v / 100) * 180;
+  const cx = 80;
+  const cy = 60;
+  const radius = 42;
+  const angle = fgiValueToAngle(v);
   const level = fgiLevel(v);
+  const pointer = fgiPolarPoint(cx, cy, 33, angle);
+  const arcPath = describeFgiArc(cx, cy, radius, 0, 100);
+  const separators = [20, 50, 80].map((tick) => ({
+    inner: fgiPolarPoint(cx, cy, radius - 5, fgiValueToAngle(tick)),
+    outer: fgiPolarPoint(cx, cy, radius + 1, fgiValueToAngle(tick)),
+  }));
   return (
-    <svg viewBox="0 0 160 90" className="h-[76px] w-full">
-      <path d="M 20 78 A 60 60 0 0 1 140 78" fill="none" stroke="#f97316" strokeWidth="13" strokeLinecap="round" />
-      <path d="M 45 28 A 48 48 0 0 1 115 28" fill="none" stroke="#22c55e" strokeWidth="13" strokeLinecap="round" />
-      <path d="M 80 78 L 80 26" stroke="#d1d5db" strokeWidth="2.5" strokeLinecap="round" style={{ transformOrigin: '80px 78px', transform: `rotate(${angle}deg)` }} />
-      <circle cx="80" cy="78" r="5" fill="#d1d5db" />
-      <text x="20" y="88" fill="#7f8794" fontSize="9">0</text>
-      <text x="76" y="20" fill="#7f8794" fontSize="9">50</text>
-      <text x="133" y="88" fill="#7f8794" fontSize="9">100</text>
-      <text x="80" y="70" textAnchor="middle" fill={level.color} fontSize="18" fontWeight="900">{Math.round(v)}</text>
+    <svg viewBox="0 0 160 70" className="h-[54px] w-full overflow-visible" aria-label={`CNN 恐慌贪婪指数 ${Math.round(v)} ${level.label}`}>
+      <defs>
+        <linearGradient id="fgiArcGradient" x1="38" y1="60" x2="122" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#f43f5e" />
+          <stop offset="33%" stopColor="#fb923c" />
+          <stop offset="53%" stopColor="#facc15" />
+          <stop offset="72%" stopColor="#a3e635" />
+          <stop offset="100%" stopColor="#22c55e" />
+        </linearGradient>
+        <linearGradient id="fgiPointerGradient" x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={level.color} stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#f8fafc" stopOpacity="0.95" />
+        </linearGradient>
+        <filter id="fgiGaugeGlow" x="-30%" y="-40%" width="160%" height="170%">
+          <feGaussianBlur stdDeviation="2.4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id="fgiPointGlow" x="-120%" y="-120%" width="340%" height="340%">
+          <feGaussianBlur stdDeviation="2.8" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="7.5" strokeLinecap="round" opacity="0.24" filter="url(#fgiGaugeGlow)" />
+      <path d={arcPath} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" strokeLinecap="round" />
+      <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="6" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
+      {separators.map((tick, index) => (
+        <line key={index} x1={tick.inner.x} y1={tick.inner.y} x2={tick.outer.x} y2={tick.outer.y} stroke="#0b0f14" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+      ))}
+      <line x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} stroke="url(#fgiPointerGradient)" strokeWidth="1.7" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
+      <circle cx={cx} cy={cy} r="11" fill="none" stroke={level.color} strokeOpacity="0.08" />
+      <circle cx={cx} cy={cy} r="7.5" fill="none" stroke={level.color} strokeOpacity="0.14" />
+      <circle cx={cx} cy={cy} r="5" fill={level.color} fillOpacity="0.22" filter="url(#fgiPointGlow)" />
+      <circle cx={cx} cy={cy} r="3.2" fill="#f8fafc" />
+      <circle cx={pointer.x} cy={pointer.y} r="6.2" fill={level.color} fillOpacity="0.26" filter="url(#fgiPointGlow)" />
+      <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
+      <text x="36" y="66" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>
+      <text x="80" y="22" fill="#7f8794" fontSize="9" textAnchor="middle">50</text>
+      <text x="124" y="66" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>
+      <text x="80" y="54" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
     </svg>
   );
 }
@@ -753,38 +819,38 @@ export default function HomeTab({ ctx }) {
       )}
 
       <section className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-3.5 py-2.5">
           <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
             VIX 恐慌指数
             {vixDateLabel && <span className="text-[10px] text-white/40">{vixDateLabel} 收盘</span>}
           </div>
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2">
             <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
-            <span className="h-4 w-4 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
+            <span className="h-3.5 w-3.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]" />
           </div>
-          <div className="mt-3 text-[12px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
-          <div className="mt-5 h-2 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500">
-            <div className="relative h-2">
+          <div className="mt-1.5 text-[12px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
+          <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
+            <div className="relative h-1.5">
               <span
-                className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow"
+                className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.75)]"
                 style={{ left: `${Math.max(0, Math.min(100, (num(vix) / 50) * 100))}%`, transform: 'translate(-50%, -50%)' }}
               />
             </div>
           </div>
-          <div className="mt-2 flex justify-between text-[10px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
+          <div className="mt-1.5 flex justify-between text-[10px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-3.5 py-2.5">
           <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
             CNN 恐慌贪婪指数
             {fgiDateLabel && <span className="text-[10px] text-white/40">{fgiDateLabel}</span>}
           </div>
-          <div className="mt-4 flex items-baseline gap-2">
+          <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-2xl font-normal tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
             <span className="text-sm font-normal" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
           </div>
-          <div className="mt-3 text-[12px] text-white/50">{fgiInfo.desc}</div>
-          <div className="mt-1">
+          <div className="mt-1.5 text-[12px] text-white/50">{fgiInfo.desc}</div>
+          <div className="mt-0">
             <FgiGauge value={fgi} />
           </div>
         </div>
