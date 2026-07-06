@@ -30,7 +30,12 @@
   - 本地真实 EODHD 只读验证:MSFT/NOK/NVDA/META/TSM/IBKR 均返回 `quoteSession: regular`、`priceMode: regular`、`changeSource: eodhd-regular`,确认正常交易时段不再优先混用 `ethPrice`。
   - 本地 build marker: `SettingsTab-BQgzcuKn.js` contains `v10.7.9.175`;`settingsChangelog-B_nCyyh2.js` contains `EODHD 股票价格口径统一`;source contains `priceMode`, `quoteSession`, and `computed-extended` markers。
 - Deployment:
-  - pending
+  - Pushed to GitHub `main` as runtime commit `46343da9088596183519220cdb3de048726a5f61`。
+  - GitHub Actions `CI` run `28798707470` completed successfully.
+  - Vercel production alias `https://boduan-tracker.vercel.app` updated successfully;production root returned HTTP 200 and active entry asset is `/assets/index-Ct1xpAha.js`。
+  - Production runtime chunks verified: `/assets/index-Ct1xpAha.js` imports `/assets/App-D5WbQE9T.js`;runtime assets include `/assets/SettingsTab-CpX24-FK.js`, `/assets/settingsChangelog-B_nCyyh2.js`, `/assets/HomeTab-DzKcyI8C.js`, `/assets/TradesTab-BKaD1ZhL.js` and `/assets/i18n-CPX81kKq.js`。
+  - Production marker verified: `SettingsTab-CpX24-FK.js` contains `v10.7.9.175`;`settingsChangelog-B_nCyyh2.js` contains `EODHD 股票价格口径统一`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的 EODHD 股票 quote 归一化 helper、`priceMode/quoteSession/changeSource` 输出、`v10.7.9.175` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、行情 relay、Yahoo 小曲线或鉴权。
 
 ### 2026-07-06 - 回滚股票昨收兜底和当日盈亏修复
