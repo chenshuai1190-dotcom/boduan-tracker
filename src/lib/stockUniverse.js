@@ -3,37 +3,6 @@ function toFiniteNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-const PRICE_EPSILON = 0.000001;
-
-function resolvedPrice(item = {}, existing = {}) {
-  return toFiniteNumber(item?.price) || toFiniteNumber(existing?.price);
-}
-
-function resolvedPreviousClose(item = {}, existing = {}) {
-  return toFiniteNumber(item?.previousClose) || toFiniteNumber(existing?.previousClose);
-}
-
-function resolveChange(item = {}, existing = {}) {
-  const itemChange = Number(item?.change);
-  if (Number.isFinite(itemChange) && itemChange !== 0) return itemChange;
-  const price = resolvedPrice(item, existing);
-  const previousClose = resolvedPreviousClose(item, existing);
-  if (price > 0 && previousClose > 0) return price - previousClose;
-  return toFiniteNumber(existing?.change);
-}
-
-function resolveChangePercent(item = {}, existing = {}) {
-  const itemChangePercent = Number(item?.changePercent);
-  if (Number.isFinite(itemChangePercent) && itemChangePercent !== 0) return itemChangePercent;
-  const price = resolvedPrice(item, existing);
-  const previousClose = resolvedPreviousClose(item, existing);
-  if (price > 0 && previousClose > 0) {
-    const change = price - previousClose;
-    return Math.abs(change) > PRICE_EPSILON ? (change / previousClose) * 100 : 0;
-  }
-  return toFiniteNumber(existing?.changePercent);
-}
-
 function normalizeTradeSymbol(symbol) {
   return String(symbol || '').trim().toUpperCase();
 }
@@ -62,8 +31,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       cost: toFiniteNumber(item?.cost),
       shares: toFiniteNumber(item?.shares),
       previousClose: toFiniteNumber(item?.previousClose),
-      change: resolveChange(item),
-      changePercent: resolveChangePercent(item),
+      changePercent: toFiniteNumber(item?.changePercent),
       ytdChangePercent: toFiniteNumber(item?.ytdChangePercent),
     });
   });
@@ -83,8 +51,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       cost: toFiniteNumber(existing.cost),
       shares: toFiniteNumber(existing.shares),
       previousClose: toFiniteNumber(item?.previousClose) || toFiniteNumber(existing.previousClose),
-      change: resolveChange(item, existing),
-      changePercent: resolveChangePercent(item, existing),
+      changePercent: toFiniteNumber(item?.changePercent),
       ytdChangePercent: toFiniteNumber(item?.ytdChangePercent) || toFiniteNumber(existing.ytdChangePercent),
       intraday: item?.intraday || existing.intraday || [],
     });
@@ -104,8 +71,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       cost: toFiniteNumber(existing.cost),
       shares: toFiniteNumber(existing.shares),
       previousClose: toFiniteNumber(item?.previousClose) || toFiniteNumber(existing.previousClose),
-      change: resolveChange(item, existing),
-      changePercent: resolveChangePercent(item, existing),
+      changePercent: toFiniteNumber(item?.changePercent),
       ytdChangePercent: toFiniteNumber(item?.ytdChangePercent) || toFiniteNumber(existing.ytdChangePercent),
       intraday: item?.intraday || existing.intraday || [],
     });
@@ -131,8 +97,7 @@ export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quote
       cost: toFiniteNumber(existing.cost),
       shares: toFiniteNumber(existing.shares),
       previousClose: toFiniteNumber(existing.previousClose),
-      change: resolveChange(existing),
-      changePercent: resolveChangePercent(existing),
+      changePercent: toFiniteNumber(existing.changePercent),
       ytdChangePercent: toFiniteNumber(existing.ytdChangePercent),
       intraday: existing.intraday || [],
     });

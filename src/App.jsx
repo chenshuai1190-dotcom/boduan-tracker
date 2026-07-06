@@ -57,25 +57,6 @@ function validRate(value) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-function finiteQuoteNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function resolveQuoteChangeFields(row = {}, fallback = {}) {
-  const price = finiteQuoteNumber(row?.price) || finiteQuoteNumber(fallback?.price);
-  const previousClose = finiteQuoteNumber(row?.previousClose) || finiteQuoteNumber(fallback?.previousClose);
-  const rowChange = Number(row?.change);
-  const rowChangePercent = Number(row?.changePercent);
-  const change = Number.isFinite(rowChange) && rowChange !== 0
-    ? rowChange
-    : (price > 0 && previousClose > 0 ? price - previousClose : finiteQuoteNumber(fallback?.change));
-  const changePercent = Number.isFinite(rowChangePercent) && rowChangePercent !== 0
-    ? rowChangePercent
-    : (price > 0 && previousClose > 0 ? (change / previousClose) * 100 : finiteQuoteNumber(fallback?.changePercent));
-  return { previousClose, change, changePercent };
-}
-
 function normalizePortfolioCurrency(value) {
   return value === 'CNY' ? 'CNY' : 'USD';
 }
@@ -2535,7 +2516,6 @@ function MainApp({ user, onLogout }) {
     const price = parseFloat(draft.price) || fresh?.price || 0;
     const high = parseFloat(draft.high) || fresh?.week52High || fresh?.high || price;
     const logoURL = normalizeExternalLogoUrl(draft.logoURL || draft.logoUrl || fresh?.logoURL || fresh?.logoUrl);
-    const quoteChangeFields = resolveQuoteChangeFields({ ...fresh, price });
     const newItem = {
       symbol,
       name: displayStockName(symbol, draft.name || fresh?.name),
@@ -2543,9 +2523,8 @@ function MainApp({ user, onLogout }) {
       high,
       cost: parseFloat(draft.cost) || 0,
       shares: parseInt(draft.shares) || 0,
-      previousClose: quoteChangeFields.previousClose,
-      change: quoteChangeFields.change,
-      changePercent: quoteChangeFields.changePercent,
+      previousClose: fresh?.previousClose || 0,
+      changePercent: fresh?.changePercent || 0,
       ytdChangePercent: fresh?.ytdChangePercent || 0,
       intraday: fresh?.intraday || [],
       ...(logoURL ? { logoURL } : {}),
@@ -2676,7 +2655,6 @@ function MainApp({ user, onLogout }) {
               // Finnhub 或 fallback,保守起见跟本地取 max
               newHigh = Math.max(s.high || 0, fresh.week52High || 0, fresh.price);
             }
-            const quoteChangeFields = resolveQuoteChangeFields(fresh, s);
             return {
               ...s,
               price: fresh.price,
@@ -2685,11 +2663,9 @@ function MainApp({ user, onLogout }) {
               // 保存当天分时(用于心电图)
               intraday: fresh.intraday || s.intraday || [],
               // 保存昨收(用于当日涨跌色)
-              previousClose: quoteChangeFields.previousClose,
-              // 保存当日涨跌额
-              change: quoteChangeFields.change,
+              previousClose: fresh.previousClose || s.previousClose || 0,
               // 保存当日涨跌
-              changePercent: quoteChangeFields.changePercent,
+              changePercent: fresh.changePercent || 0,
               // 保存年初至今涨跌
               ytdChangePercent: fresh.ytdChangePercent || 0,
             };

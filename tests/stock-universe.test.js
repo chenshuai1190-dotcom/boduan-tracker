@@ -61,23 +61,3 @@ test('quote universe includes tool-only symbols without polluting watchlist or l
   assert.equal(universe.allRows.find((row) => row.symbol === 'HOOD').price, 98.76);
   assert.equal(universe.allRows.find((row) => row.symbol === 'TSM').price, 0);
 });
-
-test('quote universe recomputes daily change fields when fresh quote rows only carry price', () => {
-  const universe = buildLedgerQuoteUniverse(
-    [
-      { symbol: 'MSFT', name: '微软', side: 'buy', date: '2026-07-04', price: 412.07, shares: 2300 },
-    ],
-    [
-      { symbol: 'MSFT', name: '微软', price: 390.507, previousClose: 390.507, change: 0, changePercent: 0 },
-    ],
-    [
-      { symbol: 'MSFT', name: '微软', price: 390.83, previousClose: 0, change: 0, changePercent: 0 },
-    ],
-  );
-
-  const row = universe.ledgerRows[0];
-  assert.equal(row.price, 390.83);
-  assert.equal(row.previousClose, 390.507);
-  assert.equal(Number(row.change.toFixed(3)), 0.323);
-  assert.equal(Number(row.changePercent.toFixed(4)), 0.0827);
-});
