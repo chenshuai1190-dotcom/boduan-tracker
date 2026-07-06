@@ -400,7 +400,20 @@ test('primary asset totals split decimal suffixes consistently', () => {
   assert.ok(analysisTabSource.includes('totalNowMoney.decimal'), 'family total assets should render the decimal suffix separately');
   assert.ok(homeTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'home decimal suffix should be smaller and normal weight');
   assert.ok(tradesTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'trades decimal suffix should be smaller and normal weight');
-  assert.ok(analysisTabSource.includes('text-[20px] font-normal leading-none text-[#ffd37d]/90'), 'family asset decimal suffix should be smaller and normal weight');
+  assert.ok(analysisTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'family asset decimal suffix should match the home header color and stay normal weight');
+});
+
+test('asset header card aligns with home and trade header sizing', () => {
+  const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
+  assert.ok(homeTabSource.includes(sharedHeaderShell), 'home header should keep the shared header card shell');
+  assert.ok(tradesTabSource.includes(sharedHeaderShell), 'trade header should keep the shared header card shell');
+  assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
+  assert.ok(analysisTabSource.includes('text-[13px] font-normal text-white/70'), 'asset header title should match the home title tone');
+  assert.ok(analysisTabSource.includes('mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums'), 'family total amount should match the home amount position and color');
+  assert.equal(analysisTabSource.includes('sm:text-[38px]'), false, 'asset header amount should not grow larger than home on wider screens');
+  assert.ok(analysisTabSource.includes('mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10'), 'asset header metrics should match the home/trade metric grid');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.148'), 'settings changelog should document the asset header alignment update');
+  assert.ok(settingsChangelogSource.includes('资产头卡对齐首页'), 'settings changelog should describe the asset header alignment update');
 });
 
 test('review target page uses dark mobile cards and click action modals', () => {
@@ -537,9 +550,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.147'), 'settings version badge should document the no-white-padding PWA logo update');
+  assert.ok(settingsTabSource.includes('v10.7.9.148'), 'settings version badge should document the asset header alignment update');
   assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
   assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.148'), 'settings changelog should document the asset header alignment update');
+  assert.ok(settingsChangelogSource.includes('资产头卡对齐首页'), 'settings changelog should describe the asset header alignment update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.147'), 'settings changelog should document the no-white-padding PWA logo update');
   assert.ok(settingsChangelogSource.includes('PWA Logo 去白边'), 'settings changelog should describe the no-white-padding PWA logo update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.146'), 'settings changelog should document the transparent PWA logo update');

@@ -376,32 +376,16 @@ export default function AnalysisTab({ ctx }) {
 
   return (
     <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
-      <section
-        className="rounded-[20px] border px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-        style={{
-          background: 'linear-gradient(145deg, rgba(17,22,31,0.98), rgba(8,12,18,0.98))',
-          borderColor: ASSET_BORDER,
-          boxShadow: '0 18px 46px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.04)',
-        }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[13px]" style={{ color: ASSET_GOLD }}>
-              <span>家庭总资产</span>
-              <Info className="h-3.5 w-3.5 text-white/[0.35]" strokeWidth={1.8} />
-            </div>
-            <div
-              className="mt-4 whitespace-nowrap text-[34px] leading-none tracking-normal sm:text-[38px]"
-              style={{ color: '#ffd37d', fontFamily: ASSET_NUMBER_FONT, fontWeight: 400 }}
-            >
-              <span>{totalNowMoney.main}</span>
-              <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd37d]/90">{totalNowMoney.decimal}</span>
-            </div>
+      <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="flex min-h-[34px] items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-normal text-white/70">
+            <span>家庭总资产</span>
+            <Info className="h-3.5 w-3.5 text-white/50" strokeWidth={1.8} />
           </div>
 
           <button
             onClick={() => setShowMonthsDetail(true)}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-1.5 text-[12px] active:scale-95 transition"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 text-[11px] active:scale-95 transition"
             style={{ color: ASSET_GOLD }}
             title="查看 12 个月走势"
           >
@@ -411,24 +395,32 @@ export default function AnalysisTab({ ctx }) {
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-0">
+        <div
+          className="mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums"
+          style={{ fontFamily: ASSET_NUMBER_FONT }}
+        >
+          <span>{totalNowMoney.main}</span>
+          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{totalNowMoney.decimal}</span>
+        </div>
+
+        <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
           {metricItems.map((item, idx) => {
             const positive = item.value >= 0;
             const color = positive ? ASSET_PINK : ASSET_GREEN;
             return (
-              <div key={item.label} className={idx === 0 ? 'min-w-0 pr-2' : 'min-w-0 border-l border-white/10 px-2'}>
-                <div className="text-[12px] text-white/[0.45]">{item.label}</div>
+              <div key={item.label} className={idx === 0 ? 'min-w-0 pr-3' : idx === metricItems.length - 1 ? 'min-w-0 pl-3' : 'min-w-0 px-3'}>
+                <div className="text-[12px] text-white/50">{item.label}</div>
                 {item.enabled ? (
-                  <div className="mt-2.5 space-y-1">
-                    <div className="text-[13px] leading-tight tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
+                  <div className="mt-2 space-y-1">
+                    <div className="whitespace-nowrap text-[13px] font-normal leading-tight tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
                       <span className="whitespace-nowrap">{fmtSignedWan(item.value)}</span>
                     </div>
-                    <div className="text-[13px] tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
+                    <div className="text-[12px] font-normal tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
                       {fmtSignedPct(item.pct)}
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-2.5 text-[12px] text-white/25">无数据</div>
+                  <div className="mt-2 text-[12px] text-white/25">无数据</div>
                 )}
               </div>
             );

@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 资产头卡对齐首页
+
+- Commit: `same commit`
+- Background: 用户反馈资产页“家庭总资产”头部卡片和首页/交易页头部卡片尺寸、金额颜色和位置不一致,切换 Tab 时有视觉错位感。要求资产页头卡以首页/交易页头卡为标准,如果资产卡更小则按首页/交易页尺寸调整。
+- Changes:
+  - 资产页“家庭总资产”头卡改用首页/交易页同款 `rounded-2xl`、`#0b0f14`、`p-4`、弱边框和同款阴影外壳。
+  - 将资产页标题行和金额行拆成与首页/交易页一致的结构,金额从左侧标题列中移出,对齐首页头卡的 `mt-3` 位置。
+  - 家庭总资产主数字和小数后缀统一为首页/交易页同款 `#ffd18a` 金色、`34px` 主数字和 `20px` 小数后缀,并删除资产页宽屏放大的 `sm:text-[38px]`。
+  - 资产页三项指标改用首页/交易页同款三列比例、分割线、标签灰度和行间距,百分比行同步首页 `12px` 层级。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.148`,新增“资产头卡对齐首页”。
+  - 本轮只调整资产页头卡视觉结构,不改变账户、快照、汇率、走势图、交易账本、行情 relay、Supabase RLS 或 `/api/quote` 鉴权逻辑。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;76 tests passed,including new `asset header card aligns with home and trade header sizing`.
+  - Local visual check: pass;Vite dev server `http://127.0.0.1:5173/`,in-app browser viewport `390x844`;home and asset top cards both measure `x=16`, `width=358`, `height=202.25`;main amount on both pages measures `x=33`, `y=79`, `height=34`, `fontSize=34px`, `color=rgb(255, 209, 138)`;metric grid on both pages measures `x=33`, `y=137`, `width=324`, `height=64.25`;document `scrollWidth=390`.
+  - `npm run build`: pass;Vite built `AnalysisTab-Dye1C266.js`, `SettingsTab-6uhkcHsK.js`, `settingsChangelog-xXhOm-_J.js`, `App-CzPyXKtC.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`AnalysisTab-Dye1C266.js` contains the shared home/trade header shell marker, `mt-3` `#ffd18a` amount marker and shared metric grid marker;`SettingsTab-6uhkcHsK.js` contains `v10.7.9.148`;`settingsChangelog-xXhOm-_J.js` contains `v10.7.9.148` and `资产头卡对齐首页`.
+- Deployment:
+  - Pending GitHub push, CI and Vercel production verification.
+- Rollback: 回退 `src/tabs/AnalysisTab.jsx` 的头卡 class/结构调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.148` 条目、测试和本开发日志即可;不会影响账户数据、月度快照、汇率、行情、交易账本、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - PWA Logo 去白边
 
 - Commit: `e00db24834768095086aac6879575512043e6d1d`
