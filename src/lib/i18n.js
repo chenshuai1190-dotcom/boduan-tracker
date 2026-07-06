@@ -943,7 +943,7 @@ const messages = {
     'review.completion': 'Completion',
     'review.accountCurve': 'Account Curve',
     'review.amountUnit': 'Unit: {{unit}}',
-    'review.unitCnyMillion': 'RMB millions',
+    'review.unitCnyMillion': 'CNY millions',
     'review.unitUsdMillion': 'USD millions',
     'review.compoundCurveAria': 'Compound account curve',
     'review.yearlyIncome': 'Yearly Gains',

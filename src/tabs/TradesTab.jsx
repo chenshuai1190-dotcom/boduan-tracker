@@ -178,7 +178,7 @@ export default function TradesTab({ ctx }) {
   }, [quoteRows]);
   const rate = toNumber(summary.usdRate || usdRate) || 7.2;
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
-  const displayCurrencyLabel = currencyMode === 'CNY' ? 'RMB' : 'USD';
+  const displayCurrencyLabel = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
   const englishMode = isEnglishLanguage(language);
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
@@ -400,9 +400,9 @@ export default function TradesTab({ ctx }) {
     <>
       <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
         <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <div className="flex items-center justify-between">
-            <div className="text-[13px] font-normal text-white/70">{tt('trades.totalAssets', '总资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 text-[13px] font-normal text-white/70">{tt('trades.totalAssets', '总资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+            <div className="ml-auto flex justify-end">
               <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
                 {['USD', 'CNY'].map((mode) => (
                   <button
@@ -411,7 +411,7 @@ export default function TradesTab({ ctx }) {
                     onClick={() => setCurrencyMode(mode)}
                     className={`h-7 rounded-full px-2.5 text-[11px] font-normal active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
                   >
-                    {mode === 'CNY' ? 'RMB' : 'USD'}
+                    {mode}
                   </button>
                 ))}
               </div>
@@ -419,10 +419,11 @@ export default function TradesTab({ ctx }) {
                 type="button"
                 onClick={fetchRealtimePrices}
                 disabled={fetching}
-                className="flex h-8 items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] font-normal text-emerald-300 active:scale-95 disabled:opacity-50"
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} />
-                LIVE
               </button>
             </div>
           </div>

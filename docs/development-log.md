@@ -4,6 +4,39 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 头部 LIVE 隐藏和 CNY 名称统一
+
+- Commit: `same commit`
+- Background: 用户要求隐藏首页头部卡片和交易头部卡片的 `LIVE` 视觉入口,但不删除现有刷新功能和实时行情逻辑;同时要求首页/交易页头部的 USD/CNY 位置右对齐,并把当前界面的 `RMB` 显示统一改为 `CNY`。
+- Changes:
+  - 首页头部资产卡和交易页头部资产卡移除可见 `LIVE` 按钮布局占位,但保留 `fetchRealtimePrices` 绑定和 `fetching` 状态引用,不改行情刷新函数或实时 relay。
+  - 首页和交易页头部币种切换容器改为 `ml-auto flex justify-end`,隐藏 `LIVE` 后 USD/CNY 控件继续靠右对齐。
+  - 首页、交易页和目标页当前币种按钮/标题里的人民币显示从 `RMB` 改为 `CNY`;英文目标页复利单位从 `RMB millions` 改为 `CNY millions`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.168`,更新日志历史条目里的可见币种名称也统一显示为 CNY。
+  - 本轮只调整显示层、版本日志和测试断言,不改交易账本、行情 relay、汇率换算、数据库结构、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖首页/交易页头部 `LIVE` 视觉隐藏、刷新绑定保留、USD/CNY 右对齐、CNY 名称和设置页版本/更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/HomeTab-D29M9zKX.js`、`dist/assets/TradesTab-CY2fnMaM.js`、`dist/assets/ReviewTab-BFySgBpt.js`、`dist/assets/i18n-BgIxl1vI.js`、`dist/assets/SettingsTab-D3Ha7gkQ.js` 和 `dist/assets/settingsChangelog-DgqwhzES.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - `rg -n "RMB" src dist -S` returns no matches;本地构建产物不再包含 `RMB`。
+- Deployment:
+  - Pending push to GitHub `main` and Vercel production deployment.
+- Production verification:
+  - Pending Vercel deployment;部署后需验证 `SettingsTab` 包含 `v10.7.9.168`,`settingsChangelog` 包含 `头部币种显示改为 CNY`,Home/Trades/Review/i18n chunks 不含 `RMB`,未登录 `/api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`。
+- Rollback: 回退本条涉及的头部 `LIVE` 可见按钮隐藏、CNY 显示文案、`v10.7.9.168` 设置页版本/更新日志、测试断言和本日志即可;不影响交易数据、行情 relay、汇率换算、数据库或鉴权。
+
 ### 2026-07-06 - 交易页持仓市值两位小数
 
 - Commit: `223dcf34be620344980b2b959cb28c0fd75184b8`

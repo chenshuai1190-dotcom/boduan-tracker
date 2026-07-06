@@ -813,7 +813,7 @@ export default function ReviewTab({ ctx }) {
           <div className="flex shrink-0 rounded-full border border-white/10 bg-black/20 p-0.5">
             {[
               { key: 'USD', label: 'USD' },
-              { key: 'CNY', label: 'RMB' },
+              { key: 'CNY', label: 'CNY' },
             ].map((item) => (
               <button
                 key={item.key}
