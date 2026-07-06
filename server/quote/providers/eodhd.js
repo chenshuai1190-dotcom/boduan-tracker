@@ -1,5 +1,121 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 
+const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
+const US_EQUITY_REGULAR_END_MINUTES = 16 * 60;
+const US_EQUITY_PREMARKET_START_MINUTES = 4 * 60;
+const US_EQUITY_POSTMARKET_END_MINUTES = 20 * 60;
+
+function parseQuoteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isPositiveNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+export function getUsEquityQuoteSession(now = Date.now()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(now));
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    const weekday = getPart('weekday');
+    if (weekday === 'Sat' || weekday === 'Sun') return 'closed';
+    const hour = Number(getPart('hour'));
+    const minute = Number(getPart('minute'));
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 'closed';
+    const minutes = hour * 60 + minute;
+    if (minutes >= US_EQUITY_REGULAR_START_MINUTES && minutes < US_EQUITY_REGULAR_END_MINUTES) return 'regular';
+    if (
+      (minutes >= US_EQUITY_PREMARKET_START_MINUTES && minutes < US_EQUITY_REGULAR_START_MINUTES)
+      || (minutes >= US_EQUITY_REGULAR_END_MINUTES && minutes < US_EQUITY_POSTMARKET_END_MINUTES)
+    ) {
+      return 'extended';
+    }
+    return 'closed';
+  } catch {
+    return 'closed';
+  }
+}
+
+function isChangeConsistentWithPrice(rawChange, price, previousClose) {
+  if (!isPositiveNumber(price) || !isPositiveNumber(previousClose)) return rawChange !== null;
+  if (rawChange === null) return false;
+  const expected = price - previousClose;
+  const tolerance = Math.max(0.03, Math.abs(price) * 0.0003);
+  return Math.abs(rawChange - expected) <= tolerance;
+}
+
+function isChangePercentConsistentWithPrice(rawChangePercent, price, previousClose) {
+  if (!isPositiveNumber(price) || !isPositiveNumber(previousClose)) return rawChangePercent !== null;
+  if (rawChangePercent === null) return false;
+  const expected = ((price - previousClose) / previousClose) * 100;
+  const tolerance = Math.max(0.08, Math.abs(expected) * 0.06);
+  return Math.abs(rawChangePercent - expected) <= tolerance;
+}
+
+export function normalizeEodhdStockQuoteFields(data, { now = Date.now() } = {}) {
+  const lastTradePrice = parseQuoteNumber(data?.lastTradePrice);
+  const ethPrice = parseQuoteNumber(data?.ethPrice);
+  const previousClose = parseQuoteNumber(data?.previousClosePrice) || 0;
+  const rawChange = parseQuoteNumber(data?.change);
+  const rawChangePercent = parseQuoteNumber(data?.changePercent);
+  const quoteSession = getUsEquityQuoteSession(now);
+  const hasLastTradePrice = isPositiveNumber(lastTradePrice);
+  const hasEthPrice = isPositiveNumber(ethPrice);
+  const useExtendedPrice = quoteSession === 'extended' && hasEthPrice;
+  const price = useExtendedPrice
+    ? ethPrice
+    : (hasLastTradePrice ? lastTradePrice : (hasEthPrice ? ethPrice : 0));
+  const priceMode = useExtendedPrice
+    ? 'extended'
+    : (hasLastTradePrice ? 'regular' : (hasEthPrice ? 'extended-fallback' : 'unavailable'));
+
+  const canComputeFromSelectedPrice = isPositiveNumber(price) && isPositiveNumber(previousClose);
+  const computedChange = canComputeFromSelectedPrice ? price - previousClose : 0;
+  const computedChangePercent = canComputeFromSelectedPrice ? (computedChange / previousClose) * 100 : 0;
+
+  let change = 0;
+  let changePercent = 0;
+  let changeSource = 'unavailable';
+
+  if (canComputeFromSelectedPrice && (priceMode === 'extended' || priceMode === 'extended-fallback')) {
+    change = computedChange;
+    changePercent = computedChangePercent;
+    changeSource = 'computed-extended';
+  } else if (canComputeFromSelectedPrice) {
+    const rawChangeMatches = isChangeConsistentWithPrice(rawChange, price, previousClose);
+    const rawPercentMatches = isChangePercentConsistentWithPrice(rawChangePercent, price, previousClose);
+    change = rawChangeMatches ? rawChange : computedChange;
+    changePercent = rawPercentMatches ? rawChangePercent : computedChangePercent;
+    changeSource = rawChangeMatches && rawPercentMatches ? 'eodhd-regular' : 'computed-regular';
+  } else if (priceMode === 'regular') {
+    change = rawChange ?? 0;
+    changePercent = rawChangePercent ?? 0;
+    changeSource = rawChange !== null || rawChangePercent !== null ? 'eodhd-regular' : 'unavailable';
+  }
+
+  return {
+    price,
+    previousClose,
+    change,
+    changePercent,
+    dayHigh: parseQuoteNumber(data?.high) || 0,
+    dayLow: parseQuoteNumber(data?.low) || 0,
+    open: parseQuoteNumber(data?.open) || 0,
+    timestamp: parseQuoteNumber(data?.timestamp) || 0,
+    priceMode,
+    quoteSession,
+    changeSource,
+  };
+}
+
 export async function fetchAnalystQuote(symbol, { eodhdKey }) {
   try {
     const stockSym = symbol.split(':')[1];
@@ -354,33 +470,13 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null),
     ]);
 
-    let eodhdPrice = 0;
-    let eodhdPrevClose = 0;
-    let eodhdDayHigh = 0;
-    let eodhdDayLow = 0;
-    let eodhdOpen = 0;
-    let eodhdTimestamp = 0;
-    let eodhdChange;
-    let eodhdChangePercent;
-    let eodhdEthPrice;
+    let eodhdQuote = null;
     if (quoteRes.ok) {
       try {
         const json = await quoteRes.json();
         const data = json?.data?.[`${symbol}.US`];
         if (data) {
-          eodhdEthPrice = parseFloat(data.ethPrice);
-          if (isNaN(eodhdEthPrice)) eodhdEthPrice = undefined;
-          const lastTradePrice = parseFloat(data.lastTradePrice) || 0;
-          eodhdPrice = (eodhdEthPrice && eodhdEthPrice > 0) ? eodhdEthPrice : lastTradePrice;
-          eodhdPrevClose = parseFloat(data.previousClosePrice) || 0;
-          eodhdDayHigh = parseFloat(data.high) || 0;
-          eodhdDayLow = parseFloat(data.low) || 0;
-          eodhdOpen = parseFloat(data.open) || 0;
-          eodhdTimestamp = data.timestamp || 0;
-          eodhdChange = parseFloat(data.change);
-          eodhdChangePercent = parseFloat(data.changePercent);
-          if (isNaN(eodhdChange)) eodhdChange = undefined;
-          if (isNaN(eodhdChangePercent)) eodhdChangePercent = undefined;
+          eodhdQuote = normalizeEodhdStockQuoteFields(data);
         }
       } catch (e) {
         /* ignore */
@@ -422,7 +518,7 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       }
     }
 
-    const price = eodhdPrice;
+    const price = eodhdQuote?.price || 0;
     if (price === 0) {
       return {
         symbol,
@@ -432,14 +528,13 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       };
     }
 
-    const previousClose = eodhdPrevClose;
-    const changePercent = (eodhdChangePercent !== undefined) ? eodhdChangePercent
-      : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
-    const change = (eodhdChange !== undefined) ? eodhdChange : (previousClose > 0 ? price - previousClose : 0);
-    const dayHigh = eodhdDayHigh || price;
-    const dayLow = eodhdDayLow || price;
-    const open = eodhdOpen || price;
-    const timestamp = eodhdTimestamp || Math.floor(Date.now() / 1000);
+    const previousClose = eodhdQuote.previousClose;
+    const changePercent = eodhdQuote.changePercent;
+    const change = eodhdQuote.change;
+    const dayHigh = eodhdQuote.dayHigh || price;
+    const dayLow = eodhdQuote.dayLow || price;
+    const open = eodhdQuote.open || price;
+    const timestamp = eodhdQuote.timestamp || Math.floor(Date.now() / 1000);
     const priceSource = 'EODHD-v2';
 
     let week52High = 0;
@@ -507,6 +602,9 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       regularMarketTime,
       marketState: '',
       priceSource,
+      priceMode: eodhdQuote.priceMode,
+      quoteSession: eodhdQuote.quoteSession,
+      changeSource: eodhdQuote.changeSource,
       source: 'EODHD',
     };
   } catch (e) {

@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.173', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.175', date: '2026-07-06', latest: true,
+    items: [
+      '📈 EODHD 股票价格口径统一',
+      '  - 正常交易时段股票价格使用 lastTradePrice,避免与按 lastTradePrice 返回的涨跌幅混用 ethPrice',
+      '  - 盘前/盘后才使用 ethPrice,并用 ethPrice 和 previousClosePrice 重新计算涨跌额和涨跌幅',
+      '  - previousClosePrice 有效但 EODHD 涨跌字段临时为 0 时,按当前选定价格保守重算',
+      '  - 不改交易账本、成本、股数、汇率、行情 relay、Yahoo 小曲线、RLS 或鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.173', date: '2026-07-06',
     items: [
       '🎛 弹窗字重和交易确认细节',
       '  - 首页添加/编辑自选弹窗、添加成功提示和确认按钮取消过重字重',

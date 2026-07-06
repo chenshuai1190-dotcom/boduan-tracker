@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - EODHD 股票价格口径统一
+
+- Background: 前两次修复 MSFT/NOK 当日盈亏和涨跌幅异常时都扩大了影响面;本轮先用本地 EODHD token 抓真实回包,确认 `us-quote-delayed` 同一回包内 `ethPrice` 与 `lastTradePrice` 可同时存在且口径不同,而 `change/changePercent` 更接近 `lastTradePrice` 口径。旧逻辑在正常交易时段优先用 `ethPrice` 当价格,但继续使用 `lastTradePrice` 口径的涨跌字段,会导致交易页市值、当日盈亏和涨跌幅混算。
+- Changes:
+  - `server/quote/providers/eodhd.js` 新增 EODHD 股票 quote 归一化 helper:正常交易时段使用 `lastTradePrice`;盘前/盘后仅在 `ethPrice` 有效时使用 `ethPrice`,并用选定价格与 `previousClosePrice` 重算 `change/changePercent`。
+  - EODHD 返回 `previousClosePrice` 有效但 `change/changePercent` 临时为 0 或与选定价格明显不一致时,按当前选定价格保守重算;不再用 EOD 历史昨收兜底 intraday 价格。
+  - 股票 quote 输出增加 `priceMode`、`quoteSession`、`changeSource`,用于后续定位常规/扩展时段和原始/重算涨跌来源。
+  - 增加基于真实 MSFT 形态的 fixture 测试,覆盖正常交易时段拒绝混用 `ethPrice`、扩展时段重算 `ethPrice` 涨跌、EODHD 临时 0 涨跌字段重算。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.175`,新增“EODHD 股票价格口径统一”。
+  - 本轮不改交易账本、成本、股数、汇率、Supabase、RLS、行情 relay、Yahoo 小曲线、数据库结构或 `/api/quote` 鉴权。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `tests/quote-response-shape.test.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/investment-summary.test.js tests/btc-realtime.test.js` pass,33 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,89 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-CukNQqbz.js`、`dist/assets/SettingsTab-BQgzcuKn.js`、`dist/assets/settingsChangelog-B_nCyyh2.js`、`dist/assets/HomeTab-DzKcyI8C.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地真实 EODHD 只读验证:MSFT/NOK/NVDA/META/TSM/IBKR 均返回 `quoteSession: regular`、`priceMode: regular`、`changeSource: eodhd-regular`,确认正常交易时段不再优先混用 `ethPrice`。
+  - 本地 build marker: `SettingsTab-BQgzcuKn.js` contains `v10.7.9.175`;`settingsChangelog-B_nCyyh2.js` contains `EODHD 股票价格口径统一`;source contains `priceMode`, `quoteSession`, and `computed-extended` markers。
+- Deployment:
+  - pending
+- Rollback: 回退本条涉及的 EODHD 股票 quote 归一化 helper、`priceMode/quoteSession/changeSource` 输出、`v10.7.9.175` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、行情 relay、Yahoo 小曲线或鉴权。
+
 ### 2026-07-06 - 回滚股票昨收兜底和当日盈亏修复
 
 - Revert commits: `257daeb7f54d711c89a4f04871ac340c49f0861b`, `d24c2cbc618049276d7c591ae45eedacf2f1c5d4`

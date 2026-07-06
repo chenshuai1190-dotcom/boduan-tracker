@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import handler from '../api/quote.js';
+import { normalizeEodhdStockQuoteFields } from '../server/quote/providers/eodhd.js';
 
 function createResponse() {
   return {
@@ -348,6 +349,69 @@ function liveQuoteWithoutPreviousClose({ price, high, low }) {
     changePercent: '',
   };
 }
+
+test('EODHD stock normalizer keeps regular-session fields on lastTradePrice basis', () => {
+  const quote = normalizeEodhdStockQuoteFields({
+    lastTradePrice: 384.05,
+    ethPrice: 386.06,
+    previousClosePrice: 390.49,
+    high: 391,
+    low: 382,
+    open: 388,
+    timestamp: 1783360500,
+    change: -6.44,
+    changePercent: -1.68,
+  }, { now: Date.UTC(2026, 6, 6, 14, 10, 0) });
+
+  assert.equal(quote.quoteSession, 'regular');
+  assert.equal(quote.priceMode, 'regular');
+  assert.equal(quote.price, 384.05);
+  assert.equal(quote.change, -6.44);
+  assert.equal(quote.changePercent, -1.68);
+  assert.equal(quote.changeSource, 'eodhd-regular');
+});
+
+test('EODHD stock normalizer recomputes extended-session change from ethPrice', () => {
+  const quote = normalizeEodhdStockQuoteFields({
+    lastTradePrice: 384.05,
+    ethPrice: 386.06,
+    previousClosePrice: 390.49,
+    high: 391,
+    low: 382,
+    open: 388,
+    timestamp: 1783360500,
+    change: -6.44,
+    changePercent: -1.68,
+  }, { now: Date.UTC(2026, 6, 6, 12, 0, 0) });
+
+  assert.equal(quote.quoteSession, 'extended');
+  assert.equal(quote.priceMode, 'extended');
+  assert.equal(quote.price, 386.06);
+  assert.equal(Number(quote.change.toFixed(2)), -4.43);
+  assert.equal(Number(quote.changePercent.toFixed(4)), -1.1345);
+  assert.equal(quote.changeSource, 'computed-extended');
+});
+
+test('EODHD stock normalizer recomputes stale zero change when selected price moved', () => {
+  const quote = normalizeEodhdStockQuoteFields({
+    lastTradePrice: 100,
+    ethPrice: 101.5,
+    previousClosePrice: 95,
+    high: 101,
+    low: 94,
+    open: 96,
+    timestamp: 1783360500,
+    change: 0,
+    changePercent: 0,
+  }, { now: Date.UTC(2026, 6, 6, 15, 0, 0) });
+
+  assert.equal(quote.quoteSession, 'regular');
+  assert.equal(quote.priceMode, 'regular');
+  assert.equal(quote.price, 100);
+  assert.equal(quote.change, 5);
+  assert.equal(Number(quote.changePercent.toFixed(4)), 5.2632);
+  assert.equal(quote.changeSource, 'computed-regular');
+});
 
 test('VIX quote response shape is stable', async () => {
   const quote = await callQuote('VIX');
