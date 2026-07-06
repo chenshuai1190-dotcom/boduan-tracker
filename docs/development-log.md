@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - CNN 仪表盘刻度点位微调
 
-- Commit: `pending`
+- Commit: `435e600e5b981da1814d1b5b6e28db2d3da92197`
 - Background: 用户根据放大截图继续反馈 CNN 恐慌贪婪指数圆弧刻度仍需调整:`0` / `50` / `100` 数字要更小,并把 `0` 和顶部 `50` 移到截图标注点位附近。
 - Changes:
   - CNN `FgiGauge` 的 HTML 刻度字号从 `text-[10px]` 降到 `text-[8px]`,降低对圆弧主体的干扰。
@@ -30,7 +30,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`HomeTab-4kmfTgmo.js` contains `text-[8px]`, label positions `21%` / `81.5%`, and `top-[4px]`;old label positions `16.25%` / `83.75%` are absent;`SettingsTab-CJYKtVXO.js` contains `v10.7.9.155`;`settingsChangelog-CRr1ruGY.js` contains `v10.7.9.155` and `CNN 仪表盘刻度点位微调`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `435e600e5b981da1814d1b5b6e28db2d3da92197`.
+  - GitHub Actions `CI` run `28771983749` passed for `435e600e5b981da1814d1b5b6e28db2d3da92197`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=435e600-cnn-tick-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 06:20:31 GMT`.
+  - Production asset marker check: pass;active runtime assets include `HomeTab-4kmfTgmo.js`, `SettingsTab-CffvCHJn.js`, and `settingsChangelog-CRr1ruGY.js`.
+  - Production CNN tick marker check: pass;`HomeTab-4kmfTgmo.js` contains `text-[8px]`, label positions `21%` / `81.5%`, and `top-[4px]`;old label positions `16.25%` / `83.75%` are absent;`SettingsTab-CffvCHJn.js` contains `v10.7.9.155`;active changelog chunk contains `v10.7.9.155` and `CNN 仪表盘刻度点位微调`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/HomeTab.jsx` 的 CNN HTML 刻度字号和点位调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.155` 条目、测试和本开发日志即可;不会影响 VIX、行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - CNN 仪表盘数字显示修复
