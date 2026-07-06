@@ -388,6 +388,13 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes('assetDrawLine'), 'asset chart should keep the line drawing animation');
   assert.ok(analysisTabSource.includes('assetAreaFadeIn'), 'asset chart area should keep the fade-in animation');
   assert.ok(analysisTabSource.includes('assetDotPop'), 'asset chart points should keep the pop animation');
+  assert.ok(analysisTabSource.includes("import { t } from '../lib/i18n.js';"), 'asset tab should use the shared language framework');
+  assert.ok(analysisTabSource.includes('const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language])'), 'asset tab should keep translations display-only');
+  assert.ok(analysisTabSource.includes('accountNameLabel(acc.name)'), 'asset account names should render through the built-in display mapping');
+  assert.ok(analysisTabSource.includes('accountTypeLabel(acc.type)'), 'asset account types should render through the built-in display mapping');
+  assert.ok(i18nSource.includes("'analysis.familyNetWorth': 'Family Net Worth'"), 'English asset header title should be available');
+  assert.ok(i18nSource.includes("'analysis.addMonthlyBalance': 'Add Monthly Balance'"), 'English asset monthly balance action should be available');
+  assert.ok(i18nSource.includes("'analysis.accountName.招商银行': 'China Merchants Bank'"), 'built-in account names should have English display labels');
   assert.ok(analysisTabSource.includes('selectedChartChangePct'), 'asset chart point tooltip should include the month-over-month percentage');
   assert.ok(analysisTabSource.includes('const latestChartPoint = chartPoints[chartPoints.length - 1] || null'), 'asset chart should default the visible marker to the latest valid month');
   assert.ok(analysisTabSource.includes('const visibleChartMarkerMonthIdx'), 'asset chart should separate the visible marker from the clicked detail state');
@@ -467,8 +474,10 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.ok(tradesTabSource.includes("englishMode ? 'text-[14px]' : 'text-[15px]'"), 'trade header positions count should match the English home header text size');
   assert.ok(tradesTabSource.includes("style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}"), 'trade header English metric grid should exactly match the home header grid');
   assert.equal(tradesTabSource.includes('truncate whitespace-nowrap'), false, 'trade header should not keep a separate truncation rule instead of matching home');
-  assert.ok(settingsTabSource.includes('v10.7.9.164'), 'settings version badge should document the English trade header alignment fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.165'), 'settings version badge should document the asset-page English update');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.165'), 'settings changelog should document the asset-page English update');
+  assert.ok(settingsChangelogSource.includes('资产页英文模式'), 'settings changelog should describe the asset-page English update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.164'), 'settings changelog should document the English trade header alignment fix');
   assert.ok(settingsChangelogSource.includes('英文交易页头部对齐首页'), 'settings changelog should describe the English trade header alignment fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.163'), 'settings changelog should document the English trade visual fix');
@@ -645,8 +654,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.164'), 'settings version badge should document the English trade header alignment fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.165'), 'settings version badge should document the asset-page English update');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.165'), 'settings changelog should document the asset-page English update');
+  assert.ok(settingsChangelogSource.includes('资产页英文模式'), 'settings changelog should describe the asset-page English update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.164'), 'settings changelog should document the English trade header alignment fix');
   assert.ok(settingsChangelogSource.includes('英文交易页头部对齐首页'), 'settings changelog should describe the English trade header alignment fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.163'), 'settings changelog should document the English trade visual fix');

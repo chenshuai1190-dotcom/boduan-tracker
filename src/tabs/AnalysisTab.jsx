@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -92,6 +93,7 @@ export default function AnalysisTab({ ctx }) {
     fillMonth,
     fmt,
     hkdRate,
+    language = 'zh',
     newAccount,
     setAccounts,
     setChartSelectedMonthIdx,
@@ -117,6 +119,20 @@ export default function AnalysisTab({ ctx }) {
   const [accountActionId, setAccountActionId] = React.useState(null);
   const [editingAccountId, setEditingAccountId] = React.useState(null);
   const [accountEditDraft, setAccountEditDraft] = React.useState(null);
+
+  const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
+  const ownerLabel = React.useCallback((owner) => {
+    if (owner === '我') return tt('analysis.owner.me', '我');
+    if (owner === '老婆') return tt('analysis.owner.wife', '老婆');
+    return owner || '--';
+  }, [tt]);
+  const ownerGroupLabel = React.useCallback((owner) => {
+    if (owner === '我') return tt('analysis.owner.meGroup', '我');
+    if (owner === '老婆') return tt('analysis.owner.wifeGroup', '老婆');
+    return owner || '--';
+  }, [tt]);
+  const accountTypeLabel = React.useCallback((type) => (type ? tt(`analysis.accountType.${type}`, type) : '--'), [tt]);
+  const accountNameLabel = React.useCallback((name) => (name ? tt(`analysis.accountName.${name}`, name) : '--'), [tt]);
 
   const currentMonth = localMonthKey();
   const lastMonth = shiftMonth(currentMonth, -1);
@@ -236,9 +252,9 @@ export default function AnalysisTab({ ctx }) {
   ];
 
   const metricItems = [
-    { label: '较上月', value: monthChange, pct: monthChangePct, enabled: totalLast > 0 },
-    { label: '年初至今', value: ytdChange, pct: ytdChangePct, enabled: totalYearStart > 0 },
-    { label: '近一年', value: yearChange, pct: yearChangePct, enabled: totalYearAgo > 0 },
+    { label: tt('analysis.vsLastMonth', '较上月'), value: monthChange, pct: monthChangePct, enabled: totalLast > 0 },
+    { label: tt('analysis.ytd', '年初至今'), value: ytdChange, pct: ytdChangePct, enabled: totalYearStart > 0 },
+    { label: tt('analysis.oneYear', '近一年'), value: yearChange, pct: yearChangePct, enabled: totalYearAgo > 0 },
   ];
 
   const chartLeft = 64;
@@ -302,10 +318,10 @@ export default function AnalysisTab({ ctx }) {
     if (!account) return;
     setAccountActionId(null);
     showConfirm({
-      title: '删除这个账户?',
-      desc: '删除后会同步云端,该账户所有月度快照也会一起删除。',
-      info: `${account.name || '--'} · ${account.type || '--'} · ${accountBalanceText(account)}`,
-      confirmText: '删除',
+      title: tt('analysis.deleteAccountTitle', '删除这个账户?'),
+      desc: tt('analysis.deleteAccountDesc', '删除后会同步云端,该账户所有月度快照也会一起删除。'),
+      info: `${accountNameLabel(account.name)} · ${accountTypeLabel(account.type)} · ${accountBalanceText(account)}`,
+      confirmText: tt('analysis.delete', '删除'),
       icon: '🗑',
       onConfirm: async () => {
         try {
@@ -314,7 +330,7 @@ export default function AnalysisTab({ ctx }) {
           setSnapshots(snapshots.filter(s => s.accountId !== account.id));
         } catch (e) {
           console.error('[删除账户] 失败:', e);
-          setAssetMessage({ type: 'error', text: `删除失败: ${e.message || '未知错误'}` });
+          setAssetMessage({ type: 'error', text: `${tt('analysis.deleteFailed', '删除失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
         }
       },
     });
@@ -324,20 +340,20 @@ export default function AnalysisTab({ ctx }) {
     if (!editingAccount || !accountEditDraft) return;
     const accountName = accountEditDraft.name.trim();
     if (!accountEditDraft.type) {
-      setAssetMessage({ type: 'error', text: '请选择账户类型' });
+      setAssetMessage({ type: 'error', text: tt('analysis.chooseAccountType', '请选择账户类型') });
       return;
     }
     if (!accountName) {
-      setAssetMessage({ type: 'error', text: '请填写账户名' });
+      setAssetMessage({ type: 'error', text: tt('analysis.fillAccountName', '请填写账户名') });
       return;
     }
     if (accounts.find(a => a.id !== editingAccount.id && a.owner === accountEditDraft.owner && a.name === accountName)) {
-      setAssetMessage({ type: 'error', text: '该账户已存在' });
+      setAssetMessage({ type: 'error', text: tt('analysis.duplicateAccount', '该账户已存在') });
       return;
     }
     const balanceValue = parseFloat(accountEditDraft.balance);
     if (accountEditDraft.balance !== '' && (!Number.isFinite(balanceValue) || balanceValue < 0)) {
-      setAssetMessage({ type: 'error', text: '请填写有效余额' });
+      setAssetMessage({ type: 'error', text: tt('analysis.validBalance', '请填写有效余额') });
       return;
     }
 
@@ -370,7 +386,7 @@ export default function AnalysisTab({ ctx }) {
       closeAccountEdit();
     } catch (e) {
       console.error('[修改账户] 失败:', e);
-      setAssetMessage({ type: 'error', text: `保存失败: ${e.message || '未知错误'}` });
+      setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
     }
   };
 
@@ -379,7 +395,7 @@ export default function AnalysisTab({ ctx }) {
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="flex min-h-[34px] items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-normal text-white/70">
-            <span>家庭总资产</span>
+            <span>{tt('analysis.familyNetWorth', '家庭总资产')}</span>
             <Info className="h-3.5 w-3.5 text-white/50" strokeWidth={1.8} />
           </div>
 
@@ -387,7 +403,7 @@ export default function AnalysisTab({ ctx }) {
             onClick={() => setShowMonthsDetail(true)}
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 text-[11px] active:scale-95 transition"
             style={{ color: ASSET_GOLD }}
-            title="查看 12 个月走势"
+            title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
           >
             <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
             <span className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{currentMonth}</span>
@@ -420,7 +436,7 @@ export default function AnalysisTab({ ctx }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-2 text-[12px] text-white/25">无数据</div>
+                  <div className="mt-2 text-[12px] text-white/25">{tt('analysis.noData', '无数据')}</div>
                 )}
               </div>
             );
@@ -436,13 +452,13 @@ export default function AnalysisTab({ ctx }) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 text-[14px] text-white/90">
               <LineChart className="h-4 w-4" style={{ color: ASSET_PINK }} strokeWidth={1.8} />
-              <span>12 个月走势</span>
+              <span>{tt('analysis.monthTrend', '12 个月走势')}</span>
             </div>
             <button
               onClick={() => setShowMonthsDetail(true)}
               className="text-[11px] text-white/[0.45] active:text-white/70"
             >
-              月度 · 点击查看
+              {tt('analysis.monthlyTapToView', '月度 · 点击查看')}
             </button>
           </div>
 
@@ -452,7 +468,7 @@ export default function AnalysisTab({ ctx }) {
                 <div className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{monthText(selectedChartMonth)}</div>
                 {selectedChartChange !== null && (
                   <div className="mt-1 truncate tabular-nums" style={{ color: selectedChartChange >= 0 ? ASSET_PINK : ASSET_GREEN, fontFamily: ASSET_NUMBER_FONT }}>
-                    较上月 {fmtSignedWan(selectedChartChange)} · {fmtSignedPct(selectedChartChangePct)}
+                    {tt('analysis.vsLastMonth', '较上月')} {fmtSignedWan(selectedChartChange)} · {fmtSignedPct(selectedChartChangePct)}
                   </div>
                 )}
               </div>
@@ -558,9 +574,9 @@ export default function AnalysisTab({ ctx }) {
 
           <div className="mt-3 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
             {[
-              ['最低', chartMin],
-              ['最高', chartMax],
-              ['区间', chartRange],
+              [tt('analysis.low', '最低'), chartMin],
+              [tt('analysis.high', '最高'), chartMax],
+              [tt('analysis.range', '区间'), chartRange],
             ].map(([label, value], idx) => (
               <div key={label} className={idx === 0 ? '' : 'border-l border-white/10'}>
                 <div className="text-[11px] text-white/[0.42]">{label}</div>
@@ -583,14 +599,14 @@ export default function AnalysisTab({ ctx }) {
           style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.06)' }}
         >
           <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-          <span className="truncate">填月度余额</span>
+          <span className="truncate">{tt('analysis.addMonthlyBalance', '填月度余额')}</span>
         </button>
         <button
           onClick={openAddAccount}
           className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-          <span className="truncate">新增账户</span>
+          <span className="truncate">{tt('analysis.addAccount', '新增账户')}</span>
         </button>
       </div>
 
@@ -599,14 +615,14 @@ export default function AnalysisTab({ ctx }) {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/25 text-white/[0.65]">
             <PiggyBank className="h-7 w-7" strokeWidth={1.8} />
           </div>
-          <div className="text-[16px] text-white/[0.88]">还没有账户</div>
-          <div className="mt-2 text-[12px] text-white/[0.45]">添加你和家人的账户,记录每月余额</div>
+          <div className="text-[16px] text-white/[0.88]">{tt('analysis.noAccounts', '还没有账户')}</div>
+          <div className="mt-2 text-[12px] text-white/[0.45]">{tt('analysis.noAccountsDesc', '添加你和家人的账户,记录每月余额')}</div>
           <button
             onClick={openAddAccount}
             className="mt-5 rounded-xl border px-5 py-2.5 text-[13px] active:scale-95 transition"
             style={{ borderColor: 'rgba(246,197,111,0.6)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
           >
-            添加第一个账户
+            {tt('analysis.addFirstAccount', '添加第一个账户')}
           </button>
         </section>
       )}
@@ -622,8 +638,8 @@ export default function AnalysisTab({ ctx }) {
         >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[16px] leading-none text-white/[0.92]">{owner}</div>
-                <div className="mt-2 text-[12px] text-white/[0.45]">{visibleOwnerAccs.length} 个账户 · 占总资产 {pct.toFixed(0)}%</div>
+                <div className="text-[16px] leading-none text-white/[0.92]">{ownerGroupLabel(owner)}</div>
+                <div className="mt-2 text-[12px] text-white/[0.45]">{tt('analysis.accountsSummary', '{{count}} 个账户 · 占总资产 {{pct}}%', { count: visibleOwnerAccs.length, pct: pct.toFixed(0) })}</div>
               </div>
               <div className="text-right text-[21px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
                 ¥{fmtWan(total)}万
@@ -652,8 +668,8 @@ export default function AnalysisTab({ ctx }) {
                       <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
-                      <div className="truncate text-[13px] text-white/[0.88]">{acc.name}</div>
-                      <div className="mt-1 text-[11px] text-white/[0.42]">{acc.type}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
+                      <div className="truncate text-[13px] text-white/[0.88]">{accountNameLabel(acc.name)}</div>
+                      <div className="mt-1 text-[11px] text-white/[0.42]">{accountTypeLabel(acc.type)}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
@@ -679,7 +695,7 @@ export default function AnalysisTab({ ctx }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[17px] text-white/[0.92]">添加账户</h3>
+              <h3 className="text-[17px] text-white/[0.92]">{tt('analysis.addAccount', '新增账户')}</h3>
               <button onClick={closeAddAccount} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
                 <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
@@ -688,7 +704,7 @@ export default function AnalysisTab({ ctx }) {
             <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">拥有人</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.owner', '拥有人')}</label>
                   <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
                     {['我', '老婆'].map(owner => (
                       <button
@@ -697,14 +713,14 @@ export default function AnalysisTab({ ctx }) {
                         className="rounded-lg py-2.5 text-[13px] transition"
                         style={newAccount.owner === owner ? { background: 'rgba(37,99,235,0.34)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.7)' } : { color: 'rgba(255,255,255,0.52)' }}
                       >
-                        {owner}
+                        {ownerLabel(owner)}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">类型</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.type', '类型')}</label>
                   <div className="grid grid-cols-4 gap-2">
                     {ACCOUNT_TYPE_OPTIONS.map(({ type, Icon }) => {
                       const active = newAccount.type === type;
@@ -718,7 +734,7 @@ export default function AnalysisTab({ ctx }) {
                             : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
                         >
                           <Icon className="h-5 w-5" strokeWidth={1.7} />
-                          <span>{type}</span>
+                          <span>{accountTypeLabel(type)}</span>
                         </button>
                       );
                     })}
@@ -726,7 +742,7 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">账户名</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.accountName', '账户名')}</label>
                   <div className="mb-2 flex flex-wrap gap-2">
                     {(ACCOUNT_PRESETS[newAccount.type] || []).map(name => (
                       <button
@@ -735,7 +751,7 @@ export default function AnalysisTab({ ctx }) {
                         className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] text-white/[0.65] active:scale-95 transition"
                         style={newAccount.name === name ? { color: ASSET_GOLD, borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' } : undefined}
                       >
-                        {name}
+                        {accountNameLabel(name)}
                       </button>
                     ))}
                   </div>
@@ -743,13 +759,13 @@ export default function AnalysisTab({ ctx }) {
                     type="text"
                     value={newAccount.name}
                     onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
-                    placeholder={newAccount.type ? '点上面快捷选或自己输入' : '先选择类型,再输入账户名'}
+                    placeholder={newAccount.type ? tt('analysis.quickOrCustomPlaceholder', '点上面快捷选或自己输入') : tt('analysis.chooseTypeFirstPlaceholder', '先选择类型,再输入账户名')}
                     className={inputClassName}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">币种</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currency', '币种')}</label>
                   <div className="grid grid-cols-3 gap-3">
                     {['CNY', 'USD', 'HKD'].map(currency => (
                       <button
@@ -767,7 +783,7 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">当前余额 (可稍后填)</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currentBalanceOptional', '当前余额 (可稍后填)')}</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -792,21 +808,21 @@ export default function AnalysisTab({ ctx }) {
                   onClick={closeAddAccount}
                   className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
                 >
-                  取消
+                  {tt('analysis.cancel', '取消')}
                 </button>
                 <button
                   onClick={async () => {
                     const accountName = newAccount.name.trim();
                     if (!newAccount.type) {
-                      setAssetMessage({ type: 'error', text: '请选择账户类型' });
+                      setAssetMessage({ type: 'error', text: tt('analysis.chooseAccountType', '请选择账户类型') });
                       return;
                     }
                     if (!accountName) {
-                      setAssetMessage({ type: 'error', text: '请填写账户名' });
+                      setAssetMessage({ type: 'error', text: tt('analysis.fillAccountName', '请填写账户名') });
                       return;
                     }
                     if (accounts.find(a => a.owner === newAccount.owner && a.name === accountName)) {
-                      setAssetMessage({ type: 'error', text: '该账户已存在' });
+                      setAssetMessage({ type: 'error', text: tt('analysis.duplicateAccount', '该账户已存在') });
                       return;
                     }
                     try {
@@ -833,12 +849,12 @@ export default function AnalysisTab({ ctx }) {
                       closeAddAccount();
                     } catch (e) {
                       console.error('[添加账户] 失败:', e);
-                      setAssetMessage({ type: 'error', text: `添加失败: ${e.message || '未知错误'}` });
+                      setAssetMessage({ type: 'error', text: `${tt('analysis.addFailed', '添加失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
                     }
                   }}
                   className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
                 >
-                  添加
+                  {tt('analysis.add', '添加')}
                 </button>
               </div>
             </div>
@@ -858,12 +874,12 @@ export default function AnalysisTab({ ctx }) {
           <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
             <div className="border-b border-white/10 px-4 pb-3 pt-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-[15px] text-white">账户操作</h2>
+                <h2 className="text-[15px] text-white">{tt('analysis.accountActions', '账户操作')}</h2>
                 <button
                   type="button"
                   onClick={closeAccountAction}
                   className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
-                  aria-label="关闭账户操作"
+                  aria-label={tt('analysis.closeAccountActions', '关闭账户操作')}
                 >
                   ×
                 </button>
@@ -871,9 +887,9 @@ export default function AnalysisTab({ ctx }) {
               <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] text-white">{selectedActionAccount.name || '--'}</div>
+                    <div className="truncate text-[13px] text-white">{accountNameLabel(selectedActionAccount.name)}</div>
                     <div className="mt-1 truncate text-[11px] text-white/60">
-                      {selectedActionAccount.owner || '--'} · {selectedActionAccount.type || '--'} · {selectedActionAccount.currency || 'CNY'}
+                      {ownerLabel(selectedActionAccount.owner)} · {accountTypeLabel(selectedActionAccount.type)} · {selectedActionAccount.currency || 'CNY'}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
@@ -894,7 +910,7 @@ export default function AnalysisTab({ ctx }) {
                   className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6c56f]/30 bg-[#f6c56f]/[0.045] px-2 text-[12px] font-normal text-[#f6c56f] active:scale-95"
                 >
                   <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  修改
+                  {tt('analysis.edit', '修改')}
                 </button>
                 <button
                   type="button"
@@ -902,7 +918,7 @@ export default function AnalysisTab({ ctx }) {
                   className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
                 >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  删除
+                  {tt('analysis.delete', '删除')}
                 </button>
               </div>
             </div>
@@ -917,7 +933,7 @@ export default function AnalysisTab({ ctx }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[17px] text-white/[0.92]">修改账户</h3>
+              <h3 className="text-[17px] text-white/[0.92]">{tt('analysis.editAccount', '修改账户')}</h3>
               <button onClick={closeAccountEdit} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
                 <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
@@ -926,7 +942,7 @@ export default function AnalysisTab({ ctx }) {
             <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">拥有人</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.owner', '拥有人')}</label>
                   <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
                     {['我', '老婆'].map(owner => (
                       <button
@@ -935,14 +951,14 @@ export default function AnalysisTab({ ctx }) {
                         className="rounded-lg py-2.5 text-[13px] transition"
                         style={accountEditDraft.owner === owner ? { background: 'rgba(37,99,235,0.34)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.7)' } : { color: 'rgba(255,255,255,0.52)' }}
                       >
-                        {owner}
+                        {ownerLabel(owner)}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">类型</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.type', '类型')}</label>
                   <div className="grid grid-cols-4 gap-2">
                     {ACCOUNT_TYPE_OPTIONS.map(({ type, Icon }) => {
                       const active = accountEditDraft.type === type;
@@ -956,7 +972,7 @@ export default function AnalysisTab({ ctx }) {
                             : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
                         >
                           <Icon className="h-5 w-5" strokeWidth={1.7} />
-                          <span>{type}</span>
+                          <span>{accountTypeLabel(type)}</span>
                         </button>
                       );
                     })}
@@ -964,7 +980,7 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">账户名</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.accountName', '账户名')}</label>
                   <div className="mb-2 flex flex-wrap gap-2">
                     {(ACCOUNT_PRESETS[accountEditDraft.type] || []).map(name => (
                       <button
@@ -973,7 +989,7 @@ export default function AnalysisTab({ ctx }) {
                         className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] text-white/[0.65] active:scale-95 transition"
                         style={accountEditDraft.name === name ? { color: ASSET_GOLD, borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' } : undefined}
                       >
-                        {name}
+                        {accountNameLabel(name)}
                       </button>
                     ))}
                   </div>
@@ -981,13 +997,13 @@ export default function AnalysisTab({ ctx }) {
                     type="text"
                     value={accountEditDraft.name}
                     onChange={(e) => setAccountEditDraft({ ...accountEditDraft, name: e.target.value })}
-                    placeholder="账户名称"
+                    placeholder={tt('analysis.accountNamePlaceholder', '账户名称')}
                     className={inputClassName}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">币种</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currency', '币种')}</label>
                   <div className="grid grid-cols-3 gap-3">
                     {['CNY', 'USD', 'HKD'].map(currency => (
                       <button
@@ -1005,7 +1021,7 @@ export default function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">本月余额</label>
+                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currentMonthBalance', '本月余额')}</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -1031,14 +1047,14 @@ export default function AnalysisTab({ ctx }) {
                   onClick={closeAccountEdit}
                   className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
                 >
-                  取消
+                  {tt('analysis.cancel', '取消')}
                 </button>
                 <button
                   type="button"
                   onClick={saveAccountEdit}
                   className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
                 >
-                  保存修改
+                  {tt('analysis.saveChanges', '保存修改')}
                 </button>
               </div>
             </div>
@@ -1052,7 +1068,7 @@ export default function AnalysisTab({ ctx }) {
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
               <div className="flex items-center gap-1.5 text-[16px] text-white/[0.92]">
                 <CalendarDays className="h-4 w-4" style={{ color: ASSET_GOLD }} strokeWidth={1.8} />
-                <span>12 个月资产走势</span>
+                <span>{tt('analysis.monthTrendTitle', '12 个月资产走势')}</span>
               </div>
               <button onClick={() => setShowMonthsDetail(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
                 <X className="h-4 w-4" strokeWidth={1.8} />
@@ -1077,11 +1093,11 @@ export default function AnalysisTab({ ctx }) {
                   >
                     <div>
                       <div className="text-[13px] tabular-nums text-white/[0.82]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{m}</div>
-                      {isCurrent && <div className="mt-1 text-[11px]" style={{ color: ASSET_GOLD }}>本月</div>}
+                      {isCurrent && <div className="mt-1 text-[11px]" style={{ color: ASSET_GOLD }}>{tt('analysis.thisMonth', '本月')}</div>}
                     </div>
                     <div className="text-right">
                       <div className="text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
-                        {hasData ? `¥${fmtWan(total)}万` : '无数据'}
+                        {hasData ? `¥${fmtWan(total)}万` : tt('analysis.noData', '无数据')}
                       </div>
                       {hasData && changeAmt !== null && (
                         <div className="mt-1 text-[12px] tabular-nums" style={{ color: changeAmt >= 0 ? ASSET_PINK : ASSET_GREEN, fontFamily: ASSET_NUMBER_FONT }}>
@@ -1104,7 +1120,7 @@ export default function AnalysisTab({ ctx }) {
                 style={{ borderColor: 'rgba(246,197,111,0.55)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
-                补录/修改月度余额
+                {tt('analysis.fillOrEditMonthlyBalance', '补录/修改月度余额')}
               </button>
             </div>
           </div>
@@ -1115,7 +1131,7 @@ export default function AnalysisTab({ ctx }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 py-8 backdrop-blur-sm" onClick={closeFillSnapshot}>
           <div className="w-full max-w-[420px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[17px] text-white/[0.92]">填月度余额</h3>
+              <h3 className="text-[17px] text-white/[0.92]">{tt('analysis.addMonthlyBalance', '填月度余额')}</h3>
               <button onClick={closeFillSnapshot} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
                 <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
@@ -1123,7 +1139,7 @@ export default function AnalysisTab({ ctx }) {
 
             <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
               <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                <div className="mb-3 text-[12px] text-white/[0.52]">选择月份</div>
+                <div className="mb-3 text-[12px] text-white/[0.52]">{tt('analysis.selectMonth', '选择月份')}</div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => {
@@ -1136,9 +1152,9 @@ export default function AnalysisTab({ ctx }) {
                   </button>
                   <div className="min-w-0 flex-1 text-center">
                     <div className="text-[17px] tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>{fillMonth}</div>
-                    {fillMonth === currentMonth && <div className="mt-1 text-[11px] text-blue-300">本月</div>}
-                    {fillMonth > currentMonth && <div className="mt-1 text-[11px] text-amber-300">未来月</div>}
-                    {fillMonth < currentMonth && <div className="mt-1 text-[11px] text-white/[0.42]">历史月</div>}
+                    {fillMonth === currentMonth && <div className="mt-1 text-[11px] text-blue-300">{tt('analysis.thisMonth', '本月')}</div>}
+                    {fillMonth > currentMonth && <div className="mt-1 text-[11px] text-amber-300">{tt('analysis.futureMonth', '未来月')}</div>}
+                    {fillMonth < currentMonth && <div className="mt-1 text-[11px] text-white/[0.42]">{tt('analysis.historyMonth', '历史月')}</div>}
                   </div>
                   <button
                     onClick={() => {
@@ -1180,7 +1196,7 @@ export default function AnalysisTab({ ctx }) {
                               className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-[13px] transition"
                               style={active ? { background: 'rgba(37,99,235,0.32)', color: '#f7fbff' } : { color: 'rgba(255,255,255,0.52)' }}
                             >
-                              <span>{owner}</span>
+                              <span>{ownerLabel(owner)}</span>
                               <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{accs.length}</span>
                             </button>
                           );
@@ -1190,7 +1206,7 @@ export default function AnalysisTab({ ctx }) {
 
                     {hasMulti && (
                       <div className="mt-4 flex items-center justify-between text-[12px] text-white/[0.52]">
-                        <span>{snapshotTab} · {currentAccs.length} 个账户</span>
+                        <span>{tt('analysis.monthlyOwnerSummary', '{{owner}} · {{count}} 个账户', { owner: ownerLabel(snapshotTab), count: currentAccs.length })}</span>
                         <span className="tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 0)}</span>
                       </div>
                     )}
@@ -1206,7 +1222,7 @@ export default function AnalysisTab({ ctx }) {
                               <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[13px] text-white/[0.86]">{acc.name}</div>
+                              <div className="truncate text-[13px] text-white/[0.86]">{accountNameLabel(acc.name)}</div>
                               <div className="mt-1 text-[11px] text-white/[0.42]">{acc.currency}</div>
                             </div>
                             <input
@@ -1238,7 +1254,7 @@ export default function AnalysisTab({ ctx }) {
                   onClick={closeFillSnapshot}
                   className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
                 >
-                  取消
+                  {tt('analysis.cancel', '取消')}
                 </button>
                 <button
                   onClick={async () => {
@@ -1274,12 +1290,12 @@ export default function AnalysisTab({ ctx }) {
                       closeFillSnapshot();
                     } catch (e) {
                       console.error('[保存快照] 失败:', e);
-                      setAssetMessage({ type: 'error', text: `保存失败: ${e.message || '未知错误'}` });
+                      setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
                     }
                   }}
                   className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
                 >
-                  保存 {fillMonth}
+                  {tt('analysis.saveMonth', '保存 {{month}}', { month: fillMonth })}
                 </button>
               </div>
             </div>

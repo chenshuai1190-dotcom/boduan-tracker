@@ -4,6 +4,30 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 资产页英文模式
+
+- Commit: `acce0b0d022cacf371d3a23d0bb52ccdc56cee76`
+- Background: 用户要求继续做资产页面英文版,并特别强调英文版本不能改变资产页原本结构;此前英文模式已覆盖设置、底部导航、首页和交易页,资产页仍有大量固定中文 UI 文案。
+- Changes:
+  - `AnalysisTab.jsx` 接入共享语言框架,资产页头部、12 个月走势、账户分组、账户操作、新增/编辑账户和填月度余额弹窗支持英文文案。
+  - 系统内置账户类型和常见账户名做显示层英文映射,例如 `银行 -> Bank`、`招商银行 -> China Merchants Bank`;用户自定义账户名没有映射时继续原文显示。
+  - 中文模式保留原中文文案和原始账户字段;账户新增、编辑、删除、月度余额保存、CNY/USD/HKD 汇率换算和数据库路径不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.165`,新增“资产页英文模式”。
+  - 本轮只调整资产页显示层和版本日志,不改页面结构、交易账本、行情源、WebSocket、数据库结构、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed;覆盖资产页语言框架、系统内置账户名/类型映射、设置页版本/更新日志和既有账户数据库边界。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/AnalysisTab-CRE7mYWm.js`、`dist/assets/i18n-rTR84cpE.js`、`dist/assets/SettingsTab-Bvszj1Dj.js`、`dist/assets/settingsChangelog-Dz1XGaPV.js`。
+  - 本地 dist marker: `i18n-rTR84cpE.js` 包含 `Family Net Worth`、`Add Monthly Balance`、`China Merchants Bank`、`My Accounts` 和 `Account Actions`;`SettingsTab-Bvszj1Dj.js` 包含 `v10.7.9.165`;`settingsChangelog-Dz1XGaPV.js` 包含 `v10.7.9.165` 和 `资产页英文模式`。
+- Deployment: not deployed yet in this commit.
+- Rollback: 回退本条涉及的资产页语言显示、`v10.7.9.165` 设置页版本/更新日志、测试断言和本开发日志即可;不影响账户数据、月度余额、交易数据、行情鉴权或数据库。
+
 ### 2026-07-06 - 英文交易头部严格对齐首页
 
 - Commit: `992f761a5cd29b89e4fd2d616a32c197f5000d8c`
