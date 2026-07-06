@@ -356,9 +356,9 @@ function FgiGauge({ value }) {
       <circle cx={cx} cy={cy} r="3.2" fill="#f8fafc" />
       <circle cx={pointer.x} cy={pointer.y} r="6.2" fill={level.color} fillOpacity="0.26" filter="url(#fgiPointGlow)" />
       <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
-      <text x="37" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>
+      <text x="27" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>
       <text x="80" y="24" fill="#7f8794" fontSize="9" textAnchor="middle">50</text>
-      <text x="123" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>
+      <text x="133" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>
       <text x="80" y="56" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
     </svg>
   );
@@ -829,7 +829,7 @@ export default function HomeTab({ ctx }) {
             <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
             <span className="h-3.5 w-3.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]" />
           </div>
-          <div className="mt-1.5 text-[12px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
+          <div className="mt-1.5 text-[11px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
           <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
             <div className="relative h-1.5">
               <span
@@ -850,7 +850,7 @@ export default function HomeTab({ ctx }) {
             <span className="text-2xl font-normal tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
             <span className="text-sm font-normal" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
           </div>
-          <div className="mt-1.5 text-[12px] text-white/50">{fgiInfo.desc}</div>
+          <div className="mt-1.5 text-[11px] text-white/50">{fgiInfo.desc}</div>
           <div className="mt-0">
             <FgiGauge value={fgi} />
           </div>

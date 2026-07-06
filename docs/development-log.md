@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 恐慌小卡文字和端点微调
+
+- Commit: `pending`
+- Background: 用户根据截图继续反馈 CNN 仪表盘 `0` / `100` 标签应放回弧线开始和结束位置附近;同时 VIX 卡片“市场平静,无操作”说明文字偏大,CNN 恐慌说明行也要与 VIX 常规文字大小保持一致,给下方图形留出空间。
+- Changes:
+  - CNN `FgiGauge` 的 `0` 标签从 `x=37` 移到 `x=27`,更贴近左侧弧线起点。
+  - CNN `FgiGauge` 的 `100` 标签从 `x=123` 移到 `x=133`,更贴近右侧弧线终点。
+  - VIX 说明文字从 `text-[12px]` 降到 `text-[11px]`,颜色层级保持 `text-white/50`。
+  - CNN 说明文字同步从 `text-[12px]` 降到 `text-[11px]`,与 VIX 说明行一致。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.153`,新增“恐慌小卡文字和端点微调”。
+  - 本轮只调整首页 VIX/CNN 恐慌小卡文字尺寸和 CNN 端点标签位置;不改变小卡尺寸、VIX/FGI 数据来源、行情 relay、交易账本、资产、目标、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including updated homepage VIX/CNN helper text and CNN endpoint label marker checks.
+  - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/?tab=home`,in-app browser viewport `390x844`;VIX/CNN fear cards remain side-by-side at `173px` wide and `159px` high;CNN SVG remains `143px x 54px` with `viewBox="0 0 160 72"`;VIX and CNN descriptions render at `11px`;CNN `0` / `100` labels render from SVG `x=27/y=67` and `x=133/y=67` and remain fully visible;document `scrollWidth=390`,no horizontal overflow.
+  - `npm run build`: pass;Vite built `HomeTab-vZlznYrE.js`, `SettingsTab-Anf_QA6B.js`, `settingsChangelog-3prN_GgX.js`, `App-CxboSjpl.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`HomeTab-vZlznYrE.js` contains `0 0 160 72` / `h-[54px]`, CNN endpoint label markers `x=27` / `x=133`, and `text-[11px] text-white/50`;old `0 0 160 90` and thick `strokeWidth="13"` markers remain absent;`SettingsTab-Anf_QA6B.js` contains `v10.7.9.153`;`settingsChangelog-3prN_GgX.js` contains `v10.7.9.153` and `恐慌小卡文字和端点微调`.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/tabs/HomeTab.jsx` 的端点标签和说明文字字号调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.153` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - CNN 仪表盘端点修正
 
 - Commit: `338fa36a130c7c142242a5106252335a241aa88e`
