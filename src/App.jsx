@@ -2174,8 +2174,11 @@ function MainApp({ user, onLogout }) {
   const calmRoomAvgActiveDays = calmRoomActiveCount > 0 ? Math.round(calmRoomActiveDays / calmRoomActiveCount) : 0;
 
   // ============ 操作函数 ============
-  const addTrade = async () => {
+  const addTrade = async (sideOverride = null) => {
     if (tradeSubmittingRef.current) return;
+    const tradeDraft = sideOverride
+      ? { ...newTrade, side: sideOverride }
+      : newTrade;
     const showTradeNotice = (title, desc, info = null) => {
       showConfirm({
         title,
@@ -2187,17 +2190,17 @@ function MainApp({ user, onLogout }) {
         showCancel: false,
       });
     };
-    if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
+    if (!tradeDraft.symbol || !tradeDraft.price || !tradeDraft.shares) {
       showTradeNotice(
         t(language, 'trades.requiredTitle', '请填写完整信息'),
         t(language, 'trades.requiredDesc', '股票代码、价格和股数都是必填项。')
       );
       return;
     }
-    const symbol = newTrade.symbol.trim().toUpperCase();
-    const sharesNum = parseInt(newTrade.shares);
-    const priceNum = parseFloat(newTrade.price);
-    const editingId = newTrade.id || newTrade.editingId;
+    const symbol = tradeDraft.symbol.trim().toUpperCase();
+    const sharesNum = parseInt(tradeDraft.shares);
+    const priceNum = parseFloat(tradeDraft.price);
+    const editingId = tradeDraft.id || tradeDraft.editingId;
     if (sharesNum <= 0 || priceNum <= 0) {
       showTradeNotice(
         t(language, 'trades.positiveTitle', '价格和股数需要大于 0'),
@@ -2206,7 +2209,7 @@ function MainApp({ user, onLogout }) {
       return;
     }
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
-    const stockName = displayStockName(symbol, newTrade.name);
+    const stockName = displayStockName(symbol, tradeDraft.name);
     tradeSubmittingRef.current = true;
     setTradeSubmitting(true);
 
@@ -2217,15 +2220,15 @@ function MainApp({ user, onLogout }) {
         const waveTradeRecord = await db.insertTrade({
           symbol,
           name: stockName,
-          side: newTrade.side || 'buy',
-          date: newTrade.date,
+          side: tradeDraft.side || 'buy',
+          date: tradeDraft.date,
           price: priceNum,
           shares: sharesNum,
         });
         setTrades(current => [...current, waveTradeRecord]);
-        if (typeof newTrade.note === 'string') {
-          const targetWaveId = activeWaveBefore?.id || `wave-${symbol}-${newTrade.date || waveTradeRecord.id}`;
-          const noteValue = newTrade.note.trim();
+        if (typeof tradeDraft.note === 'string') {
+          const targetWaveId = activeWaveBefore?.id || `wave-${symbol}-${tradeDraft.date || waveTradeRecord.id}`;
+          const noteValue = tradeDraft.note.trim();
           if (noteValue || activeWaveBefore?.id) {
             setWaveNotes(current => ({ ...current, [targetWaveId]: noteValue }));
             db.upsertWaveNote(targetWaveId, noteValue).catch(err => {
@@ -2245,8 +2248,8 @@ function MainApp({ user, onLogout }) {
       }
 
       setNewTrade({
-        symbol: newTrade.symbol,
-        name: newTrade.name,
+        symbol: tradeDraft.symbol,
+        name: tradeDraft.name,
         side: 'buy',
         date: new Date().toISOString().split('T')[0],
         price: '',
@@ -2254,7 +2257,7 @@ function MainApp({ user, onLogout }) {
         note: '',
         batch: '第1批',
       });
-      setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found');
+      setLookupStatus(tradeDraft.symbol === 'TQQQ' ? null : 'found');
       setShowAddTrade(false);
       return;
     }
@@ -2264,13 +2267,13 @@ function MainApp({ user, onLogout }) {
       const tradePayload = {
         symbol,
         name: stockName,
-        side: newTrade.side || 'buy',
-        date: newTrade.date,
+        side: tradeDraft.side || 'buy',
+        date: tradeDraft.date,
         price: priceNum,
         shares: sharesNum,
-        fee: newTrade.fee || 0,
-        currency: newTrade.currency || 'USD',
-        note: newTrade.note || '',
+        fee: tradeDraft.fee || 0,
+        currency: tradeDraft.currency || 'USD',
+        note: tradeDraft.note || '',
       };
       const tradeRecord = editingId
         ? await db.updateStockTrade(editingId, tradePayload)
@@ -2293,15 +2296,15 @@ function MainApp({ user, onLogout }) {
 
     // 重置表单(保留 symbol/name,新增下一笔默认回到买入)
     setNewTrade({
-      symbol: newTrade.symbol,           // 保留刚用的代码
-      name: newTrade.name,                // 保留中文名
+      symbol: tradeDraft.symbol,          // 保留刚用的代码
+      name: tradeDraft.name,              // 保留系统识别名称
       side: 'buy',
       date: new Date().toISOString().split('T')[0],
       price: '',                          // 价格清空,等待重新输入
       shares: '',                         // 股数清空
       batch: '第1批',
     });
-    setLookupStatus(newTrade.symbol === 'TQQQ' ? null : 'found'); // 已知代码默认显示已找到
+    setLookupStatus(tradeDraft.symbol === 'TQQQ' ? null : 'found'); // 已知代码默认显示已找到
     setShowAddTrade(false);
   };
 

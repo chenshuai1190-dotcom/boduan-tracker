@@ -126,15 +126,46 @@ test('tool submissions require confirmation and duplicate-submit guards', () => 
 });
 
 test('trade and wave form validation avoids native alert dialogs', () => {
-  const addTradeStart = appSource.indexOf('const addTrade = async () =>');
+  const addTradeStart = appSource.indexOf('const addTrade = async (sideOverride = null) =>');
   const nextToolStart = appSource.indexOf('const confirmCostBasisTradeSubmit =', addTradeStart);
   const addTradeBlock = appSource.slice(addTradeStart, nextToolStart);
 
   assert.ok(addTradeStart > -1, 'missing addTrade implementation');
   assert.ok(nextToolStart > addTradeStart, 'missing boundary after addTrade implementation');
   assert.equal(addTradeBlock.includes('alert('), false, 'trade/wave submit path must not use native alert');
+  assert.ok(addTradeBlock.includes('const tradeDraft = sideOverride'), 'buy/sell submit buttons should pass the selected side into the save path');
+  assert.ok(addTradeBlock.includes("side: tradeDraft.side || 'buy'"), 'ledger payload should use the button-selected side');
   assert.ok(appSource.includes('showCancel: opts.showCancel !== false'), 'custom notice modal must support hiding cancel button');
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
+});
+
+test('main trade entry modal uses compact four-step buy sell submission flow', () => {
+  const tradeModalStart = tradesTabSource.indexOf('{showAddTrade && (');
+  const tradeModalEnd = tradesTabSource.indexOf('{showCostTool && (() => {', tradeModalStart);
+  const tradeModalBlock = tradesTabSource.slice(tradeModalStart, tradeModalEnd);
+
+  assert.ok(tradeModalStart > -1, 'missing trade entry modal');
+  assert.ok(tradeModalEnd > tradeModalStart, 'missing boundary after trade entry modal');
+  assert.ok(tradesTabSource.includes('import { BookOpen, Calculator, CalendarDays, ChevronRight'), 'trade modal should use lucide date and chevron icons');
+  assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should use lucide search and buy/sell trend icons');
+  assert.ok(tradeModalBlock.includes("tt('trades.stockTicker'"), 'first row should be stock ticker');
+  assert.ok(tradeModalBlock.includes("tt('trades.priceShares'"), 'second row should be price and shares');
+  assert.ok(tradeModalBlock.includes("tt('trades.date'"), 'third row should be date');
+  assert.ok(tradeModalBlock.includes("tt('trades.action'"), 'fourth row should be action');
+  assert.ok(tradeModalBlock.includes("tt('trades.systemManagedName'"), 'trade input should explain that name and price are system-managed');
+  assert.equal(tradeModalBlock.includes("tt('trades.nameAuto'"), false, 'main trade input should not show the old Chinese-name field');
+  assert.equal(tradeModalBlock.includes("tt('trades.confirmAdd'"), false, 'trade modal should not keep a duplicate confirm-add button');
+  assert.equal(tradeModalBlock.includes("tt('trades.confirmEdit'"), false, 'trade modal should not keep a duplicate confirm-edit button');
+  assert.equal(tradeModalBlock.includes("tt('trades.cancel'"), false, 'trade modal should not keep a duplicate cancel button');
+  assert.ok(tradeModalBlock.includes("onClick={() => confirmTradeSubmit('buy')}"), 'buy button should submit with buy side');
+  assert.ok(tradeModalBlock.includes("onClick={() => confirmTradeSubmit('sell')}"), 'sell button should submit with sell side');
+  assert.ok(tradeModalBlock.includes('<TrendingUp className="h-4 w-4"'), 'buy button should include the new trend-up icon');
+  assert.ok(tradeModalBlock.includes('<TrendingDown className="h-4 w-4"'), 'sell button should include the new trend-down icon');
+  assert.ok(tradeModalBlock.includes('h-11 items-center justify-center gap-2 rounded-xl'), 'buy/sell buttons should stay compact rather than oversized');
+  assert.ok(tradesTabSource.includes('await addTrade(tradeDraft.side);'), 'confirmed trade save should preserve the selected buy/sell side');
+  assert.ok(settingsTabSource.includes('v10.7.9.169'), 'settings version badge should document the trade entry modal update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.169'), 'settings changelog should document the trade entry modal update');
+  assert.ok(settingsChangelogSource.includes('交易录入弹窗结构优化'), 'settings changelog should describe the trade entry modal update');
 });
 
 test('settings data maintenance reset entry and runtime reset code stay removed', () => {
@@ -499,7 +530,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.168'), 'settings version badge should document the CNY label and hidden live update');
+  assert.ok(settingsTabSource.includes('v10.7.9.169'), 'settings version badge should document the latest trade entry modal update');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
   assert.ok(settingsChangelogSource.includes('v10.7.9.168'), 'settings changelog should document the CNY label and hidden live update');
   assert.ok(settingsChangelogSource.includes('头部币种显示改为 CNY'), 'settings changelog should describe the CNY label update');
@@ -686,7 +717,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.168'), 'settings version badge should document the CNY label and hidden live update');
+  assert.ok(settingsTabSource.includes('v10.7.9.169'), 'settings version badge should document the latest trade entry modal update');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
   assert.ok(settingsChangelogSource.includes('v10.7.9.168'), 'settings changelog should document the CNY label and hidden live update');
   assert.ok(settingsChangelogSource.includes('头部币种显示改为 CNY'), 'settings changelog should describe the CNY label update');

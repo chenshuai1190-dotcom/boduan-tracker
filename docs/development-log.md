@@ -4,6 +4,40 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 交易录入弹窗结构优化
+
+- Commit: `same commit`
+- Background: 用户指出交易页持仓股票编辑/新增交易弹窗当前顶部有买入/卖出、底部又有确认/取消,交互语义重复;要求按股票代码、价格与股数、日期、买入/卖出操作四层结构重排,保留确认弹窗,买入/卖出按钮增加新图标,录入界面不再显示中文名字段,并保持小字号、小输入框。
+- Changes:
+  - 主交易弹窗移除顶部买入/卖出分段按钮和底部确认/取消按钮,改为底部 `买入` / `卖出` 两个提交按钮。
+  - 点击底部 `买入` / `卖出` 会把方向显式传入保存流程,再弹出现有确认弹窗;确认后仍走主交易账本 `stock_trades` 或波段独立账本的原边界。
+  - 弹窗主体重排为四层:股票代码、价格与股数、日期、操作;输入框继续使用 12px 左右紧凑字号和小尺寸。
+  - 录入界面删除 `中文名(自动)` 输入框,仅保留“名称和现价由系统自动识别”的弱提示;系统仍按现有行情/股票名映射自动识别名称和价格。
+  - 买入/卖出按钮使用 lucide 趋势图标,日期行使用日历和箭头图标;不使用大字号、大输入框或浏览器原生确认。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.169`,新增“交易录入弹窗结构优化”。
+  - 本轮只调整交易录入弹窗显示和提交方向传参,不改主交易账本字段、波段记录边界、持仓/盈亏计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/App.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,27 tests passed;覆盖四层录入结构、旧中文名字段移除、重复确认/取消按钮移除、买入/卖出图标按钮、方向传参和设置页版本/更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,85 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-n6tU7tjM.js`、`dist/assets/TradesTab-BLWroVBB.js`、`dist/assets/i18n-DeasJQRv.js`、`dist/assets/SettingsTab-CDhwrdPJ.js` 和 `dist/assets/settingsChangelog-CEyzx6Hv.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `TradesTab-BLWroVBB.js` contains `systemManagedName`、`priceShares`、`trades.buy` and `trades.sell`,and does not contain `nameAuto`、`confirmAdd`、`confirmEdit` or `trades.cancel`;`SettingsTab-CDhwrdPJ.js` contains `v10.7.9.169`;`settingsChangelog-CEyzx6Hv.js` contains `v10.7.9.169` and `交易录入弹窗结构优化`;`i18n-DeasJQRv.js` contains `名称和现价由系统自动识别` and `Price & Shares`。
+- Deployment:
+  - Pending push to GitHub `main` and Vercel production deployment.
+- Production verification:
+  - Pending Vercel deployment;部署后需验证 `SettingsTab` 包含 `v10.7.9.169`,`settingsChangelog` 包含 `交易录入弹窗结构优化`,`TradesTab` 保留四层结构 marker 且不含旧 `nameAuto` / `confirmAdd` / `confirmEdit` / `trades.cancel`,未登录 `/api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`。
+- Rollback: 回退本条涉及的交易弹窗布局、`addTrade(sideOverride)` 方向传参、`v10.7.9.169` 设置页版本/更新日志、测试断言和本日志即可;不影响交易数据、行情 relay、汇率、RLS 或鉴权。
+
 ### 2026-07-06 - 头部 LIVE 隐藏和 CNY 名称统一
 
 - Commit: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`
