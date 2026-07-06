@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - CNN 仪表盘刻度点位微调
+
+- Commit: `pending`
+- Background: 用户根据放大截图继续反馈 CNN 恐慌贪婪指数圆弧刻度仍需调整:`0` / `50` / `100` 数字要更小,并把 `0` 和顶部 `50` 移到截图标注点位附近。
+- Changes:
+  - CNN `FgiGauge` 的 HTML 刻度字号从 `text-[10px]` 降到 `text-[8px]`,降低对圆弧主体的干扰。
+  - `0` 刻度从 `left: 16.25%` 调整到 `left: 21%`,向左侧圆弧端点内收,贴近标注点位。
+  - `50` 刻度从 `top-[11px]` 调整到 `top-[4px]`,上移到圆弧外侧,避免压住黄绿高亮弧线。
+  - `100` 刻度同步从 `left: 83.75%` 调整到 `left: 81.5%`,向右侧圆弧端点内收,避免外飘。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.155`,新增“CNN 仪表盘刻度点位微调”。
+  - 本轮只调整首页 CNN 小卡刻度文字点位和字号;不改变小卡高度、CNN 指针、VIX 样式、VIX/FGI 数据来源、行情 relay、交易账本、资产、目标、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including updated assertions for `text-[8px]`, `left: 21%`, `top-[4px]`, `left: 81.5%`, and settings/changelog `v10.7.9.155`.
+  - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/?tab=home`,in-app browser viewports `390x844` and `390x640`;VIX/CNN fear cards remain side-by-side at `173px` wide and `159px` high;CNN gauge slot remains `143px x 54px`, SVG remains `viewBox="0 0 160 72"`;`0` / `50` / `100` render as `8px` HTML labels, all bbox fully inside the CNN card;`0` moved to bbox `x=243 y=675`, `50` moved to `x=282 y=636`, `100` moved to `x=325 y=675`;document `scrollWidth=390`,no horizontal overflow.
+  - Local screenshot check: pass;captured `390x844` and `390x640` screenshots after the change;`0` / `50` / `100` are visibly smaller, `50` sits above the highlighted arc, and `0` / `100` sit closer to the arc endpoint markers.
+  - `npm run build`: pass;Vite built `HomeTab-4kmfTgmo.js`, `SettingsTab-CJYKtVXO.js`, `settingsChangelog-CRr1ruGY.js`, `App-BAxJ2p_d.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`HomeTab-4kmfTgmo.js` contains `text-[8px]`, label positions `21%` / `81.5%`, and `top-[4px]`;old label positions `16.25%` / `83.75%` are absent;`SettingsTab-CJYKtVXO.js` contains `v10.7.9.155`;`settingsChangelog-CRr1ruGY.js` contains `v10.7.9.155` and `CNN 仪表盘刻度点位微调`.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/tabs/HomeTab.jsx` 的 CNN HTML 刻度字号和点位调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.155` 条目、测试和本开发日志即可;不会影响 VIX、行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - CNN 仪表盘数字显示修复
 
 - Commit: `1bbe91919fe2b4c601523fa9cfe9254dc60bf4ad`

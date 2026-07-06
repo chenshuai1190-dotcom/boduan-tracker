@@ -363,9 +363,9 @@ function FgiGauge({ value }) {
         <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
         <text x="80" y="53" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
       </svg>
-      <span className="pointer-events-none absolute bottom-[1px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '16.25%' }}>0</span>
-      <span className="pointer-events-none absolute left-1/2 top-[11px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={labelStyle}>50</span>
-      <span className="pointer-events-none absolute bottom-[1px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '83.75%' }}>100</span>
+      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[8px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '21%' }}>0</span>
+      <span className="pointer-events-none absolute left-1/2 top-[4px] -translate-x-1/2 text-[8px] font-medium leading-none text-[#8f98a6]" style={labelStyle}>50</span>
+      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[8px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '81.5%' }}>100</span>
     </div>
   );
 }

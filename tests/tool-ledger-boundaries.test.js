@@ -432,7 +432,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
-  assert.ok(settingsTabSource.includes('v10.7.9.154'), 'settings version badge should document the latest CNN gauge label rendering fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.155'), 'settings version badge should document the latest CNN gauge tick placement tweak');
   assert.ok(settingsChangelogSource.includes('v10.7.9.149'), 'settings changelog should document the module scale removal update');
   assert.ok(settingsChangelogSource.includes('资产和目标模块缩放移除'), 'settings changelog should describe the module scale removal update');
 });
@@ -586,8 +586,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('id="fgiGaugeGlow"'), 'CNN gauge should define a glow filter');
   assert.ok(homeTabSource.includes('strokeWidth="6"'), 'CNN gauge arc should stay slim');
   assert.ok(homeTabSource.includes('strokeWidth="1.7"'), 'CNN gauge pointer should stay slim');
-  assert.ok(homeTabSource.includes("left: '16.25%'"), 'CNN left endpoint label should be HTML-positioned at the arc start');
-  assert.ok(homeTabSource.includes("left: '83.75%'"), 'CNN right endpoint label should be HTML-positioned at the arc end');
+  assert.ok(homeTabSource.includes('text-[8px] font-medium leading-none text-[#8f98a6]'), 'CNN tick labels should be smaller than the previous 10px labels');
+  assert.ok(homeTabSource.includes("left: '21%'"), 'CNN left endpoint label should be nudged inward near the marked arc start');
+  assert.ok(homeTabSource.includes("top-[4px]"), 'CNN midpoint label should move above the highlighted arc');
+  assert.ok(homeTabSource.includes("left: '81.5%'"), 'CNN right endpoint label should be nudged inward near the marked arc end');
   assert.equal(homeTabSource.includes('<text x="27" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>'), false, 'CNN left endpoint label should not rely on SVG text rendering');
   assert.equal(homeTabSource.includes('<text x="133" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>'), false, 'CNN right endpoint label should not rely on SVG text rendering');
   assert.ok(homeTabSource.includes('mt-1.5 text-[11px] text-white/50">{vixSignal?.desc'), 'VIX status description should use the smaller common helper text size');
@@ -596,9 +598,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.154'), 'settings version badge should document the latest CNN gauge label rendering fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.154'), 'settings changelog should document the latest CNN gauge label rendering fix');
-  assert.ok(settingsChangelogSource.includes('CNN 仪表盘数字显示修复'), 'settings changelog should describe the CNN gauge label rendering fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.155'), 'settings version badge should document the latest CNN gauge tick placement tweak');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.155'), 'settings changelog should document the latest CNN gauge tick placement tweak');
+  assert.ok(settingsChangelogSource.includes('CNN 仪表盘刻度点位微调'), 'settings changelog should describe the CNN gauge tick placement tweak');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.154'), 'settings changelog should keep the previous CNN gauge label rendering fix');
+  assert.ok(settingsChangelogSource.includes('CNN 仪表盘数字显示修复'), 'settings changelog should keep the previous CNN gauge label rendering fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.153'), 'settings changelog should keep the previous fear card text and endpoint update');
   assert.ok(settingsChangelogSource.includes('恐慌小卡文字和端点微调'), 'settings changelog should keep the previous fear card text and endpoint update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.152'), 'settings changelog should document the latest CNN gauge endpoint update');
