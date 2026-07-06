@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 首页恐慌指数小卡压缩
 
-- Commit: `pending`
+- Commit: `894bd5d9affb7831fb544844ebb9c606ba29932b`
 - Background: 用户提供首页参考图,要求 VIX/CNN 恐慌指数区域继续压缩高度,同时把 CNN 恐慌贪婪指数圆弧图做成参考图里的细半圆仪表盘效果;明确不能改出超过效果图的大小,并保持双列小卡布局。
 - Changes:
   - 首页 VIX/CNN 恐慌小卡继续保持 `grid grid-cols-2 gap-3` 双列布局,不恢复之前的大卡组件。
@@ -31,7 +31,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`HomeTab-BWzquU9N.js` contains compact `0 0 160 70` / `h-[54px]` CNN gauge, `fgiGaugeGlow`, slim `strokeWidth="6"` arc, slim `strokeWidth="1.7"` pointer, and thin VIX `mt-3 h-1.5` risk bar;it no longer contains old `0 0 160 90` / thick `strokeWidth="13"` gauge markers;`SettingsTab-Cbe8xIkJ.js` contains `v10.7.9.151`;`settingsChangelog-B9EZ5nfK.js` contains `v10.7.9.151` and `首页恐慌指数小卡压缩`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `894bd5d9affb7831fb544844ebb9c606ba29932b`.
+  - GitHub Actions `build` check passed for `894bd5d9affb7831fb544844ebb9c606ba29932b`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?final=*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 05:07:24 GMT`.
+  - Production asset marker check: pass;active runtime assets include `HomeTab-BWzquU9N.js`, `SettingsTab-DaCH35er.js`, and `settingsChangelog-B9EZ5nfK.js`.
+  - Production fear-card marker check: pass;`HomeTab-BWzquU9N.js` contains compact `0 0 160 70` / `h-[54px]` CNN gauge, `fgiGaugeGlow`, thin VIX `mt-3 h-1.5` risk bar, and no old `0 0 160 90` / `strokeWidth="13"` gauge markers;`SettingsTab-DaCH35er.js` contains `v10.7.9.151`;`settingsChangelog-B9EZ5nfK.js` contains `v10.7.9.151` and `首页恐慌指数小卡压缩`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/HomeTab.jsx` 的 `FgiGauge`、FGI 阈值和恐慌小卡 class 调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.151` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 目标标题和操作弹窗收紧
