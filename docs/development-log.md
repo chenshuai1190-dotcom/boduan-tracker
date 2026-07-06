@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 行情请求禁用浏览器缓存
+
+- Commit: 待推送到 GitHub `main` 后回填。
+- Background: `v10.7.9.177` 已把启动、切页、前台恢复和股票 WebSocket 打开后的行情刷新触发提前,但线上体感仍接近静态。复查发现 `/api/quote` 登录态响应仍是 `private, max-age=15`,且前端主行情请求复用同一个 `/api/quote?symbols=...` URL,浏览器可能在 15 秒内直接返回旧 HTTP cache,导致快速触发没有真正走到最新网络响应。
+- Changes:
+  - `api/quote.js` 在登录鉴权模式下把 `/api/quote` 响应改为 `private, no-store, max-age=0, must-revalidate`,并补充 `Pragma: no-cache` / `Expires: 0`;未关闭登录鉴权,未登录仍返回 `401`。
+  - `src/App.jsx` 的 `fetchQuote` 增加 `fresh` 选项;主实时行情刷新调用 `fetchQuote(symbols, { fresh: true })`,请求头带 `Cache-Control: no-cache` / `Pragma: no-cache`,fetch 选项使用 `cache: 'no-store'`,并追加 `_ts=Date.now()` 避免浏览器复用旧 URL。
+  - 只让首页/交易页主行情刷新强制走 fresh request;日历、分析师、单只搜索等非主刷新调用保持原路径。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.178`,新增“行情请求禁用浏览器缓存”。
+  - 本轮不改交易账本、持仓/收益率计算、`v10.7.9.176` 涨跌幅重算口径、EODHD 服务端 token、WebSocket relay、Supabase、RLS、数据库结构或 Yahoo 小曲线。
+- Key files:
+  - `api/quote.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/quote-response-shape.test.js tests/btc-realtime.test.js` pass,56 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,92 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DUngVmmr.js`、`dist/assets/SettingsTab-BYllz8MO.js`、`dist/assets/settingsChangelog-BXOg8av5.js`、`dist/assets/index-CVt43HtD.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `SettingsTab-BYllz8MO.js` contains `v10.7.9.178`;`settingsChangelog-BXOg8av5.js` contains `v10.7.9.178` and `行情请求禁用浏览器缓存`;`App-DUngVmmr.js` contains `fresh:!0`, `_ts`, `no-store` and `no-cache`;`api/quote.js` contains `private, no-store, max-age=0, must-revalidate`。
+- Deployment:
+  - 待推送 GitHub `main` 后由 Vercel Git integration 部署并验证生产 marker。
+- Rollback: 回退本条涉及的 `/api/quote` no-store 响应头、`fetchQuote(..., { fresh: true })` fresh 请求、`v10.7.9.178` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓/收益率计算、涨跌幅重算口径、EODHD 服务端 token、WebSocket relay、Supabase、RLS 或数据库结构。
+
 ### 2026-07-06 - 股票行情即时刷新
 
 - Commit: `7c24e6892704bbf19dc9cb16f78cd4118f57fa7a`

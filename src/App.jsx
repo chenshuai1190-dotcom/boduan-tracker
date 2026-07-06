@@ -1173,14 +1173,26 @@ function MainApp({ user, onLogout }) {
   const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0 });
   const quoteRefreshFromCloudResultRef = useRef(null);
 
-  const fetchQuote = useCallback(async (symbols) => {
+  const fetchQuote = useCallback(async (symbols, options = {}) => {
+    const requestOptions = (options && typeof options === 'object') ? options : {};
+    const fresh = requestOptions.fresh === true;
     const { data: { session } } = await supabase.auth.getSession();
     const headers = {};
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
     }
+    if (fresh) {
+      headers['Cache-Control'] = 'no-cache';
+      headers.Pragma = 'no-cache';
+    }
     const params = new URLSearchParams({ symbols });
-    return fetch(`/api/quote?${params.toString()}`, { headers });
+    if (fresh) {
+      params.set('_ts', String(Date.now()));
+    }
+    return fetch(`/api/quote?${params.toString()}`, {
+      headers,
+      ...(fresh ? { cache: 'no-store' } : {}),
+    });
   }, []);
 
   const applyBtcRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
@@ -2632,7 +2644,7 @@ function MainApp({ user, onLogout }) {
       const symbolSet = new Set([...rowsForQuote.map(s => s.symbol), ...coreSymbols]);
       requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
       const symbols = requestedSymbols.join(',');
-      const r = await fetchQuote(symbols);
+      const r = await fetchQuote(symbols, { fresh: true });
       responseStatus = r.status;
       const result = await r.json().catch(() => ({}));
       responseResult = result;

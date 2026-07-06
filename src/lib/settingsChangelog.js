@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.177', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.178', date: '2026-07-06', latest: true,
+    items: [
+      '⚡ 行情请求禁用浏览器缓存',
+      '  - 首页/交易页自动、切页、前台恢复和实时连接后的股票行情刷新强制走网络请求',
+      '  - 主行情请求增加 no-store/no-cache 和一次性时间戳,避免复用浏览器 15 秒旧响应',
+      '  - /api/quote 登录态响应改为 no-store,未登录仍保持 401 鉴权边界',
+      '  - 不改交易账本、涨跌幅重算口径、EODHD 服务端 token、WebSocket relay、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.177', date: '2026-07-06',
     items: [
       '⚡ 股票行情即时刷新',
       '  - 启动云端账本加载完成后立即拉取行情快照,不再等下一轮轮询',

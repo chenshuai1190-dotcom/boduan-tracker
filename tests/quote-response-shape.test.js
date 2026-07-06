@@ -350,6 +350,24 @@ function liveQuoteWithoutPreviousClose({ price, high, low }) {
   };
 }
 
+test('authenticated quote responses disable browser caching before auth failure', async () => {
+  const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
+  process.env.QUOTE_API_AUTH_REQUIRED = 'true';
+
+  try {
+    const res = createResponse();
+    await handler(createRequest('VIX'), res);
+
+    assert.equal(res.statusCode, 401);
+    assert.equal(res.headers['Cache-Control'], 'private, no-store, max-age=0, must-revalidate');
+    assert.equal(res.headers.Pragma, 'no-cache');
+    assert.equal(res.headers.Expires, '0');
+  } finally {
+    if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
+    else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+  }
+});
+
 test('EODHD stock normalizer recomputes regular-session change from lastTradePrice and previous close', () => {
   const quote = normalizeEodhdStockQuoteFields({
     lastTradePrice: 384.05,

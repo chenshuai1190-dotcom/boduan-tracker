@@ -16,6 +16,7 @@ const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangel
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
+const quoteApiSource = readFileSync(new URL('../api/quote.js', import.meta.url), 'utf8');
 const indicesRealtimeApiSource = readFileSync(new URL('../api/indices-realtime.js', import.meta.url), 'utf8');
 const stocksRealtimeApiSource = readFileSync(new URL('../api/stocks-realtime.js', import.meta.url), 'utf8');
 
@@ -185,9 +186,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.177'), 'settings version badge should document the quick quote refresh update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.177'), 'settings changelog should document the quick quote refresh update');
-  assert.ok(settingsChangelogSource.includes('股票行情即时刷新'), 'settings changelog should describe the quick quote refresh update');
+  assert.ok(settingsTabSource.includes('v10.7.9.178'), 'settings version badge should document the no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.178'), 'settings changelog should document the no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('行情请求禁用浏览器缓存'), 'settings changelog should describe the no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.177'), 'settings changelog should retain the quick quote refresh update');
+  assert.ok(settingsChangelogSource.includes('股票行情即时刷新'), 'settings changelog should retain the quick quote refresh update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.175'), 'settings changelog should retain the EODHD quote basis update');
   assert.ok(settingsChangelogSource.includes('EODHD 股票价格口径统一'), 'settings changelog should retain the EODHD quote basis update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.173'), 'settings changelog should retain the previous modal detail update');
@@ -325,6 +328,12 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("'auto-tab'"), 'home/trade tab quote refresh should be classified as an automatic trigger');
   assert.ok(appSource.includes("'auto-realtime-open'"), 'stock realtime open quote refresh should be classified as an automatic trigger');
   assert.ok(appSource.includes('pendingQuoteRefreshRef.current'), 'overlapping quick quote refreshes should queue one follow-up request instead of being dropped');
+  assert.ok(appSource.includes('const fresh = requestOptions.fresh === true;'), 'quote fetch helper should support fresh no-cache requests');
+  assert.ok(appSource.includes("headers['Cache-Control'] = 'no-cache';"), 'fresh quote requests should ask intermediaries not to reuse cached responses');
+  assert.ok(appSource.includes('params.set(\'_ts\', String(Date.now()))'), 'fresh quote requests should append a cache-busting timestamp');
+  assert.ok(appSource.includes("fetchQuote(symbols, { fresh: true })"), 'main realtime quote refresh should always bypass browser caches');
+  assert.ok(appSource.includes("cache: 'no-store'"), 'fresh quote requests should disable the browser HTTP cache');
+  assert.ok(quoteApiSource.includes("'private, no-store, max-age=0, must-revalidate'"), 'authenticated quote responses should not be browser-cacheable');
   assert.ok(appSource.includes('requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result)'), 'cloud-loaded ledger rows should request an immediate quote snapshot before waiting for the polling effect');
   assert.ok(appSource.includes("window.addEventListener('focus', handleFocus)"), 'window focus should trigger a quick quote refresh');
   assert.ok(appSource.includes("window.addEventListener('pageshow', handlePageShow)"), 'page restore should trigger a quick quote refresh');
@@ -619,9 +628,10 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.177'), 'settings version badge should document the latest quick quote refresh update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.177'), 'settings changelog should document the latest quick quote refresh update');
-  assert.ok(settingsChangelogSource.includes('股票行情即时刷新'), 'settings changelog should describe the latest quick quote refresh update');
+  assert.ok(settingsTabSource.includes('v10.7.9.178'), 'settings version badge should document the latest no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.178'), 'settings changelog should document the latest no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('行情请求禁用浏览器缓存'), 'settings changelog should describe the latest no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('股票行情即时刷新'), 'settings changelog should retain the quick quote refresh update');
   assert.ok(settingsChangelogSource.includes('EODHD 股票价格口径统一'), 'settings changelog should retain the EODHD quote basis update');
   assert.ok(settingsChangelogSource.includes('目标页文案和弹窗可读性'), 'settings changelog should retain the review wording and modal readability update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.171'), 'settings changelog should retain the tool modal and currency sync update');
@@ -820,9 +830,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.177'), 'settings version badge should document the latest quick quote refresh update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.177'), 'settings changelog should document the latest quick quote refresh update');
-  assert.ok(settingsChangelogSource.includes('股票行情即时刷新'), 'settings changelog should describe the latest quick quote refresh update');
+  assert.ok(settingsTabSource.includes('v10.7.9.178'), 'settings version badge should document the latest no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.178'), 'settings changelog should document the latest no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('行情请求禁用浏览器缓存'), 'settings changelog should describe the latest no-cache quote refresh update');
+  assert.ok(settingsChangelogSource.includes('股票行情即时刷新'), 'settings changelog should retain the quick quote refresh update');
   assert.ok(settingsChangelogSource.includes('EODHD 股票价格口径统一'), 'settings changelog should retain the EODHD quote basis update');
   assert.ok(settingsChangelogSource.includes('目标页文案和弹窗可读性'), 'settings changelog should retain the review wording and modal readability update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.171'), 'settings changelog should retain the tool modal and currency sync update');

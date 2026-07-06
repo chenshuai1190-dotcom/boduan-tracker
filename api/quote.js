@@ -7,10 +7,13 @@ import { parseSymbolsParam } from '../server/quote/symbols.js';
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
   const authRequired = process.env.QUOTE_API_AUTH_REQUIRED !== 'false';
-  res.setHeader(
-    'Cache-Control',
-    authRequired ? 'private, max-age=15' : 's-maxage=15, stale-while-revalidate=30'
-  );
+  if (authRequired) {
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  } else {
+    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
+  }
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') {
