@@ -4,6 +4,42 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 盘前实时当日盈亏修复
+
+- Commit: `same commit`
+- Background: 用户在美股盘前反馈交易页头部和持仓分布的“今日盈亏/当日盈亏”不稳定:系统已经拿到微软实时盘前价,总资产/累计收益会按当前盘前价变化,但当日盈亏可能显示为 `+¥0.00`;下拉刷新后 REST 兜底还可能把实时价打回延迟价,导致当日盈亏继续清零。
+- Root cause:
+  - 股票 WebSocket tick 有时只提供实时盘前成交价,不提供 `previousClose`、`change` 或 `changePercent`。
+  - `applyStockTickToQuoteRows` 在 `quoteCache` 已有该股票时只沿用 cache 行,没有从基础 `quoteRows` 补昨收;如果刷新后先收到 tick,会留下 `previousClose=0`。
+  - `investmentSummary` 的当日盈亏只在 `previousClose > 0` 时计算,所以总市值按实时价变化,但当日盈亏被清零。
+  - 手动/下拉刷新 REST 结果返回延迟价时,没有稳定保留更新鲜的实时 `quoteCache` 行,会短暂覆盖盘前实时价。
+- Changes:
+  - `stockRealtime` 合并 tick 时增加基础行情兜底:tick 只有价格时,从 `baseRows`/REST 行补 `previousClose`、`changePercent`、`intraday` 等基准字段。
+  - 新增 `mergeFreshStockRealtimeRows`,REST 刷新后 120 秒内的实时 `quoteCache` 行会重新叠回刷新结果,避免手动/下拉刷新把盘前实时价打回延迟价。
+  - 修正 `change=0` / `changePercent=0` 的粘滞问题:当价格和昨收明显不同,不再把缓存里的 0 当成有效涨跌,而是按实时价和昨收重新计算。
+  - `investmentSummary` 在 `previousClose` 缺失但 `change` 或 `changePercent` 存在时反推昨收,避免当日盈亏直接清零。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.157`,新增“盘前实时当日盈亏修复”。
+  - 本轮只调整股票实时行情合并和当日盈亏派生口径;不改交易账本、WebSocket 鉴权、`/api/quote` 鉴权、Supabase、RLS、资产/目标业务逻辑或英文模式开关。
+- Key files:
+  - `src/lib/stockRealtime.js`
+  - `src/lib/investmentSummary.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/investment-summary.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/btc-realtime.test.js tests/investment-summary.test.js tests/tool-ledger-boundaries.test.js` covers price-only stock tick keeping REST previous close, REST refresh preserving fresh realtime price, and investment summary inferring daily P&L when `previousClose` is missing.
+  - `npm test`: pass;81 tests passed.
+  - `npm run build`: pass;Vite built `App--5GfaUA8.js`, `SettingsTab-BiT2BPad.js`, `settingsChangelog-BjTR6oqk.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+- Deployment:
+  - Pending;本条日志随本轮提交推送后补充 GitHub/Vercel 和生产 marker 验证结果。
+- Rollback: 回退 `src/lib/stockRealtime.js` 的实时 tick/REST 合并逻辑、`src/lib/investmentSummary.js` 的昨收反推兜底、`src/App.jsx` 的刷新后实时价保留、设置页版本/更新日志、测试和本开发日志即可;不会影响交易记录、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 英文模式第一阶段
 
 - Commit: `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`

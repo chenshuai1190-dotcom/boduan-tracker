@@ -29,17 +29,17 @@ export function applyStockTickToQuoteRows(rows = [], tick, realtimeStatus = 'liv
   const symbol = normalizeStockRealtimeSymbol(tick?.symbol || tick?.ticker || tick?.displaySymbol);
   const price = asNumber(tick?.price);
   if (!symbol || !price || price <= 0) return rows;
+  const baseRow = findStockRealtimeRow(baseRows, symbol);
 
   let found = false;
   const nextRows = (rows || []).map((row) => {
     if (normalizeStockRealtimeSymbol(row?.symbol) !== symbol) return row;
     found = true;
-    return createStockQuoteRow(row, { ...tick, symbol }, realtimeStatus);
+    return createStockQuoteRow(mergeQuoteBaseline(row, baseRow), { ...tick, symbol }, realtimeStatus);
   });
 
   if (found) return nextRows;
 
-  const baseRow = (baseRows || []).find((row) => normalizeStockRealtimeSymbol(row?.symbol) === symbol);
   if (!baseRow) return nextRows;
   return [...nextRows, createStockQuoteRow(baseRow, { ...tick, symbol }, realtimeStatus)];
 }
@@ -52,6 +52,44 @@ export function mergeStockTicksIntoQuoteRows(rows = [], ticks = [], realtimeStat
   return next;
 }
 
+export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
+  maxAgeMs = 120_000,
+  now = Date.now(),
+} = {}) {
+  let next = rows || [];
+  for (const row of realtimeRows || []) {
+    const symbol = normalizeStockRealtimeSymbol(row?.symbol);
+    const price = asNumber(row?.price);
+    const realtimeAt = asNumber(row?.realtimeAt);
+    const isFreshRealtime = symbol
+      && price
+      && price > 0
+      && row?.realtime
+      && realtimeAt
+      && now - realtimeAt <= maxAgeMs;
+    if (!isFreshRealtime) continue;
+    next = applyStockTickToQuoteRows(next, row, row?.realtimeStatus || 'live', rows);
+  }
+  return next;
+}
+
+function findStockRealtimeRow(rows = [], symbol) {
+  return (rows || []).find((row) => normalizeStockRealtimeSymbol(row?.symbol) === symbol) || null;
+}
+
+function mergeQuoteBaseline(row = {}, baseRow = null) {
+  if (!baseRow) return row || {};
+  return {
+    ...baseRow,
+    ...row,
+    previousClose: asNumber(row?.previousClose) || asNumber(baseRow?.previousClose) || 0,
+    change: asNumber(row?.change) ?? asNumber(baseRow?.change) ?? 0,
+    changePercent: asNumber(row?.changePercent) ?? asNumber(baseRow?.changePercent) ?? 0,
+    ytdChangePercent: asNumber(row?.ytdChangePercent) || asNumber(baseRow?.ytdChangePercent) || 0,
+    intraday: Array.isArray(row?.intraday) && row.intraday.length > 0 ? row.intraday : (baseRow?.intraday || []),
+  };
+}
+
 function createStockQuoteRow(row, tick, realtimeStatus) {
   const symbol = normalizeStockRealtimeSymbol(tick?.symbol) || normalizeStockRealtimeSymbol(row?.symbol);
   const price = asNumber(tick?.price) || 0;
@@ -60,13 +98,15 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
   const tickPreviousClose = asNumber(tick?.previousClose);
   const tickChange = asNumber(tick?.change);
   const tickChangePercent = asNumber(tick?.changePercent);
+  const rowPreviousClose = asNumber(row?.previousClose);
   const previousClose = tickPreviousClose && tickPreviousClose > 0
     ? tickPreviousClose
-    : (tickChange !== null && price - tickChange > 0 ? price - tickChange : asNumber(row?.previousClose));
-  const change = tickChange !== null
+    : (tickChange !== null && tickChange !== 0 && price - tickChange > 0 ? price - tickChange : rowPreviousClose);
+  const priceDiffersFromPreviousClose = previousClose && previousClose > 0 && Math.abs(price - previousClose) > 0.000001;
+  const change = tickChange !== null && !(tickChange === 0 && priceDiffersFromPreviousClose)
     ? tickChange
     : (previousClose && previousClose > 0 ? price - previousClose : (asNumber(row?.change) ?? 0));
-  const changePercent = tickChangePercent !== null
+  const changePercent = tickChangePercent !== null && !(tickChangePercent === 0 && priceDiffersFromPreviousClose)
     ? tickChangePercent
     : (previousClose && previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : (asNumber(row?.changePercent) ?? 0));
   const high = Math.max(

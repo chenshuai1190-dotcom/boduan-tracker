@@ -7,7 +7,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCards } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
@@ -2498,7 +2498,11 @@ function MainApp({ user, onLogout }) {
           }
           return s;
         });
-        setQuoteCache(mergeFreshStockTicksIntoQuoteRows(updatedQuotes));
+        setQuoteCache((current) => (
+          mergeFreshStockTicksIntoQuoteRows(
+            mergeFreshStockRealtimeRows(updatedQuotes, current),
+          )
+        ));
       }
 
       // 同步 QQQ 到核心信号参数

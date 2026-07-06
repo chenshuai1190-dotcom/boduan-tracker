@@ -14,7 +14,7 @@ import { INDEX_REALTIME_SYMBOLS, normalizeIndexTick } from '../server/realtime/i
 import { normalizeStockTick, parseStockRealtimeSymbolsParam } from '../server/realtime/stocks.js';
 import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, selectStockRealtimeSymbols } from '../src/lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, mergeFreshStockRealtimeRows, selectStockRealtimeSymbols } from '../src/lib/stockRealtime.js';
 
 test('normalizeBtcTick accepts EODHD crypto WebSocket fields', () => {
   const tick = normalizeBtcTick({
@@ -218,4 +218,53 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
   const next = applyStockTickToQuoteRows(updated, { ...tick, price: 189 }, 'live', baseRows);
   assert.equal(next.length, 1);
   assert.equal(next[0].price, 189);
+});
+
+test('stock realtime tick keeps previous close from base quote rows when tick only has price', () => {
+  const currentRows = [
+    { symbol: 'MSFT', name: '微软', price: 390.5, previousClose: 0, intraday: [390.5], high: 391 },
+  ];
+  const baseRows = [
+    { symbol: 'MSFT', name: '微软', price: 390.5, previousClose: 390.507, changePercent: 0, high: 391 },
+  ];
+  const updated = applyStockTickToQuoteRows(currentRows, {
+    type: 'stock_tick',
+    symbol: 'MSFT',
+    price: 390.83,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  }, 'live', baseRows);
+
+  assert.equal(updated[0].price, 390.83);
+  assert.equal(updated[0].previousClose, 390.507);
+  assert.equal(Number(updated[0].change.toFixed(3)), 0.323);
+  assert.equal(Number(updated[0].changePercent.toFixed(4)), 0.0827);
+});
+
+test('REST refresh preserves fresh realtime stock prices while keeping REST previous close', () => {
+  const now = 1783000005000;
+  const refreshedRows = [
+    { symbol: 'MSFT', name: '微软', price: 390.507, previousClose: 390.507, changePercent: 0, high: 391 },
+  ];
+  const quoteCache = [
+    {
+      symbol: 'MSFT',
+      name: '微软',
+      price: 390.83,
+      previousClose: 0,
+      change: 0,
+      changePercent: 0,
+      realtime: true,
+      realtimeStatus: 'live',
+      realtimeAt: now - 20_000,
+      source: 'EODHD_WS',
+    },
+  ];
+  const merged = mergeFreshStockRealtimeRows(refreshedRows, quoteCache, { now, maxAgeMs: 120_000 });
+
+  assert.equal(merged[0].price, 390.83);
+  assert.equal(merged[0].previousClose, 390.507);
+  assert.equal(Number(merged[0].change.toFixed(3)), 0.323);
+  assert.equal(Number(merged[0].changePercent.toFixed(4)), 0.0827);
+  assert.equal(merged[0].realtimeStatus, 'live');
 });

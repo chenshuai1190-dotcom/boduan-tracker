@@ -69,6 +69,22 @@ test('investment summary counts held stocks and sell records only', () => {
   assert.equal(summary.cumulativePnlPct, 220 / 920);
 });
 
+test('investment summary can infer daily pnl from realtime change fields when previous close is missing', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      { id: 1, symbol: 'MSFT', name: '微软', side: 'buy', date: '2026-01-03', price: 380, shares: 2300 },
+    ],
+    watchlist: [
+      { symbol: 'MSFT', name: '微软', price: 390.83, previousClose: 0, changePercent: 0.0827 },
+    ],
+    usdRate: 7.2,
+  });
+
+  assert.equal(Number(summary.activePositions[0].previousClose.toFixed(3)), 390.507);
+  assert.equal(Number(summary.activePositions[0].todayPnl.toFixed(2)), 742.78);
+  assert.equal(Number(summary.todayPnl.toFixed(2)), 742.78);
+});
+
 test('cumulative return rate uses current effective cost after sells', () => {
   const summary = deriveInvestmentSummary({
     stockTrades: [

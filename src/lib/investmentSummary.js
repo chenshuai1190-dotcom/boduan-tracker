@@ -3,6 +3,16 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function inferPreviousClose(quote, currentPrice) {
+  const explicitPreviousClose = toNumber(quote?.previousClose);
+  if (explicitPreviousClose > 0) return explicitPreviousClose;
+  const change = toNumber(quote?.change);
+  if (change !== 0 && currentPrice - change > 0) return currentPrice - change;
+  const changePercent = toNumber(quote?.changePercent);
+  if (changePercent !== 0 && changePercent > -100) return currentPrice / (1 + changePercent / 100);
+  return 0;
+}
+
 function normalizeSymbol(symbol) {
   return String(symbol || 'TQQQ').trim().toUpperCase();
 }
@@ -93,7 +103,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
 
     const currentPrice = toNumber(quote?.price);
     const high = toNumber(quote?.high || quote?.week52High);
-    const previousClose = toNumber(quote?.previousClose);
+    const previousClose = inferPreviousClose(quote, currentPrice);
     const changePercent = toNumber(quote?.changePercent);
     const ytdChangePercent = toNumber(quote?.ytdChangePercent);
     const avgCost = heldShares > 0 ? remainingCost / heldShares : 0;
