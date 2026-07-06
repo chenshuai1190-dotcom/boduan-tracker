@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 资产头卡对齐首页
 
-- Commit: `same commit`
+- Commit: `a2848a30bc12a8b97f0904bcaedeb6b886a526db`
 - Background: 用户反馈资产页“家庭总资产”头部卡片和首页/交易页头部卡片尺寸、金额颜色和位置不一致,切换 Tab 时有视觉错位感。要求资产页头卡以首页/交易页头卡为标准,如果资产卡更小则按首页/交易页尺寸调整。
 - Changes:
   - 资产页“家庭总资产”头卡改用首页/交易页同款 `rounded-2xl`、`#0b0f14`、`p-4`、弱边框和同款阴影外壳。
@@ -29,7 +29,13 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`AnalysisTab-Dye1C266.js` contains the shared home/trade header shell marker, `mt-3` `#ffd18a` amount marker and shared metric grid marker;`SettingsTab-6uhkcHsK.js` contains `v10.7.9.148`;`settingsChangelog-xXhOm-_J.js` contains `v10.7.9.148` and `资产头卡对齐首页`.
 - Deployment:
-  - Pending GitHub push, CI and Vercel production verification.
+  - Pushed to GitHub `main` as runtime commit `a2848a30bc12a8b97f0904bcaedeb6b886a526db`.
+  - GitHub Actions `CI` check passed for `a2848a30bc12a8b97f0904bcaedeb6b886a526db` (run `28767430672`).
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=a2848a3-asset-header-*` returned HTTP 200 with root app shell and `last-modified: Mon, 06 Jul 2026 04:18:42 GMT`.
+  - Production recursive asset marker check: pass;loaded `App-CDi4ytOG.js`, `AnalysisTab-Dye1C266.js`, `SettingsTab-CjEZrIz3.js`, `settingsChangelog-xXhOm-_J.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, and related chunks.
+  - Production asset header marker check: pass;active runtime assets contain `v10.7.9.148`, `资产头卡对齐首页`, the shared home/trade header shell marker, the `mt-3` `#ffd18a` amount marker and the shared metric grid marker.
+  - Production realtime/security marker check: pass;active runtime assets still contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`;active runtime assets outside historical changelog do not contain `VITE_EODHD_TOKEN`, `VITE_ALLOW_BROWSER_EODHD_WS`, or `ws.eodhistoricaldata.com`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/AnalysisTab.jsx` 的头卡 class/结构调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.148` 条目、测试和本开发日志即可;不会影响账户数据、月度快照、汇率、行情、交易账本、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - PWA Logo 去白边
