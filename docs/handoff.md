@@ -10,7 +10,7 @@
 - 当前运行时代码提交: `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`。
 - 设置页版本: `v10.7.9.171`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success,`v10.7.9.171` production marker verified;production root `last-modified: Mon, 06 Jul 2026 12:55:42 GMT`;GitHub deployments API did not expose a Vercel target for this deployment。
+- 最新运行时 Vercel 部署: success,`v10.7.9.171` production marker verified;GitHub deployments API did not expose a Vercel target for this deployment。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
 - 线上关键验证: 生产入口 `/assets/index-D7iMgQgY.js`;runtime includes `/assets/App-ZDAnFPug.js`, `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, `/assets/icons-D-qNOTDb.js`;`SettingsTab-2fJWoBGA.js` contains `v10.7.9.171`;`settingsChangelog-C6ZWAgLD.js` contains `工具弹窗和币种同步`;`App-ZDAnFPug.js` contains `xmoney_portfolio_currency` / `添加摊薄交易` / `bg-black/[0.65]`;`HomeTab-caYUNvHf.js` and `TradesTab-Bglu0R2H.js` contain `xmoney_portfolio_currency`;`ReviewTab-CUjmqKeE.js` contains `bg-black/[0.65]` and not old detail overlay `bg-black/70 px-6 py-8 backdrop-blur-lg`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.171` 同步摊薄成本添加交易弹窗到交易录入新界面,统一戒律/复盘详情遮罩亮度,并让首页/交易页 USD/CNY 选择自动保存且跨页面同步。
@@ -26,7 +26,7 @@
 - 设置页版本: `v10.7.9.171`
 - Vercel 最新运行时部署: success,`v10.7.9.171` production marker verified。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`;GitHub Actions `CI` run `28792523002` success;docs-only trigger commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10`;GitHub Actions `CI` run `28793075889` success;production root `last-modified: Mon, 06 Jul 2026 12:55:42 GMT`;active runtime assets and marker verified;GitHub deployments API did not expose a Vercel target for this deployment。
+- Vercel 部署记录: runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`;GitHub Actions `CI` run `28792523002` success;docs-only trigger commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10`;GitHub Actions `CI` run `28793075889` success;active runtime assets and marker verified;GitHub deployments API did not expose a Vercel target for this deployment。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -599,7 +599,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 设置页版本: `v10.7.9.171`
 Vercel 最新运行时部署: success,`v10.7.9.171` production marker verified
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`;GitHub Actions `CI` run `28792523002` success;docs-only trigger commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10`;GitHub Actions `CI` run `28793075889` success;production root `last-modified: Mon, 06 Jul 2026 12:55:42 GMT`;active runtime assets `/assets/index-D7iMgQgY.js`, `/assets/App-ZDAnFPug.js`, `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, `/assets/icons-D-qNOTDb.js`;production markers verified;unauthenticated `/api/quote?symbols=VIX` returns `401`,plain HTTPS `/api/stocks-realtime` returns `426`
+部署记录: runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`;GitHub Actions `CI` run `28792523002` success;docs-only trigger commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10`;GitHub Actions `CI` run `28793075889` success;active runtime assets `/assets/index-D7iMgQgY.js`, `/assets/App-ZDAnFPug.js`, `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, `/assets/icons-D-qNOTDb.js`;production markers verified;unauthenticated `/api/quote?symbols=VIX` returns `401`,plain HTTPS `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`

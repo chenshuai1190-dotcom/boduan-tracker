@@ -37,7 +37,7 @@
   - GitHub Actions `CI` run `28792523002` completed successfully.
   - Production marker polling for `deb3957` checked 24 times across the normal wait window;production root still returned previous entry `/assets/index-BTG7ckrS.js`,and GitHub deployments API did not show a Vercel deployment for `deb3957` during that window.
   - Following the existing repo pattern for this Vercel integration edge case, docs-only follow-up commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10` re-triggered Vercel deployment of latest `main`;GitHub Actions `CI` run `28793075889` completed successfully。
-  - Production root returned HTTP 200 from Vercel with `last-modified: Mon, 06 Jul 2026 12:55:42 GMT`;active entry asset is `/assets/index-D7iMgQgY.js`。
+  - Production root returned HTTP 200 from Vercel;active entry asset is `/assets/index-D7iMgQgY.js`。
   - Production runtime chunks verified: `/assets/index-D7iMgQgY.js` imports `/assets/App-ZDAnFPug.js`;runtime assets include `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, and `/assets/icons-D-qNOTDb.js`。
 - Production verification:
   - Production marker verified: `SettingsTab-2fJWoBGA.js` contains `v10.7.9.171`;`settingsChangelog-C6ZWAgLD.js` contains `工具弹窗和币种同步`;`App-ZDAnFPug.js` contains `xmoney_portfolio_currency`,`添加摊薄交易` and `bg-black/[0.65]`;`HomeTab-caYUNvHf.js` and `TradesTab-Bglu0R2H.js` contain `xmoney_portfolio_currency`;`ReviewTab-CUjmqKeE.js` contains `bg-black/[0.65]` and does not contain old detail overlay marker `bg-black/70 px-6 py-8 backdrop-blur-lg`。
