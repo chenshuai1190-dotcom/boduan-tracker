@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - iOS 主屏幕秒级恢复刷新
 
-- Runtime commit: 本文件所在提交;推送后以 `git rev-parse HEAD` / GitHub `main` 为准。
+- Runtime commit: `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`
 - Background: `v10.7.9.177` 已把启动、切页、前台恢复和股票 WebSocket 打开后的行情刷新提前,`v10.7.9.178` 已禁用主行情请求的浏览器缓存;但用户在 iOS Safari “添加到主屏幕”的 Web App 场景下,切回应用时仍偶发像静态页面,需要等待下一轮轮询或手动触摸后才看到股票行情刷新。iOS standalone PWA 可能冻结 JS 定时器,且不稳定触发 `focus` / `pageshow`,需要增加面向恢复场景的轻量兜底。
 - Changes:
   - `src/App.jsx` 新增 iOS standalone PWA 检测,只在 iPhone/iPad 添加到主屏幕后启用恢复逻辑,普通浏览器路径不额外增加恢复监听。
@@ -31,7 +31,10 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-B6y7Jptg.js` contains `v10.7.9.179`;`settingsChangelog-C-FefGlk.js` contains `v10.7.9.179` and `iOS 主屏幕秒级恢复刷新`;`App-zOHPt6h9.js` contains `auto-ios-resume`, `auto-ios-touch-resume`, `pagehide`, `touchstart`, `pointerdown`, `fresh:!0`, `_ts`, `no-store` and `no-cache`。
 - Deployment:
-  - 待推送 GitHub `main` 后由 Vercel Git integration 自动部署;不直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Runtime commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc` pushed to GitHub `main`。
+  - Vercel status for `a2a93fe` returned `failure`: `Deployment rate limited — retry in 24 hours.`
+  - Production alias `https://boduan-tracker.vercel.app` still serves `v10.7.9.178`:active entry `/assets/index-C6-UhbcK.js`;therefore `v10.7.9.179` is on GitHub `main` but not yet live on Vercel。
+  - 本文件所在状态提交用于触发一次新的 GitHub-integrated Vercel deployment retry;若 Vercel 仍返回 rate limit,生产仍保持 `v10.7.9.178`。
 - Rollback: 回退本条涉及的 iOS standalone PWA 恢复监听、触发来源标签、`v10.7.9.179` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay、Supabase、RLS 或数据库结构。
 
 ### 2026-07-06 - 行情请求禁用浏览器缓存

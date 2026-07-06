@@ -6,11 +6,11 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.179` 待推送后由 GitHub/Vercel 自动部署。
+- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.179` 运行时代码提交 `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc` 已推送,首个 Vercel 状态为 rate limited;本文件所在状态提交用于重试 GitHub-integrated deployment。
 - 当前生产运行时代码提交: 部署完成前仍为 `7e84d3508297e54a7f24b161def867375a617bc0`,其部署产物包含 `v10.7.9.178` 运行时代码。
 - 设置页版本: 源码已同步到 `v10.7.9.179`;生产部署完成前仍以线上验证为准。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: `v10.7.9.179` 推送前,最近成功部署仍为 `7e84d35` (`Deployment has completed`),target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。
+- 最新 Vercel 状态: `a2a93fe` returned `failure`: `Deployment rate limited — retry in 24 hours`;最近成功部署仍为 `7e84d35` (`Deployment has completed`),target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
 - 线上关键验证: 当前生产入口仍为 `/assets/index-C6-UhbcK.js`;runtime imports `/assets/App-LL_kdpY6.js` and `/assets/SettingsTab-Cp0Y-uFi.js`;`App-LL_kdpY6.js` contains `fresh:!0`, `_ts`, `no-store`, `no-cache`, `auto-start-cloud`, `auto-focus`, `auto-pageshow`, `auto-tab`, `auto-realtime-open`;`SettingsTab-Cp0Y-uFi.js` contains `v10.7.9.178`;`settingsChangelog-BXOg8av5.js` contains `v10.7.9.178`, `行情请求禁用浏览器缓存` and `股票行情即时刷新`;未登录 `GET /api/quote?symbols=VIX` 返回 `401` 且 `cache-control: private, no-store, max-age=0, must-revalidate`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。`v10.7.9.179` 部署后需重新验证新的 production marker。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线启动云端账本加载完成、回到前台、窗口聚焦、页面恢复、切到首页/交易页和股票 WebSocket 打开后的快速行情刷新。`v10.7.9.178` 已上线,修复主行情刷新被浏览器 15 秒 cache 吃掉的问题。`v10.7.9.179` 源码新增 iOS 添加到主屏幕后回到前台/恢复触摸的秒级 fresh 行情刷新。用户自写内容、交易账本、摊薄工具、行情鉴权和数据库结构不变。
@@ -22,7 +22,7 @@
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
 - 当前生产运行时基准提交: 部署完成前仍为 `7e84d3508297e54a7f24b161def867375a617bc0`
-- 最近应用代码提交: 本文件所在最新提交包含 `v10.7.9.179` iOS PWA 恢复刷新代码。
+- 最近应用代码提交: `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`,包含 `v10.7.9.179` iOS PWA 恢复刷新代码。
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: 源码 `v10.7.9.179`;生产部署完成前仍以线上验证为准。
 - Vercel 最新运行时部署: 部署完成前仍为 success,`v10.7.9.178` production marker verified。
