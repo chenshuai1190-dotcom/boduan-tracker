@@ -6,31 +6,31 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`。
-- 当前运行时代码提交: `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`。
-- 设置页版本: `v10.7.9.160`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
+- 当前运行时代码提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
+- 设置页版本: `v10.7.9.161`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, `v10.7.9.160` production marker verified for runtime code commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`。
+- 最新运行时 Vercel 部署: success, `v10.7.9.161` production marker verified for runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 生产 active assets 包含 `index-NTUfe3BF.js`、`App-4QcrIawn.js`、`SettingsTab-DfcxvG9T.js`、`settingsChangelog-5oQ0Pqpa.js`、`HomeTab-DMu2X-yC.js`、`TradesTab-BCtDUDej.js`、`AnalysisTab-BlUdJr6F.js` 和 `ReviewTab-CZxjqcb1.js`;`App-4QcrIawn.js` 不包含 `createRealtimePriceOverlayTick` 或 `usesExtendedEodhdPrice`;Settings/changelog chunk 包含 `v10.7.9.160`、`NOK 盘前口径修复回滚` 和上一版 `盘前稀疏成交实时价保护`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
-- 当前产品焦点: `v10.7.9.160` 已回滚 `v10.7.9.159` 的 NOK 盘前口径实验改动,恢复 `v10.7.9.158` 的行情合并路径,先保护其它股票显示稳定。NOK 盘前涨跌幅仍需后续基于真实 `/api/quote`、`/api/stocks-realtime`、EODHD/Yahoo 原始回包单独定位,不要再把截图推断出的基准口径套到全局股票。
+- 线上关键验证: 生产 active assets 包含 `index-Cb3BUNoW.js`、`App-eK1xuo-n.js`、`SettingsTab-BFaVqkJr.js`、`settingsChangelog-_jfyzHps.js`、`HomeTab-DMu2X-yC.js`、`TradesTab-BCtDUDej.js`、`AnalysisTab-BlUdJr6F.js` 和 `ReviewTab-CZxjqcb1.js`;`SettingsTab-BFaVqkJr.js` 包含 `v10.7.9.161` 和 `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` 包含 `v10.7.9.161`、`股票核心行情去 Yahoo 混源` 和 `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` 不包含 `priceSource:"Yahoo"`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
+- 当前产品焦点: `v10.7.9.161` 已将 Yahoo 从股票核心行情字段剥离。股票 `price`、`previousClose`、`change`、`changePercent`、`source` 和 `priceSource` 只用 EODHD;Yahoo 只保留为股票小曲线 `intraday/intradayPoints` 的视觉 chart 来源,不参与资产、持仓或当日盈亏计算。指数/BTC 小卡 Yahoo 曲线兜底和 VIX Yahoo fallback 本轮未改。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47` (`v10.7.9.160`,NOK 盘前口径修复回滚)
-- 最近应用代码提交: `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`
+- 当前产品基准提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9` (`v10.7.9.161`,股票核心行情去 Yahoo 混源)
+- 最近应用代码提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.160`
-- Vercel 最新运行时部署: success, `v10.7.9.160` production marker verified for runtime code commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`。
+- 设置页版本: `v10.7.9.161`
+- Vercel 最新运行时部署: success, `v10.7.9.161` production marker verified for runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: runtime code commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`;GitHub Actions `build` run `28780343638` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FcL6JyQbrVxRwuPHMJkYhFSxWLN6`;production `GET https://boduan-tracker.vercel.app/?v=6bb2986-rollback-*` HTTP 200;active runtime assets include `index-NTUfe3BF.js`, `App-4QcrIawn.js`, `SettingsTab-DfcxvG9T.js`, `settingsChangelog-5oQ0Pqpa.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`App-4QcrIawn.js` does not contain `createRealtimePriceOverlayTick` or `usesExtendedEodhdPrice`;`SettingsTab-DfcxvG9T.js` contains `v10.7.9.160`;`settingsChangelog-5oQ0Pqpa.js` contains `v10.7.9.160`, `NOK 盘前口径修复回滚`, and previous `盘前稀疏成交实时价保护`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+- Vercel 部署记录: runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`;GitHub Actions `build` run `28781405213` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GJ3Mud2kQqcdfYqk3u7s73gQtTXE`;production `GET https://boduan-tracker.vercel.app/?v=6991305-yahoo-core-*` HTTP 200;active runtime assets include `index-Cb3BUNoW.js`, `App-eK1xuo-n.js`, `SettingsTab-BFaVqkJr.js`, `settingsChangelog-_jfyzHps.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`SettingsTab-BFaVqkJr.js` contains `v10.7.9.161` and `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` contains `v10.7.9.161`, `股票核心行情去 Yahoo 混源`, and `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` does not contain `priceSource:"Yahoo"`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 修复盘前实时价与今日盈亏基准断开的问题;`v10.7.9.158` 修复盘前稀疏成交股票被 REST 常规盘价格覆盖的问题;`v10.7.9.160` 回滚 `v10.7.9.159` 的 NOK 全局口径实验,中文默认显示、英文模式和核心交易账本保持不变。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 修复盘前实时价与今日盈亏基准断开的问题;`v10.7.9.158` 修复盘前稀疏成交股票被 REST 常规盘价格覆盖的问题;`v10.7.9.160` 回滚 `v10.7.9.159` 的 NOK 全局口径实验;`v10.7.9.161` 将 Yahoo 从股票核心 quote 字段剥离,中文默认显示、英文模式和核心交易账本保持不变。
 
 ## 2. 先读这些文档
 
@@ -69,7 +69,7 @@
 - `/api/btc-realtime`: 已登录 BTC WebSocket relay
 - `/api/indices-realtime`: 已登录三大指数 WebSocket relay
 - `/api/stocks-realtime`: 已登录用户股票 WebSocket relay,覆盖自选、正式持仓、波段记录和摊薄工具 quote rows
-- 市场数据: EODHD、Yahoo Finance、CNN Fear & Greed、NASDAQ calendar
+- 市场数据: EODHD 核心 quote / realtime, Yahoo chart visuals, CNN Fear & Greed, NASDAQ calendar
 - 测试: Node built-in test runner,命令为 `npm test`
 
 本机 Node 路径:
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`
-当前产品基准提交: `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47` (`v10.7.9.160`,NOK 盘前口径修复回滚)
-最近应用代码提交: `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`
-设置页版本: `v10.7.9.160`
-Vercel 最新运行时部署: success, `v10.7.9.160` production marker verified for runtime code commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
+当前产品基准提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9` (`v10.7.9.161`,股票核心行情去 Yahoo 混源)
+最近应用代码提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
+设置页版本: `v10.7.9.161`
+Vercel 最新运行时部署: success, `v10.7.9.161` production marker verified for runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: runtime code commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`;GitHub Actions `build` run `28780343638` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FcL6JyQbrVxRwuPHMJkYhFSxWLN6`;production HTTP 200;active runtime assets include `index-NTUfe3BF.js`, `App-4QcrIawn.js`, `SettingsTab-DfcxvG9T.js`, `settingsChangelog-5oQ0Pqpa.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`App-4QcrIawn.js` 不包含 `createRealtimePriceOverlayTick` 或 `usesExtendedEodhdPrice`;Settings/changelog chunks contain `v10.7.9.160`, `NOK 盘前口径修复回滚` and previous `盘前稀疏成交实时价保护`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+部署记录: runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`;GitHub Actions `build` run `28781405213` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GJ3Mud2kQqcdfYqk3u7s73gQtTXE`;production HTTP 200;active runtime assets include `index-Cb3BUNoW.js`, `App-eK1xuo-n.js`, `SettingsTab-BFaVqkJr.js`, `settingsChangelog-_jfyzHps.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`SettingsTab-BFaVqkJr.js` contains `v10.7.9.161` and `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` contains `v10.7.9.161`, `股票核心行情去 Yahoo 混源` and `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` does not contain `priceSource:"Yahoo"`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,6 +629,7 @@ Vercel 最新运行时部署: success, `v10.7.9.160` production marker verified 
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.161` 股票核心行情去 Yahoo 混源已完成部署和线上验证:股票 `price`、`previousClose`、`change`、`changePercent`、`source` 和 `priceSource` 只使用 EODHD quote;EODHD 股票 quote 无有效价格时返回错误,不再用 Yahoo 自动补价;Yahoo 仅保留为股票小曲线 `intraday/intradayPoints` 的视觉 chart 来源,不参与资产、持仓或当日盈亏计算。生产 `SettingsTab-BFaVqkJr.js`、`settingsChangelog-_jfyzHps.js` 和 `App-eK1xuo-n.js` marker 验证通过;指数/BTC 小卡 Yahoo 曲线兜底、VIX Yahoo fallback、交易账本、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.160` NOK 盘前口径修复回滚已完成部署和线上验证:回滚 `v10.7.9.159` 对 EODHD provider 和 WebSocket/REST 合并的全局口径实验,恢复 `v10.7.9.158` 的行情合并路径;生产 `App-4QcrIawn.js` 不包含 `createRealtimePriceOverlayTick` 或 `usesExtendedEodhdPrice`,`SettingsTab-DfcxvG9T.js` / `settingsChangelog-5oQ0Pqpa.js` marker 验证通过;NOK 盘前涨跌幅仍需后续基于真实接口回包单独定位,不能再把截图推断出的口径套到所有股票。
 - `v10.7.9.158` 盘前稀疏成交实时价保护已完成部署和线上验证:NOK 这类盘前成交不密集股票的 WebSocket tick 会保存 `marketStatus`;美股盘前/盘后实时价保护窗口放宽到 30 分钟,避免几分钟前真实盘前成交价被自动/手动 REST 刷新打回常规盘价格。生产 `App-DHstK7zI.js`、`SettingsTab-BEMuXxlM.js` 和 `settingsChangelog-DbSFKm1d.js` marker 验证通过;交易账本、成本、持仓数量、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.157` 盘前实时当日盈亏修复已完成部署和线上验证:股票 WebSocket 只推实时价时会从基础行情补 `previousClose` / `changePercent` 等基准字段;REST 手动/下拉刷新后 120 秒内保留更新鲜实时 `quoteCache` 行;`investmentSummary` 可在 `previousClose` 缺失但 `change`/`changePercent` 存在时反推昨收,避免总资产按盘前价变化但今日盈亏清零。生产 `App-DlsKa9Q6.js`、`SettingsTab-CbGXXJez.js` 和 `settingsChangelog-BjTR6oqk.js` marker 验证通过;交易账本、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。

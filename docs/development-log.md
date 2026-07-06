@@ -35,7 +35,12 @@
   - 本地 source/test marker: `server/quote/providers/eodhd.js` 不再保留 `yahooPrice` / `yahooPrevClose` / `priceSource = 'Yahoo'` 股票核心 fallback;`tests/quote-response-shape.test.js` 覆盖 NOEOD/NOPREV 混源防回归。
   - 本地 dist marker: `SettingsTab-DJLqfoI7.js` 包含 `v10.7.9.161` 和 `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` 包含 `v10.7.9.161`、`股票核心行情去 Yahoo 混源` 和 `EODHD Core + Yahoo Charts`;前端 dist 不包含 `priceSource:"Yahoo"`。
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`;GitHub Actions `build` run `28781405213` completed successfully.
+  - Vercel production deployment completed for commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GJ3Mud2kQqcdfYqk3u7s73gQtTXE`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=6991305-yahoo-core-*` returned HTTP 200;active entry asset is `index-Cb3BUNoW.js`。
+  - Production runtime chunks verified: `index-Cb3BUNoW.js` imports `App-eK1xuo-n.js`;`App-eK1xuo-n.js` imports `SettingsTab-BFaVqkJr.js`;`SettingsTab-BFaVqkJr.js` lazy-loads `settingsChangelog-_jfyzHps.js`。
+  - Production marker verified: `SettingsTab-BFaVqkJr.js` contains `v10.7.9.161` and `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` contains `v10.7.9.161`, `股票核心行情去 Yahoo 混源`, and `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` does not contain `priceSource:"Yahoo"`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退 `server/quote/providers/eodhd.js` 的股票 Yahoo fallback 剥离、设置页 `v10.7.9.161` 版本/更新日志、测试和本开发日志即可;不影响交易账本、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - NOK 盘前口径修复回滚
