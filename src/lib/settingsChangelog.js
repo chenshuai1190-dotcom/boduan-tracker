@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.179', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.180', date: '2026-07-06', latest: true,
+    items: [
+      '📱 iOS 主屏幕恢复刷新加固',
+      '  - 回到主屏幕 Web App 前台时不再依赖冻结断档判断,直接排队 fresh 行情刷新',
+      '  - 触发时若 iOS 仍短暂处于 hidden 状态,先挂起并短延迟重试,避免首次触摸被吞',
+      '  - pageshow、focus 和 online 同步检查三套实时连接,近期无活动时主动重连',
+      '  - 不改交易账本、持仓盈亏计算、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.179', date: '2026-07-06',
     items: [
       '📱 iOS 主屏幕秒级恢复刷新',
       '  - 添加到主屏幕的 iOS Web App 回到前台时检测冻结断档并立即 fresh 拉取股票行情',

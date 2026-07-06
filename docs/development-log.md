@@ -4,6 +4,36 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - iOS PWA 恢复刷新加固
+
+- Commit: `same commit`
+- Background: `v10.7.9.179` 已上线 iOS 添加到主屏幕后恢复 fresh 行情刷新,但用户反馈实际体感仍“偶尔正常偶尔不正常”,切回主屏幕 Web App 后有时不像秒级动态刷新。复查发现上一版仍存在两个恢复竞态: iOS 可能在 `pageshow` / `focus` / `online` 时仍短暂报告 `document.hidden`,旧逻辑会直接丢掉这些事件;同时通用 `focus` / `pageshow` 快刷和 iOS 0ms fresh 快刷共用一个 timer,后到的普通事件可能覆盖更早的 iOS 立即刷新。三套 realtime WebSocket 也只在 `visibilitychange` 稳定触发时重连,对 iOS PWA 的事件顺序不够稳。
+- Changes:
+  - `src/App.jsx` 的 iOS standalone PWA 恢复逻辑不再依赖冻结 heartbeat 判断;`visibilitychange`、`pageshow`、`focus`、`online` 和首次 `touchstart` / `pointerdown` 都直接进入 fresh 行情刷新路径。
+  - 当恢复事件触发时 iOS 仍处于 `document.hidden` 状态,不再丢弃事件,而是把触发来源放入 `pendingPwaResumeRefreshRef`,每 120ms 短重试,最多 6 秒;一旦页面变为可见立即执行 `requestQuickQuoteRefresh(..., { force: true, minIntervalMs: 0 })`。
+  - `requestQuickQuoteRefresh` 增加 `dueAt` 和 `priority`:强制 fresh 请求优先级高于普通 `focus` / `pageshow` / `auto-tab` 请求,更早到期的刷新也不会被更晚的普通事件覆盖,避免回前台事件风暴把 0ms 请求推迟。
+  - BTC、指数、股票三套 realtime relay 新增 `pageshow`、`focus`、`online` 恢复检查;若最近 5 秒无 tick/status 活动则主动重连,并用 `lastConnectAttemptAt` 做 3 秒节流,避免同一批 iOS 事件反复关闭刚建立的连接。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.180`,新增“iOS 主屏幕恢复刷新加固”。
+  - 本轮不改交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、Supabase、RLS、数据库结构或 Yahoo 小曲线。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/quote-response-shape.test.js tests/btc-realtime.test.js` pass,56 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,92 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DLjrsqk6.js`、`dist/assets/SettingsTab-C_g_jFFv.js`、`dist/assets/settingsChangelog-C81SVW1H.js`、`dist/assets/index-CBOLGUrh.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Local build marker: `SettingsTab-C_g_jFFv.js` contains `v10.7.9.180`;`settingsChangelog-C81SVW1H.js` contains `v10.7.9.180` and `iOS 主屏幕恢复刷新加固`;`App-DLjrsqk6.js` contains `auto-ios-resume`, `auto-ios-touch-resume`, `auto-ios-online`, `IOS_PWA_VISIBLE_RETRY_MAX_MS`, `lastConnectAttemptAt`, `_ts`, `no-store` and `no-cache`。
+  - `git diff --check` pass。
+- Deployment:
+  - 本文件所在提交将使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+  - 推送前生产仍为 `v10.7.9.179`:production entry `/assets/index-CRPd3mTF.js`,App chunk `/assets/App-D9Mx_Z7I.js`。
+- Rollback: 回退本条涉及的 iOS PWA 恢复队列、quick quote 优先级调度、realtime resume 重连监听、`v10.7.9.180` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构或 RLS。
+
 ### 2026-07-06 - SSH 部署准则收紧
 
 - Commit: `same commit`

@@ -23,6 +23,8 @@ const INDICES_REALTIME_PROTOCOL = 'xmoney-indices';
 const STOCKS_REALTIME_PROTOCOL = 'xmoney-stocks';
 const REALTIME_TOKEN_PROTOCOL_PREFIX = 'supabase.';
 const REALTIME_STALE_MS = 15_000;
+const REALTIME_RESUME_RECONNECT_STALE_MS = 5000;
+const REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
 const PULL_REFRESH_MAX_DISTANCE = 96;
@@ -46,8 +48,10 @@ const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set([
   'auto-ios-online',
 ]);
 const QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS = 2500;
-const IOS_PWA_RESUME_STALE_MS = 5000;
 const IOS_PWA_FOREGROUND_HEARTBEAT_MS = 2000;
+const IOS_PWA_RESUME_REFRESH_THROTTLE_MS = 1200;
+const IOS_PWA_VISIBLE_RETRY_MS = 120;
+const IOS_PWA_VISIBLE_RETRY_MAX_MS = 6000;
 const IOS_PWA_TOUCH_RESUME_THROTTLE_MS = 3000;
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -1188,13 +1192,16 @@ function MainApp({ user, onLogout }) {
   const [fetching, setFetching] = useState(false);
   const quoteFetchInFlightRef = useRef(false);
   const pendingQuoteRefreshRef = useRef(null);
-  const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0 });
+  const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0, dueAt: 0, priority: 0 });
   const quoteRefreshFromCloudResultRef = useRef(null);
   const pendingPwaResumeRefreshRef = useRef(null);
   const cloudLoadingRef = useRef(true);
   const foregroundHeartbeatAtRef = useRef(Date.now());
   const pwaHiddenAtRef = useRef(0);
   const pwaLastTouchResumeAtRef = useRef(0);
+  const pwaLastResumeRefreshAtRef = useRef(0);
+  const pwaResumeRetryTimerRef = useRef(null);
+  const pwaResumeRetryDeadlineRef = useRef(0);
 
   const fetchQuote = useCallback(async (symbols, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
@@ -1497,6 +1504,7 @@ function MainApp({ user, onLogout }) {
     lastTick: null,
     lastTickAt: 0,
     liveAt: 0,
+    lastConnectAttemptAt: 0,
     intentionalCloseSocket: null,
   });
   const stockRealtimeRef = useRef({
@@ -1510,6 +1518,7 @@ function MainApp({ user, onLogout }) {
     lastTickAt: 0,
     lastTickIso: null,
     liveAt: 0,
+    lastConnectAttemptAt: 0,
     intentionalCloseSocket: null,
   });
   const quoteRowsRef = useRef([]);
@@ -1521,6 +1530,7 @@ function MainApp({ user, onLogout }) {
     lastTicks: new Map(),
     lastTickAt: 0,
     liveAt: 0,
+    lastConnectAttemptAt: 0,
     intentionalCloseSocket: null,
   });
   // 云端数据加载状态
@@ -2825,14 +2835,28 @@ function MainApp({ user, onLogout }) {
     const now = Date.now();
     const elapsed = now - quickQuoteRefreshRef.current.lastAt;
     const delayMs = requestOptions.force ? 0 : Math.max(0, minIntervalMs - elapsed);
+    const dueAt = now + delayMs;
+    const priority = requestOptions.force ? 2 : 1;
 
     if (quickQuoteRefreshRef.current.timer) {
+      const currentDueAt = quickQuoteRefreshRef.current.dueAt || 0;
+      const currentPriority = quickQuoteRefreshRef.current.priority || 0;
+      if (
+        currentPriority > priority
+        || (currentPriority === priority && currentDueAt > 0 && currentDueAt <= dueAt)
+      ) {
+        return;
+      }
       clearTimeout(quickQuoteRefreshRef.current.timer);
       quickQuoteRefreshRef.current.timer = null;
     }
 
+    quickQuoteRefreshRef.current.dueAt = dueAt;
+    quickQuoteRefreshRef.current.priority = priority;
     quickQuoteRefreshRef.current.timer = setTimeout(() => {
       quickQuoteRefreshRef.current.timer = null;
+      quickQuoteRefreshRef.current.dueAt = 0;
+      quickQuoteRefreshRef.current.priority = 0;
       quickQuoteRefreshRef.current.lastAt = Date.now();
       fetchRealtimePrices(rowsOverride, {
         trigger: requestOptions.trigger || 'auto-visible',
@@ -2842,14 +2866,54 @@ function MainApp({ user, onLogout }) {
     }, delayMs);
   };
 
+  const queueIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume', delayMs = IOS_PWA_VISIBLE_RETRY_MS) => {
+    if (typeof window === 'undefined') return;
+    pendingPwaResumeRefreshRef.current = trigger || 'auto-ios-resume';
+    if (pwaResumeRetryTimerRef.current) {
+      clearTimeout(pwaResumeRetryTimerRef.current);
+      pwaResumeRetryTimerRef.current = null;
+    }
+    pwaResumeRetryTimerRef.current = window.setTimeout(() => {
+      pwaResumeRetryTimerRef.current = null;
+      const pendingTrigger = pendingPwaResumeRefreshRef.current;
+      if (
+        document.hidden
+        && pwaResumeRetryDeadlineRef.current > 0
+        && Date.now() > pwaResumeRetryDeadlineRef.current
+      ) {
+        return;
+      }
+      if (pendingTrigger) requestIosPwaResumeQuoteRefresh(pendingTrigger);
+    }, Math.max(0, delayMs));
+  };
+
   const requestIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume') => {
-    if (typeof window === 'undefined' || document.hidden) return;
-    if (cloudLoadingRef.current) {
-      pendingPwaResumeRefreshRef.current = trigger;
+    if (typeof window === 'undefined') return;
+    const nextTrigger = trigger || 'auto-ios-resume';
+    if (document.hidden) {
+      if (!pwaResumeRetryDeadlineRef.current) {
+        pwaResumeRetryDeadlineRef.current = Date.now() + IOS_PWA_VISIBLE_RETRY_MAX_MS;
+      }
+      if (Date.now() <= pwaResumeRetryDeadlineRef.current) {
+        queueIosPwaResumeQuoteRefresh(nextTrigger, IOS_PWA_VISIBLE_RETRY_MS);
+      }
       return;
     }
+    pwaResumeRetryDeadlineRef.current = 0;
+    if (cloudLoadingRef.current) {
+      pendingPwaResumeRefreshRef.current = nextTrigger;
+      return;
+    }
+    const now = Date.now();
+    const elapsed = now - pwaLastResumeRefreshAtRef.current;
+    if (elapsed < IOS_PWA_RESUME_REFRESH_THROTTLE_MS) {
+      queueIosPwaResumeQuoteRefresh(nextTrigger, IOS_PWA_RESUME_REFRESH_THROTTLE_MS - elapsed);
+      return;
+    }
+    pendingPwaResumeRefreshRef.current = null;
+    pwaLastResumeRefreshAtRef.current = now;
     requestQuickQuoteRefresh(null, {
-      trigger,
+      trigger: nextTrigger,
       force: true,
       minIntervalMs: 0,
       notifyOnError: false,
@@ -2862,12 +2926,9 @@ function MainApp({ user, onLogout }) {
     if (!pendingPwaResumeRefreshRef.current) return;
     const pendingTrigger = pendingPwaResumeRefreshRef.current;
     pendingPwaResumeRefreshRef.current = null;
-    requestQuickQuoteRefresh(null, {
-      trigger: pendingTrigger === 'auto-ios-touch-resume' ? pendingTrigger : 'auto-ios-resume-cloud',
-      force: true,
-      minIntervalMs: 0,
-      notifyOnError: false,
-    });
+    requestIosPwaResumeQuoteRefresh(
+      pendingTrigger === 'auto-ios-touch-resume' ? pendingTrigger : 'auto-ios-resume-cloud',
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading]);
 
@@ -2879,21 +2940,14 @@ function MainApp({ user, onLogout }) {
     const markForegroundHeartbeat = () => {
       foregroundHeartbeatAtRef.current = Date.now();
     };
-    const shouldRefreshAfterResume = () => {
-      const now = Date.now();
-      const heartbeatGap = now - foregroundHeartbeatAtRef.current;
-      const hiddenGap = pwaHiddenAtRef.current ? now - pwaHiddenAtRef.current : 0;
-      return heartbeatGap > IOS_PWA_RESUME_STALE_MS || hiddenGap > IOS_PWA_RESUME_STALE_MS;
-    };
-    const requestResumeRefreshIfStale = (trigger) => {
-      if (!isActive || document.hidden) return;
-      if (!shouldRefreshAfterResume()) {
+    const requestResumeRefresh = (trigger) => {
+      if (!isActive) return;
+      if (!document.hidden) {
         markForegroundHeartbeat();
         pwaHiddenAtRef.current = 0;
-        return;
+      } else if (!pwaHiddenAtRef.current) {
+        pwaHiddenAtRef.current = Date.now();
       }
-      markForegroundHeartbeat();
-      pwaHiddenAtRef.current = 0;
       requestIosPwaResumeQuoteRefresh(trigger);
     };
 
@@ -2907,21 +2961,24 @@ function MainApp({ user, onLogout }) {
         pwaHiddenAtRef.current = Date.now();
         return;
       }
-      requestResumeRefreshIfStale('auto-ios-resume');
+      requestResumeRefresh('auto-ios-resume');
     };
     const handlePageHide = () => {
       pwaHiddenAtRef.current = Date.now();
     };
-    const handlePageShow = () => requestResumeRefreshIfStale('auto-ios-resume');
-    const handleFocus = () => requestResumeRefreshIfStale('auto-ios-resume');
-    const handleOnline = () => requestIosPwaResumeQuoteRefresh('auto-ios-online');
+    const handlePageShow = () => requestResumeRefresh('auto-ios-resume');
+    const handleFocus = () => requestResumeRefresh('auto-ios-resume');
+    const handleOnline = () => requestResumeRefresh('auto-ios-online');
     const handleTouchResume = () => {
       const now = Date.now();
       if (now - pwaLastTouchResumeAtRef.current < IOS_PWA_TOUCH_RESUME_THROTTLE_MS) return;
-      if (!shouldRefreshAfterResume()) return;
       pwaLastTouchResumeAtRef.current = now;
-      markForegroundHeartbeat();
-      pwaHiddenAtRef.current = 0;
+      if (!document.hidden) {
+        markForegroundHeartbeat();
+        pwaHiddenAtRef.current = 0;
+      } else if (!pwaHiddenAtRef.current) {
+        pwaHiddenAtRef.current = now;
+      }
       requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume');
     };
 
@@ -2959,7 +3016,14 @@ function MainApp({ user, onLogout }) {
     if (quickQuoteRefreshRef.current.timer) {
       clearTimeout(quickQuoteRefreshRef.current.timer);
       quickQuoteRefreshRef.current.timer = null;
+      quickQuoteRefreshRef.current.dueAt = 0;
+      quickQuoteRefreshRef.current.priority = 0;
     }
+    if (pwaResumeRetryTimerRef.current) {
+      clearTimeout(pwaResumeRetryTimerRef.current);
+      pwaResumeRetryTimerRef.current = null;
+    }
+    pwaResumeRetryDeadlineRef.current = 0;
     pendingQuoteRefreshRef.current = null;
     pendingPwaResumeRefreshRef.current = null;
     quoteRefreshFromCloudResultRef.current = null;
@@ -3238,6 +3302,7 @@ function MainApp({ user, onLogout }) {
       if (stopped || document.hidden) return;
       clearReconnectTimer();
       closeSocket();
+      ref.lastConnectAttemptAt = Date.now();
       setBtcRealtimeStatus((status) => (status === 'live' ? status : 'connecting'));
 
       try {
@@ -3317,8 +3382,19 @@ function MainApp({ user, onLogout }) {
         connect();
       }
     };
+    const handleResumeReconnect = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
+      connect();
+    };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handleResumeReconnect);
+    window.addEventListener('focus', handleResumeReconnect);
+    window.addEventListener('online', handleResumeReconnect);
     connect();
 
     return () => {
@@ -3329,6 +3405,9 @@ function MainApp({ user, onLogout }) {
         ref.staleTimer = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handleResumeReconnect);
+      window.removeEventListener('focus', handleResumeReconnect);
+      window.removeEventListener('online', handleResumeReconnect);
       closeSocket();
     };
   }, [cloudLoading, applyBtcRealtimeTick]);
@@ -3369,6 +3448,7 @@ function MainApp({ user, onLogout }) {
       if (stopped || document.hidden) return;
       clearReconnectTimer();
       closeSocket();
+      ref.lastConnectAttemptAt = Date.now();
       setIndexRealtimeStatus((status) => (status === 'live' ? status : 'connecting'));
 
       try {
@@ -3448,8 +3528,19 @@ function MainApp({ user, onLogout }) {
         connect();
       }
     };
+    const handleResumeReconnect = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
+      connect();
+    };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handleResumeReconnect);
+    window.addEventListener('focus', handleResumeReconnect);
+    window.addEventListener('online', handleResumeReconnect);
     connect();
 
     return () => {
@@ -3460,6 +3551,9 @@ function MainApp({ user, onLogout }) {
         ref.staleTimer = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handleResumeReconnect);
+      window.removeEventListener('focus', handleResumeReconnect);
+      window.removeEventListener('online', handleResumeReconnect);
       closeSocket();
     };
   }, [cloudLoading, applyIndexRealtimeTick]);
@@ -3506,6 +3600,7 @@ function MainApp({ user, onLogout }) {
       if (stopped || document.hidden) return;
       clearReconnectTimer();
       closeSocket();
+      ref.lastConnectAttemptAt = Date.now();
       if (ref.status !== 'live') ref.status = 'connecting';
 
       try {
@@ -3589,8 +3684,19 @@ function MainApp({ user, onLogout }) {
         connect();
       }
     };
+    const handleResumeReconnect = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
+      connect();
+    };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handleResumeReconnect);
+    window.addEventListener('focus', handleResumeReconnect);
+    window.addEventListener('online', handleResumeReconnect);
     connect();
 
     return () => {
@@ -3601,6 +3707,9 @@ function MainApp({ user, onLogout }) {
         ref.staleTimer = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handleResumeReconnect);
+      window.removeEventListener('focus', handleResumeReconnect);
+      window.removeEventListener('online', handleResumeReconnect);
       closeSocket();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
