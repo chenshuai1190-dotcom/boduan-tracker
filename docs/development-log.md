@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 交易录入弹窗细节修正
 
-- Commit: `same commit`
+- Commit: `0eff7b4a4a7f3c475fc440fd777ea3c49b377cc3`
 - Background: 用户根据手机截图反馈 `v10.7.9.169` 初版交易录入弹窗字体过小,“名称和现价由系统自动识别”提示看不清;要求适量放大字体,移除股票代码/价格日期/操作前面的数字,取消“操作”文字显示,并把二次确认从白色老版底部弹窗改成居中且符合现有深色风格的确认弹窗。
 - Changes:
   - 交易录入弹窗输入框从 12px 提升到 14px,标签从 9px 提升到 12px,保持紧凑高度但提升可读性。
@@ -30,9 +30,14 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - 本地 build marker: `TradesTab-D6G4DUOH.js` contains `systemManagedName`, `priceShares`, `text-[14px]`, `text-[12px]`, and does not contain old modal markers `nameAuto`, `confirmAdd`, `confirmEdit`, `trades.cancel`, `trades.action` or `text-[9px] text-rose-200`;`App-DkohNXvi.js` contains `bg-black/[0.65]`, `bg-[#0b0f16]`, `text-white/[0.58]` and `text-white/[0.68]`;`SettingsTab-zJZtxjl1.js` contains `v10.7.9.170`;`settingsChangelog-CavB_Meb.js` contains `v10.7.9.170` and `交易录入弹窗细节修正`。
 - Deployment:
-  - Pending push to GitHub `main` and Vercel production deployment.
+  - Pushed to GitHub `main` as runtime commit `0eff7b4a4a7f3c475fc440fd777ea3c49b377cc3`。
+  - GitHub Actions `CI` run `28791329604` completed successfully.
+  - Vercel production deployment completed with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8kc48F9s1Q4koipPokK69CDKCLtv`。
+  - Production root recursive asset fetch returned HTTP 200;active entry asset is `/assets/index-BTG7ckrS.js`。
+  - Production runtime chunks verified: `/assets/index-BTG7ckrS.js` imports `/assets/App-D-OpYjBa.js`;runtime assets include `/assets/TradesTab-D6G4DUOH.js`, `/assets/i18n-DeasJQRv.js`, `/assets/SettingsTab-BZ5SZX4-.js`, `/assets/settingsChangelog-CavB_Meb.js`, and `/assets/icons-D-qNOTDb.js`。
 - Production verification:
-  - Pending Vercel deployment;部署后需验证 `SettingsTab` 包含 `v10.7.9.170`,`settingsChangelog` 包含 `交易录入弹窗细节修正`,`TradesTab` 保留放大字体/无数字标记/无 `trades.action` marker,`App` 包含深色居中确认弹窗 marker,未登录 `/api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`。
+  - Production marker verified: `SettingsTab-BZ5SZX4-.js` contains `v10.7.9.170`;`settingsChangelog-CavB_Meb.js` contains `v10.7.9.170` and `交易录入弹窗细节修正`;`TradesTab-D6G4DUOH.js` contains `systemManagedName`, `priceShares`, `text-[14px]` and `text-[12px]`,and does not contain old modal markers `nameAuto`, `confirmAdd`, `confirmEdit`, `trades.cancel`, `trades.action` or `text-[9px] text-rose-200`;`App-D-OpYjBa.js` contains `bg-black/[0.65]`, `bg-[#0b0f16]`, `text-white/[0.58]` and `text-white/[0.68]` for the dark centered confirmation modal。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的交易录入弹窗字号/编号/操作标题、全局确认弹窗深色居中样式、`v10.7.9.170` 设置页版本/更新日志、测试断言和本日志即可;不影响交易数据、行情 relay、汇率、RLS 或鉴权。
 
 ### 2026-07-06 - 交易录入弹窗结构优化
