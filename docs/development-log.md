@@ -36,9 +36,12 @@
   - Pushed to GitHub `main` as runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`。
   - GitHub Actions `CI` run `28792523002` completed successfully.
   - Production marker polling for `deb3957` checked 24 times across the normal wait window;production root still returned previous entry `/assets/index-BTG7ckrS.js`,and GitHub deployments API did not show a Vercel deployment for `deb3957` during that window.
-  - Following the existing repo pattern for this Vercel integration edge case, a docs-only follow-up commit is being used to re-trigger Vercel deployment of latest `main`。
+  - Following the existing repo pattern for this Vercel integration edge case, docs-only follow-up commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10` re-triggered Vercel deployment of latest `main`;GitHub Actions `CI` run `28793075889` completed successfully。
+  - Production root returned HTTP 200 from Vercel with `last-modified: Mon, 06 Jul 2026 12:55:42 GMT`;active entry asset is `/assets/index-D7iMgQgY.js`。
+  - Production runtime chunks verified: `/assets/index-D7iMgQgY.js` imports `/assets/App-ZDAnFPug.js`;runtime assets include `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, and `/assets/icons-D-qNOTDb.js`。
 - Production verification:
-  - Pending production marker and auth-boundary verification after the follow-up deployment trigger.
+  - Production marker verified: `SettingsTab-2fJWoBGA.js` contains `v10.7.9.171`;`settingsChangelog-C6ZWAgLD.js` contains `工具弹窗和币种同步`;`App-ZDAnFPug.js` contains `xmoney_portfolio_currency`,`添加摊薄交易` and `bg-black/[0.65]`;`HomeTab-caYUNvHf.js` and `TradesTab-Bglu0R2H.js` contain `xmoney_portfolio_currency`;`ReviewTab-CUjmqKeE.js` contains `bg-black/[0.65]` and does not contain old detail overlay marker `bg-black/70 px-6 py-8 backdrop-blur-lg`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的摊薄成本添加交易弹窗 UI、共享币种状态、复盘/戒律弹窗遮罩、`v10.7.9.171` 设置页版本/更新日志、测试断言和本日志即可;不影响正式交易数据、摊薄成本数据结构、行情 relay、汇率、RLS 或鉴权。
 
 ### 2026-07-06 - 交易录入弹窗细节修正
