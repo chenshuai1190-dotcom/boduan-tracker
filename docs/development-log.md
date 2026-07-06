@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 行情请求禁用浏览器缓存
 
-- Commit: 待推送到 GitHub `main` 后回填。
+- Runtime commit: `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`
 - Background: `v10.7.9.177` 已把启动、切页、前台恢复和股票 WebSocket 打开后的行情刷新触发提前,但线上体感仍接近静态。复查发现 `/api/quote` 登录态响应仍是 `private, max-age=15`,且前端主行情请求复用同一个 `/api/quote?symbols=...` URL,浏览器可能在 15 秒内直接返回旧 HTTP cache,导致快速触发没有真正走到最新网络响应。
 - Changes:
   - `api/quote.js` 在登录鉴权模式下把 `/api/quote` 响应改为 `private, no-store, max-age=0, must-revalidate`,并补充 `Pragma: no-cache` / `Expires: 0`;未关闭登录鉴权,未登录仍返回 `401`。
@@ -21,6 +21,7 @@
   - `src/lib/settingsChangelog.js`
   - `tests/quote-response-shape.test.js`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/quote-response-shape.test.js tests/btc-realtime.test.js` pass,56 tests passed。
@@ -30,7 +31,10 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-BYllz8MO.js` contains `v10.7.9.178`;`settingsChangelog-BXOg8av5.js` contains `v10.7.9.178` and `行情请求禁用浏览器缓存`;`App-DUngVmmr.js` contains `fresh:!0`, `_ts`, `no-store` and `no-cache`;`api/quote.js` contains `private, no-store, max-age=0, must-revalidate`。
 - Deployment:
-  - 待推送 GitHub `main` 后由 Vercel Git integration 部署并验证生产 marker。
+  - Runtime commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b` pushed to GitHub `main`。
+  - GitHub Actions `CI` run `28801658061` completed successfully。
+  - Vercel status for `2a4b2c1` returned `failure`: `Deployment rate limited — retry in 24 hours.`
+  - Production alias `https://boduan-tracker.vercel.app` still serves `v10.7.9.177`:active entry `/assets/index-VYBFOlGe.js`,and unauthenticated `GET /api/quote?symbols=VIX` still returns `401` with old `cache-control: private, max-age=15`;therefore `v10.7.9.178` is on GitHub `main` but not yet live on Vercel。
 - Rollback: 回退本条涉及的 `/api/quote` no-store 响应头、`fetchQuote(..., { fresh: true })` fresh 请求、`v10.7.9.178` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓/收益率计算、涨跌幅重算口径、EODHD 服务端 token、WebSocket relay、Supabase、RLS 或数据库结构。
 
 ### 2026-07-06 - 股票行情即时刷新
