@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 回滚股票昨收兜底和当日盈亏修复
+
+- Revert commits: `257daeb7f54d711c89a4f04871ac340c49f0861b`, `d24c2cbc618049276d7c591ae45eedacf2f1c5d4`
+- Background: `v10.7.9.174` 股票昨收兜底和当日盈亏修复上线后,用户反馈数据仍然明显不正确,且表现与上次 NOK 盘前口径实验相同;按用户要求立即回退到上一版运行时代码。
+- Changes:
+  - 回退 `ff6c2db2ee539ce23b557b4de66297e7919a8074` 的 EODHD EOD 历史昨收兜底、`App.jsx` / `stockUniverse` 涨跌字段重算、`v10.7.9.174` 设置页版本和应用内更新日志、相关测试和开发日志条目。
+  - 回退 `2f3ad73eeca3f40e4a6b78fd9b9e5a2561efa0c2` 的 `v10.7.9.174` 部署回填文档。
+  - 设置页恢复显示 `v10.7.9.173` 和“弹窗字重和交易确认细节”;不保留 `v10.7.9.174` 用户可见更新日志。
+  - 本轮只做回滚和日志记录;不改交易账本、持仓数量、成本、行情 relay、Supabase、RLS、Yahoo 小曲线或 `/api/quote` 鉴权。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/App.jsx`
+  - `src/lib/stockUniverse.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/stock-universe.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,86 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DiR3JVIf.js`、`dist/assets/HomeTab-DzKcyI8C.js`、`dist/assets/TradesTab-BKaD1ZhL.js`、`dist/assets/SettingsTab-DoJ7fJrJ.js` 和 `dist/assets/settingsChangelog-DR5wiS8Z.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 marker: `src/tabs/SettingsTab.jsx` 和 `src/lib/settingsChangelog.js` 已恢复 `v10.7.9.173` / “弹窗字重和交易确认细节”;`src`、`server` 和 `tests` 不再包含 `resolveQuoteChangeFields`、`selectPreviousCloseFromEodRows` 或 `v10.7.9.174` 运行时标记。
+- Deployment:
+  - pending
+- Rollback: 本条本身是紧急回滚。如需再次尝试修复,必须先基于真实 EODHD 回包复现 MSFT/NOK 的 `price/previousClose/change/changePercent` 字段,不要再假设 EOD EOD 历史可直接作为 intraday baseline。
+
 ### 2026-07-06 - 弹窗字重和交易确认细节
 
 - Commit: `ff5b1a6ef13171a89555801e075212d47c917e31`
