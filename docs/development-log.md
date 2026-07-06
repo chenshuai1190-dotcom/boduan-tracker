@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 实时行情恢复重连
 
-- Runtime commit: `this commit`
+- Runtime commit: `abcb44245160d01b75b260dec3b3abc7fd9ac5b5`
 - Background: 用户在 iOS 添加到主屏幕的 Web App 中复现:首次进入交易页实时数字正常,切到其它 App 再切回来后,交易页数字通常只跳 2-3 次就停,手动下拉刷新并等待约 15 秒后又能恢复持续刷新。复查确认 REST 快照并不是冲突来源,它只负责启动/回前台/手动刷新的快照兜底;真正不稳定的是 iOS 后台恢复后 WebSocket 可能处于半死连接,旧逻辑在短时间内仍把它当作 active socket,且 stale timer 只标记 stale 不主动重连。
 - Changes:
   - `src/App.jsx` 新增 realtime 恢复重连 handler registry;iOS PWA fresh REST 恢复刷新触发时,同步对 BTC、指数、股票三套 realtime 连接发起强制重连请求。
@@ -31,7 +31,10 @@
   - Local build marker: `App-CnP7e7FP.js` contains compressed runtime markers `pagehide`, `lastForceReconnectAt`, `lastConnectAttemptAt`, `pageshow` and `online`;`SettingsTab-BODfEhGg.js` contains `v10.7.9.182`;`settingsChangelog-CiR8_P5t.js` contains `v10.7.9.182`, `iOS 实时行情恢复重连`, `v10.7.9.181` and `交易录入输入框去白框`。
   - `git diff --check` pass。
 - Deployment:
-  - Pending: 验证通过后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Runtime commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Vercel status for `abcb442` returned `success`: `Deployment has completed`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`。
+  - Production verification: root active entry `/assets/index-38Z6HEtD.js`;entry loads `/assets/App-LGb1XnOA.js`;`App-LGb1XnOA.js` contains compressed runtime markers `pagehide`, `lastForceReconnectAt`, `lastConnectAttemptAt`, `pageshow` and `online`;`SettingsTab-Dk2Hw5_q.js` contains `v10.7.9.182`;`settingsChangelog-CiR8_P5t.js` contains `v10.7.9.182`, `iOS 实时行情恢复重连`, `v10.7.9.181` and `交易录入输入框去白框`;unauthenticated `GET /api/quote?symbols=VIX` returns `401` with `cache-control: private, no-store, max-age=0, must-revalidate`;ordinary HTTPS `GET /api/stocks-realtime` returns `426` with `cache-control: no-store`。
+  - 本文件所在 documentation follow-up commit 只同步部署成功记录和交接状态;运行时代码仍以 `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` 为基准。
 - Rollback: 回退本条涉及的 realtime 恢复 handler registry、iOS PWA 强制 realtime 重连、三套 realtime `pagehide` pause/stale 主动 reconnect、`v10.7.9.182` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、数据库结构或 RLS。
 
 ## 2026-07-06 Asia/Shanghai
