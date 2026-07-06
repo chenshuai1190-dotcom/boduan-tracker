@@ -4,6 +4,40 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 英文模式第一阶段
+
+- Commit: `same commit`
+- Background: 用户确认先做英文版第一步,只接入语言框架、设置页中英文切换、底部导航和首页;英文模式下首页股票主标题和副标题都显示股票代码缩写,用户自己写的日志、复盘、备注继续按原文显示;本阶段不能影响中文默认显示和现有核心功能。
+- Changes:
+  - 新增本地语言框架 `src/lib/i18n.js`,默认 `zh`,使用稳定本地存储键 `xmoney_language`,提供 `normalizeLanguage`、`saveStoredLanguage`、`isEnglishLanguage` 和带中文 fallback 的 `t()` 翻译函数。
+  - `App.jsx` 增加全局 `language` 状态并透传到各 tab;底部导航改为从语言字典读取,中文默认仍显示首页/交易/资产/目标/设置。
+  - 设置页新增“语言 / Language”切换卡,支持 `简体中文` 和 `English`;设置页标题、账户、行情诊断、更新日志、关于等系统文案接入字典。
+  - 首页头部卡、当前信号、VIX/CNN 恐慌指标、自选/持仓表格、添加/编辑自选弹窗等系统文案接入中英文;英文模式下公司名显示函数直接返回规范化 ticker,确保主副标题都显示股票代码缩写。
+  - 英文首页增加移动端保护:头部三列比例、恐慌卡标题字号和表格内部横向滚动收紧,避免英文文案导致页面整体横向溢出。
+  - `DevVisualPreview` 支持 `?lang=en`,方便本地 390px 移动视口快速检查英文首页。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.156`,新增“英文模式第一阶段”。
+  - 本轮不翻译用户自写日志/复盘/备注/历史更新记录,不改资产页、交易页、目标页业务逻辑,不改行情 relay、Supabase、RLS、交易账本、`/api/quote` 鉴权或任何密钥配置。
+- Key files:
+  - `src/lib/i18n.js`
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm test`: pass;78 tests passed,including language framework、底部导航、首页英文 ticker 显示、设置页语言切换、DevVisualPreview `?lang=en` 和版本/更新日志断言。
+  - `npm run build`: pass;Vite built `i18n-DJgOZT0p.js`, `HomeTab-DMu2X-yC.js`, `SettingsTab-iDf3ZGBJ.js`, `settingsChangelog-BycQuPYu.js`, `App-DeCaae5N.js` and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/`,in-app browser viewport `390x844`;中文 `?tab=home` 仍显示 `总资产`、`当前信号`、`自选`,股票仍为 `NVDA / NVIDIA`、`MSFT / 微软`;英文 `?tab=home&lang=en` 显示 `Total Assets`、`Current Signal`、`Watchlist`、`Home`,股票主副标题显示 `NVDA / NVDA`、`MSFT / MSFT`;document `scrollWidth=390`,无页面级横向溢出。
+  - Dist marker check: pass;production build assets contain `xmoney_language`, `Total Assets`, `CNN Fear & Greed Index`, `Add Watchlist Stock`, `Wait for better setups`, `v10.7.9.156` and `英文模式第一阶段`.
+- Deployment:
+  - Pending;本条日志随本轮提交推送后补充 GitHub/Vercel 和生产 marker 验证结果。
+- Rollback: 回退 `src/lib/i18n.js`、`App.jsx` 的语言状态和底部导航翻译、`HomeTab.jsx` 的首页翻译和英文 ticker 显示、`SettingsTab.jsx` 的语言切换和版本号、`DevVisualPreview.jsx` 的 `?lang=en` 支持、`settingsChangelog.js` 的 `v10.7.9.156` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - CNN 仪表盘刻度点位微调
 
 - Commit: `435e600e5b981da1814d1b5b6e28db2d3da92197`

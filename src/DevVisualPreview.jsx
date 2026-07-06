@@ -18,6 +18,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { normalizeLanguage, t } from './lib/i18n.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -130,6 +131,10 @@ export default function DevVisualPreview() {
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
     return ['home', 'analysis', 'review'].includes(requestedTab) ? requestedTab : 'analysis';
+  });
+  const [language, setLanguage] = React.useState(() => {
+    if (typeof window === 'undefined') return 'zh';
+    return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => mockHomeWatchlist);
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
@@ -282,7 +287,7 @@ export default function DevVisualPreview() {
       setHomeWatchlist((current) => current.filter((row) => row.symbol !== symbol));
       return { success: true };
     },
-    displayStockName: (symbol, name) => name || symbol,
+    displayStockName: (symbol, name, displayLanguage = language) => normalizeLanguage(displayLanguage) === 'en' ? symbol : (name || symbol),
     fetchRealtimePrices: async () => {},
     fetching: false,
     fgi: 32,
@@ -311,6 +316,7 @@ export default function DevVisualPreview() {
       sellTradeCount: 0,
       usdRate: 7.215,
     },
+    language,
     Loader2,
     logoCache: {},
     marketColorMode: 'redUpGreenDown',
@@ -322,6 +328,7 @@ export default function DevVisualPreview() {
     },
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
+    setLanguage,
     setNewStock,
     setShowAddStock,
     showAddStock,
@@ -382,11 +389,11 @@ export default function DevVisualPreview() {
   };
 
   const nav = [
-    { id: 'home', label: '首页', icon: Home },
-    { id: 'trades', label: '交易', icon: ListChecks },
-    { id: 'analysis', label: '资产', icon: Wallet },
-    { id: 'review', label: '目标', icon: Target },
-    { id: 'settings', label: '设置', icon: Settings },
+    { id: 'home', label: t(language, 'nav.home', '首页'), icon: Home },
+    { id: 'trades', label: t(language, 'nav.trades', '交易'), icon: ListChecks },
+    { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
+    { id: 'review', label: t(language, 'nav.review', '目标'), icon: Target },
+    { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
   ];
 
   return (

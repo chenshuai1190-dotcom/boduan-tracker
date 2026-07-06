@@ -1,4 +1,5 @@
 import React from 'react';
+import { normalizeLanguage, t } from '../lib/i18n.js';
 
 export default function SettingsTab({ ctx }) {
   const {
@@ -8,12 +9,14 @@ export default function SettingsTab({ ctx }) {
     clearQuoteDiagnosticLogs,
     Loader2,
     LogOut,
+    language = 'zh',
     newPwd,
     onLogout,
     pwdLoading,
     pwdMsg,
     quoteDiagnosticLogs = [],
     setChangelogExpanded,
+    setLanguage,
     setNewPwd,
     setPwdLoading,
     setPwdMsg,
@@ -24,11 +27,12 @@ export default function SettingsTab({ ctx }) {
     user,
     X,
   } = ctx;
+  const currentLanguage = normalizeLanguage(language);
 
   const formatDiagnosticTime = (value) => {
     if (!value) return '--';
     try {
-      return new Date(value).toLocaleString('zh-CN', {
+      return new Date(value).toLocaleString(currentLanguage === 'en' ? 'en-US' : 'zh-CN', {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -89,21 +93,58 @@ export default function SettingsTab({ ctx }) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">X MONEY</div>
-                  <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">设置</h1>
+                  <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.155
+                  v10.7.9.156
                 </span>
+              </div>
+            </div>
+
+            {/* 语言 */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-black text-white">{t(language, 'settings.language', '语言')}</h2>
+                  <div className="mt-1 text-[12px] leading-5 text-white/40">
+                    {t(language, 'settings.languageDesc', '切换系统界面文案, 不翻译你自己写的日志和备注。')}
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full border border-[#f6a524]/20 bg-[#f6a524]/10 px-2.5 py-1 text-[10px] font-black uppercase text-[#f6a524]">
+                  {currentLanguage === 'en' ? 'EN' : '中文'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'zh', label: t(language, 'settings.languageZh', '简体中文') },
+                  { id: 'en', label: t(language, 'settings.languageEn', 'English') },
+                ].map((item) => {
+                  const active = currentLanguage === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setLanguage?.(item.id)}
+                      className={`flex h-11 items-center justify-center rounded-xl border text-[13px] font-bold transition active:scale-[0.99] ${
+                        active
+                          ? 'border-[#f6a524]/70 bg-[#f6a524]/15 text-[#ffd18a]'
+                          : 'border-white/10 bg-black/20 text-white/55'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* 账户设置 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-black text-white">账户设置</h2>
+                <h2 className="text-lg font-black text-white">{t(language, 'settings.account', '账户设置')}</h2>
                 <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-black text-emerald-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
-                  已登录
+                  {t(language, 'settings.loggedIn', '已登录')}
                 </span>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
@@ -117,15 +158,15 @@ export default function SettingsTab({ ctx }) {
                   onClick={() => setShowChangePassword(true)}
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.07] py-2.5 text-sm font-bold text-white active:scale-95 transition"
                 >
-                  修改密码
+                  {t(language, 'settings.changePassword', '修改密码')}
                 </button>
                 <button
                   onClick={() => {
                     showConfirm({
-                      title: '退出登录?',
-                      desc: '下次进入需要重新登录',
+                      title: t(language, 'settings.logoutTitle', '退出登录?'),
+                      desc: t(language, 'settings.logoutDesc', '下次进入需要重新登录'),
                       icon: '🔓',
-                      confirmText: '退出',
+                      confirmText: t(language, 'settings.logout', '退出登录'),
                       onConfirm: async () => {
                         await onLogout();
                       },
@@ -133,7 +174,7 @@ export default function SettingsTab({ ctx }) {
                   }}
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-400/10 py-2.5 text-sm font-bold text-rose-300 active:scale-95 transition"
                 >
-                  <LogOut className="w-4 h-4" /> 退出登录
+                  <LogOut className="w-4 h-4" /> {t(language, 'settings.logout', '退出登录')}
                 </button>
               </div>
             </div>
@@ -216,9 +257,9 @@ export default function SettingsTab({ ctx }) {
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-black text-white">行情诊断日志</h2>
+                  <h2 className="text-lg font-black text-white">{t(language, 'settings.diagnostics', '行情诊断日志')}</h2>
                   <div className="mt-1 text-[11px] font-medium text-white/35">
-                    最近 {quoteDiagnosticLogs.length || 0} 条
+                    {t(language, 'settings.recentCount', '最近 {{count}} 条', { count: quoteDiagnosticLogs.length || 0 })}
                   </div>
                 </div>
                 <button
@@ -227,13 +268,13 @@ export default function SettingsTab({ ctx }) {
                   disabled={quoteDiagnosticLogs.length === 0}
                   className="rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-[11px] font-bold text-white/60 active:scale-95 disabled:opacity-35"
                 >
-                  清空
+                  {t(language, 'settings.clear', '清空')}
                 </button>
               </div>
 
               {visibleQuoteLogs.length === 0 ? (
                 <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/45">
-                  暂无行情错误
+                  {t(language, 'settings.noQuoteErrors', '暂无行情错误')}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -292,20 +333,20 @@ export default function SettingsTab({ ctx }) {
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-black text-lg text-white">
-                  更新日志
+                  {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.155
+                  v10.7.9.156
                 </span>
               </div>
 
               {changelogLoadError ? (
                 <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-3 text-[12px] text-rose-200">
-                  更新日志加载失败,请稍后重试
+                  {t(language, 'settings.changelogLoadFailed', '更新日志加载失败,请稍后重试')}
                 </div>
               ) : !Array.isArray(changelog) ? (
                 <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-[12px] text-white/45">
-                  更新日志加载中...
+                  {t(language, 'settings.changelogLoading', '更新日志加载中...')}
                 </div>
               ) : (
                 <div>
@@ -335,7 +376,7 @@ export default function SettingsTab({ ctx }) {
                         </span>
                         {log.latest && (
                           <span className="ml-auto rounded border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-emerald-300">
-                            最新
+                            {t(language, 'settings.latest', '最新')}
                           </span>
                         )}
                       </div>
@@ -358,12 +399,12 @@ export default function SettingsTab({ ctx }) {
                       {changelogExpanded ? (
                         <>
                           <ChevronUp className="w-3.5 h-3.5" />
-                          收起 (隐藏 {changelog.length - 5} 条历史)
+                          {t(language, 'settings.collapseHistory', '收起 (隐藏 {{count}} 条历史)', { count: changelog.length - 5 })}
                         </>
                       ) : (
                         <>
                           <ChevronDown className="w-3.5 h-3.5" />
-                          查看完整历史 (还有 {changelog.length - 5} 条 · 共 {changelog.length} 个版本)
+                          {t(language, 'settings.viewFullHistory', '查看完整历史 (还有 {{rest}} 条 · 共 {{total}} 个版本)', { rest: changelog.length - 5, total: changelog.length })}
                         </>
                       )}
                     </button>
@@ -374,14 +415,14 @@ export default function SettingsTab({ ctx }) {
 
             {/* 关于 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <h2 className="mb-3 text-lg font-black text-white">关于 X MONEY</h2>
+              <h2 className="mb-3 text-lg font-black text-white">{t(language, 'settings.about', '关于 X MONEY')}</h2>
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
-                  <span>版本</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.155</span>
+                  <span>{t(language, 'settings.version', '版本')}</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.156</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span>数据源</span>
+                  <span>{t(language, 'settings.dataSource', '数据源')}</span>
                   <span className="font-semibold text-white/85">EODHD + Yahoo Finance</span>
                 </div>
               </div>

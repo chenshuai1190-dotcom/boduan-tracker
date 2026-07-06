@@ -6,6 +6,7 @@ import { inflateSync } from 'node:zlib';
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
 const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', import.meta.url), 'utf8');
+const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
@@ -227,7 +228,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('if (notifyOnError) setFetchError(message);'), 'only manual quote failures should surface bottom toasts');
   assert.ok(appSource.includes("const QUOTE_ERROR_VISIBLE_TABS = ['home', 'trades'];"), 'quote refresh errors should only surface on quote-consuming tabs');
   assert.ok(appSource.includes('const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab)'), 'target/asset/settings tabs should not inherit quote refresh toasts');
-  assert.ok(appSource.includes('行情拉取失败:{fetchError}'), 'bottom toast should identify quote refresh failures specifically');
+  assert.ok(appSource.includes("t(language, 'home.market.fetchFailed', '行情拉取失败')"), 'bottom toast should identify quote refresh failures specifically');
   assert.ok(settingsTabSource.includes('行情诊断日志'), 'settings should expose quote diagnostic logs');
   assert.ok(settingsTabSource.includes('quoteDiagnosticLogs'), 'settings diagnostics should read quote diagnostic log entries');
   assert.ok(settingsTabSource.includes('clearQuoteDiagnosticLogs'), 'settings diagnostics should allow clearing local quote logs');
@@ -302,11 +303,30 @@ test('position clicks default to buy and trade records use ledger edit/delete fl
 test('stock Chinese names are shared by home positions and trade records', () => {
   assert.ok(appSource.includes('stockTrades: localizedStockTrades'), 'investment summary should derive positions from localized stock trades');
   assert.ok(appSource.includes('displayStockName,'), 'tabs should receive the shared stock-name display helper');
-  assert.ok(homeTabSource.includes('displayName: stockDisplayName(symbol, row?.name || quote?.name)'), 'home watchlist edit rows should use shared stock-name fallback');
+  assert.ok(homeTabSource.includes('displayName: stockDisplayName(symbol, row?.name || quote?.name, language)'), 'home watchlist edit rows should use shared stock-name fallback with language context');
   assert.ok(homeTabSource.includes('{item.displayName}'), 'home watchlist/positions table should render the localized display name');
   assert.ok(tradesTabSource.includes('stockDisplayName(position.symbol, position.name)'), 'trade positions should render localized stock names');
   assert.ok(tradesTabSource.includes('stockDisplayName(trade.symbol, trade.name)'), 'trade records and today orders should render localized stock names');
   assert.ok(tradesTabSource.includes('stockDisplayName(orderActionTrade.symbol, orderActionTrade.name)'), 'order action modal should render localized stock names');
+});
+
+test('language framework covers settings switch, bottom nav, home page, and stock ticker display', () => {
+  assert.ok(i18nSource.includes("export const LANGUAGE_STORAGE_KEY = 'xmoney_language'"), 'language preference should use a stable local storage key');
+  assert.ok(i18nSource.includes("'nav.home': 'Home'"), 'English dictionary should include bottom navigation labels');
+  assert.ok(i18nSource.includes("'home.totalAssets': 'Total Assets'"), 'English dictionary should include home header labels');
+  assert.ok(i18nSource.includes("'settings.language': 'Language'"), 'English dictionary should include settings language controls');
+  assert.ok(appSource.includes('const [language, setLanguageState] = useState(() => getStoredLanguage())'), 'App should own the persisted language state');
+  assert.ok(appSource.includes('if (isEnglishLanguage(language)) return normalizedSymbol;'), 'English stock display should force ticker abbreviation instead of Chinese names');
+  assert.ok(appSource.includes("label: t(language, 'nav.home', '首页')"), 'bottom navigation should read labels from i18n');
+  assert.ok(homeTabSource.includes("import { isEnglishLanguage, t } from '../lib/i18n.js';"), 'Home tab should use the i18n helper');
+  assert.ok(homeTabSource.includes("const englishMode = isEnglishLanguage(language);"), 'Home tab should have an explicit English-mode branch for user-data-safe display');
+  assert.ok(homeTabSource.includes('max-w-[430px] overflow-x-hidden'), 'Home tab should prevent English table text from creating page-level horizontal scroll');
+  assert.ok(homeTabSource.includes('row.name || quote?.name, language'), 'home table rows should pass language into stock display names');
+  assert.ok(homeTabSource.includes("englishMode ? item.symbol : item.name"), 'popular stock subtitle should use ticker abbreviations in English mode');
+  assert.ok(homeTabSource.includes('min-w-0 max-w-full overflow-x-auto'), 'home quote metrics should keep their horizontal scroll contained inside the table');
+  assert.ok(settingsTabSource.includes("setLanguage?.(item.id)"), 'Settings should expose a language switch');
+  assert.ok(settingsTabSource.includes("settings.languageDesc"), 'Settings should state that user-written logs and notes are not translated');
+  assert.ok(devVisualPreviewSource.includes("new URLSearchParams(window.location.search).get('lang')"), 'local visual preview should support direct English home checks');
 });
 
 test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
@@ -432,7 +452,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
-  assert.ok(settingsTabSource.includes('v10.7.9.155'), 'settings version badge should document the latest CNN gauge tick placement tweak');
+  assert.ok(settingsTabSource.includes('v10.7.9.156'), 'settings version badge should document the latest English-mode phase');
   assert.ok(settingsChangelogSource.includes('v10.7.9.149'), 'settings changelog should document the module scale removal update');
   assert.ok(settingsChangelogSource.includes('资产和目标模块缩放移除'), 'settings changelog should describe the module scale removal update');
 });
@@ -573,8 +593,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('mt-3 space-y-3'), false, 'home fear cards should not remain as stacked full-width cards');
   assert.ok(homeTabSource.includes('VIX 恐慌指数'), 'rollback should keep the inline VIX fear card title');
   assert.ok(homeTabSource.includes('CNN 恐慌贪婪指数'), 'rollback should keep the inline CNN fear greed card title');
-  assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
-  assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
+  assert.ok(homeTabSource.includes('<FgiGauge value={fgi} language={language} />'), 'rollback should keep the inline CNN gauge with language-aware aria text');
+  assert.ok(homeTabSource.includes("${englishMode ? 'text-[10px]' : 'text-[12px]'} font-normal text-white/60"), 'fear-card titles should keep the gray normal-weight style and shrink only in English mode');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
   assert.ok(homeTabSource.includes('function fgiValueToAngle(value)'), 'CNN gauge should keep an explicit value-to-angle mapping');
   assert.ok(homeTabSource.includes('function describeFgiArc(cx, cy, radiusX, radiusY, startValue, endValue)'), 'CNN gauge should keep an explicit SVG arc generator');
@@ -592,14 +612,16 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes("left: '81.5%'"), 'CNN right endpoint label should be nudged inward near the marked arc end');
   assert.equal(homeTabSource.includes('<text x="27" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>'), false, 'CNN left endpoint label should not rely on SVG text rendering');
   assert.equal(homeTabSource.includes('<text x="133" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>'), false, 'CNN right endpoint label should not rely on SVG text rendering');
-  assert.ok(homeTabSource.includes('mt-1.5 text-[11px] text-white/50">{vixSignal?.desc'), 'VIX status description should use the smaller common helper text size');
+  assert.ok(homeTabSource.includes("home.vix.calmDesc"), 'VIX status description should use the smaller common helper text size and language fallback');
   assert.ok(homeTabSource.includes('mt-1.5 text-[11px] text-white/50">{fgiInfo.desc}</div>'), 'CNN description should match the smaller VIX helper text size');
   assert.ok(homeTabSource.includes('px-3.5 py-2.5'), 'fear cards should use compressed vertical padding');
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.155'), 'settings version badge should document the latest CNN gauge tick placement tweak');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.155'), 'settings changelog should document the latest CNN gauge tick placement tweak');
+  assert.ok(settingsTabSource.includes('v10.7.9.156'), 'settings version badge should document the English-mode first phase');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.156'), 'settings changelog should document the English-mode first phase');
+  assert.ok(settingsChangelogSource.includes('英文模式第一阶段'), 'settings changelog should describe the English-mode first phase');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.155'), 'settings changelog should keep the previous CNN gauge tick placement tweak');
   assert.ok(settingsChangelogSource.includes('CNN 仪表盘刻度点位微调'), 'settings changelog should describe the CNN gauge tick placement tweak');
   assert.ok(settingsChangelogSource.includes('v10.7.9.154'), 'settings changelog should keep the previous CNN gauge label rendering fix');
   assert.ok(settingsChangelogSource.includes('CNN 仪表盘数字显示修复'), 'settings changelog should keep the previous CNN gauge label rendering fix');

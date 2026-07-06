@@ -8,6 +8,7 @@ import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCards } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
+import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -742,9 +743,10 @@ function isPlaceholderStockName(symbol, name) {
   return upper === normalizedSymbol || upper === `${normalizedSymbol}.US`;
 }
 
-function displayStockName(symbol, name) {
+function displayStockName(symbol, name, language = 'zh') {
   const normalizedSymbol = normalizeStockSymbolForName(symbol);
   if (!normalizedSymbol) return String(name || '').trim();
+  if (isEnglishLanguage(language)) return normalizedSymbol;
   const mapped = STOCK_NAME_CN[normalizedSymbol];
   const raw = String(name || '').trim();
   if (mapped && (isPlaceholderStockName(normalizedSymbol, raw) || /^[A-Za-z0-9 .,&'()/-]+$/.test(raw))) return mapped;
@@ -3269,6 +3271,10 @@ function MainApp({ user, onLogout }) {
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
+  const [language, setLanguageState] = useState(() => getStoredLanguage());
+  const setLanguage = useCallback((nextLanguage) => {
+    setLanguageState(saveStoredLanguage(nextLanguage));
+  }, []);
 
   // 切换 tab 时自动滚到页面顶部(像原生 App 一样)
   useEffect(() => {
@@ -3412,6 +3418,7 @@ function MainApp({ user, onLogout }) {
     lookupStatus,
     marginStatus,
     marketColorMode,
+    language,
     newAccount,
     newPwd,
     newStock,
@@ -3454,6 +3461,7 @@ function MainApp({ user, onLogout }) {
     setHkdRate,
     setInvestmentPlan,
     setLastSeenAlerts,
+    setLanguage,
     setLookupStatus,
     setMarginStatus,
     setMarketColorMode,
@@ -5528,11 +5536,11 @@ function MainApp({ user, onLogout }) {
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-5">
               {[
-                { id: 'home',     label: '首页', icon: Home },
-                { id: 'trades',   label: '交易', icon: ListChecks },
-                { id: 'analysis', label: '资产', icon: Wallet },
-                { id: 'review',   label: '目标', icon: Target },
-                { id: 'settings', label: '设置', icon: Settings },
+                { id: 'home',     label: t(language, 'nav.home', '首页'), icon: Home },
+                { id: 'trades',   label: t(language, 'nav.trades', '交易'), icon: ListChecks },
+                { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
+                { id: 'review',   label: t(language, 'nav.review', '目标'), icon: Target },
+                { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -5555,7 +5563,7 @@ function MainApp({ user, onLogout }) {
             {/* 拉取错误提示(浮在导航栏上方) */}
             {showQuoteFetchError && (
               <div className="absolute -top-10 left-2 right-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-1 shadow">
-                <WifiOff className="w-3 h-3" /> 行情拉取失败:{fetchError}
+                <WifiOff className="w-3 h-3" /> {t(language, 'home.market.fetchFailed', '行情拉取失败')}:{fetchError}
               </div>
             )}
           </div>

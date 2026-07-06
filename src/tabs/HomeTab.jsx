@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isBtcMarketCard } from '../lib/btcRealtime.js';
+import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -178,8 +179,10 @@ function StockLogo({ symbol, urls, onLogoLoad, className = '' }) {
   );
 }
 
-function cleanSignalText(value) {
-  return String(value || '等待中').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+ */u, '');
+function cleanSignalText(value, language = 'zh') {
+  const text = String(value || '等待中').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+ */u, '');
+  if (isEnglishLanguage(language) && text === '等待中') return t(language, 'home.waiting', '等待中');
+  return text;
 }
 
 function dataDateLabel(value) {
@@ -216,12 +219,29 @@ function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
   );
 }
 
-function MiniMarketCard({ item, marketColorMode }) {
+function marketCardName(item, language) {
+  if (!isEnglishLanguage(language)) return item?.name || item?.ticker;
+  const ticker = String(item?.displaySymbol || item?.symbol || item?.ticker || '').toUpperCase();
+  const map = {
+    '.SPX': 'S&P 500',
+    'SPX': 'S&P 500',
+    '.NDX': 'Nasdaq 100',
+    'NDX': 'Nasdaq 100',
+    '.DJI': 'Dow Jones',
+    'DJI': 'Dow Jones',
+    'BTCUSD': 'BTC',
+    'BTC/USD': 'BTC',
+    'BTC': 'BTC',
+  };
+  return map[ticker] || item?.displaySymbol || item?.symbol || item?.ticker || item?.name;
+}
+
+function MiniMarketCard({ item, marketColorMode, language }) {
   if (item?.error) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 min-h-[122px]">
-        <div className="text-[10px] font-normal leading-tight text-white/80">{item.name || item.ticker}</div>
-        <div className="mt-3 text-[11px] text-rose-300">拉取失败</div>
+        <div className="text-[10px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
+        <div className="mt-3 text-[11px] text-rose-300">{t(language, 'home.market.fetchFailed', '拉取失败')}</div>
       </div>
     );
   }
@@ -233,12 +253,12 @@ function MiniMarketCard({ item, marketColorMode }) {
   const realtimeLabel = realtimeStatus === 'live'
     ? 'LIVE'
     : (realtimeStatus === 'fallback' ? 'REST'
-      : (realtimeStatus === 'connecting' || realtimeStatus === 'reconnecting' ? '连接中'
-        : (realtimeStatus === 'paused' ? '暂停' : (realtimeStatus === 'stale' ? '延迟' : ''))));
+      : (realtimeStatus === 'connecting' || realtimeStatus === 'reconnecting' ? t(language, 'home.market.connecting', '连接中')
+        : (realtimeStatus === 'paused' ? t(language, 'home.market.paused', '暂停') : (realtimeStatus === 'stale' ? t(language, 'home.market.stale', '延迟') : ''))));
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5 min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="flex min-w-0 items-start justify-between gap-1.5">
-        <div className="min-w-0 truncate text-[10px] font-normal leading-tight text-white/80">{item?.name || ticker}</div>
+        <div className="min-w-0 truncate text-[10px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
           <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[8px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
             {realtimeLabel}
@@ -270,13 +290,13 @@ function RadarVisual({ active }) {
   );
 }
 
-function fgiLevel(value) {
+function fgiLevel(value, language = 'zh') {
   const v = num(value);
-  if (v <= 20) return { label: '极度恐惧', color: '#f43f5e', desc: '市场极度恐惧' };
-  if (v <= 40) return { label: '恐惧', color: '#fb7185', desc: '市场偏恐惧, 谨慎布局' };
-  if (v <= 60) return { label: '中性', color: '#facc15', desc: '市场情绪中性' };
-  if (v <= 80) return { label: '贪婪', color: '#22c55e', desc: '市场偏贪婪, 控制追高' };
-  return { label: '极度贪婪', color: '#16a34a', desc: '高风险区, 减仓为主' };
+  if (v <= 20) return { label: t(language, 'home.fgi.extremeFear', '极度恐惧'), color: '#f43f5e', desc: t(language, 'home.fgi.extremeFearDesc', '市场极度恐惧') };
+  if (v <= 40) return { label: t(language, 'home.fgi.fear', '恐惧'), color: '#fb7185', desc: t(language, 'home.fgi.fearDesc', '市场偏恐惧, 谨慎布局') };
+  if (v <= 60) return { label: t(language, 'home.fgi.neutral', '中性'), color: '#facc15', desc: t(language, 'home.fgi.neutralDesc', '市场情绪中性') };
+  if (v <= 80) return { label: t(language, 'home.fgi.greed', '贪婪'), color: '#22c55e', desc: t(language, 'home.fgi.greedDesc', '市场偏贪婪, 控制追高') };
+  return { label: t(language, 'home.fgi.extremeGreed', '极度贪婪'), color: '#16a34a', desc: t(language, 'home.fgi.extremeGreedDesc', '高风险区, 减仓为主') };
 }
 
 function fgiValueToAngle(value) {
@@ -300,14 +320,14 @@ function describeFgiArc(cx, cy, radiusX, radiusY, startValue, endValue) {
   return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radiusX} ${radiusY} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
-function FgiGauge({ value }) {
+function FgiGauge({ value, language }) {
   const v = Math.max(0, Math.min(100, num(value)));
   const cx = 80;
   const cy = 57;
   const radiusX = 54;
   const radiusY = 36;
   const angle = fgiValueToAngle(v);
-  const level = fgiLevel(v);
+  const level = fgiLevel(v, language);
   const pointer = fgiPolarPoint(cx, cy, 42, 28, angle);
   const arcPath = describeFgiArc(cx, cy, radiusX, radiusY, 0, 100);
   const separators = [20, 50, 80].map((tick) => ({
@@ -319,7 +339,7 @@ function FgiGauge({ value }) {
     textShadow: '0 1px 2px #0b0f14, 0 0 4px #0b0f14',
   };
   return (
-    <div className="relative h-[54px] w-full" aria-label={`CNN 恐慌贪婪指数 ${Math.round(v)} ${level.label}`}>
+    <div className="relative h-[54px] w-full" aria-label={t(language, 'home.fgiAria', 'CNN 恐慌贪婪指数 {{value}} {{level}}', { value: Math.round(v), level: level.label })}>
       <svg viewBox="0 0 160 72" className="absolute inset-x-0 top-0 h-[54px] w-full overflow-visible" aria-hidden="true">
         <defs>
           <linearGradient id="fgiArcGradient" x1="26" y1="57" x2="134" y2="57" gradientUnits="userSpaceOnUse">
@@ -398,6 +418,7 @@ export default function HomeTab({ ctx }) {
     homeWatchlist,
     indices,
     investmentSummary,
+    language = 'zh',
     Loader2,
     logoCache,
     marketColorMode,
@@ -436,6 +457,7 @@ export default function HomeTab({ ctx }) {
     }
   });
   const summary = investmentSummary || emptySummary;
+  const englishMode = isEnglishLanguage(language);
   const positions = summary.activePositions || [];
   const stockDisplayName = typeof displayStockName === 'function'
     ? displayStockName
@@ -444,7 +466,7 @@ export default function HomeTab({ ctx }) {
   const displayWatchlist = homeWatchlist || watchlist || [];
   const vixDateLabel = dataDateLabel(vixDataDate);
   const fgiDateLabel = dataDateLabel(fgiDataDate);
-  const fgiInfo = fgiLevel(fgi);
+  const fgiInfo = fgiLevel(fgi, language);
   const marketCards = React.useMemo(() => (
     (indices || []).slice(0, 4).map((item) => (
       isBtcMarketCard(item)
@@ -500,11 +522,11 @@ export default function HomeTab({ ctx }) {
   const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 112px' : '68px 70px 88px 84px';
   const metricMinWidth = showPnlColumn ? 438 : 322;
   const metricColumns = [
-    { key: 'price', label: '价格' },
-    { key: 'change', label: '涨跌幅' },
-    { key: 'drawdown', label: '52周跌幅' },
-    { key: 'ytd', label: '年初至今' },
-    ...(showPnlColumn ? [{ key: 'pnl', label: '持仓盈亏' }] : []),
+    { key: 'price', label: t(language, 'home.price', '价格') },
+    { key: 'change', label: t(language, 'home.change', '涨跌幅') },
+    { key: 'drawdown', label: t(language, 'home.drawdown52w', '52周跌幅') },
+    { key: 'ytd', label: t(language, 'home.ytd', '年初至今') },
+    ...(showPnlColumn ? [{ key: 'pnl', label: t(language, 'home.holdingPnl', '持仓盈亏') }] : []),
   ];
   const handleTableSort = (key) => {
     setTableSorts((current) => {
@@ -547,21 +569,21 @@ export default function HomeTab({ ctx }) {
         setStockSearch('');
         setAddStockNotice({
           type: 'success',
-          title: '添加成功',
-          desc: `${added} 已加入自选股票`,
+          title: t(language, 'home.addSuccess', '添加成功'),
+          desc: t(language, 'home.addSuccessDesc', '{{symbol}} 已加入自选股票', { symbol: added }),
         });
         return;
       }
       setAddStockNotice({
         type: 'error',
-        title: '添加失败',
-        desc: result?.error || '添加自选股票失败, 请稍后重试',
+        title: t(language, 'home.addFailed', '添加失败'),
+        desc: result?.error || t(language, 'home.addFailedDesc', '添加自选股票失败, 请稍后重试'),
       });
     } catch (error) {
       setAddStockNotice({
         type: 'error',
-        title: '添加失败',
-        desc: error?.message || '添加自选股票失败, 请稍后重试',
+        title: t(language, 'home.addFailed', '添加失败'),
+        desc: error?.message || t(language, 'home.addFailedDesc', '添加自选股票失败, 请稍后重试'),
       });
     } finally {
       setAddingStockSymbol(null);
@@ -585,7 +607,7 @@ export default function HomeTab({ ctx }) {
     const ytdColor = ytdChangePercent === null ? '#ffffff40' : marketColor(ytdChangePercent, marketColorMode);
     const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
     const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
-    const displayName = stockDisplayName(symbol, row.name || quote?.name);
+    const displayName = stockDisplayName(symbol, row.name || quote?.name, language);
 
     return {
       row,
@@ -628,7 +650,7 @@ export default function HomeTab({ ctx }) {
     return {
       ...row,
       symbol,
-      displayName: stockDisplayName(symbol, row?.name || quote?.name),
+      displayName: stockDisplayName(symbol, row?.name || quote?.name, language),
       price: quote?.price || row?.price,
       changePercent: quote?.changePercent ?? row?.changePercent,
       logoUrls: logoUrlCandidates(symbol, cachedLogoUrl, row?.logoURL, row?.logoUrl, quote?.logoURL, quote?.logoUrl),
@@ -651,14 +673,14 @@ export default function HomeTab({ ctx }) {
     } else if (action === 'down') {
       next.splice(Math.min(next.length, index + 1), 0, target);
     }
-    const actionText = action === 'pin' ? '置顶' : action === 'up' ? '上移' : '下移';
+    const actionText = action === 'pin' ? t(language, 'home.pin', '置顶') : action === 'up' ? t(language, 'home.moveUp', '上移') : t(language, 'home.moveDown', '下移');
     setEditActionKey(`${symbol}:${action}`);
     setEditNotice(null);
     const result = await reorderWatchlist(next);
     if (result?.success) {
-      setEditNotice({ type: 'success', title: '排序已保存', desc: `${symbol} 已${actionText}` });
+      setEditNotice({ type: 'success', title: t(language, 'home.sortSaved', '排序已保存'), desc: t(language, 'home.sortSavedDesc', '{{symbol}} 已{{action}}', { symbol, action: actionText }) });
     } else {
-      setEditNotice({ type: 'error', title: '保存失败', desc: result?.error || `${symbol} ${actionText}失败` });
+      setEditNotice({ type: 'error', title: t(language, 'home.saveFailed', '保存失败'), desc: result?.error || t(language, 'home.actionFailedDesc', '{{symbol}} {{action}}失败', { symbol, action: actionText }) });
     }
     setEditActionKey(null);
   };
@@ -669,15 +691,15 @@ export default function HomeTab({ ctx }) {
     const result = await deleteWatchlistItem(symbol);
     if (result?.success) {
       setPendingDeleteSymbol(null);
-      setEditNotice({ type: 'success', title: '删除成功', desc: `${symbol} 已移出自选股票` });
+      setEditNotice({ type: 'success', title: t(language, 'home.deleteSuccess', '删除成功'), desc: t(language, 'home.deleteSuccessDesc', '{{symbol}} 已移出自选股票', { symbol }) });
     } else {
-      setEditNotice({ type: 'error', title: '删除失败', desc: result?.error || `${symbol} 删除失败` });
+      setEditNotice({ type: 'error', title: t(language, 'home.deleteFailed', '删除失败'), desc: result?.error || t(language, 'home.deleteFailedDesc', '{{symbol}} 删除失败', { symbol }) });
     }
     setEditActionKey(null);
   };
 
   return (
-    <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
+    <div className="mx-auto max-w-[430px] overflow-x-hidden pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
       <style>{`
         @keyframes radarSpin {
           from { transform: rotate(0deg); }
@@ -692,7 +714,7 @@ export default function HomeTab({ ctx }) {
 
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="flex items-center justify-between">
-          <div className="text-[13px] font-normal text-white/70">总资产 ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+          <div className="text-[13px] font-normal text-white/70">{t(language, 'home.totalAssets', '总资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
           <div className="flex items-center gap-1.5">
             <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
               {['USD', 'CNY'].map((mode) => (
@@ -722,9 +744,12 @@ export default function HomeTab({ ctx }) {
           <span>{displayAssetMoney.main}</span>
           <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
         </div>
-        <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
+        <div
+          className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10"
+          style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}
+        >
           <div className="min-w-0 pr-3">
-            <div className="text-[12px] text-white/50">今日盈亏</div>
+            <div className="text-[12px] text-white/50">{t(language, 'home.todayPnl', '今日盈亏')}</div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayTodayPnl, displayCurrency, 2)}
             </div>
@@ -733,7 +758,7 @@ export default function HomeTab({ ctx }) {
             </div>
           </div>
           <div className="min-w-0 px-3">
-            <div className="text-[12px] text-white/50">累计盈亏</div>
+            <div className="text-[12px] text-white/50">{t(language, 'home.totalPnl', '累计盈亏')}</div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
             </div>
@@ -742,9 +767,9 @@ export default function HomeTab({ ctx }) {
             </div>
           </div>
           <div className="min-w-0 pl-3">
-            <div className="text-[12px] text-white/50">持仓数量</div>
-            <div className="mt-3 whitespace-nowrap text-[15px] font-normal leading-tight text-white/90">
-              {summary.holdingStockCount}只 · {summary.sellTradeCount}笔
+            <div className="text-[12px] text-white/50">{t(language, 'home.positions', '持仓数量')}</div>
+            <div className={`mt-3 whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>
+              {t(language, 'home.holdingsTrades', '{{holdings}}只 · {{trades}}笔', { holdings: summary.holdingStockCount, trades: summary.sellTradeCount })}
             </div>
           </div>
         </div>
@@ -752,24 +777,24 @@ export default function HomeTab({ ctx }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="mb-2 flex items-center justify-between">
-          <div className="text-[12px] font-semibold text-white/70">当前信号</div>
+          <div className="text-[12px] font-semibold text-white/70">{t(language, 'home.currentSignal', '当前信号')}</div>
           <button
             type="button"
             onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
             className="relative rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white/50 active:scale-95"
           >
-            策略状态
+            {t(language, 'home.strategyStatus', '策略状态')}
           </button>
         </div>
         <div className="grid grid-cols-[62px_minmax(0,1fr)_70px] items-center gap-3">
           <RadarVisual active={signalIsCalm} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <div className="truncate text-base font-black text-white">{cleanSignalText(benchmarkStatus?.text)}</div>
+              <div className="truncate text-base font-black text-white">{cleanSignalText(benchmarkStatus?.text, language)}</div>
               <span className={`h-3 w-3 shrink-0 rounded-full ${signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_12px_rgba(52,211,153,0.75)]`} />
             </div>
-            <div className="mt-1.5 text-[11px] text-white/50">{benchmarkStatus?.desc || '回撤<5%, 空仓等待'}</div>
-            <div className="mt-2.5 truncate text-[11px] text-white/40">耐心等待更高胜率机会</div>
+            <div className="mt-1.5 text-[11px] text-white/50">{englishMode ? t(language, 'home.pullbackStayCash', '回撤<5%, 空仓等待') : (benchmarkStatus?.desc || '回撤<5%, 空仓等待')}</div>
+            <div className="mt-2.5 truncate text-[11px] text-white/40">{t(language, 'home.waitHigherProbability', '耐心等待更高胜率机会')}</div>
           </div>
           <div className="relative text-right">
             <button
@@ -780,12 +805,12 @@ export default function HomeTab({ ctx }) {
             >
               {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}
             </button>
-            <div className="mt-1.5 text-[10px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} 回撤</div>
+            <div className="mt-1.5 text-[10px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} {t(language, 'home.pullback', '回撤')}</div>
             {benchmarkMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setBenchmarkMenuOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#111820] text-left shadow-2xl">
-                  <div className="border-b border-white/10 px-3 py-2 text-[11px] font-bold text-white/40">切换基准</div>
+                  <div className="border-b border-white/10 px-3 py-2 text-[11px] font-bold text-white/40">{t(language, 'home.switchBenchmark', '切换基准')}</div>
                   {(benchmarkOptions || []).map((item) => {
                     const active = item.symbol === benchmarkSymbol;
                     return (
@@ -813,7 +838,7 @@ export default function HomeTab({ ctx }) {
         </div>
         {benchmarkStock && (
           <div className="mt-2.5 flex justify-end whitespace-nowrap text-[10px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-            ${fmtMoney(benchmarkStock.price, 2)} / 52周高 ${fmtMoney(benchmarkStock.high, 2)}
+            ${fmtMoney(benchmarkStock.price, 2)} / {t(language, 'home.week52High', '52周高')} ${fmtMoney(benchmarkStock.high, 2)}
             <ChevronRight className="ml-1 inline h-3.5 w-3.5 align-[-2px] text-white/25" />
           </div>
         )}
@@ -821,21 +846,21 @@ export default function HomeTab({ ctx }) {
 
       {marketCards.length > 0 && (
       <section className="mt-3 grid grid-cols-4 gap-2">
-        {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} marketColorMode={marketColorMode} />)}
+        {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} marketColorMode={marketColorMode} language={language} />)}
       </section>
       )}
 
       <section className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-3.5 py-2.5">
-          <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
-            VIX 恐慌指数
-            {vixDateLabel && <span className="text-[10px] text-white/40">{vixDateLabel} 收盘</span>}
+          <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[10px]' : 'text-[12px]'} font-normal text-white/60`}>
+            {t(language, 'home.vix.title', 'VIX 恐慌指数')}
+            {vixDateLabel && <span className="text-[10px] text-white/40">{vixDateLabel} {t(language, 'home.vix.close', '收盘')}</span>}
           </div>
           <div className="mt-2.5 flex items-center gap-2">
             <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
             <span className="h-3.5 w-3.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]" />
           </div>
-          <div className="mt-1.5 text-[11px] text-white/50">{vixSignal?.desc || '市场平静, 无操作'}</div>
+          <div className="mt-1.5 text-[11px] text-white/50">{englishMode ? t(language, 'home.vix.calmDesc', '市场平静, 无操作') : (vixSignal?.desc || '市场平静, 无操作')}</div>
           <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
             <div className="relative h-1.5">
               <span
@@ -848,8 +873,8 @@ export default function HomeTab({ ctx }) {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-3.5 py-2.5">
-          <div className="flex items-center gap-1.5 text-[12px] font-normal text-white/60">
-            CNN 恐慌贪婪指数
+          <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[10px]' : 'text-[12px]'} font-normal text-white/60`}>
+            {t(language, 'home.fgi.title', 'CNN 恐慌贪婪指数')}
             {fgiDateLabel && <span className="text-[10px] text-white/40">{fgiDateLabel}</span>}
           </div>
           <div className="mt-2.5 flex items-baseline gap-2">
@@ -858,7 +883,7 @@ export default function HomeTab({ ctx }) {
           </div>
           <div className="mt-1.5 text-[11px] text-white/50">{fgiInfo.desc}</div>
           <div className="mt-0">
-            <FgiGauge value={fgi} />
+            <FgiGauge value={fgi} language={language} />
           </div>
         </div>
       </section>
@@ -871,14 +896,14 @@ export default function HomeTab({ ctx }) {
               onClick={() => setTableTab('watchlist')}
               className={`text-[14px] font-bold leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/40'}`}
             >
-              自选
+              {t(language, 'home.watchlist', '自选')}
             </button>
             <button
               type="button"
               onClick={() => setTableTab('positions')}
               className={`text-[14px] font-bold leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/40'}`}
             >
-              持仓
+              {t(language, 'home.holdings', '持仓')}
             </button>
           </div>
           <span className="h-5 w-14" aria-hidden="true" />
@@ -886,13 +911,13 @@ export default function HomeTab({ ctx }) {
 
         {tableRows.length === 0 ? (
           <div className="px-4 py-8 text-center text-[13px] text-white/40">
-            {tableTab === 'positions' ? '暂无持仓记录, 先在交易页添加买入记录。' : '暂无自选股票。'}
+            {tableTab === 'positions' ? t(language, 'home.noPositions', '暂无持仓记录, 先在交易页添加买入记录。') : t(language, 'home.noWatchlist', '暂无自选股票。')}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-[minmax(92px,0.7fr)_minmax(0,3.15fr)] px-3">
               <div>
-                <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">名称</div>
+                <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">{t(language, 'home.name', '名称')}</div>
                 <div className="divide-y divide-white/[0.06]">
                   {tableRows.map((item) => (
                     <div
@@ -909,7 +934,7 @@ export default function HomeTab({ ctx }) {
                 </div>
               </div>
 
-              <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="min-w-0 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div style={{ minWidth: `${metricMinWidth}px` }}>
                   <div
                     className="grid gap-1 pb-1.5 pt-2 text-[11px] font-medium leading-none"
@@ -971,7 +996,7 @@ export default function HomeTab({ ctx }) {
             className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] px-2 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
           >
             <Plus className="h-4 w-4 shrink-0" />
-            <span className="truncate">添加自选股票</span>
+            <span className="truncate">{t(language, 'home.addWatchlistStock', '添加自选股票')}</span>
           </button>
           <button
             type="button"
@@ -979,7 +1004,7 @@ export default function HomeTab({ ctx }) {
             className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0f14] px-2 text-[13px] font-normal text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
           >
             <Pencil className="h-4 w-4 shrink-0 text-[#f6b54b]" />
-            <span className="truncate">编辑自选股票</span>
+            <span className="truncate">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</span>
           </button>
         </div>
       )}
@@ -993,7 +1018,7 @@ export default function HomeTab({ ctx }) {
         >
           <div className="flex max-h-[min(76dvh,620px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h3 className="text-[17px] font-black text-white">添加自选股票</h3>
+              <h3 className="text-[17px] font-black text-white">{t(language, 'home.addWatchlistStock', '添加自选股票')}</h3>
               <button
                 type="button"
                 onClick={closeAddStockSheet}
@@ -1013,7 +1038,7 @@ export default function HomeTab({ ctx }) {
                   const input = event.currentTarget;
                   setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
                 }}
-                placeholder="搜索股票名称或代码"
+                placeholder={t(language, 'home.searchStock', '搜索股票名称或代码')}
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
@@ -1024,20 +1049,20 @@ export default function HomeTab({ ctx }) {
             <div className="mt-3 flex shrink-0 gap-2">
               <span className="flex h-9 items-center gap-1.5 rounded-lg border border-[#f6b54b]/60 bg-[#f6b54b]/10 px-3 text-[12px] font-black text-[#f6b54b]">
                 <Flame className="h-3.5 w-3.5" />
-                热门
+                {t(language, 'home.trending', '热门')}
               </span>
               <span className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-[12px] font-bold text-white/70">
-                美股
+                {t(language, 'home.usStocks', '美股')}
               </span>
             </div>
 
             <div className="mt-4 shrink-0 text-[12px] font-bold text-white/55">
-              {normalizedSearch ? '搜索结果' : '热门股票'}
+              {normalizedSearch ? t(language, 'home.searchResults', '搜索结果') : t(language, 'home.popularStocks', '热门股票')}
             </div>
 
             <div className="mt-2 min-h-[160px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
               {filteredPopularStocks.length === 0 && !canAddCustomStock ? (
-                <div className="px-4 py-8 text-center text-[13px] text-white/35">没有匹配结果</div>
+                <div className="px-4 py-8 text-center text-[13px] text-white/35">{t(language, 'home.noMatches', '没有匹配结果')}</div>
               ) : (
                 <>
                   {filteredPopularStocks.map((item) => {
@@ -1053,7 +1078,7 @@ export default function HomeTab({ ctx }) {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline gap-1.5">
                             <span className="text-[14px] font-black text-white">{symbol}</span>
-                            <span className="truncate text-[12px] font-semibold text-white/55">{item.name}</span>
+                            <span className="truncate text-[12px] font-semibold text-white/55">{englishMode ? item.symbol : item.name}</span>
                           </div>
                           <div className="mt-0.5 truncate text-[11px] text-white/35">{item.company}</div>
                         </div>
@@ -1074,7 +1099,7 @@ export default function HomeTab({ ctx }) {
                               ? 'border-white/10 bg-white/[0.04] text-white/25'
                               : 'border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]'
                           }`}
-                          aria-label={isAdded ? `${symbol} 已添加` : `添加 ${symbol}`}
+                          aria-label={isAdded ? t(language, 'home.alreadyAdded', '{{symbol}} 已添加', { symbol }) : t(language, 'home.addSymbol', '添加 {{symbol}}', { symbol })}
                         >
                           {addingStockSymbol === symbol && Loader2 ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1095,7 +1120,7 @@ export default function HomeTab({ ctx }) {
                       <LogoPlaceholder symbol={normalizedSearch} className="h-9 w-9 rounded-lg" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[14px] font-black text-white">{normalizedSearch}</span>
-                        <span className="block truncate text-[11px] text-white/35">添加自定义股票代码</span>
+                        <span className="block truncate text-[11px] text-white/35">{t(language, 'home.addCustomTicker', '添加自定义股票代码')}</span>
                       </span>
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]">
                         {addingStockSymbol === normalizedSearch && Loader2 ? (
@@ -1117,7 +1142,7 @@ export default function HomeTab({ ctx }) {
               className="mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-black text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
             >
               {isAddingStock && Loader2 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              {isAddingStock ? '添加中...' : (normalizedSearch ? `添加 ${normalizedSearch}` : '添加自定义股票')}
+              {isAddingStock ? t(language, 'home.adding', '添加中...') : (normalizedSearch ? t(language, 'home.addSymbol', '添加 {{symbol}}', { symbol: normalizedSearch }) : t(language, 'home.addCustomStock', '添加自定义股票'))}
             </button>
           </div>
         </div>
@@ -1132,7 +1157,7 @@ export default function HomeTab({ ctx }) {
         >
           <div className="flex max-h-[min(78dvh,650px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h3 className="text-[17px] font-black text-white">编辑自选股票</h3>
+              <h3 className="text-[17px] font-black text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1140,7 +1165,7 @@ export default function HomeTab({ ctx }) {
                   disabled={Boolean(editActionKey)}
                   className="h-8 rounded-full px-3 text-[12px] font-black text-[#f6b54b] active:scale-95 disabled:opacity-40"
                 >
-                  完成
+                  {t(language, 'home.done', '完成')}
                 </button>
                 <button
                   type="button"
@@ -1162,7 +1187,7 @@ export default function HomeTab({ ctx }) {
                   const input = event.currentTarget;
                   setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
                 }}
-                placeholder="搜索当前自选股票"
+                placeholder={t(language, 'home.searchStock', '搜索股票名称或代码')}
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
@@ -1182,14 +1207,14 @@ export default function HomeTab({ ctx }) {
             )}
 
             <div className="mt-3 shrink-0 text-[12px] font-bold text-white/55">
-              当前自选 · {editWatchlistRows.length} 只
+              {t(language, 'home.currentWatchlistCount', '当前自选 · {{count}} 只', { count: editWatchlistRows.length })}
             </div>
 
             <div className="mt-2 min-h-[210px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
               {editWatchlistRows.length === 0 ? (
-                <div className="px-4 py-10 text-center text-[13px] text-white/35">暂无自选股票</div>
+                <div className="px-4 py-10 text-center text-[13px] text-white/35">{t(language, 'home.noWatchlist', '暂无自选股票。')}</div>
               ) : filteredEditWatchlistRows.length === 0 ? (
-                <div className="px-4 py-10 text-center text-[13px] text-white/35">没有匹配结果</div>
+                <div className="px-4 py-10 text-center text-[13px] text-white/35">{t(language, 'home.noMatches', '没有匹配结果')}</div>
               ) : (
                 filteredEditWatchlistRows.map((item) => {
                   const symbol = item.symbol;
@@ -1219,14 +1244,14 @@ export default function HomeTab({ ctx }) {
 
                       {deletePending ? (
                         <div className="flex shrink-0 items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-rose-200">确认删除?</span>
+                          <span className="text-[11px] font-bold text-rose-200">{t(language, 'home.confirmDelete', '确认删除?')}</span>
                           <button
                             type="button"
                             disabled={busy}
                             onClick={() => setPendingDeleteSymbol(null)}
                             className="h-8 rounded-full border border-white/10 px-2.5 text-[11px] font-bold text-white/55 active:scale-95 disabled:opacity-40"
                           >
-                            取消
+                            {t(language, 'home.cancel', '取消')}
                           </button>
                           <button
                             type="button"
@@ -1234,7 +1259,7 @@ export default function HomeTab({ ctx }) {
                             onClick={() => confirmDeleteWatchlistItem(symbol)}
                             className="flex h-8 min-w-[2rem] items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 text-[11px] font-black text-rose-200 active:scale-95 disabled:opacity-40"
                           >
-                            {rowBusy && Loader2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : '删除'}
+                            {rowBusy && Loader2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t(language, 'home.delete', '删除')}
                           </button>
                         </div>
                       ) : (
@@ -1244,7 +1269,7 @@ export default function HomeTab({ ctx }) {
                             disabled={busy || isFirst}
                             onClick={() => moveWatchlistItem(symbol, 'pin')}
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
-                            title="置顶"
+                            title={t(language, 'home.pin', '置顶')}
                           >
                             <Pin className="h-3.5 w-3.5" />
                           </button>
@@ -1253,7 +1278,7 @@ export default function HomeTab({ ctx }) {
                             disabled={busy || isFirst}
                             onClick={() => moveWatchlistItem(symbol, 'up')}
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
-                            title="上移"
+                            title={t(language, 'home.moveUp', '上移')}
                           >
                             <ArrowUp className="h-3.5 w-3.5" />
                           </button>
@@ -1262,7 +1287,7 @@ export default function HomeTab({ ctx }) {
                             disabled={busy || isLast}
                             onClick={() => moveWatchlistItem(symbol, 'down')}
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
-                            title="下移"
+                            title={t(language, 'home.moveDown', '下移')}
                           >
                             <ArrowDown className="h-3.5 w-3.5" />
                           </button>
@@ -1271,7 +1296,7 @@ export default function HomeTab({ ctx }) {
                             disabled={busy}
                             onClick={() => setPendingDeleteSymbol(symbol)}
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10 text-rose-200 active:scale-95 disabled:opacity-40"
-                            title="删除"
+                            title={t(language, 'home.delete', '删除')}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1312,7 +1337,7 @@ export default function HomeTab({ ctx }) {
               onClick={() => setAddStockNotice(null)}
               className="mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-black text-[#111318] active:scale-[0.99]"
             >
-              知道了
+              {t(language, 'home.gotIt', '知道了')}
             </button>
           </div>
         </div>
