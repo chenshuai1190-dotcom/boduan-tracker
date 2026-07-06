@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 交易录入弹窗结构优化
 
-- Commit: `same commit`
+- Commit: `9ec1e9e5c542d848a62ac4c1805dcad2da63fc37`
 - Background: 用户指出交易页持仓股票编辑/新增交易弹窗当前顶部有买入/卖出、底部又有确认/取消,交互语义重复;要求按股票代码、价格与股数、日期、买入/卖出操作四层结构重排,保留确认弹窗,买入/卖出按钮增加新图标,录入界面不再显示中文名字段,并保持小字号、小输入框。
 - Changes:
   - 主交易弹窗移除顶部买入/卖出分段按钮和底部确认/取消按钮,改为底部 `买入` / `卖出` 两个提交按钮。
@@ -33,9 +33,14 @@
   - `git diff --check` pass。
   - 本地 build marker: `TradesTab-BLWroVBB.js` contains `systemManagedName`、`priceShares`、`trades.buy` and `trades.sell`,and does not contain `nameAuto`、`confirmAdd`、`confirmEdit` or `trades.cancel`;`SettingsTab-CDhwrdPJ.js` contains `v10.7.9.169`;`settingsChangelog-CEyzx6Hv.js` contains `v10.7.9.169` and `交易录入弹窗结构优化`;`i18n-DeasJQRv.js` contains `名称和现价由系统自动识别` and `Price & Shares`。
 - Deployment:
-  - Pending push to GitHub `main` and Vercel production deployment.
+  - Pushed to GitHub `main` as runtime commit `9ec1e9e5c542d848a62ac4c1805dcad2da63fc37`。
+  - GitHub Actions `CI` run `28790635903` completed successfully.
+  - Vercel production deployment completed with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/886ghrtxf6CyyiikXyLUcgk66D7J`。
+  - Production root recursive asset fetch returned HTTP 200;active entry asset is `/assets/index-DKWJzUMj.js`。
+  - Production runtime chunks verified: `/assets/index-DKWJzUMj.js` imports `/assets/App-CNM1_bdn.js`;runtime assets include `/assets/TradesTab-BLWroVBB.js`, `/assets/i18n-DeasJQRv.js`, `/assets/SettingsTab-DgiuxENa.js`, `/assets/settingsChangelog-CEyzx6Hv.js`, and `/assets/icons-D-qNOTDb.js`。
 - Production verification:
-  - Pending Vercel deployment;部署后需验证 `SettingsTab` 包含 `v10.7.9.169`,`settingsChangelog` 包含 `交易录入弹窗结构优化`,`TradesTab` 保留四层结构 marker 且不含旧 `nameAuto` / `confirmAdd` / `confirmEdit` / `trades.cancel`,未登录 `/api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`。
+  - Production marker verified: `SettingsTab-DgiuxENa.js` contains `v10.7.9.169`;`settingsChangelog-CEyzx6Hv.js` contains `v10.7.9.169` and `交易录入弹窗结构优化`;`TradesTab-BLWroVBB.js` contains `systemManagedName` and `priceShares`,and does not contain old modal markers `nameAuto`, `confirmAdd`, `confirmEdit` or `trades.cancel`;`i18n-DeasJQRv.js` contains `名称和现价由系统自动识别` and `Price & Shares`;`icons-D-qNOTDb.js` / app runtime include the buy/sell trend icons。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的交易弹窗布局、`addTrade(sideOverride)` 方向传参、`v10.7.9.169` 设置页版本/更新日志、测试断言和本日志即可;不影响交易数据、行情 relay、汇率、RLS 或鉴权。
 
 ### 2026-07-06 - 头部 LIVE 隐藏和 CNY 名称统一
