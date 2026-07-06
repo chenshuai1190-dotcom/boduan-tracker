@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 工具弹窗和币种同步
 
-- Commit: `same commit`
+- Commit: `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`
 - Background: 用户要求把小工具里的摊薄成本“添加摊薄交易”弹窗同步到交易录入的新界面;投资戒律和日志复盘详情弹窗遮罩不要过黑,应和交易编辑弹窗背景保持一致;首页和交易页 USD/CNY 选择需要自动保存,切换页面后保持同步。
 - Changes:
   - 摊薄成本“添加交易”弹窗改为交易录入同款居中深色分层界面:股票代码、价格与股数、日期、底部买入/卖出按钮。
@@ -33,9 +33,12 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-4QJKLSzQ.js` contains `v10.7.9.171`;`settingsChangelog-C6ZWAgLD.js` contains `工具弹窗和币种同步`;`App-C4WOZDRd.js` contains `xmoney_portfolio_currency`,`添加摊薄交易` and `bg-black/[0.65]`;`HomeTab-caYUNvHf.js` and `TradesTab-Bglu0R2H.js` contain `xmoney_portfolio_currency`;`ReviewTab-CUjmqKeE.js` contains `bg-black/[0.65]` and does not contain old detail overlay marker `bg-black/70 px-6 py-8 backdrop-blur-lg`。
 - Deployment:
-  - Pending push to GitHub `main` and Vercel production deployment.
+  - Pushed to GitHub `main` as runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`。
+  - GitHub Actions `CI` run `28792523002` completed successfully.
+  - Production marker polling for `deb3957` checked 24 times across the normal wait window;production root still returned previous entry `/assets/index-BTG7ckrS.js`,and GitHub deployments API did not show a Vercel deployment for `deb3957` during that window.
+  - Following the existing repo pattern for this Vercel integration edge case, a docs-only follow-up commit is being used to re-trigger Vercel deployment of latest `main`。
 - Production verification:
-  - Pending production marker and auth-boundary verification.
+  - Pending production marker and auth-boundary verification after the follow-up deployment trigger.
 - Rollback: 回退本条涉及的摊薄成本添加交易弹窗 UI、共享币种状态、复盘/戒律弹窗遮罩、`v10.7.9.171` 设置页版本/更新日志、测试断言和本日志即可;不影响正式交易数据、摊薄成本数据结构、行情 relay、汇率、RLS 或鉴权。
 
 ### 2026-07-06 - 交易录入弹窗细节修正
