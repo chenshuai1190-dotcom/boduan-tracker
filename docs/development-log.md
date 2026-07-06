@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 英文交易页头部和公司名修正
+
+- Commit: same commit
+- Background: 用户截图反馈英文交易页头部资产卡右侧 `Positions` 统计撑出卡片,同时英文股票列表不应主副标题都显示 ticker,应按“股票代码 + 公司英文名”展示。
+- Changes:
+  - `TradesTab.jsx` 的头部持仓数量文案同步首页英文尺寸,并增加截断保护,避免英文长文案撑破卡片。
+  - 交易页持仓列表在英文模式下显示主标题 ticker、副标题英文公司名;中文模式继续显示中文名/代码。
+  - `App.jsx` 新增共享 `STOCK_NAME_EN` 公司英文名映射,首页和交易页英文模式共用;无内置英文名且原始名称非英文时回退 ticker。
+  - 本地视觉预览的英文股票名称同步使用英文公司名映射。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.163`,新增“英文交易页细节修正”。
+  - 本轮只调整英文显示层,不改交易账本、行情源、WebSocket、持仓盈亏、数据库结构、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖英文公司名映射、交易页英文头部防溢出、设置页版本和更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DMYKPs3a.js`、`dist/assets/TradesTab-B6_xQX_4.js`、`dist/assets/SettingsTab-BksTVJFV.js`、`dist/assets/settingsChangelog-hARvhevh.js`。
+  - 本地 dist marker: `App-DMYKPs3a.js` 包含 `NVIDIA Corporation` 和 `Nokia Oyj`;`TradesTab-B6_xQX_4.js` 包含 `text-[14px]` 和 `truncate whitespace-nowrap`;`SettingsTab-BksTVJFV.js` 包含 `v10.7.9.163`;`settingsChangelog-hARvhevh.js` 包含 `v10.7.9.163` 和 `英文交易页细节修正`。
+- Deployment:
+  - Not deployed yet.
+- Rollback: 回退本条涉及的英文公司名映射、交易页英文头部/股票名显示、`v10.7.9.163` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
+
 ### 2026-07-06 - 英文模式扩展到交易页
 
 - Commit: `1812af3a9e814860d35eabb39c4c0eed1cb12070`

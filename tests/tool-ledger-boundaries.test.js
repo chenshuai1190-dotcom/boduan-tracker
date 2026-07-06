@@ -305,7 +305,7 @@ test('stock Chinese names are shared by home positions and trade records', () =>
   assert.ok(appSource.includes('displayStockName,'), 'tabs should receive the shared stock-name display helper');
   assert.ok(homeTabSource.includes('displayName: stockDisplayName(symbol, row?.name || quote?.name, language)'), 'home watchlist edit rows should use shared stock-name fallback with language context');
   assert.ok(homeTabSource.includes('{item.displayName}'), 'home watchlist/positions table should render the localized display name');
-  assert.ok(tradesTabSource.includes('stockDisplayName(position.symbol, position.name)'), 'trade positions should render localized stock names');
+  assert.ok(tradesTabSource.includes('stockNameParts(position.symbol, position.name)'), 'trade positions should render localized stock names with language-aware title/subtitle order');
   assert.ok(tradesTabSource.includes('stockDisplayName(trade.symbol, trade.name)'), 'trade records and today orders should render localized stock names');
   assert.ok(tradesTabSource.includes('stockDisplayName(orderActionTrade.symbol, orderActionTrade.name)'), 'order action modal should render localized stock names');
 });
@@ -316,7 +316,8 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(i18nSource.includes("'home.totalAssets': 'Total Assets'"), 'English dictionary should include home header labels');
   assert.ok(i18nSource.includes("'settings.language': 'Language'"), 'English dictionary should include settings language controls');
   assert.ok(appSource.includes('const [language, setLanguageState] = useState(() => getStoredLanguage())'), 'App should own the persisted language state');
-  assert.ok(appSource.includes('if (isEnglishLanguage(language)) return normalizedSymbol;'), 'English stock display should force ticker abbreviation instead of Chinese names');
+  assert.ok(appSource.includes('const STOCK_NAME_EN = {'), 'English stock display should use the built-in English company-name map');
+  assert.ok(appSource.includes('const mappedEn = STOCK_NAME_EN[normalizedSymbol]'), 'English stock display should resolve ticker subtitles to company English names');
   assert.ok(appSource.includes("label: t(language, 'nav.home', '首页')"), 'bottom navigation should read labels from i18n');
   assert.ok(homeTabSource.includes("import { isEnglishLanguage, t } from '../lib/i18n.js';"), 'Home tab should use the i18n helper');
   assert.ok(homeTabSource.includes("const englishMode = isEnglishLanguage(language);"), 'Home tab should have an explicit English-mode branch for user-data-safe display');
@@ -328,7 +329,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(tradesTabSource.includes("displayStockName(symbol, name, language)"), 'Trades tab should pass language into stock display names');
   assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"), 'Trades header should read labels from i18n');
   assert.ok(tradesTabSource.includes("tt('trades.tradeLog', '交易记录')"), 'Trades tool labels should read from i18n');
-  assert.ok(appSource.includes("displayStockName(sym, allTradesModal.name, language)"), 'trade detail modals should display ticker-only names in English mode');
+  assert.ok(appSource.includes("displayStockName(sym, allTradesModal.name, language)"), 'trade detail modals should display language-aware stock names');
   assert.ok(appSource.includes("t(language, 'trades.addAveragingTrade', '添加摊薄交易')"), 'cost-basis trade modal should read labels from i18n');
   assert.ok(i18nSource.includes("'trades.totalAssets': 'Total Assets'"), 'English dictionary should include trade header labels');
   assert.ok(i18nSource.includes("'trades.tradeLog': 'Trade Log'"), 'English dictionary should include trade tool labels');
@@ -461,8 +462,12 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
-  assert.ok(settingsTabSource.includes('v10.7.9.162'), 'settings version badge should document the trade-page English update');
+  assert.ok(tradesTabSource.includes("englishMode ? 'text-[14px]' : 'text-[15px]'"), 'trade header positions count should match the English home header text size');
+  assert.ok(tradesTabSource.includes('truncate whitespace-nowrap'), 'trade header positions count should not overflow the card in English mode');
+  assert.ok(settingsTabSource.includes('v10.7.9.163'), 'settings version badge should document the English trade visual fix');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.163'), 'settings changelog should document the English trade visual fix');
+  assert.ok(settingsChangelogSource.includes('英文交易页细节修正'), 'settings changelog should describe the English trade visual fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.162'), 'settings changelog should document the trade-page English update');
   assert.ok(settingsChangelogSource.includes('英文模式扩展到交易页'), 'settings changelog should describe the trade-page English update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.161'), 'settings changelog should document the stock quote Yahoo core removal');
@@ -635,8 +640,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.162'), 'settings version badge should document the trade-page English update');
+  assert.ok(settingsTabSource.includes('v10.7.9.163'), 'settings version badge should document the English trade visual fix');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.163'), 'settings changelog should document the English trade visual fix');
+  assert.ok(settingsChangelogSource.includes('英文交易页细节修正'), 'settings changelog should describe the English trade visual fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.162'), 'settings changelog should document the trade-page English update');
   assert.ok(settingsChangelogSource.includes('英文模式扩展到交易页'), 'settings changelog should describe the trade-page English update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.161'), 'settings changelog should document the stock quote Yahoo core removal');

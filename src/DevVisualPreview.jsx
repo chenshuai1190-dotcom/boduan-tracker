@@ -93,6 +93,13 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
+const devStockNameEn = {
+  AAPL: 'Apple Inc.',
+  MSFT: 'Microsoft Corporation',
+  NVDA: 'NVIDIA Corporation',
+  TSLA: 'Tesla, Inc.',
+};
+
 function DevModal({ title, onCancel }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md" onClick={onCancel}>
@@ -287,7 +294,13 @@ export default function DevVisualPreview() {
       setHomeWatchlist((current) => current.filter((row) => row.symbol !== symbol));
       return { success: true };
     },
-    displayStockName: (symbol, name, displayLanguage = language) => normalizeLanguage(displayLanguage) === 'en' ? symbol : (name || symbol),
+    displayStockName: (symbol, name, displayLanguage = language) => {
+      const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+      if (normalizeLanguage(displayLanguage) === 'en') {
+        return devStockNameEn[normalizedSymbol] || normalizedSymbol;
+      }
+      return name || normalizedSymbol;
+    },
     fetchRealtimePrices: async () => {},
     fetching: false,
     fgi: 32,

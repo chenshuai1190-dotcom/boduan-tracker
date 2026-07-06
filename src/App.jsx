@@ -731,6 +731,115 @@ const STOCK_NAME_CN = {
   MAR: '万豪', HLT: '希尔顿', BKNG: 'Booking', EXPE: 'Expedia',
 };
 
+const STOCK_NAME_EN = {
+  AAPL: 'Apple Inc.',
+  MSFT: 'Microsoft Corporation',
+  GOOGL: 'Alphabet Inc.',
+  GOOG: 'Alphabet Inc.',
+  AMZN: 'Amazon.com, Inc.',
+  META: 'Meta Platforms, Inc.',
+  NVDA: 'NVIDIA Corporation',
+  TSLA: 'Tesla, Inc.',
+  TSM: 'Taiwan Semiconductor Manufacturing Company',
+  AMD: 'Advanced Micro Devices, Inc.',
+  AVGO: 'Broadcom Inc.',
+  QCOM: 'Qualcomm Incorporated',
+  INTC: 'Intel Corporation',
+  ARM: 'Arm Holdings plc',
+  MU: 'Micron Technology, Inc.',
+  ASML: 'ASML Holding N.V.',
+  MRVL: 'Marvell Technology, Inc.',
+  ORCL: 'Oracle Corporation',
+  CRM: 'Salesforce, Inc.',
+  ADBE: 'Adobe Inc.',
+  PLTR: 'Palantir Technologies Inc.',
+  NFLX: 'Netflix, Inc.',
+  DIS: 'The Walt Disney Company',
+  UBER: 'Uber Technologies, Inc.',
+  ABNB: 'Airbnb, Inc.',
+  HOOD: 'Robinhood Markets, Inc.',
+  JPM: 'JPMorgan Chase & Co.',
+  BAC: 'Bank of America Corporation',
+  WFC: 'Wells Fargo & Company',
+  GS: 'The Goldman Sachs Group, Inc.',
+  MS: 'Morgan Stanley',
+  SCHW: 'The Charles Schwab Corporation',
+  BLK: 'BlackRock, Inc.',
+  V: 'Visa Inc.',
+  MA: 'Mastercard Incorporated',
+  KO: 'The Coca-Cola Company',
+  PEP: 'PepsiCo, Inc.',
+  MCD: "McDonald's Corporation",
+  SBUX: 'Starbucks Corporation',
+  NKE: 'NIKE, Inc.',
+  WMT: 'Walmart Inc.',
+  COST: 'Costco Wholesale Corporation',
+  HD: 'The Home Depot, Inc.',
+  PG: 'The Procter & Gamble Company',
+  LLY: 'Eli Lilly and Company',
+  JNJ: 'Johnson & Johnson',
+  UNH: 'UnitedHealth Group Incorporated',
+  PFE: 'Pfizer Inc.',
+  MRK: 'Merck & Co., Inc.',
+  ABBV: 'AbbVie Inc.',
+  NVS: 'Novartis AG',
+  GSK: 'GSK plc',
+  AMGN: 'Amgen Inc.',
+  GILD: 'Gilead Sciences, Inc.',
+  GE: 'GE Aerospace',
+  BA: 'The Boeing Company',
+  LMT: 'Lockheed Martin Corporation',
+  CAT: 'Caterpillar Inc.',
+  DE: 'Deere & Company',
+  HON: 'Honeywell International Inc.',
+  XOM: 'Exxon Mobil Corporation',
+  CVX: 'Chevron Corporation',
+  F: 'Ford Motor Company',
+  GM: 'General Motors Company',
+  TM: 'Toyota Motor Corporation',
+  T: 'AT&T Inc.',
+  VZ: 'Verizon Communications Inc.',
+  TMUS: 'T-Mobile US, Inc.',
+  BABA: 'Alibaba Group Holding Limited',
+  JD: 'JD.com, Inc.',
+  PDD: 'PDD Holdings Inc.',
+  BIDU: 'Baidu, Inc.',
+  NIO: 'NIO Inc.',
+  XPEV: 'XPeng Inc.',
+  LI: 'Li Auto Inc.',
+  FUTU: 'Futu Holdings Limited',
+  TIGR: 'UP Fintech Holding Limited',
+  QQQ: 'Invesco QQQ Trust',
+  TQQQ: 'ProShares UltraPro QQQ',
+  SPY: 'SPDR S&P 500 ETF Trust',
+  DIA: 'SPDR Dow Jones Industrial Average ETF Trust',
+  IWM: 'iShares Russell 2000 ETF',
+  VTI: 'Vanguard Total Stock Market ETF',
+  VOO: 'Vanguard S&P 500 ETF',
+  IVV: 'iShares Core S&P 500 ETF',
+  XLK: 'Technology Select Sector SPDR Fund',
+  SMH: 'VanEck Semiconductor ETF',
+  SOXX: 'iShares Semiconductor ETF',
+  SOXL: 'Direxion Daily Semiconductor Bull 3X Shares',
+  SGOV: 'iShares 0-3 Month Treasury Bond ETF',
+  TLT: 'iShares 20+ Year Treasury Bond ETF',
+  GLD: 'SPDR Gold Shares',
+  SLV: 'iShares Silver Trust',
+  COIN: 'Coinbase Global, Inc.',
+  MSTR: 'MicroStrategy Incorporated',
+  MARA: 'MARA Holdings, Inc.',
+  RIOT: 'Riot Platforms, Inc.',
+  AAL: 'American Airlines Group Inc.',
+  DAL: 'Delta Air Lines, Inc.',
+  UAL: 'United Airlines Holdings, Inc.',
+  LUV: 'Southwest Airlines Co.',
+  CCL: 'Carnival Corporation & plc',
+  RCL: 'Royal Caribbean Cruises Ltd.',
+  NCLH: 'Norwegian Cruise Line Holdings Ltd.',
+  IBKR: 'Interactive Brokers Group, Inc.',
+  NOK: 'Nokia Oyj',
+};
+
 function normalizeStockSymbolForName(symbol) {
   return String(symbol || '').trim().toUpperCase();
 }
@@ -746,9 +855,14 @@ function isPlaceholderStockName(symbol, name) {
 function displayStockName(symbol, name, language = 'zh') {
   const normalizedSymbol = normalizeStockSymbolForName(symbol);
   if (!normalizedSymbol) return String(name || '').trim();
-  if (isEnglishLanguage(language)) return normalizedSymbol;
-  const mapped = STOCK_NAME_CN[normalizedSymbol];
   const raw = String(name || '').trim();
+  if (isEnglishLanguage(language)) {
+    const mappedEn = STOCK_NAME_EN[normalizedSymbol];
+    if (mappedEn) return mappedEn;
+    if (raw && !isPlaceholderStockName(normalizedSymbol, raw) && /^[A-Za-z0-9 .,&'()/-]+$/.test(raw)) return raw;
+    return normalizedSymbol;
+  }
+  const mapped = STOCK_NAME_CN[normalizedSymbol];
   if (mapped && (isPlaceholderStockName(normalizedSymbol, raw) || /^[A-Za-z0-9 .,&'()/-]+$/.test(raw))) return mapped;
   return raw || mapped || normalizedSymbol;
 }

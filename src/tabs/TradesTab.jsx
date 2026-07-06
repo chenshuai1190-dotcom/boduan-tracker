@@ -220,6 +220,20 @@ export default function TradesTab({ ctx }) {
   const stockDisplayName = typeof displayStockName === 'function'
     ? ((symbol, name) => displayStockName(symbol, name, language))
     : ((symbol, name) => String(name || symbol || '').trim());
+  const stockNameParts = React.useCallback((symbol, name) => {
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+    const displayName = stockDisplayName(normalizedSymbol, name);
+    if (englishMode) {
+      return {
+        title: normalizedSymbol || displayName || '--',
+        subtitle: displayName && displayName !== normalizedSymbol ? displayName : normalizedSymbol,
+      };
+    }
+    return {
+      title: displayName || normalizedSymbol || '--',
+      subtitle: normalizedSymbol || displayName || '--',
+    };
+  }, [englishMode, stockDisplayName]);
   const waveGroups = Array.isArray(wavesByStock) ? wavesByStock : [];
   const activeWaveGroups = waveGroups.filter(group => group.activeWave);
   const completedWaveGroups = waveGroups
@@ -439,7 +453,7 @@ export default function TradesTab({ ctx }) {
             </div>
             <div className="min-w-0 pl-3">
               <div className="text-[12px] text-white/50">{tt('trades.positions', '持仓数量')}</div>
-              <div className="mt-3 whitespace-nowrap text-[15px] font-normal leading-tight text-white/90">
+              <div className={`mt-3 truncate whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>
                 {tt('trades.holdingsTrades', '{{holdings}}只 · {{trades}}笔', { holdings: summary.holdingStockCount || 0, trades: summary.sellTradeCount || 0 })}
               </div>
             </div>
@@ -607,7 +621,7 @@ export default function TradesTab({ ctx }) {
                     <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">{tt('trades.nameTicker', '名称/代码')}</div>
                     <div className="divide-y divide-white/[0.06]">
                       {positions.map((position) => {
-                        const displayName = stockDisplayName(position.symbol, position.name);
+                        const nameParts = stockNameParts(position.symbol, position.name);
                         return (
                           <button
                             key={position.symbol}
@@ -615,8 +629,8 @@ export default function TradesTab({ ctx }) {
                             onClick={() => openTradeModal(position, 'buy')}
                             className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-1.5 text-left active:bg-white/[0.03]"
                           >
-                            <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{displayName}</span>
-                            <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{position.symbol}</span>
+                            <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{nameParts.title}</span>
+                            <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{nameParts.subtitle}</span>
                           </button>
                         );
                       })}
