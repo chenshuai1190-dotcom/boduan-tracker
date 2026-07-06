@@ -4,6 +4,36 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 当日盈亏基准保护
+
+- Runtime commit: `this commit`
+- Background: 用户连续截图证明同一分钟内价格已经更新,但交易页当日盈亏一开始会短暂按错误基准计算,随后又变得正确。复查确认交易账本和公式本身没有错:当日盈亏使用 `持仓股数 × (当前价 - 昨收)`,问题在股票 WebSocket tick 和 REST 基准快照不是原子到达。旧逻辑允许只有实时价格、没有有效 `previousClose` 的半成品 tick 先写入 `quoteCache`,导致页面短暂用不完整基准渲染。
+- Changes:
+  - `src/lib/stockRealtime.js` 增加实时行情基准保护:股票 tick 没有有效 `previousClose`,且当前行/基础行也没有有效昨收时,不再写入或替换 `quoteCache`,保留上一份完整行情状态。
+  - 已有有效昨收的行仍会用实时价立即重算 `change` / `changePercent`;不会影响已完整的实时行情刷新。
+  - `src/App.jsx` 将 REST fresh 快照后叠回 last tick 的基准改为刚刷新的 `rows`,让 REST 一补齐 `previousClose` 就能立刻用同一份基准叠回最后一笔实时价,无需等待下一笔 tick。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.183`,新增“当日盈亏基准保护”。
+  - 本轮不改交易账本、持仓股数/成本、当日盈亏公式、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、Supabase、RLS、数据库结构或 Yahoo 小曲线。
+- Key files:
+  - `src/lib/stockRealtime.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/btc-realtime.test.js tests/investment-summary.test.js tests/quote-response-shape.test.js tests/tool-ledger-boundaries.test.js` pass,65 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,93 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-sP465gH9.js`、`dist/assets/SettingsTab-BCMwt7M_.js`、`dist/assets/settingsChangelog-ShoR2i8e.js`、`dist/assets/TradesTab-BmOih2Rn.js` 和 `dist/assets/index-1Kp1MZq6.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Source/build marker: `src/lib/stockRealtime.js` contains `hasRealtimeDailyBaseline` and skips realtime row replace/insert without baseline;`src/App.jsx` overlays last ticks against refreshed `rows`;`SettingsTab-BCMwt7M_.js` contains `v10.7.9.183`;`settingsChangelog-ShoR2i8e.js` contains `v10.7.9.183`, `当日盈亏基准保护`, `v10.7.9.182` and `iOS 实时行情恢复重连`。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending: 验证通过后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+- Rollback: 回退本条涉及的 realtime tick 基准保护、REST 后 last tick 叠回基准、`v10.7.9.183` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓股数/成本、当日盈亏公式、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、数据库结构或 RLS。
+
 ### 2026-07-07 - iOS 实时行情恢复重连
 
 - Runtime commit: `abcb44245160d01b75b260dec3b3abc7fd9ac5b5`

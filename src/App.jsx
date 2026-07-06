@@ -1291,7 +1291,7 @@ function MainApp({ user, onLogout }) {
   const mergeFreshStockTicksIntoQuoteRows = useCallback((rows) => {
     const ref = stockRealtimeRef.current;
     if (!ref.lastTickAt || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return rows;
-    return mergeStockTicksIntoQuoteRows(rows, [...ref.lastTicks.values()], 'live', quoteRowsRef.current);
+    return mergeStockTicksIntoQuoteRows(rows, [...ref.lastTicks.values()], 'live', rows);
   }, []);
 
   const cacheStockLogo = useCallback((symbol, url) => {

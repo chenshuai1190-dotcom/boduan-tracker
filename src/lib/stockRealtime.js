@@ -35,12 +35,15 @@ export function applyStockTickToQuoteRows(rows = [], tick, realtimeStatus = 'liv
   const nextRows = (rows || []).map((row) => {
     if (normalizeStockRealtimeSymbol(row?.symbol) !== symbol) return row;
     found = true;
-    return createStockQuoteRow(mergeQuoteBaseline(row, baseRow), { ...tick, symbol }, realtimeStatus);
+    const baseline = mergeQuoteBaseline(row, baseRow);
+    if (!hasRealtimeDailyBaseline(baseline, tick)) return row;
+    return createStockQuoteRow(baseline, { ...tick, symbol }, realtimeStatus);
   });
 
   if (found) return nextRows;
 
   if (!baseRow) return nextRows;
+  if (!hasRealtimeDailyBaseline(baseRow, tick)) return nextRows;
   return [...nextRows, createStockQuoteRow(baseRow, { ...tick, symbol }, realtimeStatus)];
 }
 
@@ -91,6 +94,13 @@ function mergeQuoteBaseline(row = {}, baseRow = null) {
     intraday: Array.isArray(row?.intraday) && row.intraday.length > 0 ? row.intraday : (baseRow?.intraday || []),
     marketStatus: row?.marketStatus || baseRow?.marketStatus || null,
   };
+}
+
+function hasRealtimeDailyBaseline(row = {}, tick = {}) {
+  const tickPreviousClose = asNumber(tick?.previousClose);
+  if (tickPreviousClose && tickPreviousClose > 0) return true;
+  const rowPreviousClose = asNumber(row?.previousClose);
+  return Boolean(rowPreviousClose && rowPreviousClose > 0);
 }
 
 function isExtendedStockRealtimeRow(row, now) {

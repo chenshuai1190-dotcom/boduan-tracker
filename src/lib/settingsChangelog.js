@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.182', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.183', date: '2026-07-07', latest: true,
+    items: [
+      '📊 当日盈亏基准保护',
+      '  - 股票实时 tick 只有价格但没有有效昨收时,不再覆盖当前完整行情行',
+      '  - REST 快照补齐 previousClose 后,立即用同一份基准叠回最后一笔实时价重新计算当日盈亏',
+      '  - 避免打开或回前台早期出现价格已更新、当日盈亏仍按半成品基准短暂算错',
+      '  - 保持现有涨跌幅公式、交易账本、EODHD 服务端 token、/api/quote 鉴权、数据库结构和 RLS 不变',
+    ],
+  },
+  {
+    ver: 'v10.7.9.182', date: '2026-07-07',
     items: [
       '📡 iOS 实时行情恢复重连',
       '  - iOS 主屏幕 Web App 回前台时同步强制重建 BTC、指数和股票三套实时连接',

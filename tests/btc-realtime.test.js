@@ -14,7 +14,12 @@ import { INDEX_REALTIME_SYMBOLS, normalizeIndexTick } from '../server/realtime/i
 import { normalizeStockTick, parseStockRealtimeSymbolsParam } from '../server/realtime/stocks.js';
 import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, mergeFreshStockRealtimeRows, selectStockRealtimeSymbols } from '../src/lib/stockRealtime.js';
+import {
+  applyStockTickToQuoteRows,
+  mergeFreshStockRealtimeRows,
+  mergeStockTicksIntoQuoteRows,
+  selectStockRealtimeSymbols,
+} from '../src/lib/stockRealtime.js';
 
 test('normalizeBtcTick accepts EODHD crypto WebSocket fields', () => {
   const tick = normalizeBtcTick({
@@ -240,6 +245,39 @@ test('stock realtime tick keeps previous close from base quote rows when tick on
   assert.equal(updated[0].previousClose, 390.507);
   assert.equal(Number(updated[0].change.toFixed(3)), 0.323);
   assert.equal(Number(updated[0].changePercent.toFixed(4)), 0.0827);
+});
+
+test('stock realtime tick waits for previous close before replacing daily pnl state', () => {
+  const currentRows = [
+    { symbol: 'MSFT', name: '微软', price: 385.73, previousClose: 0, changePercent: -1.22, high: 391 },
+  ];
+  const baseRows = [
+    { symbol: 'MSFT', name: '微软', price: 385.73, previousClose: 0, changePercent: -1.22, high: 391 },
+  ];
+  const tick = {
+    type: 'stock_tick',
+    symbol: 'MSFT',
+    price: 384.169,
+    changePercent: -1.62,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  };
+  const unchanged = applyStockTickToQuoteRows(currentRows, tick, 'live', baseRows);
+
+  assert.equal(unchanged[0], currentRows[0]);
+  assert.equal(unchanged[0].price, 385.73);
+  assert.equal(unchanged[0].previousClose, 0);
+
+  const refreshedRows = [
+    { symbol: 'MSFT', name: '微软', price: 384.169, previousClose: 390.49, changePercent: -1.62, high: 391 },
+  ];
+  const merged = mergeStockTicksIntoQuoteRows(refreshedRows, [tick], 'live', refreshedRows);
+
+  assert.equal(merged[0].price, 384.169);
+  assert.equal(merged[0].previousClose, 390.49);
+  assert.equal(Number(merged[0].change.toFixed(3)), -6.321);
+  assert.equal(Number(merged[0].changePercent.toFixed(4)), -1.6187);
+  assert.equal(merged[0].realtimeStatus, 'live');
 });
 
 test('stock realtime tick recomputes stale percent from base previous close', () => {
