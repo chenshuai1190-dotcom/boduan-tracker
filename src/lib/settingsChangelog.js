@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.158', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.159', date: '2026-07-06', latest: true,
+    items: [
+      '⚡ NOK 盘前涨跌幅口径修复',
+      '  - 修复 NOK 盘前价格正确但涨跌幅仍按更早昨收计算的问题',
+      '  - EODHD ethPrice 盘前价存在时,涨跌幅基准改用常规盘收盘价',
+      '  - REST 刷新叠加 WebSocket 实时价时,只保护实时价格,不再带回旧 previousClose',
+      '  - 不影响交易账本、持仓数量、成本、RLS、行情鉴权或英文模式',
+    ],
+  },
+  {
+    ver: 'v10.7.9.158', date: '2026-07-06',
     items: [
       '⚡ 盘前稀疏成交实时价保护',
       '  - 修复 NOK 这类盘前成交不密集股票被 REST 延迟价反复覆盖的问题',

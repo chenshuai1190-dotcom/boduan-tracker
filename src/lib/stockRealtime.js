@@ -70,7 +70,7 @@ export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
       && realtimeAt
       && now - realtimeAt <= freshWindowMs;
     if (!isFreshRealtime) continue;
-    next = applyStockTickToQuoteRows(next, row, row?.realtimeStatus || 'live', rows);
+    next = applyStockTickToQuoteRows(next, createRealtimePriceOverlayTick(row), row?.realtimeStatus || 'live', rows);
   }
   return next;
 }
@@ -126,6 +126,20 @@ function isUsExtendedTradingHours(now) {
   } catch {
     return false;
   }
+}
+
+function createRealtimePriceOverlayTick(row) {
+  return {
+    type: row?.type || 'stock_tick',
+    symbol: row?.symbol,
+    ticker: row?.ticker,
+    displaySymbol: row?.displaySymbol,
+    price: row?.price,
+    timestamp: row?.realtimeAt || row?.timestamp,
+    receivedAt: row?.receivedAt,
+    source: row?.source || 'EODHD_WS',
+    marketStatus: row?.marketStatus || null,
+  };
 }
 
 function createStockQuoteRow(row, tick, realtimeStatus) {

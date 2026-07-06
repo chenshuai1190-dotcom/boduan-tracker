@@ -4,6 +4,41 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - NOK 盘前涨跌幅口径修复
+
+- Commit: `same commit`
+- Background: 用户用同时截图对比首页自选 NOK 与券商系统:NOK 价格已经接近券商盘前价 `12.540`,但本系统仍显示 `-2.94%`,券商盘前显示 `+3.89%`;NVDA、MSFT、META、TSM、QQQ、TQQQ 等股票价格和盘前涨跌幅基本一致,问题集中暴露在 NOK。
+- Root cause:
+  - 券商列表上方主行 `12.070 / -6.51%` 是上一常规盘收盘价相对更早昨收的常规盘跌幅;下方 `12.540 / +3.89% 盘前` 是盘前价相对上一常规盘收盘 `12.070` 的涨幅。
+  - `server/quote/providers/eodhd.js` 在 EODHD `ethPrice` 已经给出盘前价时,仍优先使用 EODHD `previousClosePrice` / `changePercent`。NOK 此时 `ethPrice≈12.54`,但 `previousClosePrice≈12.91`,于是前端把盘前价按更早昨收计算成下跌。
+  - `mergeFreshStockRealtimeRows` 在保护稀疏 WebSocket 实时价时,把旧 `quoteCache` 行里的 `previousClose` / `changePercent` 也一起带回,进一步保留了 NOK 的旧基准。
+- Changes:
+  - 股票 REST provider 在 EODHD `ethPrice` 盘前/盘后价存在且 Yahoo `marketState` 非 `REGULAR` 或 `ethPrice` 与 `lastTradePrice` 不一致时,使用 Yahoo `chartPreviousClose` 或 EODHD `lastTradePrice` 作为扩展时段涨跌幅基准。
+  - 扩展时段下不再信任 EODHD 常规盘 `changePercent`,改为按 `ethPrice - 常规盘收盘价` 重算 `change` 和 `changePercent`。
+  - `mergeFreshStockRealtimeRows` 叠加新鲜 WebSocket 实时价时,只叠加 symbol、price、timestamp、source、marketStatus 等实时价格字段,不再把旧 cache 的 `previousClose`、`change`、`changePercent` 作为 tick 基准带回。
+  - 新增 NOK 回归测试:模拟 `ethPrice=12.54`、`lastTradePrice=12.07`、`previousClosePrice=12.91`、Yahoo `marketState=PRE`,期望返回 `previousClose=12.07`、`changePercent≈+3.894%`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.159`,新增“NOK 盘前涨跌幅口径修复”。
+  - 本轮不改交易账本、持仓数量、成本计算、WebSocket 鉴权、`/api/quote` 鉴权、Supabase、RLS、英文模式、资产或目标业务逻辑。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/lib/stockRealtime.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/btc-realtime.test.js` pass;NOK 扩展时段基准和 WebSocket 价格保护基准回归用例通过。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,83 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BRVD23ll.js`、`dist/assets/SettingsTab-DX3k_r3d.js`、`dist/assets/settingsChangelog-BORYeIKQ.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 dist marker: `SettingsTab-DX3k_r3d.js` / `settingsChangelog-BORYeIKQ.js` 包含 `v10.7.9.159` 和 `NOK 盘前涨跌幅口径修复`。
+- Deployment:
+  - Pending.
+- Rollback: 回退 `server/quote/providers/eodhd.js` 的扩展时段基准选择、`src/lib/stockRealtime.js` 的实时价格 overlay tick、设置页版本/更新日志、测试和本日志即可;会回到 NOK 盘前价按 EODHD 常规盘昨收计算的旧口径,不影响账本或鉴权。
+
 ### 2026-07-06 - 盘前稀疏成交实时价保护
 
 - Commit: `2ded1660d828defd4c52c1f548fb75d251f62ec1`
