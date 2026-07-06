@@ -4,6 +4,33 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 设置页日志懒加载与重置确认
+
+- Commit: `same commit`
+- Background: 用户确认继续处理三项低风险提效:把 `resetAll` 的浏览器原生二次确认改为应用内弹窗、删除已废弃的历史 `public/sw.js`、并把设置页超长历史更新日志拆出去懒加载。当前 `/api/quote` 鉴权、EODHD token 服务端隔离、Supabase RLS、交易主账本、波段旧账本和摊薄工具边界均不需要变更。
+- Changes:
+  - `resetAll` 不再调用 `window.confirm` / `window.prompt` / `alert`;设置页“重置本地数据”改为深色应用内二次确认弹窗,要求输入 `确认清空` 后才允许执行。
+  - 重置逻辑仍只清空本机交易记录、TQQQ 状态和本机资金设置,继续明确提示“云端数据不会被删除”,不触碰 Supabase 云端数据。
+  - 删除已废弃的 `public/sw.js`;`src/main.jsx` 继续保留启动时注销旧 Service Worker registrations 的清理逻辑,用于处理历史客户端缓存。
+  - 将设置页历史更新日志数组移到 `src/lib/settingsChangelog.js`,并由 `SettingsTab.jsx` 通过动态 `import('../lib/settingsChangelog.js')` 加载;设置页主 chunk 不再内联全部历史文案。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.144`,新增“设置页日志懒加载与重置确认”。
+  - 增加源码回归测试,保护本地重置不回退到原生弹窗、`public/sw.js` 不再被打包、设置页历史日志保持懒加载。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;74 tests passed.
+  - `npm run build`: pass;Vite built `App-DKhxsdJz.js`, `SettingsTab-Bg2nH3z4.js` (`12.74 kB`, gzip `3.85 kB`) and separate `settingsChangelog-CHONosaG.js` (`41.82 kB`, gzip `15.40 kB`).
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Build marker scan: pass;`SettingsTab` chunk contains `v10.7.9.144` and lazy chunk reference,does not contain old historical changelog strings such as `v10.7.9.143` or `首页恐慌模块回退旧版小卡`;`settingsChangelog` chunk contains current and historical changelog;built `App` chunk no longer contains reset-path `window.confirm` / `window.prompt` markers and contains the typed confirmation UI.
+- Deployment:
+  - Pending GitHub push, CI and Vercel production verification.
+- Rollback: 回退 `src/App.jsx` 的重置确认 modal、恢复 `SettingsTab.jsx` 内联 changelog 并删除 `src/lib/settingsChangelog.js`,如确需恢复旧 SW 文件则恢复 `public/sw.js`;同时回退 `v10.7.9.144` 设置页日志和本条测试/开发日志即可。不影响 `/api/quote` 鉴权、EODHD token 服务端隔离、三套 WebSocket relay、交易主账本、波段记录或摊薄工具数据。
+
 ### 2026-07-06 - 老版无效代码清理和股票实时渲染减负
 
 - Commit: `6253fcdb85f81276a824aed2ac2cbd070c184c23`

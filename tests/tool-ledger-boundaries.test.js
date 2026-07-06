@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -8,7 +8,9 @@ const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', 
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
+const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangelog.js', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
@@ -47,6 +49,28 @@ test('trade and wave form validation avoids native alert dialogs', () => {
   assert.equal(addTradeBlock.includes('alert('), false, 'trade/wave submit path must not use native alert');
   assert.ok(appSource.includes('showCancel: opts.showCancel !== false'), 'custom notice modal must support hiding cancel button');
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
+});
+
+test('local data reset uses typed in-app confirmation instead of native dialogs', () => {
+  const resetStart = appSource.indexOf('const resetAll = () =>');
+  const resetEnd = appSource.indexOf('// ============ 计算逻辑', resetStart);
+  const resetBlock = appSource.slice(resetStart, resetEnd);
+
+  assert.ok(resetStart > -1, 'missing local reset entry point');
+  assert.ok(resetEnd > resetStart, 'missing reset implementation boundary');
+  assert.equal(resetBlock.includes('window.confirm'), false, 'local reset must not use native confirm');
+  assert.equal(resetBlock.includes('window.prompt'), false, 'local reset must not use native prompt');
+  assert.equal(resetBlock.includes('alert('), false, 'local reset must not use native alert');
+  assert.ok(appSource.includes('RESET_LOCAL_DATA_CONFIRM_PHRASE'), 'local reset needs one shared typed-confirmation phrase');
+  assert.ok(appSource.includes('resetConfirmOpen'), 'local reset should open an in-app confirmation modal');
+  assert.ok(appSource.includes('disabled={!resetConfirmMatched || resetConfirmSubmitting}'), 'danger confirm button should stay disabled until the typed phrase matches');
+  assert.ok(appSource.includes('云端数据不会被删除'), 'local reset modal must explain that cloud data is preserved');
+});
+
+test('legacy service worker file stays removed while old registrations are still cleaned up', () => {
+  assert.equal(existsSync(new URL('../public/sw.js', import.meta.url)), false, 'deprecated service worker file should not be shipped');
+  assert.ok(mainSource.includes('navigator.serviceWorker.getRegistrations()'), 'entry should still enumerate old service worker registrations');
+  assert.ok(mainSource.includes('reg.unregister()'), 'entry should still unregister old service workers on client load');
 });
 
 test('cost basis tool uses dark custom UI without legacy title icon or native alerts', () => {
@@ -212,9 +236,9 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.equal(analysisTabSource.includes('setUsdRate'), false, 'asset tab should not expose manual USD rate editing');
   assert.equal(analysisTabSource.includes('setHkdRate'), false, 'asset tab should not expose manual HKD rate editing');
   assert.equal(analysisTabSource.includes('alert('), false, 'asset tab validation should not use native alert dialogs');
-  assert.ok(settingsTabSource.includes('v10.7.9.109'), 'settings version should reflect the latest asset account behavior');
-  assert.ok(settingsTabSource.includes('优化资产账户显示和操作'), 'settings changelog should describe the asset account behavior update');
-  assert.ok(settingsTabSource.includes('资产模块 UI 深色重设计'), 'settings changelog should describe the asset module redesign');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.109'), 'settings changelog should retain the latest asset account behavior');
+  assert.ok(settingsChangelogSource.includes('优化资产账户显示和操作'), 'settings changelog should describe the asset account behavior update');
+  assert.ok(settingsChangelogSource.includes('资产模块 UI 深色重设计'), 'settings changelog should describe the asset module redesign');
 });
 
 test('asset page visual shell and local preview stay debuggable', () => {
@@ -239,7 +263,7 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes('const chartLeft = 64'), 'asset chart first point should stay clear of y-axis labels');
   assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
   assert.equal(analysisTabSource.includes('text-[48px]'), false, 'asset header number should not return to the oversized mobile font');
-  assert.ok(settingsTabSource.includes('对齐资产页字号和走势图细节'), 'settings changelog should document the asset typography and chart fix');
+  assert.ok(settingsChangelogSource.includes('对齐资产页字号和走势图细节'), 'settings changelog should document the asset typography and chart fix');
 });
 
 test('asset account list hides zero-balance rows and uses action modal for edit/delete', () => {
@@ -408,22 +432,27 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.143'), 'settings version should document the quote diagnostics update');
-  assert.ok(settingsTabSource.includes('行情诊断日志'), 'settings changelog should describe quote diagnostic logs');
-  assert.ok(settingsTabSource.includes('v10.7.9.142'), 'settings changelog should retain the tool quote websocket update');
-  assert.ok(settingsTabSource.includes('工具行情 WebSocket 秒级推送'), 'settings changelog should describe the tool quote websocket update');
-  assert.ok(settingsTabSource.includes('v10.7.9.141'), 'settings version should document the stock websocket update');
-  assert.ok(settingsTabSource.includes('交易持仓 WebSocket 秒级推送'), 'settings changelog should describe the stock websocket update');
-  assert.ok(settingsTabSource.includes('v10.7.9.140'), 'settings changelog should retain the indices websocket update');
-  assert.ok(settingsTabSource.includes('三大指数 WebSocket 秒级推送'), 'settings changelog should describe the indices websocket update');
-  assert.ok(settingsTabSource.includes('v10.7.9.139'), 'settings changelog should retain the asset chart detail visibility update');
-  assert.ok(settingsTabSource.includes('资产走势图详情恢复点击显示'), 'settings changelog should describe the asset chart detail visibility update');
-  assert.ok(settingsTabSource.includes('资产走势图点位修正'), 'settings changelog should retain the asset chart point history');
-  assert.ok(settingsTabSource.includes('资产页粉色对齐首页'), 'settings changelog should retain the asset pink alignment history');
-  assert.ok(settingsTabSource.includes('弹窗国旗背景保留'), 'settings changelog should retain the modal-only review flag background history');
-  assert.ok(settingsTabSource.includes('投资戒律国旗背景增强'), 'settings changelog should retain the stronger review flag background history');
-  assert.ok(settingsTabSource.includes('投资戒律和复盘日志国旗背景'), 'settings changelog should retain the previous review flag background history');
-  assert.ok(settingsTabSource.includes('首页恐慌模块回退旧版小卡'), 'settings changelog should retain the fear card rollback history');
+  assert.ok(settingsTabSource.includes('v10.7.9.144'), 'settings version badge should document the reset and lazy-log update');
+  assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
+  assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.144'), 'settings changelog should document the reset and lazy-log update');
+  assert.ok(settingsChangelogSource.includes('设置页日志懒加载与重置确认'), 'settings changelog should describe the reset and lazy-log update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.143'), 'settings changelog should retain the quote diagnostics update');
+  assert.ok(settingsChangelogSource.includes('行情诊断日志'), 'settings changelog should describe quote diagnostic logs');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.142'), 'settings changelog should retain the tool quote websocket update');
+  assert.ok(settingsChangelogSource.includes('工具行情 WebSocket 秒级推送'), 'settings changelog should describe the tool quote websocket update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.141'), 'settings changelog should document the stock websocket update');
+  assert.ok(settingsChangelogSource.includes('交易持仓 WebSocket 秒级推送'), 'settings changelog should describe the stock websocket update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.140'), 'settings changelog should retain the indices websocket update');
+  assert.ok(settingsChangelogSource.includes('三大指数 WebSocket 秒级推送'), 'settings changelog should describe the indices websocket update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.139'), 'settings changelog should retain the asset chart detail visibility update');
+  assert.ok(settingsChangelogSource.includes('资产走势图详情恢复点击显示'), 'settings changelog should describe the asset chart detail visibility update');
+  assert.ok(settingsChangelogSource.includes('资产走势图点位修正'), 'settings changelog should retain the asset chart point history');
+  assert.ok(settingsChangelogSource.includes('资产页粉色对齐首页'), 'settings changelog should retain the asset pink alignment history');
+  assert.ok(settingsChangelogSource.includes('弹窗国旗背景保留'), 'settings changelog should retain the modal-only review flag background history');
+  assert.ok(settingsChangelogSource.includes('投资戒律国旗背景增强'), 'settings changelog should retain the stronger review flag background history');
+  assert.ok(settingsChangelogSource.includes('投资戒律和复盘日志国旗背景'), 'settings changelog should retain the previous review flag background history');
+  assert.ok(settingsChangelogSource.includes('首页恐慌模块回退旧版小卡'), 'settings changelog should retain the fear card rollback history');
 });
 
 test('review edit modals use in-app validation instead of native alerts', () => {
