@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - UI 文案中英文同步开发准则
 
-- Commit: `same commit`
+- Commit: `7487f2b7c4c7d81c30ee24e633e3a22312d7cb8c`
 - Background: 用户要求把“修改 UI/功能时同步英文”作为正式开发准则写入文档,避免后续只改中文界面而漏掉英文模式。
 - Changes:
   - `docs/development-process.md` 本地实现准则新增:凡是 UI 或功能改动涉及用户可见系统文案,必须同步简体中文和 English 两套显示,覆盖 `src/lib/i18n.js` key、组件 fallback、空状态、按钮、弹窗、错误提示、设置页更新日志文案和测试/build marker。
@@ -24,9 +24,13 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
 - Deployment:
-  - Pending docs-only push to GitHub `main` and Vercel production deployment.
+  - Pushed docs-only change to GitHub `main` as commit `7487f2b7c4c7d81c30ee24e633e3a22312d7cb8c`。
+  - GitHub Actions `CI` run `28794672879` completed successfully.
+  - Vercel production deployment completed with target `https://boduan-tracker-7npbd2dv8-chenshuai1190-7580s-projects.vercel.app`。
+  - This was a docs-only deployment;active production runtime assets remained the `v10.7.9.172` build headed by `/assets/index-CpKzNEcw.js`。
 - Production verification:
-  - Pending docs-only deployment and production marker re-check.
+  - Production marker re-check passed: root HTTP 200;`SettingsTab-Dnz-AZSl.js` still contains `v10.7.9.172`;`settingsChangelog-kbO7oX-_.js` still contains `目标页文案和弹窗可读性` and `投资心得`;`i18n-CPX81kKq.js` still contains `投资心得` and `Investment Notes`。
+  - Production auth boundaries re-verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条文档准则和本日志即可;不影响生产运行时代码、数据库、行情、RLS 或鉴权。
 
 ### 2026-07-06 - 目标页文案和弹窗可读性
