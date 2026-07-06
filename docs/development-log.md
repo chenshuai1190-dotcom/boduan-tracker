@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 恐慌小卡文字和端点微调
 
-- Commit: `pending`
+- Commit: `1db33a0ed5f6936f8c9cf2e85121595a4521cfc1`
 - Background: 用户根据截图继续反馈 CNN 仪表盘 `0` / `100` 标签应放回弧线开始和结束位置附近;同时 VIX 卡片“市场平静,无操作”说明文字偏大,CNN 恐慌说明行也要与 VIX 常规文字大小保持一致,给下方图形留出空间。
 - Changes:
   - CNN `FgiGauge` 的 `0` 标签从 `x=37` 移到 `x=27`,更贴近左侧弧线起点。
@@ -29,7 +29,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`HomeTab-vZlznYrE.js` contains `0 0 160 72` / `h-[54px]`, CNN endpoint label markers `x=27` / `x=133`, and `text-[11px] text-white/50`;old `0 0 160 90` and thick `strokeWidth="13"` markers remain absent;`SettingsTab-Anf_QA6B.js` contains `v10.7.9.153`;`settingsChangelog-3prN_GgX.js` contains `v10.7.9.153` and `恐慌小卡文字和端点微调`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `1db33a0ed5f6936f8c9cf2e85121595a4521cfc1`.
+  - GitHub Actions `CI` run `28770875983` passed for `1db33a0ed5f6936f8c9cf2e85121595a4521cfc1`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=1db33a0-fear-card-153-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 05:54:23 GMT`.
+  - Production asset marker check: pass;active runtime assets include `HomeTab-vZlznYrE.js`, `SettingsTab-BTWxo62Y.js`, and `settingsChangelog-3prN_GgX.js`.
+  - Production fear-card marker check: pass;`HomeTab-vZlznYrE.js` contains `0 0 160 72` / `h-[54px]`, CNN endpoint label markers `x=27` / `x=133`, and `text-[11px] text-white/50`;old `0 0 160 90` and thick `strokeWidth="13"` markers remain absent;`SettingsTab-BTWxo62Y.js` contains `v10.7.9.153`;active changelog chunk contains `v10.7.9.153` and `恐慌小卡文字和端点微调`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/HomeTab.jsx` 的端点标签和说明文字字号调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.153` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - CNN 仪表盘端点修正
