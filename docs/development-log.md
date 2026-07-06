@@ -4,6 +4,38 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 目标页英文模式
+
+- Commit: same commit
+- Background: 用户要求继续开发目标页面英文版,并明确强调不能改变目标页主体结构;此前英文模式已经覆盖设置页、底部导航、首页、交易页和资产页,目标页仍有大量固定中文系统文案。
+- Changes:
+  - `ReviewTab.jsx` 接入共享语言框架,北极星目标、年度目标、投资戒律、复盘日志、详情弹窗和复利明细弹窗支持英文系统文案。
+  - `App.jsx` 中目标页可触达的新增/编辑戒律、新增/编辑复盘、年度实际数据弹窗同步接入语言开关。
+  - 用户自己写的戒律、复盘、目标箴言、心情内容和历史记录继续原文显示,不做自动翻译。
+  - 本地视觉预览同步目标页英文 mock 弹窗标题,方便用 `?tab=review&lang=en` 快速检查。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.166`,新增“目标页英文模式”。
+  - 本轮只调整目标页显示文案和语言参数传递,不改目标页主体结构、年度目标计算、复利计算、投资戒律/复盘数据库路径、交易账本、行情源、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/i18n.js`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/App.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖目标页英文 i18n、目标页弹窗 language 参数、视觉预览标题、设置页版本和更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BU0CfgIu.js`、`dist/assets/ReviewTab-RfDKcroI.js`、`dist/assets/i18n-DqUNzBZy.js`、`dist/assets/SettingsTab-DxjL_eCn.js`、`dist/assets/settingsChangelog-BiSWurwW.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 marker: `src/lib/i18n.js`、`src/tabs/ReviewTab.jsx`、`dist/assets/i18n-DqUNzBZy.js` 和 `dist/assets/ReviewTab-RfDKcroI.js` 包含 `Polaris Goal`、`Annual Goals`、`Investment Rules`、`Review Log` 和目标页英文 key;`SettingsTab.jsx` / `settingsChangelog.js` 及对应 dist chunk 包含 `v10.7.9.166` 和 `目标页英文模式`。
+- Deployment:
+  - Pending: 本条随代码提交推送到 GitHub `main` 后触发 Vercel 自动部署;线上 marker 和 API 鉴权验证完成后回填。
+- Rollback: 回退本条涉及的目标页 i18n 接入、目标页弹窗 language 参数、`v10.7.9.166` 设置页版本/更新日志、测试断言和本开发日志即可;不影响目标页结构、用户内容、年度目标/复利计算、交易数据、行情鉴权或数据库。
+
 ### 2026-07-06 - 资产页英文模式
 
 - Commit: `501666141e60767153fc5d83fef861da6e6d5160`

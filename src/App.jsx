@@ -393,32 +393,33 @@ function TabFallback() {
 // ============ 复盘 tab 专用 Modal 组件 ============
 
 // 添加/编辑戒律 Modal
-function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
+function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
   const [level, setLevel] = useState(initial.level || '🟢');
   const [text, setText] = useState(initial.text || '');
   const [pinned, setPinned] = useState(initial.pinned || false);
   const [error, setError] = useState('');
   const isEdit = Boolean(initial?.isEdit || onDelete);
+  const tt = (key, fallback, values) => t(language, key, fallback, values);
 
   const LEVELS = [
-    { level: '🟢', label: '一般', dotColor: '#18d66b', ringColor: 'rgba(24, 214, 107, 0.12)', ringBorder: 'rgba(24, 214, 107, 0.14)' },
-    { level: '🔺', label: '重要', dotColor: '#ff0f35', ringColor: 'rgba(255, 15, 53, 0.13)', ringBorder: 'rgba(255, 15, 53, 0.15)' },
-    { level: '📣', label: '强调', dotColor: '#ffa42b', ringColor: 'rgba(255, 164, 43, 0.13)', ringBorder: 'rgba(255, 164, 43, 0.16)' },
-    { level: '❗', label: '警告', dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
+    { level: '🟢', label: tt('review.levelNormal', '一般'), dotColor: '#18d66b', ringColor: 'rgba(24, 214, 107, 0.12)', ringBorder: 'rgba(24, 214, 107, 0.14)' },
+    { level: '🔺', label: tt('review.levelImportant', '重要'), dotColor: '#ff0f35', ringColor: 'rgba(255, 15, 53, 0.13)', ringBorder: 'rgba(255, 15, 53, 0.15)' },
+    { level: '📣', label: tt('review.levelEmphasis', '强调'), dotColor: '#ffa42b', ringColor: 'rgba(255, 164, 43, 0.13)', ringBorder: 'rgba(255, 164, 43, 0.16)' },
+    { level: '❗', label: tt('review.levelWarning', '警告'), dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
   ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
       <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-base text-white">{isEdit ? '编辑戒律' : '添加戒律'}</h3>
+          <h3 className="font-semibold text-base text-white">{isEdit ? tt('review.editDiscipline', '编辑戒律') : tt('review.addDiscipline', '添加戒律')}</h3>
           <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-white/50">等级</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.level', '等级')}</label>
             <div className="grid grid-cols-4 gap-1.5">
               {LEVELS.map(l => (
                 <button
@@ -438,16 +439,16 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-white/50">内容</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.content', '内容')}</label>
               <textarea
                 value={text}
                 onChange={e => { setText(e.target.value); if (error) setError(''); }}
-                placeholder="写下你的投资戒律..."
+                placeholder={tt('review.disciplinePlaceholder', '写下你的投资戒律...')}
                 rows={4}
                 className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
                 style={{ colorScheme: 'dark' }}
               />
-              <div className="mt-0.5 text-[10px] text-white/35">超过 60 字会折叠, 点"展开"查看全文</div>
+              <div className="mt-0.5 text-[10px] text-white/35">{tt('review.disciplineHint', '超过 60 字会折叠, 点"展开"查看全文')}</div>
               {error && <div className="mt-1 text-[11px] text-rose-300">{error}</div>}
             </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -457,11 +458,11 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
               onChange={e => setPinned(e.target.checked)}
               className="w-4 h-4"
             />
-            <span className="text-sm text-white/70">置顶 (重要戒律永远显示在最上)</span>
+            <span className="text-sm text-white/70">{tt('review.pinImportant', '置顶 (重要戒律永远显示在最上)')}</span>
           </label>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">取消</button>
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">{tt('review.cancel', '取消')}</button>
           {onDelete && (
             <button onClick={onDelete} className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-2.5 text-sm font-normal text-rose-300">
               <Trash2 className="w-4 h-4 inline"/>
@@ -469,11 +470,11 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
           )}
           <button
             onClick={() => {
-              if (!text.trim()) { setError('请输入内容'); return; }
+              if (!text.trim()) { setError(tt('review.contentRequired', '请输入内容')); return; }
               onSave({ level, text: text.trim(), pinned });
             }}
             className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
-          >保存</button>
+          >{tt('review.save', '保存')}</button>
         </div>
       </div>
     </div>
@@ -481,27 +482,35 @@ function DisciplineModal({ initial, onCancel, onSave, onDelete }) {
 }
 
 // 添加/编辑日志 Modal
-function LogModal({ initial, onCancel, onSave, onDelete }) {
+function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
   const [date, setDate] = useState(initial.date || new Date().toISOString().slice(0, 10));
   const [mood, setMood] = useState(initial.mood || '');
   const [text, setText] = useState(initial.text || '');
   const [error, setError] = useState('');
   const isEdit = !!onDelete;
+  const tt = (key, fallback, values) => t(language, key, fallback, values);
 
-  const MOODS = ['谨慎乐观', '满意', '焦虑', '贪婪', '恐惧', '冷静'];
+  const MOODS = [
+    tt('review.moodCautiousOptimism', '谨慎乐观'),
+    tt('review.moodSatisfied', '满意'),
+    tt('review.moodAnxious', '焦虑'),
+    tt('review.moodGreedy', '贪婪'),
+    tt('review.moodFearful', '恐惧'),
+    tt('review.moodCalm', '冷静'),
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
       <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-white">{isEdit ? '编辑复盘' : '写复盘'}</h3>
+          <h3 className="text-base font-semibold text-white">{isEdit ? tt('review.editReview', '编辑复盘') : tt('review.addReview', '写复盘')}</h3>
           <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-white/50">日期</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.date', '日期')}</label>
             <input
               type="date"
               value={date}
@@ -511,7 +520,7 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-white/50">当时心情 (可选)</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.moodOptional', '当时心情 (可选)')}</label>
             <div className="flex flex-wrap gap-1.5 mb-1.5">
               {MOODS.map(m => (
                 <button
@@ -525,17 +534,17 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
               type="text"
               value={mood}
               onChange={e => setMood(e.target.value)}
-              placeholder="或自己写"
+              placeholder={tt('review.customMoodPlaceholder', '或自己写')}
               className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-white/50">复盘内容</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.reviewContent', '复盘内容')}</label>
             <textarea
               value={text}
               onChange={e => { setText(e.target.value); if (error) setError(''); }}
-              placeholder="今天做了什么操作? 对错? 下周计划? 市场感受?"
+              placeholder={tt('review.reviewPlaceholder', '今天做了什么操作? 对错? 下周计划? 市场感受?')}
               rows={6}
               className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
@@ -544,7 +553,7 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">取消</button>
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">{tt('review.cancel', '取消')}</button>
           {isEdit && (
             <button onClick={onDelete} className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-2.5 text-sm font-normal text-rose-300">
               <Trash2 className="w-4 h-4 inline"/>
@@ -552,11 +561,11 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
           )}
           <button
             onClick={() => {
-              if (!text.trim()) { setError('请输入内容'); return; }
+              if (!text.trim()) { setError(tt('review.contentRequired', '请输入内容')); return; }
               onSave({ date, mood: mood.trim(), text: text.trim() });
             }}
             className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
-          >保存</button>
+          >{tt('review.save', '保存')}</button>
         </div>
       </div>
     </div>
@@ -564,9 +573,10 @@ function LogModal({ initial, onCancel, onSave, onDelete }) {
 }
 
 // 编辑年度实际数据 Modal
-function YearlyActualModal({ year, initial, onCancel, onSave, currency, rate }) {
+function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, currency, rate }) {
   const isCNY = currency === 'CNY';
   const symbol = isCNY ? '¥' : '$';
+  const tt = (key, fallback, values) => t(language, key, fallback, values);
   // 显示时: USD存储 × rate → 展示值
   // 保存时: 展示值 / rate → 存回 USD
   const [actualGain, setActualGain] = useState(initial.actualGain !== null && initial.actualGain !== undefined ? String(Math.round(initial.actualGain * rate)) : '');
@@ -576,42 +586,42 @@ function YearlyActualModal({ year, initial, onCancel, onSave, currency, rate }) 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
       <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-white">{year} 年实际数据</h3>
+          <h3 className="text-base font-semibold text-white">{tt('review.actualDataTitle', '{{year}} 年实际数据', { year })}</h3>
           <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
             <X className="w-4 h-4"/>
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-white/50">实际增长 ({symbol})</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.actualGrowth', '实际增长 ({{symbol}})', { symbol })}</label>
             <input
               type="number"
               value={actualGain}
               onChange={e => setActualGain(e.target.value)}
-              placeholder={isCNY ? '例: 1440000 (144万¥)' : '例: 200000 (20万$)'}
+              placeholder={isCNY ? tt('review.actualGrowthPlaceholderCny', '例: 1440000 (144万¥)') : tt('review.actualGrowthPlaceholderUsd', '例: 200000 (20万$)')}
               className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
-            <div className="mt-0.5 text-[10px] text-white/35">这一年涨了多少 (留空则按年末余额倒算)</div>
+            <div className="mt-0.5 text-[10px] text-white/35">{tt('review.actualGrowthHint', '这一年涨了多少 (留空则按年末余额倒算)')}</div>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-white/50">年末余额 ({symbol})</label>
+            <label className="mb-1 block text-xs text-white/50">{tt('review.yearEndBalance', '年末余额 ({{symbol}})', { symbol })}</label>
             <input
               type="number"
               value={endBalance}
               onChange={e => setEndBalance(e.target.value)}
-              placeholder={isCNY ? '例: 19440000 (1944万¥)' : '例: 2600000 (260万$)'}
+              placeholder={isCNY ? tt('review.yearEndPlaceholderCny', '例: 19440000 (1944万¥)') : tt('review.yearEndPlaceholderUsd', '例: 2600000 (260万$)')}
               className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
-            <div className="mt-0.5 text-[10px] text-white/35">这一年结束总共多少 (留空则按上年余额+本年增长自动算)</div>
+            <div className="mt-0.5 text-[10px] text-white/35">{tt('review.yearEndHint', '这一年结束总共多少 (留空则按上年余额+本年增长自动算)')}</div>
           </div>
           <div className="rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/10 px-3 py-2 text-[11px] text-[#ffd18a]">
-            当前币种: <span className="font-semibold">{currency}</span>{isCNY ? ` · 汇率 1 USD = ${rate} CNY · 保存时自动换算为 USD 存储` : ''}
+            {tt('review.currentCurrency', '当前币种: {{currency}}', { currency: '' })}<span className="font-semibold">{currency}</span>{isCNY ? tt('review.currencySaveNote', ' · 汇率 1 USD = {{rate}} CNY · 保存时自动换算为 USD 存储', { rate }) : ''}
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">取消</button>
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">{tt('review.cancel', '取消')}</button>
           <button
             onClick={() => {
               // 输入的是当前显示币种的数字
@@ -622,7 +632,7 @@ function YearlyActualModal({ year, initial, onCancel, onSave, currency, rate }) 
               onSave(ag, eb);
             }}
             className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
-          >保存</button>
+          >{tt('review.save', '保存')}</button>
         </div>
       </div>
     </div>

@@ -6,31 +6,31 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
-- 当前运行时代码提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
-- 设置页版本: `v10.7.9.161`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮目标页英文模式代码提交推送后回填实际 runtime commit。
+- 当前运行时代码提交: pending,本轮为 `v10.7.9.166` 目标页英文模式。
+- 设置页版本: `v10.7.9.166`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, `v10.7.9.161` production marker verified for runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
+- 最新运行时 Vercel 部署: pending,本轮提交推送到 GitHub `main` 后触发 `v10.7.9.166` 自动部署和线上 marker 验证。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 生产 active assets 包含 `index-Cb3BUNoW.js`、`App-eK1xuo-n.js`、`SettingsTab-BFaVqkJr.js`、`settingsChangelog-_jfyzHps.js`、`HomeTab-DMu2X-yC.js`、`TradesTab-BCtDUDej.js`、`AnalysisTab-BlUdJr6F.js` 和 `ReviewTab-CZxjqcb1.js`;`SettingsTab-BFaVqkJr.js` 包含 `v10.7.9.161` 和 `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` 包含 `v10.7.9.161`、`股票核心行情去 Yahoo 混源` 和 `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` 不包含 `priceSource:"Yahoo"`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
-- 当前产品焦点: `v10.7.9.161` 已将 Yahoo 从股票核心行情字段剥离。股票 `price`、`previousClose`、`change`、`changePercent`、`source` 和 `priceSource` 只用 EODHD;Yahoo 只保留为股票小曲线 `intraday/intradayPoints` 的视觉 chart 来源,不参与资产、持仓或当日盈亏计算。指数/BTC 小卡 Yahoo 曲线兜底和 VIX Yahoo fallback 本轮未改。
+- 线上关键验证: pending,本轮 `v10.7.9.166` 部署后需确认生产 active assets 包含目标页英文 key、设置页 `v10.7.9.166` 和更新日志 `目标页英文模式`;同时确认未登录 `GET /api/quote?symbols=VIX` 返回 `401`,普通 `GET /api/stocks-realtime` 返回 `426`。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.166` 只把目标页系统文案接入语言框架,用户自己写的戒律、复盘、目标箴言和心情保持原文;目标页主体结构、年度目标计算、复利计算、数据库路径、行情和鉴权不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9` (`v10.7.9.161`,股票核心行情去 Yahoo 混源)
-- 最近应用代码提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
+- 当前产品基准提交: pending,本轮 `v10.7.9.166` 目标页英文模式提交推送后回填。
+- 最近应用代码提交: pending,本轮 `v10.7.9.166` 目标页英文模式提交推送后回填。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.161`
-- Vercel 最新运行时部署: success, `v10.7.9.161` production marker verified for runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`。
+- 设置页版本: `v10.7.9.166`
+- Vercel 最新运行时部署: pending,本轮提交推送到 GitHub `main` 后触发自动部署。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`;GitHub Actions `build` run `28781405213` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GJ3Mud2kQqcdfYqk3u7s73gQtTXE`;production `GET https://boduan-tracker.vercel.app/?v=6991305-yahoo-core-*` HTTP 200;active runtime assets include `index-Cb3BUNoW.js`, `App-eK1xuo-n.js`, `SettingsTab-BFaVqkJr.js`, `settingsChangelog-_jfyzHps.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`SettingsTab-BFaVqkJr.js` contains `v10.7.9.161` and `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` contains `v10.7.9.161`, `股票核心行情去 Yahoo 混源`, and `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` does not contain `priceSource:"Yahoo"`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+- Vercel 部署记录: pending,本轮 `v10.7.9.166` 部署后回填 active assets、marker 和 API 鉴权验证。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 修复盘前实时价与今日盈亏基准断开的问题;`v10.7.9.158` 修复盘前稀疏成交股票被 REST 常规盘价格覆盖的问题;`v10.7.9.160` 回滚 `v10.7.9.159` 的 NOK 全局口径实验;`v10.7.9.161` 将 Yahoo 从股票核心 quote 字段剥离,中文默认显示、英文模式和核心交易账本保持不变。
+产品现在可用。最近一轮重点是首页自选/持仓体验、交易账本口径、BTC 独立实时行情、PWA 图标、找回密码链路、Supabase Auth URL 配置,`v10.7.9.93` 到 `v10.7.9.149` 的已部署功能见下方历史条目;`v10.7.9.150` 到 `v10.7.9.155` 持续收紧目标页标题/操作弹窗和首页 CNN 恐慌仪表盘刻度;`v10.7.9.156` 新增英文模式第一阶段;`v10.7.9.157` 到 `v10.7.9.161` 梳理盘前实时行情和股票核心行情来源;`v10.7.9.162` 到 `v10.7.9.166` 分阶段把英文模式扩展到交易页、资产页和目标页,中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
 ## 2. 先读这些文档
 
@@ -54,7 +54,7 @@
 - 持仓视图: 来自交易主账本的真实持仓,不是自选列表。
 - 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示;`v10.7.9.141` 起持仓股票 tick 写入 `quoteCache`,交易页头部和持仓列表通过 `investmentSummary` 秒级刷新;`v10.7.9.142` 起摊薄工具和波段记录的工具-only symbol 也进入 `quoteRows`,现价通过同一股票 WebSocket/REST 行情口径刷新,但仍不写入正式主账本;`v10.7.9.157` 起股票实时 tick 只有价格时也会沿用 REST/基础行情昨收计算当日盈亏,并避免手动/下拉刷新用延迟 REST 价覆盖更新鲜实时价;`v10.7.9.158` 起盘前/盘后低频成交股票的实时价保护窗口放宽到 30 分钟,避免 NOK 这类股票被 REST 常规盘价反复冲回。
 - 资产/分析页: 深色家庭总资产卡、12 个月走势、我/老婆账户分组、月度余额填报和新增账户。`v10.7.9.116` 起家庭总资产主数字改为完整金额 + 小号两位小数,其它走势图和账户列表仍保留 `万` 简写;`v10.7.9.148` 起资产页家庭总资产头卡尺寸、外壳、金额颜色和金额位置与首页/交易页头卡对齐;`v10.7.9.149` 起账户行不再保留老版模块级缩放。
-- 目标页: 北极星目标、年度目标进度、复盘和投资戒律。`v10.7.9.111` 起目标页第一阶段统一深色移动端风格,北极星目标支持 USD/RMB 切换并使用现有汇率状态,年度目标和投资戒律都改为点击记录后弹出操作面板,投资戒律保留置顶/取消置顶;`v10.7.9.112` 修正目标页视觉对齐,头部卡片压回移动端紧凑高度,年度进度条微光限制在进度条内,年度目标区域删除多余外层卡片,当前年补回右侧目标/落后信息,未开始年度补回起点、目标、增长目标虚线和两端金额结构;`v10.7.9.113` 目标页金额改为首页同款完整数字和正常字重,头部卡片进一步压缩,USD/RMB 切换同步首页尺寸,头部卡删除右下角半圆和金色边框,年度目标区域继续外扩,涨跌粉色同步首页颜色体系;`v10.7.9.114` 目标页金额取消两位小数,本年卡边框同步北极星头卡弱边框,头卡 `设置` 按钮上移;`v10.7.9.115` 只在北极星头卡大目标金额恢复两位小数,小数后缀用小字号显示,年度目标等其它金额仍保持无小数;`v10.7.9.116` 小数后缀显式保持正常字重;`v10.7.9.117` 目标页不再显示行情失败 toast,北极星提醒文案单独下移,年度年份数字缩小并降为 `font-bold`;`v10.7.9.118` 北极星设置按钮和未开始年度起点/目标/虚线进一步降为中性色,并移除未开始年度起点/目标括号年份;`v10.7.9.119` 删除北极星头卡 RMB 汇率辅助文案,年目标说明和剩余年限说明降到 12px,年度目标标题降到 15px,年度年份字重降到 `font-semibold`;`v10.7.9.120` 投资戒律模块按新图改为独立标题、灰色胶囊按钮、彩色圆点筛选和深色卡片,筛选项在 390px 移动端一行完整显示,置顶/展开/等级选择都降为低色彩;`v10.7.9.121` 投资戒律标题、正文、按钮、筛选、日期、置顶和展开入口整体降一档字号;`v10.7.9.122` 投资戒律标题继续缩小,删除标题下方数量,标题与添加按钮同排居中对齐;`v10.7.9.123` 投资戒律点击后改为记录详情弹窗,正文完整显示,底部只保留三个小号操作按钮;`v10.7.9.124` 复盘日志同步投资戒律标题和深色卡片,日期/情绪放卡片底部同一行,点击先打开 `复盘详情`,年度目标默认只展示 2 年;`v10.7.9.125` 复盘日志列表正文同步投资戒律正文,复盘日期/情绪和戒律日期/置顶同步详情弹窗灰色 meta 效果;`v10.7.9.126` 点击北极星目标卡片可打开复利明细弹窗,复用当前本金/年化/年限/目标完成度逻辑,展示目标终值、累计收益、复利倍数、实际进度、账户曲线和每年收益表;`v10.7.9.127` 复利明细弹窗加宽、改弱金色边框、完整显示十年年份并将收益统一为首页粉色;`v10.7.9.128` 复利明细内部统计卡、实际进度、曲线和每年收益表边框/分割线降为暗线,标签统一降为灰色。
+- 目标页: 北极星目标、年度目标进度、复盘和投资戒律。`v10.7.9.111` 起目标页第一阶段统一深色移动端风格,北极星目标支持 USD/RMB 切换并使用现有汇率状态,年度目标和投资戒律都改为点击记录后弹出操作面板,投资戒律保留置顶/取消置顶;`v10.7.9.112` 修正目标页视觉对齐,头部卡片压回移动端紧凑高度,年度进度条微光限制在进度条内,年度目标区域删除多余外层卡片,当前年补回右侧目标/落后信息,未开始年度补回起点、目标、增长目标虚线和两端金额结构;`v10.7.9.113` 目标页金额改为首页同款完整数字和正常字重,头部卡片进一步压缩,USD/RMB 切换同步首页尺寸,头部卡删除右下角半圆和金色边框,年度目标区域继续外扩,涨跌粉色同步首页颜色体系;`v10.7.9.114` 目标页金额取消两位小数,本年卡边框同步北极星头卡弱边框,头卡 `设置` 按钮上移;`v10.7.9.115` 只在北极星头卡大目标金额恢复两位小数,小数后缀用小字号显示,年度目标等其它金额仍保持无小数;`v10.7.9.116` 小数后缀显式保持正常字重;`v10.7.9.117` 目标页不再显示行情失败 toast,北极星提醒文案单独下移,年度年份数字缩小并降为 `font-bold`;`v10.7.9.118` 北极星设置按钮和未开始年度起点/目标/虚线进一步降为中性色,并移除未开始年度起点/目标括号年份;`v10.7.9.119` 删除北极星头卡 RMB 汇率辅助文案,年目标说明和剩余年限说明降到 12px,年度目标标题降到 15px,年度年份字重降到 `font-semibold`;`v10.7.9.120` 投资戒律模块按新图改为独立标题、灰色胶囊按钮、彩色圆点筛选和深色卡片,筛选项在 390px 移动端一行完整显示,置顶/展开/等级选择都降为低色彩;`v10.7.9.121` 投资戒律标题、正文、按钮、筛选、日期、置顶和展开入口整体降一档字号;`v10.7.9.122` 投资戒律标题继续缩小,删除标题下方数量,标题与添加按钮同排居中对齐;`v10.7.9.123` 投资戒律点击后改为记录详情弹窗,正文完整显示,底部只保留三个小号操作按钮;`v10.7.9.124` 复盘日志同步投资戒律标题和深色卡片,日期/情绪放卡片底部同一行,点击先打开 `复盘详情`,年度目标默认只展示 2 年;`v10.7.9.125` 复盘日志列表正文同步投资戒律正文,复盘日期/情绪和戒律日期/置顶同步详情弹窗灰色 meta 效果;`v10.7.9.126` 点击北极星目标卡片可打开复利明细弹窗,复用当前本金/年化/年限/目标完成度逻辑,展示目标终值、累计收益、复利倍数、实际进度、账户曲线和每年收益表;`v10.7.9.127` 复利明细弹窗加宽、改弱金色边框、完整显示十年年份并将收益统一为首页粉色;`v10.7.9.128` 复利明细内部统计卡、实际进度、曲线和每年收益表边框/分割线降为暗线,标签统一降为灰色;`v10.7.9.166` 起目标页系统文案支持英文模式,用户自己写的戒律、复盘、目标箴言和心情保持原文。
 - 设置页: 账户设置、修改密码、语言切换、行情诊断日志、更新日志。`v10.7.9.143` 起自动 REST 行情兜底失败只写本地诊断日志不弹底部红条,下拉刷新和手动刷新失败仍提示;诊断日志记录根因、来源、触发方式、请求范围、HTTP 状态、耗时和重复次数。`v10.7.9.144` 起历史更新日志拆为 `settingsChangelog` 懒加载 chunk;`v10.7.9.145` 起删除“数据维护/重置本地数据”入口和运行时代码,自动回到前台这类 `auto-silent + browser-network` 抖动不再写入设置页报警列表;`v10.7.9.156` 起新增 `简体中文` / `English` 本地语言开关,用户自己写的日志、复盘、备注和历史记录保持原文;`v10.7.9.158` 起更新日志记录盘前稀疏成交实时价保护。
 - PWA: 支持保存到手机桌面,当前图标为用户提供的蓝绿 K 线箭头 Logo;`v10.7.9.147` 起 512/192/180/32/16 五套最终发布 PNG 均为 RGB 不透明深色底,避免 iOS 主屏把透明区域垫成白边。
 
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
-当前产品基准提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9` (`v10.7.9.161`,股票核心行情去 Yahoo 混源)
-最近应用代码提交: `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
-设置页版本: `v10.7.9.161`
-Vercel 最新运行时部署: success, `v10.7.9.161` production marker verified for runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`
+当前 GitHub main: 以本文件所在最新提交为准;本轮目标页英文模式代码提交推送后回填实际 runtime commit
+当前产品基准提交: pending (`v10.7.9.166`,目标页英文模式)
+最近应用代码提交: pending (`v10.7.9.166`,目标页英文模式)
+设置页版本: `v10.7.9.166`
+Vercel 最新运行时部署: pending,本轮提交推送到 GitHub main 后触发自动部署和线上 marker 验证
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: runtime code commit `6991305a3fc88f0aaed4f8b147aa5a1c4eb13dd9`;GitHub Actions `build` run `28781405213` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GJ3Mud2kQqcdfYqk3u7s73gQtTXE`;production HTTP 200;active runtime assets include `index-Cb3BUNoW.js`, `App-eK1xuo-n.js`, `SettingsTab-BFaVqkJr.js`, `settingsChangelog-_jfyzHps.js`, `HomeTab-DMu2X-yC.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, and `ReviewTab-CZxjqcb1.js`;`SettingsTab-BFaVqkJr.js` contains `v10.7.9.161` and `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` contains `v10.7.9.161`, `股票核心行情去 Yahoo 混源` and `Yahoo 仅保留为股票小曲线的视觉 chart 来源`;`App-eK1xuo-n.js` does not contain `priceSource:"Yahoo"`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+部署记录: pending,本轮 `v10.7.9.166` 部署后回填 active assets、设置页/更新日志/目标页英文 marker 和 API 鉴权验证
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,6 +629,11 @@ Vercel 最新运行时部署: success, `v10.7.9.161` production marker verified 
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.166` 目标页英文模式:目标页北极星目标、年度目标、投资戒律、复盘日志、详情弹窗、复利明细弹窗和目标页表单弹窗接入英文系统文案;用户自己写的戒律、复盘、目标箴言和心情保持原文;目标页主体结构、年度目标/复利计算、数据库路径、行情和鉴权不变。本轮部署后需回填线上 marker。
+- `v10.7.9.165` 资产页英文模式已完成部署和线上验证:资产页头部、走势图、账户分组、账户操作和账户弹窗接入英文文案;系统内置账户类型和常见账户名显示英文,用户自定义账户名保持原文;账户数据、月度余额和汇率计算不变。
+- `v10.7.9.164` 英文交易头部严格对齐首页已完成部署和线上验证:交易页头部资产卡英文模式三列比例严格同步首页,英文股票副标题改为短品牌名,例如 NVIDIA、Microsoft、Nokia。
+- `v10.7.9.163` 英文交易页细节修正已完成部署和线上验证:交易页英文头部持仓数量防溢出,英文持仓列表按股票代码 + 公司英文名展示。
+- `v10.7.9.162` 英文模式扩展到交易页已完成部署和线上验证:交易页头部资产卡、工具入口、持仓分布、当日订单、波段记录、摊薄工具和交易弹窗接入语言开关。
 - `v10.7.9.161` 股票核心行情去 Yahoo 混源已完成部署和线上验证:股票 `price`、`previousClose`、`change`、`changePercent`、`source` 和 `priceSource` 只使用 EODHD quote;EODHD 股票 quote 无有效价格时返回错误,不再用 Yahoo 自动补价;Yahoo 仅保留为股票小曲线 `intraday/intradayPoints` 的视觉 chart 来源,不参与资产、持仓或当日盈亏计算。生产 `SettingsTab-BFaVqkJr.js`、`settingsChangelog-_jfyzHps.js` 和 `App-eK1xuo-n.js` marker 验证通过;指数/BTC 小卡 Yahoo 曲线兜底、VIX Yahoo fallback、交易账本、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.160` NOK 盘前口径修复回滚已完成部署和线上验证:回滚 `v10.7.9.159` 对 EODHD provider 和 WebSocket/REST 合并的全局口径实验,恢复 `v10.7.9.158` 的行情合并路径;生产 `App-4QcrIawn.js` 不包含 `createRealtimePriceOverlayTick` 或 `usesExtendedEodhdPrice`,`SettingsTab-DfcxvG9T.js` / `settingsChangelog-5oQ0Pqpa.js` marker 验证通过;NOK 盘前涨跌幅仍需后续基于真实接口回包单独定位,不能再把截图推断出的口径套到所有股票。
 - `v10.7.9.158` 盘前稀疏成交实时价保护已完成部署和线上验证:NOK 这类盘前成交不密集股票的 WebSocket tick 会保存 `marketStatus`;美股盘前/盘后实时价保护窗口放宽到 30 分钟,避免几分钟前真实盘前成交价被自动/手动 REST 刷新打回常规盘价格。生产 `App-DHstK7zI.js`、`SettingsTab-BEMuXxlM.js` 和 `settingsChangelog-DbSFKm1d.js` marker 验证通过;交易账本、成本、持仓数量、资产、目标、英文模式、RLS 和 `/api/quote` 鉴权保持不变。

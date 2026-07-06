@@ -357,7 +357,7 @@ export default function DevVisualPreview() {
     ChevronDown,
     ChevronUp,
     db,
-    DisciplineModal: (props) => <DevModal title={props.initial?.isEdit ? '编辑戒律' : '添加戒律'} onCancel={props.onCancel} />,
+    DisciplineModal: (props) => <DevModal title={props.initial?.isEdit ? t(language, 'review.editDiscipline', '编辑戒律') : t(language, 'review.addDiscipline', '添加戒律')} onCancel={props.onCancel} />,
     disciplines,
     Edit2,
     editingDisciplineId,
@@ -367,7 +367,7 @@ export default function DevVisualPreview() {
     filterLevel,
     investmentPlan,
     lastSubmitRef,
-    LogModal: (props) => <DevModal title={props.onDelete ? '编辑复盘' : '写复盘'} onCancel={props.onCancel} />,
+    LogModal: (props) => <DevModal title={props.onDelete ? t(language, 'review.editReview', '编辑复盘') : t(language, 'review.addReview', '写复盘')} onCancel={props.onCancel} />,
     marketColorMode: 'redUpGreenDown',
     reviewLogs,
     setDisciplines,
@@ -397,7 +397,7 @@ export default function DevVisualPreview() {
     Trash2,
     usdRate: USD_RATE,
     X,
-    YearlyActualModal: (props) => <DevModal title={`${props.year} 年实际数据`} onCancel={props.onCancel} />,
+    YearlyActualModal: (props) => <DevModal title={t(language, 'review.actualDataTitle', '{{year}} 年实际数据', { year: props.year })} onCancel={props.onCancel} />,
     yearlyActuals,
   };
 

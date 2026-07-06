@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../lib/i18n.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -107,7 +108,7 @@ function UsFlagBackground({ strength = 0.56, shade = 0.36 }) {
   );
 }
 
-function ReviewActionSheet({ title, desc, children, onClose }) {
+function ReviewActionSheet({ title, desc, children, language = 'zh', onClose }) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
@@ -127,7 +128,7 @@ function ReviewActionSheet({ title, desc, children, onClose }) {
               type="button"
               onClick={onClose}
               className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 active:scale-90"
-              aria-label="关闭操作面板"
+              aria-label={t(language, 'review.closeRecordDetails', '关闭记录详情')}
             >
               ×
             </button>
@@ -168,7 +169,8 @@ function formatDisciplineDetailText(text) {
   });
 }
 
-function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onEdit, onTogglePin, onDelete }) {
+function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, language = 'zh', onClose, onEdit, onTogglePin, onDelete }) {
+  const tt = (key, fallback, values) => t(language, key, fallback, values);
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6 py-8 backdrop-blur-lg"
@@ -183,12 +185,12 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
       <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
         <UsFlagBackground strength={0.64} shade={0.5} />
         <div className="relative z-10 flex items-center justify-between gap-3">
-          <h2 className="text-[18px] font-semibold tracking-normal text-white">记录详情</h2>
+          <h2 className="text-[18px] font-semibold tracking-normal text-white">{tt('review.recordDetails', '记录详情')}</h2>
           <button
             type="button"
             onClick={onClose}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/52 active:scale-90"
-            aria-label="关闭记录详情"
+            aria-label={tt('review.closeRecordDetails', '关闭记录详情')}
           >
             {X ? <X className="h-4 w-4" strokeWidth={1.8} /> : '×'}
           </button>
@@ -205,7 +207,7 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
             className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
           >
             {Edit2 && <Edit2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>修改</span>
+            <span>{tt('review.edit', '修改')}</span>
           </button>
           <button
             type="button"
@@ -213,7 +215,7 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
             className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
           >
             {Trash2 && <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>删除</span>
+            <span>{tt('review.delete', '删除')}</span>
           </button>
           <button
             type="button"
@@ -221,7 +223,7 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, onClose, onE
             className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/[0.045] px-2 text-[12px] font-normal text-emerald-200/80 active:scale-95"
           >
             {Pin && <Pin className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>{discipline.pinned ? '取消置顶' : '置顶'}</span>
+            <span>{discipline.pinned ? tt('review.unpin', '取消置顶') : tt('review.pin', '置顶')}</span>
           </button>
         </div>
       </div>
@@ -243,7 +245,8 @@ function formatReviewLogDetailText(text) {
   });
 }
 
-function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete }) {
+function ReviewLogDetailModal({ log, Edit2, Trash2, X, language = 'zh', onClose, onEdit, onDelete }) {
+  const tt = (key, fallback, values) => t(language, key, fallback, values);
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6 py-8 backdrop-blur-lg"
@@ -258,12 +261,12 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
       <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
         <UsFlagBackground strength={0.58} shade={0.52} />
         <div className="relative z-10 flex items-center justify-between gap-3">
-          <h2 className="text-[18px] font-semibold tracking-normal text-white">复盘详情</h2>
+          <h2 className="text-[18px] font-semibold tracking-normal text-white">{tt('review.reviewDetails', '复盘详情')}</h2>
           <button
             type="button"
             onClick={onClose}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/52 active:scale-90"
-            aria-label="关闭复盘详情"
+            aria-label={tt('review.closeReviewDetails', '关闭复盘详情')}
           >
             {X ? <X className="h-4 w-4" strokeWidth={1.8} /> : '×'}
           </button>
@@ -285,7 +288,7 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
             className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
           >
             {Edit2 && <Edit2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>修改</span>
+            <span>{tt('review.edit', '修改')}</span>
           </button>
           <button
             type="button"
@@ -293,7 +296,7 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
             className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
           >
             {Trash2 && <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>删除</span>
+            <span>{tt('review.delete', '删除')}</span>
           </button>
         </div>
       </div>
@@ -304,6 +307,7 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, onClose, onEdit, onDelete
 function CompoundDetailModal({
   X,
   currentBalance,
+  language = 'zh',
   money,
   onClose,
   planRows,
@@ -317,6 +321,7 @@ function CompoundDetailModal({
   totalYears,
   rate,
 }) {
+  const tt = (key, fallback, values) => t(language, key, fallback, values);
   const displayRows = planRows.map((row) => ({
     ...row,
     displayAnnualGain: row.annualGain * rate,
@@ -383,21 +388,21 @@ function CompoundDetailModal({
             type="button"
             onClick={onClose}
             className="absolute right-0 top-[-2px] flex h-8 w-8 items-center justify-center rounded-full text-white/45 active:scale-90"
-            aria-label="关闭复利明细"
+            aria-label={tt('review.closeRecordDetails', '关闭记录详情')}
           >
             {X ? <X className="h-4 w-4" strokeWidth={1.7} /> : '×'}
           </button>
-          <h2 className="text-[16px] font-semibold leading-none text-[#ffd18a]">{totalYears}年复利明细</h2>
+          <h2 className="text-[16px] font-semibold leading-none text-[#ffd18a]">{tt('review.compoundTitle', '{{years}}年复利明细', { years: totalYears })}</h2>
           <div className="mt-2 text-[12px] leading-none text-white/45">
-            本金 {money(startCapital)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
+            {tt('review.principalAnnual', '本金 {{principal}} · 年化 {{rate}}%', { principal: money(startCapital), rate: (targetAnnualRate * 100).toFixed(0) })}
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 rounded-2xl border border-[#232b36]/80 bg-white/[0.032] py-3">
           {[
-            { label: '目标终值', value: money(targetValue), valueClass: 'text-[#ffd18a]' },
-            { label: '累计收益', value: signedMoney(targetGain), valueClass: 'text-rose-400' },
-            { label: '复利倍数', value: `${multiple.toFixed(2)}x`, valueClass: 'text-[#ffd18a]' },
+            { label: tt('review.targetFinal', '目标终值'), value: money(targetValue), valueClass: 'text-[#ffd18a]' },
+            { label: tt('review.accumulatedGain', '累计收益'), value: signedMoney(targetGain), valueClass: 'text-rose-400' },
+            { label: tt('review.compoundMultiple', '复利倍数'), value: `${multiple.toFixed(2)}x`, valueClass: 'text-[#ffd18a]' },
           ].map((item, index) => (
             <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-[#232b36]/90' : ''}`}>
               <div className="text-[11px] text-[#8a909a]">{item.label}</div>
@@ -411,16 +416,16 @@ function CompoundDetailModal({
         <div className="mt-2.5 rounded-2xl border border-[#232b36]/80 bg-white/[0.025] px-3 py-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[11px] text-[#8a909a]">实际进度</div>
+              <div className="text-[11px] text-[#8a909a]">{tt('review.actualProgress', '实际进度')}</div>
               <div className="mt-1 truncate text-[12px] text-white/68">
-                当前 <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
+                {tt('review.current', '当前')} <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
                 <span className="mx-1.5 text-white/22">·</span>
-                实际收益 <span className="text-rose-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
+                {tt('review.actualGain', '实际收益')} <span className="text-rose-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
               </div>
             </div>
             <div className="shrink-0 text-right">
               <div className="text-[15px] leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</div>
-              <div className="mt-1 text-[10px] text-[#8a909a]">完成度</div>
+              <div className="mt-1 text-[10px] text-[#8a909a]">{tt('review.completion', '完成度')}</div>
             </div>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
@@ -432,12 +437,12 @@ function CompoundDetailModal({
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <h3 className="text-[14px] font-semibold text-[#d9dde4]">账户曲线</h3>
-          <span className="text-[11px] text-white/40">金额单位: {symbol === '¥' ? '百万元人民币' : '百万美元'}</span>
+          <h3 className="text-[14px] font-semibold text-[#d9dde4]">{tt('review.accountCurve', '账户曲线')}</h3>
+          <span className="text-[11px] text-white/40">{tt('review.amountUnit', '金额单位: {{unit}}', { unit: symbol === '¥' ? tt('review.unitCnyMillion', '百万元人民币') : tt('review.unitUsdMillion', '百万美元') })}</span>
         </div>
 
         <div className="mt-2 rounded-[18px] border border-[#202733] bg-black/[0.12] px-2 py-2.5">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[164px] w-full overflow-visible" aria-label="复利账户曲线">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-[164px] w-full overflow-visible" aria-label={tt('review.compoundCurveAria', '复利账户曲线')}>
             <defs>
               <linearGradient id="compoundLineGradient" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="#f6b54b" />
@@ -477,11 +482,11 @@ function CompoundDetailModal({
         </div>
 
         <div className="mt-4 rounded-[18px] border border-[#202733] bg-white/[0.035] px-3 py-3">
-          <h3 className="text-[14px] font-semibold text-[#d9dde4]">每年收益</h3>
+          <h3 className="text-[14px] font-semibold text-[#d9dde4]">{tt('review.yearlyIncome', '每年收益')}</h3>
           <div className="mt-3 grid grid-cols-[0.75fr_1fr_1.15fr] border-b border-[#202733] pb-2 text-[11px] text-[#8a909a]">
-            <span>年份</span>
-            <span className="text-right">年收益</span>
-            <span className="text-right">期末资产</span>
+            <span>{tt('review.year', '年份')}</span>
+            <span className="text-right">{tt('review.annualGain', '年收益')}</span>
+            <span className="text-right">{tt('review.yearEndAssets', '期末资产')}</span>
           </div>
           <div className="divide-y divide-[#202733]">
             {displayRows.map((row) => (
@@ -492,7 +497,7 @@ function CompoundDetailModal({
               </div>
             ))}
           </div>
-          <div className="mt-2 text-center text-[11px] text-white/35">收益按年复利计算</div>
+          <div className="mt-2 text-center text-[11px] text-white/35">{tt('review.compoundNote', '收益按年复利计算')}</div>
         </div>
       </div>
     </div>
@@ -514,6 +519,7 @@ export default function ReviewTab({ ctx }) {
     filterLevel,
     investmentPlan,
     lastSubmitRef,
+    language = 'zh',
     LogModal,
     marketColorMode,
     reviewLogs,
@@ -552,6 +558,7 @@ export default function ReviewTab({ ctx }) {
   const [disciplineAction, setDisciplineAction] = React.useState(null);
   const [reviewLogAction, setReviewLogAction] = React.useState(null);
   const [showCompoundDetails, setShowCompoundDetails] = React.useState(false);
+  const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
 
   const plan = investmentPlan || {};
   const startYear = toNumber(plan.startYear, new Date().getFullYear());
@@ -691,10 +698,10 @@ export default function ReviewTab({ ctx }) {
   const deleteDiscipline = (discipline) => {
     setDisciplineAction(null);
     showConfirm({
-      title: '删除这条戒律?',
-      desc: '此操作不可撤销',
+      title: tt('review.deleteDisciplineTitle', '删除这条戒律?'),
+      desc: tt('review.irreversible', '此操作不可撤销'),
       info: (discipline?.text || '').slice(0, 50) + ((discipline?.text || '').length > 50 ? '...' : ''),
-      confirmText: '删除',
+      confirmText: tt('review.delete', '删除'),
       onConfirm: async () => {
         await db.deleteDiscipline(discipline.id);
         setDisciplines((disciplines || []).filter((item) => item.id !== discipline.id));
@@ -712,10 +719,10 @@ export default function ReviewTab({ ctx }) {
     if (!logId) return;
     setReviewLogAction(null);
     showConfirm({
-      title: '删除这条复盘?',
-      desc: '此操作不可撤销',
+      title: tt('review.deleteReviewTitle', '删除这条复盘?'),
+      desc: tt('review.irreversible', '此操作不可撤销'),
       info: `${log?.date || ''} · ${(log?.text || '').slice(0, 40)}${(log?.text || '').length > 40 ? '...' : ''}`,
-      confirmText: '删除',
+      confirmText: tt('review.delete', '删除'),
       onConfirm: async () => {
         await db.deleteReviewLog(logId);
         setReviewLogs((reviewLogs || []).filter((item) => item.id !== logId));
@@ -790,7 +797,7 @@ export default function ReviewTab({ ctx }) {
             setShowCompoundDetails(true);
           }
         }}
-        aria-label="查看北极星复利明细"
+        aria-label={tt('review.openCompoundDetails', '查看北极星复利明细')}
       >
         <span className="review-star left-[58%] top-[16%] h-1 w-1" />
         <span className="review-star left-[74%] top-[34%] h-0.5 w-0.5" style={{ animationDelay: '0.7s' }} />
@@ -800,7 +807,7 @@ export default function ReviewTab({ ctx }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[13px] font-normal text-white/70">
               <span className="text-[14px] text-[#ffd18a]">★</span>
-              <span>北极星目标</span>
+              <span>{tt('review.polarisGoal', '北极星目标')}</span>
             </div>
           </div>
           <div className="flex shrink-0 rounded-full border border-white/10 bg-black/20 p-0.5">
@@ -829,12 +836,12 @@ export default function ReviewTab({ ctx }) {
           <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{headlineGoalMoney.decimal}</span>
         </div>
         <div className="relative z-10 mt-2 text-[12px] text-white/55">
-          {totalYears} 年目标 · {ageGoalAge || '--'} 岁实现
+          {tt('review.goalSubtitle', '{{years}} 年目标 · {{age}} 岁实现', { years: totalYears, age: ageGoalAge || '--' })}
         </div>
 
         <div className="relative z-10 mt-5">
           <div className="mb-2 flex items-center justify-between text-[13px] font-normal text-[#ffd18a]">
-            <span>当前 {money(currentBalance)}</span>
+            <span>{tt('review.currentAmount', '当前 {{amount}}', { amount: money(currentBalance) })}</span>
             <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</span>
           </div>
           <div className="h-2.5 rounded-full bg-white/[0.075]">
@@ -848,7 +855,7 @@ export default function ReviewTab({ ctx }) {
             />
           </div>
           <div className="mt-3 text-[12px] text-white/50">
-            还剩 {yearsLeft} 年 · 本金 {money(startCapital)} · 年化 {(targetAnnualRate * 100).toFixed(0)}%
+            {tt('review.yearsLeftLine', '还剩 {{years}} 年 · 本金 {{principal}} · 年化 {{rate}}%', { years: yearsLeft, principal: money(startCapital), rate: (targetAnnualRate * 100).toFixed(0) })}
           </div>
         </div>
 
@@ -856,7 +863,7 @@ export default function ReviewTab({ ctx }) {
           {plan.motto ? (
             <div className="min-w-0 truncate text-[12px] leading-tight text-[#ffd18a]">“{plan.motto}”</div>
           ) : (
-            <div className="text-[12px] text-white/35">设置一句目标提醒</div>
+            <div className="text-[12px] text-white/35">{tt('review.goalReminderPlaceholder', '设置一句目标提醒')}</div>
           )}
           <button
             type="button"
@@ -867,7 +874,7 @@ export default function ReviewTab({ ctx }) {
             onKeyDown={(event) => event.stopPropagation()}
             className="shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] font-normal text-white/65 active:scale-95"
           >
-            设置
+            {tt('review.settings', '设置')}
           </button>
         </div>
       </section>
@@ -876,7 +883,7 @@ export default function ReviewTab({ ctx }) {
         <div className="mb-3 flex items-center justify-between gap-3 px-2">
           <div className="flex items-center gap-2">
             {Target ? <Target className="h-4 w-4 text-[#f6b54b]" /> : <Calendar className="h-4 w-4 text-[#f6b54b]" />}
-            <div className="text-[15px] font-semibold text-white">年度目标</div>
+            <div className="text-[15px] font-semibold text-white">{tt('review.annualGoals', '年度目标')}</div>
           </div>
           {yearlyFinal.length > 3 && (
             <button
@@ -884,7 +891,7 @@ export default function ReviewTab({ ctx }) {
               onClick={() => setShowAllYears(!showAllYears)}
               className="flex items-center gap-1 rounded-xl px-2 py-1 text-[12px] text-white/45 active:scale-95"
             >
-              {showAllYears ? '收起' : `展开剩余 ${hiddenYearCount} 年`}
+              {showAllYears ? tt('review.collapse', '收起') : tt('review.expandMoreYears', '展开剩余 {{count}} 年', { count: hiddenYearCount })}
               {showAllYears ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
           )}
@@ -901,7 +908,9 @@ export default function ReviewTab({ ctx }) {
             const yearProgressPct = isCurrent && hasActual && yearItem.planTarget > 0
               ? clamp((yearItem.actualGain / yearItem.planTarget) * 100, 0, 150)
               : 0;
-            const projectedLabel = yearItem.isProjected ? '未开始' : isOverTarget ? '达标' : '未达';
+            const projectedLabel = yearItem.isProjected
+              ? tt('review.notStarted', '未开始')
+              : isOverTarget ? tt('review.reached', '达标') : tt('review.behind', '未达');
             const currentYearTarget = yearItem.startBalance + yearItem.planTarget;
             const previousYear = yearIndex > 0 ? yearlyFinal[yearIndex - 1] : null;
             const plannedStartBalance = previousYear
@@ -919,7 +928,7 @@ export default function ReviewTab({ ctx }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <div className="text-[22px] font-semibold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
-                      <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">本年</span>
+                      <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">{tt('review.thisYear', '本年')}</span>
                       <span className={`rounded-md border px-1.5 py-0.5 text-[10px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
                     </div>
                   </div>
@@ -927,43 +936,47 @@ export default function ReviewTab({ ctx }) {
                   <div className="mt-5 grid grid-cols-[minmax(0,1fr)_124px] items-start gap-2.5">
                     <div className="min-w-0 pt-1">
                       <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[12px] text-white/50">
-                        <span className="whitespace-nowrap">计划 {signedMoney(yearItem.planTarget)}</span>
+                        <span className="whitespace-nowrap">{tt('review.planned', '计划')} {signedMoney(yearItem.planTarget)}</span>
                         <span className="text-white/25">→</span>
-                        <span>实际</span>
+                        <span>{tt('review.actual', '实际')}</span>
                       </div>
                       <div className={`mt-1 whitespace-nowrap text-[20px] font-normal tabular-nums ${hasActual ? pnlTextClass(yearItem.actualGain) : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {hasActual ? signedMoney(yearItem.actualGain) : '待填写'}
+                        {hasActual ? signedMoney(yearItem.actualGain) : tt('review.pending', '待填写')}
                       </div>
                     </div>
                     <div className="w-full shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2 text-[11px] leading-relaxed">
                       <div className="whitespace-nowrap text-white/62">
-                        目标 <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</span>
+                        {tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</span>
                       </div>
                       <div className={`mt-0.5 whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : pnlTextClass(targetGap)}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {targetGap === null ? '待填写' : `${targetGap < 0 ? '超额' : '落后'} ${money(Math.abs(targetGap))}`}
+                        {targetGap === null
+                          ? tt('review.pending', '待填写')
+                          : targetGap < 0
+                            ? tt('review.exceededAmount', '超额 {{amount}}', { amount: money(Math.abs(targetGap)) })
+                            : tt('review.behindAmount', '落后 {{amount}}', { amount: money(Math.abs(targetGap)) })}
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-white/[0.035] px-3 py-3">
                     <div>
-                      <div className="text-[11px] text-white/40">起点</div>
+                      <div className="text-[11px] text-white/40">{tt('review.start', '起点')}</div>
                       <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-center">
-                      <div className="text-[11px] text-white/40">当前</div>
+                      <div className="text-[11px] text-white/40">{tt('review.current', '当前')}</div>
                       <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-right">
-                      <div className="text-[11px] text-white/40">目标</div>
+                      <div className="text-[11px] text-white/40">{tt('review.target', '目标')}</div>
                       <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
                     </div>
                   </div>
 
                   <div className="mt-4 flex items-center gap-3">
-                    <span className="shrink-0 text-[13px] text-white/65">本年完成</span>
+                    <span className="shrink-0 text-[13px] text-white/65">{tt('review.yearProgress', '本年完成')}</span>
                     <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.075]">
                       <div
                         className="progress-shine h-full rounded-full"
@@ -990,7 +1003,7 @@ export default function ReviewTab({ ctx }) {
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                       <span className="text-[22px] font-semibold leading-none text-white/55 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</span>
-                      <span className="text-[11px] text-white/35">计划 {signedMoney(yearItem.planTarget)} → 目标 {money(yearItem.endBalance)}</span>
+                      <span className="text-[11px] text-white/35">{tt('review.plannedTargetLine', '计划 {{planned}} → 目标 {{target}}', { planned: signedMoney(yearItem.planTarget), target: money(yearItem.endBalance) })}</span>
                     </div>
                   </div>
                   <span className="shrink-0 rounded-lg border border-sky-400/15 bg-sky-400/10 px-2.5 py-1 text-[11px] text-sky-200/70">{projectedLabel}</span>
@@ -998,12 +1011,12 @@ export default function ReviewTab({ ctx }) {
 
                 <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-black/15 px-3 py-3">
                   <div>
-                    <div className="text-[11px] text-white/38">起点</div>
+                    <div className="text-[11px] text-white/38">{tt('review.start', '起点')}</div>
                     <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance)}</div>
                   </div>
                   <div className="px-4 text-white/25">→</div>
                   <div className="text-right">
-                    <div className="text-[11px] text-white/38">目标</div>
+                    <div className="text-[11px] text-white/38">{tt('review.target', '目标')}</div>
                     <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                   </div>
                 </div>
@@ -1011,7 +1024,7 @@ export default function ReviewTab({ ctx }) {
                 <div className="mt-3">
                   <div className="flex items-center justify-between text-[12px] text-white/45">
                     <span className="flex items-center gap-1">
-                      增长目标
+                      {tt('review.growthTarget', '增长目标')}
                       <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/20 text-[9px] text-white/45">i</span>
                     </span>
                     <span className="text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget)}</span>
@@ -1037,7 +1050,7 @@ export default function ReviewTab({ ctx }) {
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b]"
           >
             {showAllYears ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            {showAllYears ? '收起年度目标' : `展开剩余 ${hiddenYearCount} 年`}
+            {showAllYears ? tt('review.collapseAnnualGoals', '收起年度目标') : tt('review.expandMoreYears', '展开剩余 {{count}} 年', { count: hiddenYearCount })}
           </button>
         )}
       </section>
@@ -1047,7 +1060,7 @@ export default function ReviewTab({ ctx }) {
           <div className="flex min-w-0 items-center gap-3">
             <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
+              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">{tt('review.disciplines', '投资戒律')}</div>
             </div>
           </div>
           <button
@@ -1056,7 +1069,7 @@ export default function ReviewTab({ ctx }) {
             className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-3.5 text-[13px] font-normal text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] active:scale-95"
           >
             <span className="text-[20px] font-light leading-none text-white/78">+</span>
-            <span>添加</span>
+            <span>{tt('review.add', '添加')}</span>
           </button>
         </div>
 
@@ -1066,7 +1079,7 @@ export default function ReviewTab({ ctx }) {
             onClick={() => setFilterLevel('all')}
             className={`h-9 shrink-0 rounded-full border px-2.5 text-[12px] font-normal active:scale-95 ${filterLevel === 'all' ? 'border-white/[0.09] bg-white/[0.055] text-white/82' : 'border-white/[0.055] bg-white/[0.03] text-white/48'}`}
           >
-            全部 ({disciplines.length})
+            {tt('review.allCount', '全部 ({{count}})', { count: disciplines.length })}
           </button>
           {DISCIPLINE_LEVELS.map((item) => {
             const count = disciplines.filter((discipline) => discipline.level === item.level).length;
@@ -1086,7 +1099,7 @@ export default function ReviewTab({ ctx }) {
 
         {disciplines.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
-            还没有投资戒律
+            {tt('review.noDisciplines', '还没有投资戒律')}
           </div>
         ) : (
           <>
@@ -1121,7 +1134,7 @@ export default function ReviewTab({ ctx }) {
                         <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
                         <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
                           <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>
-                          {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">置顶</span>}
+                          {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{tt('review.pinned', '置顶')}</span>}
                           {isLong && (
                             <span
                               role="button"
@@ -1139,7 +1152,7 @@ export default function ReviewTab({ ctx }) {
                               }}
                               className="inline-flex items-center gap-1 text-white/38"
                             >
-                              {isExpanded ? '收起全文' : '展开全文'} <span className="text-[13px] leading-none text-white/28">›</span>
+                              {isExpanded ? tt('review.collapseFullText', '收起全文') : tt('review.expandFullText', '展开全文')} <span className="text-[13px] leading-none text-white/28">›</span>
                             </span>
                           )}
                         </div>
@@ -1157,7 +1170,7 @@ export default function ReviewTab({ ctx }) {
                 className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-white/[0.07] bg-white/[0.035] py-2.5 text-[12px] font-normal text-white/48 active:scale-95"
               >
                 {showAllDisciplines ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                {showAllDisciplines ? '收起, 只看前 10 条' : `查看全部 ${filteredDisciplines.length} 条`}
+                {showAllDisciplines ? tt('review.collapseFirstTen', '收起, 只看前 10 条') : tt('review.viewAllCount', '查看全部 {{count}} 条', { count: filteredDisciplines.length })}
               </button>
             )}
           </>
@@ -1169,7 +1182,7 @@ export default function ReviewTab({ ctx }) {
           <div className="flex min-w-0 items-center gap-3">
             <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">复盘日志</div>
+              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">{tt('review.reviewLogs', '复盘日志')}</div>
             </div>
           </div>
           <button
@@ -1178,13 +1191,13 @@ export default function ReviewTab({ ctx }) {
             className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-3.5 text-[13px] font-normal text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] active:scale-95"
           >
             <span className="text-[20px] font-light leading-none text-white/78">+</span>
-            <span>写复盘</span>
+            <span>{tt('review.writeReview', '写复盘')}</span>
           </button>
         </div>
 
         {reviewLogs.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
-            还没有复盘
+            {tt('review.noReviewLogs', '还没有复盘')}
           </div>
         ) : (
           <>
@@ -1210,7 +1223,7 @@ export default function ReviewTab({ ctx }) {
                     <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
                     {isLong && (
                       <div className="mt-2 text-[12px] text-white/38">
-                        查看全文 <span className="text-[13px] leading-none text-white/28">›</span>
+                        {tt('review.viewFullText', '查看全文')} <span className="text-[13px] leading-none text-white/28">›</span>
                       </div>
                     )}
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
@@ -1228,7 +1241,7 @@ export default function ReviewTab({ ctx }) {
                 className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-white/[0.07] bg-white/[0.035] py-2.5 text-[12px] font-normal text-white/48 active:scale-95"
               >
                 {showAllLogs ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                {showAllLogs ? '收起, 只看前 10 条' : `查看全部 ${reviewLogs.length} 条`}
+                {showAllLogs ? tt('review.collapseFirstTen', '收起, 只看前 10 条') : tt('review.viewAllCount', '查看全部 {{count}} 条', { count: reviewLogs.length })}
               </button>
             )}
           </>
@@ -1239,6 +1252,7 @@ export default function ReviewTab({ ctx }) {
         <CompoundDetailModal
           X={X}
           currentBalance={currentBalance}
+          language={language}
           money={money}
           onClose={() => setShowCompoundDetails(false)}
           planRows={compoundPlanRows}
@@ -1256,8 +1270,13 @@ export default function ReviewTab({ ctx }) {
 
       {yearAction && (
         <ReviewActionSheet
-          title="年度目标操作"
-          desc={`${yearAction.year} · 计划 ${signedMoney(yearAction.planTarget)} · 目标 ${money(yearAction.startBalance + yearAction.planTarget)}`}
+          title={tt('review.yearActions', '年度目标操作')}
+          desc={tt('review.yearActionDesc', '{{year}} · 计划 {{planned}} · 目标 {{target}}', {
+            year: yearAction.year,
+            planned: signedMoney(yearAction.planTarget),
+            target: money(yearAction.startBalance + yearAction.planTarget),
+          })}
+          language={language}
           onClose={() => setYearAction(null)}
         >
           <button
@@ -1265,14 +1284,14 @@ export default function ReviewTab({ ctx }) {
             onClick={() => openYearEdit(yearAction.year)}
             className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[13px] font-normal text-[#f6b54b] active:scale-95"
           >
-            修改年度数据
+            {tt('review.editYearData', '修改年度数据')}
           </button>
           <button
             type="button"
             onClick={() => setYearAction(null)}
             className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/80 active:scale-95"
           >
-            取消
+            {tt('review.cancel', '取消')}
           </button>
         </ReviewActionSheet>
       )}
@@ -1281,6 +1300,7 @@ export default function ReviewTab({ ctx }) {
         <DisciplineDetailModal
           discipline={disciplineAction}
           Edit2={Edit2}
+          language={language}
           Pin={Pin}
           Trash2={Trash2}
           X={X}
@@ -1295,6 +1315,7 @@ export default function ReviewTab({ ctx }) {
         <ReviewLogDetailModal
           log={reviewLogAction}
           Edit2={Edit2}
+          language={language}
           Trash2={Trash2}
           X={X}
           onClose={() => setReviewLogAction(null)}
@@ -1316,14 +1337,14 @@ export default function ReviewTab({ ctx }) {
         >
           <div className="w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 40px)' }} onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[16px] font-semibold text-white">北极星设置</h3>
+              <h3 className="text-[16px] font-semibold text-white">{tt('review.planSettings', '北极星设置')}</h3>
               <button type="button" onClick={() => setShowPlanSettings(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/50">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-3">
               <label className="block">
-                <span className="mb-1 block text-[11px] text-white/50">基础本金 ({symbol})</span>
+                <span className="mb-1 block text-[11px] text-white/50">{tt('review.basePrincipal', '基础本金 ({{symbol}})', { symbol })}</span>
                 <input
                   type="number"
                   value={Math.round(startCapital * rate)}
@@ -1333,7 +1354,7 @@ export default function ReviewTab({ ctx }) {
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11px] text-white/50">年化目标 (%)</span>
+                <span className="mb-1 block text-[11px] text-white/50">{tt('review.annualTarget', '年化目标 (%)')}</span>
                 <input
                   type="number"
                   value={(targetAnnualRate * 100).toFixed(0)}
@@ -1344,7 +1365,7 @@ export default function ReviewTab({ ctx }) {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-white/50">起始年</span>
+                  <span className="mb-1 block text-[11px] text-white/50">{tt('review.startYear', '起始年')}</span>
                   <input
                     type="number"
                     value={plan.startYear === '' ? '' : startYear}
@@ -1354,7 +1375,7 @@ export default function ReviewTab({ ctx }) {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-white/50">总年数</span>
+                  <span className="mb-1 block text-[11px] text-white/50">{tt('review.totalYears', '总年数')}</span>
                   <input
                     type="number"
                     value={plan.totalYears === '' ? '' : totalYears}
@@ -1365,7 +1386,7 @@ export default function ReviewTab({ ctx }) {
                 </label>
               </div>
               <label className="block">
-                <span className="mb-1 block text-[11px] text-white/50">目标年龄</span>
+                <span className="mb-1 block text-[11px] text-white/50">{tt('review.targetAge', '目标年龄')}</span>
                 <input
                   type="number"
                   value={plan.ageGoalAge === '' ? '' : ageGoalAge}
@@ -1375,22 +1396,22 @@ export default function ReviewTab({ ctx }) {
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11px] text-white/50">个人箴言</span>
+                <span className="mb-1 block text-[11px] text-white/50">{tt('review.motto', '个人箴言')}</span>
                 <textarea
                   value={plan.motto || ''}
                   onChange={(event) => setInvestmentPlan({ ...plan, motto: event.target.value })}
                   rows={2}
                   className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
                   style={{ colorScheme: 'dark' }}
-                  placeholder="例: 我要变得很有钱!"
+                  placeholder={tt('review.mottoPlaceholder', '例: 我要变得很有钱!')}
                 />
               </label>
               <div className="rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/10 px-3 py-2 text-[11px] text-[#ffd18a]">
-                按此计划 {totalYears} 年后将达 {money(ageGoalAmount)}
+                {tt('review.planReach', '按此计划 {{years}} 年后将达 {{amount}}', { years: totalYears, amount: money(ageGoalAmount) })}
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setShowPlanSettings(false)} className="rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-[13px] text-white/70 active:scale-95">取消</button>
+              <button type="button" onClick={() => setShowPlanSettings(false)} className="rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-[13px] text-white/70 active:scale-95">{tt('review.cancel', '取消')}</button>
               <button
                 type="button"
                 onClick={async () => {
@@ -1403,7 +1424,7 @@ export default function ReviewTab({ ctx }) {
                 }}
                 className="rounded-xl bg-[#f6b54b] py-2.5 text-[13px] font-semibold text-[#101318] active:scale-95"
               >
-                保存
+                {tt('review.save', '保存')}
               </button>
             </div>
           </div>
@@ -1416,6 +1437,7 @@ export default function ReviewTab({ ctx }) {
         return (
           <DisciplineModal
             initial={current ? { ...current, isEdit: true } : { level: '🟢', text: '', pinned: false }}
+            language={language}
             onCancel={() => { setShowAddDiscipline(false); setEditingDisciplineId(null); }}
             onSave={async (data) => {
               try {
@@ -1447,6 +1469,7 @@ export default function ReviewTab({ ctx }) {
         return (
           <LogModal
             initial={current || { date: new Date().toISOString().slice(0, 10), mood: '', text: '' }}
+            language={language}
             onCancel={() => { setShowAddLog(false); setEditingLogId(null); }}
             onDelete={isEdit ? () => deleteReviewLog(current) : null}
             onSave={async (data) => {
@@ -1481,6 +1504,7 @@ export default function ReviewTab({ ctx }) {
             year={year}
             initial={existing || { actualGain: null, endBalance: null }}
             currency={displayCurrency}
+            language={language}
             rate={isCNY ? rate : 1}
             onCancel={() => setEditYearlyActualId(null)}
             onSave={async (actualGain, endBalance) => {
