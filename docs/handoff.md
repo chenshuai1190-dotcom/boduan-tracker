@@ -6,13 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮目标页英文模式代码提交推送后回填实际 runtime commit。
-- 当前运行时代码提交: pending,本轮为 `v10.7.9.166` 目标页英文模式。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `ac3daff06a879046163493bf6a1d8d8c3420b487`。
+- 当前运行时代码提交: `ac3daff06a879046163493bf6a1d8d8c3420b487`。
 - 设置页版本: `v10.7.9.166`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: pending,本轮提交推送到 GitHub `main` 后触发 `v10.7.9.166` 自动部署和线上 marker 验证。
+- 最新运行时 Vercel 部署: success, `v10.7.9.166` production marker verified for runtime code commit `ac3daff06a879046163493bf6a1d8d8c3420b487`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: pending,本轮 `v10.7.9.166` 部署后需确认生产 active assets 包含目标页英文 key、设置页 `v10.7.9.166` 和更新日志 `目标页英文模式`;同时确认未登录 `GET /api/quote?symbols=VIX` 返回 `401`,普通 `GET /api/stocks-realtime` 返回 `426`。
+- 线上关键验证: 生产 active assets 包含 `index-BpjDRzTO.js`、`App-tl3yz47a.js`、`i18n-DqUNzBZy.js`、`ReviewTab-RfDKcroI.js`、`SettingsTab-BKaQ_fvh.js` 和 `settingsChangelog-BiSWurwW.js`;`i18n-DqUNzBZy.js` 包含 `Polaris Goal`、`Annual Goals`、`Investment Rules` 和 `Review Log`;`ReviewTab-RfDKcroI.js` 包含目标页英文 key;`SettingsTab-BKaQ_fvh.js` 包含 `v10.7.9.166`;`settingsChangelog-BiSWurwW.js` 包含 `v10.7.9.166` 和 `目标页英文模式`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.166` 只把目标页系统文案接入语言框架,用户自己写的戒律、复盘、目标箴言和心情保持原文;目标页主体结构、年度目标计算、复利计算、数据库路径、行情和鉴权不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -20,13 +20,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: pending,本轮 `v10.7.9.166` 目标页英文模式提交推送后回填。
-- 最近应用代码提交: pending,本轮 `v10.7.9.166` 目标页英文模式提交推送后回填。
+- 当前产品基准提交: `ac3daff06a879046163493bf6a1d8d8c3420b487` (`v10.7.9.166`,目标页英文模式)
+- 最近应用代码提交: `ac3daff06a879046163493bf6a1d8d8c3420b487`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.166`
-- Vercel 最新运行时部署: pending,本轮提交推送到 GitHub `main` 后触发自动部署。
+- Vercel 最新运行时部署: success, `v10.7.9.166` production marker verified for runtime code commit `ac3daff06a879046163493bf6a1d8d8c3420b487`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: pending,本轮 `v10.7.9.166` 部署后回填 active assets、marker 和 API 鉴权验证。
+- Vercel 部署记录: runtime code commit `ac3daff06a879046163493bf6a1d8d8c3420b487`;production `GET https://boduan-tracker.vercel.app/?v=goals-en-166-ac3daff-*` HTTP 200;active runtime assets include `index-BpjDRzTO.js`, `App-tl3yz47a.js`, `i18n-DqUNzBZy.js`, `ReviewTab-RfDKcroI.js`, `SettingsTab-BKaQ_fvh.js`, and `settingsChangelog-BiSWurwW.js`;`i18n-DqUNzBZy.js` contains `Polaris Goal`, `Annual Goals`, `Investment Rules` and `Review Log`;`ReviewTab-RfDKcroI.js` contains target-page English keys;`SettingsTab-BKaQ_fvh.js` contains `v10.7.9.166`;`settingsChangelog-BiSWurwW.js` contains `v10.7.9.166` and `目标页英文模式`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮目标页英文模式代码提交推送后回填实际 runtime commit
-当前产品基准提交: pending (`v10.7.9.166`,目标页英文模式)
-最近应用代码提交: pending (`v10.7.9.166`,目标页英文模式)
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `ac3daff06a879046163493bf6a1d8d8c3420b487`
+当前产品基准提交: `ac3daff06a879046163493bf6a1d8d8c3420b487` (`v10.7.9.166`,目标页英文模式)
+最近应用代码提交: `ac3daff06a879046163493bf6a1d8d8c3420b487`
 设置页版本: `v10.7.9.166`
-Vercel 最新运行时部署: pending,本轮提交推送到 GitHub main 后触发自动部署和线上 marker 验证
+Vercel 最新运行时部署: success, `v10.7.9.166` production marker verified for runtime code commit `ac3daff06a879046163493bf6a1d8d8c3420b487`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: pending,本轮 `v10.7.9.166` 部署后回填 active assets、设置页/更新日志/目标页英文 marker 和 API 鉴权验证
+部署记录: runtime code commit `ac3daff06a879046163493bf6a1d8d8c3420b487`;production HTTP 200;active runtime assets include `index-BpjDRzTO.js`, `App-tl3yz47a.js`, `i18n-DqUNzBZy.js`, `ReviewTab-RfDKcroI.js`, `SettingsTab-BKaQ_fvh.js`, and `settingsChangelog-BiSWurwW.js`;`i18n-DqUNzBZy.js` contains `Polaris Goal`, `Annual Goals`, `Investment Rules` and `Review Log`;`ReviewTab-RfDKcroI.js` contains target-page English keys;`SettingsTab-BKaQ_fvh.js` contains `v10.7.9.166`;`settingsChangelog-BiSWurwW.js` contains `v10.7.9.166` and `目标页英文模式`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,7 +629,7 @@ Vercel 最新运行时部署: pending,本轮提交推送到 GitHub main 后触�
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.166` 目标页英文模式:目标页北极星目标、年度目标、投资戒律、复盘日志、详情弹窗、复利明细弹窗和目标页表单弹窗接入英文系统文案;用户自己写的戒律、复盘、目标箴言和心情保持原文;目标页主体结构、年度目标/复利计算、数据库路径、行情和鉴权不变。本轮部署后需回填线上 marker。
+- `v10.7.9.166` 目标页英文模式已完成部署和线上验证:目标页北极星目标、年度目标、投资戒律、复盘日志、详情弹窗、复利明细弹窗和目标页表单弹窗接入英文系统文案;用户自己写的戒律、复盘、目标箴言和心情保持原文;目标页主体结构、年度目标/复利计算、数据库路径、行情和鉴权不变。生产 `i18n-DqUNzBZy.js`、`ReviewTab-RfDKcroI.js`、`SettingsTab-BKaQ_fvh.js` 和 `settingsChangelog-BiSWurwW.js` marker 验证通过;`/api/quote` 和 `/api/stocks-realtime` 鉴权边界保持不变。
 - `v10.7.9.165` 资产页英文模式已完成部署和线上验证:资产页头部、走势图、账户分组、账户操作和账户弹窗接入英文文案;系统内置账户类型和常见账户名显示英文,用户自定义账户名保持原文;账户数据、月度余额和汇率计算不变。
 - `v10.7.9.164` 英文交易头部严格对齐首页已完成部署和线上验证:交易页头部资产卡英文模式三列比例严格同步首页,英文股票副标题改为短品牌名,例如 NVIDIA、Microsoft、Nokia。
 - `v10.7.9.163` 英文交易页细节修正已完成部署和线上验证:交易页英文头部持仓数量防溢出,英文持仓列表按股票代码 + 公司英文名展示。

@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 目标页英文模式
 
-- Commit: same commit
+- Commit: `ac3daff06a879046163493bf6a1d8d8c3420b487`
 - Background: 用户要求继续开发目标页面英文版,并明确强调不能改变目标页主体结构;此前英文模式已经覆盖设置页、底部导航、首页、交易页和资产页,目标页仍有大量固定中文系统文案。
 - Changes:
   - `ReviewTab.jsx` 接入共享语言框架,北极星目标、年度目标、投资戒律、复盘日志、详情弹窗和复利明细弹窗支持英文系统文案。
@@ -33,7 +33,11 @@
   - `git diff --check` pass。
   - 本地 marker: `src/lib/i18n.js`、`src/tabs/ReviewTab.jsx`、`dist/assets/i18n-DqUNzBZy.js` 和 `dist/assets/ReviewTab-RfDKcroI.js` 包含 `Polaris Goal`、`Annual Goals`、`Investment Rules`、`Review Log` 和目标页英文 key;`SettingsTab.jsx` / `settingsChangelog.js` 及对应 dist chunk 包含 `v10.7.9.166` 和 `目标页英文模式`。
 - Deployment:
-  - Pending: 本条随代码提交推送到 GitHub `main` 后触发 Vercel 自动部署;线上 marker 和 API 鉴权验证完成后回填。
+  - Pushed to GitHub `main` as runtime commit `ac3daff06a879046163493bf6a1d8d8c3420b487`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=goals-en-166-ac3daff-*` returned HTTP 200;active entry asset is `index-BpjDRzTO.js`。
+  - Production runtime chunks verified: `index-BpjDRzTO.js` imports `App-tl3yz47a.js`;`App-tl3yz47a.js` imports `i18n-DqUNzBZy.js`、`ReviewTab-RfDKcroI.js`、`SettingsTab-BKaQ_fvh.js` and `settingsChangelog-BiSWurwW.js`。
+  - Production marker verified: `i18n-DqUNzBZy.js` contains `Polaris Goal`、`Annual Goals`、`Investment Rules` and `Review Log`;`ReviewTab-RfDKcroI.js` contains 目标页英文 key;`SettingsTab-BKaQ_fvh.js` contains `v10.7.9.166`;`settingsChangelog-BiSWurwW.js` contains `v10.7.9.166` and `目标页英文模式`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的目标页 i18n 接入、目标页弹窗 language 参数、`v10.7.9.166` 设置页版本/更新日志、测试断言和本开发日志即可;不影响目标页结构、用户内容、年度目标/复利计算、交易数据、行情鉴权或数据库。
 
 ### 2026-07-06 - 资产页英文模式
