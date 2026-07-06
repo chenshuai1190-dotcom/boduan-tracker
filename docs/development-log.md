@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 英文模式第一阶段
 
-- Commit: `same commit`
+- Commit: `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`
 - Background: 用户确认先做英文版第一步,只接入语言框架、设置页中英文切换、底部导航和首页;英文模式下首页股票主标题和副标题都显示股票代码缩写,用户自己写的日志、复盘、备注继续按原文显示;本阶段不能影响中文默认显示和现有核心功能。
 - Changes:
   - 新增本地语言框架 `src/lib/i18n.js`,默认 `zh`,使用稳定本地存储键 `xmoney_language`,提供 `normalizeLanguage`、`saveStoredLanguage`、`isEnglishLanguage` 和带中文 fallback 的 `t()` 翻译函数。
