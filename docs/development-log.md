@@ -4,6 +4,42 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 股票昨收兜底和当日盈亏修复
+
+- Commit: pending
+- Background: 用户反馈交易页中 MSFT、NOK 等股票能拿到最新价,但涨跌幅和当日盈亏经常显示 `+0.00%` / `+¥0.00`;检查后确认当日盈亏依赖 `previousClose`,当 EODHD 实时报价只给最新价、缺昨收/涨跌字段时,现价会更新但 `todayPnl` 被守卫条件清零。
+- Root cause:
+  - 股票核心 quote 在 `v10.7.9.161` 后只使用 EODHD 字段;Yahoo 只保留小曲线视觉来源,不再给核心 `previousClose/change/changePercent` 补值。
+  - `server/quote/providers/eodhd.js` 只从 `us-quote-delayed.previousClosePrice` 读取昨收;当该字段为空时,即使 EODHD EOD 历史已返回上一交易日收盘价,返回给前端的 `previousClose/change/changePercent` 仍会落成 0。
+  - 前端行情合并里 `fresh.changePercent || 0` 和 `buildLedgerQuoteUniverse` 的 quote cache 覆盖路径会让空 0 涨跌幅覆盖已有 baseline,放大“现价更新但涨跌为 0”的问题。
+  - `investmentSummary` 的 `todayPnl` 正确使用 `heldShares * (currentPrice - previousClose)`,但当 `previousClose` 缺失时会返回 0,所以截图里的当日盈亏清零不是展示层小数问题。
+- Changes:
+  - EODHD 股票 quote 在 `previousClosePrice` 缺失或为 0 时,从同一次 EODHD EOD 历史中选择最近一个已完成美股交易日收盘价补 `previousClose`;仍不使用 Yahoo chart 作为核心报价来源。
+  - 当 EODHD 返回空 0 的 `change/changePercent`,但价格和昨收明显不一致时,服务端按 `price - previousClose` 重新计算涨跌额和涨跌幅。
+  - `App.jsx` 添加自选和 REST 刷新合并统一透传 `change`,并用 `price/previousClose` 解析 `change/changePercent`,避免空 0 覆盖有效 baseline。
+  - `buildLedgerQuoteUniverse` 在 watchlist、quote cache、tool quote 和持仓全集合并时重算缺失涨跌字段,让交易页/首页持仓使用同一行情口径。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.174`,新增“股票昨收兜底和当日盈亏修复”。
+  - 本轮不改交易账本、持仓数量、成本、Yahoo 小曲线、行情 relay、Supabase、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/App.jsx`
+  - `src/lib/stockUniverse.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/stock-universe.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/stock-universe.test.js tests/investment-summary.test.js tests/btc-realtime.test.js` pass,35 tests passed;覆盖 EODHD 缺昨收时用 EODHD EOD 历史补昨收、不回退 Yahoo chart、quote universe 从实时价和昨收重算涨跌字段、投资汇总当日盈亏反推路径和股票 realtime 合并。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,87 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-Ck9ORXDh.js`、`dist/assets/SettingsTab-B2GIzCES.js`、`dist/assets/settingsChangelog-Bc_Om4Ro.js`、`dist/assets/HomeTab-DzKcyI8C.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `SettingsTab-B2GIzCES.js` contains `v10.7.9.174`;`settingsChangelog-Bc_Om4Ro.js` contains `股票昨收兜底和当日盈亏修复`;`server/quote/providers/eodhd.js` contains `selectPreviousCloseFromEodRows` and `priceDiffersFromPreviousClose`;`src/App.jsx` contains `resolveQuoteChangeFields`;`src/lib/stockUniverse.js` contains `resolveChangePercent`。
+- Deployment:
+  - pending
+- Rollback: 回退 EODHD EOD 昨收兜底、`App.jsx`/`stockUniverse` 的涨跌字段合并保护、`v10.7.9.174` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓数量、成本、Yahoo 小曲线、行情 relay、RLS 或鉴权。
+
 ### 2026-07-06 - 弹窗字重和交易确认细节
 
 - Commit: `ff5b1a6ef13171a89555801e075212d47c917e31`

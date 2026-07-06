@@ -1,5 +1,43 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 
+function getNewYorkDateString(date = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const get = (type) => parts.find((part) => part.type === type)?.value || '';
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {
+    /* fall through */
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+function selectPreviousCloseFromEodRows(rows = [], marketDate = getNewYorkDateString()) {
+  const dailyCloses = (rows || [])
+    .filter((day) => day && day.date)
+    .map((day) => {
+      const rawClose = parseFloat(day.close) || 0;
+      const adjustedClose = parseFloat(day.adjusted_close) || 0;
+      return {
+        date: String(day.date || ''),
+        close: adjustedClose > 0 ? adjustedClose : rawClose,
+      };
+    })
+    .filter((day) => day.date && day.close > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (dailyCloses.length === 0) return 0;
+  const completedPreviousDay = [...dailyCloses].reverse().find((day) => day.date < marketDate);
+  return completedPreviousDay?.close || dailyCloses[dailyCloses.length - 1].close || 0;
+}
+
 export async function fetchAnalystQuote(symbol, { eodhdKey }) {
   try {
     const stockSym = symbol.split(':')[1];
@@ -432,10 +470,6 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       };
     }
 
-    const previousClose = eodhdPrevClose;
-    const changePercent = (eodhdChangePercent !== undefined) ? eodhdChangePercent
-      : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
-    const change = (eodhdChange !== undefined) ? eodhdChange : (previousClose > 0 ? price - previousClose : 0);
     const dayHigh = eodhdDayHigh || price;
     const dayLow = eodhdDayLow || price;
     const open = eodhdOpen || price;
@@ -448,6 +482,7 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     let yearStartPrice = 0;
     let yearStartDate = '';
     let ytdChangePercent = 0;
+    let eodHistoryPreviousClose = 0;
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
@@ -456,6 +491,7 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
           const historyRows = eodData
             .filter((day) => day && day.date)
             .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+          eodHistoryPreviousClose = selectPreviousCloseFromEodRows(historyRows, getNewYorkDateString(today));
           for (const day of historyRows) {
             const rawHigh = parseFloat(day.high) || 0;
             const rawLow = parseFloat(day.low) || 0;
@@ -483,6 +519,15 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       }
     }
     if (week52Low === Infinity) week52Low = 0;
+
+    const previousClose = eodhdPrevClose > 0 ? eodhdPrevClose : eodHistoryPreviousClose;
+    const priceDiffersFromPreviousClose = previousClose > 0 && Math.abs(price - previousClose) > 0.000001;
+    const change = eodhdChange !== undefined && !(eodhdChange === 0 && priceDiffersFromPreviousClose)
+      ? eodhdChange
+      : (previousClose > 0 ? price - previousClose : 0);
+    const changePercent = eodhdChangePercent !== undefined && !(eodhdChangePercent === 0 && priceDiffersFromPreviousClose)
+      ? eodhdChangePercent
+      : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
 
     return {
       symbol,

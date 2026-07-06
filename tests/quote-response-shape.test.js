@@ -176,7 +176,7 @@ async function mockProviderFetch(url) {
     if (requested.includes('NOPREV.US')) {
       return jsonResponse({
         data: {
-          'NOPREV.US': liveQuoteWithoutPreviousClose({ price: 155, high: 156, low: 149 }),
+          'NOPREV.US': liveQuoteWithoutPreviousClose({ price: 157, high: 158, low: 149 }),
         },
       });
     }
@@ -344,8 +344,8 @@ function liveQuoteWithoutPreviousClose({ price, high, low }) {
     low: String(low),
     open: '',
     timestamp: 1783000000,
-    change: '',
-    changePercent: '',
+    change: '0',
+    changePercent: '0',
   };
 }
 
@@ -449,15 +449,15 @@ test('stock quote core fields do not fall back to Yahoo chart data', async () =>
   assert.equal(quote.priceSource, undefined);
 });
 
-test('stock quote missing EODHD previous close does not use Yahoo chart previous close', async () => {
+test('stock quote missing EODHD previous close uses EODHD EOD history, not Yahoo chart previous close', async () => {
   const quote = await callQuote('NOPREV');
 
   assert.equal(quote.symbol, 'NOPREV');
   assert.equal(quote.source, 'EODHD');
   assert.equal(quote.priceSource, 'EODHD-v2');
-  assert.equal(quote.price, 155);
-  assert.equal(quote.previousClose, 0);
-  assert.equal(quote.change, 0);
-  assert.equal(quote.changePercent, 0);
+  assert.equal(quote.price, 157);
+  assert.equal(quote.previousClose, 155);
+  assert.equal(quote.change, 2);
+  assert.ok(Math.abs(quote.changePercent - ((157 - 155) / 155) * 100) < 0.000001);
   assert.deepEqual(quote.intraday, [151, 153, 155]);
 });
