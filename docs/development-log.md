@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 目标标题和操作弹窗收紧
 
-- Commit: `pending`
+- Commit: `ea1742b7ab6369b93bfb7508796be15a93fe03a8`
 - Background: 用户反馈目标页年度年份数字仍偏大,要求当前年份和第二年字号一致,并让“本年”“未达/达标”徽标同比例缩小;同时要求投资戒律、复盘日志标题和年度目标标题保持同字号,把“年度目标进度”改为“年度目标”;交易记录和资产账户的操作弹窗要参考投资戒律详情弹窗的修改/删除按钮大小,并删除最下面的取消按钮。
 - Changes:
   - 目标页“年度目标进度”改名为“年度目标”,当前年度年份从 `28px` 收到 `22px`,与未来年度数字一致。
@@ -32,7 +32,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`SettingsTab-Cj7h5q0M.js` contains `v10.7.9.150`;`settingsChangelog-D56KgTpc.js` contains `v10.7.9.150` and `目标和操作弹窗细节收紧`;`ReviewTab-CZxjqcb1.js` contains new `年度目标` title, current-year `22px`, and `15px` investment/review titles, while omitting old `年度目标进度` title and current-year `28px`;`TradesTab-BCtDUDej.js` and `AnalysisTab-BlUdJr6F.js` contain compact action pill buttons and omit old `修改记录` / `删除记录` labels in the order action chunk.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `ea1742b7ab6369b93bfb7508796be15a93fe03a8`.
+  - GitHub Actions `build` check passed for `ea1742b7ab6369b93bfb7508796be15a93fe03a8`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?final=*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 04:42:14 GMT`.
+  - Production asset marker check: pass;active runtime assets include `ReviewTab-CZxjqcb1.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, `SettingsTab-DsCh9GtW.js`, and `settingsChangelog-D56KgTpc.js`.
+  - Production target/action marker check: pass;`SettingsTab-DsCh9GtW.js` contains `v10.7.9.150`;`settingsChangelog-D56KgTpc.js` contains `v10.7.9.150` and `目标和操作弹窗细节收紧`;`ReviewTab-CZxjqcb1.js` contains `年度目标`, current-year `22px`, and `15px` investment/review titles, while omitting old `年度目标进度` and current-year `28px`;`TradesTab-BCtDUDej.js` and `AnalysisTab-BlUdJr6F.js` contain compact action pill buttons.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/ReviewTab.jsx` 的标题/年份/徽标 class 调整、`src/tabs/TradesTab.jsx` 的订单操作弹窗按钮调整、`src/tabs/AnalysisTab.jsx` 的账户操作弹窗按钮调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.150` 条目、测试和本开发日志即可;不会影响目标数据、投资戒律、复盘日志、交易记录、资产账户、行情、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 资产和目标模块缩放移除
