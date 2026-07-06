@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 股票行情即时刷新
 
-- Commit: `same commit`
+- Commit: `7c24e6892704bbf19dc9cb16f78cd4118f57fa7a`
 - Background: `v10.7.9.176` 已把股票涨跌幅修复为按当前选定价格和昨收重算,用户线上验证 MSFT/NOK/NVDA/TSM 等持仓涨跌幅与外部行情接近一致。但打开 App、切回窗口或新切换页面时,股票数据仍可能要等下一轮自动轮询,体感约 15-20 秒才刷新。
 - Changes:
   - `src/App.jsx` 新增快速行情刷新调度:云端账本加载完成后立即用云端交易/自选全集拉一次 REST 行情快照,避免启动后等待普通轮询。
@@ -29,9 +29,15 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-BVF7Jr2m.js` contains `v10.7.9.177`;`settingsChangelog-DHVKCFxY.js` contains `v10.7.9.177` and `股票行情即时刷新`;`App-BFeyag0G.js` contains the quick quote refresh scheduler and new automatic triggers.
 - Deployment:
-  - Pending GitHub `main` push and Vercel automatic deployment.
+  - Pushed to GitHub `main` as runtime commit `7c24e6892704bbf19dc9cb16f78cd4118f57fa7a`.
+  - GitHub Actions `CI` run `28800760867` completed successfully.
+  - Vercel status for `7c24e68` returned `failure`: `Deployment rate limited — retry in 24 hours.`
+  - Production alias `https://boduan-tracker.vercel.app` still serves the previous `v10.7.9.176` runtime entry `/assets/index-CSdjkNon.js`;no direct Vercel changes were made.
 - Production verification:
-  - Pending deployment marker and auth smoke verification.
+  - Production root returned HTTP 200 with active entry `/assets/index-CSdjkNon.js`.
+  - Production `SettingsTab-VCBLkU7x.js` still contains `v10.7.9.176`;production `settingsChangelog-DOBv6lHl.js` still contains `v10.7.9.176` and `股票涨跌幅按现价和昨收重算`;`v10.7.9.177` is not yet deployed because of the Vercel rate limit.
+  - Production auth boundaries retained: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`.
+- Follow-up: Vercel 自动部署限流窗口解除后,通过 GitHub `main` 重新触发部署并验证 `SettingsTab` contains `v10.7.9.177`, `settingsChangelog` contains `股票行情即时刷新`, and production entry updates away from `/assets/index-CSdjkNon.js`.
 - Rollback: 回退本条涉及的快速刷新调度、自动触发来源标签、`v10.7.9.177` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、数据库结构、EODHD 服务端鉴权、`/api/quote` 鉴权或 `v10.7.9.176` 涨跌幅重算口径。
 
 ### 2026-07-06 - 股票涨跌幅按现价和昨收重算
