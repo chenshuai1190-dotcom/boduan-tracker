@@ -35,7 +35,12 @@
   - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/`,in-app browser viewport `390x844`;中文 `?tab=home` 仍显示 `总资产`、`当前信号`、`自选`,股票仍为 `NVDA / NVIDIA`、`MSFT / 微软`;英文 `?tab=home&lang=en` 显示 `Total Assets`、`Current Signal`、`Watchlist`、`Home`,股票主副标题显示 `NVDA / NVDA`、`MSFT / MSFT`;document `scrollWidth=390`,无页面级横向溢出。
   - Dist marker check: pass;production build assets contain `xmoney_language`, `Total Assets`, `CNN Fear & Greed Index`, `Add Watchlist Stock`, `Wait for better setups`, `v10.7.9.156` and `英文模式第一阶段`.
 - Deployment:
-  - Pending;本条日志随本轮提交推送后补充 GitHub/Vercel 和生产 marker 验证结果。
+  - Pushed to GitHub `main`;runtime code commit `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`.
+  - GitHub Actions `CI` run `28777392663` passed for `cdab46af27472140369de3f152b7ffeca9f0f817`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=cdab46af2747-english-phase-1-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:12:40 GMT`.
+  - Production asset marker check: pass;active runtime assets include `index-Bv1wSZZs.js`, `App-cc7ZeFVV.js`, `i18n-DJgOZT0p.js`, `HomeTab-DMu2X-yC.js`, `SettingsTab-BAAAfenM.js`, and `settingsChangelog-BycQuPYu.js`.
+  - Production language marker check: pass;`i18n-DJgOZT0p.js` contains `xmoney_language`, `Total Assets`, `CNN Fear & Greed Index`, `Add Watchlist Stock`, `Wait for better setups`, and English bottom-nav labels;`SettingsTab-BAAAfenM.js` contains `v10.7.9.156`, `settings.languageDesc`, `setLanguage`, and `English`;`HomeTab-DMu2X-yC.js` contains the English home keys and overflow guards;`settingsChangelog-BycQuPYu.js` contains `v10.7.9.156` and `英文模式第一阶段`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/lib/i18n.js`、`App.jsx` 的语言状态和底部导航翻译、`HomeTab.jsx` 的首页翻译和英文 ticker 显示、`SettingsTab.jsx` 的语言切换和版本号、`DevVisualPreview.jsx` 的 `?lang=en` 支持、`settingsChangelog.js` 的 `v10.7.9.156` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - CNN 仪表盘刻度点位微调

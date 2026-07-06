@@ -10,9 +10,9 @@
 - 当前运行时代码提交: `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`。
 - 设置页版本: `v10.7.9.156`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: pending,本轮提交推送后补充 production marker。
+- 最新运行时 Vercel 部署: success, production marker verified for `v10.7.9.156` runtime assets;runtime code commit `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 本轮 `v10.7.9.156` 生产 marker 待部署后补充;本地 390×844 已验证中文首页默认显示不变,英文 `?lang=en` 首页显示 `Total Assets`、`Current Signal`、`Watchlist`,股票主副标题为 `NVDA / NVDA`、`MSFT / MSFT`,document `scrollWidth=390`;未改 `/api/quote` 鉴权、行情 relay、RLS、交易账本或密钥配置。
+- 线上关键验证: 生产 active runtime assets 包含 `App-cc7ZeFVV.js`、`i18n-DJgOZT0p.js`、`HomeTab-DMu2X-yC.js`、`SettingsTab-BAAAfenM.js` 和 `settingsChangelog-BycQuPYu.js`;`i18n` chunk 包含 `xmoney_language`、`Total Assets`、`CNN Fear & Greed Index`、`Add Watchlist Stock`、`Wait for better setups`;Settings/changelog chunk 包含 `v10.7.9.156` 和 `英文模式第一阶段`;本地 390×844 已验证中文首页默认显示不变,英文 `?lang=en` 首页显示 `Total Assets`、`Current Signal`、`Watchlist`,股票主副标题为 `NVDA / NVDA`、`MSFT / MSFT`,document `scrollWidth=390`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: `v10.7.9.156` 起新增英文模式第一阶段,只覆盖语言框架、设置页语言开关、底部导航和首页系统文案;英文模式下首页股票主副标题都显示 ticker 缩写,用户自己写的日志、复盘、备注和历史记录保持原文;首页三大指数继续秒级更新价格和曲线但不显示重复连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -24,9 +24,9 @@
 - 最近应用代码提交: `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.156`
-- Vercel 最新运行时部署: pending,本轮提交推送后补充 production marker。
+- Vercel 最新运行时部署: success, `v10.7.9.156` production marker verified for runtime code commit `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: pending;本轮提交推送并完成生产验证后补充 active runtime assets、Settings/changelog marker、语言 marker 和 `/api/quote` 鉴权结果。
+- Vercel 部署记录: runtime code commit `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`;GitHub Actions `CI` run `28777392663` pass;production `GET https://boduan-tracker.vercel.app/?v=cdab46af2747-english-phase-1-*` HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:12:40 GMT`;active runtime assets include `index-Bv1wSZZs.js`, `App-cc7ZeFVV.js`, `i18n-DJgOZT0p.js`, `HomeTab-DMu2X-yC.js`, `SettingsTab-BAAAfenM.js`, and `settingsChangelog-BycQuPYu.js`;`i18n-DJgOZT0p.js` contains `xmoney_language`, `Total Assets`, `CNN Fear & Greed Index`, `Add Watchlist Stock`, `Wait for better setups`, and English bottom-nav labels;`SettingsTab-BAAAfenM.js` contains `v10.7.9.156`, `settings.languageDesc`, `setLanguage`, and `English`;`settingsChangelog-BycQuPYu.js` contains `v10.7.9.156` and `英文模式第一阶段`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -597,9 +597,9 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 当前产品基准提交: `86b3811f9ff2b2e0785872dc9c1d9e6575b62851` (`v10.7.9.156`,英文模式第一阶段)
 最近应用代码提交: `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`
 设置页版本: `v10.7.9.156`
-Vercel 最新运行时部署: pending,本轮提交推送后补充 production marker
+Vercel 最新运行时部署: success, `v10.7.9.156` production marker verified for runtime code commit `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: pending;本轮提交推送并完成生产验证后补充 active runtime assets、Settings/changelog marker、语言 marker 和 `/api/quote` 鉴权结果。
+部署记录: runtime code commit `86b3811f9ff2b2e0785872dc9c1d9e6575b62851`;GitHub Actions `CI` run `28777392663` pass;production `GET https://boduan-tracker.vercel.app/?v=cdab46af2747-english-phase-1-*` HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:12:40 GMT`;active runtime assets include `index-Bv1wSZZs.js`, `App-cc7ZeFVV.js`, `i18n-DJgOZT0p.js`, `HomeTab-DMu2X-yC.js`, `SettingsTab-BAAAfenM.js`, and `settingsChangelog-BycQuPYu.js`;`i18n-DJgOZT0p.js` contains `xmoney_language`, `Total Assets`, `CNN Fear & Greed Index`, `Add Watchlist Stock`, `Wait for better setups`, and English bottom-nav labels;`SettingsTab-BAAAfenM.js` contains `v10.7.9.156`, `settings.languageDesc`, `setLanguage`, and `English`;`settingsChangelog-BycQuPYu.js` contains `v10.7.9.156` and `英文模式第一阶段`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,7 +629,7 @@ Vercel 最新运行时部署: pending,本轮提交推送后补充 production mar
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.156` 英文模式第一阶段已完成本地验证,生产验证待本轮提交推送后补充:新增本地语言框架 `xmoney_language`,设置页加入 `简体中文` / `English` 切换;底部导航和首页头卡、信号卡、VIX/CNN 恐慌指标、自选/持仓表格、添加/编辑自选弹窗支持英文系统文案;英文模式下首页股票主副标题显示 ticker 缩写;中文默认显示、用户自写日志/复盘/备注/历史记录、行情 relay、交易账本、资产/目标业务逻辑、RLS 和 `/api/quote` 鉴权保持不变。
+- `v10.7.9.156` 英文模式第一阶段已完成部署和本地/线上验证:新增本地语言框架 `xmoney_language`,设置页加入 `简体中文` / `English` 切换;底部导航和首页头卡、信号卡、VIX/CNN 恐慌指标、自选/持仓表格、添加/编辑自选弹窗支持英文系统文案;英文模式下首页股票主副标题显示 ticker 缩写;中文默认显示、用户自写日志/复盘/备注/历史记录、行情 relay、交易账本、资产/目标业务逻辑、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.149` 资产和目标模块缩放移除已完成部署和本地/线上验证:资产页账户行、目标页北极星头卡、当前/未来年度目标、年度展开控件、投资戒律卡片和复盘日志卡片均移除老版模块级 `active:scale-[0.99]` / `active:scale-[0.995]`;点击账户、复利明细、年度目标、戒律和复盘详情仍按原流程打开;设置页更新日志和版本同步到 `v10.7.9.149`;生产 `ReviewTab-BSclOsB3.js` marker 验证通过;行情、交易账本、WebSocket relay、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.148` 资产头卡对齐首页已完成部署和本地/线上验证:资产页家庭总资产头卡改用首页/交易页同款外壳、尺寸、金额颜色和金额位置;390×844 本地测量显示首页和资产头卡均为 `x=16,width=358,height=202.25`,主金额均为 `x=33,y=79,34px,#ffd18a`;生产 `AnalysisTab-Dye1C266.js` marker 验证通过;账户、快照、汇率、走势图、交易账本、WebSocket relay、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.147` PWA Logo 去白边已完成部署和本地/线上验证:用户反馈 iOS 主屏出现白色外边后,最终发布图标从透明 RGBA 改为 RGB 不透明深色底;已生成并上线 `512/192/180/32/16` 五套深色填充 PNG,HTML/manifest/iOS 图标路径保持不变;生产图标 SHA 与本地一致,四角深色,无 alpha 通道;设置页更新日志和版本同步到 `v10.7.9.147`;行情、交易账本、WebSocket relay、RLS 和 `/api/quote` 鉴权保持不变。
