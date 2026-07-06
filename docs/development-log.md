@@ -2,6 +2,38 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-07 Asia/Shanghai
+
+### 2026-07-07 - iOS 实时行情恢复重连
+
+- Runtime commit: `this commit`
+- Background: 用户在 iOS 添加到主屏幕的 Web App 中复现:首次进入交易页实时数字正常,切到其它 App 再切回来后,交易页数字通常只跳 2-3 次就停,手动下拉刷新并等待约 15 秒后又能恢复持续刷新。复查确认 REST 快照并不是冲突来源,它只负责启动/回前台/手动刷新的快照兜底;真正不稳定的是 iOS 后台恢复后 WebSocket 可能处于半死连接,旧逻辑在短时间内仍把它当作 active socket,且 stale timer 只标记 stale 不主动重连。
+- Changes:
+  - `src/App.jsx` 新增 realtime 恢复重连 handler registry;iOS PWA fresh REST 恢复刷新触发时,同步对 BTC、指数、股票三套 realtime 连接发起强制重连请求。
+  - 三套 realtime 连接在 `pagehide` 时主动关闭旧 socket 并清理重连 timer,避免 iOS 回前台后继续持有半死连接。
+  - `visibilitychange`、`pageshow`、`focus`、`online` 恢复事件改为走统一 `requestResumeReconnect`;iOS standalone Web App 回到可见状态时强制重建连接,并用 1 秒轻节流吸收同一批恢复事件。
+  - 三套 realtime stale 检查不再只把状态标记为 stale;可见状态下超过 15 秒无 tick/status 活动会主动请求重连。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.182`,新增“iOS 实时行情恢复重连”。
+  - 本轮不改交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、Supabase、RLS、数据库结构或 Yahoo 小曲线。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - Source marker check pass:`REALTIME_FORCE_RECONNECT_THROTTLE_MS`, `realtimeResumeReconnectHandlersRef`, `requestRealtimeResumeReconnect({ force: true, trigger: nextTrigger })`,三套 realtime `pagehide` 关闭、三套 handler 注册/清理、stale 主动 reconnect 和 iOS visible force reconnect 均存在。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/btc-realtime.test.js tests/quote-response-shape.test.js` pass,56 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,92 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-CnP7e7FP.js`、`dist/assets/SettingsTab-BODfEhGg.js`、`dist/assets/settingsChangelog-CiR8_P5t.js`、`dist/assets/TradesTab-BmOih2Rn.js` 和 `dist/assets/index-DqL6Ti2E.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Local build marker: `App-CnP7e7FP.js` contains compressed runtime markers `pagehide`, `lastForceReconnectAt`, `lastConnectAttemptAt`, `pageshow` and `online`;`SettingsTab-BODfEhGg.js` contains `v10.7.9.182`;`settingsChangelog-CiR8_P5t.js` contains `v10.7.9.182`, `iOS 实时行情恢复重连`, `v10.7.9.181` and `交易录入输入框去白框`。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending: 验证通过后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+- Rollback: 回退本条涉及的 realtime 恢复 handler registry、iOS PWA 强制 realtime 重连、三套 realtime `pagehide` pause/stale 主动 reconnect、`v10.7.9.182` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、数据库结构或 RLS。
+
 ## 2026-07-06 Asia/Shanghai
 
 ### 2026-07-06 - 交易录入输入框去白框

@@ -1,6 +1,17 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.181', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.182', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 实时行情恢复重连',
+      '  - iOS 主屏幕 Web App 回前台时同步强制重建 BTC、指数和股票三套实时连接',
+      '  - pagehide 进入后台时主动关闭旧 socket,避免回前台后残留半死连接只跳几次就停',
+      '  - 可见状态下 15 秒无实时活动会主动重连,不再只把连接标记为 stale',
+      '  - REST 行情继续作为启动、回前台和手动刷新的快照兜底,不替代 WebSocket 实时推送',
+      '  - 不改交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.181', date: '2026-07-06',
     items: [
       '🎛️ 交易录入输入框去白框',
       '  - 新增交易弹窗输入框默认边框改为透明,避免 iOS 上出现突兀白色描边',

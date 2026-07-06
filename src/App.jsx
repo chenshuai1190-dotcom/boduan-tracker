@@ -25,6 +25,7 @@ const REALTIME_TOKEN_PROTOCOL_PREFIX = 'supabase.';
 const REALTIME_STALE_MS = 15_000;
 const REALTIME_RESUME_RECONNECT_STALE_MS = 5000;
 const REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000;
+const REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
 const PULL_REFRESH_MAX_DISTANCE = 96;
@@ -1195,6 +1196,7 @@ function MainApp({ user, onLogout }) {
   const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0, dueAt: 0, priority: 0 });
   const quoteRefreshFromCloudResultRef = useRef(null);
   const pendingPwaResumeRefreshRef = useRef(null);
+  const realtimeResumeReconnectHandlersRef = useRef(new Set());
   const cloudLoadingRef = useRef(true);
   const foregroundHeartbeatAtRef = useRef(Date.now());
   const pwaHiddenAtRef = useRef(0);
@@ -1505,6 +1507,7 @@ function MainApp({ user, onLogout }) {
     lastTickAt: 0,
     liveAt: 0,
     lastConnectAttemptAt: 0,
+    lastForceReconnectAt: 0,
     intentionalCloseSocket: null,
   });
   const stockRealtimeRef = useRef({
@@ -1519,6 +1522,7 @@ function MainApp({ user, onLogout }) {
     lastTickIso: null,
     liveAt: 0,
     lastConnectAttemptAt: 0,
+    lastForceReconnectAt: 0,
     intentionalCloseSocket: null,
   });
   const quoteRowsRef = useRef([]);
@@ -1531,6 +1535,7 @@ function MainApp({ user, onLogout }) {
     lastTickAt: 0,
     liveAt: 0,
     lastConnectAttemptAt: 0,
+    lastForceReconnectAt: 0,
     intentionalCloseSocket: null,
   });
   // 云端数据加载状态
@@ -2866,6 +2871,18 @@ function MainApp({ user, onLogout }) {
     }, delayMs);
   };
 
+  const requestRealtimeResumeReconnect = useCallback((options = {}) => {
+    if (typeof document === 'undefined' || document.hidden) return;
+    const reconnectOptions = (options && typeof options === 'object') ? options : {};
+    realtimeResumeReconnectHandlersRef.current.forEach((handler) => {
+      try {
+        handler(reconnectOptions);
+      } catch (e) {
+        console.warn('[Realtime] resume reconnect handler failed:', e?.message || e);
+      }
+    });
+  }, []);
+
   const queueIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume', delayMs = IOS_PWA_VISIBLE_RETRY_MS) => {
     if (typeof window === 'undefined') return;
     pendingPwaResumeRefreshRef.current = trigger || 'auto-ios-resume';
@@ -2918,6 +2935,7 @@ function MainApp({ user, onLogout }) {
       minIntervalMs: 0,
       notifyOnError: false,
     });
+    requestRealtimeResumeReconnect({ force: true, trigger: nextTrigger });
   };
 
   useEffect(() => {
@@ -3365,33 +3383,55 @@ function MainApp({ user, onLogout }) {
       }
     };
 
-    ref.staleTimer = setInterval(() => {
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
-      if (!lastActivityAt) return;
-      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
-        setBtcRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
-      }
-    }, 5000);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        clearReconnectTimer();
-        closeSocket();
-        setBtcRealtimeStatus('paused');
-      } else {
-        connect();
-      }
+    const pauseRealtime = () => {
+      clearReconnectTimer();
+      closeSocket();
+      setBtcRealtimeStatus('paused');
     };
-    const handleResumeReconnect = () => {
+
+    const requestResumeReconnect = ({ force = false } = {}) => {
       if (document.hidden) return;
       const now = Date.now();
+      if (force) {
+        if (ref.lastForceReconnectAt && now - ref.lastForceReconnectAt < REALTIME_FORCE_RECONNECT_THROTTLE_MS) return;
+        ref.lastForceReconnectAt = now;
+        connect();
+        return;
+      }
       if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
       const lastActivityAt = ref.lastTickAt || ref.liveAt;
       if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
       connect();
     };
 
+    const handleRealtimeStale = () => {
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (!lastActivityAt) return;
+      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
+        setBtcRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
+        requestResumeReconnect();
+      }
+    };
+
+    const registeredResumeReconnect = (options = {}) => {
+      requestResumeReconnect({ force: options?.force === true });
+    };
+    realtimeResumeReconnectHandlersRef.current.add(registeredResumeReconnect);
+
+    ref.staleTimer = setInterval(handleRealtimeStale, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pauseRealtime();
+      } else {
+        requestResumeReconnect({ force: isIosStandaloneWebApp() });
+      }
+    };
+    const handlePageHide = () => pauseRealtime();
+    const handleResumeReconnect = () => requestResumeReconnect({ force: isIosStandaloneWebApp() });
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('pageshow', handleResumeReconnect);
     window.addEventListener('focus', handleResumeReconnect);
     window.addEventListener('online', handleResumeReconnect);
@@ -3405,9 +3445,11 @@ function MainApp({ user, onLogout }) {
         ref.staleTimer = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('pageshow', handleResumeReconnect);
       window.removeEventListener('focus', handleResumeReconnect);
       window.removeEventListener('online', handleResumeReconnect);
+      realtimeResumeReconnectHandlersRef.current.delete(registeredResumeReconnect);
       closeSocket();
     };
   }, [cloudLoading, applyBtcRealtimeTick]);
@@ -3511,33 +3553,55 @@ function MainApp({ user, onLogout }) {
       }
     };
 
-    ref.staleTimer = setInterval(() => {
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
-      if (!lastActivityAt) return;
-      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
-        setIndexRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
-      }
-    }, 5000);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        clearReconnectTimer();
-        closeSocket();
-        setIndexRealtimeStatus('paused');
-      } else {
-        connect();
-      }
+    const pauseRealtime = () => {
+      clearReconnectTimer();
+      closeSocket();
+      setIndexRealtimeStatus('paused');
     };
-    const handleResumeReconnect = () => {
+
+    const requestResumeReconnect = ({ force = false } = {}) => {
       if (document.hidden) return;
       const now = Date.now();
+      if (force) {
+        if (ref.lastForceReconnectAt && now - ref.lastForceReconnectAt < REALTIME_FORCE_RECONNECT_THROTTLE_MS) return;
+        ref.lastForceReconnectAt = now;
+        connect();
+        return;
+      }
       if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
       const lastActivityAt = ref.lastTickAt || ref.liveAt;
       if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
       connect();
     };
 
+    const handleRealtimeStale = () => {
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (!lastActivityAt) return;
+      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
+        setIndexRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
+        requestResumeReconnect();
+      }
+    };
+
+    const registeredResumeReconnect = (options = {}) => {
+      requestResumeReconnect({ force: options?.force === true });
+    };
+    realtimeResumeReconnectHandlersRef.current.add(registeredResumeReconnect);
+
+    ref.staleTimer = setInterval(handleRealtimeStale, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pauseRealtime();
+      } else {
+        requestResumeReconnect({ force: isIosStandaloneWebApp() });
+      }
+    };
+    const handlePageHide = () => pauseRealtime();
+    const handleResumeReconnect = () => requestResumeReconnect({ force: isIosStandaloneWebApp() });
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('pageshow', handleResumeReconnect);
     window.addEventListener('focus', handleResumeReconnect);
     window.addEventListener('online', handleResumeReconnect);
@@ -3551,9 +3615,11 @@ function MainApp({ user, onLogout }) {
         ref.staleTimer = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('pageshow', handleResumeReconnect);
       window.removeEventListener('focus', handleResumeReconnect);
       window.removeEventListener('online', handleResumeReconnect);
+      realtimeResumeReconnectHandlersRef.current.delete(registeredResumeReconnect);
       closeSocket();
     };
   }, [cloudLoading, applyIndexRealtimeTick]);
@@ -3667,33 +3733,55 @@ function MainApp({ user, onLogout }) {
       }
     };
 
-    ref.staleTimer = setInterval(() => {
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
-      if (!lastActivityAt) return;
-      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
-        if (ref.status === 'live') ref.status = 'stale';
-      }
-    }, 5000);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        clearReconnectTimer();
-        closeSocket();
-        ref.status = 'paused';
-      } else {
-        connect();
-      }
+    const pauseRealtime = () => {
+      clearReconnectTimer();
+      closeSocket();
+      ref.status = 'paused';
     };
-    const handleResumeReconnect = () => {
+
+    const requestResumeReconnect = ({ force = false } = {}) => {
       if (document.hidden) return;
       const now = Date.now();
+      if (force) {
+        if (ref.lastForceReconnectAt && now - ref.lastForceReconnectAt < REALTIME_FORCE_RECONNECT_THROTTLE_MS) return;
+        ref.lastForceReconnectAt = now;
+        connect();
+        return;
+      }
       if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
       const lastActivityAt = ref.lastTickAt || ref.liveAt;
       if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
       connect();
     };
 
+    const handleRealtimeStale = () => {
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      if (!lastActivityAt) return;
+      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
+        if (ref.status === 'live') ref.status = 'stale';
+        requestResumeReconnect();
+      }
+    };
+
+    const registeredResumeReconnect = (options = {}) => {
+      requestResumeReconnect({ force: options?.force === true });
+    };
+    realtimeResumeReconnectHandlersRef.current.add(registeredResumeReconnect);
+
+    ref.staleTimer = setInterval(handleRealtimeStale, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pauseRealtime();
+      } else {
+        requestResumeReconnect({ force: isIosStandaloneWebApp() });
+      }
+    };
+    const handlePageHide = () => pauseRealtime();
+    const handleResumeReconnect = () => requestResumeReconnect({ force: isIosStandaloneWebApp() });
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('pageshow', handleResumeReconnect);
     window.addEventListener('focus', handleResumeReconnect);
     window.addEventListener('online', handleResumeReconnect);
@@ -3707,9 +3795,11 @@ function MainApp({ user, onLogout }) {
         ref.staleTimer = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('pageshow', handleResumeReconnect);
       window.removeEventListener('focus', handleResumeReconnect);
       window.removeEventListener('online', handleResumeReconnect);
+      realtimeResumeReconnectHandlersRef.current.delete(registeredResumeReconnect);
       closeSocket();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
