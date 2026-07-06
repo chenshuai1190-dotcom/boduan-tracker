@@ -147,8 +147,10 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 推送注意:
 
-- 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限。
-- 本机该项目已有 SSH key `~/.ssh/boduan_tracker_github`;用 `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes"` 推送到 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`。
+- 本仓库所有推送、部署重试、`fetch`、`ls-remote` 和刷新 `origin/main` 的远端 Git 操作,默认都必须显式使用项目 SSH key `~/.ssh/boduan_tracker_github` 和 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`;不要把 HTTPS `origin` 当作省事路径。
+- 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,或远端检查漏带 SSH key 后出现 `Permission denied (publickey)`,先判定为命令未按本仓库 SSH 准则执行,不要误判为仓库无权限。
+- 标准推送命令: `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git push git@github.com:chenshuai1190-dotcom/boduan-tracker.git main`。
+- 如果 Vercel 对运行时代码提交返回 `Deployment rate limited — retry in 24 hours`,不能停在“已推送但未上线”;记录真实状态后,创建明确的部署重试提交,继续用上述 SSH 命令推送并轮询到 Vercel `success` 或确认真实阻塞。
 
 ### 本地调试提效细节
 

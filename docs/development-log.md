@@ -4,6 +4,28 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - SSH 部署准则收紧
+
+- Commit: `same commit`
+- Background: `v10.7.9.179` 部署过程中虽然运行时代码最终通过 SSH deployment retry 成功上线,但前置处置出现两类流程错误:一次远端检查没有显式使用项目 SSH key,产生无意义的权限噪音;Vercel 首次返回 rate limit 后也过早停在状态记录,没有立即按既定准则继续走 SSH 部署重试。用户要求把此类错误写入开发准则,避免后续代理重复犯错。
+- Changes:
+  - `docs/development-process.md` 的提交/推送流程新增硬规则:本仓库所有 push、deployment retry、fetch、ls-remote 和刷新 `origin/main` 的远端 Git 操作,默认都必须显式使用 `~/.ssh/boduan_tracker_github` 和 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`;不要用 HTTPS `origin` 作为省事路径。
+  - 明确 `could not read Username`、`Permission denied (publickey)`、`Device not configured` 或 `origin/main` 未刷新时,先判定为命令未按本仓库 SSH 准则执行,必须用标准 `GIT_SSH_COMMAND` 重跑,不得误写成用户权限不足或部署阻塞。
+  - `docs/development-process.md` 的 Vercel 部署流程新增硬规则:运行时代码提交遇到 `Deployment rate limited — retry in 24 hours` 或长时间没有 production deployment 时,不能停在“已推送但未上线”;记录真实状态后必须创建明确部署重试提交,通过项目 SSH key 推送并继续轮询到 success 或确认真实阻塞。
+  - `docs/handoff.md` 的推送注意同步上述 SSH 和 rate-limit 处置口径,让下一位接手者在交接入口也能看到同一硬规则。
+- Key files:
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,92 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-zOHPt6h9.js`、`dist/assets/SettingsTab-B6y7Jptg.js`、`dist/assets/settingsChangelog-C-FefGlk.js` 和 `dist/assets/index-DAJEiJfZ.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment:
+  - 文档流程更新,推送 GitHub `main` 后不改变运行时代码;使用项目 SSH key 推送。
+- Rollback: 回滚本条文档会移除新增 SSH/Vercel rate-limit 硬规则,不影响运行时代码或生产数据。
+
 ### 2026-07-06 - iOS 主屏幕秒级恢复刷新
 
 - Runtime commit: `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`

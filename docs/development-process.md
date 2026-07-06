@@ -78,12 +78,14 @@
    - 推送分支后优先开 PR。
    - 合并或快进 `main` 前必须确认构建和必要验证通过。
    - 用户没有明确要求“只本地实现/暂不部署”时,完成改动并验证通过后必须继续推进到 GitHub `main`,触发生产自动部署。
+   - 本仓库推送、部署重试、`fetch`、`ls-remote`、刷新 `origin/main` 等所有远端 Git 操作,默认都必须显式使用项目 SSH key 和 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`。不要用 HTTPS `origin` 作为省事路径;如果 `origin` 仍是 HTTPS,也不要直接运行 `git push origin main`。
    - 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限;本机该项目已有 SSH key `~/.ssh/boduan_tracker_github`,应使用:
 
      ```bash
      GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git push git@github.com:chenshuai1190-dotcom/boduan-tracker.git main
      ```
 
+   - 如果远端检查、`ls-remote`、`fetch` 或 `status` 辅助命令出现 `Permission denied (publickey)`、`could not read Username`、`Device not configured` 或本地 `origin/main` 未刷新,先判定为“命令没有按本仓库 SSH 准则执行”,立即用同一个 `GIT_SSH_COMMAND` 和 `git@github.com:...` 重跑;不得把这类错误写成用户权限不足或部署阻塞。
    - 推送后如本地 `origin/main` 仍未刷新,用同一个 SSH key fetch: `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git fetch git@github.com:chenshuai1190-dotcom/boduan-tracker.git main:refs/remotes/origin/main`。
 
 7. **Vercel 自动部署**
@@ -91,6 +93,8 @@
    - 这是每次完成可部署改动后的默认收尾动作;不能停在“已实现但未部署”状态。
    - 不在 Vercel 控制台直接改源码。
    - 环境变量只在 Vercel/Supabase 后台配置,不写进仓库。
+   - 如果 Vercel 对运行时代码提交返回 `Deployment rate limited — retry in 24 hours` 或长时间没有创建 production deployment,不能停在“已推送但未上线”。应先把真实失败状态写入 `docs/development-log.md`,然后创建一个明确的部署重试提交,通过项目 SSH key 推送到 GitHub `main`,并继续轮询 Vercel 到 `success` 或再次确认真实阻塞。部署重试提交不要使用 `[skip ci]`,除非它只是成功上线后的纯文档证据记录。
+   - 如果用户明确要求“部署”“再次部署”或“走 ssh”,必须优先执行上面的 SSH 推送/重试流程,不得改用 HTTPS、不得把第一次 Vercel rate limit 当作最终完成状态。
    - 如果 GitHub、CI、Vercel 或权限问题导致无法部署,必须在最终交接中明确说明阻塞原因和当前 commit。
 
 8. **生产验证和交接**
