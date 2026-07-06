@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 英文交易页头部和公司名修正
 
-- Commit: same commit
+- Commit: `1ab5e0a59c7d84c71b1ef5c6d42d416b51e17e0f`
 - Background: 用户截图反馈英文交易页头部资产卡右侧 `Positions` 统计撑出卡片,同时英文股票列表不应主副标题都显示 ticker,应按“股票代码 + 公司英文名”展示。
 - Changes:
   - `TradesTab.jsx` 的头部持仓数量文案同步首页英文尺寸,并增加截断保护,避免英文长文案撑破卡片。
@@ -29,7 +29,11 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DMYKPs3a.js`、`dist/assets/TradesTab-B6_xQX_4.js`、`dist/assets/SettingsTab-BksTVJFV.js`、`dist/assets/settingsChangelog-hARvhevh.js`。
   - 本地 dist marker: `App-DMYKPs3a.js` 包含 `NVIDIA Corporation` 和 `Nokia Oyj`;`TradesTab-B6_xQX_4.js` 包含 `text-[14px]` 和 `truncate whitespace-nowrap`;`SettingsTab-BksTVJFV.js` 包含 `v10.7.9.163`;`settingsChangelog-hARvhevh.js` 包含 `v10.7.9.163` 和 `英文交易页细节修正`。
 - Deployment:
-  - Not deployed yet.
+  - Pushed to GitHub `main` as runtime commit `1ab5e0a59c7d84c71b1ef5c6d42d416b51e17e0f`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=english-trade-fix-*` returned HTTP 200;active entry asset is `index-BYfp2NIH.js`。
+  - Production runtime chunks verified: `index-BYfp2NIH.js` imports `App-nkCFA-tJ.js`;`App-nkCFA-tJ.js` imports `TradesTab-B6_xQX_4.js` and `SettingsTab-xaAPGAS0.js`;`SettingsTab-xaAPGAS0.js` lazy-loads `settingsChangelog-hARvhevh.js`。
+  - Production marker verified: `SettingsTab-xaAPGAS0.js` contains `v10.7.9.163`;`settingsChangelog-hARvhevh.js` contains `v10.7.9.163` and `英文交易页细节修正`;`App-nkCFA-tJ.js` contains `NVIDIA Corporation` and `Nokia Oyj`;`TradesTab-B6_xQX_4.js` contains `truncate whitespace-nowrap`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的英文公司名映射、交易页英文头部/股票名显示、`v10.7.9.163` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
 
 ### 2026-07-06 - 英文模式扩展到交易页
