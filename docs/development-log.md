@@ -25,7 +25,12 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed;覆盖资产页语言框架、系统内置账户名/类型映射、设置页版本/更新日志和既有账户数据库边界。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/AnalysisTab-CRE7mYWm.js`、`dist/assets/i18n-rTR84cpE.js`、`dist/assets/SettingsTab-Bvszj1Dj.js`、`dist/assets/settingsChangelog-Dz1XGaPV.js`。
   - 本地 dist marker: `i18n-rTR84cpE.js` 包含 `Family Net Worth`、`Add Monthly Balance`、`China Merchants Bank`、`My Accounts` 和 `Account Actions`;`SettingsTab-Bvszj1Dj.js` 包含 `v10.7.9.165`;`settingsChangelog-Dz1XGaPV.js` 包含 `v10.7.9.165` 和 `资产页英文模式`。
-- Deployment: not deployed yet in this commit.
+- Deployment:
+  - Pushed to GitHub `main` as runtime commit `501666141e60767153fc5d83fef861da6e6d5160`;follow-up docs commit `e7c13b25dd29f40ab7373264dc6836fec08007d1` backfilled the runtime commit marker。
+  - Production `GET https://boduan-tracker.vercel.app/?v=asset-en-165-*` returned HTTP 200;active entry asset is `index-BFg3Wm0v.js`。
+  - Production runtime chunks verified: `index-BFg3Wm0v.js` imports `App-CBRbpZ2k.js`;`App-CBRbpZ2k.js` imports `AnalysisTab-CRE7mYWm.js`、`i18n-rTR84cpE.js` and `SettingsTab-Dl5mzskX.js`;`SettingsTab-Dl5mzskX.js` lazy-loads `settingsChangelog-Dz1XGaPV.js`。
+  - Production marker verified: `i18n-rTR84cpE.js` contains `Family Net Worth`、`Add Monthly Balance`、`China Merchants Bank` and `My Accounts`;`SettingsTab-Dl5mzskX.js` contains `v10.7.9.165`;`settingsChangelog-Dz1XGaPV.js` contains `v10.7.9.165` and `资产页英文模式`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的资产页语言显示、`v10.7.9.165` 设置页版本/更新日志、测试断言和本开发日志即可;不影响账户数据、月度余额、交易数据、行情鉴权或数据库。
 
 ### 2026-07-06 - 英文交易头部严格对齐首页
