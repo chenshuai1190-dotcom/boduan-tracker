@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 全局行情红色调整
 
-- Runtime commit: this commit
+- Runtime code commit: `5dd171dad1f4ab016eb269dacc6e013c97f79a0a`
 - Background: 用户参考中国券商主流红色截图,指出当前应用上涨/收益色偏粉,希望把全局粉色改成更接近主流券商的红色。
 - Changes:
   - `src/lib/marketColorMode.js` 将市场红色 token 从 `#fb7185` / `rose-400` 改为橙红 `#ff4b1f`,强红色同步为 `#e63a18`。
@@ -32,7 +32,10 @@
   - Build marker: `marketColorMode-DPLc54c-.js`、`TradesTab-CBmmELwV.js`、`ReviewTab-CG7fMUv2.js` and `App-BktICC-h.js` contain `#ff4b1f`;`App-BktICC-h.js` contains `#e63a18`;`SettingsTab-Dhab9XOE.js` contains `v10.7.9.184`;`settingsChangelog-CULBNA3w.js` contains `v10.7.9.184` and `全局行情红色调整`;checked chunks do not contain old market pink `#fb7185`, `bg-rose-600`, or old shadow `rgba(225,29,72`。
   - `git diff --check` pass。
 - Deployment:
-  - Pending: 验证通过后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Runtime code commit `5dd171dad1f4ab016eb269dacc6e013c97f79a0a` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, target `EMEgHCMEo6xiLckuTtbT8Vh6M3zr`。
+  - Production marker: `https://boduan-tracker.vercel.app` root returns 200, latest production entry is `index-DWAz5CIg.js`;`marketColorMode-DPLc54c-.js` contains `#ff4b1f` and does not contain old market token `#fb7185`;`TradesTab-CBmmELwV.js`、`ReviewTab-CG7fMUv2.js` and `App-DpjirbGi.js` contain `#ff4b1f`;`App-DpjirbGi.js` contains `#e63a18`;`SettingsTab-DDpxcGSz.js` contains `v10.7.9.184`;`settingsChangelog-CULBNA3w.js` contains `v10.7.9.184` and `全局行情红色调整`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with no-store cache headers;ordinary HTTP `/api/stocks-realtime` returns `426` with no-store cache header。
 - Rollback: 回退本条涉及的市场红色 token、交易页/目标页硬编码红色、`v10.7.9.184` 设置页版本/更新日志、测试断言和本日志即可;不影响行情、鉴权、交易账本、数据库或 RLS。
 
 ### 2026-07-07 - 当日盈亏基准保护
