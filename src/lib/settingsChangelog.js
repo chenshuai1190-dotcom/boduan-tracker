@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.175', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.176', date: '2026-07-06', latest: true,
+    items: [
+      '📈 股票涨跌幅按现价和昨收重算',
+      '  - 股票行情只要 previousClosePrice 有效,涨跌额和涨跌幅统一由当前选定价格重新计算',
+      '  - 修复 EODHD changePercent 滞后导致 NOK、TSM 等股票涨幅低于真实现价涨幅的问题',
+      '  - WebSocket 实时价覆盖时也沿用基础行情昨收重算涨跌幅,不再信任 tick 自带百分比',
+      '  - 不改交易账本、成本、股数、汇率、Yahoo 小曲线、RLS 或鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.175', date: '2026-07-06',
     items: [
       '📈 EODHD 股票价格口径统一',
       '  - 正常交易时段股票价格使用 lastTradePrice,避免与按 lastTradePrice 返回的涨跌幅混用 ethPrice',

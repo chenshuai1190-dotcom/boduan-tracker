@@ -350,7 +350,7 @@ function liveQuoteWithoutPreviousClose({ price, high, low }) {
   };
 }
 
-test('EODHD stock normalizer keeps regular-session fields on lastTradePrice basis', () => {
+test('EODHD stock normalizer recomputes regular-session change from lastTradePrice and previous close', () => {
   const quote = normalizeEodhdStockQuoteFields({
     lastTradePrice: 384.05,
     ethPrice: 386.06,
@@ -366,9 +366,30 @@ test('EODHD stock normalizer keeps regular-session fields on lastTradePrice basi
   assert.equal(quote.quoteSession, 'regular');
   assert.equal(quote.priceMode, 'regular');
   assert.equal(quote.price, 384.05);
-  assert.equal(quote.change, -6.44);
-  assert.equal(quote.changePercent, -1.68);
-  assert.equal(quote.changeSource, 'eodhd-regular');
+  assert.equal(Number(quote.change.toFixed(2)), -6.44);
+  assert.equal(Number(quote.changePercent.toFixed(4)), -1.6492);
+  assert.equal(quote.changeSource, 'computed-regular');
+});
+
+test('EODHD stock normalizer ignores stale regular-session changePercent when previous close is valid', () => {
+  const quote = normalizeEodhdStockQuoteFields({
+    lastTradePrice: 12.7,
+    ethPrice: 12.44,
+    previousClosePrice: 12.07,
+    high: 12.75,
+    low: 12.15,
+    open: 12.2,
+    timestamp: 1783361520,
+    change: 0.63,
+    changePercent: 4.96,
+  }, { now: Date.UTC(2026, 6, 6, 14, 25, 0) });
+
+  assert.equal(quote.quoteSession, 'regular');
+  assert.equal(quote.priceMode, 'regular');
+  assert.equal(quote.price, 12.7);
+  assert.equal(Number(quote.change.toFixed(2)), 0.63);
+  assert.equal(Number(quote.changePercent.toFixed(4)), 5.2196);
+  assert.equal(quote.changeSource, 'computed-regular');
 });
 
 test('EODHD stock normalizer recomputes extended-session change from ethPrice', () => {

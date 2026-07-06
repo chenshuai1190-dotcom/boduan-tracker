@@ -139,14 +139,13 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
   const rowPreviousClose = asNumber(row?.previousClose);
   const previousClose = tickPreviousClose && tickPreviousClose > 0
     ? tickPreviousClose
-    : (tickChange !== null && tickChange !== 0 && price - tickChange > 0 ? price - tickChange : rowPreviousClose);
-  const priceDiffersFromPreviousClose = previousClose && previousClose > 0 && Math.abs(price - previousClose) > 0.000001;
-  const change = tickChange !== null && !(tickChange === 0 && priceDiffersFromPreviousClose)
-    ? tickChange
-    : (previousClose && previousClose > 0 ? price - previousClose : (asNumber(row?.change) ?? 0));
-  const changePercent = tickChangePercent !== null && !(tickChangePercent === 0 && priceDiffersFromPreviousClose)
-    ? tickChangePercent
-    : (previousClose && previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : (asNumber(row?.changePercent) ?? 0));
+    : (rowPreviousClose && rowPreviousClose > 0 ? rowPreviousClose : null);
+  const change = previousClose && previousClose > 0
+    ? price - previousClose
+    : (tickChange ?? asNumber(row?.change) ?? 0);
+  const changePercent = previousClose && previousClose > 0
+    ? ((price - previousClose) / previousClose) * 100
+    : (tickChangePercent ?? asNumber(row?.changePercent) ?? 0);
   const high = Math.max(
     asNumber(row?.high) || 0,
     asNumber(row?.week52High) || 0,

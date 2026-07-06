@@ -60,9 +60,7 @@ export function normalizeStockTick(rawTick, { symbols = null, receivedAt = Date.
 
   const changePercent = asNumber(raw.dc ?? raw.changePercent ?? raw.change_p);
   const change = asNumber(raw.dd ?? raw.change);
-  const previousClose = change !== null
-    ? price - change
-    : (changePercent !== null && changePercent > -100 ? price / (1 + changePercent / 100) : null);
+  const previousClose = asNumber(raw.previousClose ?? raw.previousClosePrice ?? raw.pc);
   const timestamp = parseTimestampMs(raw.t ?? raw.timestamp, receivedAt);
 
   return {

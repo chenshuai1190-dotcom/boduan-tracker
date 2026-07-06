@@ -44,22 +44,6 @@ export function getUsEquityQuoteSession(now = Date.now()) {
   }
 }
 
-function isChangeConsistentWithPrice(rawChange, price, previousClose) {
-  if (!isPositiveNumber(price) || !isPositiveNumber(previousClose)) return rawChange !== null;
-  if (rawChange === null) return false;
-  const expected = price - previousClose;
-  const tolerance = Math.max(0.03, Math.abs(price) * 0.0003);
-  return Math.abs(rawChange - expected) <= tolerance;
-}
-
-function isChangePercentConsistentWithPrice(rawChangePercent, price, previousClose) {
-  if (!isPositiveNumber(price) || !isPositiveNumber(previousClose)) return rawChangePercent !== null;
-  if (rawChangePercent === null) return false;
-  const expected = ((price - previousClose) / previousClose) * 100;
-  const tolerance = Math.max(0.08, Math.abs(expected) * 0.06);
-  return Math.abs(rawChangePercent - expected) <= tolerance;
-}
-
 export function normalizeEodhdStockQuoteFields(data, { now = Date.now() } = {}) {
   const lastTradePrice = parseQuoteNumber(data?.lastTradePrice);
   const ethPrice = parseQuoteNumber(data?.ethPrice);
@@ -85,16 +69,12 @@ export function normalizeEodhdStockQuoteFields(data, { now = Date.now() } = {}) 
   let changePercent = 0;
   let changeSource = 'unavailable';
 
-  if (canComputeFromSelectedPrice && (priceMode === 'extended' || priceMode === 'extended-fallback')) {
+  if (canComputeFromSelectedPrice) {
     change = computedChange;
     changePercent = computedChangePercent;
-    changeSource = 'computed-extended';
-  } else if (canComputeFromSelectedPrice) {
-    const rawChangeMatches = isChangeConsistentWithPrice(rawChange, price, previousClose);
-    const rawPercentMatches = isChangePercentConsistentWithPrice(rawChangePercent, price, previousClose);
-    change = rawChangeMatches ? rawChange : computedChange;
-    changePercent = rawPercentMatches ? rawChangePercent : computedChangePercent;
-    changeSource = rawChangeMatches && rawPercentMatches ? 'eodhd-regular' : 'computed-regular';
+    changeSource = (priceMode === 'extended' || priceMode === 'extended-fallback')
+      ? 'computed-extended'
+      : 'computed-regular';
   } else if (priceMode === 'regular') {
     change = rawChange ?? 0;
     changePercent = rawChangePercent ?? 0;

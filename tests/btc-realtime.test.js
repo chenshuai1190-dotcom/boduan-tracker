@@ -184,7 +184,7 @@ test('normalizeStockTick accepts EODHD US stock WebSocket fields', () => {
   assert.equal(tick.price, 188.42);
   assert.equal(tick.changePercent, 1.25);
   assert.equal(tick.change, 2.32);
-  assert.equal(tick.previousClose, 186.1);
+  assert.equal(tick.previousClose, null);
   assert.equal(tick.marketStatus, 'open');
   assert.equal(tick.timestamp, 1783000000123);
   assert.equal(tick.source, 'EODHD_WS');
@@ -211,7 +211,7 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
   assert.equal(updated[0].symbol, 'NVDA');
   assert.equal(updated[0].price, 188.42);
   assert.equal(updated[0].previousClose, 186.1);
-  assert.equal(updated[0].changePercent, 1.25);
+  assert.equal(Number(updated[0].changePercent.toFixed(4)), 1.2466);
   assert.equal(updated[0].realtimeStatus, 'live');
   assert.equal(updated[0].marketStatus, null);
   assert.deepEqual(updated[0].intraday, [178, 180, 188.42]);
@@ -240,6 +240,26 @@ test('stock realtime tick keeps previous close from base quote rows when tick on
   assert.equal(updated[0].previousClose, 390.507);
   assert.equal(Number(updated[0].change.toFixed(3)), 0.323);
   assert.equal(Number(updated[0].changePercent.toFixed(4)), 0.0827);
+});
+
+test('stock realtime tick recomputes stale percent from base previous close', () => {
+  const baseRows = [
+    { symbol: 'NOK', name: 'NOK', price: 12.7, previousClose: 12.07, change: 0.63, changePercent: 4.96, high: 12.75 },
+  ];
+  const updated = applyStockTickToQuoteRows([], {
+    type: 'stock_tick',
+    symbol: 'NOK',
+    price: 12.7,
+    change: 0.63,
+    changePercent: 4.96,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  }, 'live', baseRows);
+
+  assert.equal(updated[0].price, 12.7);
+  assert.equal(updated[0].previousClose, 12.07);
+  assert.equal(Number(updated[0].change.toFixed(2)), 0.63);
+  assert.equal(Number(updated[0].changePercent.toFixed(4)), 5.2196);
 });
 
 test('REST refresh preserves fresh realtime stock prices while keeping REST previous close', () => {

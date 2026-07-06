@@ -4,6 +4,38 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 股票涨跌幅按现价和昨收重算
+
+- Background: `v10.7.9.175` 上线后,用户同一时间对比截图显示价格已接近正确,但涨跌幅仍明显低于外部行情,并继续影响交易页当日盈亏/收益率。用本地 EODHD token 复查真实回包后确认:如 NOK `lastTradePrice=12.70`, `previousClosePrice=12.07`, EODHD 原始 `changePercent=4.96`,但按当前价和昨收应为约 `5.22%`;TSM 也存在同类原始百分比滞后。问题不是价格字段,而是我们仍信任了 EODHD 原始 `changePercent` / WebSocket tick 百分比。
+- Changes:
+  - `server/quote/providers/eodhd.js`:只要 `previousClosePrice` 有效,股票 REST quote 的 `change` 和 `changePercent` 一律用当前选定价格与昨收重算;EODHD 原始 `change/changePercent` 仅在昨收缺失时兜底。
+  - `server/realtime/stocks.js`:WebSocket tick 不再通过上游 `dd/dc` 反推 `previousClose`;只保留上游显式 `previousClose/previousClosePrice/pc`。
+  - `src/lib/stockRealtime.js`:实时价覆盖 REST 行情时,优先沿用基础行情昨收并用实时价重算 `change/changePercent`;不再信任 tick 自带百分比。
+  - 增加 NOK 真实异常形态 fixture 和实时 tick 滞后百分比测试,固定 `12.70 / 12.07 => 5.2196%` 这一类回归。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.176`,新增“股票涨跌幅按现价和昨收重算”。
+  - 本轮不改交易账本、成本、股数、汇率、Supabase、RLS、Yahoo 小曲线、数据库结构或 `/api/quote` 鉴权。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `server/realtime/stocks.js`
+  - `src/lib/stockRealtime.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/btc-realtime.test.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/btc-realtime.test.js tests/investment-summary.test.js tests/tool-ledger-boundaries.test.js` pass,63 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,91 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BoZo0aI8.js`、`dist/assets/SettingsTab-CoGxIAcE.js`、`dist/assets/settingsChangelog-DOBv6lHl.js`、`dist/assets/HomeTab-DzKcyI8C.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地真实 EODHD 只读验证:NVDA/MSFT/META/TSM/NOK 的输出 `changePercent` 均等于 `((price - previousClose) / previousClose) * 100`,其中 TSM 和 NOK 已从原始 EODHD 滞后百分比改为重算值。
+  - 本地 build marker: `SettingsTab-CoGxIAcE.js` contains `v10.7.9.176`;`settingsChangelog-DOBv6lHl.js` contains `股票涨跌幅按现价和昨收重算`。
+- Deployment:
+  - pending
+- Rollback: 回退本条涉及的 REST quote 强制重算、WebSocket tick previousClose 反推移除、前端实时合并重算、`v10.7.9.176` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、Yahoo 小曲线或鉴权。
+
 ### 2026-07-06 - EODHD 股票价格口径统一
 
 - Background: 前两次修复 MSFT/NOK 当日盈亏和涨跌幅异常时都扩大了影响面;本轮先用本地 EODHD token 抓真实回包,确认 `us-quote-delayed` 同一回包内 `ethPrice` 与 `lastTradePrice` 可同时存在且口径不同,而 `change/changePercent` 更接近 `lastTradePrice` 口径。旧逻辑在正常交易时段优先用 `ethPrice` 当价格,但继续使用 `lastTradePrice` 口径的涨跌字段,会导致交易页市值、当日盈亏和涨跌幅混算。
