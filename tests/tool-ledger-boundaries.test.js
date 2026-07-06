@@ -46,12 +46,14 @@ function readPngInfo(relativePath) {
   }
 
   let alphaMin = 255;
-  if (bitDepth === 8 && colorType === 6) {
+  let darkestCornerMax = 255;
+  if (bitDepth === 8 && (colorType === 2 || colorType === 6)) {
     const raw = inflateSync(Buffer.concat(idatChunks));
-    const bytesPerPixel = 4;
+    const bytesPerPixel = colorType === 6 ? 4 : 3;
     const stride = width * bytesPerPixel;
     let offset = 0;
     let previous = Buffer.alloc(stride);
+    const decodedRows = [];
     const paeth = (left, up, upLeft) => {
       const estimate = left + up - upLeft;
       const leftDistance = Math.abs(estimate - left);
@@ -78,12 +80,26 @@ function readPngInfo(relativePath) {
         else if (filter === 4) row[x] = (value + paeth(left, up, upLeft)) & 255;
         else throw new Error(`${relativePath} has unsupported PNG filter ${filter}`);
       }
-      for (let x = 3; x < stride; x += 4) alphaMin = Math.min(alphaMin, row[x]);
+      if (colorType === 6) {
+        for (let x = 3; x < stride; x += 4) alphaMin = Math.min(alphaMin, row[x]);
+      }
+      decodedRows.push(row);
       previous = row;
     }
+    const cornerMaxValues = [
+      [0, 0],
+      [width - 1, 0],
+      [0, height - 1],
+      [width - 1, height - 1],
+    ].map(([x, y]) => {
+      const row = decodedRows[y];
+      const start = x * bytesPerPixel;
+      return Math.max(row[start], row[start + 1], row[start + 2]);
+    });
+    darkestCornerMax = Math.max(...cornerMaxValues);
   }
 
-  return { width, height, bitDepth, colorType, alphaMin };
+  return { width, height, bitDepth, colorType, alphaMin, darkestCornerMax };
 }
 
 test('wave record entry writes legacy trades before main ledger stock_trades', () => {
@@ -137,7 +153,7 @@ test('legacy service worker file stays removed while old registrations are still
   assert.ok(mainSource.includes('reg.unregister()'), 'entry should still unregister old service workers on client load');
 });
 
-test('pwa app icons use the current transparent png logo assets', () => {
+test('pwa app icons use opaque dark png assets without white iOS padding', () => {
   const expectedIcons = [
     ['../public/icon-512.png', 512, 512],
     ['../public/icon-192.png', 192, 192],
@@ -151,8 +167,9 @@ test('pwa app icons use the current transparent png logo assets', () => {
     assert.equal(info.width, width, `${path} should keep the expected width`);
     assert.equal(info.height, height, `${path} should keep the expected height`);
     assert.equal(info.bitDepth, 8, `${path} should stay 8-bit PNG`);
-    assert.equal(info.colorType, 6, `${path} should keep an RGBA alpha channel`);
-    assert.ok(info.alphaMin < 255, `${path} should contain real transparent or semi-transparent pixels`);
+    assert.equal(info.colorType, 2, `${path} should be RGB without an alpha channel so iOS cannot add white padding`);
+    assert.equal(info.alphaMin, 255, `${path} should be fully opaque`);
+    assert.ok(info.darkestCornerMax < 32, `${path} should have dark filled corners instead of white padding`);
   }
 });
 
@@ -520,9 +537,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.146'), 'settings version badge should document the transparent PWA logo update');
+  assert.ok(settingsTabSource.includes('v10.7.9.147'), 'settings version badge should document the no-white-padding PWA logo update');
   assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
   assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.147'), 'settings changelog should document the no-white-padding PWA logo update');
+  assert.ok(settingsChangelogSource.includes('PWA Logo 去白边'), 'settings changelog should describe the no-white-padding PWA logo update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.146'), 'settings changelog should document the transparent PWA logo update');
   assert.ok(settingsChangelogSource.includes('PWA 透明 Logo 替换'), 'settings changelog should describe the transparent PWA logo update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.145'), 'settings changelog should document the data maintenance cleanup update');
