@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - PWA Logo 去白边
 
-- Commit: `same commit`
+- Commit: `e00db24834768095086aac6879575512043e6d1d`
 - Background: 用户截图反馈新版 App 图标在 iOS 主屏外侧仍有白色白边,要求深色图标完整填充,不能有白边。复查确认 `v10.7.9.146` 保留了透明通道,而 iOS 主屏会把透明区域垫成白色,导致截图中深色图标外出现白色圆角背景。
 - Changes:
   - 将五个最终发布图标从透明 RGBA 改为不透明 RGB PNG,四角合成深色底 `#05070b`,避免系统或浏览器用白色填充透明区域。
@@ -35,7 +35,16 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`dist` icons keep the expected dimensions and `hasAlpha=no`;`SettingsTab-BFtvnbZW.js` contains `v10.7.9.147`;`settingsChangelog-Dp6LoJ5u.js` contains `v10.7.9.147` and `PWA Logo 去白边`;`dist/manifest.json` still references `/icon-192.png` and `/icon-512.png`;`dist/index.html` still references `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`.
 - Deployment:
-  - Pending GitHub push, CI and Vercel production verification.
+  - Pushed to GitHub `main` as runtime commit `e00db24834768095086aac6879575512043e6d1d`.
+  - GitHub Actions `CI` check passed for `e00db24834768095086aac6879575512043e6d1d` (run `28766777678`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9RJtyQkX7GJ1oaYGN1XiXJVJzPcy`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=e00db24-icon-147-head`: HTTP 200.
+  - Production recursive asset marker check: pass;loaded `App--GIITf-i.js`, `SettingsTab-B2--I5xo.js`, `settingsChangelog-Dp6LoJ5u.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js`, and `ReviewTab-qTkuZOCn.js`.
+  - Production settings marker check: pass;active runtime assets contain `v10.7.9.147` and changelog contains `PWA Logo 去白边`.
+  - Production icon check: pass;`/icon-512.png`, `/icon-192.png`, `/apple-touch-icon.png`, `/favicon-32.png`, `/favicon-16.png` all return HTTP 200 `image/png`,dimensions `512x512`, `192x192`, `180x180`, `32x32`, `16x16`,PNG color type `2` RGB,no alpha channel,and dark corner max channel value `11`.
+  - Production icon SHA256 matches local: `icon-512.png` = `14a1f75ce2e9e6b57f3caa736eadc5cefbba48ff16ab6d1289bfc83a5589807f`, `icon-192.png` = `8544cadc13f7d4da0fe6d3913c843bc427a90bf23d20be327b85bce79c5b264b`, `apple-touch-icon.png` = `d4cdb42a6e69b7ff4f52a1dbe53a7859b0cee5b41f37873ba9a1b74c0a4f0e6c`, `favicon-32.png` = `9ee94c2683b341953e12d79ddcb167b50e526c3c02944f4fe3ee24726eea9460`, `favicon-16.png` = `6da0a94988302f61b875f33981090d0f194e0be52c06b7ce3e9978821da5645e`.
+  - Production realtime/security marker check: pass;active runtime assets still contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`;active runtime assets outside historical changelog do not contain `VITE_EODHD_TOKEN`, `VITE_ALLOW_BROWSER_EODHD_WS`, or `ws.eodhistoricaldata.com`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退五个 `public/*.png` 图标文件、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.147` 条目、图标测试和本开发日志即可;不会影响行情、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - PWA 透明 Logo 替换
