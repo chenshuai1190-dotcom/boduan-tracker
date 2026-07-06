@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 盘后当日盈亏券商口径
 
-- Runtime code commit: this commit
+- Runtime code commit: `308e3937bb7b6f52b8b753f28fd97a2dc8c25716`
 - Background: 用户用同一时间 IBKR 和本应用截图对比,确认持仓股数一致,但本应用盘后当日盈亏从券商口径的 `当前价 - 昨日收盘价` 变成了类似 `盘后价 - 当天收盘价`。本地复现显示 NVDA 在 `ethPrice=195.274`、provider 盘后 `previousClosePrice=195.55` 时旧逻辑会算出约 `-1931`,而 IBKR 口径应继续以 `194.80` 一类的上一交易日收盘价为基准。
 - Changes:
   - `server/quote/providers/eodhd.js` 增加 `getUsEquityMarketDate` 和 `findDailyBaselineCloseFromEodRows`,从 EODHD EOD 日线里提取当前美股市场日期之前的收盘价作为 `dailyBaselineClose`。
@@ -37,7 +37,10 @@
   - Build marker: `SettingsTab-DGX6TpdI.js` contains `v10.7.9.185`;`settingsChangelog-D9gj1Gou.js` contains `v10.7.9.185` and `盘后当日盈亏券商口径`;`App-BTzOvtCn.js` contains `dailyBaselineClose`、`sessionPreviousClose` and `providerPreviousClose`。
   - `git diff --check` pass。
 - Deployment:
-  - Pending: 完成全量验证后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Runtime code commit `308e3937bb7b6f52b8b753f28fd97a2dc8c25716` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, target `8GTvHP46Gy5nvQGq3XUB37vwvBZJ`。
+  - Production marker: `https://boduan-tracker.vercel.app` root returns 200, latest production entry is `index-0uOV9FJE.js`;`SettingsTab-BarloMGi.js` contains `v10.7.9.185`;`settingsChangelog-D9gj1Gou.js` contains `v10.7.9.185` and `盘后当日盈亏券商口径`;`App-Zth1HpBO.js` contains `dailyBaselineClose`、`sessionPreviousClose` and `providerPreviousClose`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with no-store cache headers;ordinary HTTP `/api/stocks-realtime` returns `426` with no-store cache header。
 - Rollback: 回退本条涉及的 EODHD daily baseline 字段、实时 tick baseline 保护、投资汇总 baseline 优先级、`v10.7.9.185` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓数量、成本、鉴权、数据库或 RLS。
 
 ### 2026-07-07 - 全局行情红色调整
