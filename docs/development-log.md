@@ -31,13 +31,14 @@
 - Deployment:
   - Pushed to GitHub `main` as runtime commit `7c24e6892704bbf19dc9cb16f78cd4118f57fa7a`.
   - GitHub Actions `CI` run `28800760867` completed successfully.
-  - Vercel status for `7c24e68` returned `failure`: `Deployment rate limited — retry in 24 hours.`
-  - Production alias `https://boduan-tracker.vercel.app` still serves the previous `v10.7.9.176` runtime entry `/assets/index-CSdjkNon.js`;no direct Vercel changes were made.
+  - Initial Vercel status for `7c24e68` returned `failure`: `Deployment rate limited — retry in 24 hours.`
+  - Follow-up documentation/status commit `7542d0a8e1475708b7f3aa8585ca911de69af086` retriggered the GitHub-integrated deployment path;Vercel status returned `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Dmeakp5DpaAVwyvE6Ear6T87Qaph`.
+  - Production alias `https://boduan-tracker.vercel.app` returned HTTP 200 with active entry `/assets/index-VYBFOlGe.js`;no direct Vercel changes were made.
 - Production verification:
-  - Production root returned HTTP 200 with active entry `/assets/index-CSdjkNon.js`.
-  - Production `SettingsTab-VCBLkU7x.js` still contains `v10.7.9.176`;production `settingsChangelog-DOBv6lHl.js` still contains `v10.7.9.176` and `股票涨跌幅按现价和昨收重算`;`v10.7.9.177` is not yet deployed because of the Vercel rate limit.
+  - Production root returned HTTP 200,`x-vercel-cache: MISS`,active entry `/assets/index-VYBFOlGe.js`;entry imports `/assets/App-diyx1qIs.js`.
+  - Production `App-diyx1qIs.js` contains `auto-start-cloud`, `auto-focus`, `auto-pageshow`, `auto-tab`, `auto-realtime-open`, and the quick refresh scheduler markers.
+  - Production `SettingsTab-MGrCaUBt.js` contains `v10.7.9.177` and the new diagnostic trigger labels;production `settingsChangelog-DHVKCFxY.js` contains `v10.7.9.177` and `股票行情即时刷新`.
   - Production auth boundaries retained: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`.
-- Follow-up: Vercel 自动部署限流窗口解除后,通过 GitHub `main` 重新触发部署并验证 `SettingsTab` contains `v10.7.9.177`, `settingsChangelog` contains `股票行情即时刷新`, and production entry updates away from `/assets/index-CSdjkNon.js`.
 - Rollback: 回退本条涉及的快速刷新调度、自动触发来源标签、`v10.7.9.177` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、数据库结构、EODHD 服务端鉴权、`/api/quote` 鉴权或 `v10.7.9.176` 涨跌幅重算口径。
 
 ### 2026-07-06 - 股票涨跌幅按现价和昨收重算
