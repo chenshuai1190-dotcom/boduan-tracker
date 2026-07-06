@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - CNN 仪表盘端点修正
+
+- Commit: `pending`
+- Background: 用户根据线上截图反馈首页 CNN 恐慌贪婪指数仪表盘已经有大体效果,但 `0` / `100` 两端数字末尾显示不完整;同时整体圆弧有点过弯,需要左右展开一点,更接近参考图。
+- Changes:
+  - CNN `FgiGauge` 的圆弧从等半径半圆改为横向椭圆弧,`radiusX=54`、`radiusY=40`,在同样小卡高度内左右展开到约 `x=26` / `x=134`。
+  - SVG `viewBox` 从 `0 0 160 70` 微调到 `0 0 160 72`,继续保持 `h-[54px]`,只给端点数字和 glow 留出安全空间,不扩大卡片高度。
+  - `0` / `100` 端点数字向内并上移到 `x=37/y=67` 和 `x=123/y=67`,避免末尾被裁切。
+  - 指针、分隔线和渐变坐标同步使用椭圆参数,保持 32 指向左侧恐惧区域。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.152`,新增“CNN 仪表盘端点修正”。
+  - 本轮只调整首页 CNN 仪表盘几何和端点标签;不改变 VIX 样式、VIX/FGI 数据来源、行情 relay、交易账本、资产、目标、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including updated homepage CNN gauge geometry marker checks.
+  - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/?tab=home`,Chrome headless viewport `390x844`;VIX/CNN fear cards remain side-by-side at `173px` wide and `160px` high;CNN SVG remains `143px x 54px` with `viewBox="0 0 160 72"`;`0` label bbox is `4px x 8px`, `100` label bbox is `12px x 8px`, both fully inside the SVG/card;document `scrollWidth=390`,no horizontal overflow.
+  - `npm run build`: pass;Vite built `HomeTab-T51OjtGg.js`, `SettingsTab-C-5OBMWz.js`, `settingsChangelog-DVrypJXT.js`, `App-DKpLPuaD.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`HomeTab-T51OjtGg.js` contains `0 0 160 72` / `h-[54px]`, expanded ellipse arc markers and endpoint label markers, while omitting old `0 0 160 70`, `0 0 160 90`, and thick `strokeWidth="13"` markers;`SettingsTab-C-5OBMWz.js` contains `v10.7.9.152`;`settingsChangelog-DVrypJXT.js` contains `v10.7.9.152` and `CNN 仪表盘端点修正`.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/tabs/HomeTab.jsx` 的椭圆弧/端点标签调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.152` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 首页恐慌指数小卡压缩
 
 - Commit: `894bd5d9affb7831fb544844ebb9c606ba29932b`

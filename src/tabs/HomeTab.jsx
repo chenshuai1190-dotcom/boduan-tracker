@@ -283,40 +283,41 @@ function fgiValueToAngle(value) {
   return 180 - (Math.max(0, Math.min(100, num(value))) / 100) * 180;
 }
 
-function fgiPolarPoint(cx, cy, radius, angle) {
+function fgiPolarPoint(cx, cy, radiusX, radiusY, angle) {
   const radians = (angle * Math.PI) / 180;
   return {
-    x: cx + radius * Math.cos(radians),
-    y: cy - radius * Math.sin(radians),
+    x: cx + radiusX * Math.cos(radians),
+    y: cy - radiusY * Math.sin(radians),
   };
 }
 
-function describeFgiArc(cx, cy, radius, startValue, endValue) {
+function describeFgiArc(cx, cy, radiusX, radiusY, startValue, endValue) {
   const startAngle = fgiValueToAngle(startValue);
   const endAngle = fgiValueToAngle(endValue);
-  const start = fgiPolarPoint(cx, cy, radius, startAngle);
-  const end = fgiPolarPoint(cx, cy, radius, endAngle);
+  const start = fgiPolarPoint(cx, cy, radiusX, radiusY, startAngle);
+  const end = fgiPolarPoint(cx, cy, radiusX, radiusY, endAngle);
   const largeArcFlag = Math.abs(startAngle - endAngle) > 180 ? 1 : 0;
-  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radiusX} ${radiusY} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
 function FgiGauge({ value }) {
   const v = Math.max(0, Math.min(100, num(value)));
   const cx = 80;
-  const cy = 60;
-  const radius = 42;
+  const cy = 62;
+  const radiusX = 54;
+  const radiusY = 40;
   const angle = fgiValueToAngle(v);
   const level = fgiLevel(v);
-  const pointer = fgiPolarPoint(cx, cy, 33, angle);
-  const arcPath = describeFgiArc(cx, cy, radius, 0, 100);
+  const pointer = fgiPolarPoint(cx, cy, 42, 31, angle);
+  const arcPath = describeFgiArc(cx, cy, radiusX, radiusY, 0, 100);
   const separators = [20, 50, 80].map((tick) => ({
-    inner: fgiPolarPoint(cx, cy, radius - 5, fgiValueToAngle(tick)),
-    outer: fgiPolarPoint(cx, cy, radius + 1, fgiValueToAngle(tick)),
+    inner: fgiPolarPoint(cx, cy, radiusX - 6, radiusY - 4, fgiValueToAngle(tick)),
+    outer: fgiPolarPoint(cx, cy, radiusX + 1, radiusY + 1, fgiValueToAngle(tick)),
   }));
   return (
-    <svg viewBox="0 0 160 70" className="h-[54px] w-full overflow-visible" aria-label={`CNN 恐慌贪婪指数 ${Math.round(v)} ${level.label}`}>
+    <svg viewBox="0 0 160 72" className="h-[54px] w-full overflow-visible" aria-label={`CNN 恐慌贪婪指数 ${Math.round(v)} ${level.label}`}>
       <defs>
-        <linearGradient id="fgiArcGradient" x1="38" y1="60" x2="122" y2="60" gradientUnits="userSpaceOnUse">
+        <linearGradient id="fgiArcGradient" x1="26" y1="62" x2="134" y2="62" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#f43f5e" />
           <stop offset="33%" stopColor="#fb923c" />
           <stop offset="53%" stopColor="#facc15" />
@@ -355,10 +356,10 @@ function FgiGauge({ value }) {
       <circle cx={cx} cy={cy} r="3.2" fill="#f8fafc" />
       <circle cx={pointer.x} cy={pointer.y} r="6.2" fill={level.color} fillOpacity="0.26" filter="url(#fgiPointGlow)" />
       <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
-      <text x="36" y="66" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>
-      <text x="80" y="22" fill="#7f8794" fontSize="9" textAnchor="middle">50</text>
-      <text x="124" y="66" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>
-      <text x="80" y="54" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
+      <text x="37" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>
+      <text x="80" y="24" fill="#7f8794" fontSize="9" textAnchor="middle">50</text>
+      <text x="123" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>
+      <text x="80" y="56" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
     </svg>
   );
 }
