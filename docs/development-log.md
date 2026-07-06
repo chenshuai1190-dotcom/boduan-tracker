@@ -35,7 +35,12 @@
   - `git diff --check && git diff --cached --check` pass。
   - 本地 dist marker: `SettingsTab-5wSwfrTI.js` / `settingsChangelog-5oQ0Pqpa.js` 包含 `v10.7.9.160`;`settingsChangelog-5oQ0Pqpa.js` 包含 `NOK 盘前口径修复回滚`;`App-0onBK_ug.js` 不包含 `createRealtimePriceOverlayTick` 或 `usesExtendedEodhdPrice`。
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`;GitHub Actions `build` run `28780343638` completed successfully.
+  - Vercel production deployment completed for commit `6bb29860a54e80c3ae524ad89a1f9332ffd5ed47`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FcL6JyQbrVxRwuPHMJkYhFSxWLN6`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=6bb2986-rollback-*` returned HTTP 200;active entry asset is `index-NTUfe3BF.js`。
+  - Production runtime chunks verified: `App-4QcrIawn.js` imports `SettingsTab-DfcxvG9T.js`;`SettingsTab-DfcxvG9T.js` lazy-loads `settingsChangelog-5oQ0Pqpa.js`。
+  - Production marker verified: `SettingsTab-DfcxvG9T.js` contains `v10.7.9.160`;`settingsChangelog-5oQ0Pqpa.js` contains `v10.7.9.160`, `NOK 盘前口径修复回滚`, and previous `盘前稀疏成交实时价保护`;`App-4QcrIawn.js` no longer contains `createRealtimePriceOverlayTick` or `usesExtendedEodhdPrice`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 如需再回退本次止血提交,回退设置页 `v10.7.9.160` 版本/更新日志和本开发日志即可;行情逻辑已恢复到 `v10.7.9.158` 路径。
 
 ### 2026-07-06 - 盘前稀疏成交实时价保护
