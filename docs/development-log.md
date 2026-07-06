@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - CNN 仪表盘数字显示修复
 
-- Commit: `pending`
+- Commit: `1bbe91919fe2b4c601523fa9cfe9254dc60bf4ad`
 - Background: 用户反馈线上截图中 CNN 恐慌贪婪指数小卡的 `0` / `100` 数字仍然无法正常显示;需要在本地严格调试,不要继续只改 SVG 坐标。
 - Changes:
   - CNN `FgiGauge` 的 `0` / `50` / `100` 刻度数字从 SVG `<text>` 改为圆弧容器内的 HTML 绝对定位文字。
@@ -30,7 +30,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`HomeTab-Ce1pIwyN.js` contains the fixed `h-[54px]` gauge slot, HTML label positions `16.25%` / `83.75%`, and no old SVG endpoint label markers `x=27/y=67` or `x=133/y=67`;`SettingsTab-CDQRfDPc.js` contains `v10.7.9.154`;`settingsChangelog-DiQZg79Z.js` contains `v10.7.9.154` and `CNN 仪表盘数字显示修复`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `1bbe91919fe2b4c601523fa9cfe9254dc60bf4ad`.
+  - GitHub Actions `CI` run `28771498194` passed for `1bbe91919fe2b4c601523fa9cfe9254dc60bf4ad`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=1bbe919-cnn-label-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 06:09:52 GMT`.
+  - Production asset marker check: pass;active runtime assets include `HomeTab-Ce1pIwyN.js`, `SettingsTab-DAU9ySaN.js`, and `settingsChangelog-DiQZg79Z.js`.
+  - Production CNN label marker check: pass;`HomeTab-Ce1pIwyN.js` contains the fixed `h-[54px]` gauge slot and HTML label positions `16.25%` / `83.75%`;old SVG endpoint label markers `x=27/y=67` and `x=133/y=67` are absent;`SettingsTab-DAU9ySaN.js` contains `v10.7.9.154`;active changelog chunk contains `v10.7.9.154` and `CNN 仪表盘数字显示修复`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/HomeTab.jsx` 的 CNN `FgiGauge` HTML 刻度数字和圆弧空间调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.154` 条目、测试和本开发日志即可;不会影响 VIX、行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 恐慌小卡文字和端点微调
