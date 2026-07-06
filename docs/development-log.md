@@ -30,7 +30,12 @@
   - `git diff --check` pass。
   - 本地 marker: `src/tabs/SettingsTab.jsx` 和 `src/lib/settingsChangelog.js` 已恢复 `v10.7.9.173` / “弹窗字重和交易确认细节”;`src`、`server` 和 `tests` 不再包含 `resolveQuoteChangeFields`、`selectPreviousCloseFromEodRows` 或 `v10.7.9.174` 运行时标记。
 - Deployment:
-  - pending
+  - Pushed to GitHub `main` with rollback commits `257daeb7f54d711c89a4f04871ac340c49f0861b` and `d24c2cbc618049276d7c591ae45eedacf2f1c5d4`, plus rollback log commit `30f8dae710537a012d0c2d7d8facb10e126d9c32`。
+  - GitHub Actions `CI` run `28797126553` completed successfully for `30f8dae`。
+  - Vercel production alias `https://boduan-tracker.vercel.app` returned HTTP 200 and active entry asset is `/assets/index-DrUo3qYu.js`。
+  - Production runtime chunks verified: `/assets/index-DrUo3qYu.js` imports `/assets/App-Drfnt0_s.js`;runtime assets include `/assets/SettingsTab-DGdo-lLP.js` and `/assets/settingsChangelog-DR5wiS8Z.js`。
+  - Production marker verified: `SettingsTab-DGdo-lLP.js` contains `v10.7.9.173`;`settingsChangelog-DR5wiS8Z.js` contains `弹窗字重和交易确认细节`;production runtime chunks do not contain `v10.7.9.174` or `resolveQuoteChangeFields`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 本条本身是紧急回滚。如需再次尝试修复,必须先基于真实 EODHD 回包复现 MSFT/NOK 的 `price/previousClose/change/changePercent` 字段,不要再假设 EOD EOD 历史可直接作为 intraday baseline。
 
 ### 2026-07-06 - 弹窗字重和交易确认细节
