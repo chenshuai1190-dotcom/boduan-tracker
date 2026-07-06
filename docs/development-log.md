@@ -4,6 +4,34 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 英文模式扩展到交易页
+
+- Commit: same commit
+- Background: 用户确认英文版先分阶段推进,第一阶段已经完成语言框架、设置开关、底部导航和首页;本轮继续处理交易页,要求不影响中文正常显示、不翻译用户自己写的日志/备注,英文模式下股票主副标题按代码缩写显示。
+- Changes:
+  - `TradesTab.jsx` 接入 `src/lib/i18n.js`,交易页头部资产卡、工具入口、交易记录、持仓分布、当日订单、操作弹窗、波段记录和摊薄工具文案改为语言字典读取。
+  - 英文模式下交易页股票显示继续走 `displayStockName(symbol,name,language)`,系统股票名显示为 ticker,已有备注、波段计划、批次等用户内容保持原文。
+  - `App.jsx` 中交易页可触达的摊薄成本新增/交易弹窗、全部交易记录弹窗、删除确认和提交确认提示接入语言开关。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.162`,新增“英文模式扩展到交易页”。
+  - 本轮只调整显示文案、单位和弹窗标签,不改交易账本、行情源、WebSocket、持仓盈亏、数据库结构、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/i18n.js`
+  - `src/tabs/TradesTab.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖交易页英文 i18n、股票代码显示、设置页版本和更新日志。
+  - `git diff --check` pass。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DrACT9fn.js`、`dist/assets/TradesTab-DRCAM60-.js`、`dist/assets/i18n-BaBEJhjJ.js`、`dist/assets/SettingsTab-BDBd4cDZ.js`、`dist/assets/settingsChangelog-e8WgVBQV.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - 本地 dist marker: `SettingsTab-BDBd4cDZ.js` 包含 `v10.7.9.162`;`settingsChangelog-e8WgVBQV.js` 包含 `v10.7.9.162` 和 `英文模式扩展到交易页`;`i18n-BaBEJhjJ.js` 包含 `Total Assets`、`Trade Log`、`Averaging Tool`、`All Trades` 和交易页英文 key。
+- Deployment:
+  - Not deployed yet.
+- Rollback: 回退本条涉及的交易页/App 弹窗 i18n 接入、`v10.7.9.162` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
+
 ### 2026-07-06 - 股票核心行情去 Yahoo 混源
 
 - Commit: same commit

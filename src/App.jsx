@@ -2057,14 +2057,17 @@ function MainApp({ user, onLogout }) {
         title,
         desc,
         info,
-        confirmText: '关闭',
+        confirmText: t(language, 'trades.close', '关闭'),
         confirmStyle: 'primary',
         icon: '!',
         showCancel: false,
       });
     };
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
-      showTradeNotice('请填写完整信息', '股票代码、价格和股数都是必填项。');
+      showTradeNotice(
+        t(language, 'trades.requiredTitle', '请填写完整信息'),
+        t(language, 'trades.requiredDesc', '股票代码、价格和股数都是必填项。')
+      );
       return;
     }
     const symbol = newTrade.symbol.trim().toUpperCase();
@@ -2072,7 +2075,10 @@ function MainApp({ user, onLogout }) {
     const priceNum = parseFloat(newTrade.price);
     const editingId = newTrade.id || newTrade.editingId;
     if (sharesNum <= 0 || priceNum <= 0) {
-      showTradeNotice('价格和股数需要大于 0', '请检查输入后再提交。');
+      showTradeNotice(
+        t(language, 'trades.positiveTitle', '价格和股数需要大于 0'),
+        t(language, 'trades.positiveDesc', '请检查输入后再提交。')
+      );
       return;
     }
     // 名字优先级:用户填的 > 中英对照表 > 代码本身
@@ -2104,7 +2110,10 @@ function MainApp({ user, onLogout }) {
           }
         }
       } catch (e) {
-        showTradeNotice('添加波段记录失败', e.message || '请稍后重试。');
+        showTradeNotice(
+          t(language, 'trades.addWaveFailed', '添加波段记录失败'),
+          e.message || t(language, 'trades.tryAgainLater', '请稍后重试。')
+        );
         return;
       } finally {
         tradeSubmittingRef.current = false;
@@ -2146,7 +2155,12 @@ function MainApp({ user, onLogout }) {
         ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
         : [...current, tradeRecord]);
     } catch (e) {
-      showTradeNotice(`${editingId ? '更新' : '添加'}交易失败`, e.message || '请稍后重试。');
+      showTradeNotice(
+        editingId
+          ? t(language, 'trades.updateTradeFailed', '更新交易失败')
+          : t(language, 'trades.addTradeFailed', '添加交易失败'),
+        e.message || t(language, 'trades.tryAgainLater', '请稍后重试。')
+      );
       return;
     } finally {
       tradeSubmittingRef.current = false;
@@ -2174,9 +2188,9 @@ function MainApp({ user, onLogout }) {
     const sharesNum = parseFloat(costBasisNewTrade.shares);
     if (!symbol) {
       showConfirm({
-        title: '请先选择股票',
-        desc: '先在摊薄成本工具中新增或选择一只股票,再添加交易记录。',
-        confirmText: '关闭',
+        title: t(language, 'trades.pickStockTitle', '请先选择股票'),
+        desc: t(language, 'trades.pickStockDesc', '先在摊薄成本工具中新增或选择一只股票,再添加交易记录。'),
+        confirmText: t(language, 'trades.close', '关闭'),
         confirmStyle: 'primary',
         icon: '!',
         showCancel: false,
@@ -2185,9 +2199,9 @@ function MainApp({ user, onLogout }) {
     }
     if (!priceNum || !sharesNum || priceNum <= 0 || sharesNum <= 0) {
       showConfirm({
-        title: '请填写正确的价格和股数',
-        desc: '价格和股数都需要大于 0。',
-        confirmText: '关闭',
+        title: t(language, 'trades.correctPriceSharesTitle', '请填写正确的价格和股数'),
+        desc: t(language, 'trades.correctPriceSharesDesc', '价格和股数都需要大于 0。'),
+        confirmText: t(language, 'trades.close', '关闭'),
         confirmStyle: 'primary',
         icon: '!',
         showCancel: false,
@@ -2195,12 +2209,12 @@ function MainApp({ user, onLogout }) {
       return;
     }
     const type = costBasisNewTrade.type === 'sell' ? 'sell' : 'buy';
-    const typeLabel = type === 'sell' ? '卖出' : '买入';
+    const typeLabel = type === 'sell' ? t(language, 'trades.sell', '卖出') : t(language, 'trades.buy', '买入');
     showConfirm({
-      title: '确认保存摊薄成本记录?',
-      desc: '这笔记录只会进入摊薄成本独立小工具,不会进入正式持仓、当日订单或波段记录。',
-      info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} 股 @ ${priceNum.toFixed(2)} · ${costBasisNewTrade.date || '--'}`,
-      confirmText: '确认保存',
+      title: t(language, 'trades.confirmCostTradeTitle', '确认保存摊薄成本记录?'),
+      desc: t(language, 'trades.confirmCostTradeDesc', '这笔记录只会进入摊薄成本独立小工具,不会进入正式持仓、当日订单或波段记录。'),
+      info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${t(language, 'trades.shares', '股')} @ ${priceNum.toFixed(2)} · ${costBasisNewTrade.date || '--'}`,
+      confirmText: t(language, 'trades.confirmSave', '确认保存'),
       confirmStyle: 'primary',
       icon: '!',
       onConfirm: async () => {
@@ -2228,9 +2242,9 @@ function MainApp({ user, onLogout }) {
             [symbol]: (prev[symbol] || []).filter(item => item.id !== tradeRecord.id),
           }));
           showConfirm({
-            title: '保存摊薄成本交易失败',
+            title: t(language, 'trades.saveCostTradeFailed', '保存摊薄成本交易失败'),
             desc: e.message || String(e),
-            confirmText: '关闭',
+            confirmText: t(language, 'trades.close', '关闭'),
             confirmStyle: 'primary',
             icon: '!',
             showCancel: false,
@@ -5100,24 +5114,24 @@ function MainApp({ user, onLogout }) {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div className="text-[15px] font-normal text-white">新增摊薄股票</div>
+                <div className="text-[15px] font-normal text-white">{t(language, 'trades.addAveragingStock', '新增摊薄股票')}</div>
                 <button
                   type="button"
                   onClick={() => setShowCostBasisAdd(false)}
                   className={costBasisModalCloseClass}
-                  aria-label="关闭新增摊薄股票"
+                  aria-label={t(language, 'trades.closeAddAveragingStock', '关闭新增摊薄股票')}
                 >
                   <X className="h-4 w-4" strokeWidth={1.8} />
                 </button>
               </div>
               <div className="space-y-3 p-5">
                 <label className="block">
-                  <span className={costBasisModalLabelClass}>股票代码</span>
+                  <span className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</span>
                   <input
                     type="text"
                     value={costBasisNewSymbol}
                     onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
-                    placeholder="股票代码 (如 NVDA)"
+                    placeholder={t(language, 'trades.tickerPlaceholder', '股票代码 (如 NVDA)')}
                     className={costBasisModalSymbolInputClass}
                     style={{ fontFamily: 'ui-monospace, monospace' }}
                     autoFocus
@@ -5128,7 +5142,7 @@ function MainApp({ user, onLogout }) {
                     onClick={() => setShowCostBasisAdd(false)}
                     className={costBasisModalCancelClass}
                   >
-                    取消
+                    {t(language, 'trades.cancel', '取消')}
                   </button>
                   <button
                     onClick={() => {
@@ -5136,9 +5150,9 @@ function MainApp({ user, onLogout }) {
                       if (!sym) return;
                       if (costBasisData[sym]) {
                         showConfirm({
-                          title: `${sym} 已存在`,
-                          desc: '这只股票已经在摊薄成本工具中,可以直接切换查看。',
-                          confirmText: '关闭',
+                          title: t(language, 'trades.symbolExistsTitle', '{{symbol}} 已存在', { symbol: sym }),
+                          desc: t(language, 'trades.symbolExistsDesc', '这只股票已经在摊薄成本工具中,可以直接切换查看。'),
+                          confirmText: t(language, 'trades.close', '关闭'),
                           confirmStyle: 'primary',
                           icon: '!',
                           showCancel: false,
@@ -5151,7 +5165,7 @@ function MainApp({ user, onLogout }) {
                     }}
                     className="rounded-xl border border-[#f6b54b]/30 bg-[#f6b54b]/15 py-2.5 text-[12px] font-normal text-[#ffd18a] active:scale-95"
                   >
-                    确定
+                    {t(language, 'trades.ok', '确定')}
                   </button>
                 </div>
               </div>
@@ -5175,14 +5189,14 @@ function MainApp({ user, onLogout }) {
             >
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div>
-                  <div className="text-[15px] font-normal text-white">添加摊薄交易</div>
-                  <div className="mt-0.5 text-[11px] font-normal text-[#9ca6b5]">{costBasisActiveSymbol || '未选择股票'}</div>
+                  <div className="text-[15px] font-normal text-white">{t(language, 'trades.addAveragingTrade', '添加摊薄交易')}</div>
+                  <div className="mt-0.5 text-[11px] font-normal text-[#9ca6b5]">{costBasisActiveSymbol || t(language, 'trades.noStockSelected', '未选择股票')}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCostBasisTrade(false)}
                   className={costBasisModalCloseClass}
-                  aria-label="关闭添加摊薄交易"
+                  aria-label={t(language, 'trades.closeAddAveragingTrade', '关闭添加摊薄交易')}
                 >
                   <X className="h-4 w-4" strokeWidth={1.8} />
                 </button>
@@ -5197,7 +5211,7 @@ function MainApp({ user, onLogout }) {
                       : costBasisModalInactiveSegmentClass
                   }`}
                 >
-                  买入
+                  {t(language, 'trades.buy', '买入')}
                 </button>
                 <button
                   onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'sell' }))}
@@ -5207,12 +5221,12 @@ function MainApp({ user, onLogout }) {
                       : costBasisModalInactiveSegmentClass
                   }`}
                 >
-                  卖出
+                  {t(language, 'trades.sell', '卖出')}
                 </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className={costBasisModalLabelClass}>价格 ($/股)</label>
+                    <label className={costBasisModalLabelClass}>{t(language, 'trades.pricePerShare', '价格 ($/股)')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -5225,7 +5239,7 @@ function MainApp({ user, onLogout }) {
                     />
                   </div>
                   <div>
-                    <label className={costBasisModalLabelClass}>股数</label>
+                    <label className={costBasisModalLabelClass}>{t(language, 'trades.quantity', '股数')}</label>
                     <input
                       type="number"
                       value={costBasisNewTrade.shares}
@@ -5237,7 +5251,7 @@ function MainApp({ user, onLogout }) {
                   </div>
                 </div>
                 <div>
-                  <label className={costBasisModalLabelClass}>日期</label>
+                  <label className={costBasisModalLabelClass}>{t(language, 'trades.date', '日期')}</label>
                   <input
                     type="date"
                     value={costBasisNewTrade.date}
@@ -5248,7 +5262,7 @@ function MainApp({ user, onLogout }) {
                 </div>
                 {costBasisNewTrade.price && costBasisNewTrade.shares && (
                   <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3 text-center text-[12px] font-normal text-white/50">
-                    {costBasisNewTrade.type === 'buy' ? '将投入' : '将收回'}{' '}
+                    {costBasisNewTrade.type === 'buy' ? t(language, 'trades.willInvest', '将投入') : t(language, 'trades.willRecover', '将收回')}{' '}
                     <span className="font-normal tabular-nums text-white/90" style={{ fontFamily: 'ui-monospace, monospace' }}>
                       ${(parseFloat(costBasisNewTrade.price) * parseFloat(costBasisNewTrade.shares)).toFixed(2)}
                     </span>
@@ -5259,14 +5273,14 @@ function MainApp({ user, onLogout }) {
                     onClick={() => setShowCostBasisTrade(false)}
                     className={costBasisModalCancelClass}
                   >
-                    取消
+                    {t(language, 'trades.cancel', '取消')}
                   </button>
                   <button
                     onClick={confirmCostBasisTradeSubmit}
                     disabled={costBasisSubmitting}
                     className="rounded-xl border border-[#f6b54b]/30 bg-[#f6b54b]/15 py-2.5 text-[12px] font-normal text-[#ffd18a] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
-                    {costBasisSubmitting ? '保存中...' : '确定'}
+                    {costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.ok', '确定')}
                   </button>
                 </div>
               </div>
@@ -5277,7 +5291,7 @@ function MainApp({ user, onLogout }) {
         {/* === 📋 全部交易记录弹窗 === */}
         {allTradesModal !== null && (() => {
           const sym = allTradesModal.symbol;
-          const name = allTradesModal.name;
+          const name = displayStockName(sym, allTradesModal.name, language);
           const allTrades = trades
             .filter(t => (t.symbol || 'TQQQ') === sym)
             .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id - a.id));
@@ -5312,7 +5326,7 @@ function MainApp({ user, onLogout }) {
                             backgroundClip: 'text',
                           }}
                         >
-                          全部交易
+                          {t(language, 'trades.allTrades', '全部交易')}
                         </h3>
                       </div>
                       <div className="text-[11px] mt-0.5" style={{ color: '#a3a3a3' }}>
@@ -5320,7 +5334,7 @@ function MainApp({ user, onLogout }) {
                         <span className="mx-1.5" style={{ color: '#525252' }}>·</span>
                         <span>{name}</span>
                         <span className="mx-1.5" style={{ color: '#525252' }}>·</span>
-                        <span>{allTrades.length} 条记录</span>
+                        <span>{allTrades.length} {t(language, 'trades.entries', '条记录')}</span>
                       </div>
                     </div>
                     <button
@@ -5337,59 +5351,59 @@ function MainApp({ user, onLogout }) {
                 <div className="flex-1 overflow-y-auto p-4">
                   {allTrades.length === 0 ? (
                     <div className="text-center py-12 text-slate-400 text-sm">
-                      暂无交易记录
+                      {t(language, 'trades.noTrades', '暂无交易记录')}
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {allTrades.map((t, i) => {
-                        const isBuy = !t.side || t.side === 'buy';
-                        const amount = Number(t.shares) * Number(t.price);
+                      {allTrades.map((trade, i) => {
+                        const isBuy = !trade.side || trade.side === 'buy';
+                        const amount = Number(trade.shares) * Number(trade.price);
                         return (
                           <div
-                            key={t.id}
+                            key={trade.id}
                             className={`p-3 rounded-xl border ${
                               isBuy ? 'border-rose-100 bg-rose-50/30' : 'border-emerald-100 bg-emerald-50/30'
                             }`}
                           >
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-black text-white ${isBuy ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                                {isBuy ? '买入' : '卖出'}
+                                {isBuy ? t(language, 'trades.buy', '买入') : t(language, 'trades.sell', '卖出')}
                               </span>
                               <span className="text-[11px] text-slate-500 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                {t.date || '—'}
+                                {trade.date || '—'}
                               </span>
                               <span className="text-[10px] text-slate-400">#{allTrades.length - i}</span>
                               <button
-                                onClick={() => setTradeDeleteConfirmId(t.id)}
+                                onClick={() => setTradeDeleteConfirmId(trade.id)}
                                 className="ml-auto w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-red-500 hover:border-red-500 hover:text-white text-slate-400 flex items-center justify-center text-xs font-bold transition active:scale-90"
-                                title="删除这条"
+                                title={t(language, 'trades.deleteThis', '删除这条')}
                               >
                                 ✕
                               </button>
                             </div>
                             <div className="grid grid-cols-3 gap-2 text-[12px]">
                               <div>
-                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">股数</div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">{t(language, 'trades.quantity', '股数')}</div>
                                 <div className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  {t.shares}
+                                  {trade.shares}
                                 </div>
                               </div>
                               <div>
-                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">单价</div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">{t(language, 'trades.unitPrice', '单价')}</div>
                                 <div className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  ${fmt(t.price)}
+                                  ${fmt(trade.price)}
                                 </div>
                               </div>
                               <div>
-                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">金额</div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">{t(language, 'trades.amount', '金额')}</div>
                                 <div className={`font-bold tabular-nums ${isBuy ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                   {isBuy ? '-' : '+'}${fmt(amount, 0)}
                                 </div>
                               </div>
                             </div>
-                            {t.batch && (
+                            {trade.batch && (
                               <div className="text-[10px] text-slate-400 mt-1.5">
-                                批次: {t.batch}
+                                {t(language, 'trades.batch', '批次')}: {trade.batch}
                               </div>
                             )}
                           </div>
@@ -5402,7 +5416,7 @@ function MainApp({ user, onLogout }) {
                 {/* 底部说明 */}
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50">
                   <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-                    💡 删除单笔交易不影响其他波段 · 按日期倒序排列
+                    {t(language, 'trades.allTradesHint', '💡 删除单笔交易不影响其他波段 · 按日期倒序排列')}
                   </p>
                 </div>
               </div>
@@ -5412,14 +5426,15 @@ function MainApp({ user, onLogout }) {
 
         {/* === 删除确认弹窗 (交易记录) === */}
         {tradeDeleteConfirmId !== null && (() => {
-          const t = trades.find(tr => tr.id === tradeDeleteConfirmId);
-          if (!t) {
+          const trade = trades.find(item => item.id === tradeDeleteConfirmId);
+          if (!trade) {
             // 数据丢失则自动关闭
             setTradeDeleteConfirmId(null);
             return null;
           }
-          const isBuy = !t.side || t.side === 'buy';
-          const amount = t.shares * t.price;
+          const isBuy = !trade.side || trade.side === 'buy';
+          const amount = trade.shares * trade.price;
+          const tradeName = displayStockName(trade.symbol, trade.name, language);
           return (
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center px-6"
@@ -5435,20 +5450,20 @@ function MainApp({ user, onLogout }) {
                   <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
                     <Trash2 className="w-6 h-6 text-red-600" />
                   </div>
-                  <h3 className="font-black text-lg text-slate-900">确定删除这笔交易?</h3>
-                  <p className="text-xs text-slate-500 mt-1">删除后无法恢复</p>
+                  <h3 className="font-black text-lg text-slate-900">{t(language, 'trades.confirmDeleteThisTrade', '确定删除这笔交易?')}</h3>
+                  <p className="text-xs text-slate-500 mt-1">{t(language, 'trades.deleteCannotRecover', '删除后无法恢复')}</p>
                 </div>
                 {/* 交易详情 */}
                 <div className="mx-5 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-black text-white ${isBuy ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                      {isBuy ? '买' : '卖'}
+                      {isBuy ? t(language, 'trades.buyShort', '买') : t(language, 'trades.sellShort', '卖')}
                     </span>
-                    <span className="font-bold text-sm text-slate-900">{t.symbol}</span>
-                    <span className="text-xs text-slate-500">{t.name}</span>
+                    <span className="font-bold text-sm text-slate-900">{trade.symbol}</span>
+                    <span className="text-xs text-slate-500">{tradeName}</span>
                   </div>
                   <div className="text-xs text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    {t.date} · {t.shares}股 @${fmt(t.price)} · {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                    {trade.date} · {trade.shares}{t(language, 'trades.shares', '股')} @${fmt(trade.price)} · {isBuy ? '-' : '+'}${fmt(amount, 0)}
                   </div>
                 </div>
                 {/* 按钮 */}
@@ -5457,7 +5472,7 @@ function MainApp({ user, onLogout }) {
                     onClick={() => setTradeDeleteConfirmId(null)}
                     className="py-3.5 text-slate-700 font-bold text-sm border-r border-slate-200 active:bg-slate-100 transition"
                   >
-                    取消
+                    {t(language, 'trades.cancel', '取消')}
                   </button>
                   <button
                     onClick={() => {
@@ -5466,7 +5481,7 @@ function MainApp({ user, onLogout }) {
                     }}
                     className="py-3.5 text-red-600 font-black text-sm active:bg-red-50 transition"
                   >
-                    删除
+                    {t(language, 'trades.delete', '删除')}
                   </button>
                 </div>
               </div>

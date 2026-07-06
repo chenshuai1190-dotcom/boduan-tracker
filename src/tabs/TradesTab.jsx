@@ -6,6 +6,7 @@ import {
   marketTextClass,
 } from '../lib/marketColorMode.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { isEnglishLanguage, t } from '../lib/i18n.js';
 
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
 const TRADE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -78,6 +79,7 @@ export default function TradesTab({ ctx }) {
     fetchRealtimePrices,
     fmt,
     investmentSummary,
+    language = 'zh',
     lookupStatus,
     marketColorMode,
     newTrade,
@@ -178,6 +180,22 @@ export default function TradesTab({ ctx }) {
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'RMB' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
+  const englishMode = isEnglishLanguage(language);
+  const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
+  const sideLabel = React.useCallback((side, short = false) => (
+    side === 'sell'
+      ? tt(short ? 'trades.sellShort' : 'trades.sell', short ? '卖' : '卖出')
+      : tt(short ? 'trades.buyShort' : 'trades.buy', short ? '买' : '买入')
+  ), [tt]);
+  const sharesText = React.useCallback((value, digits = 0) => `${fmtAmount(value, digits)} ${tt('trades.shares', '股')}`, [tt]);
+  const daysText = React.useCallback((value) => `${value}${tt('trades.day', '天')}`, [tt]);
+  const cnyEquivalentText = React.useCallback((usdValue, signed = false) => {
+    const cnyValue = toNumber(usdValue) * rate;
+    const sign = signed && cnyValue > 0 ? '+' : (signed && cnyValue < 0 ? '-' : '');
+    const absValue = Math.abs(cnyValue);
+    if (englishMode) return `≈ ${sign}¥${fmtAmount(absValue, 0)}`;
+    return `≈ ${sign}¥${(absValue / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万`;
+  }, [englishMode, rate]);
   const pnlAmountClass = 'text-[13px]';
   const tradeModalInputStyle = { colorScheme: 'dark' };
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-lg border border-transparent bg-white/[0.06] px-3 py-2 text-[12px] text-white outline-none transition placeholder:text-white/25 focus:bg-white/[0.085]';
@@ -200,7 +218,7 @@ export default function TradesTab({ ctx }) {
   const showMainLedger = !showWaveTool && !showCostTool;
   const positionsMarketValue = toNumber(summary.positionsMarketValue);
   const stockDisplayName = typeof displayStockName === 'function'
-    ? displayStockName
+    ? ((symbol, name) => displayStockName(symbol, name, language))
     : ((symbol, name) => String(name || symbol || '').trim());
   const waveGroups = Array.isArray(wavesByStock) ? wavesByStock : [];
   const activeWaveGroups = waveGroups.filter(group => group.activeWave);
@@ -208,8 +226,8 @@ export default function TradesTab({ ctx }) {
     .map(group => ({ ...group, completedWaves: (group.waves || []).filter(w => !w.isActive) }))
     .filter(group => group.completedWaves.length > 0);
   const colorModeOptions = [
-    { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: '绿涨红跌', upClass: 'bg-emerald-400', downClass: 'bg-rose-400' },
-    { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: '绿跌红涨', upClass: 'bg-rose-400', downClass: 'bg-emerald-400' },
+    { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: tt('trades.greenUpRedDown', '绿涨红跌'), upClass: 'bg-emerald-400', downClass: 'bg-rose-400' },
+    { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: tt('trades.redUpGreenDown', '绿跌红涨'), upClass: 'bg-rose-400', downClass: 'bg-emerald-400' },
   ];
 
   const openTradeModal = (position = null, side = 'buy') => {
@@ -282,10 +300,10 @@ export default function TradesTab({ ctx }) {
 
   const confirmDeleteTodayTrade = (trade) => {
     showConfirm({
-      title: '删除这笔交易记录?',
-      desc: '删除后会同步云端主交易账本,持仓和盈亏会重新计算。',
-      info: `${trade.symbol || '--'} · ${trade.side === 'sell' ? '卖出' : '买入'} ${fmtAmount(trade.shares, 0)} 股`,
-      confirmText: '删除',
+      title: tt('trades.deleteTradeTitle', '删除这笔交易记录?'),
+      desc: tt('trades.deleteTradeDesc', '删除后会同步云端主交易账本,持仓和盈亏会重新计算。'),
+      info: `${trade.symbol || '--'} · ${sideLabel(trade.side)} ${sharesText(trade.shares, 0)}`,
+      confirmText: tt('trades.delete', '删除'),
       icon: '🗑',
       onConfirm: async () => {
         await deleteStockTradeRecord(trade.id);
@@ -312,7 +330,7 @@ export default function TradesTab({ ctx }) {
       title,
       desc,
       info,
-      confirmText: '关闭',
+      confirmText: tt('trades.close', '关闭'),
       confirmStyle: 'primary',
       icon: '!',
       showCancel: false,
@@ -323,34 +341,34 @@ export default function TradesTab({ ctx }) {
     if (tradeSubmitting) return;
     if (!newTrade.symbol || !newTrade.price || !newTrade.shares) {
       showTradeFormNotice(
-        '请填写完整信息',
-        '股票代码、价格和股数都是必填项。',
+        tt('trades.requiredTitle', '请填写完整信息'),
+        tt('trades.requiredDesc', '股票代码、价格和股数都是必填项。'),
         `${newTrade.symbol || '--'} · ${newTrade.price || '--'} · ${newTrade.shares || '--'}`
       );
       return;
     }
     const symbol = String(newTrade.symbol || '').trim().toUpperCase();
-    const sideLabel = newTrade.side === 'sell' ? '卖出' : '买入';
     const shares = Number(newTrade.shares) || 0;
     const price = Number(newTrade.price) || 0;
     if (shares <= 0 || price <= 0) {
       showTradeFormNotice(
-        '价格和股数需要大于 0',
-        '请检查输入后再提交。',
-        `${symbol || '--'} · ${fmtAmount(shares, 0)} 股 @ ${price > 0 ? price.toFixed(2) : '--'}`
+        tt('trades.positiveTitle', '价格和股数需要大于 0'),
+        tt('trades.positiveDesc', '请检查输入后再提交。'),
+        `${symbol || '--'} · ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'}`
       );
       return;
     }
     const isWaveEntry = tradeEntryScope === 'wave';
+    const currentSideLabel = sideLabel(newTrade.side);
     showConfirm({
       title: isWaveEntry
-        ? '确认保存到波段记录?'
-        : (newTrade.id || newTrade.editingId ? '确认修改正式交易?' : '确认保存正式交易?'),
+        ? tt('trades.confirmWaveSaveTitle', '确认保存到波段记录?')
+        : (newTrade.id || newTrade.editingId ? tt('trades.confirmLedgerEditTitle', '确认修改正式交易?') : tt('trades.confirmLedgerSaveTitle', '确认保存正式交易?')),
       desc: isWaveEntry
-        ? '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。'
-        : '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。',
-      info: `${symbol || '--'} · ${sideLabel} ${fmtAmount(shares, 0)} 股 @ ${price > 0 ? price.toFixed(2) : '--'} · ${newTrade.date || '--'}`,
-      confirmText: '确认保存',
+        ? tt('trades.confirmWaveSaveDesc', '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。')
+        : tt('trades.confirmLedgerSaveDesc', '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。'),
+      info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'} · ${newTrade.date || '--'}`,
+      confirmText: tt('trades.confirmSave', '确认保存'),
       confirmStyle: 'primary',
       icon: '✅',
       onConfirm: async () => {
@@ -369,7 +387,7 @@ export default function TradesTab({ ctx }) {
       <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
         <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
           <div className="flex items-center justify-between">
-            <div className="text-[13px] font-normal text-white/70">总资产 ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+            <div className="text-[13px] font-normal text-white/70">{tt('trades.totalAssets', '总资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
             <div className="flex items-center gap-1.5">
               <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
                 {['USD', 'CNY'].map((mode) => (
@@ -402,7 +420,7 @@ export default function TradesTab({ ctx }) {
 
           <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
             <div className="min-w-0 pr-3">
-              <div className="text-[12px] text-white/50">今日盈亏</div>
+              <div className="text-[12px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayTodayPnl, displayCurrency, 2)}
               </div>
@@ -411,7 +429,7 @@ export default function TradesTab({ ctx }) {
               </div>
             </div>
             <div className="min-w-0 px-3">
-              <div className="text-[12px] text-white/50">累计盈亏</div>
+              <div className="text-[12px] text-white/50">{tt('trades.totalPnl', '累计盈亏')}</div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
               </div>
@@ -420,9 +438,9 @@ export default function TradesTab({ ctx }) {
               </div>
             </div>
             <div className="min-w-0 pl-3">
-              <div className="text-[12px] text-white/50">持仓数量</div>
+              <div className="text-[12px] text-white/50">{tt('trades.positions', '持仓数量')}</div>
               <div className="mt-3 whitespace-nowrap text-[15px] font-normal leading-tight text-white/90">
-                {summary.holdingStockCount || 0}只 · {summary.sellTradeCount || 0}笔
+                {tt('trades.holdingsTrades', '{{holdings}}只 · {{trades}}笔', { holdings: summary.holdingStockCount || 0, trades: summary.sellTradeCount || 0 })}
               </div>
             </div>
           </div>
@@ -430,10 +448,10 @@ export default function TradesTab({ ctx }) {
 
         <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           {[
-            { id: 'waves', label: '波段记录', icon: BookOpen },
-            { id: 'cost', label: '摊薄工具', icon: Calculator },
-            { id: 'records', label: '交易记录', icon: ListChecks },
-            { id: 'all', label: '全部功能', icon: Grid2X2, disabled: true },
+            { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: BookOpen },
+            { id: 'cost', label: tt('trades.averagingTool', '摊薄工具'), icon: Calculator },
+            { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
+            { id: 'all', label: tt('trades.allTools', '全部功能'), icon: Grid2X2, disabled: true },
           ].map((item, index) => {
             const Icon = item.icon;
             const active = !item.disabled && toolPanel === item.id;
@@ -458,19 +476,19 @@ export default function TradesTab({ ctx }) {
           <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="text-[14px] font-normal text-white">交易记录</div>
-                <div className="mt-1 text-[11px] text-white/40">全部主交易账本 · 点击记录修改或删除</div>
+                <div className="text-[14px] font-normal text-white">{tt('trades.tradeLog', '交易记录')}</div>
+                <div className="mt-1 text-[11px] text-white/40">{tt('trades.tradeRecordsSubtitle', '全部主交易账本 · 点击记录修改或删除')}</div>
               </div>
               <button
                 type="button"
                 onClick={() => openTradeModal(null, 'buy')}
                 className="rounded-full border border-[#f6b54b]/40 px-3 py-1.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
               >
-                新增交易
+                {tt('trades.addTrade', '新增交易')}
               </button>
             </div>
             {ledgerTradeRecords.length === 0 ? (
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-5 text-center text-[12px] text-white/40">还没有交易记录,先新增一笔买入。</div>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-5 text-center text-[12px] text-white/40">{tt('trades.noTradeRecords', '还没有交易记录,先新增一笔买入。')}</div>
             ) : (
               <div className="max-h-[360px] divide-y divide-white/[0.06] overflow-y-auto [scrollbar-width:none]" data-pull-refresh-block="true">
                 {ledgerTradeRecords.map((trade) => {
@@ -492,7 +510,7 @@ export default function TradesTab({ ctx }) {
                         <div className="mt-1 truncate text-[11px] font-normal text-white/50">{displayName}</div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
+                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
                         <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
                       </div>
                       <span className="text-right text-[22px] leading-none text-white/26">›</span>
@@ -508,15 +526,15 @@ export default function TradesTab({ ctx }) {
         <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-5">
-              <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/40'}`}>持仓分布</button>
-              <button type="button" onClick={() => setMainView('orders')} className={`text-[14px] font-normal leading-none ${mainView === 'orders' ? 'text-[#ffd18a]' : 'text-white/40'}`}>当日订单 ({todayBuys}/{todaySells})</button>
+              <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/40'}`}>{tt('trades.positionsTab', '持仓分布')}</button>
+              <button type="button" onClick={() => setMainView('orders')} className={`text-[14px] font-normal leading-none ${mainView === 'orders' ? 'text-[#ffd18a]' : 'text-white/40'}`}>{tt('trades.todayOrdersTab', '当日订单 ({{buys}}/{{sells}})', { buys: todayBuys, sells: todaySells })}</button>
             </div>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setColorMenuOpen((value) => !value)}
                 className="text-white/55 active:scale-95"
-                aria-label="股票涨跌颜色设置"
+                aria-label={tt('trades.colorSettings', '股票涨跌颜色设置')}
               >
               <Settings2 className="h-5 w-5" strokeWidth={1.8} />
               </button>
@@ -556,7 +574,7 @@ export default function TradesTab({ ctx }) {
                 <div>
                   <div className="flex items-center gap-2 text-[16px] font-normal text-white">
                     <span>🇺🇸</span>
-                    <span>美股</span>
+                    <span>{tt('trades.usStocks', '美股')}</span>
                     <span className="text-white/76 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span>
                   </div>
                 </div>
@@ -565,28 +583,28 @@ export default function TradesTab({ ctx }) {
 
               <div className="mb-4 grid grid-cols-3 gap-2">
                 <div>
-                  <div className="text-[11px] text-white/40">持仓市值</div>
+                  <div className="text-[11px] text-white/40">{tt('trades.marketValue', '持仓市值')}</div>
                   <div className="mt-1 text-[13px] font-normal text-white tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-[11px] text-white/40">持仓盈亏</div>
+                  <div className="text-[11px] text-white/40">{tt('trades.positionPnl', '持仓盈亏')}</div>
                   <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(displayHoldingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayHoldingPnl, displayCurrency, 2)}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[11px] text-white/40">当日盈亏</div>
+                  <div className="text-[11px] text-white/40">{tt('trades.dailyPnl', '当日盈亏')}</div>
                   <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayTodayPnl, displayCurrency, 2)}</div>
                 </div>
               </div>
 
               {positions.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
-                  <div className="text-[13px] font-normal text-white/60">还没有持仓</div>
-                  <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">记录第一笔买入</button>
+                  <div className="text-[13px] font-normal text-white/60">{tt('trades.noPositions', '还没有持仓')}</div>
+                  <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">{tt('trades.recordFirstBuy', '记录第一笔买入')}</button>
                 </div>
               ) : (
                 <div className="grid grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)] border-t border-white/[0.06]">
                   <div>
-                    <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">名称/代码</div>
+                    <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">{tt('trades.nameTicker', '名称/代码')}</div>
                     <div className="divide-y divide-white/[0.06]">
                       {positions.map((position) => {
                         const displayName = stockDisplayName(position.symbol, position.name);
@@ -607,11 +625,11 @@ export default function TradesTab({ ctx }) {
                   <div className="overflow-x-auto [scrollbar-width:none]">
                     <div className="min-w-[500px]">
                       <div className="grid grid-cols-[80px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
-                        <span className="text-left">市值/数量</span>
-                        <span className="text-right">现价/成本</span>
-                        <span className="text-right">当日盈亏</span>
-                        <span className="text-right">持仓盈亏</span>
-                        <span className="text-right">占比</span>
+                        <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
+                        <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
+                        <span className="text-right">{tt('trades.dailyPnl', '当日盈亏')}</span>
+                        <span className="text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
+                        <span className="text-right">{tt('trades.allocation', '占比')}</span>
                       </div>
                       <div className="divide-y divide-white/[0.06]">
                         {positions.map((position) => {
@@ -658,7 +676,7 @@ export default function TradesTab({ ctx }) {
               <div className="mt-4 flex justify-center">
                 <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full border border-[#f6b54b]/38 px-8 py-2.5 text-[13px] font-normal text-[#f6b54b] active:scale-95">
                   <Edit3 className="h-4 w-4" strokeWidth={2} />
-                  编辑
+                  {tt('trades.edit', '编辑')}
                 </button>
               </div>
             </div>
@@ -666,8 +684,8 @@ export default function TradesTab({ ctx }) {
             <div className="p-4">
               {todayTrades.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center">
-                  <div className="text-[13px] font-normal text-white/55">今日暂无订单</div>
-                  <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">记录订单</button>
+                  <div className="text-[13px] font-normal text-white/55">{tt('trades.noOrdersToday', '今日暂无订单')}</div>
+                  <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">{tt('trades.recordOrder', '记录订单')}</button>
                 </div>
               ) : (
                 <div className="divide-y divide-white/[0.06]">
@@ -687,7 +705,7 @@ export default function TradesTab({ ctx }) {
                           <div className="mt-1 text-[11px] text-white/60">{displayName}</div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(trade.shares, 0)} 股</div>
+                          <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
                           <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
                         </div>
                         <span className="text-right text-[22px] leading-none text-white/26">›</span>
@@ -718,12 +736,12 @@ export default function TradesTab({ ctx }) {
               <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
                 <div className="border-b border-white/10 px-4 pb-3 pt-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-[15px] font-semibold text-white">订单操作</h2>
+                    <h2 className="text-[15px] font-semibold text-white">{tt('trades.orderActions', '订单操作')}</h2>
                     <button
                       type="button"
                       onClick={() => setOrderActionTrade(null)}
                       className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
-                      aria-label="关闭订单操作"
+                      aria-label={tt('trades.closeOrderActions', '关闭订单操作')}
                     >
                       ×
                     </button>
@@ -735,7 +753,7 @@ export default function TradesTab({ ctx }) {
                         <div className="mt-1 truncate text-[11px] text-white/60">{displayName || orderActionTrade.symbol || '--'}</div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{isSell ? '卖出' : '买入'} {fmtAmount(orderActionTrade.shares, 0)} 股</div>
+                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{sideLabel(orderActionTrade.side)} {sharesText(orderActionTrade.shares, 0)}</div>
                         <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(orderActionTrade.price, 2)}</div>
                       </div>
                     </div>
@@ -750,7 +768,7 @@ export default function TradesTab({ ctx }) {
                       className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
                     >
                       <Edit3 className="h-3.5 w-3.5" strokeWidth={1.8} />
-                      修改
+                      {tt('trades.modify', '修改')}
                     </button>
                     <button
                       type="button"
@@ -758,7 +776,7 @@ export default function TradesTab({ ctx }) {
                       className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
                     >
                       <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-                      删除
+                      {tt('trades.delete', '删除')}
                     </button>
                   </div>
                 </div>
@@ -775,10 +793,10 @@ export default function TradesTab({ ctx }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-[14px] font-normal leading-tight tracking-normal text-white">
-                    波段记录
+                    {tt('trades.swingLog', '波段记录')}
                   </h2>
                   <div className="mt-1 text-[10px] font-normal text-white/45">
-                    {waveView === 'completed' ? '已完成波段归类' : '点击波段查看明细'}
+                    {waveView === 'completed' ? tt('trades.waveCompletedSubtitle', '已完成波段归类') : tt('trades.waveActiveSubtitle', '点击波段查看明细')}
                   </div>
                 </div>
                 <button
@@ -787,7 +805,7 @@ export default function TradesTab({ ctx }) {
                   className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/10 px-3 text-[11px] font-normal text-[#f6b54b] active:scale-95"
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                  新增波段股票
+                  {tt('trades.addWaveStock', '新增波段股票')}
                 </button>
               </div>
 
@@ -796,53 +814,53 @@ export default function TradesTab({ ctx }) {
                   type="button"
                   onClick={() => setWaveView('active')}
                   className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] ${waveView === 'active' ? 'border-rose-400/35 bg-rose-400/[0.08]' : 'border-white/10 bg-white/[0.035]'}`}
-                  title="查看进行中波段"
+                  title={tt('trades.active', '进行中')}
                 >
                   <div className="text-[16px] font-normal tabular-nums text-rose-400" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomActiveCount}
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">进行中</div>
+                  <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.active', '进行中')}</div>
                 </button>
                 <button
                   type="button"
                   disabled={calmRoomCompletedCount === 0}
                   onClick={openCompletedWaves}
                   className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] disabled:opacity-45 disabled:active:scale-100 ${waveView === 'completed' ? 'border-[#f6b54b]/40 bg-[#f6b54b]/10' : 'border-white/10 bg-white/[0.035]'}`}
-                  title="查看已完成波段归类"
+                  title={tt('trades.waveCompletedSubtitle', '已完成波段归类')}
                 >
                   <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomCompletedCount}
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">已完成</div>
+                  <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.completed', '已完成')}</div>
                 </button>
                 <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center">
                   <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomAvgActiveDays}
-                    <span className="ml-0.5 text-[10px] font-normal text-white/45">天</span>
+                    <span className="ml-0.5 text-[10px] font-normal text-white/45">{tt('trades.day', '天')}</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">均持有</div>
+                  <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.avgHolding', '均持有')}</div>
                 </div>
               </div>
             </section>
 
             {waveGroups.length === 0 ? (
               <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                <div className="text-[13px] font-normal text-white/75">暂无波段记录</div>
-                <div className="mt-1 text-[10px] font-normal text-white/40">添加波段买入或卖出后,这里会自动显示。</div>
+                <div className="text-[13px] font-normal text-white/75">{tt('trades.noWaveRecords', '暂无波段记录')}</div>
+                <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noWaveRecordsDesc', '添加波段买入或卖出后,这里会自动显示。')}</div>
                 <button
                   type="button"
                   onClick={() => openWaveTradeModal()}
                   className="mt-3 inline-flex h-8 items-center gap-1 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/10 px-3 text-[11px] font-normal text-[#f6b54b] active:scale-95"
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                  新增波段股票
+                  {tt('trades.addWaveStock', '新增波段股票')}
                 </button>
               </section>
             ) : waveView === 'completed' ? (
               completedWaveGroups.length === 0 ? (
                 <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                  <div className="text-[13px] font-normal text-white/75">暂无已完成波段</div>
-                  <div className="mt-1 text-[10px] font-normal text-white/40">卖出至清仓后,完成的波段会归类到这里。</div>
+                  <div className="text-[13px] font-normal text-white/75">{tt('trades.noCompletedWaves', '暂无已完成波段')}</div>
+                  <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noCompletedWavesDesc', '卖出至清仓后,完成的波段会归类到这里。')}</div>
                 </section>
               ) : completedWaveGroups.map(group => (
                 <section key={`completed-${group.symbol}`} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[0_16px_40px_rgba(0,0,0,0.26)]">
@@ -851,7 +869,7 @@ export default function TradesTab({ ctx }) {
                       type="button"
                       onClick={() => openWaveTradeModal(group.symbol, group.name)}
                       className="min-w-0 text-left active:opacity-75"
-                      title={`添加 ${group.symbol} 波段交易`}
+                      title={tt('trades.addSymbolWaveTrade', '添加 {{symbol}} 波段交易', { symbol: group.symbol })}
                     >
                       <div className="text-[16px] font-normal leading-tight tabular-nums text-white" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         {group.symbol}
@@ -861,7 +879,7 @@ export default function TradesTab({ ctx }) {
                       </div>
                     </button>
                     <div className="shrink-0 rounded-full border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-2.5 py-1 text-[11px] font-normal text-[#f6b54b]">
-                      已完成 {group.completedWaves.length}
+                      {tt('trades.completedCount', '已完成 {{count}}', { count: group.completedWaves.length })}
                     </div>
                   </div>
 
@@ -881,12 +899,12 @@ export default function TradesTab({ ctx }) {
                             type="button"
                             onClick={() => setExpandedWaves({ ...expandedWaves, [w.id]: !isExpanded })}
                             className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left active:bg-white/[0.04]"
-                            title="展开已完成波段明细"
+                            title={tt('trades.expandCompletedWave', '展开已完成波段明细')}
                           >
                             <span className="min-w-0">
                               <span className="block text-[12px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {startD} → {endD}
-                                <span className="ml-1 text-[10px] font-normal text-white/45">· {w.heldDays}天</span>
+                                <span className="ml-1 text-[10px] font-normal text-white/45">· {daysText(w.heldDays)}</span>
                               </span>
                               <span className="mt-1 block text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 ${fmt(w.avgBuyPrice)} → ${fmt(w.avgSellPrice)}
@@ -908,7 +926,7 @@ export default function TradesTab({ ctx }) {
                                 type="text"
                                 autoFocus
                                 defaultValue={noteValue}
-                                placeholder="如:250开始陆续卖出"
+                                placeholder={englishMode ? 'e.g. scale out around 250' : '如:250开始陆续卖出'}
                                 className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
                                 style={{ colorScheme: 'dark' }}
                                 onClick={(e) => e.stopPropagation()}
@@ -937,7 +955,7 @@ export default function TradesTab({ ctx }) {
                                   onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
                                   className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
                                 >
-                                  清除
+                                  {tt('trades.clear', '清除')}
                                 </button>
                               </div>
                             ) : (
@@ -946,14 +964,14 @@ export default function TradesTab({ ctx }) {
                                 onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
                                 className="text-[10px] font-normal text-white/35 active:scale-95"
                               >
-                                + 加备注
+                                {tt('trades.addNote', '+ 加备注')}
                               </button>
                             )}
                           </div>
 
                           {isExpanded && (
                             <div className="border-t border-white/10 px-3 pb-3 pt-2.5">
-                              <div className="mb-2 text-[10px] font-normal text-white/45">交易明细</div>
+                              <div className="mb-2 text-[10px] font-normal text-white/45">{tt('trades.tradeDetails', '交易明细')}</div>
                               <div className="space-y-1.5">
                                 {waveTrades.map(t => {
                                   const isBuy = !t.side || t.side === 'buy';
@@ -963,13 +981,13 @@ export default function TradesTab({ ctx }) {
                                     <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-1.5">
                                       <div className="flex min-w-0 items-center gap-2">
                                         <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
-                                          {isBuy ? '买' : '卖'}
+                                          {sideLabel(t.side, true)}
                                         </span>
                                         <span className="shrink-0 text-[11px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                           {(t.date || '').slice(5)}
                                         </span>
                                         <span className="truncate text-[11px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                          {fmt(t.shares, 0)}股 @${fmt(t.price)}
+                                          {sharesText(t.shares, 0)} @${fmt(t.price)}
                                         </span>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-2">
@@ -980,7 +998,7 @@ export default function TradesTab({ ctx }) {
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
                                           className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
-                                          aria-label="删除交易"
+                                          aria-label={tt('trades.delete', '删除')}
                                         >
                                           ×
                                         </button>
@@ -999,15 +1017,15 @@ export default function TradesTab({ ctx }) {
               ))
             ) : activeWaveGroups.length === 0 ? (
               <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                <div className="text-[13px] font-normal text-white/75">暂无进行中的波段</div>
-                <div className="mt-1 text-[10px] font-normal text-white/40">已清仓的记录请点上方“已完成”查看。</div>
+                <div className="text-[13px] font-normal text-white/75">{tt('trades.noActiveWaves', '暂无进行中的波段')}</div>
+                <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noActiveWavesDesc', '已清仓的记录请点上方“已完成”查看。')}</div>
                 {calmRoomCompletedCount > 0 && (
                   <button
                     type="button"
                     onClick={openCompletedWaves}
                     className="mt-3 inline-flex h-8 items-center rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/10 px-3 text-[11px] font-normal text-[#f6b54b] active:scale-95"
                   >
-                    查看已完成
+                    {tt('trades.viewCompleted', '查看已完成')}
                   </button>
                 )}
               </section>
@@ -1030,7 +1048,7 @@ export default function TradesTab({ ctx }) {
                         type="button"
                         onClick={() => openWaveTradeModal(group.symbol, group.name)}
                         className="min-w-0 text-left active:opacity-75"
-                        title={`添加 ${group.symbol} 波段交易`}
+                        title={tt('trades.addSymbolWaveTrade', '添加 {{symbol}} 波段交易', { symbol: group.symbol })}
                       >
                         <div className="text-[16px] font-normal leading-tight tabular-nums text-white" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           {group.symbol}
@@ -1047,15 +1065,15 @@ export default function TradesTab({ ctx }) {
                             setAllTradesModal({ symbol: group.symbol, name: group.name });
                           }}
                           className="h-7 rounded-full border border-white/10 bg-white/[0.035] px-2.5 text-[11px] font-normal text-white/70 active:scale-95"
-                          title="查看所有交易记录"
+                          title={tt('trades.viewAllTrades', '查看所有交易记录')}
                         >
-                          全部
+                          {tt('trades.all', '全部')}
                         </button>
                         <button
                           type="button"
                           onClick={() => openWaveTradeModal(group.symbol, group.name)}
                           className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/65 active:scale-95"
-                          title={`添加 ${group.symbol} 波段交易`}
+                          title={tt('trades.addSymbolWaveTrade', '添加 {{symbol}} 波段交易', { symbol: group.symbol })}
                         >
                           <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                         </button>
@@ -1067,21 +1085,21 @@ export default function TradesTab({ ctx }) {
                         <div className={`text-[13px] font-normal tabular-nums ${pnlClass(totalGain, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           {signedCurrency(totalGain, 'USD', 0)}
                         </div>
-                        <div className="mt-1 text-[10px] font-normal text-white/40">总盈亏</div>
+                        <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.totalPnlMetric', '总盈亏')}</div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center">
                         <div className="text-[13px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           {completedCount > 0 ? `${winRate}%` : '—'}
                         </div>
                         <div className="mt-1 text-[10px] font-normal text-white/40">
-                          胜率{completedCount > 0 ? ` ${winCount}/${completedCount}` : ''}
+                          {tt('trades.winRate', '胜率')}{completedCount > 0 ? ` ${winCount}/${completedCount}` : ''}
                         </div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center">
                         <div className="text-[13px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                          {avgHeld > 0 ? `${avgHeld}天` : '—'}
+                          {avgHeld > 0 ? daysText(avgHeld) : '—'}
                         </div>
-                        <div className="mt-1 text-[10px] font-normal text-white/40">均持有</div>
+                        <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.avgHolding', '均持有')}</div>
                       </div>
                     </div>
                   </div>
@@ -1106,9 +1124,9 @@ export default function TradesTab({ ctx }) {
                             <div className="flex min-w-0 items-center gap-1.5">
                               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 animate-pulse" />
                               <div className="min-w-0">
-                                <div className="text-[12px] font-normal text-white/90">进行中</div>
+                                <div className="text-[12px] font-normal text-white/90">{tt('trades.active', '进行中')}</div>
                                 <div className="mt-1 text-[10px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                  {startD} 开始 · 第 {w.heldDays} 天
+                                  {tt('trades.startedDay', '{{date}} 开始 · 第 {{day}} 天', { date: startD, day: w.heldDays })}
                                 </div>
                               </div>
                             </div>
@@ -1122,25 +1140,25 @@ export default function TradesTab({ ctx }) {
 
                           <div className="mt-3 grid grid-cols-4 gap-1.5 rounded-xl border border-white/10 bg-black/15 p-2.5">
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">买入均</div>
+                              <div className="text-[10px] font-normal text-white/40">{tt('trades.avgBuy', '买入均')}</div>
                               <div className="mt-1 text-[12px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 ${fmt(w.avgBuyPrice)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">现价</div>
+                              <div className="text-[10px] font-normal text-white/40">{tt('trades.currentPrice', '现价')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${w.currentPrice === w.avgBuyPrice ? 'text-white/90' : pnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {w.currentPrice > 0 ? `$${fmt(w.currentPrice)}` : '—'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">持有</div>
+                              <div className="text-[10px] font-normal text-white/40">{tt('trades.held', '持有')}</div>
                               <div className="mt-1 text-[12px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {fmt(w.heldShares, 0)}股
+                                {sharesText(w.heldShares, 0)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">浮盈</div>
+                              <div className="text-[10px] font-normal text-white/40">{tt('trades.floatingProfit', '浮盈')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {signedCurrency(w.gainAmount, 'USD', 0)}
                               </div>
@@ -1154,7 +1172,7 @@ export default function TradesTab({ ctx }) {
                               type="text"
                               autoFocus
                               defaultValue={noteValue}
-                              placeholder="如:关税恐慌、新冠崩盘、AI 浪潮…"
+                              placeholder={englishMode ? 'e.g. tariff panic, AI wave...' : '如:关税恐慌、新冠崩盘、AI 浪潮…'}
                               className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
                               style={{ colorScheme: 'dark' }}
                               onClick={(e) => e.stopPropagation()}
@@ -1183,7 +1201,7 @@ export default function TradesTab({ ctx }) {
                                 onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
                                 className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
                               >
-                                清除
+                                {tt('trades.clear', '清除')}
                               </button>
                             </div>
                           ) : (
@@ -1192,14 +1210,14 @@ export default function TradesTab({ ctx }) {
                               onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
                               className="text-[10px] font-normal text-[#f6b54b] active:scale-95"
                             >
-                              + 加备注
+                              {tt('trades.addNote', '+ 加备注')}
                             </button>
                           )}
                         </div>
 
                         {isExpanded && (
                           <div className="border-t border-white/10 px-3 pb-3 pt-2.5">
-                            <div className="mb-2 text-[10px] font-normal text-white/45">交易明细</div>
+                            <div className="mb-2 text-[10px] font-normal text-white/45">{tt('trades.tradeDetails', '交易明细')}</div>
                             <div className="space-y-1.5">
                               {waveTrades.map(t => {
                                 const isBuy = !t.side || t.side === 'buy';
@@ -1209,13 +1227,13 @@ export default function TradesTab({ ctx }) {
                                   <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-1.5">
                                     <div className="flex min-w-0 items-center gap-2">
                                       <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
-                                        {isBuy ? '买' : '卖'}
+                                        {sideLabel(t.side, true)}
                                       </span>
                                       <span className="shrink-0 text-[11px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                         {(t.date || '').slice(5)}
                                       </span>
                                       <span className="truncate text-[11px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                        {fmt(t.shares, 0)}股 @${fmt(t.price)}
+                                        {sharesText(t.shares, 0)} @${fmt(t.price)}
                                       </span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
@@ -1226,7 +1244,7 @@ export default function TradesTab({ ctx }) {
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
                                         className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
-                                        aria-label="删除交易"
+                                        aria-label={tt('trades.delete', '删除')}
                                       >
                                         ×
                                       </button>
@@ -1241,7 +1259,7 @@ export default function TradesTab({ ctx }) {
                     );
                   })() : (
                     <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3 text-[11px] font-normal text-white/40">
-                      暂无进行中的波段
+                      {tt('trades.noActiveWaves', '暂无进行中的波段')}
                     </div>
                   )}
 
@@ -1251,11 +1269,11 @@ export default function TradesTab({ ctx }) {
                         type="button"
                         onClick={() => setExpandedWaves({ ...expandedWaves, [completedKey]: !completedOpen })}
                         className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2 text-left active:bg-white/[0.045]"
-                        title="查看已完成波段"
+                        title={tt('trades.viewCompleted', '查看已完成波段')}
                       >
-                        <span className="text-[10px] font-normal text-white/75">已完成</span>
+                        <span className="text-[10px] font-normal text-white/75">{tt('trades.completed', '已完成')}</span>
                         <span className="flex items-center gap-2 text-[9px] font-normal text-white/40">
-                          {completedWaves.length} 个
+                          {completedWaves.length}
                           <span className={`transition ${completedOpen ? 'rotate-180' : ''}`}>▾</span>
                         </span>
                       </button>
@@ -1277,12 +1295,12 @@ export default function TradesTab({ ctx }) {
                                   type="button"
                                   onClick={() => setExpandedWaves({ ...expandedWaves, [w.id]: !isExpanded })}
                                   className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2.5 py-2 text-left active:bg-white/[0.03]"
-                                  title="展开已完成波段明细"
+                                  title={tt('trades.expandCompletedWave', '展开已完成波段明细')}
                                 >
                                   <span className="min-w-0">
                                     <span className="block text-[10px] font-normal tabular-nums text-white/75" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       {startD} → {endD}
-                                      <span className="ml-1 text-[9px] font-normal text-white/40">· {w.heldDays}天</span>
+                                      <span className="ml-1 text-[9px] font-normal text-white/40">· {daysText(w.heldDays)}</span>
                                     </span>
                                     <span className="mt-0.5 block text-[9px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       ${fmt(w.avgBuyPrice)} → ${fmt(w.avgSellPrice)}
@@ -1305,7 +1323,7 @@ export default function TradesTab({ ctx }) {
                                         type="text"
                                         autoFocus
                                         defaultValue={noteValue}
-                                        placeholder="如:关税恐慌、新冠崩盘、AI 浪潮…"
+                                        placeholder={englishMode ? 'e.g. tariff panic, AI wave...' : '如:关税恐慌、新冠崩盘、AI 浪潮…'}
                                         className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-normal text-white outline-none placeholder:text-white/25"
                                         style={{ colorScheme: 'dark' }}
                                         onClick={(e) => e.stopPropagation()}
@@ -1334,7 +1352,7 @@ export default function TradesTab({ ctx }) {
                                           onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
                                           className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[9px] font-normal text-white/35 active:scale-95"
                                         >
-                                          清除
+                                          {tt('trades.clear', '清除')}
                                         </button>
                                       </div>
                                     )}
@@ -1348,14 +1366,14 @@ export default function TradesTab({ ctx }) {
                                       onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
                                       className="text-[9px] font-normal text-white/30 active:scale-95"
                                     >
-                                      + 加备注
+                                      {tt('trades.addNote', '+ 加备注')}
                                     </button>
                                   </div>
                                 )}
 
                                 {isExpanded && (
                                   <div className="border-t border-white/10 px-2.5 pb-2.5 pt-2.5">
-                                    <div className="mb-2 text-[9px] font-normal text-white/45">交易明细</div>
+                                    <div className="mb-2 text-[9px] font-normal text-white/45">{tt('trades.tradeDetails', '交易明细')}</div>
                                     <div className="space-y-1.5">
                                       {waveTrades.map(t => {
                                         const isBuy = !t.side || t.side === 'buy';
@@ -1365,13 +1383,13 @@ export default function TradesTab({ ctx }) {
                                           <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-1.5">
                                             <div className="flex min-w-0 items-center gap-2">
                                               <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
-                                                {isBuy ? '买' : '卖'}
+                                                {sideLabel(t.side, true)}
                                               </span>
                                               <span className="shrink-0 text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                                 {(t.date || '').slice(5)}
                                               </span>
                                               <span className="truncate text-[10px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                                {fmt(t.shares, 0)}股 @${fmt(t.price)}
+                                                {sharesText(t.shares, 0)} @${fmt(t.price)}
                                               </span>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-2">
@@ -1382,7 +1400,7 @@ export default function TradesTab({ ctx }) {
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
                                                 className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
-                                                aria-label="删除交易"
+                                                aria-label={tt('trades.delete', '删除')}
                                               >
                                                 ×
                                               </button>
@@ -1425,7 +1443,7 @@ export default function TradesTab({ ctx }) {
                 <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
                 <div className="flex items-center justify-between">
                   <h2 className={`text-[14px] text-white ${tradeEntryScope === 'wave' ? 'font-normal' : 'font-black'}`}>
-                    {tradeEntryScope === 'wave' ? '添加波段记录' : (newTrade.id || newTrade.editingId ? '修改交易' : '添加交易')}
+                    {tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
                   </h2>
                   <button
                     onClick={() => setShowAddTrade(false)}
@@ -1447,7 +1465,7 @@ export default function TradesTab({ ctx }) {
                         : 'border-transparent bg-white/[0.055] text-white/55'
                     }`}
                   >
-                    买入
+                    {tt('trades.buy', '买入')}
                   </button>
                   <button
                     onClick={() => setNewTrade({ ...newTrade, side: 'sell' })}
@@ -1457,7 +1475,7 @@ export default function TradesTab({ ctx }) {
                         : 'border-transparent bg-white/[0.055] text-white/55'
                     }`}
                   >
-                    卖出
+                    {tt('trades.sell', '卖出')}
                   </button>
                 </div>
 
@@ -1465,29 +1483,29 @@ export default function TradesTab({ ctx }) {
                 <div className="grid min-w-0 grid-cols-2 gap-2 mb-2">
                   <div className="min-w-0">
                     <label className={`${tradeModalLabelClass} flex items-center gap-1.5`}>
-                      <span>股票代码</span>
+                      <span>{tt('trades.stockTicker', '股票代码')}</span>
                       {lookupStatus === 'loading' && (
                         <span className="inline-flex items-center gap-0.5 text-sky-300">
                           <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                          <span>查询中</span>
+                          <span>{tt('trades.lookupLoading', '查询中')}</span>
                         </span>
                       )}
                       {lookupStatus === 'found' && (
                         <span className="inline-flex items-center gap-0.5 text-emerald-300">
                           <CheckCircle2 className="w-2.5 h-2.5" />
-                          <span>已找到</span>
+                          <span>{tt('trades.lookupFound', '已找到')}</span>
                         </span>
                       )}
                       {lookupStatus === 'notfound' && (
                         <span className="inline-flex items-center gap-0.5 text-amber-300">
                           <AlertCircle className="w-2.5 h-2.5" />
-                          <span>未找到,可手动填</span>
+                          <span>{tt('trades.lookupNotFound', '未找到,可手动填')}</span>
                         </span>
                       )}
                     </label>
                     <input
                       type="text"
-                      placeholder="如 NVDA"
+                      placeholder={englishMode ? 'e.g. NVDA' : '如 NVDA'}
                       value={newTrade.symbol}
                       onChange={(e) => {
                         const sym = e.target.value.toUpperCase();
@@ -1503,10 +1521,10 @@ export default function TradesTab({ ctx }) {
                     />
                   </div>
                   <div className="min-w-0">
-                    <label className={tradeModalLabelClass}>中文名(自动)</label>
+                    <label className={tradeModalLabelClass}>{tt('trades.nameAuto', '中文名(自动)')}</label>
                     <input
                       type="text"
-                      placeholder="自动填充"
+                      placeholder={tt('trades.autoFill', '自动填充')}
                       value={newTrade.name}
                       onChange={(e) => setNewTrade({ ...newTrade, name: e.target.value })}
                       className={tradeModalBaseInput}
@@ -1517,7 +1535,7 @@ export default function TradesTab({ ctx }) {
 
                 {/* 日期(独占一行) */}
                 <div className="mb-2 min-w-0">
-                  <label className={tradeModalLabelClass}>日期</label>
+                  <label className={tradeModalLabelClass}>{tt('trades.date', '日期')}</label>
                   <input
                     type="date"
                     value={newTrade.date}
@@ -1530,10 +1548,10 @@ export default function TradesTab({ ctx }) {
                 {/* 价格 + 股数(共一行) */}
                 <div className="grid min-w-0 grid-cols-2 gap-2 mb-3">
                   <div className="min-w-0">
-                    <label className={tradeModalLabelClass}>价格 ($, 自动)</label>
+                    <label className={tradeModalLabelClass}>{tt('trades.priceAuto', '价格 ($, 自动)')}</label>
                     <input
                       type="number"
-                      placeholder="自动填充"
+                      placeholder={tt('trades.autoFill', '自动填充')}
                       step="0.01"
                       inputMode="decimal"
                       value={newTrade.price}
@@ -1543,7 +1561,7 @@ export default function TradesTab({ ctx }) {
                     />
                   </div>
                   <div className="min-w-0">
-                    <label className={tradeModalLabelClass}>股数</label>
+                    <label className={tradeModalLabelClass}>{tt('trades.quantity', '股数')}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -1558,10 +1576,10 @@ export default function TradesTab({ ctx }) {
 
                 {tradeEntryScope === 'wave' && (
                   <div className="mb-3 min-w-0">
-                    <label className={tradeModalLabelClass}>波段备注/计划</label>
+                    <label className={tradeModalLabelClass}>{tt('trades.waveNotePlan', '波段备注/计划')}</label>
                     <textarea
                       rows={2}
-                      placeholder="如: 250开始陆续卖出"
+                      placeholder={englishMode ? 'e.g. scale out around 250' : '如: 250开始陆续卖出'}
                       value={newTrade.note || ''}
                       onChange={(e) => setNewTrade({ ...newTrade, note: e.target.value })}
                       className={`${tradeModalBaseInput} min-h-[58px] resize-none leading-relaxed`}
@@ -1576,9 +1594,9 @@ export default function TradesTab({ ctx }) {
                     disabled={tradeSubmitting}
                     className="flex-1 rounded-xl border border-emerald-300/30 bg-emerald-500/85 py-2.5 text-[12px] font-normal text-white shadow-[0_12px_32px_rgba(16,185,129,0.22)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
-                    {tradeSubmitting ? '保存中...' : (newTrade.id || newTrade.editingId ? '确认修改' : '确认添加')}
+                    {tradeSubmitting ? tt('trades.saving', '保存中...') : (newTrade.id || newTrade.editingId ? tt('trades.confirmEdit', '确认修改') : tt('trades.confirmAdd', '确认添加'))}
                   </button>
-                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-transparent bg-white/[0.055] py-2.5 text-[12px] font-normal text-white/75 transition active:scale-95">取消</button>
+                  <button onClick={() => setShowAddTrade(false)} className="flex-1 rounded-xl border border-transparent bg-white/[0.055] py-2.5 text-[12px] font-normal text-white/75 transition active:scale-95">{tt('trades.cancel', '取消')}</button>
                 </div>
               </div>
             </div>
@@ -1607,9 +1625,9 @@ export default function TradesTab({ ctx }) {
               <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[16px] font-normal leading-tight text-white">摊薄成本</h2>
+                    <h2 className="text-[16px] font-normal leading-tight text-white">{tt('trades.averagingCost', '摊薄成本')}</h2>
                     <div className="mt-1 text-[11px] font-normal text-white/50">
-                      {allSymbols.length > 0 ? `${allSymbols.length} 只股 · 云端存储` : '云端小工具 · 不影响其他模块'}
+                      {allSymbols.length > 0 ? tt('trades.cloudStocksCount', '{{count}} 只股 · 云端存储', { count: allSymbols.length }) : tt('trades.cloudToolNoImpact', '云端小工具 · 不影响其他模块')}
                     </div>
                   </div>
                   <button
@@ -1618,7 +1636,7 @@ export default function TradesTab({ ctx }) {
                     className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#f6b54b]/35 bg-[#f6b54b]/10 px-3 text-[11px] font-normal text-[#f6b54b] active:scale-95"
                   >
                     <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                    新增
+                    {tt('trades.add', '新增')}
                   </button>
                 </div>
 
@@ -1643,29 +1661,29 @@ export default function TradesTab({ ctx }) {
 
               {!activeSymbol ? (
                 <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                  <div className="text-[13px] font-normal text-white/75">还没有股票</div>
-                  <div className="mt-1 text-[10px] font-normal text-white/40">点上方新增添加第一只股票。</div>
+                  <div className="text-[13px] font-normal text-white/75">{tt('trades.noStocks', '还没有股票')}</div>
+                  <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noStocksDesc', '点上方新增添加第一只股票。')}</div>
                 </section>
               ) : (
                 <>
                   <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                     <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                      <div className="text-[13px] font-normal text-white/70">持仓</div>
+                      <div className="text-[13px] font-normal text-white/70">{tt('trades.holding', '持仓')}</div>
                       <div className="text-[15px] font-normal tabular-nums text-emerald-400" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        {fmt(stats.shares, 0)} 股
+                        {sharesText(stats.shares, 0)}
                       </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 divide-x divide-white/10">
                       <div className="min-w-0 pr-4">
-                        <div className="text-[11px] font-normal text-white/50">会计摊薄</div>
+                        <div className="text-[11px] font-normal text-white/50">{tt('trades.accountingAverage', '会计摊薄')}</div>
                         <div className="mt-2 text-[24px] font-normal leading-none tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           ${stats.avgCost.toFixed(2)}
                         </div>
-                        <div className="mt-2 text-[11px] font-normal text-white/40">移动加权平均</div>
+                        <div className="mt-2 text-[11px] font-normal text-white/40">{tt('trades.movingWeightedAverage', '移动加权平均')}</div>
                       </div>
                       <div className="min-w-0 pl-4">
-                        <div className="text-[11px] font-normal text-[#f6b54b]">实际成本</div>
+                        <div className="text-[11px] font-normal text-[#f6b54b]">{tt('trades.effectiveCost', '实际成本')}</div>
                         <div className="mt-2 text-[24px] font-normal leading-none tabular-nums text-[#ffd18a]" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           ${stats.effectiveCost.toFixed(2)}
                         </div>
@@ -1674,10 +1692,10 @@ export default function TradesTab({ ctx }) {
                             <span className={pnlClass(gainPct, marketColorMode)}>
                               {isUp ? '↑ +' : '↓ '}{gainPct.toFixed(2)}%
                             </span>
-                            <span className="text-white/50">现价 ${currentPrice.toFixed(2)}</span>
+                            <span className="text-white/50">{tt('trades.currentPriceLabel', '现价 ${{price}}', { price: currentPrice.toFixed(2) })}</span>
                           </div>
                         ) : (
-                          <div className="mt-2 text-[11px] font-normal text-white/40">扣除已实现盈亏</div>
+                          <div className="mt-2 text-[11px] font-normal text-white/40">{tt('trades.afterRealizedPnl', '扣除已实现盈亏')}</div>
                         )}
                       </div>
                     </div>
@@ -1686,29 +1704,29 @@ export default function TradesTab({ ctx }) {
                   <div className="grid grid-cols-2 gap-2">
                     <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                       <Database className="mb-3 h-6 w-6 text-white/60" strokeWidth={1.7} />
-                      <div className="text-[11px] font-normal text-white/50">累计投入</div>
+                      <div className="text-[11px] font-normal text-white/50">{tt('trades.totalInvested', '累计投入')}</div>
                       <div className="mt-2 text-[20px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         ${stats.totalCost.toFixed(0)}
                       </div>
                       <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        ≈ ¥{(stats.totalCost * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
+                        {cnyEquivalentText(stats.totalCost)}
                       </div>
                     </section>
                     <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                       <TrendingUp className={`mb-3 h-6 w-6 ${pnlClass(stats.realizedPnl, marketColorMode)}`} strokeWidth={1.7} />
-                      <div className="text-[11px] font-normal text-white/50">已实现盈亏</div>
+                      <div className="text-[11px] font-normal text-white/50">{tt('trades.realizedPnl', '已实现盈亏')}</div>
                       <div className={`mt-2 text-[20px] font-normal tabular-nums ${pnlClass(stats.realizedPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                         {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
                       </div>
                       <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        ≈ {stats.realizedPnl >= 0 ? '+' : '-'}¥{(Math.abs(stats.realizedPnl) * usdRate / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万
+                        {cnyEquivalentText(stats.realizedPnl, true)}
                       </div>
                     </section>
                   </div>
 
                   <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                     <div className="mb-3 flex items-center justify-between">
-                      <div className="text-[13px] font-normal text-white/75">交易记录 ({trades.length})</div>
+                      <div className="text-[13px] font-normal text-white/75">{tt('trades.tradeCountTitle', '交易记录 ({{count}})', { count: trades.length })}</div>
                       <button
                         type="button"
                         onClick={() => {
@@ -1718,11 +1736,11 @@ export default function TradesTab({ ctx }) {
                         className="flex items-center gap-1 text-[11px] font-normal text-[#f6b54b] active:scale-95"
                       >
                         <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                        添加
+                        {tt('trades.add', '添加')}
                       </button>
                     </div>
                     {trades.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-white/10 py-6 text-center text-[12px] font-normal text-white/40">还没有交易, 点添加</div>
+                      <div className="rounded-xl border border-dashed border-white/10 py-6 text-center text-[12px] font-normal text-white/40">{tt('trades.noCostTrades', '还没有交易, 点添加')}</div>
                     ) : (
                       (() => {
                         const sortedAsc = [...trades].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -1765,14 +1783,14 @@ export default function TradesTab({ ctx }) {
                                   <div
                                     className={`flex h-8 w-8 items-center justify-center rounded-full border text-[13px] font-normal ${isSell ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/30 bg-rose-400/10 text-rose-300'}`}
                                   >
-                                    {isSell ? '卖' : '买'}
+                                    {sideLabel(t.type, true)}
                                   </div>
                                   <div
                                     className={`min-w-0 text-[13px] ${isSell ? 'cursor-pointer' : ''}`}
                                     onClick={() => isSell && setExpandedTrades(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
                                   >
-                                    <div className="truncate font-normal text-white/90">{t.date} {isSell ? '卖出' : '买入'} {fmtAmount(shares, 0)} 股</div>
-                                    <div className="mt-0.5 text-[11px] font-normal tabular-nums text-white/50" style={{ fontFamily: TRADE_NUMBER_FONT }}>${price.toFixed(2)}/股</div>
+                                    <div className="truncate font-normal text-white/90">{t.date} {sideLabel(t.type)} {sharesText(shares, 0)}</div>
+                                    <div className="mt-0.5 text-[11px] font-normal tabular-nums text-white/50" style={{ fontFamily: TRADE_NUMBER_FONT }}>${price.toFixed(2)}/{tt('trades.shares', '股')}</div>
                                   </div>
                                   <div className={`text-right text-[13px] font-normal tabular-nums ${isSell ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                     {isSell ? '+' : '-'}${amount.toFixed(0)}
@@ -1792,10 +1810,10 @@ export default function TradesTab({ ctx }) {
                                     type="button"
                                     onClick={() => {
                                       showConfirm({
-                                        title: '删除这笔交易?',
-                                        desc: '此操作不可撤销',
-                                        info: `${t.date} · ${isSell ? '卖出' : '买入'} ${shares} 股 @ $${price}`,
-                                        confirmText: '删除',
+                                        title: tt('trades.deleteOneCostTradeTitle', '删除这笔交易?'),
+                                        desc: tt('trades.deleteIrreversible', '此操作不可撤销'),
+                                        info: `${t.date} · ${sideLabel(t.type)} ${sharesText(shares, 0)} @ $${price}`,
+                                        confirmText: tt('trades.delete', '删除'),
                                         icon: '!',
                                         onConfirm: () => {
                                           setCostBasisData(prev => ({
@@ -1809,7 +1827,7 @@ export default function TradesTab({ ctx }) {
                                       });
                                     }}
                                     className="px-1 text-[14px] text-white/35 hover:text-rose-300 active:scale-95"
-                                    title="删除"
+                                    title={tt('trades.delete', '删除')}
                                   >
                                     ✕
                                   </button>
@@ -1820,9 +1838,9 @@ export default function TradesTab({ ctx }) {
                                     className="mb-2 ml-11 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] px-3 py-3"
                                   >
                                     <div className="space-y-1 text-[11px] font-normal leading-relaxed text-emerald-100/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                      <div>卖出收入 = {price.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${amount.toFixed(2)}</span></div>
-                                      <div>卖出成本 = {sellAvg.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${sellCost.toFixed(2)}</span></div>
-                                      <div>本次利润 = {amount.toFixed(0)} - {sellCost.toFixed(0)}</div>
+                                      <div>{tt('trades.sellIncome', '卖出收入')} = {price.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${amount.toFixed(2)}</span></div>
+                                      <div>{tt('trades.sellCost', '卖出成本')} = {sellAvg.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${sellCost.toFixed(2)}</span></div>
+                                      <div>{tt('trades.thisProfit', '本次利润')} = {amount.toFixed(0)} - {sellCost.toFixed(0)}</div>
                                     </div>
                                     <div className={`mt-2 border-t border-emerald-400/20 pt-2 text-[15px] font-normal tabular-nums ${pnlClass(profit, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       = {profit >= 0 ? '+' : ''}${profit.toFixed(2)} ({profit >= 0 ? '+' : ''}{profitPct.toFixed(2)}%)
@@ -1844,10 +1862,10 @@ export default function TradesTab({ ctx }) {
                       const symToDelete = activeSymbol;
                       const count = trades.length;
                       showConfirm({
-                        title: `删除 ${symToDelete}?`,
-                        desc: '此操作不可撤销, 该股票的全部交易记录将从云端删除',
-                        info: `${symToDelete} · ${count} 笔交易`,
-                        confirmText: '全部删除',
+                        title: tt('trades.deleteSymbolTitle', '删除 {{symbol}}?', { symbol: symToDelete }),
+                        desc: tt('trades.deleteSymbolDesc', '此操作不可撤销, 该股票的全部交易记录将从云端删除'),
+                        info: `${symToDelete} · ${tt('trades.tradeCount', '{{count}} 笔交易', { count })}`,
+                        confirmText: tt('trades.deleteAll', '全部删除'),
                         icon: '!',
                         onConfirm: () => {
                           setCostBasisData(prev => {
@@ -1866,7 +1884,7 @@ export default function TradesTab({ ctx }) {
                     className="flex w-full items-center justify-center gap-2 py-2 text-[12px] font-normal text-rose-400 active:scale-95"
                   >
                     <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                    删除 {activeSymbol} 整只股票
+                    {tt('trades.deleteWholeSymbol', '删除 {{symbol}} 整只股票', { symbol: activeSymbol })}
                   </button>
                 </>
               )}
