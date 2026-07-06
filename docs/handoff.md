@@ -6,13 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交推送后回填。
-- 当前运行时代码提交: 待推送后回填。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`。
+- 当前运行时代码提交: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`。
 - 设置页版本: `v10.7.9.168`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: `v10.7.9.168` 待推送并等待 Vercel 自动部署。
+- 最新运行时 Vercel 部署: success, `v10.7.9.168` production marker verified for runtime code commit `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: `v10.7.9.168` 待部署后回填生产 active assets 和 marker;上一轮 `v10.7.9.167` 已验证未登录 `GET /api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
+- 线上关键验证: 生产 active assets 包含 `index-In3sZ0ar.js`、`App-DNHrtNvt.js`、`HomeTab-D29M9zKX.js`、`TradesTab-CY2fnMaM.js`、`ReviewTab-BFySgBpt.js`、`i18n-BgIxl1vI.js`、`SettingsTab-CUNzfYI6.js` 和 `settingsChangelog-DgqwhzES.js`;`SettingsTab-CUNzfYI6.js` 包含 `v10.7.9.168`;`settingsChangelog-DgqwhzES.js` 包含 `头部币种显示改为 CNY`;递归抓取生产 JS 不含 `RMB`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.168` 隐藏首页/交易页头部资产卡的 `LIVE` 视觉入口,保留原有刷新绑定和实时行情逻辑;首页、交易页、目标页和设置页可见币种名称统一显示为 `CNY`。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -20,13 +20,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: 待 `v10.7.9.168` 推送后回填。
-- 最近应用代码提交: 待 `v10.7.9.168` 推送后回填。
+- 当前产品基准提交: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10` (`v10.7.9.168`,头部 LIVE 隐藏和 CNY 名称统一)
+- 最近应用代码提交: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.168`
-- Vercel 最新运行时部署: `v10.7.9.168` 待推送并等待 Vercel 自动部署。
+- Vercel 最新运行时部署: success, `v10.7.9.168` production marker verified for runtime code commit `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.168` 待推送后由 Vercel 自动部署;生产 active assets 和 marker 待回填。
+- Vercel 部署记录: runtime code commit `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`;GitHub Actions `CI` run `28789242026` success;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FEcDV92q9m7MbuqxLmVzEzbAtQNR`;production `GET https://boduan-tracker.vercel.app/?v=cny-live-168-dd7924b-*` HTTP 200;active runtime assets include `index-In3sZ0ar.js`, `App-DNHrtNvt.js`, `HomeTab-D29M9zKX.js`, `TradesTab-CY2fnMaM.js`, `ReviewTab-BFySgBpt.js`, `i18n-BgIxl1vI.js`, `SettingsTab-CUNzfYI6.js`, and `settingsChangelog-DgqwhzES.js`;`SettingsTab-CUNzfYI6.js` contains `v10.7.9.168`;`settingsChangelog-DgqwhzES.js` contains `v10.7.9.168` and `头部币种显示改为 CNY`;recursive fetched production JS contains no `RMB`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain HTTPS `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;`v10.7.9.168` 运行时代码提交待推送后回填
-当前产品基准提交: 待 `v10.7.9.168` 推送后回填
-最近应用代码提交: 待 `v10.7.9.168` 推送后回填
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`
+当前产品基准提交: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10` (`v10.7.9.168`,头部 LIVE 隐藏和 CNY 名称统一)
+最近应用代码提交: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`
 设置页版本: `v10.7.9.168`
-Vercel 最新运行时部署: `v10.7.9.168` 待推送并等待 Vercel 自动部署
+Vercel 最新运行时部署: success, `v10.7.9.168` production marker verified for runtime code commit `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: `v10.7.9.168` 待推送后由 Vercel 自动部署;active runtime assets 和生产 marker 待回填;上一轮 `v10.7.9.167` 已验证 unauthenticated `/api/quote?symbols=VIX` returns `401`,plain HTTPS `/api/stocks-realtime` returns `426`
+部署记录: runtime code commit `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`;GitHub Actions `CI` run `28789242026` success;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FEcDV92q9m7MbuqxLmVzEzbAtQNR`;production HTTP 200;active runtime assets include `index-In3sZ0ar.js`, `App-DNHrtNvt.js`, `HomeTab-D29M9zKX.js`, `TradesTab-CY2fnMaM.js`, `ReviewTab-BFySgBpt.js`, `i18n-BgIxl1vI.js`, `SettingsTab-CUNzfYI6.js`, and `settingsChangelog-DgqwhzES.js`;`SettingsTab-CUNzfYI6.js` contains `v10.7.9.168`;`settingsChangelog-DgqwhzES.js` contains `v10.7.9.168` and `头部币种显示改为 CNY`;recursive fetched production JS contains no `RMB`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain HTTPS `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,7 +629,7 @@ Vercel 最新运行时部署: `v10.7.9.168` 待推送并等待 Vercel 自动部�
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.168` 头部 LIVE 隐藏和 CNY 名称统一已完成本地验证,待推送和 Vercel 生产验证:首页和交易页头部资产卡隐藏 `LIVE` 视觉入口,但保留 `fetchRealtimePrices` 绑定和实时行情逻辑;首页/交易页 USD/CNY 切换靠右对齐;首页、交易页、目标页、设置页和英文复利单位的人民币名称统一显示为 `CNY`;不改交易账本、行情 relay、汇率换算、数据库结构、RLS 或 `/api/quote` 鉴权。
+- `v10.7.9.168` 头部 LIVE 隐藏和 CNY 名称统一已完成部署和线上验证:首页和交易页头部资产卡隐藏 `LIVE` 视觉入口,但保留 `fetchRealtimePrices` 绑定和实时行情逻辑;首页/交易页 USD/CNY 切换靠右对齐;首页、交易页、目标页、设置页和英文复利单位的人民币名称统一显示为 `CNY`;生产 `HomeTab-D29M9zKX.js`、`TradesTab-CY2fnMaM.js`、`ReviewTab-BFySgBpt.js`、`i18n-BgIxl1vI.js`、`SettingsTab-CUNzfYI6.js` 和 `settingsChangelog-DgqwhzES.js` marker 验证通过,递归抓取生产 JS 不含 `RMB`;不改交易账本、行情 relay、汇率换算、数据库结构、RLS 或 `/api/quote` 鉴权。
 - `v10.7.9.167` 交易页持仓市值两位小数已完成部署和线上验证:交易页持仓列表的单只股票市值从整数显示改为两位小数,和同一行当日盈亏、持仓盈亏保持一致;仅调整显示格式和设置页版本/更新日志,不改 `investmentSummary` 计算、交易账本、行情源、持仓数量、RLS 或 `/api/quote` 鉴权。生产 `TradesTab-DdZ59l3X.js`、`SettingsTab--wAyAC6k.js` 和 `settingsChangelog-DcOrU-lb.js` marker 验证通过;`/api/quote` 和 `/api/stocks-realtime` 鉴权边界保持不变。
 - `v10.7.9.166` 目标页英文模式已完成部署和线上验证:目标页北极星目标、年度目标、投资戒律、复盘日志、详情弹窗、复利明细弹窗和目标页表单弹窗接入英文系统文案;用户自己写的戒律、复盘、目标箴言和心情保持原文;目标页主体结构、年度目标/复利计算、数据库路径、行情和鉴权不变。生产 `i18n-DqUNzBZy.js`、`ReviewTab-RfDKcroI.js`、`SettingsTab-BKaQ_fvh.js` 和 `settingsChangelog-BiSWurwW.js` marker 验证通过;`/api/quote` 和 `/api/stocks-realtime` 鉴权边界保持不变。
 - `v10.7.9.165` 资产页英文模式已完成部署和线上验证:资产页头部、走势图、账户分组、账户操作和账户弹窗接入英文文案;系统内置账户类型和常见账户名显示英文,用户自定义账户名保持原文;账户数据、月度余额和汇率计算不变。

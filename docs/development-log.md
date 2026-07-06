@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 头部 LIVE 隐藏和 CNY 名称统一
 
-- Commit: `same commit`
+- Commit: `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`
 - Background: 用户要求隐藏首页头部卡片和交易头部卡片的 `LIVE` 视觉入口,但不删除现有刷新功能和实时行情逻辑;同时要求首页/交易页头部的 USD/CNY 位置右对齐,并把当前界面的 `RMB` 显示统一改为 `CNY`。
 - Changes:
   - 首页头部资产卡和交易页头部资产卡移除可见 `LIVE` 按钮布局占位,但保留 `fetchRealtimePrices` 绑定和 `fetching` 状态引用,不改行情刷新函数或实时 relay。
@@ -32,9 +32,14 @@
   - `git diff --check` pass。
   - `rg -n "RMB" src dist -S` returns no matches;本地构建产物不再包含 `RMB`。
 - Deployment:
-  - Pending push to GitHub `main` and Vercel production deployment.
+  - Pushed to GitHub `main` as runtime commit `dd7924b0e9d60ec0cc6953c24ac3f2f5e0bfcd10`。
+  - GitHub Actions `CI` run `28789242026` completed successfully.
+  - Vercel production deployment completed with target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FEcDV92q9m7MbuqxLmVzEzbAtQNR`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=cny-live-168-dd7924b-*` returned HTTP 200;active entry asset is `index-In3sZ0ar.js`。
+  - Production runtime chunks verified: `index-In3sZ0ar.js` imports `App-DNHrtNvt.js`;runtime assets include `HomeTab-D29M9zKX.js`, `TradesTab-CY2fnMaM.js`, `ReviewTab-BFySgBpt.js`, `i18n-BgIxl1vI.js`, `SettingsTab-CUNzfYI6.js`, and `settingsChangelog-DgqwhzES.js`。
 - Production verification:
-  - Pending Vercel deployment;部署后需验证 `SettingsTab` 包含 `v10.7.9.168`,`settingsChangelog` 包含 `头部币种显示改为 CNY`,Home/Trades/Review/i18n chunks 不含 `RMB`,未登录 `/api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`。
+  - Production marker verified: `SettingsTab-CUNzfYI6.js` contains `v10.7.9.168`;`settingsChangelog-DgqwhzES.js` contains `v10.7.9.168` and `头部币种显示改为 CNY`;`i18n-BgIxl1vI.js` contains `CNY millions`;`HomeTab-D29M9zKX.js` keeps BTC card `LIVE` status but hides the header refresh button marker;`TradesTab-CY2fnMaM.js` contains hidden header refresh marker and no `LIVE` literal;recursive fetched production JS contains no `RMB`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的头部 `LIVE` 可见按钮隐藏、CNY 显示文案、`v10.7.9.168` 设置页版本/更新日志、测试断言和本日志即可;不影响交易数据、行情 relay、汇率换算、数据库或鉴权。
 
 ### 2026-07-06 - 交易页持仓市值两位小数
