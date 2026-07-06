@@ -252,8 +252,8 @@ export default function TradesTab({ ctx }) {
     .map(group => ({ ...group, completedWaves: (group.waves || []).filter(w => !w.isActive) }))
     .filter(group => group.completedWaves.length > 0);
   const colorModeOptions = [
-    { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: tt('trades.greenUpRedDown', '绿涨红跌'), upClass: 'bg-emerald-400', downClass: 'bg-rose-400' },
-    { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: tt('trades.redUpGreenDown', '绿跌红涨'), upClass: 'bg-rose-400', downClass: 'bg-emerald-400' },
+    { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: tt('trades.greenUpRedDown', '绿涨红跌'), upClass: 'bg-emerald-400', downClass: 'bg-[#ff4b1f]' },
+    { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: tt('trades.redUpGreenDown', '绿跌红涨'), upClass: 'bg-[#ff4b1f]', downClass: 'bg-emerald-400' },
   ];
 
   const openTradeModal = (position = null, side = 'buy') => {
@@ -542,7 +542,7 @@ export default function TradesTab({ ctx }) {
                         <div className="mt-1 truncate text-[11px] font-normal text-white/50">{displayName}</div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
+                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
                         <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
                       </div>
                       <span className="text-right text-[22px] leading-none text-white/26">›</span>
@@ -737,7 +737,7 @@ export default function TradesTab({ ctx }) {
                           <div className="mt-1 text-[11px] text-white/60">{displayName}</div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
+                          <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
                           <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
                         </div>
                         <span className="text-right text-[22px] leading-none text-white/26">›</span>
@@ -785,7 +785,7 @@ export default function TradesTab({ ctx }) {
                         <div className="mt-1 truncate text-[11px] text-white/60">{displayName || orderActionTrade.symbol || '--'}</div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-rose-400'}`}>{sideLabel(orderActionTrade.side)} {sharesText(orderActionTrade.shares, 0)}</div>
+                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`}>{sideLabel(orderActionTrade.side)} {sharesText(orderActionTrade.shares, 0)}</div>
                         <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(orderActionTrade.price, 2)}</div>
                       </div>
                     </div>
@@ -845,10 +845,10 @@ export default function TradesTab({ ctx }) {
                 <button
                   type="button"
                   onClick={() => setWaveView('active')}
-                  className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] ${waveView === 'active' ? 'border-rose-400/35 bg-rose-400/[0.08]' : 'border-white/10 bg-white/[0.035]'}`}
+                  className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] ${waveView === 'active' ? 'border-[#ff4b1f]/35 bg-[#ff4b1f]/[0.08]' : 'border-white/10 bg-white/[0.035]'}`}
                   title={tt('trades.active', '进行中')}
                 >
-                  <div className="text-[16px] font-normal tabular-nums text-rose-400" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                  <div className="text-[16px] font-normal tabular-nums text-[#ff4b1f]" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomActiveCount}
                   </div>
                   <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.active', '进行中')}</div>
@@ -1012,7 +1012,7 @@ export default function TradesTab({ ctx }) {
                                   return (
                                     <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-1.5">
                                       <div className="flex min-w-0 items-center gap-2">
-                                        <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
+                                        <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-[#ff4b1f]/90' : 'bg-emerald-500/80'}`}>
                                           {sideLabel(t.side, true)}
                                         </span>
                                         <span className="shrink-0 text-[11px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -1258,7 +1258,7 @@ export default function TradesTab({ ctx }) {
                                 return (
                                   <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-1.5">
                                     <div className="flex min-w-0 items-center gap-2">
-                                      <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
+                                      <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-[#ff4b1f]/90' : 'bg-emerald-500/80'}`}>
                                         {sideLabel(t.side, true)}
                                       </span>
                                       <span className="shrink-0 text-[11px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -1414,7 +1414,7 @@ export default function TradesTab({ ctx }) {
                                         return (
                                           <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-1.5">
                                             <div className="flex min-w-0 items-center gap-2">
-                                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-normal text-white ${isBuy ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`}>
+                                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-normal text-white ${isBuy ? 'bg-[#ff4b1f]/90' : 'bg-emerald-500/80'}`}>
                                                 {sideLabel(t.side, true)}
                                               </span>
                                               <span className="shrink-0 text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -1606,7 +1606,7 @@ export default function TradesTab({ ctx }) {
                   <button
                     onClick={() => confirmTradeSubmit('buy')}
                     disabled={tradeSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-600 text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(225,29,72,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#ff4b1f]/30 bg-[#ff4b1f] text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(255,75,31,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
                     <TrendingUp className="h-4 w-4" strokeWidth={1.8} />
                     <span>{tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入')}</span>
@@ -1803,7 +1803,7 @@ export default function TradesTab({ ctx }) {
                               <div key={t.id}>
                                 <div className="grid items-center py-2.5" style={{ gridTemplateColumns: '36px minmax(0,1fr) auto auto auto', gap: '10px' }}>
                                   <div
-                                    className={`flex h-8 w-8 items-center justify-center rounded-full border text-[13px] font-normal ${isSell ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/30 bg-rose-400/10 text-rose-300'}`}
+                                    className={`flex h-8 w-8 items-center justify-center rounded-full border text-[13px] font-normal ${isSell ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300' : 'border-[#ff4b1f]/30 bg-[#ff4b1f]/10 text-[#ff4b1f]'}`}
                                   >
                                     {sideLabel(t.type, true)}
                                   </div>
@@ -1814,7 +1814,7 @@ export default function TradesTab({ ctx }) {
                                     <div className="truncate font-normal text-white/90">{t.date} {sideLabel(t.type)} {sharesText(shares, 0)}</div>
                                     <div className="mt-0.5 text-[11px] font-normal tabular-nums text-white/50" style={{ fontFamily: TRADE_NUMBER_FONT }}>${price.toFixed(2)}/{tt('trades.shares', '股')}</div>
                                   </div>
-                                  <div className={`text-right text-[13px] font-normal tabular-nums ${isSell ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                  <div className={`text-right text-[13px] font-normal tabular-nums ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                     {isSell ? '+' : '-'}${amount.toFixed(0)}
                                   </div>
                                   {isSell ? (

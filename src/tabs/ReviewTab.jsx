@@ -401,7 +401,7 @@ function CompoundDetailModal({
         <div className="mt-4 grid grid-cols-3 rounded-2xl border border-[#232b36]/80 bg-white/[0.032] py-3">
           {[
             { label: tt('review.targetFinal', '目标终值'), value: money(targetValue), valueClass: 'text-[#ffd18a]' },
-            { label: tt('review.accumulatedGain', '累计收益'), value: signedMoney(targetGain), valueClass: 'text-rose-400' },
+            { label: tt('review.accumulatedGain', '累计收益'), value: signedMoney(targetGain), valueClass: 'text-[#ff4b1f]' },
             { label: tt('review.compoundMultiple', '复利倍数'), value: `${multiple.toFixed(2)}x`, valueClass: 'text-[#ffd18a]' },
           ].map((item, index) => (
             <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-[#232b36]/90' : ''}`}>
@@ -420,7 +420,7 @@ function CompoundDetailModal({
               <div className="mt-1 truncate text-[12px] text-white/68">
                 {tt('review.current', '当前')} <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
                 <span className="mx-1.5 text-white/22">·</span>
-                {tt('review.actualGain', '实际收益')} <span className="text-rose-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
+                {tt('review.actualGain', '实际收益')} <span className="text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -492,7 +492,7 @@ function CompoundDetailModal({
             {displayRows.map((row) => (
               <div key={row.year} className="grid grid-cols-[0.75fr_1fr_1.15fr] py-2 text-[12px] leading-none">
                 <span className="text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.year}</span>
-                <span className="text-right text-rose-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+{symbol}{fmtMoney(row.displayAnnualGain)}</span>
+                <span className="text-right text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+{symbol}{fmtMoney(row.displayAnnualGain)}</span>
                 <span className="text-right text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{symbol}{fmtMoney(row.displayEndBalance)}</span>
               </div>
             ))}

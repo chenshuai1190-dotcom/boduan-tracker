@@ -4343,7 +4343,7 @@ function MainApp({ user, onLogout }) {
                 <div
                   className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border ${
                     confirmModal.confirmStyle === 'danger'
-                      ? 'border-rose-400/25 bg-rose-500/10 text-rose-200'
+                      ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ffb09c]'
                       : confirmModal.icon === '!'
                         ? 'border-amber-300/25 bg-amber-300/10 text-amber-200'
                         : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
@@ -4399,7 +4399,7 @@ function MainApp({ user, onLogout }) {
                     disabled={confirmSubmitting}
                     className={`h-11 rounded-xl text-[13px] font-semibold active:scale-95 disabled:opacity-60 disabled:active:scale-100 ${
                       confirmModal.confirmStyle === 'danger'
-                        ? 'bg-rose-600 text-white shadow-[0_14px_34px_rgba(225,29,72,0.26)]'
+                        ? 'bg-[#ff4b1f] text-white shadow-[0_14px_34px_rgba(255,75,31,0.26)]'
                         : 'bg-[#f6b54b] text-[#101318] shadow-[0_14px_34px_rgba(246,181,75,0.18)]'
                     }`}
                   >
@@ -4956,7 +4956,7 @@ function MainApp({ user, onLogout }) {
                                     <span className={`font-bold tabular-nums ${(() => {
                                       const ly = e?.lastYearEPS ?? lastEPS;
                                       const yoy = ly && Math.abs(ly) > 0 ? ((epsActE - ly) / Math.abs(ly)) * 100 : 0;
-                                      return yoy >= 0 ? 'text-rose-600' : 'text-emerald-600';
+                                      return yoy >= 0 ? 'text-[#e63a18]' : 'text-emerald-600';
                                     })()}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                       {(() => {
                                         const ly = e?.lastYearEPS ?? lastEPS;
@@ -4970,7 +4970,7 @@ function MainApp({ user, onLogout }) {
                                 {e?.lastYearRevenue != null && revActE != null && e.lastYearRevenue > 0 && (
                                   <div className="flex justify-between">
                                     <span className="text-slate-500">本季营收同比</span>
-                                    <span className={`font-bold tabular-nums ${revActE > e.lastYearRevenue ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                    <span className={`font-bold tabular-nums ${revActE > e.lastYearRevenue ? 'text-[#e63a18]' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                       {revActE > e.lastYearRevenue ? '+' : ''}{(((revActE - e.lastYearRevenue) / e.lastYearRevenue) * 100).toFixed(2)}%
                                     </span>
                                   </div>
@@ -5170,7 +5170,7 @@ function MainApp({ user, onLogout }) {
                           <div className="bg-slate-50 rounded-xl p-3 text-[14px]">
                             <div className="flex justify-between">
                               <span className="text-slate-500">持仓股数</span>
-                              <span className="font-bold text-rose-600 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
+                              <span className="font-bold text-[#e63a18] tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
                                 {stockInfo.shares} 股
                               </span>
                             </div>
@@ -5484,7 +5484,7 @@ function MainApp({ user, onLogout }) {
                                         {fmtMoney(selected.revenue)}
                                       </div>
                                       {prevSelected && yoy(selected.revenue, prevSelected.revenue) != null && (
-                                        <div className={`text-[10px] font-bold ${yoy(selected.revenue, prevSelected.revenue) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                        <div className={`text-[10px] font-bold ${yoy(selected.revenue, prevSelected.revenue) >= 0 ? 'text-[#e63a18]' : 'text-emerald-600'}`}>
                                           {yoy(selected.revenue, prevSelected.revenue) >= 0 ? '+' : ''}{yoy(selected.revenue, prevSelected.revenue).toFixed(1)}%
                                         </div>
                                       )}
@@ -5495,7 +5495,7 @@ function MainApp({ user, onLogout }) {
                                         {fmtMoney(selected.netIncome)}
                                       </div>
                                       {prevSelected && yoy(selected.netIncome, prevSelected.netIncome) != null && (
-                                        <div className={`text-[10px] font-bold ${yoy(selected.netIncome, prevSelected.netIncome) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                        <div className={`text-[10px] font-bold ${yoy(selected.netIncome, prevSelected.netIncome) >= 0 ? 'text-[#e63a18]' : 'text-emerald-600'}`}>
                                           {yoy(selected.netIncome, prevSelected.netIncome) >= 0 ? '+' : ''}{yoy(selected.netIncome, prevSelected.netIncome).toFixed(1)}%
                                         </div>
                                       )}
@@ -5506,7 +5506,7 @@ function MainApp({ user, onLogout }) {
                                         {selected.epsActual != null ? `$${selected.epsActual.toFixed(2)}` : '—'}
                                       </div>
                                       {prevSelected && yoy(selected.epsActual, prevSelected.epsActual) != null && (
-                                        <div className={`text-[10px] font-bold ${yoy(selected.epsActual, prevSelected.epsActual) >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                        <div className={`text-[10px] font-bold ${yoy(selected.epsActual, prevSelected.epsActual) >= 0 ? 'text-[#e63a18]' : 'text-emerald-600'}`}>
                                           {yoy(selected.epsActual, prevSelected.epsActual) >= 0 ? '+' : ''}{yoy(selected.epsActual, prevSelected.epsActual).toFixed(1)}%
                                         </div>
                                       )}
@@ -5664,7 +5664,7 @@ function MainApp({ user, onLogout }) {
                             {e.actual != null && (
                               <div className="flex justify-between">
                                 <span className="text-slate-500">实际值</span>
-                                <span className={`font-black tabular-nums ${beat ? 'text-rose-600' : miss ? 'text-emerald-600' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '16px' }}>
+                                <span className={`font-black tabular-nums ${beat ? 'text-[#e63a18]' : miss ? 'text-emerald-600' : 'text-slate-900'}`} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '16px' }}>
                                   {fmtVal(e.actual)}
                                 </span>
                               </div>
@@ -5884,7 +5884,7 @@ function MainApp({ user, onLogout }) {
                   <button
                     onClick={() => confirmCostBasisTradeSubmit('buy')}
                     disabled={costBasisSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-600 text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(225,29,72,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#ff4b1f]/30 bg-[#ff4b1f] text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(255,75,31,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
                     <TrendingUp className="h-4 w-4" strokeWidth={1.8} />
                     <span>{costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.buy', '买入')}</span>
@@ -5981,7 +5981,7 @@ function MainApp({ user, onLogout }) {
                             }`}
                           >
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black text-white ${isBuy ? 'bg-rose-600' : 'bg-emerald-600'}`}>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black text-white ${isBuy ? 'bg-[#ff4b1f]' : 'bg-emerald-600'}`}>
                                 {isBuy ? t(language, 'trades.buy', '买入') : t(language, 'trades.sell', '卖出')}
                               </span>
                               <span className="text-[11px] text-slate-500 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
@@ -6011,7 +6011,7 @@ function MainApp({ user, onLogout }) {
                               </div>
                               <div>
                                 <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">{t(language, 'trades.amount', '金额')}</div>
-                                <div className={`font-bold tabular-nums ${isBuy ? 'text-rose-600' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
+                                <div className={`font-bold tabular-nums ${isBuy ? 'text-[#e63a18]' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
                                   {isBuy ? '-' : '+'}${fmt(amount, 0)}
                                 </div>
                               </div>

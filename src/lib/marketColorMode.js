@@ -5,6 +5,12 @@ export const MARKET_COLOR_MODES = {
   RED_UP_GREEN_DOWN: 'redUpGreenDown',
 };
 
+export const MARKET_RED_HEX = '#ff4b1f';
+export const MARKET_RED_TEXT_CLASS = 'text-[#ff4b1f]';
+export const MARKET_RED_STRONG_TEXT_CLASS = 'text-[#e63a18]';
+export const MARKET_RED_BG_CLASS = 'bg-[#ff4b1f]';
+export const MARKET_RED_SOFT_BG_CLASS = 'bg-[#ff4b1f]/12';
+
 export function normalizeMarketColorMode(value) {
   return value === MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
     ? MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
@@ -26,25 +32,25 @@ function usesGreenForPositive(mode) {
 
 export function marketTextClass(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? 'text-emerald-400' : 'text-rose-400';
+  return green ? 'text-emerald-400' : MARKET_RED_TEXT_CLASS;
 }
 
 export function marketStrongTextClass(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? 'text-emerald-600' : 'text-rose-600';
+  return green ? 'text-emerald-600' : MARKET_RED_STRONG_TEXT_CLASS;
 }
 
 export function marketBgClass(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? 'bg-emerald-600' : 'bg-rose-600';
+  return green ? 'bg-emerald-600' : MARKET_RED_BG_CLASS;
 }
 
 export function marketSoftBgClass(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? 'bg-emerald-400/12' : 'bg-rose-400/12';
+  return green ? 'bg-emerald-400/12' : MARKET_RED_SOFT_BG_CLASS;
 }
 
 export function marketHexColor(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? '#22c55e' : '#fb7185';
+  return green ? '#22c55e' : MARKET_RED_HEX;
 }

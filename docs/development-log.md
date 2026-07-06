@@ -4,6 +4,37 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 全局行情红色调整
+
+- Runtime commit: this commit
+- Background: 用户参考中国券商主流红色截图,指出当前应用上涨/收益色偏粉,希望把全局粉色改成更接近主流券商的红色。
+- Changes:
+  - `src/lib/marketColorMode.js` 将市场红色 token 从 `#fb7185` / `rose-400` 改为橙红 `#ff4b1f`,强红色同步为 `#e63a18`。
+  - 首页、交易页、资产页和目标页通过 `marketHexColor` / `marketTextClass` 共享新的市场红色;资产页 `ASSET_PINK` 继续走同源 token,不再单独定义颜色。
+  - 交易页买入按钮、买入标签、波段工具选中态和目标页复利收益硬编码粉色同步改为新的市场红色。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.184`,新增“全局行情红色调整”。
+  - 保持绿色、涨跌方向设置、交易账本、行情刷新、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、Supabase、RLS 和数据库结构不变。
+- Key files:
+  - `src/lib/marketColorMode.js`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/market-color-mode.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/market-color-mode.test.js tests/tool-ledger-boundaries.test.js` pass,30 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,93 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/marketColorMode-DPLc54c-.js`、`dist/assets/TradesTab-CBmmELwV.js`、`dist/assets/ReviewTab-CG7fMUv2.js`、`dist/assets/SettingsTab-Dhab9XOE.js`、`dist/assets/settingsChangelog-CULBNA3w.js`、`dist/assets/App-BktICC-h.js` 和 `dist/assets/index-B7fYvAmh.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Build marker: `marketColorMode-DPLc54c-.js`、`TradesTab-CBmmELwV.js`、`ReviewTab-CG7fMUv2.js` and `App-BktICC-h.js` contain `#ff4b1f`;`App-BktICC-h.js` contains `#e63a18`;`SettingsTab-Dhab9XOE.js` contains `v10.7.9.184`;`settingsChangelog-CULBNA3w.js` contains `v10.7.9.184` and `全局行情红色调整`;checked chunks do not contain old market pink `#fb7185`, `bg-rose-600`, or old shadow `rgba(225,29,72`。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending: 验证通过后使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+- Rollback: 回退本条涉及的市场红色 token、交易页/目标页硬编码红色、`v10.7.9.184` 设置页版本/更新日志、测试断言和本日志即可;不影响行情、鉴权、交易账本、数据库或 RLS。
+
 ### 2026-07-07 - 当日盈亏基准保护
 
 - Runtime commit: `98031831c1286d8960fdd7fb85f5ee20bf3ea499`
