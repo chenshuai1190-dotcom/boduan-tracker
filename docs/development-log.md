@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - CNN 仪表盘端点修正
 
-- Commit: `pending`
+- Commit: `338fa36a130c7c142242a5106252335a241aa88e`
 - Background: 用户根据线上截图反馈首页 CNN 恐慌贪婪指数仪表盘已经有大体效果,但 `0` / `100` 两端数字末尾显示不完整;同时整体圆弧有点过弯,需要左右展开一点,更接近参考图。
 - Changes:
   - CNN `FgiGauge` 的圆弧从等半径半圆改为横向椭圆弧,`radiusX=54`、`radiusY=40`,在同样小卡高度内左右展开到约 `x=26` / `x=134`。
@@ -29,7 +29,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`HomeTab-T51OjtGg.js` contains `0 0 160 72` / `h-[54px]`, expanded ellipse arc markers and endpoint label markers, while omitting old `0 0 160 70`, `0 0 160 90`, and thick `strokeWidth="13"` markers;`SettingsTab-C-5OBMWz.js` contains `v10.7.9.152`;`settingsChangelog-DVrypJXT.js` contains `v10.7.9.152` and `CNN 仪表盘端点修正`.
 - Deployment:
-  - Pending.
+  - Pushed to GitHub `main` as runtime commit `338fa36a130c7c142242a5106252335a241aa88e`.
+  - GitHub Actions `build` check passed for `338fa36a130c7c142242a5106252335a241aa88e`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=338fa36-cnn-gauge-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 05:14:45 GMT`.
+  - Production asset marker check: pass;active runtime assets include `HomeTab-T51OjtGg.js` and `SettingsTab-CJ3O9Gd1.js`.
+  - Production CNN gauge marker check: pass;`HomeTab-T51OjtGg.js` contains `0 0 160 72` / `h-[54px]`, expanded ellipse arc markers, and no old `0 0 160 70` / `0 0 160 90` / thick `strokeWidth="13"` markers;`SettingsTab-CJ3O9Gd1.js` contains `v10.7.9.152`;active changelog chunk contains `v10.7.9.152` and `CNN 仪表盘端点修正`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/HomeTab.jsx` 的椭圆弧/端点标签调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.152` 条目、测试和本开发日志即可;不会影响行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 首页恐慌指数小卡压缩
