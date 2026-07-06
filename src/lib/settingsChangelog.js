@@ -1,12 +1,12 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.159', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.160', date: '2026-07-06', latest: true,
     items: [
-      '⚡ NOK 盘前涨跌幅口径修复',
-      '  - 修复 NOK 盘前价格正确但涨跌幅仍按更早昨收计算的问题',
-      '  - EODHD ethPrice 盘前价存在时,涨跌幅基准改用常规盘收盘价',
-      '  - REST 刷新叠加 WebSocket 实时价时,只保护实时价格,不再带回旧 previousClose',
-      '  - 不影响交易账本、持仓数量、成本、RLS、行情鉴权或英文模式',
+      '⚠️ NOK 盘前口径修复回滚',
+      '  - 回滚上一版 NOK 盘前涨跌幅口径改动,恢复其它股票原有实时行情显示',
+      '  - 暂停对 EODHD ethPrice/previousClose 的跨源重算,避免扩大影响面',
+      '  - 后续将单独隔离 NOK 数据源问题,先不再改动持仓、总资产和当日盈亏计算',
+      '  - 不影响交易账本、行情鉴权、RLS、英文模式或 VIX/CNN 数据来源',
     ],
   },
   {

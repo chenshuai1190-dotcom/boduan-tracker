@@ -363,7 +363,6 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     let eodhdChange;
     let eodhdChangePercent;
     let eodhdEthPrice;
-    let eodhdLastTradePrice = 0;
     if (quoteRes.ok) {
       try {
         const json = await quoteRes.json();
@@ -371,8 +370,8 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
         if (data) {
           eodhdEthPrice = parseFloat(data.ethPrice);
           if (isNaN(eodhdEthPrice)) eodhdEthPrice = undefined;
-          eodhdLastTradePrice = parseFloat(data.lastTradePrice) || 0;
-          eodhdPrice = (eodhdEthPrice && eodhdEthPrice > 0) ? eodhdEthPrice : eodhdLastTradePrice;
+          const lastTradePrice = parseFloat(data.lastTradePrice) || 0;
+          eodhdPrice = (eodhdEthPrice && eodhdEthPrice > 0) ? eodhdEthPrice : lastTradePrice;
           eodhdPrevClose = parseFloat(data.previousClosePrice) || 0;
           eodhdDayHigh = parseFloat(data.high) || 0;
           eodhdDayLow = parseFloat(data.low) || 0;
@@ -436,26 +435,10 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     }
 
     const price = eodhdPrice > 0 ? eodhdPrice : yahooPrice;
-    const usesExtendedEodhdPrice = Boolean(
-      eodhdEthPrice
-      && eodhdEthPrice > 0
-      && eodhdPrice === eodhdEthPrice
-      && (
-        (yahooMarketState && yahooMarketState !== 'REGULAR')
-        || (eodhdLastTradePrice > 0 && Math.abs(eodhdEthPrice - eodhdLastTradePrice) > 0.000001)
-      ),
-    );
-    const extendedBaseline = yahooPrevClose > 0 ? yahooPrevClose : (eodhdLastTradePrice > 0 ? eodhdLastTradePrice : eodhdPrevClose);
-    const previousClose = usesExtendedEodhdPrice && extendedBaseline > 0
-      ? extendedBaseline
-      : (eodhdPrevClose > 0 ? eodhdPrevClose : yahooPrevClose);
-    const changePercent = usesExtendedEodhdPrice
-      ? (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0)
-      : ((eodhdChangePercent !== undefined) ? eodhdChangePercent
-        : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0));
-    const change = usesExtendedEodhdPrice
-      ? (price - previousClose)
-      : ((eodhdChange !== undefined) ? eodhdChange : (price - previousClose));
+    const previousClose = eodhdPrevClose > 0 ? eodhdPrevClose : yahooPrevClose;
+    const changePercent = (eodhdChangePercent !== undefined) ? eodhdChangePercent
+      : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
+    const change = (eodhdChange !== undefined) ? eodhdChange : (price - previousClose);
     const dayHigh = eodhdDayHigh || price;
     const dayLow = eodhdDayLow || price;
     const open = eodhdOpen || price;

@@ -173,19 +173,6 @@ async function mockProviderFetch(url) {
         },
       });
     }
-    if (requested.includes('NOK.US')) {
-      return jsonResponse({
-        data: {
-          'NOK.US': extendedHoursQuote({
-            ethPrice: 12.54,
-            lastTradePrice: 12.07,
-            previousClose: 12.91,
-            high: 12.91,
-            low: 11.89,
-          }),
-        },
-      });
-    }
     return jsonResponse({
       data: {
         'NVDA.US': liveQuote({ price: 155, previousClose: 150, high: 156, low: 149 }),
@@ -302,28 +289,6 @@ async function mockProviderFetch(url) {
   }
 
   if (parsed.hostname.includes('finance.yahoo.com')) {
-    if (path.includes('/NOK')) {
-      return jsonResponse({
-        chart: {
-          result: [{
-            meta: {
-              chartPreviousClose: 12.07,
-              previousClose: 12.07,
-              marketState: 'PRE',
-              regularMarketTime: 1782910800,
-              regularMarketPrice: 12.07,
-              currentTradingPeriod: {
-                regular: { start: 1782970200, end: 1782993600 },
-              },
-            },
-            timestamp: [1782964800, 1782965100, 1782965400],
-            indicators: {
-              quote: [{ close: [12.46, 12.5, 12.54] }],
-            },
-          }],
-        },
-      });
-    }
     return jsonResponse({
       chart: {
         result: [{
@@ -360,20 +325,6 @@ function liveQuote({ price, previousClose, high, low }) {
     timestamp: 1783000000,
     change: String(price - previousClose),
     changePercent: String(((price - previousClose) / previousClose) * 100),
-  };
-}
-
-function extendedHoursQuote({ ethPrice, lastTradePrice, previousClose, high, low }) {
-  return {
-    ethPrice: String(ethPrice),
-    lastTradePrice: String(lastTradePrice),
-    previousClosePrice: String(previousClose),
-    high: String(high),
-    low: String(low),
-    open: String(previousClose + 1),
-    timestamp: 1783000000,
-    change: String(lastTradePrice - previousClose),
-    changePercent: String(((lastTradePrice - previousClose) / previousClose) * 100),
   };
 }
 
@@ -464,17 +415,4 @@ test('stock quote response shape is stable', async () => {
   assert.equal(Array.isArray(quote.intraday), true);
   assert.equal(Array.isArray(quote.intradayPoints), true);
   assert.equal(quote.intradayPoints[0].session, 'regular');
-});
-
-test('stock quote uses extended-hours baseline for premarket ethPrice', async () => {
-  const quote = await callQuote('NOK');
-
-  assert.equal(quote.symbol, 'NOK');
-  assert.equal(quote.source, 'EODHD');
-  assert.equal(quote.priceSource, 'EODHD-v2');
-  assert.equal(quote.price, 12.54);
-  assert.equal(quote.previousClose, 12.07);
-  assert.equal(Number(quote.change.toFixed(3)), 0.47);
-  assert.equal(Number(quote.changePercent.toFixed(3)), 3.894);
-  assert.equal(quote.marketState, 'PRE');
 });

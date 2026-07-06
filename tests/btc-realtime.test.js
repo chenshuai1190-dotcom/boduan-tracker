@@ -273,7 +273,7 @@ test('REST refresh preserves fresh realtime stock prices while keeping REST prev
 test('extended-hours stock realtime price is not overwritten by delayed REST rows after sparse ticks', () => {
   const now = Date.UTC(2026, 6, 6, 8, 35, 0); // 04:35 New York, premarket
   const refreshedRows = [
-    { symbol: 'NOK', name: 'NOK', price: 12.54, previousClose: 12.07, changePercent: 3.89, high: 12.91 },
+    { symbol: 'NOK', name: 'NOK', price: 12.07, previousClose: 12.91, changePercent: -6.51, high: 12.91 },
   ];
   const quoteCache = [
     {
@@ -293,9 +293,8 @@ test('extended-hours stock realtime price is not overwritten by delayed REST row
   const merged = mergeFreshStockRealtimeRows(refreshedRows, quoteCache, { now, maxAgeMs: 120_000 });
 
   assert.equal(merged[0].price, 12.454);
-  assert.equal(merged[0].previousClose, 12.07);
-  assert.equal(Number(merged[0].change.toFixed(3)), 0.384);
-  assert.equal(Number(merged[0].changePercent.toFixed(3)), 3.181);
+  assert.equal(merged[0].previousClose, 12.91);
+  assert.equal(Number(merged[0].changePercent.toFixed(3)), -3.532);
   assert.equal(merged[0].marketStatus, 'extended hours');
   assert.equal(merged[0].realtimeStatus, 'live');
 });

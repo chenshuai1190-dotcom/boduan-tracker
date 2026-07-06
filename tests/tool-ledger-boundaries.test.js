@@ -452,7 +452,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
-  assert.ok(settingsTabSource.includes('v10.7.9.159'), 'settings version badge should document the latest NOK premarket change fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.160'), 'settings version badge should document the NOK premarket rollback');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.160'), 'settings changelog should document the NOK premarket rollback');
+  assert.ok(settingsChangelogSource.includes('NOK 盘前口径修复回滚'), 'settings changelog should describe the NOK premarket rollback');
   assert.ok(settingsChangelogSource.includes('v10.7.9.149'), 'settings changelog should document the module scale removal update');
   assert.ok(settingsChangelogSource.includes('资产和目标模块缩放移除'), 'settings changelog should describe the module scale removal update');
 });
@@ -618,10 +620,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.159'), 'settings version badge should document the NOK premarket change fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.159'), 'settings changelog should document the NOK premarket change fix');
-  assert.ok(settingsChangelogSource.includes('NOK 盘前涨跌幅口径修复'), 'settings changelog should describe the NOK premarket change fix');
-  assert.ok(settingsChangelogSource.includes('previousClose'), 'settings changelog should mention the previousClose baseline fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.160'), 'settings version badge should document the NOK premarket rollback');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.160'), 'settings changelog should document the NOK premarket rollback');
+  assert.ok(settingsChangelogSource.includes('NOK 盘前口径修复回滚'), 'settings changelog should describe the NOK premarket rollback');
   assert.ok(settingsChangelogSource.includes('v10.7.9.158'), 'settings changelog should document the extended-hours realtime protection fix');
   assert.ok(settingsChangelogSource.includes('盘前稀疏成交实时价保护'), 'settings changelog should describe the extended-hours realtime protection fix');
   assert.ok(settingsChangelogSource.includes('marketStatus'), 'settings changelog should mention the marketStatus-based realtime protection');
