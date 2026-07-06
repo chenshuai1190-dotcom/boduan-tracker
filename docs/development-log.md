@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 资产和目标模块缩放移除
 
-- Commit: `same commit`
+- Commit: `258a05ab888fa6e38766cb9f6e1495c927ad3545`
 - Background: 用户反馈资产页和目标页部分模块在滑过/按压时会出现缩放效果,这是老版本遗留的模块级交互,要求定位并取消。
 - Changes:
   - 移除资产页账户行卡片的 `active:scale-[0.99]`,点击账户仍打开账户操作弹窗。
@@ -29,7 +29,12 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`SettingsTab-C7YbVIYY.js` contains `v10.7.9.149`;`settingsChangelog-B6QgoKpy.js` contains `v10.7.9.149` and `资产和目标模块缩放移除`;`ReviewTab-BSclOsB3.js` contains the target card class markers without old module-level scale.
 - Deployment:
-  - Pending GitHub push, CI and Vercel production verification.
+  - Pushed to GitHub `main` as runtime commit `258a05ab888fa6e38766cb9f6e1495c927ad3545`.
+  - GitHub Actions `CI` check passed for `258a05ab888fa6e38766cb9f6e1495c927ad3545` (run `28767862612`).
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=258a05a-scale-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 04:30:07 GMT`.
+  - Production recursive asset marker check: pass;loaded `App-Bd8kNmS3.js`, `AnalysisTab-3BefPaux.js`, `ReviewTab-BSclOsB3.js`, `SettingsTab-puC4P8x6.js`, `settingsChangelog-B6QgoKpy.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, and related chunks.
+  - Production module-scale marker check: pass;active runtime assets contain `v10.7.9.149` and `资产和目标模块缩放移除`;target card assets no longer contain old module-level `active:scale-[0.99]` / `active:scale-[0.995]` markers.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/tabs/AnalysisTab.jsx`、`src/tabs/ReviewTab.jsx` 的模块 class 调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.149` 条目、测试和本开发日志即可;不会影响账户数据、目标数据、复盘/戒律数据、行情、交易账本、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 资产头卡对齐首页
