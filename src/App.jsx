@@ -32,6 +32,9 @@ const APP_SHELL_REFRESH_PARAM = '__xmoney_refresh';
 const QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY = 'xmoney_quote_diagnostic_log_v1';
 const QUOTE_DIAGNOSTIC_LOG_LIMIT = 30;
 const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set(['auto-start', 'auto-interval', 'auto-visible']);
+const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
+const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
+const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -52,6 +55,22 @@ function localDateKey(date = new Date()) {
 function validRate(value) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function normalizePortfolioCurrency(value) {
+  return value === 'CNY' ? 'CNY' : 'USD';
+}
+
+function readStoredPortfolioCurrency() {
+  try {
+    const shared = localStorage.getItem(PORTFOLIO_CURRENCY_STORAGE_KEY);
+    if (shared === 'USD' || shared === 'CNY') return shared;
+    const home = localStorage.getItem(HOME_CURRENCY_STORAGE_KEY);
+    if (home === 'USD' || home === 'CNY') return home;
+    const trade = localStorage.getItem(TRADE_CURRENCY_STORAGE_KEY);
+    if (trade === 'USD' || trade === 'CNY') return trade;
+  } catch {}
+  return 'USD';
 }
 
 function readCachedFxRates() {
@@ -409,7 +428,7 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.65] p-4 backdrop-blur-md" onClick={onCancel}>
       <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-base text-white">{isEdit ? tt('review.editDiscipline', '编辑戒律') : tt('review.addDiscipline', '添加戒律')}</h3>
@@ -500,7 +519,7 @@ function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.65] p-4 backdrop-blur-md" onClick={onCancel}>
       <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold text-white">{isEdit ? tt('review.editReview', '编辑复盘') : tt('review.addReview', '写复盘')}</h3>
@@ -2308,11 +2327,12 @@ function MainApp({ user, onLogout }) {
     setShowAddTrade(false);
   };
 
-  const confirmCostBasisTradeSubmit = () => {
+  const confirmCostBasisTradeSubmit = (typeOverride = costBasisNewTrade.type) => {
     if (costBasisSubmittingRef.current) return;
     const symbol = String(costBasisActiveSymbol || '').trim().toUpperCase();
-    const priceNum = parseFloat(costBasisNewTrade.price);
-    const sharesNum = parseFloat(costBasisNewTrade.shares);
+    const tradeDraft = { ...costBasisNewTrade, type: typeOverride };
+    const priceNum = parseFloat(tradeDraft.price);
+    const sharesNum = parseFloat(tradeDraft.shares);
     if (!symbol) {
       showConfirm({
         title: t(language, 'trades.pickStockTitle', '请先选择股票'),
@@ -2335,12 +2355,12 @@ function MainApp({ user, onLogout }) {
       });
       return;
     }
-    const type = costBasisNewTrade.type === 'sell' ? 'sell' : 'buy';
+    const type = tradeDraft.type === 'sell' ? 'sell' : 'buy';
     const typeLabel = type === 'sell' ? t(language, 'trades.sell', '卖出') : t(language, 'trades.buy', '买入');
     showConfirm({
       title: t(language, 'trades.confirmCostTradeTitle', '确认保存摊薄成本记录?'),
       desc: t(language, 'trades.confirmCostTradeDesc', '这笔记录只会进入摊薄成本独立小工具,不会进入正式持仓、当日订单或波段记录。'),
-      info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${t(language, 'trades.shares', '股')} @ ${priceNum.toFixed(2)} · ${costBasisNewTrade.date || '--'}`,
+      info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${t(language, 'trades.shares', '股')} @ ${priceNum.toFixed(2)} · ${tradeDraft.date || '--'}`,
       confirmText: t(language, 'trades.confirmSave', '确认保存'),
       confirmStyle: 'primary',
       icon: '!',
@@ -2348,7 +2368,7 @@ function MainApp({ user, onLogout }) {
         if (costBasisSubmittingRef.current) return;
         const tradeRecord = {
           id: 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-          date: costBasisNewTrade.date,
+          date: tradeDraft.date,
           type,
           price: priceNum,
           shares: sharesNum,
@@ -3420,6 +3440,18 @@ function MainApp({ user, onLogout }) {
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
   }, []);
+  const [portfolioCurrencyMode, setPortfolioCurrencyModeState] = useState(() => readStoredPortfolioCurrency());
+  const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
+    setPortfolioCurrencyModeState(normalizePortfolioCurrency(nextCurrency));
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PORTFOLIO_CURRENCY_STORAGE_KEY, portfolioCurrencyMode);
+      localStorage.setItem(HOME_CURRENCY_STORAGE_KEY, portfolioCurrencyMode);
+      localStorage.setItem(TRADE_CURRENCY_STORAGE_KEY, portfolioCurrencyMode);
+    } catch {}
+  }, [portfolioCurrencyMode]);
 
   // 切换 tab 时自动滚到页面顶部(像原生 App 一样)
   useEffect(() => {
@@ -3570,6 +3602,7 @@ function MainApp({ user, onLogout }) {
     newTrade,
     onLogout,
     Pin,
+    portfolioCurrencyMode,
     Plus,
     pwdLoading,
     pwdMsg,
@@ -3614,6 +3647,7 @@ function MainApp({ user, onLogout }) {
     setNewPwd,
     setNewStock,
     setNewTrade,
+    setPortfolioCurrencyMode,
     setPwdLoading,
     setPwdMsg,
     setReviewLogs,
@@ -3687,12 +3721,11 @@ function MainApp({ user, onLogout }) {
   };
   const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
-  const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-[#263142] bg-[#171d27] text-[#aab3c2] active:scale-95';
-  const costBasisModalLabelClass = 'mb-1 block text-[11px] font-normal text-[#aab3c2]';
-  const costBasisModalInputClass = 'w-full rounded-xl border border-[#273142] bg-[#171d27] px-3 py-2.5 text-[13px] font-normal text-[#f5f7fb] outline-none tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] placeholder:text-[#707a89] focus:border-[#f6b54b]/70 focus:bg-[#1a212c]';
+  const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90';
+  const costBasisModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
+  const costBasisModalInputClass = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] font-normal text-white outline-none tabular-nums transition placeholder:text-white/[0.28] focus:bg-white/[0.085]';
   const costBasisModalSymbolInputClass = `${costBasisModalInputClass} px-3.5 py-3 uppercase`;
-  const costBasisModalCancelClass = 'rounded-xl border border-[#2b3544] bg-[#171d27] py-2.5 text-[12px] font-normal text-[#d8dde7] active:scale-95';
-  const costBasisModalInactiveSegmentClass = 'border-[#273142] bg-[#171d27] text-[#9ca6b5]';
+  const costBasisModalCancelClass = 'rounded-xl border border-white/10 bg-white/[0.06] py-2.5 text-[12px] font-normal text-white/[0.62] active:scale-95';
   const pullRefreshLabel = pullRefreshStatus === 'updating'
     ? '发现新版本,正在更新'
     : pullRefreshStatus === 'refreshing'
@@ -5303,111 +5336,109 @@ function MainApp({ user, onLogout }) {
         {/* === 摊薄成本 - 添加交易弹窗 === */}
         {showCostBasisTrade && (
           <div
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/[0.65] px-3 py-4 backdrop-blur-md animate-in fade-in"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisTrade(false); }}
             style={{
-              paddingTop: 'calc(1rem + env(safe-area-inset-top))',
-              paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+              paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
             }}
           >
             <div
-              className="max-h-[88svh] w-full max-w-md overflow-y-auto rounded-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
+              className="w-full max-w-md min-w-0 overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]"
+              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px)' }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div>
-                  <div className="text-[15px] font-normal text-white">{t(language, 'trades.addAveragingTrade', '添加摊薄交易')}</div>
-                  <div className="mt-0.5 text-[11px] font-normal text-[#9ca6b5]">{costBasisActiveSymbol || t(language, 'trades.noStockSelected', '未选择股票')}</div>
+              <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
+                <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[14px] font-normal text-white">{t(language, 'trades.addAveragingTrade', '添加摊薄交易')}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowCostBasisTrade(false)}
+                    className={costBasisModalCloseClass}
+                    aria-label={t(language, 'trades.closeAddAveragingTrade', '关闭添加摊薄交易')}
+                  >
+                    <X className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCostBasisTrade(false)}
-                  className={costBasisModalCloseClass}
-                  aria-label={t(language, 'trades.closeAddAveragingTrade', '关闭添加摊薄交易')}
-                >
-                  <X className="h-4 w-4" strokeWidth={1.8} />
-                </button>
               </div>
-              <div className="space-y-3 p-5">
-                <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'buy' }))}
-                  className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
-                    costBasisNewTrade.type === 'buy'
-                      ? 'border-rose-400/35 bg-rose-500/20 text-rose-200 shadow-[0_10px_28px_rgba(244,63,94,0.14)]'
-                      : costBasisModalInactiveSegmentClass
-                  }`}
-                >
-                  {t(language, 'trades.buy', '买入')}
-                </button>
-                <button
-                  onClick={() => setCostBasisNewTrade(prev => ({ ...prev, type: 'sell' }))}
-                  className={`rounded-xl border py-2.5 text-[12px] font-normal active:scale-95 ${
-                    costBasisNewTrade.type === 'sell'
-                      ? 'border-emerald-400/35 bg-emerald-500/20 text-emerald-200 shadow-[0_10px_28px_rgba(16,185,129,0.12)]'
-                      : costBasisModalInactiveSegmentClass
-                  }`}
-                >
-                  {t(language, 'trades.sell', '卖出')}
-                </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={costBasisModalLabelClass}>{t(language, 'trades.pricePerShare', '价格 ($/股)')}</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={costBasisNewTrade.price}
-                      onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder="0.00"
-                      className={costBasisModalInputClass}
-                      style={{ fontFamily: 'ui-monospace, monospace' }}
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className={costBasisModalLabelClass}>{t(language, 'trades.quantity', '股数')}</label>
-                    <input
-                      type="number"
-                      value={costBasisNewTrade.shares}
-                      onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
-                      placeholder="0"
-                      className={costBasisModalInputClass}
-                      style={{ fontFamily: 'ui-monospace, monospace' }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className={costBasisModalLabelClass}>{t(language, 'trades.date', '日期')}</label>
+
+              <div className="min-w-0 p-3.5">
+                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
+                  <label className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</label>
                   <input
-                    type="date"
-                    value={costBasisNewTrade.date}
-                    onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
-                    className={costBasisModalInputClass}
-                    style={{ colorScheme: 'dark' }}
+                    type="text"
+                    value={costBasisActiveSymbol || ''}
+                    readOnly
+                    placeholder={t(language, 'trades.noStockSelected', '未选择股票')}
+                    className={`${costBasisModalSymbolInputClass} pr-9`}
+                    style={{ fontFamily: 'ui-monospace, monospace' }}
                   />
                 </div>
-                {costBasisNewTrade.price && costBasisNewTrade.shares && (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3 text-center text-[12px] font-normal text-white/50">
-                    {costBasisNewTrade.type === 'buy' ? t(language, 'trades.willInvest', '将投入') : t(language, 'trades.willRecover', '将收回')}{' '}
-                    <span className="font-normal tabular-nums text-white/90" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                      ${(parseFloat(costBasisNewTrade.price) * parseFloat(costBasisNewTrade.shares)).toFixed(2)}
-                    </span>
+
+                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
+                  <label className={costBasisModalLabelClass}>{t(language, 'trades.priceShares', '价格与股数')}</label>
+                  <div className="grid min-w-0 grid-cols-2 gap-2">
+                    <div className="min-w-0">
+                      <label className={costBasisModalLabelClass}>{t(language, 'trades.priceUsd', '价格 ($)')}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={costBasisNewTrade.price}
+                        onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
+                        placeholder={t(language, 'trades.inputPrice', '输入价格')}
+                        className={costBasisModalInputClass}
+                        style={{ fontFamily: 'ui-monospace, monospace' }}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <label className={costBasisModalLabelClass}>{t(language, 'trades.quantity', '股数')}</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={costBasisNewTrade.shares}
+                        onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
+                        placeholder={t(language, 'trades.inputShares', '输入股数')}
+                        className={costBasisModalInputClass}
+                        style={{ fontFamily: 'ui-monospace, monospace' }}
+                      />
+                    </div>
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-2">
+                </div>
+
+                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
+                  <label className={costBasisModalLabelClass}>{t(language, 'trades.date', '日期')}</label>
+                  <div className="relative">
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.48]" strokeWidth={1.8} />
+                    <input
+                      type="date"
+                      value={costBasisNewTrade.date}
+                      onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
+                      className={`${costBasisModalInputClass} appearance-none pl-9 pr-8 text-left font-normal`}
+                      style={{ colorScheme: 'dark', WebkitAppearance: 'none' }}
+                    />
+                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.38]" strokeWidth={1.8} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
                   <button
-                    onClick={() => setShowCostBasisTrade(false)}
-                    className={costBasisModalCancelClass}
+                    onClick={() => confirmCostBasisTradeSubmit('buy')}
+                    disabled={costBasisSubmitting}
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-600 text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(225,29,72,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
-                    {t(language, 'trades.cancel', '取消')}
+                    <TrendingUp className="h-4 w-4" strokeWidth={1.8} />
+                    <span>{costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.buy', '买入')}</span>
                   </button>
                   <button
-                    onClick={confirmCostBasisTradeSubmit}
+                    onClick={() => confirmCostBasisTradeSubmit('sell')}
                     disabled={costBasisSubmitting}
-                    className="rounded-xl border border-[#f6b54b]/30 bg-[#f6b54b]/15 py-2.5 text-[12px] font-normal text-[#ffd18a] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-500/15 text-[14px] font-normal text-emerald-100 shadow-[0_14px_34px_rgba(16,185,129,0.16)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
-                    {costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.ok', '确定')}
+                    <TrendingDown className="h-4 w-4" strokeWidth={1.8} />
+                    <span>{costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.sell', '卖出')}</span>
                   </button>
                 </div>
               </div>

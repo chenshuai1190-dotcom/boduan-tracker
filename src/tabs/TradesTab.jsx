@@ -8,6 +8,7 @@ import {
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 
+const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
 const TRADE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const TRADE_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -83,6 +84,7 @@ export default function TradesTab({ ctx }) {
     lookupStatus,
     marketColorMode,
     newTrade,
+    portfolioCurrencyMode,
     Plus,
     quoteRows,
     RefreshCw,
@@ -97,6 +99,7 @@ export default function TradesTab({ ctx }) {
     setLookupStatus,
     setMarketColorMode,
     setNewTrade,
+    setPortfolioCurrencyMode,
     setShowAddTrade,
     setShowCostBasisAdd,
     setShowCostBasisTrade,
@@ -116,13 +119,21 @@ export default function TradesTab({ ctx }) {
     wavesByStock,
   } = ctx;
 
-  const [currencyMode, setCurrencyMode] = React.useState(() => {
+  const [fallbackCurrencyMode, setFallbackCurrencyMode] = React.useState(() => {
     try {
+      const shared = localStorage.getItem(PORTFOLIO_CURRENCY_STORAGE_KEY);
+      if (shared === 'USD' || shared === 'CNY') return shared;
       return localStorage.getItem(TRADE_CURRENCY_STORAGE_KEY) === 'USD' ? 'USD' : 'CNY';
     } catch {
       return 'CNY';
     }
   });
+  const currencyMode = portfolioCurrencyMode === 'USD' || portfolioCurrencyMode === 'CNY' ? portfolioCurrencyMode : fallbackCurrencyMode;
+  const setCurrencyMode = React.useCallback((nextMode) => {
+    const normalized = nextMode === 'USD' ? 'USD' : 'CNY';
+    setFallbackCurrencyMode(normalized);
+    if (typeof setPortfolioCurrencyMode === 'function') setPortfolioCurrencyMode(normalized);
+  }, [setPortfolioCurrencyMode]);
   const [mainView, setMainView] = React.useState('positions');
   const [toolPanel, setToolPanel] = React.useState('');
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
@@ -132,6 +143,7 @@ export default function TradesTab({ ctx }) {
 
   React.useEffect(() => {
     try {
+      localStorage.setItem(PORTFOLIO_CURRENCY_STORAGE_KEY, currencyMode);
       localStorage.setItem(TRADE_CURRENCY_STORAGE_KEY, currencyMode);
     } catch {}
   }, [currencyMode]);

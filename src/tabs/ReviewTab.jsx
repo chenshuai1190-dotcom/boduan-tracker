@@ -173,7 +173,7 @@ function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, language = '
   const tt = (key, fallback, values) => t(language, key, fallback, values);
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6 py-8 backdrop-blur-lg"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-6 py-8 backdrop-blur-md"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -249,7 +249,7 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, language = 'zh', onClose,
   const tt = (key, fallback, values) => t(language, key, fallback, values);
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6 py-8 backdrop-blur-lg"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-6 py-8 backdrop-blur-md"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

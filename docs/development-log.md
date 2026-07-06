@@ -4,6 +4,40 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 工具弹窗和币种同步
+
+- Commit: `same commit`
+- Background: 用户要求把小工具里的摊薄成本“添加摊薄交易”弹窗同步到交易录入的新界面;投资戒律和日志复盘详情弹窗遮罩不要过黑,应和交易编辑弹窗背景保持一致;首页和交易页 USD/CNY 选择需要自动保存,切换页面后保持同步。
+- Changes:
+  - 摊薄成本“添加交易”弹窗改为交易录入同款居中深色分层界面:股票代码、价格与股数、日期、底部买入/卖出按钮。
+  - 摊薄成本添加交易删除旧的顶部买入/卖出分段按钮和底部取消/确定重复按钮;点击底部买入/卖出仍先弹二次确认,确认后只写入 `cost_basis_trades`。
+  - 投资戒律和复盘日志详情弹窗遮罩从更黑的 `bg-black/70` / `backdrop-blur-lg` 调整为交易弹窗同款 `bg-black/[0.65]` / `backdrop-blur-md`;新增/编辑戒律和复盘弹窗遮罩同步降一档。
+  - App 层新增共享 `portfolioCurrencyMode`,首页和交易页 USD/CNY 切换优先读写同一个状态,并兼容回写旧的首页/交易页 localStorage key。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.171`,新增“工具弹窗和币种同步”。
+  - 本轮不改主交易账本、摊薄成本账本边界、持仓/盈亏计算、行情 relay、RLS、Supabase 配置或 `/api/quote` 鉴权。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,27 tests passed;覆盖摊薄成本新弹窗、买入/卖出方向传参、二次确认保留、共享币种状态、目标页详情弹窗遮罩和设置页版本/更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,85 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-C4WOZDRd.js`、`dist/assets/HomeTab-caYUNvHf.js`、`dist/assets/TradesTab-Bglu0R2H.js`、`dist/assets/ReviewTab-CUjmqKeE.js`、`dist/assets/SettingsTab-4QJKLSzQ.js` 和 `dist/assets/settingsChangelog-C6ZWAgLD.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `SettingsTab-4QJKLSzQ.js` contains `v10.7.9.171`;`settingsChangelog-C6ZWAgLD.js` contains `工具弹窗和币种同步`;`App-C4WOZDRd.js` contains `xmoney_portfolio_currency`,`添加摊薄交易` and `bg-black/[0.65]`;`HomeTab-caYUNvHf.js` and `TradesTab-Bglu0R2H.js` contain `xmoney_portfolio_currency`;`ReviewTab-CUjmqKeE.js` contains `bg-black/[0.65]` and does not contain old detail overlay marker `bg-black/70 px-6 py-8 backdrop-blur-lg`。
+- Deployment:
+  - Pending push to GitHub `main` and Vercel production deployment.
+- Production verification:
+  - Pending production marker and auth-boundary verification.
+- Rollback: 回退本条涉及的摊薄成本添加交易弹窗 UI、共享币种状态、复盘/戒律弹窗遮罩、`v10.7.9.171` 设置页版本/更新日志、测试断言和本日志即可;不影响正式交易数据、摊薄成本数据结构、行情 relay、汇率、RLS 或鉴权。
+
 ### 2026-07-06 - 交易录入弹窗细节修正
 
 - Commit: `0eff7b4a4a7f3c475fc440fd777ea3c49b377cc3`

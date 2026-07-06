@@ -5,6 +5,7 @@ import { isBtcMarketCard } from '../lib/btcRealtime.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
+const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -423,11 +424,13 @@ export default function HomeTab({ ctx }) {
     logoCache,
     marketColorMode,
     newStock,
+    portfolioCurrencyMode,
     RefreshCw,
     reorderWatchlist,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setNewStock,
+    setPortfolioCurrencyMode,
     setShowAddStock,
     showAddStock,
     vix,
@@ -449,13 +452,21 @@ export default function HomeTab({ ctx }) {
     watchlist: { key: null, direction: 'desc' },
     positions: { key: null, direction: 'desc' },
   });
-  const [currencyMode, setCurrencyMode] = React.useState(() => {
+  const [fallbackCurrencyMode, setFallbackCurrencyMode] = React.useState(() => {
     try {
+      const shared = localStorage.getItem(PORTFOLIO_CURRENCY_STORAGE_KEY);
+      if (shared === 'USD' || shared === 'CNY') return shared;
       return localStorage.getItem(HOME_CURRENCY_STORAGE_KEY) === 'CNY' ? 'CNY' : 'USD';
     } catch {
       return 'USD';
     }
   });
+  const currencyMode = portfolioCurrencyMode === 'USD' || portfolioCurrencyMode === 'CNY' ? portfolioCurrencyMode : fallbackCurrencyMode;
+  const setCurrencyMode = React.useCallback((nextMode) => {
+    const normalized = nextMode === 'CNY' ? 'CNY' : 'USD';
+    setFallbackCurrencyMode(normalized);
+    if (typeof setPortfolioCurrencyMode === 'function') setPortfolioCurrencyMode(normalized);
+  }, [setPortfolioCurrencyMode]);
   const summary = investmentSummary || emptySummary;
   const englishMode = isEnglishLanguage(language);
   const positions = summary.activePositions || [];
@@ -487,6 +498,7 @@ export default function HomeTab({ ctx }) {
 
   React.useEffect(() => {
     try {
+      localStorage.setItem(PORTFOLIO_CURRENCY_STORAGE_KEY, currencyMode);
       localStorage.setItem(HOME_CURRENCY_STORAGE_KEY, currencyMode);
     } catch {}
   }, [currencyMode]);
