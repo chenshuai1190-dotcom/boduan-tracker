@@ -432,7 +432,10 @@ export default function TradesTab({ ctx }) {
             <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
           </div>
 
-          <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
+          <div
+            className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10"
+            style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}
+          >
             <div className="min-w-0 pr-3">
               <div className="text-[12px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -453,7 +456,7 @@ export default function TradesTab({ ctx }) {
             </div>
             <div className="min-w-0 pl-3">
               <div className="text-[12px] text-white/50">{tt('trades.positions', '持仓数量')}</div>
-              <div className={`mt-3 truncate whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>
+              <div className={`mt-3 whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>
                 {tt('trades.holdingsTrades', '{{holdings}}只 · {{trades}}笔', { holdings: summary.holdingStockCount || 0, trades: summary.sellTradeCount || 0 })}
               </div>
             </div>

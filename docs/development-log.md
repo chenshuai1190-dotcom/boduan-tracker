@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 英文交易头部严格对齐首页
+
+- Commit: same commit
+- Background: 用户复核线上效果后指出英文交易页头部卡片仍未严格对齐英文首页,上一版对交易头部做了单独截断处理;同时英文股票副标题不应使用 `Corporation` / `Inc.` 等完整法定名,应显示短品牌名,例如 `NVIDIA`、`Microsoft`。
+- Changes:
+  - `TradesTab.jsx` 头部资产卡英文模式三列比例严格复制首页 `0.95fr 1fr 1.3fr`,不再只单独调整交易页。
+  - 移除交易页头部上一版单独添加的 `truncate` 处理,保持首页和交易头部布局规则一致。
+  - `STOCK_NAME_EN` 从完整法定名称改为短品牌名映射,例如 `NVDA -> NVIDIA`、`MSFT -> Microsoft`、`NOK -> Nokia`。
+  - 首页添加股票弹窗热门股英文公司名和本地视觉预览同步改为短品牌名。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.164`,新增“英文交易页头部对齐首页”。
+  - 本轮只调整英文显示层和版本日志,不改交易账本、行情源、WebSocket、持仓盈亏、数据库结构、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖交易页头部英文三列比例同步首页、移除单独截断规则、短品牌名和设置页版本/更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-D8227g-d.js`、`dist/assets/HomeTab-dAw3c0GG.js`、`dist/assets/TradesTab-Ch48sDcp.js`、`dist/assets/SettingsTab-D5KCINEc.js`、`dist/assets/settingsChangelog-Ds0aboTD.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - 本地 dist marker: `App-D8227g-d.js` 包含 `NVIDIA`、`Microsoft`、`Nokia`;`TradesTab-Ch48sDcp.js` 包含 `0.95fr 1fr 1.3fr`、`gridTemplateColumns` 和 `text-[14px]`;`SettingsTab-D5KCINEc.js` 包含 `v10.7.9.164`;`settingsChangelog-Ds0aboTD.js` 包含 `v10.7.9.164` 和 `英文交易页头部对齐首页`。
+- Deployment:
+  - Not deployed yet.
+- Rollback: 回退本条涉及的交易页头部英文列比例、短品牌名映射、`v10.7.9.164` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
+
 ### 2026-07-06 - 英文交易页头部和公司名修正
 
 - Commit: `1ab5e0a59c7d84c71b1ef5c6d42d416b51e17e0f`

@@ -318,6 +318,8 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(appSource.includes('const [language, setLanguageState] = useState(() => getStoredLanguage())'), 'App should own the persisted language state');
   assert.ok(appSource.includes('const STOCK_NAME_EN = {'), 'English stock display should use the built-in English company-name map');
   assert.ok(appSource.includes('const mappedEn = STOCK_NAME_EN[normalizedSymbol]'), 'English stock display should resolve ticker subtitles to company English names');
+  assert.ok(appSource.includes("NVDA: 'NVIDIA'"), 'English stock display should use short company names');
+  assert.ok(appSource.includes("MSFT: 'Microsoft'"), 'English stock display should use short Microsoft display name');
   assert.ok(appSource.includes("label: t(language, 'nav.home', '首页')"), 'bottom navigation should read labels from i18n');
   assert.ok(homeTabSource.includes("import { isEnglishLanguage, t } from '../lib/i18n.js';"), 'Home tab should use the i18n helper');
   assert.ok(homeTabSource.includes("const englishMode = isEnglishLanguage(language);"), 'Home tab should have an explicit English-mode branch for user-data-safe display');
@@ -463,9 +465,12 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
   assert.ok(tradesTabSource.includes("englishMode ? 'text-[14px]' : 'text-[15px]'"), 'trade header positions count should match the English home header text size');
-  assert.ok(tradesTabSource.includes('truncate whitespace-nowrap'), 'trade header positions count should not overflow the card in English mode');
-  assert.ok(settingsTabSource.includes('v10.7.9.163'), 'settings version badge should document the English trade visual fix');
+  assert.ok(tradesTabSource.includes("style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}"), 'trade header English metric grid should exactly match the home header grid');
+  assert.equal(tradesTabSource.includes('truncate whitespace-nowrap'), false, 'trade header should not keep a separate truncation rule instead of matching home');
+  assert.ok(settingsTabSource.includes('v10.7.9.164'), 'settings version badge should document the English trade header alignment fix');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.164'), 'settings changelog should document the English trade header alignment fix');
+  assert.ok(settingsChangelogSource.includes('英文交易页头部对齐首页'), 'settings changelog should describe the English trade header alignment fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.163'), 'settings changelog should document the English trade visual fix');
   assert.ok(settingsChangelogSource.includes('英文交易页细节修正'), 'settings changelog should describe the English trade visual fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.162'), 'settings changelog should document the trade-page English update');
@@ -640,8 +645,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.163'), 'settings version badge should document the English trade visual fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.164'), 'settings version badge should document the English trade header alignment fix');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.164'), 'settings changelog should document the English trade header alignment fix');
+  assert.ok(settingsChangelogSource.includes('英文交易页头部对齐首页'), 'settings changelog should describe the English trade header alignment fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.163'), 'settings changelog should document the English trade visual fix');
   assert.ok(settingsChangelogSource.includes('英文交易页细节修正'), 'settings changelog should describe the English trade visual fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.162'), 'settings changelog should document the trade-page English update');

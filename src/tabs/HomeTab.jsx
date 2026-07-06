@@ -9,14 +9,14 @@ const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const POPULAR_US_STOCKS = [
-  { symbol: 'NVDA', name: '英伟达', company: 'NVIDIA Corporation' },
-  { symbol: 'MSFT', name: '微软', company: 'Microsoft Corporation' },
-  { symbol: 'AAPL', name: '苹果', company: 'Apple Inc.' },
-  { symbol: 'TSLA', name: '特斯拉', company: 'Tesla, Inc.' },
-  { symbol: 'AMZN', name: '亚马逊', company: 'Amazon.com, Inc.' },
-  { symbol: 'GOOGL', name: '谷歌A', company: 'Alphabet Inc.' },
-  { symbol: 'META', name: 'Meta', company: 'Meta Platforms, Inc.' },
-  { symbol: 'IBKR', name: '盈透证券', company: 'Interactive Brokers Group, Inc.' },
+  { symbol: 'NVDA', name: '英伟达', company: 'NVIDIA' },
+  { symbol: 'MSFT', name: '微软', company: 'Microsoft' },
+  { symbol: 'AAPL', name: '苹果', company: 'Apple' },
+  { symbol: 'TSLA', name: '特斯拉', company: 'Tesla' },
+  { symbol: 'AMZN', name: '亚马逊', company: 'Amazon' },
+  { symbol: 'GOOGL', name: '谷歌A', company: 'Alphabet' },
+  { symbol: 'META', name: 'Meta', company: 'Meta' },
+  { symbol: 'IBKR', name: '盈透证券', company: 'Interactive Brokers' },
 ];
 
 const emptySummary = {

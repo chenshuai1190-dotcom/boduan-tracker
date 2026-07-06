@@ -94,10 +94,10 @@ const mockHomeWatchlist = [
 ];
 
 const devStockNameEn = {
-  AAPL: 'Apple Inc.',
-  MSFT: 'Microsoft Corporation',
-  NVDA: 'NVIDIA Corporation',
-  TSLA: 'Tesla, Inc.',
+  AAPL: 'Apple',
+  MSFT: 'Microsoft',
+  NVDA: 'NVIDIA',
+  TSLA: 'Tesla',
 };
 
 function DevModal({ title, onCancel }) {
