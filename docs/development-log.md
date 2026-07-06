@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 盘前实时当日盈亏修复
 
-- Commit: `same commit`
+- Commit: `c676ac015370393e69ccf593688ca24aef32a176`
 - Background: 用户在美股盘前反馈交易页头部和持仓分布的“今日盈亏/当日盈亏”不稳定:系统已经拿到微软实时盘前价,总资产/累计收益会按当前盘前价变化,但当日盈亏可能显示为 `+¥0.00`;下拉刷新后 REST 兜底还可能把实时价打回延迟价,导致当日盈亏继续清零。
 - Root cause:
   - 股票 WebSocket tick 有时只提供实时盘前成交价,不提供 `previousClose`、`change` 或 `changePercent`。
@@ -36,8 +36,15 @@
   - `npm test`: pass;81 tests passed.
   - `npm run build`: pass;Vite built `App--5GfaUA8.js`, `SettingsTab-BiT2BPad.js`, `settingsChangelog-BjTR6oqk.js`, and related chunks.
   - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
 - Deployment:
-  - Pending;本条日志随本轮提交推送后补充 GitHub/Vercel 和生产 marker 验证结果。
+  - Pushed to GitHub `main` as runtime commit `c676ac015370393e69ccf593688ca24aef32a176`.
+  - GitHub Actions `CI` run `28778300956` passed for `c676ac015370393e69ccf593688ca24aef32a176`.
+  - Vercel production domain verification passed;`GET https://boduan-tracker.vercel.app/?v=c676ac0-premarket-pnl-*` returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 08:29:38 GMT`.
+  - Production active runtime assets include `index-Cphopcsc.js`, `App-DlsKa9Q6.js`, `SettingsTab-CbGXXJez.js`, `settingsChangelog-BjTR6oqk.js`, `HomeTab-DMu2X-yC.js`, and `i18n-DJgOZT0p.js`.
+  - Production realtime marker check: pass;`App-DlsKa9Q6.js` contains the minified fresh realtime overlay `function yt(e=[],t=[],{maxAgeMs:n=12e4,now:r=Date.now()}={})`, `previousClose`, `changePercent`, `realtimeAt`, `stock_tick`, and `stocks_status`.
+  - Production version marker check: pass;`SettingsTab-CbGXXJez.js` contains `v10.7.9.157` and lazy-loads `settingsChangelog-BjTR6oqk.js`;`settingsChangelog-BjTR6oqk.js` contains `v10.7.9.157`, `盘前实时当日盈亏修复`, and `英文模式第一阶段`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退 `src/lib/stockRealtime.js` 的实时 tick/REST 合并逻辑、`src/lib/investmentSummary.js` 的昨收反推兜底、`src/App.jsx` 的刷新后实时价保留、设置页版本/更新日志、测试和本开发日志即可;不会影响交易记录、资产、目标、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 英文模式第一阶段
