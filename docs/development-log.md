@@ -6,14 +6,15 @@
 
 ### 2026-07-06 - 弹窗字重和交易确认细节
 
-- Commit: 待本轮 runtime 推送后回填。
+- Commit: `ff5b1a6ef13171a89555801e075212d47c917e31`
 - Background: 用户要求系统性收紧弹窗和按钮的粗体使用:首页添加成功提示、首页添加/编辑自选弹窗、交易确认弹窗、交易录入自动识别提示和交易编辑入口都要与当前字体准则、图标和金色描边风格保持一致。
 - Changes:
   - 首页添加成功提示标题“添加成功”和按钮“知道了”取消过重字重,保持原字号不变。
   - 首页添加自选股票/编辑自选股票弹窗标题、搜索输入、热门/美股筛选、热门股票标题、股票代码、自定义股票入口和完成按钮统一降为正常字重。
   - 交易正式保存二次确认弹窗改用当前 lucide 线性 check 图标渲染,不再直接显示旧版 `✅` 字符;确认信息行取消旧等宽字体,并移除末尾日期,避免长行自动换行。
-  - 交易新增/编辑交易弹窗“名称和现价由系统自动识别”提示从 12px 收到 11px;交易录入输入框补上弱金色外框和 gold focus;交易页持仓分布下方“编辑”入口改为首页添加自选同款更明确的金色描边语气。
+  - 交易新增/编辑交易弹窗“名称和现价由系统自动识别”提示从 12px 收至 11px;交易录入输入框补上弱金色外框和 gold focus;交易页持仓分布下方“编辑”入口改为首页添加自选同款更明确的金色描边语气。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.173`,新增“弹窗字重和交易确认细节”。
+  - 生产部署完成后,`docs/handoff.md` 回填 `v10.7.9.173` runtime commit、CI run、生产入口、runtime chunks、marker 和可转发交接块。
   - 本轮只调整显示层、图标 token 和弹窗文案信息行;不改自选数据、交易账本、摊薄工具数据、行情 relay、汇率、RLS、Supabase 配置或 `/api/quote` 鉴权。
 - Key files:
   - `src/App.jsx`
@@ -23,6 +24,7 @@
   - `src/lib/settingsChangelog.js`
   - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-log.md`
+  - `docs/handoff.md`
 - Validation:
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,28 tests passed;覆盖首页自选弹窗/成功提示正常字重、交易确认图标 token、确认信息行字体和日期移除、交易录入 11px 自动识别提示、交易输入金色描边、设置页版本/更新日志。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,86 tests passed。
@@ -31,9 +33,13 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-DoJ7fJrJ.js` contains `v10.7.9.173`;`settingsChangelog-DR5wiS8Z.js` contains `弹窗字重和交易确认细节`;`HomeTab-DzKcyI8C.js` contains `text-[17px] font-normal text-white`, `text-[14px] font-normal text-white`, and `mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-normal`;`TradesTab-BKaD1ZhL.js` contains `border border-[#f6b54b]/28`, `text-[11px] text-white/60`, `icon:\`check\``, and the stronger trade edit gold outline;`App-DiR3JVIf.js` contains `border-emerald-400/25 bg-emerald-400/10 text-emerald-300` and `text-[13px] font-normal leading-5 text-white/[0.66]`。
 - Deployment:
-  - 待本轮 runtime commit 推送、CI/Vercel 完成后回填。
+  - Pushed to GitHub `main` as runtime commit `ff5b1a6ef13171a89555801e075212d47c917e31`。
+  - GitHub Actions `CI` run `28795451888` completed successfully.
+  - Vercel production alias `https://boduan-tracker.vercel.app` updated successfully;production root returned HTTP 200 and active entry asset is `/assets/index-DrUo3qYu.js`。
+  - Production runtime chunks verified: `/assets/index-DrUo3qYu.js` imports `/assets/App-Drfnt0_s.js`;runtime assets include `/assets/HomeTab-DzKcyI8C.js`, `/assets/TradesTab-BKaD1ZhL.js`, `/assets/SettingsTab-DGdo-lLP.js`, `/assets/settingsChangelog-DR5wiS8Z.js`, `/assets/i18n-CPX81kKq.js`, `/assets/ReviewTab-D0QwHV5_.js`, and `/assets/icons-D-qNOTDb.js`。
 - Production verification:
-  - 待本轮 production marker 和鉴权边界验证完成后回填。
+  - Production marker verified: `SettingsTab-DGdo-lLP.js` contains `v10.7.9.173`;`settingsChangelog-DR5wiS8Z.js` contains `弹窗字重和交易确认细节`;`HomeTab-DzKcyI8C.js` contains normal-weight add/edit watchlist and success notice markers;`TradesTab-BKaD1ZhL.js` contains `border border-[#f6b54b]/28`, `text-[11px] text-white/60`, `icon:\`check\`` and the stronger trade edit gold outline;`App-Drfnt0_s.js` contains the emerald lucide confirm icon tone and `text-[13px] font-normal leading-5 text-white/[0.66]` info-line marker。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的首页自选/成功弹窗字重、交易确认图标和信息行、交易录入输入框/提示/编辑入口描边、`v10.7.9.173` 设置页版本/更新日志、测试断言和本日志即可;不影响自选数据、交易账本、摊薄工具、行情 relay、汇率、RLS 或鉴权。
 
 ### 2026-07-06 - UI 文案中英文同步开发准则
