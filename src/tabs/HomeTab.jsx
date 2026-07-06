@@ -1031,7 +1031,7 @@ export default function HomeTab({ ctx }) {
         >
           <div className="flex max-h-[min(76dvh,620px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h3 className="text-[17px] font-black text-white">{t(language, 'home.addWatchlistStock', '添加自选股票')}</h3>
+              <h3 className="text-[17px] font-normal text-white">{t(language, 'home.addWatchlistStock', '添加自选股票')}</h3>
               <button
                 type="button"
                 onClick={closeAddStockSheet}
@@ -1055,21 +1055,21 @@ export default function HomeTab({ ctx }) {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/25"
+                className="min-w-0 flex-1 bg-transparent text-sm font-normal text-white outline-none placeholder:text-white/25"
               />
             </label>
 
             <div className="mt-3 flex shrink-0 gap-2">
-              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-[#f6b54b]/60 bg-[#f6b54b]/10 px-3 text-[12px] font-black text-[#f6b54b]">
+              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-[#f6b54b]/60 bg-[#f6b54b]/10 px-3 text-[12px] font-normal text-[#f6b54b]">
                 <Flame className="h-3.5 w-3.5" />
                 {t(language, 'home.trending', '热门')}
               </span>
-              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-[12px] font-bold text-white/70">
+              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-[12px] font-normal text-white/70">
                 {t(language, 'home.usStocks', '美股')}
               </span>
             </div>
 
-            <div className="mt-4 shrink-0 text-[12px] font-bold text-white/55">
+            <div className="mt-4 shrink-0 text-[12px] font-normal text-white/55">
               {normalizedSearch ? t(language, 'home.searchResults', '搜索结果') : t(language, 'home.popularStocks', '热门股票')}
             </div>
 
@@ -1090,8 +1090,8 @@ export default function HomeTab({ ctx }) {
                         <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline gap-1.5">
-                            <span className="text-[14px] font-black text-white">{symbol}</span>
-                            <span className="truncate text-[12px] font-semibold text-white/55">{englishMode ? item.symbol : item.name}</span>
+                            <span className="text-[14px] font-normal text-white">{symbol}</span>
+                            <span className="truncate text-[12px] font-normal text-white/55">{englishMode ? item.symbol : item.name}</span>
                           </div>
                           <div className="mt-0.5 truncate text-[11px] text-white/35">{item.company}</div>
                         </div>
@@ -1132,7 +1132,7 @@ export default function HomeTab({ ctx }) {
                     >
                       <LogoPlaceholder symbol={normalizedSearch} className="h-9 w-9 rounded-lg" />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-black text-white">{normalizedSearch}</span>
+                        <span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>
                         <span className="block truncate text-[11px] text-white/35">{t(language, 'home.addCustomTicker', '添加自定义股票代码')}</span>
                       </span>
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]">
@@ -1152,7 +1152,7 @@ export default function HomeTab({ ctx }) {
               type="button"
               disabled={!canAddCustomStock || isAddingStock}
               onClick={() => handleAddStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
-              className="mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-black text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
+              className="mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
             >
               {isAddingStock && Loader2 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {isAddingStock ? t(language, 'home.adding', '添加中...') : (normalizedSearch ? t(language, 'home.addSymbol', '添加 {{symbol}}', { symbol: normalizedSearch }) : t(language, 'home.addCustomStock', '添加自定义股票'))}
@@ -1170,13 +1170,13 @@ export default function HomeTab({ ctx }) {
         >
           <div className="flex max-h-[min(78dvh,650px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h3 className="text-[17px] font-black text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>
+              <h3 className="text-[17px] font-normal text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={closeEditWatchlist}
                   disabled={Boolean(editActionKey)}
-                  className="h-8 rounded-full px-3 text-[12px] font-black text-[#f6b54b] active:scale-95 disabled:opacity-40"
+                  className="h-8 rounded-full px-3 text-[12px] font-normal text-[#f6b54b] active:scale-95 disabled:opacity-40"
                 >
                   {t(language, 'home.done', '完成')}
                 </button>
@@ -1204,7 +1204,7 @@ export default function HomeTab({ ctx }) {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/25"
+                className="min-w-0 flex-1 bg-transparent text-sm font-normal text-white outline-none placeholder:text-white/25"
               />
             </label>
 
@@ -1214,12 +1214,12 @@ export default function HomeTab({ ctx }) {
                   ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
                   : 'border-rose-400/25 bg-rose-400/10 text-rose-200'
               }`}>
-                <div className="font-black">{editNotice.title}</div>
+                <div className="font-normal">{editNotice.title}</div>
                 <div className="text-white/60">{editNotice.desc}</div>
               </div>
             )}
 
-            <div className="mt-3 shrink-0 text-[12px] font-bold text-white/55">
+            <div className="mt-3 shrink-0 text-[12px] font-normal text-white/55">
               {t(language, 'home.currentWatchlistCount', '当前自选 · {{count}} 只', { count: editWatchlistRows.length })}
             </div>
 
@@ -1242,8 +1242,8 @@ export default function HomeTab({ ctx }) {
                       <StockLogo symbol={symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline gap-1.5">
-                          <span className="text-[14px] font-black text-white">{symbol}</span>
-                          <span className="truncate text-[12px] font-semibold text-white/55">{item.displayName}</span>
+                          <span className="text-[14px] font-normal text-white">{symbol}</span>
+                          <span className="truncate text-[12px] font-normal text-white/55">{item.displayName}</span>
                         </div>
                         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-white/35">
                           <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
@@ -1343,12 +1343,12 @@ export default function HomeTab({ ctx }) {
                 <X className="h-5 w-5" />
               )}
             </div>
-            <div className="mt-3 text-[17px] font-black text-white">{addStockNotice.title}</div>
+            <div className="mt-3 text-[17px] font-normal text-white">{addStockNotice.title}</div>
             <div className="mt-2 text-[13px] leading-5 text-white/52">{addStockNotice.desc}</div>
             <button
               type="button"
               onClick={() => setAddStockNotice(null)}
-              className="mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-black text-[#111318] active:scale-[0.99]"
+              className="mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-normal text-[#111318] active:scale-[0.99]"
             >
               {t(language, 'home.gotIt', '知道了')}
             </button>

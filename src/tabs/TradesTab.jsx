@@ -210,7 +210,7 @@ export default function TradesTab({ ctx }) {
   }, [englishMode, rate]);
   const pnlAmountClass = 'text-[13px]';
   const tradeModalInputStyle = { colorScheme: 'dark' };
-  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:bg-white/[0.085]';
+  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-[#f6b54b]/28 bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/70 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
@@ -395,10 +395,10 @@ export default function TradesTab({ ctx }) {
       desc: isWaveEntry
         ? tt('trades.confirmWaveSaveDesc', '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。')
         : tt('trades.confirmLedgerSaveDesc', '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。'),
-      info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'} · ${tradeDraft.date || '--'}`,
+      info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'}`,
       confirmText: tt('trades.confirmSave', '确认保存'),
       confirmStyle: 'primary',
-      icon: '✅',
+      icon: 'check',
       onConfirm: async () => {
         await addTrade(tradeDraft.side);
       },
@@ -706,7 +706,7 @@ export default function TradesTab({ ctx }) {
               )}
 
               <div className="mt-4 flex justify-center">
-                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full border border-[#f6b54b]/38 px-8 py-2.5 text-[13px] font-normal text-[#f6b54b] active:scale-95">
+                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-95">
                   <Edit3 className="h-4 w-4" strokeWidth={2} />
                   {tt('trades.edit', '编辑')}
                 </button>
@@ -1512,7 +1512,7 @@ export default function TradesTab({ ctx }) {
                       />
                       <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.42]" strokeWidth={1.8} />
                     </div>
-                    <div className="mt-2 flex min-h-9 items-center justify-between gap-2 rounded-xl bg-white/[0.045] px-3 text-[12px] text-white/60">
+                    <div className="mt-2 flex min-h-9 items-center justify-between gap-2 rounded-xl bg-white/[0.045] px-3 text-[11px] text-white/60">
                       <span className="min-w-0 truncate">{tt('trades.systemManagedName', '名称和现价由系统自动识别')}</span>
                       {lookupStatus === 'loading' && (
                         <span className="inline-flex shrink-0 items-center gap-1 text-sky-300">

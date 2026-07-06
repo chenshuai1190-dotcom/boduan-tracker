@@ -1332,6 +1332,19 @@ function MainApp({ user, onLogout }) {
       onConfirm: opts.onConfirm,
     });
   }, []);
+  const confirmIconNode = useMemo(() => {
+    if (!confirmModal) return null;
+    if (React.isValidElement(confirmModal.icon)) return confirmModal.icon;
+    if (confirmModal.confirmStyle === 'danger') {
+      return confirmModal.icon === '🗑'
+        ? <Trash2 className="h-5 w-5" strokeWidth={1.9} />
+        : <AlertTriangle className="h-5 w-5" strokeWidth={1.9} />;
+    }
+    if (confirmModal.icon === '!') {
+      return <AlertCircle className="h-5 w-5" strokeWidth={1.9} />;
+    }
+    return <CheckCircle2 className="h-5 w-5" strokeWidth={1.9} />;
+  }, [confirmModal]);
 
   useEffect(() => {
     try { localStorage.setItem('bottomline_ws', 'false'); } catch {}
@@ -3883,13 +3896,15 @@ function MainApp({ user, onLogout }) {
               <div className="px-4 pb-4 pt-3">
                 {/* 图标 */}
                 <div
-                  className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border text-[20px] ${
+                  className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border ${
                     confirmModal.confirmStyle === 'danger'
                       ? 'border-rose-400/25 bg-rose-500/10 text-rose-200'
-                      : 'border-[#f6b54b]/30 bg-[#f6b54b]/10 text-[#ffd18a]'
+                      : confirmModal.icon === '!'
+                        ? 'border-amber-300/25 bg-amber-300/10 text-amber-200'
+                        : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
                   }`}
                 >
-                  {confirmModal.icon}
+                  {confirmIconNode}
                 </div>
                 {/* 标题 */}
                 <div className="mb-1.5 text-center text-[16px] font-semibold text-white">
@@ -3902,10 +3917,7 @@ function MainApp({ user, onLogout }) {
                 {/* 信息框 (可选) */}
                 {confirmModal.info && (
                   <div
-                    className="mb-4 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5 text-center text-[12px] text-white/[0.68]"
-                    style={{
-                      fontFamily: 'ui-monospace, monospace',
-                    }}
+                    className="mb-4 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5 text-center text-[13px] font-normal leading-5 text-white/[0.66]"
                   >
                     {confirmModal.info}
                   </div>

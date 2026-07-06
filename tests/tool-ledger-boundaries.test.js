@@ -158,9 +158,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes("tt('trades.date'"), 'third row should be date');
   assert.equal(tradeModalBlock.includes("tt('trades.action'"), false, 'trade modal should not show the action section title');
   assert.ok(tradeModalBlock.includes("tt('trades.systemManagedName'"), 'trade input should explain that name and price are system-managed');
-  assert.ok(tradesTabSource.includes("const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl") && tradesTabSource.includes('text-[14px] text-white'), 'trade inputs and buttons should be readable but still compact');
+  assert.ok(tradesTabSource.includes("const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-[#f6b54b]/28") && tradesTabSource.includes('text-[14px] text-white'), 'trade inputs should use the gold-outline reference while staying compact');
   assert.ok(tradesTabSource.includes("const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]'"), 'trade labels should be readable');
-  assert.ok(tradeModalBlock.includes('text-[12px] text-white/60'), 'system-managed-name helper should be readable');
+  assert.ok(tradeModalBlock.includes('text-[11px] text-white/60'), 'system-managed-name helper should be smaller');
   assert.equal(tradeModalBlock.includes('text-[9px] text-rose-200'), false, 'trade modal should not keep numbered step badges');
   assert.equal(tradeModalBlock.includes("tt('trades.nameAuto'"), false, 'main trade input should not show the old Chinese-name field');
   assert.equal(tradeModalBlock.includes("tt('trades.confirmAdd'"), false, 'trade modal should not keep a duplicate confirm-add button');
@@ -173,19 +173,44 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('h-11 items-center justify-center gap-2 rounded-xl'), 'buy/sell buttons should stay compact rather than oversized');
   assert.ok(confirmModalBlock.includes('items-center justify-center bg-black/[0.65]'), 'confirmation modal should be centered over a dark overlay');
   assert.ok(confirmModalBlock.includes('bg-[#0b0f16]'), 'confirmation modal should use the current dark modal surface');
+  assert.ok(appSource.includes('const confirmIconNode = useMemo'), 'confirmation modal should map legacy icon tokens to lucide icons');
+  assert.ok(confirmModalBlock.includes('{confirmIconNode}'), 'confirmation modal should render the current icon node instead of legacy emoji text');
+  assert.ok(confirmModalBlock.includes('text-[13px] font-normal leading-5 text-white/[0.66]'), 'confirmation info line should use the current app font sizing');
+  assert.equal(confirmModalBlock.includes("fontFamily: 'ui-monospace, monospace'"), false, 'confirmation info line should not use the old mono font');
   assert.equal(confirmModalBlock.includes('bg-white rounded-t-3xl'), false, 'confirmation modal should not keep the old white bottom sheet');
   assert.ok(tradesTabSource.includes('await addTrade(tradeDraft.side);'), 'confirmed trade save should preserve the selected buy/sell side');
+  assert.ok(tradesTabSource.includes("info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'}`"), 'trade confirmation info should omit the long date segment');
+  assert.equal(tradesTabSource.includes("icon: '✅'"), false, 'trade confirmation should not pass the legacy check emoji icon');
+  assert.ok(tradesTabSource.includes("icon: 'check'"), 'trade confirmation should use the current check icon token');
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
-  assert.ok(settingsTabSource.includes('v10.7.9.172'), 'settings version badge should document the modal readability update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.172'), 'settings changelog should document the modal readability update');
-  assert.ok(settingsChangelogSource.includes('目标页文案和弹窗可读性'), 'settings changelog should describe the modal readability update');
+  assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
+  assert.ok(settingsTabSource.includes('v10.7.9.173'), 'settings version badge should document the modal detail update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.173'), 'settings changelog should document the modal detail update');
+  assert.ok(settingsChangelogSource.includes('弹窗字重和交易确认细节'), 'settings changelog should describe the modal detail update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.172'), 'settings changelog should retain the previous review wording and modal readability update');
+  assert.ok(settingsChangelogSource.includes('目标页文案和弹窗可读性'), 'settings changelog should retain the previous modal readability update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.171'), 'settings changelog should retain the tool modal and currency sync update');
   assert.ok(settingsChangelogSource.includes('工具弹窗和币种同步'), 'settings changelog should retain the tool modal and currency sync update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.170'), 'settings changelog should retain the trade entry modal refinement');
   assert.ok(settingsChangelogSource.includes('交易录入弹窗细节修正'), 'settings changelog should describe the trade entry modal refinement');
   assert.ok(settingsChangelogSource.includes('v10.7.9.169'), 'settings changelog should retain the previous trade entry modal update');
   assert.ok(settingsChangelogSource.includes('交易录入弹窗结构优化'), 'settings changelog should describe the trade entry modal update');
+});
+
+test('home watchlist dialogs and add success notice use normal weights', () => {
+  assert.ok(homeTabSource.includes(`<h3 className="text-[17px] font-normal text-white">{t(language, 'home.addWatchlistStock', '添加自选股票')}</h3>`), 'add watchlist title should not be bold');
+  assert.ok(homeTabSource.includes(`<h3 className="text-[17px] font-normal text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>`), 'edit watchlist title should not be bold');
+  assert.ok(homeTabSource.includes('bg-transparent text-sm font-normal text-white'), 'watchlist search fields should use normal weight');
+  assert.ok(homeTabSource.includes('text-[12px] font-normal text-[#f6b54b]'), 'popular filter chip should not be bold');
+  assert.ok(homeTabSource.includes('mt-4 shrink-0 text-[12px] font-normal text-white/55'), 'popular stocks section title should not be bold');
+  assert.ok(homeTabSource.includes('<span className="text-[14px] font-normal text-white">{symbol}</span>'), 'watchlist ticker codes should not be bold');
+  assert.ok(homeTabSource.includes('<span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>'), 'custom ticker code should not be bold');
+  assert.ok(homeTabSource.includes('mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b]'), 'add custom stock button should not be bold');
+  assert.ok(homeTabSource.includes('<div className="mt-3 text-[17px] font-normal text-white">{addStockNotice.title}</div>'), 'add success title should not be bold');
+  assert.ok(homeTabSource.includes('mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-normal text-[#111318]'), 'add success acknowledge button should not be bold');
+  assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{t(language, \'home.addWatchlistStock\''), false, 'add watchlist title should not keep the old font-black class');
+  assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{addStockNotice.title}'), false, 'add success title should not keep the old font-black class');
 });
 
 test('settings data maintenance reset entry and runtime reset code stay removed', () => {
@@ -581,8 +606,8 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.172'), 'settings version badge should document the latest review wording and modal readability update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.172'), 'settings changelog should document the latest review wording and modal readability update');
+  assert.ok(settingsTabSource.includes('v10.7.9.173'), 'settings version badge should document the latest modal detail update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.173'), 'settings changelog should document the latest modal detail update');
   assert.ok(settingsChangelogSource.includes('目标页文案和弹窗可读性'), 'settings changelog should describe the latest review wording and modal readability update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.171'), 'settings changelog should retain the tool modal and currency sync update');
   assert.ok(settingsChangelogSource.includes('工具弹窗和币种同步'), 'settings changelog should retain the tool modal and currency sync update');
@@ -780,8 +805,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.172'), 'settings version badge should document the latest review wording and modal readability update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.172'), 'settings changelog should document the latest review wording and modal readability update');
+  assert.ok(settingsTabSource.includes('v10.7.9.173'), 'settings version badge should document the latest modal detail update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.173'), 'settings changelog should document the latest modal detail update');
   assert.ok(settingsChangelogSource.includes('目标页文案和弹窗可读性'), 'settings changelog should describe the latest review wording and modal readability update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.171'), 'settings changelog should retain the tool modal and currency sync update');
   assert.ok(settingsChangelogSource.includes('工具弹窗和币种同步'), 'settings changelog should retain the tool modal and currency sync update');
