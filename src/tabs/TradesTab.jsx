@@ -210,7 +210,7 @@ export default function TradesTab({ ctx }) {
   }, [englishMode, rate]);
   const pnlAmountClass = 'text-[13px]';
   const tradeModalInputStyle = { colorScheme: 'dark' };
-  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-[#f6b54b]/28 bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/70 focus:bg-white/[0.085]';
+  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);

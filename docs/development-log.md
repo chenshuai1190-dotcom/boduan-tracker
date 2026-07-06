@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 交易录入输入框去白框
+
+- Runtime commit: `this commit`
+- Background: 用户截图反馈交易页“新增交易”弹窗的股票代码、价格、股数和日期输入框出现突兀白色外框,与当前深色弹窗风格不一致。复查发现交易录入弹窗共用输入框类在默认态保留了金色透明边框,移动端渲染时视觉接近白框。
+- Changes:
+  - `src/tabs/TradesTab.jsx` 将交易录入弹窗输入框默认边框从金色透明描边改为 `border-transparent`,避免未聚焦状态出现白色/亮色外框。
+  - 输入框聚焦态仍保留低强度金色边框,维持可识别焦点,但不再默认显示亮描边。
+  - 摊薄成本工具继续复用同一套交易录入弹窗输入框风格,不额外引入白框。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.181`,新增“交易录入输入框去白框”。
+  - 本轮不改交易账本、买入/卖出确认流程、持仓盈亏计算、股票行情刷新、EODHD 服务端 token、`/api/quote` 鉴权、Supabase、RLS、数据库结构或 Yahoo 小曲线。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,28 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,92 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DzjY40ga.js`、`dist/assets/SettingsTab-DHVfgIC9.js`、`dist/assets/settingsChangelog-CuDA3AUO.js`、`dist/assets/TradesTab-BmOih2Rn.js` 和 `dist/assets/index-B7-fkZWK.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Local build marker: `SettingsTab-DHVfgIC9.js` contains `v10.7.9.181`;`settingsChangelog-CuDA3AUO.js` contains `v10.7.9.181` and `交易录入输入框去白框`;`TradesTab-BmOih2Rn.js` contains `border-transparent` and `focus:border-[#f6b54b]/45`。
+  - `git diff --check` pass。
+- Deployment:
+  - 待使用项目 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
+  - 推送前生产仍为 `v10.7.9.180`,运行时代码提交 `b178c7b1cfcf056d846ee4e2162e33ace430779f`,active entry `/assets/index-CZBHhv8n.js`。
+- Rollback: 回退本条涉及的 `tradeModalBaseInput` 默认边框、`v10.7.9.181` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、确认弹窗、持仓盈亏计算、行情刷新、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构或 RLS。
+
 ### 2026-07-06 - iOS PWA 恢复刷新加固
 
 - Runtime commit: `b178c7b1cfcf056d846ee4e2162e33ace430779f`
