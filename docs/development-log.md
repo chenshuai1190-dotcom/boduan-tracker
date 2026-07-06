@@ -4,6 +4,36 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - iOS 主屏幕秒级恢复刷新
+
+- Runtime commit: 本文件所在提交;推送后以 `git rev-parse HEAD` / GitHub `main` 为准。
+- Background: `v10.7.9.177` 已把启动、切页、前台恢复和股票 WebSocket 打开后的行情刷新提前,`v10.7.9.178` 已禁用主行情请求的浏览器缓存;但用户在 iOS Safari “添加到主屏幕”的 Web App 场景下,切回应用时仍偶发像静态页面,需要等待下一轮轮询或手动触摸后才看到股票行情刷新。iOS standalone PWA 可能冻结 JS 定时器,且不稳定触发 `focus` / `pageshow`,需要增加面向恢复场景的轻量兜底。
+- Changes:
+  - `src/App.jsx` 新增 iOS standalone PWA 检测,只在 iPhone/iPad 添加到主屏幕后启用恢复逻辑,普通浏览器路径不额外增加恢复监听。
+  - 前台状态下每 2 秒记录一次轻量 heartbeat;当 `visibilitychange`、`pageshow`、`focus`、`online` 或首次 `touchstart` / `pointerdown` 发现冻结断档超过 5 秒时,立即触发一次 fresh 股票行情刷新。
+  - 恢复刷新使用 `requestQuickQuoteRefresh(..., { force: true, minIntervalMs: 0 })`,继续复用 `v10.7.9.178` 的 no-store/no-cache 和 `_ts` 网络请求,避免被浏览器 15 秒缓存吃掉。
+  - 云端账本仍在加载时先挂起 iOS 恢复刷新;云端交易/自选全集加载完成后再用真实 `quoteRows` 补一轮快照,避免启动早期用不完整股票集合刷新。
+  - 设置页行情诊断触发来源新增 `auto-ios-resume`、`auto-ios-resume-cloud`、`auto-ios-touch-resume`、`auto-ios-online`,中英文标签同步。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.179`,新增“iOS 主屏幕秒级恢复刷新”。
+  - 本轮不改交易账本、持仓盈亏计算、`v10.7.9.176` 涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay、Supabase、RLS、数据库结构或 Yahoo 小曲线。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/quote-response-shape.test.js tests/btc-realtime.test.js` pass,56 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,92 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-zOHPt6h9.js`、`dist/assets/SettingsTab-B6y7Jptg.js`、`dist/assets/settingsChangelog-C-FefGlk.js`、`dist/assets/index-DAJEiJfZ.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `SettingsTab-B6y7Jptg.js` contains `v10.7.9.179`;`settingsChangelog-C-FefGlk.js` contains `v10.7.9.179` and `iOS 主屏幕秒级恢复刷新`;`App-zOHPt6h9.js` contains `auto-ios-resume`, `auto-ios-touch-resume`, `pagehide`, `touchstart`, `pointerdown`, `fresh:!0`, `_ts`, `no-store` and `no-cache`。
+- Deployment:
+  - 待推送 GitHub `main` 后由 Vercel Git integration 自动部署;不直接改 Vercel、浏览器控制台或临时服务器文件。
+- Rollback: 回退本条涉及的 iOS standalone PWA 恢复监听、触发来源标签、`v10.7.9.179` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay、Supabase、RLS 或数据库结构。
+
 ### 2026-07-06 - 行情请求禁用浏览器缓存
 
 - Runtime commit: `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`

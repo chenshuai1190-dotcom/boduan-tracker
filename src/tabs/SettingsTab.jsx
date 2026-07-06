@@ -53,6 +53,10 @@ export default function SettingsTab({ ctx }) {
         'auto-pageshow': 'Page restore',
         'auto-tab': 'Tab switch',
         'auto-realtime-open': 'Live connected',
+        'auto-ios-resume': 'iOS app resume',
+        'auto-ios-resume-cloud': 'iOS resume snapshot',
+        'auto-ios-touch-resume': 'iOS touch resume',
+        'auto-ios-online': 'iOS online',
         'manual-button': 'Manual refresh',
         'manual-pull-refresh': 'Pull refresh',
       }
@@ -65,6 +69,10 @@ export default function SettingsTab({ ctx }) {
         'auto-pageshow': '页面恢复',
         'auto-tab': '切换页面',
         'auto-realtime-open': '实时连接',
+        'auto-ios-resume': 'iOS 回到前台',
+        'auto-ios-resume-cloud': 'iOS 恢复快照',
+        'auto-ios-touch-resume': 'iOS 触摸恢复',
+        'auto-ios-online': 'iOS 网络恢复',
         'manual-button': '手动刷新',
         'manual-pull-refresh': '下拉刷新',
       };
@@ -117,7 +125,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.178
+                  v10.7.9.179
                 </span>
               </div>
             </div>
@@ -357,7 +365,7 @@ export default function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.178
+                  v10.7.9.179
                 </span>
               </div>
 
@@ -440,7 +448,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.178</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.179</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>

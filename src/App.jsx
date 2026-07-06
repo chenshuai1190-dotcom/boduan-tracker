@@ -40,8 +40,15 @@ const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set([
   'auto-pageshow',
   'auto-tab',
   'auto-realtime-open',
+  'auto-ios-resume',
+  'auto-ios-resume-cloud',
+  'auto-ios-touch-resume',
+  'auto-ios-online',
 ]);
 const QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS = 2500;
+const IOS_PWA_RESUME_STALE_MS = 5000;
+const IOS_PWA_FOREGROUND_HEARTBEAT_MS = 2000;
+const IOS_PWA_TOUCH_RESUME_THROTTLE_MS = 3000;
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -69,6 +76,17 @@ function validRate(value) {
 
 function normalizePortfolioCurrency(value) {
   return value === 'CNY' ? 'CNY' : 'USD';
+}
+
+function isIosStandaloneWebApp() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const platform = navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+  const isIos = /iPad|iPhone|iPod/.test(userAgent)
+    || (platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1);
+  const standalone = window.navigator?.standalone === true
+    || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
+  return Boolean(isIos && standalone);
 }
 
 function readStoredPortfolioCurrency() {
@@ -1172,6 +1190,11 @@ function MainApp({ user, onLogout }) {
   const pendingQuoteRefreshRef = useRef(null);
   const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0 });
   const quoteRefreshFromCloudResultRef = useRef(null);
+  const pendingPwaResumeRefreshRef = useRef(null);
+  const cloudLoadingRef = useRef(true);
+  const foregroundHeartbeatAtRef = useRef(Date.now());
+  const pwaHiddenAtRef = useRef(0);
+  const pwaLastTouchResumeAtRef = useRef(0);
 
   const fetchQuote = useCallback(async (symbols, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
@@ -2819,6 +2842,111 @@ function MainApp({ user, onLogout }) {
     }, delayMs);
   };
 
+  const requestIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume') => {
+    if (typeof window === 'undefined' || document.hidden) return;
+    if (cloudLoadingRef.current) {
+      pendingPwaResumeRefreshRef.current = trigger;
+      return;
+    }
+    requestQuickQuoteRefresh(null, {
+      trigger,
+      force: true,
+      minIntervalMs: 0,
+      notifyOnError: false,
+    });
+  };
+
+  useEffect(() => {
+    cloudLoadingRef.current = cloudLoading;
+    if (cloudLoading) return;
+    if (!pendingPwaResumeRefreshRef.current) return;
+    const pendingTrigger = pendingPwaResumeRefreshRef.current;
+    pendingPwaResumeRefreshRef.current = null;
+    requestQuickQuoteRefresh(null, {
+      trigger: pendingTrigger === 'auto-ios-touch-resume' ? pendingTrigger : 'auto-ios-resume-cloud',
+      force: true,
+      minIntervalMs: 0,
+      notifyOnError: false,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudLoading]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    if (!isIosStandaloneWebApp()) return undefined;
+
+    let isActive = true;
+    const markForegroundHeartbeat = () => {
+      foregroundHeartbeatAtRef.current = Date.now();
+    };
+    const shouldRefreshAfterResume = () => {
+      const now = Date.now();
+      const heartbeatGap = now - foregroundHeartbeatAtRef.current;
+      const hiddenGap = pwaHiddenAtRef.current ? now - pwaHiddenAtRef.current : 0;
+      return heartbeatGap > IOS_PWA_RESUME_STALE_MS || hiddenGap > IOS_PWA_RESUME_STALE_MS;
+    };
+    const requestResumeRefreshIfStale = (trigger) => {
+      if (!isActive || document.hidden) return;
+      if (!shouldRefreshAfterResume()) {
+        markForegroundHeartbeat();
+        pwaHiddenAtRef.current = 0;
+        return;
+      }
+      markForegroundHeartbeat();
+      pwaHiddenAtRef.current = 0;
+      requestIosPwaResumeQuoteRefresh(trigger);
+    };
+
+    markForegroundHeartbeat();
+    const heartbeatTimer = window.setInterval(() => {
+      if (!document.hidden) markForegroundHeartbeat();
+    }, IOS_PWA_FOREGROUND_HEARTBEAT_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pwaHiddenAtRef.current = Date.now();
+        return;
+      }
+      requestResumeRefreshIfStale('auto-ios-resume');
+    };
+    const handlePageHide = () => {
+      pwaHiddenAtRef.current = Date.now();
+    };
+    const handlePageShow = () => requestResumeRefreshIfStale('auto-ios-resume');
+    const handleFocus = () => requestResumeRefreshIfStale('auto-ios-resume');
+    const handleOnline = () => requestIosPwaResumeQuoteRefresh('auto-ios-online');
+    const handleTouchResume = () => {
+      const now = Date.now();
+      if (now - pwaLastTouchResumeAtRef.current < IOS_PWA_TOUCH_RESUME_THROTTLE_MS) return;
+      if (!shouldRefreshAfterResume()) return;
+      pwaLastTouchResumeAtRef.current = now;
+      markForegroundHeartbeat();
+      pwaHiddenAtRef.current = 0;
+      requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('pointerdown', handleTouchResume, { passive: true });
+    window.addEventListener('touchstart', handleTouchResume, { passive: true });
+
+    return () => {
+      isActive = false;
+      window.clearInterval(heartbeatTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('pointerdown', handleTouchResume);
+      window.removeEventListener('touchstart', handleTouchResume);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   quoteRefreshFromCloudResultRef.current = (result) => {
     requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result), {
       trigger: 'auto-start-cloud',
@@ -2833,6 +2961,7 @@ function MainApp({ user, onLogout }) {
       quickQuoteRefreshRef.current.timer = null;
     }
     pendingQuoteRefreshRef.current = null;
+    pendingPwaResumeRefreshRef.current = null;
     quoteRefreshFromCloudResultRef.current = null;
   }, []);
 
