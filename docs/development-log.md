@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 股票昨收兜底和当日盈亏修复
 
-- Commit: pending
+- Commit: `ff6c2db2ee539ce23b557b4de66297e7919a8074`
 - Background: 用户反馈交易页中 MSFT、NOK 等股票能拿到最新价,但涨跌幅和当日盈亏经常显示 `+0.00%` / `+¥0.00`;检查后确认当日盈亏依赖 `previousClose`,当 EODHD 实时报价只给最新价、缺昨收/涨跌字段时,现价会更新但 `todayPnl` 被守卫条件清零。
 - Root cause:
   - 股票核心 quote 在 `v10.7.9.161` 后只使用 EODHD 字段;Yahoo 只保留小曲线视觉来源,不再给核心 `previousClose/change/changePercent` 补值。
@@ -28,6 +28,7 @@
   - `src/lib/settingsChangelog.js`
   - `tests/quote-response-shape.test.js`
   - `tests/stock-universe.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-log.md`
 - Validation:
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/stock-universe.test.js tests/investment-summary.test.js tests/btc-realtime.test.js` pass,35 tests passed;覆盖 EODHD 缺昨收时用 EODHD EOD 历史补昨收、不回退 Yahoo chart、quote universe 从实时价和昨收重算涨跌字段、投资汇总当日盈亏反推路径和股票 realtime 合并。
@@ -37,7 +38,13 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-B2GIzCES.js` contains `v10.7.9.174`;`settingsChangelog-Bc_Om4Ro.js` contains `股票昨收兜底和当日盈亏修复`;`server/quote/providers/eodhd.js` contains `selectPreviousCloseFromEodRows` and `priceDiffersFromPreviousClose`;`src/App.jsx` contains `resolveQuoteChangeFields`;`src/lib/stockUniverse.js` contains `resolveChangePercent`。
 - Deployment:
-  - pending
+  - Pushed to GitHub `main` as runtime commit `ff6c2db2ee539ce23b557b4de66297e7919a8074`。
+  - GitHub Actions `CI` run `28796812497` completed successfully.
+  - Vercel production alias `https://boduan-tracker.vercel.app` updated successfully;production root returned HTTP 200 with `last-modified: Mon, 06 Jul 2026 13:54:55 GMT`,active entry asset is `/assets/index-Bm84W3P2.js`。
+  - Production runtime chunks verified: `/assets/index-Bm84W3P2.js` imports `/assets/App-CuE-Nv5k.js`;runtime assets include `/assets/SettingsTab-DTBxKziM.js`, `/assets/settingsChangelog-Bc_Om4Ro.js`, `/assets/HomeTab-DzKcyI8C.js`, `/assets/TradesTab-BKaD1ZhL.js`, `/assets/i18n-CPX81kKq.js`, `/assets/ReviewTab-D0QwHV5_.js`, and `/assets/AnalysisTab-Cawy7dPy.js`。
+- Production verification:
+  - Production marker verified: `SettingsTab-DTBxKziM.js` contains `v10.7.9.174`;`settingsChangelog-Bc_Om4Ro.js` contains `股票昨收兜底和当日盈亏修复` and `EODHD 实时报价有最新价但缺昨收`;`App-CuE-Nv5k.js` contains `resolveQuoteChangeFields` and live stock WebSocket markers。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退 EODHD EOD 昨收兜底、`App.jsx`/`stockUniverse` 的涨跌字段合并保护、`v10.7.9.174` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓数量、成本、Yahoo 小曲线、行情 relay、RLS 或鉴权。
 
 ### 2026-07-06 - 弹窗字重和交易确认细节
