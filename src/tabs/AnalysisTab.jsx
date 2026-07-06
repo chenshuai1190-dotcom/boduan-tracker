@@ -886,32 +886,25 @@ export default function AnalysisTab({ ctx }) {
               </div>
             </div>
 
-            <div className="space-y-2 px-4 pb-4 pt-3">
+            <div className="px-4 pb-4 pt-3">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => openAccountEdit(selectedActionAccount)}
-                  className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-[#f6c56f]/35 bg-[#f6c56f]/10 text-[13px] text-[#f6c56f] active:scale-95"
+                  className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6c56f]/30 bg-[#f6c56f]/[0.045] px-2 text-[12px] font-normal text-[#f6c56f] active:scale-95"
                 >
-                  <Pencil className="h-4 w-4" strokeWidth={2} />
-                  修改账户
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  修改
                 </button>
                 <button
                   type="button"
                   onClick={() => confirmDeleteAccount(selectedActionAccount)}
-                  className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/10 text-[13px] text-rose-300 active:scale-95"
+                  className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
                 >
-                  <Trash2 className="h-4 w-4" strokeWidth={2} />
-                  删除账户
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  删除
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={closeAccountAction}
-                className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] text-white/80 active:scale-95"
-              >
-                取消
-              </button>
             </div>
           </div>
         </div>

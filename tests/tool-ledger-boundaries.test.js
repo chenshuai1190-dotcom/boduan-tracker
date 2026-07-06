@@ -372,6 +372,10 @@ test('asset page visual shell and local preview stay debuggable', () => {
 });
 
 test('asset account list hides zero-balance rows and uses action modal for edit/delete', () => {
+  const accountActionStart = analysisTabSource.indexOf('{selectedActionAccount && (');
+  const accountActionEnd = analysisTabSource.indexOf('{editingAccount && accountEditDraft && (', accountActionStart);
+  const accountActionBlock = analysisTabSource.slice(accountActionStart, accountActionEnd);
+
   assert.ok(appSource.includes("type: ''"), 'new account state should not preselect bank type');
   assert.ok(analysisTabSource.includes("setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' })"), 'opening add account should reset to no selected type');
   assert.ok(analysisTabSource.includes('请选择账户类型'), 'add/edit account should require the user to choose a type');
@@ -380,8 +384,13 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.ok(analysisTabSource.includes('visibleOwnerAccs.length'), 'owner account counts should reflect only visible current-month accounts');
   assert.ok(analysisTabSource.includes('setAccountActionId(acc.id)'), 'clicking an account row should open the action modal');
   assert.ok(analysisTabSource.includes('账户操作'), 'asset account action modal should be present');
-  assert.ok(analysisTabSource.includes('修改账户'), 'asset account action modal should offer editing');
-  assert.ok(analysisTabSource.includes('删除账户'), 'asset account action modal should offer deletion');
+  assert.ok(accountActionStart > -1 && accountActionEnd > accountActionStart, 'missing account action modal boundary');
+  assert.ok(accountActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6c56f]/30'), 'account action edit button should use the compact pill style');
+  assert.ok(accountActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20'), 'account action delete button should use the compact pill style');
+  assert.equal(accountActionBlock.includes('修改账户'), false, 'account action edit label should stay compact');
+  assert.equal(accountActionBlock.includes('删除账户'), false, 'account action delete label should stay compact');
+  assert.equal(accountActionBlock.includes('min-h-[48px]'), false, 'account action buttons should not keep oversized card height');
+  assert.equal(accountActionBlock.includes('min-h-[42px]'), false, 'account action modal should not keep a bottom cancel button');
   assert.ok(analysisTabSource.includes('保存修改'), 'asset account edit modal should save changes');
   assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
 });
@@ -423,7 +432,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
-  assert.ok(settingsTabSource.includes('v10.7.9.149'), 'settings version badge should document the module scale removal update');
+  assert.ok(settingsTabSource.includes('v10.7.9.150'), 'settings version badge should document the latest target/action modal update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.149'), 'settings changelog should document the module scale removal update');
   assert.ok(settingsChangelogSource.includes('资产和目标模块缩放移除'), 'settings changelog should describe the module scale removal update');
 });
@@ -474,9 +483,13 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('shrink-0 -translate-y-2 rounded-xl border border-white/10 bg-white/[0.045]'), 'north-star settings button should stay lifted with neutral styling');
   assert.ok(reviewTabSource.includes('relative z-10 mt-2 text-[12px] text-white/55'), 'north-star target subtitle should stay visually quieter');
   assert.ok(reviewTabSource.includes('mt-3 text-[12px] text-white/50'), 'north-star remaining-years line should match the smaller subtitle size');
-  assert.ok(reviewTabSource.includes('text-[15px] font-semibold text-white">年度目标进度'), 'annual target section title should be slightly smaller');
-  assert.ok(reviewTabSource.includes('text-[28px] font-semibold leading-none text-[#ffd18a]'), 'current annual year should use a lighter weight');
+  assert.ok(reviewTabSource.includes('text-[15px] font-semibold text-white">年度目标'), 'annual target section title should be shorter and match the requested wording');
+  assert.equal(reviewTabSource.includes('text-[15px] font-semibold text-white">年度目标进度'), false, 'annual target section title should not keep the old progress wording');
+  assert.ok(reviewTabSource.includes('text-[22px] font-semibold leading-none text-[#ffd18a]'), 'current annual year should match the future year number size');
+  assert.equal(reviewTabSource.includes('text-[28px] font-semibold leading-none text-[#ffd18a]'), false, 'current annual year should not keep the oversized font');
   assert.ok(reviewTabSource.includes('text-[22px] font-semibold leading-none text-white/55'), 'future annual years should use a lighter weight');
+  assert.ok(reviewTabSource.includes('px-1.5 py-0.5 text-[10px] text-[#f6b54b]'), 'current year label badge should shrink with the year number');
+  assert.ok(reviewTabSource.includes('rounded-md border px-1.5 py-0.5 text-[10px]'), 'current year status badge should shrink with the year number');
   assert.ok(reviewTabSource.includes('<div className="text-[11px] text-white/38">起点</div>'), 'future year start label should omit the parenthesized year');
   assert.ok(reviewTabSource.includes('<div className="text-[11px] text-white/38">目标</div>'), 'future year target label should omit the parenthesized year');
   assert.equal(reviewTabSource.includes('起点 ({yearItem.year - 1}目标)'), false, 'future year start label should not include the old year suffix');
@@ -497,7 +510,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
   assert.ok(reviewTabSource.includes('mb-4 flex min-h-10 items-center justify-between gap-4'), 'discipline section title row should align with the add button');
-  assert.ok(reviewTabSource.includes('text-[19px] font-semibold leading-none tracking-normal text-white">投资戒律'), 'discipline section title should use the smaller heading size');
+  assert.ok(reviewTabSource.includes('text-[15px] font-semibold leading-none tracking-normal text-white">投资戒律'), 'discipline section title should match the annual target title size');
+  assert.ok(reviewTabSource.includes('text-[15px] font-semibold leading-none tracking-normal text-white">复盘日志'), 'review log section title should match the annual target title size');
   assert.ok(reviewTabSource.includes('h-5 w-1 shrink-0 rounded-full bg-[#f6a524]'), 'discipline section should use a shorter vertical accent bar');
   assert.equal(reviewTabSource.includes('{disciplines.length} 条'), false, 'discipline section should not show a duplicate count under the title');
   assert.ok(reviewTabSource.includes('flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035]'), 'discipline add button should use a smaller low-color pill style');
@@ -562,7 +576,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.149'), 'settings version badge should document the latest module scale removal update');
+  assert.ok(settingsTabSource.includes('v10.7.9.150'), 'settings version badge should document the latest target/action modal update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.150'), 'settings changelog should document the latest target/action modal update');
+  assert.ok(settingsChangelogSource.includes('目标和操作弹窗细节收紧'), 'settings changelog should describe the target/action modal update');
   assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
   assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
   assert.ok(settingsChangelogSource.includes('v10.7.9.148'), 'settings changelog should document the asset header alignment update');
@@ -610,11 +626,20 @@ test('review edit modals use in-app validation instead of native alerts', () => 
 });
 
 test('order action modal stays compact like the current trade record reference', () => {
-  assert.ok(tradesTabSource.includes('w-[calc(100vw-72px)] max-w-[360px]'), 'order action modal should use the narrower centered reference width');
-  assert.ok(tradesTabSource.includes('rounded-[22px]'), 'order action modal should keep a compact rounded panel');
-  assert.ok(tradesTabSource.includes('min-h-[48px]'), 'order action edit/delete buttons should not return to oversized cards');
-  assert.ok(tradesTabSource.includes('min-h-[42px]'), 'order action cancel button should stay compact');
-  assert.ok(tradesTabSource.includes('px-4 pb-4 pt-3'), 'order action button area should use compact vertical padding');
+  const orderActionStart = tradesTabSource.indexOf('{orderActionTrade && (() => {');
+  const orderActionEnd = tradesTabSource.indexOf('{/* 波段记录', orderActionStart);
+  const orderActionBlock = tradesTabSource.slice(orderActionStart, orderActionEnd);
+
+  assert.ok(orderActionStart > -1 && orderActionEnd > orderActionStart, 'missing order action modal boundary');
+  assert.ok(orderActionBlock.includes('w-[calc(100vw-72px)] max-w-[360px]'), 'order action modal should use the narrower centered reference width');
+  assert.ok(orderActionBlock.includes('rounded-[22px]'), 'order action modal should keep a compact rounded panel');
+  assert.ok(orderActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30'), 'order action edit button should use the compact pill style');
+  assert.ok(orderActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20'), 'order action delete button should use the compact pill style');
+  assert.equal(orderActionBlock.includes('修改记录'), false, 'order action edit label should stay compact');
+  assert.equal(orderActionBlock.includes('删除记录'), false, 'order action delete label should stay compact');
+  assert.equal(orderActionBlock.includes('min-h-[48px]'), false, 'order action edit/delete buttons should not keep oversized card height');
+  assert.equal(orderActionBlock.includes('min-h-[42px]'), false, 'order action modal should not keep a bottom cancel button');
+  assert.ok(orderActionBlock.includes('px-4 pb-4 pt-3'), 'order action button area should use compact vertical padding');
 });
 
 test('wave records keep editable notes and completed waves remain reachable', () => {

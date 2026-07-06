@@ -876,7 +876,7 @@ export default function ReviewTab({ ctx }) {
         <div className="mb-3 flex items-center justify-between gap-3 px-2">
           <div className="flex items-center gap-2">
             {Target ? <Target className="h-4 w-4 text-[#f6b54b]" /> : <Calendar className="h-4 w-4 text-[#f6b54b]" />}
-            <div className="text-[15px] font-semibold text-white">年度目标进度</div>
+            <div className="text-[15px] font-semibold text-white">年度目标</div>
           </div>
           {yearlyFinal.length > 3 && (
             <button
@@ -917,10 +917,10 @@ export default function ReviewTab({ ctx }) {
                   className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div className="text-[28px] font-semibold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
-                      <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-2 py-1 text-[11px] text-[#f6b54b]">本年</span>
-                      <span className={`rounded-md border px-2 py-1 text-[11px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <div className="text-[22px] font-semibold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
+                      <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">本年</span>
+                      <span className={`rounded-md border px-1.5 py-0.5 text-[10px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
                     </div>
                   </div>
 
@@ -1047,7 +1047,7 @@ export default function ReviewTab({ ctx }) {
           <div className="flex min-w-0 items-center gap-3">
             <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[19px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
+              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">投资戒律</div>
             </div>
           </div>
           <button
@@ -1169,7 +1169,7 @@ export default function ReviewTab({ ctx }) {
           <div className="flex min-w-0 items-center gap-3">
             <span className="h-5 w-1 shrink-0 rounded-full bg-[#f6a524] shadow-[0_0_14px_rgba(246,165,36,0.3)]" />
             <div className="min-w-0">
-              <div className="truncate text-[19px] font-semibold leading-none tracking-normal text-white">复盘日志</div>
+              <div className="truncate text-[15px] font-semibold leading-none tracking-normal text-white">复盘日志</div>
             </div>
           </div>
           <button

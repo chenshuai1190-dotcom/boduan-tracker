@@ -4,6 +4,37 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 目标标题和操作弹窗收紧
+
+- Commit: `pending`
+- Background: 用户反馈目标页年度年份数字仍偏大,要求当前年份和第二年字号一致,并让“本年”“未达/达标”徽标同比例缩小;同时要求投资戒律、复盘日志标题和年度目标标题保持同字号,把“年度目标进度”改为“年度目标”;交易记录和资产账户的操作弹窗要参考投资戒律详情弹窗的修改/删除按钮大小,并删除最下面的取消按钮。
+- Changes:
+  - 目标页“年度目标进度”改名为“年度目标”,当前年度年份从 `28px` 收到 `22px`,与未来年度数字一致。
+  - 当前年度“本年”和状态徽标从 `11px` 收到 `10px`,内边距同步缩小,避免年份变小后徽标显得突兀。
+  - 投资戒律和复盘日志标题从 `19px` 收到 `15px`,对齐年度目标标题层级。
+  - 交易记录操作弹窗的 `修改记录` / `删除记录` 大按钮改为 `修改` / `删除` 小胶囊按钮,高度 `36px`,并移除底部“取消”按钮。
+  - 资产账户操作弹窗同步改为 `修改` / `删除` 小胶囊按钮,高度 `36px`,并移除底部“取消”按钮。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.150`,新增“目标和操作弹窗细节收紧”。
+  - 本轮仅调整目标页视觉层级和两个操作弹窗按钮层级;不改变年度目标、投资戒律、复盘日志、交易记录、资产账户、行情 relay、Supabase RLS 或 `/api/quote` 鉴权逻辑。
+- Key files:
+  - `src/tabs/ReviewTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including updated `asset account list hides zero-balance rows and uses action modal for edit/delete`, `review target page uses dark mobile cards and click action modals`, and `order action modal stays compact like the current trade record reference`.
+  - Source marker check: pass;`ReviewTab.jsx` contains `年度目标`, current year `22px`, smaller `10px` badges, and `15px` investment/review section titles;`TradesTab.jsx` and `AnalysisTab.jsx` order/account action blocks contain `h-9` compact pill buttons and no bottom cancel button.
+  - `npm run build`: pass;Vite built `ReviewTab-CZxjqcb1.js`, `TradesTab-BCtDUDej.js`, `AnalysisTab-BlUdJr6F.js`, `SettingsTab-Cj7h5q0M.js`, `settingsChangelog-D56KgTpc.js`, `App-BqeqSHEw.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`SettingsTab-Cj7h5q0M.js` contains `v10.7.9.150`;`settingsChangelog-D56KgTpc.js` contains `v10.7.9.150` and `目标和操作弹窗细节收紧`;`ReviewTab-CZxjqcb1.js` contains new `年度目标` title, current-year `22px`, and `15px` investment/review titles, while omitting old `年度目标进度` title and current-year `28px`;`TradesTab-BCtDUDej.js` and `AnalysisTab-BlUdJr6F.js` contain compact action pill buttons and omit old `修改记录` / `删除记录` labels in the order action chunk.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/tabs/ReviewTab.jsx` 的标题/年份/徽标 class 调整、`src/tabs/TradesTab.jsx` 的订单操作弹窗按钮调整、`src/tabs/AnalysisTab.jsx` 的账户操作弹窗按钮调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.150` 条目、测试和本开发日志即可;不会影响目标数据、投资戒律、复盘日志、交易记录、资产账户、行情、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 资产和目标模块缩放移除
 
 - Commit: `258a05ab888fa6e38766cb9f6e1495c927ad3545`
