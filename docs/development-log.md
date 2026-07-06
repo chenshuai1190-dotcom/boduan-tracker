@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 英文模式扩展到交易页
 
-- Commit: same commit
+- Commit: `1812af3a9e814860d35eabb39c4c0eed1cb12070`
 - Background: 用户确认英文版先分阶段推进,第一阶段已经完成语言框架、设置开关、底部导航和首页;本轮继续处理交易页,要求不影响中文正常显示、不翻译用户自己写的日志/备注,英文模式下股票主副标题按代码缩写显示。
 - Changes:
   - `TradesTab.jsx` 接入 `src/lib/i18n.js`,交易页头部资产卡、工具入口、交易记录、持仓分布、当日订单、操作弹窗、波段记录和摊薄工具文案改为语言字典读取。
@@ -29,7 +29,11 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
   - 本地 dist marker: `SettingsTab-BDBd4cDZ.js` 包含 `v10.7.9.162`;`settingsChangelog-e8WgVBQV.js` 包含 `v10.7.9.162` 和 `英文模式扩展到交易页`;`i18n-BaBEJhjJ.js` 包含 `Total Assets`、`Trade Log`、`Averaging Tool`、`All Trades` 和交易页英文 key。
 - Deployment:
-  - Not deployed yet.
+  - Pushed to GitHub `main` as runtime commit `1812af3a9e814860d35eabb39c4c0eed1cb12070`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=english-trades-*` returned HTTP 200;active entry asset is `index-Ck7quSWN.js`。
+  - Production runtime chunks verified: `index-Ck7quSWN.js` imports `App-D8Aa5ugH.js`;`App-D8Aa5ugH.js` imports `i18n-BaBEJhjJ.js`、`TradesTab-DRCAM60-.js`、`SettingsTab-DlWzfPW5.js`;`SettingsTab-DlWzfPW5.js` lazy-loads `settingsChangelog-e8WgVBQV.js`。
+  - Production marker verified: `SettingsTab-DlWzfPW5.js` contains `v10.7.9.162`;`settingsChangelog-e8WgVBQV.js` contains `v10.7.9.162` and `英文模式扩展到交易页`;`i18n-BaBEJhjJ.js` contains `Total Assets`、`Trade Log`、`Averaging Tool`、`All Trades`、`Add Averaging Trade`、`Holdings` and `Swing Log`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的交易页/App 弹窗 i18n 接入、`v10.7.9.162` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
 
 ### 2026-07-06 - 股票核心行情去 Yahoo 混源
