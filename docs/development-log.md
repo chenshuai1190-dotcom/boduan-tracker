@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 英文交易头部严格对齐首页
 
-- Commit: same commit
+- Commit: `992f761a5cd29b89e4fd2d616a32c197f5000d8c`
 - Background: 用户复核线上效果后指出英文交易页头部卡片仍未严格对齐英文首页,上一版对交易头部做了单独截断处理;同时英文股票副标题不应使用 `Corporation` / `Inc.` 等完整法定名,应显示短品牌名,例如 `NVIDIA`、`Microsoft`。
 - Changes:
   - `TradesTab.jsx` 头部资产卡英文模式三列比例严格复制首页 `0.95fr 1fr 1.3fr`,不再只单独调整交易页。
@@ -30,7 +30,11 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
   - 本地 dist marker: `App-D8227g-d.js` 包含 `NVIDIA`、`Microsoft`、`Nokia`;`TradesTab-Ch48sDcp.js` 包含 `0.95fr 1fr 1.3fr`、`gridTemplateColumns` 和 `text-[14px]`;`SettingsTab-D5KCINEc.js` 包含 `v10.7.9.164`;`settingsChangelog-Ds0aboTD.js` 包含 `v10.7.9.164` 和 `英文交易页头部对齐首页`。
 - Deployment:
-  - Not deployed yet.
+  - Pushed to GitHub `main` as runtime commit `992f761a5cd29b89e4fd2d616a32c197f5000d8c`。
+  - Production `GET https://boduan-tracker.vercel.app/?v=english-header-164-*` returned HTTP 200;active entry asset is `index-DZi3X7YN.js`。
+  - Production runtime chunks verified: `index-DZi3X7YN.js` imports `App-BqzueodK.js`;`App-BqzueodK.js` imports `HomeTab-dAw3c0GG.js`、`TradesTab-Ch48sDcp.js` and `SettingsTab-B95aT1ug.js`;`SettingsTab-B95aT1ug.js` lazy-loads `settingsChangelog-Ds0aboTD.js`。
+  - Production marker verified: `SettingsTab-B95aT1ug.js` contains `v10.7.9.164`;`settingsChangelog-Ds0aboTD.js` contains `v10.7.9.164` and `英文交易页头部对齐首页`;`App-BqzueodK.js` contains `NVIDIA`、`Microsoft` and `Nokia`;both `HomeTab-dAw3c0GG.js` and `TradesTab-Ch48sDcp.js` contain `0.95fr 1fr 1.3fr`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的交易页头部英文列比例、短品牌名映射、`v10.7.9.164` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
 
 ### 2026-07-06 - 英文交易页头部和公司名修正
