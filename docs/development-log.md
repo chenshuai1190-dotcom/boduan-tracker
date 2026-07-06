@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 交易录入输入框去白框
 
-- Runtime commit: `this commit`
+- Runtime commit: `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f`
 - Background: 用户截图反馈交易页“新增交易”弹窗的股票代码、价格、股数和日期输入框出现突兀白色外框,与当前深色弹窗风格不一致。复查发现交易录入弹窗共用输入框类在默认态保留了金色透明边框,移动端渲染时视觉接近白框。
 - Changes:
   - `src/tabs/TradesTab.jsx` 将交易录入弹窗输入框默认边框从金色透明描边改为 `border-transparent`,避免未聚焦状态出现白色/亮色外框。
@@ -29,8 +29,10 @@
   - Local build marker: `SettingsTab-DHVfgIC9.js` contains `v10.7.9.181`;`settingsChangelog-CuDA3AUO.js` contains `v10.7.9.181` and `交易录入输入框去白框`;`TradesTab-BmOih2Rn.js` contains `border-transparent` and `focus:border-[#f6b54b]/45`。
   - `git diff --check` pass。
 - Deployment:
-  - 待使用项目 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
-  - 推送前生产仍为 `v10.7.9.180`,运行时代码提交 `b178c7b1cfcf056d846ee4e2162e33ace430779f`,active entry `/assets/index-CZBHhv8n.js`。
+  - Runtime commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Vercel status for `469edfb` returned `failure`: `Deployment rate limited — retry in 24 hours.`
+  - 生产仍为 `v10.7.9.180`,运行时代码提交 `b178c7b1cfcf056d846ee4e2162e33ace430779f`,active entry `/assets/index-CZBHhv8n.js`。
+  - 本文件所在 deployment retry commit 将继续使用项目 SSH key 推送,由 GitHub-integrated Vercel deployment 自动触发;若 Vercel 仍 rate limit,生产仍保持 `v10.7.9.180`。
 - Rollback: 回退本条涉及的 `tradeModalBaseInput` 默认边框、`v10.7.9.181` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、确认弹窗、持仓盈亏计算、行情刷新、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构或 RLS。
 
 ### 2026-07-06 - iOS PWA 恢复刷新加固
