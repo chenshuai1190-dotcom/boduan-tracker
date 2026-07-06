@@ -32,6 +32,8 @@ Before making or handing off any change, read:
 
 Current rule: GitHub is the only code source of truth, Vercel deploys automatically from `main`, and every change must update `docs/development-log.md` in the same commit.
 
+UI or feature changes that touch system copy must keep Simplified Chinese and English in sync through the i18n layer. Translate system copy only; user-authored notes, reviews, mottos, logs, remarks, and account names stay in their original language.
+
 ## Required Environment Variables
 
 Frontend:

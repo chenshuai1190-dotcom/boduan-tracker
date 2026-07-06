@@ -614,6 +614,7 @@ Vercel 最新运行时部署: success,`v10.7.9.172` production marker verified
 - 不要直接改 Vercel、浏览器控制台、临时服务器文件。
 - 每次代码、配置、部署、安全或文档改动,都必须更新 `docs/development-log.md`。
 - 用户可见更新必须同步设置页更新日志和版本。
+- 修改 UI 或功能时,涉及系统文案必须同步简体中文和 English;只翻译系统文案,用户自写目标箴言、心得、复盘、备注、日志和账户名保持原文。
 - 不要提交任何 token、`.env`、Supabase service role key。
 - 不要添加 `VITE_EODHD_TOKEN`。
 - 不要关闭 `/api/quote` 鉴权。

@@ -4,6 +4,31 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - UI 文案中英文同步开发准则
+
+- Commit: `same commit`
+- Background: 用户要求把“修改 UI/功能时同步英文”作为正式开发准则写入文档,避免后续只改中文界面而漏掉英文模式。
+- Changes:
+  - `docs/development-process.md` 本地实现准则新增:凡是 UI 或功能改动涉及用户可见系统文案,必须同步简体中文和 English 两套显示,覆盖 `src/lib/i18n.js` key、组件 fallback、空状态、按钮、弹窗、错误提示、设置页更新日志文案和测试/build marker。
+  - `docs/handoff.md` 硬规则同步新增同一准则,提醒接手者只翻译系统文案,用户自写目标箴言、心得、复盘、备注、日志和账户名保持原文。
+  - `README.md` 开发流程摘要同步记录中英文 i18n 准则。
+  - 本轮只改文档开发准则,不改运行时代码、设置页版本、应用内更新日志、交易账本、行情 relay、RLS 或鉴权。
+- Key files:
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `README.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,85 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成同当前 `v10.7.9.172` runtime chunks,包括 `dist/assets/App-BHmH9d87.js`、`dist/assets/i18n-CPX81kKq.js`、`dist/assets/SettingsTab-Dw6-fh9q.js` 和 `dist/assets/settingsChangelog-kbO7oX-_.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending docs-only push to GitHub `main` and Vercel production deployment.
+- Production verification:
+  - Pending docs-only deployment and production marker re-check.
+- Rollback: 回退本条文档准则和本日志即可;不影响生产运行时代码、数据库、行情、RLS 或鉴权。
+
 ### 2026-07-06 - 目标页文案和弹窗可读性
 
 - Commit: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`
