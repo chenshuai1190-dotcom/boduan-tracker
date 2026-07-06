@@ -6,7 +6,8 @@
 
 ### 2026-07-06 - iOS PWA 恢复刷新加固
 
-- Commit: `same commit`
+- Runtime commit: `b178c7b1cfcf056d846ee4e2162e33ace430779f`
+- Documentation follow-up: `same commit`
 - Background: `v10.7.9.179` 已上线 iOS 添加到主屏幕后恢复 fresh 行情刷新,但用户反馈实际体感仍“偶尔正常偶尔不正常”,切回主屏幕 Web App 后有时不像秒级动态刷新。复查发现上一版仍存在两个恢复竞态: iOS 可能在 `pageshow` / `focus` / `online` 时仍短暂报告 `document.hidden`,旧逻辑会直接丢掉这些事件;同时通用 `focus` / `pageshow` 快刷和 iOS 0ms fresh 快刷共用一个 timer,后到的普通事件可能覆盖更早的 iOS 立即刷新。三套 realtime WebSocket 也只在 `visibilitychange` 稳定触发时重连,对 iOS PWA 的事件顺序不够稳。
 - Changes:
   - `src/App.jsx` 的 iOS standalone PWA 恢复逻辑不再依赖冻结 heartbeat 判断;`visibilitychange`、`pageshow`、`focus`、`online` 和首次 `touchstart` / `pointerdown` 都直接进入 fresh 行情刷新路径。
@@ -30,8 +31,10 @@
   - Local build marker: `SettingsTab-C_g_jFFv.js` contains `v10.7.9.180`;`settingsChangelog-C81SVW1H.js` contains `v10.7.9.180` and `iOS 主屏幕恢复刷新加固`;`App-DLjrsqk6.js` contains `auto-ios-resume`, `auto-ios-touch-resume`, `auto-ios-online`, `IOS_PWA_VISIBLE_RETRY_MAX_MS`, `lastConnectAttemptAt`, `_ts`, `no-store` and `no-cache`。
   - `git diff --check` pass。
 - Deployment:
-  - 本文件所在提交将使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 GitHub-integrated Vercel deployment 自动触发;不直接改 Vercel、浏览器控制台或临时服务器文件。
-  - 推送前生产仍为 `v10.7.9.179`:production entry `/assets/index-CRPd3mTF.js`,App chunk `/assets/App-D9Mx_Z7I.js`。
+  - Runtime commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - Vercel status for `b178c7b` returned `success`: `Deployment has completed`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`。
+  - Production verification: root active entry `/assets/index-CZBHhv8n.js`;entry imports `/assets/App-jhHQQm-J.js`;`App-jhHQQm-J.js` contains `auto-ios-resume`, `auto-ios-touch-resume`, `auto-ios-online`, `lastConnectAttemptAt`, `_ts`, `no-store` and `no-cache`;`SettingsTab-ULxDZ9Ff.js` contains `v10.7.9.180`, `iOS 回到前台` and `iOS 触摸恢复`;`settingsChangelog-C81SVW1H.js` contains `v10.7.9.180`, `iOS 主屏幕恢复刷新加固`, `v10.7.9.179` and `iOS 主屏幕秒级恢复刷新`;unauthenticated `GET /api/quote?symbols=VIX` returns `401` with `cache-control: private, no-store, max-age=0, must-revalidate`;ordinary HTTPS `GET /api/stocks-realtime` returns `426` with `cache-control: no-store`。
+  - 本文件所在 documentation follow-up commit 将通过项目 SSH key 推送,只同步部署成功记录和交接状态;运行时代码仍以 `b178c7b` 为基准。
 - Rollback: 回退本条涉及的 iOS PWA 恢复队列、quick quote 优先级调度、realtime resume 重连监听、`v10.7.9.180` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓盈亏计算、涨跌幅重算口径、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构或 RLS。
 
 ### 2026-07-06 - SSH 部署准则收紧
