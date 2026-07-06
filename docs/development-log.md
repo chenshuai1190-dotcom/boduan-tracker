@@ -4,6 +4,40 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - PWA 透明 Logo 替换
+
+- Commit: `same commit`
+- Background: 用户提供新的 `图标20260705.PNG`,要求把当前图标/logo 换成该图,并确认它是否是透明 PNG。检查源文件确认其为 `1024x1024` PNG RGBA,`hasAlpha=yes`,alpha 最小值为 `0`,约 `63.0603%` 像素非完全不透明,包含真实透明区域和半透明阴影边缘。
+- Changes:
+  - 使用用户提供的新蓝绿 K 线箭头 PNG 生成并替换 `public/icon-512.png`、`public/icon-192.png`、`public/apple-touch-icon.png`、`public/favicon-32.png`、`public/favicon-16.png`。
+  - 保持 `manifest.json` 和 `index.html` 现有图标路径不变,避免改动 PWA 安装入口和 iOS `apple-touch-icon` 引用。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.146`,新增“PWA 透明 Logo 替换”。
+  - 增加 PNG 图标回归测试,直接解析图标尺寸、PNG color type 和 alpha 像素,防止后续误回退成无透明通道或错误尺寸。
+  - 本轮只替换静态图标资产,不影响 `/api/quote` 鉴权、EODHD token 服务端隔离、WebSocket relay、交易主账本、波段记录、摊薄工具、Supabase RLS 或业务数据。
+- Key files:
+  - `public/icon-512.png`
+  - `public/icon-192.png`
+  - `public/apple-touch-icon.png`
+  - `public/favicon-32.png`
+  - `public/favicon-16.png`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - Source image check: pass;user PNG is `1024x1024`,PNG RGBA,`hasAlpha=yes`,alpha range `0-255`,transparent/semi-transparent pixels `661235`,semi-transparent pixels `104911`.
+  - Local icon check: pass;`public/icon-512.png`, `public/icon-192.png`, `public/apple-touch-icon.png`, `public/favicon-32.png`, `public/favicon-16.png` are PNGs with dimensions `512x512`, `192x192`, `180x180`, `32x32`, `16x16`,and all keep `hasAlpha=yes`.
+  - Icon SHA256: `icon-512.png` = `6f159dc53ec9103d341ba1cebd0b9a555f333655c452c4adf8cf2e40017acbe7`, `icon-192.png` = `6a62dceaf6e89c5d4246e5c6042c0384e64c08108d70cdfd7667fc4bd1f088c8`, `apple-touch-icon.png` = `004c2f57b30b1eb80d32e05616d9e421ab7a2af89705a0288f26dcdbff1a3ff9`, `favicon-32.png` = `c4d1b12f87a4e4dba8df68529d7646bdaebbd8640658947233c66e3cf237a346`, `favicon-16.png` = `a85f5d0d105d5a8150d491486e790ec23a1f54721b13018c99d78bd30ae51934`.
+  - `npm test`: pass;75 tests passed,including new `pwa app icons use the current transparent png logo assets`.
+  - `npm run build`: pass;Vite built `App-C1yrZ3PI.js`, `SettingsTab-a4QpjV9r.js`, `settingsChangelog-BdWT8yj1.js` and copied the five PNG icons into `dist`.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`dist` icons keep the expected dimensions and `hasAlpha=yes`;`SettingsTab-a4QpjV9r.js` contains `v10.7.9.146`;`settingsChangelog-BdWT8yj1.js` contains `v10.7.9.146` and `PWA 透明 Logo 替换`;`dist/manifest.json` still references `/icon-192.png` and `/icon-512.png`;`dist/index.html` still references `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`.
+- Deployment:
+  - Pending GitHub push, CI and Vercel production verification.
+- Rollback: 回退五个 `public/*.png` 图标文件、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.146` 条目、图标测试和本开发日志即可;不会影响行情、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 设置页数据维护删除和诊断报警降噪
 
 - Commit: `5e417ce4578d4d44da746658b37201cc625e9fb4`

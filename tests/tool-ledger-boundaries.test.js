@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
@@ -16,6 +17,74 @@ const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
 const indicesRealtimeApiSource = readFileSync(new URL('../api/indices-realtime.js', import.meta.url), 'utf8');
 const stocksRealtimeApiSource = readFileSync(new URL('../api/stocks-realtime.js', import.meta.url), 'utf8');
+
+function readPngInfo(relativePath) {
+  const buffer = readFileSync(new URL(relativePath, import.meta.url));
+  assert.equal(buffer.toString('hex', 0, 8), '89504e470d0a1a0a', `${relativePath} must be a PNG`);
+
+  let pos = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idatChunks = [];
+  while (pos < buffer.length) {
+    const length = buffer.readUInt32BE(pos);
+    pos += 4;
+    const type = buffer.toString('ascii', pos, pos + 4);
+    pos += 4;
+    const data = buffer.subarray(pos, pos + length);
+    pos += length + 4;
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === 'IDAT') {
+      idatChunks.push(data);
+    }
+  }
+
+  let alphaMin = 255;
+  if (bitDepth === 8 && colorType === 6) {
+    const raw = inflateSync(Buffer.concat(idatChunks));
+    const bytesPerPixel = 4;
+    const stride = width * bytesPerPixel;
+    let offset = 0;
+    let previous = Buffer.alloc(stride);
+    const paeth = (left, up, upLeft) => {
+      const estimate = left + up - upLeft;
+      const leftDistance = Math.abs(estimate - left);
+      const upDistance = Math.abs(estimate - up);
+      const upLeftDistance = Math.abs(estimate - upLeft);
+      if (leftDistance <= upDistance && leftDistance <= upLeftDistance) return left;
+      return upDistance <= upLeftDistance ? up : upLeft;
+    };
+
+    for (let y = 0; y < height; y += 1) {
+      const filter = raw[offset];
+      offset += 1;
+      const row = Buffer.alloc(stride);
+      for (let x = 0; x < stride; x += 1) {
+        const left = x >= bytesPerPixel ? row[x - bytesPerPixel] : 0;
+        const up = previous[x] || 0;
+        const upLeft = x >= bytesPerPixel ? previous[x - bytesPerPixel] : 0;
+        const value = raw[offset];
+        offset += 1;
+        if (filter === 0) row[x] = value;
+        else if (filter === 1) row[x] = (value + left) & 255;
+        else if (filter === 2) row[x] = (value + up) & 255;
+        else if (filter === 3) row[x] = (value + Math.floor((left + up) / 2)) & 255;
+        else if (filter === 4) row[x] = (value + paeth(left, up, upLeft)) & 255;
+        else throw new Error(`${relativePath} has unsupported PNG filter ${filter}`);
+      }
+      for (let x = 3; x < stride; x += 4) alphaMin = Math.min(alphaMin, row[x]);
+      previous = row;
+    }
+  }
+
+  return { width, height, bitDepth, colorType, alphaMin };
+}
 
 test('wave record entry writes legacy trades before main ledger stock_trades', () => {
   const waveBranch = appSource.indexOf("tradeEntryScope === 'wave'");
@@ -66,6 +135,25 @@ test('legacy service worker file stays removed while old registrations are still
   assert.equal(existsSync(new URL('../public/sw.js', import.meta.url)), false, 'deprecated service worker file should not be shipped');
   assert.ok(mainSource.includes('navigator.serviceWorker.getRegistrations()'), 'entry should still enumerate old service worker registrations');
   assert.ok(mainSource.includes('reg.unregister()'), 'entry should still unregister old service workers on client load');
+});
+
+test('pwa app icons use the current transparent png logo assets', () => {
+  const expectedIcons = [
+    ['../public/icon-512.png', 512, 512],
+    ['../public/icon-192.png', 192, 192],
+    ['../public/apple-touch-icon.png', 180, 180],
+    ['../public/favicon-32.png', 32, 32],
+    ['../public/favicon-16.png', 16, 16],
+  ];
+
+  for (const [path, width, height] of expectedIcons) {
+    const info = readPngInfo(path);
+    assert.equal(info.width, width, `${path} should keep the expected width`);
+    assert.equal(info.height, height, `${path} should keep the expected height`);
+    assert.equal(info.bitDepth, 8, `${path} should stay 8-bit PNG`);
+    assert.equal(info.colorType, 6, `${path} should keep an RGBA alpha channel`);
+    assert.ok(info.alphaMin < 255, `${path} should contain real transparent or semi-transparent pixels`);
+  }
 });
 
 test('cost basis tool uses dark custom UI without legacy title icon or native alerts', () => {
@@ -432,9 +520,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} />'), 'rollback should restore the old inline CNN gauge');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-white/60'), 'rollback should preserve the previous gray normal-weight VIX title');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
-  assert.ok(settingsTabSource.includes('v10.7.9.145'), 'settings version badge should document the data maintenance cleanup update');
+  assert.ok(settingsTabSource.includes('v10.7.9.146'), 'settings version badge should document the transparent PWA logo update');
   assert.ok(settingsTabSource.includes("import('../lib/settingsChangelog.js')"), 'settings should lazy load the historical changelog chunk');
   assert.equal(settingsTabSource.includes('const changelog = ['), false, 'settings tab should not inline the historical changelog array');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.146'), 'settings changelog should document the transparent PWA logo update');
+  assert.ok(settingsChangelogSource.includes('PWA 透明 Logo 替换'), 'settings changelog should describe the transparent PWA logo update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.145'), 'settings changelog should document the data maintenance cleanup update');
   assert.ok(settingsChangelogSource.includes('设置页维护入口清理'), 'settings changelog should describe the data maintenance cleanup update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.144'), 'settings changelog should document the reset and lazy-log update');
