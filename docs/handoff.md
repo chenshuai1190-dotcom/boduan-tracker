@@ -6,13 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.172` 本地验证已通过,等待推送到 `main` 后触发 Vercel production marker 验证;上一轮 `v10.7.9.171` 运行时代码提交 `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0` 已完成生产验证。
-- 当前运行时代码提交: 本轮 `v10.7.9.172` 提交生成后回填;上一轮为 `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.172` 运行时代码提交 `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5` 已推送并完成生产验证。
+- 当前运行时代码提交: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`。
 - 设置页版本: `v10.7.9.172`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: `v10.7.9.172` pending push/deploy;上一轮 `v10.7.9.171` production marker verified。
+- 最新运行时 Vercel 部署: success,`v10.7.9.172` production marker verified。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: `v10.7.9.172` pending production marker;上一轮生产入口 `/assets/index-D7iMgQgY.js`;runtime includes `/assets/App-ZDAnFPug.js`, `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, `/assets/icons-D-qNOTDb.js`;`SettingsTab-2fJWoBGA.js` contains `v10.7.9.171`;`settingsChangelog-C6ZWAgLD.js` contains `工具弹窗和币种同步`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
+- 线上关键验证: 生产入口 `/assets/index-CpKzNEcw.js`;runtime includes `/assets/App-BPY3VY7t.js`, `/assets/i18n-CPX81kKq.js`, `/assets/HomeTab-K44XyQcp.js`, `/assets/TradesTab-jtoZCMkE.js`, `/assets/ReviewTab-D0QwHV5_.js`, `/assets/SettingsTab-Dnz-AZSl.js`, `/assets/settingsChangelog-kbO7oX-_.js`, `/assets/icons-D-qNOTDb.js`;`SettingsTab-Dnz-AZSl.js` contains `v10.7.9.172`;`settingsChangelog-kbO7oX-_.js` contains `目标页文案和弹窗可读性` and `投资心得`;`TradesTab-jtoZCMkE.js` contains `text-[16px] font-normal text-white`;`i18n-CPX81kKq.js` contains `投资心得` and `Investment Notes`;`ReviewTab-D0QwHV5_.js` contains deeper mask markers `rgba(5,7,11,0.42)`, `strength:.42` / `shade:.7` and `strength:.38` / `shade:.72`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 HTTPS `GET /api/stocks-realtime` 返回 `426`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.172` 将目标页“投资戒律”系统文案改名为“投资心得”,加深投资心得/复盘日志详情背景图蒙版,并把交易页新增/编辑交易弹窗标题改为 16px 正常字重;用户自写内容、交易账本、摊薄工具、行情和鉴权不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -20,13 +20,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: 本轮 `v10.7.9.172` 提交生成后回填;上一轮为 `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`
-- 最近应用代码提交: 本轮 `v10.7.9.172` 提交生成后回填;上一轮为 `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`
+- 当前产品基准提交: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`
+- 最近应用代码提交: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`
 - 最近文档/配置记录提交: 本文件所在最新提交。
 - 设置页版本: `v10.7.9.172`
-- Vercel 最新运行时部署: `v10.7.9.172` pending push/deploy;上一轮 `v10.7.9.171` production marker verified。
+- Vercel 最新运行时部署: success,`v10.7.9.172` production marker verified。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.172` pending;上一轮 runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`;GitHub Actions `CI` run `28792523002` success;docs-only trigger commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10`;GitHub Actions `CI` run `28793075889` success;active runtime assets and marker verified。
+- Vercel 部署记录: runtime commit `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`;GitHub Actions `CI` run `28794071962` success;Vercel target `https://boduan-tracker-k2brb6zao-chenshuai1190-7580s-projects.vercel.app`;active runtime assets and marker verified。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -593,13 +593,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;`v10.7.9.172` 本地验证已通过,等待推送和 Vercel production marker 验证;上一轮 `v10.7.9.171` 已完成生产验证
-当前产品基准提交: 本轮 `v10.7.9.172` 提交生成后回填;上一轮为 `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`
-最近应用代码提交: 本轮 `v10.7.9.172` 提交生成后回填;上一轮为 `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`
+当前 GitHub main: 以本文件所在最新提交为准;`v10.7.9.172` 运行时代码提交 `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5` 已推送并完成生产验证
+当前产品基准提交: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`
+最近应用代码提交: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`
 设置页版本: `v10.7.9.172`
-Vercel 最新运行时部署: `v10.7.9.172` pending push/deploy;上一轮 `v10.7.9.171` production marker verified
+Vercel 最新运行时部署: success,`v10.7.9.172` production marker verified
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: `v10.7.9.172` pending;上一轮 runtime commit `deb3957061750ae4b4b94e7cbc28e1f20eb50cb0`;GitHub Actions `CI` run `28792523002` success;docs-only trigger commit `3818de3f3d089fe7b2f37a7895fb650dc2440d10`;GitHub Actions `CI` run `28793075889` success;active runtime assets `/assets/index-D7iMgQgY.js`, `/assets/App-ZDAnFPug.js`, `/assets/HomeTab-caYUNvHf.js`, `/assets/TradesTab-Bglu0R2H.js`, `/assets/ReviewTab-CUjmqKeE.js`, `/assets/SettingsTab-2fJWoBGA.js`, `/assets/settingsChangelog-C6ZWAgLD.js`, `/assets/icons-D-qNOTDb.js`;production markers verified;unauthenticated `/api/quote?symbols=VIX` returns `401`,plain HTTPS `/api/stocks-realtime` returns `426`
+部署记录: runtime commit `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`;GitHub Actions `CI` run `28794071962` success;Vercel target `https://boduan-tracker-k2brb6zao-chenshuai1190-7580s-projects.vercel.app`;active runtime assets `/assets/index-CpKzNEcw.js`, `/assets/App-BPY3VY7t.js`, `/assets/i18n-CPX81kKq.js`, `/assets/HomeTab-K44XyQcp.js`, `/assets/TradesTab-jtoZCMkE.js`, `/assets/ReviewTab-D0QwHV5_.js`, `/assets/SettingsTab-Dnz-AZSl.js`, `/assets/settingsChangelog-kbO7oX-_.js`, `/assets/icons-D-qNOTDb.js`;production markers verified;unauthenticated `/api/quote?symbols=VIX` returns `401`,plain HTTPS `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -629,7 +629,7 @@ Vercel 最新运行时部署: `v10.7.9.172` pending push/deploy;上一轮 `v10.7
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
-- `v10.7.9.172` 目标页文案和弹窗可读性已完成本地验证,待推送和线上 marker:交易页新增/编辑交易弹窗标题取消加粗并从 14px 提升到 16px;目标页“投资戒律”系统文案改名为“投资心得” / `Investment Notes`,同步空状态、添加/编辑、删除确认和输入提示;投资心得和复盘日志详情背景图继续加深蒙版,淡化国旗背景突出正文;不改底层 `disciplines` 数据、用户自写内容、交易账本、摊薄工具、行情 relay、RLS 或 `/api/quote` 鉴权。
+- `v10.7.9.172` 目标页文案和弹窗可读性已完成部署和线上验证:交易页新增/编辑交易弹窗标题取消加粗并从 14px 提升到 16px;目标页“投资戒律”系统文案改名为“投资心得” / `Investment Notes`,同步空状态、添加/编辑、删除确认和输入提示;投资心得和复盘日志详情背景图继续加深蒙版,淡化国旗背景突出正文;生产 `TradesTab-jtoZCMkE.js`、`i18n-CPX81kKq.js`、`ReviewTab-D0QwHV5_.js`、`SettingsTab-Dnz-AZSl.js` 和 `settingsChangelog-kbO7oX-_.js` marker 验证通过;不改底层 `disciplines` 数据、用户自写内容、交易账本、摊薄工具、行情 relay、RLS 或 `/api/quote` 鉴权。
 - `v10.7.9.171` 工具弹窗和币种同步已完成部署和线上验证:摊薄成本“添加交易”弹窗同步交易录入的新深色分层界面,底部 `买入` / `卖出` 按钮显式传入方向并仍保留二次确认,确认后只写 `cost_basis_trades`;投资戒律和复盘日志详情弹窗遮罩改为交易弹窗同款亮度;首页和交易页 USD/CNY 选择自动保存并跨页面同步;生产 `App-ZDAnFPug.js`、`HomeTab-caYUNvHf.js`、`TradesTab-Bglu0R2H.js`、`ReviewTab-CUjmqKeE.js`、`SettingsTab-2fJWoBGA.js` 和 `settingsChangelog-C6ZWAgLD.js` marker 验证通过;不改主交易账本、摊薄成本账本边界、持仓/盈亏计算、行情 relay、RLS 或 `/api/quote` 鉴权。
 - `v10.7.9.170` 交易录入弹窗细节修正已完成部署和线上验证:交易录入弹窗输入框/标签字体适量放大,系统自动识别提示增强,移除股票代码/价格股数/日期前面的数字标记,底部不再显示“操作”标题;二次确认弹窗改为居中深色卡片,不再显示白色老版底部抽屉;生产 `TradesTab-D6G4DUOH.js`、`App-D-OpYjBa.js`、`SettingsTab-BZ5SZX4-.js` 和 `settingsChangelog-CavB_Meb.js` marker 验证通过;不改主交易账本、波段记录边界、持仓/盈亏计算、行情 relay、RLS 或 `/api/quote` 鉴权。
 - `v10.7.9.169` 交易录入弹窗结构优化已完成部署和线上验证:主交易弹窗改为股票代码、价格与股数、日期、操作四层结构;底部 `买入` / `卖出` 按钮合并方向选择和提交动作,点击后仍保留确认弹窗;录入界面不再展示中文名输入框,名称和现价由系统自动识别;生产 `TradesTab-BLWroVBB.js`、`i18n-DeasJQRv.js`、`SettingsTab-DgiuxENa.js`、`settingsChangelog-CEyzx6Hv.js` 和 `icons-D-qNOTDb.js` marker 验证通过;不改主交易账本、波段记录边界、持仓/盈亏计算、行情 relay、RLS 或 `/api/quote` 鉴权。

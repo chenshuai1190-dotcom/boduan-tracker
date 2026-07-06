@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - 目标页文案和弹窗可读性
 
-- Commit: `same commit`
+- Commit: `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`
 - Background: 用户要求新做的交易页编辑弹出卡片标题“新增交易”取消加粗并加大 2px;目标页“投资戒律”模块改名为“投资心得”;投资心得和复盘日志详情弹窗的背景图继续加深蒙版,淡化背景以突出文字。
 - Changes:
   - 交易页新增/编辑交易弹窗标题从 `text-[14px]` 调整为 `text-[16px] font-normal`,取消主交易标题的加粗显示。
@@ -33,9 +33,14 @@
   - `git diff --check` pass。
   - 本地 build marker: `SettingsTab-Dw6-fh9q.js` contains `v10.7.9.172`;`settingsChangelog-kbO7oX-_.js` contains `目标页文案和弹窗可读性` and `投资心得`;`TradesTab-jtoZCMkE.js` contains `text-[16px] font-normal text-white`;`i18n-CPX81kKq.js` contains `投资心得` and `Investment Notes`;`ReviewTab-D0QwHV5_.js` contains `rgba(5,7,11,0.42)`, `opacity:\`0.46\``, `strength:.42` / `shade:.7` and `strength:.38` / `shade:.72`。
 - Deployment:
-  - Pending push to GitHub `main` and Vercel production deployment.
+  - Pushed to GitHub `main` as runtime commit `b7c220b278a49c7d54893cc8e5ab2f52ed093ea5`。
+  - GitHub Actions `CI` run `28794071962` completed successfully.
+  - Vercel production deployment completed with target `https://boduan-tracker-k2brb6zao-chenshuai1190-7580s-projects.vercel.app`。
+  - Production root returned HTTP 200 from Vercel;active entry asset is `/assets/index-CpKzNEcw.js`。
+  - Production runtime chunks verified: `/assets/index-CpKzNEcw.js` imports `/assets/App-BPY3VY7t.js`;runtime assets include `/assets/i18n-CPX81kKq.js`, `/assets/HomeTab-K44XyQcp.js`, `/assets/TradesTab-jtoZCMkE.js`, `/assets/ReviewTab-D0QwHV5_.js`, `/assets/SettingsTab-Dnz-AZSl.js`, `/assets/settingsChangelog-kbO7oX-_.js`, and `/assets/icons-D-qNOTDb.js`。
 - Production verification:
-  - Pending production marker and auth boundary checks after Vercel deployment.
+  - Production marker verified: `SettingsTab-Dnz-AZSl.js` contains `v10.7.9.172`;`settingsChangelog-kbO7oX-_.js` contains `目标页文案和弹窗可读性` and `投资心得`;`TradesTab-jtoZCMkE.js` contains `text-[16px] font-normal text-white`;`i18n-CPX81kKq.js` contains `投资心得` and `Investment Notes`;`ReviewTab-D0QwHV5_.js` contains `rgba(5,7,11,0.42)`, `strength:.42` / `shade:.7` and `strength:.38` / `shade:.72`。
+  - Production auth boundaries verified: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`。
 - Rollback: 回退本条涉及的交易弹窗标题样式、目标页“投资心得”文案、详情背景蒙版、`v10.7.9.172` 设置页版本/更新日志、测试断言和本日志即可;不影响 `disciplines` 数据结构、用户自写内容、交易账本、摊薄工具、行情 relay、汇率、RLS 或鉴权。
 
 ### 2026-07-06 - 工具弹窗和币种同步
