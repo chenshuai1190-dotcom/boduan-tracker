@@ -31,8 +31,9 @@
 - Deployment:
   - Runtime commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
   - Vercel status for `469edfb` returned `failure`: `Deployment rate limited — retry in 24 hours.`
-  - 生产仍为 `v10.7.9.180`,运行时代码提交 `b178c7b1cfcf056d846ee4e2162e33ace430779f`,active entry `/assets/index-CZBHhv8n.js`。
-  - 本文件所在 deployment retry commit 将继续使用项目 SSH key 推送,由 GitHub-integrated Vercel deployment 自动触发;若 Vercel 仍 rate limit,生产仍保持 `v10.7.9.180`。
+  - Deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` 已使用项目 SSH key 推送到 GitHub `main`;Vercel status for `f802134` also returned `failure`: `Deployment rate limited — retry in 24 hours.`
+  - `v10.7.9.181` 已在 GitHub `main`,但 Vercel 当前明确限制新构建;生产仍为 `v10.7.9.180`,运行时代码提交 `b178c7b1cfcf056d846ee4e2162e33ace430779f`,active entry `/assets/index-CZBHhv8n.js`。
+  - 本文件所在 status commit 只同步最终阻塞状态;除非 Vercel build rate limit 重置或 GitHub-integrated deployment 被允许重跑,不应绕过规则直接改 Vercel、浏览器控制台或临时服务器文件。
 - Rollback: 回退本条涉及的 `tradeModalBaseInput` 默认边框、`v10.7.9.181` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、确认弹窗、持仓盈亏计算、行情刷新、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构或 RLS。
 
 ### 2026-07-06 - iOS PWA 恢复刷新加固
