@@ -6,7 +6,7 @@
 
 ### 2026-07-06 - PWA 透明 Logo 替换
 
-- Commit: `same commit`
+- Commit: `e9547a5406db5e32ecaff8217fd61675beb4f99a`
 - Background: 用户提供新的 `图标20260705.PNG`,要求把当前图标/logo 换成该图,并确认它是否是透明 PNG。检查源文件确认其为 `1024x1024` PNG RGBA,`hasAlpha=yes`,alpha 最小值为 `0`,约 `63.0603%` 像素非完全不透明,包含真实透明区域和半透明阴影边缘。
 - Changes:
   - 使用用户提供的新蓝绿 K 线箭头 PNG 生成并替换 `public/icon-512.png`、`public/icon-192.png`、`public/apple-touch-icon.png`、`public/favicon-32.png`、`public/favicon-16.png`。
@@ -35,7 +35,17 @@
   - `git diff --check`: pass.
   - Dist marker check: pass;`dist` icons keep the expected dimensions and `hasAlpha=yes`;`SettingsTab-a4QpjV9r.js` contains `v10.7.9.146`;`settingsChangelog-BdWT8yj1.js` contains `v10.7.9.146` and `PWA 透明 Logo 替换`;`dist/manifest.json` still references `/icon-192.png` and `/icon-512.png`;`dist/index.html` still references `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png` and `/manifest.json`.
 - Deployment:
-  - Pending GitHub push, CI and Vercel production verification.
+  - Pushed to GitHub `main` as runtime commit `e9547a5406db5e32ecaff8217fd61675beb4f99a`.
+  - GitHub Actions `CI` check passed for `e9547a5406db5e32ecaff8217fd61675beb4f99a` (run `28766152082`).
+  - Vercel production status returned `success`;target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GtrQ8L7n7qej6hUniSAR3ZfEa6Qu`.
+  - Production `GET https://boduan-tracker.vercel.app/?v=e9547a5-icon-146`: HTTP 200.
+  - Production manifest/index check: pass;HTML still references `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png`, and `/manifest.json`;manifest still references `/icon-192.png` and `/icon-512.png`.
+  - Production icon check: pass;`/icon-512.png`, `/icon-192.png`, `/apple-touch-icon.png`, `/favicon-32.png`, `/favicon-16.png` all return HTTP 200 `image/png`,dimensions `512x512`, `192x192`, `180x180`, `32x32`, `16x16`,PNG color type `6` RGBA,and `alphaMin=0`.
+  - Production icon SHA256 matches local: `icon-512.png` = `6f159dc53ec9103d341ba1cebd0b9a555f333655c452c4adf8cf2e40017acbe7`, `icon-192.png` = `6a62dceaf6e89c5d4246e5c6042c0384e64c08108d70cdfd7667fc4bd1f088c8`, `apple-touch-icon.png` = `004c2f57b30b1eb80d32e05616d9e421ab7a2af89705a0288f26dcdbff1a3ff9`, `favicon-32.png` = `c4d1b12f87a4e4dba8df68529d7646bdaebbd8640658947233c66e3cf237a346`, `favicon-16.png` = `a85f5d0d105d5a8150d491486e790ec23a1f54721b13018c99d78bd30ae51934`.
+  - Production recursive asset marker check: pass;loaded `App-Bl9sudGI.js`, `SettingsTab-Djjzsa2h.js`, `settingsChangelog-BdWT8yj1.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js`, and `ReviewTab-qTkuZOCn.js`.
+  - Production settings marker check: pass;active runtime assets contain `v10.7.9.146` and `settingsChangelog` contains `PWA 透明 Logo 替换`.
+  - Production realtime/security marker check: pass;active runtime assets still contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`;active runtime assets outside historical changelog do not contain `VITE_EODHD_TOKEN`, `VITE_ALLOW_BROWSER_EODHD_WS`, or `ws.eodhistoricaldata.com`.
+  - Production auth checks: unauthenticated `/api/quote?symbols=VIX` returns HTTP 401;plain `/api/stocks-realtime` returns HTTP 426.
 - Rollback: 回退五个 `public/*.png` 图标文件、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.146` 条目、图标测试和本开发日志即可;不会影响行情、交易账本、RLS、Supabase Auth 或 `/api/quote` 鉴权。
 
 ### 2026-07-06 - 设置页数据维护删除和诊断报警降噪

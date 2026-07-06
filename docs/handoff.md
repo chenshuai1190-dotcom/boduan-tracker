@@ -6,27 +6,27 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `5e417ce4578d4d44da746658b37201cc625e9fb4`。
-- 当前运行时代码提交: `5e417ce4578d4d44da746658b37201cc625e9fb4`。
-- 设置页版本: `v10.7.9.145`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮运行时代码提交为 `e9547a5406db5e32ecaff8217fd61675beb4f99a`。
+- 当前运行时代码提交: `e9547a5406db5e32ecaff8217fd61675beb4f99a`。
+- 设置页版本: `v10.7.9.146`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新运行时 Vercel 部署: success, production marker verified for runtime commit `5e417ce4578d4d44da746658b37201cc625e9fb4`。
+- 最新运行时 Vercel 部署: success, production marker verified for runtime commit `e9547a5406db5e32ecaff8217fd61675beb4f99a`。
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- 线上关键验证: 生产 active runtime assets 包含 `/api/stocks-realtime`、`/api/indices-realtime`、`/api/btc-realtime` 和 `stock_tick`,不含 `ws.eodhistoricaldata.com`、`VITE_EODHD_TOKEN` 或 `VITE_ALLOW_BROWSER_EODHD_WS`;Settings chunk 包含 `v10.7.9.145`,且不含 `数据维护` / `重置本地数据` / `resetAll`;App chunk 不含 reset 代码/文案,并包含自动浏览器网络抖动不写入设置页报警的过滤逻辑;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
-- 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;自动启动、定时和回到前台触发的 `auto-silent + browser-network` 行情抖动只写 console,不再进入设置页行情诊断报警列表;手动刷新/下拉刷新和真实服务端/鉴权/限流/第三方错误仍记录并提示;`v10.7.9.145` 起设置页“数据维护/重置本地数据”入口和运行时代码已删除;历史 `public/sw.js` 已删除且入口继续注销旧 SW;后续视觉任务务必先用本地 390×844 视口验证。
+- 线上关键验证: 生产 active runtime assets 包含 `/api/stocks-realtime`、`/api/indices-realtime`、`/api/btc-realtime` 和 `stock_tick`,不含 `ws.eodhistoricaldata.com`、`VITE_EODHD_TOKEN` 或 `VITE_ALLOW_BROWSER_EODHD_WS`;Settings chunk 包含 `v10.7.9.146`;五个生产 PNG 图标 `/icon-512.png`、`/icon-192.png`、`/apple-touch-icon.png`、`/favicon-32.png`、`/favicon-16.png` 均为正确尺寸、RGBA、`alphaMin=0`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 `GET /api/stocks-realtime` 返回 `426`。
+- 当前产品焦点: 首页三大指数继续秒级更新价格和曲线但不再显示连接态,只有 BTC 卡显示实时连接状态;股票 WebSocket tick 写入 `quoteCache` 后统一驱动首页自选/持仓、交易页头部/主持仓、波段记录和摊薄工具现价;自动启动、定时和回到前台触发的 `auto-silent + browser-network` 行情抖动只写 console,不再进入设置页行情诊断报警列表;手动刷新/下拉刷新和真实服务端/鉴权/限流/第三方错误仍记录并提示;`v10.7.9.146` 起 PWA/浏览器/iOS 图标替换为用户提供的透明 PNG 蓝绿 K 线箭头 Logo;历史 `public/sw.js` 已删除且入口继续注销旧 SW;后续视觉任务务必先用本地 390×844 视口验证。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前产品基准提交: `5e417ce4578d4d44da746658b37201cc625e9fb4` (`v10.7.9.145`,设置页数据维护删除和诊断报警降噪)
-- 最近应用代码提交: `5e417ce4578d4d44da746658b37201cc625e9fb4`
+- 当前产品基准提交: `e9547a5406db5e32ecaff8217fd61675beb4f99a` (`v10.7.9.146`,PWA 透明 Logo 替换)
+- 最近应用代码提交: `e9547a5406db5e32ecaff8217fd61675beb4f99a`
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.145`
-- Vercel 最新运行时部署: success, `v10.7.9.145` production marker verified for runtime commit `5e417ce4578d4d44da746658b37201cc625e9fb4`
+- 设置页版本: `v10.7.9.146`
+- Vercel 最新运行时部署: success, `v10.7.9.146` production marker verified for runtime commit `e9547a5406db5e32ecaff8217fd61675beb4f99a`
 - 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准。
-- Vercel 部署记录: `v10.7.9.145` runtime commit `5e417ce4578d4d44da746658b37201cc625e9fb4`;GitHub Actions run `28762171064` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/399qrgQmPrckFhtSkQ1uKwfutmDS`;production `GET https://boduan-tracker.vercel.app/?v=5e417ce-maintenance-cleanup-145` HTTP 200;loaded `App-DZt0pDG1.js`, `SettingsTab-DcFjBcya.js`, `settingsChangelog-DiOA572X.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js`, and `ReviewTab-qTkuZOCn.js`;Settings chunk contains `v10.7.9.145` and no `数据维护` / `重置本地数据` / `resetAll`;`settingsChangelog` chunk contains current and historical entries;App chunk contains automatic browser-network diagnostic suppression markers and no reset code/copy;active runtime assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`,and do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+- Vercel 部署记录: `v10.7.9.146` runtime commit `e9547a5406db5e32ecaff8217fd61675beb4f99a`;GitHub Actions run `28766152082` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GtrQ8L7n7qej6hUniSAR3ZfEa6Qu`;production `GET https://boduan-tracker.vercel.app/?v=e9547a5-icon-146` HTTP 200;loaded `App-Bl9sudGI.js`, `SettingsTab-Djjzsa2h.js`, `settingsChangelog-BdWT8yj1.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js`, and `ReviewTab-qTkuZOCn.js`;Settings chunk contains `v10.7.9.146` and changelog contains `PWA 透明 Logo 替换`;HTML and manifest still point to `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png`, `/icon-192.png` and `/icon-512.png`;five production PNG icons are `image/png`,RGBA,correct dimensions and `alphaMin=0`;active runtime assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime`, and `stock_tick`,and active runtime assets outside historical changelog do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN`, or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -56,7 +56,7 @@
 - 资产/分析页: 深色家庭总资产卡、12 个月走势、我/老婆账户分组、月度余额填报和新增账户。`v10.7.9.116` 起家庭总资产主数字改为完整金额 + 小号两位小数,其它走势图和账户列表仍保留 `万` 简写。
 - 目标页: 北极星目标、年度目标进度、复盘和投资戒律。`v10.7.9.111` 起目标页第一阶段统一深色移动端风格,北极星目标支持 USD/RMB 切换并使用现有汇率状态,年度目标和投资戒律都改为点击记录后弹出操作面板,投资戒律保留置顶/取消置顶;`v10.7.9.112` 修正目标页视觉对齐,头部卡片压回移动端紧凑高度,年度进度条微光限制在进度条内,年度目标区域删除多余外层卡片,当前年补回右侧目标/落后信息,未开始年度补回起点、目标、增长目标虚线和两端金额结构;`v10.7.9.113` 目标页金额改为首页同款完整数字和正常字重,头部卡片进一步压缩,USD/RMB 切换同步首页尺寸,头部卡删除右下角半圆和金色边框,年度目标区域继续外扩,涨跌粉色同步首页颜色体系;`v10.7.9.114` 目标页金额取消两位小数,本年卡边框同步北极星头卡弱边框,头卡 `设置` 按钮上移;`v10.7.9.115` 只在北极星头卡大目标金额恢复两位小数,小数后缀用小字号显示,年度目标等其它金额仍保持无小数;`v10.7.9.116` 小数后缀显式保持正常字重;`v10.7.9.117` 目标页不再显示行情失败 toast,北极星提醒文案单独下移,年度年份数字缩小并降为 `font-bold`;`v10.7.9.118` 北极星设置按钮和未开始年度起点/目标/虚线进一步降为中性色,并移除未开始年度起点/目标括号年份;`v10.7.9.119` 删除北极星头卡 RMB 汇率辅助文案,年目标说明和剩余年限说明降到 12px,年度目标标题降到 15px,年度年份字重降到 `font-semibold`;`v10.7.9.120` 投资戒律模块按新图改为独立标题、灰色胶囊按钮、彩色圆点筛选和深色卡片,筛选项在 390px 移动端一行完整显示,置顶/展开/等级选择都降为低色彩;`v10.7.9.121` 投资戒律标题、正文、按钮、筛选、日期、置顶和展开入口整体降一档字号;`v10.7.9.122` 投资戒律标题继续缩小,删除标题下方数量,标题与添加按钮同排居中对齐;`v10.7.9.123` 投资戒律点击后改为记录详情弹窗,正文完整显示,底部只保留三个小号操作按钮;`v10.7.9.124` 复盘日志同步投资戒律标题和深色卡片,日期/情绪放卡片底部同一行,点击先打开 `复盘详情`,年度目标默认只展示 2 年;`v10.7.9.125` 复盘日志列表正文同步投资戒律正文,复盘日期/情绪和戒律日期/置顶同步详情弹窗灰色 meta 效果;`v10.7.9.126` 点击北极星目标卡片可打开复利明细弹窗,复用当前本金/年化/年限/目标完成度逻辑,展示目标终值、累计收益、复利倍数、实际进度、账户曲线和每年收益表;`v10.7.9.127` 复利明细弹窗加宽、改弱金色边框、完整显示十年年份并将收益统一为首页粉色;`v10.7.9.128` 复利明细内部统计卡、实际进度、曲线和每年收益表边框/分割线降为暗线,标签统一降为灰色。
 - 设置页: 账户设置、修改密码、行情诊断日志、更新日志。`v10.7.9.143` 起自动 REST 行情兜底失败只写本地诊断日志不弹底部红条,下拉刷新和手动刷新失败仍提示;诊断日志记录根因、来源、触发方式、请求范围、HTTP 状态、耗时和重复次数。`v10.7.9.144` 起历史更新日志拆为 `settingsChangelog` 懒加载 chunk;`v10.7.9.145` 起删除“数据维护/重置本地数据”入口和运行时代码,自动回到前台这类 `auto-silent + browser-network` 抖动不再写入设置页报警列表。
-- PWA: 支持保存到手机桌面,当前图标为黑金 K 线箭头图标,已修复 iOS 白边。
+- PWA: 支持保存到手机桌面,当前图标为用户提供的透明 PNG 蓝绿 K 线箭头 Logo;`v10.7.9.146` 起 512/192/180/32/16 五套 PNG 均保留 RGBA 透明通道和真实透明像素。
 
 ## 4. 技术栈
 
@@ -405,6 +405,7 @@ npm run dev -- --host 127.0.0.1
 
 ### PWA 图标
 
+- `v10.7.9.146`: PWA 透明 Logo 替换已部署;用户提供的新蓝绿 K 线箭头 PNG 已确认是 `1024x1024` RGBA 透明文件,并生成 `512/192/180/32/16` 五套带 alpha 的 PNG 图标。
 - `v10.7.9.76`: 替换手机桌面图标为用户提供的黑金 K 线箭头图标。
 - `v10.7.9.77`: 修复 iOS 主屏图标外侧白边,PNG 改为不透明深色底。
 
@@ -576,7 +577,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.145` 或更新版本。
+- 设置页显示 `v10.7.9.146` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -591,13 +592,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
-当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `5e417ce4578d4d44da746658b37201cc625e9fb4`
-当前产品基准提交: `5e417ce4578d4d44da746658b37201cc625e9fb4` (`v10.7.9.145`,设置页数据维护删除和诊断报警降噪)
-最近应用代码提交: `5e417ce4578d4d44da746658b37201cc625e9fb4`
-设置页版本: `v10.7.9.145`
-Vercel 最新运行时部署: success, `v10.7.9.145` production marker verified for runtime commit `5e417ce4578d4d44da746658b37201cc625e9fb4`
+当前 GitHub main: 以本文件所在最新提交为准;本轮运行时代码提交为 `e9547a5406db5e32ecaff8217fd61675beb4f99a`
+当前产品基准提交: `e9547a5406db5e32ecaff8217fd61675beb4f99a` (`v10.7.9.146`,PWA 透明 Logo 替换)
+最近应用代码提交: `e9547a5406db5e32ecaff8217fd61675beb4f99a`
+设置页版本: `v10.7.9.146`
+Vercel 最新运行时部署: success, `v10.7.9.146` production marker verified for runtime commit `e9547a5406db5e32ecaff8217fd61675beb4f99a`
 最近交接文档刷新部署: 本文件所在提交推送后以 GitHub/Vercel 最新状态为准
-部署记录: `v10.7.9.145` runtime commit `5e417ce4578d4d44da746658b37201cc625e9fb4`;GitHub Actions run `28762171064` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/399qrgQmPrckFhtSkQ1uKwfutmDS`;production `GET https://boduan-tracker.vercel.app/?v=5e417ce-maintenance-cleanup-145` HTTP 200;production marker check confirms loaded `App-DZt0pDG1.js`, `SettingsTab-DcFjBcya.js`, `settingsChangelog-DiOA572X.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js` 和 `ReviewTab-qTkuZOCn.js`;Settings chunk contains `v10.7.9.145` and no `数据维护` / `重置本地数据` / `resetAll`;App chunk contains automatic browser-network diagnostic suppression markers and no reset code/copy;active runtime assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime` and `stock_tick`,and do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
+部署记录: `v10.7.9.146` runtime commit `e9547a5406db5e32ecaff8217fd61675beb4f99a`;GitHub Actions run `28766152082` pass;Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GtrQ8L7n7qej6hUniSAR3ZfEa6Qu`;production `GET https://boduan-tracker.vercel.app/?v=e9547a5-icon-146` HTTP 200;production marker check confirms loaded `App-Bl9sudGI.js`, `SettingsTab-Djjzsa2h.js`, `settingsChangelog-BdWT8yj1.js`, `HomeTab-BtNukBtx.js`, `TradesTab-DR-WtnYb.js`, `AnalysisTab-CLs2HpWI.js` 和 `ReviewTab-qTkuZOCn.js`;Settings chunk contains `v10.7.9.146` and changelog contains `PWA 透明 Logo 替换`;HTML and manifest still point to `/favicon-32.png`, `/favicon-16.png`, `/apple-touch-icon.png`, `/icon-192.png` and `/icon-512.png`;five production PNG icons are `image/png`,RGBA,correct dimensions and `alphaMin=0`;active runtime assets contain `/api/stocks-realtime`, `/api/indices-realtime`, `/api/btc-realtime` and `stock_tick`,and active runtime assets outside historical changelog do not contain `ws.eodhistoricaldata.com`, `VITE_EODHD_TOKEN` or `VITE_ALLOW_BROWSER_EODHD_WS`;unauthenticated `/api/quote?symbols=VIX` returns `401`;plain `/api/stocks-realtime` returns `426`
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -627,6 +628,7 @@ Vercel 最新运行时部署: success, `v10.7.9.145` production marker verified 
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署缓存切换时,仍要用生产地址做线上验证。
 
 当前已完成:
+- `v10.7.9.146` PWA 透明 Logo 替换已完成部署和本地/线上验证:用户提供的新图标确认为 `1024x1024` PNG RGBA,`hasAlpha=yes`,alpha 最小值 `0`;已生成并上线 `512/192/180/32/16` 五套透明 PNG 图标,HTML/manifest/iOS 图标路径保持不变;设置页更新日志和版本同步到 `v10.7.9.146`;行情、交易账本、WebSocket relay、RLS 和 `/api/quote` 鉴权保持不变。
 - `v10.7.9.145` 设置页数据维护删除和诊断报警降噪已完成部署和本地/线上验证:设置页“数据维护/重置本地数据”入口和对应 reset 运行时代码已删除;自动启动、定时和回到前台触发的 `auto-silent + browser-network` 行情抖动只写 console,不再进入设置页报警列表;手动刷新、下拉刷新、服务端错误、鉴权、限流和第三方局部错误仍会记录并按原规则提示;`/api/quote` 鉴权、三套 realtime relay、交易主账本、波段记录和摊薄工具数据边界保持不变。
 - `v10.7.9.144` 设置页日志懒加载与重置确认已完成部署和本地/线上验证:重置本地数据改为应用内输入 `确认清空` 的二次确认弹窗,不再调用浏览器原生 confirm/prompt/alert;历史更新日志拆到 `src/lib/settingsChangelog.js` 并以独立 `settingsChangelog` chunk 懒加载;已删除废弃 `public/sw.js`,入口继续注销旧 Service Worker registrations;`/api/quote` 鉴权、三套 realtime relay、交易主账本、波段记录和摊薄工具数据边界保持不变。
 - `v10.7.9.143` 运行时代码清理和股票实时渲染减负已完成部署和本地/线上验证:删除老版独立 `VixCard`、滚动计数 Hook、浏览器直连 WS 占位、旧 TQQQ-only 汇总/止盈线白算和不可见股票 WS React state 更新;股票 tick 仍写入 `quoteCache`,三套服务端 realtime relay 和 `/api/quote` 鉴权保持不变;设置页版本不变,因为没有用户可见功能变化。
