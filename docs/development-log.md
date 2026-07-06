@@ -4,6 +4,35 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - CNN 仪表盘数字显示修复
+
+- Commit: `pending`
+- Background: 用户反馈线上截图中 CNN 恐慌贪婪指数小卡的 `0` / `100` 数字仍然无法正常显示;需要在本地严格调试,不要继续只改 SVG 坐标。
+- Changes:
+  - CNN `FgiGauge` 的 `0` / `50` / `100` 刻度数字从 SVG `<text>` 改为圆弧容器内的 HTML 绝对定位文字。
+  - `0` / `100` 使用 `16.25%` / `83.75%` 对齐圆弧起止端,避免移动端 SVG text baseline、overflow 或 glow 造成显示异常。
+  - CNN 圆弧中心从 `cy=62` 上移到 `cy=57`,纵向半径从 `40` 调整为 `36`,在不增加小卡高度的前提下给底部端点数字留出空间。
+  - 保留 `viewBox="0 0 160 72"`、`h-[54px]`、细弧线、细指针和发光节点;不扩大首页双列小卡。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.154`,新增“CNN 仪表盘数字显示修复”。
+  - 本轮只调整首页 CNN 小卡刻度数字渲染方式和圆弧垂直空间;不改变 VIX 样式、VIX/FGI 数据来源、行情 relay、交易账本、资产、目标、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;77 tests passed,including updated assertions that CNN endpoint labels no longer rely on SVG `<text>` and settings/changelog are `v10.7.9.154`.
+  - Local mobile visual check: pass;Vite dev server `http://127.0.0.1:5173/?tab=home`,in-app browser viewports `390x844` and `390x640`;VIX/CNN fear cards remain side-by-side at `173px` wide and `159px` high;CNN gauge slot remains `143px x 54px`, SVG remains `viewBox="0 0 160 72"`;`0` / `50` / `100` render as HTML `span` labels at `10px`, with bbox fully inside the CNN card;SVG text list contains only current value `32`;document `scrollWidth=390`,no horizontal overflow.
+  - Local screenshot check: pass;captured `390x844` and `390x640` screenshots after the change;`0` / `100` are visible in the CNN card and no longer clipped by the SVG edge.
+  - `npm run build`: pass;Vite built `HomeTab-Ce1pIwyN.js`, `SettingsTab-CDQRfDPc.js`, `settingsChangelog-DiQZg79Z.js`, `App-B50hxJie.js`, and related chunks.
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities.
+  - `git diff --check`: pass.
+  - Dist marker check: pass;`HomeTab-Ce1pIwyN.js` contains the fixed `h-[54px]` gauge slot, HTML label positions `16.25%` / `83.75%`, and no old SVG endpoint label markers `x=27/y=67` or `x=133/y=67`;`SettingsTab-CDQRfDPc.js` contains `v10.7.9.154`;`settingsChangelog-DiQZg79Z.js` contains `v10.7.9.154` and `CNN 仪表盘数字显示修复`.
+- Deployment:
+  - Pending.
+- Rollback: 回退 `src/tabs/HomeTab.jsx` 的 CNN `FgiGauge` HTML 刻度数字和圆弧空间调整、`src/tabs/SettingsTab.jsx` 版本号、`src/lib/settingsChangelog.js` 的 `v10.7.9.154` 条目、测试和本开发日志即可;不会影响 VIX、行情、交易、资产、目标、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - 恐慌小卡文字和端点微调
 
 - Commit: `1db33a0ed5f6936f8c9cf2e85121595a4521cfc1`

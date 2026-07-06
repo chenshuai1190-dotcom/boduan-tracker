@@ -303,64 +303,70 @@ function describeFgiArc(cx, cy, radiusX, radiusY, startValue, endValue) {
 function FgiGauge({ value }) {
   const v = Math.max(0, Math.min(100, num(value)));
   const cx = 80;
-  const cy = 62;
+  const cy = 57;
   const radiusX = 54;
-  const radiusY = 40;
+  const radiusY = 36;
   const angle = fgiValueToAngle(v);
   const level = fgiLevel(v);
-  const pointer = fgiPolarPoint(cx, cy, 42, 31, angle);
+  const pointer = fgiPolarPoint(cx, cy, 42, 28, angle);
   const arcPath = describeFgiArc(cx, cy, radiusX, radiusY, 0, 100);
   const separators = [20, 50, 80].map((tick) => ({
     inner: fgiPolarPoint(cx, cy, radiusX - 6, radiusY - 4, fgiValueToAngle(tick)),
     outer: fgiPolarPoint(cx, cy, radiusX + 1, radiusY + 1, fgiValueToAngle(tick)),
   }));
+  const labelStyle = {
+    fontFamily: NUMBER_FONT,
+    textShadow: '0 1px 2px #0b0f14, 0 0 4px #0b0f14',
+  };
   return (
-    <svg viewBox="0 0 160 72" className="h-[54px] w-full overflow-visible" aria-label={`CNN 恐慌贪婪指数 ${Math.round(v)} ${level.label}`}>
-      <defs>
-        <linearGradient id="fgiArcGradient" x1="26" y1="62" x2="134" y2="62" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#f43f5e" />
-          <stop offset="33%" stopColor="#fb923c" />
-          <stop offset="53%" stopColor="#facc15" />
-          <stop offset="72%" stopColor="#a3e635" />
-          <stop offset="100%" stopColor="#22c55e" />
-        </linearGradient>
-        <linearGradient id="fgiPointerGradient" x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={level.color} stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#f8fafc" stopOpacity="0.95" />
-        </linearGradient>
-        <filter id="fgiGaugeGlow" x="-30%" y="-40%" width="160%" height="170%">
-          <feGaussianBlur stdDeviation="2.4" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <filter id="fgiPointGlow" x="-120%" y="-120%" width="340%" height="340%">
-          <feGaussianBlur stdDeviation="2.8" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="7.5" strokeLinecap="round" opacity="0.24" filter="url(#fgiGaugeGlow)" />
-      <path d={arcPath} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" strokeLinecap="round" />
-      <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="6" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
-      {separators.map((tick, index) => (
-        <line key={index} x1={tick.inner.x} y1={tick.inner.y} x2={tick.outer.x} y2={tick.outer.y} stroke="#0b0f14" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
-      ))}
-      <line x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} stroke="url(#fgiPointerGradient)" strokeWidth="1.7" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
-      <circle cx={cx} cy={cy} r="11" fill="none" stroke={level.color} strokeOpacity="0.08" />
-      <circle cx={cx} cy={cy} r="7.5" fill="none" stroke={level.color} strokeOpacity="0.14" />
-      <circle cx={cx} cy={cy} r="5" fill={level.color} fillOpacity="0.22" filter="url(#fgiPointGlow)" />
-      <circle cx={cx} cy={cy} r="3.2" fill="#f8fafc" />
-      <circle cx={pointer.x} cy={pointer.y} r="6.2" fill={level.color} fillOpacity="0.26" filter="url(#fgiPointGlow)" />
-      <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
-      <text x="27" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>
-      <text x="80" y="24" fill="#7f8794" fontSize="9" textAnchor="middle">50</text>
-      <text x="133" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>
-      <text x="80" y="56" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
-    </svg>
+    <div className="relative h-[54px] w-full" aria-label={`CNN 恐慌贪婪指数 ${Math.round(v)} ${level.label}`}>
+      <svg viewBox="0 0 160 72" className="absolute inset-x-0 top-0 h-[54px] w-full overflow-visible" aria-hidden="true">
+        <defs>
+          <linearGradient id="fgiArcGradient" x1="26" y1="57" x2="134" y2="57" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#f43f5e" />
+            <stop offset="33%" stopColor="#fb923c" />
+            <stop offset="53%" stopColor="#facc15" />
+            <stop offset="72%" stopColor="#a3e635" />
+            <stop offset="100%" stopColor="#22c55e" />
+          </linearGradient>
+          <linearGradient id="fgiPointerGradient" x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor={level.color} stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#f8fafc" stopOpacity="0.95" />
+          </linearGradient>
+          <filter id="fgiGaugeGlow" x="-30%" y="-40%" width="160%" height="170%">
+            <feGaussianBlur stdDeviation="2.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="fgiPointGlow" x="-120%" y="-120%" width="340%" height="340%">
+            <feGaussianBlur stdDeviation="2.8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="7.5" strokeLinecap="round" opacity="0.24" filter="url(#fgiGaugeGlow)" />
+        <path d={arcPath} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" strokeLinecap="round" />
+        <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="6" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
+        {separators.map((tick, index) => (
+          <line key={index} x1={tick.inner.x} y1={tick.inner.y} x2={tick.outer.x} y2={tick.outer.y} stroke="#0b0f14" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+        ))}
+        <line x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} stroke="url(#fgiPointerGradient)" strokeWidth="1.7" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
+        <circle cx={cx} cy={cy} r="11" fill="none" stroke={level.color} strokeOpacity="0.08" />
+        <circle cx={cx} cy={cy} r="7.5" fill="none" stroke={level.color} strokeOpacity="0.14" />
+        <circle cx={cx} cy={cy} r="5" fill={level.color} fillOpacity="0.22" filter="url(#fgiPointGlow)" />
+        <circle cx={cx} cy={cy} r="3.2" fill="#f8fafc" />
+        <circle cx={pointer.x} cy={pointer.y} r="6.2" fill={level.color} fillOpacity="0.26" filter="url(#fgiPointGlow)" />
+        <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
+        <text x="80" y="53" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
+      </svg>
+      <span className="pointer-events-none absolute bottom-[1px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '16.25%' }}>0</span>
+      <span className="pointer-events-none absolute left-1/2 top-[11px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={labelStyle}>50</span>
+      <span className="pointer-events-none absolute bottom-[1px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '83.75%' }}>100</span>
+    </div>
   );
 }
 

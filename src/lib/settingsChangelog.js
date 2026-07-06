@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.153', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.154', date: '2026-07-06', latest: true,
+    items: [
+      '🏠 CNN 仪表盘数字显示修复',
+      '  - CNN 圆弧图 0/50/100 改为 HTML 绝对定位数字',
+      '  - 避免移动端 SVG text 基线和 overflow 导致端点数字显示异常',
+      '  - 圆弧整体轻微上移,为 0/100 留出稳定显示空间',
+      '  - 小卡高度、VIX 样式、VIX/FGI 数据来源和鉴权逻辑不变',
+    ],
+  },
+  {
+    ver: 'v10.7.9.153', date: '2026-07-06',
     items: [
       '🏠 恐慌小卡文字和端点微调',
       '  - CNN 仪表盘 0/100 标签回到弧线起止端附近',
