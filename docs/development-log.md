@@ -4,6 +4,33 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 交易页持仓市值两位小数
+
+- Commit: same commit
+- Background: 用户检查交易页持仓列表时指出 `市值` 相比同一行的 `当日盈亏` 和 `持仓盈亏` 少了两位小数,要求如果属实就修复并保持一致。
+- Changes:
+  - 确认交易页持仓列表 `市值/数量` 列使用 `fmtAmount(marketValue, 0)`,确实会把持仓市值显示为整数。
+  - 将持仓列表的单只股票市值改为 `fmtAmount(marketValue, 2)`,与当日盈亏和持仓盈亏的两位小数显示保持一致。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.167`,新增“交易页持仓市值两位小数”。
+  - 本轮只调整显示格式和版本日志,不改 `investmentSummary` 计算、交易账本、行情源、持仓数量、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,26 tests passed;覆盖交易页持仓市值两位小数、设置页版本和更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/TradesTab-DdZ59l3X.js`、`dist/assets/SettingsTab-COc9zbdu.js` 和 `dist/assets/settingsChangelog-DcOrU-lb.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment:
+  - Not deployed yet;本轮先完成本地修复和验证,可与后续需求合并发布。
+- Production verification:
+  - Not run yet;待发布后做生产 marker 和鉴权边界验证。
+- Rollback: 回退本条涉及的 `fmtAmount(marketValue, 2)`、`v10.7.9.167` 设置页版本/更新日志、测试断言和本开发日志即可;不影响交易数据、行情鉴权或数据库。
+
 ### 2026-07-06 - 目标页英文模式
 
 - Commit: `ac3daff06a879046163493bf6a1d8d8c3420b487`

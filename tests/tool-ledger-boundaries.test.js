@@ -486,8 +486,11 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.ok(tradesTabSource.includes("englishMode ? 'text-[14px]' : 'text-[15px]'"), 'trade header positions count should match the English home header text size');
   assert.ok(tradesTabSource.includes("style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}"), 'trade header English metric grid should exactly match the home header grid');
   assert.equal(tradesTabSource.includes('truncate whitespace-nowrap'), false, 'trade header should not keep a separate truncation rule instead of matching home');
-  assert.ok(settingsTabSource.includes('v10.7.9.166'), 'settings version badge should document the review-page English update');
+  assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
+  assert.ok(settingsTabSource.includes('v10.7.9.167'), 'settings version badge should document the trade market value decimal fix');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.167'), 'settings changelog should document the trade market value decimal fix');
+  assert.ok(settingsChangelogSource.includes('交易页持仓市值两位小数'), 'settings changelog should describe the trade market value decimal fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.166'), 'settings changelog should document the review-page English update');
   assert.ok(settingsChangelogSource.includes('目标页英文模式'), 'settings changelog should describe the review-page English update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.165'), 'settings changelog should document the asset-page English update');
@@ -668,8 +671,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
-  assert.ok(settingsTabSource.includes('v10.7.9.166'), 'settings version badge should document the review-page English update');
+  assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
+  assert.ok(settingsTabSource.includes('v10.7.9.167'), 'settings version badge should document the trade market value decimal fix');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.167'), 'settings changelog should document the trade market value decimal fix');
+  assert.ok(settingsChangelogSource.includes('交易页持仓市值两位小数'), 'settings changelog should describe the trade market value decimal fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.166'), 'settings changelog should document the review-page English update');
   assert.ok(settingsChangelogSource.includes('目标页英文模式'), 'settings changelog should describe the review-page English update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.165'), 'settings changelog should document the asset-page English update');
