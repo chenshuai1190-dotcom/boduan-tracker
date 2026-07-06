@@ -4,6 +4,40 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 股票核心行情去 Yahoo 混源
+
+- Commit: same commit
+- Background: NOK 盘前涨跌幅问题暴露出历史组合源的根因:股票行情同时接入 EODHD 收费 API 和 Yahoo chart,免费源会把盘前价、昨收、涨跌幅基准混入核心计算。用户确认后续决策:核心行情使用 EODHD,Yahoo 不再参与股票资产、持仓或当日盈亏计算,最多保留视觉曲线。
+- Root cause:
+  - `fetchStockQuote` 会同时请求 EODHD `us-quote-delayed`、EODHD EOD history 和 Yahoo `chart`。
+  - 旧逻辑在 EODHD 股票 quote 无有效价格时用 Yahoo `chart` 价格兜底,并在 EODHD 昨收缺失时用 Yahoo `chartPreviousClose` 兜底。
+  - 这会让股票核心字段出现跨源组合:价格、昨收、涨跌幅和 market state 可能不是同一供应商口径。
+- Changes:
+  - 股票 `price`、`previousClose`、`change`、`changePercent`、`timestamp`、`source` 和 `priceSource` 统一只使用 EODHD quote 字段。
+  - EODHD 股票 quote 无有效价格时返回股票行情错误,不再用 Yahoo 自动补价。
+  - Yahoo chart 仅保留为股票 `intraday` / `intradayPoints` 小曲线视觉数据,不参与资产、持仓、当日盈亏或涨跌幅计算。
+  - 设置页数据源文案改为 `EODHD Core + Yahoo Charts`,避免继续暗示 Yahoo 与 EODHD 同等参与核心行情。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.161`,新增“股票核心行情去 Yahoo 混源”。
+  - 本轮不改指数/BTC 小卡 Yahoo 曲线兜底、不改 VIX Yahoo fallback、不改 CNN/FGI、交易账本、持仓数量、成本计算、行情鉴权、`/api/quote` 鉴权、Supabase、RLS 或英文模式。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/tool-ledger-boundaries.test.js` pass,34 tests passed;覆盖 EODHD 无股票价格时不再 Yahoo fallback、EODHD 缺昨收时不再使用 Yahoo `chartPreviousClose`、设置页版本/数据源文案和更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,84 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-998dZIaD.js`、`dist/assets/SettingsTab-DJLqfoI7.js`、`dist/assets/settingsChangelog-_jfyzHps.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 source/test marker: `server/quote/providers/eodhd.js` 不再保留 `yahooPrice` / `yahooPrevClose` / `priceSource = 'Yahoo'` 股票核心 fallback;`tests/quote-response-shape.test.js` 覆盖 NOEOD/NOPREV 混源防回归。
+  - 本地 dist marker: `SettingsTab-DJLqfoI7.js` 包含 `v10.7.9.161` 和 `EODHD Core + Yahoo Charts`;`settingsChangelog-_jfyzHps.js` 包含 `v10.7.9.161`、`股票核心行情去 Yahoo 混源` 和 `EODHD Core + Yahoo Charts`;前端 dist 不包含 `priceSource:"Yahoo"`。
+- Deployment:
+  - Pending.
+- Rollback: 回退 `server/quote/providers/eodhd.js` 的股票 Yahoo fallback 剥离、设置页 `v10.7.9.161` 版本/更新日志、测试和本开发日志即可;不影响交易账本、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-06 - NOK 盘前口径修复回滚
 
 - Commit: same commit

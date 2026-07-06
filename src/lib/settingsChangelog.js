@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.160', date: '2026-07-06', latest: true,
+    ver: 'v10.7.9.161', date: '2026-07-06', latest: true,
+    items: [
+      '⚡ 股票核心行情去 Yahoo 混源',
+      '  - 股票价格、昨收、涨跌额和涨跌幅统一只使用 EODHD 口径',
+      '  - EODHD 股票 quote 没有有效价格时不再用 Yahoo 自动补价',
+      '  - Yahoo 仅保留为股票小曲线的视觉 chart 来源,不参与资产、持仓或当日盈亏计算',
+      '  - 设置页数据源说明调整为 EODHD Core + Yahoo Charts,不影响指数、VIX、CNN、交易账本或鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.160', date: '2026-07-06',
     items: [
       '⚠️ NOK 盘前口径修复回滚',
       '  - 回滚上一版 NOK 盘前涨跌幅口径改动,恢复其它股票原有实时行情显示',

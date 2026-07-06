@@ -173,6 +173,13 @@ async function mockProviderFetch(url) {
         },
       });
     }
+    if (requested.includes('NOPREV.US')) {
+      return jsonResponse({
+        data: {
+          'NOPREV.US': liveQuoteWithoutPreviousClose({ price: 155, high: 156, low: 149 }),
+        },
+      });
+    }
     return jsonResponse({
       data: {
         'NVDA.US': liveQuote({ price: 155, previousClose: 150, high: 156, low: 149 }),
@@ -293,11 +300,11 @@ async function mockProviderFetch(url) {
       chart: {
         result: [{
           meta: {
-            chartPreviousClose: 150,
-            previousClose: 150,
+            chartPreviousClose: 100,
+            previousClose: 100,
             marketState: 'REGULAR',
             regularMarketTime: 1783000000,
-            regularMarketPrice: 155,
+            regularMarketPrice: 999,
             currentTradingPeriod: {
               regular: { start: 1782970200, end: 1782993600 },
             },
@@ -325,6 +332,20 @@ function liveQuote({ price, previousClose, high, low }) {
     timestamp: 1783000000,
     change: String(price - previousClose),
     changePercent: String(((price - previousClose) / previousClose) * 100),
+  };
+}
+
+function liveQuoteWithoutPreviousClose({ price, high, low }) {
+  return {
+    ethPrice: null,
+    lastTradePrice: String(price),
+    previousClosePrice: '',
+    high: String(high),
+    low: String(low),
+    open: '',
+    timestamp: 1783000000,
+    change: '',
+    changePercent: '',
   };
 }
 
@@ -412,7 +433,31 @@ test('stock quote response shape is stable', async () => {
   assert.equal(typeof quote.yearStartPrice, 'number');
   assert.equal(quote.yearStartPrice, 100);
   assert.ok(Math.abs(quote.ytdChangePercent - 55) < 0.000001);
+  assert.equal(quote.previousClose, 150);
+  assert.ok(Math.abs(quote.changePercent - ((155 - 150) / 150) * 100) < 0.000001);
   assert.equal(Array.isArray(quote.intraday), true);
   assert.equal(Array.isArray(quote.intradayPoints), true);
   assert.equal(quote.intradayPoints[0].session, 'regular');
+});
+
+test('stock quote core fields do not fall back to Yahoo chart data', async () => {
+  const quote = await callQuote('NOEOD');
+
+  assert.equal(quote.symbol, 'NOEOD');
+  assert.equal(quote.error, 'EODHD 没返回有效股票价格');
+  assert.equal(quote.source, undefined);
+  assert.equal(quote.priceSource, undefined);
+});
+
+test('stock quote missing EODHD previous close does not use Yahoo chart previous close', async () => {
+  const quote = await callQuote('NOPREV');
+
+  assert.equal(quote.symbol, 'NOPREV');
+  assert.equal(quote.source, 'EODHD');
+  assert.equal(quote.priceSource, 'EODHD-v2');
+  assert.equal(quote.price, 155);
+  assert.equal(quote.previousClose, 0);
+  assert.equal(quote.change, 0);
+  assert.equal(quote.changePercent, 0);
+  assert.deepEqual(quote.intraday, [151, 153, 155]);
 });

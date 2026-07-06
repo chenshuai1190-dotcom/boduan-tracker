@@ -387,10 +387,6 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       }
     }
 
-    let yahooPrice = 0;
-    let yahooPrevClose = 0;
-    let yahooMarketState = '';
-    let yahooTimestamp = 0;
     let intraday = [];
     let intradayPoints = [];
     let regularMarketTime = 0;
@@ -399,9 +395,6 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
         const yahooData = await yahooRes.json();
         const result = yahooData?.chart?.result?.[0];
         const meta = result?.meta || {};
-        yahooPrevClose = meta.chartPreviousClose || meta.previousClose || 0;
-        yahooMarketState = meta.marketState || '';
-        yahooTimestamp = meta.regularMarketTime || 0;
         regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
         const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
 
@@ -424,28 +417,30 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
           intradayPoints.push({ price: v, t, session });
         }
 
-        if (yahooMarketState === 'REGULAR') {
-          yahooPrice = meta.regularMarketPrice || (intraday.length > 0 ? intraday[intraday.length - 1] : 0);
-        } else {
-          yahooPrice = intraday.length > 0 ? intraday[intraday.length - 1] : (meta.regularMarketPrice || 0);
-        }
       } catch (e) {
         /* ignore */
       }
     }
 
-    const price = eodhdPrice > 0 ? eodhdPrice : yahooPrice;
-    const previousClose = eodhdPrevClose > 0 ? eodhdPrevClose : yahooPrevClose;
+    const price = eodhdPrice;
+    if (price === 0) {
+      return {
+        symbol,
+        error: quoteRes?.ok
+          ? 'EODHD 没返回有效股票价格'
+          : `EODHD 股票行情请求失败: HTTP ${quoteRes?.status || '--'}`,
+      };
+    }
+
+    const previousClose = eodhdPrevClose;
     const changePercent = (eodhdChangePercent !== undefined) ? eodhdChangePercent
       : (previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0);
-    const change = (eodhdChange !== undefined) ? eodhdChange : (price - previousClose);
+    const change = (eodhdChange !== undefined) ? eodhdChange : (previousClose > 0 ? price - previousClose : 0);
     const dayHigh = eodhdDayHigh || price;
     const dayLow = eodhdDayLow || price;
     const open = eodhdOpen || price;
-    const timestamp = eodhdTimestamp || yahooTimestamp || Math.floor(Date.now() / 1000);
-    const priceSource = eodhdPrice > 0 ? 'EODHD-v2' : 'Yahoo';
-
-    if (price === 0) return { symbol, error: 'EODHD 和 Yahoo 都没返回有效价格' };
+    const timestamp = eodhdTimestamp || Math.floor(Date.now() / 1000);
+    const priceSource = 'EODHD-v2';
 
     let week52High = 0;
     let week52Low = Infinity;
@@ -510,9 +505,9 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       intraday,
       intradayPoints,
       regularMarketTime,
-      marketState: yahooMarketState,
+      marketState: '',
       priceSource,
-      source: priceSource === 'Yahoo' ? 'Yahoo' : 'EODHD',
+      source: 'EODHD',
     };
   } catch (e) {
     return { symbol, error: e.message };
