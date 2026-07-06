@@ -4,6 +4,36 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 股票行情即时刷新
+
+- Commit: `same commit`
+- Background: `v10.7.9.176` 已把股票涨跌幅修复为按当前选定价格和昨收重算,用户线上验证 MSFT/NOK/NVDA/TSM 等持仓涨跌幅与外部行情接近一致。但打开 App、切回窗口或新切换页面时,股票数据仍可能要等下一轮自动轮询,体感约 15-20 秒才刷新。
+- Changes:
+  - `src/App.jsx` 新增快速行情刷新调度:云端账本加载完成后立即用云端交易/自选全集拉一次 REST 行情快照,避免启动后等待普通轮询。
+  - 回到前台、窗口聚焦、页面恢复以及切到首页/交易页时,通过 1-2.5 秒最小间隔主动刷新股票数据,并在已有行情请求进行中时只保留最新一次待执行刷新,避免并发打爆 `/api/quote`。
+  - 股票 WebSocket 连接打开后同步拉一次 REST 快照,让低频成交或暂时没有 tick 的股票也能尽快拿到最新价格、昨收和重算涨跌幅。
+  - 设置页行情诊断触发来源补充 `auto-start-cloud`、`auto-focus`、`auto-pageshow`、`auto-tab` 和 `auto-realtime-open`,中英文标签同步。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.177`,新增“股票行情即时刷新”。
+  - 本轮不改交易账本、成本、股数、汇率、Supabase、RLS、数据库结构、EODHD 服务端鉴权、`/api/quote` 鉴权或 `v10.7.9.176` 涨跌幅重算口径。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/quote-response-shape.test.js tests/btc-realtime.test.js` pass,55 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,91 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BFeyag0G.js`、`dist/assets/SettingsTab-BVF7Jr2m.js`、`dist/assets/settingsChangelog-DHVKCFxY.js`、`dist/assets/index-CVIeuGIa.js`、`dist/assets/HomeTab-DzKcyI8C.js` 和 `dist/assets/TradesTab-BKaD1ZhL.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 build marker: `SettingsTab-BVF7Jr2m.js` contains `v10.7.9.177`;`settingsChangelog-DHVKCFxY.js` contains `v10.7.9.177` and `股票行情即时刷新`;`App-BFeyag0G.js` contains the quick quote refresh scheduler and new automatic triggers.
+- Deployment:
+  - Pending GitHub `main` push and Vercel automatic deployment.
+- Production verification:
+  - Pending deployment marker and auth smoke verification.
+- Rollback: 回退本条涉及的快速刷新调度、自动触发来源标签、`v10.7.9.177` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、成本、股数、汇率、Supabase、RLS、数据库结构、EODHD 服务端鉴权、`/api/quote` 鉴权或 `v10.7.9.176` 涨跌幅重算口径。
+
 ### 2026-07-06 - 股票涨跌幅按现价和昨收重算
 
 - Background: `v10.7.9.175` 上线后,用户同一时间对比截图显示价格已接近正确,但涨跌幅仍明显低于外部行情,并继续影响交易页当日盈亏/收益率。用本地 EODHD token 复查真实回包后确认:如 NOK `lastTradePrice=12.70`, `previousClosePrice=12.07`, EODHD 原始 `changePercent=4.96`,但按当前价和昨收应为约 `5.22%`;TSM 也存在同类原始百分比滞后。问题不是价格字段,而是我们仍信任了 EODHD 原始 `changePercent` / WebSocket tick 百分比。

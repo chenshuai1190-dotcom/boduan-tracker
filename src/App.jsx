@@ -31,7 +31,17 @@ const PULL_REFRESH_ROOT_TOP_TOLERANCE = 1;
 const APP_SHELL_REFRESH_PARAM = '__xmoney_refresh';
 const QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY = 'xmoney_quote_diagnostic_log_v1';
 const QUOTE_DIAGNOSTIC_LOG_LIMIT = 30;
-const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set(['auto-start', 'auto-interval', 'auto-visible']);
+const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set([
+  'auto-start',
+  'auto-start-cloud',
+  'auto-interval',
+  'auto-visible',
+  'auto-focus',
+  'auto-pageshow',
+  'auto-tab',
+  'auto-realtime-open',
+]);
+const QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS = 2500;
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -1159,6 +1169,9 @@ function MainApp({ user, onLogout }) {
   // 拉取实时行情状态
   const [fetching, setFetching] = useState(false);
   const quoteFetchInFlightRef = useRef(false);
+  const pendingQuoteRefreshRef = useRef(null);
+  const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0 });
+  const quoteRefreshFromCloudResultRef = useRef(null);
 
   const fetchQuote = useCallback(async (symbols) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1696,6 +1709,7 @@ function MainApp({ user, onLogout }) {
         console.log('[云端加载] 原始返回:', result);
         if (!mounted) return;
         applyCloudUserData(result, '[云端加载]');
+        quoteRefreshFromCloudResultRef.current?.(result);
       } catch (e) {
         console.error('[云端加载] 失败:', e);
         setCloudError(e.message);
@@ -2592,10 +2606,21 @@ function MainApp({ user, onLogout }) {
     let responseStatus = 0;
     let responseResult = null;
     if (quoteFetchInFlightRef.current) {
+      if (requestOptions.queueIfBusy === true) {
+        pendingQuoteRefreshRef.current = {
+          rowsOverride: Array.isArray(rowsOverride) ? rowsOverride : null,
+          options: {
+            ...requestOptions,
+            queueIfBusy: false,
+          },
+        };
+      }
       return { ok: true, skipped: true };
     }
     quoteFetchInFlightRef.current = true;
-    const rowsForQuote = Array.isArray(rowsOverride) ? rowsOverride : quoteRows;
+    const rowsForQuote = Array.isArray(rowsOverride)
+      ? rowsOverride
+      : (quoteRowsRef.current.length > 0 ? quoteRowsRef.current : quoteRows);
     setFetching(true);
     if (notifyOnError) setFetchError(null);
     try {
@@ -2746,8 +2771,58 @@ function MainApp({ user, onLogout }) {
     } finally {
       quoteFetchInFlightRef.current = false;
       setFetching(false);
+      const pending = pendingQuoteRefreshRef.current;
+      if (pending) {
+        pendingQuoteRefreshRef.current = null;
+        setTimeout(() => {
+          fetchRealtimePrices(pending.rowsOverride, pending.options);
+        }, 0);
+      }
     }
   };
+
+  const requestQuickQuoteRefresh = (rowsOverride = null, options = {}) => {
+    if (typeof window === 'undefined' || document.hidden) return;
+    const requestOptions = (options && typeof options === 'object') ? options : {};
+    const minIntervalMs = Number.isFinite(requestOptions.minIntervalMs)
+      ? requestOptions.minIntervalMs
+      : QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS;
+    const now = Date.now();
+    const elapsed = now - quickQuoteRefreshRef.current.lastAt;
+    const delayMs = requestOptions.force ? 0 : Math.max(0, minIntervalMs - elapsed);
+
+    if (quickQuoteRefreshRef.current.timer) {
+      clearTimeout(quickQuoteRefreshRef.current.timer);
+      quickQuoteRefreshRef.current.timer = null;
+    }
+
+    quickQuoteRefreshRef.current.timer = setTimeout(() => {
+      quickQuoteRefreshRef.current.timer = null;
+      quickQuoteRefreshRef.current.lastAt = Date.now();
+      fetchRealtimePrices(rowsOverride, {
+        trigger: requestOptions.trigger || 'auto-visible',
+        notifyOnError: requestOptions.notifyOnError === true,
+        queueIfBusy: true,
+      });
+    }, delayMs);
+  };
+
+  quoteRefreshFromCloudResultRef.current = (result) => {
+    requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result), {
+      trigger: 'auto-start-cloud',
+      force: true,
+      minIntervalMs: 0,
+    });
+  };
+
+  useEffect(() => () => {
+    if (quickQuoteRefreshRef.current.timer) {
+      clearTimeout(quickQuoteRefreshRef.current.timer);
+      quickQuoteRefreshRef.current.timer = null;
+    }
+    pendingQuoteRefreshRef.current = null;
+    quoteRefreshFromCloudResultRef.current = null;
+  }, []);
 
   const runGlobalPullRefresh = async () => {
     if (globalRefreshingRef.current) return;
@@ -3311,6 +3386,10 @@ function MainApp({ user, onLogout }) {
           ref.retryDelayMs = 1000;
           ref.status = 'connecting';
           ref.error = null;
+          requestQuickQuoteRefresh(quoteRowsRef.current, {
+            trigger: 'auto-realtime-open',
+            minIntervalMs: QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS,
+          });
         });
 
         socket.addEventListener('message', (event) => {
@@ -3412,17 +3491,31 @@ function MainApp({ user, onLogout }) {
     let timerId = null;
     let isActive = true;
 
-    const runFetchAndReschedule = () => {
+    const scheduleNextFetch = () => {
       if (!isActive) return;
-      fetchRealtimePrices(null, { trigger: 'auto-interval', notifyOnError: false });
+      if (timerId) clearTimeout(timerId);
       const interval = getMarketRefreshInterval();
       timerId = setTimeout(runFetchAndReschedule, interval);
     };
 
-    const firstInterval = getMarketRefreshInterval();
-    timerId = setTimeout(runFetchAndReschedule, firstInterval);
+    const runFetchAndReschedule = () => {
+      if (!isActive) return;
+      fetchRealtimePrices(null, { trigger: 'auto-interval', notifyOnError: false });
+      scheduleNextFetch();
+    };
 
-    // 页面可见性: 隐藏时暂停, 可见时立即拉 + 重启
+    scheduleNextFetch();
+
+    const resumeWithQuickRefresh = (trigger) => {
+      if (!isActive || document.hidden) return;
+      requestQuickQuoteRefresh(null, {
+        trigger,
+        minIntervalMs: 1000,
+      });
+      scheduleNextFetch();
+    };
+
+    // 页面可见性: 隐藏时暂停, 可见/focus/pageshow 时立即拉 + 重启
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (timerId) {
@@ -3430,19 +3523,21 @@ function MainApp({ user, onLogout }) {
           timerId = null;
         }
       } else {
-        if (isActive && !timerId) {
-          fetchRealtimePrices(null, { trigger: 'auto-visible', notifyOnError: false });
-          const interval = getMarketRefreshInterval();
-          timerId = setTimeout(runFetchAndReschedule, interval);
-        }
+        resumeWithQuickRefresh('auto-visible');
       }
     };
+    const handleFocus = () => resumeWithQuickRefresh('auto-focus');
+    const handlePageShow = () => resumeWithQuickRefresh('auto-pageshow');
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       isActive = false;
       if (timerId) clearTimeout(timerId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading, quoteRows.length]);
@@ -3470,6 +3565,16 @@ function MainApp({ user, onLogout }) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [activeTab]);
+
+  useEffect(() => {
+    if (cloudLoading) return;
+    if (activeTab !== 'home' && activeTab !== 'trades') return;
+    requestQuickQuoteRefresh(null, {
+      trigger: 'auto-tab',
+      minIntervalMs: 1500,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, cloudLoading]);
 
   // 添加交易表单:输入股票代码后 500ms 自动查询(填充中文名+当前价)
   useEffect(() => {
