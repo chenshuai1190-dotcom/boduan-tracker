@@ -34,7 +34,9 @@
   - Runtime commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
   - Vercel status for `9803183` returned `failure`: `Deployment rate limited — retry in 24 hours.`
   - Deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 已继续使用项目 SSH key 推送到 GitHub `main`;Vercel status 仍返回 `failure`: `Deployment rate limited — retry in 24 hours.`
-  - 当前生产仍保持 `v10.7.9.182` / runtime commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5`;`v10.7.9.183` 已在 GitHub `main` 但尚未上线。
+  - Final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` 已使用项目 SSH key 推送到 GitHub `main`;Vercel status returned `success`: `Deployment has completed`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`。
+  - Production alias verified: entry `/assets/index-BmQAhpKJ.js`;entry imports `/assets/App-Br4V54gB.js`;`App-Br4V54gB.js` contains realtime previous-close/last-tick markers;`SettingsTab-DfIf2yPS.js` contains `v10.7.9.183`;`settingsChangelog-ShoR2i8e.js` contains `v10.7.9.183`, `当日盈亏基准保护` and `iOS 实时行情恢复重连`。
+  - Security boundary spot check: unauthenticated `GET /api/quote?symbols=VIX` returned `401` with `private, no-store, max-age=0, must-revalidate`;plain HTTP `GET /api/stocks-realtime` returned `426` with `no-store`。
 - Rollback: 回退本条涉及的 realtime tick 基准保护、REST 后 last tick 叠回基准、`v10.7.9.183` 设置页版本/更新日志、测试断言和本日志即可;不影响交易账本、持仓股数/成本、当日盈亏公式、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay API、数据库结构或 RLS。
 
 ### 2026-07-07 - iOS 实时行情恢复重连
