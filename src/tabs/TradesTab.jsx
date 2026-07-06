@@ -198,8 +198,8 @@ export default function TradesTab({ ctx }) {
   }, [englishMode, rate]);
   const pnlAmountClass = 'text-[13px]';
   const tradeModalInputStyle = { colorScheme: 'dark' };
-  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-lg border border-transparent bg-white/[0.06] px-3 py-2 text-[12px] text-white outline-none transition placeholder:text-white/25 focus:bg-white/[0.085]';
-  const tradeModalLabelClass = 'mb-1 block text-[9px] font-normal text-white/45';
+  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:bg-white/[0.085]';
+  const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
   const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
@@ -1447,7 +1447,7 @@ export default function TradesTab({ ctx }) {
         {/* 添加成交表单 - Modal 弹窗 */}
         {showAddTrade && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-3 py-4 backdrop-blur-md animate-in fade-in"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-3 py-4 backdrop-blur-md animate-in fade-in"
             onClick={(e) => { if (e.target === e.currentTarget) setShowAddTrade(false); }}
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
@@ -1478,9 +1478,8 @@ export default function TradesTab({ ctx }) {
                 {/* 股票代码 */}
                 <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
                   <div className="min-w-0">
-                    <label className={`${tradeModalLabelClass} flex items-center gap-2`}>
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full border border-rose-400/25 bg-rose-400/10 text-[9px] text-rose-200">1</span>
-                      <span>{tt('trades.stockTicker', '股票代码')}</span>
+                    <label className={tradeModalLabelClass}>
+                      {tt('trades.stockTicker', '股票代码')}
                     </label>
                     <div className="relative">
                       <input
@@ -1499,24 +1498,24 @@ export default function TradesTab({ ctx }) {
                         className={`${tradeModalBaseInput} pr-9 font-normal uppercase`}
                         style={tradeModalInputStyle}
                       />
-                      <Search className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" strokeWidth={1.8} />
+                      <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.42]" strokeWidth={1.8} />
                     </div>
-                    <div className="mt-2 flex h-8 items-center justify-between rounded-lg bg-white/[0.035] px-3 text-[10px] text-white/38">
-                      <span>{tt('trades.systemManagedName', '名称和现价由系统自动识别')}</span>
+                    <div className="mt-2 flex min-h-9 items-center justify-between gap-2 rounded-xl bg-white/[0.045] px-3 text-[12px] text-white/60">
+                      <span className="min-w-0 truncate">{tt('trades.systemManagedName', '名称和现价由系统自动识别')}</span>
                       {lookupStatus === 'loading' && (
-                        <span className="inline-flex items-center gap-1 text-sky-300">
+                        <span className="inline-flex shrink-0 items-center gap-1 text-sky-300">
                           <RefreshCw className="h-3 w-3 animate-spin" />
                           <span>{tt('trades.lookupLoading', '查询中')}</span>
                         </span>
                       )}
                       {lookupStatus === 'found' && (
-                        <span className="inline-flex items-center gap-1 text-emerald-300">
+                        <span className="inline-flex shrink-0 items-center gap-1 text-emerald-300">
                           <CheckCircle2 className="h-3 w-3" />
                           <span>{tt('trades.lookupFound', '已找到')}</span>
                         </span>
                       )}
                       {lookupStatus === 'notfound' && (
-                        <span className="inline-flex items-center gap-1 text-amber-300">
+                        <span className="inline-flex shrink-0 items-center gap-1 text-amber-300">
                           <AlertCircle className="h-3 w-3" />
                           <span>{tt('trades.lookupNotFound', '未找到,可手动填')}</span>
                         </span>
@@ -1527,9 +1526,8 @@ export default function TradesTab({ ctx }) {
 
                 {/* 价格 + 股数 */}
                 <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
-                  <label className={`${tradeModalLabelClass} flex items-center gap-2`}>
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full border border-rose-400/25 bg-rose-400/10 text-[9px] text-rose-200">2</span>
-                    <span>{tt('trades.priceShares', '价格与股数')}</span>
+                  <label className={tradeModalLabelClass}>
+                    {tt('trades.priceShares', '价格与股数')}
                   </label>
                   <div className="grid min-w-0 grid-cols-2 gap-2">
                     <div className="min-w-0">
@@ -1562,20 +1560,19 @@ export default function TradesTab({ ctx }) {
 
                 {/* 日期 */}
                 <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
-                  <label className={`${tradeModalLabelClass} flex items-center gap-2`}>
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full border border-rose-400/25 bg-rose-400/10 text-[9px] text-rose-200">3</span>
-                    <span>{tt('trades.date', '日期')}</span>
+                  <label className={tradeModalLabelClass}>
+                    {tt('trades.date', '日期')}
                   </label>
                   <div className="relative">
-                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/45" strokeWidth={1.8} />
+                    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.48]" strokeWidth={1.8} />
                     <input
                       type="date"
                       value={newTrade.date}
                       onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
-                      className={`${tradeModalBaseInput} appearance-none pl-9 pr-8 text-left text-[12px] font-normal tabular-nums`}
+                      className={`${tradeModalBaseInput} appearance-none pl-9 pr-8 text-left font-normal tabular-nums`}
                       style={{ ...tradeModalInputStyle, WebkitAppearance: 'none' }}
                     />
-                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" strokeWidth={1.8} />
+                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.38]" strokeWidth={1.8} />
                   </div>
                 </div>
 
@@ -1593,17 +1590,11 @@ export default function TradesTab({ ctx }) {
                   </div>
                 )}
 
-                <div className="min-w-0">
-                  <label className={`${tradeModalLabelClass} flex items-center gap-2`}>
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full border border-rose-400/25 bg-rose-400/10 text-[9px] text-rose-200">4</span>
-                    <span>{tt('trades.action', '操作')}</span>
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
                   <button
                     onClick={() => confirmTradeSubmit('buy')}
                     disabled={tradeSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-600 text-[13px] font-normal text-white shadow-[0_14px_34px_rgba(225,29,72,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-600 text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(225,29,72,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
                     <TrendingUp className="h-4 w-4" strokeWidth={1.8} />
                     <span>{tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入')}</span>
@@ -1611,7 +1602,7 @@ export default function TradesTab({ ctx }) {
                   <button
                     onClick={() => confirmTradeSubmit('sell')}
                     disabled={tradeSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-500/15 text-[13px] font-normal text-emerald-100 shadow-[0_14px_34px_rgba(16,185,129,0.16)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-500/15 text-[14px] font-normal text-emerald-100 shadow-[0_14px_34px_rgba(16,185,129,0.16)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
                   >
                     <TrendingDown className="h-4 w-4" strokeWidth={1.8} />
                     <span>{tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出')}</span>

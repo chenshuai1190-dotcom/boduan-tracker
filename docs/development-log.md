@@ -4,6 +4,37 @@
 
 ## 2026-07-06 Asia/Shanghai
 
+### 2026-07-06 - 交易录入弹窗细节修正
+
+- Commit: `same commit`
+- Background: 用户根据手机截图反馈 `v10.7.9.169` 初版交易录入弹窗字体过小,“名称和现价由系统自动识别”提示看不清;要求适量放大字体,移除股票代码/价格日期/操作前面的数字,取消“操作”文字显示,并把二次确认从白色老版底部弹窗改成居中且符合现有深色风格的确认弹窗。
+- Changes:
+  - 交易录入弹窗输入框从 12px 提升到 14px,标签从 9px 提升到 12px,保持紧凑高度但提升可读性。
+  - “名称和现价由系统自动识别”提示行改为更高对比度和 12px 字号,查询状态文字保留。
+  - 移除股票代码、价格与股数、日期前面的圆形数字标记,底部买入/卖出按钮上方不再显示“操作”标题。
+  - 全局二次确认弹窗从白色底部抽屉改为居中深色卡片,按钮、信息框和遮罩同步当前深色 UI 风格。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.170`,新增“交易录入弹窗细节修正”。
+  - 本轮只调整交易录入/确认弹窗显示层和回归测试,不改 `confirmTradeSubmit` 的方向传参、`addTrade` 保存路径、主交易账本、波段记录边界、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,27 tests passed;覆盖字体放大、提示行可读性、数字标记移除、“操作”标题移除、居中深色二次确认弹窗、设置页版本/更新日志。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,85 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-DkohNXvi.js`、`dist/assets/TradesTab-D6G4DUOH.js`、`dist/assets/SettingsTab-zJZtxjl1.js` 和 `dist/assets/settingsChangelog-CavB_Meb.js`。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - 本地 build marker: `TradesTab-D6G4DUOH.js` contains `systemManagedName`, `priceShares`, `text-[14px]`, `text-[12px]`, and does not contain old modal markers `nameAuto`, `confirmAdd`, `confirmEdit`, `trades.cancel`, `trades.action` or `text-[9px] text-rose-200`;`App-DkohNXvi.js` contains `bg-black/[0.65]`, `bg-[#0b0f16]`, `text-white/[0.58]` and `text-white/[0.68]`;`SettingsTab-zJZtxjl1.js` contains `v10.7.9.170`;`settingsChangelog-CavB_Meb.js` contains `v10.7.9.170` and `交易录入弹窗细节修正`。
+- Deployment:
+  - Pending push to GitHub `main` and Vercel production deployment.
+- Production verification:
+  - Pending Vercel deployment;部署后需验证 `SettingsTab` 包含 `v10.7.9.170`,`settingsChangelog` 包含 `交易录入弹窗细节修正`,`TradesTab` 保留放大字体/无数字标记/无 `trades.action` marker,`App` 包含深色居中确认弹窗 marker,未登录 `/api/quote?symbols=VIX` 返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`。
+- Rollback: 回退本条涉及的交易录入弹窗字号/编号/操作标题、全局确认弹窗深色居中样式、`v10.7.9.170` 设置页版本/更新日志、测试断言和本日志即可;不影响交易数据、行情 relay、汇率、RLS 或鉴权。
+
 ### 2026-07-06 - 交易录入弹窗结构优化
 
 - Commit: `9ec1e9e5c542d848a62ac4c1805dcad2da63fc37`
