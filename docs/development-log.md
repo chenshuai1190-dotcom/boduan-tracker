@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 主屏滑动现价遮罩修复
 
-- Commit: `TBD`
+- Commit: `12557f8a41ffdc319c0f80e139060eb79945aba0`
 - Background: `v10.7.9.199` 上线后,用户实测发现 iOS 添加到主屏幕 Web App 第一次完整显示后,滑动股票列表会让全部持仓现价变成 `----`。复查后确认问题不在行情数据或计算层,而是 iOS standalone 中滑动/触摸可能触发 `focus`,此前 `focus` 也会启动 snapshot burst 并刷新 `warmStartedAt`,导致已显示价格被新 freshness 时间戳误判为旧 tick。
 - Changes:
   - iOS PWA resume/snapshot 调度新增 `resetFreshness` 语义,把“补拉 realtime snapshot”和“重开持仓现价遮罩周期”拆开。
@@ -27,8 +27,10 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
   - Dist marker check: pass;`App-BROLSRuu.js` contains `auto-ios-pwa-snapshot-focus` and `resetFreshness`;`SettingsTab-DtEG07rO.js` contains `v10.7.9.200`;`settingsChangelog-Efe92DM5.js` contains `iOS 主屏滑动现价遮罩修复`。
-- Deployment: Pending.
-- Production verification: Pending.
+- Deployment: `12557f8a41ffdc319c0f80e139060eb79945aba0` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-mSmj3JcY.js`, App chunk `App-rQVkq975.js`, Home chunk `HomeTab-X9kqjGyH.js`, Trades chunk `TradesTab-DX1_RyGI.js`, Settings chunk `SettingsTab-D09SxSpz.js`, changelog chunk `settingsChangelog-Efe92DM5.js`, i18n chunk `i18n-QTvefRC5.js`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=12557f8-v200-final` returns `200`;entry `/assets/index-mSmj3JcY.js`;`App-rQVkq975.js` contains `auto-ios-pwa-snapshot-focus`, `auto-ios-touch-resume`, `auto-ios-pwa-snapshot-cloud` and `resetFreshness`;`SettingsTab-D09SxSpz.js` contains `v10.7.9.200`;`settingsChangelog-Efe92DM5.js` contains `v10.7.9.200` and `iOS 主屏滑动现价遮罩修复`。
+  - Production unauthenticated boundary check: `/api/quote?symbols=VIX` returns `401`;HTTPS plain `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`、`GET /api/btc-realtime?snapshot=1`、`GET /api/indices-realtime?snapshot=1` all return `401`。
 - Rollback: 回退本条涉及的 `resetFreshness` resume/snapshot 调度、`v10.7.9.200` 设置页版本/更新日志、测试和本开发日志即可;不影响 iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
 
 ### 2026-07-07 - iOS 主屏持仓现价遮罩
