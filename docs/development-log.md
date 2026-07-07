@@ -14,6 +14,7 @@
   - 股票 WebSocket tick 合并时使用 tick 自身 `timestamp` / `realtimeAt` 判断盘前、盘中、盘后,不再用页面当前 `Date.now()` 误判恢复场景;盘后 tick 只刷新展示价,不会覆盖已锁定的今日盈亏价。
   - `investmentSummary` 优先读取 `dailyPnlPrice` / `dailyPnlBaselineClose` 计算今日盈亏;若 quote 明确缺失今日盈亏价,首页和交易页显示 `--`,避免用旧字段凑出错误数字。
   - 首页和交易页今日盈亏在锁定口径下显示小号“收盘锁定” / `Locked` 状态;设置页版本和更新日志同步到 `v10.7.9.189`。
+  - `docs/handoff.md` 顶部当前状态刷新到 `v10.7.9.189`,记录最新生产入口、chunk marker 和 API 边界验证。
   - 保持正式交易账本、摊薄工具数据库路径、Supabase、RLS、EODHD 服务端 token、`/api/quote` 鉴权和三套 realtime relay 鉴权不变。
 - Key files:
   - `server/quote/providers/eodhd.js`
@@ -30,11 +31,18 @@
   - `tests/investment-summary.test.js`
   - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-log.md`
+  - `docs/handoff.md`
 - Validation:
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/investment-summary.test.js tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,72 tests passed。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,105 tests passed。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-fhne5eiY.js`、`dist/assets/HomeTab-D1cwegd5.js`、`dist/assets/TradesTab-BcE225Jj.js`、`dist/assets/SettingsTab-s5SAlYuW.js`、`dist/assets/settingsChangelog-ju07HEgw.js` 和 `dist/assets/i18n-CF_NdwJc.js` 等产物。
-- Deployment: 待本条代码提交经 GitHub `main` 推送后由 Vercel 自动部署,部署完成后补充生产 marker。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Production marker: `https://boduan-tracker.vercel.app/?v=650bfd2-*` returns 200 with fresh `last-modified: Tue, 07 Jul 2026 06:30:41 GMT`;latest production entry is `index-CG4hjMcE.js`;entry imports `App-DiY6ZdUf.js` and `Login-AT3IPDWj.js`;`App-DiY6ZdUf.js` contains `dailyPnlPrice` and `dailyPnlLocked`;`HomeTab-D1cwegd5.js` and `TradesTab-BcE225Jj.js` contain `收盘锁定` / `Locked`;`SettingsTab-DoMeX_Yi.js` contains `v10.7.9.189`;`settingsChangelog-ju07HEgw.js` contains `v10.7.9.189`、`今日盈亏收盘锁定` and `dailyPnlPrice`;`i18n-CF_NdwJc.js` contains `收盘锁定` / `Locked`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`。
+- Deployment:
+  - Runtime code commit `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CN1xRbaFbvWX1MFdiRCafpNUTCVz`,description `Deployment has completed`。
 - Rollback: 回退本条涉及的 `dailyPnl*` quote 字段、时段拆分、实时 tick 合并保护、`investmentSummary` 今日盈亏读取、首页/交易页锁定标签、`v10.7.9.189` 设置页版本/更新日志、测试和本日志即可;不影响交易记录、成本、股数、汇率、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - Vercel 邀请码服务端环境补齐

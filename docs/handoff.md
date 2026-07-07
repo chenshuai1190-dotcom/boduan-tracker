@@ -6,14 +6,14 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.183` 当日盈亏基准保护代码提交 `98031831c1286d8960fdd7fb85f5ee20bf3ea499` 已通过项目 SSH key 推送并上线。
-- 当前生产运行时代码提交: 应用代码变更来自 `98031831c1286d8960fdd7fb85f5ee20bf3ea499`;最近已验证的生产部署 source commit 为 `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf`。
-- 设置页版本: `v10.7.9.183`。
+- 当前 GitHub `main`: 本文件所在最新提交为准;`v10.7.9.189` 今日盈亏收盘锁定代码提交 `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40` 已通过项目 SSH key 推送并上线。
+- 当前生产运行时代码提交: 应用代码变更来自 `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40`;最近已验证的生产部署 source commit 为 `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40`。
+- 设置页版本: `v10.7.9.189`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: `6997b27` deployment `success` (`Deployment has completed`),target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`;此前 `9803183` 和 `3df9376` 都曾命中 `Deployment rate limited — retry in 24 hours.`。
-- 最近交接文档刷新部署: `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` 已推送并部署成功。
-- 线上关键验证: 生产入口 `/assets/index-BmQAhpKJ.js`;entry imports `/assets/App-Br4V54gB.js`;`App-Br4V54gB.js` contains realtime previous-close/last-tick markers;`SettingsTab-DfIf2yPS.js` contains `v10.7.9.183`;`settingsChangelog-ShoR2i8e.js` contains `v10.7.9.183`, `当日盈亏基准保护` and `iOS 实时行情恢复重连`;未登录 `GET /api/quote?symbols=VIX` 返回 `401` 且 `cache-control: private, no-store, max-age=0, must-revalidate`;普通 HTTP `GET /api/stocks-realtime` 返回 `426` 且 `cache-control: no-store`。
-- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 已上线股票涨跌幅按现价和昨收重算;`v10.7.9.177` 已上线启动云端账本加载完成、回到前台、窗口聚焦、页面恢复、切到首页/交易页和股票 WebSocket 打开后的快速行情刷新。`v10.7.9.178` 已上线,修复主行情刷新被浏览器 15 秒 cache 吃掉的问题。`v10.7.9.179` 已上线 iOS 添加到主屏幕后回到前台/恢复触摸的秒级 fresh 行情刷新。`v10.7.9.180` 已上线 iOS PWA hidden 重试、fresh 刷新优先级和三套 realtime 恢复重连加固。`v10.7.9.181` 交易录入输入框去白框已随 `v10.7.9.182` 生产部署一起上线。`v10.7.9.182` 已上线 iOS 回前台强制重建 BTC、指数和股票三套 realtime 连接,pagehide 主动关闭旧 socket,stale 后主动重连。`v10.7.9.183` 源码新增当日盈亏基准保护:实时 tick 没有有效昨收时不覆盖完整行情行,REST 补齐昨收后再叠回最后实时价。用户自写内容、交易账本、摊薄工具、行情鉴权和数据库结构不变。
+- 最新 Vercel 状态: `650bfd2` deployment `success` (`Deployment has completed`),target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CN1xRbaFbvWX1MFdiRCafpNUTCVz`。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.189` 运行时代码已部署成功,本次文档刷新不改变运行时代码。
+- 线上关键验证: 生产入口 `/assets/index-CG4hjMcE.js`;entry imports `App-DiY6ZdUf.js` and `Login-AT3IPDWj.js`;`App-DiY6ZdUf.js` contains `dailyPnlPrice` and `dailyPnlLocked`;`HomeTab-D1cwegd5.js` and `TradesTab-BcE225Jj.js` contain `收盘锁定` / `Locked`;`SettingsTab-DoMeX_Yi.js` contains `v10.7.9.189`;`settingsChangelog-ju07HEgw.js` contains `v10.7.9.189`, `今日盈亏收盘锁定` and `dailyPnlPrice`;`i18n-CF_NdwJc.js` contains `收盘锁定` / `Locked`;未登录 `GET /api/quote?symbols=VIX` 返回 `401` 且 `cache-control: private, no-store, max-age=0, must-revalidate`;普通 HTTP `GET /api/stocks-realtime` 返回 `426` 且 `cache-control: no-store`。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.182` 主要处理启动、iOS PWA 回前台和三套 realtime 恢复重连;`v10.7.9.183` 起保护实时 tick 缺少有效昨收时不覆盖完整行情行;`v10.7.9.185` 起按券商口径优先使用日线基准;`v10.7.9.189` 起正式拆分“展示当前价”和“今日盈亏计算价”:盘前/盘中今日盈亏随实时价更新,盘后/夜盘今日盈亏锁定到常规盘收盘价,盘后现价仍可显示并影响市值/持仓盈亏。用户自写内容、交易账本、摊薄工具、行情鉴权和数据库结构不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
@@ -21,12 +21,12 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
-- 当前生产运行时基准提交: 应用代码变更来自 `98031831c1286d8960fdd7fb85f5ee20bf3ea499`;最近已验证的生产部署 source commit 为 `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf`。
-- 最近应用代码提交: `98031831c1286d8960fdd7fb85f5ee20bf3ea499`,包含 `v10.7.9.183` 当日盈亏基准保护代码;已随部署 source commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` 上线。上一轮生产 `v10.7.9.182` 应用代码提交为 `abcb44245160d01b75b260dec3b3abc7fd9ac5b5`。
+- 当前生产运行时基准提交: 应用代码变更来自 `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40`;最近已验证的生产部署 source commit 为 `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40`。
+- 最近应用代码提交: `650bfd2fcc7eabc8210e9a7e6cad7323aed60f40`,包含 `v10.7.9.189` 今日盈亏收盘锁定口径;已随同一 source commit 上线。上一轮生产 `v10.7.9.188` 应用代码提交为 `266bd040ea1ceeb5aa5654c4db409c154d4961dd`。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.183`。
-- Vercel 最新运行时部署: success,`v10.7.9.183` production marker verified。
-- 最近交接文档刷新部署: `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` 已推送并部署成功。
+- 设置页版本: `v10.7.9.189`。
+- Vercel 最新运行时部署: success,`v10.7.9.189` production marker verified。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;本次文档刷新不改变运行时代码。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
