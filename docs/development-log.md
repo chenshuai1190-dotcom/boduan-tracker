@@ -4,6 +4,33 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 首屏当日盈亏兜底
+
+- Commit: same commit.
+- Background: `v10.7.9.201` 上线后,用户实测 iOS 主屏首次加载时持仓现价按预期显示 `--`,但头部今日盈亏、持仓分布汇总和单只持仓的当日盈亏也会短暂显示 `--`。复查确认原因是首屏 quote 行已经有当前价和昨收基准,但 `dailyPnlPrice` 字段仍为 `0`;`investmentSummary` 只要看到显式 `dailyPnlPrice: 0` 就把当日盈亏判为 unavailable。
+- Changes:
+  - `investmentSummary` 对 `dailyPnlPrice: 0` 增加首屏兜底: 如果当前价和昨收基准有效,且 quote 行不是明确的盘后/收盘锁定状态,则先用当前价计算当日盈亏。
+  - 明确 `dailyPnlLocked`、`dailyPnlSession=post/after/closed` 或 market status 含 `post/after/closed` 时仍不使用当前价兜底,避免破坏盘后/夜盘收盘锁定口径。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.202`,新增“首屏当日盈亏兜底”。
+  - 不改持仓现价遮罩、iOS snapshot 轮询、行情接口、EODHD token、`/api/quote` 鉴权、交易账本、持仓数量、成本、数据库结构或 RLS。
+- Key files:
+  - `src/lib/investmentSummary.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/investment-summary.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/investment-summary.test.js tests/tool-ledger-boundaries.test.js` (41 tests).
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` (110 tests).
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build`.
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
+  - PASS `git diff --check`.
+  - PASS local dist marker check: `SettingsTab-DmsLWCCv.js` contains `v10.7.9.202`;`settingsChangelog-SKFsyE6z.js` contains `v10.7.9.202` and `首屏当日盈亏兜底`;built app bundle contains the `dailyPnlPrice` fallback path.
+- Deployment: Pending.
+- Production verification: Pending.
+- Rollback: 回退本条涉及的 `dailyPnlPrice: 0` 首屏兜底、`v10.7.9.202` 设置页版本/更新日志、测试和本开发日志即可;不影响持仓现价遮罩、iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本公式、数据库或鉴权边界。
+
 ### 2026-07-07 - 持仓现价遮罩占位优化
 
 - Commit: `1b70bf5717d7701e432244a5f622f17eee87cfcb`

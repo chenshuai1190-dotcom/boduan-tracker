@@ -118,7 +118,7 @@ test('investment summary uses locked daily pnl price instead of postmarket displ
   assert.equal(summary.todayPnlLocked, true);
 });
 
-test('investment summary marks daily pnl unavailable when the quote has no daily pnl price', () => {
+test('investment summary falls back to current price when initial daily pnl price is missing before lock', () => {
   const summary = deriveInvestmentSummary({
     stockTrades: [
       { id: 1, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-03', price: 179.78, shares: 7000 },
@@ -131,6 +131,34 @@ test('investment summary marks daily pnl unavailable when the quote has no daily
         previousClose: 195.55,
         dailyPnlPrice: 0,
         dailyPnlBaselineClose: 194.8,
+      },
+    ],
+    usdRate: 7.2,
+  });
+
+  assert.equal(summary.activePositions[0].dailyPnlPrice, 195.274);
+  assert.equal(summary.activePositions[0].hasTodayPnl, true);
+  assert.equal(Number(summary.activePositions[0].todayPnl.toFixed(2)), 3318.00);
+  assert.equal(Number(summary.todayPnl.toFixed(2)), 3318.00);
+  assert.equal(summary.hasTodayPnl, true);
+  assert.equal(summary.todayPnlUnavailableCount, 0);
+});
+
+test('investment summary marks locked daily pnl unavailable when the quote has no daily pnl price', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      { id: 1, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-03', price: 179.78, shares: 7000 },
+    ],
+    watchlist: [
+      {
+        symbol: 'NVDA',
+        name: '英伟达',
+        price: 195.274,
+        previousClose: 195.55,
+        dailyPnlPrice: 0,
+        dailyPnlBaselineClose: 194.8,
+        dailyPnlLocked: true,
+        dailyPnlSession: 'post',
       },
     ],
     usdRate: 7.2,

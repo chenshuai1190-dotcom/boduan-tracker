@@ -24,7 +24,13 @@ function hasOwn(object, key) {
 function inferDailyPnlPrice(quote, currentPrice) {
   if (hasOwn(quote, 'dailyPnlPrice')) {
     const dailyPnlPrice = toNumber(quote?.dailyPnlPrice);
-    return dailyPnlPrice > 0 ? dailyPnlPrice : 0;
+    if (dailyPnlPrice > 0) return dailyPnlPrice;
+    const session = String(quote?.dailyPnlSession || quote?.marketStatus || '').toLowerCase();
+    const lockedDailyPnl = Boolean(quote?.dailyPnlLocked)
+      || session.includes('post')
+      || session.includes('after')
+      || session.includes('closed');
+    return lockedDailyPnl ? 0 : currentPrice;
   }
   return currentPrice;
 }
