@@ -25,8 +25,30 @@ on public.stock_trades (user_id, trade_date, created_at);
 create index if not exists stock_trades_user_symbol_idx
 on public.stock_trades (user_id, symbol);
 
+create table if not exists public.invite_codes (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  status text not null default 'active' check (status in ('active', 'used', 'revoked')),
+  created_by uuid references auth.users(id) on delete set null,
+  created_by_email text not null default '',
+  used_by uuid references auth.users(id) on delete set null,
+  used_by_email text not null default '',
+  note text not null default '',
+  expires_at timestamptz,
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists invite_codes_status_created_idx
+on public.invite_codes (status, created_at desc);
+
+create index if not exists invite_codes_used_by_idx
+on public.invite_codes (used_by);
+
 alter table public.trades enable row level security;
 alter table public.stock_trades enable row level security;
+alter table public.invite_codes enable row level security;
 alter table public.watchlist enable row level security;
 alter table public.wave_notes enable row level security;
 alter table public.user_settings enable row level security;
@@ -54,6 +76,13 @@ for all
 to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+drop policy if exists "invite admin can read invite codes" on public.invite_codes;
+create policy "invite admin can read invite codes"
+on public.invite_codes
+for select
+to authenticated
+using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'chenshuai1190@gmail.com');
 
 drop policy if exists "users can manage own watchlist" on public.watchlist;
 create policy "users can manage own watchlist"

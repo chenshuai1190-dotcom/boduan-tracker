@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, Lock, User } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Lock, User } from 'lucide-react';
 import { getRecoveryCallbackError, isRecoveryCallbackLocation } from './lib/authRecovery.js';
 import { LANGUAGE_STORAGE_KEY, normalizeLanguage, saveStoredLanguage } from './lib/i18n.js';
 
@@ -11,7 +11,9 @@ const LOGIN_COPY = {
     signUp: 'Sign Up',
     phoneEmail: 'Phone / Email',
     password: 'Password',
+    confirmPassword: 'Confirm Password',
     newPassword: 'New Password',
+    inviteCode: 'Invite Code',
     forgotPassword: 'Forgot password?',
     signInNow: 'Sign In',
     signUpNow: 'Sign Up Now',
@@ -31,8 +33,11 @@ const LOGIN_COPY = {
     expiredLink: 'The reset link expired. Please send a new reset link.',
     requiredEmail: 'Please enter your email.',
     requiredPassword: 'Please enter your email and password.',
+    requiredConfirmPassword: 'Please confirm your password.',
+    requiredInviteCode: 'Please enter your invite code.',
     requiredNewPassword: 'Please enter a new password.',
     shortPassword: 'Password must be at least 6 characters.',
+    passwordMismatch: 'Passwords do not match.',
     invalidLogin: 'Email or password is incorrect.',
     emailNotConfirmed: 'Email is not confirmed. Please check your inbox.',
     alreadyRegistered: 'This email is already registered. Please sign in.',
@@ -53,7 +58,9 @@ const LOGIN_COPY = {
     signUp: '注册',
     phoneEmail: '手机号 / 邮箱',
     password: '密码',
+    confirmPassword: '确认密码',
     newPassword: '新密码',
+    inviteCode: '邀请码',
     forgotPassword: '忘记密码?',
     signInNow: '登录',
     signUpNow: '立即注册',
@@ -73,8 +80,11 @@ const LOGIN_COPY = {
     expiredLink: '重置链接已失效,请重新发送重置链接。',
     requiredEmail: '请填写邮箱',
     requiredPassword: '请填写邮箱和密码',
+    requiredConfirmPassword: '请再次输入密码',
+    requiredInviteCode: '请填写邀请码',
     requiredNewPassword: '请填写新密码',
     shortPassword: '密码至少 6 位',
+    passwordMismatch: '两次输入的密码不一致',
     invalidLogin: '邮箱或密码错误',
     emailNotConfirmed: '邮箱未确认,请检查邮箱完成确认',
     alreadyRegistered: '该邮箱已注册,请直接登录',
@@ -101,29 +111,15 @@ function getInitialLoginLanguage() {
   }
 }
 
-function ChartLogo() {
+function QuoteLogo() {
   return (
-    <div className="relative mx-auto flex h-[78px] w-[78px] items-center justify-center rounded-[22px] border border-[#284064]/80 bg-[#07101f]/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_32px_rgba(21,183,255,0.16)]">
-      <div className="absolute inset-[1px] rounded-[21px] bg-[radial-gradient(circle_at_30%_20%,rgba(39,218,255,0.18),transparent_48%),linear-gradient(145deg,rgba(255,255,255,0.08),transparent_40%)]" />
-      <svg
-        viewBox="0 0 84 84"
-        aria-hidden="true"
-        className="relative h-[58px] w-[58px]"
-        fill="none"
-      >
-        <g strokeLinecap="round">
-          <path d="M14 59L27 48L38 54L52 35L64 43L72 28" stroke="#16a4ff" strokeWidth="5" />
-          <path d="M14 65L27 54L39 59L53 40L65 49L76 35" stroke="#23e0ff" strokeWidth="3" opacity="0.96" />
-          <path d="M72 28V42M72 28H58" stroke="#33f7f1" strokeWidth="4" />
-        </g>
-        <g>
-          <rect x="21" y="32" width="9" height="21" rx="1.5" fill="#218cff" />
-          <rect x="36" y="24" width="9" height="25" rx="1.5" fill="#2fc7ff" />
-          <rect x="51" y="15" width="9" height="28" rx="1.5" fill="#35f3e4" />
-          <path d="M25.5 26V59M40.5 18V55M55.5 8V50" stroke="#7beeff" strokeWidth="2" opacity="0.62" />
-        </g>
-      </svg>
-    </div>
+    <img
+      src="/quote-logo.png"
+      alt=""
+      aria-hidden="true"
+      className="mx-auto h-[78px] w-[78px] rounded-[22px] object-cover shadow-[0_0_32px_rgba(21,183,255,0.16)]"
+      draggable="false"
+    />
   );
 }
 
@@ -175,8 +171,11 @@ export default function Login({ onSuccess }) {
   const [language, setLanguage] = useState(getInitialLoginLanguage);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -185,6 +184,7 @@ export default function Login({ onSuccess }) {
   const copy = LOGIN_COPY[language] || LOGIN_COPY.en;
   const isAuthMode = mode === 'signin' || mode === 'signup';
   const passwordType = showPassword ? 'text' : 'password';
+  const confirmPasswordType = showConfirmPassword ? 'text' : 'password';
   const newPasswordType = showNewPassword ? 'text' : 'password';
 
   const loadingText = useMemo(() => {
@@ -293,10 +293,24 @@ export default function Login({ onSuccess }) {
       setError(copy.shortPassword);
       return;
     }
+    if (mode === 'signup') {
+      if (!confirmPassword) {
+        setError(copy.requiredConfirmPassword);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError(copy.passwordMismatch);
+        return;
+      }
+      if (!inviteCode) {
+        setError(copy.requiredInviteCode);
+        return;
+      }
+    }
     setLoading(true);
 
     try {
-      const { signIn, signUp } = await loadAuthApi();
+      const { signIn, signUpWithInvite } = await loadAuthApi();
       if (mode === 'signin') {
         const { data, error } = await signIn(email, password);
         if (error) {
@@ -311,7 +325,7 @@ export default function Login({ onSuccess }) {
           onSuccess(data.user);
         }
       } else {
-        const { data, error } = await signUp(email, password);
+        const { data, error } = await signUpWithInvite(email, password, inviteCode);
         if (error) {
           if (error.message.includes('already registered')) {
             setError(copy.alreadyRegistered);
@@ -319,14 +333,7 @@ export default function Login({ onSuccess }) {
             setError(error.message);
           }
         } else if (data?.user) {
-          if (data.session) {
-            onSuccess(data.user);
-          } else {
-            setInfo(language === 'en'
-              ? 'Account created. Please confirm your email, then sign in.'
-              : '注册成功! 请到邮箱点击确认链接,然后回来登录');
-            setMode('signin');
-          }
+          onSuccess(data.user);
         }
       }
     } catch (e) {
@@ -340,6 +347,8 @@ export default function Login({ onSuccess }) {
     setMode(newMode);
     setError('');
     setInfo('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const submitLabel = (() => {
@@ -368,9 +377,9 @@ export default function Login({ onSuccess }) {
         {copy.langToggle}
       </button>
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[430px] flex-col px-9 pb-[calc(env(safe-area-inset-bottom)+26px)] pt-[calc(env(safe-area-inset-top)+142px)]">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[430px] flex-col px-9 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-[calc(env(safe-area-inset-top)+112px)]">
         <section className="text-center">
-          <ChartLogo />
+          <QuoteLogo />
           <h1
             className="mt-[14px] text-[52px] font-normal leading-[58px] tracking-normal text-white"
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
@@ -379,7 +388,7 @@ export default function Login({ onSuccess }) {
           </h1>
         </section>
 
-        <form onSubmit={handleFormSubmit} className="mt-[78px]">
+        <form onSubmit={handleFormSubmit} className={mode === 'signup' ? 'mt-[42px]' : 'mt-[78px]'}>
           {isAuthMode ? (
             <div className="relative grid h-[54px] grid-cols-2 overflow-hidden rounded-[9px] border border-[#1f304d]/80 bg-[#030a18]/[0.34] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <button
@@ -477,6 +486,43 @@ export default function Login({ onSuccess }) {
                     {copy.forgotPassword}
                   </button>
                 </div>
+              )}
+              {mode === 'signup' && (
+                <>
+                  <div className="relative mt-[16px]">
+                    <Lock className="pointer-events-none absolute left-[22px] top-1/2 h-[21px] w-[21px] -translate-y-1/2 text-[#777794]" />
+                    <input
+                      type={confirmPasswordType}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={event => setConfirmPassword(event.target.value)}
+                      placeholder={copy.confirmPassword}
+                      className="h-[58px] w-full appearance-none rounded-[8px] border border-[#1f304d]/90 bg-[#030a18]/[0.36] pl-[58px] pr-[58px] text-[15px] font-normal text-white outline-none transition placeholder:text-[#777794] focus:border-[#1d8dff]/80 focus:bg-[#051024]/[0.72]"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(value => !value)}
+                      className="absolute right-[18px] top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-[#7e83a2] active:scale-95"
+                      aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-[22px] w-[22px]" /> : <Eye className="h-[22px] w-[22px]" />}
+                    </button>
+                  </div>
+                  <div className="relative mt-[16px]">
+                    <KeyRound className="pointer-events-none absolute left-[22px] top-1/2 h-[21px] w-[21px] -translate-y-1/2 text-[#777794]" />
+                    <input
+                      type="text"
+                      autoComplete="one-time-code"
+                      value={inviteCode}
+                      onChange={event => setInviteCode(event.target.value.toUpperCase())}
+                      placeholder={copy.inviteCode}
+                      className="h-[58px] w-full appearance-none rounded-[8px] border border-[#1f304d]/90 bg-[#030a18]/[0.36] pl-[58px] pr-4 text-[15px] font-normal uppercase tracking-[0.08em] text-white outline-none transition placeholder:normal-case placeholder:tracking-normal placeholder:text-[#777794] focus:border-[#1d8dff]/80 focus:bg-[#051024]/[0.72]"
+                      disabled={loading}
+                    />
+                  </div>
+                </>
               )}
             </>
           )}

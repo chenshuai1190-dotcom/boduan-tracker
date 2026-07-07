@@ -1,6 +1,17 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.186', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.187', date: '2026-07-07', latest: true,
+    items: [
+      '🔐 注册邀请码和官方登录 Logo',
+      '  - 登录页 Logo 改用官方 PNG 文件,不再使用自绘图标',
+      '  - 注册页新增确认密码和邀请码输入,两次密码不一致或没有邀请码时不允许提交',
+      '  - 注册改走服务端 /api/register,邀请码校验、账号创建和邀请码消耗都在服务端完成',
+      '  - 管理员 chenshuai1190@gmail.com 的设置页新增邀请码生成、查看和复制入口',
+      '  - 不改登录鉴权、忘记密码、已登录 App、行情、交易账本、EODHD 服务端 token 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.186', date: '2026-07-07',
     items: [
       '🔐 登录页 Quote 深色重设计',
       '  - 未登录首屏按 Quote 效果图重做为深色金融登录界面,默认英文显示',

@@ -17,9 +17,15 @@ const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangel
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
+const supabaseClientSource = readFileSync(new URL('../src/lib/supabase.js', import.meta.url), 'utf8');
+const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.meta.url), 'utf8');
+const registerApiSource = readFileSync(new URL('../api/register.js', import.meta.url), 'utf8');
 const quoteApiSource = readFileSync(new URL('../api/quote.js', import.meta.url), 'utf8');
 const indicesRealtimeApiSource = readFileSync(new URL('../api/indices-realtime.js', import.meta.url), 'utf8');
 const stocksRealtimeApiSource = readFileSync(new URL('../api/stocks-realtime.js', import.meta.url), 'utf8');
+const inviteServerSource = readFileSync(new URL('../server/inviteCodes.js', import.meta.url), 'utf8');
+const rlsSource = readFileSync(new URL('../supabase/rls.sql', import.meta.url), 'utf8');
+const inviteSqlSource = readFileSync(new URL('../supabase/invite_codes.sql', import.meta.url), 'utf8');
 
 function readPngInfo(relativePath) {
   const buffer = readFileSync(new URL(relativePath, import.meta.url));
@@ -187,8 +193,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.186'), 'settings version badge should document the Quote login redesign update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should document the Quote login redesign update');
+  assert.ok(settingsTabSource.includes('v10.7.9.187'), 'settings version badge should document the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should document the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('注册邀请码和官方登录 Logo'), 'settings changelog should describe the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should retain the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should retain the broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should document the broker-style daily pnl baseline update');
@@ -528,6 +536,8 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
 });
 
 test('login screen uses Quote dark bilingual design without changing auth flow', () => {
+  const logoInfo = readPngInfo('../public/quote-logo.png');
+
   assert.ok(loginSource.includes("stored ? normalizeLanguage(stored) : 'en'"), 'login should default to English when no saved language exists');
   assert.ok(loginSource.includes('saveStoredLanguage(next)'), 'login language toggle should sync to the shared language key');
   assert.ok(loginSource.includes('const LOGIN_COPY ='), 'login should define local bilingual copy');
@@ -535,18 +545,67 @@ test('login screen uses Quote dark bilingual design without changing auth flow',
   assert.ok(loginSource.includes("signIn: '登录'"), 'login should include Chinese sign-in copy');
   assert.ok(loginSource.includes("phoneEmail: 'Phone / Email'"), 'login should match the English mockup placeholder');
   assert.ok(loginSource.includes("phoneEmail: '手机号 / 邮箱'"), 'login should match the Chinese mockup placeholder');
-  assert.ok(loginSource.includes('function ChartLogo()'), 'login should render the Quote chart logo instead of the old letter logo');
+  assert.ok(loginSource.includes("confirmPassword: 'Confirm Password'"), 'signup should include an English confirm-password placeholder');
+  assert.ok(loginSource.includes("confirmPassword: '确认密码'"), 'signup should include a Chinese confirm-password placeholder');
+  assert.ok(loginSource.includes("inviteCode: 'Invite Code'"), 'signup should include an English invite-code placeholder');
+  assert.ok(loginSource.includes("inviteCode: '邀请码'"), 'signup should include a Chinese invite-code placeholder');
+  assert.ok(loginSource.includes('function QuoteLogo()'), 'login should render the official Quote logo component');
+  assert.ok(loginSource.includes('src="/quote-logo.png"'), 'login logo should use the official PNG asset');
+  assert.equal(loginSource.includes('function ChartLogo()'), false, 'login should not keep the old self-drawn chart logo');
   assert.ok(loginSource.includes('function MarketBackdrop()'), 'login should include the subtle market-chart backdrop');
   assert.ok(loginSource.includes('h-[78px] w-[78px]'), 'login logo should keep the reference-sized icon');
+  assert.equal(logoInfo.width, 1024, 'official login logo asset should keep its provided width');
+  assert.equal(logoInfo.height, 1024, 'official login logo asset should keep its provided height');
+  assert.equal(logoInfo.bitDepth, 8, 'official login logo asset should stay 8-bit PNG');
+  assert.equal(logoInfo.colorType, 6, 'official login logo asset should be the provided RGBA PNG');
   assert.ok(loginSource.includes('text-[52px] font-normal leading-[58px]'), 'Quote title should keep the mockup scale without bolding');
   assert.ok(loginSource.includes('h-[54px] grid-cols-2'), 'sign-in/sign-up tabs should keep the compact reference height');
   assert.ok(loginSource.includes('h-[58px] w-full appearance-none rounded-[8px]'), 'login inputs should keep the reference compact height and avoid browser default white fields');
   assert.ok(loginSource.includes('from-[#0b7dff] to-[#18d2d5]'), 'primary button should use the blue-cyan reference gradient');
+  assert.ok(loginSource.includes('setShowConfirmPassword'), 'signup confirm-password field should support the same visibility toggle as password');
+  assert.ok(loginSource.includes('setInviteCode(event.target.value.toUpperCase())'), 'invite code entry should normalize visible input to uppercase');
+  assert.ok(loginSource.includes('requiredConfirmPassword'), 'signup should validate missing confirm password');
+  assert.ok(loginSource.includes('passwordMismatch'), 'signup should reject mismatched passwords');
+  assert.ok(loginSource.includes('requiredInviteCode'), 'signup should reject missing invite code before network submission');
   assert.ok(loginSource.includes('resetPassword(email)'), 'forgot-password flow should stay wired to Supabase reset');
   assert.ok(loginSource.includes('signIn(email, password)'), 'sign-in flow should stay wired to Supabase auth');
-  assert.ok(loginSource.includes('signUp(email, password)'), 'sign-up flow should stay wired to Supabase auth');
+  assert.ok(loginSource.includes('signUpWithInvite(email, password, inviteCode)'), 'sign-up flow should go through the invite-code server registration path');
+  assert.equal(loginSource.includes('signUp(email, password)'), false, 'signup UI should not call public Supabase signUp directly');
+  assert.ok(supabaseClientSource.includes("fetch('/api/register'"), 'invite signup should call the server registration endpoint');
+  assert.ok(supabaseClientSource.includes('注册需要邀请码'), 'legacy direct signUp export should fail closed');
+  assert.equal(supabaseClientSource.includes('auth.signUp({'), false, 'client helper should not keep a public Supabase signUp path');
   assert.equal(loginSource.includes('Bottomline'), false, 'login should not keep the old Bottomline branding');
   assert.equal(loginSource.includes('bg-white rounded-3xl'), false, 'login should not keep the old white auth card');
+});
+
+test('invite-code registration gate stays server-side and admin-only', () => {
+  assert.ok(registerApiSource.includes("req.method !== 'POST'"), 'public register endpoint should only accept POST');
+  assert.ok(registerApiSource.includes('registerUserWithInvite'), 'public register endpoint should delegate signup to the invite server module');
+  assert.ok(registerApiSource.includes("res.setHeader('Cache-Control', 'no-store')"), 'register responses should not be cached');
+  assert.ok(inviteApiSource.includes('authenticateAccessToken'), 'invite management endpoint should authenticate the current session token');
+  assert.ok(inviteApiSource.includes('isInviteAdmin(auth.user)'), 'invite management endpoint should be admin-only');
+  assert.ok(inviteApiSource.includes("res.setHeader('Cache-Control', 'no-store')"), 'invite-code management responses should not be cached');
+  assert.ok(inviteServerSource.includes("INVITE_ADMIN_EMAIL = 'chenshuai1190@gmail.com'"), 'invite admin email should be explicit and server-side');
+  assert.ok(inviteServerSource.includes('SUPABASE_SERVICE_ROLE_KEY'), 'server invite module should use a server-only service role env var');
+  assert.equal(inviteServerSource.includes('VITE_EODHD_TOKEN'), false, 'invite work must not introduce client EODHD tokens');
+  assert.ok(inviteServerSource.includes('generateInviteCode()'), 'server invite module should generate codes itself');
+  assert.ok(inviteServerSource.includes("return `QTE-${raw.slice(0, 4)}-${raw.slice(4)}`"), 'invite code format should stay readable and app-specific');
+  assert.ok(inviteServerSource.includes('email_confirm: true'), 'server-created auth users should be immediately usable by the client sign-in');
+  assert.ok(inviteServerSource.includes('createAuthUser'), 'registration should create the Supabase auth user server-side');
+  assert.ok(inviteServerSource.includes('deleteAuthUser(userId)'), 'registration should roll back auth user creation if invite consumption loses the race');
+  assert.ok(inviteServerSource.includes("status: 'used'"), 'registration should consume the invite after creating a user');
+  assert.ok(inviteServerSource.includes('used_by_email: normalizedEmail'), 'registration should record which email consumed the invite');
+  assert.ok(settingsTabSource.includes("chenshuai1190@gmail.com"), 'settings invite manager should only render for the admin email');
+  assert.ok(settingsTabSource.includes("fetch('/api/invite-codes'"), 'settings invite manager should use the server admin endpoint');
+  assert.ok(settingsTabSource.includes('navigator.clipboard?.writeText(invite.code)'), 'settings invite codes should be copyable');
+  assert.ok(i18nSource.includes("'settings.inviteTitle': '邀请码管理'"), 'Chinese settings copy should include invite management');
+  assert.ok(i18nSource.includes("'settings.inviteTitle': 'Invite Codes'"), 'English settings copy should include invite management');
+  assert.ok(rlsSource.includes('create table if not exists public.invite_codes'), 'main Supabase RLS SQL should create the invite_codes table');
+  assert.ok(rlsSource.includes('alter table public.invite_codes enable row level security'), 'main Supabase RLS SQL should enable RLS on invite_codes');
+  assert.ok(rlsSource.includes("auth.jwt() ->> 'email'"), 'RLS policy should scope invite code reads by authenticated admin email');
+  assert.ok(inviteSqlSource.includes('create table if not exists public.invite_codes'), 'standalone invite SQL should be available for production migration');
+  assert.ok(inviteSqlSource.includes("status text not null default 'active'"), 'standalone invite SQL should keep explicit invite status');
+  assert.ok(inviteSqlSource.includes("used_at timestamptz"), 'standalone invite SQL should record invite consumption time');
 });
 
 test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
@@ -703,8 +762,10 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.186'), 'settings version badge should document the Quote login redesign update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should document the Quote login redesign update');
+  assert.ok(settingsTabSource.includes('v10.7.9.187'), 'settings version badge should document the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should document the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('注册邀请码和官方登录 Logo'), 'settings changelog should describe the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should retain the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should document the latest broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('盘后当日盈亏券商口径'), 'settings changelog should describe the latest broker-style daily pnl baseline update');
@@ -914,8 +975,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.186'), 'settings version badge should document the Quote login redesign update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should document the Quote login redesign update');
+  assert.ok(settingsTabSource.includes('v10.7.9.187'), 'settings version badge should document the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should document the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('注册邀请码和官方登录 Logo'), 'settings changelog should describe the invite-code registration update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should retain the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should document the latest broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('盘后当日盈亏券商口径'), 'settings changelog should describe the latest broker-style daily pnl baseline update');

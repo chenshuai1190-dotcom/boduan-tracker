@@ -45,14 +45,32 @@ export const signIn = async (email, password) => {
 
 // 注册
 export const signUp = async (email, password) => {
-  return await getSupabase().auth.signUp({
-    email,
-    password,
-    options: {
-      // 注册后默认自动登录,不需要邮件确认
-      // 如果开启了邮件确认,这里会需要点邮件链接
-    }
+  void email;
+  void password;
+  return {
+    data: null,
+    error: {
+      message: '注册需要邀请码',
+    },
+  };
+};
+
+export const signUpWithInvite = async (email, password, inviteCode) => {
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, inviteCode }),
   });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.success === false) {
+    return {
+      data: null,
+      error: {
+        message: body?.error || '注册失败',
+      },
+    };
+  }
+  return await signIn(email, password);
 };
 
 // 登出

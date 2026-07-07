@@ -91,6 +91,65 @@ export default function SettingsTab({ ctx }) {
 
   const [changelog, setChangelog] = React.useState(null);
   const [changelogLoadError, setChangelogLoadError] = React.useState(false);
+  const [inviteCodes, setInviteCodes] = React.useState([]);
+  const [inviteLoading, setInviteLoading] = React.useState(false);
+  const [inviteMessage, setInviteMessage] = React.useState(null);
+
+  const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
+
+  const fetchInviteApi = React.useCallback(async (options = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) throw new Error(t(language, 'settings.inviteAuthRequired', '请重新登录后再操作'));
+    const res = await fetch('/api/invite-codes', {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || body?.success === false) {
+      throw new Error(body?.error || t(language, 'settings.inviteRequestFailed', '邀请码请求失败'));
+    }
+    return body;
+  }, [language, supabase]);
+
+  const loadInviteCodes = React.useCallback(async () => {
+    if (!isInviteAdmin) return;
+    setInviteLoading(true);
+    setInviteMessage(null);
+    try {
+      const body = await fetchInviteApi({ method: 'GET' });
+      setInviteCodes(Array.isArray(body.invites) ? body.invites : []);
+    } catch (error) {
+      setInviteMessage({ type: 'error', text: error.message || t(language, 'settings.inviteLoadFailed', '邀请码加载失败') });
+    } finally {
+      setInviteLoading(false);
+    }
+  }, [fetchInviteApi, isInviteAdmin, language]);
+
+  const generateInviteCode = async () => {
+    if (!isInviteAdmin || inviteLoading) return;
+    setInviteLoading(true);
+    setInviteMessage(null);
+    try {
+      const body = await fetchInviteApi({
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setInviteCodes(Array.isArray(body.invites) ? body.invites : []);
+      setInviteMessage({
+        type: 'success',
+        text: t(language, 'settings.inviteGenerated', '邀请码已生成: {{code}}', { code: body.invite?.code || '--' }),
+      });
+    } catch (error) {
+      setInviteMessage({ type: 'error', text: error.message || t(language, 'settings.inviteGenerateFailed', '邀请码生成失败') });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     let cancelled = false;
@@ -110,6 +169,10 @@ export default function SettingsTab({ ctx }) {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (isInviteAdmin) loadInviteCodes();
+  }, [isInviteAdmin, loadInviteCodes]);
+
   const visibleChangelog = Array.isArray(changelog)
     ? (changelogExpanded ? changelog : changelog.slice(0, 5))
     : [];
@@ -125,7 +188,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.186
+                  v10.7.9.187
                 </span>
               </div>
             </div>
@@ -207,6 +270,79 @@ export default function SettingsTab({ ctx }) {
                 </button>
               </div>
             </div>
+
+            {isInviteAdmin && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-black text-white">{t(language, 'settings.inviteTitle', '邀请码管理')}</h2>
+                    <div className="mt-1 text-[12px] leading-5 text-white/40">
+                      {t(language, 'settings.inviteDesc', '没有邀请码的新用户无法注册。')}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateInviteCode}
+                    disabled={inviteLoading}
+                    className="flex h-9 shrink-0 items-center justify-center rounded-xl border border-[#f6a524]/25 bg-[#f6a524]/14 px-3 text-[12px] font-bold text-[#ffd18a] active:scale-95 disabled:opacity-50"
+                  >
+                    {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t(language, 'settings.inviteGenerate', '生成')}
+                  </button>
+                </div>
+
+                {inviteMessage && (
+                  <div className={`mb-3 rounded-xl border px-3 py-2 text-[12px] ${
+                    inviteMessage.type === 'error'
+                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+                  }`}>
+                    {inviteMessage.text}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {inviteCodes.length === 0 ? (
+                    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/45">
+                      {inviteLoading ? t(language, 'settings.inviteLoading', '加载中...') : t(language, 'settings.inviteEmpty', '还没有邀请码')}
+                    </div>
+                  ) : inviteCodes.slice(0, 8).map((invite) => {
+                    const used = invite.status === 'used' || Boolean(invite.usedAt);
+                    return (
+                      <div key={invite.id || invite.code} className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard?.writeText(invite.code);
+                                setInviteMessage({ type: 'success', text: t(language, 'settings.inviteCopied', '邀请码已复制') });
+                              } catch {
+                                setInviteMessage({ type: 'success', text: invite.code });
+                              }
+                            }}
+                            className="min-w-0 truncate text-left text-[14px] font-semibold uppercase tracking-[0.08em] text-white"
+                          >
+                            {invite.code}
+                          </button>
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                            used
+                              ? 'border-white/10 bg-white/[0.06] text-white/45'
+                              : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+                          }`}>
+                            {used ? t(language, 'settings.inviteUsed', '已使用') : t(language, 'settings.inviteActive', '可用')}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 text-[11px] leading-4 text-white/35">
+                          {used && invite.usedByEmail
+                            ? t(language, 'settings.inviteUsedBy', '已被 {{email}} 使用', { email: invite.usedByEmail })
+                            : t(language, 'settings.inviteTapToCopy', '点击邀请码复制')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 修改密码 Modal */}
             {showChangePassword && (
@@ -365,7 +501,7 @@ export default function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.186
+                  v10.7.9.187
                 </span>
               </div>
 
@@ -448,7 +584,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.186</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.187</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>

@@ -4,6 +4,46 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 注册邀请码和官方登录 Logo
+
+- Background: 用户指出登录页 Logo 应使用提供的官方 PNG,注册页需要二次确认密码,并新增邀请码注册门槛;邀请码生成入口只给管理员账号 `chenshuai1190@gmail.com`。
+- Changes:
+  - `public/quote-logo.png` 加入用户提供的官方 PNG,`src/Login.jsx` 登录页 Logo 改为直接引用官方资产,不再使用自绘图标。
+  - 注册模式新增确认密码和邀请码输入;注册前先校验两次密码一致、邀请码非空,提交后走服务端 `/api/register`。
+  - `api/register.js` 和 `server/inviteCodes.js` 新增服务端邀请码校验、Supabase Auth Admin 创建用户、邀请码消费和失败回滚逻辑;前端旧 `signUp` helper 改为失败保护,避免误接回公开注册。
+  - `api/invite-codes.js` 新增管理员邀请码接口,使用当前 Supabase access token 鉴权,仅允许 `chenshuai1190@gmail.com` 生成和查看邀请码。
+  - 设置页为管理员新增邀请码管理卡片,支持生成、查看状态和复制邀请码;普通用户不显示入口。
+  - `supabase/invite_codes.sql` 新增邀请码表独立迁移,`supabase/rls.sql` 同步 `invite_codes` 表和管理员只读 RLS 策略;`docs/security-hardening.md` 补充邀请码注册的生产前置条件。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.187`,新增“注册邀请码和官方登录 Logo”。
+  - 保持登录鉴权、忘记密码、已登录 App、行情、交易账本、EODHD 服务端 token、`/api/quote` 鉴权和三套 realtime relay 不变。
+- Key files:
+  - `src/Login.jsx`
+  - `src/lib/supabase.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `api/register.js`
+  - `api/invite-codes.js`
+  - `server/inviteCodes.js`
+  - `supabase/invite_codes.sql`
+  - `supabase/rls.sql`
+  - `public/quote-logo.png`
+  - `tests/invite-api.test.js`
+  - `tests/invite-codes.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/security-hardening.md`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,103 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/Login-DLTnSbps.js`、`dist/assets/supabase-BPD9vnut.js`、`dist/assets/SettingsTab-Sl8PrMut.js`、`dist/assets/settingsChangelog-Cm-IGhgi.js`、`dist/assets/i18n-CI9FFJOH.js`、`dist/assets/App-BRrBpWnO.js` 和 `dist/assets/index-Bg0a2JEX.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Local mobile visual QA: 使用本地 Vite `http://127.0.0.1:5173/` 和 Playwright `390x844` 检查英文默认登录页与注册页;`/quote-logo.png` 渲染为 `78x78`,标题 `Quote` 为 `52px/400`,注册页显示 `Phone / Email`、`Password`、`Confirm Password`、`Invite Code` 四个输入框,提交按钮和底部切换文字均在首屏内,`scrollWidth=390`、`scrollHeight=844`;截图输出到 `outputs/login-v187-signin.png` 和 `outputs/login-v187-signup.png`。
+  - Build marker: `Login-DLTnSbps.js` contains `/quote-logo.png`、`Confirm Password`、`Invite Code` and `Sign Up Now`;`supabase-BPD9vnut.js` contains `/api/register` and `注册需要邀请码`;`SettingsTab-Sl8PrMut.js` contains `v10.7.9.187`、`chenshuai1190@gmail.com` and `/api/invite-codes`;`settingsChangelog-Cm-IGhgi.js` contains `v10.7.9.187` and `注册邀请码和官方登录 Logo`;`i18n-CI9FFJOH.js` contains `Invite Codes`。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending.
+- Rollback: 回退本条涉及的官方登录 Logo、注册确认密码/邀请码 UI、`/api/register`、`/api/invite-codes`、`server/inviteCodes.js`、`invite_codes` SQL、设置页管理员卡片、`v10.7.9.187` 设置页版本/更新日志、测试和本日志即可;不影响行情、交易账本、持仓计算、EODHD 服务端 token 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - 登录页 Quote 深色重设计
 
 - Background: 用户提供登录页英文/中文效果图,要求未登录首屏重做为深色金融登录界面,右上角新增中英切换,默认英文,并严格控制 Logo、标题、输入框和文字大小。

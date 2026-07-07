@@ -27,6 +27,12 @@ This project started as a personal hand-built app, so the first priority is to m
    - `/api/btc-realtime`, `/api/indices-realtime`, and `/api/stocks-realtime` reject unauthenticated WebSocket upgrades.
    - `/api/quote` returns data when called from the logged-in app.
 
+5. Keep invite-only registration enforced.
+   - Run `supabase/invite_codes.sql` or the full `supabase/rls.sql` in the Supabase SQL editor before using invite registration.
+   - Set `SUPABASE_SERVICE_ROLE_KEY` only in Vercel server-side environment variables; never expose it as a `VITE_` variable or commit it.
+   - Keep the frontend registration path on `/api/register`, and disable direct public signups in Supabase Auth if hard invite-only enforcement is required.
+   - Only `chenshuai1190@gmail.com` should see the invite-code management panel in Settings.
+
 ## Code-Level Changes In This Baseline
 
 - `/api/quote` now requires a Supabase access token by default.
@@ -35,6 +41,7 @@ This project started as a personal hand-built app, so the first priority is to m
 - Frontend quote calls attach the current Supabase access token.
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
 - BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side. User stock streaming covers watchlist, main ledger positions, wave-record quote rows, and cost-basis tool quote rows.
+- Registration uses `/api/register` with server-side invite-code validation; invite-code administration uses `/api/invite-codes` and requires the logged-in admin account.
 - Quote provider requests now go through timeout-aware provider fetch helpers.
 - First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.
