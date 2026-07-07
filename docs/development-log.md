@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - BTC 卡位保留
 
-- Commit: pending
+- Commit: `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133`
 - Background: `v10.7.9.206` 修复 BTC 有新鲜 tick 时短暂显示“连接中”的问题后,用户线上截图反馈 BTC 第四张市场卡在某些首屏/切页状态下直接消失。复查确认 `v10.7.9.205` 把 BTC 从 `INDICES` REST 第四项拆出后,HomeTab 只有拿到 `btcMarketCard` 才追加第四格;当 BTC 首个 WebSocket tick 或 snapshot fallback 尚未到达时,渲染层只剩三张指数卡。
 - Changes:
   - `src/lib/btcRealtime.js` 新增 `createBtcPlaceholderMarketCard`,只生成 BTC 独立占位卡,不把 BTC 放回三大指数数组。
@@ -34,8 +34,11 @@
   - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
   - `git diff --check` pass。
   - Local marker check pass: built settings/changelog contain `v10.7.9.207`, `BTC 卡位保留` and retained `v10.7.9.206`;source/build contain `createBtcPlaceholderMarketCard`, `placeholderStatus`, `fmtOptionalMoney`, `btc=placeholder`;runtime code does not read or add `VITE_EODHD_TOKEN`.
-- Deployment: pending
-- Production verification: pending
+- Deployment: `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133` pushed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/33fKMVqUZZhQFsiN9WnJbi7rifVH`;production alias updated。
+- Production verification:
+  - PASS production recursive chunk marker check: key chunks `App-CXXSy1Eo.js`, `HomeTab-DNFGFngd.js`, `SettingsTab-D48cKnBI.js`, `settingsChangelog-DQGjDvmG.js`, `btcRealtime-CDUQ9WKl.js`, `i18n-QTvefRC5.js`, `index-NfQApHns.js`, `index-Bw14UaDN.css`.
+  - PASS production runtime markers: assets contain `v10.7.9.207`, `BTC 卡位保留`, retained `v10.7.9.206`, BTC placeholder marker `PENDING` / `BTC-USD.CC`, `/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`;assets do not contain stale `v10.7.9.202`.
+  - PASS auth boundaries: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` both return `401`.
 - Rollback: 回退本条涉及的 `createBtcPlaceholderMarketCard`、HomeTab BTC 占位组合、市场卡缺失数值显示、本地预览拆分场景、`v10.7.9.207` 设置页版本/更新日志、测试和本日志即可;三大指数拆分、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
 
 ### 2026-07-07 - BTC 连接态稳定
