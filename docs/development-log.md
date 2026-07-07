@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 英文头卡持仓文案收窄
 
-- Commit: `same commit`
+- Commit: `dc66bb9582c6523ed4fcae00b05bd99040dc9dd3`
 - Background: 用户反馈英文模式首页头部卡片的 `6 holdings · 0 trades` 文案过长,导致右侧持仓数量列挤压左侧今日盈亏/累计盈亏空间,英文版视觉间距和中文版不一致。
 - Changes:
   - 英文 `home.holdingsTrades` 改为只显示 `{{holdings}} holdings`,不再显示 `{{trades}} trades`。
@@ -29,8 +29,15 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/i18n-q8XSbp19.js`、`dist/assets/HomeTab-Qi2A0DUW.js`、`dist/assets/TradesTab-DVzcLE6A.js`、`dist/assets/SettingsTab-DtZQmBqo.js`、`dist/assets/settingsChangelog-DbLHjvpO.js`、`dist/assets/App-BzqwBdK_.js` 和 `dist/assets/index-_IatTwft.js` 等产物。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
-- Deployment: 待使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 Vercel 自动部署;不会直接改 Vercel、浏览器控制台或临时服务器文件。
-- Production verification: 待 Vercel 部署完成后验证 production marker、设置页版本、英文 holdings 文案和 API 鉴权边界。
+- Deployment:
+  - Runtime code commit `dc66bb9582c6523ed4fcae00b05bd99040dc9dd3` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GetsgNLTTa17GmsYQHrFQRVJyuQf`,description `Deployment has completed`。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=dc66bb9-english-holdings` returns `200` with `last-modified: Tue, 07 Jul 2026 07:40:16 GMT`;latest production entry is `index-DDhuXtiZ.js`;entry imports `App-BL5VLUZb.js`;`App-BL5VLUZb.js` imports `HomeTab-Qi2A0DUW.js`、`TradesTab-DVzcLE6A.js` and `SettingsTab-Cy6_oCZ3.js`。
+  - Production i18n marker: `i18n-q8XSbp19.js` contains `{{holdings}} holdings` and retains Chinese `{{holdings}}只 · {{trades}}笔`;old English `{{holdings}} holdings · {{trades}} trades` marker is absent。
+  - Production tab marker: `HomeTab-Qi2A0DUW.js` and `TradesTab-DVzcLE6A.js` do not contain the old `0.95fr 1fr 1.3fr` English metric-grid override。
+  - Production settings marker: `SettingsTab-Cy6_oCZ3.js` contains `v10.7.9.191`;`settingsChangelog-DbLHjvpO.js` contains `v10.7.9.191`、`英文头卡持仓文案收窄`、`v10.7.9.190` and `收盘锁定标签灰色弱化`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`。
 - Rollback: 回退英文 i18n 持仓文案、首页/交易页英文列宽覆写移除、`v10.7.9.191` 设置页版本/更新日志、测试和本日志即可;不影响中文显示、持仓/交易计算、行情、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 收盘锁定标签灰色弱化
