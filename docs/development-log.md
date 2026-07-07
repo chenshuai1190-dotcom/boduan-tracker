@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 盘前股票盘口兜底
 
-- Commit: local only,not committed yet.
+- Commit: `c6cb3a95d28e754a6ab6f8977497d84591e3035c`
 - Background: 用户用同一时间截图确认盘前阶段 `/api/quote` 的 REST 快照仍停留在旧价,而券商已显示新的盘前价;本地 EODHD 对比显示 `/ws/us` 成交流和 `/ws/us-quote` bid/ask 流比 REST 更接近券商盘前价,其中 `/ws/us-quote` 可在成交 tick 稀疏时提供盘口中间价兜底。
 - Changes:
   - 股票实时 relay 保留 `wss://ws.eodhistoricaldata.com/ws/us` 成交价作为主源,新增 `wss://ws.eodhistoricaldata.com/ws/us-quote` 盘口流作为盘前兜底。
@@ -33,7 +33,13 @@
   - `git diff --check` pass。
   - 本地 EODHD 双流采样使用 `.env.local` 的 `EODHD_API_KEY` 但不输出密钥: `2026-07-07T08:19:10.355Z` 起 4.5 秒内 `/ws/us` 和 `/ws/us-quote` 均收到 NVDA、MSFT、META、TSM、NOK、GOOGL 六只股票;示例 NVDA `trade=194.1839`、`quote midpoint=194.1689`,MSFT `trade=391.5701`、`quote midpoint=391.5583`,两条流在盘前 extended-hours 均可用。
   - 本地 relay 集成采样使用模拟客户端直接调用 `attachStocksRealtimeClient`: `2026-07-07T08:20:49.667Z` 起 25 秒内状态进入 `live/live:live`,收到 38 条 `stock_tick`,其中 `EODHD_WS` 成交流 32 条、`EODHD_WS_QUOTE` 盘口兜底 6 条。
-- Deployment: Not deployed;用户要求先本地测试验证。
+- Deployment:
+  - Runtime code commit `c6cb3a95d28e754a6ab6f8977497d84591e3035c` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6TguWULDhH1T1TgATUYBjcLo19RY`,description `Deployment has completed`。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=c6cb3a9-marker-final` returns `200` with `last-modified: Tue, 07 Jul 2026 08:25:20 GMT`;latest production entry is `index-Bmtf1M7G.js`;entry imports `App-Bu4RlFxR.js`、`SettingsTab-BUZvbevv.js`、`settingsChangelog-BhWZoWnz.js`、`HomeTab-Qi2A0DUW.js` and `TradesTab-DVzcLE6A.js`。
+  - Production settings marker: `SettingsTab-BUZvbevv.js` and `settingsChangelog-BhWZoWnz.js` contain `v10.7.9.192`;`settingsChangelog-BhWZoWnz.js` contains `盘前股票盘口兜底`;`App-Bu4RlFxR.js` contains `EODHD_WS_QUOTE` and `/api/stocks-realtime`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`。
 - Rollback: 回退本条涉及的双上游股票 realtime relay、`normalizeStockTick` 的 source/priceType 扩展、客户端 `EODHD_WS_QUOTE` 识别、`v10.7.9.192` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓成本/股数、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 英文头卡持仓文案收窄
