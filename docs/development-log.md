@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 首屏当日盈亏兜底
 
-- Commit: same commit.
+- Commit: `29f596bf7ffacacbc6b580fb5be04c34f019a5b5`
 - Background: `v10.7.9.201` 上线后,用户实测 iOS 主屏首次加载时持仓现价按预期显示 `--`,但头部今日盈亏、持仓分布汇总和单只持仓的当日盈亏也会短暂显示 `--`。复查确认原因是首屏 quote 行已经有当前价和昨收基准,但 `dailyPnlPrice` 字段仍为 `0`;`investmentSummary` 只要看到显式 `dailyPnlPrice: 0` 就把当日盈亏判为 unavailable。
 - Changes:
   - `investmentSummary` 对 `dailyPnlPrice: 0` 增加首屏兜底: 如果当前价和昨收基准有效,且 quote 行不是明确的盘后/收盘锁定状态,则先用当前价计算当日盈亏。
@@ -27,8 +27,12 @@
   - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
   - PASS `git diff --check`.
   - PASS local dist marker check: `SettingsTab-DmsLWCCv.js` contains `v10.7.9.202`;`settingsChangelog-SKFsyE6z.js` contains `v10.7.9.202` and `首屏当日盈亏兜底`;built app bundle contains the `dailyPnlPrice` fallback path.
-- Deployment: Pending.
-- Production verification: Pending.
+- Deployment: `29f596bf7ffacacbc6b580fb5be04c34f019a5b5` pushed to GitHub `main` via project SSH key;Vercel status `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HL65Ez5qkcCcCJ6uxkEW5hacNcDE`.
+- Production verification:
+  - PASS production HTML `https://boduan-tracker.vercel.app/?v=29f596b-v202-*` returns `200`,`last-modified: Tue, 07 Jul 2026 11:58:46 GMT`.
+  - PASS production entry `/assets/index-CtUH8gyF.js`;recursive runtime chunks include `App-BHlbiBGd.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-BGVXLs8k.js`,`settingsChangelog-SKFsyE6z.js`.
+  - PASS marker check: `SettingsTab-BGVXLs8k.js` contains `v10.7.9.202`;`settingsChangelog-SKFsyE6z.js` contains `v10.7.9.202`,`首屏当日盈亏兜底` and `after-hours/收盘锁定`;`App-BHlbiBGd.js` contains `dailyPnlPrice` and `dailyPnlLocked`.
+  - PASS auth boundary: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated snapshot `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`,`GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` all return `401`.
 - Rollback: 回退本条涉及的 `dailyPnlPrice: 0` 首屏兜底、`v10.7.9.202` 设置页版本/更新日志、测试和本开发日志即可;不影响持仓现价遮罩、iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本公式、数据库或鉴权边界。
 
 ### 2026-07-07 - 持仓现价遮罩占位优化
