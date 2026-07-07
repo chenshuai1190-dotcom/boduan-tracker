@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 首页指数和 BTC 行情拆分
 
-- Commit: pending
+- Commit: `ca31dec9f1b39dac47bf7d0c319cc607fa0d1f69`
 - Background: 用户反馈首页三大指数卡显示明显错误,截图中的标普500、纳斯达克100、道琼斯价格仍是上一交易日收盘/旧值。排查确认首页原先把三大指数和 BTC 都放在同一个 `indices` 数组里,`INDICES` REST provider 也把 BTC 作为第四张市场卡返回;iOS 主屏 snapshot 加速后更容易暴露该结构的互相覆盖风险。用户确认要把三大指数和 BTC 拆成两个独立系统,不要继续混在交易结构或同一个市场数组里。
 - Changes:
   - App 层新增独立 `marketIndices` 和 `btcMarketCard` 状态;三大指数 REST/WS 只写 `marketIndices`,BTC WebSocket/snapshot fallback 只写 `btcMarketCard`。
@@ -34,7 +34,12 @@
   - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
   - `git diff --check` pass。
   - Local marker check pass: dist contains `v10.7.9.205`, `首页指数和 BTC 行情拆分`, `/api/btc-realtime`, `/api/indices-realtime`; provider no longer contains `ticker: 'BTC-USD.CC'` and contains `source: 'Yahoo'`; no stale `v10.7.9.202` marker in built frontend chunks.
-- Deployment: pending
+- Deployment: `ca31dec9f1b39dac47bf7d0c319cc607fa0d1f69` pushed to GitHub `main` via project SSH key;GitHub Actions `build` check success (`28872186509`);Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/68MCvt2Mb39kpVo1LWhkSMx24ZYT`;production alias updated。
+- Production verification:
+  - PASS production HTML `https://boduan-tracker.vercel.app/?_ts=*` returns `200`,`last-modified: Tue, 07 Jul 2026 14:02:19 GMT`;entry `/assets/index-C5ct_8Vw.js`.
+  - PASS production recursive chunk marker check: fetched 20 files / 19 assets;key chunks `App-DZjWip0K.js`, `HomeTab-9WAhDrJj.js`, `SettingsTab-D3ciBd66.js`, `settingsChangelog-BWg-Blnx.js`, `btcRealtime-DuBVRasC.js`, `i18n-QTvefRC5.js`, `index-Bw14UaDN.css`.
+  - PASS production runtime markers: assets contain `v10.7.9.205`, `首页指数和 BTC 行情拆分`, retained `v10.7.9.204`, `/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`, `marketIndices`, `btcMarketCard`;assets do not contain stale `v10.7.9.202`.
+  - PASS auth boundaries: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` both return `401`.
 - Rollback: 回退本条涉及的 `marketIndices`/`btcMarketCard` 状态拆分、HomeTab 市场卡组合、`INDICES` provider 去 BTC、Yahoo 指数价优先、`v10.7.9.205` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓/成本/盈亏公式、股票 quote、BTC relay、股票/指数 snapshot 鉴权边界、数据库或 RLS。
 
 ### 2026-07-07 - iOS 主屏股票秒级刷新
