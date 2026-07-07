@@ -58,8 +58,9 @@ const IOS_PWA_VISIBLE_RETRY_MS = 120;
 const IOS_PWA_VISIBLE_RETRY_MAX_MS = 6000;
 const IOS_PWA_TOUCH_RESUME_THROTTLE_MS = 3000;
 const IOS_PWA_APP_SHELL_CHECK_MIN_INTERVAL_MS = 30_000;
-const IOS_PWA_REALTIME_SNAPSHOT_INTERVAL_MS = 2500;
-const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 1000, 2500, 5000, 9000];
+const IOS_PWA_REALTIME_SNAPSHOT_ACTIVE_INTERVAL_MS = 1250;
+const IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS = 2500;
+const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 800, 1600, 3000, 5000];
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -78,6 +79,26 @@ function localDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getUsMarketSession(date = new Date()) {
+  const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const et = new Date(etStr);
+  const day = et.getDay();
+  const time = et.getHours() + et.getMinutes() / 60;
+
+  if (day === 0 || day === 6) return 'closed';
+  if (time >= 9.5 && time < 16) return 'regular';
+  if (time >= 4 && time < 9.5) return 'premarket';
+  if (time >= 16 && time < 20) return 'postmarket';
+  return 'closed';
+}
+
+function getIosPwaRealtimeSnapshotInterval(date = new Date()) {
+  const session = getUsMarketSession(date);
+  return session === 'regular' || session === 'premarket' || session === 'postmarket'
+    ? IOS_PWA_REALTIME_SNAPSHOT_ACTIVE_INTERVAL_MS
+    : IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS;
 }
 
 function validRate(value) {
@@ -3352,32 +3373,13 @@ function MainApp({ user, onLogout }) {
   // - 页面隐藏              : 暂停 (省电 + 省 API)
   // - 页面回来              : 立刻拉一次
   const getMarketRefreshInterval = () => {
-    // 获取美东时间
-    const now = new Date();
-    const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
-    const et = new Date(etStr);
-    const day = et.getDay();          // 0=周日, 6=周六
-    const hour = et.getHours();
-    const minute = et.getMinutes();
-    const time = hour + minute / 60;  // 小数小时, 如 9.5 = 9:30
-
-    // 周末: 休市
-    if (day === 0 || day === 6) {
-      return 5 * 60 * 1000; // 5 分钟
-    }
-    // 开盘 9:30 - 16:00
-    if (time >= 9.5 && time < 16) {
+    const session = getUsMarketSession();
+    if (session === 'regular') {
       return 10 * 1000; // 10 秒
     }
-    // 盘前 4:00 - 9:30
-    if (time >= 4 && time < 9.5) {
+    if (session === 'premarket' || session === 'postmarket') {
       return 30 * 1000; // 30 秒
     }
-    // 盘后 16:00 - 20:00
-    if (time >= 16 && time < 20) {
-      return 30 * 1000; // 30 秒
-    }
-    // 深夜/凌晨: 休市
     return 5 * 60 * 1000; // 5 分钟
   };
 
@@ -4130,7 +4132,7 @@ function MainApp({ user, onLogout }) {
       pollTimer = window.setTimeout(async () => {
         await runSnapshotPoll();
         if (!stopped) schedulePoll();
-      }, IOS_PWA_REALTIME_SNAPSHOT_INTERVAL_MS);
+      }, getIosPwaRealtimeSnapshotInterval());
     };
 
     const resumePoll = (event) => {

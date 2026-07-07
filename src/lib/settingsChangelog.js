@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.203', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.204', date: '2026-07-07', latest: true,
+    items: [
+      '⚡ iOS 主屏股票秒级刷新',
+      '  - iOS 主屏股票和指数 snapshot 在美股盘前、盘中和盘后切到 1.25 秒活跃刷新,减少和普通网页直连的体感差距',
+      '  - 启动和回前台 snapshot burst 前移到 0/0.8/1.6/3/5 秒,更快拿到本轮新 tick',
+      '  - BTC 保持独立 WebSocket,不改 EODHD token、/api/quote 鉴权、交易账本、持仓数量、成本、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.203', date: '2026-07-07',
     items: [
       '₿ BTC 主屏连接恢复',
       '  - iOS 主屏返回或刷新时,BTC 恢复使用原有 WebSocket 稳定连接,不再被股票 snapshot burst 标成同步中',
