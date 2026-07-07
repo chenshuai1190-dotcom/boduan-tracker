@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.197', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.198', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 主屏启动实时预热',
+      '  - iOS 主屏首次进入、云数据加载完成和回前台时触发多轮 realtime snapshot burst,减少先显示旧价格再等待 tick 的时间',
+      '  - iOS 主屏恢复链路优先使用服务端 EODHD realtime snapshot,不再先用 /api/quote REST 快照覆盖交易页实时价格',
+      '  - BTC 卡新增“同步中/Syncing”状态,拿到实时 tick 后自动恢复 LIVE',
+      '  - 不改交易账本、持仓数量、成本、今日盈亏公式、EODHD token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.197', date: '2026-07-07',
     items: [
       '📡 iOS 主屏行情轮询模式',
       '  - 自动识别 iOS 添加到主屏幕的 standalone Web App,切换到认证 HTTP snapshot 轮询,普通 Safari/桌面继续走 WebSocket',

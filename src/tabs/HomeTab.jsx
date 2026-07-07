@@ -237,6 +237,18 @@ function marketCardName(item, language) {
   return map[ticker] || item?.displaySymbol || item?.symbol || item?.ticker || item?.name;
 }
 
+function marketRealtimeLabel(realtimeStatus, language) {
+  if (realtimeStatus === 'live') return 'LIVE';
+  if (realtimeStatus === 'fallback') return 'REST';
+  if (realtimeStatus === 'warming') return t(language, 'home.market.warming', '同步中');
+  if (realtimeStatus === 'connecting' || realtimeStatus === 'reconnecting') {
+    return t(language, 'home.market.connecting', '连接中');
+  }
+  if (realtimeStatus === 'paused') return t(language, 'home.market.paused', '暂停');
+  if (realtimeStatus === 'stale') return t(language, 'home.market.stale', '延迟');
+  return '';
+}
+
 function MiniMarketCard({ item, marketColorMode, language }) {
   if (item?.error) {
     return (
@@ -251,11 +263,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
   const ticker = item?.displaySymbol || item?.symbol || item?.ticker || '--';
   const isBtc = isBtcMarketCard(item);
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
-  const realtimeLabel = realtimeStatus === 'live'
-    ? 'LIVE'
-    : (realtimeStatus === 'fallback' ? 'REST'
-      : (realtimeStatus === 'connecting' || realtimeStatus === 'reconnecting' ? t(language, 'home.market.connecting', '连接中')
-        : (realtimeStatus === 'paused' ? t(language, 'home.market.paused', '暂停') : (realtimeStatus === 'stale' ? t(language, 'home.market.stale', '延迟') : ''))));
+  const realtimeLabel = marketRealtimeLabel(realtimeStatus, language);
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5 min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="flex min-w-0 items-start justify-between gap-1.5">

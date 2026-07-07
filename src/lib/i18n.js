@@ -36,6 +36,7 @@ const messages = {
     'nav.settings': '设置',
 
     'home.market.fetchFailed': '拉取失败',
+    'home.market.warming': '同步中',
     'home.market.connecting': '连接中',
     'home.market.paused': '暂停',
     'home.market.stale': '延迟',
@@ -534,6 +535,7 @@ const messages = {
     'nav.settings': 'Settings',
 
     'home.market.fetchFailed': 'Failed',
+    'home.market.warming': 'Syncing',
     'home.market.connecting': 'Connecting',
     'home.market.paused': 'Paused',
     'home.market.stale': 'Delayed',

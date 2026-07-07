@@ -59,6 +59,7 @@ const IOS_PWA_VISIBLE_RETRY_MAX_MS = 6000;
 const IOS_PWA_TOUCH_RESUME_THROTTLE_MS = 3000;
 const IOS_PWA_APP_SHELL_CHECK_MIN_INTERVAL_MS = 30_000;
 const IOS_PWA_REALTIME_SNAPSHOT_INTERVAL_MS = 2500;
+const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 1000, 2500, 5000, 9000];
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -1212,6 +1213,7 @@ function MainApp({ user, onLogout }) {
   const pwaAppShellCheckInFlightRef = useRef(false);
   const pwaLastAppShellCheckAtRef = useRef(0);
   const pwaAppShellReloadQueuedRef = useRef(false);
+  const iosPwaRealtimeSnapshotBurstRef = useRef(() => false);
 
   const fetchQuote = useCallback(async (symbols, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
@@ -3021,6 +3023,9 @@ function MainApp({ user, onLogout }) {
     }
     pendingPwaResumeRefreshRef.current = null;
     pwaLastResumeRefreshAtRef.current = now;
+    if (isIosStandaloneWebApp() && iosPwaRealtimeSnapshotBurstRef.current(nextTrigger)) {
+      return;
+    }
     requestQuickQuoteRefresh(null, {
       trigger: nextTrigger,
       force: true,
@@ -3120,6 +3125,11 @@ function MainApp({ user, onLogout }) {
   }, []);
 
   quoteRefreshFromCloudResultRef.current = (result) => {
+    if (isIosStandaloneWebApp()) {
+      if (iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud')) return;
+      pendingPwaResumeRefreshRef.current = 'auto-ios-pwa-snapshot-cloud';
+      return;
+    }
     requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result), {
       trigger: 'auto-start-cloud',
       force: true,
@@ -4014,6 +4024,7 @@ function MainApp({ user, onLogout }) {
 
     let stopped = false;
     let pollTimer = null;
+    const burstTimers = new Set();
     let inFlight = false;
 
     const parseSnapshotResponse = async (response, label) => {
@@ -4024,10 +4035,27 @@ function MainApp({ user, onLogout }) {
       return result.data || {};
     };
 
+    const clearBurstTimers = () => {
+      burstTimers.forEach((timerId) => window.clearTimeout(timerId));
+      burstTimers.clear();
+    };
+
+    const markSnapshotWarming = () => {
+      setBtcRealtimeStatus('warming');
+      setIndexRealtimeStatus('warming');
+      stockRealtimeRef.current.status = 'warming';
+    };
+
+    const keepPendingStatus = (setter) => {
+      setter((status) => (status === 'live' || status === 'warming' ? status : 'polling'));
+    };
+
     const runSnapshotPoll = async (trigger = 'auto-ios-pwa-snapshot', options = {}) => {
       const forceSnapshot = options?.force === true;
+      const warmSnapshot = options?.warm === true;
       if (stopped || inFlight) return;
       if (!forceSnapshot && document.hidden) return;
+      if (warmSnapshot) markSnapshotWarming();
       inFlight = true;
       const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
       try {
@@ -4046,10 +4074,10 @@ function MainApp({ user, onLogout }) {
           if (snapshot?.tick) {
             applyBtcRealtimeTick(snapshot.tick, 'live');
           } else {
-            setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+            keepPendingStatus(setBtcRealtimeStatus);
           }
         } else {
-          setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+          keepPendingStatus(setBtcRealtimeStatus);
         }
 
         if (indicesResult.status === 'fulfilled') {
@@ -4057,10 +4085,10 @@ function MainApp({ user, onLogout }) {
           const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
           ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
           if (ticks.length === 0) {
-            setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+            keepPendingStatus(setIndexRealtimeStatus);
           }
         } else {
-          setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+          keepPendingStatus(setIndexRealtimeStatus);
         }
 
         if (stocksResult) {
@@ -4068,9 +4096,13 @@ function MainApp({ user, onLogout }) {
             const snapshot = await parseSnapshotResponse(stocksResult.value, 'stocks');
             const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
             ticks.forEach((tick) => applyStockRealtimeTick(tick, 'live'));
-            if (ticks.length === 0) stockRealtimeRef.current.status = 'polling';
+            if (ticks.length === 0 && stockRealtimeRef.current.status !== 'warming') {
+              stockRealtimeRef.current.status = 'polling';
+            }
           } else {
-            stockRealtimeRef.current.status = 'polling';
+            if (stockRealtimeRef.current.status !== 'warming') {
+              stockRealtimeRef.current.status = 'polling';
+            }
           }
         }
 
@@ -4082,6 +4114,24 @@ function MainApp({ user, onLogout }) {
       }
     };
 
+    const startSnapshotBurst = (trigger = 'auto-ios-pwa-snapshot-burst') => {
+      if (stopped) return false;
+      clearBurstTimers();
+      markSnapshotWarming();
+      IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS.forEach((delayMs, index) => {
+        const timerId = window.setTimeout(() => {
+          burstTimers.delete(timerId);
+          runSnapshotPoll(`${trigger}-burst-${index + 1}`, {
+            force: true,
+            warm: index === 0,
+          });
+        }, delayMs);
+        burstTimers.add(timerId);
+      });
+      schedulePoll();
+      return true;
+    };
+
     const schedulePoll = () => {
       if (pollTimer) clearTimeout(pollTimer);
       pollTimer = window.setTimeout(async () => {
@@ -4091,15 +4141,11 @@ function MainApp({ user, onLogout }) {
     };
 
     const resumePoll = () => {
-      runSnapshotPoll('auto-ios-pwa-snapshot-resume', { force: true });
-      schedulePoll();
+      startSnapshotBurst('auto-ios-pwa-snapshot-resume');
     };
 
-    setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
-    setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
-    stockRealtimeRef.current.status = 'polling';
-    runSnapshotPoll('auto-ios-pwa-snapshot-start', { force: true });
-    schedulePoll();
+    iosPwaRealtimeSnapshotBurstRef.current = startSnapshotBurst;
+    startSnapshotBurst('auto-ios-pwa-snapshot-start');
 
     document.addEventListener('visibilitychange', resumePoll);
     window.addEventListener('pageshow', resumePoll);
@@ -4109,6 +4155,10 @@ function MainApp({ user, onLogout }) {
     return () => {
       stopped = true;
       if (pollTimer) clearTimeout(pollTimer);
+      clearBurstTimers();
+      if (iosPwaRealtimeSnapshotBurstRef.current === startSnapshotBurst) {
+        iosPwaRealtimeSnapshotBurstRef.current = () => false;
+      }
       document.removeEventListener('visibilitychange', resumePoll);
       window.removeEventListener('pageshow', resumePoll);
       window.removeEventListener('focus', resumePoll);

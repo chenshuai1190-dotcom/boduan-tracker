@@ -4,6 +4,33 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - iOS 主屏启动实时预热
+
+- Commit: 待本条代码提交生成。
+- Background: `v10.7.9.197` 已解决 iOS 添加到主屏幕 Web App 交易/首页实时行情静态的问题,用户确认主流程恢复正常;剩余问题是首次进入或回前台时会先看到上一轮页面内存/旧报价状态,大约等待后才被实时 tick 修正。复查后判断主要风险是 iOS standalone 恢复链路仍会触发 `/api/quote` REST 快照,可能在 realtime snapshot warm-up 前先覆盖一次旧/延迟价格。
+- Changes:
+  - iOS standalone snapshot 模式新增启动/恢复 burst: 首次进入、云数据加载完成、回前台、`pageshow`、`focus` 和 `online` 会在 0/1/2.5/5/9 秒触发多轮认证 realtime snapshot,再回到常规 2.5 秒轮询。
+  - iOS 主屏恢复和云数据加载完成后优先触发服务端 EODHD realtime snapshot burst;如果该链路可用,不再先触发 `/api/quote` REST 快照覆盖交易页实时价格。
+  - BTC 小卡新增 `warming` 状态,显示“同步中/Syncing”;拿到实时 tick 后自动恢复 `LIVE`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.198`,新增“iOS 主屏启动实时预热”。
+  - 不改 `/api/*-realtime` 服务端 snapshot 接口、EODHD token、`/api/quote` 鉴权、交易账本、持仓数量、成本、今日盈亏公式、数据库结构或 RLS。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,30 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BGEpKx1f.js`、`dist/assets/HomeTab-vv-Wf58v.js`、`dist/assets/SettingsTab-B8tzqbTt.js`、`dist/assets/settingsChangelog-DbSQBxZ_.js`、`dist/assets/i18n-QTvefRC5.js` 和 `dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment: 待推送后补充;必须继续使用本机 SSH key `~/.ssh/boduan_tracker_github`,不得改 Vercel 控制台、浏览器控制台或临时服务器文件。
+- Rollback: 回退本条涉及的 iOS standalone snapshot burst、REST 恢复分流、`warming` 状态文案、`v10.7.9.198` 设置页版本/更新日志、测试和本开发日志即可;不影响 `v10.7.9.197` 的服务端 snapshot API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - iOS 主屏行情轮询模式
 
 - Commit: `4451ee32d3cbff1678fec74c715de5bb48de4ec1`
