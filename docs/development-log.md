@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 主屏股票秒级刷新
 
-- Commit: pending
+- Commit: `d6ef1695bb0fb9c3cb2206a50f61756e85789eb2`
 - Background: `v10.7.9.203` 已把 BTC 从 iOS 主屏股票/指数 snapshot 轮询中拆出并恢复独立 WebSocket。用户继续确认普通 Safari 网页直连比 iOS 主屏 Web App 明显更快,同意采用“活跃时提高 snapshot 频率、非活跃降频”的方案,在不回退股票 snapshot 兼容策略的前提下提升盘前/盘中/盘后体感速度。
 - Changes:
   - iOS 主屏股票/指数 snapshot 新增美股时段自适应间隔:盘前、盘中、盘后使用 `IOS_PWA_REALTIME_SNAPSHOT_ACTIVE_INTERVAL_MS = 1250`,其它时段保留 `IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS = 2500`。
@@ -28,7 +28,12 @@
   - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
   - PASS `git diff --check`.
   - PASS local dist marker check: source contains `IOS_PWA_REALTIME_SNAPSHOT_ACTIVE_INTERVAL_MS = 1250`,`IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS = 2500` and burst `0/0.8/1.6/3/5`;`App-Y4NKQXUq.js` contains the minified faster burst,`America/New_York`,`/api/btc-realtime`,`/api/stocks-realtime`,`/api/indices-realtime` and `stockFreshnessStartedAt`;`App-Y4NKQXUq.js` does not contain BTC snapshot fetch/minified BTC snapshot call or `setBtcRealtimeStatus('warming')`;`SettingsTab-B24wGHXg.js` contains `v10.7.9.204`;`settingsChangelog-BHgcb57S.js` contains `v10.7.9.204`,`iOS 主屏股票秒级刷新` and retained `BTC 主屏连接恢复`.
-- Deployment: pending
+- Deployment: `d6ef1695bb0fb9c3cb2206a50f61756e85789eb2` pushed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/4bMGSLpskj7RBjYDr2pCpZzjXUwX`。
+- Production verification:
+  - PASS production HTML `https://boduan-tracker.vercel.app/?v=d6ef169-v204-ios-speed-*` returns `200`,`last-modified: Tue, 07 Jul 2026 13:41:20 GMT`;entry `/assets/index-DnB_Z168.js`.
+  - PASS recursive production chunks include `/assets/App-BSWC9NlH.js`,`/assets/HomeTab-BzDNIrHi.js`,`/assets/TradesTab-DvTLX5c4.js`,`/assets/SettingsTab-xej1q5lA.js`,`/assets/settingsChangelog-BHgcb57S.js`,`/assets/i18n-QTvefRC5.js`,`/assets/btcRealtime-BPO454lO.js`.
+  - PASS marker check: `SettingsTab-xej1q5lA.js` contains `v10.7.9.204`;`settingsChangelog-BHgcb57S.js` contains `v10.7.9.204`,`iOS 主屏股票秒级刷新` and retained `BTC 主屏连接恢复`;`App-BSWC9NlH.js` contains `/api/btc-realtime`,`/api/stocks-realtime`,`/api/indices-realtime`,`America/New_York`,the faster burst `0/0.8/1.6/3/5` and `stockFreshnessStartedAt`;production chunks do not contain BTC snapshot fetch/minified BTC snapshot call or `setBtcRealtimeStatus('warming')`;production chunks do not contain `v10.7.9.202` or `首屏当日盈亏兜底`.
+  - PASS auth boundary: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated snapshot `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`,`GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` all return `401`.
 - Rollback: 回退本条涉及的 iOS snapshot active/idle 间隔、burst delays、`getUsMarketSession` helper 复用、`v10.7.9.204` 设置页版本/更新日志、测试和本日志即可;不影响 BTC WebSocket 恢复、股票/指数 snapshot 鉴权边界、持仓现价 freshness 遮罩、交易账本、持仓/成本/盈亏公式或数据库。
 
 ### 2026-07-07 - BTC 主屏连接恢复
