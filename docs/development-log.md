@@ -41,7 +41,10 @@
   - Build marker: `Login-DLTnSbps.js` contains `/quote-logo.png`、`Confirm Password`、`Invite Code` and `Sign Up Now`;`supabase-BPD9vnut.js` contains `/api/register` and `注册需要邀请码`;`SettingsTab-Sl8PrMut.js` contains `v10.7.9.187`、`chenshuai1190@gmail.com` and `/api/invite-codes`;`settingsChangelog-Cm-IGhgi.js` contains `v10.7.9.187` and `注册邀请码和官方登录 Logo`;`i18n-CI9FFJOH.js` contains `Invite Codes`。
   - `git diff --check` pass。
 - Deployment:
-  - Pending.
+  - Runtime code commit `3f1b5f29403d0138e091a648c0d62f2fe5529a0f` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, deployment `5339459696`, target `https://boduan-tracker-dp36sma0y-chenshuai1190-7580s-projects.vercel.app`。
+  - Production marker: `https://boduan-tracker.vercel.app` root returns 200, latest production entry is `index-BbXjDBN6.js`;entry imports `Login-DhzFHA0_.js`、`App-DSO7nYo3.js`、`SettingsTab-BJoIyZRN.js`、`settingsChangelog-Cm-IGhgi.js` and `i18n-CI9FFJOH.js`;`Login-DhzFHA0_.js` contains `/quote-logo.png`、`Confirm Password` and `Invite Code`;`supabase-DShqrWAV.js` contains `/api/register` and `注册需要邀请码`;`SettingsTab-BJoIyZRN.js` contains `v10.7.9.187`、`chenshuai1190@gmail.com` and `/api/invite-codes`;`settingsChangelog-Cm-IGhgi.js` contains `v10.7.9.187` and `注册邀请码和官方登录 Logo`;`i18n-CI9FFJOH.js` contains `Invite Codes`;`/quote-logo.png` returns 200 `image/png`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with no-store cache headers;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;`POST /api/register` without invite code returns `403` `邀请码不正确`;unauthenticated `GET /api/invite-codes` returns `401` `未授权: 请先登录`。
 - Rollback: 回退本条涉及的官方登录 Logo、注册确认密码/邀请码 UI、`/api/register`、`/api/invite-codes`、`server/inviteCodes.js`、`invite_codes` SQL、设置页管理员卡片、`v10.7.9.187` 设置页版本/更新日志、测试和本日志即可;不影响行情、交易账本、持仓计算、EODHD 服务端 token 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 登录页 Quote 深色重设计
