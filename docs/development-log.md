@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 主屏持仓现价遮罩
 
-- Commit: 本条代码提交;最终 Git hash 随部署记录回填。
+- Commit: `78d7842d55229be80832713ceab88e79787d3393`
 - Background: 用户确认 iOS 添加到主屏幕 Web App 的实时行情链路恢复正常后,仍可能在首次进入或切回前台时先看到上一轮缓存价格,约几十秒后才恢复到实时 tick。进一步讨论后决定不在每只持仓显示“同步中”,而是更克制地只对未拿到本轮新 tick 的“现价”显示 `----`,避免用户误读旧价格为实时价。
 - Changes:
   - `App.jsx` 在 iOS standalone snapshot warming 开始时记录 `warmStartedAt`,并通过 tab context 暴露为 `stockFreshnessStartedAt`。
@@ -29,8 +29,10 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
   - Dist marker check: pass;`App-BPHuO4lw.js` contains `stockFreshnessStartedAt`;`HomeTab-X9kqjGyH.js` and `TradesTab-DX1_RyGI.js` contain `----`;`SettingsTab-BRuzIWqf.js` contains `v10.7.9.199`;`settingsChangelog-BaaN4RXT.js` contains `iOS 主屏持仓现价遮罩`。
-- Deployment: Pending.
-- Production verification: Pending.
+- Deployment: `78d7842d55229be80832713ceab88e79787d3393` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-CWldUWCS.js`, App chunk `App-O0JpcTkx.js`, Home chunk `HomeTab-X9kqjGyH.js`, Trades chunk `TradesTab-DX1_RyGI.js`, Settings chunk `SettingsTab-FfonpVqJ.js`, changelog chunk `settingsChangelog-BaaN4RXT.js`, i18n chunk `i18n-QTvefRC5.js`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=78d7842-v199-verify` returns `200`;entry `/assets/index-CWldUWCS.js`;`App-O0JpcTkx.js` contains `stockFreshnessStartedAt`;`HomeTab-X9kqjGyH.js` and `TradesTab-DX1_RyGI.js` contain `stockFreshnessStartedAt` and `----`;`SettingsTab-FfonpVqJ.js` contains `v10.7.9.199`;`settingsChangelog-BaaN4RXT.js` contains `v10.7.9.199` and `iOS 主屏持仓现价遮罩`;`i18n-QTvefRC5.js` still contains `同步中` / `Syncing`。
+  - Production unauthenticated boundary check: `/api/quote?symbols=VIX` returns `401`;HTTPS plain `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`、`GET /api/btc-realtime?snapshot=1`、`GET /api/indices-realtime?snapshot=1` all return `401`。
 - Rollback: 回退本条涉及的 `warmStartedAt`/`stockFreshnessStartedAt` 透传、首页/交易持仓现价 `----` 遮罩、`v10.7.9.199` 设置页版本/更新日志、测试和本开发日志即可;不影响 iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
 
 ### 2026-07-07 - iOS 主屏启动实时预热
