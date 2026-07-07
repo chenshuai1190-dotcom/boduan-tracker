@@ -14,6 +14,7 @@
   - 注册模式表单上边距从 `42px` 收紧到 `28px`,在 Logo 放大后仍保证 390x844 注册首屏不产生纵向溢出。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.188`,新增“登录 Logo 裁剪贴合”。
   - 在 Supabase 项目 `ykgotnmtqcqdzqtrlayq` SQL Editor 执行 `supabase/invite_codes.sql`,创建/确认 `public.invite_codes`、索引、RLS 和管理员只读策略。
+  - 在 Supabase Authentication -> Sign In / Providers 关闭 `Allow new users to sign up`,避免绕过应用邀请码注册入口直接使用 Supabase public signup。
   - 保持登录鉴权、注册邀请码服务端逻辑、忘记密码、已登录 App、行情、交易账本、EODHD 服务端 token、`/api/quote` 鉴权和三套 realtime relay 不变。
 - Key files:
   - `src/Login.jsx`
@@ -30,6 +31,7 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - Local mobile visual QA: 使用本地 Vite `http://127.0.0.1:5173/` 和 Playwright `390x844` 检查英文默认登录页与注册页;登录页和注册页均为 `scrollWidth=390`、`scrollHeight=844`;`/quote-logo-login.png` 自然尺寸 `512x512`,渲染尺寸 `92x92`;注册页显示 `Phone / Email`、`Password`、`Confirm Password`、`Invite Code` 四个输入框,提交按钮和底部切换文字均在首屏内;截图输出到 `outputs/login-v188-signin.png` 和 `outputs/login-v188-signup.png`。
   - Supabase SQL verification: `supabase/invite_codes.sql` 执行后页面返回 `Success. No rows returned`;只读校验查询返回 `invite_codes_regclass=invite_codes`、`rls_enabled=true`、`admin_select_policy_count=1`。
+  - Supabase Auth verification: `Allow new users to sign up` 开关从 `true` 改为 `false`,点击 `Save changes` 后刷新页面再次读取,第一个 User Signups switch 仍为 `aria-checked=false`。
   - Build marker: `Login-xtUE5VAH.js` contains `/quote-logo-login.png`、`h-[92px]`、`Confirm Password` and `Invite Code`;`SettingsTab-B1QQ_aKN.js` contains `v10.7.9.188`;`settingsChangelog-B7-rslcJ.js` contains `v10.7.9.188` and `登录 Logo 裁剪贴合`。
   - `git diff --check` pass。
 - Deployment:
@@ -39,7 +41,7 @@
   - Production chunk marker: `Login-M4WhaDrr.js` contains `/quote-logo-login.png`、`h-[92px]`、`mt-[28px]` and does not directly shrink `/quote-logo.png`;`SettingsTab-CgYQ042R.js` contains `v10.7.9.188`;`settingsChangelog-B7-rslcJ.js` contains `v10.7.9.188` and `登录 Logo 裁剪贴合`;`/quote-logo-login.png` returns 200 `image/png`,PNG signature verified。
   - Production mobile visual QA: 使用 Playwright `390x844` 访问生产未登录页;登录页和注册页均为 `scrollWidth=390`、`scrollHeight=844`;`/quote-logo-login.png` 自然尺寸 `512x512`,渲染尺寸 `92x92`;注册页显示 `Phone / Email`、`Password`、`Confirm Password`、`Invite Code`;截图输出到 `outputs/login-v188-prod-signin.png` 和 `outputs/login-v188-prod-signup.png`。
   - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with no-store cache headers;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;`POST /api/register` without invite code returns `403` `邀请码不正确`;unauthenticated `GET /api/invite-codes` returns `401` `未授权: 请先登录`。
-- Rollback: 回退 `src/Login.jsx` 的 Logo 引用/尺寸/注册上边距、删除 `public/quote-logo-login.png`、回退 `v10.7.9.188` 设置页版本/更新日志、测试和本日志即可;如需回退 Supabase 配置,需手动删除 `public.invite_codes` 或撤销对应 RLS policy;不影响行情、交易账本、持仓计算、EODHD 服务端 token 或 `/api/quote` 鉴权。
+- Rollback: 回退 `src/Login.jsx` 的 Logo 引用/尺寸/注册上边距、删除 `public/quote-logo-login.png`、回退 `v10.7.9.188` 设置页版本/更新日志、测试和本日志即可;如需回退 Supabase 配置,需手动删除 `public.invite_codes` 或撤销对应 RLS policy,并重新打开 `Allow new users to sign up`;不影响行情、交易账本、持仓计算、EODHD 服务端 token 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 注册邀请码和官方登录 Logo
 
