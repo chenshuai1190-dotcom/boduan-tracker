@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.194', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.195', date: '2026-07-07', latest: true,
+    items: [
+      '📡 股票实时订阅补发',
+      '  - 股票 realtime relay 在新客户端接入时会对当前 symbol 集重新发送幂等 subscribe,避免 warm upstream 连接漏推个别持仓股票',
+      '  - 继续保留 iOS 主屏 App Shell 检查、可见 heartbeat、per-symbol freshness 和 120 秒缓存回放限制',
+      '  - 不改交易账本、持仓数量、成本、今日盈亏公式、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.194', date: '2026-07-07',
     items: [
       '📡 iOS 主屏股票实时恢复',
       '  - iOS 添加到主屏幕版本回前台时自动检查 App Shell 是否仍是旧版本,发现新 bundle 会刷新到最新运行时代码',

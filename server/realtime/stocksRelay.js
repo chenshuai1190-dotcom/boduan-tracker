@@ -180,6 +180,21 @@ function reconcileAllSubscriptions() {
   reconcileSubscriptions('quote');
 }
 
+function resubscribeAll(kind) {
+  const stream = STREAMS[kind];
+  const upstream = state[stream.upstreamKey];
+  if (!upstream || upstream.readyState !== WebSocket.OPEN) return;
+  const wanted = currentSymbols();
+  const wantedSymbols = [...wanted];
+  sendSubscription(kind, 'subscribe', wantedSymbols);
+  state[stream.subscribedSymbolsKey] = wanted;
+}
+
+function resubscribeAllSubscriptions() {
+  resubscribeAll('trade');
+  resubscribeAll('quote');
+}
+
 function tickTimestamp(tick) {
   const timestamp = Number(tick?.timestamp || tick?.receivedAt || 0);
   return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now();
@@ -372,4 +387,5 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
     if (tick && isFreshReplayTick(tick)) safeJsonSend(ws, tick);
   }
   connectUpstreams();
+  resubscribeAllSubscriptions();
 }
