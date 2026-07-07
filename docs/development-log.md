@@ -4,6 +4,37 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 三大指数固定卡位和自绘曲线
+
+- Commit: this commit
+- Background: 用户反馈三大指数去 Yahoo 图源后,线上首页观察两分钟仍然不绘制指数小曲线,且首屏加载时只有 BTC 卡先出现、三大指数后加载导致四格布局塌成单卡。复查确认本地视觉预览仍使用 mock `intraday` 曲线,没有覆盖生产 EODHD REST `intraday: []` 的真实路径;同时 HomeTab 只有 BTC 有 placeholder,三大指数没有固定卡位。
+- Changes:
+  - `src/lib/indexRealtime.js` 新增三大指数固定 placeholder 和 REST 采样合并逻辑;EODHD REST 返回价格但没有 intraday 时,用昨收和现价先建立基础线,后续 REST/WS tick 继续追加本地采样点。
+  - `App.jsx` 写入 `marketIndices` 时先通过 `mergeIndexRestCardsIntoMarketCards` 合并 REST 样本,再叠加新鲜 WS tick,保持三大指数系统和 BTC 系统继续分离。
+  - `HomeTab.jsx` 渲染层固定 `.SPX`、`.NDX`、`.DJI`、`BTCUSD` 四格顺序;三大指数未到 REST 数据前也保留卡位,避免首屏只剩 BTC。
+  - `DevVisualPreview.jsx` 新增 `?indices=placeholder` / `?indices=rest-empty` / `?indices=sampled` 本地预览路径,专门覆盖指数占位和 EODHD 空曲线场景。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.209`,新增“三大指数固定卡位”。
+  - 本次只改首页指数卡占位、指数 REST 采样曲线、测试、设置页版本/更新日志和本日志;不改 BTC relay、股票 quote、交易账本、持仓数量、成本、今日盈亏公式、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/indexRealtime.js`
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/btc-realtime.test.js`: pass,25 tests;覆盖指数固定 placeholder、EODHD REST seed/extend 本地小曲线、指数 WS tick 追加曲线、BTC placeholder 和股票 realtime 边界。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,30 tests;覆盖 App/HomeTab 指数与 BTC 分离、指数 REST 采样合并、DevVisualPreview 指数占位预览路径、设置页版本和更新日志。
+  - Local browser visual check at `390x844`: `/?tab=home&indices=placeholder&btc=placeholder` renders four fixed market cards `.SPX/.NDX/.DJI/BTCUSD`; `/?tab=home&indices=sampled` renders four market cards and each card contains an SVG sparkline.
+  - `npm test`: pass,113 tests.
+  - `npm run build`: pass;Vite built `App-DhY2RAxP.js`, `HomeTab-BuOjCQl7.js`, `SettingsTab-km6zyHxv.js`, `settingsChangelog-BUWNURSJ.js`, `indexRealtime-DP-wYt8i.js`.
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities.
+  - `git diff --check`: pass.
+- Rollback: 回退本条涉及的指数 placeholder/REST 采样合并、HomeTab 四格固定渲染、DevVisualPreview 指数预览模式、`v10.7.9.209` 设置页版本/更新日志、测试和本日志即可;BTC 独立实时行情、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+
 ### 2026-07-07 - 三大指数去 Yahoo 图源
 
 - Commit: this commit

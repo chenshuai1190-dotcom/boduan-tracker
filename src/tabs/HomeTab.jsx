@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
+import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -547,11 +548,14 @@ export default function HomeTab({ ctx }) {
   const vixDateLabel = dataDateLabel(vixDataDate);
   const fgiDateLabel = dataDateLabel(fgiDataDate);
   const fgiInfo = fgiLevel(fgi, language);
-  const resolvedIndexCards = React.useMemo(() => (
-    Array.isArray(marketIndices)
+  const rawIndexCards = React.useMemo(() => (
+    Array.isArray(marketIndices) && marketIndices.length > 0
       ? marketIndices
       : (indices || []).filter((item) => !isBtcMarketCard(item))
   ), [indices, marketIndices]);
+  const resolvedIndexCards = React.useMemo(() => (
+    mergeIndexCardsWithPlaceholders(rawIndexCards, 'connecting')
+  ), [rawIndexCards]);
   const resolvedBtcCard = btcMarketCard || (indices || []).find((item) => isBtcMarketCard(item)) || null;
   const marketCards = React.useMemo(() => {
     const indexCards = (resolvedIndexCards || []).slice(0, 3);

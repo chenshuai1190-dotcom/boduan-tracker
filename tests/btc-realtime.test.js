@@ -17,7 +17,12 @@ import {
   createBtcPlaceholderMarketCard,
   isBtcMarketCard,
 } from '../src/lib/btcRealtime.js';
-import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
+import {
+  applyIndexTickToMarketCards,
+  createIndexPlaceholderMarketCards,
+  mergeIndexCardsWithPlaceholders,
+  mergeIndexRestCardsIntoMarketCards,
+} from '../src/lib/indexRealtime.js';
 import {
   applyStockTickToQuoteRows,
   isFreshStockRealtimeTick,
@@ -128,6 +133,45 @@ test('BTC placeholder keeps the fourth home market card reserved before first ti
   assert.equal(placeholder.realtimeStatus, 'connecting');
 });
 
+test('index placeholders keep the first three home market cards reserved before REST data', () => {
+  const placeholders = createIndexPlaceholderMarketCards('connecting');
+
+  assert.equal(placeholders.length, 3);
+  assert.deepEqual(placeholders.map((card) => card.displaySymbol), ['.SPX', '.NDX', '.DJI']);
+  assert.deepEqual(placeholders.map((card) => card.price), [null, null, null]);
+  assert.deepEqual(placeholders.map((card) => card.intraday), [[], [], []]);
+
+  const merged = mergeIndexCardsWithPlaceholders([
+    { ticker: 'DJI.INDX', displaySymbol: '.DJI', price: 53000, intraday: [52900, 53000] },
+  ], 'connecting');
+
+  assert.equal(merged.length, 3);
+  assert.equal(merged[0].displaySymbol, '.SPX');
+  assert.equal(merged[0].price, null);
+  assert.equal(merged[2].displaySymbol, '.DJI');
+  assert.equal(merged[2].price, 53000);
+});
+
+test('EODHD REST index cards seed and extend local sparkline samples without Yahoo chart data', () => {
+  const restCards = [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7488, previousClose: 7537.43, change: -49.43, changePercent: -0.66, intraday: [], source: 'EODHD' },
+    { ticker: 'NDX.INDX', displaySymbol: '.NDX', price: 29033, previousClose: 29697.87, change: -664.87, changePercent: -2.24, intraday: [], source: 'EODHD' },
+    { ticker: 'DJI.INDX', displaySymbol: '.DJI', price: 52955, previousClose: 53055.91, change: -100.91, changePercent: -0.19, intraday: [], source: 'EODHD' },
+  ];
+
+  const seeded = mergeIndexRestCardsIntoMarketCards([], restCards, 'fallback');
+  assert.equal(seeded.length, 3);
+  assert.deepEqual(seeded[0].intraday, [7537.43, 7488]);
+  assert.equal(seeded[0].source, 'EODHD');
+  assert.equal(seeded[0].realtime, false);
+
+  const next = mergeIndexRestCardsIntoMarketCards(seeded, [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7486, previousClose: 7537.43, change: -51.43, changePercent: -0.68, intraday: [], source: 'EODHD' },
+  ], 'fallback');
+  assert.deepEqual(next[0].intraday, [7537.43, 7488, 7486]);
+  assert.deepEqual(next.map((card) => card.displaySymbol), ['.SPX', '.NDX', '.DJI']);
+});
+
 test('normalizeIndexTick accepts EODHD index WebSocket fields', () => {
   assert.equal(INDEX_REALTIME_SYMBOLS, 'GSPC.INDX,NDX.INDX,DJI.INDX');
 
@@ -177,7 +221,9 @@ test('index realtime tick updates only its matching market card', () => {
   assert.equal(updated[0].price, 7489.12);
   assert.equal(updated[0].realtimeStatus, 'live');
   assert.deepEqual(updated[0].intraday, [7470, 7483.24, 7489.12]);
-  assert.equal(updated[1], cards[1]);
+  assert.equal(updated[1].displaySymbol, '.NDX');
+  assert.equal(updated[1].price, cards[1].price);
+  assert.deepEqual(updated[1].intraday, []);
   assert.equal(updated[3], cards[3]);
 });
 
@@ -203,8 +249,12 @@ test('index realtime tick draws the index sparkline from an empty EODHD card', (
 
   assert.deepEqual(updated[1].intraday, [19152.48]);
   assert.equal(updated[1].source, 'EODHD_WS');
-  assert.equal(updated[0], cards[0]);
-  assert.equal(updated[2], cards[2]);
+  assert.equal(updated[0].displaySymbol, '.SPX');
+  assert.equal(updated[0].price, cards[0].price);
+  assert.deepEqual(updated[0].intraday, []);
+  assert.equal(updated[2].displaySymbol, '.DJI');
+  assert.equal(updated[2].price, cards[2].price);
+  assert.deepEqual(updated[2].intraday, []);
 });
 
 test('stock realtime symbols are sanitized and capped for user quote streams', () => {

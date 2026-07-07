@@ -6,7 +6,7 @@ import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
-import { applyIndexTickToMarketCards } from './lib/indexRealtime.js';
+import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -2894,7 +2894,9 @@ function MainApp({ user, onLogout }) {
       // 更新三大指数
       const indicesData = result.data.find(d => d.symbol === 'INDICES');
       if (indicesData?.data && Array.isArray(indicesData.data)) {
-        setMarketIndices(mergeFreshIndexTicksIntoCards(indicesData.data));
+        setMarketIndices((current) => mergeFreshIndexTicksIntoCards(
+          mergeIndexRestCardsIntoMarketCards(current, indicesData.data, 'fallback'),
+        ));
       }
 
       setLastFetched(new Date());

@@ -86,6 +86,20 @@ const mockIndices = [
   { ticker: 'BTCUSD', displaySymbol: 'BTCUSD', name: 'BTC/USD', price: 62781.92, changePercent: 0.31, intraday: mockMarketIntraday.btc, realtime: true },
 ];
 const mockMarketIndices = mockIndices.slice(0, 3);
+const mockRestMarketIndices = mockMarketIndices.map(({ intraday, ...card }) => {
+  const pct = Number(card.changePercent) || 0;
+  const previousClose = Number(card.price) / (1 + pct / 100);
+  return {
+    ...card,
+    source: 'EODHD',
+    previousClose: Number.isFinite(previousClose) ? previousClose : card.price,
+    intraday: [],
+  };
+});
+const mockSampledMarketIndices = mockRestMarketIndices.map((card) => ({
+  ...card,
+  intraday: [card.previousClose, card.price],
+}));
 const mockBtcMarketCard = mockIndices[3];
 
 const mockHomeWatchlist = [
@@ -148,6 +162,15 @@ export default function DevVisualPreview() {
   const btcPreviewMode = typeof window === 'undefined'
     ? 'live'
     : new URLSearchParams(window.location.search).get('btc');
+  const indicesPreviewMode = typeof window === 'undefined'
+    ? 'mock'
+    : new URLSearchParams(window.location.search).get('indices');
+  const previewMarketIndices = React.useMemo(() => {
+    if (indicesPreviewMode === 'placeholder') return [];
+    if (indicesPreviewMode === 'rest-empty') return mockRestMarketIndices;
+    if (indicesPreviewMode === 'sampled') return mockSampledMarketIndices;
+    return mockMarketIndices;
+  }, [indicesPreviewMode]);
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => mockHomeWatchlist);
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
   const [benchmarkSymbol, setBenchmarkSymbol] = React.useState('QQQ');
@@ -317,8 +340,8 @@ export default function DevVisualPreview() {
     fgiYear: 42,
     fmtPct: null,
     homeWatchlist,
-    indices: mockMarketIndices,
-    marketIndices: mockMarketIndices,
+    indices: previewMarketIndices,
+    marketIndices: previewMarketIndices,
     investmentSummary: {
       activePositions: [
         { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },

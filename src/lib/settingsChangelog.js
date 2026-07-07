@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.208', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.209', date: '2026-07-07', latest: true,
+    items: [
+      '📈 三大指数固定卡位',
+      '  - 首页三大指数和 BTC 一样固定四格位置,首屏不再因为指数后加载只剩 BTC 卡',
+      '  - 三大指数小曲线用 EODHD 昨收和现价先建立基础线,后续 REST/WS 行情继续追加采样点',
+      '  - 本次只改首页指数卡占位和指数小曲线采样,不改 BTC、股票 quote、交易账本、持仓数量、成本、数据库结构、RLS 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.208', date: '2026-07-07',
     items: [
       '📈 三大指数去 Yahoo 图源',
       '  - 首页三大指数价格、涨跌幅和首屏基础数据只使用 EODHD,不再用 Yahoo chart 覆盖指数卡',
