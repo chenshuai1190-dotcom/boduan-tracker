@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.196', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.197', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 主屏行情轮询模式',
+      '  - 自动识别 iOS 添加到主屏幕的 standalone Web App,切换到认证 HTTP snapshot 轮询,普通 Safari/桌面继续走 WebSocket',
+      '  - BTC、指数和股票在 iOS 主屏不再打开浏览器 WebSocket,避免连接中反复刷新和股票静态',
+      '  - snapshot 接口仍走服务端 EODHD WebSocket 和 Supabase 鉴权,普通 HTTP 访问 /api/*-realtime 仍返回 426',
+      '  - 不改交易账本、持仓数量、成本、今日盈亏公式、EODHD token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.196', date: '2026-07-07',
     items: [
       '📡 iOS 主屏股票实时防静态',
       '  - 股票 WebSocket 不再因为首轮 symbol 覆盖不足就反复断开重连,避免 iOS 主屏幕版被覆盖率门槛卡成静态',

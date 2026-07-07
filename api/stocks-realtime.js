@@ -7,7 +7,7 @@ import {
   selectRealtimeProtocol,
 } from '../server/realtime/auth.js';
 import { sanitizeEodhdKey } from '../server/realtime/btc.js';
-import { attachStocksRealtimeClient } from '../server/realtime/stocksRelay.js';
+import { attachStocksRealtimeClient, getStocksRealtimeSnapshot } from '../server/realtime/stocksRelay.js';
 import { parseStockRealtimeSymbolsParam } from '../server/realtime/stocks.js';
 
 function writeHttpResponse(res, statusCode, body) {
@@ -41,8 +41,50 @@ function parseSymbolsFromRequest(req) {
   }
 }
 
+function isSnapshotRequest(req) {
+  try {
+    const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+    return url.searchParams.get('snapshot') === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function handleSnapshotRequest(req, res) {
+  const symbolResult = parseSymbolsFromRequest(req);
+  if (symbolResult.error) {
+    return writeHttpResponse(res, 400, { success: false, error: symbolResult.error });
+  }
+
+  const eodhdKey = sanitizeEodhdKey(process.env.EODHD_API_KEY);
+  if (!eodhdKey) {
+    return writeHttpResponse(res, 500, { success: false, error: 'EODHD_API_KEY Missing' });
+  }
+
+  if (process.env.QUOTE_API_AUTH_REQUIRED !== 'false') {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : '';
+    const auth = await authenticateAccessToken(token);
+    if (!auth.ok) {
+      return writeHttpResponse(res, auth.status || 401, { success: false, error: auth.error || 'Unauthorized' });
+    }
+  }
+
+  const snapshot = await getStocksRealtimeSnapshot({
+    eodhdKey,
+    symbols: symbolResult.symbols,
+  });
+  return writeHttpResponse(res, 200, { success: true, data: snapshot });
+}
+
 const server = createServer((req, res) => {
   if (req.method === 'GET') {
+    if (isSnapshotRequest(req)) {
+      handleSnapshotRequest(req, res).catch((error) => {
+        writeHttpResponse(res, 500, { success: false, error: error?.message || 'stocks snapshot failed' });
+      });
+      return;
+    }
     return writeHttpResponse(res, 426, {
       success: false,
       error: '请使用 WebSocket 连接 /api/stocks-realtime',

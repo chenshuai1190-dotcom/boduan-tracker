@@ -9,6 +9,8 @@ const CLIENT_HEARTBEAT_MS = 25_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const QUOTE_FALLBACK_AFTER_TRADE_MS = 15_000;
 const REPLAY_TICK_MAX_AGE_MS = 120_000;
+const SNAPSHOT_HOLD_MS = 45_000;
+const SNAPSHOT_WAIT_MS = 1_800;
 
 const STREAMS = {
   trade: {
@@ -54,6 +56,9 @@ const state = {
   subscribedSymbols: new Set(),
   quoteSubscribedSymbols: new Set(),
   eodhdKey: '',
+  snapshotSymbols: new Set(),
+  snapshotHoldUntil: 0,
+  snapshotHoldTimer: null,
 };
 
 function safeJsonSend(ws, payload) {
@@ -70,6 +75,9 @@ function currentSymbols() {
   const symbols = new Set();
   for (const client of state.clients.values()) {
     for (const symbol of client.symbols) symbols.add(symbol);
+  }
+  if (Date.now() < state.snapshotHoldUntil) {
+    for (const symbol of state.snapshotSymbols) symbols.add(symbol);
   }
   return symbols;
 }
@@ -124,6 +132,10 @@ function clearAllReconnectTimers() {
   clearReconnectTimer('quote');
 }
 
+function hasActiveConsumers() {
+  return state.clients.size > 0 || Date.now() < state.snapshotHoldUntil;
+}
+
 function clearPendingBroadcasts() {
   for (const timer of state.pendingBroadcastTimerBySymbol.values()) {
     clearTimeout(timer);
@@ -133,13 +145,14 @@ function clearPendingBroadcasts() {
 }
 
 function closeUpstreamIfUnused() {
-  if (state.clients.size > 0) return;
+  if (hasActiveConsumers()) return;
   clearAllReconnectTimers();
   clearPendingBroadcasts();
   state.lastTicks.clear();
   state.lastBroadcastAtBySymbol.clear();
   state.subscribedSymbols.clear();
   state.quoteSubscribedSymbols.clear();
+  state.snapshotSymbols.clear();
   for (const stream of Object.values(STREAMS)) {
     const upstream = state[stream.upstreamKey];
     if (upstream) {
@@ -150,6 +163,15 @@ function closeUpstreamIfUnused() {
     state[stream.upstreamKey] = null;
     state[stream.statusKey] = 'idle';
   }
+}
+
+function scheduleSnapshotHoldCleanup() {
+  if (state.snapshotHoldTimer) clearTimeout(state.snapshotHoldTimer);
+  const delay = Math.max(0, state.snapshotHoldUntil - Date.now() + 50);
+  state.snapshotHoldTimer = setTimeout(() => {
+    state.snapshotHoldTimer = null;
+    closeUpstreamIfUnused();
+  }, delay);
 }
 
 function sendSubscription(kind, action, symbols) {
@@ -265,7 +287,7 @@ function emitTick(tick) {
 function scheduleReconnect(kind) {
   const stream = STREAMS[kind];
   clearReconnectTimer(kind);
-  if (state.clients.size === 0 || !state.eodhdKey) return;
+  if (!hasActiveConsumers() || !state.eodhdKey) return;
   const delayKey = stream.reconnectDelayKey;
   const delay = state[delayKey];
   state[delayKey] = Math.min(state[delayKey] * 2, MAX_RECONNECT_DELAY_MS);
@@ -276,7 +298,7 @@ function scheduleReconnect(kind) {
 
 function connectUpstream(kind) {
   const stream = STREAMS[kind];
-  if (state.clients.size === 0) return;
+  if (!hasActiveConsumers()) return;
   if (!state.eodhdKey) {
     state[stream.statusKey] = 'error';
     broadcastCombinedStatus({ error: 'EODHD_API_KEY 未配置' });
@@ -330,7 +352,7 @@ function connectUpstream(kind) {
   nextUpstream.on('close', () => {
     if (state[stream.upstreamKey] === nextUpstream) state[stream.upstreamKey] = null;
     state[stream.subscribedSymbolsKey].clear();
-    state[stream.statusKey] = state.clients.size > 0 ? 'reconnecting' : 'idle';
+    state[stream.statusKey] = hasActiveConsumers() ? 'reconnecting' : 'idle';
     scheduleReconnect(kind);
   });
 }
@@ -388,4 +410,53 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
   }
   connectUpstreams();
   resubscribeAllSubscriptions();
+}
+
+function getFreshSnapshotTicks(symbolSet) {
+  pruneStaleTicks();
+  const ticks = [];
+  for (const symbol of symbolSet) {
+    const tick = state.lastTicks.get(symbol);
+    if (tick && isFreshReplayTick(tick)) ticks.push(tick);
+  }
+  return ticks;
+}
+
+function waitForFreshStockTicks(symbolSet, startedAt, waitMs = SNAPSHOT_WAIT_MS) {
+  const fresh = getFreshSnapshotTicks(symbolSet);
+  if (fresh.some((tick) => Number(tick?.receivedAt || 0) >= startedAt)) return Promise.resolve(fresh);
+  return new Promise((resolve) => {
+    const deadline = Date.now() + waitMs;
+    const poll = () => {
+      const ticks = getFreshSnapshotTicks(symbolSet);
+      if (ticks.some((tick) => Number(tick?.receivedAt || 0) >= startedAt) || Date.now() >= deadline) {
+        resolve(ticks);
+        return;
+      }
+      setTimeout(poll, 100);
+    };
+    poll();
+  });
+}
+
+export async function getStocksRealtimeSnapshot({ eodhdKey, symbols, waitMs = SNAPSHOT_WAIT_MS } = {}) {
+  state.eodhdKey = sanitizeEodhdKey(eodhdKey) || state.eodhdKey;
+  const symbolSet = new Set(symbols || []);
+  state.snapshotSymbols = symbolSet;
+  state.snapshotHoldUntil = Date.now() + SNAPSHOT_HOLD_MS;
+  scheduleSnapshotHoldCleanup();
+  const startedAt = Date.now();
+  connectUpstreams();
+  resubscribeAllSubscriptions();
+  const ticks = await waitForFreshStockTicks(symbolSet, startedAt, waitMs);
+  return {
+    type: 'stocks_snapshot',
+    status: combinedUpstreamStatus(),
+    tradeStatus: state.upstreamStatus,
+    quoteStatus: state.quoteUpstreamStatus,
+    source: 'EODHD_WS',
+    symbols: [...symbolSet],
+    ticks,
+    receivedAt: Date.now(),
+  };
 }

@@ -4,6 +4,42 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - iOS 主屏行情轮询模式
+
+- Commit: 待推送后补充。
+- Background: 用户用同一账号同一时间确认普通 iOS Safari 网页版行情正常,但“添加到主屏幕”的 iOS Web App 交易页仍会停在旧价格,首页 BTC 卡片还会反复显示连接中。复查后判断问题不在 EODHD 或交易盈亏公式,而在 iOS standalone Web App 对浏览器 WebSocket/timer 的恢复不稳定;继续在客户端 WebSocket 状态机里补重连只会把问题复杂化。
+- Changes:
+  - 前端自动识别 iOS standalone Web App: `navigator.standalone === true` 或 iOS + `display-mode: standalone` 时,停止 BTC、指数、股票三套浏览器 WebSocket,改用 2.5 秒认证 HTTP snapshot 轮询。
+  - iOS 主屏回前台、`pageshow`、`focus`、`online` 和初始进入时会强制打一轮 snapshot,避免 WebKit `document.hidden` 状态滞后挡住首轮刷新。
+  - 普通 Safari、桌面浏览器和非 standalone PWA 不切换连接方式,继续走原有服务端 WebSocket relay。
+  - `/api/btc-realtime`、`/api/indices-realtime`、`/api/stocks-realtime` 新增 `snapshot=1` GET 模式;该模式仍要求 Supabase access token,仍只在服务端持有 EODHD key,普通 GET 不带 `snapshot=1` 继续返回 `426`。
+  - 服务端 BTC、指数和股票 relay 增加 snapshot bridge,HTTP snapshot 会短暂保持 upstream 订阅并等待新 tick,避免每次 iOS 主屏轮询都落回旧 REST 快照。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.197`,新增“iOS 主屏行情轮询模式”。
+  - 不改交易账本、持仓数量、成本、今日盈亏公式、EODHD token、`/api/quote` 鉴权、数据库结构或 RLS。
+- Key files:
+  - `src/App.jsx`
+  - `api/btc-realtime.js`
+  - `api/indices-realtime.js`
+  - `api/stocks-realtime.js`
+  - `server/realtime/btcRelay.js`
+  - `server/realtime/indicesRelay.js`
+  - `server/realtime/stocksRelay.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,51 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - 本地 `.env.local` 存在 `EODHD_API_KEY` 但验证过程未打印 key;`QUOTE_API_AUTH_REQUIRED=false` 本地 handler 测试确认 `/api/btc-realtime`、`/api/indices-realtime`、`/api/stocks-realtime` 普通 GET 均返回 `426`,带 `snapshot=1` 均返回 `200 success=true`;BTC snapshot 首轮拿到 1 个 tick,股票 snapshot 连续 6 轮 2.5 秒轮询后从 1 个 tick 增至 5 个 tick,覆盖 NVDA、MSFT、META、TSM、NOK。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-B2ymsOaX.js`、`dist/assets/SettingsTab-CYjVL9E5.js`、`dist/assets/settingsChangelog-BvGt6Cqe.js`、`dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Deployment verification 待本轮推送后补充。
+- Deployment: 待推送和 Vercel production 验证。
+- Rollback: 回退本条涉及的 iOS standalone snapshot 轮询、三个 realtime API 的 `snapshot=1` GET 分支、三个 relay snapshot bridge、`v10.7.9.197` 设置页版本/更新日志、测试和文档即可;不影响普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - iOS 主屏股票实时防静态
 
 - Commit: `2c1504d4839891ec231fd7e0d3fd14904f9d2123`

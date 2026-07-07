@@ -6,6 +6,9 @@ const UPSTREAM_URL = 'wss://ws.eodhistoricaldata.com/ws/us';
 const BROADCAST_MIN_INTERVAL_MS = 1000;
 const CLIENT_HEARTBEAT_MS = 25_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+const SNAPSHOT_HOLD_MS = 45_000;
+const SNAPSHOT_WAIT_MS = 1_800;
+const SNAPSHOT_TICK_MAX_AGE_MS = 120_000;
 
 const state = {
   clients: new Set(),
@@ -18,6 +21,8 @@ const state = {
   pendingTickBySymbol: new Map(),
   pendingBroadcastTimerBySymbol: new Map(),
   eodhdKey: '',
+  snapshotHoldUntil: 0,
+  snapshotHoldTimer: null,
 };
 
 function safeJsonSend(ws, payload) {
@@ -43,6 +48,10 @@ function clearReconnectTimer() {
   }
 }
 
+function hasActiveConsumers() {
+  return state.clients.size > 0 || Date.now() < state.snapshotHoldUntil;
+}
+
 function clearPendingBroadcasts() {
   for (const timer of state.pendingBroadcastTimerBySymbol.values()) {
     clearTimeout(timer);
@@ -52,7 +61,7 @@ function clearPendingBroadcasts() {
 }
 
 function closeUpstreamIfUnused() {
-  if (state.clients.size > 0) return;
+  if (hasActiveConsumers()) return;
   clearReconnectTimer();
   clearPendingBroadcasts();
   if (state.upstream) {
@@ -62,6 +71,15 @@ function closeUpstreamIfUnused() {
   }
   state.upstream = null;
   state.upstreamStatus = 'idle';
+}
+
+function scheduleSnapshotHoldCleanup() {
+  if (state.snapshotHoldTimer) clearTimeout(state.snapshotHoldTimer);
+  const delay = Math.max(0, state.snapshotHoldUntil - Date.now() + 50);
+  state.snapshotHoldTimer = setTimeout(() => {
+    state.snapshotHoldTimer = null;
+    closeUpstreamIfUnused();
+  }, delay);
 }
 
 function emitTick(tick) {
@@ -92,7 +110,7 @@ function emitTick(tick) {
 
 function scheduleReconnect() {
   clearReconnectTimer();
-  if (state.clients.size === 0 || !state.eodhdKey) return;
+  if (!hasActiveConsumers() || !state.eodhdKey) return;
   const delay = state.reconnectDelayMs;
   state.reconnectDelayMs = Math.min(state.reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
   state.reconnectTimer = setTimeout(() => connectUpstream(), delay);
@@ -100,7 +118,7 @@ function scheduleReconnect() {
 }
 
 function connectUpstream() {
-  if (state.clients.size === 0) return;
+  if (!hasActiveConsumers()) return;
   if (!state.eodhdKey) {
     broadcast({ type: 'indices_status', status: 'error', error: 'EODHD_API_KEY 未配置', source: 'EODHD_WS' });
     return;
@@ -146,9 +164,52 @@ function connectUpstream() {
 
   upstream.on('close', () => {
     if (state.upstream === upstream) state.upstream = null;
-    state.upstreamStatus = state.clients.size > 0 ? 'reconnecting' : 'idle';
+    state.upstreamStatus = hasActiveConsumers() ? 'reconnecting' : 'idle';
     scheduleReconnect();
   });
+}
+
+function isFreshTick(tick, now = Date.now()) {
+  const receivedAt = Number(tick?.receivedAt || 0);
+  return Boolean(receivedAt && now - receivedAt <= SNAPSHOT_TICK_MAX_AGE_MS);
+}
+
+function getFreshTicks() {
+  return [...state.lastTicks.values()].filter((tick) => isFreshTick(tick));
+}
+
+function waitForFreshIndexTicks(startedAt, waitMs = SNAPSHOT_WAIT_MS) {
+  const fresh = getFreshTicks();
+  if (fresh.some((tick) => Number(tick?.receivedAt || 0) >= startedAt)) return Promise.resolve(fresh);
+  return new Promise((resolve) => {
+    const deadline = Date.now() + waitMs;
+    const poll = () => {
+      const ticks = getFreshTicks();
+      if (ticks.some((tick) => Number(tick?.receivedAt || 0) >= startedAt) || Date.now() >= deadline) {
+        resolve(ticks);
+        return;
+      }
+      setTimeout(poll, 100);
+    };
+    poll();
+  });
+}
+
+export async function getIndicesRealtimeSnapshot({ eodhdKey, waitMs = SNAPSHOT_WAIT_MS } = {}) {
+  const cleanKey = sanitizeEodhdKey(eodhdKey);
+  if (cleanKey) state.eodhdKey = cleanKey;
+  state.snapshotHoldUntil = Date.now() + SNAPSHOT_HOLD_MS;
+  scheduleSnapshotHoldCleanup();
+  const startedAt = Date.now();
+  connectUpstream();
+  const ticks = await waitForFreshIndexTicks(startedAt, waitMs);
+  return {
+    type: 'indices_snapshot',
+    status: state.upstreamStatus,
+    source: 'EODHD_WS',
+    ticks,
+    receivedAt: Date.now(),
+  };
 }
 
 export function attachIndicesRealtimeClient(ws, { eodhdKey }) {

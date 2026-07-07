@@ -6,7 +6,7 @@ import {
   isAllowedRealtimeOrigin,
   selectRealtimeProtocol,
 } from '../server/realtime/auth.js';
-import { attachIndicesRealtimeClient } from '../server/realtime/indicesRelay.js';
+import { attachIndicesRealtimeClient, getIndicesRealtimeSnapshot } from '../server/realtime/indicesRelay.js';
 import { sanitizeEodhdKey } from '../server/realtime/btc.js';
 
 function writeHttpResponse(res, statusCode, body) {
@@ -31,8 +31,42 @@ function rejectUpgrade(socket, statusCode, message) {
   socket.destroy();
 }
 
+function isSnapshotRequest(req) {
+  try {
+    const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+    return url.searchParams.get('snapshot') === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function handleSnapshotRequest(req, res) {
+  const eodhdKey = sanitizeEodhdKey(process.env.EODHD_API_KEY);
+  if (!eodhdKey) {
+    return writeHttpResponse(res, 500, { success: false, error: 'EODHD_API_KEY Missing' });
+  }
+
+  if (process.env.QUOTE_API_AUTH_REQUIRED !== 'false') {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : '';
+    const auth = await authenticateAccessToken(token);
+    if (!auth.ok) {
+      return writeHttpResponse(res, auth.status || 401, { success: false, error: auth.error || 'Unauthorized' });
+    }
+  }
+
+  const snapshot = await getIndicesRealtimeSnapshot({ eodhdKey });
+  return writeHttpResponse(res, 200, { success: true, data: snapshot });
+}
+
 const server = createServer((req, res) => {
   if (req.method === 'GET') {
+    if (isSnapshotRequest(req)) {
+      handleSnapshotRequest(req, res).catch((error) => {
+        writeHttpResponse(res, 500, { success: false, error: error?.message || 'indices snapshot failed' });
+      });
+      return;
+    }
     return writeHttpResponse(res, 426, {
       success: false,
       error: '请使用 WebSocket 连接 /api/indices-realtime',

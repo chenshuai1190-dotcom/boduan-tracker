@@ -58,6 +58,7 @@ const IOS_PWA_VISIBLE_RETRY_MS = 120;
 const IOS_PWA_VISIBLE_RETRY_MAX_MS = 6000;
 const IOS_PWA_TOUCH_RESUME_THROTTLE_MS = 3000;
 const IOS_PWA_APP_SHELL_CHECK_MIN_INTERVAL_MS = 30_000;
+const IOS_PWA_REALTIME_SNAPSHOT_INTERVAL_MS = 2500;
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -1231,6 +1232,25 @@ function MainApp({ user, onLogout }) {
     return fetch(`/api/quote?${params.toString()}`, {
       headers,
       ...(fresh ? { cache: 'no-store' } : {}),
+    });
+  }, []);
+
+  const fetchRealtimeSnapshot = useCallback(async (endpoint, options = {}) => {
+    const requestOptions = (options && typeof options === 'object') ? options : {};
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('未登录或登录已过期');
+    const params = new URLSearchParams({
+      snapshot: '1',
+      _ts: String(Date.now()),
+    });
+    if (requestOptions.symbols) params.set('symbols', requestOptions.symbols);
+    return fetch(`${endpoint}?${params.toString()}`, {
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
     });
   }, []);
 
@@ -3363,6 +3383,26 @@ function MainApp({ user, onLogout }) {
 
   useEffect(() => {
     if (cloudLoading || typeof window === 'undefined') return;
+    if (isIosStandaloneWebApp()) {
+      const ref = btcRealtimeRef.current;
+      if (ref.reconnectTimer) {
+        clearTimeout(ref.reconnectTimer);
+        ref.reconnectTimer = null;
+      }
+      if (ref.staleTimer) {
+        clearInterval(ref.staleTimer);
+        ref.staleTimer = null;
+      }
+      if (ref.socket) {
+        try {
+          ref.socket.close(1000, 'ios pwa snapshot mode');
+        } catch {}
+        ref.socket = null;
+      }
+      setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+      setBtcRealtimeError(null);
+      return undefined;
+    }
 
     let stopped = false;
     const ref = btcRealtimeRef.current;
@@ -3533,6 +3573,26 @@ function MainApp({ user, onLogout }) {
 
   useEffect(() => {
     if (cloudLoading || typeof window === 'undefined') return;
+    if (isIosStandaloneWebApp()) {
+      const ref = indexRealtimeRef.current;
+      if (ref.reconnectTimer) {
+        clearTimeout(ref.reconnectTimer);
+        ref.reconnectTimer = null;
+      }
+      if (ref.staleTimer) {
+        clearInterval(ref.staleTimer);
+        ref.staleTimer = null;
+      }
+      if (ref.socket) {
+        try {
+          ref.socket.close(1000, 'ios pwa snapshot mode');
+        } catch {}
+        ref.socket = null;
+      }
+      setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+      setIndexRealtimeError(null);
+      return undefined;
+    }
 
     let stopped = false;
     const ref = indexRealtimeRef.current;
@@ -3707,6 +3767,30 @@ function MainApp({ user, onLogout }) {
     if (symbolsSnapshot.length === 0) {
       stockRealtimeRef.current.status = 'idle';
       stockRealtimeRef.current.error = null;
+      return undefined;
+    }
+    if (isIosStandaloneWebApp()) {
+      const ref = stockRealtimeRef.current;
+      if (ref.reconnectTimer) {
+        clearTimeout(ref.reconnectTimer);
+        ref.reconnectTimer = null;
+      }
+      if (ref.firstTickTimer) {
+        clearTimeout(ref.firstTickTimer);
+        ref.firstTickTimer = null;
+      }
+      if (ref.staleTimer) {
+        clearInterval(ref.staleTimer);
+        ref.staleTimer = null;
+      }
+      if (ref.socket) {
+        try {
+          ref.socket.close(1000, 'ios pwa snapshot mode');
+        } catch {}
+        ref.socket = null;
+      }
+      ref.status = 'polling';
+      ref.error = null;
       return undefined;
     }
 
@@ -3923,6 +4007,121 @@ function MainApp({ user, onLogout }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading, stockRealtimeSymbolsKey, applyStockRealtimeTick]);
+
+  useEffect(() => {
+    if (cloudLoading || typeof window === 'undefined') return undefined;
+    if (!isIosStandaloneWebApp()) return undefined;
+
+    let stopped = false;
+    let pollTimer = null;
+    let inFlight = false;
+
+    const parseSnapshotResponse = async (response, label) => {
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `${label} snapshot failed`);
+      }
+      return result.data || {};
+    };
+
+    const runSnapshotPoll = async (trigger = 'auto-ios-pwa-snapshot', options = {}) => {
+      const forceSnapshot = options?.force === true;
+      if (stopped || inFlight) return;
+      if (!forceSnapshot && document.hidden) return;
+      inFlight = true;
+      const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
+      try {
+        const requests = [
+          fetchRealtimeSnapshot('/api/btc-realtime'),
+          fetchRealtimeSnapshot('/api/indices-realtime'),
+        ];
+        if (stockSymbolsSnapshot) {
+          requests.push(fetchRealtimeSnapshot('/api/stocks-realtime', { symbols: stockSymbolsSnapshot }));
+        }
+
+        const [btcResult, indicesResult, stocksResult] = await Promise.allSettled(requests);
+
+        if (btcResult.status === 'fulfilled') {
+          const snapshot = await parseSnapshotResponse(btcResult.value, 'BTC');
+          if (snapshot?.tick) {
+            applyBtcRealtimeTick(snapshot.tick, 'live');
+          } else {
+            setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+          }
+        } else {
+          setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+        }
+
+        if (indicesResult.status === 'fulfilled') {
+          const snapshot = await parseSnapshotResponse(indicesResult.value, 'indices');
+          const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
+          ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
+          if (ticks.length === 0) {
+            setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+          }
+        } else {
+          setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+        }
+
+        if (stocksResult) {
+          if (stocksResult.status === 'fulfilled') {
+            const snapshot = await parseSnapshotResponse(stocksResult.value, 'stocks');
+            const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
+            ticks.forEach((tick) => applyStockRealtimeTick(tick, 'live'));
+            if (ticks.length === 0) stockRealtimeRef.current.status = 'polling';
+          } else {
+            stockRealtimeRef.current.status = 'polling';
+          }
+        }
+
+        setLastFetched(new Date());
+      } catch (e) {
+        console.warn(`[iOS PWA snapshot] ${trigger} failed:`, e?.message || e);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const schedulePoll = () => {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = window.setTimeout(async () => {
+        await runSnapshotPoll();
+        if (!stopped) schedulePoll();
+      }, IOS_PWA_REALTIME_SNAPSHOT_INTERVAL_MS);
+    };
+
+    const resumePoll = () => {
+      runSnapshotPoll('auto-ios-pwa-snapshot-resume', { force: true });
+      schedulePoll();
+    };
+
+    setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+    setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
+    stockRealtimeRef.current.status = 'polling';
+    runSnapshotPoll('auto-ios-pwa-snapshot-start', { force: true });
+    schedulePoll();
+
+    document.addEventListener('visibilitychange', resumePoll);
+    window.addEventListener('pageshow', resumePoll);
+    window.addEventListener('focus', resumePoll);
+    window.addEventListener('online', resumePoll);
+
+    return () => {
+      stopped = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      document.removeEventListener('visibilitychange', resumePoll);
+      window.removeEventListener('pageshow', resumePoll);
+      window.removeEventListener('focus', resumePoll);
+      window.removeEventListener('online', resumePoll);
+    };
+  }, [
+    cloudLoading,
+    stockRealtimeSymbolsKey,
+    fetchRealtimeSnapshot,
+    applyBtcRealtimeTick,
+    applyIndexRealtimeTick,
+    applyStockRealtimeTick,
+  ]);
 
   useEffect(() => {
     if (cloudLoading) return;
