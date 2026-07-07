@@ -1014,7 +1014,7 @@ export default function HomeTab({ ctx }) {
                         className="grid min-h-[54px] w-full items-center gap-1 py-2 text-left"
                         style={{ gridTemplateColumns: metricGridTemplate }}
                       >
-                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? '----' : fmtMoney(item.price, 2)}</span>
+                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? '--' : fmtMoney(item.price, 2)}</span>
                         <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
                         <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                           {fmtDrawdownPct(item.highDrawdown)}

@@ -1,6 +1,14 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.200', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.201', date: '2026-07-07', latest: true,
+    items: [
+      '🎨 持仓现价遮罩占位优化',
+      '  - 首页持仓和交易持仓在等待本轮新 tick 时,现价占位从 ---- 调整为更轻的 --',
+      '  - 只改持仓现价遮罩显示,不改市值、今日盈亏、持仓盈亏、头部总资产、行情公式、EODHD token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.200', date: '2026-07-07',
     items: [
       '📡 iOS 主屏滑动现价遮罩修复',
       '  - iOS 主屏滑动或普通 focus 触发 realtime snapshot 时不再刷新持仓现价 freshness 时间戳,避免整页股票误显示 ----',

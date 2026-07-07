@@ -4,6 +4,31 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 持仓现价遮罩占位优化
+
+- Commit: `324de504f7b63240e04b917339cfe82c3094f36d`
+- Background: `v10.7.9.199` 起 iOS 主屏预热阶段对未拿到本轮新 tick 的持仓现价显示 `----`,`v10.7.9.200` 修复滑动误触发遮罩后,用户反馈四个横线视觉上略重,建议改成更和谐的两个横线。
+- Changes:
+  - 首页持仓表和交易页持仓表的 stale current price 占位从 `----` 调整为 `--`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.201`,新增“持仓现价遮罩占位优化”。
+  - 不改 iOS snapshot 轮询、freshness 判断、行情接口、EODHD token、`/api/quote` 鉴权、交易账本、持仓数量、成本、今日盈亏公式、数据库结构或 RLS。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-JTjWk_HZ.js`、`dist/assets/HomeTab-BzDNIrHi.js`、`dist/assets/TradesTab-DvTLX5c4.js`、`dist/assets/SettingsTab-D2f-x-Gc.js`、`dist/assets/settingsChangelog-BFonO-Xw.js`、`dist/assets/i18n-QTvefRC5.js` 和 `dist/assets/index-Cx7mhSoL.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Dist marker check: pass;`HomeTab-BzDNIrHi.js` and `TradesTab-DvTLX5c4.js` render masked current prices as `--`;`SettingsTab-D2f-x-Gc.js` contains `v10.7.9.201`;`settingsChangelog-BFonO-Xw.js` contains `v10.7.9.201` and `持仓现价遮罩占位优化`。
+- Deployment: Pending.
+- Production verification: Pending.
+- Rollback: 回退本条涉及的 `--` 占位、`v10.7.9.201` 设置页版本/更新日志、测试和本开发日志即可;不影响 iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - iOS 主屏滑动现价遮罩修复
 
 - Commit: `12557f8a41ffdc319c0f80e139060eb79945aba0`

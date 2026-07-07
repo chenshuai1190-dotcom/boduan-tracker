@@ -197,8 +197,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.200'), 'settings version badge should document the iOS PWA focus freshness mask fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.200'), 'settings changelog should document the iOS PWA focus freshness mask fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.201'), 'settings version badge should document the iOS PWA holding price placeholder polish');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.201'), 'settings changelog should document the iOS PWA holding price placeholder polish');
+  assert.ok(settingsChangelogSource.includes('持仓现价遮罩占位优化'), 'settings changelog should describe the holding price placeholder polish');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.200'), 'settings changelog should retain the iOS PWA focus freshness mask fix');
   assert.ok(settingsChangelogSource.includes('iOS 主屏滑动现价遮罩修复'), 'settings changelog should describe the iOS PWA focus freshness mask fix');
   assert.ok(appSource.includes('stockFreshnessStartedAt: warmStartedAt'), 'app context should expose the iOS PWA warm start timestamp for holding price freshness checks');
   assert.ok(appSource.includes('setWarmStartedAt(Date.now())'), 'iOS PWA snapshot warming should record a fresh warm start timestamp');
@@ -207,9 +209,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(appSource.includes("requestResumeRefresh('auto-ios-resume', { resetFreshness: true })"), 'iOS PWA visibility resume should still restart the holding price freshness mask');
   assert.ok(appSource.includes("iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })"), 'cloud-loaded iOS PWA burst should still restart the holding price freshness mask');
   assert.ok(homeTabSource.includes("maskPrice: isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt)"), 'home holdings should mask only position prices without a fresh same-symbol tick');
-  assert.ok(homeTabSource.includes("item.maskPrice ? '----' : fmtMoney(item.price, 2)"), 'home holdings should render ---- only for stale current prices');
+  assert.ok(homeTabSource.includes("item.maskPrice ? '--' : fmtMoney(item.price, 2)"), 'home holdings should render -- only for stale current prices');
   assert.ok(tradesTabSource.includes('const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);'), 'trade holdings should mask current price from same-symbol quote freshness');
-  assert.ok(tradesTabSource.includes("maskCurrentPrice ? '----' : fmtAmount(position.currentPrice, 3)"), 'trade holdings should render ---- only for stale current prices');
+  assert.ok(tradesTabSource.includes("maskCurrentPrice ? '--' : fmtAmount(position.currentPrice, 3)"), 'trade holdings should render -- only for stale current prices');
   assert.ok(settingsChangelogSource.includes('v10.7.9.199'), 'settings changelog should retain the iOS PWA holding price freshness mask update');
   assert.ok(settingsChangelogSource.includes('iOS 主屏持仓现价遮罩'), 'settings changelog should describe the iOS PWA holding price freshness mask update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.198'), 'settings changelog should retain the iOS PWA startup snapshot warmup update');
@@ -841,8 +843,8 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.200'), 'settings version badge should document the iOS PWA focus freshness mask fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.200'), 'settings changelog should document the iOS PWA focus freshness mask fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.201'), 'settings version badge should document the iOS PWA holding price placeholder polish');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.201'), 'settings changelog should document the iOS PWA holding price placeholder polish');
   assert.ok(settingsChangelogSource.includes('v10.7.9.199'), 'settings changelog should retain the iOS PWA holding price freshness mask update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.198'), 'settings changelog should retain the iOS PWA startup snapshot warmup update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.197'), 'settings changelog should retain the iOS PWA snapshot polling update');
@@ -1073,8 +1075,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.200'), 'settings version badge should document the iOS PWA focus freshness mask fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.200'), 'settings changelog should document the iOS PWA focus freshness mask fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.201'), 'settings version badge should document the iOS PWA holding price placeholder polish');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.201'), 'settings changelog should document the iOS PWA holding price placeholder polish');
   assert.ok(settingsChangelogSource.includes('v10.7.9.199'), 'settings changelog should retain the iOS PWA holding price freshness mask update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.198'), 'settings changelog should retain the iOS PWA startup snapshot warmup update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.197'), 'settings changelog should retain the iOS PWA snapshot polling update');
