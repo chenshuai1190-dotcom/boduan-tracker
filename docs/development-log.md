@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 持仓现价遮罩占位优化
 
-- Commit: `324de504f7b63240e04b917339cfe82c3094f36d`
+- Commit: `1b70bf5717d7701e432244a5f622f17eee87cfcb`
 - Background: `v10.7.9.199` 起 iOS 主屏预热阶段对未拿到本轮新 tick 的持仓现价显示 `----`,`v10.7.9.200` 修复滑动误触发遮罩后,用户反馈四个横线视觉上略重,建议改成更和谐的两个横线。
 - Changes:
   - 首页持仓表和交易页持仓表的 stale current price 占位从 `----` 调整为 `--`。
@@ -25,8 +25,10 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
   - Dist marker check: pass;`HomeTab-BzDNIrHi.js` and `TradesTab-DvTLX5c4.js` render masked current prices as `--`;`SettingsTab-D2f-x-Gc.js` contains `v10.7.9.201`;`settingsChangelog-BFonO-Xw.js` contains `v10.7.9.201` and `持仓现价遮罩占位优化`。
-- Deployment: Pending.
-- Production verification: Pending.
+- Deployment: `1b70bf5717d7701e432244a5f622f17eee87cfcb` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-D5Z-A9YR.js`, App chunk `App-D0WPNPWp.js`, Home chunk `HomeTab-BzDNIrHi.js`, Trades chunk `TradesTab-DvTLX5c4.js`, Settings chunk `SettingsTab-BvzcEd9u.js`, changelog chunk `settingsChangelog-BFonO-Xw.js`, i18n chunk `i18n-QTvefRC5.js`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=1b70bf5-v201-final-*` returns `200`;entry `/assets/index-D5Z-A9YR.js`;`App-D0WPNPWp.js` contains `auto-ios-pwa-snapshot-focus` and `resetFreshness`;`HomeTab-BzDNIrHi.js` and `TradesTab-DvTLX5c4.js` render masked current prices as `--`;`SettingsTab-BvzcEd9u.js` contains `v10.7.9.201`;`settingsChangelog-BFonO-Xw.js` contains `v10.7.9.201` and `持仓现价遮罩占位优化`。
+  - Production unauthenticated boundary check: `/api/quote?symbols=VIX` returns `401`;HTTPS plain `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`、`GET /api/btc-realtime?snapshot=1`、`GET /api/indices-realtime?snapshot=1` all return `401`。
 - Rollback: 回退本条涉及的 `--` 占位、`v10.7.9.201` 设置页版本/更新日志、测试和本开发日志即可;不影响 iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
 
 ### 2026-07-07 - iOS 主屏滑动现价遮罩修复
