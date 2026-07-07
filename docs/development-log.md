@@ -33,6 +33,11 @@
   - `npm run build`: pass;Vite built `App-DhY2RAxP.js`, `HomeTab-BuOjCQl7.js`, `SettingsTab-km6zyHxv.js`, `settingsChangelog-BUWNURSJ.js`, `indexRealtime-DP-wYt8i.js`.
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities.
   - `git diff --check`: pass.
+- Deployment:
+  - GitHub `main` pushed via project SSH key at `6756eeda8c8c6d551678c8ed2e47ccb4c7c33d5b`.
+  - PASS production frontend markers: active entry `index-DxytU684.js`;recursive chunks include `App-uMT8bg1Z.js`, `HomeTab-BuOjCQl7.js`, `indexRealtime-DP-wYt8i.js`, `SettingsTab-DIp0CddQ.js`, `settingsChangelog-BUWNURSJ.js`;production chunks contain `v10.7.9.209`, `三大指数固定卡位`,三大指数 placeholder and REST sampling markers.
+  - PASS production security markers: active App/Home/indexRealtime/Settings runtime chunks do not contain `VITE_EODHD_TOKEN`;`settingsChangelog-BUWNURSJ.js` still contains historical `VITE_EODHD_TOKEN` text only.
+  - PASS production auth boundary checks: unauthenticated `/api/quote?symbols=VIX` returns `401`;plain HTTP `/api/stocks-realtime` returns `426`.
 - Rollback: 回退本条涉及的指数 placeholder/REST 采样合并、HomeTab 四格固定渲染、DevVisualPreview 指数预览模式、`v10.7.9.209` 设置页版本/更新日志、测试和本日志即可;BTC 独立实时行情、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
 
 ### 2026-07-07 - 三大指数去 Yahoo 图源
