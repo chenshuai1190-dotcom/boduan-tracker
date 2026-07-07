@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.199', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.200', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 主屏滑动现价遮罩修复',
+      '  - iOS 主屏滑动或普通 focus 触发 realtime snapshot 时不再刷新持仓现价 freshness 时间戳,避免整页股票误显示 ----',
+      '  - 真正从后台恢复、页面重新可见、网络恢复或云数据加载完成时仍会开启本轮 freshness 遮旧价保护',
+      '  - 不改市值、今日盈亏、持仓盈亏、头部总资产、行情公式、EODHD token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.199', date: '2026-07-07',
     items: [
       '📡 iOS 主屏持仓现价遮罩',
       '  - iOS 主屏进入实时行情预热后,首页持仓和交易持仓会按同 symbol 的 quoteRows tick freshness 判断现价是否已更新',

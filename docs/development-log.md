@@ -4,6 +4,33 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - iOS 主屏滑动现价遮罩修复
+
+- Commit: `TBD`
+- Background: `v10.7.9.199` 上线后,用户实测发现 iOS 添加到主屏幕 Web App 第一次完整显示后,滑动股票列表会让全部持仓现价变成 `----`。复查后确认问题不在行情数据或计算层,而是 iOS standalone 中滑动/触摸可能触发 `focus`,此前 `focus` 也会启动 snapshot burst 并刷新 `warmStartedAt`,导致已显示价格被新 freshness 时间戳误判为旧 tick。
+- Changes:
+  - iOS PWA resume/snapshot 调度新增 `resetFreshness` 语义,把“补拉 realtime snapshot”和“重开持仓现价遮罩周期”拆开。
+  - 普通 `focus`、触摸 fallback 触发的 snapshot burst 不再刷新 `warmStartedAt`,避免用户滑动列表时整页股票现价误显示 `----`。
+  - `visibilitychange` 重新可见、网络恢复、云数据加载完成和真正 BFCache `pageshow` 恢复仍会刷新 freshness 周期,继续保护后台恢复时的旧价首屏。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.200`,新增“iOS 主屏滑动现价遮罩修复”。
+  - 不改 `/api/*-realtime` 服务端 snapshot 接口、EODHD token、`/api/quote` 鉴权、交易账本、持仓数量、成本、今日盈亏公式、数据库结构或 RLS。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,30 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BROLSRuu.js`、`dist/assets/SettingsTab-DtEG07rO.js`、`dist/assets/settingsChangelog-Efe92DM5.js`、`dist/assets/HomeTab-X9kqjGyH.js`、`dist/assets/TradesTab-DX1_RyGI.js`、`dist/assets/i18n-QTvefRC5.js` 和 `dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Dist marker check: pass;`App-BROLSRuu.js` contains `auto-ios-pwa-snapshot-focus` and `resetFreshness`;`SettingsTab-DtEG07rO.js` contains `v10.7.9.200`;`settingsChangelog-Efe92DM5.js` contains `iOS 主屏滑动现价遮罩修复`。
+- Deployment: Pending.
+- Production verification: Pending.
+- Rollback: 回退本条涉及的 `resetFreshness` resume/snapshot 调度、`v10.7.9.200` 设置页版本/更新日志、测试和本开发日志即可;不影响 iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - iOS 主屏持仓现价遮罩
 
 - Commit: `78d7842d55229be80832713ceab88e79787d3393`

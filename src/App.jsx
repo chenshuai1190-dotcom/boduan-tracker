@@ -1215,6 +1215,20 @@ function MainApp({ user, onLogout }) {
   const pwaAppShellReloadQueuedRef = useRef(false);
   const iosPwaRealtimeSnapshotBurstRef = useRef(() => false);
 
+  const buildPwaResumeRequest = (trigger = 'auto-ios-resume', options = {}) => ({
+    trigger: trigger || 'auto-ios-resume',
+    resetFreshness: options?.resetFreshness !== false,
+  });
+
+  const readPwaResumeRequest = (request) => {
+    if (!request) return null;
+    if (typeof request === 'string') return buildPwaResumeRequest(request);
+    if (typeof request === 'object') return buildPwaResumeRequest(request.trigger, {
+      resetFreshness: request.resetFreshness !== false,
+    });
+    return null;
+  };
+
   const fetchQuote = useCallback(async (symbols, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
     const fresh = requestOptions.fresh === true;
@@ -2976,16 +2990,16 @@ function MainApp({ user, onLogout }) {
     return true;
   };
 
-  const queueIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume', delayMs = IOS_PWA_VISIBLE_RETRY_MS) => {
+  const queueIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume', delayMs = IOS_PWA_VISIBLE_RETRY_MS, options = {}) => {
     if (typeof window === 'undefined') return;
-    pendingPwaResumeRefreshRef.current = trigger || 'auto-ios-resume';
+    pendingPwaResumeRefreshRef.current = buildPwaResumeRequest(trigger, options);
     if (pwaResumeRetryTimerRef.current) {
       clearTimeout(pwaResumeRetryTimerRef.current);
       pwaResumeRetryTimerRef.current = null;
     }
     pwaResumeRetryTimerRef.current = window.setTimeout(() => {
       pwaResumeRetryTimerRef.current = null;
-      const pendingTrigger = pendingPwaResumeRefreshRef.current;
+      const pendingRequest = readPwaResumeRequest(pendingPwaResumeRefreshRef.current);
       if (
         document.hidden
         && pwaResumeRetryDeadlineRef.current > 0
@@ -2993,38 +3007,41 @@ function MainApp({ user, onLogout }) {
       ) {
         return;
       }
-      if (pendingTrigger) requestIosPwaResumeQuoteRefresh(pendingTrigger);
+      if (pendingRequest) requestIosPwaResumeQuoteRefresh(pendingRequest.trigger, {
+        resetFreshness: pendingRequest.resetFreshness,
+      });
     }, Math.max(0, delayMs));
   };
 
-  const requestIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume') => {
+  const requestIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume', options = {}) => {
     if (typeof window === 'undefined') return;
     if (pwaAppShellReloadQueuedRef.current) return;
     requestIosPwaAppShellUpdateCheck();
     const nextTrigger = trigger || 'auto-ios-resume';
+    const resetFreshness = options?.resetFreshness !== false;
     if (document.hidden) {
       if (!pwaResumeRetryDeadlineRef.current) {
         pwaResumeRetryDeadlineRef.current = Date.now() + IOS_PWA_VISIBLE_RETRY_MAX_MS;
       }
       if (Date.now() <= pwaResumeRetryDeadlineRef.current) {
-        queueIosPwaResumeQuoteRefresh(nextTrigger, IOS_PWA_VISIBLE_RETRY_MS);
+        queueIosPwaResumeQuoteRefresh(nextTrigger, IOS_PWA_VISIBLE_RETRY_MS, { resetFreshness });
       }
       return;
     }
     pwaResumeRetryDeadlineRef.current = 0;
     if (cloudLoadingRef.current) {
-      pendingPwaResumeRefreshRef.current = nextTrigger;
+      pendingPwaResumeRefreshRef.current = buildPwaResumeRequest(nextTrigger, { resetFreshness });
       return;
     }
     const now = Date.now();
     const elapsed = now - pwaLastResumeRefreshAtRef.current;
     if (elapsed < IOS_PWA_RESUME_REFRESH_THROTTLE_MS) {
-      queueIosPwaResumeQuoteRefresh(nextTrigger, IOS_PWA_RESUME_REFRESH_THROTTLE_MS - elapsed);
+      queueIosPwaResumeQuoteRefresh(nextTrigger, IOS_PWA_RESUME_REFRESH_THROTTLE_MS - elapsed, { resetFreshness });
       return;
     }
     pendingPwaResumeRefreshRef.current = null;
     pwaLastResumeRefreshAtRef.current = now;
-    if (isIosStandaloneWebApp() && iosPwaRealtimeSnapshotBurstRef.current(nextTrigger)) {
+    if (isIosStandaloneWebApp() && iosPwaRealtimeSnapshotBurstRef.current(nextTrigger, { resetFreshness })) {
       return;
     }
     requestQuickQuoteRefresh(null, {
@@ -3040,10 +3057,12 @@ function MainApp({ user, onLogout }) {
     cloudLoadingRef.current = cloudLoading;
     if (cloudLoading) return;
     if (!pendingPwaResumeRefreshRef.current) return;
-    const pendingTrigger = pendingPwaResumeRefreshRef.current;
+    const pendingRequest = readPwaResumeRequest(pendingPwaResumeRefreshRef.current);
     pendingPwaResumeRefreshRef.current = null;
+    if (!pendingRequest) return;
     requestIosPwaResumeQuoteRefresh(
-      pendingTrigger === 'auto-ios-touch-resume' ? pendingTrigger : 'auto-ios-resume-cloud',
+      pendingRequest.trigger === 'auto-ios-touch-resume' ? pendingRequest.trigger : 'auto-ios-resume-cloud',
+      { resetFreshness: pendingRequest.resetFreshness },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudLoading]);
@@ -3056,15 +3075,16 @@ function MainApp({ user, onLogout }) {
     const markForegroundHeartbeat = () => {
       foregroundHeartbeatAtRef.current = Date.now();
     };
-    const requestResumeRefresh = (trigger) => {
+    const requestResumeRefresh = (trigger, options = {}) => {
       if (!isActive) return;
+      const shouldResetFreshness = options?.resetFreshness === true || Boolean(pwaHiddenAtRef.current);
       if (!document.hidden) {
         markForegroundHeartbeat();
         pwaHiddenAtRef.current = 0;
       } else if (!pwaHiddenAtRef.current) {
         pwaHiddenAtRef.current = Date.now();
       }
-      requestIosPwaResumeQuoteRefresh(trigger);
+      requestIosPwaResumeQuoteRefresh(trigger, { resetFreshness: shouldResetFreshness });
     };
 
     markForegroundHeartbeat();
@@ -3082,14 +3102,14 @@ function MainApp({ user, onLogout }) {
         pwaHiddenAtRef.current = Date.now();
         return;
       }
-      requestResumeRefresh('auto-ios-resume');
+      requestResumeRefresh('auto-ios-resume', { resetFreshness: true });
     };
     const handlePageHide = () => {
       pwaHiddenAtRef.current = Date.now();
     };
-    const handlePageShow = () => requestResumeRefresh('auto-ios-resume');
-    const handleFocus = () => requestResumeRefresh('auto-ios-resume');
-    const handleOnline = () => requestResumeRefresh('auto-ios-online');
+    const handlePageShow = (event) => requestResumeRefresh('auto-ios-resume', { resetFreshness: event?.persisted === true });
+    const handleFocus = () => requestResumeRefresh('auto-ios-resume', { resetFreshness: false });
+    const handleOnline = () => requestResumeRefresh('auto-ios-online', { resetFreshness: true });
     const handleTouchResume = () => {
       const now = Date.now();
       if (now - pwaLastTouchResumeAtRef.current < IOS_PWA_TOUCH_RESUME_THROTTLE_MS) return;
@@ -3100,7 +3120,7 @@ function MainApp({ user, onLogout }) {
       } else if (!pwaHiddenAtRef.current) {
         pwaHiddenAtRef.current = now;
       }
-      requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume');
+      requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume', { resetFreshness: false });
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -3127,8 +3147,8 @@ function MainApp({ user, onLogout }) {
 
   quoteRefreshFromCloudResultRef.current = (result) => {
     if (isIosStandaloneWebApp()) {
-      if (iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud')) return;
-      pendingPwaResumeRefreshRef.current = 'auto-ios-pwa-snapshot-cloud';
+      if (iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })) return;
+      pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('auto-ios-pwa-snapshot-cloud', { resetFreshness: true });
       return;
     }
     requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result), {
@@ -4041,8 +4061,10 @@ function MainApp({ user, onLogout }) {
       burstTimers.clear();
     };
 
-    const markSnapshotWarming = () => {
-      setWarmStartedAt(Date.now());
+    const markSnapshotWarming = (options = {}) => {
+      if (options?.resetFreshness !== false) {
+        setWarmStartedAt(Date.now());
+      }
       setBtcRealtimeStatus('warming');
       setIndexRealtimeStatus('warming');
       stockRealtimeRef.current.status = 'warming';
@@ -4055,9 +4077,10 @@ function MainApp({ user, onLogout }) {
     const runSnapshotPoll = async (trigger = 'auto-ios-pwa-snapshot', options = {}) => {
       const forceSnapshot = options?.force === true;
       const warmSnapshot = options?.warm === true;
+      const resetFreshness = options?.resetFreshness !== false;
       if (stopped || inFlight) return;
       if (!forceSnapshot && document.hidden) return;
-      if (warmSnapshot) markSnapshotWarming();
+      if (warmSnapshot) markSnapshotWarming({ resetFreshness });
       inFlight = true;
       const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
       try {
@@ -4116,16 +4139,18 @@ function MainApp({ user, onLogout }) {
       }
     };
 
-    const startSnapshotBurst = (trigger = 'auto-ios-pwa-snapshot-burst') => {
+    const startSnapshotBurst = (trigger = 'auto-ios-pwa-snapshot-burst', options = {}) => {
       if (stopped) return false;
+      const resetFreshness = options?.resetFreshness !== false;
       clearBurstTimers();
-      markSnapshotWarming();
+      markSnapshotWarming({ resetFreshness });
       IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS.forEach((delayMs, index) => {
         const timerId = window.setTimeout(() => {
           burstTimers.delete(timerId);
           runSnapshotPoll(`${trigger}-burst-${index + 1}`, {
             force: true,
             warm: index === 0,
+            resetFreshness,
           });
         }, delayMs);
         burstTimers.add(timerId);
@@ -4142,8 +4167,26 @@ function MainApp({ user, onLogout }) {
       }, IOS_PWA_REALTIME_SNAPSHOT_INTERVAL_MS);
     };
 
-    const resumePoll = () => {
-      startSnapshotBurst('auto-ios-pwa-snapshot-resume');
+    const resumePoll = (event) => {
+      const eventType = event?.type;
+      if (eventType === 'visibilitychange') {
+        if (document.hidden) return;
+        startSnapshotBurst('auto-ios-pwa-snapshot-resume', { resetFreshness: true });
+        return;
+      }
+      if (eventType === 'focus') {
+        startSnapshotBurst('auto-ios-pwa-snapshot-focus', { resetFreshness: false });
+        return;
+      }
+      if (eventType === 'pageshow') {
+        startSnapshotBurst('auto-ios-pwa-snapshot-resume', { resetFreshness: event?.persisted === true || Boolean(pwaHiddenAtRef.current) });
+        return;
+      }
+      if (eventType === 'online') {
+        startSnapshotBurst('auto-ios-pwa-snapshot-online', { resetFreshness: true });
+        return;
+      }
+      startSnapshotBurst('auto-ios-pwa-snapshot-resume', { resetFreshness: true });
     };
 
     iosPwaRealtimeSnapshotBurstRef.current = startSnapshotBurst;
