@@ -193,6 +193,32 @@ test('normalizeStockTick accepts EODHD US stock WebSocket fields', () => {
   assert.equal(tick.marketStatus, 'open');
   assert.equal(tick.timestamp, 1783000000123);
   assert.equal(tick.source, 'EODHD_WS');
+  assert.equal(tick.priceType, 'trade');
+});
+
+test('normalizeStockTick accepts EODHD US quote WebSocket bid ask midpoint', () => {
+  const tick = normalizeStockTick({
+    s: 'NVDA.US',
+    bp: 194.0158,
+    ap: 194.0837,
+    t: 1783000000123,
+  }, {
+    symbols: new Set(['NVDA']),
+    receivedAt: 1783000000999,
+    source: 'EODHD_WS_QUOTE',
+    priceType: 'quote-midpoint',
+    defaultMarketStatus: 'quote',
+  });
+
+  assert.equal(tick.type, 'stock_tick');
+  assert.equal(tick.symbol, 'NVDA');
+  assert.equal(Number(tick.price.toFixed(4)), 194.0498);
+  assert.equal(tick.bid, 194.0158);
+  assert.equal(tick.ask, 194.0837);
+  assert.equal(tick.priceType, 'quote-midpoint');
+  assert.equal(tick.marketStatus, 'quote');
+  assert.equal(tick.timestamp, 1783000000123);
+  assert.equal(tick.source, 'EODHD_WS_QUOTE');
 });
 
 test('stock realtime tick updates quote cache and can insert a held-only row', () => {
@@ -249,6 +275,33 @@ test('stock realtime tick keeps previous close from base quote rows when tick on
   assert.equal(updated[0].previousClose, 390.507);
   assert.equal(Number(updated[0].change.toFixed(3)), 0.323);
   assert.equal(Number(updated[0].changePercent.toFixed(4)), 0.0827);
+});
+
+test('stock quote websocket midpoint can update premarket quote rows with baseline preserved', () => {
+  const baseRows = [
+    { symbol: 'NVDA', name: '英伟达', price: 195.41, previousClose: 195.55, high: 197.55 },
+  ];
+  const updated = applyStockTickToQuoteRows([], {
+    type: 'stock_tick',
+    symbol: 'NVDA',
+    price: 194.04975,
+    bid: 194.0158,
+    ask: 194.0837,
+    priceType: 'quote-midpoint',
+    marketStatus: 'premarket',
+    timestamp: Date.UTC(2026, 6, 7, 8, 10, 55),
+    source: 'EODHD_WS_QUOTE',
+  }, 'live', baseRows);
+
+  assert.equal(updated[0].price, 194.04975);
+  assert.equal(updated[0].previousClose, 195.55);
+  assert.equal(updated[0].priceType, 'quote-midpoint');
+  assert.equal(updated[0].realtime, true);
+  assert.equal(updated[0].source, 'EODHD_WS_QUOTE');
+  assert.equal(updated[0].dailyPnlLocked, false);
+  assert.equal(updated[0].dailyPnlSession, 'pre');
+  assert.equal(Number(updated[0].change.toFixed(4)), -1.5003);
+  assert.equal(Number(updated[0].changePercent.toFixed(4)), -0.7672);
 });
 
 test('stock realtime tick waits for previous close before replacing daily pnl state', () => {

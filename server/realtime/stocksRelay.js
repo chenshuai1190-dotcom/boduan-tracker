@@ -2,22 +2,56 @@ import { WebSocket } from 'ws';
 import { normalizeStockTick } from './stocks.js';
 import { sanitizeEodhdKey } from './btc.js';
 
-const UPSTREAM_URL = 'wss://ws.eodhistoricaldata.com/ws/us';
+const TRADE_UPSTREAM_URL = 'wss://ws.eodhistoricaldata.com/ws/us';
+const QUOTE_UPSTREAM_URL = 'wss://ws.eodhistoricaldata.com/ws/us-quote';
 const BROADCAST_MIN_INTERVAL_MS = 1000;
 const CLIENT_HEARTBEAT_MS = 25_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+const QUOTE_FALLBACK_AFTER_TRADE_MS = 15_000;
+
+const STREAMS = {
+  trade: {
+    url: TRADE_UPSTREAM_URL,
+    upstreamKey: 'upstream',
+    statusKey: 'upstreamStatus',
+    reconnectDelayKey: 'reconnectDelayMs',
+    reconnectTimerKey: 'reconnectTimer',
+    subscribedSymbolsKey: 'subscribedSymbols',
+    source: 'EODHD_WS',
+    priceType: 'trade',
+    defaultMarketStatus: null,
+    errorMessage: 'EODHD 股票成交 WebSocket 连接失败',
+  },
+  quote: {
+    url: QUOTE_UPSTREAM_URL,
+    upstreamKey: 'quoteUpstream',
+    statusKey: 'quoteUpstreamStatus',
+    reconnectDelayKey: 'quoteReconnectDelayMs',
+    reconnectTimerKey: 'quoteReconnectTimer',
+    subscribedSymbolsKey: 'quoteSubscribedSymbols',
+    source: 'EODHD_WS_QUOTE',
+    priceType: 'quote-midpoint',
+    defaultMarketStatus: 'quote',
+    errorMessage: 'EODHD 股票盘口 WebSocket 连接失败',
+  },
+};
 
 const state = {
   clients: new Map(),
   upstream: null,
+  quoteUpstream: null,
   upstreamStatus: 'idle',
+  quoteUpstreamStatus: 'idle',
   reconnectDelayMs: 1000,
+  quoteReconnectDelayMs: 1000,
   reconnectTimer: null,
+  quoteReconnectTimer: null,
   lastTicks: new Map(),
   lastBroadcastAtBySymbol: new Map(),
   pendingTickBySymbol: new Map(),
   pendingBroadcastTimerBySymbol: new Map(),
   subscribedSymbols: new Set(),
+  quoteSubscribedSymbols: new Set(),
   eodhdKey: '',
 };
 
@@ -48,6 +82,26 @@ function broadcastStatus(payload) {
   }
 }
 
+function combinedUpstreamStatus() {
+  const statuses = [state.upstreamStatus, state.quoteUpstreamStatus];
+  if (statuses.includes('live')) return 'live';
+  if (statuses.includes('connecting')) return 'connecting';
+  if (statuses.includes('reconnecting')) return 'reconnecting';
+  if (statuses.includes('error')) return 'error';
+  return state.clients.size > 0 ? 'idle' : 'idle';
+}
+
+function broadcastCombinedStatus(payload = {}) {
+  broadcastStatus({
+    type: 'stocks_status',
+    status: combinedUpstreamStatus(),
+    tradeStatus: state.upstreamStatus,
+    quoteStatus: state.quoteUpstreamStatus,
+    source: 'EODHD_WS',
+    ...payload,
+  });
+}
+
 function broadcastTick(tick) {
   for (const [client, context] of state.clients.entries()) {
     if (!context.symbols.has(tick.symbol)) continue;
@@ -55,11 +109,18 @@ function broadcastTick(tick) {
   }
 }
 
-function clearReconnectTimer() {
-  if (state.reconnectTimer) {
-    clearTimeout(state.reconnectTimer);
-    state.reconnectTimer = null;
+function clearReconnectTimer(kind) {
+  const stream = STREAMS[kind];
+  const timerKey = stream.reconnectTimerKey;
+  if (state[timerKey]) {
+    clearTimeout(state[timerKey]);
+    state[timerKey] = null;
   }
+}
+
+function clearAllReconnectTimers() {
+  clearReconnectTimer('trade');
+  clearReconnectTimer('quote');
 }
 
 function clearPendingBroadcasts() {
@@ -72,36 +133,76 @@ function clearPendingBroadcasts() {
 
 function closeUpstreamIfUnused() {
   if (state.clients.size > 0) return;
-  clearReconnectTimer();
+  clearAllReconnectTimers();
   clearPendingBroadcasts();
   state.subscribedSymbols.clear();
-  if (state.upstream) {
-    try {
-      state.upstream.close();
-    } catch {}
+  state.quoteSubscribedSymbols.clear();
+  for (const stream of Object.values(STREAMS)) {
+    const upstream = state[stream.upstreamKey];
+    if (upstream) {
+      try {
+        upstream.close();
+      } catch {}
+    }
+    state[stream.upstreamKey] = null;
+    state[stream.statusKey] = 'idle';
   }
-  state.upstream = null;
-  state.upstreamStatus = 'idle';
 }
 
-function sendSubscription(action, symbols) {
+function sendSubscription(kind, action, symbols) {
+  const stream = STREAMS[kind];
   if (!symbols.length) return;
-  if (!state.upstream || state.upstream.readyState !== WebSocket.OPEN) return;
-  safeJsonSend(state.upstream, { action, symbols: symbols.join(',') });
+  const upstream = state[stream.upstreamKey];
+  if (!upstream || upstream.readyState !== WebSocket.OPEN) return;
+  safeJsonSend(upstream, { action, symbols: symbols.join(',') });
 }
 
-function reconcileSubscriptions() {
+function reconcileSubscriptions(kind) {
+  const stream = STREAMS[kind];
   const wanted = currentSymbols();
-  if (!state.upstream || state.upstream.readyState !== WebSocket.OPEN) return;
+  const upstream = state[stream.upstreamKey];
+  if (!upstream || upstream.readyState !== WebSocket.OPEN) return;
 
-  const added = [...wanted].filter((symbol) => !state.subscribedSymbols.has(symbol));
-  const removed = [...state.subscribedSymbols].filter((symbol) => !wanted.has(symbol));
-  sendSubscription('subscribe', added);
-  sendSubscription('unsubscribe', removed);
-  state.subscribedSymbols = wanted;
+  const subscribedSymbolsKey = stream.subscribedSymbolsKey;
+  const subscribedSymbols = state[subscribedSymbolsKey];
+  const added = [...wanted].filter((symbol) => !subscribedSymbols.has(symbol));
+  const removed = [...subscribedSymbols].filter((symbol) => !wanted.has(symbol));
+  sendSubscription(kind, 'subscribe', added);
+  sendSubscription(kind, 'unsubscribe', removed);
+  state[subscribedSymbolsKey] = wanted;
+}
+
+function reconcileAllSubscriptions() {
+  reconcileSubscriptions('trade');
+  reconcileSubscriptions('quote');
+}
+
+function tickTimestamp(tick) {
+  const timestamp = Number(tick?.timestamp || tick?.receivedAt || 0);
+  return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now();
+}
+
+function isTradeTick(tick) {
+  return tick?.priceType === 'trade' || tick?.source === 'EODHD_WS';
+}
+
+function isQuoteFallbackTick(tick) {
+  return tick?.priceType === 'quote-midpoint' || tick?.source === 'EODHD_WS_QUOTE';
+}
+
+function shouldAcceptTick(tick) {
+  const existing = state.lastTicks.get(tick.symbol);
+  if (!existing) return true;
+  if (isQuoteFallbackTick(tick) && isTradeTick(existing)) {
+    const existingTime = tickTimestamp(existing);
+    const nextTime = tickTimestamp(tick);
+    if (nextTime - existingTime <= QUOTE_FALLBACK_AFTER_TRADE_MS) return false;
+  }
+  return true;
 }
 
 function emitTick(tick) {
+  if (!shouldAcceptTick(tick)) return;
   state.lastTicks.set(tick.symbol, tick);
   const now = Date.now();
   const lastBroadcastAt = state.lastBroadcastAtBySymbol.get(tick.symbol) || 0;
@@ -127,68 +228,81 @@ function emitTick(tick) {
   state.pendingBroadcastTimerBySymbol.set(tick.symbol, timer);
 }
 
-function scheduleReconnect() {
-  clearReconnectTimer();
+function scheduleReconnect(kind) {
+  const stream = STREAMS[kind];
+  clearReconnectTimer(kind);
   if (state.clients.size === 0 || !state.eodhdKey) return;
-  const delay = state.reconnectDelayMs;
-  state.reconnectDelayMs = Math.min(state.reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
-  state.reconnectTimer = setTimeout(() => connectUpstream(), delay);
-  broadcastStatus({ type: 'stocks_status', status: 'reconnecting', retryInMs: delay, source: 'EODHD_WS' });
+  const delayKey = stream.reconnectDelayKey;
+  const delay = state[delayKey];
+  state[delayKey] = Math.min(state[delayKey] * 2, MAX_RECONNECT_DELAY_MS);
+  state[stream.reconnectTimerKey] = setTimeout(() => connectUpstream(kind), delay);
+  state[stream.statusKey] = 'reconnecting';
+  broadcastCombinedStatus({ retryInMs: delay });
 }
 
-function connectUpstream() {
+function connectUpstream(kind) {
+  const stream = STREAMS[kind];
   if (state.clients.size === 0) return;
   if (!state.eodhdKey) {
-    broadcastStatus({ type: 'stocks_status', status: 'error', error: 'EODHD_API_KEY 未配置', source: 'EODHD_WS' });
+    state[stream.statusKey] = 'error';
+    broadcastCombinedStatus({ error: 'EODHD_API_KEY 未配置' });
     return;
   }
+  const upstream = state[stream.upstreamKey];
   if (
-    state.upstream
-    && (state.upstream.readyState === WebSocket.OPEN || state.upstream.readyState === WebSocket.CONNECTING)
+    upstream
+    && (upstream.readyState === WebSocket.OPEN || upstream.readyState === WebSocket.CONNECTING)
   ) {
-    reconcileSubscriptions();
+    reconcileSubscriptions(kind);
     return;
   }
 
-  state.upstreamStatus = 'connecting';
-  broadcastStatus({ type: 'stocks_status', status: 'connecting', source: 'EODHD_WS' });
+  state[stream.statusKey] = 'connecting';
+  broadcastCombinedStatus();
 
-  const upstream = new WebSocket(`${UPSTREAM_URL}?api_token=${encodeURIComponent(state.eodhdKey)}`);
-  state.upstream = upstream;
+  const nextUpstream = new WebSocket(`${stream.url}?api_token=${encodeURIComponent(state.eodhdKey)}`);
+  state[stream.upstreamKey] = nextUpstream;
 
-  upstream.on('open', () => {
-    state.upstreamStatus = 'live';
-    state.reconnectDelayMs = 1000;
-    state.subscribedSymbols.clear();
-    reconcileSubscriptions();
-    broadcastStatus({ type: 'stocks_status', status: 'live', source: 'EODHD_WS' });
+  nextUpstream.on('open', () => {
+    state[stream.statusKey] = 'live';
+    state[stream.reconnectDelayKey] = 1000;
+    state[stream.subscribedSymbolsKey].clear();
+    reconcileSubscriptions(kind);
+    broadcastCombinedStatus();
     for (const tick of state.lastTicks.values()) {
       broadcastTick(tick);
     }
   });
 
-  upstream.on('message', (data) => {
+  nextUpstream.on('message', (data) => {
     const text = typeof data === 'string' ? data : data.toString('utf8');
-    const tick = normalizeStockTick(text, { symbols: currentSymbols() });
+    const tick = normalizeStockTick(text, {
+      symbols: currentSymbols(),
+      source: stream.source,
+      priceType: stream.priceType,
+      defaultMarketStatus: stream.defaultMarketStatus,
+    });
     if (tick) emitTick(tick);
   });
 
-  upstream.on('error', (error) => {
-    state.upstreamStatus = 'error';
-    broadcastStatus({
-      type: 'stocks_status',
-      status: 'error',
-      error: error?.message || 'EODHD 股票 WebSocket 连接失败',
-      source: 'EODHD_WS',
+  nextUpstream.on('error', (error) => {
+    state[stream.statusKey] = 'error';
+    broadcastCombinedStatus({
+      error: error?.message || stream.errorMessage,
     });
   });
 
-  upstream.on('close', () => {
-    if (state.upstream === upstream) state.upstream = null;
-    state.subscribedSymbols.clear();
-    state.upstreamStatus = state.clients.size > 0 ? 'reconnecting' : 'idle';
-    scheduleReconnect();
+  nextUpstream.on('close', () => {
+    if (state[stream.upstreamKey] === nextUpstream) state[stream.upstreamKey] = null;
+    state[stream.subscribedSymbolsKey].clear();
+    state[stream.statusKey] = state.clients.size > 0 ? 'reconnecting' : 'idle';
+    scheduleReconnect(kind);
   });
+}
+
+function connectUpstreams() {
+  connectUpstream('trade');
+  connectUpstream('quote');
 }
 
 export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
@@ -204,13 +318,13 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
   ws.on('close', () => {
     state.clients.delete(ws);
     if (heartbeatId) clearInterval(heartbeatId);
-    reconcileSubscriptions();
+    reconcileAllSubscriptions();
     closeUpstreamIfUnused();
   });
   ws.on('error', () => {
     state.clients.delete(ws);
     if (heartbeatId) clearInterval(heartbeatId);
-    reconcileSubscriptions();
+    reconcileAllSubscriptions();
     closeUpstreamIfUnused();
   });
 
@@ -226,7 +340,9 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
 
   safeJsonSend(ws, {
     type: 'stocks_status',
-    status: state.upstreamStatus,
+    status: combinedUpstreamStatus(),
+    tradeStatus: state.upstreamStatus,
+    quoteStatus: state.quoteUpstreamStatus,
     symbols: [...symbolSet],
     source: 'EODHD_WS',
   });
@@ -234,5 +350,5 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
     const tick = state.lastTicks.get(symbol);
     if (tick) safeJsonSend(ws, tick);
   }
-  connectUpstream();
+  connectUpstreams();
 }

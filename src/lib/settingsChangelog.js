@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.191', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.192', date: '2026-07-07', latest: true,
+    items: [
+      '📡 盘前股票盘口兜底',
+      '  - 股票实时 relay 保留 /ws/us 成交价为主源,新增 /ws/us-quote bid/ask 中间价作为盘前兜底',
+      '  - 最近成交 tick 优先,避免盘口中间价立刻覆盖刚收到的成交价',
+      '  - 客户端识别 EODHD_WS_QUOTE 为实时行情,继续用现有昨日收盘基准计算盘前今日盈亏',
+      '  - 不改交易账本、持仓数量、成本、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.191', date: '2026-07-07',
     items: [
       '🌐 英文头卡持仓文案收窄',
       '  - 英文模式首页和交易页头部持仓数量只显示 holdings,不再显示 trades',

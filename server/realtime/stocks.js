@@ -44,7 +44,13 @@ export function parseStockRealtimeSymbolsParam(rawSymbols, { limit = MAX_STOCK_R
   return { symbols };
 }
 
-export function normalizeStockTick(rawTick, { symbols = null, receivedAt = Date.now() } = {}) {
+export function normalizeStockTick(rawTick, {
+  symbols = null,
+  receivedAt = Date.now(),
+  source = 'EODHD_WS',
+  defaultMarketStatus = null,
+  priceType = '',
+} = {}) {
   const raw = typeof rawTick === 'string' ? safeParseJson(rawTick) : rawTick;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 
@@ -55,7 +61,8 @@ export function normalizeStockTick(rawTick, { symbols = null, receivedAt = Date.
   const bid = asNumber(raw.bp ?? raw.bid);
   const ask = asNumber(raw.ap ?? raw.ask);
   const midpoint = bid && ask ? (bid + ask) / 2 : null;
-  const price = asNumber(raw.p ?? raw.price ?? raw.close ?? raw.last ?? raw.lastTradePrice) ?? midpoint;
+  const tradePrice = asNumber(raw.p ?? raw.price ?? raw.close ?? raw.last ?? raw.lastTradePrice);
+  const price = tradePrice ?? midpoint;
   if (!price || price <= 0) return null;
 
   const changePercent = asNumber(raw.dc ?? raw.changePercent ?? raw.change_p);
@@ -72,10 +79,11 @@ export function normalizeStockTick(rawTick, { symbols = null, receivedAt = Date.
     previousClose: previousClose && previousClose > 0 ? previousClose : null,
     bid: bid ?? null,
     ask: ask ?? null,
-    marketStatus: raw.ms || raw.marketStatus || null,
+    priceType: priceType || (tradePrice ? 'trade' : 'quote-midpoint'),
+    marketStatus: raw.ms || raw.marketStatus || defaultMarketStatus,
     timestamp,
     receivedAt,
-    source: 'EODHD_WS',
+    source,
   };
 }
 

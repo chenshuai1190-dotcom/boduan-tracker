@@ -4,6 +4,38 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 盘前股票盘口兜底
+
+- Commit: local only,not committed yet.
+- Background: 用户用同一时间截图确认盘前阶段 `/api/quote` 的 REST 快照仍停留在旧价,而券商已显示新的盘前价;本地 EODHD 对比显示 `/ws/us` 成交流和 `/ws/us-quote` bid/ask 流比 REST 更接近券商盘前价,其中 `/ws/us-quote` 可在成交 tick 稀疏时提供盘口中间价兜底。
+- Changes:
+  - 股票实时 relay 保留 `wss://ws.eodhistoricaldata.com/ws/us` 成交价作为主源,新增 `wss://ws.eodhistoricaldata.com/ws/us-quote` 盘口流作为盘前兜底。
+  - `normalizeStockTick` 支持传入 `source`、`priceType` 和默认市场状态;成交流标记为 `EODHD_WS` / `trade`,盘口兜底标记为 `EODHD_WS_QUOTE` / `quote-midpoint`。
+  - relay 合并双上游状态,订阅、退订和重连同时作用于成交流和盘口流;最近成交 tick 在 15 秒内优先于盘口中间价,避免盘口兜底立刻覆盖刚收到的成交价。
+  - 客户端 quote row 识别 `EODHD_WS_QUOTE` 为实时行情,并透传 `priceType`;今日盈亏仍沿用现有盘前/盘中实时、盘后/夜盘收盘锁定逻辑。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.192`,新增“盘前股票盘口兜底”。
+  - 保持交易账本、持仓数量、成本、EODHD 服务端 token、`/api/quote` 鉴权、Supabase 数据结构和 RLS 不变。
+- Key files:
+  - `server/realtime/stocksRelay.js`
+  - `server/realtime/stocks.js`
+  - `src/lib/stockRealtime.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --check server/realtime/stocksRelay.js` pass。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,49 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,107 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-UNr96V7C.js`、`dist/assets/SettingsTab-DoV4NvCI.js`、`dist/assets/settingsChangelog-BhWZoWnz.js` and `dist/assets/index-26SxOLJF.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - 本地 EODHD 双流采样使用 `.env.local` 的 `EODHD_API_KEY` 但不输出密钥: `2026-07-07T08:19:10.355Z` 起 4.5 秒内 `/ws/us` 和 `/ws/us-quote` 均收到 NVDA、MSFT、META、TSM、NOK、GOOGL 六只股票;示例 NVDA `trade=194.1839`、`quote midpoint=194.1689`,MSFT `trade=391.5701`、`quote midpoint=391.5583`,两条流在盘前 extended-hours 均可用。
+  - 本地 relay 集成采样使用模拟客户端直接调用 `attachStocksRealtimeClient`: `2026-07-07T08:20:49.667Z` 起 25 秒内状态进入 `live/live:live`,收到 38 条 `stock_tick`,其中 `EODHD_WS` 成交流 32 条、`EODHD_WS_QUOTE` 盘口兜底 6 条。
+- Deployment: Not deployed;用户要求先本地测试验证。
+- Rollback: 回退本条涉及的双上游股票 realtime relay、`normalizeStockTick` 的 source/priceType 扩展、客户端 `EODHD_WS_QUOTE` 识别、`v10.7.9.192` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓成本/股数、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - 英文头卡持仓文案收窄
 
 - Commit: `dc66bb9582c6523ed4fcae00b05bd99040dc9dd3`
