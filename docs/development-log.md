@@ -4,6 +4,29 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 登录页 Quote 深色重设计
+
+- Background: 用户提供登录页英文/中文效果图,要求未登录首屏重做为深色金融登录界面,右上角新增中英切换,默认英文,并严格控制 Logo、标题、输入框和文字大小。
+- Changes:
+  - `src/Login.jsx` 重写未登录 UI 为 Quote 深色登录页:顶部自绘行情 Logo、`Quote` serif 标题、右上角中英切换、深色 tab、紧凑输入框、蓝青渐变主按钮和参考图一致的辅助文字布局。
+  - 登录页默认在没有已存语言偏好时使用英文;切换语言时写入现有 `xmoney_language`,登录后系统语言可继续同步。
+  - 登录、注册、忘记密码和重置密码四种模式保留原 Supabase 流程,仅替换展示文案和视觉外壳。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.186`,新增“登录页 Quote 深色重设计”。
+  - 保持 Supabase 鉴权、重置密码回跳检测、已登录 App、行情、交易账本、EODHD 服务端 token、`/api/quote` 鉴权、WebSocket relay、数据库结构和 RLS 不变。
+- Key files:
+  - `src/Login.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,97 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/Login-MxrpJM3S.js`、`dist/assets/SettingsTab-Ui4bZpUQ.js`、`dist/assets/settingsChangelog-B3XAD4ol.js`、`dist/assets/App-BFkqEwxW.js` 和 `dist/assets/index-CWy1wZ2J.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Playwright mobile visual QA: 使用仅本地视觉预览的公开 Supabase 占位环境在 `390x844` 检查英文/中文登录页,截图输出到 `outputs/login-quote-en.png` 和 `outputs/login-quote-zh.png`;页面无横向/纵向溢出,输入框保持深色背景,右上角语言切换可用。
+  - Build marker: `Login-MxrpJM3S.js` contains `Phone / Email`、`手机号 / 邮箱` and `Switch to Chinese`;`Login-MxrpJM3S.js` does not contain old login branding marker `Bottomline` or old white-card marker `bg-white rounded-3xl`;`SettingsTab-Ui4bZpUQ.js` contains `v10.7.9.186`;`settingsChangelog-B3XAD4ol.js` contains `v10.7.9.186` and `登录页 Quote 深色重设计`。
+  - `git diff --check` pass。
+- Rollback: 回退本条涉及的 `src/Login.jsx` 视觉重写、`v10.7.9.186` 设置页版本/更新日志和本日志即可;不影响认证、账本、行情、数据库或 RLS。
+
 ### 2026-07-07 - 盘后当日盈亏券商口径
 
 - Runtime code commit: `308e3937bb7b6f52b8b753f28fd97a2dc8c25716`

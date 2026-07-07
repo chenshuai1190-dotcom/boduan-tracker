@@ -10,6 +10,7 @@ const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
 const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangelog.js', import.meta.url), 'utf8');
@@ -186,7 +187,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.185'), 'settings version badge should document the broker-style daily pnl baseline update');
+  assert.ok(settingsTabSource.includes('v10.7.9.186'), 'settings version badge should document the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should document the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should retain the broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should document the broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('盘后当日盈亏券商口径'), 'settings changelog should describe the broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.184'), 'settings changelog should retain the market red color update');
@@ -523,6 +527,28 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(devVisualPreviewSource.includes("t(language, 'review.actualDataTitle'"), 'local visual preview should support direct English review checks');
 });
 
+test('login screen uses Quote dark bilingual design without changing auth flow', () => {
+  assert.ok(loginSource.includes("stored ? normalizeLanguage(stored) : 'en'"), 'login should default to English when no saved language exists');
+  assert.ok(loginSource.includes('saveStoredLanguage(next)'), 'login language toggle should sync to the shared language key');
+  assert.ok(loginSource.includes('const LOGIN_COPY ='), 'login should define local bilingual copy');
+  assert.ok(loginSource.includes("signIn: 'Sign In'"), 'login should include English sign-in copy');
+  assert.ok(loginSource.includes("signIn: '登录'"), 'login should include Chinese sign-in copy');
+  assert.ok(loginSource.includes("phoneEmail: 'Phone / Email'"), 'login should match the English mockup placeholder');
+  assert.ok(loginSource.includes("phoneEmail: '手机号 / 邮箱'"), 'login should match the Chinese mockup placeholder');
+  assert.ok(loginSource.includes('function ChartLogo()'), 'login should render the Quote chart logo instead of the old letter logo');
+  assert.ok(loginSource.includes('function MarketBackdrop()'), 'login should include the subtle market-chart backdrop');
+  assert.ok(loginSource.includes('h-[78px] w-[78px]'), 'login logo should keep the reference-sized icon');
+  assert.ok(loginSource.includes('text-[52px] font-normal leading-[58px]'), 'Quote title should keep the mockup scale without bolding');
+  assert.ok(loginSource.includes('h-[54px] grid-cols-2'), 'sign-in/sign-up tabs should keep the compact reference height');
+  assert.ok(loginSource.includes('h-[58px] w-full appearance-none rounded-[8px]'), 'login inputs should keep the reference compact height and avoid browser default white fields');
+  assert.ok(loginSource.includes('from-[#0b7dff] to-[#18d2d5]'), 'primary button should use the blue-cyan reference gradient');
+  assert.ok(loginSource.includes('resetPassword(email)'), 'forgot-password flow should stay wired to Supabase reset');
+  assert.ok(loginSource.includes('signIn(email, password)'), 'sign-in flow should stay wired to Supabase auth');
+  assert.ok(loginSource.includes('signUp(email, password)'), 'sign-up flow should stay wired to Supabase auth');
+  assert.equal(loginSource.includes('Bottomline'), false, 'login should not keep the old Bottomline branding');
+  assert.equal(loginSource.includes('bg-white rounded-3xl'), false, 'login should not keep the old white auth card');
+});
+
 test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
   assert.ok(appSource.includes("QQQ: 'QQQ'"), 'QQQ should display as the English code');
   assert.ok(appSource.includes("TQQQ: 'TQQQ'"), 'TQQQ should display as the English code');
@@ -677,7 +703,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.185'), 'settings version badge should document the latest broker-style daily pnl baseline update');
+  assert.ok(settingsTabSource.includes('v10.7.9.186'), 'settings version badge should document the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should document the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should document the latest broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('盘后当日盈亏券商口径'), 'settings changelog should describe the latest broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.184'), 'settings changelog should retain the market red color update');
@@ -886,7 +914,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.185'), 'settings version badge should document the latest broker-style daily pnl baseline update');
+  assert.ok(settingsTabSource.includes('v10.7.9.186'), 'settings version badge should document the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should document the Quote login redesign update');
+  assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.185'), 'settings changelog should document the latest broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('盘后当日盈亏券商口径'), 'settings changelog should describe the latest broker-style daily pnl baseline update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.184'), 'settings changelog should retain the market red color update');
