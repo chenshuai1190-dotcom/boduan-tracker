@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - BTC 主屏连接恢复
 
-- Commit: pending
+- Commit: `1d414466c4443bcc5e552019d1cff22440f0e847`
 - Background: `v10.7.9.197` 为修复 iOS 添加到主屏幕后股票/指数 WebSocket 偶发静态,将 BTC、指数和股票统一切到认证 HTTP snapshot 轮询。用户继续实测后确认股票/交易页恢复正常,但 BTC 小卡在刷新或回前台时也被 snapshot burst 标成“拉取中/同步中”,不再像旧版一样保持稳定实时连接。复查确认 BTC 本身是独立行情源,原 WebSocket 路径相对稳定,不应跟股票 snapshot freshness 绑在一起。
 - Changes:
   - 移除 iOS standalone 下 BTC WebSocket 的早退分支,BTC 在 iOS 主屏 Web App 中恢复使用 `/api/btc-realtime` WebSocket 和 `BTC_REALTIME_PROTOCOL`。
@@ -27,7 +27,12 @@
   - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
   - PASS `git diff --check`.
   - PASS local dist marker check: `App-CF7U79oU.js` contains `/api/btc-realtime` and no `fetchRealtimeSnapshot('/api/btc-realtime')` / `setBtcRealtimeStatus('warming')`;`App-CF7U79oU.js` still contains index/stock snapshot markers,`warmStartedAt`,stock warming and index warming;`SettingsTab-A1WJr0pu.js` contains `v10.7.9.203`;`settingsChangelog-BYE7u3sk.js` contains `v10.7.9.203` and `BTC 主屏连接恢复`.
-- Deployment: pending
+- Deployment: `1d414466c4443bcc5e552019d1cff22440f0e847` pushed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J4E4uPNo1xqRoUThRJXdqVQ4VXG4`。
+- Production verification:
+  - PASS production HTML `https://boduan-tracker.vercel.app/?v=1d41446-v203-btc-*` returns `200`,`last-modified: Tue, 07 Jul 2026 12:24:42 GMT`;entry `/assets/index-Di_zN1oN.js`.
+  - PASS recursive production chunks include `App-RrzUAJaj.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-KfZDD9Bh.js`,`settingsChangelog-BYE7u3sk.js`,`i18n-QTvefRC5.js`.
+  - PASS marker check: `SettingsTab-KfZDD9Bh.js` contains `v10.7.9.203`;`settingsChangelog-BYE7u3sk.js` contains `v10.7.9.203` and `BTC 主屏连接恢复`;`App-RrzUAJaj.js` contains `/api/btc-realtime` and `stockFreshnessStartedAt`,does not contain BTC snapshot fetch or `setBtcRealtimeStatus('warming')`;`App-RrzUAJaj.js` still contains `/api/indices-realtime` and `/api/stocks-realtime`;production assets do not contain `v10.7.9.202` or `首屏当日盈亏兜底`.
+  - PASS auth boundary: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated snapshot `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`,`GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` all return `401`.
 - Rollback: 回退本条涉及的 BTC iOS standalone WebSocket 恢复、BTC 从 snapshot burst 中移除、`v10.7.9.203` 设置页版本/更新日志、测试和本日志即可;不影响股票/指数 iOS snapshot 轮询、持仓现价 freshness 遮罩、服务端 realtime API、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
 
 ### 2026-07-07 - 回退首屏当日盈亏兜底
