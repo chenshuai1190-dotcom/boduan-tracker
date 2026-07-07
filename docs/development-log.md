@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 主屏行情轮询模式
 
-- Commit: 待推送后补充。
+- Commit: `4451ee32d3cbff1678fec74c715de5bb48de4ec1`
 - Background: 用户用同一账号同一时间确认普通 iOS Safari 网页版行情正常,但“添加到主屏幕”的 iOS Web App 交易页仍会停在旧价格,首页 BTC 卡片还会反复显示连接中。复查后判断问题不在 EODHD 或交易盈亏公式,而在 iOS standalone Web App 对浏览器 WebSocket/timer 的恢复不稳定;继续在客户端 WebSocket 状态机里补重连只会把问题复杂化。
 - Changes:
   - 前端自动识别 iOS standalone Web App: `navigator.standalone === true` 或 iOS + `display-mode: standalone` 时,停止 BTC、指数、股票三套浏览器 WebSocket,改用 2.5 秒认证 HTTP snapshot 轮询。
@@ -36,8 +36,12 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-B2ymsOaX.js`、`dist/assets/SettingsTab-CYjVL9E5.js`、`dist/assets/settingsChangelog-BvGt6Cqe.js`、`dist/assets/index-Bw14UaDN.css` 等产物。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
-  - Deployment verification 待本轮推送后补充。
-- Deployment: 待推送和 Vercel production 验证。
+  - Production unauthenticated boundary check: `/api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`、`GET /api/btc-realtime?snapshot=1`、`GET /api/indices-realtime?snapshot=1` all return `401`。
+  - Production authenticated snapshot sample using the provided test account without printing credentials/tokens: `/api/btc-realtime?snapshot=1` returned `200 success=true status=live ticks=1`;`/api/indices-realtime?snapshot=1` returned `200 success=true status=live ticks=0`;`/api/stocks-realtime?snapshot=1&symbols=NVDA,MSFT,META,TSM,NOK,IBKR` returned `200 success=true status=live ticks=5`。
+- Deployment: `4451ee32d3cbff1678fec74c715de5bb48de4ec1` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-hFiuVFNp.js`, App chunk `App-vz7QDcHz.js`, Settings chunk `SettingsTab-CkZmEnF-.js`, changelog chunk `settingsChangelog-BvGt6Cqe.js`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=4451ee3-v197-*` returns `200`;entry `/assets/index-hFiuVFNp.js` imports `/assets/App-vz7QDcHz.js`;`App-vz7QDcHz.js` contains `auto-ios-pwa-snapshot`、`ios pwa snapshot mode`、`/api/btc-realtime`、`/api/indices-realtime`、`/api/stocks-realtime` and `snapshot`;`SettingsTab-CkZmEnF-.js` contains `v10.7.9.197`;`settingsChangelog-BvGt6Cqe.js` contains `v10.7.9.197` and `iOS 主屏行情轮询模式`。
+  - Production API boundary and authenticated snapshot checks passed as listed in Validation。
 - Rollback: 回退本条涉及的 iOS standalone snapshot 轮询、三个 realtime API 的 `snapshot=1` GET 分支、三个 relay snapshot bridge、`v10.7.9.197` 设置页版本/更新日志、测试和文档即可;不影响普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
 
 ### 2026-07-07 - iOS 主屏股票实时防静态
