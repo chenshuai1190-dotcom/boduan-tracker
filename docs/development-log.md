@@ -4,6 +4,33 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 股票实时连接首包重连
+
+- Commit: `same commit`
+- Background: 用户同一时间截图确认,生产交易页有时只显示 `/api/quote` REST 旧快照,过一段时间又会收到接近券商盘前价的 WebSocket tick。复查确认 EODHD `/ws/us` 和本地 `/api/stocks-realtime` relay 均可收到盘前 tick,问题集中在生产/iOS PWA 下股票 WebSocket 偶发打开后没有及时收到首个 `stock_tick`,前端仍停留在 REST 静态快照。
+- Changes:
+  - 股票 realtime 增加 `STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000` 首包 watchdog:WebSocket `open` 后 8 秒内没有收到首个 `stock_tick` 就自动重建股票连接。
+  - 股票 realtime ref 增加 `firstTickTimer` 和 `lastSocketOpenAt`,连接关闭、收到首个 tick、组件卸载时都会清理首包 timer。
+  - `handleRealtimeStale` 增加“无任何 live/tick activity”分支,已建立 socket 但从未收到 activity 时也会强制重连,避免停在静态 REST 快照。
+  - 保持 BTC/指数 realtime、REST provider、今日盈亏公式、交易账本、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构和 RLS 不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.193`,新增“股票实时连接首包重连”。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js tests/btc-realtime.test.js` pass,49 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,107 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-mMf6Yssb.js`、`dist/assets/SettingsTab-DPXBTyug.js`、`dist/assets/settingsChangelog-pgG1kHQK.js` and `dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Build/source marker: `src/App.jsx` contains `STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000`, `scheduleFirstTickWatchdog(socket, openedAt, connect)`, `股票实时首包超时,正在重连`, and no-activity stale reconnect condition;`SettingsTab-DPXBTyug.js` contains `v10.7.9.193`;`settingsChangelog-pgG1kHQK.js` contains `v10.7.9.193` and `股票实时连接首包重连`。
+- Deployment: Pending;will push via project SSH key after validation and then wait for Vercel production deployment.
+- Production verification: Pending deployment.
+- Rollback: 回退股票 realtime 首包 watchdog/no-activity reconnect、`v10.7.9.193` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓成本/股数、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - 盘前股票盘口兜底
 
 - Commit: `c6cb3a95d28e754a6ab6f8977497d84591e3035c`

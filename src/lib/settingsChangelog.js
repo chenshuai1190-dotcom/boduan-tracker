@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.192', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.193', date: '2026-07-07', latest: true,
+    items: [
+      '📡 股票实时连接首包重连',
+      '  - 股票 WebSocket 打开后若 8 秒内没有收到首个 stock_tick,自动重建连接',
+      '  - 无 live/tick activity 的连接不再停在静态 REST 快照,会主动进入重连',
+      '  - iOS 主屏幕版回前台继续强制重建股票实时连接,减少偶发静态状态',
+      '  - 不改 REST provider、今日盈亏公式、交易账本、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.192', date: '2026-07-07',
     items: [
       '📡 盘前股票盘口兜底',
       '  - 股票实时 relay 保留 /ws/us 成交价为主源,新增 /ws/us-quote bid/ask 中间价作为盘前兜底',

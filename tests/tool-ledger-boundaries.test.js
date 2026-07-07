@@ -194,8 +194,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.192'), 'settings version badge should document the stock quote fallback update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.192'), 'settings changelog should document the stock quote fallback update');
+  assert.ok(settingsTabSource.includes('v10.7.9.193'), 'settings version badge should document the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.193'), 'settings changelog should document the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('股票实时连接首包重连'), 'settings changelog should describe the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.192'), 'settings changelog should retain the stock quote fallback update');
   assert.ok(settingsChangelogSource.includes('盘前股票盘口兜底'), 'settings changelog should describe the stock quote fallback update');
   assert.ok(i18nSource.includes("'home.holdingsTrades': '{{holdings}} holdings'"), 'English home header should only show holdings');
   assert.ok(i18nSource.includes("'trades.holdingsTrades': '{{holdings}} holdings'"), 'English trade header should only show holdings');
@@ -396,6 +398,10 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("window.addEventListener('pointerdown', handleTouchResume, { passive: true })"), 'iOS PWA resume should use pointer interaction as a fallback trigger');
   assert.ok(appSource.includes("requestIosPwaResumeQuoteRefresh("), 'pending iOS PWA resume refreshes should flush through the visibility-aware resume queue');
   assert.ok(appSource.includes('REALTIME_RESUME_RECONNECT_STALE_MS = 5000'), 'realtime sockets should reconnect quickly after app resume when activity is stale');
+  assert.ok(appSource.includes('STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000'), 'stock realtime should not stay static when the first tick never arrives');
+  assert.ok(appSource.includes('scheduleFirstTickWatchdog(socket, openedAt, connect)'), 'stock realtime should rebuild the socket if no first tick arrives after open');
+  assert.ok(appSource.includes('股票实时首包超时,正在重连'), 'stock realtime first-tick timeout should leave a diagnostic status message');
+  assert.ok(appSource.includes('Date.now() - ref.lastConnectAttemptAt > STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS'), 'stock realtime stale check should handle sockets with no activity at all');
   assert.ok(appSource.includes('REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000'), 'realtime resume reconnect should be throttled across the same iOS event burst');
   assert.ok(appSource.includes('REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000'), 'forced iOS realtime reconnects should still be lightly throttled within the same event burst');
   assert.ok(appSource.includes('lastConnectAttemptAt'), 'realtime resume reconnect should not tear down a connection just opened by another resume event');
@@ -787,7 +793,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.192'), 'settings version badge should document the stock quote fallback update');
+  assert.ok(settingsTabSource.includes('v10.7.9.193'), 'settings version badge should document the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.193'), 'settings changelog should document the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('股票实时连接首包重连'), 'settings changelog should describe the stock realtime reconnect update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.192'), 'settings changelog should document the stock quote fallback update');
   assert.ok(settingsChangelogSource.includes('盘前股票盘口兜底'), 'settings changelog should describe the stock quote fallback update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.191'), 'settings changelog should retain the English header holdings copy update');
@@ -1010,7 +1018,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.192'), 'settings version badge should document the stock quote fallback update');
+  assert.ok(settingsTabSource.includes('v10.7.9.193'), 'settings version badge should document the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.193'), 'settings changelog should document the stock realtime reconnect update');
+  assert.ok(settingsChangelogSource.includes('股票实时连接首包重连'), 'settings changelog should describe the stock realtime reconnect update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.192'), 'settings changelog should document the stock quote fallback update');
   assert.ok(settingsChangelogSource.includes('盘前股票盘口兜底'), 'settings changelog should describe the stock quote fallback update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.191'), 'settings changelog should retain the English header holdings copy update');

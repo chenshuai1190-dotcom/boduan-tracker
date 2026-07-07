@@ -26,6 +26,7 @@ const REALTIME_STALE_MS = 15_000;
 const REALTIME_RESUME_RECONNECT_STALE_MS = 5000;
 const REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000;
 const REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000;
+const STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
 const PULL_REFRESH_MAX_DISTANCE = 96;
@@ -1522,7 +1523,9 @@ function MainApp({ user, onLogout }) {
     lastTickIso: null,
     liveAt: 0,
     lastConnectAttemptAt: 0,
+    lastSocketOpenAt: 0,
     lastForceReconnectAt: 0,
+    firstTickTimer: null,
     intentionalCloseSocket: null,
   });
   const quoteRowsRef = useRef([]);
@@ -3673,7 +3676,15 @@ function MainApp({ user, onLogout }) {
       }
     };
 
+    const clearFirstTickTimer = () => {
+      if (ref.firstTickTimer) {
+        clearTimeout(ref.firstTickTimer);
+        ref.firstTickTimer = null;
+      }
+    };
+
     const closeSocket = () => {
+      clearFirstTickTimer();
       if (ref.socket) {
         const closingSocket = ref.socket;
         ref.intentionalCloseSocket = closingSocket;
@@ -3690,6 +3701,18 @@ function MainApp({ user, onLogout }) {
       const delay = ref.retryDelayMs;
       ref.retryDelayMs = Math.min(ref.retryDelayMs * 2, REALTIME_RECONNECT_MAX_MS);
       ref.reconnectTimer = setTimeout(connect, delay);
+    };
+
+    const scheduleFirstTickWatchdog = (socket, openedAt, reconnect) => {
+      clearFirstTickTimer();
+      ref.firstTickTimer = setTimeout(() => {
+        ref.firstTickTimer = null;
+        if (stopped || document.hidden || ref.socket !== socket) return;
+        if (ref.lastTickAt && ref.lastTickAt >= openedAt) return;
+        ref.status = 'reconnecting';
+        ref.error = '股票实时首包超时,正在重连';
+        reconnect();
+      }, STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS);
     };
 
     const connect = async () => {
@@ -3715,9 +3738,12 @@ function MainApp({ user, onLogout }) {
         ref.socket = socket;
 
         socket.addEventListener('open', () => {
+          const openedAt = Date.now();
+          ref.lastSocketOpenAt = openedAt;
           ref.retryDelayMs = 1000;
           ref.status = 'connecting';
           ref.error = null;
+          scheduleFirstTickWatchdog(socket, openedAt, connect);
           requestQuickQuoteRefresh(quoteRowsRef.current, {
             trigger: 'auto-realtime-open',
             minIntervalMs: QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS,
@@ -3732,6 +3758,7 @@ function MainApp({ user, onLogout }) {
             return;
           }
           if (payload?.type === 'stock_tick') {
+            clearFirstTickTimer();
             applyStockRealtimeTick(payload, 'live');
             return;
           }
@@ -3743,6 +3770,7 @@ function MainApp({ user, onLogout }) {
         });
 
         socket.addEventListener('close', () => {
+          clearFirstTickTimer();
           if (ref.socket === socket) ref.socket = null;
           if (ref.intentionalCloseSocket === socket) {
             ref.intentionalCloseSocket = null;
@@ -3786,7 +3814,17 @@ function MainApp({ user, onLogout }) {
 
     const handleRealtimeStale = () => {
       const lastActivityAt = ref.lastTickAt || ref.liveAt;
-      if (!lastActivityAt) return;
+      if (!lastActivityAt) {
+        if (
+          ref.socket
+          && ref.lastConnectAttemptAt
+          && Date.now() - ref.lastConnectAttemptAt > STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS
+        ) {
+          ref.status = 'reconnecting';
+          requestResumeReconnect({ force: true });
+        }
+        return;
+      }
       if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
         if (ref.status === 'live') ref.status = 'stale';
         requestResumeReconnect();
@@ -3820,6 +3858,7 @@ function MainApp({ user, onLogout }) {
     return () => {
       stopped = true;
       clearReconnectTimer();
+      clearFirstTickTimer();
       if (ref.staleTimer) {
         clearInterval(ref.staleTimer);
         ref.staleTimer = null;
