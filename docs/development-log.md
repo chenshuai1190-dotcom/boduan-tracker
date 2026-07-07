@@ -4,6 +4,28 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - Vercel 邀请码服务端环境补齐
+
+- Background: 设置页管理员邀请码卡片线上提示 `邀请码服务未配置: 缺少 Supabase URL 或 service role key`;此前 Supabase `invite_codes` 表、RLS 和关闭公开注册已完成,但 Vercel 生产运行时仍缺少服务端 Supabase secret。
+- Changes:
+  - 在 Supabase Project Settings -> API Keys 读取当前项目服务端 secret key,仅用于本次 Vercel 配置输入;未输出、提交、写入本地文件或记录 secret 原文。
+  - 在 Vercel `boduan-tracker` Project Environment Variables 新增 `SUPABASE_SERVICE_ROLE_KEY`,类型保持 Sensitive,作用环境为 Production and Preview。
+  - 确认 Vercel 已存在 `VITE_SUPABASE_URL`,未新增 `VITE_` service role 变量,未改动 EODHD、行情 relay、`/api/quote` 鉴权或 Supabase Auth/RLS 规则。
+  - 使用 Vercel 页面触发生产 redeploy,让新服务端环境变量生效。
+- Key files:
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,103 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/Login-xtUE5VAH.js`、`dist/assets/SettingsTab-B1QQ_aKN.js`、`dist/assets/settingsChangelog-B7-rslcJ.js`、`dist/assets/App-DmlAYmOa.js` 和 `dist/assets/index-i_d92IiO.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Vercel env page verification: `SUPABASE_SERVICE_ROLE_KEY` 出现在项目环境变量列表,显示为 Sensitive,更新时间为 now。
+  - Vercel redeploy verification: deployment `EFwBvyGP5JBqpGUhDko9LF3zgNpK` is `Ready` and `Latest`,environment `Production`,assigned domain `boduan-tracker.vercel.app`,source commit `c31961a`。
+  - Production invite service verification: `POST /api/register` with syntactically valid but nonexistent invite `QTE-AAAA-BBBB` now returns `403` `邀请码无效或已被使用`;previous `500` service-missing error is gone。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;unauthenticated `GET /api/invite-codes` returns `401` with `no-store`。
+- Deployment: Vercel production redeploy completed from the existing GitHub `main` source;this was a configuration-only production redeploy,not a runtime code change, and no token/.env/Supabase service key was committed。
+- Rollback: 在 Vercel Project Environment Variables 删除 `SUPABASE_SERVICE_ROLE_KEY` 并重新部署即可恢复旧行为;不建议回滚,否则邀请码生成/注册服务会再次回到 `500` 未配置状态。
+
 ### 2026-07-07 - 登录 Logo 裁剪贴合和邀请码 SQL 落地
 
 - Background: 用户截图指出登录页直接缩放官方 PNG 后视觉不对,原图外层灰黑大画布被一起缩进页面,导致 Logo 本体比例偏小且不贴合效果图;同时用户已打开 Supabase 页面并授权执行邀请码相关配置。
