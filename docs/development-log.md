@@ -4,9 +4,43 @@
 
 ## 2026-07-07 Asia/Shanghai
 
-### 2026-07-07 - BTC 连接态稳定
+### 2026-07-07 - BTC 卡位保留
 
 - Commit: pending
+- Background: `v10.7.9.206` 修复 BTC 有新鲜 tick 时短暂显示“连接中”的问题后,用户线上截图反馈 BTC 第四张市场卡在某些首屏/切页状态下直接消失。复查确认 `v10.7.9.205` 把 BTC 从 `INDICES` REST 第四项拆出后,HomeTab 只有拿到 `btcMarketCard` 才追加第四格;当 BTC 首个 WebSocket tick 或 snapshot fallback 尚未到达时,渲染层只剩三张指数卡。
+- Changes:
+  - `src/lib/btcRealtime.js` 新增 `createBtcPlaceholderMarketCard`,只生成 BTC 独立占位卡,不把 BTC 放回三大指数数组。
+  - `HomeTab` 市场卡组合改为始终 `三大指数 + BTC 卡/占位卡`:有 `btcMarketCard` 时显示真实 BTC 数据,没有时保留 BTC 第四格并显示 `BTCUSD`、连接态和 `--` 占位。
+  - `MiniMarketCard` 对缺失价格/涨跌幅使用 `--`,避免 `null` 被 `Number(null)` 误显示为 `0.00` / `+0.00%`;缺失涨跌幅时使用中性色,不冒充红绿涨跌。
+  - 本地 `DevVisualPreview` 改为真实拆分结构,并新增 `?tab=home&btc=placeholder` 检查场景,避免旧 mock 把 BTC 混在 `indices` 里掩盖回归。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.207`,新增“BTC 卡位保留”。
+  - 本次只改首页 BTC 卡片兜底渲染、本地预览、设置页版本/更新日志和测试;不改三大指数 provider、股票 quote、交易账本、持仓数量、成本、今日盈亏公式、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/btcRealtime.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/btc-realtime.test.js` pass: 22 tests,新增 BTC placeholder 单测。
+  - `node --test tests/tool-ledger-boundaries.test.js` pass: 30 tests,覆盖 HomeTab 始终追加 BTC 卡/占位卡、设置页 `v10.7.9.207` 和历史 `v10.7.9.206` 保留。
+  - Local mobile visual check pass: `http://127.0.0.1:5173/?tab=home&btc=placeholder` 在 390x844 视口渲染 4 张市场卡,BTC 第四格存在,显示 `BTCUSD`、`连接中`、`--` / `--`,且不显示 `0.00` / `+0.00%`;`http://127.0.0.1:5173/?tab=home` 正常 BTC live mock 仍显示 4 张卡、`LIVE`、`62,781.92` 和 `+0.31%`。
+  - `npm test` pass: 110 tests。
+  - `npm run build` pass;关键 chunk: `App-BOJTuh66.js`, `HomeTab-DNFGFngd.js`, `SettingsTab-4Y813tN2.js`, `settingsChangelog-DQGjDvmG.js`, `btcRealtime-CDUQ9WKl.js`, `index-BPtrPbga.js`。
+  - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
+  - `git diff --check` pass。
+  - Local marker check pass: built settings/changelog contain `v10.7.9.207`, `BTC 卡位保留` and retained `v10.7.9.206`;source/build contain `createBtcPlaceholderMarketCard`, `placeholderStatus`, `fmtOptionalMoney`, `btc=placeholder`;runtime code does not read or add `VITE_EODHD_TOKEN`.
+- Deployment: pending
+- Production verification: pending
+- Rollback: 回退本条涉及的 `createBtcPlaceholderMarketCard`、HomeTab BTC 占位组合、市场卡缺失数值显示、本地预览拆分场景、`v10.7.9.207` 设置页版本/更新日志、测试和本日志即可;三大指数拆分、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+
+### 2026-07-07 - BTC 连接态稳定
+
+- Commit: `857a16e8e77ec079865ac402519e993b83ee4957`
 - Background: `v10.7.9.205` 已把首页三大指数和 BTC 拆成独立状态后,用户反馈 BTC 卡在上拉刷新、切换页面或 iOS Web App 回前台时仍会偶发显示“连接中”。排查确认这不是三大指数或股票交易链路问题,而是 BTC 独立 WebSocket 在 focus/pageshow/上游状态包期间会把已有新鲜 BTC tick 的展示徽标临时从 `LIVE/REST` 降级为 `连接中`。
 - Changes:
   - BTC 专用 resume reconnect 新增 `BTC_RESUME_RECONNECT_GRACE_MS = REALTIME_STALE_MS`:已有 BTC socket 且最近 tick/live activity 仍在 15 秒有效窗口内时,即使是 iOS force resume 事件也不强制断开重连。
@@ -32,7 +66,11 @@
   - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
   - `git diff --check` pass。
   - Local marker check pass: built settings/changelog contain `v10.7.9.206`, `BTC 连接态稳定` and retained `v10.7.9.205`;source contains `BTC_RESUME_RECONNECT_GRACE_MS`, `BTC_STATUS_DISPLAY_GRACE_MS`, `resolveBtcDisplayRealtimeStatus`, `realtimeReceivedAt`;source does not contain `VITE_EODHD_TOKEN`.
-- Deployment: pending
+- Deployment: `857a16e8e77ec079865ac402519e993b83ee4957` pushed to GitHub `main` via project SSH key;GitHub Actions `build` check success (`28872837242`);Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8Rso7jTHYcCRU1WL8iKbNGHNZ1dz`;production alias updated。
+- Production verification:
+  - PASS production recursive chunk marker check: key chunks `App-W-g2Z5MP.js`, `HomeTab-Bay6nQ2a.js`, `SettingsTab-BkyurGJt.js`, `settingsChangelog-DZVIDAmz.js`, `btcRealtime-BfFQBesQ.js`, `i18n-QTvefRC5.js`, `index-CbN33mIG.js`, `index-Bw14UaDN.css`.
+  - PASS production runtime markers: assets contain `v10.7.9.206`, `BTC 连接态稳定`, retained `v10.7.9.205`, `realtimeReceivedAt`, `/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`;assets do not contain stale `v10.7.9.202`.
+  - PASS auth boundaries: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` both return `401`.
 - Rollback: 回退本条涉及的 `BTC_RESUME_RECONNECT_GRACE_MS`、BTC 卡 `BTC_STATUS_DISPLAY_GRACE_MS` / `resolveBtcDisplayRealtimeStatus`、`realtimeReceivedAt`、`v10.7.9.206` 设置页版本/更新日志、测试和本日志即可;三大指数拆分、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
 
 ### 2026-07-07 - 首页指数和 BTC 行情拆分

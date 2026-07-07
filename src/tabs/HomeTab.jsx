@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
-import { isBtcMarketCard } from '../lib/btcRealtime.js';
+import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
@@ -47,6 +47,16 @@ function fmtMoney(value, digits = 2) {
   });
 }
 
+function fmtOptionalMoney(value, digits = 2) {
+  if (value === null || value === undefined || value === '') return '--';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '--';
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
 function fmtCurrency(value, currency = 'USD', digits = 2) {
   return `${currency === 'CNY' ? '¥' : '$'}${fmtMoney(value, digits)}`;
 }
@@ -67,6 +77,7 @@ function fmtMarketPct(value) {
 }
 
 function fmtOptionalMarketPct(value) {
+  if (value === null || value === undefined || value === '') return '--';
   const n = Number(value);
   if (!Number.isFinite(n)) return '--';
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
@@ -91,6 +102,11 @@ function pnlColor(value, mode) {
 
 function marketColor(value, mode) {
   return marketHexColor(value, mode);
+}
+
+function hasFiniteMarketValue(value) {
+  if (value === null || value === undefined || value === '') return false;
+  return Number.isFinite(Number(value));
 }
 
 function sortMetricValue(item, key) {
@@ -300,7 +316,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
     );
   }
 
-  const color = marketColor(item?.changePercent, marketColorMode);
+  const color = hasFiniteMarketValue(item?.changePercent) ? marketColor(item?.changePercent, marketColorMode) : '#8b949e';
   const ticker = item?.displaySymbol || item?.symbol || item?.ticker || '--';
   const isBtc = isBtcMarketCard(item);
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
@@ -317,10 +333,10 @@ function MiniMarketCard({ item, marketColorMode, language }) {
       </div>
       <div className="mt-1 text-[11px] text-white/40">{ticker}</div>
       <div className="mt-2 -ml-1 whitespace-nowrap text-[14px] font-normal leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
-        {fmtMoney(item?.price, 2)}
+        {fmtOptionalMoney(item?.price, 2)}
       </div>
       <div className="mt-1 text-[11px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
-        {fmtMarketPct(item?.changePercent)}
+        {fmtOptionalMarketPct(item?.changePercent)}
       </div>
       <Sparkline values={item?.intraday || []} color={color} />
     </div>
@@ -539,15 +555,17 @@ export default function HomeTab({ ctx }) {
   const resolvedBtcCard = btcMarketCard || (indices || []).find((item) => isBtcMarketCard(item)) || null;
   const marketCards = React.useMemo(() => {
     const indexCards = (resolvedIndexCards || []).slice(0, 3);
-    const btcCard = resolvedBtcCard
-      ? {
-          ...resolvedBtcCard,
-          realtimeStatus: resolveBtcDisplayRealtimeStatus(resolvedBtcCard, btcRealtimeStatus),
-          realtimeTransportStatus: btcRealtimeStatus,
-          realtimeAt: resolvedBtcCard?.realtimeAt || btcRealtimeLastTick,
-        }
-      : null;
-    return btcCard ? [...indexCards, btcCard] : indexCards;
+    const placeholderStatus = btcRealtimeStatus && !['idle', 'disabled'].includes(btcRealtimeStatus) ? btcRealtimeStatus : 'connecting';
+    const btcCardSource = resolvedBtcCard || createBtcPlaceholderMarketCard(placeholderStatus);
+    const btcCard = {
+      ...btcCardSource,
+      realtimeStatus: resolvedBtcCard
+        ? resolveBtcDisplayRealtimeStatus(resolvedBtcCard, btcRealtimeStatus)
+        : placeholderStatus,
+      realtimeTransportStatus: btcRealtimeStatus,
+      realtimeAt: resolvedBtcCard?.realtimeAt || btcRealtimeLastTick || btcCardSource.realtimeAt,
+    };
+    return [...indexCards, btcCard];
   }, [resolvedIndexCards, resolvedBtcCard, btcRealtimeStatus, btcRealtimeLastTick]);
   const signalIsCalm = num(benchmarkDrawdown) > -0.05;
   const isCnyMode = currencyMode === 'CNY';

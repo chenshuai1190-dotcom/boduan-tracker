@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.206', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.207', date: '2026-07-07', latest: true,
+    items: [
+      '₿ BTC 卡位保留',
+      '  - 首页三大指数和 BTC 继续保持独立系统,但 BTC 首个 tick 或 snapshot 未到时也保留第四张 BTC 卡',
+      '  - BTC 占位状态只显示 BTCUSD 和连接态,价格/涨跌幅用 --,拿到最新 BTC tick 后自动恢复真实价格和曲线',
+      '  - 本次只改首页 BTC 卡片兜底渲染,不改三大指数 provider、股票 quote、交易账本、持仓数量、成本、数据库结构、RLS 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.206', date: '2026-07-07',
     items: [
       '₿ BTC 连接态稳定',
       '  - BTC 有近期有效 tick 时,上拉刷新、切换页面或 iOS 回前台不再把右上角状态临时降级成连接中',

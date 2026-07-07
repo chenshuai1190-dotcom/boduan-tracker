@@ -85,6 +85,8 @@ const mockIndices = [
   { ticker: '.DJI', displaySymbol: '.DJI', name: '道琼斯', price: 52900.07, changePercent: 1.14, intraday: mockMarketIntraday.pink },
   { ticker: 'BTCUSD', displaySymbol: 'BTCUSD', name: 'BTC/USD', price: 62781.92, changePercent: 0.31, intraday: mockMarketIntraday.btc, realtime: true },
 ];
+const mockMarketIndices = mockIndices.slice(0, 3);
+const mockBtcMarketCard = mockIndices[3];
 
 const mockHomeWatchlist = [
   { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },
@@ -143,6 +145,9 @@ export default function DevVisualPreview() {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
+  const btcPreviewMode = typeof window === 'undefined'
+    ? 'live'
+    : new URLSearchParams(window.location.search).get('btc');
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => mockHomeWatchlist);
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
   const [benchmarkSymbol, setBenchmarkSymbol] = React.useState('QQQ');
@@ -285,8 +290,9 @@ export default function DevVisualPreview() {
     benchmarkStatus: { text: '等待中', desc: '回撤<5%, 空仓等待' },
     benchmarkStock: { symbol: benchmarkSymbol, price: 714.22, high: 747.82 },
     benchmarkSymbol,
-    btcRealtimeLastTick: Date.now(),
-    btcRealtimeStatus: 'live',
+    btcMarketCard: btcPreviewMode === 'placeholder' ? null : mockBtcMarketCard,
+    btcRealtimeLastTick: btcPreviewMode === 'placeholder' ? null : Date.now(),
+    btcRealtimeStatus: btcPreviewMode === 'placeholder' ? 'connecting' : 'live',
     cacheStockLogo: () => {},
     CheckCircle2,
     ChevronRight,
@@ -311,7 +317,8 @@ export default function DevVisualPreview() {
     fgiYear: 42,
     fmtPct: null,
     homeWatchlist,
-    indices: mockIndices,
+    indices: mockMarketIndices,
+    marketIndices: mockMarketIndices,
     investmentSummary: {
       activePositions: [
         { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },

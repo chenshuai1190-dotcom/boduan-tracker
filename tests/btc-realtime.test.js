@@ -12,7 +12,11 @@ import {
 } from '../server/realtime/auth.js';
 import { INDEX_REALTIME_SYMBOLS, normalizeIndexTick } from '../server/realtime/indices.js';
 import { normalizeStockTick, parseStockRealtimeSymbolsParam } from '../server/realtime/stocks.js';
-import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
+import {
+  applyBtcTickToMarketCards,
+  createBtcPlaceholderMarketCard,
+  isBtcMarketCard,
+} from '../src/lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
 import {
   applyStockTickToQuoteRows,
@@ -110,6 +114,18 @@ test('BTC realtime tick does not create a standalone first-paint card', () => {
   assert.equal(updated[3].realtimeAt, 1783000000123);
   assert.equal(updated[3].realtimeReceivedAt, 1783000000456);
   assert.deepEqual(updated[3].intraday, [61800, 62000, 62521.14]);
+});
+
+test('BTC placeholder keeps the fourth home market card reserved before first tick', () => {
+  const placeholder = createBtcPlaceholderMarketCard('connecting');
+
+  assert.equal(isBtcMarketCard(placeholder), true);
+  assert.equal(placeholder.ticker, 'BTC-USD.CC');
+  assert.equal(placeholder.displaySymbol, 'BTCUSD');
+  assert.equal(placeholder.price, null);
+  assert.equal(placeholder.changePercent, null);
+  assert.deepEqual(placeholder.intraday, []);
+  assert.equal(placeholder.realtimeStatus, 'connecting');
 });
 
 test('normalizeIndexTick accepts EODHD index WebSocket fields', () => {

@@ -36,6 +36,22 @@ export function applyBtcTickToMarketCard(card, tick, realtimeStatus = 'live') {
   return createBtcMarketCard(card || {}, tick, realtimeStatus);
 }
 
+export function createBtcPlaceholderMarketCard(realtimeStatus = 'connecting') {
+  return {
+    ticker: BTC_REST_TICKER,
+    displaySymbol: BTC_DISPLAY_SYMBOL,
+    name: BTC_DISPLAY_NAME,
+    cn: BTC_DISPLAY_NAME,
+    price: null,
+    change: null,
+    changePercent: null,
+    intraday: [],
+    source: 'PENDING',
+    realtime: false,
+    realtimeStatus,
+  };
+}
+
 function createBtcMarketCard(card = {}, tick, realtimeStatus) {
   const price = asNumber(tick?.price);
   const previousIntraday = Array.isArray(card?.intraday) ? card.intraday : [];
