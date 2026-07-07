@@ -32,6 +32,12 @@
   - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
   - `git diff --check` pass。
   - Local marker check pass: built settings/changelog contain `v10.7.9.208`, `三大指数去 Yahoo 图源` and retained `v10.7.9.207`;`server/quote/providers/indices.js` contains `provider: 'eodhd:index-card'` and no `query1.finance.yahoo.com`, `source: 'Yahoo'` or `chartSymbol`;active runtime chunks do not contain `VITE_EODHD_TOKEN`.
+- Deployment: runtime commit `733ea4f3d44dcf67fef07e992c84351cd97ef469` pushed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/ED8oJGW92nKfcq3efz8fwcbkmhmM`;production alias updated。
+- Production verification:
+  - PASS production recursive chunk marker check: active chunks include `index-tgPw0Be-.js`, `App-BKjC6V6H.js`, `HomeTab-DNFGFngd.js`, `SettingsTab-D66-Gn-O.js`, `settingsChangelog-BIL7j6XN.js`, `btcRealtime-CDUQ9WKl.js`, `i18n-QTvefRC5.js`, `index-Bw14UaDN.css`.
+  - PASS production frontend markers: assets contain `v10.7.9.208`, `三大指数去 Yahoo 图源`, retained `v10.7.9.207`, `/api/indices-realtime`, `/api/btc-realtime`, `/api/stocks-realtime`;assets do not contain `query1.finance.yahoo.com/v8/finance/chart` in the active index flow;active runtime chunks do not contain `VITE_EODHD_TOKEN`.
+  - PASS production service marker: authenticated `GET /api/quote?symbols=INDICES` returns 3 rows `GSPC.INDX`, `NDX.INDX`, `DJI.INDX`;all rows have `source: EODHD`, positive prices, empty `intraday`, and no BTC row.
+  - PASS auth boundaries: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated `GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` both return `401`.
 - Rollback: 回退本条涉及的 `INDICES` provider EODHD-only 改动、`v10.7.9.208` 设置页版本/更新日志、测试和本日志即可;BTC 独立实时行情、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
 
 ### 2026-07-07 - BTC 卡位保留
