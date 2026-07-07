@@ -15,6 +15,29 @@ function isPositiveNumber(value) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+function getUsEquityTimeParts(now = Date.now()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(now));
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    const weekday = getPart('weekday');
+    const hour = Number(getPart('hour'));
+    const minute = Number(getPart('minute'));
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+    return {
+      weekday,
+      minutes: hour * 60 + minute,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function getUsEquityMarketDate(now = Date.now()) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -34,32 +57,23 @@ export function getUsEquityMarketDate(now = Date.now()) {
 }
 
 export function getUsEquityQuoteSession(now = Date.now()) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(now));
-    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
-    const weekday = getPart('weekday');
-    if (weekday === 'Sat' || weekday === 'Sun') return 'closed';
-    const hour = Number(getPart('hour'));
-    const minute = Number(getPart('minute'));
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 'closed';
-    const minutes = hour * 60 + minute;
-    if (minutes >= US_EQUITY_REGULAR_START_MINUTES && minutes < US_EQUITY_REGULAR_END_MINUTES) return 'regular';
-    if (
-      (minutes >= US_EQUITY_PREMARKET_START_MINUTES && minutes < US_EQUITY_REGULAR_START_MINUTES)
-      || (minutes >= US_EQUITY_REGULAR_END_MINUTES && minutes < US_EQUITY_POSTMARKET_END_MINUTES)
-    ) {
-      return 'extended';
-    }
-    return 'closed';
-  } catch {
-    return 'closed';
+  const parts = getUsEquityTimeParts(now);
+  if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return 'closed';
+  const { minutes } = parts;
+  if (minutes >= US_EQUITY_PREMARKET_START_MINUTES && minutes < US_EQUITY_REGULAR_START_MINUTES) {
+    return 'pre';
   }
+  if (minutes >= US_EQUITY_REGULAR_START_MINUTES && minutes < US_EQUITY_REGULAR_END_MINUTES) return 'regular';
+  if (minutes >= US_EQUITY_REGULAR_END_MINUTES && minutes < US_EQUITY_POSTMARKET_END_MINUTES) {
+    return 'post';
+  }
+  return 'closed';
+}
+
+function isUsEquitySameDayAfterPostClose(now = Date.now()) {
+  const parts = getUsEquityTimeParts(now);
+  if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return false;
+  return parts.minutes >= US_EQUITY_POSTMARKET_END_MINUTES;
 }
 
 export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
@@ -79,11 +93,32 @@ export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
   return candidates[candidates.length - 1] || null;
 }
 
+export function findCloseForMarketDateFromEodRows(rows = [], marketDate = '') {
+  if (!marketDate || !Array.isArray(rows)) return null;
+  const match = rows.find((day) => day && String(day.date || '') === marketDate);
+  if (!match) return null;
+  const adjustedClose = parseQuoteNumber(match.adjusted_close);
+  const rawClose = parseQuoteNumber(match.close);
+  const close = isPositiveNumber(adjustedClose) ? adjustedClose : rawClose;
+  return isPositiveNumber(close)
+    ? { date: String(match.date), close, source: isPositiveNumber(adjustedClose) ? 'eodhd-adjusted-close' : 'eodhd-close' }
+    : null;
+}
+
 export function normalizeEodhdStockQuoteFields(data, {
   now = Date.now(),
   dailyBaselineClose = null,
   dailyBaselineDate = '',
   dailyBaselineSource = '',
+  regularClosePrice = null,
+  regularCloseDate = '',
+  regularCloseSource = '',
+  closedDailyPnlPrice = null,
+  closedDailyPnlDate = '',
+  closedDailyPnlSource = '',
+  closedDailyPnlBaselineClose = null,
+  closedDailyPnlBaselineDate = '',
+  closedDailyPnlBaselineSource = '',
 } = {}) {
   const lastTradePrice = parseQuoteNumber(data?.lastTradePrice);
   const ethPrice = parseQuoteNumber(data?.ethPrice);
@@ -92,20 +127,65 @@ export function normalizeEodhdStockQuoteFields(data, {
   const rawChangePercent = parseQuoteNumber(data?.changePercent);
   const quoteSession = getUsEquityQuoteSession(now);
   const historicalDailyBaselineClose = parseQuoteNumber(dailyBaselineClose);
-  const useHistoricalDailyBaseline = isPositiveNumber(historicalDailyBaselineClose)
-    && (quoteSession !== 'regular' || !isPositiveNumber(providerPreviousClose));
-  const previousClose = useHistoricalDailyBaseline
+  const hasHistoricalDailyBaseline = isPositiveNumber(historicalDailyBaselineClose);
+  const previousClose = hasHistoricalDailyBaseline
     ? historicalDailyBaselineClose
     : providerPreviousClose;
   const hasLastTradePrice = isPositiveNumber(lastTradePrice);
   const hasEthPrice = isPositiveNumber(ethPrice);
-  const useExtendedPrice = quoteSession === 'extended' && hasEthPrice;
+  const useExtendedPrice = (quoteSession === 'pre' || quoteSession === 'post') && hasEthPrice;
   const price = useExtendedPrice
     ? ethPrice
     : (hasLastTradePrice ? lastTradePrice : (hasEthPrice ? ethPrice : 0));
   const priceMode = useExtendedPrice
-    ? 'extended'
+    ? quoteSession
     : (hasLastTradePrice ? 'regular' : (hasEthPrice ? 'extended-fallback' : 'unavailable'));
+  const regularClose = parseQuoteNumber(regularClosePrice);
+  const closedLockedPrice = parseQuoteNumber(closedDailyPnlPrice);
+  const closedLockedBaseline = parseQuoteNumber(closedDailyPnlBaselineClose);
+
+  let dailyPnlBaselineClose = previousClose;
+  let dailyPnlBaselineDate = hasHistoricalDailyBaseline ? dailyBaselineDate : '';
+  let dailyPnlBaselineSource = hasHistoricalDailyBaseline ? dailyBaselineSource : 'eodhd-quote-previous-close';
+  let dailyPnlPrice = 0;
+  let dailyPnlPriceDate = '';
+  let dailyPnlLocked = false;
+  let dailyPnlSource = 'unavailable';
+
+  if (quoteSession === 'pre' || quoteSession === 'regular') {
+    dailyPnlPrice = price;
+    dailyPnlSource = quoteSession === 'pre' ? 'realtime-pre' : 'realtime-regular';
+  } else if (quoteSession === 'post') {
+    dailyPnlPrice = providerPreviousClose || regularClose || 0;
+    dailyPnlPriceDate = providerPreviousClose ? getUsEquityMarketDate(now) : regularCloseDate;
+    dailyPnlLocked = Boolean(dailyPnlPrice);
+    dailyPnlSource = providerPreviousClose
+      ? 'locked-provider-regular-close'
+      : (regularClose ? regularCloseSource || 'locked-eod-regular-close' : 'unavailable');
+  } else if (isUsEquitySameDayAfterPostClose(now)) {
+    dailyPnlPrice = providerPreviousClose || regularClose || 0;
+    dailyPnlPriceDate = providerPreviousClose ? getUsEquityMarketDate(now) : regularCloseDate;
+    dailyPnlLocked = Boolean(dailyPnlPrice);
+    dailyPnlSource = providerPreviousClose
+      ? 'locked-provider-regular-close'
+      : (regularClose ? regularCloseSource || 'locked-eod-regular-close' : 'unavailable');
+  } else {
+    dailyPnlPrice = closedLockedPrice || providerPreviousClose || 0;
+    dailyPnlPriceDate = closedLockedPrice ? closedDailyPnlDate : '';
+    dailyPnlLocked = Boolean(dailyPnlPrice);
+    dailyPnlSource = closedLockedPrice
+      ? closedDailyPnlSource || 'locked-latest-eod-close'
+      : (providerPreviousClose ? 'locked-provider-regular-close' : 'unavailable');
+    if (isPositiveNumber(closedLockedBaseline)) {
+      dailyPnlBaselineClose = closedLockedBaseline;
+      dailyPnlBaselineDate = closedDailyPnlBaselineDate;
+      dailyPnlBaselineSource = closedDailyPnlBaselineSource || 'eodhd-adjusted-close';
+    }
+  }
+
+  const canComputeDailyPnl = isPositiveNumber(dailyPnlPrice) && isPositiveNumber(dailyPnlBaselineClose);
+  const dailyPnlChange = canComputeDailyPnl ? dailyPnlPrice - dailyPnlBaselineClose : null;
+  const dailyPnlChangePercent = canComputeDailyPnl ? (dailyPnlChange / dailyPnlBaselineClose) * 100 : null;
 
   const canComputeFromSelectedPrice = isPositiveNumber(price) && isPositiveNumber(previousClose);
   const computedChange = canComputeFromSelectedPrice ? price - previousClose : 0;
@@ -118,7 +198,7 @@ export function normalizeEodhdStockQuoteFields(data, {
   if (canComputeFromSelectedPrice) {
     change = computedChange;
     changePercent = computedChangePercent;
-    changeSource = (priceMode === 'extended' || priceMode === 'extended-fallback')
+    changeSource = (priceMode === 'pre' || priceMode === 'post' || priceMode === 'extended-fallback')
       ? 'computed-extended'
       : 'computed-regular';
   } else if (priceMode === 'regular') {
@@ -133,8 +213,18 @@ export function normalizeEodhdStockQuoteFields(data, {
     change,
     changePercent,
     dailyBaselineClose: previousClose,
-    dailyBaselineDate: useHistoricalDailyBaseline ? dailyBaselineDate : '',
-    dailyBaselineSource: useHistoricalDailyBaseline ? dailyBaselineSource : 'eodhd-quote-previous-close',
+    dailyBaselineDate: hasHistoricalDailyBaseline ? dailyBaselineDate : '',
+    dailyBaselineSource: hasHistoricalDailyBaseline ? dailyBaselineSource : 'eodhd-quote-previous-close',
+    dailyPnlPrice,
+    dailyPnlPriceDate,
+    dailyPnlBaselineClose,
+    dailyPnlBaselineDate,
+    dailyPnlBaselineSource,
+    dailyPnlChange,
+    dailyPnlChangePercent,
+    dailyPnlLocked,
+    dailyPnlSession: quoteSession,
+    dailyPnlSource,
     sessionPreviousClose: providerPreviousClose,
     providerPreviousClose,
     dayHigh: parseQuoteNumber(data?.high) || 0,
@@ -483,6 +573,8 @@ export async function fetchAnalystQuote(symbol, { eodhdKey }) {
 
 export async function fetchStockQuote(symbol, { eodhdKey }) {
   try {
+    const now = Date.now();
+    const marketDate = getUsEquityMarketDate(now);
     const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
     const today = new Date();
     const oneYearAgo = new Date(today.getTime() - 380 * 24 * 60 * 60 * 1000);
@@ -509,7 +601,7 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
         const data = json?.data?.[`${symbol}.US`];
         if (data) {
           rawEodhdQuoteData = data;
-          eodhdQuote = normalizeEodhdStockQuoteFields(data);
+          eodhdQuote = normalizeEodhdStockQuoteFields(data, { now });
         }
       } catch (e) {
         /* ignore */
@@ -570,11 +662,19 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     let yearStartDate = '';
     let ytdChangePercent = 0;
     let dailyBaseline = null;
+    let marketDateClose = null;
+    let latestCompletedClose = null;
+    let latestCompletedBaseline = null;
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
-          dailyBaseline = findDailyBaselineCloseFromEodRows(eodData, getUsEquityMarketDate());
+          dailyBaseline = findDailyBaselineCloseFromEodRows(eodData, marketDate);
+          marketDateClose = findCloseForMarketDateFromEodRows(eodData, marketDate);
+          latestCompletedClose = marketDateClose || dailyBaseline;
+          if (latestCompletedClose?.date) {
+            latestCompletedBaseline = findDailyBaselineCloseFromEodRows(eodData, latestCompletedClose.date);
+          }
           const currentYearStart = `${today.getFullYear()}-01-01`;
           const historyRows = eodData
             .filter((day) => day && day.date)
@@ -609,9 +709,19 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
 
     if (rawEodhdQuoteData && dailyBaseline?.close) {
       eodhdQuote = normalizeEodhdStockQuoteFields(rawEodhdQuoteData, {
+        now,
         dailyBaselineClose: dailyBaseline.close,
         dailyBaselineDate: dailyBaseline.date,
         dailyBaselineSource: dailyBaseline.source,
+        regularClosePrice: marketDateClose?.close,
+        regularCloseDate: marketDateClose?.date || '',
+        regularCloseSource: marketDateClose?.source || '',
+        closedDailyPnlPrice: latestCompletedClose?.close,
+        closedDailyPnlDate: latestCompletedClose?.date || '',
+        closedDailyPnlSource: latestCompletedClose?.source || '',
+        closedDailyPnlBaselineClose: latestCompletedBaseline?.close,
+        closedDailyPnlBaselineDate: latestCompletedBaseline?.date || '',
+        closedDailyPnlBaselineSource: latestCompletedBaseline?.source || '',
       });
     }
 
@@ -643,6 +753,16 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       dailyBaselineClose: eodhdQuote.dailyBaselineClose,
       dailyBaselineDate: eodhdQuote.dailyBaselineDate,
       dailyBaselineSource: eodhdQuote.dailyBaselineSource,
+      dailyPnlPrice: eodhdQuote.dailyPnlPrice,
+      dailyPnlPriceDate: eodhdQuote.dailyPnlPriceDate,
+      dailyPnlBaselineClose: eodhdQuote.dailyPnlBaselineClose,
+      dailyPnlBaselineDate: eodhdQuote.dailyPnlBaselineDate,
+      dailyPnlBaselineSource: eodhdQuote.dailyPnlBaselineSource,
+      dailyPnlChange: eodhdQuote.dailyPnlChange,
+      dailyPnlChangePercent: eodhdQuote.dailyPnlChangePercent,
+      dailyPnlLocked: eodhdQuote.dailyPnlLocked,
+      dailyPnlSession: eodhdQuote.dailyPnlSession,
+      dailyPnlSource: eodhdQuote.dailyPnlSource,
       sessionPreviousClose: eodhdQuote.sessionPreviousClose,
       providerPreviousClose: eodhdQuote.providerPreviousClose,
       timestamp,

@@ -4,6 +4,39 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 今日盈亏收盘锁定口径
+
+- Background: 用户用 IBKR 和本应用同一时间截图确认,当前公式方向正确,但行情层把“展示当前价”和“今日盈亏计算价”混在一起;盘后/夜盘期间 `lastTradePrice`、`ethPrice`、`previousClosePrice` 的语义会滚动,导致同一价格先后算出不同的当日盈亏。
+- Changes:
+  - EODHD 股票 quote 归一化拆出 `dailyPnlPrice`、`dailyPnlBaselineClose`、`dailyPnlChange`、`dailyPnlChangePercent`、`dailyPnlLocked`、`dailyPnlSession` 和 `dailyPnlSource`,今日盈亏不再直接复用展示价 `price`。
+  - 美股时段从旧 `regular/extended/closed` 拆为 `pre/regular/post/closed`;盘前和盘中 `dailyPnlPrice` 随实时价更新,盘后和夜盘锁定到常规盘收盘价,盘后价仍可用于市值和持仓盈亏展示。
+  - EOD 日线历史增加“当前市场日收盘价”和“最近完成常规收盘价”解析;夜盘 closed 阶段使用最近完成常规收盘价及其前一交易日收盘价计算今日盈亏,避免夜盘残留价伪造当日收益。
+  - 股票 WebSocket tick 合并时使用 tick 自身 `timestamp` / `realtimeAt` 判断盘前、盘中、盘后,不再用页面当前 `Date.now()` 误判恢复场景;盘后 tick 只刷新展示价,不会覆盖已锁定的今日盈亏价。
+  - `investmentSummary` 优先读取 `dailyPnlPrice` / `dailyPnlBaselineClose` 计算今日盈亏;若 quote 明确缺失今日盈亏价,首页和交易页显示 `--`,避免用旧字段凑出错误数字。
+  - 首页和交易页今日盈亏在锁定口径下显示小号“收盘锁定” / `Locked` 状态;设置页版本和更新日志同步到 `v10.7.9.189`。
+  - 保持正式交易账本、摊薄工具数据库路径、Supabase、RLS、EODHD 服务端 token、`/api/quote` 鉴权和三套 realtime relay 鉴权不变。
+- Key files:
+  - `server/quote/providers/eodhd.js`
+  - `src/lib/stockRealtime.js`
+  - `src/lib/investmentSummary.js`
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/investment-summary.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/quote-response-shape.test.js tests/investment-summary.test.js tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,72 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,105 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-fhne5eiY.js`、`dist/assets/HomeTab-D1cwegd5.js`、`dist/assets/TradesTab-BcE225Jj.js`、`dist/assets/SettingsTab-s5SAlYuW.js`、`dist/assets/settingsChangelog-ju07HEgw.js` 和 `dist/assets/i18n-CF_NdwJc.js` 等产物。
+- Deployment: 待本条代码提交经 GitHub `main` 推送后由 Vercel 自动部署,部署完成后补充生产 marker。
+- Rollback: 回退本条涉及的 `dailyPnl*` quote 字段、时段拆分、实时 tick 合并保护、`investmentSummary` 今日盈亏读取、首页/交易页锁定标签、`v10.7.9.189` 设置页版本/更新日志、测试和本日志即可;不影响交易记录、成本、股数、汇率、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - Vercel 邀请码服务端环境补齐
 
 - Background: 设置页管理员邀请码卡片线上提示 `邀请码服务未配置: 缺少 Supabase URL 或 service role key`;此前 Supabase `invite_codes` 表、RLS 和关闭公开注册已完成,但 Vercel 生产运行时仍缺少服务端 Supabase secret。

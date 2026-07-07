@@ -4,6 +4,8 @@ function toNumber(value) {
 }
 
 function inferPreviousClose(quote, currentPrice) {
+  const dailyPnlBaselineClose = toNumber(quote?.dailyPnlBaselineClose);
+  if (dailyPnlBaselineClose > 0) return dailyPnlBaselineClose;
   const dailyBaselineClose = toNumber(quote?.dailyBaselineClose);
   if (dailyBaselineClose > 0) return dailyBaselineClose;
   const explicitPreviousClose = toNumber(quote?.previousClose);
@@ -13,6 +15,18 @@ function inferPreviousClose(quote, currentPrice) {
   const changePercent = toNumber(quote?.changePercent);
   if (changePercent !== 0 && changePercent > -100) return currentPrice / (1 + changePercent / 100);
   return 0;
+}
+
+function hasOwn(object, key) {
+  return Boolean(object && Object.prototype.hasOwnProperty.call(object, key));
+}
+
+function inferDailyPnlPrice(quote, currentPrice) {
+  if (hasOwn(quote, 'dailyPnlPrice')) {
+    const dailyPnlPrice = toNumber(quote?.dailyPnlPrice);
+    return dailyPnlPrice > 0 ? dailyPnlPrice : 0;
+  }
+  return currentPrice;
 }
 
 function normalizeSymbol(symbol) {
@@ -106,7 +120,10 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     const currentPrice = toNumber(quote?.price);
     const high = toNumber(quote?.high || quote?.week52High);
     const previousClose = inferPreviousClose(quote, currentPrice);
+    const dailyPnlPrice = inferDailyPnlPrice(quote, currentPrice);
+    const hasTodayPnl = heldShares > 0 && dailyPnlPrice > 0 && previousClose > 0;
     const changePercent = toNumber(quote?.changePercent);
+    const dailyPnlChangePercent = hasTodayPnl ? ((dailyPnlPrice - previousClose) / previousClose) * 100 : null;
     const ytdChangePercent = toNumber(quote?.ytdChangePercent);
     const avgCost = heldShares > 0 ? remainingCost / heldShares : 0;
     const effectiveCost = heldShares > 0 ? avgCost - realizedPnl / heldShares : 0;
@@ -116,8 +133,8 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     const totalPnl = realizedPnl + unrealizedPnl;
     const rawReturnCostBasis = heldShares > 0 ? marketValue - totalPnl : 0;
     const returnCostBasis = rawReturnCostBasis > 0 ? rawReturnCostBasis : (heldShares > 0 ? remainingCost : 0);
-    const todayPnl = heldShares > 0 && previousClose > 0 ? heldShares * (currentPrice - previousClose) : 0;
-    const previousMarketValue = heldShares > 0 && previousClose > 0 ? heldShares * previousClose : 0;
+    const todayPnl = hasTodayPnl ? heldShares * (dailyPnlPrice - previousClose) : null;
+    const previousMarketValue = hasTodayPnl ? heldShares * previousClose : 0;
 
     return {
       symbol: group.symbol,
@@ -143,13 +160,23 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       previousClose,
       dailyBaselineClose: previousClose,
       dailyBaselineDate: quote?.dailyBaselineDate || '',
+      dailyPnlPrice,
+      dailyPnlBaselineClose: previousClose,
+      dailyPnlPriceDate: quote?.dailyPnlPriceDate || '',
+      dailyPnlBaselineDate: quote?.dailyPnlBaselineDate || quote?.dailyBaselineDate || '',
+      dailyPnlSource: quote?.dailyPnlSource || '',
+      dailyPnlSession: quote?.dailyPnlSession || '',
+      dailyPnlLocked: Boolean(quote?.dailyPnlLocked),
+      hasTodayPnl,
       changePercent,
+      dailyPnlChangePercent,
       ytdChangePercent,
       marketValue,
       realizedPnl,
       unrealizedPnl,
       totalPnl,
       todayPnl,
+      todayPnlPct: hasTodayPnl ? (dailyPnlPrice - previousClose) / previousClose : null,
       previousMarketValue,
       totalPnlPct: returnCostBasis > 0 ? totalPnl / returnCostBasis : 0,
       unrealizedPct: remainingCost > 0 ? unrealizedPnl / remainingCost : 0,
@@ -175,8 +202,13 @@ export function deriveInvestmentSummary({
   const remainingCost = activePositions.reduce((sum, position) => sum + position.remainingCost, 0);
   const rawReturnCostBasis = positionsMarketValue - cumulativePnl;
   const returnCostBasis = rawReturnCostBasis > 0 ? rawReturnCostBasis : remainingCost;
-  const todayPnl = activePositions.reduce((sum, position) => sum + position.todayPnl, 0);
+  const todayPnlUnavailableCount = activePositions.reduce((sum, position) => sum + (position.hasTodayPnl ? 0 : 1), 0);
+  const hasTodayPnl = activePositions.length === 0 || todayPnlUnavailableCount === 0;
+  const todayPnl = hasTodayPnl
+    ? activePositions.reduce((sum, position) => sum + toNumber(position.todayPnl), 0)
+    : null;
   const previousMarketValue = activePositions.reduce((sum, position) => sum + position.previousMarketValue, 0);
+  const todayPnlLocked = activePositions.length > 0 && activePositions.some((position) => position.dailyPnlLocked);
   const sellTradeCount = ledgerTrades.reduce((sum, trade) => sum + (trade.side === 'sell' ? 1 : 0), 0);
   const totalAssetsUsd = positionsMarketValue + toNumber(cashUsd);
   const rate = toNumber(usdRate) || 7.2;
@@ -189,7 +221,10 @@ export function deriveInvestmentSummary({
     totalAssetsUsd,
     totalAssetsCny: totalAssetsUsd * rate,
     todayPnl,
-    todayPnlPct: previousMarketValue > 0 ? todayPnl / previousMarketValue : 0,
+    todayPnlPct: hasTodayPnl && previousMarketValue > 0 ? todayPnl / previousMarketValue : null,
+    hasTodayPnl,
+    todayPnlLocked,
+    todayPnlUnavailableCount,
     realizedPnl,
     unrealizedPnl,
     cumulativePnl,

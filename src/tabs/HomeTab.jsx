@@ -492,7 +492,8 @@ export default function HomeTab({ ctx }) {
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
   const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
-  const displayTodayPnl = summary.todayPnl * displayRate;
+  const hasTodayPnl = summary.hasTodayPnl !== false;
+  const displayTodayPnl = hasTodayPnl ? summary.todayPnl * displayRate : null;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
   const pnlAmountClass = 'text-[13px]';
 
@@ -763,11 +764,14 @@ export default function HomeTab({ ctx }) {
         >
           <div className="min-w-0 pr-3">
             <div className="text-[12px] text-white/50">{t(language, 'home.todayPnl', '今日盈亏')}</div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              {fmtSignedCurrency(displayTodayPnl, displayCurrency, 2)}
+            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              {hasTodayPnl ? fmtSignedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
             </div>
-            <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlColor(summary.todayPnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              {fmtSignedPct(summary.todayPnlPct, 2)}
+            <div className={`mt-1 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] font-normal tabular-nums ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              <span>{hasTodayPnl ? fmtSignedPct(summary.todayPnlPct, 2) : '--'}</span>
+              {hasTodayPnl && summary.todayPnlLocked && (
+                <span className="text-[10px] text-white/36">{t(language, 'home.pnlLocked', '收盘锁定')}</span>
+              )}
             </div>
           </div>
           <div className="min-w-0 px-3">

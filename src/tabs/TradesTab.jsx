@@ -214,7 +214,8 @@ export default function TradesTab({ ctx }) {
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
   const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
-  const displayTodayPnl = toNumber(summary.todayPnl) * displayRate;
+  const hasTodayPnl = summary.hasTodayPnl !== false;
+  const displayTodayPnl = hasTodayPnl ? toNumber(summary.todayPnl) * displayRate : null;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
   const displayHoldingPnl = toNumber(summary.unrealizedPnl) * displayRate;
   const todayKey = localDateKey();
@@ -453,11 +454,14 @@ export default function TradesTab({ ctx }) {
           >
             <div className="min-w-0 pr-3">
               <div className="text-[12px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
-              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {signedCurrency(displayTodayPnl, displayCurrency, 2)}
+              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                {hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
               </div>
-              <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {signedPct(summary.todayPnlPct, 2)}
+              <div className={`mt-1 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] font-normal tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                <span>{hasTodayPnl ? signedPct(summary.todayPnlPct, 2) : '--'}</span>
+                {hasTodayPnl && summary.todayPnlLocked && (
+                  <span className="text-[10px] text-white/36">{tt('trades.pnlLocked', '收盘锁定')}</span>
+                )}
               </div>
             </div>
             <div className="min-w-0 px-3">
@@ -624,7 +628,7 @@ export default function TradesTab({ ctx }) {
                 </div>
                 <div className="text-right">
                   <div className="text-[11px] text-white/40">{tt('trades.dailyPnl', '当日盈亏')}</div>
-                  <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(displayTodayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayTodayPnl, displayCurrency, 2)}</div>
+                  <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}</div>
                 </div>
               </div>
 
@@ -667,7 +671,8 @@ export default function TradesTab({ ctx }) {
                         {positions.map((position) => {
                           const cost = toNumber(position.effectiveCost || position.avgCost);
                           const marketValue = toNumber(position.marketValue) * displayRate;
-                          const todayPnl = toNumber(position.todayPnl) * displayRate;
+                          const hasPositionTodayPnl = position.hasTodayPnl !== false;
+                          const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
                           const holdingPnl = toNumber(position.unrealizedPnl) * displayRate;
                           const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
                           return (
@@ -686,8 +691,8 @@ export default function TradesTab({ ctx }) {
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
-                                <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(todayPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(todayPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(position.changePercent, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(toNumber(position.changePercent) / 100, 2)}</span>
+                                <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(hasPositionTodayPnl ? todayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--'}</span>
+                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(hasPositionTodayPnl ? toNumber(position.todayPnlPct) : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--'}</span>
                               </span>
                               <span className="text-right">
                                 <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>

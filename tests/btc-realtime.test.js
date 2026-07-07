@@ -218,6 +218,9 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
   assert.equal(updated[0].price, 188.42);
   assert.equal(updated[0].previousClose, 186.1);
   assert.equal(Number(updated[0].changePercent.toFixed(4)), 1.2466);
+  assert.equal(updated[0].dailyPnlPrice, 188.42);
+  assert.equal(updated[0].dailyPnlBaselineClose, 186.1);
+  assert.equal(updated[0].dailyPnlLocked, false);
   assert.equal(updated[0].realtimeStatus, 'live');
   assert.equal(updated[0].marketStatus, 'open');
   assert.deepEqual(updated[0].intraday, [178, 180, 188.42]);
@@ -367,6 +370,11 @@ test('extended-hours stock realtime tick preserves locked broker-style daily bas
       previousClose: 194.8,
       dailyBaselineClose: 194.8,
       dailyBaselineDate: '2026-07-02',
+      dailyPnlPrice: 195.55,
+      dailyPnlBaselineClose: 194.8,
+      dailyPnlPriceDate: '2026-07-06',
+      dailyPnlBaselineDate: '2026-07-02',
+      dailyPnlLocked: true,
       changePercent: 0.38,
       high: 197.55,
     },
@@ -377,8 +385,8 @@ test('extended-hours stock realtime tick preserves locked broker-style daily bas
     price: 195.274,
     previousClose: 195.55,
     changePercent: -0.14,
-    marketStatus: 'extended hours',
-    timestamp: 1783366740000,
+    marketStatus: 'postmarket',
+    timestamp: Date.UTC(2026, 6, 6, 23, 39, 0),
     source: 'EODHD_WS',
   };
   const updated = applyStockTickToQuoteRows(currentRows, tick, 'live');
@@ -386,6 +394,12 @@ test('extended-hours stock realtime tick preserves locked broker-style daily bas
   assert.equal(updated[0].price, 195.274);
   assert.equal(updated[0].previousClose, 194.8);
   assert.equal(updated[0].dailyBaselineClose, 194.8);
+  assert.equal(updated[0].dailyPnlPrice, 195.55);
+  assert.equal(updated[0].dailyPnlBaselineClose, 194.8);
+  assert.equal(updated[0].dailyPnlLocked, true);
+  assert.equal(updated[0].dailyPnlSession, 'post');
+  assert.equal(Number(updated[0].dailyPnlChange.toFixed(3)), 0.75);
+  assert.equal(Number(updated[0].dailyPnlChangePercent.toFixed(4)), 0.3850);
   assert.equal(updated[0].sessionPreviousClose, 195.55);
   assert.equal(Number(updated[0].change.toFixed(3)), 0.474);
   assert.equal(Number(updated[0].changePercent.toFixed(4)), 0.2433);

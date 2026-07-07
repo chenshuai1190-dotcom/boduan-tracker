@@ -41,6 +41,7 @@ const messages = {
     'home.market.stale': '延迟',
     'home.totalAssets': '总资产',
     'home.todayPnl': '今日盈亏',
+    'home.pnlLocked': '收盘锁定',
     'home.totalPnl': '累计盈亏',
     'home.positions': '持仓数量',
     'home.holdingsTrades': '{{holdings}}只 · {{trades}}笔',
@@ -202,6 +203,7 @@ const messages = {
 
     'trades.totalAssets': '总资产',
     'trades.todayPnl': '今日盈亏',
+    'trades.pnlLocked': '收盘锁定',
     'trades.totalPnl': '累计盈亏',
     'trades.positions': '持仓数量',
     'trades.holdingsTrades': '{{holdings}}只 · {{trades}}笔',
@@ -537,6 +539,7 @@ const messages = {
     'home.market.stale': 'Delayed',
     'home.totalAssets': 'Total Assets',
     'home.todayPnl': "Today's P&L",
+    'home.pnlLocked': 'Locked',
     'home.totalPnl': 'Total P&L',
     'home.positions': 'Positions',
     'home.holdingsTrades': '{{holdings}} holdings · {{trades}} trades',
@@ -698,6 +701,7 @@ const messages = {
 
     'trades.totalAssets': 'Total Assets',
     'trades.todayPnl': "Today's P&L",
+    'trades.pnlLocked': 'Locked',
     'trades.totalPnl': 'Total P&L',
     'trades.positions': 'Positions',
     'trades.holdingsTrades': '{{holdings}} holdings · {{trades}} trades',

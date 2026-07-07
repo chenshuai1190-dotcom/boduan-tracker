@@ -413,7 +413,7 @@ test('EODHD stock normalizer ignores stale regular-session changePercent when pr
   assert.equal(quote.changeSource, 'computed-regular');
 });
 
-test('EODHD stock normalizer recomputes extended-session change from ethPrice', () => {
+test('EODHD stock normalizer recomputes premarket display change from ethPrice', () => {
   const quote = normalizeEodhdStockQuoteFields({
     lastTradePrice: 384.05,
     ethPrice: 386.06,
@@ -426,15 +426,18 @@ test('EODHD stock normalizer recomputes extended-session change from ethPrice', 
     changePercent: -1.68,
   }, { now: Date.UTC(2026, 6, 6, 12, 0, 0) });
 
-  assert.equal(quote.quoteSession, 'extended');
-  assert.equal(quote.priceMode, 'extended');
+  assert.equal(quote.quoteSession, 'pre');
+  assert.equal(quote.priceMode, 'pre');
   assert.equal(quote.price, 386.06);
   assert.equal(Number(quote.change.toFixed(2)), -4.43);
   assert.equal(Number(quote.changePercent.toFixed(4)), -1.1345);
   assert.equal(quote.changeSource, 'computed-extended');
+  assert.equal(quote.dailyPnlPrice, 386.06);
+  assert.equal(quote.dailyPnlLocked, false);
+  assert.equal(quote.dailyPnlSource, 'realtime-pre');
 });
 
-test('EODHD stock normalizer uses locked daily baseline during extended session', () => {
+test('EODHD stock normalizer locks daily pnl to regular close during postmarket', () => {
   const dailyBaseline = findDailyBaselineCloseFromEodRows([
     { date: '2026-07-02', close: 194.8, adjusted_close: 194.8 },
     { date: '2026-07-06', close: 195.55, adjusted_close: 195.55 },
@@ -456,16 +459,62 @@ test('EODHD stock normalizer uses locked daily baseline during extended session'
     dailyBaselineSource: dailyBaseline.source,
   });
 
-  assert.equal(quote.quoteSession, 'extended');
-  assert.equal(quote.priceMode, 'extended');
+  assert.equal(quote.quoteSession, 'post');
+  assert.equal(quote.priceMode, 'post');
   assert.equal(quote.price, 195.274);
   assert.equal(quote.sessionPreviousClose, 195.55);
   assert.equal(quote.previousClose, 194.8);
   assert.equal(quote.dailyBaselineClose, 194.8);
   assert.equal(quote.dailyBaselineDate, '2026-07-02');
+  assert.equal(quote.dailyPnlPrice, 195.55);
+  assert.equal(quote.dailyPnlBaselineClose, 194.8);
+  assert.equal(quote.dailyPnlLocked, true);
+  assert.equal(quote.dailyPnlSession, 'post');
+  assert.equal(quote.dailyPnlSource, 'locked-provider-regular-close');
+  assert.equal(Number(quote.dailyPnlChange.toFixed(3)), 0.75);
+  assert.equal(Number(quote.dailyPnlChangePercent.toFixed(4)), 0.3850);
   assert.equal(Number(quote.change.toFixed(3)), 0.474);
   assert.equal(Number(quote.changePercent.toFixed(4)), 0.2433);
   assert.equal(quote.changeSource, 'computed-extended');
+});
+
+test('EODHD stock normalizer uses latest completed regular close for closed-session daily pnl', () => {
+  const quote = normalizeEodhdStockQuoteFields({
+    lastTradePrice: 195.41,
+    ethPrice: 193.7,
+    previousClosePrice: 195.55,
+    high: 197.55,
+    low: 194,
+    open: 194.48,
+    timestamp: 1783366740,
+    change: 0,
+    changePercent: 0,
+  }, {
+    now: Date.UTC(2026, 6, 7, 5, 39, 0),
+    dailyBaselineClose: 195.55,
+    dailyBaselineDate: '2026-07-06',
+    dailyBaselineSource: 'eodhd-adjusted-close',
+    closedDailyPnlPrice: 195.55,
+    closedDailyPnlDate: '2026-07-06',
+    closedDailyPnlSource: 'locked-latest-eod-close',
+    closedDailyPnlBaselineClose: 194.8,
+    closedDailyPnlBaselineDate: '2026-07-02',
+    closedDailyPnlBaselineSource: 'eodhd-adjusted-close',
+  });
+
+  assert.equal(quote.quoteSession, 'closed');
+  assert.equal(quote.priceMode, 'regular');
+  assert.equal(quote.price, 195.41);
+  assert.equal(quote.previousClose, 195.55);
+  assert.equal(quote.dailyPnlPrice, 195.55);
+  assert.equal(quote.dailyPnlBaselineClose, 194.8);
+  assert.equal(quote.dailyPnlLocked, true);
+  assert.equal(quote.dailyPnlSession, 'closed');
+  assert.equal(quote.dailyPnlSource, 'locked-latest-eod-close');
+  assert.equal(Number(quote.change.toFixed(3)), -0.14);
+  assert.equal(Number(quote.changePercent.toFixed(4)), -0.0716);
+  assert.equal(Number(quote.dailyPnlChange.toFixed(3)), 0.75);
+  assert.equal(Number(quote.dailyPnlChangePercent.toFixed(4)), 0.3850);
 });
 
 test('EODHD stock normalizer recomputes stale zero change when selected price moved', () => {
