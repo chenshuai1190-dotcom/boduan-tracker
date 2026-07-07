@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.207', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.208', date: '2026-07-07', latest: true,
+    items: [
+      '📈 三大指数去 Yahoo 图源',
+      '  - 首页三大指数价格、涨跌幅和首屏基础数据只使用 EODHD,不再用 Yahoo chart 覆盖指数卡',
+      '  - 三大指数小曲线改由 EODHD realtime tick 在前端累积绘制,首个 tick 前不伪造走势',
+      '  - 本次只改三大指数数据源和小曲线来源,不改 BTC、股票 quote、交易账本、持仓数量、成本、数据库结构、RLS 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.207', date: '2026-07-07',
     items: [
       '₿ BTC 卡位保留',
       '  - 首页三大指数和 BTC 继续保持独立系统,但 BTC 首个 tick 或 snapshot 未到时也保留第四张 BTC 卡',

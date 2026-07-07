@@ -4,6 +4,36 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 三大指数去 Yahoo 图源
+
+- Commit: this commit
+- Background: 用户反馈首页三大指数模块独立后结构更清爽,但 Yahoo chart 小图目测不准,并希望后续逐步以 EODHD 为标准,除 EODHD 不覆盖的场景外减少外部免费接口。复查确认 `INDICES` provider 虽然已和 BTC 分离,但仍使用 Yahoo 5 分钟 chart 作为指数卡首屏价格/曲线主来源,EODHD 只作兜底;这会让首页指数卡和 EODHD realtime tick 的标准不一致。
+- Changes:
+  - `INDICES` REST provider 删除 Yahoo chart 请求,三大指数首屏价格、昨收、涨跌额、涨跌幅、日高/日低只使用 EODHD real-time endpoint。
+  - 三大指数 `intraday` 首屏不再注入 Yahoo 曲线,保持为空;前端继续用 EODHD realtime tick buffer 在 `HomeTab` 小卡中自然累积绘制曲线,首个 tick 前不伪造走势。
+  - 测试边界从“Yahoo 优先”改为“指数 provider 不得请求或标记 Yahoo”,并确认 `INDICES` 不包含 BTC。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.208`,新增“三大指数去 Yahoo 图源”。
+  - 本次只改三大指数数据源/小曲线来源、设置页版本/更新日志、测试和本日志;不改 BTC、股票 quote、交易账本、持仓数量、成本、今日盈亏公式、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `server/quote/providers/indices.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/quote-response-shape.test.js` pass: 15 tests,`INDICES` 响应确认三大指数只返回 EODHD source,首屏 `intraday` 为空且不包含 BTC。
+  - `node --test tests/tool-ledger-boundaries.test.js` pass: 30 tests,覆盖 `INDICES` provider 不再请求 `query1.finance.yahoo.com`、不再标记 `source: 'Yahoo'`,并保留三大指数/BTC 拆分边界。
+  - `node --test tests/btc-realtime.test.js` pass: 23 tests,新增指数 tick 从空 EODHD 卡开始绘制 sparkline 的单测。
+  - Local mobile visual check pass: Vite dev server `http://127.0.0.1:5173/?tab=home` 在 390x844 视口渲染 4 张市场卡,标普500、纳斯达克100、道琼斯和 BTC 第四格均存在,浏览器控制台无 error。
+  - `npm test` pass: 111 tests。
+  - `npm run build` pass;关键 chunk: `App-DWAz8-xc.js`, `HomeTab-DNFGFngd.js`, `SettingsTab-B6zk0Rm6.js`, `settingsChangelog-BIL7j6XN.js`, `btcRealtime-CDUQ9WKl.js`, `index-DO2timsv.js`。
+  - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
+  - `git diff --check` pass。
+  - Local marker check pass: built settings/changelog contain `v10.7.9.208`, `三大指数去 Yahoo 图源` and retained `v10.7.9.207`;`server/quote/providers/indices.js` contains `provider: 'eodhd:index-card'` and no `query1.finance.yahoo.com`, `source: 'Yahoo'` or `chartSymbol`;active runtime chunks do not contain `VITE_EODHD_TOKEN`.
+- Rollback: 回退本条涉及的 `INDICES` provider EODHD-only 改动、`v10.7.9.208` 设置页版本/更新日志、测试和本日志即可;BTC 独立实时行情、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+
 ### 2026-07-07 - BTC 卡位保留
 
 - Commit: `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133`

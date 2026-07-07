@@ -181,6 +181,32 @@ test('index realtime tick updates only its matching market card', () => {
   assert.equal(updated[3], cards[3]);
 });
 
+test('index realtime tick draws the index sparkline from an empty EODHD card', () => {
+  const cards = [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 5435.21, intraday: [], source: 'EODHD' },
+    { ticker: 'NDX.INDX', displaySymbol: '.NDX', price: 19144.23, intraday: [], source: 'EODHD' },
+    { ticker: 'DJI.INDX', displaySymbol: '.DJI', price: 39647.1, intraday: [], source: 'EODHD' },
+  ];
+  const firstTick = {
+    type: 'index_tick',
+    symbol: 'NDX.INDX',
+    ticker: 'NDX.INDX',
+    displaySymbol: '.NDX',
+    price: 19152.48,
+    change: 13.99,
+    changePercent: 0.07,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  };
+
+  const updated = applyIndexTickToMarketCards(cards, firstTick, 'live');
+
+  assert.deepEqual(updated[1].intraday, [19152.48]);
+  assert.equal(updated[1].source, 'EODHD_WS');
+  assert.equal(updated[0], cards[0]);
+  assert.equal(updated[2], cards[2]);
+});
+
 test('stock realtime symbols are sanitized and capped for user quote streams', () => {
   const parsed = parseStockRealtimeSymbolsParam('nvda,NVDA,msft,tqqq');
   assert.deepEqual(parsed.symbols, ['NVDA', 'MSFT', 'TQQQ']);

@@ -607,8 +607,9 @@ test('INDICES quote response shape is stable', async () => {
   ]);
   assert.deepEqual(quote.data.map((item) => item.ticker), ['GSPC.INDX', 'NDX.INDX', 'DJI.INDX']);
   assert.equal(quote.data.some((item) => item.ticker === 'BTC-USD.CC'), false);
-  assert.equal(quote.data[0].price, 7521.87);
-  assert.equal(quote.data[0].source, 'Yahoo');
+  assert.equal(quote.data[0].price, 5435.21);
+  assert.deepEqual(quote.data[0].intraday, []);
+  assert.equal(quote.data[0].source, 'EODHD');
 });
 
 test('CALENDAR quote response shape is stable', async () => {
