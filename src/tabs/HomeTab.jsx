@@ -760,7 +760,6 @@ export default function HomeTab({ ctx }) {
         </div>
         <div
           className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10"
-          style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}
         >
           <div className="min-w-0 pr-3">
             <div className="text-[12px] text-white/50">{t(language, 'home.todayPnl', '今日盈亏')}</div>

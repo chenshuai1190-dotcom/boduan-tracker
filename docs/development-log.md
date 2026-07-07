@@ -4,6 +4,35 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 英文头卡持仓文案收窄
+
+- Commit: `same commit`
+- Background: 用户反馈英文模式首页头部卡片的 `6 holdings · 0 trades` 文案过长,导致右侧持仓数量列挤压左侧今日盈亏/累计盈亏空间,英文版视觉间距和中文版不一致。
+- Changes:
+  - 英文 `home.holdingsTrades` 改为只显示 `{{holdings}} holdings`,不再显示 `{{trades}} trades`。
+  - 英文 `trades.holdingsTrades` 同步改为只显示 `{{holdings}} holdings`,不再显示 `{{trades}} trades`。
+  - 首页和交易页头部三列指标移除英文模式专用 `0.95fr 1fr 1.3fr` 宽度覆写,回到中文同一套 `1fr 1.12fr 0.96fr` 间距。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.191`,新增“英文头卡持仓文案收窄”。
+  - 保持中文 `{{holdings}}只 · {{trades}}笔` 显示、持仓数量计算、交易笔数计算、交易账本、行情、数据库、RLS 和 `/api/quote` 鉴权不变。
+- Key files:
+  - `src/lib/i18n.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,30 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,105 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/i18n-q8XSbp19.js`、`dist/assets/HomeTab-Qi2A0DUW.js`、`dist/assets/TradesTab-DVzcLE6A.js`、`dist/assets/SettingsTab-DtZQmBqo.js`、`dist/assets/settingsChangelog-DbLHjvpO.js`、`dist/assets/App-BzqwBdK_.js` 和 `dist/assets/index-_IatTwft.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment: 待使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`,由 Vercel 自动部署;不会直接改 Vercel、浏览器控制台或临时服务器文件。
+- Production verification: 待 Vercel 部署完成后验证 production marker、设置页版本、英文 holdings 文案和 API 鉴权边界。
+- Rollback: 回退英文 i18n 持仓文案、首页/交易页英文列宽覆写移除、`v10.7.9.191` 设置页版本/更新日志、测试和本日志即可;不影响中文显示、持仓/交易计算、行情、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - 收盘锁定标签灰色弱化
 
 - Background: 用户指出首页/交易页今日盈亏下方“收盘锁定”四个小字改成灰色更合适,当前 `text-white/36` 在深色卡片里仍偏白、略抢主数字。
