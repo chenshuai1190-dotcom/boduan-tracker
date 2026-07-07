@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 回退首屏当日盈亏兜底
 
-- Commit: same rollback commit.
+- Commit: `6797bce8c49a2844ed21ff0252b4fc519778771c`
 - Background: `v10.7.9.202` 尝试在首屏 `dailyPnlPrice: 0` 但已有当前价和昨收基准时兜底计算当日盈亏。用户实测问题仍未解决,要求先退回上一版本,因此立即回退该实验逻辑。
 - Changes:
   - 回退 `src/lib/investmentSummary.js` 中 `dailyPnlPrice: 0` 的当前价兜底逻辑,恢复 `v10.7.9.201` 行为: quote 行显式给出 `dailyPnlPrice: 0` 时,当日盈亏继续判为 unavailable。
@@ -27,8 +27,12 @@
   - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
   - PASS `git diff --check`.
   - PASS local dist marker check: `SettingsTab-D2f-x-Gc.js` contains `v10.7.9.201`;`settingsChangelog-BFonO-Xw.js` contains `v10.7.9.201` and `持仓现价遮罩占位优化`;local dist no longer contains `v10.7.9.202` or `首屏当日盈亏兜底`.
-- Deployment: Pending.
-- Production verification: Pending.
+- Deployment: `6797bce8c49a2844ed21ff0252b4fc519778771c` pushed to GitHub `main` via project SSH key;Vercel status `success`.
+- Production verification:
+  - PASS production HTML `https://boduan-tracker.vercel.app/?v=6797bce-rollback-v201-*` returns `200`,`last-modified: Tue, 07 Jul 2026 12:08:20 GMT`.
+  - PASS production entry `/assets/index-D5Z-A9YR.js`;recursive runtime chunks include `App-D0WPNPWp.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-BvzcEd9u.js`,`settingsChangelog-BFonO-Xw.js`.
+  - PASS marker check: `SettingsTab-BvzcEd9u.js` contains `v10.7.9.201`;`settingsChangelog-BFonO-Xw.js` contains `v10.7.9.201` and `持仓现价遮罩占位优化`;production assets no longer contain `v10.7.9.202` or `首屏当日盈亏兜底`.
+  - PASS auth boundary: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated snapshot `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`,`GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` all return `401`.
 - Rollback: 如需重新应用实验,可参考已回退的 `29f596bf7ffacacbc6b580fb5be04c34f019a5b5`;当前状态以 `v10.7.9.201` 口径为准。
 
 ### 2026-07-07 - 持仓现价遮罩占位优化
