@@ -7,6 +7,7 @@ import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
+const BTC_STATUS_DISPLAY_GRACE_MS = 60_000;
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const POPULAR_US_STOCKS = [
@@ -271,6 +272,24 @@ function marketRealtimeLabel(realtimeStatus, language) {
   return '';
 }
 
+function isFreshBtcMarketCard(item, now = Date.now()) {
+  const realtimeAt = Number(item?.realtimeReceivedAt || item?.realtimeAt || 0);
+  return Boolean(realtimeAt && now - realtimeAt <= BTC_STATUS_DISPLAY_GRACE_MS);
+}
+
+function resolveBtcDisplayRealtimeStatus(item, nextStatus) {
+  const currentStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
+  const status = nextStatus || currentStatus;
+  if (
+    ['connecting', 'reconnecting', 'paused'].includes(status)
+    && ['live', 'fallback'].includes(currentStatus)
+    && isFreshBtcMarketCard(item)
+  ) {
+    return currentStatus;
+  }
+  return status;
+}
+
 function MiniMarketCard({ item, marketColorMode, language }) {
   if (item?.error) {
     return (
@@ -521,7 +540,12 @@ export default function HomeTab({ ctx }) {
   const marketCards = React.useMemo(() => {
     const indexCards = (resolvedIndexCards || []).slice(0, 3);
     const btcCard = resolvedBtcCard
-      ? { ...resolvedBtcCard, realtimeStatus: btcRealtimeStatus, realtimeAt: resolvedBtcCard?.realtimeAt || btcRealtimeLastTick }
+      ? {
+          ...resolvedBtcCard,
+          realtimeStatus: resolveBtcDisplayRealtimeStatus(resolvedBtcCard, btcRealtimeStatus),
+          realtimeTransportStatus: btcRealtimeStatus,
+          realtimeAt: resolvedBtcCard?.realtimeAt || btcRealtimeLastTick,
+        }
       : null;
     return btcCard ? [...indexCards, btcCard] : indexCards;
   }, [resolvedIndexCards, resolvedBtcCard, btcRealtimeStatus, btcRealtimeLastTick]);

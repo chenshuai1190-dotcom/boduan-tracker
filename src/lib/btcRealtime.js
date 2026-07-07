@@ -54,5 +54,6 @@ function createBtcMarketCard(card = {}, tick, realtimeStatus) {
     realtime: tick?.source === 'EODHD_WS' || realtimeStatus === 'live',
     realtimeStatus,
     realtimeAt: tick?.timestamp || tick?.receivedAt || Date.now(),
+    realtimeReceivedAt: tick?.receivedAt || Date.now(),
   };
 }

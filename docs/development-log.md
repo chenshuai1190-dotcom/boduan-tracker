@@ -4,6 +4,37 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - BTC 连接态稳定
+
+- Commit: pending
+- Background: `v10.7.9.205` 已把首页三大指数和 BTC 拆成独立状态后,用户反馈 BTC 卡在上拉刷新、切换页面或 iOS Web App 回前台时仍会偶发显示“连接中”。排查确认这不是三大指数或股票交易链路问题,而是 BTC 独立 WebSocket 在 focus/pageshow/上游状态包期间会把已有新鲜 BTC tick 的展示徽标临时从 `LIVE/REST` 降级为 `连接中`。
+- Changes:
+  - BTC 专用 resume reconnect 新增 `BTC_RESUME_RECONNECT_GRACE_MS = REALTIME_STALE_MS`:已有 BTC socket 且最近 tick/live activity 仍在 15 秒有效窗口内时,即使是 iOS force resume 事件也不强制断开重连。
+  - HomeTab BTC 卡新增 `BTC_STATUS_DISPLAY_GRACE_MS = 60_000`:BTC 卡有 60 秒内本机收到的有效 tick 时,`connecting` / `reconnecting` / `paused` 这类传输层短状态不覆盖卡片原来的 `LIVE` / `REST` 展示徽标。
+  - BTC tick 卡片保存 `realtimeReceivedAt`,展示 freshness 优先使用本机收到时间,避免 EODHD tick 自带时间戳滞后时刚收到的数据被误判为不新鲜。
+  - 保留 `realtimeTransportStatus` 用于未来排查原始传输层状态,但当前用户可见徽标优先反映最近有效 BTC 数据状态。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.206`,新增“BTC 连接态稳定”。
+  - 本次只改 BTC 状态机、BTC 卡片徽标展示、设置页版本/更新日志和测试;不改三大指数、股票 quote、交易账本、持仓数量、成本、今日盈亏公式、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/lib/btcRealtime.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/btc-realtime.test.js` pass: 21 tests,覆盖 BTC tick 解析、BTC 卡更新、`realtimeAt` / `realtimeReceivedAt` 保存、指数/股票 realtime 基础边界。
+  - `node --test tests/tool-ledger-boundaries.test.js` pass: 30 tests,覆盖 BTC 专用 resume grace、BTC 卡显示 grace、`realtimeTransportStatus`、206 设置页版本/更新日志、并确认股票/指数 snapshot 与 BTC endpoint 边界不混用。
+  - `npm test` pass: 109 tests。
+  - `npm run build` pass;关键 chunk: `App-BhHWXTZO.js`, `HomeTab-Bay6nQ2a.js`, `SettingsTab-BsvMYRWH.js`, `settingsChangelog-DZVIDAmz.js`, `btcRealtime-BfFQBesQ.js`, `index-wQimL8cZ.js`。
+  - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
+  - `git diff --check` pass。
+  - Local marker check pass: built settings/changelog contain `v10.7.9.206`, `BTC 连接态稳定` and retained `v10.7.9.205`;source contains `BTC_RESUME_RECONNECT_GRACE_MS`, `BTC_STATUS_DISPLAY_GRACE_MS`, `resolveBtcDisplayRealtimeStatus`, `realtimeReceivedAt`;source does not contain `VITE_EODHD_TOKEN`.
+- Deployment: pending
+- Rollback: 回退本条涉及的 `BTC_RESUME_RECONNECT_GRACE_MS`、BTC 卡 `BTC_STATUS_DISPLAY_GRACE_MS` / `resolveBtcDisplayRealtimeStatus`、`realtimeReceivedAt`、`v10.7.9.206` 设置页版本/更新日志、测试和本日志即可;三大指数拆分、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+
 ### 2026-07-07 - 首页指数和 BTC 行情拆分
 
 - Commit: `ca31dec9f1b39dac47bf7d0c319cc607fa0d1f69`

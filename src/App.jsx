@@ -26,6 +26,7 @@ const REALTIME_STALE_MS = 15_000;
 const REALTIME_RESUME_RECONNECT_STALE_MS = 5000;
 const REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000;
 const REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000;
+const BTC_RESUME_RECONNECT_GRACE_MS = REALTIME_STALE_MS;
 const STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000;
 const STOCK_REALTIME_NO_TICK_RECONNECT_MS = 30_000;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
@@ -3500,14 +3501,15 @@ function MainApp({ user, onLogout }) {
     const requestResumeReconnect = ({ force = false } = {}) => {
       if (document.hidden) return;
       const now = Date.now();
+      const lastActivityAt = ref.lastTickAt || ref.liveAt;
       if (force) {
         if (ref.lastForceReconnectAt && now - ref.lastForceReconnectAt < REALTIME_FORCE_RECONNECT_THROTTLE_MS) return;
+        if (ref.socket && lastActivityAt && now - lastActivityAt < BTC_RESUME_RECONNECT_GRACE_MS) return;
         ref.lastForceReconnectAt = now;
         connect();
         return;
       }
       if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
       if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
       connect();
     };

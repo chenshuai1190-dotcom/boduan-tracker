@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.205', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.206', date: '2026-07-07', latest: true,
+    items: [
+      '₿ BTC 连接态稳定',
+      '  - BTC 有近期有效 tick 时,上拉刷新、切换页面或 iOS 回前台不再把右上角状态临时降级成连接中',
+      '  - BTC WebSocket 只在旧 tick 真的过期后才强制重连,减少焦点事件造成的重复断开重连',
+      '  - 本次只改 BTC 状态机和 BTC 卡片徽标展示,不改三大指数、股票 quote、交易账本、持仓数量、成本、数据库结构、RLS 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.205', date: '2026-07-07',
     items: [
       '🧩 首页指数和 BTC 行情拆分',
       '  - 三大指数和 BTC 拆成两套独立状态,BTC 不再混在 INDICES 数组里,首页只在渲染层并排展示',

@@ -88,6 +88,7 @@ test('BTC realtime tick does not create a standalone first-paint card', () => {
     change: 940,
     changePercent: 1.53,
     timestamp: 1783000000123,
+    receivedAt: 1783000000456,
     source: 'EODHD_WS',
   };
 
@@ -106,6 +107,8 @@ test('BTC realtime tick does not create a standalone first-paint card', () => {
   assert.equal(updated[3].ticker, 'BTC-USD.CC');
   assert.equal(updated[3].price, 62521.14);
   assert.equal(updated[3].realtimeStatus, 'live');
+  assert.equal(updated[3].realtimeAt, 1783000000123);
+  assert.equal(updated[3].realtimeReceivedAt, 1783000000456);
   assert.deepEqual(updated[3].intraday, [61800, 62000, 62521.14]);
 });
 
