@@ -25,6 +25,11 @@
   - Playwright mobile visual QA: 使用仅本地视觉预览的公开 Supabase 占位环境在 `390x844` 检查英文/中文登录页,截图输出到 `outputs/login-quote-en.png` 和 `outputs/login-quote-zh.png`;页面无横向/纵向溢出,输入框保持深色背景,右上角语言切换可用。
   - Build marker: `Login-MxrpJM3S.js` contains `Phone / Email`、`手机号 / 邮箱` and `Switch to Chinese`;`Login-MxrpJM3S.js` does not contain old login branding marker `Bottomline` or old white-card marker `bg-white rounded-3xl`;`SettingsTab-Ui4bZpUQ.js` contains `v10.7.9.186`;`settingsChangelog-B3XAD4ol.js` contains `v10.7.9.186` and `登录页 Quote 深色重设计`。
   - `git diff --check` pass。
+- Deployment:
+  - Runtime code commit `3695cc9bf59251c5e0fabbd801c628f4938746fb` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, deployment `5339302435`, target `https://boduan-tracker-akxxm7f1n-chenshuai1190-7580s-projects.vercel.app`。
+  - Production marker: `https://boduan-tracker.vercel.app` root returns 200, latest production entry is `index-CjKcClsK.js`;entry imports `Login-BskniHzA.js` and `App-Cs6HwYcW.js`;`Login-BskniHzA.js` contains `Phone / Email`、`手机号 / 邮箱`、`Switch to Chinese`,reference size markers, and does not contain old login markers `Bottomline` or `bg-white rounded-3xl`;`SettingsTab-CgTgADgD.js` contains `v10.7.9.186`;`settingsChangelog-B3XAD4ol.js` contains `v10.7.9.186` and `登录页 Quote 深色重设计`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with no-store cache headers;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`。
 - Rollback: 回退本条涉及的 `src/Login.jsx` 视觉重写、`v10.7.9.186` 设置页版本/更新日志和本日志即可;不影响认证、账本、行情、数据库或 RLS。
 
 ### 2026-07-07 - 盘后当日盈亏券商口径
