@@ -114,10 +114,10 @@ function getInitialLoginLanguage() {
 function QuoteLogo() {
   return (
     <img
-      src="/quote-logo.png"
+      src="/quote-logo-login.png"
       alt=""
       aria-hidden="true"
-      className="mx-auto h-[78px] w-[78px] rounded-[22px] object-cover shadow-[0_0_32px_rgba(21,183,255,0.16)]"
+      className="mx-auto h-[92px] w-[92px] rounded-[26px] object-contain shadow-[0_0_34px_rgba(21,183,255,0.20)]"
       draggable="false"
     />
   );
@@ -388,7 +388,7 @@ export default function Login({ onSuccess }) {
           </h1>
         </section>
 
-        <form onSubmit={handleFormSubmit} className={mode === 'signup' ? 'mt-[42px]' : 'mt-[78px]'}>
+        <form onSubmit={handleFormSubmit} className={mode === 'signup' ? 'mt-[28px]' : 'mt-[78px]'}>
           {isAuthMode ? (
             <div className="relative grid h-[54px] grid-cols-2 overflow-hidden rounded-[9px] border border-[#1f304d]/80 bg-[#030a18]/[0.34] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <button

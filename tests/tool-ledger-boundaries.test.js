@@ -193,8 +193,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.187'), 'settings version badge should document the invite-code registration update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should document the invite-code registration update');
+  assert.ok(settingsTabSource.includes('v10.7.9.188'), 'settings version badge should document the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.188'), 'settings changelog should document the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('登录 Logo 裁剪贴合'), 'settings changelog should describe the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should retain the invite-code registration update');
   assert.ok(settingsChangelogSource.includes('注册邀请码和官方登录 Logo'), 'settings changelog should describe the invite-code registration update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should retain the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
@@ -537,6 +539,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
 
 test('login screen uses Quote dark bilingual design without changing auth flow', () => {
   const logoInfo = readPngInfo('../public/quote-logo.png');
+  const loginLogoInfo = readPngInfo('../public/quote-logo-login.png');
 
   assert.ok(loginSource.includes("stored ? normalizeLanguage(stored) : 'en'"), 'login should default to English when no saved language exists');
   assert.ok(loginSource.includes('saveStoredLanguage(next)'), 'login language toggle should sync to the shared language key');
@@ -550,14 +553,18 @@ test('login screen uses Quote dark bilingual design without changing auth flow',
   assert.ok(loginSource.includes("inviteCode: 'Invite Code'"), 'signup should include an English invite-code placeholder');
   assert.ok(loginSource.includes("inviteCode: '邀请码'"), 'signup should include a Chinese invite-code placeholder');
   assert.ok(loginSource.includes('function QuoteLogo()'), 'login should render the official Quote logo component');
-  assert.ok(loginSource.includes('src="/quote-logo.png"'), 'login logo should use the official PNG asset');
+  assert.ok(loginSource.includes('src="/quote-logo-login.png"'), 'login logo should use the cropped official PNG asset');
+  assert.equal(loginSource.includes('src="/quote-logo.png"'), false, 'login should not directly shrink the full uncropped official PNG');
   assert.equal(loginSource.includes('function ChartLogo()'), false, 'login should not keep the old self-drawn chart logo');
   assert.ok(loginSource.includes('function MarketBackdrop()'), 'login should include the subtle market-chart backdrop');
-  assert.ok(loginSource.includes('h-[78px] w-[78px]'), 'login logo should keep the reference-sized icon');
-  assert.equal(logoInfo.width, 1024, 'official login logo asset should keep its provided width');
-  assert.equal(logoInfo.height, 1024, 'official login logo asset should keep its provided height');
-  assert.equal(logoInfo.bitDepth, 8, 'official login logo asset should stay 8-bit PNG');
+  assert.ok(loginSource.includes('h-[92px] w-[92px]'), 'login logo should be enlarged after cropping out the source canvas');
+  assert.equal(logoInfo.width, 1024, 'source official logo asset should keep its provided width');
+  assert.equal(logoInfo.height, 1024, 'source official logo asset should keep its provided height');
+  assert.equal(logoInfo.bitDepth, 8, 'source official logo asset should stay 8-bit PNG');
   assert.equal(logoInfo.colorType, 6, 'official login logo asset should be the provided RGBA PNG');
+  assert.equal(loginLogoInfo.width, 512, 'cropped login logo asset should use a compact delivery width');
+  assert.equal(loginLogoInfo.height, 512, 'cropped login logo asset should use a compact delivery height');
+  assert.equal(loginLogoInfo.colorType, 6, 'cropped login logo should stay RGBA PNG');
   assert.ok(loginSource.includes('text-[52px] font-normal leading-[58px]'), 'Quote title should keep the mockup scale without bolding');
   assert.ok(loginSource.includes('h-[54px] grid-cols-2'), 'sign-in/sign-up tabs should keep the compact reference height');
   assert.ok(loginSource.includes('h-[58px] w-full appearance-none rounded-[8px]'), 'login inputs should keep the reference compact height and avoid browser default white fields');
@@ -762,8 +769,10 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.187'), 'settings version badge should document the invite-code registration update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should document the invite-code registration update');
+  assert.ok(settingsTabSource.includes('v10.7.9.188'), 'settings version badge should document the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.188'), 'settings changelog should document the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('登录 Logo 裁剪贴合'), 'settings changelog should describe the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should retain the invite-code registration update');
   assert.ok(settingsChangelogSource.includes('注册邀请码和官方登录 Logo'), 'settings changelog should describe the invite-code registration update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should retain the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
@@ -975,8 +984,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.187'), 'settings version badge should document the invite-code registration update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should document the invite-code registration update');
+  assert.ok(settingsTabSource.includes('v10.7.9.188'), 'settings version badge should document the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.188'), 'settings changelog should document the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('登录 Logo 裁剪贴合'), 'settings changelog should describe the cropped login logo update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.187'), 'settings changelog should retain the invite-code registration update');
   assert.ok(settingsChangelogSource.includes('注册邀请码和官方登录 Logo'), 'settings changelog should describe the invite-code registration update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.186'), 'settings changelog should retain the Quote login redesign update');
   assert.ok(settingsChangelogSource.includes('登录页 Quote 深色重设计'), 'settings changelog should describe the Quote login redesign update');
