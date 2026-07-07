@@ -4,14 +4,14 @@
 
 ## 2026-07-07 Asia/Shanghai
 
-### 2026-07-07 - 首屏当日盈亏兜底
+### 2026-07-07 - 回退首屏当日盈亏兜底
 
-- Commit: `29f596bf7ffacacbc6b580fb5be04c34f019a5b5`
-- Background: `v10.7.9.201` 上线后,用户实测 iOS 主屏首次加载时持仓现价按预期显示 `--`,但头部今日盈亏、持仓分布汇总和单只持仓的当日盈亏也会短暂显示 `--`。复查确认原因是首屏 quote 行已经有当前价和昨收基准,但 `dailyPnlPrice` 字段仍为 `0`;`investmentSummary` 只要看到显式 `dailyPnlPrice: 0` 就把当日盈亏判为 unavailable。
+- Commit: same rollback commit.
+- Background: `v10.7.9.202` 尝试在首屏 `dailyPnlPrice: 0` 但已有当前价和昨收基准时兜底计算当日盈亏。用户实测问题仍未解决,要求先退回上一版本,因此立即回退该实验逻辑。
 - Changes:
-  - `investmentSummary` 对 `dailyPnlPrice: 0` 增加首屏兜底: 如果当前价和昨收基准有效,且 quote 行不是明确的盘后/收盘锁定状态,则先用当前价计算当日盈亏。
-  - 明确 `dailyPnlLocked`、`dailyPnlSession=post/after/closed` 或 market status 含 `post/after/closed` 时仍不使用当前价兜底,避免破坏盘后/夜盘收盘锁定口径。
-  - 设置页版本和用户可见更新日志同步到 `v10.7.9.202`,新增“首屏当日盈亏兜底”。
+  - 回退 `src/lib/investmentSummary.js` 中 `dailyPnlPrice: 0` 的当前价兜底逻辑,恢复 `v10.7.9.201` 行为: quote 行显式给出 `dailyPnlPrice: 0` 时,当日盈亏继续判为 unavailable。
+  - 设置页版本和用户可见更新日志恢复为 `v10.7.9.201`;移除 `v10.7.9.202` 的“首屏当日盈亏兜底”用户可见记录。
+  - 回退对应测试断言,恢复 `v10.7.9.201` 的工具边界测试版本号。
   - 不改持仓现价遮罩、iOS snapshot 轮询、行情接口、EODHD token、`/api/quote` 鉴权、交易账本、持仓数量、成本、数据库结构或 RLS。
 - Key files:
   - `src/lib/investmentSummary.js`
@@ -20,20 +20,16 @@
   - `tests/investment-summary.test.js`
   - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-log.md`
+  - `docs/handoff.md`
 - Validation:
-  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/investment-summary.test.js tests/tool-ledger-boundaries.test.js` (41 tests).
-  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` (110 tests).
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` (109 tests).
   - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build`.
   - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
   - PASS `git diff --check`.
-  - PASS local dist marker check: `SettingsTab-DmsLWCCv.js` contains `v10.7.9.202`;`settingsChangelog-SKFsyE6z.js` contains `v10.7.9.202` and `首屏当日盈亏兜底`;built app bundle contains the `dailyPnlPrice` fallback path.
-- Deployment: `29f596bf7ffacacbc6b580fb5be04c34f019a5b5` pushed to GitHub `main` via project SSH key;Vercel status `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HL65Ez5qkcCcCJ6uxkEW5hacNcDE`.
-- Production verification:
-  - PASS production HTML `https://boduan-tracker.vercel.app/?v=29f596b-v202-*` returns `200`,`last-modified: Tue, 07 Jul 2026 11:58:46 GMT`.
-  - PASS production entry `/assets/index-CtUH8gyF.js`;recursive runtime chunks include `App-BHlbiBGd.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-BGVXLs8k.js`,`settingsChangelog-SKFsyE6z.js`.
-  - PASS marker check: `SettingsTab-BGVXLs8k.js` contains `v10.7.9.202`;`settingsChangelog-SKFsyE6z.js` contains `v10.7.9.202`,`首屏当日盈亏兜底` and `after-hours/收盘锁定`;`App-BHlbiBGd.js` contains `dailyPnlPrice` and `dailyPnlLocked`.
-  - PASS auth boundary: unauthenticated `GET /api/quote?symbols=VIX` returns `401`;plain HTTPS `GET /api/stocks-realtime` returns `426`;unauthenticated snapshot `GET /api/stocks-realtime?snapshot=1&symbols=NVDA`,`GET /api/btc-realtime?snapshot=1` and `GET /api/indices-realtime?snapshot=1` all return `401`.
-- Rollback: 回退本条涉及的 `dailyPnlPrice: 0` 首屏兜底、`v10.7.9.202` 设置页版本/更新日志、测试和本开发日志即可;不影响持仓现价遮罩、iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本公式、数据库或鉴权边界。
+  - PASS local dist marker check: `SettingsTab-D2f-x-Gc.js` contains `v10.7.9.201`;`settingsChangelog-BFonO-Xw.js` contains `v10.7.9.201` and `持仓现价遮罩占位优化`;local dist no longer contains `v10.7.9.202` or `首屏当日盈亏兜底`.
+- Deployment: Pending.
+- Production verification: Pending.
+- Rollback: 如需重新应用实验,可参考已回退的 `29f596bf7ffacacbc6b580fb5be04c34f019a5b5`;当前状态以 `v10.7.9.201` 口径为准。
 
 ### 2026-07-07 - 持仓现价遮罩占位优化
 

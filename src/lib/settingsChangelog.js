@@ -1,15 +1,6 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.202', date: '2026-07-07', latest: true,
-    items: [
-      '📊 首屏当日盈亏兜底',
-      '  - iOS 主屏首次加载时,若 quote 行已有当前价和昨收基准但 dailyPnlPrice 暂时为 0,当日盈亏先按当前价计算,避免头卡和持仓列显示 --',
-      '  - 明确处于盘后/after-hours/收盘锁定且没有 dailyPnlPrice 时仍不乱算,继续保护收盘锁定口径',
-      '  - 不改持仓现价遮罩、行情接口、EODHD token、/api/quote 鉴权、交易账本、持仓数量、成本、数据库结构或 RLS',
-    ],
-  },
-  {
-    ver: 'v10.7.9.201', date: '2026-07-07',
+    ver: 'v10.7.9.201', date: '2026-07-07', latest: true,
     items: [
       '🎨 持仓现价遮罩占位优化',
       '  - 首页持仓和交易持仓在等待本轮新 tick 时,现价占位从 ---- 调整为更轻的 --',
