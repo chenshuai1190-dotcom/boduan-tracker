@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 主屏股票实时防静态
 
-- Commit: `same commit`
+- Commit: `2c1504d4839891ec231fd7e0d3fd14904f9d2123`
 - Background: 用户用同一账号同一时间对比确认:普通 iOS Safari 网页版交易页能正常回传接近券商的盘前实时价,但“添加到主屏幕”的 iOS Web App 仍停在旧价格,且 `v10.7.9.195` 后比之前更静态。复查前端状态机后确认风险点在客户端首轮覆盖率 watchdog:盘前/盘后 EODHD 成交和盘口 tick 本来就可能稀疏,而 iOS standalone 模式下 WebSocket/timer 更容易延迟;客户端要求首轮覆盖足够多 symbol 后才认为连接可用,会把可用连接反复打断,导致界面停在 REST 旧快照。
 - Changes:
   - 股票 WebSocket 首包 watchdog 不再要求初始 symbol 覆盖率,收到任意一个有效 `stock_tick` 就清理首包等待并保持连接。
@@ -27,8 +27,11 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-Dmn9_tmi.js`、`dist/assets/SettingsTab-BohalHod.js`、`dist/assets/settingsChangelog-Bl54jefk.js`、`dist/assets/index-Bw14UaDN.css` 等产物。
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
-- Deployment: pending。
-- Production verification: pending。
+- Deployment: `2c1504d4839891ec231fd7e0d3fd14904f9d2123` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-g7PcIit9.js`, App chunk `App-Bz0aYqsz.js`, Settings chunk `SettingsTab-6uPc_qMw.js`, changelog chunk `settingsChangelog-Bl54jefk.js`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=2c1504d-v196-final` returns `200` with `last-modified: Tue, 07 Jul 2026 09:39:17 GMT`;entry `index-g7PcIit9.js` imports `App-Bz0aYqsz.js`;`App-Bz0aYqsz.js` contains `股票实时首包等待中`;`SettingsTab-6uPc_qMw.js` contains `v10.7.9.196`;`settingsChangelog-Bl54jefk.js` contains `v10.7.9.196` and `iOS 主屏股票实时防静态`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;unauthenticated WebSocket upgrade to `/api/stocks-realtime?symbols=NVDA,MSFT` returns `401 Unauthorized`。
+  - Authenticated production relay sample was skipped in this final pass because local `.env.local` did not contain the Supabase public env needed for a scripted login;the same `/api/stocks-realtime` relay was authenticated-sampled earlier in this session before this client-only watchdog change, and this version does not alter `api/stocks-realtime.js` or `server/realtime/stocksRelay.js`。
 - Rollback: 回退本条涉及的股票首包 watchdog 策略、`v10.7.9.196` 设置页版本/更新日志、测试和文档即可;不影响服务端 relay、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
 
 ### 2026-07-07 - iOS 主屏股票实时恢复和订阅补发
