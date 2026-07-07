@@ -4,6 +4,39 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 首页指数和 BTC 行情拆分
+
+- Commit: pending
+- Background: 用户反馈首页三大指数卡显示明显错误,截图中的标普500、纳斯达克100、道琼斯价格仍是上一交易日收盘/旧值。排查确认首页原先把三大指数和 BTC 都放在同一个 `indices` 数组里,`INDICES` REST provider 也把 BTC 作为第四张市场卡返回;iOS 主屏 snapshot 加速后更容易暴露该结构的互相覆盖风险。用户确认要把三大指数和 BTC 拆成两个独立系统,不要继续混在交易结构或同一个市场数组里。
+- Changes:
+  - App 层新增独立 `marketIndices` 和 `btcMarketCard` 状态;三大指数 REST/WS 只写 `marketIndices`,BTC WebSocket/snapshot fallback 只写 `btcMarketCard`。
+  - HomeTab 只在渲染层把 `marketIndices.slice(0, 3)` 和 `btcMarketCard` 并排展示;保留旧 `indices` 兼容本地视觉预览,但真实 App 不再用同一个数组承载 BTC 和指数。
+  - `INDICES` quote provider 删除 BTC 第四卡,只返回标普500、纳斯达克100、道琼斯三张指数卡。
+  - 三大指数 REST 展示价优先使用 Yahoo chart 的 `regularMarketPrice` / 最新分时 close,EODHD `real-time/*.INDX` 仅作为 fallback,避免 EODHD 指数实时口径返回上一交易日收盘值时覆盖首页。
+  - BTC 继续使用独立 `/api/btc-realtime` WebSocket;首屏没有 BTC tick 时只由 BTC 自己的 snapshot fallback 兜底,不再依赖 `INDICES`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.205`,新增“首页指数和 BTC 行情拆分”。
+  - 不改股票核心 quote、交易账本、持仓数量、成本、今日盈亏公式、iOS 股票 snapshot 频率、EODHD token、`/api/quote` 鉴权、数据库结构或 RLS。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/lib/btcRealtime.js`
+  - `server/quote/providers/indices.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/quote-response-shape.test.js` pass: 15 tests,覆盖 `INDICES` 只返回三大指数、BTC 不再作为第四卡、指数展示价优先使用 Yahoo current price。
+  - `node --test tests/tool-ledger-boundaries.test.js` pass: 30 tests,覆盖 `marketIndices` / `btcMarketCard` 状态拆分、BTC 独立 fallback、HomeTab 三指数 + BTC 渲染组合、设置页版本和更新日志。
+  - `npm test` pass: 109 tests。
+  - `npm run build` pass;关键 chunk: `App-DLKqPD9_.js`, `HomeTab-9WAhDrJj.js`, `SettingsTab-DuNxCuRr.js`, `settingsChangelog-BWg-Blnx.js`, `btcRealtime-DuBVRasC.js`, `index-CY6s6D8S.js`。
+  - `npm audit --audit-level=moderate` pass: 0 vulnerabilities。
+  - `git diff --check` pass。
+  - Local marker check pass: dist contains `v10.7.9.205`, `首页指数和 BTC 行情拆分`, `/api/btc-realtime`, `/api/indices-realtime`; provider no longer contains `ticker: 'BTC-USD.CC'` and contains `source: 'Yahoo'`; no stale `v10.7.9.202` marker in built frontend chunks.
+- Deployment: pending
+- Rollback: 回退本条涉及的 `marketIndices`/`btcMarketCard` 状态拆分、HomeTab 市场卡组合、`INDICES` provider 去 BTC、Yahoo 指数价优先、`v10.7.9.205` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓/成本/盈亏公式、股票 quote、BTC relay、股票/指数 snapshot 鉴权边界、数据库或 RLS。
+
 ### 2026-07-07 - iOS 主屏股票秒级刷新
 
 - Commit: `d6ef1695bb0fb9c3cb2206a50f61756e85789eb2`

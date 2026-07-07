@@ -4,7 +4,6 @@ const MARKET_CARDS = [
   { ticker: 'GSPC.INDX', displaySymbol: '.SPX', name: '标普500', cn: '标普500', chartSymbol: '^GSPC' },
   { ticker: 'NDX.INDX', displaySymbol: '.NDX', name: '纳斯达克100', cn: '纳斯达克100', chartSymbol: '^NDX' },
   { ticker: 'DJI.INDX', displaySymbol: '.DJI', name: '道琼斯', cn: '道琼斯', chartSymbol: '^DJI' },
-  { ticker: 'BTC-USD.CC', displaySymbol: 'BTCUSD', name: 'BTC/美元', cn: 'BTC/美元', chartSymbol: 'BTC-USD' },
 ];
 
 function asNumber(value) {
@@ -34,7 +33,7 @@ function parseRealtimeQuote(data) {
   };
 }
 
-async function fetchYahooIntraday(chartSymbol) {
+async function fetchYahooChartQuote(chartSymbol) {
   const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(chartSymbol)}?interval=5m&range=1d&includePrePost=true`;
   const yahooRes = await providerFetch(yahooUrl, {
     headers: {
@@ -43,31 +42,63 @@ async function fetchYahooIntraday(chartSymbol) {
     },
   }, { provider: 'yahoo:index-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null);
 
-  if (!yahooRes?.ok) return [];
+  if (!yahooRes?.ok) return { intraday: [] };
   try {
     const yahooData = await yahooRes.json();
     const result = yahooData?.chart?.result?.[0];
+    const meta = result?.meta || {};
     const closes = result?.indicators?.quote?.[0]?.close || [];
-    return closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+    const intraday = closes.filter(v => v !== null && v !== undefined && !isNaN(v));
+    const lastClose = [...intraday].reverse().find(v => Number.isFinite(Number(v)));
+    const currentPrice = asNumber(meta.regularMarketPrice) || asNumber(meta.postMarketPrice) || asNumber(meta.preMarketPrice) || asNumber(lastClose);
+    const previousClose = asNumber(meta.previousClose);
+    return {
+      currentPrice,
+      previousClose,
+      intraday,
+      dataTimestamp: meta.regularMarketTime || meta.postMarketTime || meta.preMarketTime || null,
+    };
   } catch (e) {
-    return [];
+    return { intraday: [] };
   }
 }
 
 async function fetchMarketCard(card, eodhdKey) {
   try {
     const eodhdUrl = `https://eodhd.com/api/real-time/${card.ticker}?api_token=${eodhdKey}&fmt=json`;
-    const [eodhdRes, intraday] = await Promise.all([
+    const [eodhdRes, yahooQuote] = await Promise.all([
       providerFetch(eodhdUrl, {}, { provider: 'eodhd:market-card', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
-      fetchYahooIntraday(card.chartSymbol),
+      fetchYahooChartQuote(card.chartSymbol),
     ]);
 
+    let eodhdQuote = null;
     if (!eodhdRes.ok) {
-      return { ticker: card.ticker, displaySymbol: card.displaySymbol, name: card.name, cn: card.cn, error: `EODHD HTTP ${eodhdRes.status}` };
+      if (!yahooQuote?.currentPrice) {
+        return { ticker: card.ticker, displaySymbol: card.displaySymbol, name: card.name, cn: card.cn, error: `EODHD HTTP ${eodhdRes.status}` };
+      }
+    } else {
+      const data = await eodhdRes.json();
+      eodhdQuote = parseRealtimeQuote(data);
     }
 
-    const data = await eodhdRes.json();
-    const quote = parseRealtimeQuote(data);
+    const quote = yahooQuote?.currentPrice > 0
+      ? {
+          currentPrice: yahooQuote.currentPrice,
+          previousClose: yahooQuote.previousClose || eodhdQuote?.previousClose || 0,
+          change: yahooQuote.previousClose > 0
+            ? yahooQuote.currentPrice - yahooQuote.previousClose
+            : (eodhdQuote?.change || 0),
+          changePercent: yahooQuote.previousClose > 0
+            ? ((yahooQuote.currentPrice - yahooQuote.previousClose) / yahooQuote.previousClose) * 100
+            : (eodhdQuote?.changePercent || 0),
+          dayHigh: eodhdQuote?.dayHigh || yahooQuote.currentPrice,
+          dayLow: eodhdQuote?.dayLow || yahooQuote.currentPrice,
+          source: 'Yahoo',
+        }
+      : {
+          ...eodhdQuote,
+          source: 'EODHD',
+        };
     if (quote.currentPrice <= 0) {
       return { ticker: card.ticker, displaySymbol: card.displaySymbol, name: card.name, cn: card.cn, error: 'EODHD 没返回数据' };
     }
@@ -81,10 +112,10 @@ async function fetchMarketCard(card, eodhdKey) {
       previousClose: quote.previousClose,
       change: quote.change,
       changePercent: quote.changePercent,
-      intraday,
+      intraday: yahooQuote?.intraday || [],
       dayHigh: quote.dayHigh,
       dayLow: quote.dayLow,
-      source: 'EODHD',
+      source: quote.source,
     };
   } catch (e) {
     return { ticker: card.ticker, displaySymbol: card.displaySymbol, name: card.name, cn: card.cn, error: `请求失败: ${e.message}` };

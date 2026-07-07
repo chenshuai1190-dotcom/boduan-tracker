@@ -30,7 +30,13 @@ export function applyBtcTickToMarketCards(cards = [], tick, realtimeStatus = 'li
   return cards;
 }
 
-function createBtcMarketCard(card, tick, realtimeStatus) {
+export function applyBtcTickToMarketCard(card, tick, realtimeStatus = 'live') {
+  const price = asNumber(tick?.price);
+  if (!price || price <= 0) return card || null;
+  return createBtcMarketCard(card || {}, tick, realtimeStatus);
+}
+
+function createBtcMarketCard(card = {}, tick, realtimeStatus) {
   const price = asNumber(tick?.price);
   const previousIntraday = Array.isArray(card?.intraday) ? card.intraday : [];
   const intraday = [...previousIntraday, price].slice(-80);

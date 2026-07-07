@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.204', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.205', date: '2026-07-07', latest: true,
+    items: [
+      '🧩 首页指数和 BTC 行情拆分',
+      '  - 三大指数和 BTC 拆成两套独立状态,BTC 不再混在 INDICES 数组里,首页只在渲染层并排展示',
+      '  - INDICES REST 只返回标普500、纳斯达克100和道琼斯,价格优先使用 Yahoo chart 当前价,EODHD 仅作兜底,修复三大指数显示昨日收盘值的问题',
+      '  - BTC 继续使用独立 /api/btc-realtime WebSocket,不改股票 quote、交易账本、持仓数量、成本、数据库结构、RLS 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.204', date: '2026-07-07',
     items: [
       '⚡ iOS 主屏股票秒级刷新',
       '  - iOS 主屏股票和指数 snapshot 在美股盘前、盘中和盘后切到 1.25 秒活跃刷新,减少和普通网页直连的体感差距',

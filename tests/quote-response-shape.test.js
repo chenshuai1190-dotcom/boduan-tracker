@@ -95,7 +95,6 @@ async function mockProviderFetch(url) {
       'GSPC.INDX': { price: 5435.21, previousClose: 5439.56, high: 5450, low: 5400 },
       'NDX.INDX': { price: 19144.23, previousClose: 19138.49, high: 19200, low: 19000 },
       'DJI.INDX': { price: 39647.1, previousClose: 39706.66, high: 39800, low: 39500 },
-      'BTC-USD.CC': { price: 109500.12, previousClose: 108420.38, high: 110200, low: 107850 },
     };
     const quote = realtimeQuotes[decodeURIComponent(realtimeMatch[1])];
     if (quote) {
@@ -129,6 +128,31 @@ async function mockProviderFetch(url) {
         ],
       },
     });
+  }
+
+  if (parsed.hostname === 'query1.finance.yahoo.com' && path.includes('/v8/finance/chart/')) {
+    const chartQuotes = {
+      '^GSPC': { price: 7521.87, previousClose: 7537.43, intraday: [7530.12, 7524.44, 7521.87] },
+      '^NDX': { price: 29275.38, previousClose: 29697.87, intraday: [29420.5, 29340.12, 29275.38] },
+      '^DJI': { price: 53167.79, previousClose: 53055.91, intraday: [53120.25, 53180.33, 53167.79] },
+    };
+    const quote = chartQuotes[decodeURIComponent(path.split('/').pop())];
+    if (quote) {
+      return jsonResponse({
+        chart: {
+          result: [{
+            meta: {
+              regularMarketPrice: quote.price,
+              previousClose: quote.previousClose,
+              regularMarketTime: 1783520000,
+            },
+            indicators: {
+              quote: [{ close: quote.intraday }],
+            },
+          }],
+        },
+      });
+    }
   }
 
   if (parsed.hostname === 'api.nasdaq.com') {
@@ -566,7 +590,7 @@ test('INDICES quote response shape is stable', async () => {
   assert.equal(quote.symbol, 'INDICES');
   assert.equal(quote.source, 'EODHD');
   assert.equal(Array.isArray(quote.data), true);
-  assert.equal(quote.data.length, 4);
+  assert.equal(quote.data.length, 3);
   assert.deepEqual(Object.keys(quote.data[0]).sort(), [
     'change',
     'changePercent',
@@ -581,8 +605,10 @@ test('INDICES quote response shape is stable', async () => {
     'source',
     'ticker',
   ]);
-  assert.equal(quote.data[3].ticker, 'BTC-USD.CC');
-  assert.equal(quote.data[3].displaySymbol, 'BTCUSD');
+  assert.deepEqual(quote.data.map((item) => item.ticker), ['GSPC.INDX', 'NDX.INDX', 'DJI.INDX']);
+  assert.equal(quote.data.some((item) => item.ticker === 'BTC-USD.CC'), false);
+  assert.equal(quote.data[0].price, 7521.87);
+  assert.equal(quote.data[0].source, 'Yahoo');
 });
 
 test('CALENDAR quote response shape is stable', async () => {

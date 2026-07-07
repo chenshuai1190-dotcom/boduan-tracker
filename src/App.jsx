@@ -5,7 +5,7 @@ import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
-import { applyBtcTickToMarketCards } from './lib/btcRealtime.js';
+import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
@@ -1032,8 +1032,9 @@ function MainApp({ user, onLogout }) {
   const [fgiYear, setFgiYear] = useState(null);
   const [fgiDataDate, setFgiDataDate] = useState(null);
 
-  // 三大指数(DIA/QQQ/SPY 当天分时)
-  const [indices, setIndices] = useState([]);
+  // 三大指数和 BTC 分开维护,首页只在渲染层并排展示。
+  const [marketIndices, setMarketIndices] = useState([]);
+  const [btcMarketCard, setBtcMarketCard] = useState(null);
 
   // 📅 v10.7.9.41: 重要日历 (财报 + FOMC)
   const [calendarEvents, setCalendarEvents] = useState([]);
@@ -1300,7 +1301,7 @@ function MainApp({ user, onLogout }) {
     setBtcRealtimeStatus(realtimeStatus);
     setBtcRealtimeLastTick(new Date(tickAt).toISOString());
     setBtcRealtimeError(null);
-    setIndices((current) => applyBtcTickToMarketCards(current, tick, realtimeStatus));
+    setBtcMarketCard((current) => applyBtcTickToMarketCard(current, tick, realtimeStatus));
   }, []);
 
   const applyIndexRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
@@ -1314,7 +1315,7 @@ function MainApp({ user, onLogout }) {
     setIndexRealtimeStatus(realtimeStatus);
     setIndexRealtimeLastTick(new Date(tickAt).toISOString());
     setIndexRealtimeError(null);
-    setIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus));
+    setMarketIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus));
   }, []);
 
   const applyStockRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
@@ -1339,12 +1340,6 @@ function MainApp({ user, onLogout }) {
       setQqqCurrent(price);
       setQqqHigh((prev) => Math.max(prev || 0, price));
     }
-  }, []);
-
-  const mergeFreshBtcTickIntoCards = useCallback((cards) => {
-    const ref = btcRealtimeRef.current;
-    if (!ref.lastTick || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return cards;
-    return applyBtcTickToMarketCards(cards, ref.lastTick, 'live');
   }, []);
 
   const mergeFreshIndexTicksIntoCards = useCallback((cards) => {
@@ -2898,7 +2893,7 @@ function MainApp({ user, onLogout }) {
       // 更新三大指数
       const indicesData = result.data.find(d => d.symbol === 'INDICES');
       if (indicesData?.data && Array.isArray(indicesData.data)) {
-        setIndices(mergeFreshBtcTickIntoCards(mergeFreshIndexTicksIntoCards(indicesData.data)));
+        setMarketIndices(mergeFreshIndexTicksIntoCards(indicesData.data));
       }
 
       setLastFetched(new Date());
@@ -3387,32 +3382,16 @@ function MainApp({ user, onLogout }) {
     const ref = btcRealtimeRef.current;
     if (ref.lastTickAt && Date.now() - ref.lastTickAt < REALTIME_STALE_MS) return;
     try {
-      const r = await fetchQuote('INDICES');
-      const result = await r.json();
-      if (!result.success) throw new Error(result.error || 'BTC REST 兜底失败');
-      const indicesData = result.data.find(d => d.symbol === 'INDICES');
-      const btc = indicesData?.data?.find((item) => String(item?.ticker || '').toUpperCase() === 'BTC-USD.CC');
-      if (!btc?.price) return;
-      const tick = {
-        type: 'btc_tick',
-        symbol: 'BTC-USD',
-        ticker: 'BTC-USD.CC',
-        displaySymbol: 'BTCUSD',
-        name: 'BTC/美元',
-        price: btc.price,
-        change: btc.change,
-        changePercent: btc.changePercent,
-        timestamp: Date.now(),
-        receivedAt: Date.now(),
-        source: 'EODHD',
-      };
-      setIndices((current) => applyBtcTickToMarketCards(current, tick, 'fallback'));
-      setBtcRealtimeStatus((status) => (status === 'live' ? status : 'fallback'));
-      setBtcRealtimeError(null);
+      const r = await fetchRealtimeSnapshot('/api/btc-realtime');
+      const result = await r.json().catch(() => ({}));
+      if (!r.ok || !result?.success) throw new Error(result?.error || 'BTC snapshot failed');
+      const tick = result?.data?.tick;
+      if (!tick?.price) return;
+      applyBtcRealtimeTick(tick, 'fallback');
     } catch (e) {
       setBtcRealtimeError(e.message || 'BTC REST 兜底失败');
     }
-  }, [fetchQuote]);
+  }, [applyBtcRealtimeTick, fetchRealtimeSnapshot]);
 
   useEffect(() => {
     if (cloudLoading || typeof window === 'undefined') return;
@@ -4188,7 +4167,7 @@ function MainApp({ user, onLogout }) {
 
   useEffect(() => {
     if (cloudLoading) return;
-    const needsFallback = ['idle', 'disabled', 'error', 'fallback', 'paused', 'reconnecting', 'stale'].includes(btcRealtimeStatus);
+    const needsFallback = !btcMarketCard || ['idle', 'disabled', 'error', 'fallback', 'paused', 'reconnecting', 'stale'].includes(btcRealtimeStatus);
     if (!needsFallback) return;
 
     if (!document.hidden) fetchBtcRestFallback();
@@ -4197,7 +4176,7 @@ function MainApp({ user, onLogout }) {
     }, REALTIME_STALE_MS);
 
     return () => clearInterval(timerId);
-  }, [cloudLoading, btcRealtimeStatus, fetchBtcRestFallback]);
+  }, [btcMarketCard, cloudLoading, btcRealtimeStatus, fetchBtcRestFallback]);
 
   // 自动拉取 (智能刷新)
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
@@ -4421,7 +4400,8 @@ function MainApp({ user, onLogout }) {
     fmtPct,
     hkdRate,
     homeWatchlist,
-    indices,
+    btcMarketCard,
+    marketIndices,
     investmentSummary,
     investmentPlan,
     lastFetched,

@@ -430,6 +430,7 @@ export default function HomeTab({ ctx }) {
     benchmarkStatus,
     benchmarkStock,
     benchmarkSymbol,
+    btcMarketCard,
     btcRealtimeLastTick,
     btcRealtimeStatus,
     cacheStockLogo,
@@ -453,6 +454,7 @@ export default function HomeTab({ ctx }) {
     Loader2,
     logoCache,
     marketColorMode,
+    marketIndices,
     newStock,
     portfolioCurrencyMode,
     quoteRows,
@@ -510,13 +512,19 @@ export default function HomeTab({ ctx }) {
   const vixDateLabel = dataDateLabel(vixDataDate);
   const fgiDateLabel = dataDateLabel(fgiDataDate);
   const fgiInfo = fgiLevel(fgi, language);
-  const marketCards = React.useMemo(() => (
-    (indices || []).slice(0, 4).map((item) => (
-      isBtcMarketCard(item)
-        ? { ...item, realtimeStatus: btcRealtimeStatus, realtimeAt: item?.realtimeAt || btcRealtimeLastTick }
-        : item
-    ))
-  ), [indices, btcRealtimeStatus, btcRealtimeLastTick]);
+  const resolvedIndexCards = React.useMemo(() => (
+    Array.isArray(marketIndices)
+      ? marketIndices
+      : (indices || []).filter((item) => !isBtcMarketCard(item))
+  ), [indices, marketIndices]);
+  const resolvedBtcCard = btcMarketCard || (indices || []).find((item) => isBtcMarketCard(item)) || null;
+  const marketCards = React.useMemo(() => {
+    const indexCards = (resolvedIndexCards || []).slice(0, 3);
+    const btcCard = resolvedBtcCard
+      ? { ...resolvedBtcCard, realtimeStatus: btcRealtimeStatus, realtimeAt: resolvedBtcCard?.realtimeAt || btcRealtimeLastTick }
+      : null;
+    return btcCard ? [...indexCards, btcCard] : indexCards;
+  }, [resolvedIndexCards, resolvedBtcCard, btcRealtimeStatus, btcRealtimeLastTick]);
   const signalIsCalm = num(benchmarkDrawdown) > -0.05;
   const isCnyMode = currencyMode === 'CNY';
   const displayCurrency = isCnyMode ? 'CNY' : 'USD';
