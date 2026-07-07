@@ -7,7 +7,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCards } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
@@ -27,6 +27,8 @@ const REALTIME_RESUME_RECONNECT_STALE_MS = 5000;
 const REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000;
 const REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000;
 const STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000;
+const STOCK_REALTIME_INITIAL_COVERAGE_RATIO = 0.75;
+const STOCK_REALTIME_INITIAL_COVERAGE_CAP = 5;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
 const PULL_REFRESH_MAX_DISTANCE = 96;
@@ -48,6 +50,7 @@ const AUTO_NETWORK_DIAGNOSTIC_TRIGGERS = new Set([
   'auto-ios-resume-cloud',
   'auto-ios-touch-resume',
   'auto-ios-online',
+  'auto-ios-visible-heartbeat',
 ]);
 const QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS = 2500;
 const IOS_PWA_FOREGROUND_HEARTBEAT_MS = 2000;
@@ -55,6 +58,7 @@ const IOS_PWA_RESUME_REFRESH_THROTTLE_MS = 1200;
 const IOS_PWA_VISIBLE_RETRY_MS = 120;
 const IOS_PWA_VISIBLE_RETRY_MAX_MS = 6000;
 const IOS_PWA_TOUCH_RESUME_THROTTLE_MS = 3000;
+const IOS_PWA_APP_SHELL_CHECK_MIN_INTERVAL_MS = 30_000;
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -131,6 +135,15 @@ function readCachedFxRates() {
 
 function normalizeSymbolKey(symbol) {
   return String(symbol || '').trim().toUpperCase();
+}
+
+function stockRealtimeInitialCoverageTarget(symbolCount) {
+  if (!symbolCount || symbolCount <= 0) return 1;
+  return Math.min(
+    symbolCount,
+    STOCK_REALTIME_INITIAL_COVERAGE_CAP,
+    Math.max(1, Math.ceil(symbolCount * STOCK_REALTIME_INITIAL_COVERAGE_RATIO)),
+  );
 }
 
 function normalizeCostBasisSymbol(symbol) {
@@ -1205,6 +1218,9 @@ function MainApp({ user, onLogout }) {
   const pwaLastResumeRefreshAtRef = useRef(0);
   const pwaResumeRetryTimerRef = useRef(null);
   const pwaResumeRetryDeadlineRef = useRef(0);
+  const pwaAppShellCheckInFlightRef = useRef(false);
+  const pwaLastAppShellCheckAtRef = useRef(0);
+  const pwaAppShellReloadQueuedRef = useRef(false);
 
   const fetchQuote = useCallback(async (symbols, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
@@ -1261,12 +1277,17 @@ function MainApp({ user, onLogout }) {
     const key = normalizeSymbolKey(tick?.symbol || tick?.ticker || tick?.displaySymbol);
     if (!key) return;
     const ref = stockRealtimeRef.current;
-    ref.lastTicks.set(key, tick);
+    const clientReceivedAt = Date.now();
+    const enrichedTick = {
+      ...tick,
+      clientReceivedAt,
+    };
+    ref.lastTicks.set(key, enrichedTick);
     ref.lastTickAt = Date.now();
     ref.lastTickIso = new Date(tickAt).toISOString();
     ref.status = realtimeStatus;
     ref.error = null;
-    setQuoteCache((current) => applyStockTickToQuoteRows(current, tick, realtimeStatus, quoteRowsRef.current));
+    setQuoteCache((current) => applyStockTickToQuoteRows(current, enrichedTick, realtimeStatus, quoteRowsRef.current));
     if (key === 'QQQ') {
       setQqqCurrent(price);
       setQqqHigh((prev) => Math.max(prev || 0, price));
@@ -1292,7 +1313,10 @@ function MainApp({ user, onLogout }) {
   const mergeFreshStockTicksIntoQuoteRows = useCallback((rows) => {
     const ref = stockRealtimeRef.current;
     if (!ref.lastTickAt || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return rows;
-    return mergeStockTicksIntoQuoteRows(rows, [...ref.lastTicks.values()], 'live', rows);
+    const freshTicks = [...ref.lastTicks.values()]
+      .filter((tick) => isFreshStockRealtimeTick(tick, { maxAgeMs: REALTIME_STALE_MS }));
+    if (freshTicks.length === 0) return rows;
+    return mergeStockTicksIntoQuoteRows(rows, freshTicks, 'live', rows);
   }, []);
 
   const cacheStockLogo = useCallback((symbol, url) => {
@@ -1526,6 +1550,7 @@ function MainApp({ user, onLogout }) {
     lastSocketOpenAt: 0,
     lastForceReconnectAt: 0,
     firstTickTimer: null,
+    sessionTickSymbols: new Set(),
     intentionalCloseSocket: null,
   });
   const quoteRowsRef = useRef([]);
@@ -2916,6 +2941,28 @@ function MainApp({ user, onLogout }) {
     });
   }, []);
 
+  const requestIosPwaAppShellUpdateCheck = () => {
+    if (typeof window === 'undefined' || !isIosStandaloneWebApp()) return false;
+    if (pwaAppShellReloadQueuedRef.current || pwaAppShellCheckInFlightRef.current) return false;
+    const now = Date.now();
+    if (now - pwaLastAppShellCheckAtRef.current < IOS_PWA_APP_SHELL_CHECK_MIN_INTERVAL_MS) return false;
+    pwaLastAppShellCheckAtRef.current = now;
+    pwaAppShellCheckInFlightRef.current = true;
+    checkForAppShellUpdate()
+      .then((hasNewAppShell) => {
+        if (!hasNewAppShell) return;
+        pwaAppShellReloadQueuedRef.current = true;
+        setTimeout(reloadAppShellWithFreshHtml, 80);
+      })
+      .catch((e) => {
+        console.warn('[iOS PWA] App Shell 更新检查失败:', e);
+      })
+      .finally(() => {
+        pwaAppShellCheckInFlightRef.current = false;
+      });
+    return true;
+  };
+
   const queueIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume', delayMs = IOS_PWA_VISIBLE_RETRY_MS) => {
     if (typeof window === 'undefined') return;
     pendingPwaResumeRefreshRef.current = trigger || 'auto-ios-resume';
@@ -2939,6 +2986,8 @@ function MainApp({ user, onLogout }) {
 
   const requestIosPwaResumeQuoteRefresh = (trigger = 'auto-ios-resume') => {
     if (typeof window === 'undefined') return;
+    if (pwaAppShellReloadQueuedRef.current) return;
+    requestIosPwaAppShellUpdateCheck();
     const nextTrigger = trigger || 'auto-ios-resume';
     if (document.hidden) {
       if (!pwaResumeRetryDeadlineRef.current) {
@@ -3004,7 +3053,12 @@ function MainApp({ user, onLogout }) {
 
     markForegroundHeartbeat();
     const heartbeatTimer = window.setInterval(() => {
-      if (!document.hidden) markForegroundHeartbeat();
+      if (document.hidden) return;
+      markForegroundHeartbeat();
+      const stockLastTickAt = stockRealtimeRef.current.lastTickAt || 0;
+      if (!stockLastTickAt || Date.now() - stockLastTickAt > REALTIME_STALE_MS) {
+        requestRealtimeResumeReconnect({ force: true, trigger: 'auto-ios-visible-heartbeat' });
+      }
     }, IOS_PWA_FOREGROUND_HEARTBEAT_MS);
 
     const handleVisibilityChange = () => {
@@ -3705,12 +3759,13 @@ function MainApp({ user, onLogout }) {
 
     const scheduleFirstTickWatchdog = (socket, openedAt, reconnect) => {
       clearFirstTickTimer();
+      const coverageTarget = stockRealtimeInitialCoverageTarget(symbolsSnapshot.length);
       ref.firstTickTimer = setTimeout(() => {
         ref.firstTickTimer = null;
         if (stopped || document.hidden || ref.socket !== socket) return;
-        if (ref.lastTickAt && ref.lastTickAt >= openedAt) return;
+        if (ref.lastTickAt && ref.lastTickAt >= openedAt && ref.sessionTickSymbols.size >= coverageTarget) return;
         ref.status = 'reconnecting';
-        ref.error = '股票实时首包超时,正在重连';
+        ref.error = '股票实时首轮覆盖不足,正在重连';
         reconnect();
       }, STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS);
     };
@@ -3740,6 +3795,7 @@ function MainApp({ user, onLogout }) {
         socket.addEventListener('open', () => {
           const openedAt = Date.now();
           ref.lastSocketOpenAt = openedAt;
+          ref.sessionTickSymbols = new Set();
           ref.retryDelayMs = 1000;
           ref.status = 'connecting';
           ref.error = null;
@@ -3758,7 +3814,11 @@ function MainApp({ user, onLogout }) {
             return;
           }
           if (payload?.type === 'stock_tick') {
-            clearFirstTickTimer();
+            const tickSymbol = normalizeSymbolKey(payload.symbol || payload.ticker || payload.displaySymbol);
+            if (tickSymbol) ref.sessionTickSymbols.add(tickSymbol);
+            if (ref.sessionTickSymbols.size >= stockRealtimeInitialCoverageTarget(symbolsSnapshot.length)) {
+              clearFirstTickTimer();
+            }
             applyStockRealtimeTick(payload, 'live');
             return;
           }

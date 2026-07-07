@@ -8,6 +8,7 @@ const BROADCAST_MIN_INTERVAL_MS = 1000;
 const CLIENT_HEARTBEAT_MS = 25_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const QUOTE_FALLBACK_AFTER_TRADE_MS = 15_000;
+const REPLAY_TICK_MAX_AGE_MS = 120_000;
 
 const STREAMS = {
   trade: {
@@ -135,6 +136,8 @@ function closeUpstreamIfUnused() {
   if (state.clients.size > 0) return;
   clearAllReconnectTimers();
   clearPendingBroadcasts();
+  state.lastTicks.clear();
+  state.lastBroadcastAtBySymbol.clear();
   state.subscribedSymbols.clear();
   state.quoteSubscribedSymbols.clear();
   for (const stream of Object.values(STREAMS)) {
@@ -180,6 +183,22 @@ function reconcileAllSubscriptions() {
 function tickTimestamp(tick) {
   const timestamp = Number(tick?.timestamp || tick?.receivedAt || 0);
   return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now();
+}
+
+function tickReceivedAt(tick) {
+  const receivedAt = Number(tick?.receivedAt || 0);
+  return Number.isFinite(receivedAt) && receivedAt > 0 ? receivedAt : 0;
+}
+
+function isFreshReplayTick(tick, now = Date.now()) {
+  const receivedAt = tickReceivedAt(tick);
+  return Boolean(receivedAt && now - receivedAt <= REPLAY_TICK_MAX_AGE_MS);
+}
+
+function pruneStaleTicks(now = Date.now()) {
+  for (const [symbol, tick] of state.lastTicks.entries()) {
+    if (!isFreshReplayTick(tick, now)) state.lastTicks.delete(symbol);
+  }
 }
 
 function isTradeTick(tick) {
@@ -269,8 +288,9 @@ function connectUpstream(kind) {
     state[stream.subscribedSymbolsKey].clear();
     reconcileSubscriptions(kind);
     broadcastCombinedStatus();
+    pruneStaleTicks();
     for (const tick of state.lastTicks.values()) {
-      broadcastTick(tick);
+      if (isFreshReplayTick(tick)) broadcastTick(tick);
     }
   });
 
@@ -309,6 +329,7 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
   state.eodhdKey = sanitizeEodhdKey(eodhdKey) || state.eodhdKey;
   const symbolSet = new Set(symbols || []);
   state.clients.set(ws, { symbols: symbolSet });
+  pruneStaleTicks();
 
   let heartbeatId = null;
   ws.isAlive = true;
@@ -348,7 +369,7 @@ export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
   });
   for (const symbol of symbolSet) {
     const tick = state.lastTicks.get(symbol);
-    if (tick) safeJsonSend(ws, tick);
+    if (tick && isFreshReplayTick(tick)) safeJsonSend(ws, tick);
   }
   connectUpstreams();
 }

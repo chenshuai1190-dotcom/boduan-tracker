@@ -1,4 +1,6 @@
 export const MAX_STOCK_REALTIME_SYMBOLS = 50;
+export const STOCK_REALTIME_ROW_MAX_AGE_MS = 120_000;
+export const STOCK_REALTIME_EXTENDED_ROW_MAX_AGE_MS = 5 * 60_000;
 const STOCK_REALTIME_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
 
 function asNumber(value) {
@@ -56,15 +58,17 @@ export function mergeStockTicksIntoQuoteRows(rows = [], ticks = [], realtimeStat
 }
 
 export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
-  maxAgeMs = 120_000,
-  extendedMaxAgeMs = 30 * 60_000,
+  maxAgeMs = STOCK_REALTIME_ROW_MAX_AGE_MS,
+  extendedMaxAgeMs = STOCK_REALTIME_EXTENDED_ROW_MAX_AGE_MS,
   now = Date.now(),
 } = {}) {
   let next = rows || [];
   for (const row of realtimeRows || []) {
     const symbol = normalizeStockRealtimeSymbol(row?.symbol);
     const price = asNumber(row?.price);
-    const realtimeAt = asNumber(row?.realtimeAt);
+    const realtimeAt = normalizeTimestampMs(row?.clientReceivedAt)
+      || normalizeTimestampMs(row?.receivedAt)
+      || normalizeTimestampMs(row?.realtimeAt);
     const freshWindowMs = isExtendedStockRealtimeRow(row, now) ? extendedMaxAgeMs : maxAgeMs;
     const isFreshRealtime = symbol
       && price
@@ -76,6 +80,23 @@ export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
     next = applyStockTickToQuoteRows(next, row, row?.realtimeStatus || 'live', rows);
   }
   return next;
+}
+
+export function isFreshStockRealtimeTick(tick = {}, {
+  maxAgeMs = STOCK_REALTIME_ROW_MAX_AGE_MS,
+  now = Date.now(),
+} = {}) {
+  const tickAt = normalizeTimestampMs(tick?.clientReceivedAt)
+    || normalizeTimestampMs(tick?.receivedAt)
+    || normalizeTimestampMs(tick?.realtimeAt)
+    || normalizeTimestampMs(tick?.timestamp);
+  return Boolean(tickAt && now - tickAt <= maxAgeMs && tickAt - now < 60_000);
+}
+
+function normalizeTimestampMs(value) {
+  const n = asNumber(value);
+  if (!n || n <= 0) return 0;
+  return n < 1_000_000_000_000 ? Math.round(n * 1000) : Math.round(n);
 }
 
 function findStockRealtimeRow(rows = [], symbol) {
@@ -296,6 +317,7 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
     realtime: tick?.source === 'EODHD_WS' || tick?.source === 'EODHD_WS_QUOTE' || realtimeStatus === 'live',
     realtimeStatus,
     realtimeAt: tickTime,
+    clientReceivedAt: normalizeTimestampMs(tick?.clientReceivedAt) || normalizeTimestampMs(tick?.receivedAt) || Date.now(),
     marketStatus: tick?.marketStatus || row?.marketStatus || null,
   };
 }

@@ -1,6 +1,17 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.193', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.194', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 主屏股票实时恢复',
+      '  - iOS 添加到主屏幕版本回前台时自动检查 App Shell 是否仍是旧版本,发现新 bundle 会刷新到最新运行时代码',
+      '  - 股票实时连接首轮不再只等任意一只股票 tick,改为要求初始 symbol 覆盖不足时自动重连',
+      '  - 服务端股票 relay 不再向新客户端回放超过 120 秒的 warm-process 缓存 tick,无客户端后会清理旧 tick',
+      '  - REST 刷新后只保留客户端最近收到的 per-symbol 实时 tick,避免一只股票的新 tick 带着其它旧 tick 继续覆盖',
+      '  - 不改交易账本、持仓数量、成本、今日盈亏公式、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.193', date: '2026-07-07',
     items: [
       '📡 股票实时连接首包重连',
       '  - 股票 WebSocket 打开后若 8 秒内没有收到首个 stock_tick,自动重建连接',

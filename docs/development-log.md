@@ -4,6 +4,41 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - iOS 主屏股票实时恢复
+
+- Commit: this commit (`Fix iOS PWA stock realtime resume`)
+- Background: 用户补充确认普通 Safari 网页版本打开后行情显示和拉取正常,但 iOS “添加到主屏幕”的网页 App 仍会出现股票最新价不准确、切回后只跳几次就停的问题。本轮先本地直连 EODHD REST/WS、再用线上测试账号连接生产 `/api/stocks-realtime` 验证:REST `us-quote-delayed` 在盘前仍返回旧价,而 EODHD `/ws/us`、`/ws/us-quote` 和生产 relay 都能在 1-2 秒内发出接近券商的盘前价。问题集中在 iOS PWA 恢复和旧 tick/旧 app shell 状态。
+- Changes:
+  - 服务端股票 realtime relay 增加 `REPLAY_TICK_MAX_AGE_MS = 120_000`,新客户端只回放 120 秒内 relay 实际收到过的 tick;无客户端时清理 `lastTicks` 和广播节流状态,避免 Vercel warm process 把旧盘前/盘后 tick 发给新连接。
+  - 客户端实时 tick 写入 quote cache 前增加 `clientReceivedAt`;REST 刷新后只保留客户端最近收到的 per-symbol tick,避免一只股票的新 tick 让其它旧 tick 跟着继续覆盖 REST。
+  - 股票 WebSocket 首轮 watchdog 从“任意一只股票收到 tick”改为“初始 symbol 覆盖达到目标数量”,覆盖不足时显示“股票实时首轮覆盖不足,正在重连”并重建连接。
+  - iOS 主屏版回前台时增加 App Shell 自动检查,发现新 bundle 会刷新到最新运行时代码;同时增加可见 heartbeat,页面回到前台但股票 tick 超时不动时只强制重建实时连接,不先反复依赖 REST。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.194`,新增“iOS 主屏股票实时恢复”。
+  - 保持交易账本、持仓数量、成本、今日盈亏公式、EODHD 服务端 token、`/api/quote` 鉴权、数据库结构和 RLS 不变。
+- Key files:
+  - `server/realtime/stocksRelay.js`
+  - `src/App.jsx`
+  - `src/lib/stockRealtime.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Direct local EODHD sample using `.env.local` `EODHD_API_KEY` without printing the key: REST `us-quote-delayed` at 2026-07-07 16:58 CST still returned old values such as TSM `452.47`, META `599.93`, IBKR `96.01`, while `/ws/us` and `/ws/us-quote` within 35 seconds returned live premarket values such as TSM around `443.49`, META around `602.60`, MSFT around `392.15`.
+  - Production relay authenticated sample using the provided test account without printing credentials/tokens: `wss://boduan-tracker.vercel.app/api/stocks-realtime?symbols=...` reached `live/live` in about 1.4 seconds and sent fresh ticks including TSM `443.5312`, META `603.1143`, MSFT `392.093`, NVDA `193.8158`;IBKR had no tick in that 45 second window.
+  - Local relay integration after code changes: `QUOTE_API_AUTH_REQUIRED=false` local `/api/stocks-realtime` reached `live/live` in about 0.7 seconds;30 second sample received fresh EODHD_WS ticks for NVDA、MSFT、META、TSM、NOK、GOOGL、QQQ、TQQQ、SPCX,including TSM `443.0435` and META `604.1321`;IBKR remained no-tick during that window.
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,51 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-rJQS1ehZ.js`、`dist/assets/SettingsTab-CUaMLZWC.js`、`dist/assets/settingsChangelog-BiY7K4XY.js`、`dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment:
+  - Pending.
+- Production verification:
+  - Pending.
+- Rollback: 回退本条涉及的 relay stale tick replay 限制、客户端 per-symbol freshness、iOS PWA App Shell/heartbeat 恢复、`v10.7.9.194` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓数量、成本、今日盈亏公式、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - 股票实时连接首包重连
 
 - Commit: `d6ca8aacfa726802959cfde059aa77ddaf86bd98`

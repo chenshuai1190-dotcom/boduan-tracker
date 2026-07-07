@@ -16,6 +16,7 @@ import { applyBtcTickToMarketCards } from '../src/lib/btcRealtime.js';
 import { applyIndexTickToMarketCards } from '../src/lib/indexRealtime.js';
 import {
   applyStockTickToQuoteRows,
+  isFreshStockRealtimeTick,
   mergeFreshStockRealtimeRows,
   mergeStockTicksIntoQuoteRows,
   selectStockRealtimeSymbols,
@@ -412,6 +413,37 @@ test('extended-hours stock realtime price is not overwritten by delayed REST row
   assert.equal(Number(merged[0].changePercent.toFixed(3)), -3.532);
   assert.equal(merged[0].marketStatus, 'extended hours');
   assert.equal(merged[0].realtimeStatus, 'live');
+});
+
+test('old extended-hours stock realtime cache does not override fresh REST rows', () => {
+  const now = Date.UTC(2026, 6, 6, 8, 35, 0); // 04:35 New York, premarket
+  const refreshedRows = [
+    { symbol: 'TSM', name: '台积电', price: 452.47, previousClose: 451.79, changePercent: 0.15, high: 452.5 },
+  ];
+  const quoteCache = [
+    {
+      symbol: 'TSM',
+      name: '台积电',
+      price: 443.55,
+      previousClose: 451.79,
+      realtime: true,
+      realtimeStatus: 'live',
+      clientReceivedAt: now - 6 * 60_000,
+      realtimeAt: now - 6 * 60_000,
+      marketStatus: 'extended-hours',
+      source: 'EODHD_WS',
+    },
+  ];
+  const merged = mergeFreshStockRealtimeRows(refreshedRows, quoteCache, { now });
+
+  assert.equal(merged[0].price, 452.47);
+  assert.equal(merged[0].realtime, undefined);
+});
+
+test('stock realtime tick freshness is tracked per received tick', () => {
+  const now = 1783000005000;
+  assert.equal(isFreshStockRealtimeTick({ symbol: 'NVDA', clientReceivedAt: now - 5000 }, { now, maxAgeMs: 15_000 }), true);
+  assert.equal(isFreshStockRealtimeTick({ symbol: 'TSM', clientReceivedAt: now - 20_000 }, { now, maxAgeMs: 15_000 }), false);
 });
 
 test('extended-hours stock realtime tick preserves locked broker-style daily baseline', () => {
