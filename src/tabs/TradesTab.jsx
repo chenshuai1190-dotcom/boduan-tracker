@@ -460,7 +460,7 @@ export default function TradesTab({ ctx }) {
               <div className={`mt-1 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] font-normal tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 <span>{hasTodayPnl ? signedPct(summary.todayPnlPct, 2) : '--'}</span>
                 {hasTodayPnl && summary.todayPnlLocked && (
-                  <span className="text-[10px] text-white/36">{tt('trades.pnlLocked', '收盘锁定')}</span>
+                  <span className="text-[10px] text-[#6f7785]">{tt('trades.pnlLocked', '收盘锁定')}</span>
                 )}
               </div>
             </div>

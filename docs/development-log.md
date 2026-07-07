@@ -4,6 +4,30 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - 收盘锁定标签灰色弱化
+
+- Background: 用户指出首页/交易页今日盈亏下方“收盘锁定”四个小字改成灰色更合适,当前 `text-white/36` 在深色卡片里仍偏白、略抢主数字。
+- Changes:
+  - 首页今日盈亏锁定标签从 `text-white/36` 改为固定中性灰 `text-[#6f7785]`。
+  - 交易页今日盈亏锁定标签同步改为固定中性灰 `text-[#6f7785]`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.190`,新增“收盘锁定标签灰色弱化”。
+  - 保持 `dailyPnl*` 今日盈亏收盘锁定逻辑、行情字段、交易账本、数据库、RLS、EODHD 服务端 token 和 `/api/quote` 鉴权不变。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,30 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,105 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/HomeTab-9oxxgCCW.js`、`dist/assets/TradesTab-DDJX681A.js`、`dist/assets/SettingsTab-BRNcyY2s.js`、`dist/assets/settingsChangelog-DLTKZSIV.js`、`dist/assets/App-CdacTIOL.js` 和 `dist/assets/index-CVvgQWzP.js` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment: 待本条代码提交经 GitHub `main` 推送后由 Vercel 自动部署,部署完成后补充生产 marker。
+- Rollback: 回退首页/交易页锁定标签色值、`v10.7.9.190` 设置页版本/更新日志、测试和本日志即可;不影响今日盈亏计算、交易记录、成本、股数、汇率、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-07 - 今日盈亏收盘锁定口径
 
 - Background: 用户用 IBKR 和本应用同一时间截图确认,当前公式方向正确,但行情层把“展示当前价”和“今日盈亏计算价”混在一起;盘后/夜盘期间 `lastTradePrice`、`ethPrice`、`previousClosePrice` 的语义会滚动,导致同一价格先后算出不同的当日盈亏。
