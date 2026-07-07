@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - 股票实时连接首包重连
 
-- Commit: `same commit`
+- Commit: `d6ca8aacfa726802959cfde059aa77ddaf86bd98`
 - Background: 用户同一时间截图确认,生产交易页有时只显示 `/api/quote` REST 旧快照,过一段时间又会收到接近券商盘前价的 WebSocket tick。复查确认 EODHD `/ws/us` 和本地 `/api/stocks-realtime` relay 均可收到盘前 tick,问题集中在生产/iOS PWA 下股票 WebSocket 偶发打开后没有及时收到首个 `stock_tick`,前端仍停留在 REST 静态快照。
 - Changes:
   - 股票 realtime 增加 `STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000` 首包 watchdog:WebSocket `open` 后 8 秒内没有收到首个 `stock_tick` 就自动重建股票连接。
@@ -27,8 +27,14 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
   - Build/source marker: `src/App.jsx` contains `STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000`, `scheduleFirstTickWatchdog(socket, openedAt, connect)`, `股票实时首包超时,正在重连`, and no-activity stale reconnect condition;`SettingsTab-DPXBTyug.js` contains `v10.7.9.193`;`settingsChangelog-pgG1kHQK.js` contains `v10.7.9.193` and `股票实时连接首包重连`。
-- Deployment: Pending;will push via project SSH key after validation and then wait for Vercel production deployment.
-- Production verification: Pending deployment.
+- Deployment:
+  - Runtime code commit `d6ca8aacfa726802959cfde059aa77ddaf86bd98` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2tVf2pDAQKUztCVaNQA5RDdJj8dH`,description `Deployment has completed`。
+- Production verification:
+  - Production marker: `https://boduan-tracker.vercel.app/?v=d6ca8aa-stock-reconnect-*` returns `200` with `last-modified: Tue, 07 Jul 2026 08:51:20 GMT`;latest production entry is `index-qqV66XqV.js`;entry imports `App-CiYAeYSl.js`, `SettingsTab-DfOKcduS.js`, `settingsChangelog-pgG1kHQK.js`, `HomeTab-Qi2A0DUW.js` and `TradesTab-DVzcLE6A.js`。
+  - Production runtime marker: `App-CiYAeYSl.js` contains `股票实时首包超时`, `/api/stocks-realtime`, and `EODHD_WS_QUOTE`;`SettingsTab-DfOKcduS.js` contains `v10.7.9.193`;`settingsChangelog-pgG1kHQK.js` contains `v10.7.9.193` and `股票实时连接首包重连`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;unauthenticated WebSocket upgrade to `/api/stocks-realtime?symbols=NVDA,MSFT` returns `401 Unauthorized`。
+  - Documentation sync: after runtime deployment succeeded, `docs/handoff.md` was updated to replace the temporary pending status with the actual `v10.7.9.193` runtime commit, Vercel target, production chunk markers and API boundary verification.
 - Rollback: 回退股票 realtime 首包 watchdog/no-activity reconnect、`v10.7.9.193` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓成本/股数、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 盘前股票盘口兜底
