@@ -101,6 +101,28 @@ function sortMetricValue(item, key) {
   return null;
 }
 
+function freshnessTimestamp(row) {
+  const candidates = [row?.clientReceivedAt, row?.receivedAt, row?.realtimeAt];
+  for (const value of candidates) {
+    if (value === null || value === undefined || value === '') continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric < 1000000000000 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(String(value));
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
+  const startedAt = Number(stockFreshnessStartedAt) || 0;
+  if (!startedAt) return false;
+  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+  if (!normalizedSymbol) return false;
+  const quoteSymbol = String(quoteRow?.symbol || '').trim().toUpperCase();
+  if (!quoteRow || quoteSymbol !== normalizedSymbol) return true;
+  return freshnessTimestamp(quoteRow) < startedAt;
+}
+
 function SortIcon({ active, direction }) {
   return (
     <span className="flex h-4 w-2.5 shrink-0 flex-col items-center justify-center gap-[2px]" aria-hidden="true">
@@ -433,6 +455,7 @@ export default function HomeTab({ ctx }) {
     marketColorMode,
     newStock,
     portfolioCurrencyMode,
+    quoteRows,
     RefreshCw,
     reorderWatchlist,
     setBenchmarkMenuOpen,
@@ -441,6 +464,7 @@ export default function HomeTab({ ctx }) {
     setPortfolioCurrencyMode,
     setShowAddStock,
     showAddStock,
+    stockFreshnessStartedAt = 0,
     vix,
     vixDataDate,
     vixSignal,
@@ -528,6 +552,13 @@ export default function HomeTab({ ctx }) {
     });
     return map;
   }, [displayWatchlist, positions]);
+  const freshQuoteBySymbol = React.useMemo(() => {
+    const map = new Map();
+    (quoteRows || []).forEach((item) => {
+      if (item?.symbol) map.set(String(item.symbol).toUpperCase(), item);
+    });
+    return map;
+  }, [quoteRows]);
   const normalizedSearch = stockSearch.trim().toUpperCase();
   const filteredPopularStocks = POPULAR_US_STOCKS.filter((item) => {
     if (!normalizedSearch) return true;
@@ -614,6 +645,7 @@ export default function HomeTab({ ctx }) {
     const isPosition = tableTab === 'positions';
     const symbol = row.symbol;
     const quote = quoteBySymbol.get(symbol) || row;
+    const freshQuote = freshQuoteBySymbol.get(String(symbol || '').toUpperCase());
     const position = isPosition ? row : positionsBySymbol.get(symbol);
     const price = isPosition ? row.currentPrice : row.price;
     const changePct = isPosition ? row.changePercent : row.changePercent;
@@ -636,6 +668,7 @@ export default function HomeTab({ ctx }) {
       symbol,
       quote,
       price,
+      maskPrice: isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt),
       changePct,
       pnlValue,
       pnlPct,
@@ -981,7 +1014,7 @@ export default function HomeTab({ ctx }) {
                         className="grid min-h-[54px] w-full items-center gap-1 py-2 text-left"
                         style={{ gridTemplateColumns: metricGridTemplate }}
                       >
-                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(item.price, 2)}</span>
+                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? '----' : fmtMoney(item.price, 2)}</span>
                         <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
                         <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                           {fmtDrawdownPct(item.highDrawdown)}

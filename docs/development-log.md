@@ -4,6 +4,35 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - iOS 主屏持仓现价遮罩
+
+- Commit: 本条代码提交;最终 Git hash 随部署记录回填。
+- Background: 用户确认 iOS 添加到主屏幕 Web App 的实时行情链路恢复正常后,仍可能在首次进入或切回前台时先看到上一轮缓存价格,约几十秒后才恢复到实时 tick。进一步讨论后决定不在每只持仓显示“同步中”,而是更克制地只对未拿到本轮新 tick 的“现价”显示 `----`,避免用户误读旧价格为实时价。
+- Changes:
+  - `App.jsx` 在 iOS standalone snapshot warming 开始时记录 `warmStartedAt`,并通过 tab context 暴露为 `stockFreshnessStartedAt`。
+  - 首页持仓表和交易页持仓表新增同 symbol `quoteRows` freshness 判断:若当前持仓对应 quote row 的 `clientReceivedAt` / `receivedAt` / `realtimeAt` 早于本轮 warming 开始时间,只把现价单元格显示为 `----`。
+  - 现价拿到本轮新 tick 后自动恢复真实价格;首页自选列表、持仓市值、今日盈亏、持仓盈亏、头部总资产、排序数值和底层计算均不改变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.199`,新增“iOS 主屏持仓现价遮罩”。
+  - 不改 `/api/*-realtime` 服务端 snapshot 接口、EODHD token、`/api/quote` 鉴权、交易账本、持仓数量、成本、今日盈亏公式、数据库结构或 RLS。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,30 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-BPHuO4lw.js`、`dist/assets/HomeTab-X9kqjGyH.js`、`dist/assets/TradesTab-DX1_RyGI.js`、`dist/assets/SettingsTab-BRuzIWqf.js`、`dist/assets/settingsChangelog-BaaN4RXT.js`、`dist/assets/i18n-QTvefRC5.js` 和 `dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Dist marker check: pass;`App-BPHuO4lw.js` contains `stockFreshnessStartedAt`;`HomeTab-X9kqjGyH.js` and `TradesTab-DX1_RyGI.js` contain `----`;`SettingsTab-BRuzIWqf.js` contains `v10.7.9.199`;`settingsChangelog-BaaN4RXT.js` contains `iOS 主屏持仓现价遮罩`。
+- Deployment: Pending.
+- Production verification: Pending.
+- Rollback: 回退本条涉及的 `warmStartedAt`/`stockFreshnessStartedAt` 透传、首页/交易持仓现价 `----` 遮罩、`v10.7.9.199` 设置页版本/更新日志、测试和本开发日志即可;不影响 iOS snapshot 轮询、服务端 realtime API、普通 Safari WebSocket 路径、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - iOS 主屏启动实时预热
 
 - Commit: `786f213834e1b63784bd97e464405c7a4cfa6d6c`

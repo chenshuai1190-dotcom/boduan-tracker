@@ -1535,6 +1535,7 @@ function MainApp({ user, onLogout }) {
   const [indexRealtimeStatus, setIndexRealtimeStatus] = useState('idle');
   const [indexRealtimeLastTick, setIndexRealtimeLastTick] = useState(null);
   const [indexRealtimeError, setIndexRealtimeError] = useState(null);
+  const [warmStartedAt, setWarmStartedAt] = useState(0);
   const btcRealtimeRef = useRef({
     socket: null,
     reconnectTimer: null,
@@ -4041,6 +4042,7 @@ function MainApp({ user, onLogout }) {
     };
 
     const markSnapshotWarming = () => {
+      setWarmStartedAt(Date.now());
       setBtcRealtimeStatus('warming');
       setIndexRealtimeStatus('warming');
       stockRealtimeRef.current.status = 'warming';
@@ -4521,6 +4523,7 @@ function MainApp({ user, onLogout }) {
     snapshots,
     snapshotTab,
     stockTrades,
+    stockFreshnessStartedAt: warmStartedAt,
     supabase,
     Target,
     tradeEntryScope,

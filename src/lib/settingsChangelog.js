@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.198', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.199', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 主屏持仓现价遮罩',
+      '  - iOS 主屏进入实时行情预热后,首页持仓和交易持仓会按同 symbol 的 quoteRows tick freshness 判断现价是否已更新',
+      '  - 未拿到本轮新 tick 前只把持仓现价显示为 ----,拿到新 tick 后自动恢复真实现价',
+      '  - 只改 UI 显示保护,不改市值、今日盈亏、持仓盈亏、头部总资产、行情公式、EODHD token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.198', date: '2026-07-07',
     items: [
       '📡 iOS 主屏启动实时预热',
       '  - iOS 主屏首次进入、云数据加载完成和回前台时触发多轮 realtime snapshot burst,减少先显示旧价格再等待 tick 的时间',

@@ -60,6 +60,28 @@ function normalizeCostBasisSymbol(symbol) {
   return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
 }
 
+function freshnessTimestamp(row) {
+  const candidates = [row?.clientReceivedAt, row?.receivedAt, row?.realtimeAt];
+  for (const value of candidates) {
+    if (value === null || value === undefined || value === '') continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric < 1000000000000 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(String(value));
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
+  const startedAt = Number(stockFreshnessStartedAt) || 0;
+  if (!startedAt) return false;
+  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+  if (!normalizedSymbol) return false;
+  const quoteSymbol = String(quoteRow?.symbol || '').trim().toUpperCase();
+  if (!quoteRow || quoteSymbol !== normalizedSymbol) return true;
+  return freshnessTimestamp(quoteRow) < startedAt;
+}
+
 export default function TradesTab({ ctx }) {
   const {
     addTrade,
@@ -108,6 +130,7 @@ export default function TradesTab({ ctx }) {
     setWaveNotes,
     showAddTrade,
     showConfirm,
+    stockFreshnessStartedAt = 0,
     stockTrades,
     displayStockName,
     tradeEntryScope,
@@ -674,6 +697,8 @@ export default function TradesTab({ ctx }) {
                           const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
                           const holdingPnl = toNumber(position.unrealizedPnl) * displayRate;
                           const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
+                          const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
+                          const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
                           return (
                             <button
                               key={position.symbol}
@@ -686,7 +711,7 @@ export default function TradesTab({ ctx }) {
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
                               </span>
                               <span className="text-right">
-                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.currentPrice, 3)}</span>
+                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{maskCurrentPrice ? '----' : fmtAmount(position.currentPrice, 3)}</span>
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
