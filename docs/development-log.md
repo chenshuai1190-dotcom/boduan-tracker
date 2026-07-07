@@ -33,7 +33,12 @@
   - Build marker: `Login-xtUE5VAH.js` contains `/quote-logo-login.png`、`h-[92px]`、`Confirm Password` and `Invite Code`;`SettingsTab-B1QQ_aKN.js` contains `v10.7.9.188`;`settingsChangelog-B7-rslcJ.js` contains `v10.7.9.188` and `登录 Logo 裁剪贴合`。
   - `git diff --check` pass。
 - Deployment:
-  - Pending: 等待本条代码、资产、测试、日志提交后使用本机 SSH key 推送 GitHub `main`,再等待 GitHub-integrated Vercel 生产部署并验证 production marker。
+  - Runtime code commit `266bd040ea1ceeb5aa5654c4db409c154d4961dd` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;未直接改 Vercel、浏览器控制台或临时服务器文件。
+  - GitHub-integrated Vercel deployment completed successfully, deployment `5339622212`, target `https://boduan-tracker-gquh55i4p-chenshuai1190-7580s-projects.vercel.app`。
+  - Production marker: `https://boduan-tracker.vercel.app` root returns 200, latest production entry is `index-BOP1Dwqr.js`;entry imports `Login-M4WhaDrr.js`、`App-Db-4wALq.js` and `supabase-BNJuMeu0.js`;`App-Db-4wALq.js` imports `SettingsTab-CgYQ042R.js`;`SettingsTab-CgYQ042R.js` imports `settingsChangelog-B7-rslcJ.js`。
+  - Production chunk marker: `Login-M4WhaDrr.js` contains `/quote-logo-login.png`、`h-[92px]`、`mt-[28px]` and does not directly shrink `/quote-logo.png`;`SettingsTab-CgYQ042R.js` contains `v10.7.9.188`;`settingsChangelog-B7-rslcJ.js` contains `v10.7.9.188` and `登录 Logo 裁剪贴合`;`/quote-logo-login.png` returns 200 `image/png`,PNG signature verified。
+  - Production mobile visual QA: 使用 Playwright `390x844` 访问生产未登录页;登录页和注册页均为 `scrollWidth=390`、`scrollHeight=844`;`/quote-logo-login.png` 自然尺寸 `512x512`,渲染尺寸 `92x92`;注册页显示 `Phone / Email`、`Password`、`Confirm Password`、`Invite Code`;截图输出到 `outputs/login-v188-prod-signin.png` 和 `outputs/login-v188-prod-signup.png`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with no-store cache headers;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;`POST /api/register` without invite code returns `403` `邀请码不正确`;unauthenticated `GET /api/invite-codes` returns `401` `未授权: 请先登录`。
 - Rollback: 回退 `src/Login.jsx` 的 Logo 引用/尺寸/注册上边距、删除 `public/quote-logo-login.png`、回退 `v10.7.9.188` 设置页版本/更新日志、测试和本日志即可;如需回退 Supabase 配置,需手动删除 `public.invite_codes` 或撤销对应 RLS policy;不影响行情、交易账本、持仓计算、EODHD 服务端 token 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 注册邀请码和官方登录 Logo
