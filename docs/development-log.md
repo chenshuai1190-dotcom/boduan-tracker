@@ -4,6 +4,33 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - iOS 主屏股票实时防静态
+
+- Commit: `same commit`
+- Background: 用户用同一账号同一时间对比确认:普通 iOS Safari 网页版交易页能正常回传接近券商的盘前实时价,但“添加到主屏幕”的 iOS Web App 仍停在旧价格,且 `v10.7.9.195` 后比之前更静态。复查前端状态机后确认风险点在客户端首轮覆盖率 watchdog:盘前/盘后 EODHD 成交和盘口 tick 本来就可能稀疏,而 iOS standalone 模式下 WebSocket/timer 更容易延迟;客户端要求首轮覆盖足够多 symbol 后才认为连接可用,会把可用连接反复打断,导致界面停在 REST 旧快照。
+- Changes:
+  - 股票 WebSocket 首包 watchdog 不再要求初始 symbol 覆盖率,收到任意一个有效 `stock_tick` 就清理首包等待并保持连接。
+  - WebSocket 打开 8 秒还没有首个 `stock_tick` 时,不再立即断开;改为保留连接、记录“股票实时首包等待中,保留连接并补拉快照”,并触发一次 no-store 快照补拉。
+  - 完全没有任何股票 tick 的连接只有超过 `STOCK_REALTIME_NO_TICK_RECONNECT_MS = 30_000` 后才重建,避免 iOS 主屏 Web App 在盘前稀疏 tick 环境中反复自断线。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.196`,新增“iOS 主屏股票实时防静态”。
+  - 保持服务端 relay、EODHD 服务端 token、交易账本、持仓数量、成本、今日盈亏公式、`/api/quote` 鉴权、Supabase 表结构和 RLS 不变。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/btc-realtime.test.js tests/tool-ledger-boundaries.test.js` pass,51 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` pass,109 tests passed。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build` pass,生成 `dist/assets/App-Dmn9_tmi.js`、`dist/assets/SettingsTab-BohalHod.js`、`dist/assets/settingsChangelog-Bl54jefk.js`、`dist/assets/index-Bw14UaDN.css` 等产物。
+  - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+- Deployment: pending。
+- Production verification: pending。
+- Rollback: 回退本条涉及的股票首包 watchdog 策略、`v10.7.9.196` 设置页版本/更新日志、测试和文档即可;不影响服务端 relay、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - iOS 主屏股票实时恢复和订阅补发
 
 - Commit: `0570aad952d676bc3770e6f93646318eb29caafb` and follow-up `cf7b1c3` (`Fix stock realtime warm resubscribe`)

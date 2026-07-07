@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.195', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.196', date: '2026-07-07', latest: true,
+    items: [
+      '📡 iOS 主屏股票实时防静态',
+      '  - 股票 WebSocket 不再因为首轮 symbol 覆盖不足就反复断开重连,避免 iOS 主屏幕版被覆盖率门槛卡成静态',
+      '  - 打开后 8 秒还没收到首个 stock_tick 时先保留连接并补拉快照,30 秒完全无 tick 才重建连接',
+      '  - 不改交易账本、持仓数量、成本、今日盈亏公式、EODHD 服务端 token、/api/quote 鉴权、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.195', date: '2026-07-07',
     items: [
       '📡 股票实时订阅补发',
       '  - 股票 realtime relay 在新客户端接入时会对当前 symbol 集重新发送幂等 subscribe,避免 warm upstream 连接漏推个别持仓股票',
