@@ -6,7 +6,7 @@
 
 ### 2026-07-07 - iOS 主屏股票实时恢复和订阅补发
 
-- Commit: `0570aad952d676bc3770e6f93646318eb29caafb` and follow-up pending
+- Commit: `0570aad952d676bc3770e6f93646318eb29caafb` and follow-up `cf7b1c3` (`Fix stock realtime warm resubscribe`)
 - Background: 用户补充确认普通 Safari 网页版本打开后行情显示和拉取正常,但 iOS “添加到主屏幕”的网页 App 仍会出现股票最新价不准确、切回后只跳几次就停的问题。本轮先本地直连 EODHD REST/WS、再用线上测试账号连接生产 `/api/stocks-realtime` 验证:REST `us-quote-delayed` 在盘前仍返回旧价,而 EODHD `/ws/us`、`/ws/us-quote` 和生产 relay 都能在 1-2 秒内发出接近券商的盘前价。问题集中在 iOS PWA 恢复和旧 tick/旧 app shell 状态。
 - Changes:
   - 服务端股票 realtime relay 增加 `REPLAY_TICK_MAX_AGE_MS = 120_000`,新客户端只回放 120 秒内 relay 实际收到过的 tick;无客户端时清理 `lastTicks` 和广播节流状态,避免 Vercel warm process 把旧盘前/盘后 tick 发给新连接。
@@ -37,9 +37,13 @@
   - `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
 - Deployment:
-  - Pending.
+  - `v10.7.9.194` runtime commit `0570aad952d676bc3770e6f93646318eb29caafb` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-CBJMU1BY.js`, App chunk `App-D-lZnUox.js`, Settings chunk `SettingsTab-z8ZKmTG4.js`, changelog chunk `settingsChangelog-BiY7K4XY.js`。
+  - `v10.7.9.195` follow-up runtime commit `cf7b1c3` 已使用本机 SSH key `~/.ssh/boduan_tracker_github` 推送到 GitHub `main`;Vercel production deployed entry `index-6KP5Knke.js`, App chunk `App-D2jad3TN.js`, Settings chunk `SettingsTab-CiSjQO8O.js`, changelog chunk `settingsChangelog-BG9cBUTi.js`。
+  - 未直接改 Vercel、浏览器控制台或临时服务器文件。
 - Production verification:
-  - Pending.
+  - Production marker: `https://boduan-tracker.vercel.app/?v=cf7b1c3-v195-*` returns `200` with `last-modified: Tue, 07 Jul 2026 09:20:35 GMT`;entry `index-6KP5Knke.js` imports `App-D2jad3TN.js`;`App-D2jad3TN.js` contains the iOS PWA realtime resume marker;`SettingsTab-CiSjQO8O.js` contains `v10.7.9.195`;`settingsChangelog-BG9cBUTi.js` contains `v10.7.9.195` and `股票实时订阅补发`。
+  - Production API boundary check: unauthenticated `/api/quote?symbols=VIX` returns `401` with `private, no-store`;plain HTTPS `GET /api/stocks-realtime` returns `426` with `no-store`;unauthenticated WebSocket upgrade to `/api/stocks-realtime?symbols=NVDA,MSFT` returns `401 Unauthorized`。
+  - Production authenticated relay sample after `v10.7.9.195`: using the provided test account without printing credentials/tokens, `wss://boduan-tracker.vercel.app/api/stocks-realtime?symbols=NVDA,MSFT,META,TSM,NOK,IBKR` reached `live/live` in about 2.0 seconds;60 second sample received live ticks for NVDA、MSFT、META、TSM、NOK,including TSM `443.376`, proving the warm upstream resubscribe fix restored TSM delivery;IBKR still had no tick, matching the direct EODHD sample where IBKR also had no tick.
 - Rollback: 回退本条涉及的 relay stale tick replay 限制、warm upstream 订阅补发、客户端 per-symbol freshness、iOS PWA App Shell/heartbeat 恢复、`v10.7.9.195` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、持仓数量、成本、今日盈亏公式、Supabase 表结构、邀请码、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-07 - 股票实时连接首包重连
