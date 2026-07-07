@@ -3414,27 +3414,6 @@ function MainApp({ user, onLogout }) {
 
   useEffect(() => {
     if (cloudLoading || typeof window === 'undefined') return;
-    if (isIosStandaloneWebApp()) {
-      const ref = btcRealtimeRef.current;
-      if (ref.reconnectTimer) {
-        clearTimeout(ref.reconnectTimer);
-        ref.reconnectTimer = null;
-      }
-      if (ref.staleTimer) {
-        clearInterval(ref.staleTimer);
-        ref.staleTimer = null;
-      }
-      if (ref.socket) {
-        try {
-          ref.socket.close(1000, 'ios pwa snapshot mode');
-        } catch {}
-        ref.socket = null;
-      }
-      setBtcRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
-      setBtcRealtimeError(null);
-      return undefined;
-    }
-
     let stopped = false;
     const ref = btcRealtimeRef.current;
 
@@ -4065,7 +4044,6 @@ function MainApp({ user, onLogout }) {
       if (options?.resetFreshness !== false) {
         setWarmStartedAt(Date.now());
       }
-      setBtcRealtimeStatus('warming');
       setIndexRealtimeStatus('warming');
       stockRealtimeRef.current.status = 'warming';
     };
@@ -4085,25 +4063,13 @@ function MainApp({ user, onLogout }) {
       const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
       try {
         const requests = [
-          fetchRealtimeSnapshot('/api/btc-realtime'),
           fetchRealtimeSnapshot('/api/indices-realtime'),
         ];
         if (stockSymbolsSnapshot) {
           requests.push(fetchRealtimeSnapshot('/api/stocks-realtime', { symbols: stockSymbolsSnapshot }));
         }
 
-        const [btcResult, indicesResult, stocksResult] = await Promise.allSettled(requests);
-
-        if (btcResult.status === 'fulfilled') {
-          const snapshot = await parseSnapshotResponse(btcResult.value, 'BTC');
-          if (snapshot?.tick) {
-            applyBtcRealtimeTick(snapshot.tick, 'live');
-          } else {
-            keepPendingStatus(setBtcRealtimeStatus);
-          }
-        } else {
-          keepPendingStatus(setBtcRealtimeStatus);
-        }
+        const [indicesResult, stocksResult] = await Promise.allSettled(requests);
 
         if (indicesResult.status === 'fulfilled') {
           const snapshot = await parseSnapshotResponse(indicesResult.value, 'indices');

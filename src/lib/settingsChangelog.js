@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.201', date: '2026-07-07', latest: true,
+    ver: 'v10.7.9.203', date: '2026-07-07', latest: true,
+    items: [
+      '₿ BTC 主屏连接恢复',
+      '  - iOS 主屏返回或刷新时,BTC 恢复使用原有 WebSocket 稳定连接,不再被股票 snapshot burst 标成同步中',
+      '  - iOS 主屏股票和指数 snapshot 轮询保持不变,继续保护持仓现价 freshness 和股票实时刷新',
+      '  - 不改 EODHD token、/api/quote 鉴权、股票/指数 snapshot 接口、交易账本、持仓数量、成本、数据库结构或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.201', date: '2026-07-07',
     items: [
       '🎨 持仓现价遮罩占位优化',
       '  - 首页持仓和交易持仓在等待本轮新 tick 时,现价占位从 ---- 调整为更轻的 --',

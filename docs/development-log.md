@@ -4,6 +4,32 @@
 
 ## 2026-07-07 Asia/Shanghai
 
+### 2026-07-07 - BTC 主屏连接恢复
+
+- Commit: pending
+- Background: `v10.7.9.197` 为修复 iOS 添加到主屏幕后股票/指数 WebSocket 偶发静态,将 BTC、指数和股票统一切到认证 HTTP snapshot 轮询。用户继续实测后确认股票/交易页恢复正常,但 BTC 小卡在刷新或回前台时也被 snapshot burst 标成“拉取中/同步中”,不再像旧版一样保持稳定实时连接。复查确认 BTC 本身是独立行情源,原 WebSocket 路径相对稳定,不应跟股票 snapshot freshness 绑在一起。
+- Changes:
+  - 移除 iOS standalone 下 BTC WebSocket 的早退分支,BTC 在 iOS 主屏 Web App 中恢复使用 `/api/btc-realtime` WebSocket 和 `BTC_REALTIME_PROTOCOL`。
+  - iOS realtime snapshot burst 不再请求 `/api/btc-realtime?snapshot=1`,也不再把 `btcRealtimeStatus` 设置为 `warming`,避免 BTC 卡片刷新/返回页面时显示同步中或重复拉取。
+  - 保留 iOS 主屏股票和指数 snapshot 轮询、`warmStartedAt` freshness 保护、股票持仓现价 `--` 遮罩、三套服务端 snapshot API 鉴权边界和普通 Safari/桌面 WebSocket 路径。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.203`,新增“BTC 主屏连接恢复”。
+  - 不改 EODHD token、`/api/quote` 鉴权、股票/指数 snapshot 接口、交易账本、持仓数量、成本、今日盈亏公式、数据库结构或 RLS。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` (30 tests).
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm test` (109 tests).
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm run build`;generated `dist/assets/App-CF7U79oU.js`,`dist/assets/SettingsTab-A1WJr0pu.js`,`dist/assets/settingsChangelog-BYE7u3sk.js`,`dist/assets/HomeTab-BzDNIrHi.js`,`dist/assets/TradesTab-DvTLX5c4.js`,`dist/assets/i18n-QTvefRC5.js` and `dist/assets/index-Bw14UaDN.css`.
+  - PASS `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` (0 vulnerabilities).
+  - PASS `git diff --check`.
+  - PASS local dist marker check: `App-CF7U79oU.js` contains `/api/btc-realtime` and no `fetchRealtimeSnapshot('/api/btc-realtime')` / `setBtcRealtimeStatus('warming')`;`App-CF7U79oU.js` still contains index/stock snapshot markers,`warmStartedAt`,stock warming and index warming;`SettingsTab-A1WJr0pu.js` contains `v10.7.9.203`;`settingsChangelog-BYE7u3sk.js` contains `v10.7.9.203` and `BTC 主屏连接恢复`.
+- Deployment: pending
+- Rollback: 回退本条涉及的 BTC iOS standalone WebSocket 恢复、BTC 从 snapshot burst 中移除、`v10.7.9.203` 设置页版本/更新日志、测试和本日志即可;不影响股票/指数 iOS snapshot 轮询、持仓现价 freshness 遮罩、服务端 realtime API、交易账本、持仓/成本/盈亏公式、数据库或鉴权边界。
+
 ### 2026-07-07 - 回退首屏当日盈亏兜底
 
 - Commit: `6797bce8c49a2844ed21ff0252b4fc519778771c`
