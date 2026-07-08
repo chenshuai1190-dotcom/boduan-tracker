@@ -1,4 +1,4 @@
-# X MONEY / boduan-tracker
+# Quote / boduan-tracker
 
 Personal finance PWA for wave-trade tracking, asset review, and market signals.
 

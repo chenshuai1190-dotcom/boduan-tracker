@@ -1,4 +1,4 @@
-# 🎯 X MONEY (原 Bottomline) · 项目交接文档
+# 🎯 Quote (原 Bottomline) · 项目交接文档
 
 
 
@@ -725,9 +725,9 @@ GitHub edit:
 ```
 
 v10.7.9.46  🏷 (06-13) 首页"当前猎手状态"→"当前信号"          ← 当前
-v10.7.9.45  🎨 (06-13) 改名 X MONEY + 开屏调速 (X直显/停留1.6s)
-v10.7.9.44  🎨 (06-13) 改名 Bottomline → X MONEY
-            - 开屏金色 X 两笔画 + X MONEY / 头部 / 图标 / PWA 名全改
+v10.7.9.45  🎨 (06-13) 改名 Quote + 开屏调速 (X直显/停留1.6s)
+v10.7.9.44  🎨 (06-13) 改名 Bottomline → Quote
+            - 开屏金色 X 两笔画 + Quote / 头部 / 图标 / PWA 名全改
             - favicon 黑底金 X · localStorage key 保持不动
 v10.7.9.43  🧠 (06-10) 预警文案理性化 (保留进攻性)
             - L6 留应急弹药 / L8 先核维持率再进攻 / L9 强调分批

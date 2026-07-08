@@ -4,6 +4,41 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - Quote 品牌和收益报表文案
+
+- Commit: pending
+- Deployment: not deployed in this step; awaiting user confirmation if production sync is needed.
+- Background: 用户确认把产品正式命名为 `Quote`,同时希望收益报表“跑赢/跑输纳斯达克”卡片带上当前统计周期,收益报表头部测试标识改为 Quote 数据测试版,修复盈亏排行榜第一行左侧圆角被裁切的视觉问题,并补上报表页独立币种切换和周期日期轴。
+- Changes:
+  - 产品可见品牌从旧品牌名统一替换为 `Quote`,覆盖设置页、PWA `index.html`、`manifest.json`、README、用户可见更新日志和交接文档中的当前品牌描述。
+  - `src/pages/PnlReportPage.jsx` 的收益报表头部标识改为 `Quote 数据测试版`,不再显示旧品牌快照文案。
+  - 跑赢/跑输纳斯达克卡片标题改为按当前筛选周期组合,如 `本年跑赢 纳斯达克`、`近 1 年跑输 纳斯达克`;英文模式同步为 `YTD Outperformed Nasdaq` / `1Y Underperformed Nasdaq`。
+  - 收益报表盈亏总额默认使用 `CNY`,点击标题可下拉切换 `USD`;切换后累计成交金额、收益日历、全部盈亏总结和排行榜同步改用同一币种。
+  - `src/lib/pnlReportViewModel.js` 的周期范围显示改为使用真实筛选边界;即使当前只有今日快照,选择本年、近 6 月、近 1 年时也保留对应起始日期,没有组合快照的日期在走势里为空,纳斯达克基准数据仍可铺开。
+  - 盈亏排行榜行内背景条宽度从顶满改为保留内边距,并把列表行圆角调为 `rounded-xl`,避免第一名左侧看起来没有圆角。
+  - 设置页版本和更新日志同步到 `v10.7.9.219`。
+  - 本次只改前端展示文案、PWA 品牌元信息、文档和测试断言;不改收益报表数据库、不改交易页实时持仓/盈亏、不改行情 relay、不改 RLS、不改 EODHD token 暴露方式或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `index.html`
+  - `public/manifest.json`
+  - `README.md`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 39/39 tests.
+  - `npm test` passed, 132/132 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-Bg5iDM5O.js`, `SettingsTab-CeGefJVC.js`, `settingsChangelog-D2PPBjbF.js`, `i18n-DWbF6vqB.js`, and `App-Ct0whf5l.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - Source scan for the old brand string returned no matches.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully and `http://127.0.0.1:5173/?tab=pnl-report` returned `200`.
+  - `git diff --check` passed.
+- Rollback: 回退本次提交即可恢复 `v10.7.9.218` 的收益报表周期统计版本;不会影响已存在的报表快照表、交易主账本、行情 relay 或鉴权边界。
+
 ### 2026-07-08 - 收益报表周期统计
 
 - Commit: `ac3c1f5`
@@ -5568,7 +5603,7 @@
 ### 2026-07-04 - 修复 PWA 手机桌面图标白边
 
 - Commit: `db79729bfc3e856f5f8064ec4d9874dd7981d88a`
-- Background: 用户安装到 iOS 主屏后反馈 X MONEY 图标外侧出现明显白色边缘。根因是上一版图标保留透明外沿,在浅色壁纸/系统图标背景上会透出白色边框;手机桌面图标应使用不透明底图。
+- Background: 用户安装到 iOS 主屏后反馈 Quote 图标外侧出现明显白色边缘。根因是上一版图标保留透明外沿,在浅色壁纸/系统图标背景上会透出白色边框;手机桌面图标应使用不透明底图。
 - Changes:
   - 将 `512x512`, `192x192`, `180x180`, `32x32`, `16x16` 五个 PNG 图标全部改为不透明深色底。
   - 保留黑金 K 线主体和图标构图,只移除透明外沿导致的白边。
@@ -6967,7 +7002,7 @@
 - Commit: `67e8f5b`
 - Background: 用户反馈软件首页启动慢,要求删除启动加载图,让首页更快进入可见状态。
 - Changes:
-  - 删除 `App.jsx` 中 `cloudLoading` 期间阻塞渲染的全黑 X MONEY 开屏。
+  - 删除 `App.jsx` 中 `cloudLoading` 期间阻塞渲染的全黑 Quote 开屏。
   - 删除人为最短停留 1.6s 的启动等待。
   - 保留 `cloudLoading` 状态作为启动保存保护,避免云端数据未返回时把默认数据误写回 Supabase。
   - 云端同步完成后立即解除保护;若超过 2.6s 未完成,只解除保护,不再挡住主界面。

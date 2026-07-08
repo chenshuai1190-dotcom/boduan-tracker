@@ -1,7 +1,7 @@
 {
-  "name": "X MONEY",
-  "short_name": "X MONEY",
-  "description": "X MONEY - 波段跟踪与复盘系统",
+  "name": "Quote",
+  "short_name": "Quote",
+  "description": "Quote - 波段跟踪与复盘系统",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

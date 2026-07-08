@@ -67,9 +67,16 @@ function convertUsd(value, displayRate) {
   return toNumber(value) * displayRate;
 }
 
+function isRenderableChartValue(value) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+}
+
 function buildLinePath(points, key, width = 310, height = 150, pad = 10) {
-  if (!points.length) return '';
-  const values = points.map(point => toNumber(point[key]));
+  const validPoints = points
+    .map((point, index) => ({ point, index, value: Number(point?.[key]) }))
+    .filter(({ point }) => isRenderableChartValue(point?.[key]));
+  if (!validPoints.length) return '';
+  const values = validPoints.map(({ value }) => value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
   const fixedPctDomain = key !== 'assetUsd';
@@ -79,11 +86,15 @@ function buildLinePath(points, key, width = 310, height = 150, pad = 10) {
   const domainMin = min - padding;
   const domainMax = max + padding;
   const span = domainMax - domainMin || 1;
-  return points.map((point, index) => {
+  return validPoints.map(({ index, value }, pathIndex) => {
     const x = pad + (index / Math.max(points.length - 1, 1)) * (width - pad * 2);
-    const y = pad + (1 - ((toNumber(point[key]) - domainMin) / span)) * (height - pad * 2);
-    return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
+    const y = pad + (1 - ((value - domainMin) / span)) * (height - pad * 2);
+    return `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
   }).join(' ');
+}
+
+function validPointCount(points, key) {
+  return points.filter((point) => isRenderableChartValue(point?.[key])).length;
 }
 
 function buildAreaPath(linePath, width = 310, height = 150, pad = 10) {
@@ -96,7 +107,7 @@ function SparkArea({ data, mode, color }) {
   const primaryPath = buildLinePath(data, primaryKey);
   const hasBenchmark = data.some(point => Number.isFinite(Number(point?.benchmarkPct)));
   const benchmarkPath = hasBenchmark ? buildLinePath(data, 'benchmarkPct') : '';
-  const areaPath = buildAreaPath(primaryPath);
+  const areaPath = validPointCount(data, primaryKey) > 1 ? buildAreaPath(primaryPath) : '';
   const firstLabel = data[0]?.label || '--';
   const middleLabel = data[Math.floor(data.length / 2)]?.label || firstLabel;
   const lastLabel = data[data.length - 1]?.label || firstLabel;
@@ -163,7 +174,6 @@ export default function PnlReportPage({ ctx = {} }) {
     investmentSummary,
     language = 'zh',
     marketColorMode,
-    portfolioCurrencyMode,
     quoteRows,
     stockTrades,
     supabase,
@@ -171,7 +181,9 @@ export default function PnlReportPage({ ctx = {} }) {
     user,
   } = ctx;
   const englishMode = isEnglishLanguage(language);
-  const displayCurrency = portfolioCurrencyMode === 'CNY' ? 'CNY' : 'USD';
+  const [reportCurrencyMode, setReportCurrencyMode] = React.useState('CNY');
+  const [currencyMenuOpen, setCurrencyMenuOpen] = React.useState(false);
+  const displayCurrency = reportCurrencyMode === 'USD' ? 'USD' : 'CNY';
   const displayRate = displayCurrency === 'CNY' ? (toNumber(usdRate) || toNumber(investmentSummary?.usdRate) || USD_CNY_FALLBACK) : 1;
   const [range, setRange] = React.useState('all');
   const [chartMode, setChartMode] = React.useState('pnl');
@@ -318,11 +330,16 @@ export default function PnlReportPage({ ctx = {} }) {
   }));
   const rankingRows = reportData.rankings[rankMode] || [];
   const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
-  const benchmarkCompareLabel = reportData.outperformPct == null
-    ? t(language, 'pnlReport.vsNasdaq', '对比纳斯达克')
+  const currentRangeLabel = rangeItems.find(([id]) => id === range)?.[1] || t(language, 'pnlReport.range.all', '全部');
+  const benchmarkActionLabel = reportData.outperformPct == null
+    ? t(language, 'pnlReport.compare.vs', '对比')
     : reportData.outperformPct >= 0
-      ? t(language, 'pnlReport.outperformNasdaq', '跑赢纳斯达克')
-      : t(language, 'pnlReport.underperformNasdaq', '跑输纳斯达克');
+      ? t(language, 'pnlReport.compare.outperform', '跑赢')
+      : t(language, 'pnlReport.compare.underperform', '跑输');
+  const benchmarkName = t(language, 'pnlReport.nasdaq', '纳斯达克');
+  const benchmarkCompareLabel = englishMode
+    ? `${currentRangeLabel} ${benchmarkActionLabel} ${benchmarkName}`
+    : `${currentRangeLabel}${benchmarkActionLabel} ${benchmarkName}`;
   const statusText = reportLoading
     ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
     : reportError
@@ -348,7 +365,7 @@ export default function PnlReportPage({ ctx = {} }) {
           <div className="text-center">
             <h1 className="text-[17px] font-semibold leading-tight text-white">{t(language, 'pnlReport.title', '收益报表')}</h1>
             <div className="mt-0.5 text-[11px] text-white/36">
-              X MONEY · {reportData.hasData ? t(language, 'pnlReport.snapshotBadge', '快照数据') : t(language, 'pnlReport.noSnapshotBadge', '等待快照')}
+              Quote {t(language, 'pnlReport.testDataBadge', '数据测试版')}
             </div>
           </div>
           <button
@@ -369,9 +386,38 @@ export default function PnlReportPage({ ctx = {} }) {
       </header>
 
       <section className="pt-5 text-center">
-        <div className="inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold text-white/86">
-          <span>{t(language, 'pnlReport.totalPnl', '盈亏总额')} ({displayCurrency})</span>
-          <ChevronDown className="h-3.5 w-3.5 text-white/38" />
+        <div className="relative inline-flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setCurrencyMenuOpen((open) => !open)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-semibold text-white/86 transition active:scale-95"
+            aria-expanded={currencyMenuOpen}
+            aria-label={t(language, 'pnlReport.currencySwitch', '切换报表币种')}
+          >
+            <span>{t(language, 'pnlReport.totalPnl', '盈亏总额')} ({displayCurrency})</span>
+            <ChevronDown className={`h-3.5 w-3.5 text-white/38 transition ${currencyMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {currencyMenuOpen && (
+            <div className="absolute left-1/2 top-full z-20 mt-2 w-28 -translate-x-1/2 overflow-hidden rounded-xl border border-white/10 bg-[#10151c]/95 p-1 shadow-2xl backdrop-blur-xl">
+              {['CNY', 'USD'].map((currency) => (
+                <button
+                  key={currency}
+                  type="button"
+                  onClick={() => {
+                    setReportCurrencyMode(currency);
+                    setCurrencyMenuOpen(false);
+                  }}
+                  className={`flex h-8 w-full items-center justify-center rounded-lg text-[12px] font-normal transition active:scale-95 ${
+                    displayCurrency === currency
+                      ? 'bg-[#f6b54b] text-[#101318]'
+                      : 'text-white/62 hover:bg-white/[0.06]'
+                  }`}
+                >
+                  {currency}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-3 text-[35px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
           {signedCurrency(reportTotal, displayCurrency, 2)}
@@ -404,7 +450,7 @@ export default function PnlReportPage({ ctx = {} }) {
           <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="text-[12px] text-white/46">{benchmarkCompareLabel}</div>
+          <div className="text-[12px] leading-snug text-white/46">{benchmarkCompareLabel}</div>
           <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${reportData.outperformPct == null ? 'text-white/36' : marketTextClass(reportData.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {benchmarkLoading && reportData.outperformPct == null ? '--' : reportData.outperformPct == null ? '--' : signedPct(reportData.outperformPct, 2)}
           </div>
@@ -528,10 +574,10 @@ export default function PnlReportPage({ ctx = {} }) {
           {rankingRows.map((row, index) => {
             const displayValue = convertUsd(row.pnlUsd, displayRate);
             const color = marketHexColor(row.pnlUsd, marketColorMode);
-            const width = `${Math.max(18, 100 - index * 13)}%`;
+            const width = `${Math.max(18, 96 - index * 12)}%`;
             return (
-              <div key={row.symbol} className="relative overflow-hidden rounded-lg bg-white/[0.03] px-2.5 py-2">
-                <div className="absolute inset-y-1 right-1 rounded-lg" style={{ width, background: color, opacity: 0.18 }} />
+              <div key={row.symbol} className="relative overflow-hidden rounded-xl bg-white/[0.03] px-2.5 py-2">
+                <div className="absolute inset-y-1 right-1 rounded-[10px]" style={{ width, background: color, opacity: 0.18 }} />
                 <div className="relative flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#f6b54b] text-[10px] font-semibold text-[#101318]">{index + 1}</span>

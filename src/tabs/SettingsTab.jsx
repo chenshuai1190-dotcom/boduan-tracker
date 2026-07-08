@@ -184,11 +184,11 @@ export default function SettingsTab({ ctx }) {
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">X MONEY</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">Quote</div>
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.218
+                  v10.7.9.219
                 </span>
               </div>
             </div>
@@ -501,7 +501,7 @@ export default function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.218
+                  v10.7.9.219
                 </span>
               </div>
 
@@ -580,11 +580,11 @@ export default function SettingsTab({ ctx }) {
 
             {/* 关于 */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <h2 className="mb-3 text-lg font-black text-white">{t(language, 'settings.about', '关于 X MONEY')}</h2>
+              <h2 className="mb-3 text-lg font-black text-white">{t(language, 'settings.about', '关于 Quote')}</h2>
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.218</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.219</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>

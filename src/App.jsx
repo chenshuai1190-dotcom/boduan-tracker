@@ -6606,11 +6606,11 @@ export default MainApp;
 // 📅 最后修改时间: 2026-06-10 (美东) / 06-11 (北京)
 // 📝 本次更新: v10.7.9.46 - 首页"当前猎手状态" → "当前信号" 🏷
 //
-// 📝 v10.7.9.45 - 改名 X MONEY + 开屏调速 🎨
+// 📝 v10.7.9.45 - 改名 Quote + 开屏调速 🎨
 //
-//   Bottomline → X MONEY 全套改名:
-//   - 开屏动画: 金色 X 两笔画描出 + X MONEY (去掉 BOTTOMLINE)
-//   - 头部 logo: B 方块 → X 方块, 文字 → X MONEY
+//   Bottomline → Quote 全套改名:
+//   - 开屏动画: 金色 X 两笔画描出 + Quote (去掉 BOTTOMLINE)
+//   - 头部 logo: B 方块 → X 方块, 文字 → Quote
 //   - 关于卡 / index.html title / manifest PWA 名
 //   - favicon.svg 重画: 黑底金色经典 X + 圆角方块
 //   ⚠️ localStorage key (bottomline_*) 保持不变, 不动用户数据

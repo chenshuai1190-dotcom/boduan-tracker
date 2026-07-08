@@ -249,6 +249,18 @@ function findCloseOnOrBefore(rows, dateKey) {
   return null;
 }
 
+function sampleRows(rows, maxCount = 46) {
+  if (rows.length <= maxCount) return rows;
+  const lastIndex = rows.length - 1;
+  const step = lastIndex / (maxCount - 1);
+  const picked = new Map();
+  for (let index = 0; index < maxCount; index += 1) {
+    const row = rows[Math.round(index * step)];
+    if (row?.date) picked.set(row.date, row);
+  }
+  return [...picked.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function buildBenchmarkContext(rows, startDate, endDate) {
   const normalized = normalizeBenchmarkRows(rows);
   const start = findCloseOnOrAfter(normalized, startDate);
@@ -267,6 +279,22 @@ function buildBenchmarkContext(rows, startDate, endDate) {
     end,
     returnPct: end.close / start.close - 1,
   };
+}
+
+function buildTrendAxisDates({ trendSource, benchmarkRows, startDate, endDate, range }) {
+  const dates = new Set();
+  if (range !== 'all') {
+    dates.add(startDate);
+    dates.add(endDate);
+  }
+  (Array.isArray(trendSource) ? trendSource : []).forEach((snapshot) => {
+    if (snapshot?.snapshotDate) dates.add(String(snapshot.snapshotDate));
+  });
+  sampleRows((Array.isArray(benchmarkRows) ? benchmarkRows : [])
+    .filter((row) => row.date >= startDate && row.date <= endDate))
+    .forEach((row) => dates.add(row.date));
+  if (dates.size === 0 && endDate) dates.add(endDate);
+  return [...dates].sort();
 }
 
 export function buildPnlReportViewModel({
@@ -331,26 +359,39 @@ export function buildPnlReportViewModel({
   const tradeStats = computeTradeStats(stockTrades, range, rangeStartDate, rangeEndDate, latest, symbolSnapshots);
   const benchmark = buildBenchmarkContext(benchmarkRows, rangeStartDate, rangeEndDate);
   const benchmarkStartClose = benchmark.start?.close || null;
-  const trend = boundedTrendSource.map((snapshot) => {
+  const snapshotByDate = new Map(boundedTrendSource.map((snapshot) => [String(snapshot.snapshotDate), snapshot]));
+  const trendDates = buildTrendAxisDates({
+    trendSource: boundedTrendSource,
+    benchmarkRows: benchmark.rows,
+    startDate: rangeStartDate,
+    endDate: rangeEndDate,
+    range,
+  });
+  const trend = trendDates.map((date) => {
+    const snapshot = snapshotByDate.get(date);
     const benchmarkPoint = benchmarkStartClose
-      ? findCloseOnOrBefore(benchmark.rows, snapshot.snapshotDate)
+      ? findCloseOnOrBefore(benchmark.rows, date)
       : null;
     return {
-      label: monthLabel(snapshot.snapshotDate),
-      pnlPct: range === 'all'
+      date,
+      label: monthLabel(date),
+      pnlPct: snapshot ? (range === 'all'
         ? toNumber(snapshot.cumulativePnlPct)
-        : toNumber(snapshot.cumulativePnlPct) - periodValues.baselinePct,
+        : toNumber(snapshot.cumulativePnlPct) - periodValues.baselinePct) : null,
       benchmarkPct: benchmarkPoint?.close && benchmarkStartClose
         ? benchmarkPoint.close / benchmarkStartClose - 1
-        : (isFiniteNumber(snapshot.benchmarkPct) ? toNumber(snapshot.benchmarkPct) : null),
-      assetUsd: toNumber(snapshot.totalAssetsUsd),
+        : (isFiniteNumber(snapshot?.benchmarkPct) ? toNumber(snapshot.benchmarkPct) : null),
+      assetUsd: snapshot ? toNumber(snapshot.totalAssetsUsd) : null,
     };
   });
   const outperformPct = benchmark.returnPct == null ? null : periodValues.pnlPct - benchmark.returnPct;
+  const displayStartDate = range === 'all'
+    ? (boundedTrendSource[0] || latest).snapshotDate
+    : rangeStartDate;
 
   return {
     hasData: true,
-    startDate: displayDate((boundedTrendSource[0] || latest).snapshotDate),
+    startDate: displayDate(displayStartDate),
     endDate: displayDate(latestDate),
     selectedMonth: monthLabel(latestDate),
     updatedAt: displayUpdatedAt(latest.updatedAt, latestDate),

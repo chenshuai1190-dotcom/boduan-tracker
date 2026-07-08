@@ -112,8 +112,8 @@ test('computes period turnover and Nasdaq outperformance from independent inputs
   assert.equal(report.tradeStockCount, 2);
   assert.equal(Number(report.benchmarkReturnPct.toFixed(4)), 0.1);
   assert.equal(Number(report.outperformPct.toFixed(4)), 0.02);
-  assert.equal(report.trend[0].benchmarkPct, 0);
-  assert.equal(Number(report.trend[2].benchmarkPct.toFixed(4)), 0.1);
+  assert.equal(report.trend.find((point) => point.date === '2026-01-02').benchmarkPct, 0);
+  assert.equal(Number(report.trend.find((point) => point.date === '2026-07-08').benchmarkPct.toFixed(4)), 0.1);
 });
 
 test('returns report range bounds from latest snapshot and first trade', () => {
@@ -125,6 +125,35 @@ test('returns report range bounds from latest snapshot and first trade', () => {
   });
 
   assert.deepEqual(bounds, { startDate: '2026-04-05', endDate: '2026-07-08' });
+});
+
+test('keeps selected range dates even when portfolio snapshots only exist today', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-08',
+        cumulativePnlUsd: 1300,
+        cumulativePnlPct: 0.13,
+        totalAssetsUsd: 11300,
+        dailyPnlUsd: 300,
+      },
+    ],
+    benchmarkRows: [
+      { date: '2026-01-02', adjusted_close: 500 },
+      { date: '2026-04-01', adjusted_close: 525 },
+      { date: '2026-07-08', adjusted_close: 550 },
+    ],
+    range: 'ytd',
+    now: new Date('2026-07-08T12:00:00Z'),
+  });
+
+  assert.equal(report.startDate, '2026/01/01');
+  assert.equal(report.endDate, '2026/07/08');
+  assert.equal(report.benchmarkStartDate, '2026-01-01');
+  assert.equal(report.trend[0].date, '2026-01-01');
+  assert.equal(report.trend[0].pnlPct, null);
+  assert.ok(report.trend.some((point) => point.date === '2026-04-01' && point.benchmarkPct != null));
+  assert.equal(report.trend.at(-1).date, '2026-07-08');
 });
 
 test('returns explicit empty report when there are no snapshots', () => {
