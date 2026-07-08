@@ -7,9 +7,9 @@ import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
-const DETAIL_LABEL_CLASS = 'text-white/[0.30]';
-const DETAIL_VALUE_CLASS = 'text-white/[0.64]';
-const DETAIL_HEADING_CLASS = 'text-white/[0.68]';
+const DETAIL_LABEL_CLASS = 'text-white/40';
+const DETAIL_VALUE_CLASS = 'text-white/86';
+const DETAIL_HEADING_CLASS = 'text-white/72';
 const CHART_TOOLTIP_HOLD_MS = 12000;
 
 function toNumber(value) {
@@ -442,7 +442,7 @@ export default function StockDetailPage({ ctx = {} }) {
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
+        <h2 className={`text-[13px] font-semibold ${DETAIL_LABEL_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />

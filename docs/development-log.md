@@ -4,6 +4,34 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 个股详情文字层级回调
+
+- Commit: same runtime commit.
+- Deployment: pending push via project SSH key and production marker verification.
+- Background: 用户确认 `v10.7.9.233` 修复了文字偏亮问题,但真机效果过暗;要求累计盈亏、已实现盈亏、未实现盈亏、持仓数量、当前成本和交易统计标题使用统一中灰层级,普通数字同步交易页持仓现价的白色数字层级。
+- Changes:
+  - `src/pages/StockDetailPage.jsx` 将个股详情字段标题层级从 `text-white/[0.30]` 回调到交易页同款 `text-white/40`。
+  - 个股详情普通数值层级从 `text-white/[0.64]` 回调到交易页持仓现价同款 `text-white/86`。
+  - 交易统计标题同步字段标题中灰层级;收益走势和交易记录标题保留略亮层级,避免页面整体再次过暗。
+  - 正负盈亏仍使用当前市场红/绿颜色;本次不改收益计算、交易账本、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.234`。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests.
+  - `npm test` passed, 158/158 tests.
+  - `npm run build` passed;new chunks include `StockDetailPage-NlxUfSyh.js`,`App-DRK6Aelm.js`,`SettingsTab-C1PEfidD.js`,`settingsChangelog-nnQ4DkMJ.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Production verification:
+  - Pending.
+- Rollback: 回退本条涉及的个股详情文字层级、`v10.7.9.234` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.233`;不影响交易写入、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 个股详情文字层级微调
 
 - Commit: runtime code commit `b8fc9a62f1802460ff71ff28865ec6d6ee55f1d6`;deployment verification docs commit is the current documentation-only follow-up commit。
