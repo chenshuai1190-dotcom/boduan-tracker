@@ -4,6 +4,39 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 三大指数分时曲线锁定
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户反馈收盘后首页三大指数曲线仍继续追加点,在 EODHD REST 只有昨收/当前价两点时会画成“断崖横线/心电图”;期望盘中保持动态,盘前、盘后和夜盘展示静态曲线。
+- Changes:
+  - `server/quote/providers/indices.js` 为三大指数补充 EODHD intraday 5分钟数据读取,从最近交易日 close 序列生成静态曲线;使用 5 分钟缓存降低重复请求,不恢复 Yahoo 图源。
+  - `src/lib/indexRealtime.js` 增加指数曲线 session 边界:只有 regular session 允许 append tick 到 `intraday`;盘前、盘后和夜盘只更新价格/涨跌幅,不继续延长曲线。
+  - `src/App.jsx` 新增 `getIndexChartOptions()`,统一把美股交易时段传入三大指数 REST 合并和 WebSocket/snapshot tick 合并路径。
+  - 指数 REST 无 intraday 数据时生成固定静态 fallback 曲线,避免继续沿用旧的 live-sampled 心电图;已有 EODHD 完整曲线则保持静态锁定。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.211`,新增“三大指数分时曲线锁定”。
+  - 本次只改三大指数卡片曲线数据逻辑、设置页版本/更新日志、测试和本日志;不改 BTC 卡片、股票交易行情、持仓盈亏、今日盈亏计算、交易账本、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `server/quote/providers/indices.js`
+  - `src/lib/indexRealtime.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/btc-realtime.test.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/btc-realtime.test.js` passed, 27/27 tests.
+  - `node --test tests/quote-response-shape.test.js` passed, 15/15 tests.
+  - `node --test tests/tool-ledger-boundaries.test.js` passed, 30/30 tests.
+  - `npm test` passed, 115/115 tests.
+  - `npm run build` passed; generated `indexRealtime-C3dcrYL2.js`, `HomeTab-DmcP8PNQ.js`, `SettingsTab-B3Vhuiay.js`, `settingsChangelog-NZB3NIcD.js`, `App-C4QMuQSy.js`.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; `curl -I 'http://127.0.0.1:5173/?tab=home&indices=sampled&btc=placeholder'` returned `200 OK`.
+  - Local pure-function simulation passed: regular session appends index tick to curve, postmarket/locked mode updates price without extending the curve, and no-intraday fallback generates a 14-point static curve.
+- Rollback: 回退本条涉及的指数 intraday provider、session-aware index chart options、`v10.7.9.211` 设置页版本/更新日志、测试和本日志即可;BTC、股票实时行情、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+
 ### 2026-07-08 - 收盘锁定价格显示
 
 - Commit: this commit

@@ -22,6 +22,7 @@ import {
   createIndexPlaceholderMarketCards,
   mergeIndexCardsWithPlaceholders,
   mergeIndexRestCardsIntoMarketCards,
+  shouldAppendIndexIntraday,
 } from '../src/lib/indexRealtime.js';
 import {
   applyStockTickToQuoteRows,
@@ -172,6 +173,34 @@ test('EODHD REST index cards seed and extend local sparkline samples without Yah
   assert.deepEqual(next.map((card) => card.displaySymbol), ['.SPX', '.NDX', '.DJI']);
 });
 
+test('EODHD REST index cards use full intraday history and lock static curves outside regular session', () => {
+  assert.equal(shouldAppendIndexIntraday('regular'), true);
+  assert.equal(shouldAppendIndexIntraday('postmarket'), false);
+  assert.equal(shouldAppendIndexIntraday('premarket'), false);
+  assert.equal(shouldAppendIndexIntraday('closed'), false);
+
+  const withHistory = mergeIndexRestCardsIntoMarketCards([], [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7503, previousClose: 7537, changePercent: -0.45, intraday: [7537, 7528, 7518, 7503], source: 'EODHD' },
+  ], 'fallback', { appendIntraday: false });
+  assert.deepEqual(withHistory[0].intraday, [7537, 7528, 7518, 7503]);
+  assert.equal(withHistory[0].intradayMode, 'session-history');
+
+  const staticFallback = mergeIndexRestCardsIntoMarketCards([], [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7503, previousClose: 7537, dayHigh: 7540, dayLow: 7498, changePercent: -0.45, intraday: [], source: 'EODHD' },
+  ], 'fallback', { appendIntraday: false });
+  assert.equal(staticFallback[0].intraday.length, 14);
+  assert.equal(staticFallback[0].intraday[0], 7537);
+  assert.equal(staticFallback[0].intraday.at(-1), 7503);
+  assert.equal(staticFallback[0].intradayMode, 'static-locked');
+
+  const preservedHistory = mergeIndexRestCardsIntoMarketCards(withHistory, [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7498, previousClose: 7537, changePercent: -0.52, intraday: [], source: 'EODHD' },
+  ], 'fallback', { appendIntraday: false });
+  assert.equal(preservedHistory[0].price, 7498);
+  assert.deepEqual(preservedHistory[0].intraday, [7537, 7528, 7518, 7503]);
+  assert.equal(preservedHistory[0].intradayMode, 'session-history');
+});
+
 test('normalizeIndexTick accepts EODHD index WebSocket fields', () => {
   assert.equal(INDEX_REALTIME_SYMBOLS, 'GSPC.INDX,NDX.INDX,DJI.INDX');
 
@@ -225,6 +254,30 @@ test('index realtime tick updates only its matching market card', () => {
   assert.equal(updated[1].price, cards[1].price);
   assert.deepEqual(updated[1].intraday, []);
   assert.equal(updated[3], cards[3]);
+});
+
+test('index realtime tick updates price but does not extend sparkline outside regular session', () => {
+  const cards = [
+    { ticker: 'GSPC.INDX', displaySymbol: '.SPX', price: 7483.24, intraday: [7537, 7524, 7483.24], intradayMode: 'session-history' },
+    { ticker: 'NDX.INDX', displaySymbol: '.NDX', price: 29329.21 },
+    { ticker: 'DJI.INDX', displaySymbol: '.DJI', price: 52900.07 },
+  ];
+  const tick = {
+    type: 'index_tick',
+    symbol: 'GSPC.INDX',
+    ticker: 'GSPC.INDX',
+    displaySymbol: '.SPX',
+    price: 7491.5,
+    change: -45.93,
+    changePercent: -0.61,
+    timestamp: 1783000000123,
+    source: 'EODHD_WS',
+  };
+  const updated = applyIndexTickToMarketCards(cards, tick, 'live', { appendIntraday: false });
+
+  assert.equal(updated[0].price, 7491.5);
+  assert.deepEqual(updated[0].intraday, [7537, 7524, 7483.24]);
+  assert.equal(updated[0].intradayMode, 'session-history');
 });
 
 test('index realtime tick draws the index sparkline from an empty EODHD card', () => {

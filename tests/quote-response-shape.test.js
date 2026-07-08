@@ -89,6 +89,26 @@ async function mockProviderFetch(url) {
     });
   }
 
+  const intradayMatch = path.match(/\/api\/intraday\/([^/]+)/);
+  if (intradayMatch) {
+    const intradayQuotes = {
+      'GSPC.INDX': [5440, 5438.25, 5436.8, 5435.21],
+      'NDX.INDX': [19138.49, 19150.12, 19146.3, 19144.23],
+      'DJI.INDX': [39706.66, 39682.4, 39655.2, 39647.1],
+    };
+    const closes = intradayQuotes[decodeURIComponent(intradayMatch[1])];
+    if (closes) {
+      return jsonResponse([
+        { datetime: '2026-07-06 15:55:00', close: closes[0] - 80 },
+        ...closes.map((close, index) => ({
+          datetime: `2026-07-07 09:${String(30 + index * 5).padStart(2, '0')}:00`,
+          close,
+        })),
+        { datetime: '2026-07-06 16:00:00', close: closes.at(-1) - 80 },
+      ]);
+    }
+  }
+
   const realtimeMatch = path.match(/\/api\/real-time\/([^/]+)/);
   if (realtimeMatch) {
     const realtimeQuotes = {
@@ -608,7 +628,7 @@ test('INDICES quote response shape is stable', async () => {
   assert.deepEqual(quote.data.map((item) => item.ticker), ['GSPC.INDX', 'NDX.INDX', 'DJI.INDX']);
   assert.equal(quote.data.some((item) => item.ticker === 'BTC-USD.CC'), false);
   assert.equal(quote.data[0].price, 5435.21);
-  assert.deepEqual(quote.data[0].intraday, []);
+  assert.deepEqual(quote.data[0].intraday, [5440, 5438.25, 5436.8, 5435.21]);
   assert.equal(quote.data[0].source, 'EODHD');
 });
 

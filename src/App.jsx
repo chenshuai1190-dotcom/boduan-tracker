@@ -6,7 +6,7 @@ import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
-import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards } from './lib/indexRealtime.js';
+import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -100,6 +100,14 @@ function getIosPwaRealtimeSnapshotInterval(date = new Date()) {
   return session === 'regular' || session === 'premarket' || session === 'postmarket'
     ? IOS_PWA_REALTIME_SNAPSHOT_ACTIVE_INTERVAL_MS
     : IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS;
+}
+
+function getIndexChartOptions(date = new Date()) {
+  const session = getUsMarketSession(date);
+  return {
+    session,
+    appendIntraday: shouldAppendIndexIntraday(session),
+  };
 }
 
 function validRate(value) {
@@ -1316,7 +1324,7 @@ function MainApp({ user, onLogout }) {
     setIndexRealtimeStatus(realtimeStatus);
     setIndexRealtimeLastTick(new Date(tickAt).toISOString());
     setIndexRealtimeError(null);
-    setMarketIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus));
+    setMarketIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus, getIndexChartOptions()));
   }, []);
 
   const applyStockRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
@@ -1347,8 +1355,9 @@ function MainApp({ user, onLogout }) {
     const ref = indexRealtimeRef.current;
     if (!ref.lastTickAt || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return cards;
     let next = cards;
+    const chartOptions = getIndexChartOptions();
     for (const tick of ref.lastTicks.values()) {
-      next = applyIndexTickToMarketCards(next, tick, 'live');
+      next = applyIndexTickToMarketCards(next, tick, 'live', chartOptions);
     }
     return next;
   }, []);
@@ -2894,8 +2903,9 @@ function MainApp({ user, onLogout }) {
       // 更新三大指数
       const indicesData = result.data.find(d => d.symbol === 'INDICES');
       if (indicesData?.data && Array.isArray(indicesData.data)) {
+        const chartOptions = getIndexChartOptions();
         setMarketIndices((current) => mergeFreshIndexTicksIntoCards(
-          mergeIndexRestCardsIntoMarketCards(current, indicesData.data, 'fallback'),
+          mergeIndexRestCardsIntoMarketCards(current, indicesData.data, 'fallback', chartOptions),
         ));
       }
 
