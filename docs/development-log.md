@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 个股详情文字层级回调
 
-- Commit: same runtime commit.
-- Deployment: pending push via project SSH key and production marker verification.
+- Commit: runtime code commit `244571fc80586b6c36c0156e14713eae4d07b27d`;deployment verification docs commit is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and `v10.7.9.234` production markers verified。
 - Background: 用户确认 `v10.7.9.233` 修复了文字偏亮问题,但真机效果过暗;要求累计盈亏、已实现盈亏、未实现盈亏、持仓数量、当前成本和交易统计标题使用统一中灰层级,普通数字同步交易页持仓现价的白色数字层级。
 - Changes:
   - `src/pages/StockDetailPage.jsx` 将个股详情字段标题层级从 `text-white/[0.30]` 回调到交易页同款 `text-white/40`。
@@ -29,7 +29,9 @@
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
 - Production verification:
-  - Pending.
+  - Production entry `/assets/index-Hm4YhSOo.js`;runtime chunks include `/assets/App-DKMStrOI.js`,`/assets/HomeTab-BEBfMS18.js`,`/assets/TradesTab-DAX6AzUD.js`,`/assets/StockDetailPage-NlxUfSyh.js`,`/assets/SettingsTab-C-3ET74D.js`,`/assets/settingsChangelog-nnQ4DkMJ.js`,`/assets/i18n-C2nshi8Z.js`.
+  - Production assets contain `v10.7.9.234`,`个股详情文字层级回调`,`StockDetailPage`,and stock detail typography markers `text-white/40` plus `text-white/86`.
+  - Unauthenticated `GET /api/quote?symbols=VIX` returns `401`;ordinary non-WebSocket `GET /api/stocks-realtime`,`GET /api/indices-realtime`,and `GET /api/btc-realtime` over HTTPS return `426`.
 - Rollback: 回退本条涉及的个股详情文字层级、`v10.7.9.234` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.233`;不影响交易写入、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 个股详情文字层级微调
