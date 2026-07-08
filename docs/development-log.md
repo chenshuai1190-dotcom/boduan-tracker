@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 清仓账户收益快照修复
 
-- Commit: pending。
-- Deployment: pending。
+- Commit: runtime code commit `c079875730ed0197a8c9d0f759d486c5b4f3d35e`;deployment verification docs commit is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and `v10.7.9.239` production markers verified。
 - Background: `sherryaiqin@126.com` 已有 27 条主交易账本记录,买入 14 条、卖出 13 条,所有股票当前余额为 0,但收益报表没有组合/个股快照可读。排查确认历史股票代码已无空格脏数据,问题出在手动近两个月快照生成使用 `currentPositions` 回填模式:该模式只保留最终仍持有的股票,清仓账户会被压成空仓,导致卖出后的已实现收益无法进入报表。
 - Changes:
   - `buildCurrentPositionBackfillTrades` 改为混合口径:有卖出记录的股票保留真实 `ledger` 账本,只对没有卖出记录且最终仍持有的股票生成 current-position 合成买入。
@@ -33,13 +33,16 @@
   - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
   - `git diff --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.239`,`清仓账户收益快照修复`,`pnl-backfill-current-`,`currentPositions`,`pnl_snapshot_v1`,`bg-white/[0.68]` and `pointerdown` markers。
-- Production verification: pending。
+- Production verification:
+  - Production entry: `/assets/index-BwnfzC-Q.js`。
+  - Dynamic asset markers verified: `SettingsTab-C5bK5piJ.js` contains `v10.7.9.239`;`settingsChangelog-CLJMeTDK.js` contains `清仓账户收益快照修复`;`pnlReportSnapshots-BLDh-nHh.js` contains `currentPositions` and `pnl-backfill-current-`;`PnlReportPage-DAAto2Pd.js` contains `bg-white/[0.68]`;`App-FWROCikq.js` contains the stock-detail outside-click `pointerdown` listener marker。
+  - Safety checks: unauthenticated `/api/quote?symbols=VIX` returns `401`;ordinary HTTP `/api/stocks-realtime` returns `426`。
 - Rollback: 回退 `buildCurrentPositionBackfillTrades` 的混合回填逻辑、`v10.7.9.239` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.238`;不影响交易页实时显示、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-09 - 个股收益提示和报表分段按钮优化
 
-- Commit: pending。
-- Deployment: not deployed;按用户要求本地测试后暂不部署。
+- Commit: runtime code commit `c079875730ed0197a8c9d0f759d486c5b4f3d35e`;deployment verification docs commit is the current documentation-only follow-up commit。
+- Deployment: deployed together with `v10.7.9.239`;production alias `https://boduan-tracker.vercel.app` updated and markers verified。
 - Background: 用户反馈个股详情收益走势点位提示手滑后只能等自动消失,希望点击其他区域立即关闭;同时收益报表里的收益率走势、收益日历年/月、收益/收益率以及盈亏 Top 分段按钮选中白底过亮,需要统一降低亮度。
 - Changes:
   - `StockDetailPage` 的收益走势图新增图表根节点引用和捕获阶段 `pointerdown` 外部点击监听,点位提示打开后点击图表外区域会立即关闭,图表内滑动和点选仍保持原逻辑。
@@ -60,7 +63,9 @@
   - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
   - `git diff --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.239`,`个股收益提示和报表分段按钮优化`,`bg-white/[0.68]` and `pointerdown` markers。
-- Production verification: not deployed。
+- Production verification:
+  - Production entry: `/assets/index-BwnfzC-Q.js`。
+  - Dynamic asset markers verified: `PnlReportPage-DAAto2Pd.js` contains `bg-white/[0.68]`;`App-FWROCikq.js` contains the stock-detail outside-click `pointerdown` listener marker。
 - Rollback: 回退本条涉及的图表外部点击关闭、分段按钮选中态亮度、`v10.7.9.238` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.237`;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-09 - 个股详情和收益报表文字亮度统一
