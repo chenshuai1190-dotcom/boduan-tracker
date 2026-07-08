@@ -6,15 +6,15 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新接手补充: `v10.7.9.229` 新增收益报表自动收盘快照。Vercel Cron 会在美股常规收盘后调用 `GET /api/pnl-report-daily-snapshot`,接口用 `CRON_SECRET` 保护,服务端用 `SUPABASE_SERVICE_ROLE_KEY` 读取所有账户 `stock_trades` 并用 EODHD 日线收盘价写入 `pnl_report_snapshots` 和 `pnl_report_symbol_snapshots`。自动任务使用严格 `ledger` 账本模式;手动近两个月回填仍保持当前持仓回填测试逻辑。交易页实时持仓/盈亏、行情 relay、RLS 和 `/api/quote` 鉴权不变。
-- 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `ebb8090912ba373a48efb756bb85886e1d9f07c6` 已通过项目 SSH key 推送并上线,`CRON_SECRET` 环境变量配置记录提交 `a066f6beda9e970f1efcbb14a1175e798015d864` 已触发重新部署。
-- 当前生产运行时代码提交: `a066f6beda9e970f1efcbb14a1175e798015d864`;最近已验证 runtime marker 为 `v10.7.9.229`。
-- 设置页版本: `v10.7.9.229`。
+- 最新接手补充: `v10.7.9.230` 新增个股收益详情页只读版。交易页持仓列表点击股票名称/代码进入独立详情页,读取主交易账本 `stock_trades` 和单股票收盘快照 `pnl_report_symbol_snapshots`,展示周期累计盈亏、收益率、已实现/未实现盈亏、持仓数量、当前成本、收益走势、交易统计和交易记录。页面只读,不写交易账本;交易录入/编辑、交易页实时持仓/盈亏、自动快照任务、行情 relay、RLS 和 `/api/quote` 鉴权不变。
+- 当前 GitHub `main`: 本文件所在最新提交为准;应用代码提交 `3f448c805d2270c5931592f681ea907b62e5fb27` 已通过项目 SSH key 推送并上线。
+- 当前生产运行时代码提交: `3f448c805d2270c5931592f681ea907b62e5fb27`;最近已验证 runtime marker 为 `v10.7.9.230`。
+- 设置页版本: `v10.7.9.230`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: `a066f6b` production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/45ftQqGkpLCbxNdyEMdP3FGWGKPD`;`CRON_SECRET` 已在 Vercel Production 配置为 Sensitive 并被运行时读取。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.229` 运行时代码已部署成功。
-- 线上关键验证: 生产入口 `/assets/index-BAd5OjER.js`;runtime chunks include `App-Ck2itcHL.js`,`SettingsTab-CCh6lEJ6.js`,`settingsChangelog-Bv0bG28U.js`,`PnlReportPage-CGeO8hp6.js`;production assets contain `v10.7.9.229`,`收益报表自动收盘快照`,`/api/pnl-report-daily-snapshot` and `CRON_SECRET`;未带 Bearer secret 的 `GET /api/pnl-report-daily-snapshot` 返回 `401` `Cron secret 不匹配`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;普通 HTTP `GET /api/stocks-realtime`、`GET /api/indices-realtime` 返回 `426`。
-- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.214` 建立并精简收益报表独立页面前端;`v10.7.9.215` 建立收益报表快照 SQL/RLS/dirty 标记基础;`v10.7.9.216` 到 `v10.7.9.228` 接入真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照。用户自写内容、中文显示、交易页实时持仓/盈亏、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
+- 最新 Vercel 状态: `3f448c8` production deployment success,target `https://boduan-tracker-6npis6tyr-chenshuai1190-7580s-projects.vercel.app`;production alias `https://boduan-tracker.vercel.app` updated。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.230` 运行时代码已部署成功。
+- 线上关键验证: 生产入口 `/assets/index-CokYFXpX.js`;runtime chunks include `App-D8DK-fMq.js`,`TradesTab-B3aPjGuD.js`,`StockDetailPage-CYYM3bQU.js`,`i18n-C2nshi8Z.js`,`SettingsTab-BTHvhZlY.js`,`settingsChangelog-fFD5adOR.js`;production assets contain `v10.7.9.230`,`个股收益详情页`,`StockDetailPage`,`fetchPnlReportSymbolSnapshotHistory`,`stockDetail.openAria` and `个股收益详情`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;HTTPS 普通非 WebSocket `GET /api/stocks-realtime`、`GET /api/indices-realtime`、`GET /api/btc-realtime` 返回 `426`;纯 HTTP 首先被 Vercel edge `308` 跳转到 HTTPS。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.214` 建立并精简收益报表独立页面前端;`v10.7.9.215` 建立收益报表快照 SQL/RLS/dirty 标记基础;`v10.7.9.216` 到 `v10.7.9.228` 接入真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 起交易页支持进入只读个股收益详情页。用户自写内容、中文显示、交易页实时持仓/盈亏、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
@@ -22,12 +22,12 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
-- 当前生产运行时基准提交: `a066f6beda9e970f1efcbb14a1175e798015d864`;最近已验证 runtime marker 为 `v10.7.9.229`。
-- 最近应用代码提交: `ebb8090912ba373a48efb756bb85886e1d9f07c6`,收益报表自动收盘快照:新增 Vercel Cron、`/api/pnl-report-daily-snapshot` 和服务端全账户快照写入逻辑,并保持交易页实时系统独立。环境变量配置记录/重部署提交为 `a066f6beda9e970f1efcbb14a1175e798015d864`。上一轮报表真实快照读取提交为 `1ca0a9684788b8b915ba4b035d1ac076987e7c1f`,上一轮报表快照基础提交为 `f8329b0f5bbad6837c7925d1ba8b19a1335dbe8a`,上一轮 BTC 卡位提交为 `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133`。
+- 当前生产运行时基准提交: `3f448c805d2270c5931592f681ea907b62e5fb27`;最近已验证 runtime marker 为 `v10.7.9.230`。
+- 最近应用代码提交: `3f448c805d2270c5931592f681ea907b62e5fb27`,个股收益详情页只读版:新增 `stock-detail` 独立页面、单股票快照历史只读查询、交易页名称/代码点击入口和本地视觉预览入口,并保持交易页实时系统和交易写入独立。上一轮自动收盘快照提交为 `ebb8090912ba373a48efb756bb85886e1d9f07c6`,环境变量配置记录/重部署提交为 `a066f6beda9e970f1efcbb14a1175e798015d864`,上一轮报表真实快照读取提交为 `1ca0a9684788b8b915ba4b035d1ac076987e7c1f`,上一轮报表快照基础提交为 `f8329b0f5bbad6837c7925d1ba8b19a1335dbe8a`,上一轮 BTC 卡位提交为 `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133`。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.229`。
-- Vercel 最新运行时部署: success,`v10.7.9.229` production marker verified,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/45ftQqGkpLCbxNdyEMdP3FGWGKPD`。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.229` 运行时代码已部署成功。
+- 设置页版本: `v10.7.9.230`。
+- Vercel 最新运行时部署: success,`v10.7.9.230` production marker verified,target `https://boduan-tracker-6npis6tyr-chenshuai1190-7580s-projects.vercel.app`,production alias `https://boduan-tracker.vercel.app` updated。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.230` 运行时代码已部署成功。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
 - 最新补充部署记录: `v10.7.9.217` runtime code commit `5261dc706a7f0cb21e5e5021caa80dc8d55e4c94` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FzYv8tZiTVmGNHPK3rNs95DVv5oC`;production alias updated;active runtime assets and auth boundaries verified。上一条报表真实快照读取提交为 `1ca0a9684788b8b915ba4b035d1ac076987e7c1f`;上一条报表快照基础提交为 `f8329b0f5bbad6837c7925d1ba8b19a1335dbe8a`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`

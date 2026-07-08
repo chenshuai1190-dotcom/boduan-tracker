@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 个股收益详情页只读版
 
-- Commit: pending.
-- Deployment: pending.
+- Commit: `3f448c805d2270c5931592f681ea907b62e5fb27`.
+- Deployment: deployed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://boduan-tracker-6npis6tyr-chenshuai1190-7580s-projects.vercel.app`,production alias `https://boduan-tracker.vercel.app` updated.
 - Background: 用户确认第一版先做只读个股收益详情页,入口为交易页持仓股票名称/代码,后续再扩展个股买卖记录和编辑能力。
 - Changes:
   - 新增 `src/pages/StockDetailPage.jsx` 独立只读页面,展示周期累计盈亏、收益率、已实现/未实现盈亏、持仓数量、当前成本、收益走势、交易统计和交易记录。
@@ -16,6 +16,7 @@
   - `src/App.jsx` 接入 `stock-detail` 独立页面路由;`src/tabs/TradesTab.jsx` 持仓列表左侧名称/代码点击进入个股详情,右侧交易操作保持原逻辑。
   - `src/DevVisualPreview.jsx` 新增本地 `?tab=stock-detail` mock 预览入口,用于移动端视觉 smoke;该入口只在本地缺少 Supabase 配置时启用。
   - 中英文文案、设置页版本和用户可见更新日志同步到 `v10.7.9.230`;本次不改交易录入/编辑、交易页实时持仓/盈亏、自动快照任务、行情 relay、RLS 或 `/api/quote` 鉴权。
+  - `docs/handoff.md` 同步最新 `v10.7.9.230` 生产入口、运行时代码提交和线上验证结果。
 - Key files:
   - `src/pages/StockDetailPage.jsx`
   - `src/lib/stockDetailViewModel.js`
@@ -29,6 +30,7 @@
   - `src/DevVisualPreview.jsx`
   - `tests/stock-detail-view-model.test.js`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests;覆盖个股详情周期盈亏、卖出实现盈亏、清仓股票可见性和只读/不写交易账本边界。
@@ -37,6 +39,10 @@
   - Local mobile visual smoke passed at `http://127.0.0.1:5173/?tab=stock-detail` with 390x844 viewport;页面渲染标题、累计盈亏卡、收益走势、交易统计和交易记录。
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
+- Production verification:
+  - Production entry `/assets/index-CokYFXpX.js`;runtime chunks include `/assets/App-D8DK-fMq.js`,`/assets/TradesTab-B3aPjGuD.js`,`/assets/StockDetailPage-CYYM3bQU.js`,`/assets/i18n-C2nshi8Z.js`,`/assets/SettingsTab-BTHvhZlY.js`,`/assets/settingsChangelog-fFD5adOR.js`.
+  - Production assets contain `v10.7.9.230`,`个股收益详情页`,`StockDetailPage`,`fetchPnlReportSymbolSnapshotHistory`,`stockDetail.openAria` and `个股收益详情`.
+  - Unauthenticated `GET /api/quote?symbols=VIX` returns `401`;ordinary non-WebSocket `GET /api/stocks-realtime`,`GET /api/indices-realtime`,and `GET /api/btc-realtime` over HTTPS return `426`. Plain HTTP first redirects at the Vercel edge with `308`.
 - Rollback: 回退本条涉及的 `StockDetailPage`、`stockDetailViewModel`、单股票快照历史读取函数、交易页入口、App 页面路由、i18n、`v10.7.9.230` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.229`;不影响交易页实时持仓/盈亏、交易写入、自动快照任务、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表自动收盘快照
