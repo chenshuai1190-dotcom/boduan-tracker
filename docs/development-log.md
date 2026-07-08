@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 个股详情视觉优化
 
-- Commit: pending in current change set.
-- Deployment: pending.
+- Commit: `6100a9a7c4303e65bb4fc30d598d2ee93c927c30`.
+- Deployment: deployed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://boduan-tracker-d7tpw9kih-chenshuai1190-7580s-projects.vercel.app`,production alias `https://boduan-tracker.vercel.app` updated.
 - Background: 用户反馈个股收益详情页第一版视觉层级仍偏重,要求删除只读编辑按钮和股票装饰标识,默认显示全部周期,并让统计日期、卡片标题、图表坐标和交易记录灰度更接近设计稿。
 - Changes:
   - `src/pages/StockDetailPage.jsx` 删除右上角编辑按钮和累计盈亏卡右侧股票装饰标识,股票标题/副标题居中显示。
@@ -25,9 +25,15 @@
   - `docs/handoff.md`
 - Validation:
   - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests.
+  - `npm test` passed, 157/157 tests.
   - `npm run build` passed;new chunks include `StockDetailPage-BhrIEDqR.js`,`App-B0t3I36r.js`,`SettingsTab-BgHppvGQ.js`,`settingsChangelog-B7cimjRW.js`.
   - Local mobile visual smoke passed at `http://127.0.0.1:5173/?tab=stock-detail` with 390x844 viewport;页面标题居中,右上编辑/股票装饰标识已移除,默认“全部”,走势图显示左侧金额刻度和真实周期日期,交易统计/交易记录灰度和字号已下调。
-- Production verification: pending.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Production verification:
+  - Production entry `/assets/index-D-yQok0K.js`;runtime chunks include `/assets/App-BK-mGSKy.js`,`/assets/StockDetailPage-BhrIEDqR.js`,`/assets/SettingsTab-CoMrdoXk.js`,`/assets/settingsChangelog-B7cimjRW.js`,`/assets/i18n-C2nshi8Z.js`,`/assets/TradesTab-B3aPjGuD.js`.
+  - Production assets contain `v10.7.9.231`,`个股详情视觉优化`,`StockDetailPage`,`axisStartDate`,`stockDetail.openAria` and `个股收益详情`.
+  - Unauthenticated `GET /api/quote?symbols=VIX` returns `401`;ordinary non-WebSocket `GET /api/stocks-realtime`,`GET /api/indices-realtime`,and `GET /api/btc-realtime` over HTTPS return `426`. Plain HTTP first redirects at the Vercel edge with `308`.
 - Rollback: 回退本条涉及的 `StockDetailPage` 默认周期/视觉层级、`stockDetailViewModel` 轴起止日期、`v10.7.9.231` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.230`;不影响交易页实时持仓/盈亏、交易写入、自动快照任务、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 个股收益详情页只读版
