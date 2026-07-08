@@ -7,7 +7,7 @@
 ### 2026-07-08 - 收益报表区间口径修正
 
 - Commit: `d217b58b2a86892a677a29a5eb4e75c95ab91985`
-- Deployment: pending.
+- Deployment: deployed to GitHub `main` via SSH from code commit `d217b58b2a86892a677a29a5eb4e75c95ab91985`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户反馈收益报表 `本年` 排行榜里 META/MSFT 显示盈利,但交易页和 `全部` 口径显示它们仍是持仓亏损;复查确认问题来自 `v10.7.9.225` 的当前持仓 7 日回填快照被 `本年`、`近 6 月` 等区间统计当作真实期初基准,导致区间收益变成“最近几日价格差”,而不是“成本到当前收盘价”的真实累计持仓盈亏。
 - Changes:
   - `src/lib/pnlReportViewModel.js` 调整区间统计:如果组合第一笔交易发生在当前统计区间内,组合总盈亏直接使用最新累计盈亏,不再减去回填出来的早期基准快照。
@@ -26,6 +26,8 @@
   - `npm run build` passed; new chunks include `PnlReportPage-CfOydTOf.js`, `SettingsTab-rvudMZCu.js`, `settingsChangelog-BL83Ne3T.js`, and `App-liWJX3e9.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
+  - Production marker verification passed: entry `index-CTIGc6bC.js`; `App-BbtuEoLT.js` imports `PnlReportPage-CfOydTOf.js`, `SettingsTab-uy0R-xGn.js`, and `i18n-BoKxZ3S4.js`; `PnlReportPage-CfOydTOf.js` contains `currentPositions` and `/api/pnl-history-closes`; `SettingsTab-uy0R-xGn.js` contains `v10.7.9.226`; `settingsChangelog-BL83Ne3T.js` contains `v10.7.9.226` and `收益报表区间口径修正`.
+  - Production API boundary check passed: unauthenticated `/api/pnl-history-closes?symbols=NVDA&to=2026-07-07&days=8` returned `401`; unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426`.
 - Rollback: 回退本条涉及的区间统计条件、`v10.7.9.226` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.225`;不会影响交易页实时持仓/盈亏、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表日历月份与当前持仓回填
