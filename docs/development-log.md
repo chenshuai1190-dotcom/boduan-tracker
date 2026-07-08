@@ -4,6 +4,32 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益日历视觉优化
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户希望收益报表里的收益日历参考券商截图,用更紧凑的数字单位和更明显的盈亏背景色表达每日结果。
+- Changes:
+  - `src/pages/PnlReportPage.jsx` 新增收益日历专用紧凑金额 formatter:中文金额显示为 `K` / `万`,英文金额显示为 `K` / `M`,日历里不再显示完整货币符号和长金额。
+  - 收益日历单元格按当日盈亏或收益率的正负和幅度生成半透明红/绿渐变背景,高低幅度有轻微强弱差异,更接近券商日历色块表达。
+  - 收益率模式同步修正文字颜色和背景基准,按收益率本身判断正负,不再沿用金额字段。
+  - 设置页版本和更新日志同步到 `v10.7.9.217`。
+  - 本次只调整收益报表日历展示,不改收益快照数据结构、不改交易页实时持仓/盈亏、不改行情 relay、不改 RLS、不改 EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/pnl-report-snapshots.test.js` passed, 8/8 tests.
+  - `npm test` passed, 125/125 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-B6V91FCL.js`, `SettingsTab-Cl3EHdWt.js`, `settingsChangelog-Z3O9bnze.js`, and `App-BkwJF9YJ.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully and `http://127.0.0.1:5173/?tab=pnl-report` returned `200`; local screenshot/Computer Use visual capture was unavailable in this desktop session (`cgWindowNotFound` / `could not create image from display`), so visual verification was limited to build marker checks and code inspection.
+- Rollback: 回退本次提交即可恢复 `v10.7.9.216` 的收益日历完整货币金额显示;收益报表快照和交易系统数据不需要回滚。
+
 ### 2026-07-08 - 收益报表真实快照读取
 
 - Commit: `1ca0a96`

@@ -203,7 +203,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.216'), 'settings version badge should document the P&L report real snapshot update');
+  assert.ok(settingsTabSource.includes('v10.7.9.217'), 'settings version badge should document the P&L calendar visual update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
+  assert.ok(settingsChangelogSource.includes('收益日历视觉优化'), 'settings changelog should describe the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.216'), 'settings changelog should document the P&L report real snapshot update');
   assert.ok(settingsChangelogSource.includes('收益报表真实快照读取'), 'settings changelog should describe the P&L report real snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.211'), 'settings changelog should retain the index session chart update');
@@ -955,7 +957,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.216'), 'settings version badge should document the P&L report real snapshot update');
+  assert.ok(settingsTabSource.includes('v10.7.9.217'), 'settings version badge should document the P&L calendar visual update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
+  assert.ok(settingsChangelogSource.includes('收益日历视觉优化'), 'settings changelog should describe the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.216'), 'settings changelog should document the P&L report real snapshot update');
   assert.ok(settingsChangelogSource.includes('收益报表真实快照读取'), 'settings changelog should describe the P&L report real snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.211'), 'settings changelog should retain the index session chart update');
@@ -1209,7 +1213,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.216'), 'settings version badge should document the P&L report real snapshot update');
+  assert.ok(settingsTabSource.includes('v10.7.9.217'), 'settings version badge should document the P&L calendar visual update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
+  assert.ok(settingsChangelogSource.includes('收益日历视觉优化'), 'settings changelog should describe the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.216'), 'settings changelog should document the P&L report real snapshot update');
   assert.ok(settingsChangelogSource.includes('收益报表真实快照读取'), 'settings changelog should describe the P&L report real snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.211'), 'settings changelog should retain the index session chart update');

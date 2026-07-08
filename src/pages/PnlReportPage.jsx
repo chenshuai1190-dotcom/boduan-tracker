@@ -32,6 +32,24 @@ function signedPct(value, digits = 2) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
 }
 
+function alphaHex(alpha) {
+  return Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
+}
+
+function signedCompactAmount(value, englishMode = false) {
+  const n = toNumber(value);
+  const sign = n >= 0 ? '+' : '-';
+  const abs = Math.abs(n);
+  if (englishMode) {
+    if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(2)}M`;
+    if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(2)}K`;
+    return `${sign}${abs >= 100 ? abs.toFixed(0) : abs.toFixed(2)}`;
+  }
+  if (abs >= 10000) return `${sign}${(abs / 10000).toFixed(2)}万`;
+  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(2)}K`;
+  return `${sign}${abs >= 100 ? abs.toFixed(0) : abs.toFixed(2)}`;
+}
+
 function displayName(row, englishMode) {
   if (!row) return '--';
   if (!englishMode) return row.name || row.symbol || '--';
@@ -243,6 +261,10 @@ export default function PnlReportPage({ ctx = {} }) {
     ['all', t(language, 'pnlReport.range.all', '全部')],
   ];
   const calendarValues = new Map(reportData.calendar.map(item => [item.day, item]));
+  const calendarMagnitudeMax = Math.max(1, ...reportData.calendar.map((item) => {
+    if (calendarMode === 'rate') return Math.abs(toNumber(item.rate));
+    return Math.abs(convertUsd(item.valueUsd, displayRate));
+  }));
   const rankingRows = reportData.rankings[rankMode] || [];
   const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
   const statusText = reportLoading
@@ -362,23 +384,32 @@ export default function PnlReportPage({ ctx = {} }) {
             const valueUsd = calendarItem?.valueUsd;
             const rate = calendarItem?.rate;
             const hasValue = valueUsd != null || rate != null;
-            const bgColor = hasValue
-              ? `${marketHexColor(valueUsd ?? rate ?? 0, marketColorMode)}18`
-              : 'transparent';
+            const signedValue = calendarMode === 'rate' ? rate : valueUsd;
+            const displayValue = calendarMode === 'rate' ? rate : convertUsd(valueUsd, displayRate);
+            const magnitude = calendarMode === 'rate' ? Math.abs(toNumber(rate)) : Math.abs(toNumber(displayValue));
+            const hasTint = hasValue && magnitude > 0.000001;
+            const tileColor = marketHexColor(signedValue ?? 0, marketColorMode);
+            const intensity = Math.min(1, magnitude / calendarMagnitudeMax);
+            const tileStyle = hasTint
+              ? {
+                background: `linear-gradient(180deg, ${tileColor}${alphaHex(0.16 + intensity * 0.12)}, ${tileColor}${alphaHex(0.08 + intensity * 0.08)})`,
+                borderColor: `${tileColor}${alphaHex(0.16 + intensity * 0.12)}`,
+              }
+              : undefined;
             return (
               <div
                 key={`${day || 'blank'}-${index}`}
-                className="flex h-[48px] flex-col items-center justify-center rounded-lg"
-                style={{ background: bgColor }}
+                className="flex h-[52px] flex-col items-center justify-center rounded-[10px] border border-transparent"
+                style={tileStyle}
               >
                 {day && (
                   <>
                     <span className="text-[15px] font-normal text-white">{String(day).padStart(2, '0')}</span>
                     {hasValue && (
-                      <span className={`mt-0.5 text-[9px] tabular-nums ${marketTextClass(valueUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                      <span className={`mt-1 whitespace-nowrap text-[10px] font-normal tabular-nums ${marketTextClass(signedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                         {calendarMode === 'rate'
                           ? (rate == null ? '--' : signedPct(rate, 2))
-                          : signedCurrency(convertUsd(valueUsd, displayRate), displayCurrency, 2)}
+                          : signedCompactAmount(displayValue, englishMode)}
                       </span>
                     )}
                   </>
