@@ -4,6 +4,33 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表近两个月快照回填
+
+- Commit: `TBD`
+- Deployment: pending.
+- Background: 用户确认 `v10.7.9.226` 已修复收益报表区间口径后,希望在不改变现有计算逻辑的前提下,把手动生成收盘快照从最近 7 个交易日扩展为近两个月,用于查看每天的真实收益走势。
+- Changes:
+  - `src/pages/PnlReportPage.jsx` 将手动生成窗口扩展为最近 45 个已完成交易日快照,并请求 46 条 EODHD 日线 close,为第一天日收益保留前一交易日基准。
+  - `api/pnl-history-closes.js` 将已登录历史收盘价接口的 `days` 上限从 30 提高到 90;默认值仍为 8,接口仍要求登录鉴权且 EODHD token 只在服务端使用。
+  - 中英文提示文案、设置页版本和用户可见更新日志同步到 `v10.7.9.227`;本次不改变 `v10.7.9.226` 已修复的 `本年`、`近 6 月`、`全部` 区间统计口径。
+- Key files:
+  - `api/pnl-history-closes.js`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-history-closes-api.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-history-closes-api.test.js tests/pnl-report-snapshots.test.js tests/tool-ledger-boundaries.test.js` passed, 46/46 tests;新增覆盖 `days=46` 的两个月历史收盘价窗口。
+  - Direct local EODHD validation using `.env.local` without printing the key: NVDA/MSFT/META/TSM/NOK/IBKR each returned 46 valid EOD close rows from 2026-04-30 through 2026-07-07.
+  - `npm test` passed, 149/149 tests.
+  - `npm run build` passed; new chunks include `PnlReportPage-Crwm4pdO.js`, `SettingsTab-BlqooBxa.js`, `settingsChangelog-DrS8k80y.js`, `i18n-BpktuHM8.js`, and `App-C3rmU7qb.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Rollback: 回退本条涉及的手动回填窗口、历史收盘价接口上限、`v10.7.9.227` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.226`;不会影响收益报表区间统计口径、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表区间口径修正
 
 - Commit: `d217b58b2a86892a677a29a5eb4e75c95ab91985`

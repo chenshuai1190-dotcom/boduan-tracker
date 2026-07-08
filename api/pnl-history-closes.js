@@ -22,7 +22,7 @@ function shiftDate(dateKey, days) {
 function normalizeDays(value) {
   const n = Number(firstQueryValue(value));
   if (!Number.isFinite(n)) return 8;
-  return Math.max(2, Math.min(30, Math.floor(n)));
+  return Math.max(2, Math.min(90, Math.floor(n)));
 }
 
 function normalizeEodhdSymbol(symbol) {

@@ -96,3 +96,41 @@ test('pnl history closes handler returns sanitized multi-symbol EODHD daily rows
   assert.match(requestedUrls[1], /\/api\/eod\/MSFT\.US/);
   assert.doesNotMatch(JSON.stringify(res.body), /test-eodhd-key/);
 });
+
+test('pnl history closes handler allows a two-month trading-day window', async () => {
+  const env = {
+    authRequired: process.env.QUOTE_API_AUTH_REQUIRED,
+    eodhdKey: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  const rows = Array.from({ length: 100 }, (_, index) => {
+    const date = new Date('2026-01-01T00:00:00Z');
+    date.setUTCDate(date.getUTCDate() + index);
+    return { date: date.toISOString().slice(0, 10), close: 100 + index, adjusted_close: 100 + index };
+  });
+  process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+  process.env.EODHD_API_KEY = 'test-eodhd-key';
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(String(url));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => rows,
+    };
+  };
+  const res = createResponse();
+
+  try {
+    await handler(createRequest({ query: { symbols: 'NVDA', to: '2026-07-08', days: '46' } }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.days, 46);
+  assert.equal(res.body.rowsBySymbol.NVDA.length, 46);
+  assert.equal(res.body.rowsBySymbol.NVDA[0].close, 154);
+  assert.match(requestedUrls[0], /from=2026-02-20/);
+});

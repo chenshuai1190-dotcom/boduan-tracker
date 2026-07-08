@@ -8,6 +8,8 @@ import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
+const PNL_REPORT_HISTORY_SNAPSHOT_COUNT = 45;
+const PNL_REPORT_HISTORY_CLOSE_ROWS = PNL_REPORT_HISTORY_SNAPSHOT_COUNT + 1;
 
 function toNumber(value) {
   const n = Number(value);
@@ -397,7 +399,7 @@ export default function PnlReportPage({ ctx = {} }) {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
-      const historyRes = await fetch(`/api/pnl-history-closes?symbols=${encodeURIComponent(symbols.join(','))}&to=${encodeURIComponent(reportQuoteInput.snapshotDate)}&days=8`, {
+      const historyRes = await fetch(`/api/pnl-history-closes?symbols=${encodeURIComponent(symbols.join(','))}&to=${encodeURIComponent(reportQuoteInput.snapshotDate)}&days=${PNL_REPORT_HISTORY_CLOSE_ROWS}`, {
         cache: 'no-store',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -413,7 +415,7 @@ export default function PnlReportPage({ ctx = {} }) {
         quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
         cashUsd: toNumber(investmentSummary?.cashUsd),
         toDate: reportQuoteInput.snapshotDate,
-        maxSnapshots: 7,
+        maxSnapshots: PNL_REPORT_HISTORY_SNAPSHOT_COUNT,
         lockedAt: lockedAt.toISOString(),
         backfillMode: 'currentPositions',
       });
