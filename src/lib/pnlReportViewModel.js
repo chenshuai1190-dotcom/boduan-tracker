@@ -247,10 +247,10 @@ function symbolSnapshotMap(rows = []) {
 function symbolPeriodPnl(row, baselineRow, range, isSingleDay, { rangeStartDate = '', firstTradeDate = '' } = {}) {
   if (isSingleDay) return row.dailyPnlUsd == null ? null : toNumber(row.dailyPnlUsd);
   if (range === 'all') return toNumber(row.cumulativePnlUsd);
-  if (baselineRow) return toNumber(row.cumulativePnlUsd) - toNumber(baselineRow.cumulativePnlUsd);
   if (firstTradeDate && rangeStartDate && firstTradeDate >= rangeStartDate) {
     return toNumber(row.cumulativePnlUsd);
   }
+  if (baselineRow) return toNumber(row.cumulativePnlUsd) - toNumber(baselineRow.cumulativePnlUsd);
   return null;
 }
 
@@ -311,7 +311,7 @@ function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay
     }
   }
 
-  if (range !== 'all' && startsInsideRange && (!baseline || String(baseline.snapshotDate) >= String(latest.snapshotDate))) {
+  if (range !== 'all' && startsInsideRange) {
     return { pnlUsd: latestPnlUsd, pnlPct: latestPnlPct, baselinePct: 0 };
   }
 

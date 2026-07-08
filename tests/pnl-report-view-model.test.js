@@ -345,6 +345,53 @@ test('period ranking uses zero baseline for symbols first traded inside the sele
   assert.equal(report.rankings.loss[0].symbol, 'MSFT');
 });
 
+test('period ranking ignores backfilled baseline before the real first trade date', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-08',
+        cumulativePnlUsd: -250,
+        cumulativePnlPct: -0.025,
+        totalAssetsUsd: 9750,
+        dailyPnlUsd: -40,
+      },
+      {
+        snapshotDate: '2026-07-01',
+        cumulativePnlUsd: -900,
+        cumulativePnlPct: -0.09,
+        totalAssetsUsd: 9100,
+        dailyPnlUsd: 0,
+      },
+    ],
+    symbolSnapshots: [
+      { symbol: 'NVDA', name: 'NVIDIA', cumulativePnlUsd: 500 },
+      { symbol: 'MSFT', name: 'Microsoft', cumulativePnlUsd: -300 },
+      { symbol: 'META', name: 'Meta', cumulativePnlUsd: -450 },
+    ],
+    baselineSymbolSnapshots: [
+      { symbol: 'NVDA', name: 'NVIDIA', cumulativePnlUsd: 200 },
+      { symbol: 'MSFT', name: 'Microsoft', cumulativePnlUsd: -800 },
+      { symbol: 'META', name: 'Meta', cumulativePnlUsd: -1000 },
+    ],
+    stockTrades: [
+      { trade_date: '2026-07-04', symbol: 'NVDA', shares: 10, price: 100 },
+      { trade_date: '2026-07-04', symbol: 'MSFT', shares: 5, price: 200 },
+      { trade_date: '2026-07-04', symbol: 'META', shares: 5, price: 300 },
+    ],
+    range: 'ytd',
+    now: new Date('2026-07-08T22:00:00Z'),
+  });
+
+  assert.equal(report.totalPnlUsd, -250);
+  assert.equal(report.summary.stockPnlUsd, -250);
+  assert.equal(report.rankings.gain[0].symbol, 'NVDA');
+  assert.equal(report.rankings.gain[0].pnlUsd, 500);
+  assert.equal(report.rankings.loss[0].symbol, 'META');
+  assert.equal(report.rankings.loss[0].pnlUsd, -450);
+  assert.equal(report.rankings.loss[1].symbol, 'MSFT');
+  assert.equal(report.rankings.loss[1].pnlUsd, -300);
+});
+
 test('period totals use zero baseline when the portfolio first traded inside the selected range', () => {
   const report = buildPnlReportViewModel({
     portfolioSnapshots: [

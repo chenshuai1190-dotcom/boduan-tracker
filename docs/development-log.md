@@ -4,6 +4,30 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表区间口径修正
+
+- Commit: `TBD`
+- Deployment: pending.
+- Background: 用户反馈收益报表 `本年` 排行榜里 META/MSFT 显示盈利,但交易页和 `全部` 口径显示它们仍是持仓亏损;复查确认问题来自 `v10.7.9.225` 的当前持仓 7 日回填快照被 `本年`、`近 6 月` 等区间统计当作真实期初基准,导致区间收益变成“最近几日价格差”,而不是“成本到当前收盘价”的真实累计持仓盈亏。
+- Changes:
+  - `src/lib/pnlReportViewModel.js` 调整区间统计:如果组合第一笔交易发生在当前统计区间内,组合总盈亏直接使用最新累计盈亏,不再减去回填出来的早期基准快照。
+  - 单股票排行榜同样调整:如果某只股票第一笔交易发生在当前统计区间内,该股票的周期盈亏直接使用最新累计盈亏;只有真实持有早于区间开始的股票才使用期初/基准快照做差。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.226`;本次只修收益报表独立系统区间统计和排行榜口径,不改交易页实时持仓/盈亏、快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/pnlReportViewModel.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 48/48 tests;新增回归覆盖“区间内新录入持仓不使用回填基准做差”的本年排行榜场景。
+  - `npm test` passed, 148/148 tests.
+  - `npm run build` passed; new chunks include `PnlReportPage-CfOydTOf.js`, `SettingsTab-rvudMZCu.js`, `settingsChangelog-BL83Ne3T.js`, and `App-liWJX3e9.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Rollback: 回退本条涉及的区间统计条件、`v10.7.9.226` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.225`;不会影响交易页实时持仓/盈亏、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表日历月份与当前持仓回填
 
 - Commit: `6f62b710ddaf3f7ad44d5e3e4d3302930ea99df0`
