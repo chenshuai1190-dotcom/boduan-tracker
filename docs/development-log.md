@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股详情和收益报表文字亮度统一
 
-- Commit: pending。
-- Deployment: pending。
+- Commit: runtime code commit `a82fc3a4a5f25f7ca1204671e888228016ac148a`;deployment verification docs commit is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and `v10.7.9.237` production markers verified。
 - Background: 用户反馈个股详情页持仓数量、当前成本、交易统计金额和交易记录成交额等普通数值偏暗,同时收益报表里的纯白文字亮度过高;要求两处分别参考交易页现价/市值数字和交易页中文白色层级。
 - Changes:
   - `StockDetailPage` 的交易记录数量/成交额普通数值改为交易页市值/现价同款 86% 白色层级,保留盈亏红绿颜色不变。
@@ -27,7 +27,9 @@
   - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
   - `git diff --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.237`,`个股详情和收益报表文字亮度统一`,`StockDetailPage`,`PnlReportPage` and `text-white/[0.86]` markers。
-- Production verification: pending。
+- Production verification:
+  - Production entry: `/assets/index-K0zrctct.js`。
+  - Dynamic asset markers verified: `SettingsTab-CPCn1Say.js` contains `v10.7.9.237`;`settingsChangelog-DU_tcDzo.js` contains `个股详情和收益报表文字亮度统一`;`PnlReportPage-DE9kv1XQ.js` and `StockDetailPage-CpVwUigQ.js` contain the stable `text-white/[0.86]` brightness class。
 - Rollback: 回退本条涉及的文字亮度层级、`v10.7.9.237` 设置页版本/更新日志和本日志即可恢复 `v10.7.9.236`;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ## 2026-07-08 Asia/Shanghai
