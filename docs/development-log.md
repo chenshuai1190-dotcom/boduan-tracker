@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表周期统计
 
-- Commit: this commit
-- Deployment: not deployed yet.
+- Commit: `ac3c1f5`
+- Deployment: deployed to GitHub `main` via SSH from commit `ac3c1f5f89abdb659c601bd83150e9370b8a9199`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户确认继续补上收益报表的“累计成交金额/交易股票数”和“跑赢/跑输纳斯达克”两块真实逻辑;报表继续作为独立系统,不混入交易页实时持仓计算。
 - Changes:
   - `src/lib/pnlReportViewModel.js` 新增报表周期边界、周期成交统计和纳斯达克基准计算;累计成交金额和交易股票数改为按当前筛选周期从 `stockTrades` 计算。
@@ -34,6 +34,8 @@
   - `git diff --check` passed.
   - Local dev server `npm run dev -- --host 127.0.0.1` started successfully and `http://127.0.0.1:5173/?tab=pnl-report` returned `200`.
   - Dist/source marker check passed: built assets/source contain `v10.7.9.218`, `收益报表周期统计`, `/api/pnl-benchmark`, `跑赢纳斯达克`, and `跑输纳斯达克`.
+  - Production marker check passed: production entry `/assets/index-BmoJJhIV.js`;recursive chunks include `/assets/App-BnecHJqm.js`, `/assets/PnlReportPage-CECjOFn4.js`, `/assets/SettingsTab-DhAkmU7n.js`, and `/assets/settingsChangelog-SPqbrXrH.js`;production assets contain `v10.7.9.218`, `收益报表周期统计`, `/api/pnl-benchmark`, `跑赢纳斯达克`, and `跑输纳斯达克`.
+  - Production auth boundary verification passed: unauthenticated `/api/quote?symbols=VIX` returned `401`, unauthenticated `/api/pnl-benchmark?symbol=QQQ&from=2026-01-01&to=2026-07-08` returned `401`, ordinary HTTPS `/api/stocks-realtime` and `/api/indices-realtime` returned `426`, unauthenticated `/api/btc-realtime?snapshot=1` returned `401`.
 - Rollback: 回退本次提交即可恢复 `v10.7.9.217` 的收益报表日历视觉版本;不会影响已存在的报表快照表和交易主账本。
 
 ### 2026-07-08 - 收益日历视觉优化
