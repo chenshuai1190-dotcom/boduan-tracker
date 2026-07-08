@@ -4,6 +4,33 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表功能精简
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户希望先把收益报表前端页面里暂不开发、容易误解的功能入口删干净,再继续做下一步报表开发。
+- Changes:
+  - 删除收益报表总额标题旁的说明图标和全屏图标,标题行删除后重新居中。
+  - 删除收益走势卡右上角“简单加权”入口,仅保留“我的/纳斯达克”图例。
+  - 删除全部盈亏总结下方股票/基金/新股/余额通分类按钮整行,避免保留无意义单按钮状态。
+  - 将“股票期权累计盈亏”改为“股票累计盈亏”,英文同步为 `Stock P&L`。
+  - 设置页版本和用户可见更新日志更新到 `v10.7.9.214`。
+  - 本次只清理收益报表前端展示入口和文案;不改数据库、交易账本、行情实时链路、持仓盈亏/今日盈亏计算、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test` passed, 116/116 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-BSaQ_zvZ.js`, `App-2HA_igp7.js`, `SettingsTab-fr67ek5V.js`, `settingsChangelog-OrcYm9Uo.js`, and `i18n-CWyx366N.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; Playwright mobile preview at `390x844` for `http://127.0.0.1:5173/?tab=pnl-report` confirmed `简单加权`、`基金`、`新股`、`余额通`、`股票期权累计盈亏`、total info icon, and total expand icon are absent; `股票累计盈亏` is present; document width equals viewport width `390`.
+- Rollback: 回退本次提交即可恢复 `v10.7.9.213` 的收益报表视觉;交易和行情数据链路不受影响。
+
 ### 2026-07-08 - 收益报表视觉收紧
 
 - Commit: this commit

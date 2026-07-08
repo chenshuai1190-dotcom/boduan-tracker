@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, Info, Maximize2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 
@@ -253,11 +253,9 @@ export default function PnlReportPage({ ctx = {} }) {
       </header>
 
       <section className="pt-5 text-center">
-        <div className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-white/86">
+        <div className="inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold text-white/86">
           <span>{t(language, 'pnlReport.totalPnl', '盈亏总额')} ({displayCurrency})</span>
           <ChevronDown className="h-3.5 w-3.5 text-white/38" />
-          <Info className="h-3.5 w-3.5 text-white/32" />
-          <Maximize2 className="ml-8 h-4 w-4 text-white/32" />
         </div>
         <div className="mt-3 text-[35px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
           {signedCurrency(reportTotal, displayCurrency, 2)}
@@ -274,12 +272,11 @@ export default function PnlReportPage({ ctx = {} }) {
       </section>
 
       <section className="mt-5 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-between text-[12px] text-white/52">
+        <div className="flex items-center justify-start text-[12px] text-white/52">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: totalColor }} />{t(language, 'pnlReport.mine', '我的')}</span>
             <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>
           </div>
-          <span>{t(language, 'pnlReport.simpleWeighted', '简单加权')} <ChevronDown className="inline h-3 w-3" /></span>
         </div>
         <SparkArea data={reportMock.trend} mode={chartMode} color={totalColor} />
       </section>
@@ -355,13 +352,8 @@ export default function PnlReportPage({ ctx = {} }) {
           <h2 className="text-[17px] font-semibold text-white">{t(language, 'pnlReport.summary', '全部盈亏总结')} ({displayCurrency})</h2>
           <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportMock.updatedAt}</span>
         </div>
-        <div className="mt-4 flex gap-2">
-          {[t(language, 'pnlReport.stocks', '股票'), t(language, 'pnlReport.funds', '基金'), t(language, 'pnlReport.ipo', '新股'), t(language, 'pnlReport.cash', '余额通')].map((label, index) => (
-            <span key={label} className={`rounded-full px-3 py-1.5 text-[12px] ${index === 0 ? 'border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[#ffd18a]' : 'bg-white/[0.055] text-white/34'}`}>{label}</span>
-          ))}
-        </div>
-        <div className="mt-5 flex items-center justify-between">
-          <div className="text-[13px] text-white/62">{t(language, 'pnlReport.stockOptionsPnl', '股票期权累计盈亏')}</div>
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-[13px] text-white/62">{t(language, 'pnlReport.stockPnl', '股票累计盈亏')}</div>
           <div className={`flex items-center gap-1 text-[17px] font-normal tabular-nums ${marketTextClass(reportMock.summary.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {fmt(convertUsd(reportMock.summary.stockPnlUsd, displayRate), 2)}<ChevronRight className="h-4 w-4 text-white/30" />
           </div>
