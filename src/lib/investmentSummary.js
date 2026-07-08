@@ -1,3 +1,5 @@
+import { normalizeUserStockSymbol } from './symbols.js';
+
 function toNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -30,7 +32,7 @@ function inferDailyPnlPrice(quote, currentPrice) {
 }
 
 function normalizeSymbol(symbol) {
-  return String(symbol || 'TQQQ').trim().toUpperCase();
+  return normalizeUserStockSymbol(symbol);
 }
 
 function sortTradesAsc(a, b) {
@@ -41,6 +43,7 @@ function buildQuoteMap(watchlist = []) {
   const map = new Map();
   watchlist.forEach((item) => {
     const symbol = normalizeSymbol(item.symbol);
+    if (!symbol) return;
     map.set(symbol, item);
   });
   return map;
@@ -52,6 +55,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
 
   trades.forEach((trade) => {
     const symbol = normalizeSymbol(trade.symbol);
+    if (!symbol) return;
     if (!groups.has(symbol)) {
       const quote = quoteMap.get(symbol);
       groups.set(symbol, {

@@ -8,6 +8,7 @@ import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
+import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
@@ -167,7 +168,11 @@ function readCachedFxRates() {
 }
 
 function normalizeSymbolKey(symbol) {
-  return String(symbol || '').trim().toUpperCase();
+  return normalizeUserStockSymbol(symbol);
+}
+
+function normalizeStrictSymbolKey(symbol) {
+  return normalizeStrictUserStockSymbol(symbol);
 }
 
 function normalizeCostBasisSymbol(symbol) {
@@ -2376,7 +2381,14 @@ function MainApp({ user, onLogout }) {
       );
       return;
     }
-    const symbol = tradeDraft.symbol.trim().toUpperCase();
+    const symbol = normalizeStrictSymbolKey(tradeDraft.symbol);
+    if (!symbol) {
+      showTradeNotice(
+        t(language, 'trades.invalidSymbolTitle', '股票代码格式不正确'),
+        t(language, 'trades.invalidSymbolDesc', '请输入正确的股票代码,不要包含空格或特殊字符。')
+      );
+      return;
+    }
     const sharesNum = parseInt(tradeDraft.shares);
     const priceNum = parseFloat(tradeDraft.price);
     const editingId = tradeDraft.id || tradeDraft.editingId;
@@ -2645,9 +2657,9 @@ function MainApp({ user, onLogout }) {
     if (!draft.symbol) {
       return { success: false, error: '请填写股票代码' };
     }
-    const symbol = draft.symbol.toUpperCase().trim();
+    const symbol = normalizeStrictSymbolKey(draft.symbol);
     if (!symbol) {
-      return { success: false, error: '请填写股票代码' };
+      return { success: false, error: '股票代码格式不正确,不要包含空格或特殊字符' };
     }
     if (watchlist.find(s => s.symbol === symbol)) {
       return { success: false, error: `${symbol} 已在自选中` };
@@ -2777,7 +2789,7 @@ function MainApp({ user, onLogout }) {
       // 导致 qqqHigh 永远停在写死的初始值 640.47, 猎手状态回撤算不准
       // Set 去重: 交易主账本、旧 watchlist、核心标的若重复不会重复请求
       const coreSymbols = ['QQQ', 'TQQQ'];
-      const symbolSet = new Set([...rowsForQuote.map(s => s.symbol), ...coreSymbols]);
+      const symbolSet = new Set([...rowsForQuote.map(s => normalizeSymbolKey(s?.symbol)).filter(Boolean), ...coreSymbols]);
       requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
       const symbols = requestedSymbols.join(',');
       const r = await fetchQuote(symbols, { fresh: true });
@@ -4313,8 +4325,13 @@ function MainApp({ user, onLogout }) {
   // 添加交易表单:输入股票代码后 500ms 自动查询(填充中文名+当前价)
   useEffect(() => {
     if (!showAddTrade) return;
-    const sym = (newTrade.symbol || '').trim().toUpperCase();
-    if (sym.length < 1) {
+    const rawSym = String(newTrade.symbol || '').trim();
+    const sym = normalizeStrictSymbolKey(rawSym);
+    if (rawSym.length < 1) {
+      setLookupStatus(null);
+      return;
+    }
+    if (!sym) {
       setLookupStatus(null);
       return;
     }

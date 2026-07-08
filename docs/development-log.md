@@ -4,6 +4,43 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 股票代码输入严格校验
+
+- Commit: pending.
+- Deployment: pending push via project SSH key and production marker verification.
+- Background: 已注册用户 `sherryaiqin@126.com` 能登录但首页/交易页行情异常,设置页诊断日志显示 `/api/quote` 返回 `400` `股票代码不合法: N VDA`。用户确认根因是交易记录里的股票代码手动录入了空格;已注册用户不应该因此无法正常使用软件。
+- Changes:
+  - 新增 `src/lib/symbols.js`,拆分旧数据读取容错和新输入严格校验两个口径。
+  - 旧数据读取、行情全集、实时股票订阅和收益汇总会把短 ticker 内部空格修复为正确代码,例如 `N VDA` -> `NVDA`,避免单条脏记录打爆整批 Quote API。
+  - 新增/编辑交易、自选股票和数据库写入改用严格校验,拒绝含空格或特殊字符的股票代码,不再允许写入不正确代码。
+  - 交易弹窗二次确认前先拦截非法 ticker,自动识别查询也不再请求非法 ticker。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.235`。
+  - 本次不改变登录权限、邀请码规则、交易收益计算、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/symbols.js`
+  - `src/lib/stockUniverse.js`
+  - `src/lib/investmentSummary.js`
+  - `src/lib/db.js`
+  - `src/lib/stockRealtime.js`
+  - `src/App.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/symbols.test.js`
+  - `tests/stock-universe.test.js`
+  - `tests/investment-summary.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+- Validation:
+  - `node --test tests/symbols.test.js tests/stock-universe.test.js tests/investment-summary.test.js tests/tool-ledger-boundaries.test.js` passed, 54/54 tests.
+  - `npm test` passed, 163/163 tests.
+  - `npm run build` passed;new chunks include `symbols-BLHitJ3E.js`,`App-Ddxyve1F.js`,`TradesTab-BbEKShMl.js`,`SettingsTab-D8fVLGbN.js`,`settingsChangelog-Np_TrEFT.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Production verification:
+  - Pending.
+- Rollback: 回退本条涉及的 symbol helper、读取容错、输入严格校验、`v10.7.9.235` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.234`;不影响登录权限、邀请码规则、交易收益计算、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 个股详情文字层级回调
 
 - Commit: runtime code commit `244571fc80586b6c36c0156e14713eae4d07b27d`;deployment verification docs commit is the current documentation-only follow-up commit。

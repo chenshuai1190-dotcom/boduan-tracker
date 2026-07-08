@@ -7,6 +7,7 @@ import {
 } from '../lib/marketColorMode.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
+import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -405,7 +406,15 @@ export default function TradesTab({ ctx }) {
       );
       return;
     }
-    const symbol = String(tradeDraft.symbol || '').trim().toUpperCase();
+    const symbol = normalizeStrictUserStockSymbol(tradeDraft.symbol);
+    if (!symbol) {
+      showTradeFormNotice(
+        tt('trades.invalidSymbolTitle', '股票代码格式不正确'),
+        tt('trades.invalidSymbolDesc', '请输入正确的股票代码,不要包含空格或特殊字符。'),
+        tradeDraft.symbol || '--'
+      );
+      return;
+    }
     const shares = Number(tradeDraft.shares) || 0;
     const price = Number(tradeDraft.price) || 0;
     if (shares <= 0 || price <= 0) {

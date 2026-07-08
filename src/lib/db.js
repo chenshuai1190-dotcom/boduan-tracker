@@ -3,6 +3,7 @@
 import { supabase } from './supabase';
 import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
 import { earliestReportDate, markPnlReportDirtySafely } from './pnlReportDb';
+import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols';
 
 export {
   clearPnlReportRebuildState,
@@ -32,7 +33,7 @@ const cacheSet = (key, value) => {
 };
 
 const normalizeCostBasisSymbol = (symbol) => {
-  const value = String(symbol || '').trim().toUpperCase();
+  const value = normalizeUserStockSymbol(symbol);
   return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
 };
 
@@ -106,7 +107,7 @@ export const deleteTrade = async (id) => {
 
 const mapStockTrade = (trade) => ({
   id: trade.id,
-  symbol: String(trade.symbol || '').trim().toUpperCase(),
+  symbol: normalizeUserStockSymbol(trade.symbol),
   name: trade.name || '',
   side: trade.side === 'sell' ? 'sell' : 'buy',
   date: trade.trade_date || trade.date,
@@ -142,7 +143,8 @@ export const insertStockTrade = async (trade) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const symbol = String(trade.symbol || '').trim().toUpperCase();
+  const symbol = normalizeStrictUserStockSymbol(trade.symbol);
+  if (!symbol) throw new Error('股票代码格式不正确');
   const side = trade.side === 'sell' ? 'sell' : 'buy';
   const { data, error } = await supabase
     .from('stock_trades')
@@ -170,8 +172,8 @@ export const updateStockTrade = async (id, trade) => {
   if (!user) throw new Error('未登录');
   if (!id) throw new Error('缺少交易记录 id');
 
-  const symbol = String(trade.symbol || '').trim().toUpperCase();
-  if (!symbol) throw new Error('缺少股票代码');
+  const symbol = normalizeStrictUserStockSymbol(trade.symbol);
+  if (!symbol) throw new Error('股票代码格式不正确');
 
   const { data: existingTrade, error: existingError } = await supabase
     .from('stock_trades')
@@ -241,13 +243,13 @@ export const fetchWatchlist = async (preUser = null) => {
     return cacheGet('watchlist') || [];
   }
   const list = (data || []).map(w => ({
-    symbol: w.symbol,
+    symbol: normalizeUserStockSymbol(w.symbol),
     name: w.name,
     price: Number(w.price),
     high: Number(w.high),
     cost: Number(w.cost),
     shares: Number(w.shares),
-  }));
+  })).filter((item) => item.symbol);
   cacheSet('watchlist', list);
   return list;
 };
@@ -257,12 +259,15 @@ export const upsertWatchlistItem = async (item) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
+  const symbol = normalizeStrictUserStockSymbol(item.symbol);
+  if (!symbol) throw new Error('股票代码格式不正确');
+
   const { error } = await supabase
     .from('watchlist')
     .upsert({
       user_id: user.id,
-      symbol: item.symbol,
-      name: item.name || '',
+      symbol,
+      name: item.name || symbol,
       price: item.price || 0,
       high: item.high || 0,
       cost: item.cost || 0,
@@ -277,7 +282,10 @@ export const removeWatchlistItem = async (symbol) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const { error } = await scopedDeleteBySymbol(supabase.from('watchlist'), symbol, user.id);
+  const normalizedSymbol = normalizeUserStockSymbol(symbol);
+  if (!normalizedSymbol) throw new Error('缺少股票代码');
+
+  const { error } = await scopedDeleteBySymbol(supabase.from('watchlist'), normalizedSymbol, user.id);
   if (error) throw error;
 };
 

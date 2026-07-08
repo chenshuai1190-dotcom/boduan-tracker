@@ -94,6 +94,24 @@ test('investment summary counts held stocks and sell records only', () => {
   assert.equal(summary.cumulativePnlPct, 220 / 920);
 });
 
+test('investment summary repairs legacy symbol whitespace and skips unsafe symbols', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      { id: 1, symbol: 'N VDA', name: '英伟达', side: 'buy', date: '2026-07-04', price: 180, shares: 10 },
+      { id: 2, symbol: 'DROP TABLE', name: 'bad', side: 'buy', date: '2026-07-04', price: 1, shares: 1 },
+    ],
+    watchlist: [
+      { symbol: 'NVDA', name: '英伟达', price: 195, previousClose: 194 },
+    ],
+    usdRate: 7.2,
+  });
+
+  assert.equal(summary.activePositions.length, 1);
+  assert.equal(summary.activePositions[0].symbol, 'NVDA');
+  assert.equal(summary.activePositions[0].marketValue, 1950);
+  assert.equal(summary.holdingStockCount, 1);
+});
+
 test('investment summary can infer daily pnl from realtime change fields when previous close is missing', () => {
   const summary = deriveInvestmentSummary({
     stockTrades: [

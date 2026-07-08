@@ -1,10 +1,12 @@
+import { normalizeUserStockSymbol } from './symbols.js';
+
 function toFiniteNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 }
 
 function normalizeTradeSymbol(symbol) {
-  return String(symbol || '').trim().toUpperCase();
+  return normalizeUserStockSymbol(symbol);
 }
 
 export function buildLedgerQuoteUniverse(stockTrades = [], watchlist = [], quoteCache = [], toolQuoteRows = []) {

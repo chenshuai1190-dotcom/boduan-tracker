@@ -1,7 +1,8 @@
+import { normalizeUserStockSymbol } from './symbols.js';
+
 export const MAX_STOCK_REALTIME_SYMBOLS = 50;
 export const STOCK_REALTIME_ROW_MAX_AGE_MS = 120_000;
 export const STOCK_REALTIME_EXTENDED_ROW_MAX_AGE_MS = 5 * 60_000;
-const STOCK_REALTIME_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
 
 function asNumber(value) {
   const n = Number(value);
@@ -9,9 +10,7 @@ function asNumber(value) {
 }
 
 export function normalizeStockRealtimeSymbol(value) {
-  const upper = String(value || '').trim().toUpperCase();
-  const withoutUsSuffix = upper.endsWith('.US') ? upper.slice(0, -3) : upper;
-  return STOCK_REALTIME_SYMBOL_RE.test(withoutUsSuffix) ? withoutUsSuffix : '';
+  return normalizeUserStockSymbol(value);
 }
 
 export function selectStockRealtimeSymbols(rows = [], limit = MAX_STOCK_REALTIME_SYMBOLS) {

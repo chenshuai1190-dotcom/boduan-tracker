@@ -61,3 +61,20 @@ test('quote universe includes tool-only symbols without polluting watchlist or l
   assert.equal(universe.allRows.find((row) => row.symbol === 'HOOD').price, 98.76);
   assert.equal(universe.allRows.find((row) => row.symbol === 'TSM').price, 0);
 });
+
+test('quote universe repairs legacy symbol whitespace and drops unsafe symbols', () => {
+  const universe = buildLedgerQuoteUniverse(
+    [
+      { symbol: 'N VDA', name: '英伟达', side: 'buy', date: '2026-07-04', price: 180, shares: 1 },
+      { symbol: 'DROP TABLE', name: 'bad', side: 'buy', date: '2026-07-04', price: 1, shares: 1 },
+    ],
+    [
+      { symbol: 'NVDA', name: 'NVIDIA', price: 195, high: 210, previousClose: 194, changePercent: 0.5 },
+    ],
+  );
+
+  assert.deepEqual([...universe.ledgerSymbols], ['NVDA']);
+  assert.deepEqual(universe.ledgerRows.map((row) => row.symbol), ['NVDA']);
+  assert.equal(universe.ledgerRows[0].price, 195);
+  assert.equal(universe.allRows.some((row) => row.symbol === 'DROPTABLE'), false);
+});
