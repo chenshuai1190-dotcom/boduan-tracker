@@ -4,17 +4,17 @@
 
 ## 2026-07-08 Asia/Shanghai
 
-### 2026-07-08 - BTC 小曲线视觉降噪
+### 2026-07-08 - 回退 BTC 小曲线视觉降噪
 
 - Commit: this commit
-- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
-- Background: 用户反馈 BTC 卡片走势图在几分钱/几美元的小波动下仍被画得非常夸张。复查确认 BTC 价格数据和涨跌幅没有问题,根因是首页通用 `Sparkline` 会把当前序列的最小值/最大值强行拉满 34px 高度,导致极小价格区间也显示成剧烈波动。
+- Deployment: requested for GitHub `main` / Vercel production rollback; final production marker verification is reported after deploy.
+- Background: 用户实测 `v10.7.9.212` 的 BTC 小曲线视觉降噪后,发现 BTC 曲线变成近似直线,不符合原有动态视觉预期,要求回退到上一版本。
 - Changes:
-  - `HomeTab.jsx` 为 `Sparkline` 增加可选 `minRangePct`,只有传入该参数时才启用最小视觉区间;默认值为 `0`,三大指数继续保持原有显示逻辑。
-  - BTC 卡片单独传入 `BTC_SPARKLINE_MIN_RANGE_PCT = 0.006`,让几分钱/几美元波动显示为接近水平线,真实较大波动仍正常绘制。
-  - BTC 价格、涨跌幅、LIVE/连接态和 WebSocket tick 追加逻辑保持不变;本次只调首页 BTC 卡片小曲线渲染比例。
-  - 设置页版本和用户可见更新日志同步到 `v10.7.9.212`,新增“BTC 小曲线视觉降噪”。
-  - 本次不改 BTC WebSocket、三大指数、股票交易行情、持仓盈亏、今日盈亏计算、交易账本、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+  - 使用 `git revert --no-commit b44b82742ec31f0306ad2412caca8522e17fea6f` 回退 BTC sparkline `minRangePct` 和 `BTC_SPARKLINE_MIN_RANGE_PCT = 0.006`。
+  - `HomeTab.jsx` 的通用 `Sparkline` 恢复按当前序列 min/max 拉伸绘制, BTC 卡片恢复和其它市场卡同一绘图逻辑。
+  - 设置页版本恢复为 `v10.7.9.211`,用户可见更新日志恢复以“三大指数分时曲线锁定”为最新项。
+  - 回退对应测试断言,移除 `v10.7.9.212` 和 BTC 小曲线降噪断言。
+  - 本次只回退上一提交的 BTC 曲线视觉缩放;不改 BTC WebSocket、三大指数、股票交易行情、持仓盈亏、今日盈亏计算、交易账本、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
 - Key files:
   - `src/tabs/HomeTab.jsx`
   - `src/tabs/SettingsTab.jsx`
@@ -23,11 +23,10 @@
   - `docs/development-log.md`
 - Validation:
   - `npm test` passed, 115/115 tests.
-  - `npm run build` passed; generated production chunks include `HomeTab-D8tkHBmP.js`, `SettingsTab-BzpVn2ET.js`, `settingsChangelog-CxzaOlRo.js`, `App-iOiuAbne.js`.
+  - `npm run build` passed; generated production chunks include `HomeTab-DmcP8PNQ.js`, `SettingsTab-B3Vhuiay.js`, `settingsChangelog-NZB3NIcD.js`, `App-C4QMuQSy.js`.
   - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
-  - Local BTC sparkline numeric simulation passed: tiny cent moves changed from full-height `34px` to `0.01px`, single-digit dollar moves changed from `34px` to `0.54px`, and large hundred-dollar moves kept full-height `34px`.
   - `git diff --check` passed.
-- Rollback: 回退本条涉及的 BTC sparkline `minRangePct`、`v10.7.9.212` 设置页版本/更新日志、测试和本日志即可;BTC 实时连接、三大指数、股票交易行情、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+- Rollback: 如需重新尝试 BTC 曲线降噪,必须重新设计视觉缩放策略并先做本地视觉验证;不要直接恢复 `v10.7.9.212` 的固定最小视觉区间方案。
 
 ### 2026-07-08 - 三大指数分时曲线锁定
 
