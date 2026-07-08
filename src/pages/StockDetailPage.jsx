@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Edit3, Info } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
 import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
@@ -40,36 +40,93 @@ function displayDate(value) {
   return String(value || '--').replaceAll('-', '/');
 }
 
+function parseDateMs(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const ms = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function formatAxisDate(value) {
+  const parts = String(value || '').split('-');
+  if (parts.length !== 3) return '--';
+  return `${parts[1]}/${parts[2]}`;
+}
+
+function formatAxisMoney(value, currencyMode = 'USD') {
+  const n = toNumber(value);
+  const abs = Math.abs(n);
+  const sign = n > 0 ? '+' : n < 0 ? '-' : '';
+  if (currencyMode === 'CNY') {
+    if (abs >= 10000) return `${sign}${(abs / 10000).toFixed(abs >= 100000 ? 0 : 1)}万`;
+    if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(0)}K`;
+    return `${sign}${abs.toFixed(0)}`;
+  }
+  if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(abs >= 10000000 ? 0 : 1)}M`;
+  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(abs >= 10000 ? 0 : 1)}K`;
+  return `${sign}${abs.toFixed(0)}`;
+}
+
 function sideLabel(language, side) {
   return side === 'sell'
     ? t(language, 'stockDetail.sell', '卖出')
     : t(language, 'stockDetail.buy', '买入');
 }
 
-function buildLinePath(points, width = 310, height = 132, pad = 10) {
+function buildLineChart(points, { startDate, endDate, width = 310, height = 150 } = {}) {
+  const padLeft = 45;
+  const padRight = 10;
+  const padTop = 12;
+  const padBottom = 24;
   const valid = (Array.isArray(points) ? points : [])
     .map((point, index) => ({ point, index, value: Number(point?.pnlUsd) }))
     .filter(({ value }) => Number.isFinite(value));
-  if (valid.length < 2) return '';
+  if (valid.length === 0) return {
+    path: '',
+    ticks: [],
+    yLines: [24, 56, 88, 120],
+  };
   const values = valid.map(({ value }) => value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
   const padding = Math.max((max - min) * 0.12, 1);
   const domainMin = min - padding;
   const domainMax = max + padding;
   const span = domainMax - domainMin || 1;
-  return valid.map(({ index, value }, pathIndex) => {
-    const x = pad + (index / Math.max(points.length - 1, 1)) * (width - pad * 2);
-    const y = pad + (1 - ((value - domainMin) / span)) * (height - pad * 2);
-    return `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
-  }).join(' ');
+  const xStart = parseDateMs(startDate);
+  const xEnd = parseDateMs(endDate);
+  const xSpan = xStart != null && xEnd != null && xEnd > xStart ? xEnd - xStart : null;
+  const xForPoint = ({ point, index }) => {
+    const pointMs = parseDateMs(point?.date);
+    if (xSpan && pointMs != null) {
+      const progress = Math.min(1, Math.max(0, (pointMs - xStart) / xSpan));
+      return padLeft + progress * (width - padLeft - padRight);
+    }
+    return padLeft + (index / Math.max(points.length - 1, 1)) * (width - padLeft - padRight);
+  };
+  const yForValue = (value) => padTop + (1 - ((value - domainMin) / span)) * (height - padTop - padBottom);
+  const path = valid.length === 1
+    ? `M${padLeft} ${yForValue(valid[0].value).toFixed(2)} L${width - padRight} ${yForValue(valid[0].value).toFixed(2)}`
+    : valid.map(({ point, index, value }, pathIndex) => {
+      const x = xForPoint({ point, index });
+      const y = yForValue(value);
+      return `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(' ');
+  const ticks = [domainMax, domainMin + span * 0.66, domainMin + span * 0.33, domainMin].map((value) => ({
+    value,
+    y: yForValue(value),
+  }));
+  return {
+    path,
+    ticks,
+    yLines: ticks.map((tick) => tick.y),
+  };
 }
 
-function StatCell({ label, value, valueClass = 'text-white' }) {
+function StatCell({ label, value, valueClass = 'text-white/78' }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] leading-4 text-white/42">{label}</div>
-      <div className={`mt-1 truncate text-[15px] font-normal leading-5 tabular-nums ${valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
+      <div className="text-[11px] leading-4 text-white/34">{label}</div>
+      <div className={`mt-1 truncate text-[14px] font-normal leading-5 tabular-nums ${valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
     </div>
@@ -92,26 +149,36 @@ function RangePill({ active, children, onClick }) {
   );
 }
 
-function PnlSparkline({ points, color, emptyText }) {
-  const path = buildLinePath(points);
-  const first = points[0]?.label || '--';
-  const middle = points[Math.floor(points.length / 2)]?.label || first;
-  const last = points.at(-1)?.label || first;
+function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMode }) {
+  const chart = buildLineChart(points, { startDate, endDate });
+  const startMs = parseDateMs(startDate);
+  const endMs = parseDateMs(endDate);
+  const middleDate = startMs != null && endMs != null
+    ? new Date(startMs + ((endMs - startMs) / 2)).toISOString().slice(0, 10)
+    : startDate;
+  const first = formatAxisDate(startDate);
+  const middle = formatAxisDate(middleDate);
+  const last = formatAxisDate(endDate);
 
   return (
-    <div className="relative mt-2 h-[162px]">
-      {!path && (
+    <div className="relative mt-2 h-[166px]">
+      {!chart.path && (
         <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.02] text-[12px] text-white/32">
           {emptyText}
         </div>
       )}
       <svg viewBox="0 0 310 150" className="h-full w-full overflow-visible">
-        {[24, 56, 88, 120].map((y) => (
+        {chart.yLines.map((y) => (
           <line key={y} x1="10" y1={y} x2="300" y2={y} stroke="rgba(255,255,255,0.08)" strokeDasharray="3 5" />
         ))}
-        {path && <path d={path} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />}
-        <text x="10" y="146" fontSize="9" fill="rgba(255,255,255,0.36)">{first}</text>
-        <text x="155" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.36)">{middle}</text>
+        {chart.ticks.map((tick) => (
+          <text key={`${tick.y}-${tick.value}`} x="4" y={Math.min(132, Math.max(12, tick.y + 3))} fontSize="8.5" fill="rgba(255,255,255,0.34)">
+            {formatAxisMoney(tick.value, currencyMode)}
+          </text>
+        ))}
+        {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />}
+        <text x="45" y="146" fontSize="9" fill="rgba(255,255,255,0.36)">{first}</text>
+        <text x="172" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.36)">{middle}</text>
         <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.36)">{last}</text>
       </svg>
     </div>
@@ -132,7 +199,7 @@ export default function StockDetailPage({ ctx = {} }) {
     investmentSummary,
     user,
   } = ctx;
-  const [range, setRange] = React.useState('ytd');
+  const [range, setRange] = React.useState('all');
   const [snapshots, setSnapshots] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -200,7 +267,7 @@ export default function StockDetailPage({ ctx = {} }) {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 text-center">
             <h1 className="truncate text-[17px] font-semibold leading-tight text-white">
               {view.symbol || '--'} {displayName && displayName !== view.symbol ? displayName : ''}
             </h1>
@@ -208,14 +275,7 @@ export default function StockDetailPage({ ctx = {} }) {
               {t(language, 'stockDetail.subtitle', '个股收益详情')}
             </div>
           </div>
-          <button
-            type="button"
-            disabled
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/30"
-            aria-label={t(language, 'stockDetail.readOnly', '只读详情')}
-          >
-            <Edit3 className="h-4 w-4" />
-          </button>
+          <div className="h-9 w-9 shrink-0" aria-hidden="true" />
         </div>
         <div className="mt-4 grid grid-cols-5 gap-4">
           {rangeItems.map(([id, label]) => (
@@ -228,9 +288,6 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="relative">
-          <div className="absolute right-1 top-2 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.035] text-[18px] font-semibold text-white/10">
-            {view.symbol.slice(0, 4)}
-          </div>
           <div className="flex items-center gap-1.5 text-[12px] text-white/46">
             <span>{t(language, 'stockDetail.totalPnl', '累计盈亏')} ({displayCurrency})</span>
             <Info className="h-3.5 w-3.5 text-white/28" />
@@ -241,7 +298,7 @@ export default function StockDetailPage({ ctx = {} }) {
           <div className={`mt-2 text-[14px] font-semibold tabular-nums ${view.periodPnlPct == null ? 'text-white/32' : marketTextClass(view.periodPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {signedPct(view.periodPnlPct, 2)}
           </div>
-          <div className="mt-1 text-[12px] text-white/42">{view.startDate} - {view.endDate}</div>
+          <div className="mt-1 text-[12px] text-white/34">{view.startDate} - {view.endDate}</div>
 
           <div className="mt-4 grid grid-cols-2 border-t border-white/[0.06] pt-3">
             <StatCell
@@ -270,19 +327,22 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center gap-1.5">
-          <h2 className="text-[16px] font-semibold text-white">{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
+          <h2 className="text-[13px] font-semibold text-white/86">{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
           <Info className="h-3.5 w-3.5 text-white/28" />
         </div>
         <div className="mt-2 text-[12px] text-[#ffd18a]">{t(language, 'stockDetail.myPnlLine', '我的收益线')}</div>
         <PnlSparkline
-          points={view.trend}
+          points={view.trend.map((point) => ({ ...point, pnlUsd: point.pnlUsd * displayRate }))}
           color="#f6b54b"
           emptyText={loading ? t(language, 'stockDetail.loading', '正在读取快照') : t(language, 'stockDetail.noTrend', '暂无足够快照')}
+          startDate={view.axisStartDate}
+          endDate={view.axisEndDate}
+          currencyMode={displayCurrency}
         />
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <h2 className="text-[16px] font-semibold text-white">{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
+        <h2 className="text-[13px] font-semibold text-white/86">{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />
@@ -293,10 +353,10 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[16px] font-semibold text-white">{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
+          <h2 className="text-[13px] font-semibold text-white/86">{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
           <span className="text-[11px] text-white/34">{compactRangeLabel}</span>
         </div>
-        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/38">
+        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/34">
           <span>{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
           <span className="text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
           <span className="text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
@@ -314,16 +374,16 @@ export default function StockDetailPage({ ctx = {} }) {
             return (
               <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 py-3">
                 <div className="min-w-0">
-                  <div className="text-[12px] tabular-nums text-white/54" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
+                  <div className="text-[12px] tabular-nums text-white/42" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
                   <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
                     {sideLabel(language, record.side)}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[13px] text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
-                  <div className="mt-1 text-[11px] text-white/42 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
+                  <div className="text-[13px] text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
+                  <div className="mt-1 text-[11px] text-white/34 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
                 </div>
-                <div className="text-right text-[13px] text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                <div className="text-right text-[13px] text-white/68 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                   {currency(record.amountUsd * displayRate, displayCurrency, 2)}
                 </div>
                 <div className={`text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/34' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>

@@ -175,7 +175,7 @@ export function buildStockDetailViewModel({
   symbol,
   stockTrades = [],
   symbolSnapshots = [],
-  range = 'ytd',
+  range = 'all',
   now = new Date(),
 } = {}) {
   const normalizedSymbol = normalizeSymbol(symbol);
@@ -222,6 +222,8 @@ export function buildStockDetailViewModel({
     name: latestName,
     hasData: Boolean(latest),
     snapshotDate: periodLatest?.snapshotDate || latest?.snapshotDate || null,
+    axisStartDate: range === 'all' ? fallbackStartDate : startDate,
+    axisEndDate: endDate,
     startDate: displayDate(range === 'all' ? fallbackStartDate : startDate),
     endDate: displayDate(endDate),
     periodPnlUsd,
@@ -237,4 +239,3 @@ export function buildStockDetailViewModel({
     tradeRecords,
   };
 }
-

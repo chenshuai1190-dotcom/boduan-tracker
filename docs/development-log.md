@@ -4,6 +4,32 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 个股详情视觉优化
+
+- Commit: pending in current change set.
+- Deployment: pending.
+- Background: 用户反馈个股收益详情页第一版视觉层级仍偏重,要求删除只读编辑按钮和股票装饰标识,默认显示全部周期,并让统计日期、卡片标题、图表坐标和交易记录灰度更接近设计稿。
+- Changes:
+  - `src/pages/StockDetailPage.jsx` 删除右上角编辑按钮和累计盈亏卡右侧股票装饰标识,股票标题/副标题居中显示。
+  - 个股详情默认周期从“本年”改为“全部”,保留顶部周期切换。
+  - 收益走势横轴改为按所选周期的真实起止日期显示;左侧新增真实金额刻度,点位仍只来自已有单股票收益快照,不补假数据。
+  - 累计盈亏统计日期、已实现/未实现/持仓数量/当前成本标题、交易统计小标题、交易记录表头和明细灰度层级下调;收益走势、交易统计、交易记录标题字号降到更紧凑的系统层级。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.231`;本次只改个股详情只读展示层,不改交易录入/编辑、交易页实时持仓/盈亏、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/stockDetailViewModel.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests.
+  - `npm run build` passed;new chunks include `StockDetailPage-BhrIEDqR.js`,`App-B0t3I36r.js`,`SettingsTab-BgHppvGQ.js`,`settingsChangelog-B7cimjRW.js`.
+  - Local mobile visual smoke passed at `http://127.0.0.1:5173/?tab=stock-detail` with 390x844 viewport;页面标题居中,右上编辑/股票装饰标识已移除,默认“全部”,走势图显示左侧金额刻度和真实周期日期,交易统计/交易记录灰度和字号已下调。
+- Production verification: pending.
+- Rollback: 回退本条涉及的 `StockDetailPage` 默认周期/视觉层级、`stockDetailViewModel` 轴起止日期、`v10.7.9.231` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.230`;不影响交易页实时持仓/盈亏、交易写入、自动快照任务、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 个股收益详情页只读版
 
 - Commit: `3f448c805d2270c5931592f681ea907b62e5fb27`.

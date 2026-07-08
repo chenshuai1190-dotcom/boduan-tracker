@@ -211,9 +211,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.230'), 'settings version badge should document the stock detail page update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.230'), 'settings changelog should document the stock detail page update');
-  assert.ok(settingsChangelogSource.includes('个股收益详情页'), 'settings changelog should describe the stock detail page update');
+  assert.ok(settingsTabSource.includes('v10.7.9.231'), 'settings version badge should document the stock detail visual update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.231'), 'settings changelog should document the stock detail visual update');
+  assert.ok(settingsChangelogSource.includes('个股详情视觉优化'), 'settings changelog should describe the stock detail visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.229'), 'settings changelog should retain the P&L report daily snapshot automation update');
   assert.ok(settingsChangelogSource.includes('收益报表自动收盘快照'), 'settings changelog should retain the P&L report daily snapshot automation update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.228'), 'settings changelog should document the P&L report calendar style update');
@@ -430,7 +430,8 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(tradesTabSource.includes('openStockDetail(position.symbol)'), 'trade position ticker/name column should open stock detail');
   assert.ok(stockDetailPageSource.includes('buildStockDetailViewModel'), 'stock detail should build display data from a pure view model');
   assert.ok(stockDetailPageSource.includes('db.fetchPnlReportSymbolSnapshotHistory'), 'stock detail should read symbol snapshot history through the db boundary');
-  assert.ok(stockDetailPageSource.includes('disabled'), 'stock detail edit icon should be disabled in the read-only first version');
+  assert.equal(stockDetailPageSource.includes('Edit3'), false, 'stock detail should not keep the old edit affordance in the read-only view');
+  assert.equal(stockDetailPageSource.includes('stockDetail.readOnly'), false, 'stock detail should not keep the removed read-only edit button');
   assert.equal(stockDetailPageSource.includes('insertStockTrade'), false, 'stock detail must not write the main trade ledger');
   assert.equal(stockDetailPageSource.includes('updateStockTrade'), false, 'stock detail must not edit the main trade ledger');
   assert.equal(stockDetailPageSource.includes('deleteStockTrade'), false, 'stock detail must not delete the main trade ledger');
@@ -1050,7 +1051,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.230'), 'settings version badge should document the latest stock detail update');
+  assert.ok(settingsTabSource.includes('v10.7.9.231'), 'settings version badge should document the latest stock detail update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1310,7 +1311,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.230'), 'settings version badge should document the latest stock detail update');
+  assert.ok(settingsTabSource.includes('v10.7.9.231'), 'settings version badge should document the latest stock detail update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
