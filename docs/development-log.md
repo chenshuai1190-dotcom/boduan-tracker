@@ -6,7 +6,7 @@
 
 ### 2026-07-08 - 收益报表日历样式微调
 
-- Commit: `b5a12d9be516a42f4d2ca7098f307522c56931cf`
+- Commit: `9f3a6168930b11dd1b328aee2b4f96c3cdbec4f4`
 - Deployment: pending.
 - Background: 用户反馈收益日历切到年份视图后有白色边框,并且收益/收益率切换时底色和按钮宽度不统一;同时询问每日收盘快照是否已经能自动记录。
 - Changes:
