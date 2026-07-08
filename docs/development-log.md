@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表真实快照读取
 
-- Commit: this commit
-- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Commit: `1ca0a96`
+- Deployment: deployed to GitHub `main` and Vercel production from commit `1ca0a9684788b8b915ba4b035d1ac076987e7c1f`; Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HTHuVr8RK6yT9GiHQXHn6mHSEhdq` completed successfully.
 - Background: 用户确认先做收益报表 1-3 步:读取真实快照、提供手动重建入口、先跑通日级报表;交易页实时展示和报表系统继续保持两套独立系统。
 - Changes:
   - 新增 `src/lib/pnlReportViewModel.js`,把组合快照和单股票快照整理为收益报表页面需要的总览、趋势、收益日历、盈亏总结和 Top5 排行数据。
@@ -40,6 +40,9 @@
   - `npm run build` passed; generated production chunks include `PnlReportPage-CDzYODVo.js`, `App-rMtvu8wI.js`, `SettingsTab-DwmbOqiq.js`, `settingsChangelog-DgfKsMoi.js`, and `i18n-Cib6cW5x.js`.
   - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
   - `git diff --check` passed.
+  - Production marker verification passed: production entry `/assets/index-ColOTheY.js`, runtime chunks include `App-BQqQ3iSP.js`, `PnlReportPage-CDzYODVo.js`, `SettingsTab-DwmbOqiq.js`, and `settingsChangelog-DgfKsMoi.js`; production assets contain `v10.7.9.216`, `收益报表真实快照读取`, `生成今日快照`, `pnl_report_snapshots`, and `clearPnlReportRebuildState`.
+  - Production auth boundary verification passed: unauthenticated `/api/quote?symbols=VIX` returned `401`, ordinary HTTPS `/api/stocks-realtime` and `/api/indices-realtime` returned `426`, unauthenticated `/api/btc-realtime?snapshot=1` returned `401`.
+  - `npm run verify:rls:rest` passed after deployment: project ref `ykgotnmtqcqdzqtrlayq`, checked 16 user tables, new `pnl_report_snapshots` / `pnl_report_symbol_snapshots` / `pnl_report_rebuild_state` all returned `status: 200`, `visibleRows: 0`, `ok: true`; summary `PASS: anonymous role cannot see user-owned rows via REST probes`.
 - Rollback: 回退本次提交即可恢复 `v10.7.9.215` 的收益报表快照基础状态;已执行过的 Supabase 快照表和 RLS 不需要回滚,交易主账本和实时行情显示不受影响。
 
 ### 2026-07-08 - 收益报表快照基础
