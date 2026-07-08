@@ -7,7 +7,7 @@
 ### 2026-07-08 - 收益报表日历样式微调
 
 - Commit: `9f3a6168930b11dd1b328aee2b4f96c3cdbec4f4`
-- Deployment: pending.
+- Deployment: deployed to GitHub `main` via SSH from code commit `9f3a6168930b11dd1b328aee2b4f96c3cdbec4f4`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户反馈收益日历切到年份视图后有白色边框,并且收益/收益率切换时底色和按钮宽度不统一;同时询问每日收盘快照是否已经能自动记录。
 - Changes:
   - `src/pages/PnlReportPage.jsx` 为收益日历新增独立的固定双列 `CalendarSegmentButton`,让年/月、收益/收益率切换保持统一底色和按钮宽度。
@@ -25,6 +25,8 @@
   - `npm run build` passed; new chunks include `PnlReportPage-CGeO8hp6.js`, `SettingsTab-CMUv8wzo.js`, `settingsChangelog-Dbl9d2eM.js`, and `App-DQ7a1Dd1.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
+  - Production marker verification passed: entry `index-BlSQ21Pj.js`; `SettingsTab-BosL_Msw.js` contains `v10.7.9.228`; `settingsChangelog-Dbl9d2eM.js` contains `v10.7.9.228` and `收益报表日历样式微调`; `PnlReportPage-CGeO8hp6.js` contains the year-grid `grid-cols-4 gap-1` marker.
+  - Production API boundary check passed: unauthenticated `/api/pnl-history-closes?symbols=NVDA&to=2026-07-07&days=46` returned `401`; unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426`.
 - Rollback: 回退本条涉及的收益日历样式、`v10.7.9.228` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.227`;不会影响收益报表计算口径、手动快照回填、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表近两个月快照回填
