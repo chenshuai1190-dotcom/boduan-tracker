@@ -4,6 +4,38 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 个股收益线滑动查看
+
+- Commit: `same commit`.
+- Deployment: pending;将通过项目 SSH key 推送 GitHub `main` 并等待 Vercel production 部署成功。
+- Background: 用户确认个股收益详情页第一版只读效果后,希望收益走势图支持手指滑动查看每日收益点,并要求本地截图确认无问题后再部署。
+- Changes:
+  - `src/pages/StockDetailPage.jsx` 的收益走势 SVG 现在为每个真实快照点保留坐标,按住或滑动图表时吸附到最近点。
+  - 图表交互会显示所选快照日期、收益金额、竖向辅助线和节点圆点;触控策略保留纵向页面滚动能力,避免图表区域锁死页面滚动。
+  - `src/lib/investmentSummary.js` 调整持仓收益口径:部分卖出后把该持仓周期已实现收益保留进持仓收益和有效成本展示,完全清仓后新买入周期重置。
+  - 首页和交易页持仓收益显示改用新的 `holdingPnl` / `holdingPnlPct` 字段,保留旧字段兜底。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.232`;本次不改交易录入/编辑、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/investmentSummary.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/investment-summary.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - Local mobile visual smoke passed at `http://127.0.0.1:5173/?tab=stock-detail` with 390x844 viewport using system Chrome;收益走势按住/滑动后显示 `2026/06/30`、`+$5,180.00`、竖向辅助线和节点圆点,控制台无错误。
+  - `node --test tests/investment-summary.test.js tests/tool-ledger-boundaries.test.js` passed, 45/45 tests.
+  - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests.
+  - `npm test` passed, 158/158 tests.
+  - `npm run build` passed;new chunks include `StockDetailPage-C3SNAms6.js`,`App-D6s-RXTA.js`,`SettingsTab-8TakFMJ0.js`,`settingsChangelog-CQ7xohdU.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Production verification: pending after Vercel production deployment.
+- Rollback: 回退本条涉及的个股详情图表交互、持仓收益口径字段、首页/交易页持仓收益展示、`v10.7.9.232` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.231`;不影响交易写入、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 个股详情视觉优化
 
 - Commit: `6100a9a7c4303e65bb4fc30d598d2ee93c927c30`.

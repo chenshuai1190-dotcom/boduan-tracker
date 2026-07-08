@@ -247,7 +247,7 @@ export default function TradesTab({ ctx }) {
   const hasTodayPnl = summary.hasTodayPnl !== false;
   const displayTodayPnl = hasTodayPnl ? toNumber(summary.todayPnl) * displayRate : null;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
-  const displayHoldingPnl = toNumber(summary.unrealizedPnl) * displayRate;
+  const displayHoldingPnl = toNumber(summary.holdingPnl ?? summary.unrealizedPnl) * displayRate;
   const todayKey = localDateKey();
   const todayTrades = (stockTrades || []).filter((trade) => trade.date === todayKey);
   const todayBuys = todayTrades.filter((trade) => trade.side !== 'sell').length;
@@ -706,7 +706,8 @@ export default function TradesTab({ ctx }) {
                           const marketValue = toNumber(position.marketValue) * displayRate;
                           const hasPositionTodayPnl = position.hasTodayPnl !== false;
                           const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
-                          const holdingPnl = toNumber(position.unrealizedPnl) * displayRate;
+                          const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
+                          const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
                           const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
                           const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
                           const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
@@ -732,7 +733,7 @@ export default function TradesTab({ ctx }) {
                               </span>
                               <span className="text-right">
                                 <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(position.unrealizedPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(position.unrealizedPct, 2)}</span>
+                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(holdingPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(holdingPnlPct, 2)}</span>
                               </span>
                               <span className="text-right">
                                 <span className="block text-[13px] font-normal leading-[15px] text-white/80 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>

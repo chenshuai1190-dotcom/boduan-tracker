@@ -709,8 +709,8 @@ export default function HomeTab({ ctx }) {
     const position = isPosition ? row : positionsBySymbol.get(symbol);
     const price = isPosition ? row.currentPrice : row.price;
     const changePct = isPosition ? row.changePercent : row.changePercent;
-    const pnlValue = position ? position.totalPnl : null;
-    const pnlPct = position ? position.totalPnlPct : null;
+    const pnlValue = position ? (position.holdingPnl ?? position.totalPnl) : null;
+    const pnlPct = position ? (position.holdingPnlPct ?? position.totalPnlPct) : null;
     const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
     const high = row.high || row.week52High || quote?.high || quote?.week52High;
     const highDrawdown = drawdownFromHigh(price, high);

@@ -82,6 +82,7 @@ function buildLineChart(points, { startDate, endDate, width = 310, height = 150 
     .filter(({ value }) => Number.isFinite(value));
   if (valid.length === 0) return {
     path: '',
+    points: [],
     ticks: [],
     yLines: [24, 56, 88, 120],
   };
@@ -104,11 +105,17 @@ function buildLineChart(points, { startDate, endDate, width = 310, height = 150 
     return padLeft + (index / Math.max(points.length - 1, 1)) * (width - padLeft - padRight);
   };
   const yForValue = (value) => padTop + (1 - ((value - domainMin) / span)) * (height - padTop - padBottom);
+  const plottedPoints = valid.map(({ point, index, value }) => ({
+    point,
+    index,
+    value,
+    date: point?.date,
+    x: xForPoint({ point, index }),
+    y: yForValue(value),
+  }));
   const path = valid.length === 1
     ? `M${padLeft} ${yForValue(valid[0].value).toFixed(2)} L${width - padRight} ${yForValue(valid[0].value).toFixed(2)}`
-    : valid.map(({ point, index, value }, pathIndex) => {
-      const x = xForPoint({ point, index });
-      const y = yForValue(value);
+    : plottedPoints.map(({ x, y }, pathIndex) => {
       return `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
     }).join(' ');
   const ticks = [domainMax, domainMin + span * 0.66, domainMin + span * 0.33, domainMin].map((value) => ({
@@ -117,15 +124,16 @@ function buildLineChart(points, { startDate, endDate, width = 310, height = 150 
   }));
   return {
     path,
+    points: plottedPoints,
     ticks,
     yLines: ticks.map((tick) => tick.y),
   };
 }
 
-function StatCell({ label, value, valueClass = 'text-white/78' }) {
+function StatCell({ label, value, valueClass = 'text-white/72' }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] leading-4 text-white/34">{label}</div>
+      <div className="text-[11px] leading-4 text-white/38">{label}</div>
       <div className={`mt-1 truncate text-[14px] font-normal leading-5 tabular-nums ${valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
@@ -149,8 +157,9 @@ function RangePill({ active, children, onClick }) {
   );
 }
 
-function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMode }) {
-  const chart = buildLineChart(points, { startDate, endDate });
+function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMode, marketColorMode }) {
+  const chart = React.useMemo(() => buildLineChart(points, { startDate, endDate }), [points, startDate, endDate]);
+  const [selectedIndex, setSelectedIndex] = React.useState(null);
   const startMs = parseDateMs(startDate);
   const endMs = parseDateMs(endDate);
   const middleDate = startMs != null && endMs != null
@@ -159,9 +168,47 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   const first = formatAxisDate(startDate);
   const middle = formatAxisDate(middleDate);
   const last = formatAxisDate(endDate);
+  const selectedPoint = selectedIndex == null ? null : chart.points[selectedIndex] || null;
+  const selectedPointColor = selectedPoint ? marketHexColor(selectedPoint.value, marketColorMode) : color;
+  const selectedPointLeft = selectedPoint ? `${(selectedPoint.x / 310) * 100}%` : '50%';
+  const selectedPointTop = selectedPoint ? `${(selectedPoint.y / 150) * 100}%` : '50%';
+  const selectedPointTransform = selectedPoint
+    ? `${selectedPoint.x > 230 ? 'translateX(-100%)' : selectedPoint.x < 80 ? 'translateX(0)' : 'translateX(-50%)'} ${selectedPoint.y < 42 ? 'translateY(12px)' : 'translateY(calc(-100% - 12px))'}`
+    : 'translate(-50%, -100%)';
+
+  React.useEffect(() => {
+    setSelectedIndex(null);
+  }, [points, startDate, endDate]);
+
+  const updateSelectedPoint = React.useCallback((event) => {
+    if (!chart.points.length) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width) return;
+    const x = ((event.clientX - rect.left) / rect.width) * 310;
+    let nextIndex = 0;
+    let nextDistance = Number.POSITIVE_INFINITY;
+    chart.points.forEach((point, index) => {
+      const distance = Math.abs(point.x - x);
+      if (distance < nextDistance) {
+        nextDistance = distance;
+        nextIndex = index;
+      }
+    });
+    setSelectedIndex(nextIndex);
+  }, [chart.points]);
+
+  const handlePointerDown = React.useCallback((event) => {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    updateSelectedPoint(event);
+  }, [updateSelectedPoint]);
 
   return (
-    <div className="relative mt-2 h-[166px]">
+    <div
+      className="relative mt-2 h-[166px] select-none"
+      onPointerDown={handlePointerDown}
+      onPointerMove={updateSelectedPoint}
+      style={{ touchAction: 'pan-y' }}
+    >
       {!chart.path && (
         <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.02] text-[12px] text-white/32">
           {emptyText}
@@ -177,10 +224,38 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
           </text>
         ))}
         {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />}
+        {selectedPoint && (
+          <>
+            <line
+              x1={selectedPoint.x}
+              y1="10"
+              x2={selectedPoint.x}
+              y2="126"
+              stroke="rgba(255,255,255,0.18)"
+              strokeDasharray="4 5"
+            />
+            <circle cx={selectedPoint.x} cy={selectedPoint.y} r="4.2" fill="#05070b" stroke={selectedPointColor} strokeWidth="2" />
+          </>
+        )}
         <text x="45" y="146" fontSize="9" fill="rgba(255,255,255,0.36)">{first}</text>
         <text x="172" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.36)">{middle}</text>
         <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.36)">{last}</text>
       </svg>
+      {selectedPoint && (
+        <div
+          className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-white/10 bg-[#10151d]/95 px-2.5 py-2 text-left shadow-xl backdrop-blur"
+          style={{
+            left: selectedPointLeft,
+            top: selectedPointTop,
+            transform: selectedPointTransform,
+          }}
+        >
+          <div className="text-[10px] leading-3 text-white/42">{displayDate(selectedPoint.date)}</div>
+          <div className="mt-1 text-[12px] font-semibold leading-4 tabular-nums" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>
+            {signedCurrency(selectedPoint.value, currencyMode, 2)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -268,10 +343,10 @@ export default function StockDetailPage({ ctx = {} }) {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
-            <h1 className="truncate text-[17px] font-semibold leading-tight text-white">
+            <h1 className="truncate text-[17px] font-semibold leading-tight text-white/88">
               {view.symbol || '--'} {displayName && displayName !== view.symbol ? displayName : ''}
             </h1>
-            <div className="mt-0.5 text-[11px] text-white/40">
+            <div className="mt-0.5 text-[11px] text-white/34">
               {t(language, 'stockDetail.subtitle', '个股收益详情')}
             </div>
           </div>
@@ -288,7 +363,7 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="relative">
-          <div className="flex items-center gap-1.5 text-[12px] text-white/46">
+          <div className="flex items-center gap-1.5 text-[12px] text-white/42">
             <span>{t(language, 'stockDetail.totalPnl', '累计盈亏')} ({displayCurrency})</span>
             <Info className="h-3.5 w-3.5 text-white/28" />
           </div>
@@ -327,7 +402,7 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center gap-1.5">
-          <h2 className="text-[13px] font-semibold text-white/86">{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
+          <h2 className="text-[13px] font-semibold text-white/78">{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
           <Info className="h-3.5 w-3.5 text-white/28" />
         </div>
         <div className="mt-2 text-[12px] text-[#ffd18a]">{t(language, 'stockDetail.myPnlLine', '我的收益线')}</div>
@@ -338,11 +413,12 @@ export default function StockDetailPage({ ctx = {} }) {
           startDate={view.axisStartDate}
           endDate={view.axisEndDate}
           currencyMode={displayCurrency}
+          marketColorMode={marketColorMode}
         />
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <h2 className="text-[13px] font-semibold text-white/86">{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
+        <h2 className="text-[13px] font-semibold text-white/78">{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />
@@ -353,10 +429,10 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-white/86">{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
+          <h2 className="text-[13px] font-semibold text-white/78">{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
           <span className="text-[11px] text-white/34">{compactRangeLabel}</span>
         </div>
-        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/34">
+        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/30">
           <span>{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
           <span className="text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
           <span className="text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
@@ -374,16 +450,16 @@ export default function StockDetailPage({ ctx = {} }) {
             return (
               <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 py-3">
                 <div className="min-w-0">
-                  <div className="text-[12px] tabular-nums text-white/42" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
+                  <div className="text-[12px] tabular-nums text-white/36" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
                   <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
                     {sideLabel(language, record.side)}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[13px] text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
-                  <div className="mt-1 text-[11px] text-white/34 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
+                  <div className="text-[13px] text-white/64 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
+                  <div className="mt-1 text-[11px] text-white/30 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
                 </div>
-                <div className="text-right text-[13px] text-white/68 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                <div className="text-right text-[13px] text-white/60 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                   {currency(record.amountUsd * displayRate, displayCurrency, 2)}
                 </div>
                 <div className={`text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/34' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>

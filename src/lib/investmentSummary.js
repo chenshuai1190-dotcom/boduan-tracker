@@ -76,6 +76,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     let sellProceeds = 0;
     let soldCost = 0;
     let realizedPnl = 0;
+    let activeRealizedPnl = 0;
     let ignoredSellShares = 0;
     let buyTradeCount = 0;
     let sellTradeCount = 0;
@@ -100,12 +101,15 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
         ignoredSellShares += ignoredShares;
         sellProceeds += closeProceeds;
         soldCost += closeCost;
-        realizedPnl += closeProceeds - closeCost;
+        const realizedDelta = closeProceeds - closeCost;
+        realizedPnl += realizedDelta;
+        activeRealizedPnl += realizedDelta;
         remainingCost -= closeCost;
         heldShares -= closedShares;
         if (heldShares <= 0.0000001) {
           heldShares = 0;
           remainingCost = 0;
+          activeRealizedPnl = 0;
         }
         return;
       }
@@ -126,13 +130,16 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     const dailyPnlChangePercent = hasTodayPnl ? ((dailyPnlPrice - previousClose) / previousClose) * 100 : null;
     const ytdChangePercent = toNumber(quote?.ytdChangePercent);
     const avgCost = heldShares > 0 ? remainingCost / heldShares : 0;
-    const effectiveCost = heldShares > 0 ? avgCost - realizedPnl / heldShares : 0;
+    const effectiveCost = heldShares > 0 ? avgCost - activeRealizedPnl / heldShares : 0;
     const effectiveRemainingCost = heldShares > 0 ? effectiveCost * heldShares : 0;
     const marketValue = heldShares * currentPrice;
     const unrealizedPnl = heldShares > 0 ? marketValue - remainingCost : 0;
+    const holdingPnl = activeRealizedPnl + unrealizedPnl;
     const totalPnl = realizedPnl + unrealizedPnl;
     const rawReturnCostBasis = heldShares > 0 ? marketValue - totalPnl : 0;
     const returnCostBasis = rawReturnCostBasis > 0 ? rawReturnCostBasis : (heldShares > 0 ? remainingCost : 0);
+    const rawHoldingReturnCostBasis = heldShares > 0 ? marketValue - holdingPnl : 0;
+    const holdingReturnCostBasis = rawHoldingReturnCostBasis > 0 ? rawHoldingReturnCostBasis : (heldShares > 0 ? remainingCost : 0);
     const todayPnl = hasTodayPnl ? heldShares * (dailyPnlPrice - previousClose) : null;
     const previousMarketValue = hasTodayPnl ? heldShares * previousClose : 0;
 
@@ -155,6 +162,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       totalBuyCost,
       sellProceeds,
       soldCost,
+      activeRealizedPnl,
       currentPrice,
       high,
       previousClose,
@@ -174,11 +182,13 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       marketValue,
       realizedPnl,
       unrealizedPnl,
+      holdingPnl,
       totalPnl,
       todayPnl,
       todayPnlPct: hasTodayPnl ? (dailyPnlPrice - previousClose) / previousClose : null,
       previousMarketValue,
       totalPnlPct: returnCostBasis > 0 ? totalPnl / returnCostBasis : 0,
+      holdingPnlPct: holdingReturnCostBasis > 0 ? holdingPnl / holdingReturnCostBasis : 0,
       unrealizedPct: remainingCost > 0 ? unrealizedPnl / remainingCost : 0,
     };
   }).sort((a, b) => b.marketValue - a.marketValue || a.symbol.localeCompare(b.symbol));
@@ -197,6 +207,7 @@ export function deriveInvestmentSummary({
   const positionsMarketValue = activePositions.reduce((sum, position) => sum + position.marketValue, 0);
   const realizedPnl = positions.reduce((sum, position) => sum + position.realizedPnl, 0);
   const unrealizedPnl = activePositions.reduce((sum, position) => sum + position.unrealizedPnl, 0);
+  const holdingPnl = activePositions.reduce((sum, position) => sum + position.holdingPnl, 0);
   const cumulativePnl = realizedPnl + unrealizedPnl;
   const totalBuyCost = positions.reduce((sum, position) => sum + position.totalBuyCost, 0);
   const remainingCost = activePositions.reduce((sum, position) => sum + position.remainingCost, 0);
@@ -227,6 +238,7 @@ export function deriveInvestmentSummary({
     todayPnlUnavailableCount,
     realizedPnl,
     unrealizedPnl,
+    holdingPnl,
     cumulativePnl,
     cumulativePnlPct: returnCostBasis > 0 ? cumulativePnl / returnCostBasis : 0,
     holdingStockCount: activePositions.length,
