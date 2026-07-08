@@ -34,7 +34,7 @@ test('builds P&L report view model from database snapshots', () => {
       { symbol: 'TSM', name: 'TSMC', cumulativePnlUsd: 740 },
     ],
     range: 'all',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.hasData, true);
@@ -59,7 +59,7 @@ test('filters snapshots by range without mutating source order', () => {
     { snapshotDate: '2026-07-08' },
   ];
 
-  const filtered = filterPnlSnapshotsByRange(snapshots, '1m', new Date('2026-07-08T12:00:00Z'));
+  const filtered = filterPnlSnapshotsByRange(snapshots, '1m', new Date('2026-07-08T22:00:00Z'));
 
   assert.deepEqual(filtered.map((snapshot) => snapshot.snapshotDate), ['2026-06-08', '2026-07-08']);
   assert.deepEqual(snapshots.map((snapshot) => snapshot.snapshotDate), ['2026-01-01', '2026-06-08', '2026-07-08']);
@@ -101,7 +101,7 @@ test('computes period turnover and Nasdaq outperformance from independent inputs
       { date: '2026-07-08', adjusted_close: 550 },
     ],
     range: 'ytd',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.benchmarkStartDate, '2026-01-01');
@@ -121,7 +121,7 @@ test('returns report range bounds from latest snapshot and first trade', () => {
     portfolioSnapshots: [{ snapshotDate: '2026-07-08' }],
     stockTrades: [{ tradeDate: '2026-04-05', symbol: 'NVDA' }],
     range: 'all',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.deepEqual(bounds, { startDate: '2026-04-05', endDate: '2026-07-08' });
@@ -144,7 +144,7 @@ test('keeps selected range dates even when portfolio snapshots only exist today'
       { date: '2026-07-08', adjusted_close: 550 },
     ],
     range: 'ytd',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.startDate, '2026/01/01');
@@ -154,6 +154,60 @@ test('keeps selected range dates even when portfolio snapshots only exist today'
   assert.equal(report.trend[0].pnlPct, null);
   assert.ok(report.trend.some((point) => point.date === '2026-04-01' && point.benchmarkPct != null));
   assert.equal(report.trend.at(-1).date, '2026-07-08');
+});
+
+test('ignores snapshots generated before their trading day has completed', () => {
+  const portfolioSnapshots = [
+    {
+      snapshotDate: '2026-07-07',
+      cumulativePnlUsd: 6200,
+      cumulativePnlPct: 0.0019,
+      totalAssetsUsd: 3390000,
+      dailyPnlUsd: 6200,
+      dailyPnlPct: 0.0019,
+      lockedAt: '2026-07-08T10:00:00.000Z',
+      updatedAt: '2026-07-08T10:00:00.000Z',
+    },
+    {
+      snapshotDate: '2026-07-08',
+      cumulativePnlUsd: -3740,
+      cumulativePnlPct: -0.0012,
+      totalAssetsUsd: 3380000,
+      dailyPnlUsd: -3740,
+      dailyPnlPct: -0.0012,
+      lockedAt: '2026-07-08T10:00:00.000Z',
+      updatedAt: '2026-07-08T10:00:00.000Z',
+    },
+  ];
+
+  const premarketReport = buildPnlReportViewModel({
+    portfolioSnapshots,
+    range: 'ytd',
+    now: new Date('2026-07-08T10:00:00.000Z'),
+  });
+
+  assert.equal(premarketReport.snapshotDate, '2026-07-07');
+  assert.equal(premarketReport.endDate, '2026/07/07');
+  assert.equal(premarketReport.totalPnlUsd, 6200);
+
+  const afterCloseReport = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      portfolioSnapshots[0],
+      {
+        ...portfolioSnapshots[1],
+        cumulativePnlUsd: 7100,
+        cumulativePnlPct: 0.0021,
+        lockedAt: '2026-07-08T21:00:00.000Z',
+        updatedAt: '2026-07-08T21:00:00.000Z',
+      },
+    ],
+    range: 'ytd',
+    now: new Date('2026-07-08T22:00:00.000Z'),
+  });
+
+  assert.equal(afterCloseReport.snapshotDate, '2026-07-08');
+  assert.equal(afterCloseReport.endDate, '2026/07/08');
+  assert.equal(afterCloseReport.totalPnlUsd, 900);
 });
 
 test('builds single-day custom report from the exact daily snapshot only', () => {
@@ -182,6 +236,7 @@ test('builds single-day custom report from the exact daily snapshot only', () =>
     ],
     range: 'custom',
     customRange: { startDate: '2026-07-08', endDate: '2026-07-08' },
+    now: new Date('2026-07-08T22:00:00.000Z'),
   });
 
   assert.equal(report.hasData, true);
@@ -247,7 +302,7 @@ test('period ranking uses end symbol snapshot minus baseline symbol snapshot', (
       { symbol: 'MSFT', name: 'Microsoft', cumulativePnlUsd: 200 },
     ],
     range: 'ytd',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.baselineSnapshotDate, '2026-01-02');
@@ -280,7 +335,7 @@ test('period ranking uses zero baseline for symbols first traded inside the sele
       { trade_date: '2026-04-01', symbol: 'MSFT', shares: 5, price: 200 },
     ],
     range: 'ytd',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.startDate, '2026/01/01');
@@ -310,7 +365,7 @@ test('period totals use zero baseline when the portfolio first traded inside the
       { trade_date: '2026-04-01', symbol: 'MSFT', shares: 5, price: 200 },
     ],
     range: 'ytd',
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.totalPnlUsd, 500);
@@ -321,7 +376,7 @@ test('returns explicit empty report when there are no snapshots', () => {
   const report = buildPnlReportViewModel({
     portfolioSnapshots: [],
     symbolSnapshots: [],
-    now: new Date('2026-07-08T12:00:00Z'),
+    now: new Date('2026-07-08T22:00:00Z'),
   });
 
   assert.equal(report.hasData, false);

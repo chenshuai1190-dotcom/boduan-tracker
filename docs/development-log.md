@@ -4,6 +4,33 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表收盘快照读取保护
+
+- Commit: pending.
+- Deployment: pending.
+- Background: 用户反馈收益报表 `本年` 数据从之前的正收益变成负收益,怀疑盘前阶段读取不到昨日数据;本地用 EODHD 近 7 日日线验证 2026-07-07 的 NVDA/MSFT/META/TSM/NOK/IBKR 收盘价存在,说明问题不在 EODHD 无法返回昨日收盘价,而是旧的盘前 2026-07-08 自然日快照已经写入数据库后,读取端仍优先使用它覆盖 2026-07-07 收盘快照。
+- Changes:
+  - `src/lib/pnlReportViewModel.js` 新增收盘快照读取保护:报表读取端只接收 `snapshotDate <= latestCompletedUsTradingDate(now)` 的组合快照,盘前/盘中不会再把当天自然日快照当作有效收盘快照。
+  - 如果快照带有 `lockedAt`,额外校验 `snapshotDate <= latestCompletedUsTradingDate(lockedAt)`:盘前误写入的当天快照会永久排除,盘后重新生成的当天收盘快照才允许显示。
+  - `tests/pnl-report-view-model.test.js` 新增回归测试:同库同时存在 2026-07-07 正确收盘快照和 2026-07-08 盘前错误快照时,盘前读取必须回到 2026-07-07;盘后生成的 2026-07-08 快照才可成为报表结束快照。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.223`;边界测试新增读取保护和 `lockedAt` 校验断言。
+- Key files:
+  - `src/lib/pnlReportViewModel.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/pnl-report-snapshots.test.js` passed, 19/19 tests.
+  - `node --test tests/pnl-report-view-model.test.js tests/pnl-report-snapshots.test.js tests/tool-ledger-boundaries.test.js` passed, 52/52 tests.
+  - `npm test` passed, 140/140 tests.
+  - `npm run build` passed; new production chunks include `PnlReportPage-BGIPP9er.js`, `SettingsTab-COH_kuPL.js`, `settingsChangelog-BqfcHpu7.js`, and `App-obKreSmW.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Production deployment pending.
+- Rollback: 回退本条涉及的读取保护、`v10.7.9.223` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.222`;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表收盘快照口径
 
 - Commit: `ed6b5f5`

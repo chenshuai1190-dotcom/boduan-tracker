@@ -1,3 +1,5 @@
+import { latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
+
 function toNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -103,6 +105,14 @@ function firstDate(values) {
     .filter((value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
     .sort();
   return sorted[0] || null;
+}
+
+function isCompletedCloseSnapshot(snapshot, now = new Date()) {
+  const snapshotDate = dateKeyOrNull(snapshot?.snapshotDate);
+  if (!snapshotDate) return false;
+  if (snapshotDate > latestCompletedUsTradingDate(now)) return false;
+  if (!snapshot?.lockedAt) return true;
+  return snapshotDate <= latestCompletedUsTradingDate(snapshot.lockedAt);
 }
 
 function getFirstTradeDate(stockTrades = []) {
@@ -396,6 +406,7 @@ export function buildPnlReportViewModel({
 } = {}) {
   const sortedDesc = (Array.isArray(portfolioSnapshots) ? portfolioSnapshots : [])
     .filter((snapshot) => snapshot?.snapshotDate)
+    .filter((snapshot) => isCompletedCloseSnapshot(snapshot, now))
     .sort((a, b) => String(b.snapshotDate).localeCompare(String(a.snapshotDate)));
   const globalLatest = sortedDesc[0] || null;
   const chronological = [...sortedDesc].reverse();
