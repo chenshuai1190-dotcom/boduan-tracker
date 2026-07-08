@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益日历视觉优化
 
-- Commit: this commit
-- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Commit: `5261dc7`
+- Deployment: deployed to GitHub `main` and Vercel production from commit `5261dc706a7f0cb21e5e5021caa80dc8d55e4c94`; Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FzYv8tZiTVmGNHPK3rNs95DVv5oC` completed successfully.
 - Background: 用户希望收益报表里的收益日历参考券商截图,用更紧凑的数字单位和更明显的盈亏背景色表达每日结果。
 - Changes:
   - `src/pages/PnlReportPage.jsx` 新增收益日历专用紧凑金额 formatter:中文金额显示为 `K` / `万`,英文金额显示为 `K` / `M`,日历里不再显示完整货币符号和长金额。
@@ -21,6 +21,7 @@
   - `src/tabs/SettingsTab.jsx`
   - `tests/tool-ledger-boundaries.test.js`
   - `docs/development-log.md`
+  - `docs/handoff.md`
 - Validation:
   - `node --test tests/pnl-report-view-model.test.js tests/pnl-report-snapshots.test.js` passed, 8/8 tests.
   - `npm test` passed, 125/125 tests.
@@ -28,6 +29,8 @@
   - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
   - `git diff --check` passed.
   - Local dev server `npm run dev -- --host 127.0.0.1` started successfully and `http://127.0.0.1:5173/?tab=pnl-report` returned `200`; local screenshot/Computer Use visual capture was unavailable in this desktop session (`cgWindowNotFound` / `could not create image from display`), so visual verification was limited to build marker checks and code inspection.
+  - Production marker verification passed: production entry `/assets/index-BgoulNpO.js`, runtime chunks include `App-CTtGzUAB.js`, `PnlReportPage-B6V91FCL.js`, `SettingsTab-BD1cJa28.js`, and `settingsChangelog-Z3O9bnze.js`; production assets contain `v10.7.9.217`, `收益日历视觉优化`, `K/M`, `K/万`, and `linear-gradient`.
+  - Production auth boundary verification passed: unauthenticated `/api/quote?symbols=VIX` returned `401`, ordinary HTTPS `/api/stocks-realtime` and `/api/indices-realtime` returned `426`, unauthenticated `/api/btc-realtime?snapshot=1` returned `401`.
 - Rollback: 回退本次提交即可恢复 `v10.7.9.216` 的收益日历完整货币金额显示;收益报表快照和交易系统数据不需要回滚。
 
 ### 2026-07-08 - 收益报表真实快照读取
