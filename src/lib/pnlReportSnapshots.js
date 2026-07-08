@@ -239,6 +239,57 @@ function uniqueTradeSymbols(stockTrades = []) {
     .filter(Boolean))].sort();
 }
 
+function buildCurrentPositionBackfillTrades(stockTrades = [], effectiveDate, asOfDate = null) {
+  const positions = new Map();
+  (Array.isArray(stockTrades) ? stockTrades : [])
+    .filter((trade) => !asOfDate || isTradeOnOrBefore(trade, asOfDate))
+    .sort(sortTradesAsc)
+    .forEach((trade) => {
+      const symbol = normalizeSymbol(trade?.symbol);
+      const shares = toNumber(trade?.shares);
+      const price = toNumber(trade?.price);
+      if (!symbol || shares <= 0 || price <= 0) return;
+      if (!positions.has(symbol)) {
+        positions.set(symbol, {
+          symbol,
+          name: trade?.name || symbol,
+          heldShares: 0,
+          remainingCostUsd: 0,
+        });
+      }
+      const position = positions.get(symbol);
+      if (trade?.name && (!position.name || position.name === symbol)) position.name = trade.name;
+
+      if (trade?.side === 'sell') {
+        if (position.heldShares <= EPSILON) return;
+        const closedShares = Math.min(shares, position.heldShares);
+        const avgCost = position.heldShares > EPSILON ? position.remainingCostUsd / position.heldShares : 0;
+        position.remainingCostUsd -= closedShares * avgCost;
+        position.heldShares -= closedShares;
+        if (position.heldShares <= EPSILON) {
+          position.heldShares = 0;
+          position.remainingCostUsd = 0;
+        }
+        return;
+      }
+
+      position.heldShares += shares;
+      position.remainingCostUsd += shares * price;
+    });
+
+  return [...positions.values()]
+    .filter((position) => position.heldShares > EPSILON && position.remainingCostUsd > EPSILON)
+    .map((position) => ({
+      id: `pnl-backfill-current-${position.symbol}`,
+      symbol: position.symbol,
+      name: position.name || position.symbol,
+      side: 'buy',
+      date: effectiveDate,
+      price: position.remainingCostUsd / position.heldShares,
+      shares: position.heldShares,
+    }));
+}
+
 function inferPreviousClose(quote, currentPrice) {
   const dailyPnlBaselineClose = toNumber(quote?.dailyPnlBaselineClose);
   if (dailyPnlBaselineClose > 0) return dailyPnlBaselineClose;
@@ -431,6 +482,7 @@ export function buildPnlReportHistoricalSnapshots({
   toDate = null,
   cashUsd = 0,
   lockedAt = null,
+  backfillMode = 'ledger',
 } = {}) {
   const symbols = uniqueTradeSymbols(stockTrades);
   const closeMap = normalizeHistoricalCloseMap(historicalClosesBySymbol);
@@ -446,6 +498,13 @@ export function buildPnlReportHistoricalSnapshots({
   )]
     .sort()
     .slice(-Math.max(1, Number(maxSnapshots) || 7));
+  const effectiveStockTrades = backfillMode === 'currentPositions'
+    ? buildCurrentPositionBackfillTrades(
+      stockTrades,
+      targetDates[0] || dateLimit || normalizeReportDate(),
+      dateLimit || targetDates.at(-1) || null
+    )
+    : stockTrades;
 
   const skippedDates = [];
   const snapshots = [];
@@ -469,7 +528,7 @@ export function buildPnlReportHistoricalSnapshots({
       };
     });
     const built = buildPnlReportSnapshots({
-      stockTrades,
+      stockTrades: effectiveStockTrades,
       quoteRows: historicalQuoteRows,
       snapshotDate: date,
       cashUsd,

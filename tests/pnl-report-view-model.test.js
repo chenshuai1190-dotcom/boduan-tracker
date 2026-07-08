@@ -372,6 +372,79 @@ test('period totals use zero baseline when the portfolio first traded inside the
   assert.equal(report.summary.stockPnlUsd, 500);
 });
 
+test('builds calendar data for a selected month independent of the report range end', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-07',
+        cumulativePnlUsd: 700,
+        cumulativePnlPct: 0.07,
+        totalAssetsUsd: 10700,
+        dailyPnlUsd: 70,
+        dailyPnlPct: 0.007,
+      },
+      {
+        snapshotDate: '2026-06-30',
+        cumulativePnlUsd: 500,
+        cumulativePnlPct: 0.05,
+        totalAssetsUsd: 10500,
+        dailyPnlUsd: -20,
+        dailyPnlPct: -0.002,
+      },
+    ],
+    range: 'ytd',
+    calendarDate: '2026-06-01',
+    now: new Date('2026-07-08T22:00:00Z'),
+  });
+
+  assert.equal(report.selectedMonth, '2026/06');
+  assert.deepEqual(report.calendar.map((item) => item.day), [30]);
+  assert.equal(report.calendar[0].valueUsd, -20);
+  assert.deepEqual(report.availableCalendarYears, ['2026']);
+  assert.deepEqual(report.availableCalendarMonths, ['2026-06', '2026-07']);
+});
+
+test('builds year calendar from monthly snapshot sums', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-07',
+        cumulativePnlUsd: 700,
+        cumulativePnlPct: 0.07,
+        totalAssetsUsd: 10700,
+        dailyPnlUsd: 70,
+        dailyPnlPct: 0.007,
+      },
+      {
+        snapshotDate: '2026-07-06',
+        cumulativePnlUsd: 630,
+        cumulativePnlPct: 0.063,
+        totalAssetsUsd: 10630,
+        dailyPnlUsd: 30,
+        dailyPnlPct: 0.003,
+      },
+      {
+        snapshotDate: '2026-06-30',
+        cumulativePnlUsd: 500,
+        cumulativePnlPct: 0.05,
+        totalAssetsUsd: 10500,
+        dailyPnlUsd: -20,
+        dailyPnlPct: -0.002,
+      },
+    ],
+    range: 'ytd',
+    calendarDate: '2026-07-01',
+    now: new Date('2026-07-08T22:00:00Z'),
+  });
+
+  assert.equal(report.selectedYear, '2026');
+  assert.equal(report.yearCalendar.length, 12);
+  assert.equal(report.yearCalendar[5].month, 6);
+  assert.equal(report.yearCalendar[5].valueUsd, -20);
+  assert.equal(report.yearCalendar[6].month, 7);
+  assert.equal(report.yearCalendar[6].valueUsd, 100);
+});
+
 test('returns explicit empty report when there are no snapshots', () => {
   const report = buildPnlReportViewModel({
     portfolioSnapshots: [],

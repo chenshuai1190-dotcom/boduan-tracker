@@ -185,6 +185,56 @@ function buildCalendar(snapshots, selectedDate) {
     .filter((item) => item.day > 0);
 }
 
+function buildYearCalendar(snapshots, selectedYear) {
+  const yearKey = String(selectedYear || '').slice(0, 4);
+  if (!/^\d{4}$/.test(yearKey)) return [];
+  const monthly = new Map();
+  (Array.isArray(snapshots) ? snapshots : [])
+    .filter((snapshot) => String(snapshot.snapshotDate || '').startsWith(yearKey))
+    .forEach((snapshot) => {
+      const month = Number(String(snapshot.snapshotDate).slice(5, 7));
+      if (!month) return;
+      const current = monthly.get(month) || {
+        month,
+        valueUsd: 0,
+        rate: 0,
+        hasValue: false,
+        hasRate: false,
+      };
+      if (snapshot.dailyPnlUsd != null) {
+        current.valueUsd += toNumber(snapshot.dailyPnlUsd);
+        current.hasValue = true;
+      }
+      if (snapshot.dailyPnlPct != null) {
+        current.rate += toNumber(snapshot.dailyPnlPct);
+        current.hasRate = true;
+      }
+      monthly.set(month, current);
+    });
+
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    const current = monthly.get(month);
+    return {
+      month,
+      valueUsd: current?.hasValue ? current.valueUsd : null,
+      rate: current?.hasRate ? current.rate : null,
+    };
+  });
+}
+
+function availableCalendarMonths(snapshots) {
+  return [...new Set((Array.isArray(snapshots) ? snapshots : [])
+    .map((snapshot) => String(snapshot?.snapshotDate || '').slice(0, 7))
+    .filter((value) => /^\d{4}-\d{2}$/.test(value)))]
+    .sort();
+}
+
+function availableCalendarYears(snapshots) {
+  return [...new Set(availableCalendarMonths(snapshots).map((month) => month.slice(0, 4)))]
+    .sort();
+}
+
 function symbolSnapshotMap(rows = []) {
   const map = new Map();
   (Array.isArray(rows) ? rows : []).forEach((row) => {
@@ -402,6 +452,7 @@ export function buildPnlReportViewModel({
   benchmarkSymbol = 'QQQ',
   range = 'all',
   customRange = null,
+  calendarDate = null,
   now = new Date(),
 } = {}) {
   const sortedDesc = (Array.isArray(portfolioSnapshots) ? portfolioSnapshots : [])
@@ -411,6 +462,11 @@ export function buildPnlReportViewModel({
   const globalLatest = sortedDesc[0] || null;
   const chronological = [...sortedDesc].reverse();
   const fallbackDate = globalLatest?.snapshotDate || normalizeDate(now);
+  const calendarDateKey = dateKeyOrNull(calendarDate) || fallbackDate;
+  const calendarYearKey = String(calendarDateKey).slice(0, 4);
+  const calendarMonthLabel = monthLabel(calendarDateKey);
+  const allCalendarMonths = availableCalendarMonths(chronological);
+  const allCalendarYears = availableCalendarYears(chronological);
   const { startDate: rangeStartDate, endDate: rangeEndDate } = getPnlReportRangeBounds({
     portfolioSnapshots: chronological,
     stockTrades,
@@ -426,7 +482,10 @@ export function buildPnlReportViewModel({
       baselineSnapshotDate: null,
       startDate: displayDate(rangeStartDate),
       endDate: displayDate(rangeEndDate),
-      selectedMonth: monthLabel(rangeEndDate),
+      selectedMonth: calendarMonthLabel,
+      selectedYear: calendarYearKey,
+      availableCalendarMonths: allCalendarMonths,
+      availableCalendarYears: allCalendarYears,
       updatedAt: '--',
       totalPnlUsd: 0,
       totalPnlPct: 0,
@@ -438,6 +497,7 @@ export function buildPnlReportViewModel({
       benchmarkEndDate: normalizeDate(now),
       trend: [],
       calendar: [],
+      yearCalendar: buildYearCalendar(chronological, calendarYearKey),
       summary: {
         stockPnlUsd: 0,
         best: null,
@@ -462,7 +522,10 @@ export function buildPnlReportViewModel({
       baselineSnapshotDate: null,
       startDate: displayDate(rangeStartDate),
       endDate: displayDate(rangeEndDate),
-      selectedMonth: monthLabel(rangeEndDate),
+      selectedMonth: calendarMonthLabel,
+      selectedYear: calendarYearKey,
+      availableCalendarMonths: allCalendarMonths,
+      availableCalendarYears: allCalendarYears,
       updatedAt: '--',
       totalPnlUsd: 0,
       totalPnlPct: 0,
@@ -474,7 +537,8 @@ export function buildPnlReportViewModel({
       benchmarkEndDate: rangeEndDate,
       benchmarkReturnPct: null,
       trend: [],
-      calendar: buildCalendar(chronological, rangeEndDate),
+      calendar: buildCalendar(chronological, calendarDateKey),
+      yearCalendar: buildYearCalendar(chronological, calendarYearKey),
       summary: {
         stockPnlUsd: 0,
         best: null,
@@ -552,7 +616,6 @@ export function buildPnlReportViewModel({
       : null,
     startDate: displayDate(displayStartDate),
     endDate: displayDate(rangeEndDate),
-    selectedMonth: monthLabel(rangeEndDate),
     updatedAt: displayUpdatedAt(latest.updatedAt, latestDate),
     totalPnlUsd: periodValues.pnlUsd,
     totalPnlPct: periodValues.pnlPct,
@@ -564,7 +627,12 @@ export function buildPnlReportViewModel({
     benchmarkEndDate: rangeEndDate,
     benchmarkReturnPct: benchmark.returnPct,
     trend,
-    calendar: buildCalendar(chronological, latestDate),
+    selectedMonth: calendarMonthLabel,
+    selectedYear: calendarYearKey,
+    availableCalendarMonths: allCalendarMonths,
+    availableCalendarYears: allCalendarYears,
+    calendar: buildCalendar(chronological, calendarDateKey),
+    yearCalendar: buildYearCalendar(chronological, calendarYearKey),
     summary: {
       stockPnlUsd: periodValues.pnlUsd,
       best: gainRows[0] || null,

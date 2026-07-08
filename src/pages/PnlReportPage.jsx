@@ -101,6 +101,24 @@ function buildCalendarDays(monthLabelValue) {
   ];
 }
 
+function monthKeyFromLabel(monthLabelValue) {
+  const [yearText, monthText] = String(monthLabelValue || '').split('/');
+  return yearText && monthText ? `${yearText}-${monthText}` : '';
+}
+
+function monthDateKey(year, month) {
+  const normalizedYear = String(year || '').padStart(4, '0');
+  const normalizedMonth = String(month || '').padStart(2, '0');
+  return `${normalizedYear}-${normalizedMonth}-01`;
+}
+
+function monthName(month, englishMode) {
+  const index = Number(month) - 1;
+  const zh = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+  const en = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return (englishMode ? en : zh)[index] || '--';
+}
+
 function convertUsd(value, displayRate) {
   return toNumber(value) * displayRate;
 }
@@ -232,6 +250,11 @@ export default function PnlReportPage({ ctx = {} }) {
   const [draftEndDate, setDraftEndDate] = React.useState(dateKeyToday());
   const [chartMode, setChartMode] = React.useState('pnl');
   const [calendarMode, setCalendarMode] = React.useState('pnl');
+  const [calendarView, setCalendarView] = React.useState('month');
+  const [calendarDate, setCalendarDate] = React.useState(null);
+  const [calendarPickerOpen, setCalendarPickerOpen] = React.useState(false);
+  const [draftCalendarYear, setDraftCalendarYear] = React.useState('');
+  const [draftCalendarMonth, setDraftCalendarMonth] = React.useState('01');
   const [rankMode, setRankMode] = React.useState('gain');
   const [portfolioSnapshots, setPortfolioSnapshots] = React.useState([]);
   const [symbolSnapshots, setSymbolSnapshots] = React.useState([]);
@@ -273,7 +296,8 @@ export default function PnlReportPage({ ctx = {} }) {
     benchmarkSymbol: 'QQQ',
     range,
     customRange,
-  }), [baselineSymbolSnapshots, benchmarkRows, customRange, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
+    calendarDate,
+  }), [baselineSymbolSnapshots, benchmarkRows, calendarDate, customRange, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -391,6 +415,7 @@ export default function PnlReportPage({ ctx = {} }) {
         toDate: reportQuoteInput.snapshotDate,
         maxSnapshots: 7,
         lockedAt: lockedAt.toISOString(),
+        backfillMode: 'currentPositions',
       });
       if (builtHistory.snapshots.length === 0) {
         const missingSymbols = [...new Set(builtHistory.skippedDates.flatMap((item) => item.symbols || []))];
@@ -457,7 +482,17 @@ export default function PnlReportPage({ ctx = {} }) {
     : t(language, 'pnlReport.range.custom', '自定义');
   const calendarValues = new Map(reportData.calendar.map(item => [item.day, item]));
   const calendarDays = buildCalendarDays(reportData.selectedMonth);
+  const yearCalendarValues = new Map((reportData.yearCalendar || []).map(item => [item.month, item]));
+  const availableCalendarMonths = reportData.availableCalendarMonths || [];
+  const availableCalendarYears = reportData.availableCalendarYears || [];
+  const availableCalendarMonthSet = React.useMemo(() => new Set(availableCalendarMonths), [availableCalendarMonths]);
+  const selectedCalendarMonthKey = monthKeyFromLabel(reportData.selectedMonth);
+  const selectedCalendarYear = reportData.selectedYear || selectedCalendarMonthKey.slice(0, 4) || String(new Date().getFullYear());
   const calendarMagnitudeMax = Math.max(1, ...reportData.calendar.map((item) => {
+    if (calendarMode === 'rate') return Math.abs(toNumber(item.rate));
+    return Math.abs(convertUsd(item.valueUsd, displayRate));
+  }));
+  const yearCalendarMagnitudeMax = Math.max(1, ...(reportData.yearCalendar || []).map((item) => {
     if (calendarMode === 'rate') return Math.abs(toNumber(item.rate));
     return Math.abs(convertUsd(item.valueUsd, displayRate));
   }));
@@ -492,6 +527,23 @@ export default function PnlReportPage({ ctx = {} }) {
           : range === 'custom'
             ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
             : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后,页面会读取数据库里的真实报表数据。'));
+  const firstAvailableMonthForYear = React.useCallback((year) => {
+    const prefix = `${year}-`;
+    return (availableCalendarMonths.find((month) => month.startsWith(prefix)) || `${year}-01`).slice(5, 7);
+  }, [availableCalendarMonths]);
+  const openCalendarPicker = React.useCallback(() => {
+    const fallbackYear = selectedCalendarYear || availableCalendarYears.at(-1) || String(new Date().getFullYear());
+    const fallbackMonth = selectedCalendarMonthKey.slice(5, 7) || firstAvailableMonthForYear(fallbackYear);
+    setDraftCalendarYear(fallbackYear);
+    setDraftCalendarMonth(fallbackMonth);
+    setCalendarPickerOpen(true);
+  }, [availableCalendarYears, firstAvailableMonthForYear, selectedCalendarMonthKey, selectedCalendarYear]);
+  const confirmCalendarPicker = React.useCallback(() => {
+    if (!draftCalendarYear) return;
+    const month = draftCalendarMonth || firstAvailableMonthForYear(draftCalendarYear);
+    setCalendarDate(monthDateKey(draftCalendarYear, month));
+    setCalendarPickerOpen(false);
+  }, [draftCalendarMonth, draftCalendarYear, firstAvailableMonthForYear]);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white" style={{ fontFamily: REPORT_FONT }}>
@@ -620,63 +672,114 @@ export default function PnlReportPage({ ctx = {} }) {
           <ChevronRight className="h-4 w-4 text-white/36" />
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <button type="button" className="flex items-center gap-1.5 text-[15px] font-normal text-white">
-            {reportData.selectedMonth} <ChevronDown className="h-3.5 w-3.5 text-white/42" />
+          <button
+            type="button"
+            onClick={openCalendarPicker}
+            className="flex min-w-[76px] items-center gap-1.5 text-[15px] font-normal text-white transition active:scale-95"
+          >
+            {calendarView === 'year' ? selectedCalendarYear : reportData.selectedMonth}
+            <ChevronDown className="h-3.5 w-3.5 text-white/42" />
           </button>
           <div className="flex rounded-full border border-white/10 bg-white/[0.055] p-1">
-            <SegmentButton active={false}>{t(language, 'pnlReport.year', '年')}</SegmentButton>
-            <SegmentButton active>{t(language, 'pnlReport.month', '月')}</SegmentButton>
+            <SegmentButton active={calendarView === 'year'} onClick={() => setCalendarView('year')}>{t(language, 'pnlReport.year', '年')}</SegmentButton>
+            <SegmentButton active={calendarView === 'month'} onClick={() => setCalendarView('month')}>{t(language, 'pnlReport.month', '月')}</SegmentButton>
           </div>
           <div className="flex rounded-full border border-white/10 bg-white/[0.055] p-1">
             <SegmentButton active={calendarMode === 'pnl'} onClick={() => setCalendarMode('pnl')}>{t(language, 'pnlReport.pnl', '收益')}</SegmentButton>
             <SegmentButton active={calendarMode === 'rate'} onClick={() => setCalendarMode('rate')}>{t(language, 'pnlReport.pnlRate', '收益率')}</SegmentButton>
           </div>
         </div>
-        <div className="mt-5 grid grid-cols-7 text-center text-[12px] text-white/54">
-          {['日', '一', '二', '三', '四', '五', '六'].map((day, index) => (
-            <div key={day}>{englishMode ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'][index] : day}</div>
-          ))}
-        </div>
-        <div className="mt-3 grid grid-cols-7 gap-1 text-center">
-          {calendarDays.map((day, index) => {
-            const calendarItem = day ? calendarValues.get(day) : undefined;
-            const valueUsd = calendarItem?.valueUsd;
-            const rate = calendarItem?.rate;
-            const hasValue = valueUsd != null || rate != null;
-            const signedValue = calendarMode === 'rate' ? rate : valueUsd;
-            const displayValue = calendarMode === 'rate' ? rate : convertUsd(valueUsd, displayRate);
-            const magnitude = calendarMode === 'rate' ? Math.abs(toNumber(rate)) : Math.abs(toNumber(displayValue));
-            const hasTint = hasValue && magnitude > 0.000001;
-            const tileColor = marketHexColor(signedValue ?? 0, marketColorMode);
-            const intensity = Math.min(1, magnitude / calendarMagnitudeMax);
-            const tileStyle = hasTint
-              ? {
-                background: `linear-gradient(180deg, ${tileColor}${alphaHex(0.16 + intensity * 0.12)}, ${tileColor}${alphaHex(0.08 + intensity * 0.08)})`,
-                borderColor: `${tileColor}${alphaHex(0.16 + intensity * 0.12)}`,
-              }
-              : undefined;
-            return (
-              <div
-                key={`${day || 'blank'}-${index}`}
-                className="flex h-[52px] flex-col items-center justify-center rounded-[10px] border border-transparent"
-                style={tileStyle}
-              >
-                {day && (
-                  <>
-                    <span className="text-[15px] font-normal text-white">{String(day).padStart(2, '0')}</span>
-                    {hasValue && (
-                      <span className={`mt-1 whitespace-nowrap text-[10px] font-normal tabular-nums ${marketTextClass(signedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {calendarMode === 'rate'
-                          ? (rate == null ? '--' : signedPct(rate, 2))
-                          : signedCompactAmount(displayValue, englishMode)}
-                      </span>
+        {calendarView === 'month' ? (
+          <>
+            <div className="mt-5 grid grid-cols-7 text-center text-[12px] text-white/54">
+              {['日', '一', '二', '三', '四', '五', '六'].map((day, index) => (
+                <div key={day}>{englishMode ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'][index] : day}</div>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-7 gap-1 text-center">
+              {calendarDays.map((day, index) => {
+                const calendarItem = day ? calendarValues.get(day) : undefined;
+                const valueUsd = calendarItem?.valueUsd;
+                const rate = calendarItem?.rate;
+                const hasValue = valueUsd != null || rate != null;
+                const signedValue = calendarMode === 'rate' ? rate : valueUsd;
+                const displayValue = calendarMode === 'rate' ? rate : convertUsd(valueUsd, displayRate);
+                const magnitude = calendarMode === 'rate' ? Math.abs(toNumber(rate)) : Math.abs(toNumber(displayValue));
+                const hasTint = hasValue && magnitude > 0.000001;
+                const tileColor = marketHexColor(signedValue ?? 0, marketColorMode);
+                const intensity = Math.min(1, magnitude / calendarMagnitudeMax);
+                const tileStyle = hasTint
+                  ? {
+                    background: `linear-gradient(180deg, ${tileColor}${alphaHex(0.16 + intensity * 0.12)}, ${tileColor}${alphaHex(0.08 + intensity * 0.08)})`,
+                    borderColor: `${tileColor}${alphaHex(0.16 + intensity * 0.12)}`,
+                  }
+                  : undefined;
+                return (
+                  <div
+                    key={`${day || 'blank'}-${index}`}
+                    className="flex h-[52px] flex-col items-center justify-center rounded-[10px] border border-transparent"
+                    style={tileStyle}
+                  >
+                    {day && (
+                      <>
+                        <span className="text-[15px] font-normal text-white">{String(day).padStart(2, '0')}</span>
+                        {hasValue && (
+                          <span className={`mt-1 whitespace-nowrap text-[10px] font-normal tabular-nums ${marketTextClass(signedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                            {calendarMode === 'rate'
+                              ? (rate == null ? '--' : signedPct(rate, 2))
+                              : signedCompactAmount(displayValue, englishMode)}
+                          </span>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="mt-5 grid grid-cols-4 overflow-hidden rounded-xl border border-white/8 text-center">
+            {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => {
+              const calendarItem = yearCalendarValues.get(month);
+              const valueUsd = calendarItem?.valueUsd;
+              const rate = calendarItem?.rate;
+              const hasValue = valueUsd != null || rate != null;
+              const signedValue = calendarMode === 'rate' ? rate : valueUsd;
+              const displayValue = calendarMode === 'rate' ? rate : convertUsd(valueUsd, displayRate);
+              const magnitude = calendarMode === 'rate' ? Math.abs(toNumber(rate)) : Math.abs(toNumber(displayValue));
+              const hasTint = hasValue && magnitude > 0.000001;
+              const tileColor = marketHexColor(signedValue ?? 0, marketColorMode);
+              const intensity = Math.min(1, magnitude / yearCalendarMagnitudeMax);
+              const tileStyle = hasTint
+                ? {
+                  background: `linear-gradient(180deg, ${tileColor}${alphaHex(0.14 + intensity * 0.12)}, ${tileColor}${alphaHex(0.07 + intensity * 0.08)})`,
+                  borderColor: `${tileColor}${alphaHex(0.12 + intensity * 0.10)}`,
+                }
+                : undefined;
+              return (
+                <button
+                  key={month}
+                  type="button"
+                  onClick={() => {
+                    setCalendarDate(monthDateKey(selectedCalendarYear, month));
+                    setCalendarView('month');
+                  }}
+                  className="flex h-[76px] flex-col items-center justify-center border border-white/[0.035] transition active:scale-[0.98]"
+                  style={tileStyle}
+                >
+                  <span className="text-[14px] font-normal text-white">{monthName(month, englishMode)}</span>
+                  {hasValue && (
+                    <span className={`mt-1 whitespace-nowrap text-[11px] font-normal tabular-nums ${marketTextClass(signedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                      {calendarMode === 'rate'
+                        ? (rate == null ? '--' : signedPct(rate, 2))
+                        : signedCompactAmount(displayValue, englishMode)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -766,6 +869,90 @@ export default function PnlReportPage({ ctx = {} }) {
           {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成收盘快照')}
         </button>
       </div>
+
+      {calendarPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">
+          <div className="w-full max-w-[430px] rounded-t-[26px] border border-white/10 bg-[#0b0f14] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[18px] font-semibold text-white">{t(language, 'pnlReport.calendarPickerTitle', '选择月份')}</h2>
+              <button
+                type="button"
+                onClick={() => setCalendarPickerOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/48 transition active:scale-95"
+                aria-label={t(language, 'pnlReport.closeFilter', '关闭筛选')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {availableCalendarYears.length === 0 ? (
+              <div className="mt-6 rounded-2xl bg-white/[0.04] px-4 py-5 text-center text-[12px] text-white/36">
+                {t(language, 'pnlReport.noCalendarYears', '暂无可选择的快照年份')}
+              </div>
+            ) : (
+              <div className="mt-5 grid grid-cols-[92px_minmax(0,1fr)] gap-3">
+                <div className="min-w-0">
+                  <div className="mb-2 text-[12px] text-white/42">{t(language, 'pnlReport.selectYear', '年份')}</div>
+                  <div className="max-h-[190px] space-y-1 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none]">
+                    {availableCalendarYears.map((year) => (
+                      <button
+                        key={year}
+                        type="button"
+                        onClick={() => {
+                          setDraftCalendarYear(year);
+                          setDraftCalendarMonth(firstAvailableMonthForYear(year));
+                        }}
+                        className={`h-9 w-full rounded-xl text-[13px] font-normal transition active:scale-95 ${
+                          draftCalendarYear === year
+                            ? 'bg-white text-[#101318]'
+                            : 'bg-white/[0.045] text-white/58'
+                        }`}
+                      >
+                        {year}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-2 text-[12px] text-white/42">{t(language, 'pnlReport.selectMonth', '月份')}</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0')).map((month) => {
+                      const monthKey = `${draftCalendarYear}-${month}`;
+                      const enabled = availableCalendarMonthSet.has(monthKey);
+                      return (
+                        <button
+                          key={month}
+                          type="button"
+                          disabled={!enabled}
+                          onClick={() => setDraftCalendarMonth(month)}
+                          className={`h-9 rounded-xl text-[12px] font-normal transition active:scale-95 disabled:active:scale-100 ${
+                            draftCalendarMonth === month && enabled
+                              ? 'bg-[#f6b54b] text-[#101318]'
+                              : enabled
+                                ? 'bg-white/[0.055] text-white/62'
+                                : 'bg-white/[0.025] text-white/18'
+                          }`}
+                        >
+                          {month}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={confirmCalendarPicker}
+              disabled={availableCalendarYears.length === 0}
+              className="mt-6 h-11 w-full rounded-2xl bg-[#f6b54b] text-[14px] font-semibold text-[#101318] shadow-[0_14px_30px_rgba(246,181,75,0.20)] transition active:scale-[0.98] disabled:opacity-45"
+            >
+              {t(language, 'pnlReport.confirmFilter', '确定')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {dateFilterOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">

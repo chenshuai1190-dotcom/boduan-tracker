@@ -4,6 +4,38 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表日历月份与当前持仓回填
+
+- Commit: `fe28d5922181656726bbc3947be500970f58efd0`
+- Deployment: pending.
+- Background: 用户用测试账号和管理员账号验证后确认日收益金额准确,但收益日历只能看到约两天有效收益;本地复现确认 EODHD 历史日线不是只返回两天,而是当前测试账本的持仓交易录入日在 2026-07-06,严格账本模式会让 2026-06-26 至 2026-07-02 的历史快照无持仓,因此日历只有 2026-07-06 和 2026-07-07 有真实持仓收益。
+- Changes:
+  - `src/lib/pnlReportSnapshots.js` 为历史收盘快照新增 `currentPositions` 回填模式:手动生成最近 7 个收盘快照时,先从当前交易账本推导打开持仓和平均成本,再把当前持仓贯穿回填窗口;价格仍使用 EODHD 历史收盘价,默认严格 `ledger` 模式保持不变。
+  - `src/pages/PnlReportPage.jsx` 的“生成收盘快照”切换到当前持仓回填模式,解决手动同步当前持仓的测试账号只能显示两天日历收益的问题;交易页实时持仓/盈亏不受影响。
+  - 收益日历支持点击年月打开暗色月份选择器,年份列表只显示已有快照年份;新增年份视图,可按月份汇总展示年度收益/收益率。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.225`;中英文提示文案同步说明手动生成使用当前持仓和 EODHD 日线回填最近 7 个已完成交易日快照。
+- Key files:
+  - `src/lib/pnlReportSnapshots.js`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-snapshots.test.js`
+  - `tests/pnl-report-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Local reproduction without network confirmed the old strict ledger mode has `holdingCount=0` before the 2026-07-06 manual trade date, and the new `currentPositions` mode carries the manually synced holdings across the historical window.
+  - Direct local EODHD validation using `.env.local` without printing the key: historical daily closes were available for NVDA/MSFT/META/TSM/NOK/IBKR; strict ledger mode produced 0 holdings through 2026-07-02 and 6 holdings on 2026-07-06/07, while `currentPositions` mode produced 6 holdings and non-null daily P&L across all 7 generated trading dates.
+  - `node --test tests/pnl-report-snapshots.test.js tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 57/57 tests.
+  - Local visual smoke at `390x844` via DevVisualPreview passed:收益报表、年份视图和月份选择器 `scrollWidth=clientWidth=390`, no console/page errors.
+  - `npm test` passed, 147/147 tests.
+  - `npm run build` passed; new chunks include `PnlReportPage-C32N1iVj.js`, `SettingsTab-5CSthCcd.js`, `settingsChangelog-C2pIzuK7.js`, `i18n-BoKxZ3S4.js`, and `App-Gaf23S0v.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Rollback: 回退本条涉及的当前持仓回填模式、收益日历年月选择 UI、`v10.7.9.225` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.224`;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表 7 日收盘快照回填
 
 - Commit: `26de0e1`

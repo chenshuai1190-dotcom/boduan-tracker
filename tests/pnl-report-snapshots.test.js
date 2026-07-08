@@ -214,6 +214,68 @@ test('builds recent historical close snapshots with real daily pnl values', () =
   assert.equal(result.snapshots[2].symbolSnapshots.find((row) => row.symbol === 'MSFT').dailyPnlUsd, 25);
 });
 
+test('strict ledger historical backfill starts from the actual trade entry date', () => {
+  const result = buildPnlReportHistoricalSnapshots({
+    maxSnapshots: 4,
+    toDate: '2026-07-07',
+    stockTrades: [
+      { id: '1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', date: '2026-07-06', price: 180, shares: 10 },
+    ],
+    historicalClosesBySymbol: {
+      NVDA: [
+        { date: '2026-07-01', close: 190 },
+        { date: '2026-07-02', close: 192 },
+        { date: '2026-07-06', close: 195 },
+        { date: '2026-07-07', close: 196 },
+      ],
+    },
+    lockedAt: '2026-07-08T10:00:00.000Z',
+  });
+
+  assert.deepEqual(result.snapshots.map((snapshot) => snapshot.portfolioSnapshot.snapshotDate), [
+    '2026-07-01',
+    '2026-07-02',
+    '2026-07-06',
+    '2026-07-07',
+  ]);
+  assert.equal(result.snapshots[0].portfolioSnapshot.holdingCount, 0);
+  assert.equal(result.snapshots[1].portfolioSnapshot.holdingCount, 0);
+  assert.equal(result.snapshots[2].portfolioSnapshot.holdingCount, 1);
+});
+
+test('current-position historical backfill carries manually synced positions across the window', () => {
+  const result = buildPnlReportHistoricalSnapshots({
+    maxSnapshots: 5,
+    toDate: '2026-07-07',
+    backfillMode: 'currentPositions',
+    stockTrades: [
+      { id: '1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', date: '2026-07-06', price: 180, shares: 10 },
+    ],
+    historicalClosesBySymbol: {
+      NVDA: [
+        { date: '2026-06-30', close: 188 },
+        { date: '2026-07-01', close: 190 },
+        { date: '2026-07-02', close: 192 },
+        { date: '2026-07-06', close: 195 },
+        { date: '2026-07-07', close: 196 },
+      ],
+    },
+    lockedAt: '2026-07-08T10:00:00.000Z',
+  });
+
+  assert.deepEqual(result.snapshots.map((snapshot) => snapshot.portfolioSnapshot.snapshotDate), [
+    '2026-06-30',
+    '2026-07-01',
+    '2026-07-02',
+    '2026-07-06',
+    '2026-07-07',
+  ]);
+  assert.equal(result.snapshots.every((snapshot) => snapshot.portfolioSnapshot.holdingCount === 1), true);
+  assert.equal(result.snapshots[1].portfolioSnapshot.dailyPnlUsd, 20);
+  assert.equal(result.snapshots[2].portfolioSnapshot.dailyPnlUsd, 20);
+  assert.equal(result.snapshots[4].portfolioSnapshot.dailyPnlUsd, 10);
+});
+
 test('normalizes report dates and stays separate from the live trading summary pipeline', () => {
   assert.equal(normalizeReportDate('2026-07-08'), '2026-07-08');
   assert.equal(latestCompletedUsTradingDate(new Date('2026-07-08T10:00:00Z')), '2026-07-07');
