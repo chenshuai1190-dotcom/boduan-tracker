@@ -7,6 +7,10 @@ import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
+const DETAIL_LABEL_CLASS = 'text-white/[0.30]';
+const DETAIL_VALUE_CLASS = 'text-white/[0.64]';
+const DETAIL_HEADING_CLASS = 'text-white/[0.68]';
+const CHART_TOOLTIP_HOLD_MS = 12000;
 
 function toNumber(value) {
   const n = Number(value);
@@ -130,10 +134,10 @@ function buildLineChart(points, { startDate, endDate, width = 310, height = 150 
   };
 }
 
-function StatCell({ label, value, valueClass = 'text-white/72' }) {
+function StatCell({ label, value, valueClass = DETAIL_VALUE_CLASS }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] leading-4 text-white/38">{label}</div>
+      <div className={`text-[11px] leading-4 ${DETAIL_LABEL_CLASS}`}>{label}</div>
       <div className={`mt-1 truncate text-[14px] font-normal leading-5 tabular-nums ${valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
@@ -149,7 +153,7 @@ function RangePill({ active, children, onClick }) {
       className={`shrink-0 border-b-2 px-1 pb-2 pt-1 text-[13px] font-normal transition active:scale-95 ${
         active
           ? 'border-[#f6b54b] text-[#ffd18a]'
-          : 'border-transparent text-white/48'
+          : 'border-transparent text-white/[0.48]'
       }`}
     >
       {children}
@@ -158,8 +162,14 @@ function RangePill({ active, children, onClick }) {
 }
 
 function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMode, marketColorMode }) {
+  const pointsKey = React.useMemo(() => (
+    (Array.isArray(points) ? points : [])
+      .map((point) => `${point?.date || ''}:${Number(point?.pnlUsd || 0).toFixed(4)}`)
+      .join('|')
+  ), [points]);
   const chart = React.useMemo(() => buildLineChart(points, { startDate, endDate }), [points, startDate, endDate]);
   const [selectedIndex, setSelectedIndex] = React.useState(null);
+  const hideTimerRef = React.useRef(null);
   const startMs = parseDateMs(startDate);
   const endMs = parseDateMs(endDate);
   const middleDate = startMs != null && endMs != null
@@ -178,7 +188,19 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
 
   React.useEffect(() => {
     setSelectedIndex(null);
-  }, [points, startDate, endDate]);
+    window.clearTimeout(hideTimerRef.current);
+  }, [pointsKey, startDate, endDate]);
+
+  React.useEffect(() => {
+    return () => window.clearTimeout(hideTimerRef.current);
+  }, []);
+
+  const keepSelectedPointVisible = React.useCallback(() => {
+    window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(() => {
+      setSelectedIndex(null);
+    }, CHART_TOOLTIP_HOLD_MS);
+  }, []);
 
   const updateSelectedPoint = React.useCallback((event) => {
     if (!chart.points.length) return;
@@ -195,7 +217,8 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
       }
     });
     setSelectedIndex(nextIndex);
-  }, [chart.points]);
+    keepSelectedPointVisible();
+  }, [chart.points, keepSelectedPointVisible]);
 
   const handlePointerDown = React.useCallback((event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -205,12 +228,13 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   return (
     <div
       className="relative mt-2 h-[166px] select-none"
+      onClick={updateSelectedPoint}
       onPointerDown={handlePointerDown}
       onPointerMove={updateSelectedPoint}
       style={{ touchAction: 'pan-y' }}
     >
       {!chart.path && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.02] text-[12px] text-white/32">
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.02] text-[12px] text-white/[0.32]">
           {emptyText}
         </div>
       )}
@@ -250,7 +274,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
             transform: selectedPointTransform,
           }}
         >
-          <div className="text-[10px] leading-3 text-white/42">{displayDate(selectedPoint.date)}</div>
+          <div className="text-[10px] leading-3 text-white/[0.42]">{displayDate(selectedPoint.date)}</div>
           <div className="mt-1 text-[12px] font-semibold leading-4 tabular-nums" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>
             {signedCurrency(selectedPoint.value, currencyMode, 2)}
           </div>
@@ -331,22 +355,22 @@ export default function StockDetailPage({ ctx = {} }) {
   const compactRangeLabel = rangeItems.find(([id]) => id === range)?.[1] || rangeItems[0][1];
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+86px)] text-white" style={{ fontFamily: PAGE_FONT }}>
+    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+86px)] text-white/[0.72]" style={{ fontFamily: PAGE_FONT }}>
       <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#05070b]/90 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={closeStockDetail}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/72 transition active:scale-95"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] transition active:scale-95"
             aria-label={t(language, 'stockDetail.back', '返回')}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
-            <h1 className="truncate text-[17px] font-semibold leading-tight text-white/88">
+            <h1 className="truncate text-[17px] font-semibold leading-tight text-white/[0.78]">
               {view.symbol || '--'} {displayName && displayName !== view.symbol ? displayName : ''}
             </h1>
-            <div className="mt-0.5 text-[11px] text-white/34">
+            <div className="mt-0.5 text-[11px] text-white/[0.34]">
               {t(language, 'stockDetail.subtitle', '个股收益详情')}
             </div>
           </div>
@@ -363,17 +387,17 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="relative">
-          <div className="flex items-center gap-1.5 text-[12px] text-white/42">
+          <div className={`flex items-center gap-1.5 text-[12px] ${DETAIL_LABEL_CLASS}`}>
             <span>{t(language, 'stockDetail.totalPnl', '累计盈亏')} ({displayCurrency})</span>
-            <Info className="h-3.5 w-3.5 text-white/28" />
+            <Info className="h-3.5 w-3.5 text-white/[0.28]" />
           </div>
           <div className="mt-3 text-[30px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
             {totalValue == null ? '--' : signedCurrency(totalValue, displayCurrency, 2)}
           </div>
-          <div className={`mt-2 text-[14px] font-semibold tabular-nums ${view.periodPnlPct == null ? 'text-white/32' : marketTextClass(view.periodPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className={`mt-2 text-[14px] font-semibold tabular-nums ${view.periodPnlPct == null ? 'text-white/[0.32]' : marketTextClass(view.periodPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {signedPct(view.periodPnlPct, 2)}
           </div>
-          <div className="mt-1 text-[12px] text-white/34">{view.startDate} - {view.endDate}</div>
+          <div className={`mt-1 text-[12px] ${DETAIL_LABEL_CLASS}`}>{view.startDate} - {view.endDate}</div>
 
           <div className="mt-4 grid grid-cols-2 border-t border-white/[0.06] pt-3">
             <StatCell
@@ -402,8 +426,8 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center gap-1.5">
-          <h2 className="text-[13px] font-semibold text-white/78">{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
-          <Info className="h-3.5 w-3.5 text-white/28" />
+          <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
+          <Info className="h-3.5 w-3.5 text-white/[0.28]" />
         </div>
         <div className="mt-2 text-[12px] text-[#ffd18a]">{t(language, 'stockDetail.myPnlLine', '我的收益线')}</div>
         <PnlSparkline
@@ -418,7 +442,7 @@ export default function StockDetailPage({ ctx = {} }) {
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <h2 className="text-[13px] font-semibold text-white/78">{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
+        <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />
@@ -429,10 +453,10 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-white/78">{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
-          <span className="text-[11px] text-white/34">{compactRangeLabel}</span>
+          <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
+          <span className="text-[11px] text-white/[0.34]">{compactRangeLabel}</span>
         </div>
-        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/30">
+        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/[0.30]">
           <span>{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
           <span className="text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
           <span className="text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
@@ -440,7 +464,7 @@ export default function StockDetailPage({ ctx = {} }) {
         </div>
         <div className="divide-y divide-white/[0.06]">
           {view.tradeRecords.length === 0 && (
-            <div className="py-8 text-center text-[12px] text-white/34">
+            <div className="py-8 text-center text-[12px] text-white/[0.34]">
               {t(language, 'stockDetail.noTrades', '当前周期暂无交易记录')}
             </div>
           )}
@@ -450,19 +474,19 @@ export default function StockDetailPage({ ctx = {} }) {
             return (
               <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 py-3">
                 <div className="min-w-0">
-                  <div className="text-[12px] tabular-nums text-white/36" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
+                  <div className="text-[12px] tabular-nums text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
                   <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
                     {sideLabel(language, record.side)}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[13px] text-white/64 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
-                  <div className="mt-1 text-[11px] text-white/30 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
+                  <div className="text-[13px] text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
+                  <div className="mt-1 text-[11px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
                 </div>
-                <div className="text-right text-[13px] text-white/60 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                <div className="text-right text-[13px] text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                   {currency(record.amountUsd * displayRate, displayCurrency, 2)}
                 </div>
-                <div className={`text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/34' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                <div className={`text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                   {realizedValue == null ? '--' : signedCurrency(realizedValue, displayCurrency, 2)}
                 </div>
               </div>
@@ -472,7 +496,7 @@ export default function StockDetailPage({ ctx = {} }) {
       </section>
 
       {(error || (!view.hasData && !loading)) && (
-        <div className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/38">
+        <div className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/[0.38]">
           {error || t(language, 'stockDetail.noSnapshotNotice', '暂无该股票收盘快照。页面只读取已有快照和交易账本,不会使用假数据替代。')}
         </div>
       )}

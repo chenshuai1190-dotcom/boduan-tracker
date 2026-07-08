@@ -4,6 +4,35 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 个股详情文字层级微调
+
+- Commit: same runtime commit.
+- Deployment: pending push via project SSH key and production marker verification.
+- Background: 用户反馈个股详情页仍有部分白色文字过亮,希望标注区域统一改为灰色层级,剩余白字参考交易页降低亮度,并让收益走势点位提示停留更久。
+- Changes:
+  - `src/pages/StockDetailPage.jsx` 把页面标题、卡片标题、统计标签、日期、交易统计和交易记录的文字层级统一到明确透明度写法,避免 Tailwind `text-white/xx` 未生成时回退成纯白。
+  - 收益走势点位提示延长到至少 10 秒,并改用真实点位 key 判断数据变化,避免父组件重渲染时提前清掉提示。
+  - 图表保留 `pointerdown` / `pointermove` 滑动查看,新增 click fallback,兼容只触发点击的浏览器场景。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.233`;本次只改个股详情只读展示和图表提示停留时间,不改交易录入/编辑、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - Local mobile visual smoke passed at `http://127.0.0.1:5173/?tab=stock-detail` with 390x844 viewport;computed colors confirmed date `rgba(255, 255, 255, 0.3)`,title `rgba(255, 255, 255, 0.78)`,card heading `rgba(255, 255, 255, 0.68)`,label `rgba(255, 255, 255, 0.3)`.
+  - Local tooltip persistence check passed: visible immediately, still visible after 9 seconds, hidden after 12 seconds.
+  - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests.
+  - `npm test` passed, 158/158 tests.
+  - `npm run build` passed;new chunks include `StockDetailPage-Bzmpnn5Y.js`,`App-CYW0lLkg.js`,`SettingsTab-BMKDdxNa.js`,`settingsChangelog-IM4bEtyK.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Production verification:
+  - Pending.
+- Rollback: 回退本条涉及的个股详情文字层级、收益走势提示停留时间、`v10.7.9.233` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.232`;不影响交易写入、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 个股收益线滑动查看
 
 - Commit: runtime code commit `630a738d1ca716d04f3d8930e37b5294b7347dbe`;deployment verification docs commit is the current documentation-only follow-up commit。
