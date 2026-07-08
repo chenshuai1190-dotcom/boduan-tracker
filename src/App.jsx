@@ -946,7 +946,7 @@ const STOCK_NAME_EN = {
 };
 
 function normalizeStockSymbolForName(symbol) {
-  return String(symbol || '').trim().toUpperCase();
+  return normalizeSymbolKey(symbol);
 }
 
 function isPlaceholderStockName(symbol, name) {
@@ -974,10 +974,12 @@ function displayStockName(symbol, name, language = 'zh') {
 
 function localizeStockNameRow(row) {
   if (!row?.symbol) return row;
+  const symbol = normalizeStockSymbolForName(row.symbol);
+  if (!symbol) return row;
   return {
     ...row,
-    symbol: normalizeStockSymbolForName(row.symbol),
-    name: displayStockName(row.symbol, row.name),
+    symbol,
+    name: displayStockName(symbol, row.name),
   };
 }
 
@@ -2501,7 +2503,7 @@ function MainApp({ user, onLogout }) {
 
   const confirmCostBasisTradeSubmit = (typeOverride = costBasisNewTrade.type) => {
     if (costBasisSubmittingRef.current) return;
-    const symbol = String(costBasisActiveSymbol || '').trim().toUpperCase();
+    const symbol = normalizeCostBasisSymbol(costBasisActiveSymbol);
     const tradeDraft = { ...costBasisNewTrade, type: typeOverride };
     const priceNum = parseFloat(tradeDraft.price);
     const sharesNum = parseFloat(tradeDraft.shares);
@@ -6191,8 +6193,18 @@ function MainApp({ user, onLogout }) {
                   </button>
                   <button
                     onClick={() => {
-                      const sym = normalizeCostBasisSymbol(costBasisNewSymbol);
-                      if (!sym) return;
+                      const sym = normalizeStrictSymbolKey(costBasisNewSymbol);
+                      if (!sym) {
+                        showConfirm({
+                          title: t(language, 'trades.invalidSymbolTitle', '股票代码格式不正确'),
+                          desc: t(language, 'trades.invalidSymbolDesc', '请输入正确的股票代码,不要包含空格或特殊字符。'),
+                          confirmText: t(language, 'trades.close', '关闭'),
+                          confirmStyle: 'primary',
+                          icon: '!',
+                          showCancel: false,
+                        });
+                        return;
+                      }
                       if (costBasisData[sym]) {
                         showConfirm({
                           title: t(language, 'trades.symbolExistsTitle', '{{symbol}} 已存在', { symbol: sym }),

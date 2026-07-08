@@ -4,6 +4,37 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 历史股票代码落库修复
+
+- Commit: pending。
+- Deployment: pending。
+- Background: `v10.7.9.235` 已严格拦截新输入中的非法股票代码,但已注册用户历史波段记录里仍存在 `N VDA` 这类内部空格 ticker;这些旧记录会经工具行情集合继续进入 `/api/quote`,导致设置页诊断日志持续出现 `股票代码不合法: N VDA` 并影响行情显示。用户要求直接重置/修复这类数据库脏代码。
+- Changes:
+  - `src/lib/db.js` 新增 `repairCurrentUserStockSymbols`,登录后使用当前用户自己的 Supabase 会话按 RLS 修复 `trades`、`stock_trades`、`watchlist` 和 `cost_basis_trades` 中可安全修复的短 ticker 空格脏数据,例如 `N VDA` -> `NVDA`。
+  - `fetchAllUserData` 先运行当前用户 symbol repair,再拉取业务数据,确保重新打开应用后读取到的是修复后的股票代码。
+  - legacy `trades` 读取改为容错标准化并过滤非法 symbol;波段记录写入改为严格校验,拒绝含空格或特殊字符的股票代码。
+  - `App.jsx` 的名称本地化、工具 quote rows 和摊薄工具 active symbol 统一走标准化路径,避免 `N VDA` 从波段记录或摊薄工具进入行情集合。
+  - 摊薄工具新增股票改为严格校验,不再把错误输入静默修复后写入。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.236`。
+  - 本次不改变登录权限、邀请码规则、交易收益计算、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/db.js`
+  - `src/App.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/symbols.test.js tests/stock-universe.test.js tests/tool-ledger-boundaries.test.js`: pass, 43/43 tests。
+  - `npm test`: pass, 164/164 tests。
+  - `npm run build`: pass;new chunks include `App-e5AUmWBd.js`,`SettingsTab-OFkG8tu3.js`,`settingsChangelog-yxr3P-dA.js`,`symbols-BLHitJ3E.js`。
+  - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.236`,`历史股票代码落库修复`,`股票代码格式不正确` and `SettingsTab` version markers。
+- Production verification: pending。
+- Rollback: 回退本条涉及的当前用户 symbol repair、legacy trades 严格写入、工具行情集合标准化、摊薄工具严格新增、`v10.7.9.236` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.235`;不影响登录权限、邀请码规则、交易收益计算、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 股票代码输入严格校验
 
 - Commit: runtime code commit `24172f86abfad32549765b737b5cc43b6659a610`;deployment verification docs commit is the current documentation-only follow-up commit。

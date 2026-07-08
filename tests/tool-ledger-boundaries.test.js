@@ -133,12 +133,31 @@ test('wave record entry writes legacy trades before main ledger stock_trades', (
   const waveBranch = appSource.indexOf("tradeEntryScope === 'wave'");
   const waveInsert = appSource.indexOf('await db.insertTrade', waveBranch);
   const ledgerInsert = appSource.indexOf('await db.insertStockTrade', waveBranch);
+  const insertTradeStart = dbSource.indexOf('export const insertTrade = async');
+  const insertTradeEnd = dbSource.indexOf('export const deleteTrade = async', insertTradeStart);
+  const insertTradeBlock = dbSource.slice(insertTradeStart, insertTradeEnd);
 
   assert.ok(waveBranch > -1, 'missing explicit wave entry scope branch');
   assert.ok(waveInsert > waveBranch, 'wave branch must insert into legacy trades');
   assert.ok(ledgerInsert > waveInsert, 'main stock_trades insert must stay outside the wave branch');
   assert.ok(tradesTabSource.includes("setTradeEntryScope('wave')"), 'wave quick-add must open the modal in wave scope');
   assert.ok(tradesTabSource.includes("setTradeEntryScope('ledger')"), 'main ledger entries must open the modal in ledger scope');
+  assert.ok(insertTradeBlock.includes('normalizeStrictUserStockSymbol(trade.symbol)'), 'legacy wave trades should reject invalid ticker input at db write time');
+  assert.ok(insertTradeBlock.includes("throw new Error('股票代码格式不正确')"), 'legacy wave trades should expose the same invalid ticker error');
+});
+
+test('legacy stock symbols are repaired before quote universe construction', () => {
+  const normalizeNameStart = appSource.indexOf('function normalizeStockSymbolForName');
+  const normalizeNameEnd = appSource.indexOf('function isPlaceholderStockName', normalizeNameStart);
+  const normalizeNameBlock = appSource.slice(normalizeNameStart, normalizeNameEnd);
+  const fetchAllStart = dbSource.indexOf('export const fetchAllUserData = async');
+  const fetchAllEnd = dbSource.indexOf('// ============ ACCOUNTS', fetchAllStart);
+  const fetchAllBlock = dbSource.slice(fetchAllStart, fetchAllEnd);
+
+  assert.ok(dbSource.includes('export const repairCurrentUserStockSymbols'), 'db layer should provide current-user persisted symbol repair');
+  assert.ok(fetchAllBlock.includes('repairCurrentUserStockSymbols(user)'), 'cloud load should repair persisted dirty symbols before fetching app data');
+  assert.ok(normalizeNameBlock.includes('normalizeSymbolKey(symbol)'), 'local name and tool quote rows should repair legacy ticker whitespace');
+  assert.ok(appSource.includes('const sym = normalizeStrictSymbolKey(costBasisNewSymbol);'), 'cost-basis new symbol input should reject whitespace instead of repairing it');
 });
 
 test('tool submissions require confirmation and duplicate-submit guards', () => {
@@ -211,8 +230,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.235'), 'settings version badge should document the strict stock symbol input update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.235'), 'settings changelog should document the strict stock symbol input update');
+  assert.ok(settingsTabSource.includes('v10.7.9.236'), 'settings version badge should document the persisted stock symbol repair update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.236'), 'settings changelog should document the persisted stock symbol repair update');
+  assert.ok(settingsChangelogSource.includes('历史股票代码落库修复'), 'settings changelog should describe the persisted stock symbol repair update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.235'), 'settings changelog should retain the strict stock symbol input update');
   assert.ok(settingsChangelogSource.includes('股票代码输入严格校验'), 'settings changelog should describe the strict stock symbol input update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.234'), 'settings changelog should retain the stock detail typography rebalance update');
   assert.ok(settingsChangelogSource.includes('个股详情文字层级回调'), 'settings changelog should retain the stock detail typography rebalance update');
@@ -554,7 +575,7 @@ test('cost basis tool uses dark custom UI without legacy title icon or native al
 
 test('cost basis tool filters empty symbols before rendering or saving', () => {
   assert.ok(appSource.includes('sanitizeCostBasisData'), 'cost-basis state should sanitize stale local/cloud records');
-  assert.ok(appSource.includes('normalizeCostBasisSymbol(costBasisNewSymbol)'), 'new cost-basis symbols must be normalized before saving');
+  assert.ok(appSource.includes('normalizeStrictSymbolKey(costBasisNewSymbol)'), 'new cost-basis symbols must be strictly validated before saving');
   assert.ok(tradesTabSource.includes('Object.keys(costBasisData).map(sym => normalizeCostBasisSymbol(sym)).filter(Boolean)'), 'cost-basis tabs must filter blank symbols before rendering');
   assert.ok(dbSource.includes('if (!sym) continue;'), 'cost-basis cloud fetch must ignore invalid blank symbols');
   assert.ok(dbSource.includes("if (!normalizedSymbol) throw new Error('缺少有效股票代码');"), 'cost-basis cloud writes must reject blank symbols');
@@ -1063,7 +1084,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.235'), 'settings version badge should document the latest stock symbol validation update');
+  assert.ok(settingsTabSource.includes('v10.7.9.236'), 'settings version badge should document the latest stock symbol repair update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1323,7 +1344,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.235'), 'settings version badge should document the latest stock symbol validation update');
+  assert.ok(settingsTabSource.includes('v10.7.9.236'), 'settings version badge should document the latest stock symbol repair update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

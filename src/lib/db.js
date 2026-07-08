@@ -37,6 +37,69 @@ const normalizeCostBasisSymbol = (symbol) => {
   return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
 };
 
+const normalizeStrictCostBasisSymbol = (symbol) => {
+  const value = normalizeStrictUserStockSymbol(symbol);
+  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
+};
+
+const normalizePersistedSymbol = (symbol) => normalizeUserStockSymbol(symbol);
+
+const repairSymbolRows = async ({ userId, table, select = 'id,symbol', symbolColumn = 'symbol' }) => {
+  const summary = { table, scanned: 0, repaired: 0, skipped: 0 };
+  const { data, error } = await supabase
+    .from(table)
+    .select(select)
+    .eq('user_id', userId);
+  if (error) {
+    console.warn(`[symbolRepair] ${table} 读取失败:`, error.message || error);
+    summary.error = error.message || String(error);
+    return summary;
+  }
+
+  for (const row of (data || [])) {
+    summary.scanned += 1;
+    const rawSymbol = row?.[symbolColumn];
+    const rawTrimmed = String(rawSymbol || '').trim();
+    const normalizedSymbol = normalizePersistedSymbol(rawSymbol);
+    if (!normalizedSymbol) {
+      if (rawTrimmed) summary.skipped += 1;
+      continue;
+    }
+    if (rawTrimmed === normalizedSymbol) continue;
+
+    let query = supabase
+      .from(table)
+      .update({ [symbolColumn]: normalizedSymbol })
+      .eq('user_id', userId);
+    if (row?.id != null) query = query.eq('id', row.id);
+    else query = query.eq(symbolColumn, rawSymbol);
+
+    const { error: updateError } = await query;
+    if (updateError) {
+      console.warn(`[symbolRepair] ${table} ${rawTrimmed} -> ${normalizedSymbol} 失败:`, updateError.message || updateError);
+      summary.skipped += 1;
+      continue;
+    }
+    summary.repaired += 1;
+  }
+  return summary;
+};
+
+export const repairCurrentUserStockSymbols = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return { repaired: 0, tables: [] };
+
+  const tables = await Promise.all([
+    repairSymbolRows({ userId: user.id, table: 'trades' }),
+    repairSymbolRows({ userId: user.id, table: 'stock_trades' }),
+    repairSymbolRows({ userId: user.id, table: 'watchlist' }),
+    repairSymbolRows({ userId: user.id, table: 'cost_basis_trades' }),
+  ]);
+  const repaired = tables.reduce((sum, item) => sum + (item.repaired || 0), 0);
+  if (repaired > 0) console.info('[symbolRepair] 已修复历史股票代码:', { repaired, tables });
+  return { repaired, tables };
+};
+
 // ============ TRADES (交易) ============
 
 export const fetchTrades = async (preUser = null) => {
@@ -55,13 +118,13 @@ export const fetchTrades = async (preUser = null) => {
   // 字段映射:数据库蛇形命名 → 前端驼峰命名(我们直接用蛇形)
   const trades = (data || []).map(t => ({
     id: t.id,
-    symbol: t.symbol,
+    symbol: normalizeUserStockSymbol(t.symbol),
     name: t.name,
     side: t.side,
     date: t.date,
     price: Number(t.price),
     shares: Number(t.shares),
-  }));
+  })).filter((trade) => trade.symbol);
   cacheSet('trades', trades);
   return trades;
 };
@@ -70,12 +133,15 @@ export const insertTrade = async (trade) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
+  const symbol = normalizeStrictUserStockSymbol(trade.symbol);
+  if (!symbol) throw new Error('股票代码格式不正确');
+
   const { data, error } = await supabase
     .from('trades')
     .insert({
       user_id: user.id,
-      symbol: trade.symbol,
-      name: trade.name,
+      symbol,
+      name: trade.name || symbol,
       side: trade.side,
       date: trade.date,
       price: trade.price,
@@ -86,7 +152,7 @@ export const insertTrade = async (trade) => {
   if (error) throw error;
   return {
     id: data.id,
-    symbol: data.symbol,
+    symbol: normalizeUserStockSymbol(data.symbol),
     name: data.name,
     side: data.side,
     date: data.date,
@@ -387,6 +453,11 @@ export const fetchAllUserData = async () => {
     };
   }
 
+  const symbolRepair = await repairCurrentUserStockSymbols(user).catch((error) => {
+    console.warn('[fetchAllUserData] 历史股票代码修复失败:', error.message || error);
+    return null;
+  });
+
   const results = await Promise.allSettled([
     fetchTrades(user),            // 0
     fetchStockTrades(user),       // 1
@@ -432,6 +503,7 @@ export const fetchAllUserData = async () => {
     disciplines:    getValue(9),
     reviewLogs:     getValue(10),
     yearlyActuals:  getValue(11),
+    _symbolRepair: symbolRepair,
     // 🔑 失败表清单 (App 层决定是否显示警告)
     _failedTables: failedTables,
   };
@@ -877,7 +949,7 @@ export const fetchCostBasisTrades = async (preUser = null) => {
 export const insertCostBasisTrade = async (symbol, trade) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
-  const normalizedSymbol = normalizeCostBasisSymbol(symbol);
+  const normalizedSymbol = normalizeStrictCostBasisSymbol(symbol);
   if (!normalizedSymbol) throw new Error('缺少有效股票代码');
 
   const { error } = await supabase
