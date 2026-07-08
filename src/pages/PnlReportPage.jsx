@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw } from 'lucide-react';
+import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { buildPnlReportSnapshots } from '../lib/pnlReportSnapshots.js';
@@ -61,6 +61,34 @@ function displayName(row, englishMode) {
     微软: 'Microsoft',
   };
   return map[row.name] || row.name || row.symbol;
+}
+
+function dateKeyToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isDateKey(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function normalizeDatePair(startDate, endDate) {
+  if (!isDateKey(startDate) || !isDateKey(endDate)) return null;
+  return startDate <= endDate
+    ? { startDate, endDate }
+    : { startDate: endDate, endDate: startDate };
+}
+
+function buildCalendarDays(monthLabelValue) {
+  const [yearText, monthText] = String(monthLabelValue || '').split('/');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return [];
+  const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ];
 }
 
 function convertUsd(value, displayRate) {
@@ -185,12 +213,19 @@ export default function PnlReportPage({ ctx = {} }) {
   const [currencyMenuOpen, setCurrencyMenuOpen] = React.useState(false);
   const displayCurrency = reportCurrencyMode === 'USD' ? 'USD' : 'CNY';
   const displayRate = displayCurrency === 'CNY' ? (toNumber(usdRate) || toNumber(investmentSummary?.usdRate) || USD_CNY_FALLBACK) : 1;
-  const [range, setRange] = React.useState('all');
+  const [range, setRange] = React.useState('ytd');
+  const [customRange, setCustomRange] = React.useState(null);
+  const [dateFilterOpen, setDateFilterOpen] = React.useState(false);
+  const [dateFilterMode, setDateFilterMode] = React.useState('single');
+  const [draftDate, setDraftDate] = React.useState(dateKeyToday());
+  const [draftStartDate, setDraftStartDate] = React.useState(dateKeyToday());
+  const [draftEndDate, setDraftEndDate] = React.useState(dateKeyToday());
   const [chartMode, setChartMode] = React.useState('pnl');
   const [calendarMode, setCalendarMode] = React.useState('pnl');
   const [rankMode, setRankMode] = React.useState('gain');
   const [portfolioSnapshots, setPortfolioSnapshots] = React.useState([]);
   const [symbolSnapshots, setSymbolSnapshots] = React.useState([]);
+  const [baselineSymbolSnapshots, setBaselineSymbolSnapshots] = React.useState([]);
   const [rebuildState, setRebuildState] = React.useState(null);
   const [reportLoading, setReportLoading] = React.useState(false);
   const [reportError, setReportError] = React.useState('');
@@ -206,14 +241,7 @@ export default function PnlReportPage({ ctx = {} }) {
     try {
       const snapshots = await db.fetchPnlReportSnapshots(null, 370);
       setPortfolioSnapshots(snapshots);
-      const latestDate = snapshots[0]?.snapshotDate;
-      const [symbols, state] = await Promise.all([
-        latestDate && db.fetchPnlReportSymbolSnapshots
-          ? db.fetchPnlReportSymbolSnapshots(latestDate)
-          : Promise.resolve([]),
-        db.fetchPnlReportRebuildState ? db.fetchPnlReportRebuildState() : Promise.resolve(null),
-      ]);
-      setSymbolSnapshots(symbols);
+      const state = db.fetchPnlReportRebuildState ? await db.fetchPnlReportRebuildState() : null;
       setRebuildState(state);
     } catch (error) {
       setReportError(error?.message || String(error));
@@ -229,11 +257,48 @@ export default function PnlReportPage({ ctx = {} }) {
   const reportData = React.useMemo(() => buildPnlReportViewModel({
     portfolioSnapshots,
     symbolSnapshots,
+    baselineSymbolSnapshots,
     stockTrades,
     benchmarkRows,
     benchmarkSymbol: 'QQQ',
     range,
-  }), [benchmarkRows, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
+    customRange,
+  }), [baselineSymbolSnapshots, benchmarkRows, customRange, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadSymbolSnapshotsForReport() {
+      if (!db?.fetchPnlReportSymbolSnapshots || !reportData.snapshotDate) {
+        setSymbolSnapshots([]);
+        setBaselineSymbolSnapshots([]);
+        return;
+      }
+      setSymbolSnapshots([]);
+      setBaselineSymbolSnapshots([]);
+      try {
+        const [symbols, baselineSymbols] = await Promise.all([
+          db.fetchPnlReportSymbolSnapshots(reportData.snapshotDate),
+          reportData.baselineSnapshotDate
+            ? db.fetchPnlReportSymbolSnapshots(reportData.baselineSnapshotDate)
+            : Promise.resolve([]),
+        ]);
+        if (!cancelled) {
+          setSymbolSnapshots(symbols);
+          setBaselineSymbolSnapshots(baselineSymbols);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSymbolSnapshots([]);
+          setBaselineSymbolSnapshots([]);
+          setReportError(error?.message || String(error));
+        }
+      }
+    }
+    loadSymbolSnapshotsForReport();
+    return () => {
+      cancelled = true;
+    };
+  }, [db, reportData.baselineSnapshotDate, reportData.snapshotDate, user?.id]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -311,6 +376,36 @@ export default function PnlReportPage({ ctx = {} }) {
     }
   }, [db, investmentSummary?.cashUsd, language, loadReportSnapshots, quoteRows, stockTrades]);
 
+  const openDateFilter = React.useCallback(() => {
+    const fallbackEnd = customRange?.endDate
+      || reportData.benchmarkEndDate
+      || portfolioSnapshots[0]?.snapshotDate
+      || dateKeyToday();
+    const fallbackStart = customRange?.startDate
+      || reportData.benchmarkStartDate
+      || fallbackEnd;
+    const normalized = normalizeDatePair(fallbackStart, fallbackEnd) || {
+      startDate: fallbackEnd,
+      endDate: fallbackEnd,
+    };
+    const single = normalized.startDate === normalized.endDate;
+    setDateFilterMode(single ? 'single' : 'range');
+    setDraftDate(normalized.endDate);
+    setDraftStartDate(normalized.startDate);
+    setDraftEndDate(normalized.endDate);
+    setDateFilterOpen(true);
+  }, [customRange, portfolioSnapshots, reportData.benchmarkEndDate, reportData.benchmarkStartDate]);
+
+  const confirmDateFilter = React.useCallback(() => {
+    const normalized = dateFilterMode === 'single'
+      ? normalizeDatePair(draftDate, draftDate)
+      : normalizeDatePair(draftStartDate, draftEndDate);
+    if (!normalized) return;
+    setCustomRange(normalized);
+    setRange('custom');
+    setDateFilterOpen(false);
+  }, [dateFilterMode, draftDate, draftEndDate, draftStartDate]);
+
   const positiveColor = marketHexColor(1, marketColorMode);
   const negativeColor = marketHexColor(-1, marketColorMode);
   const totalColor = marketHexColor(reportData.totalPnlUsd, marketColorMode);
@@ -323,14 +418,21 @@ export default function PnlReportPage({ ctx = {} }) {
     ['1y', t(language, 'pnlReport.range.1y', '近 1 年')],
     ['all', t(language, 'pnlReport.range.all', '全部')],
   ];
+  const customRangeIsSingleDay = customRange?.startDate && customRange.startDate === customRange.endDate;
+  const customRangeLabel = customRangeIsSingleDay
+    ? t(language, 'pnlReport.range.singleDay', '单日')
+    : t(language, 'pnlReport.range.custom', '自定义');
   const calendarValues = new Map(reportData.calendar.map(item => [item.day, item]));
+  const calendarDays = buildCalendarDays(reportData.selectedMonth);
   const calendarMagnitudeMax = Math.max(1, ...reportData.calendar.map((item) => {
     if (calendarMode === 'rate') return Math.abs(toNumber(item.rate));
     return Math.abs(convertUsd(item.valueUsd, displayRate));
   }));
   const rankingRows = reportData.rankings[rankMode] || [];
   const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
-  const currentRangeLabel = rangeItems.find(([id]) => id === range)?.[1] || t(language, 'pnlReport.range.all', '全部');
+  const currentRangeLabel = range === 'custom'
+    ? customRangeLabel
+    : rangeItems.find(([id]) => id === range)?.[1] || t(language, 'pnlReport.range.all', '全部');
   const benchmarkActionLabel = reportData.outperformPct == null
     ? t(language, 'pnlReport.compare.vs', '对比')
     : reportData.outperformPct >= 0
@@ -340,6 +442,9 @@ export default function PnlReportPage({ ctx = {} }) {
   const benchmarkCompareLabel = englishMode
     ? `${currentRangeLabel} ${benchmarkActionLabel} ${benchmarkName}`
     : `${currentRangeLabel}${benchmarkActionLabel} ${benchmarkName}`;
+  const rankingTitle = englishMode
+    ? `${currentRangeLabel} ${t(language, 'pnlReport.rankingShort', 'P&L Ranking')}`
+    : `${currentRangeLabel}${t(language, 'pnlReport.rankingShort', '盈亏排行榜')}`;
   const statusText = reportLoading
     ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
     : reportError
@@ -348,7 +453,9 @@ export default function PnlReportPage({ ctx = {} }) {
         ? `${t(language, 'pnlReport.dirtyNotice', '交易已更新,建议重新生成快照')} · ${rebuildState.dirtyFromDate}`
         : reportData.hasData
           ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库收益快照。手动生成只更新今日快照,不影响交易页实时显示。')
-          : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成今日快照后,页面会读取数据库里的真实报表数据。'));
+          : range === 'custom'
+            ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
+            : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成今日快照后,页面会读取数据库里的真实报表数据。'));
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white" style={{ fontFamily: REPORT_FONT }}>
@@ -370,7 +477,12 @@ export default function PnlReportPage({ ctx = {} }) {
           </div>
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/52 transition active:scale-95"
+            onClick={openDateFilter}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-95 ${
+              range === 'custom'
+                ? 'border-[#f6b54b]/55 bg-[#f6b54b]/14 text-[#ffd18a]'
+                : 'border-white/10 bg-white/[0.055] text-white/52'
+            }`}
             aria-label={t(language, 'pnlReport.filter', '筛选')}
           >
             <Filter className="h-4 w-4" />
@@ -378,10 +490,18 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
         <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
           {rangeItems.map(([id, label]) => (
-            <RangePill key={id} active={range === id} onClick={() => setRange(id)}>
+            <RangePill key={id} active={range === id} onClick={() => {
+              setRange(id);
+              setCustomRange(null);
+            }}>
               {label}
             </RangePill>
           ))}
+          {range === 'custom' && (
+            <RangePill active onClick={openDateFilter}>
+              {customRangeLabel}
+            </RangePill>
+          )}
         </div>
       </header>
 
@@ -420,10 +540,10 @@ export default function PnlReportPage({ ctx = {} }) {
           )}
         </div>
         <div className="mt-3 text-[35px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
-          {signedCurrency(reportTotal, displayCurrency, 2)}
+          {reportData.hasData ? signedCurrency(reportTotal, displayCurrency, 2) : '--'}
         </div>
         <div className={`mt-2 text-[15px] font-semibold tabular-nums ${marketTextClass(reportData.totalPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-          {signedPct(reportData.totalPnlPct, 2)}
+          {reportData.hasData ? signedPct(reportData.totalPnlPct, 2) : '--'}
         </div>
         <div className="mt-3 text-[12px] text-white/38">{reportData.startDate} - {reportData.endDate}</div>
 
@@ -446,7 +566,7 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
           <div className="text-[12px] text-white/46">{t(language, 'pnlReport.turnover', '累计成交金额')} ({displayCurrency})</div>
-          <div className="mt-3 text-[19px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(convertUsd(reportData.turnoverUsd, displayRate), 2)}</div>
+          <div className="mt-3 text-[19px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{reportData.hasData ? fmt(convertUsd(reportData.turnoverUsd, displayRate), 2) : '--'}</div>
           <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
@@ -482,7 +602,7 @@ export default function PnlReportPage({ ctx = {} }) {
           ))}
         </div>
         <div className="mt-3 grid grid-cols-7 gap-1 text-center">
-          {[null, null, null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31].map((day, index) => {
+          {calendarDays.map((day, index) => {
             const calendarItem = day ? calendarValues.get(day) : undefined;
             const valueUsd = calendarItem?.valueUsd;
             const rate = calendarItem?.rate;
@@ -554,7 +674,7 @@ export default function PnlReportPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold text-white">{t(language, 'pnlReport.ranking', '全部盈亏排行榜')} ({displayCurrency})</h2>
+          <h2 className="text-[17px] font-semibold text-white">{rankingTitle} ({displayCurrency})</h2>
           <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
         </div>
         <div className="mt-4 grid grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
@@ -610,6 +730,88 @@ export default function PnlReportPage({ ctx = {} }) {
           {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成今日快照')}
         </button>
       </div>
+
+      {dateFilterOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">
+          <div className="w-full max-w-[430px] rounded-t-[26px] border border-white/10 bg-[#0b0f14] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[18px] font-semibold text-white">{t(language, 'pnlReport.dateFilterTitle', '时间筛选')}</h2>
+              <button
+                type="button"
+                onClick={() => setDateFilterOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/48 transition active:scale-95"
+                aria-label={t(language, 'pnlReport.closeFilter', '关闭筛选')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
+              <SegmentButton active={dateFilterMode === 'single'} onClick={() => setDateFilterMode('single')}>{t(language, 'pnlReport.singleDay', '单日')}</SegmentButton>
+              <SegmentButton active={dateFilterMode === 'range'} onClick={() => setDateFilterMode('range')}>{t(language, 'pnlReport.dateRange', '区间')}</SegmentButton>
+            </div>
+
+            {dateFilterMode === 'single' ? (
+              <div className="mt-5">
+                <label className="text-[12px] text-white/42">{t(language, 'pnlReport.reportDate', '报表日期')}</label>
+                <input
+                  type="date"
+                  value={draftDate}
+                  onChange={(event) => setDraftDate(event.target.value)}
+                  className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-center text-[15px] font-normal text-white outline-none [color-scheme:dark]"
+                />
+              </div>
+            ) : (
+              <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                <div>
+                  <label className="text-[12px] text-white/42">{t(language, 'pnlReport.startDate', '开始日期')}</label>
+                  <input
+                    type="date"
+                    value={draftStartDate}
+                    onChange={(event) => setDraftStartDate(event.target.value)}
+                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
+                  />
+                </div>
+                <div className="mb-3 text-[14px] text-white/30">-</div>
+                <div>
+                  <label className="text-[12px] text-white/42">{t(language, 'pnlReport.endDate', '结束日期')}</label>
+                  <input
+                    type="date"
+                    value={draftEndDate}
+                    onChange={(event) => setDraftEndDate(event.target.value)}
+                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-[12px] leading-5 text-white/38">
+              {t(language, 'pnlReport.dateFilterHint', '只读取所选日期已有的收益快照。没有快照的日期不会用其他日期数据替代。')}
+            </div>
+
+            <div className="mt-5 grid grid-cols-[0.8fr_1.2fr] gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setRange('ytd');
+                  setCustomRange(null);
+                  setDateFilterOpen(false);
+                }}
+                className="h-11 rounded-2xl border border-white/10 bg-white/[0.055] text-[14px] font-normal text-white/58 transition active:scale-[0.98]"
+              >
+                {t(language, 'pnlReport.resetYtd', '恢复本年')}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDateFilter}
+                className="h-11 rounded-2xl bg-[#f6b54b] text-[14px] font-semibold text-[#101318] shadow-[0_14px_30px_rgba(246,181,75,0.20)] transition active:scale-[0.98]"
+              >
+                {t(language, 'pnlReport.confirmFilter', '确定')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

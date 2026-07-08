@@ -14,6 +14,23 @@ function normalizeDate(value) {
   return date.toISOString().slice(0, 10);
 }
 
+function dateKeyOrNull(value) {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeCustomRange(customRange) {
+  const rawStart = dateKeyOrNull(customRange?.startDate || customRange?.from);
+  const rawEnd = dateKeyOrNull(customRange?.endDate || customRange?.to);
+  if (!rawStart || !rawEnd) return null;
+  return rawStart <= rawEnd
+    ? { startDate: rawStart, endDate: rawEnd }
+    : { startDate: rawEnd, endDate: rawStart };
+}
+
 function dateFromKey(dateKey) {
   const date = new Date(`${dateKey}T00:00:00Z`);
   return Number.isNaN(date.getTime()) ? new Date() : date;
@@ -109,8 +126,12 @@ export function getPnlReportRangeBounds({
   portfolioSnapshots = [],
   stockTrades = [],
   range = 'all',
+  customRange = null,
   now = new Date(),
 } = {}) {
+  const normalizedCustomRange = normalizeCustomRange(customRange);
+  if (range === 'custom' && normalizedCustomRange) return normalizedCustomRange;
+
   const snapshots = (Array.isArray(portfolioSnapshots) ? portfolioSnapshots : [])
     .filter((snapshot) => snapshot?.snapshotDate)
     .sort((a, b) => String(a.snapshotDate).localeCompare(String(b.snapshotDate)));
@@ -123,9 +144,11 @@ export function getPnlReportRangeBounds({
   return { startDate, endDate };
 }
 
-function filterSnapshotsByBounds(snapshots, range, startDate) {
-  if (range === 'all') return snapshots;
-  return snapshots.filter((snapshot) => String(snapshot.snapshotDate) >= startDate);
+function filterSnapshotsByBounds(snapshots, startDate, endDate) {
+  return snapshots.filter((snapshot) => {
+    const date = String(snapshot.snapshotDate);
+    return date >= startDate && date <= endDate;
+  });
 }
 
 function buildCalendar(snapshots, selectedDate) {
@@ -140,14 +163,36 @@ function buildCalendar(snapshots, selectedDate) {
     .filter((item) => item.day > 0);
 }
 
-function rankSymbols(symbolSnapshots, direction) {
+function symbolSnapshotMap(rows = []) {
+  const map = new Map();
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const symbol = normalizeSymbol(row?.symbol);
+    if (symbol) map.set(symbol, row);
+  });
+  return map;
+}
+
+function symbolPeriodPnl(row, baselineRow, range, isSingleDay) {
+  if (isSingleDay) return row.dailyPnlUsd == null ? null : toNumber(row.dailyPnlUsd);
+  if (range === 'all') return toNumber(row.cumulativePnlUsd);
+  if (baselineRow) return toNumber(row.cumulativePnlUsd) - toNumber(baselineRow.cumulativePnlUsd);
+  return null;
+}
+
+function rankSymbols(symbolSnapshots, direction, { baselineSymbolSnapshots = [], range = 'all', isSingleDay = false } = {}) {
+  const baselineBySymbol = symbolSnapshotMap(baselineSymbolSnapshots);
   const rows = (Array.isArray(symbolSnapshots) ? symbolSnapshots : [])
     .filter((row) => row?.symbol)
-    .map((row) => ({
-      symbol: row.symbol,
-      name: row.name || row.symbol,
-      pnlUsd: toNumber(row.cumulativePnlUsd),
-    }));
+    .map((row) => {
+      const symbol = normalizeSymbol(row.symbol);
+      const pnlUsd = symbolPeriodPnl(row, baselineBySymbol.get(symbol), range, isSingleDay);
+      return {
+        symbol,
+        name: row.name || row.symbol,
+        pnlUsd,
+      };
+    })
+    .filter((row) => row.pnlUsd != null);
 
   return rows
     .filter((row) => direction === 'gain' ? row.pnlUsd >= 0 : row.pnlUsd < 0)
@@ -165,10 +210,23 @@ function getPeriodBaseline(chronological, range, startDate, trendSource) {
   return prior || trendSource[0] || null;
 }
 
-function computePeriodValues(latest, trendSource, baseline, range) {
+function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay = false } = {}) {
   if (!latest) return { pnlUsd: 0, pnlPct: 0, baselinePct: 0 };
   const latestPnlUsd = toNumber(latest.cumulativePnlUsd);
   const latestPnlPct = toNumber(latest.cumulativePnlPct);
+
+  if (isSingleDay) {
+    const dailyPnlUsd = latest.dailyPnlUsd == null ? null : toNumber(latest.dailyPnlUsd);
+    const dailyPnlPct = latest.dailyPnlPct == null ? null : toNumber(latest.dailyPnlPct);
+    if (dailyPnlUsd != null && dailyPnlPct != null) {
+      return {
+        pnlUsd: dailyPnlUsd,
+        pnlPct: dailyPnlPct,
+        baselinePct: latestPnlPct - dailyPnlPct,
+      };
+    }
+  }
+
   if (range === 'all' || !baseline) {
     return { pnlUsd: latestPnlUsd, pnlPct: latestPnlPct, baselinePct: 0 };
   }
@@ -283,7 +341,7 @@ function buildBenchmarkContext(rows, startDate, endDate) {
 
 function buildTrendAxisDates({ trendSource, benchmarkRows, startDate, endDate, range }) {
   const dates = new Set();
-  if (range !== 'all') {
+  if (range !== 'all' || startDate === endDate) {
     dates.add(startDate);
     dates.add(endDate);
   }
@@ -300,26 +358,36 @@ function buildTrendAxisDates({ trendSource, benchmarkRows, startDate, endDate, r
 export function buildPnlReportViewModel({
   portfolioSnapshots = [],
   symbolSnapshots = [],
+  baselineSymbolSnapshots = [],
   stockTrades = [],
   benchmarkRows = [],
   benchmarkSymbol = 'QQQ',
   range = 'all',
+  customRange = null,
   now = new Date(),
 } = {}) {
   const sortedDesc = (Array.isArray(portfolioSnapshots) ? portfolioSnapshots : [])
     .filter((snapshot) => snapshot?.snapshotDate)
     .sort((a, b) => String(b.snapshotDate).localeCompare(String(a.snapshotDate)));
-  const latest = sortedDesc[0] || null;
+  const globalLatest = sortedDesc[0] || null;
   const chronological = [...sortedDesc].reverse();
-  const ranged = filterPnlSnapshotsByRange(chronological, range, now);
-  const trendSource = ranged.length > 0 ? ranged : chronological;
+  const fallbackDate = globalLatest?.snapshotDate || normalizeDate(now);
+  const { startDate: rangeStartDate, endDate: rangeEndDate } = getPnlReportRangeBounds({
+    portfolioSnapshots: chronological,
+    stockTrades,
+    range,
+    customRange,
+    now: fallbackDate,
+  });
 
-  if (!latest) {
+  if (!globalLatest) {
     return {
       hasData: false,
-      startDate: '--',
-      endDate: '--',
-      selectedMonth: monthLabel(normalizeDate(now)),
+      snapshotDate: null,
+      baselineSnapshotDate: null,
+      startDate: displayDate(rangeStartDate),
+      endDate: displayDate(rangeEndDate),
+      selectedMonth: monthLabel(rangeEndDate),
       updatedAt: '--',
       totalPnlUsd: 0,
       totalPnlPct: 0,
@@ -343,19 +411,58 @@ export function buildPnlReportViewModel({
     };
   }
 
-  const gainRows = rankSymbols(symbolSnapshots, 'gain');
-  const lossRows = rankSymbols(symbolSnapshots, 'loss');
+  const bounded = filterSnapshotsByBounds(chronological, rangeStartDate, rangeEndDate);
+  const latest = range === 'custom'
+    ? bounded.find((snapshot) => String(snapshot.snapshotDate) === String(rangeEndDate)) || null
+    : bounded.at(-1) || globalLatest;
+
+  if (!latest) {
+    return {
+      hasData: false,
+      snapshotDate: null,
+      baselineSnapshotDate: null,
+      startDate: displayDate(rangeStartDate),
+      endDate: displayDate(rangeEndDate),
+      selectedMonth: monthLabel(rangeEndDate),
+      updatedAt: '--',
+      totalPnlUsd: 0,
+      totalPnlPct: 0,
+      turnoverUsd: 0,
+      tradeStockCount: 0,
+      outperformPct: null,
+      benchmarkSymbol,
+      benchmarkStartDate: rangeStartDate,
+      benchmarkEndDate: rangeEndDate,
+      benchmarkReturnPct: null,
+      trend: [],
+      calendar: buildCalendar(chronological, rangeEndDate),
+      summary: {
+        stockPnlUsd: 0,
+        best: null,
+        worst: null,
+      },
+      rankings: {
+        gain: [],
+        loss: [],
+      },
+    };
+  }
+
   const latestDate = latest.snapshotDate;
-  const { startDate: rangeStartDate, endDate: rangeEndDate } = getPnlReportRangeBounds({
-    portfolioSnapshots: chronological,
-    stockTrades,
-    range,
-    now: latestDate,
-  });
-  const bounded = filterSnapshotsByBounds(chronological, range, rangeStartDate);
-  const boundedTrendSource = bounded.length > 0 ? bounded : trendSource;
+  const boundedTrendSource = bounded.length > 0 ? bounded : [latest];
+  const isSingleDay = rangeStartDate === rangeEndDate;
   const baseline = getPeriodBaseline(chronological, range, rangeStartDate, boundedTrendSource);
-  const periodValues = computePeriodValues(latest, boundedTrendSource, baseline, range);
+  const periodValues = computePeriodValues(latest, boundedTrendSource, baseline, range, { isSingleDay });
+  const gainRows = rankSymbols(symbolSnapshots, 'gain', {
+    baselineSymbolSnapshots,
+    range,
+    isSingleDay,
+  });
+  const lossRows = rankSymbols(symbolSnapshots, 'loss', {
+    baselineSymbolSnapshots,
+    range,
+    isSingleDay,
+  });
   const tradeStats = computeTradeStats(stockTrades, range, rangeStartDate, rangeEndDate, latest, symbolSnapshots);
   const benchmark = buildBenchmarkContext(benchmarkRows, rangeStartDate, rangeEndDate);
   const benchmarkStartClose = benchmark.start?.close || null;
@@ -375,7 +482,9 @@ export function buildPnlReportViewModel({
     return {
       date,
       label: monthLabel(date),
-      pnlPct: snapshot ? (range === 'all'
+      pnlPct: snapshot ? (isSingleDay
+        ? (snapshot.dailyPnlPct == null ? null : toNumber(snapshot.dailyPnlPct))
+        : range === 'all'
         ? toNumber(snapshot.cumulativePnlPct)
         : toNumber(snapshot.cumulativePnlPct) - periodValues.baselinePct) : null,
       benchmarkPct: benchmarkPoint?.close && benchmarkStartClose
@@ -391,9 +500,13 @@ export function buildPnlReportViewModel({
 
   return {
     hasData: true,
+    snapshotDate: latestDate,
+    baselineSnapshotDate: baseline?.snapshotDate && String(baseline.snapshotDate) < String(latestDate)
+      ? baseline.snapshotDate
+      : null,
     startDate: displayDate(displayStartDate),
-    endDate: displayDate(latestDate),
-    selectedMonth: monthLabel(latestDate),
+    endDate: displayDate(rangeEndDate),
+    selectedMonth: monthLabel(rangeEndDate),
     updatedAt: displayUpdatedAt(latest.updatedAt, latestDate),
     totalPnlUsd: periodValues.pnlUsd,
     totalPnlPct: periodValues.pnlPct,

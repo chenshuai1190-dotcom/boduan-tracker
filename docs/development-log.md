@@ -4,6 +4,37 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表日期筛选
+
+- Commit: pending
+- Deployment: not deployed in this step; awaiting user confirmation if production sync is needed.
+- Background: 用户确认收益报表继续坚持“不做假数据”,默认展示应从“全部”改为“本年”;右上角筛选需要支持具体日期当日报表;盈亏排行榜也要跟随本年、近 6 月、全部等头部周期切换,标题不能一直显示“全部盈亏排行榜”。
+- Changes:
+  - `src/pages/PnlReportPage.jsx` 默认周期从 `all` 改为 `ytd`,并新增右上角时间筛选底部面板,支持单日报表和自定义日期区间。
+  - 自定义单日/区间会传入独立 `customRange`;所选结束日期没有组合快照时显示空状态和提示,不使用其他日期数据替代,避免伪造 0 收益或历史走势。
+  - `src/lib/pnlReportViewModel.js` 支持按自定义日期范围构建报表;单日报表优先使用当天 `dailyPnlUsd` / `dailyPnlPct`;趋势缺失点保持 `null`,不补点。
+  - 单股票快照读取从“固定最新日期”改为跟随当前报表结束快照日期;周期排行榜会额外读取基准单股票快照,用结束快照减基准快照计算本年/近 6 月/近 1 年等周期排行;单日排行使用当天 `dailyPnlUsd`;全部排行继续使用累计盈亏。
+  - 收益日历网格改为根据当前报表月份动态生成,不再固定 2026/07 的排布。
+  - 新增中英文文案:自定义/单日、时间筛选、所选日期无快照提示、周期排行榜短标题。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.220`。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-view-model.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 42/42 tests.
+  - `npm test` passed, 135/135 tests.
+  - `npm run build` passed; new production chunks include `PnlReportPage-_niTCj5V.js`, `SettingsTab-BnOTAiyV.js`, `settingsChangelog-BUmB49BS.js`, `i18n-Be3dt-nD.js`, and `App-B_j78Rdk.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local smoke: `curl -I http://127.0.0.1:5173/?tab=pnl-report` returned `HTTP/1.1 200 OK`.
+  - Local browser verification:收益报表默认选中 `本年`,顶部周期标题和排行榜标题同步显示 `本年`;右上角时间筛选面板可打开,支持 `单日` 和 `区间`,切到 `单日` 后只显示一个日期输入框。
+- Rollback: 回退本次提交即可恢复 `v10.7.9.219` 的收益报表币种/周期版本;不会影响收益报表数据库结构、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - Quote 品牌和收益报表文案
 
 - Commit: `b20b6ea`
