@@ -111,6 +111,7 @@ export default function TradesTab({ ctx }) {
     lookupStatus,
     marketColorMode,
     newTrade,
+    openStockDetail,
     openPnlReport,
     portfolioCurrencyMode,
     Plus,
@@ -679,8 +680,9 @@ export default function TradesTab({ ctx }) {
                           <button
                             key={position.symbol}
                             type="button"
-                            onClick={() => openTradeModal(position, 'buy')}
+                            onClick={() => (typeof openStockDetail === 'function' ? openStockDetail(position.symbol) : openTradeModal(position, 'buy'))}
                             className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-1.5 text-left active:bg-white/[0.03]"
+                            aria-label={tt('stockDetail.openAria', '打开个股收益详情')}
                           >
                             <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{nameParts.title}</span>
                             <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{nameParts.subtitle}</span>

@@ -180,6 +180,24 @@ export const fetchPnlReportSymbolSnapshots = async (snapshotDate, preUser = null
   return (data || []).map(mapPnlReportSymbolSnapshot);
 };
 
+export const fetchPnlReportSymbolSnapshotHistory = async (symbol, limit = 370, preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return [];
+
+  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+  if (!normalizedSymbol) return [];
+
+  const { data, error } = await supabase
+    .from('pnl_report_symbol_snapshots')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('symbol', normalizedSymbol)
+    .order('snapshot_date', { ascending: false })
+    .limit(Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 370);
+  if (error) throw error;
+  return (data || []).map(mapPnlReportSymbolSnapshot);
+};
+
 export const fetchPnlReportRebuildState = async (preUser = null) => {
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;

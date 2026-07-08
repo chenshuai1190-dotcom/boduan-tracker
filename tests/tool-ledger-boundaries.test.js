@@ -14,8 +14,10 @@ const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.met
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const pnlReportPageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx', import.meta.url), 'utf8');
+const stockDetailPageSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const pnlReportSnapshotsSource = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
 const pnlReportViewModelSource = readFileSync(new URL('../src/lib/pnlReportViewModel.js', import.meta.url), 'utf8');
+const stockDetailViewModelSource = readFileSync(new URL('../src/lib/stockDetailViewModel.js', import.meta.url), 'utf8');
 const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
 const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangelog.js', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
@@ -209,9 +211,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.229'), 'settings version badge should document the P&L report daily snapshot automation update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.229'), 'settings changelog should document the P&L report daily snapshot automation update');
-  assert.ok(settingsChangelogSource.includes('收益报表自动收盘快照'), 'settings changelog should describe the P&L report daily snapshot automation update');
+  assert.ok(settingsTabSource.includes('v10.7.9.230'), 'settings version badge should document the stock detail page update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.230'), 'settings changelog should document the stock detail page update');
+  assert.ok(settingsChangelogSource.includes('个股收益详情页'), 'settings changelog should describe the stock detail page update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.229'), 'settings changelog should retain the P&L report daily snapshot automation update');
+  assert.ok(settingsChangelogSource.includes('收益报表自动收盘快照'), 'settings changelog should retain the P&L report daily snapshot automation update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.228'), 'settings changelog should document the P&L report calendar style update');
   assert.ok(settingsChangelogSource.includes('收益报表日历样式微调'), 'settings changelog should describe the P&L report calendar style update');
   assert.ok(pnlDailySnapshotApiSource.includes('authorizePnlReportDailySnapshot'), 'daily P&L snapshot API should require cron authorization');
@@ -371,7 +375,7 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(appSource.includes("const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'))"), 'P&L report should be lazy-loaded as an independent page');
   assert.ok(appSource.includes('const [activePage, setActivePage] = useState(null);'), 'P&L report should use page-level state instead of becoming a bottom tab');
   assert.ok(appSource.includes("setActivePage('pnl-report')"), 'P&L report should have an explicit open action');
-  assert.ok(appSource.includes('isPnlReportPage ? <PnlReportPage ctx={tabCtx} /> : <ActiveTab ctx={tabCtx} />'), 'P&L report should render separately from the active tab component');
+  assert.ok(appSource.includes('? <PnlReportPage ctx={tabCtx} />'), 'P&L report should render separately from the active tab component');
   assert.ok(homeTabSource.includes('openPnlReport'), 'home cumulative P&L should expose the report entry point');
   assert.ok(tradesTabSource.includes('openPnlReport'), 'trade cumulative P&L should expose the report entry point');
   assert.ok(pnlReportPageSource.includes('buildPnlReportViewModel'), 'P&L report should build display data from report snapshots');
@@ -417,6 +421,22 @@ test('P&L report snapshot foundation stays isolated behind stock_trades dirty ma
   assert.ok(dbSource.includes("markPnlReportDirtySafely(existingTrade?.trade_date, 'stock_trade_deleted'"), 'stock trade delete should dirty from the deleted trade date');
   assert.equal(pnlReportSnapshotsSource.includes('deriveInvestmentSummary'), false, 'snapshot builder should not import the live investment summary');
   assert.equal(pnlReportSnapshotsSource.includes('derivePositionsFromTrades'), false, 'snapshot builder should not import the live position derivation');
+});
+
+test('stock detail page is read-only and separate from trade editing', () => {
+  assert.ok(appSource.includes("const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'))"), 'stock detail should be lazy-loaded as an independent page');
+  assert.ok(appSource.includes("setActivePage('stock-detail')"), 'stock detail should have an explicit page route');
+  assert.ok(appSource.includes('<StockDetailPage ctx={tabCtx} />'), 'stock detail should render outside the active bottom tab component');
+  assert.ok(tradesTabSource.includes('openStockDetail(position.symbol)'), 'trade position ticker/name column should open stock detail');
+  assert.ok(stockDetailPageSource.includes('buildStockDetailViewModel'), 'stock detail should build display data from a pure view model');
+  assert.ok(stockDetailPageSource.includes('db.fetchPnlReportSymbolSnapshotHistory'), 'stock detail should read symbol snapshot history through the db boundary');
+  assert.ok(stockDetailPageSource.includes('disabled'), 'stock detail edit icon should be disabled in the read-only first version');
+  assert.equal(stockDetailPageSource.includes('insertStockTrade'), false, 'stock detail must not write the main trade ledger');
+  assert.equal(stockDetailPageSource.includes('updateStockTrade'), false, 'stock detail must not edit the main trade ledger');
+  assert.equal(stockDetailPageSource.includes('deleteStockTrade'), false, 'stock detail must not delete the main trade ledger');
+  assert.ok(stockDetailViewModelSource.includes('annotateTradeRecords'), 'stock detail should compute sell realized P&L from the trade ledger locally');
+  assert.ok(stockDetailViewModelSource.includes('latestCompletedUsTradingDate'), 'stock detail should ignore incomplete close snapshots like the report page');
+  assert.ok(dbSource.includes('fetchPnlReportSymbolSnapshotHistory'), 'db layer should expose a read-only symbol snapshot history query');
 });
 
 test('home watchlist dialogs and add success notice use normal weights', () => {
@@ -1030,7 +1050,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.229'), 'settings version badge should document the latest P&L report update');
+  assert.ok(settingsTabSource.includes('v10.7.9.230'), 'settings version badge should document the latest stock detail update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1247,11 +1267,13 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
-  assert.ok(devVisualPreviewSource.includes("['home', 'analysis', 'review', 'pnl-report'].includes(requestedTab)"), 'local visual preview should support opening home, review, and P&L report pages directly');
+  assert.ok(devVisualPreviewSource.includes("['home', 'analysis', 'review', 'pnl-report', 'stock-detail'].includes(requestedTab)"), 'local visual preview should support opening home, review, P&L report, and stock detail pages directly');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes('<HomeTab ctx={homeCtx} />'), 'local visual preview should render the home page mock');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes('<PnlReportPage ctx={homeCtx} />'), 'local visual preview should render the P&L report mock through the home/report context');
+  assert.ok(devVisualPreviewSource.includes('<StockDetailPage ctx={homeCtx} />'), 'local visual preview should render the stock detail mock through the home/report context');
+  assert.ok(devVisualPreviewSource.includes('fetchPnlReportSymbolSnapshotHistory: async (symbol)'), 'local visual preview should provide stock detail symbol snapshot history rows');
   assert.ok(devVisualPreviewSource.includes('fetchPnlReportSnapshots: async () => mockPnlPortfolioSnapshots'), 'local visual preview should provide P&L report snapshot rows');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? t(language, 'review.editReview', '编辑复盘') : t(language, 'review.addReview', '写复盘')"), 'local visual preview should reflect review log edit state');
   assert.equal(homeTabSource.includes("FearIndexCards.tsx"), false, 'home should not import the high-fidelity fear index card components after rollback');
@@ -1288,7 +1310,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.229'), 'settings version badge should document the latest P&L report update');
+  assert.ok(settingsTabSource.includes('v10.7.9.230'), 'settings version badge should document the latest stock detail update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

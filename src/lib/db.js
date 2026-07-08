@@ -8,6 +8,7 @@ export {
   clearPnlReportRebuildState,
   fetchPnlReportRebuildState,
   fetchPnlReportSnapshots,
+  fetchPnlReportSymbolSnapshotHistory,
   fetchPnlReportSymbolSnapshots,
   mapPnlReportRebuildState,
   markPnlReportDirtyFromDate,

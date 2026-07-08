@@ -15,6 +15,7 @@ const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
+const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
 const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
@@ -4260,6 +4261,7 @@ function MainApp({ user, onLogout }) {
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
   const [activePage, setActivePage] = useState(null);
+  const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
@@ -4273,6 +4275,16 @@ function MainApp({ user, onLogout }) {
   }, []);
   const closePnlReport = useCallback(() => {
     setActivePage(null);
+  }, []);
+  const openStockDetail = useCallback((symbol) => {
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+    if (!normalizedSymbol) return;
+    setStockDetailSymbol(normalizedSymbol);
+    setActivePage('stock-detail');
+  }, []);
+  const closeStockDetail = useCallback(() => {
+    setActivePage(null);
+    setStockDetailSymbol('');
   }, []);
 
   useEffect(() => {
@@ -4351,6 +4363,8 @@ function MainApp({ user, onLogout }) {
 
 
   const isPnlReportPage = activePage === 'pnl-report';
+  const isStockDetailPage = activePage === 'stock-detail';
+  const isStandalonePage = isPnlReportPage || isStockDetailPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const tabCtx = {
     accountDeleteConfirmId,
@@ -4444,6 +4458,7 @@ function MainApp({ user, onLogout }) {
     newTrade,
     onLogout,
     openPnlReport,
+    openStockDetail,
     Pin,
     portfolioCurrencyMode,
     Plus,
@@ -4457,6 +4472,7 @@ function MainApp({ user, onLogout }) {
     reviewLogs,
     clearQuoteDiagnosticLogs,
     closePnlReport,
+    closeStockDetail,
     setAccountDeleteConfirmId,
     setAccounts,
     setAlertsMuted,
@@ -4539,6 +4555,7 @@ function MainApp({ user, onLogout }) {
     snapshots,
     snapshotTab,
     stockTrades,
+    stockDetailSymbol,
     stockFreshnessStartedAt: warmStartedAt,
     supabase,
     Target,
@@ -4564,7 +4581,7 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
-  const darkShell = isPnlReportPage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
+  const darkShell = isStandalonePage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90';
   const costBasisModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
@@ -4584,7 +4601,7 @@ function MainApp({ user, onLogout }) {
   return (
     <div
       className={`min-h-screen px-4 ${isPnlReportPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
-      style={{ paddingTop: isPnlReportPage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
         <div
@@ -4697,7 +4714,11 @@ function MainApp({ user, onLogout }) {
 
         {/* ====== 首页 tab ====== */}
         <Suspense fallback={<TabFallback />}>
-          {isPnlReportPage ? <PnlReportPage ctx={tabCtx} /> : <ActiveTab ctx={tabCtx} />}
+          {isPnlReportPage
+            ? <PnlReportPage ctx={tabCtx} />
+            : isStockDetailPage
+              ? <StockDetailPage ctx={tabCtx} />
+              : <ActiveTab ctx={tabCtx} />}
         </Suspense>
 
 
@@ -6572,7 +6593,11 @@ function MainApp({ user, onLogout }) {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setActivePage(null);
+                      setStockDetailSymbol('');
+                    }}
                     className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${
                       darkShell
                         ? (isActive ? 'text-[#f6a524]' : 'text-white/40')

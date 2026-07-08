@@ -24,6 +24,7 @@ const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
+const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
@@ -142,9 +143,20 @@ const mockPnlSymbolSnapshots = [
 ];
 
 const mockPnlStockTrades = [
-  { id: 'dev_trade_1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', date: '2026-04-05', price: 120, shares: 100 },
-  { id: 'dev_trade_2', symbol: 'MSFT', name: '微软', side: 'buy', date: '2026-04-10', price: 410, shares: 80 },
-  { id: 'dev_trade_3', symbol: 'AAPL', name: '苹果', side: 'buy', date: '2026-05-01', price: 220, shares: 60 },
+  { id: 'dev_trade_1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-04-05', date: '2026-04-05', price: 120, shares: 100 },
+  { id: 'dev_trade_2', symbol: 'NVDA', name: 'NVIDIA', side: 'sell', trade_date: '2026-07-02', date: '2026-07-02', price: 190, shares: 20 },
+  { id: 'dev_trade_3', symbol: 'MSFT', name: '微软', side: 'buy', trade_date: '2026-04-10', date: '2026-04-10', price: 410, shares: 80 },
+  { id: 'dev_trade_4', symbol: 'AAPL', name: '苹果', side: 'buy', trade_date: '2026-05-01', date: '2026-05-01', price: 220, shares: 60 },
+];
+
+const mockPnlSymbolSnapshotHistory = [
+  { snapshotDate: '2026-07-08', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 196.5, marketValueUsd: 15720, realizedPnlUsd: 1400, unrealizedPnlUsd: 6120, cumulativePnlUsd: 7520, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
+  { snapshotDate: '2026-07-07', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 192.3, marketValueUsd: 15384, realizedPnlUsd: 1400, unrealizedPnlUsd: 5784, cumulativePnlUsd: 7184, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
+  { snapshotDate: '2026-07-06', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 188.1, marketValueUsd: 15048, realizedPnlUsd: 1400, unrealizedPnlUsd: 5448, cumulativePnlUsd: 6848, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
+  { snapshotDate: '2026-07-03', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 184.2, marketValueUsd: 14736, realizedPnlUsd: 1400, unrealizedPnlUsd: 5136, cumulativePnlUsd: 6536, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
+  { snapshotDate: '2026-07-02', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 180.6, marketValueUsd: 14448, realizedPnlUsd: 1400, unrealizedPnlUsd: 4848, cumulativePnlUsd: 6248, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
+  { snapshotDate: '2026-07-01', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 176.4, marketValueUsd: 17640, realizedPnlUsd: 0, unrealizedPnlUsd: 5640, cumulativePnlUsd: 5640, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-06-30', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 171.8, marketValueUsd: 17180, realizedPnlUsd: 0, unrealizedPnlUsd: 5180, cumulativePnlUsd: 5180, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
 ];
 
 const mockActivePositions = [
@@ -203,7 +215,7 @@ export default function DevVisualPreview() {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'analysis', 'review', 'pnl-report'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'analysis', 'review', 'pnl-report', 'stock-detail'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
@@ -305,6 +317,7 @@ export default function DevVisualPreview() {
     deleteReviewLog: async () => ({}),
     fetchPnlReportSnapshots: async () => mockPnlPortfolioSnapshots,
     fetchPnlReportSymbolSnapshots: async () => mockPnlSymbolSnapshots,
+    fetchPnlReportSymbolSnapshotHistory: async (symbol) => mockPnlSymbolSnapshotHistory.filter((row) => row.symbol === String(symbol || '').trim().toUpperCase()),
     fetchPnlReportRebuildState: async () => null,
     upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
     clearPnlReportRebuildState: async () => ({}),
@@ -424,6 +437,8 @@ export default function DevVisualPreview() {
     newStock,
     openPnlReport: () => setActiveTab('pnl-report'),
     closePnlReport: () => setActiveTab('home'),
+    openStockDetail: () => setActiveTab('stock-detail'),
+    closeStockDetail: () => setActiveTab('trades'),
     portfolioCurrencyMode: 'USD',
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
@@ -437,6 +452,7 @@ export default function DevVisualPreview() {
     setNewStock,
     setShowAddStock,
     showAddStock,
+    stockDetailSymbol: 'NVDA',
     stockTrades: mockPnlStockTrades,
     stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
     usdRate: USD_RATE,
@@ -509,6 +525,8 @@ export default function DevVisualPreview() {
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
+          : activeTab === 'stock-detail'
+          ? <StockDetailPage ctx={homeCtx} />
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
