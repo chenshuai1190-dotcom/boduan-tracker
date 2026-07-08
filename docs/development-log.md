@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表收盘快照读取保护
 
-- Commit: pending.
-- Deployment: pending.
+- Commit: `95e167a`
+- Deployment: deployed to GitHub `main` via SSH from code commit `95e167a6022d508213252f92ce14b5c59d3c3076`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户反馈收益报表 `本年` 数据从之前的正收益变成负收益,怀疑盘前阶段读取不到昨日数据;本地用 EODHD 近 7 日日线验证 2026-07-07 的 NVDA/MSFT/META/TSM/NOK/IBKR 收盘价存在,说明问题不在 EODHD 无法返回昨日收盘价,而是旧的盘前 2026-07-08 自然日快照已经写入数据库后,读取端仍优先使用它覆盖 2026-07-07 收盘快照。
 - Changes:
   - `src/lib/pnlReportViewModel.js` 新增收盘快照读取保护:报表读取端只接收 `snapshotDate <= latestCompletedUsTradingDate(now)` 的组合快照,盘前/盘中不会再把当天自然日快照当作有效收盘快照。
@@ -28,7 +28,8 @@
   - `npm run build` passed; new production chunks include `PnlReportPage-BGIPP9er.js`, `SettingsTab-COH_kuPL.js`, `settingsChangelog-BqfcHpu7.js`, and `App-obKreSmW.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
-  - Production deployment pending.
+  - Production marker verification passed: entry `index-D0c8M5T2.js`; `App-Bqi4z4t7.js` imports `PnlReportPage-BGIPP9er.js` and `SettingsTab-BYNbBncl.js`; `PnlReportPage-BGIPP9er.js` contains the minified `lockedAt` close snapshot guard; `SettingsTab-BYNbBncl.js` contains `v10.7.9.223`; `settingsChangelog-BqfcHpu7.js` contains `v10.7.9.223`, `收益报表收盘快照读取保护`, `EODHD 近 7 日日线`, and `lockedAt`.
+  - Production API boundary check passed: unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426`.
 - Rollback: 回退本条涉及的读取保护、`v10.7.9.223` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.222`;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表收盘快照口径
