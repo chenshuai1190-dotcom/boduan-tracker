@@ -9,6 +9,7 @@ import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const BTC_STATUS_DISPLAY_GRACE_MS = 60_000;
+const BTC_SPARKLINE_MIN_RANGE_PCT = 0.006;
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const POPULAR_US_STOCKS = [
@@ -238,7 +239,7 @@ function dataDateLabel(value) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
+function Sparkline({ values = [], color = '#22c55e', className = 'h-9', minRangePct = 0 }) {
   const series = values.filter((v) => Number.isFinite(Number(v))).map(Number);
   if (series.length < 2) {
     return <div className={`${className} flex items-center justify-center text-[10px] text-white/25`}>--</div>;
@@ -246,12 +247,24 @@ function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
 
   const width = 100;
   const height = 34;
-  const min = Math.min(...series);
-  const max = Math.max(...series);
-  const range = max - min || 1;
+  const rawMin = Math.min(...series);
+  const rawMax = Math.max(...series);
+  const rawRange = rawMax - rawMin;
+  let min = rawMin;
+  let range = rawRange || 1;
+  if (minRangePct > 0) {
+    const anchor = Math.abs(series[series.length - 1]) || Math.abs((rawMin + rawMax) / 2) || 1;
+    const visualRange = Math.max(anchor * minRangePct, 1);
+    if (visualRange > rawRange) {
+      const center = (rawMin + rawMax) / 2;
+      range = visualRange;
+      min = center - range / 2;
+    }
+  }
   const points = series.map((value, index) => {
     const x = (index / (series.length - 1)) * width;
-    const y = height - ((value - min) / range) * height;
+    const normalized = Math.max(0, Math.min(1, (value - min) / range));
+    const y = height - normalized * height;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
   const path = `M ${points.join(' L ')}`;
@@ -344,7 +357,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
       <div className="mt-1 text-[11px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtOptionalMarketPct(item?.changePercent)}
       </div>
-      <Sparkline values={item?.intraday || []} color={color} />
+      <Sparkline values={item?.intraday || []} color={color} minRangePct={isBtc ? BTC_SPARKLINE_MIN_RANGE_PCT : 0} />
     </div>
   );
 }
