@@ -32,6 +32,10 @@
   - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
   - `git diff --check` passed.
   - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; Playwright mobile preview at `390x844` for `http://127.0.0.1:5173/?tab=pnl-report` confirmed title/calendar/ranking render, document width equals viewport width `390`, no horizontal overflow, and the top period filters fit within the viewport.
+  - Production deployment `f51b4a2b6516d8ed35d50edcc9bb8f507dd19073` completed successfully on Vercel.
+  - Production chunks: `index-CALza7j2.js`, `App-B7wB4Qgo.js`, `PnlReportPage-DWu_9pP6.js`, `SettingsTab-B-nT6BcF.js`, `settingsChangelog-B7FDj8C2.js`, `i18n-BvtPpCNW.js`.
+  - Production marker check passed: production assets contain `v10.7.9.212`, `收益报表前端预览`, `PnlReportPage`, and `pnlReport.title`.
+  - Production auth/boundary checks passed: unauthenticated `/api/quote?symbols=VIX` returns `401`; ordinary HTTPS `/api/stocks-realtime`, `/api/indices-realtime`, and `/api/btc-realtime` return `426`; unauthenticated snapshot `/api/stocks-realtime?snapshot=1&symbols=NVDA` and `/api/indices-realtime?snapshot=1&symbols=.SPX` return `401`.
 - Rollback: 删除 `PnlReportPage` 页面和 `activePage` 路由,移除首页/交易页累计盈亏入口,回退 `v10.7.9.212` 设置页版本/更新日志和本日志即可;交易数据链路不受影响。
 
 ### 2026-07-08 - 回退 BTC 小曲线视觉降噪
