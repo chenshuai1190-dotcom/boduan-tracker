@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表收盘快照口径
 
-- Commit: `pending`
-- Deployment: pending.
+- Commit: `ed6b5f5`
+- Deployment: deployed to GitHub `main` via SSH from code commit `ed6b5f56bbd6b9eba870ab3f520eebb599deaa17`; Vercel status `success`, production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户反馈收益报表在 `本年`、`近 6 月` 等非全部周期下部分区域拉不到排行数据,并指出中国时间 7/8 白天生成的报表应参考美股上一交易日 7/7 收盘,不能写成 7/8 自然日;同时反馈时间筛选弹窗区间输入里的开始/结束日期文字偏上,以及“全部盈亏总结”标题没有跟随周期切换。
 - Changes:
   - `src/lib/pnlReportSnapshots.js` 新增收盘快照输入构建:手动生成收益快照时先解析 quote 行里的锁定收盘日;盘前/盘中没有锁定收盘时,使用 `dailyPnlBaselineDate` 对应的上一已完成美股交易日,不再直接用本地/UTC 自然日。
@@ -34,6 +34,8 @@
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
   - Local browser verification at `390x844`:收益报表默认选中 `本年`,总结标题显示 `本年盈亏总结 (CNY)`,页面无横向溢出;时间筛选区间输入位于视口内,日期输入高度 `44px`,行高 `44px`,上下 padding 为 `0px`,开始日期和结束日期文字按固定行高垂直居中。
+  - Production marker verification passed: entry `index-CDrfCI7K.js`; `App-DZ-56mYU.js` imports `PnlReportPage-BO-IlOoH.js` and `SettingsTab-Y8PkLGlj.js`; `PnlReportPage-BO-IlOoH.js` contains `生成收盘快照`, `收盘收益快照已生成`, and `summaryShort`; `SettingsTab-Y8PkLGlj.js` contains `v10.7.9.222`; `settingsChangelog-HO2jG03G.js` contains `v10.7.9.222` and `收益报表收盘快照口径`.
+  - Production API boundary check passed: unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426` (`http://` edge request redirects to HTTPS with `308` before the function runs).
 - Rollback: 回退本次提交即可恢复 `v10.7.9.221` 的收益报表时间筛选弹窗版本;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表时间筛选弹窗
