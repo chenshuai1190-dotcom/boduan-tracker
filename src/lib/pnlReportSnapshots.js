@@ -22,6 +22,136 @@ export function normalizeReportDate(value = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+function dateKeyOrNull(value) {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function getNewYorkDateParts(now = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(now instanceof Date ? now : new Date(now));
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+    const hour = Number(getPart('hour'));
+    const minute = Number(getPart('minute'));
+    return {
+      dateKey: year && month && day ? `${year}-${month}-${day}` : normalizeReportDate(now),
+      weekday: getPart('weekday'),
+      minutes: Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0,
+    };
+  } catch {
+    return { dateKey: normalizeReportDate(now), weekday: '', minutes: 0 };
+  }
+}
+
+function shiftDate(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return normalizeReportDate();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function weekdayOfDateKey(dateKey) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return -1;
+  return date.getUTCDay();
+}
+
+function previousBusinessDate(dateKey) {
+  let cursor = shiftDate(dateKey, -1);
+  while ([0, 6].includes(weekdayOfDateKey(cursor))) {
+    cursor = shiftDate(cursor, -1);
+  }
+  return cursor;
+}
+
+export function latestCompletedUsTradingDate(now = new Date()) {
+  const parts = getNewYorkDateParts(now);
+  if (parts.weekday === 'Sat') return previousBusinessDate(parts.dateKey);
+  if (parts.weekday === 'Sun') return previousBusinessDate(parts.dateKey);
+  return parts.minutes >= 16 * 60 ? parts.dateKey : previousBusinessDate(parts.dateKey);
+}
+
+function latestDateKey(values = []) {
+  return values
+    .filter((value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    .sort()
+    .at(-1) || null;
+}
+
+export function resolvePnlReportSnapshotDate(quoteRows = [], now = new Date()) {
+  const rows = Array.isArray(quoteRows) ? quoteRows : [];
+  const lockedDate = latestDateKey(rows
+    .filter((quote) => Boolean(quote?.dailyPnlLocked) && toNumber(quote?.dailyPnlPrice) > 0)
+    .map((quote) => dateKeyOrNull(quote?.dailyPnlPriceDate)));
+  if (lockedDate) return lockedDate;
+
+  const baselineDate = latestDateKey(rows
+    .filter((quote) => toNumber(quote?.dailyPnlBaselineClose) > 0 || toNumber(quote?.dailyBaselineClose) > 0)
+    .map((quote) => dateKeyOrNull(quote?.dailyPnlBaselineDate || quote?.dailyBaselineDate)));
+  return baselineDate || latestCompletedUsTradingDate(now);
+}
+
+function projectQuoteForReportSnapshot(quote, snapshotDate) {
+  const lockedDate = dateKeyOrNull(quote?.dailyPnlPriceDate);
+  const lockedPrice = toNumber(quote?.dailyPnlPrice);
+  const lockedBaselineClose = toNumber(quote?.dailyPnlBaselineClose || quote?.dailyBaselineClose || quote?.previousClose);
+  if (quote?.dailyPnlLocked && lockedPrice > 0 && lockedDate && lockedDate <= snapshotDate) {
+    return {
+      ...quote,
+      price: lockedPrice,
+      previousClose: lockedBaselineClose > 0 ? lockedBaselineClose : 0,
+      dailyPnlPrice: lockedPrice,
+      dailyPnlBaselineClose: lockedBaselineClose > 0 ? lockedBaselineClose : 0,
+    };
+  }
+
+  const closePrice = toNumber(quote?.dailyPnlBaselineClose)
+    || toNumber(quote?.dailyBaselineClose)
+    || toNumber(quote?.previousClose)
+    || 0;
+  if (closePrice > 0) {
+    return {
+      ...quote,
+      price: closePrice,
+      previousClose: 0,
+      change: 0,
+      changePercent: 0,
+      dailyPnlPrice: 0,
+      dailyPnlBaselineClose: 0,
+      dailyBaselineClose: 0,
+    };
+  }
+
+  return quote;
+}
+
+export function buildPnlReportCloseSnapshotInput({
+  quoteRows = [],
+  snapshotDate = null,
+  now = new Date(),
+} = {}) {
+  const date = snapshotDate ? normalizeReportDate(snapshotDate) : resolvePnlReportSnapshotDate(quoteRows, now);
+  return {
+    snapshotDate: date,
+    quoteRows: (Array.isArray(quoteRows) ? quoteRows : []).map((quote) => projectQuoteForReportSnapshot(quote, date)),
+  };
+}
+
 function readTradeDate(trade) {
   return String(trade?.trade_date || trade?.tradeDate || trade?.date || '').slice(0, 10);
 }

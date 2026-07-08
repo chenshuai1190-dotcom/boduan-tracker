@@ -258,6 +258,65 @@ test('period ranking uses end symbol snapshot minus baseline symbol snapshot', (
   assert.equal(report.rankings.gain.some((row) => row.symbol === 'TSM'), false);
 });
 
+test('period ranking uses zero baseline for symbols first traded inside the selected range', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-07',
+        cumulativePnlUsd: 500,
+        cumulativePnlPct: 0.05,
+        totalAssetsUsd: 10500,
+        dailyPnlUsd: 80,
+      },
+    ],
+    symbolSnapshots: [
+      { symbol: 'NVDA', name: 'NVIDIA', cumulativePnlUsd: 700 },
+      { symbol: 'OLD', name: 'Old Holding', cumulativePnlUsd: 300 },
+      { symbol: 'MSFT', name: 'Microsoft', cumulativePnlUsd: -200 },
+    ],
+    stockTrades: [
+      { trade_date: '2026-03-05', symbol: 'NVDA', shares: 10, price: 100 },
+      { trade_date: '2025-11-20', symbol: 'OLD', shares: 10, price: 100 },
+      { trade_date: '2026-04-01', symbol: 'MSFT', shares: 5, price: 200 },
+    ],
+    range: 'ytd',
+    now: new Date('2026-07-08T12:00:00Z'),
+  });
+
+  assert.equal(report.startDate, '2026/01/01');
+  assert.equal(report.rankings.gain[0].symbol, 'NVDA');
+  assert.equal(report.rankings.gain[0].pnlUsd, 700);
+  assert.equal(report.rankings.gain.some((row) => row.symbol === 'OLD'), false);
+  assert.equal(report.rankings.loss[0].symbol, 'MSFT');
+});
+
+test('period totals use zero baseline when the portfolio first traded inside the selected range', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-07',
+        cumulativePnlUsd: 500,
+        cumulativePnlPct: 0.05,
+        totalAssetsUsd: 10500,
+        dailyPnlUsd: 80,
+      },
+    ],
+    symbolSnapshots: [
+      { symbol: 'NVDA', name: 'NVIDIA', cumulativePnlUsd: 700 },
+      { symbol: 'MSFT', name: 'Microsoft', cumulativePnlUsd: -200 },
+    ],
+    stockTrades: [
+      { trade_date: '2026-03-05', symbol: 'NVDA', shares: 10, price: 100 },
+      { trade_date: '2026-04-01', symbol: 'MSFT', shares: 5, price: 200 },
+    ],
+    range: 'ytd',
+    now: new Date('2026-07-08T12:00:00Z'),
+  });
+
+  assert.equal(report.totalPnlUsd, 500);
+  assert.equal(report.summary.stockPnlUsd, 500);
+});
+
 test('returns explicit empty report when there are no snapshots', () => {
   const report = buildPnlReportViewModel({
     portfolioSnapshots: [],

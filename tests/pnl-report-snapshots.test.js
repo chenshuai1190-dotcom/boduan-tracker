@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { buildPnlReportSnapshots, normalizeReportDate, PNL_REPORT_SNAPSHOT_VERSION } from '../src/lib/pnlReportSnapshots.js';
+import {
+  buildPnlReportCloseSnapshotInput,
+  buildPnlReportSnapshots,
+  latestCompletedUsTradingDate,
+  normalizeReportDate,
+  PNL_REPORT_SNAPSHOT_VERSION,
+} from '../src/lib/pnlReportSnapshots.js';
 
 test('builds independent portfolio and symbol snapshots from stock trades', () => {
   const { portfolioSnapshot, symbolSnapshots } = buildPnlReportSnapshots({
@@ -103,8 +109,75 @@ test('does not force daily pnl when an active symbol has no valid daily baseline
   assert.equal(portfolioSnapshot.dailyPnlPct, null);
 });
 
+test('projects premarket report snapshots to the previous completed close', () => {
+  const input = buildPnlReportCloseSnapshotInput({
+    now: new Date('2026-07-08T10:00:00Z'),
+    quoteRows: [
+      {
+        symbol: 'NVDA',
+        name: 'NVIDIA',
+        price: 194.02,
+        previousClose: 195.55,
+        change: -1.53,
+        changePercent: -0.78,
+        dailyPnlPrice: 194.02,
+        dailyPnlBaselineClose: 195.55,
+        dailyPnlBaselineDate: '2026-07-07',
+        dailyPnlLocked: false,
+      },
+    ],
+  });
+
+  assert.equal(input.snapshotDate, '2026-07-07');
+  assert.equal(input.quoteRows[0].price, 195.55);
+
+  const { portfolioSnapshot, symbolSnapshots } = buildPnlReportSnapshots({
+    snapshotDate: input.snapshotDate,
+    stockTrades: [
+      { id: '1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', date: '2026-07-01', price: 190, shares: 10 },
+    ],
+    quoteRows: input.quoteRows,
+  });
+
+  assert.equal(portfolioSnapshot.snapshotDate, '2026-07-07');
+  assert.equal(symbolSnapshots[0].currentPriceUsd, 195.55);
+  assert.equal(symbolSnapshots[0].marketValueUsd, 1955.5);
+  assert.equal(symbolSnapshots[0].dailyPnlUsd, null);
+});
+
+test('uses locked regular close when the quote row has a completed close date', () => {
+  const input = buildPnlReportCloseSnapshotInput({
+    now: new Date('2026-07-08T22:00:00Z'),
+    quoteRows: [
+      {
+        symbol: 'MSFT',
+        name: 'Microsoft',
+        price: 391.2,
+        dailyPnlLocked: true,
+        dailyPnlPrice: 386.74,
+        dailyPnlPriceDate: '2026-07-08',
+        dailyPnlBaselineClose: 385.1,
+        dailyPnlBaselineDate: '2026-07-07',
+      },
+    ],
+  });
+
+  const { symbolSnapshots } = buildPnlReportSnapshots({
+    snapshotDate: input.snapshotDate,
+    stockTrades: [
+      { id: '1', symbol: 'MSFT', name: 'Microsoft', side: 'buy', date: '2026-07-01', price: 380, shares: 10 },
+    ],
+    quoteRows: input.quoteRows,
+  });
+
+  assert.equal(input.snapshotDate, '2026-07-08');
+  assert.equal(symbolSnapshots[0].currentPriceUsd, 386.74);
+  assert.equal(Number(symbolSnapshots[0].dailyPnlUsd.toFixed(2)), 16.4);
+});
+
 test('normalizes report dates and stays separate from the live trading summary pipeline', () => {
   assert.equal(normalizeReportDate('2026-07-08'), '2026-07-08');
+  assert.equal(latestCompletedUsTradingDate(new Date('2026-07-08T10:00:00Z')), '2026-07-07');
   const source = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
   assert.equal(source.includes('deriveInvestmentSummary'), false);
   assert.equal(source.includes('derivePositionsFromTrades'), false);

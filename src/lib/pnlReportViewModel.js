@@ -109,6 +109,18 @@ function getFirstTradeDate(stockTrades = []) {
   return firstDate((Array.isArray(stockTrades) ? stockTrades : []).map(readTradeDate));
 }
 
+function firstTradeDateBySymbol(stockTrades = []) {
+  const map = new Map();
+  (Array.isArray(stockTrades) ? stockTrades : []).forEach((trade) => {
+    const symbol = normalizeSymbol(trade?.symbol);
+    const date = readTradeDate(trade);
+    if (!symbol || !date) return;
+    const current = map.get(symbol);
+    if (!current || date < current) map.set(symbol, date);
+  });
+  return map;
+}
+
 function getRangeStartDate(range, endDate, firstAvailableDate) {
   const fallback = firstAvailableDate || endDate;
   if (range === 'all') return fallback;
@@ -172,20 +184,32 @@ function symbolSnapshotMap(rows = []) {
   return map;
 }
 
-function symbolPeriodPnl(row, baselineRow, range, isSingleDay) {
+function symbolPeriodPnl(row, baselineRow, range, isSingleDay, { rangeStartDate = '', firstTradeDate = '' } = {}) {
   if (isSingleDay) return row.dailyPnlUsd == null ? null : toNumber(row.dailyPnlUsd);
   if (range === 'all') return toNumber(row.cumulativePnlUsd);
   if (baselineRow) return toNumber(row.cumulativePnlUsd) - toNumber(baselineRow.cumulativePnlUsd);
+  if (firstTradeDate && rangeStartDate && firstTradeDate >= rangeStartDate) {
+    return toNumber(row.cumulativePnlUsd);
+  }
   return null;
 }
 
-function rankSymbols(symbolSnapshots, direction, { baselineSymbolSnapshots = [], range = 'all', isSingleDay = false } = {}) {
+function rankSymbols(symbolSnapshots, direction, {
+  baselineSymbolSnapshots = [],
+  range = 'all',
+  isSingleDay = false,
+  rangeStartDate = '',
+  firstTradeBySymbol = new Map(),
+} = {}) {
   const baselineBySymbol = symbolSnapshotMap(baselineSymbolSnapshots);
   const rows = (Array.isArray(symbolSnapshots) ? symbolSnapshots : [])
     .filter((row) => row?.symbol)
     .map((row) => {
       const symbol = normalizeSymbol(row.symbol);
-      const pnlUsd = symbolPeriodPnl(row, baselineBySymbol.get(symbol), range, isSingleDay);
+      const pnlUsd = symbolPeriodPnl(row, baselineBySymbol.get(symbol), range, isSingleDay, {
+        rangeStartDate,
+        firstTradeDate: firstTradeBySymbol.get(symbol) || '',
+      });
       return {
         symbol,
         name: row.name || row.symbol,
@@ -210,7 +234,7 @@ function getPeriodBaseline(chronological, range, startDate, trendSource) {
   return prior || trendSource[0] || null;
 }
 
-function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay = false } = {}) {
+function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay = false, startsInsideRange = false } = {}) {
   if (!latest) return { pnlUsd: 0, pnlPct: 0, baselinePct: 0 };
   const latestPnlUsd = toNumber(latest.cumulativePnlUsd);
   const latestPnlPct = toNumber(latest.cumulativePnlPct);
@@ -225,6 +249,10 @@ function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay
         baselinePct: latestPnlPct - dailyPnlPct,
       };
     }
+  }
+
+  if (range !== 'all' && startsInsideRange && (!baseline || String(baseline.snapshotDate) >= String(latest.snapshotDate))) {
+    return { pnlUsd: latestPnlUsd, pnlPct: latestPnlPct, baselinePct: 0 };
   }
 
   if (range === 'all' || !baseline) {
@@ -452,16 +480,23 @@ export function buildPnlReportViewModel({
   const boundedTrendSource = bounded.length > 0 ? bounded : [latest];
   const isSingleDay = rangeStartDate === rangeEndDate;
   const baseline = getPeriodBaseline(chronological, range, rangeStartDate, boundedTrendSource);
-  const periodValues = computePeriodValues(latest, boundedTrendSource, baseline, range, { isSingleDay });
+  const firstTradeBySymbolMap = firstTradeDateBySymbol(stockTrades);
+  const portfolioFirstTradeDate = getFirstTradeDate(stockTrades);
+  const startsInsideRange = Boolean(portfolioFirstTradeDate && portfolioFirstTradeDate >= rangeStartDate);
+  const periodValues = computePeriodValues(latest, boundedTrendSource, baseline, range, { isSingleDay, startsInsideRange });
   const gainRows = rankSymbols(symbolSnapshots, 'gain', {
     baselineSymbolSnapshots,
     range,
     isSingleDay,
+    rangeStartDate,
+    firstTradeBySymbol: firstTradeBySymbolMap,
   });
   const lossRows = rankSymbols(symbolSnapshots, 'loss', {
     baselineSymbolSnapshots,
     range,
     isSingleDay,
+    rangeStartDate,
+    firstTradeBySymbol: firstTradeBySymbolMap,
   });
   const tradeStats = computeTradeStats(stockTrades, range, rangeStartDate, rangeEndDate, latest, symbolSnapshots);
   const benchmark = buildBenchmarkContext(benchmarkRows, rangeStartDate, rangeEndDate);
@@ -520,7 +555,7 @@ export function buildPnlReportViewModel({
     trend,
     calendar: buildCalendar(chronological, latestDate),
     summary: {
-      stockPnlUsd: toNumber(latest.cumulativePnlUsd),
+      stockPnlUsd: periodValues.pnlUsd,
       best: gainRows[0] || null,
       worst: lossRows[0] || null,
     },

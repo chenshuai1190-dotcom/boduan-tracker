@@ -4,6 +4,38 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表收盘快照口径
+
+- Commit: `pending`
+- Deployment: pending.
+- Background: 用户反馈收益报表在 `本年`、`近 6 月` 等非全部周期下部分区域拉不到排行数据,并指出中国时间 7/8 白天生成的报表应参考美股上一交易日 7/7 收盘,不能写成 7/8 自然日;同时反馈时间筛选弹窗区间输入里的开始/结束日期文字偏上,以及“全部盈亏总结”标题没有跟随周期切换。
+- Changes:
+  - `src/lib/pnlReportSnapshots.js` 新增收盘快照输入构建:手动生成收益快照时先解析 quote 行里的锁定收盘日;盘前/盘中没有锁定收盘时,使用 `dailyPnlBaselineDate` 对应的上一已完成美股交易日,不再直接用本地/UTC 自然日。
+  - 收益报表快照价格改为收盘价投影:盘前/盘中使用上一已完成交易日收盘价生成报表市值和累计盈亏;收盘锁定后使用 `dailyPnlPrice` 锁定收盘价;缺少前一日基准时不强行生成日盈亏。
+  - `src/lib/pnlReportViewModel.js` 的周期排行在缺少基准单股票快照时,如果该股票第一笔交易就在所选周期内,使用 0 基线纳入本年/近 6 月/自定义排行;周期总览在整个组合第一笔交易位于周期内时同样使用 0 基线。
+  - `src/pages/PnlReportPage.jsx` 的“全部盈亏总结”标题改为跟随当前周期显示,例如“本年盈亏总结”“近 6 月盈亏总结”;时间筛选区间输入增加固定行高,让开始日期和结束日期数字垂直居中。
+  - 手动生成按钮和提示文案从“今日快照”改为“收盘快照”,中英文同步;设置页版本和用户可见更新日志同步到 `v10.7.9.222`。
+- Key files:
+  - `src/lib/pnlReportSnapshots.js`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-snapshots.test.js`
+  - `tests/pnl-report-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-snapshots.test.js tests/pnl-report-view-model.test.js` passed, 18/18 tests.
+  - `node --test tests/pnl-report-snapshots.test.js tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 51/51 tests.
+  - `npm test` passed, 139/139 tests.
+  - `npm run build` passed; new production chunks include `PnlReportPage-BO-IlOoH.js`, `SettingsTab-CcDtnojq.js`, `settingsChangelog-HO2jG03G.js`, `i18n-o4myxmFQ.js`, and `App-DglbdT6_.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local browser verification at `390x844`:收益报表默认选中 `本年`,总结标题显示 `本年盈亏总结 (CNY)`,页面无横向溢出;时间筛选区间输入位于视口内,日期输入高度 `44px`,行高 `44px`,上下 padding 为 `0px`,开始日期和结束日期文字按固定行高垂直居中。
+- Rollback: 回退本次提交即可恢复 `v10.7.9.221` 的收益报表时间筛选弹窗版本;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表时间筛选弹窗
 
 - Commit: `7a3a003`

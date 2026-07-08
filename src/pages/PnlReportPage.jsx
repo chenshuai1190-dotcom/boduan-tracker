@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
-import { buildPnlReportSnapshots } from '../lib/pnlReportSnapshots.js';
+import { buildPnlReportCloseSnapshotInput, buildPnlReportSnapshots } from '../lib/pnlReportSnapshots.js';
 import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
 
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -352,12 +352,17 @@ export default function PnlReportPage({ ctx = {} }) {
     try {
       const trades = Array.isArray(stockTrades) ? stockTrades : [];
       if (trades.length === 0) throw new Error(t(language, 'pnlReport.noTrades', '交易账本为空,无法生成收益快照'));
+      const lockedAt = new Date();
+      const reportQuoteInput = buildPnlReportCloseSnapshotInput({
+        quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
+        now: lockedAt,
+      });
       const built = buildPnlReportSnapshots({
         stockTrades: trades,
-        quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
+        quoteRows: reportQuoteInput.quoteRows,
         cashUsd: toNumber(investmentSummary?.cashUsd),
-        snapshotDate: new Date(),
-        lockedAt: new Date().toISOString(),
+        snapshotDate: reportQuoteInput.snapshotDate,
+        lockedAt: lockedAt.toISOString(),
       });
       const missingSymbols = built.symbolSnapshots
         .filter((snapshot) => snapshot.isOpen && !(toNumber(snapshot.currentPriceUsd) > 0))
@@ -368,7 +373,7 @@ export default function PnlReportPage({ ctx = {} }) {
       await db.upsertPnlReportSnapshots(built);
       if (db.clearPnlReportRebuildState) await db.clearPnlReportRebuildState();
       await loadReportSnapshots();
-      setReportMessage(t(language, 'pnlReport.rebuildSuccess', '今日收益快照已生成'));
+      setReportMessage(t(language, 'pnlReport.rebuildSuccess', '收盘收益快照已生成'));
     } catch (error) {
       setReportError(error?.message || String(error));
     } finally {
@@ -445,6 +450,9 @@ export default function PnlReportPage({ ctx = {} }) {
   const rankingTitle = englishMode
     ? `${currentRangeLabel} ${t(language, 'pnlReport.rankingShort', 'P&L Ranking')}`
     : `${currentRangeLabel}${t(language, 'pnlReport.rankingShort', '盈亏排行榜')}`;
+  const summaryTitle = englishMode
+    ? `${currentRangeLabel} ${t(language, 'pnlReport.summaryShort', 'P&L Summary')}`
+    : `${currentRangeLabel}${t(language, 'pnlReport.summaryShort', '盈亏总结')}`;
   const statusText = reportLoading
     ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
     : reportError
@@ -452,10 +460,10 @@ export default function PnlReportPage({ ctx = {} }) {
       : reportMessage || (rebuildState?.dirtyFromDate
         ? `${t(language, 'pnlReport.dirtyNotice', '交易已更新,建议重新生成快照')} · ${rebuildState.dirtyFromDate}`
         : reportData.hasData
-          ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库收益快照。手动生成只更新今日快照,不影响交易页实时显示。')
+          ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库收盘收益快照。手动生成只更新最新已完成交易日快照,不影响交易页实时显示。')
           : range === 'custom'
             ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
-            : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成今日快照后,页面会读取数据库里的真实报表数据。'));
+            : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后,页面会读取数据库里的真实报表数据。'));
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white" style={{ fontFamily: REPORT_FONT }}>
@@ -645,7 +653,7 @@ export default function PnlReportPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold text-white">{t(language, 'pnlReport.summary', '全部盈亏总结')} ({displayCurrency})</h2>
+          <h2 className="text-[17px] font-semibold text-white">{summaryTitle} ({displayCurrency})</h2>
           <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
         </div>
         <div className="mt-4 flex items-center justify-between">
@@ -727,7 +735,7 @@ export default function PnlReportPage({ ctx = {} }) {
           className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/45 bg-[#f6b54b]/12 px-3 text-[12px] font-normal text-[#ffd18a] transition active:scale-95 disabled:opacity-45"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
-          {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成今日快照')}
+          {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成收盘快照')}
         </button>
       </div>
 
@@ -758,7 +766,7 @@ export default function PnlReportPage({ ctx = {} }) {
                   type="date"
                   value={draftDate}
                   onChange={(event) => setDraftDate(event.target.value)}
-                  className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-3 text-center text-[14px] font-normal text-white outline-none [color-scheme:dark]"
+                  className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-0 text-center text-[14px] font-normal leading-[44px] text-white outline-none [color-scheme:dark]"
                 />
               </div>
             ) : (
@@ -769,7 +777,7 @@ export default function PnlReportPage({ ctx = {} }) {
                     type="date"
                     value={draftStartDate}
                     onChange={(event) => setDraftStartDate(event.target.value)}
-                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
+                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-0 text-center text-[13px] font-normal leading-[44px] text-white outline-none [color-scheme:dark]"
                   />
                 </div>
                 <div className="mb-3 text-[14px] text-white/30">-</div>
@@ -779,7 +787,7 @@ export default function PnlReportPage({ ctx = {} }) {
                     type="date"
                     value={draftEndDate}
                     onChange={(event) => setDraftEndDate(event.target.value)}
-                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
+                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-0 text-center text-[13px] font-normal leading-[44px] text-white outline-none [color-scheme:dark]"
                   />
                 </div>
               </div>
