@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表时间筛选弹窗
 
-- Commit: pending
-- Deployment: not deployed in this step; awaiting user confirmation if production sync is needed.
+- Commit: `7a3a003`
+- Deployment: deployed to GitHub `main` via SSH from runtime commit `7a3a003d4ef1f2e585ccbc87c6a174c679ff777e`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户反馈收益报表右上角时间筛选弹窗在 iOS 上日期输入框撑出容器,提示文案偏长且按钮区不符合参考图,需要压缩文案并移除“恢复本年”按钮。
 - Changes:
   - `src/pages/PnlReportPage.jsx` 为时间筛选弹窗的日期输入框增加 `min-w-0` / `max-w-full` / `appearance-none`,区间布局改为 `minmax(0,1fr)` 网格,避免 iOS 原生 date 输入控件撑破弹窗。
@@ -28,6 +28,8 @@
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
   - Local browser verification at `390x844`: `/ ?tab=pnl-report` opened with no horizontal page overflow; range mode date inputs measured within the 390px sheet (`left 21` / `right 369`), single-day input measured full width within the sheet (`left 21` / `right 369`), hint text matched the shortened wording, and the reset button was absent.
+  - Production marker verification passed: entry `index-D8h7AoLR.js`; `App-B-0Cy9II.js` imports `PnlReportPage-ByvgTK7_.js` and `SettingsTab-C4eEboR6.js`; `PnlReportPage-ByvgTK7_.js` contains the shortened hint and no `恢复本年`; `SettingsTab-C4eEboR6.js` contains `v10.7.9.221`; `settingsChangelog-B-H3UtVM.js` contains `v10.7.9.221` and `收益报表时间筛选弹窗`; `i18n-B7lIA_nG.js` contains `只读取已有数据，没有快照的日期不会使用其他日期替代。`.
+  - Production API boundary check passed: unauthenticated `/api/quote?symbols=VIX` returned `401`; HTTP `/api/stocks-realtime` returned `426`.
 - Rollback: 回退本次提交即可恢复 `v10.7.9.220` 的收益报表时间筛选弹窗;不会影响收益报表快照口径、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表日期筛选
