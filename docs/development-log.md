@@ -4,6 +4,36 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表前端预览
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户希望先不建数据库,先完成收益报表 HTML/前端版本,确认页面展示方式、字体、颜色和结构后再接入数据库快照逻辑;同时要求收益报表作为独立系统,不能影响现有交易模块显示方式。
+- Changes:
+  - 新增独立 `PnlReportPage` 前端页面,使用本地 mock 数据展示周期筛选、总盈亏、收益/资产走势、收益日历、全部盈亏总结和盈亏 Top5 排行。
+  - 首页和交易页头部“累计盈亏”列新增轻量入口,点击进入独立收益报表页面;不把整张头部资产卡变成链接,避免误触。
+  - `App.jsx` 新增独立页面状态 `activePage='pnl-report'`,报表页隐藏底部主导航并通过返回按钮回到原 tab。
+  - `DevVisualPreview` 增加 `?tab=pnl-report` 本地静态预览入口,便于未登录环境验证报表 UI。
+  - 同步中文/英文报表文案,设置页版本和用户可见更新日志更新到 `v10.7.9.212`。
+  - 本次只做前端静态预览和入口;不接 Supabase、不新增数据库表、不改 `deriveInvestmentSummary`、股票 quoteRows、三大指数/BTC 实时系统、今日盈亏/累计盈亏计算、交易账本、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test` passed, 116/116 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-DWu_9pP6.js`, `App-wRWDohWr.js`, `HomeTab-D-dkyoGh.js`, `TradesTab-C56Y0MOv.js`, `SettingsTab-C4DWM9Ys.js`, `settingsChangelog-B7FDj8C2.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; Playwright mobile preview at `390x844` for `http://127.0.0.1:5173/?tab=pnl-report` confirmed title/calendar/ranking render, document width equals viewport width `390`, no horizontal overflow, and the top period filters fit within the viewport.
+- Rollback: 删除 `PnlReportPage` 页面和 `activePage` 路由,移除首页/交易页累计盈亏入口,回退 `v10.7.9.212` 设置页版本/更新日志和本日志即可;交易数据链路不受影响。
+
 ### 2026-07-08 - 回退 BTC 小曲线视觉降噪
 
 - Commit: this commit

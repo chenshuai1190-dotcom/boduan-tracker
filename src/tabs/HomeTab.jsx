@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDown, ArrowUp, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
@@ -497,6 +497,7 @@ export default function HomeTab({ ctx }) {
     marketColorMode,
     marketIndices,
     newStock,
+    openPnlReport,
     portfolioCurrencyMode,
     quoteRows,
     RefreshCw,
@@ -874,15 +875,18 @@ export default function HomeTab({ ctx }) {
               )}
             </div>
           </div>
-          <div className="min-w-0 px-3">
-            <div className="text-[12px] text-white/50">{t(language, 'home.totalPnl', '累计盈亏')}</div>
+          <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
+            <div className="flex items-center gap-0.5 text-[12px] text-white/50">
+              <span>{t(language, 'home.totalPnl', '累计盈亏')}</span>
+              <ChevronRight className="h-3 w-3 text-white/28" />
+            </div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
             </div>
             <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedPct(summary.cumulativePnlPct, 2)}
             </div>
-          </div>
+          </button>
           <div className="min-w-0 pl-3">
             <div className="text-[12px] text-white/50">{t(language, 'home.positions', '持仓数量')}</div>
             <div className={`mt-3 whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>

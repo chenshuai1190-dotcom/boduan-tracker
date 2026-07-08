@@ -111,6 +111,7 @@ export default function TradesTab({ ctx }) {
     lookupStatus,
     marketColorMode,
     newTrade,
+    openPnlReport,
     portfolioCurrencyMode,
     Plus,
     quoteRows,
@@ -491,15 +492,18 @@ export default function TradesTab({ ctx }) {
                 )}
               </div>
             </div>
-            <div className="min-w-0 px-3">
-              <div className="text-[12px] text-white/50">{tt('trades.totalPnl', '累计盈亏')}</div>
+            <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
+              <div className="flex items-center gap-0.5 text-[12px] text-white/50">
+                <span>{tt('trades.totalPnl', '累计盈亏')}</span>
+                <ChevronRight className="h-3 w-3 text-white/28" />
+              </div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
               </div>
               <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedPct(summary.cumulativePnlPct, 2)}
               </div>
-            </div>
+            </button>
             <div className="min-w-0 pl-3">
               <div className="text-[12px] text-white/50">{tt('trades.positions', '持仓数量')}</div>
               <div className={`mt-3 whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>

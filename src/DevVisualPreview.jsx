@@ -23,6 +23,7 @@ import { normalizeLanguage, t } from './lib/i18n.js';
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
+const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
@@ -165,7 +166,7 @@ export default function DevVisualPreview() {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'analysis', 'review'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'analysis', 'review', 'pnl-report'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
@@ -378,6 +379,8 @@ export default function DevVisualPreview() {
     logoCache: {},
     marketColorMode: 'redUpGreenDown',
     newStock,
+    openPnlReport: () => setActiveTab('pnl-report'),
+    closePnlReport: () => setActiveTab('home'),
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
     reorderWatchlist: async (next) => {
@@ -458,11 +461,14 @@ export default function DevVisualPreview() {
   return (
     <div className="min-h-screen bg-[#05070b] px-4 pb-24 text-white" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
-        {activeTab === 'home'
+        {activeTab === 'pnl-report'
+          ? <PnlReportPage ctx={ctx} />
+          : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
       </Suspense>
 
+      {activeTab !== 'pnl-report' && (
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-5">
@@ -484,6 +490,7 @@ export default function DevVisualPreview() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

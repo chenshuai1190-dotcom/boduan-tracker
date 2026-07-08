@@ -14,6 +14,7 @@ const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
+const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
 const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
@@ -4258,6 +4259,7 @@ function MainApp({ user, onLogout }) {
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
+  const [activePage, setActivePage] = useState(null);
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
@@ -4265,6 +4267,12 @@ function MainApp({ user, onLogout }) {
   const [portfolioCurrencyMode, setPortfolioCurrencyModeState] = useState(() => readStoredPortfolioCurrency());
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
     setPortfolioCurrencyModeState(normalizePortfolioCurrency(nextCurrency));
+  }, []);
+  const openPnlReport = useCallback(() => {
+    setActivePage('pnl-report');
+  }, []);
+  const closePnlReport = useCallback(() => {
+    setActivePage(null);
   }, []);
 
   useEffect(() => {
@@ -4278,7 +4286,7 @@ function MainApp({ user, onLogout }) {
   // 切换 tab 时自动滚到页面顶部(像原生 App 一样)
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeTab]);
+  }, [activeTab, activePage]);
 
   useEffect(() => {
     if (cloudLoading) return;
@@ -4342,6 +4350,7 @@ function MainApp({ user, onLogout }) {
   const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
 
 
+  const isPnlReportPage = activePage === 'pnl-report';
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const tabCtx = {
     accountDeleteConfirmId,
@@ -4434,6 +4443,7 @@ function MainApp({ user, onLogout }) {
     newStock,
     newTrade,
     onLogout,
+    openPnlReport,
     Pin,
     portfolioCurrencyMode,
     Plus,
@@ -4446,6 +4456,7 @@ function MainApp({ user, onLogout }) {
     reorderWatchlist,
     reviewLogs,
     clearQuoteDiagnosticLogs,
+    closePnlReport,
     setAccountDeleteConfirmId,
     setAccounts,
     setAlertsMuted,
@@ -4553,7 +4564,7 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
-  const darkShell = activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
+  const darkShell = isPnlReportPage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90';
   const costBasisModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
@@ -4683,7 +4694,7 @@ function MainApp({ user, onLogout }) {
 
         {/* ====== 首页 tab ====== */}
         <Suspense fallback={<TabFallback />}>
-          <ActiveTab ctx={tabCtx} />
+          {isPnlReportPage ? <PnlReportPage ctx={tabCtx} /> : <ActiveTab ctx={tabCtx} />}
         </Suspense>
 
 
@@ -6539,6 +6550,7 @@ function MainApp({ user, onLogout }) {
         })()}
 
         {/* 底部 5 tab 导航栏 */}
+        {!isPnlReportPage && (
         <div
           className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${darkShell ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -6578,6 +6590,7 @@ function MainApp({ user, onLogout }) {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
