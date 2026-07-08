@@ -109,6 +109,18 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
+const mockActivePositions = [
+  { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },
+  { symbol: 'MSFT', name: '微软', currentPrice: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, totalPnl: 31400, totalPnlPct: 0.19 },
+  { symbol: 'AAPL', name: '苹果', currentPrice: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, totalPnl: -4200, totalPnlPct: -0.03 },
+];
+
+const mockLockedActivePositions = mockActivePositions.map((position, index) => ({
+  ...position,
+  dailyPnlLocked: true,
+  dailyPnlPrice: [195.55, 386.74, 600.29][index] || position.currentPrice,
+}));
+
 const devStockNameEn = {
   AAPL: 'Apple',
   MSFT: 'Microsoft',
@@ -165,12 +177,18 @@ export default function DevVisualPreview() {
   const indicesPreviewMode = typeof window === 'undefined'
     ? 'mock'
     : new URLSearchParams(window.location.search).get('indices');
+  const freshnessPreviewMode = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('freshness');
   const previewMarketIndices = React.useMemo(() => {
     if (indicesPreviewMode === 'placeholder') return [];
     if (indicesPreviewMode === 'rest-empty') return mockRestMarketIndices;
     if (indicesPreviewMode === 'sampled') return mockSampledMarketIndices;
     return mockMarketIndices;
   }, [indicesPreviewMode]);
+  const previewActivePositions = freshnessPreviewMode === 'locked'
+    ? mockLockedActivePositions
+    : mockActivePositions;
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => mockHomeWatchlist);
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
   const [benchmarkSymbol, setBenchmarkSymbol] = React.useState('QQQ');
@@ -343,11 +361,7 @@ export default function DevVisualPreview() {
     indices: previewMarketIndices,
     marketIndices: previewMarketIndices,
     investmentSummary: {
-      activePositions: [
-        { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },
-        { symbol: 'MSFT', name: '微软', currentPrice: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, totalPnl: 31400, totalPnlPct: 0.19 },
-        { symbol: 'AAPL', name: '苹果', currentPrice: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, totalPnl: -4200, totalPnlPct: -0.03 },
-      ],
+      activePositions: previewActivePositions,
       positions: [],
       totalAssetsUsd: 3365931,
       totalAssetsCny: 24286383.55,
@@ -364,6 +378,7 @@ export default function DevVisualPreview() {
     logoCache: {},
     marketColorMode: 'redUpGreenDown',
     newStock,
+    quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
     reorderWatchlist: async (next) => {
       setHomeWatchlist(next);
@@ -375,6 +390,7 @@ export default function DevVisualPreview() {
     setNewStock,
     setShowAddStock,
     showAddStock,
+    stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
     vix: 15.8,
     vixDataDate: '2026-07-03T00:00:00.000Z',
     vixSignal: 'calm',

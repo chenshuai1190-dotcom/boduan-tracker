@@ -141,6 +141,11 @@ function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
   return freshnessTimestamp(quoteRow) < startedAt;
 }
 
+function lockedCloseDisplayPrice(row) {
+  const price = num(row?.dailyPnlPrice);
+  return row?.dailyPnlLocked && price > 0 ? price : null;
+}
+
 function SortIcon({ active, direction }) {
   return (
     <span className="flex h-4 w-2.5 shrink-0 flex-col items-center justify-center gap-[2px]" aria-hidden="true">
@@ -723,6 +728,7 @@ export default function HomeTab({ ctx }) {
       quote,
       price,
       maskPrice: isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt),
+      lockedDisplayPrice: lockedCloseDisplayPrice(row),
       changePct,
       pnlValue,
       pnlPct,
@@ -1068,7 +1074,7 @@ export default function HomeTab({ ctx }) {
                         className="grid min-h-[54px] w-full items-center gap-1 py-2 text-left"
                         style={{ gridTemplateColumns: metricGridTemplate }}
                       >
-                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? '--' : fmtMoney(item.price, 2)}</span>
+                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)}</span>
                         <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
                         <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                           {fmtDrawdownPct(item.highDrawdown)}

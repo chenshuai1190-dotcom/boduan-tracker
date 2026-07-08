@@ -2,6 +2,35 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-08 Asia/Shanghai
+
+### 2026-07-08 - 收盘锁定价格显示
+
+- Commit: this commit
+- Background: 用户反馈盘后和夜盘已经在顶部显示“收盘锁定”,持仓的“现价/成本”列继续显示 `--` 不直观;期望盘后/夜盘显示锁定收盘价,但盘前和盘中仍按 freshness 规则遮旧价。
+- Changes:
+  - `HomeTab.jsx` 持仓列表新增锁定价展示兜底:只有持仓价格被 freshness 遮罩、且该持仓 `dailyPnlLocked=true`、`dailyPnlPrice>0` 时,用 `dailyPnlPrice` 显示收盘锁定价;盘前/盘中未锁定时仍显示 `--`。
+  - `TradesTab.jsx` 持仓分布表同步同一规则,盘后/夜盘的“现价/成本”上排价格显示锁定收盘价,成本行和今日盈亏/持仓盈亏计算不变。
+  - `DevVisualPreview.jsx` 增加 `?freshness=locked` 本地预览场景,模拟没有 fresh quoteRows 但持仓已收盘锁定的展示路径。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.210`,新增“收盘锁定价格显示”。
+  - 本次只改首页和交易页持仓价格展示、preview、测试、设置页版本/更新日志和本日志;不改今日盈亏计算、行情 provider、股票 quote、交易账本、持仓成本、数据库结构、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js` passed, 30/30 tests.
+  - `npm test` passed, 113/113 tests.
+  - `npm run build` passed; generated `HomeTab-pFr3t5F5.js`, `TradesTab-Ch4UJaEC.js`, `SettingsTab-1Vi6dPrQ.js`, `settingsChangelog-6JxHa6Hu.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; `curl -I 'http://127.0.0.1:5173/?tab=home&freshness=locked'` returned `200 OK`.
+- Rollback: 回退本条涉及的持仓锁定价展示兜底、`?freshness=locked` 预览场景、`v10.7.9.210` 设置页版本/更新日志、测试和本日志即可;今日盈亏计算、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
+
 ## 2026-07-07 Asia/Shanghai
 
 ### 2026-07-07 - 三大指数固定卡位和自绘曲线

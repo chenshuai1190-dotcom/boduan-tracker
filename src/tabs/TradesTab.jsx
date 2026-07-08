@@ -82,6 +82,11 @@ function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
   return freshnessTimestamp(quoteRow) < startedAt;
 }
 
+function lockedCloseDisplayPrice(position) {
+  const price = toNumber(position?.dailyPnlPrice);
+  return position?.dailyPnlLocked && price > 0 ? price : null;
+}
+
 export default function TradesTab({ ctx }) {
   const {
     addTrade,
@@ -699,6 +704,7 @@ export default function TradesTab({ ctx }) {
                           const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
                           const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
                           const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
+                          const lockedCurrentPrice = lockedCloseDisplayPrice(position);
                           return (
                             <button
                               key={position.symbol}
@@ -711,7 +717,7 @@ export default function TradesTab({ ctx }) {
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
                               </span>
                               <span className="text-right">
-                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{maskCurrentPrice ? '--' : fmtAmount(position.currentPrice, 3)}</span>
+                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{maskCurrentPrice ? (lockedCurrentPrice ? fmtAmount(lockedCurrentPrice, 3) : '--') : fmtAmount(position.currentPrice, 3)}</span>
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
