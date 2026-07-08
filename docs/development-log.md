@@ -7,7 +7,7 @@
 ### 2026-07-08 - 收益报表日历月份与当前持仓回填
 
 - Commit: `6f62b710ddaf3f7ad44d5e3e4d3302930ea99df0`
-- Deployment: pending.
+- Deployment: deployed to GitHub `main` via SSH from code commit `6f62b710ddaf3f7ad44d5e3e4d3302930ea99df0`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户用测试账号和管理员账号验证后确认日收益金额准确,但收益日历只能看到约两天有效收益;本地复现确认 EODHD 历史日线不是只返回两天,而是当前测试账本的持仓交易录入日在 2026-07-06,严格账本模式会让 2026-06-26 至 2026-07-02 的历史快照无持仓,因此日历只有 2026-07-06 和 2026-07-07 有真实持仓收益。
 - Changes:
   - `src/lib/pnlReportSnapshots.js` 为历史收盘快照新增 `currentPositions` 回填模式:手动生成最近 7 个收盘快照时,先从当前交易账本推导打开持仓和平均成本,再把当前持仓贯穿回填窗口;价格仍使用 EODHD 历史收盘价,默认严格 `ledger` 模式保持不变。
@@ -34,6 +34,8 @@
   - `npm run build` passed; new chunks include `PnlReportPage-C32N1iVj.js`, `SettingsTab-5CSthCcd.js`, `settingsChangelog-C2pIzuK7.js`, `i18n-BoKxZ3S4.js`, and `App-Gaf23S0v.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
+  - Production marker verification passed: entry `index-BfPmWckf.js`; `App-BMxzJxLI.js` imports `PnlReportPage-C32N1iVj.js`, `SettingsTab-BYvMp84c.js`, and `i18n-BoKxZ3S4.js`; `PnlReportPage-C32N1iVj.js` contains `currentPositions`, `availableCalendarYears`, `选择月份`, and `/api/pnl-history-closes`; `SettingsTab-BYvMp84c.js` contains `v10.7.9.225`; `settingsChangelog-C2pIzuK7.js` contains `v10.7.9.225` and `收益报表日历月份与当前持仓回填`; `i18n-BoKxZ3S4.js` contains `选择月份`.
+  - Production API boundary check passed: unauthenticated `/api/pnl-history-closes?symbols=NVDA&to=2026-07-07&days=8` returned `401`; unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426`.
 - Rollback: 回退本条涉及的当前持仓回填模式、收益日历年月选择 UI、`v10.7.9.225` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.224`;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表 7 日收盘快照回填
