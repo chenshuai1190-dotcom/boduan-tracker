@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 股票代码输入严格校验
 
-- Commit: pending.
-- Deployment: pending push via project SSH key and production marker verification.
+- Commit: runtime code commit `24172f86abfad32549765b737b5cc43b6659a610`;deployment verification docs commit is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and `v10.7.9.235` production markers verified。
 - Background: 已注册用户 `sherryaiqin@126.com` 能登录但首页/交易页行情异常,设置页诊断日志显示 `/api/quote` 返回 `400` `股票代码不合法: N VDA`。用户确认根因是交易记录里的股票代码手动录入了空格;已注册用户不应该因此无法正常使用软件。
 - Changes:
   - 新增 `src/lib/symbols.js`,拆分旧数据读取容错和新输入严格校验两个口径。
@@ -38,7 +38,9 @@
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
 - Production verification:
-  - Pending.
+  - Production entry `/assets/index-DGPfGNHJ.js`;runtime chunks include `/assets/App-DYwj-VMj.js`,`/assets/HomeTab-BUKTqZAG.js`,`/assets/TradesTab-BbEKShMl.js`,`/assets/SettingsTab-Cli_PHce.js`,`/assets/settingsChangelog-Np_TrEFT.js`,`/assets/i18n-D6gQC1Ov.js`,`/assets/symbols-BLHitJ3E.js`。
+  - Production assets contain `v10.7.9.235`,`股票代码输入严格校验`,`股票代码格式不正确`,`不要包含空格`,`Invalid ticker format`,and `Enter a valid ticker without spaces or special characters`。
+  - Unauthenticated `GET /api/quote?symbols=VIX` returns `401`;ordinary non-WebSocket `GET /api/stocks-realtime`,`GET /api/indices-realtime`,and `GET /api/btc-realtime` over HTTPS return `426`。
 - Rollback: 回退本条涉及的 symbol helper、读取容错、输入严格校验、`v10.7.9.235` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.234`;不影响登录权限、邀请码规则、交易收益计算、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 个股详情文字层级回调
