@@ -1,63 +1,13 @@
 import React from 'react';
-import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter } from 'lucide-react';
+import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
+import { buildPnlReportSnapshots } from '../lib/pnlReportSnapshots.js';
+import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
 
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
-
-const reportMock = {
-  startDate: '2025/4/5',
-  endDate: '2026/7/8',
-  totalPnlUsd: 173007.98,
-  totalPnlPct: 0.4866,
-  turnoverUsd: 2922927.2,
-  tradeStockCount: 9,
-  outperformPct: -0.0059,
-  updatedAt: '07.07',
-  trend: [
-    { label: '2025/04', pnlPct: 0.12, benchmarkPct: 0.03, assetUsd: 2860000 },
-    { label: '2025/05', pnlPct: 0.01, benchmarkPct: 0.12, assetUsd: 2925000 },
-    { label: '2025/06', pnlPct: 0.18, benchmarkPct: 0.19, assetUsd: 3028000 },
-    { label: '2025/07', pnlPct: -0.01, benchmarkPct: 0.24, assetUsd: 2916000 },
-    { label: '2025/09', pnlPct: 0.40, benchmarkPct: 0.33, assetUsd: 3215000 },
-    { label: '2025/11', pnlPct: 0.42, benchmarkPct: 0.31, assetUsd: 3274000 },
-    { label: '2026/01', pnlPct: 0.52, benchmarkPct: 0.34, assetUsd: 3418000 },
-    { label: '2026/03', pnlPct: 0.21, benchmarkPct: 0.24, assetUsd: 3180000 },
-    { label: '2026/05', pnlPct: 0.56, benchmarkPct: 0.52, assetUsd: 3510000 },
-    { label: '2026/07', pnlPct: 0.4866, benchmarkPct: 0.4807, assetUsd: 3392144 },
-  ],
-  calendar: [
-    { day: 1, valueUsd: -35.19 },
-    { day: 2, valueUsd: -40.63 },
-    { day: 3, valueUsd: 0 },
-    { day: 6, valueUsd: 24.81 },
-    { day: 7, valueUsd: -24.47 },
-    { day: 8, valueUsd: 1.27 },
-  ],
-  summary: {
-    stockPnlUsd: 185477.49,
-    best: { symbol: 'NVDA', name: '英伟达', pnlUsd: 65887.35 },
-    worst: { symbol: 'META', name: 'Meta', pnlUsd: -2473.22 },
-  },
-  rankings: {
-    gain: [
-      { symbol: 'NVDA', name: '英伟达', pnlUsd: 65887.35 },
-      { symbol: 'GOOGL', name: '谷歌-A', pnlUsd: 46806.23 },
-      { symbol: 'TQQQ', name: '3 倍做多纳指 ETF', pnlUsd: 39923.2 },
-      { symbol: 'TSM', name: '台积电', pnlUsd: 26981.64 },
-      { symbol: 'MSFT', name: '微软', pnlUsd: 10306.23 },
-    ],
-    loss: [
-      { symbol: 'META', name: 'Meta', pnlUsd: -2473.22 },
-      { symbol: 'NOK', name: 'NOK', pnlUsd: -1819.4 },
-      { symbol: 'SPCX', name: 'SpaceX', pnlUsd: -520.16 },
-      { symbol: 'IBKR', name: 'IBKR', pnlUsd: -115.91 },
-      { symbol: 'QQQ', name: '纳指100 ETF', pnlUsd: -80.12 },
-    ],
-  },
-};
 
 function toNumber(value) {
   const n = Number(value);
@@ -77,18 +27,14 @@ function signedCurrency(value, currency = 'USD', digits = 2) {
   return `${n >= 0 ? '+' : '-'}${symbol}${fmt(Math.abs(n), digits)}`;
 }
 
-function currency(value, currency = 'USD', digits = 2) {
-  const symbol = currency === 'CNY' ? '¥' : '$';
-  return `${symbol}${fmt(value, digits)}`;
-}
-
 function signedPct(value, digits = 2) {
   const n = toNumber(value) * 100;
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
 }
 
 function displayName(row, englishMode) {
-  if (!englishMode) return row.name;
+  if (!row) return '--';
+  if (!englishMode) return row.name || row.symbol || '--';
   const map = {
     英伟达: 'NVIDIA',
     '谷歌-A': 'Alphabet',
@@ -130,8 +76,12 @@ function buildAreaPath(linePath, width = 310, height = 150, pad = 10) {
 function SparkArea({ data, mode, color }) {
   const primaryKey = mode === 'assets' ? 'assetUsd' : 'pnlPct';
   const primaryPath = buildLinePath(data, primaryKey);
-  const benchmarkPath = buildLinePath(data, 'benchmarkPct');
+  const hasBenchmark = data.some(point => Number.isFinite(Number(point?.benchmarkPct)));
+  const benchmarkPath = hasBenchmark ? buildLinePath(data, 'benchmarkPct') : '';
   const areaPath = buildAreaPath(primaryPath);
+  const firstLabel = data[0]?.label || '--';
+  const middleLabel = data[Math.floor(data.length / 2)]?.label || firstLabel;
+  const lastLabel = data[data.length - 1]?.label || firstLabel;
 
   return (
     <svg viewBox="0 0 310 150" className="mt-3 h-[170px] w-full overflow-visible">
@@ -144,16 +94,16 @@ function SparkArea({ data, mode, color }) {
       {[18, 50, 82, 114].map((y) => (
         <line key={y} x1="10" y1={y} x2="300" y2={y} stroke="rgba(255,255,255,0.09)" strokeDasharray="3 4" />
       ))}
-      <path d={areaPath} fill="url(#pnlReportArea)" />
-      <path d={primaryPath} fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d={benchmarkPath} fill="none" stroke="#51a7ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" />
+      {areaPath && <path d={areaPath} fill="url(#pnlReportArea)" />}
+      {primaryPath && <path d={primaryPath} fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />}
+      {benchmarkPath && <path d={benchmarkPath} fill="none" stroke="#51a7ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" />}
       <text x="300" y="21" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">78.48%</text>
       <text x="300" y="54" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">58.87%</text>
       <text x="300" y="87" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">39.26%</text>
       <text x="300" y="122" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">19.66%</text>
-      <text x="10" y="146" fontSize="9" fill="rgba(255,255,255,0.38)">2025/04</text>
-      <text x="148" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.38)">2025/12</text>
-      <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">2026/07</text>
+      <text x="10" y="146" fontSize="9" fill="rgba(255,255,255,0.38)">{firstLabel}</text>
+      <text x="148" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.38)">{middleLabel}</text>
+      <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">{lastLabel}</text>
     </svg>
   );
 }
@@ -191,11 +141,15 @@ function SegmentButton({ active, children, onClick }) {
 export default function PnlReportPage({ ctx = {} }) {
   const {
     closePnlReport,
+    db,
     investmentSummary,
     language = 'zh',
     marketColorMode,
     portfolioCurrencyMode,
+    quoteRows,
+    stockTrades,
     usdRate,
+    user,
   } = ctx;
   const englishMode = isEnglishLanguage(language);
   const displayCurrency = portfolioCurrencyMode === 'CNY' ? 'CNY' : 'USD';
@@ -204,10 +158,82 @@ export default function PnlReportPage({ ctx = {} }) {
   const [chartMode, setChartMode] = React.useState('pnl');
   const [calendarMode, setCalendarMode] = React.useState('pnl');
   const [rankMode, setRankMode] = React.useState('gain');
+  const [portfolioSnapshots, setPortfolioSnapshots] = React.useState([]);
+  const [symbolSnapshots, setSymbolSnapshots] = React.useState([]);
+  const [rebuildState, setRebuildState] = React.useState(null);
+  const [reportLoading, setReportLoading] = React.useState(false);
+  const [reportError, setReportError] = React.useState('');
+  const [reportMessage, setReportMessage] = React.useState('');
+  const [rebuilding, setRebuilding] = React.useState(false);
+  const loadReportSnapshots = React.useCallback(async () => {
+    if (!db?.fetchPnlReportSnapshots) return;
+    setReportLoading(true);
+    setReportError('');
+    try {
+      const snapshots = await db.fetchPnlReportSnapshots(null, 370);
+      setPortfolioSnapshots(snapshots);
+      const latestDate = snapshots[0]?.snapshotDate;
+      const [symbols, state] = await Promise.all([
+        latestDate && db.fetchPnlReportSymbolSnapshots
+          ? db.fetchPnlReportSymbolSnapshots(latestDate)
+          : Promise.resolve([]),
+        db.fetchPnlReportRebuildState ? db.fetchPnlReportRebuildState() : Promise.resolve(null),
+      ]);
+      setSymbolSnapshots(symbols);
+      setRebuildState(state);
+    } catch (error) {
+      setReportError(error?.message || String(error));
+    } finally {
+      setReportLoading(false);
+    }
+  }, [db]);
+
+  React.useEffect(() => {
+    loadReportSnapshots();
+  }, [loadReportSnapshots, user?.id]);
+
+  const reportData = React.useMemo(() => buildPnlReportViewModel({
+    portfolioSnapshots,
+    symbolSnapshots,
+    range,
+  }), [portfolioSnapshots, symbolSnapshots, range]);
+
+  const handleRebuildToday = React.useCallback(async () => {
+    if (!db?.upsertPnlReportSnapshots) return;
+    setRebuilding(true);
+    setReportError('');
+    setReportMessage('');
+    try {
+      const trades = Array.isArray(stockTrades) ? stockTrades : [];
+      if (trades.length === 0) throw new Error(t(language, 'pnlReport.noTrades', '交易账本为空,无法生成收益快照'));
+      const built = buildPnlReportSnapshots({
+        stockTrades: trades,
+        quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
+        cashUsd: toNumber(investmentSummary?.cashUsd),
+        snapshotDate: new Date(),
+        lockedAt: new Date().toISOString(),
+      });
+      const missingSymbols = built.symbolSnapshots
+        .filter((snapshot) => snapshot.isOpen && !(toNumber(snapshot.currentPriceUsd) > 0))
+        .map((snapshot) => snapshot.symbol);
+      if (missingSymbols.length > 0) {
+        throw new Error(`${t(language, 'pnlReport.quotesNotReady', '行情未就绪,缺少现价')}: ${missingSymbols.join(', ')}`);
+      }
+      await db.upsertPnlReportSnapshots(built);
+      if (db.clearPnlReportRebuildState) await db.clearPnlReportRebuildState();
+      await loadReportSnapshots();
+      setReportMessage(t(language, 'pnlReport.rebuildSuccess', '今日收益快照已生成'));
+    } catch (error) {
+      setReportError(error?.message || String(error));
+    } finally {
+      setRebuilding(false);
+    }
+  }, [db, investmentSummary?.cashUsd, language, loadReportSnapshots, quoteRows, stockTrades]);
+
   const positiveColor = marketHexColor(1, marketColorMode);
   const negativeColor = marketHexColor(-1, marketColorMode);
-  const totalColor = marketHexColor(reportMock.totalPnlUsd, marketColorMode);
-  const reportTotal = convertUsd(reportMock.totalPnlUsd, displayRate);
+  const totalColor = marketHexColor(reportData.totalPnlUsd, marketColorMode);
+  const reportTotal = convertUsd(reportData.totalPnlUsd, displayRate);
   const rangeItems = [
     ['month', t(language, 'pnlReport.range.month', '本月')],
     ['1m', t(language, 'pnlReport.range.1m', '近 1 月')],
@@ -216,8 +242,18 @@ export default function PnlReportPage({ ctx = {} }) {
     ['1y', t(language, 'pnlReport.range.1y', '近 1 年')],
     ['all', t(language, 'pnlReport.range.all', '全部')],
   ];
-  const calendarValues = new Map(reportMock.calendar.map(item => [item.day, item.valueUsd]));
-  const rankingRows = reportMock.rankings[rankMode];
+  const calendarValues = new Map(reportData.calendar.map(item => [item.day, item]));
+  const rankingRows = reportData.rankings[rankMode] || [];
+  const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
+  const statusText = reportLoading
+    ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
+    : reportError
+      ? reportError
+      : reportMessage || (rebuildState?.dirtyFromDate
+        ? `${t(language, 'pnlReport.dirtyNotice', '交易已更新,建议重新生成快照')} · ${rebuildState.dirtyFromDate}`
+        : reportData.hasData
+          ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库收益快照。手动生成只更新今日快照,不影响交易页实时显示。')
+          : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成今日快照后,页面会读取数据库里的真实报表数据。'));
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white" style={{ fontFamily: REPORT_FONT }}>
@@ -233,7 +269,9 @@ export default function PnlReportPage({ ctx = {} }) {
           </button>
           <div className="text-center">
             <h1 className="text-[17px] font-semibold leading-tight text-white">{t(language, 'pnlReport.title', '收益报表')}</h1>
-            <div className="mt-0.5 text-[11px] text-white/36">X MONEY · {t(language, 'pnlReport.mockBadge', '前端预览')}</div>
+            <div className="mt-0.5 text-[11px] text-white/36">
+              X MONEY · {reportData.hasData ? t(language, 'pnlReport.snapshotBadge', '快照数据') : t(language, 'pnlReport.noSnapshotBadge', '等待快照')}
+            </div>
           </div>
           <button
             type="button"
@@ -260,10 +298,10 @@ export default function PnlReportPage({ ctx = {} }) {
         <div className="mt-3 text-[35px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
           {signedCurrency(reportTotal, displayCurrency, 2)}
         </div>
-        <div className={`mt-2 text-[15px] font-semibold tabular-nums ${marketTextClass(reportMock.totalPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-          {signedPct(reportMock.totalPnlPct, 2)}
+        <div className={`mt-2 text-[15px] font-semibold tabular-nums ${marketTextClass(reportData.totalPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          {signedPct(reportData.totalPnlPct, 2)}
         </div>
-        <div className="mt-3 text-[12px] text-white/38">{reportMock.startDate} - {reportMock.endDate}</div>
+        <div className="mt-3 text-[12px] text-white/38">{reportData.startDate} - {reportData.endDate}</div>
 
         <div className="mx-auto mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.055] p-1">
           <SegmentButton active={chartMode === 'pnl'} onClick={() => setChartMode('pnl')}>{t(language, 'pnlReport.pnlTrend', '收益率走势')}</SegmentButton>
@@ -275,21 +313,23 @@ export default function PnlReportPage({ ctx = {} }) {
         <div className="flex items-center justify-start text-[12px] text-white/52">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: totalColor }} />{t(language, 'pnlReport.mine', '我的')}</span>
-            <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>
+            {hasBenchmarkTrend && <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>}
           </div>
         </div>
-        <SparkArea data={reportMock.trend} mode={chartMode} color={totalColor} />
+        <SparkArea data={reportData.trend} mode={chartMode} color={totalColor} />
       </section>
 
       <section className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
           <div className="text-[12px] text-white/46">{t(language, 'pnlReport.turnover', '累计成交金额')} ({displayCurrency})</div>
-          <div className="mt-3 text-[19px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(convertUsd(reportMock.turnoverUsd, displayRate), 2)}</div>
-          <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportMock.tradeStockCount}</div>
+          <div className="mt-3 text-[19px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(convertUsd(reportData.turnoverUsd, displayRate), 2)}</div>
+          <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
           <div className="text-[12px] text-white/46">{t(language, 'pnlReport.outperform', '全部跑赢')} {t(language, 'pnlReport.nasdaq', '纳斯达克')}</div>
-          <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${marketTextClass(reportMock.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(reportMock.outperformPct, 2)}</div>
+          <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${reportData.outperformPct == null ? 'text-white/36' : marketTextClass(reportData.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            {reportData.outperformPct == null ? '--' : signedPct(reportData.outperformPct, 2)}
+          </div>
         </div>
       </section>
 
@@ -300,7 +340,7 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
         <div className="mt-4 flex items-center justify-between">
           <button type="button" className="flex items-center gap-1.5 text-[15px] font-normal text-white">
-            2026/07 <ChevronDown className="h-3.5 w-3.5 text-white/42" />
+            {reportData.selectedMonth} <ChevronDown className="h-3.5 w-3.5 text-white/42" />
           </button>
           <div className="flex rounded-full border border-white/10 bg-white/[0.055] p-1">
             <SegmentButton active={false}>{t(language, 'pnlReport.year', '年')}</SegmentButton>
@@ -318,10 +358,12 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
         <div className="mt-3 grid grid-cols-7 gap-1 text-center">
           {[null, null, null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31].map((day, index) => {
-            const valueUsd = day ? calendarValues.get(day) : undefined;
-            const hasValue = valueUsd !== undefined;
+            const calendarItem = day ? calendarValues.get(day) : undefined;
+            const valueUsd = calendarItem?.valueUsd;
+            const rate = calendarItem?.rate;
+            const hasValue = valueUsd != null || rate != null;
             const bgColor = hasValue
-              ? `${marketHexColor(valueUsd, marketColorMode)}18`
+              ? `${marketHexColor(valueUsd ?? rate ?? 0, marketColorMode)}18`
               : 'transparent';
             return (
               <div
@@ -335,7 +377,7 @@ export default function PnlReportPage({ ctx = {} }) {
                     {hasValue && (
                       <span className={`mt-0.5 text-[9px] tabular-nums ${marketTextClass(valueUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                         {calendarMode === 'rate'
-                          ? signedPct(valueUsd / 10000, 2)
+                          ? (rate == null ? '--' : signedPct(rate, 2))
                           : signedCurrency(convertUsd(valueUsd, displayRate), displayCurrency, 2)}
                       </span>
                     )}
@@ -350,24 +392,28 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-semibold text-white">{t(language, 'pnlReport.summary', '全部盈亏总结')} ({displayCurrency})</h2>
-          <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportMock.updatedAt}</span>
+          <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
         </div>
         <div className="mt-4 flex items-center justify-between">
           <div className="text-[13px] text-white/62">{t(language, 'pnlReport.stockPnl', '股票累计盈亏')}</div>
-          <div className={`flex items-center gap-1 text-[17px] font-normal tabular-nums ${marketTextClass(reportMock.summary.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-            {fmt(convertUsd(reportMock.summary.stockPnlUsd, displayRate), 2)}<ChevronRight className="h-4 w-4 text-white/30" />
+          <div className={`flex items-center gap-1 text-[17px] font-normal tabular-nums ${marketTextClass(reportData.summary.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            {fmt(convertUsd(reportData.summary.stockPnlUsd, displayRate), 2)}<ChevronRight className="h-4 w-4 text-white/30" />
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
           <div className="min-h-[74px] p-3" style={{ background: `${positiveColor}F0` }}>
             <div className="text-[12px] text-white/82">{t(language, 'pnlReport.gain', '盈利')}</div>
-            <div className="mt-2 text-[13px] text-white">{displayName(reportMock.summary.best, englishMode)}.US</div>
-            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(convertUsd(reportMock.summary.best.pnlUsd, displayRate), displayCurrency, 2)}</div>
+            <div className="mt-2 text-[13px] text-white">{displayName(reportData.summary.best, englishMode)}{reportData.summary.best ? '.US' : ''}</div>
+            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>
+              {reportData.summary.best ? signedCurrency(convertUsd(reportData.summary.best.pnlUsd, displayRate), displayCurrency, 2) : '--'}
+            </div>
           </div>
           <div className="min-h-[74px] p-3 text-right" style={{ background: `${negativeColor}D8` }}>
             <div className="text-[12px] text-white/82">{t(language, 'pnlReport.loss', '亏损')}</div>
-            <div className="mt-2 text-[13px] text-white">{displayName(reportMock.summary.worst, englishMode)}.US</div>
-            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(convertUsd(reportMock.summary.worst.pnlUsd, displayRate), displayCurrency, 2)}</div>
+            <div className="mt-2 text-[13px] text-white">{displayName(reportData.summary.worst, englishMode)}{reportData.summary.worst ? '.US' : ''}</div>
+            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>
+              {reportData.summary.worst ? signedCurrency(convertUsd(reportData.summary.worst.pnlUsd, displayRate), displayCurrency, 2) : '--'}
+            </div>
           </div>
         </div>
       </section>
@@ -375,7 +421,7 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-semibold text-white">{t(language, 'pnlReport.ranking', '全部盈亏排行榜')} ({displayCurrency})</h2>
-          <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportMock.updatedAt}</span>
+          <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
         </div>
         <div className="mt-4 grid grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
           <SegmentButton active={rankMode === 'gain'} onClick={() => setRankMode('gain')}>{t(language, 'pnlReport.gainTop5', '盈利 Top5')}</SegmentButton>
@@ -386,6 +432,11 @@ export default function PnlReportPage({ ctx = {} }) {
           <span>{t(language, 'pnlReport.pnlTotal', '盈亏总额')}</span>
         </div>
         <div className="mt-2 space-y-1.5">
+          {rankingRows.length === 0 && (
+            <div className="rounded-lg bg-white/[0.03] px-2.5 py-3 text-center text-[12px] text-white/36">
+              {t(language, 'pnlReport.noRankingRows', '暂无排行数据')}
+            </div>
+          )}
           {rankingRows.map((row, index) => {
             const displayValue = convertUsd(row.pnlUsd, displayRate);
             const color = marketHexColor(row.pnlUsd, marketColorMode);
@@ -411,8 +462,19 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
       </section>
       <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/40">
-        <BarChart3 className="mb-2 h-4 w-4 text-[#f6b54b]" />
-        {t(language, 'pnlReport.mockNotice', '当前为前端静态预览数据。后续接入数据库快照后,这里会读取每日收盘锁定后的历史收益。')}
+        <div className="flex items-start gap-3">
+          <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b]" />
+          <div className="min-w-0 flex-1">{statusText}</div>
+        </div>
+        <button
+          type="button"
+          onClick={handleRebuildToday}
+          disabled={rebuilding || reportLoading}
+          className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/45 bg-[#f6b54b]/12 px-3 text-[12px] font-normal text-[#ffd18a] transition active:scale-95 disabled:opacity-45"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+          {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成今日快照')}
+        </button>
       </div>
     </main>
   );

@@ -5,6 +5,7 @@ import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './d
 import { earliestReportDate, markPnlReportDirtySafely } from './pnlReportDb';
 
 export {
+  clearPnlReportRebuildState,
   fetchPnlReportRebuildState,
   fetchPnlReportSnapshots,
   fetchPnlReportSymbolSnapshots,

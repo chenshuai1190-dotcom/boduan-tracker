@@ -110,6 +110,43 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
+const mockPnlPortfolioSnapshots = [
+  {
+    snapshotDate: '2026-07-08',
+    cumulativePnlUsd: 118433.6,
+    cumulativePnlPct: 0.0365,
+    totalAssetsUsd: 3365931,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: -1485.6,
+    dailyPnlPct: -0.0004,
+    updatedAt: '2026-07-08T21:00:00Z',
+  },
+  {
+    snapshotDate: '2026-07-07',
+    cumulativePnlUsd: 119919.2,
+    cumulativePnlPct: 0.0371,
+    totalAssetsUsd: 3367416.6,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: 8240.3,
+    dailyPnlPct: 0.0025,
+    updatedAt: '2026-07-07T21:00:00Z',
+  },
+];
+
+const mockPnlSymbolSnapshots = [
+  { symbol: 'NVDA', name: 'NVIDIA', cumulativePnlUsd: 48000, dailyPnlUsd: 2100 },
+  { symbol: 'MSFT', name: '微软', cumulativePnlUsd: 31400, dailyPnlUsd: -900 },
+  { symbol: 'AAPL', name: '苹果', cumulativePnlUsd: -4200, dailyPnlUsd: -350 },
+];
+
+const mockPnlStockTrades = [
+  { id: 'dev_trade_1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', date: '2026-04-05', price: 120, shares: 100 },
+  { id: 'dev_trade_2', symbol: 'MSFT', name: '微软', side: 'buy', date: '2026-04-10', price: 410, shares: 80 },
+  { id: 'dev_trade_3', symbol: 'AAPL', name: '苹果', side: 'buy', date: '2026-05-01', price: 220, shares: 60 },
+];
+
 const mockActivePositions = [
   { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },
   { symbol: 'MSFT', name: '微软', currentPrice: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, totalPnl: 31400, totalPnlPct: 0.19 },
@@ -266,6 +303,11 @@ export default function DevVisualPreview() {
     insertReviewLog: async (log) => ({ ...log, id: `dev_log_${Date.now()}` }),
     updateReviewLog: async () => ({}),
     deleteReviewLog: async () => ({}),
+    fetchPnlReportSnapshots: async () => mockPnlPortfolioSnapshots,
+    fetchPnlReportSymbolSnapshots: async () => mockPnlSymbolSnapshots,
+    fetchPnlReportRebuildState: async () => null,
+    upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
+    clearPnlReportRebuildState: async () => ({}),
   }), []);
 
   const fmt = React.useCallback((n, digits = 2) => {
@@ -338,6 +380,7 @@ export default function DevVisualPreview() {
     cacheStockLogo: () => {},
     CheckCircle2,
     ChevronRight,
+    db,
     deleteWatchlistItem: async (symbol) => {
       setHomeWatchlist((current) => current.filter((row) => row.symbol !== symbol));
       return { success: true };
@@ -381,6 +424,7 @@ export default function DevVisualPreview() {
     newStock,
     openPnlReport: () => setActiveTab('pnl-report'),
     closePnlReport: () => setActiveTab('home'),
+    portfolioCurrencyMode: 'USD',
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
     reorderWatchlist: async (next) => {
@@ -393,7 +437,9 @@ export default function DevVisualPreview() {
     setNewStock,
     setShowAddStock,
     showAddStock,
+    stockTrades: mockPnlStockTrades,
     stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
+    usdRate: USD_RATE,
     vix: 15.8,
     vixDataDate: '2026-07-03T00:00:00.000Z',
     vixSignal: 'calm',
@@ -462,7 +508,7 @@ export default function DevVisualPreview() {
     <div className="min-h-screen bg-[#05070b] px-4 pb-24 text-white" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
-          ? <PnlReportPage ctx={ctx} />
+          ? <PnlReportPage ctx={homeCtx} />
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}

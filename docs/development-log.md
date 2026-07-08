@@ -4,6 +4,44 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表真实快照读取
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户确认先做收益报表 1-3 步:读取真实快照、提供手动重建入口、先跑通日级报表;交易页实时展示和报表系统继续保持两套独立系统。
+- Changes:
+  - 新增 `src/lib/pnlReportViewModel.js`,把组合快照和单股票快照整理为收益报表页面需要的总览、趋势、收益日历、盈亏总结和 Top5 排行数据。
+  - `src/pages/PnlReportPage.jsx` 删除旧前端 mock 数据,改为通过 `ctx.db` 读取 `pnl_report_snapshots` 和 `pnl_report_symbol_snapshots`;没有快照时显示等待快照状态,不再伪装成真实报表。
+  - 新增“生成今日快照”手动入口,从主交易账本 `stockTrades` 和当前 `quoteRows` 生成今日组合/单股票快照并写入独立报表表。
+  - 生成前会校验仍持仓股票是否已拿到当前现价,避免行情缺失时写入错误市值和盈亏快照。
+  - `src/lib/pnlReportDb.js` 新增 `clearPnlReportRebuildState`,手动生成成功后清理当前用户的报表 dirty 状态。
+  - 同步收益报表中英文状态文案、设置页版本和设置页更新日志到 `v10.7.9.216`。
+  - 本次不改交易页实时持仓/盈亏显示、不改股票行情 relay、不改 `stock_trades` 结构、不改 RLS、不改 EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/lib/pnlReportSnapshots.js`
+  - `src/lib/pnlReportDb.js`
+  - `src/lib/db.js`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `tests/pnl-report-view-model.test.js`
+  - `tests/pnl-report-snapshots.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js` passed, 3/3 tests.
+  - `node --test tests/pnl-report-snapshots.test.js` passed, 5/5 tests.
+  - `node --test tests/tool-ledger-boundaries.test.js` passed, 32/32 tests.
+  - `npm test` passed, 125/125 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-CDzYODVo.js`, `App-rMtvu8wI.js`, `SettingsTab-DwmbOqiq.js`, `settingsChangelog-DgfKsMoi.js`, and `i18n-Cib6cW5x.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - `git diff --check` passed.
+- Rollback: 回退本次提交即可恢复 `v10.7.9.215` 的收益报表快照基础状态;已执行过的 Supabase 快照表和 RLS 不需要回滚,交易主账本和实时行情显示不受影响。
+
 ### 2026-07-08 - 收益报表快照基础
 
 - Commit: this commit

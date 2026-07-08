@@ -193,6 +193,18 @@ export const fetchPnlReportRebuildState = async (preUser = null) => {
   return mapPnlReportRebuildState(data);
 };
 
+export const clearPnlReportRebuildState = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return { skipped: true, reason: 'missing_user' };
+
+  const { error } = await supabase
+    .from('pnl_report_rebuild_state')
+    .delete()
+    .eq('user_id', user.id);
+  if (error) throw error;
+  return { skipped: false };
+};
+
 export const upsertPnlReportSnapshots = async ({ portfolioSnapshot, symbolSnapshots = [] }) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
