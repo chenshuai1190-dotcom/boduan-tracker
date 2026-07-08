@@ -6,7 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新接手补充: `v10.7.9.215` 新增收益报表快照基础。交易主账本 `stock_trades` 仍是唯一事实源,收益报表新增独立组合快照、单股票快照和重算脏区间 SQL;交易新增/编辑/删除后只 best-effort 标记报表从受影响日期重算,不改交易页实时持仓/盈亏显示。`supabase/pnl_report_snapshots.sql` 已提交但需要在 Supabase SQL Editor 执行后才会真正创建生产表和 RPC;执行后必须跑 `npm run verify:rls:rest` 验证匿名 REST 仍无法读取新表。
+- 最新接手补充: `v10.7.9.215` 新增收益报表快照基础。交易主账本 `stock_trades` 仍是唯一事实源,收益报表新增独立组合快照、单股票快照和重算脏区间 SQL;交易新增/编辑/删除后只 best-effort 标记报表从受影响日期重算,不改交易页实时持仓/盈亏显示。`supabase/pnl_report_snapshots.sql` 已在 Supabase 生产项目 `ykgotnmtqcqdzqtrlayq` 的 SQL Editor 执行成功;执行后 `npm run verify:rls:rest` 通过,匿名 REST 对新三张收益报表表返回 0 行。
 - 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133` 已通过项目 SSH key 推送并上线,当前运行时为 `v10.7.9.207`。
 - 当前生产运行时代码提交: `95e8cc5ee25486e9ebee5e0a1d3e44b18d3d2133`;最近已验证的 runtime marker 为 `v10.7.9.207`。
 - 设置页版本: `v10.7.9.207`。
