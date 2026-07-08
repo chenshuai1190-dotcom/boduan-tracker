@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表自动收盘快照
 
-- Commit: same commit (本轮完成后以 `git log -1 --oneline` 为准)。
-- Deployment: pending;本轮需通过项目 SSH key 推送 `main` 并等待 Vercel production success。
+- Commit: runtime code commit `ebb8090912ba373a48efb756bb85886e1d9f07c6`;environment redeploy/docs commit `a066f6beda9e970f1efcbb14a1175e798015d864`。
+- Deployment: deployed to GitHub `main` via project SSH key;Vercel production deployment success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/45ftQqGkpLCbxNdyEMdP3FGWGKPD`。
 - Background: 用户确认收益报表手动回填和日历展示已进入可用状态后,提出明天开始系统应自动记录每日收盘数据,不再依赖手动点击生成快照。
 - Changes:
   - 新增 `server/pnlReportDailySnapshot.js`,服务端批量读取所有账户 `stock_trades`,按最新已完成美股交易日或指定 `date` 拉取 EODHD 日线收盘价,并用严格 `ledger` 模式生成组合/单股票快照。
@@ -36,7 +36,10 @@
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
 - Production verification:
-  - Pending: after deployment, verify production marker `v10.7.9.229`, `/api/pnl-report-daily-snapshot` auth boundary, `/api/quote` unauthenticated `401`, and realtime relay ordinary HTTP `426`.
+  - Production entry `index-BAd5OjER.js`;runtime chunks include `App-Ck2itcHL.js`,`SettingsTab-CCh6lEJ6.js`,`settingsChangelog-Bv0bG28U.js`,`PnlReportPage-CGeO8hp6.js`.
+  - Production assets contain `v10.7.9.229`,`收益报表自动收盘快照`,`/api/pnl-report-daily-snapshot`,and `CRON_SECRET` marker text in changelog bundle.
+  - Unauthenticated `GET /api/pnl-report-daily-snapshot` returns `401` `Cron secret 不匹配`,confirming `CRON_SECRET` is configured in Vercel runtime and missing/invalid bearer is rejected.
+  - Unauthenticated `GET /api/quote?symbols=VIX` returns `401`;ordinary HTTP `GET /api/stocks-realtime` and `GET /api/indices-realtime` return `426`.
 - Rollback: 回退本条涉及的新 API、服务端批量快照模块、`vercel.json` Cron、`v10.7.9.229` 设置页版本/更新日志、测试和文档即可恢复 `v10.7.9.228`;Vercel 中如已新增 `CRON_SECRET`,可保留但不再被使用。回滚不影响已存在的收益报表快照表、手动回填、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表日历样式微调
