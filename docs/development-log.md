@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 个股收益线滑动查看
 
-- Commit: `same commit`.
-- Deployment: pending;将通过项目 SSH key 推送 GitHub `main` 并等待 Vercel production 部署成功。
+- Commit: runtime code commit `630a738d1ca716d04f3d8930e37b5294b7347dbe`;deployment verification docs commit is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and `v10.7.9.232` production markers verified。
 - Background: 用户确认个股收益详情页第一版只读效果后,希望收益走势图支持手指滑动查看每日收益点,并要求本地截图确认无问题后再部署。
 - Changes:
   - `src/pages/StockDetailPage.jsx` 的收益走势 SVG 现在为每个真实快照点保留坐标,按住或滑动图表时吸附到最近点。
@@ -33,7 +33,10 @@
   - `npm run build` passed;new chunks include `StockDetailPage-C3SNAms6.js`,`App-D6s-RXTA.js`,`SettingsTab-8TakFMJ0.js`,`settingsChangelog-CQ7xohdU.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
-- Production verification: pending after Vercel production deployment.
+- Production verification:
+  - Production entry `/assets/index-BV_WwH7C.js`;runtime chunks include `/assets/App--TKAmDct.js`,`/assets/HomeTab-BEBfMS18.js`,`/assets/TradesTab-DAX6AzUD.js`,`/assets/StockDetailPage-C3SNAms6.js`,`/assets/SettingsTab-nqwO9CwL.js`,`/assets/settingsChangelog-CQ7xohdU.js`,`/assets/i18n-C2nshi8Z.js`.
+  - Production assets contain `v10.7.9.232`,`个股收益线滑动查看`,`touchAction`,and `holdingPnl`.
+  - Unauthenticated `GET /api/quote?symbols=VIX` returns `401`;ordinary non-WebSocket `GET /api/stocks-realtime`,`GET /api/indices-realtime`,and `GET /api/btc-realtime` over HTTPS return `426`.
 - Rollback: 回退本条涉及的个股详情图表交互、持仓收益口径字段、首页/交易页持仓收益展示、`v10.7.9.232` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.231`;不影响交易写入、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 个股详情视觉优化
