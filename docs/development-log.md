@@ -7,6 +7,7 @@
 ### 2026-07-08 - 收盘锁定价格显示
 
 - Commit: this commit
+- Deployment: pushed to GitHub `main` with SSH; production verified on Vercel.
 - Background: 用户反馈盘后和夜盘已经在顶部显示“收盘锁定”,持仓的“现价/成本”列继续显示 `--` 不直观;期望盘后/夜盘显示锁定收盘价,但盘前和盘中仍按 freshness 规则遮旧价。
 - Changes:
   - `HomeTab.jsx` 持仓列表新增锁定价展示兜底:只有持仓价格被 freshness 遮罩、且该持仓 `dailyPnlLocked=true`、`dailyPnlPrice>0` 时,用 `dailyPnlPrice` 显示收盘锁定价;盘前/盘中未锁定时仍显示 `--`。
@@ -29,6 +30,10 @@
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
   - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; `curl -I 'http://127.0.0.1:5173/?tab=home&freshness=locked'` returned `200 OK`.
+  - Production entry verified as `index-DhzZ85ld.js`; runtime references `HomeTab-pFr3t5F5.js`, `TradesTab-Ch4UJaEC.js`, `SettingsTab-D0kBJlkw.js`, `settingsChangelog-6JxHa6Hu.js`.
+  - Production `SettingsTab-D0kBJlkw.js` contains `v10.7.9.210`; `settingsChangelog-6JxHa6Hu.js` contains `v10.7.9.210` and `收盘锁定价格显示`.
+  - Production `HomeTab-pFr3t5F5.js` and `TradesTab-Ch4UJaEC.js` contain the locked close display fields.
+  - Production `/api/quote?symbols=VIX` returned `401`; `/api/stocks-realtime` over plain HTTP returned `426`.
 - Rollback: 回退本条涉及的持仓锁定价展示兜底、`?freshness=locked` 预览场景、`v10.7.9.210` 设置页版本/更新日志、测试和本日志即可;今日盈亏计算、股票 quote、交易账本、持仓/成本/盈亏公式、数据库、RLS 和鉴权边界不受影响。
 
 ## 2026-07-07 Asia/Shanghai
