@@ -11,7 +11,7 @@
 - 当前生产运行时代码提交: 本轮部署完成后以 Vercel production runtime 为准;最近目标 runtime marker 为 `v10.7.9.229`。
 - 设置页版本: `v10.7.9.229`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: 本轮 `v10.7.9.229` 推送后需确认 production deployment success,并验证 `CRON_SECRET` 已在 Vercel Production 环境配置。
+- 最新 Vercel 状态: 本轮 `v10.7.9.229` 运行时代码 deployment success;`CRON_SECRET` 已在 Vercel Production 配置为 Sensitive,需通过后续 `main` 推送触发重新部署后验证运行时可读取。
 - 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.229` 运行时代码部署后必须补充 production marker 验证。
 - 线上关键验证: 部署后检查生产入口资产包含 `v10.7.9.229`、`收益报表自动收盘快照`、`/api/pnl-report-daily-snapshot` 和 `CRON_SECRET`;未带 Bearer secret 的 `GET /api/pnl-report-daily-snapshot` 必须返回 `401` 或在缺少环境变量时返回 `500` 配置错误;未登录 `GET /api/quote?symbols=VIX` 必须返回 `401`;普通 HTTP `GET /api/stocks-realtime`、`GET /api/indices-realtime` 仍返回 `426`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.214` 建立并精简收益报表独立页面前端;`v10.7.9.215` 建立收益报表快照 SQL/RLS/dirty 标记基础;`v10.7.9.216` 到 `v10.7.9.228` 接入真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照。用户自写内容、中文显示、交易页实时持仓/盈亏、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。

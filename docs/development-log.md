@@ -13,6 +13,7 @@
   - 新增 `server/pnlReportDailySnapshot.js`,服务端批量读取所有账户 `stock_trades`,按最新已完成美股交易日或指定 `date` 拉取 EODHD 日线收盘价,并用严格 `ledger` 模式生成组合/单股票快照。
   - 新增 `api/pnl-report-daily-snapshot.js`,只接受 `Authorization: Bearer <CRON_SECRET>` 的 `GET` 请求,返回脱敏汇总结果,不接受普通登录 token 代替。
   - 新增 `vercel.json` Cron 配置,`30 22 * * 1-5` UTC 调用 `/api/pnl-report-daily-snapshot`,对应美股常规收盘后执行。
+  - Vercel Production 已新增 `CRON_SECRET` Sensitive 环境变量;本地剪贴板已清空,CLI 自动生成的本地 `.env.local` 已删除。
   - 设置页版本和用户可见更新日志同步到 `v10.7.9.229`;安全文档、开发流程和交接文档同步 `SUPABASE_SERVICE_ROLE_KEY` / `CRON_SECRET` 服务端边界。
   - 本次只新增收益报表自动收盘快照链路,不改交易页实时持仓/盈亏、手动近两个月回填、行情 relay、RLS 或 `/api/quote` 鉴权。
 - Key files:
