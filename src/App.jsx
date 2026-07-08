@@ -4582,7 +4582,10 @@ function MainApp({ user, onLogout }) {
         : '下拉刷新';
 
   return (
-    <div className={`min-h-screen px-4 pb-24 ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`} style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+    <div
+      className={`min-h-screen px-4 ${isPnlReportPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      style={{ paddingTop: isPnlReportPage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+    >
       {pullRefreshStatus !== 'idle' && (
         <div
           className="pointer-events-none fixed left-1/2 z-[140] flex items-center gap-1.5 rounded-full border border-white/10 bg-[#10151d]/95 px-3 py-1.5 text-[11px] font-normal text-white/80 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-md transition-opacity duration-150"

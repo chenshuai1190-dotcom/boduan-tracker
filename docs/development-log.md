@@ -4,6 +4,32 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表视觉收紧
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户查看 `v10.7.9.212` 收益报表前端预览后,反馈报表页头部太靠下、排行榜白色边框过重且行高偏高,多处关键数字字号仍然偏大。
+- Changes:
+  - 报表页进入独立页面时移除 App 外层重复顶部安全区 padding,让报表头部更接近首页头部卡片的顶部位置。
+  - 收紧盈亏总额、累计成交金额、全部跑赢、收益日历日期/数值、全部盈亏总结和排行榜金额字号。
+  - 全部盈亏排行榜去掉行内浅色边框,降低行高和内部字号,保留背景进度条视觉。
+  - 设置页版本和用户可见更新日志更新到 `v10.7.9.213`。
+  - 本次只改收益报表前端视觉;不改数据库、交易账本、行情实时链路、持仓盈亏/今日盈亏计算、RLS、EODHD token 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test` passed, 116/116 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-BHWvTPPR.js`, `App-Bk6WdULX.js`, `SettingsTab-Dteme7x6.js`, and `settingsChangelog-D_ffwnvk.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully; Playwright mobile preview at `390x844` for `http://127.0.0.1:5173/?tab=pnl-report` confirmed title/ranking render, document width equals viewport width `390`, no horizontal overflow, report total font size `35px`, turnover font size `19px`, calendar day font size `15px`, summary value font size `17px`, ranking row border width `0px`, and ranking row height `51px`.
+- Rollback: 回退本次提交即可恢复 `v10.7.9.212` 报表视觉和设置页版本;收益报表仍为独立前端预览,交易数据链路不受影响。
+
 ### 2026-07-08 - 收益报表前端预览
 
 - Commit: this commit

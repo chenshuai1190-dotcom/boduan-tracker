@@ -252,17 +252,17 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
       </header>
 
-      <section className="pt-7 text-center">
+      <section className="pt-5 text-center">
         <div className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-white/86">
           <span>{t(language, 'pnlReport.totalPnl', '盈亏总额')} ({displayCurrency})</span>
           <ChevronDown className="h-3.5 w-3.5 text-white/38" />
           <Info className="h-3.5 w-3.5 text-white/32" />
           <Maximize2 className="ml-8 h-4 w-4 text-white/32" />
         </div>
-        <div className="mt-3 text-[42px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
+        <div className="mt-3 text-[35px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
           {signedCurrency(reportTotal, displayCurrency, 2)}
         </div>
-        <div className={`mt-2 text-[17px] font-semibold tabular-nums ${marketTextClass(reportMock.totalPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+        <div className={`mt-2 text-[15px] font-semibold tabular-nums ${marketTextClass(reportMock.totalPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
           {signedPct(reportMock.totalPnlPct, 2)}
         </div>
         <div className="mt-3 text-[12px] text-white/38">{reportMock.startDate} - {reportMock.endDate}</div>
@@ -287,12 +287,12 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
           <div className="text-[12px] text-white/46">{t(language, 'pnlReport.turnover', '累计成交金额')} ({displayCurrency})</div>
-          <div className="mt-3 text-[22px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(convertUsd(reportMock.turnoverUsd, displayRate), 2)}</div>
+          <div className="mt-3 text-[19px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(convertUsd(reportMock.turnoverUsd, displayRate), 2)}</div>
           <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportMock.tradeStockCount}</div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
           <div className="text-[12px] text-white/46">{t(language, 'pnlReport.outperform', '全部跑赢')} {t(language, 'pnlReport.nasdaq', '纳斯达克')}</div>
-          <div className={`mt-3 text-[24px] font-semibold leading-none tabular-nums ${marketTextClass(reportMock.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(reportMock.outperformPct, 2)}</div>
+          <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${marketTextClass(reportMock.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(reportMock.outperformPct, 2)}</div>
         </div>
       </section>
 
@@ -329,14 +329,14 @@ export default function PnlReportPage({ ctx = {} }) {
             return (
               <div
                 key={`${day || 'blank'}-${index}`}
-                className="flex h-[54px] flex-col items-center justify-center rounded-lg"
+                className="flex h-[48px] flex-col items-center justify-center rounded-lg"
                 style={{ background: bgColor }}
               >
                 {day && (
                   <>
-                    <span className="text-[17px] font-normal text-white">{String(day).padStart(2, '0')}</span>
+                    <span className="text-[15px] font-normal text-white">{String(day).padStart(2, '0')}</span>
                     {hasValue && (
-                      <span className={`mt-1 text-[10px] tabular-nums ${marketTextClass(valueUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                      <span className={`mt-0.5 text-[9px] tabular-nums ${marketTextClass(valueUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                         {calendarMode === 'rate'
                           ? signedPct(valueUsd / 10000, 2)
                           : signedCurrency(convertUsd(valueUsd, displayRate), displayCurrency, 2)}
@@ -362,20 +362,20 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
         <div className="mt-5 flex items-center justify-between">
           <div className="text-[13px] text-white/62">{t(language, 'pnlReport.stockOptionsPnl', '股票期权累计盈亏')}</div>
-          <div className={`flex items-center gap-1 text-[20px] font-normal tabular-nums ${marketTextClass(reportMock.summary.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className={`flex items-center gap-1 text-[17px] font-normal tabular-nums ${marketTextClass(reportMock.summary.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {fmt(convertUsd(reportMock.summary.stockPnlUsd, displayRate), 2)}<ChevronRight className="h-4 w-4 text-white/30" />
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
           <div className="min-h-[74px] p-3" style={{ background: `${positiveColor}F0` }}>
             <div className="text-[12px] text-white/82">{t(language, 'pnlReport.gain', '盈利')}</div>
-            <div className="mt-2 text-[14px] text-white">{displayName(reportMock.summary.best, englishMode)}.US</div>
-            <div className="text-[15px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(convertUsd(reportMock.summary.best.pnlUsd, displayRate), displayCurrency, 2)}</div>
+            <div className="mt-2 text-[13px] text-white">{displayName(reportMock.summary.best, englishMode)}.US</div>
+            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(convertUsd(reportMock.summary.best.pnlUsd, displayRate), displayCurrency, 2)}</div>
           </div>
           <div className="min-h-[74px] p-3 text-right" style={{ background: `${negativeColor}D8` }}>
             <div className="text-[12px] text-white/82">{t(language, 'pnlReport.loss', '亏损')}</div>
-            <div className="mt-2 text-[14px] text-white">{displayName(reportMock.summary.worst, englishMode)}.US</div>
-            <div className="text-[15px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(convertUsd(reportMock.summary.worst.pnlUsd, displayRate), displayCurrency, 2)}</div>
+            <div className="mt-2 text-[13px] text-white">{displayName(reportMock.summary.worst, englishMode)}.US</div>
+            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(convertUsd(reportMock.summary.worst.pnlUsd, displayRate), displayCurrency, 2)}</div>
           </div>
         </div>
       </section>
@@ -393,23 +393,23 @@ export default function PnlReportPage({ ctx = {} }) {
           <span>{t(language, 'pnlReport.rank', '排行榜')}</span>
           <span>{t(language, 'pnlReport.pnlTotal', '盈亏总额')}</span>
         </div>
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 space-y-1.5">
           {rankingRows.map((row, index) => {
             const displayValue = convertUsd(row.pnlUsd, displayRate);
             const color = marketHexColor(row.pnlUsd, marketColorMode);
             const width = `${Math.max(18, 100 - index * 13)}%`;
             return (
-              <div key={row.symbol} className="relative overflow-hidden rounded-xl border border-white/6 bg-white/[0.035] px-3 py-2.5">
+              <div key={row.symbol} className="relative overflow-hidden rounded-lg bg-white/[0.03] px-2.5 py-2">
                 <div className="absolute inset-y-1 right-1 rounded-lg" style={{ width, background: color, opacity: 0.18 }} />
                 <div className="relative flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#f6b54b] text-[11px] font-semibold text-[#101318]">{index + 1}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#f6b54b] text-[10px] font-semibold text-[#101318]">{index + 1}</span>
                     <div className="min-w-0">
-                      <div className="truncate text-[14px] font-normal text-white">{displayName(row, englishMode)}</div>
-                      <div className="text-[11px] text-white/36">US {row.symbol}</div>
+                      <div className="truncate text-[13px] font-normal text-white">{displayName(row, englishMode)}</div>
+                      <div className="text-[10px] text-white/34">US {row.symbol}</div>
                     </div>
                   </div>
-                  <div className={`shrink-0 text-[14px] font-normal tabular-nums ${marketTextClass(row.pnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                  <div className={`shrink-0 text-[13px] font-normal tabular-nums ${marketTextClass(row.pnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                     {signedCurrency(displayValue, displayCurrency, 2)}
                   </div>
                 </div>
