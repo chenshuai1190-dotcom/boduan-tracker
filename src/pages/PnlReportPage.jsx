@@ -217,7 +217,7 @@ function SegmentButton({ active, children, onClick }) {
       type="button"
       onClick={onClick}
       className={`rounded-full px-3 py-1.5 text-[11px] font-normal transition active:scale-95 ${
-        active ? 'bg-white text-[#101318]' : 'text-white/[0.42]'
+        active ? 'bg-white/[0.68] text-[#101318]' : 'text-white/[0.42]'
       }`}
     >
       {children}
@@ -231,7 +231,7 @@ function CalendarSegmentButton({ active, children, onClick }) {
       type="button"
       onClick={onClick}
       className={`flex h-7 min-w-0 items-center justify-center rounded-full px-2 text-[11px] font-normal transition active:scale-95 ${
-        active ? 'bg-white text-[#101318]' : 'bg-transparent text-white/[0.42]'
+        active ? 'bg-white/[0.68] text-[#101318]' : 'bg-transparent text-white/[0.42]'
       }`}
     >
       {children}
@@ -919,7 +919,7 @@ export default function PnlReportPage({ ctx = {} }) {
                         }}
                         className={`h-9 w-full rounded-xl text-[13px] font-normal transition active:scale-95 ${
                           draftCalendarYear === year
-                            ? 'bg-white text-[#101318]'
+                            ? 'bg-white/[0.68] text-[#101318]'
                             : 'bg-white/[0.045] text-white/[0.58]'
                         }`}
                       >

@@ -4,6 +4,65 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 清仓账户收益快照修复
+
+- Commit: pending。
+- Deployment: pending。
+- Background: `sherryaiqin@126.com` 已有 27 条主交易账本记录,买入 14 条、卖出 13 条,所有股票当前余额为 0,但收益报表没有组合/个股快照可读。排查确认历史股票代码已无空格脏数据,问题出在手动近两个月快照生成使用 `currentPositions` 回填模式:该模式只保留最终仍持有的股票,清仓账户会被压成空仓,导致卖出后的已实现收益无法进入报表。
+- Changes:
+  - `buildCurrentPositionBackfillTrades` 改为混合口径:有卖出记录的股票保留真实 `ledger` 账本,只对没有卖出记录且最终仍持有的股票生成 current-position 合成买入。
+  - 新增回归测试覆盖清仓股票在 current-position 回填下仍保留已实现收益,以及“纯持仓合成回填 + 已卖出股票真实账本”混合账户。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.239`。
+  - 本次只修复收益快照生成口径,不改交易页实时显示、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Account diagnosis:
+  - 使用用户授权的普通登录会话只读检查 `sherryaiqin@126.com`: `stock_trades` 27 条,`pnl_report_snapshots` 0 条,`pnl_report_symbol_snapshots` 0 条;无非法空格 ticker。
+  - 用该账户真实交易账本和生产 `/api/pnl-history-closes` 跑本地模拟:10 个交易股票均能拿到 46 条 EODHD 历史收盘价;修复后可生成 45 个历史快照,最近已完成收盘快照到 `2026-07-07`。
+  - 生产数据修复:使用该账户普通登录会话补写 `pnl_report_snapshots` 45 条、`pnl_report_symbol_snapshots` 321 条,最新有效快照为 `2026-07-07`,组合累计收益 USD `817271.666`;`pnl_report_rebuild_state` 已清空。`2026-07-08` 交易记录仍需等待美股正式收盘后进入下一次收盘快照。
+- Key files:
+  - `src/lib/pnlReportSnapshots.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-snapshots.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-snapshots.test.js`: pass, 12/12 tests。
+  - `node --test tests/pnl-report-snapshots.test.js tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js`: pass, 62/62 tests。
+  - `npm test`: pass, 166/166 tests。
+  - `npm run build`: pass;new chunks include `pnlReportSnapshots-BLDh-nHh.js`,`PnlReportPage-DAAto2Pd.js`,`StockDetailPage-DE7U1B31.js`,`SettingsTab-Bhlcf7Vj.js`,`settingsChangelog-CLJMeTDK.js`,`App-BwNwIH9B.js`。
+  - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.239`,`清仓账户收益快照修复`,`pnl-backfill-current-`,`currentPositions`,`pnl_snapshot_v1`,`bg-white/[0.68]` and `pointerdown` markers。
+- Production verification: pending。
+- Rollback: 回退 `buildCurrentPositionBackfillTrades` 的混合回填逻辑、`v10.7.9.239` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.238`;不影响交易页实时显示、行情 relay、RLS 或 `/api/quote` 鉴权。
+
+### 2026-07-09 - 个股收益提示和报表分段按钮优化
+
+- Commit: pending。
+- Deployment: not deployed;按用户要求本地测试后暂不部署。
+- Background: 用户反馈个股详情收益走势点位提示手滑后只能等自动消失,希望点击其他区域立即关闭;同时收益报表里的收益率走势、收益日历年/月、收益/收益率以及盈亏 Top 分段按钮选中白底过亮,需要统一降低亮度。
+- Changes:
+  - `StockDetailPage` 的收益走势图新增图表根节点引用和捕获阶段 `pointerdown` 外部点击监听,点位提示打开后点击图表外区域会立即关闭,图表内滑动和点选仍保持原逻辑。
+  - `PnlReportPage` 的通用分段按钮、收益日历分段按钮和月份选择器年份选中态从纯白 `bg-white` 改为半透明 `bg-white/[0.68]`,降低刺眼感并保持当前选中状态可识别。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.238`。
+  - 本次只改展示层交互和按钮亮度,不改交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass。
+  - `npm test`: pass, 166/166 tests。
+  - `npm run build`: pass;included in the `v10.7.9.239` local build package。
+  - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.239`,`个股收益提示和报表分段按钮优化`,`bg-white/[0.68]` and `pointerdown` markers。
+- Production verification: not deployed。
+- Rollback: 回退本条涉及的图表外部点击关闭、分段按钮选中态亮度、`v10.7.9.238` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.237`;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股详情和收益报表文字亮度统一
 
 - Commit: runtime code commit `a82fc3a4a5f25f7ca1204671e888228016ac148a`;deployment verification docs commit is the current documentation-only follow-up commit。

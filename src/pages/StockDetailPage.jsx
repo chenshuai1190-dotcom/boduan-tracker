@@ -170,6 +170,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   ), [points]);
   const chart = React.useMemo(() => buildLineChart(points, { startDate, endDate }), [points, startDate, endDate]);
   const [selectedIndex, setSelectedIndex] = React.useState(null);
+  const chartRootRef = React.useRef(null);
   const hideTimerRef = React.useRef(null);
   const startMs = parseDateMs(startDate);
   const endMs = parseDateMs(endDate);
@@ -195,6 +196,18 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   React.useEffect(() => {
     return () => window.clearTimeout(hideTimerRef.current);
   }, []);
+
+  React.useEffect(() => {
+    if (selectedIndex == null) return undefined;
+    const closeOnOutsidePointer = (event) => {
+      if (!chartRootRef.current?.contains(event.target)) {
+        window.clearTimeout(hideTimerRef.current);
+        setSelectedIndex(null);
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+  }, [selectedIndex]);
 
   const keepSelectedPointVisible = React.useCallback(() => {
     window.clearTimeout(hideTimerRef.current);
@@ -228,6 +241,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
 
   return (
     <div
+      ref={chartRootRef}
       className="relative mt-2 h-[166px] select-none"
       onClick={updateSelectedPoint}
       onPointerDown={handlePointerDown}

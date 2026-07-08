@@ -241,44 +241,52 @@ function uniqueTradeSymbols(stockTrades = []) {
 
 function buildCurrentPositionBackfillTrades(stockTrades = [], effectiveDate, asOfDate = null) {
   const positions = new Map();
-  (Array.isArray(stockTrades) ? stockTrades : [])
+  const sellSymbols = new Set();
+  const scopedTrades = (Array.isArray(stockTrades) ? stockTrades : [])
     .filter((trade) => !asOfDate || isTradeOnOrBefore(trade, asOfDate))
-    .sort(sortTradesAsc)
-    .forEach((trade) => {
-      const symbol = normalizeSymbol(trade?.symbol);
-      const shares = toNumber(trade?.shares);
-      const price = toNumber(trade?.price);
-      if (!symbol || shares <= 0 || price <= 0) return;
-      if (!positions.has(symbol)) {
-        positions.set(symbol, {
-          symbol,
-          name: trade?.name || symbol,
-          heldShares: 0,
-          remainingCostUsd: 0,
-        });
+    .sort(sortTradesAsc);
+
+  scopedTrades.forEach((trade) => {
+    const symbol = normalizeSymbol(trade?.symbol);
+    if (symbol && trade?.side === 'sell') sellSymbols.add(symbol);
+  });
+
+  scopedTrades.forEach((trade) => {
+    const symbol = normalizeSymbol(trade?.symbol);
+    const shares = toNumber(trade?.shares);
+    const price = toNumber(trade?.price);
+    if (!symbol || shares <= 0 || price <= 0) return;
+    if (!positions.has(symbol)) {
+      positions.set(symbol, {
+        symbol,
+        name: trade?.name || symbol,
+        heldShares: 0,
+        remainingCostUsd: 0,
+      });
+    }
+    const position = positions.get(symbol);
+    if (trade?.name && (!position.name || position.name === symbol)) position.name = trade.name;
+
+    if (trade?.side === 'sell') {
+      if (position.heldShares <= EPSILON) return;
+      const closedShares = Math.min(shares, position.heldShares);
+      const avgCost = position.heldShares > EPSILON ? position.remainingCostUsd / position.heldShares : 0;
+      position.remainingCostUsd -= closedShares * avgCost;
+      position.heldShares -= closedShares;
+      if (position.heldShares <= EPSILON) {
+        position.heldShares = 0;
+        position.remainingCostUsd = 0;
       }
-      const position = positions.get(symbol);
-      if (trade?.name && (!position.name || position.name === symbol)) position.name = trade.name;
+      return;
+    }
 
-      if (trade?.side === 'sell') {
-        if (position.heldShares <= EPSILON) return;
-        const closedShares = Math.min(shares, position.heldShares);
-        const avgCost = position.heldShares > EPSILON ? position.remainingCostUsd / position.heldShares : 0;
-        position.remainingCostUsd -= closedShares * avgCost;
-        position.heldShares -= closedShares;
-        if (position.heldShares <= EPSILON) {
-          position.heldShares = 0;
-          position.remainingCostUsd = 0;
-        }
-        return;
-      }
+    position.heldShares += shares;
+    position.remainingCostUsd += shares * price;
+  });
 
-      position.heldShares += shares;
-      position.remainingCostUsd += shares * price;
-    });
-
-  return [...positions.values()]
+  const syntheticOpenPositionTrades = [...positions.values()]
     .filter((position) => position.heldShares > EPSILON && position.remainingCostUsd > EPSILON)
+    .filter((position) => !sellSymbols.has(position.symbol))
     .map((position) => ({
       id: `pnl-backfill-current-${position.symbol}`,
       symbol: position.symbol,
@@ -288,6 +296,9 @@ function buildCurrentPositionBackfillTrades(stockTrades = [], effectiveDate, asO
       price: position.remainingCostUsd / position.heldShares,
       shares: position.heldShares,
     }));
+
+  const ledgerTradesForSoldSymbols = scopedTrades.filter((trade) => sellSymbols.has(normalizeSymbol(trade?.symbol)));
+  return [...ledgerTradesForSoldSymbols, ...syntheticOpenPositionTrades];
 }
 
 function inferPreviousClose(quote, currentPrice) {
