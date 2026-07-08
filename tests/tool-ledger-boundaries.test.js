@@ -26,6 +26,7 @@ const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.me
 const registerApiSource = readFileSync(new URL('../api/register.js', import.meta.url), 'utf8');
 const quoteApiSource = readFileSync(new URL('../api/quote.js', import.meta.url), 'utf8');
 const pnlBenchmarkApiSource = readFileSync(new URL('../api/pnl-benchmark.js', import.meta.url), 'utf8');
+const pnlHistoryClosesApiSource = readFileSync(new URL('../api/pnl-history-closes.js', import.meta.url), 'utf8');
 const btcRealtimeApiSource = readFileSync(new URL('../api/btc-realtime.js', import.meta.url), 'utf8');
 const indicesRealtimeApiSource = readFileSync(new URL('../api/indices-realtime.js', import.meta.url), 'utf8');
 const stocksRealtimeApiSource = readFileSync(new URL('../api/stocks-realtime.js', import.meta.url), 'utf8');
@@ -205,7 +206,13 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.223'), 'settings version badge should document the P&L report close snapshot read guard');
+  assert.ok(settingsTabSource.includes('v10.7.9.224'), 'settings version badge should document the P&L report historical close backfill');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.224'), 'settings changelog should document the P&L report historical close backfill');
+  assert.ok(settingsChangelogSource.includes('收益报表 7 日收盘快照回填'), 'settings changelog should describe the P&L report historical close backfill');
+  assert.ok(pnlReportSnapshotsSource.includes('buildPnlReportHistoricalSnapshots'), 'P&L report snapshots should support multi-day historical close backfill');
+  assert.ok(pnlReportPageSource.includes('/api/pnl-history-closes'), 'P&L report manual snapshot generation should fetch server-side historical closes');
+  assert.ok(pnlHistoryClosesApiSource.includes('requireQuoteAuth'), 'P&L history close API should require logged-in auth');
+  assert.ok(pnlHistoryClosesApiSource.includes('process.env.EODHD_API_KEY'), 'P&L history close API should keep the EODHD token on the server');
   assert.ok(settingsChangelogSource.includes('v10.7.9.223'), 'settings changelog should document the P&L report close snapshot read guard');
   assert.ok(settingsChangelogSource.includes('收益报表收盘快照读取保护'), 'settings changelog should describe the P&L report close snapshot read guard');
   assert.ok(pnlReportViewModelSource.includes('isCompletedCloseSnapshot'), 'P&L report view model should guard against incomplete-day snapshots');
@@ -991,7 +998,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.223'), 'settings version badge should document the P&L report close snapshot read guard');
+  assert.ok(settingsTabSource.includes('v10.7.9.224'), 'settings version badge should document the P&L report historical close backfill');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1249,7 +1256,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.223'), 'settings version badge should document the P&L report close snapshot read guard');
+  assert.ok(settingsTabSource.includes('v10.7.9.224'), 'settings version badge should document the P&L report historical close backfill');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -4,6 +4,38 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表 7 日收盘快照回填
+
+- Commit: pending.
+- Deployment: pending.
+- Background: 用户反馈测试账号生成收盘快照后,收益报表顶部总数能显示,但收益日历没有显示每日收盘收益金额。复查确认前一版只把盘前 quote 投影成上一已完成交易日收盘价,可以计算累计盈亏,但缺少“收盘日的前一交易日 close”,因此 `dailyPnlUsd` 会写成 `null`,日历按设计不显示金额。
+- Changes:
+  - 新增已登录服务端接口 `api/pnl-history-closes.js`,通过服务端 `EODHD_API_KEY` 读取多股票 EODHD 日线收盘价,前端不接触 provider token。
+  - `src/lib/pnlReportSnapshots.js` 新增 `buildPnlReportHistoricalSnapshots`,用历史日线 close 构造最近 7 个已完成交易日的组合快照和单股票快照;日收益按 `当日 close - 前一交易日 close` 计算,缺少收盘价的日期会跳过而不是写入半残快照。
+  - `src/pages/PnlReportPage.jsx` 的“生成收盘快照”改为先读取持仓股票最近 8 条 EODHD 日线,再回填最近 7 个真实收盘快照;生成完成后收益日历会有每日金额来源。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.224`;中英文提示文案改为说明手动生成会回填最近 7 个收盘快照。
+- Key files:
+  - `api/pnl-history-closes.js`
+  - `src/lib/pnlReportSnapshots.js`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-history-closes-api.test.js`
+  - `tests/pnl-report-snapshots.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-snapshots.test.js tests/pnl-report-view-model.test.js tests/pnl-history-closes-api.test.js tests/pnl-benchmark-api.test.js` passed, 25/25 tests.
+  - `node --test tests/tool-ledger-boundaries.test.js` passed, 33/33 tests.
+  - Direct local EODHD validation using `.env.local` without printing the key: `api/pnl-history-closes.js` returned 8 EOD rows each for NVDA/MSFT/META/TSM/NOK/IBKR through 2026-07-07; `buildPnlReportHistoricalSnapshots` generated 7 snapshots, `skippedDates=0`, and every generated date had non-null `dailyPnlUsd`.
+  - `npm test` passed, 143/143 tests.
+  - `npm run build` passed; new chunks include `PnlReportPage-BWSvP7kp.js`, `SettingsTab-C_kGKlTu.js`, `settingsChangelog-71g4wWTs.js`, `i18n-Czlpszke.js`, and `App-CBpjk6ce.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Production deployment pending.
+- Rollback: 回退本条涉及的新接口、7 日历史收盘快照构建、`v10.7.9.224` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.223`;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表收盘快照读取保护
 
 - Commit: `95e167a`

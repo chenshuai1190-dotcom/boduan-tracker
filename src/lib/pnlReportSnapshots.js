@@ -15,6 +15,19 @@ function normalizeSymbol(symbol) {
   return String(symbol || '').trim().toUpperCase();
 }
 
+function normalizeHistoricalCloseRows(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const date = dateKeyOrNull(row?.date || row?.snapshotDate);
+      const adjustedClose = toNumber(row?.adjustedClose ?? row?.adjusted_close);
+      const rawClose = toNumber(row?.close);
+      const close = adjustedClose > 0 ? adjustedClose : rawClose;
+      return date && close > 0 ? { date, close } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function normalizeReportDate(value = new Date()) {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = value instanceof Date ? value : new Date(value);
@@ -176,6 +189,54 @@ function buildQuoteMap(quoteRows = []) {
     if (symbol) map.set(symbol, quote);
   });
   return map;
+}
+
+function buildQuoteMetaMap(quoteRows = [], stockTrades = []) {
+  const map = new Map();
+  (Array.isArray(quoteRows) ? quoteRows : []).forEach((quote) => {
+    const symbol = normalizeSymbol(quote?.symbol);
+    if (!symbol) return;
+    map.set(symbol, { symbol, name: quote?.name || symbol });
+  });
+  (Array.isArray(stockTrades) ? stockTrades : []).forEach((trade) => {
+    const symbol = normalizeSymbol(trade?.symbol);
+    if (!symbol) return;
+    const current = map.get(symbol);
+    if (!current || current.name === symbol) {
+      map.set(symbol, { symbol, name: trade?.name || symbol });
+    }
+  });
+  return map;
+}
+
+function exactCloseOnDate(rows, date) {
+  return rows.find((row) => row.date === date) || null;
+}
+
+function previousCloseBeforeDate(rows, date) {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (rows[index].date < date) return rows[index];
+  }
+  return null;
+}
+
+function normalizeHistoricalCloseMap(historicalClosesBySymbol = {}) {
+  const entries = historicalClosesBySymbol instanceof Map
+    ? [...historicalClosesBySymbol.entries()]
+    : Object.entries(historicalClosesBySymbol || {});
+  const map = new Map();
+  entries.forEach(([symbol, rows]) => {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    if (!normalizedSymbol) return;
+    map.set(normalizedSymbol, normalizeHistoricalCloseRows(rows));
+  });
+  return map;
+}
+
+function uniqueTradeSymbols(stockTrades = []) {
+  return [...new Set((Array.isArray(stockTrades) ? stockTrades : [])
+    .map((trade) => normalizeSymbol(trade?.symbol))
+    .filter(Boolean))].sort();
 }
 
 function inferPreviousClose(quote, currentPrice) {
@@ -359,4 +420,70 @@ export function buildPnlReportSnapshots({
     },
     symbolSnapshots,
   };
+}
+
+export function buildPnlReportHistoricalSnapshots({
+  stockTrades = [],
+  historicalClosesBySymbol = {},
+  quoteRows = [],
+  snapshotDates = null,
+  maxSnapshots = 7,
+  toDate = null,
+  cashUsd = 0,
+  lockedAt = null,
+} = {}) {
+  const symbols = uniqueTradeSymbols(stockTrades);
+  const closeMap = normalizeHistoricalCloseMap(historicalClosesBySymbol);
+  const metaMap = buildQuoteMetaMap(quoteRows, stockTrades);
+  const dateLimit = toDate ? normalizeReportDate(toDate) : null;
+  const explicitDates = Array.isArray(snapshotDates)
+    ? snapshotDates.map(dateKeyOrNull).filter(Boolean)
+    : null;
+  const targetDates = explicitDates || [...new Set(
+    symbols.flatMap((symbol) => (closeMap.get(symbol) || [])
+      .map((row) => row.date)
+      .filter((date) => !dateLimit || date <= dateLimit))
+  )]
+    .sort()
+    .slice(-Math.max(1, Number(maxSnapshots) || 7));
+
+  const skippedDates = [];
+  const snapshots = [];
+
+  targetDates.forEach((date) => {
+    const historicalQuoteRows = symbols.map((symbol) => {
+      const rows = closeMap.get(symbol) || [];
+      const current = exactCloseOnDate(rows, date);
+      const previous = previousCloseBeforeDate(rows, date);
+      const meta = metaMap.get(symbol) || { symbol, name: symbol };
+      return {
+        symbol,
+        name: meta.name || symbol,
+        price: current?.close || 0,
+        previousClose: previous?.close || 0,
+        dailyPnlPrice: current?.close || 0,
+        dailyPnlPriceDate: current?.date || null,
+        dailyPnlBaselineClose: previous?.close || 0,
+        dailyPnlBaselineDate: previous?.date || null,
+        dailyPnlLocked: Boolean(current?.close && previous?.close),
+      };
+    });
+    const built = buildPnlReportSnapshots({
+      stockTrades,
+      quoteRows: historicalQuoteRows,
+      snapshotDate: date,
+      cashUsd,
+      lockedAt,
+    });
+    const missingSymbols = built.symbolSnapshots
+      .filter((snapshot) => snapshot.isOpen && !(toNumber(snapshot.currentPriceUsd) > 0))
+      .map((snapshot) => snapshot.symbol);
+    if (missingSymbols.length > 0) {
+      skippedDates.push({ date, reason: 'missing_close', symbols: missingSymbols });
+      return;
+    }
+    snapshots.push(built);
+  });
+
+  return { snapshots, skippedDates };
 }

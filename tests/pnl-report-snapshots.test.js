@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   buildPnlReportCloseSnapshotInput,
+  buildPnlReportHistoricalSnapshots,
   buildPnlReportSnapshots,
   latestCompletedUsTradingDate,
   normalizeReportDate,
@@ -173,6 +174,44 @@ test('uses locked regular close when the quote row has a completed close date', 
   assert.equal(input.snapshotDate, '2026-07-08');
   assert.equal(symbolSnapshots[0].currentPriceUsd, 386.74);
   assert.equal(Number(symbolSnapshots[0].dailyPnlUsd.toFixed(2)), 16.4);
+});
+
+test('builds recent historical close snapshots with real daily pnl values', () => {
+  const result = buildPnlReportHistoricalSnapshots({
+    maxSnapshots: 3,
+    toDate: '2026-07-08',
+    stockTrades: [
+      { id: '1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', date: '2026-07-01', price: 190, shares: 10 },
+      { id: '2', symbol: 'MSFT', name: 'Microsoft', side: 'buy', date: '2026-07-01', price: 380, shares: 5 },
+    ],
+    historicalClosesBySymbol: {
+      NVDA: [
+        { date: '2026-07-03', close: 191 },
+        { date: '2026-07-06', close: 195 },
+        { date: '2026-07-07', close: 196 },
+        { date: '2026-07-08', close: 194 },
+      ],
+      MSFT: [
+        { date: '2026-07-03', close: 382 },
+        { date: '2026-07-06', close: 386 },
+        { date: '2026-07-07', close: 385 },
+        { date: '2026-07-08', close: 390 },
+      ],
+    },
+    lockedAt: '2026-07-08T22:00:00.000Z',
+  });
+
+  assert.equal(result.snapshots.length, 3);
+  assert.deepEqual(result.snapshots.map((snapshot) => snapshot.portfolioSnapshot.snapshotDate), [
+    '2026-07-06',
+    '2026-07-07',
+    '2026-07-08',
+  ]);
+  assert.equal(result.snapshots[0].portfolioSnapshot.dailyPnlUsd, 60);
+  assert.equal(result.snapshots[1].portfolioSnapshot.dailyPnlUsd, 5);
+  assert.equal(result.snapshots[2].portfolioSnapshot.dailyPnlUsd, 5);
+  assert.equal(result.snapshots[2].symbolSnapshots.find((row) => row.symbol === 'NVDA').dailyPnlUsd, -20);
+  assert.equal(result.snapshots[2].symbolSnapshots.find((row) => row.symbol === 'MSFT').dailyPnlUsd, 25);
 });
 
 test('normalizes report dates and stays separate from the live trading summary pipeline', () => {

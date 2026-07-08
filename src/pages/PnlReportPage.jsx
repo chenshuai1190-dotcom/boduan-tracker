@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
-import { buildPnlReportCloseSnapshotInput, buildPnlReportSnapshots } from '../lib/pnlReportSnapshots.js';
+import { buildPnlReportCloseSnapshotInput, buildPnlReportHistoricalSnapshots } from '../lib/pnlReportSnapshots.js';
 import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
 
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -61,6 +61,16 @@ function displayName(row, englishMode) {
     微软: 'Microsoft',
   };
   return map[row.name] || row.name || row.symbol;
+}
+
+function normalizeSymbol(symbol) {
+  return String(symbol || '').trim().toUpperCase();
+}
+
+function uniqueTradeSymbols(stockTrades = []) {
+  return [...new Set((Array.isArray(stockTrades) ? stockTrades : [])
+    .map((trade) => normalizeSymbol(trade?.symbol))
+    .filter(Boolean))].sort();
 }
 
 function dateKeyToday() {
@@ -357,20 +367,38 @@ export default function PnlReportPage({ ctx = {} }) {
         quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
         now: lockedAt,
       });
-      const built = buildPnlReportSnapshots({
+      const symbols = uniqueTradeSymbols(trades);
+      if (symbols.length === 0) throw new Error(t(language, 'pnlReport.noTrades', '交易账本为空,无法生成收益快照'));
+      if (!supabase?.auth?.getSession) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
+      const historyRes = await fetch(`/api/pnl-history-closes?symbols=${encodeURIComponent(symbols.join(','))}&to=${encodeURIComponent(reportQuoteInput.snapshotDate)}&days=8`, {
+        cache: 'no-store',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const historyBody = await historyRes.json().catch(() => null);
+      if (!historyRes.ok || historyBody?.success === false) {
+        throw new Error(historyBody?.error || t(language, 'pnlReport.historyFailed', '历史收盘价读取失败'));
+      }
+      const builtHistory = buildPnlReportHistoricalSnapshots({
         stockTrades: trades,
-        quoteRows: reportQuoteInput.quoteRows,
+        historicalClosesBySymbol: historyBody?.rowsBySymbol || {},
+        quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
         cashUsd: toNumber(investmentSummary?.cashUsd),
-        snapshotDate: reportQuoteInput.snapshotDate,
+        toDate: reportQuoteInput.snapshotDate,
+        maxSnapshots: 7,
         lockedAt: lockedAt.toISOString(),
       });
-      const missingSymbols = built.symbolSnapshots
-        .filter((snapshot) => snapshot.isOpen && !(toNumber(snapshot.currentPriceUsd) > 0))
-        .map((snapshot) => snapshot.symbol);
-      if (missingSymbols.length > 0) {
-        throw new Error(`${t(language, 'pnlReport.quotesNotReady', '行情未就绪,缺少现价')}: ${missingSymbols.join(', ')}`);
+      if (builtHistory.snapshots.length === 0) {
+        const missingSymbols = [...new Set(builtHistory.skippedDates.flatMap((item) => item.symbols || []))];
+        throw new Error(`${t(language, 'pnlReport.quotesNotReady', '行情未就绪,缺少收盘价')}${missingSymbols.length ? `: ${missingSymbols.join(', ')}` : ''}`);
       }
-      await db.upsertPnlReportSnapshots(built);
+      for (const built of builtHistory.snapshots) {
+        await db.upsertPnlReportSnapshots(built);
+      }
       if (db.clearPnlReportRebuildState) await db.clearPnlReportRebuildState();
       await loadReportSnapshots();
       setReportMessage(t(language, 'pnlReport.rebuildSuccess', '收盘收益快照已生成'));
@@ -379,7 +407,7 @@ export default function PnlReportPage({ ctx = {} }) {
     } finally {
       setRebuilding(false);
     }
-  }, [db, investmentSummary?.cashUsd, language, loadReportSnapshots, quoteRows, stockTrades]);
+  }, [db, investmentSummary?.cashUsd, language, loadReportSnapshots, quoteRows, stockTrades, supabase]);
 
   const openDateFilter = React.useCallback(() => {
     const fallbackEnd = customRange?.endDate
