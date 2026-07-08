@@ -2,6 +2,34 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-09 Asia/Shanghai
+
+### 2026-07-09 - 个股详情和收益报表文字亮度统一
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户反馈个股详情页持仓数量、当前成本、交易统计金额和交易记录成交额等普通数值偏暗,同时收益报表里的纯白文字亮度过高;要求两处分别参考交易页现价/市值数字和交易页中文白色层级。
+- Changes:
+  - `StockDetailPage` 的交易记录数量/成交额普通数值改为交易页市值/现价同款 86% 白色层级,保留盈亏红绿颜色不变。
+  - `PnlReportPage` 的页面默认白色、标题、日历数字、总结卡片、排行榜和日期输入文字从纯白收敛为明确的 86% 白色,降低报表页白字刺眼感并避免非标准 Tailwind 透明度回退。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.237`。
+  - 本次只改展示层颜色,不改交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass, 164/164 tests。
+  - `npm run build`: pass;new chunks include `SettingsTab-C_83M_6E.js`,`StockDetailPage-CpVwUigQ.js`,`PnlReportPage-DE9kv1XQ.js`,`settingsChangelog-DU_tcDzo.js`,`App-bdy0PFE6.js`。
+  - `npm audit --audit-level=moderate`: pass, 0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.237`,`个股详情和收益报表文字亮度统一`,`StockDetailPage`,`PnlReportPage` and `text-white/[0.86]` markers。
+- Production verification: pending。
+- Rollback: 回退本条涉及的文字亮度层级、`v10.7.9.237` 设置页版本/更新日志和本日志即可恢复 `v10.7.9.236`;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ## 2026-07-08 Asia/Shanghai
 
 ### 2026-07-08 - 历史股票代码落库修复

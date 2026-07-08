@@ -203,7 +203,7 @@ function RangePill({ active, children, onClick }) {
       className={`shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-normal transition active:scale-95 ${
         active
           ? 'border border-[#f6b54b]/55 bg-[#f6b54b]/16 text-[#ffd18a]'
-          : 'border border-white/10 bg-white/[0.055] text-white/46'
+          : 'border border-white/10 bg-white/[0.055] text-white/[0.46]'
       }`}
     >
       {children}
@@ -217,7 +217,7 @@ function SegmentButton({ active, children, onClick }) {
       type="button"
       onClick={onClick}
       className={`rounded-full px-3 py-1.5 text-[11px] font-normal transition active:scale-95 ${
-        active ? 'bg-white text-[#101318]' : 'text-white/42'
+        active ? 'bg-white text-[#101318]' : 'text-white/[0.42]'
       }`}
     >
       {children}
@@ -231,7 +231,7 @@ function CalendarSegmentButton({ active, children, onClick }) {
       type="button"
       onClick={onClick}
       className={`flex h-7 min-w-0 items-center justify-center rounded-full px-2 text-[11px] font-normal transition active:scale-95 ${
-        active ? 'bg-white text-[#101318]' : 'bg-transparent text-white/42'
+        active ? 'bg-white text-[#101318]' : 'bg-transparent text-white/[0.42]'
       }`}
     >
       {children}
@@ -562,20 +562,20 @@ export default function PnlReportPage({ ctx = {} }) {
   }, [draftCalendarMonth, draftCalendarYear, firstAvailableMonthForYear]);
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white" style={{ fontFamily: REPORT_FONT }}>
+    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white/[0.86]" style={{ fontFamily: REPORT_FONT }}>
       <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#05070b]/88 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4px)] backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={closePnlReport}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/72 transition active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] transition active:scale-95"
             aria-label={t(language, 'pnlReport.back', '返回')}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="text-center">
-            <h1 className="text-[17px] font-semibold leading-tight text-white">{t(language, 'pnlReport.title', '收益报表')}</h1>
-            <div className="mt-0.5 text-[11px] text-white/36">
+            <h1 className="text-[17px] font-semibold leading-tight text-white/[0.86]">{t(language, 'pnlReport.title', '收益报表')}</h1>
+            <div className="mt-0.5 text-[11px] text-white/[0.36]">
               Quote {t(language, 'pnlReport.testDataBadge', '数据测试版')}
             </div>
           </div>
@@ -585,7 +585,7 @@ export default function PnlReportPage({ ctx = {} }) {
             className={`flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-95 ${
               range === 'custom'
                 ? 'border-[#f6b54b]/55 bg-[#f6b54b]/14 text-[#ffd18a]'
-                : 'border-white/10 bg-white/[0.055] text-white/52'
+                : 'border-white/10 bg-white/[0.055] text-white/[0.52]'
             }`}
             aria-label={t(language, 'pnlReport.filter', '筛选')}
           >
@@ -614,12 +614,12 @@ export default function PnlReportPage({ ctx = {} }) {
           <button
             type="button"
             onClick={() => setCurrencyMenuOpen((open) => !open)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-semibold text-white/86 transition active:scale-95"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-semibold text-white/[0.86] transition active:scale-95"
             aria-expanded={currencyMenuOpen}
             aria-label={t(language, 'pnlReport.currencySwitch', '切换报表币种')}
           >
             <span>{t(language, 'pnlReport.totalPnl', '盈亏总额')} ({displayCurrency})</span>
-            <ChevronDown className={`h-3.5 w-3.5 text-white/38 transition ${currencyMenuOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-3.5 w-3.5 text-white/[0.38] transition ${currencyMenuOpen ? 'rotate-180' : ''}`} />
           </button>
           {currencyMenuOpen && (
             <div className="absolute left-1/2 top-full z-20 mt-2 w-28 -translate-x-1/2 overflow-hidden rounded-xl border border-white/10 bg-[#10151c]/95 p-1 shadow-2xl backdrop-blur-xl">
@@ -634,7 +634,7 @@ export default function PnlReportPage({ ctx = {} }) {
                   className={`flex h-8 w-full items-center justify-center rounded-lg text-[12px] font-normal transition active:scale-95 ${
                     displayCurrency === currency
                       ? 'bg-[#f6b54b] text-[#101318]'
-                      : 'text-white/62 hover:bg-white/[0.06]'
+                      : 'text-white/[0.62] hover:bg-white/[0.06]'
                   }`}
                 >
                   {currency}
@@ -649,7 +649,7 @@ export default function PnlReportPage({ ctx = {} }) {
         <div className={`mt-2 text-[15px] font-semibold tabular-nums ${marketTextClass(reportData.totalPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
           {reportData.hasData ? signedPct(reportData.totalPnlPct, 2) : '--'}
         </div>
-        <div className="mt-3 text-[12px] text-white/38">{reportData.startDate} - {reportData.endDate}</div>
+        <div className="mt-3 text-[12px] text-white/[0.38]">{reportData.startDate} - {reportData.endDate}</div>
 
         <div className="mx-auto mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.055] p-1">
           <SegmentButton active={chartMode === 'pnl'} onClick={() => setChartMode('pnl')}>{t(language, 'pnlReport.pnlTrend', '收益率走势')}</SegmentButton>
@@ -658,7 +658,7 @@ export default function PnlReportPage({ ctx = {} }) {
       </section>
 
       <section className="mt-5 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-start text-[12px] text-white/52">
+        <div className="flex items-center justify-start text-[12px] text-white/[0.52]">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: totalColor }} />{t(language, 'pnlReport.mine', '我的')}</span>
             {hasBenchmarkTrend && <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>}
@@ -669,32 +669,32 @@ export default function PnlReportPage({ ctx = {} }) {
 
       <section className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="text-[12px] text-white/46">{t(language, 'pnlReport.turnover', '累计成交金额')} ({displayCurrency})</div>
-          <div className="mt-3 text-[19px] font-semibold leading-none text-white tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{reportData.hasData ? fmt(convertUsd(reportData.turnoverUsd, displayRate), 2) : '--'}</div>
-          <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
+          <div className="text-[12px] text-white/[0.46]">{t(language, 'pnlReport.turnover', '累计成交金额')} ({displayCurrency})</div>
+          <div className="mt-3 text-[19px] font-semibold leading-none text-white/[0.86] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{reportData.hasData ? fmt(convertUsd(reportData.turnoverUsd, displayRate), 2) : '--'}</div>
+          <div className="mt-2 text-[12px] text-white/[0.42]">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="text-[12px] leading-snug text-white/46">{benchmarkCompareLabel}</div>
-          <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${reportData.outperformPct == null ? 'text-white/36' : marketTextClass(reportData.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className="text-[12px] leading-snug text-white/[0.46]">{benchmarkCompareLabel}</div>
+          <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${reportData.outperformPct == null ? 'text-white/[0.36]' : marketTextClass(reportData.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {benchmarkLoading && reportData.outperformPct == null ? '--' : reportData.outperformPct == null ? '--' : signedPct(reportData.outperformPct, 2)}
           </div>
-          {benchmarkError && <div className="mt-2 truncate text-[10px] text-white/28">{benchmarkError}</div>}
+          {benchmarkError && <div className="mt-2 truncate text-[10px] text-white/[0.28]">{benchmarkError}</div>}
         </div>
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold text-white">{t(language, 'pnlReport.calendar', '收益日历')} ({displayCurrency})</h2>
-          <ChevronRight className="h-4 w-4 text-white/36" />
+          <h2 className="text-[17px] font-semibold text-white/[0.86]">{t(language, 'pnlReport.calendar', '收益日历')} ({displayCurrency})</h2>
+          <ChevronRight className="h-4 w-4 text-white/[0.36]" />
         </div>
         <div className="mt-4 flex items-center justify-between">
           <button
             type="button"
             onClick={openCalendarPicker}
-            className="flex min-w-[76px] items-center gap-1.5 text-[15px] font-normal text-white transition active:scale-95"
+            className="flex min-w-[76px] items-center gap-1.5 text-[15px] font-normal text-white/[0.86] transition active:scale-95"
           >
             {calendarView === 'year' ? selectedCalendarYear : reportData.selectedMonth}
-            <ChevronDown className="h-3.5 w-3.5 text-white/42" />
+            <ChevronDown className="h-3.5 w-3.5 text-white/[0.42]" />
           </button>
           <div className="grid min-w-[100px] grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
             <CalendarSegmentButton active={calendarView === 'year'} onClick={() => setCalendarView('year')}>{t(language, 'pnlReport.year', '年')}</CalendarSegmentButton>
@@ -707,7 +707,7 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
         {calendarView === 'month' ? (
           <>
-            <div className="mt-5 grid grid-cols-7 text-center text-[12px] text-white/54">
+            <div className="mt-5 grid grid-cols-7 text-center text-[12px] text-white/[0.54]">
               {['日', '一', '二', '三', '四', '五', '六'].map((day, index) => (
                 <div key={day}>{englishMode ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'][index] : day}</div>
               ))}
@@ -738,7 +738,7 @@ export default function PnlReportPage({ ctx = {} }) {
                   >
                     {day && (
                       <>
-                        <span className="text-[15px] font-normal text-white">{String(day).padStart(2, '0')}</span>
+                        <span className="text-[15px] font-normal text-white/[0.86]">{String(day).padStart(2, '0')}</span>
                         {hasValue && (
                           <span className={`mt-1 whitespace-nowrap text-[10px] font-normal tabular-nums ${marketTextClass(signedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                             {calendarMode === 'rate'
@@ -782,7 +782,7 @@ export default function PnlReportPage({ ctx = {} }) {
                   className="flex h-[76px] flex-col items-center justify-center rounded-xl bg-white/[0.02] transition active:scale-[0.98]"
                   style={tileStyle}
                 >
-                  <span className="text-[14px] font-normal text-white">{monthName(month, englishMode)}</span>
+                  <span className="text-[14px] font-normal text-white/[0.86]">{monthName(month, englishMode)}</span>
                   {hasValue && (
                     <span className={`mt-1 whitespace-nowrap text-[11px] font-normal tabular-nums ${marketTextClass(signedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                       {calendarMode === 'rate'
@@ -799,27 +799,27 @@ export default function PnlReportPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold text-white">{summaryTitle} ({displayCurrency})</h2>
-          <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
+          <h2 className="text-[17px] font-semibold text-white/[0.86]">{summaryTitle} ({displayCurrency})</h2>
+          <span className="text-[12px] text-white/[0.40]">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-[13px] text-white/62">{t(language, 'pnlReport.stockPnl', '股票累计盈亏')}</div>
+          <div className="text-[13px] text-white/[0.62]">{t(language, 'pnlReport.stockPnl', '股票累计盈亏')}</div>
           <div className={`flex items-center gap-1 text-[17px] font-normal tabular-nums ${marketTextClass(reportData.summary.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-            {fmt(convertUsd(reportData.summary.stockPnlUsd, displayRate), 2)}<ChevronRight className="h-4 w-4 text-white/30" />
+            {fmt(convertUsd(reportData.summary.stockPnlUsd, displayRate), 2)}<ChevronRight className="h-4 w-4 text-white/[0.30]" />
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
           <div className="min-h-[74px] p-3" style={{ background: `${positiveColor}F0` }}>
-            <div className="text-[12px] text-white/82">{t(language, 'pnlReport.gain', '盈利')}</div>
-            <div className="mt-2 text-[13px] text-white">{displayName(reportData.summary.best, englishMode)}{reportData.summary.best ? '.US' : ''}</div>
-            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>
+            <div className="text-[12px] text-white/[0.86]">{t(language, 'pnlReport.gain', '盈利')}</div>
+            <div className="mt-2 text-[13px] text-white/[0.86]">{displayName(reportData.summary.best, englishMode)}{reportData.summary.best ? '.US' : ''}</div>
+            <div className="text-[14px] tabular-nums text-white/[0.86]" style={{ fontFamily: NUMBER_FONT }}>
               {reportData.summary.best ? signedCurrency(convertUsd(reportData.summary.best.pnlUsd, displayRate), displayCurrency, 2) : '--'}
             </div>
           </div>
           <div className="min-h-[74px] p-3 text-right" style={{ background: `${negativeColor}D8` }}>
-            <div className="text-[12px] text-white/82">{t(language, 'pnlReport.loss', '亏损')}</div>
-            <div className="mt-2 text-[13px] text-white">{displayName(reportData.summary.worst, englishMode)}{reportData.summary.worst ? '.US' : ''}</div>
-            <div className="text-[14px] tabular-nums text-white" style={{ fontFamily: NUMBER_FONT }}>
+            <div className="text-[12px] text-white/[0.86]">{t(language, 'pnlReport.loss', '亏损')}</div>
+            <div className="mt-2 text-[13px] text-white/[0.86]">{displayName(reportData.summary.worst, englishMode)}{reportData.summary.worst ? '.US' : ''}</div>
+            <div className="text-[14px] tabular-nums text-white/[0.86]" style={{ fontFamily: NUMBER_FONT }}>
               {reportData.summary.worst ? signedCurrency(convertUsd(reportData.summary.worst.pnlUsd, displayRate), displayCurrency, 2) : '--'}
             </div>
           </div>
@@ -828,20 +828,20 @@ export default function PnlReportPage({ ctx = {} }) {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold text-white">{rankingTitle} ({displayCurrency})</h2>
-          <span className="text-[12px] text-white/40">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
+          <h2 className="text-[17px] font-semibold text-white/[0.86]">{rankingTitle} ({displayCurrency})</h2>
+          <span className="text-[12px] text-white/[0.40]">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
         </div>
         <div className="mt-4 grid grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
           <SegmentButton active={rankMode === 'gain'} onClick={() => setRankMode('gain')}>{t(language, 'pnlReport.gainTop5', '盈利 Top5')}</SegmentButton>
           <SegmentButton active={rankMode === 'loss'} onClick={() => setRankMode('loss')}>{t(language, 'pnlReport.lossTop5', '亏损 Top5')}</SegmentButton>
         </div>
-        <div className="mt-5 flex justify-between text-[12px] text-white/40">
+        <div className="mt-5 flex justify-between text-[12px] text-white/[0.40]">
           <span>{t(language, 'pnlReport.rank', '排行榜')}</span>
           <span>{t(language, 'pnlReport.pnlTotal', '盈亏总额')}</span>
         </div>
         <div className="mt-2 space-y-1.5">
           {rankingRows.length === 0 && (
-            <div className="rounded-lg bg-white/[0.03] px-2.5 py-3 text-center text-[12px] text-white/36">
+            <div className="rounded-lg bg-white/[0.03] px-2.5 py-3 text-center text-[12px] text-white/[0.36]">
               {t(language, 'pnlReport.noRankingRows', '暂无排行数据')}
             </div>
           )}
@@ -856,8 +856,8 @@ export default function PnlReportPage({ ctx = {} }) {
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#f6b54b] text-[10px] font-semibold text-[#101318]">{index + 1}</span>
                     <div className="min-w-0">
-                      <div className="truncate text-[13px] font-normal text-white">{displayName(row, englishMode)}</div>
-                      <div className="text-[10px] text-white/34">US {row.symbol}</div>
+                      <div className="truncate text-[13px] font-normal text-white/[0.86]">{displayName(row, englishMode)}</div>
+                      <div className="text-[10px] text-white/[0.34]">US {row.symbol}</div>
                     </div>
                   </div>
                   <div className={`shrink-0 text-[13px] font-normal tabular-nums ${marketTextClass(row.pnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
@@ -869,7 +869,7 @@ export default function PnlReportPage({ ctx = {} }) {
           })}
         </div>
       </section>
-      <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/40">
+      <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/[0.40]">
         <div className="flex items-start gap-3">
           <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b]" />
           <div className="min-w-0 flex-1">{statusText}</div>
@@ -889,11 +889,11 @@ export default function PnlReportPage({ ctx = {} }) {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">
           <div className="w-full max-w-[430px] rounded-t-[26px] border border-white/10 bg-[#0b0f14] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-5 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-[18px] font-semibold text-white">{t(language, 'pnlReport.calendarPickerTitle', '选择月份')}</h2>
+              <h2 className="text-[18px] font-semibold text-white/[0.86]">{t(language, 'pnlReport.calendarPickerTitle', '选择月份')}</h2>
               <button
                 type="button"
                 onClick={() => setCalendarPickerOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/48 transition active:scale-95"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.48] transition active:scale-95"
                 aria-label={t(language, 'pnlReport.closeFilter', '关闭筛选')}
               >
                 <X className="h-4 w-4" />
@@ -901,13 +901,13 @@ export default function PnlReportPage({ ctx = {} }) {
             </div>
 
             {availableCalendarYears.length === 0 ? (
-              <div className="mt-6 rounded-2xl bg-white/[0.04] px-4 py-5 text-center text-[12px] text-white/36">
+              <div className="mt-6 rounded-2xl bg-white/[0.04] px-4 py-5 text-center text-[12px] text-white/[0.36]">
                 {t(language, 'pnlReport.noCalendarYears', '暂无可选择的快照年份')}
               </div>
             ) : (
               <div className="mt-5 grid grid-cols-[92px_minmax(0,1fr)] gap-3">
                 <div className="min-w-0">
-                  <div className="mb-2 text-[12px] text-white/42">{t(language, 'pnlReport.selectYear', '年份')}</div>
+                  <div className="mb-2 text-[12px] text-white/[0.42]">{t(language, 'pnlReport.selectYear', '年份')}</div>
                   <div className="max-h-[190px] space-y-1 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none]">
                     {availableCalendarYears.map((year) => (
                       <button
@@ -920,7 +920,7 @@ export default function PnlReportPage({ ctx = {} }) {
                         className={`h-9 w-full rounded-xl text-[13px] font-normal transition active:scale-95 ${
                           draftCalendarYear === year
                             ? 'bg-white text-[#101318]'
-                            : 'bg-white/[0.045] text-white/58'
+                            : 'bg-white/[0.045] text-white/[0.58]'
                         }`}
                       >
                         {year}
@@ -929,7 +929,7 @@ export default function PnlReportPage({ ctx = {} }) {
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <div className="mb-2 text-[12px] text-white/42">{t(language, 'pnlReport.selectMonth', '月份')}</div>
+                  <div className="mb-2 text-[12px] text-white/[0.42]">{t(language, 'pnlReport.selectMonth', '月份')}</div>
                   <div className="grid grid-cols-3 gap-1.5">
                     {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0')).map((month) => {
                       const monthKey = `${draftCalendarYear}-${month}`;
@@ -944,8 +944,8 @@ export default function PnlReportPage({ ctx = {} }) {
                             draftCalendarMonth === month && enabled
                               ? 'bg-[#f6b54b] text-[#101318]'
                               : enabled
-                                ? 'bg-white/[0.055] text-white/62'
-                                : 'bg-white/[0.025] text-white/18'
+                                ? 'bg-white/[0.055] text-white/[0.62]'
+                                : 'bg-white/[0.025] text-white/[0.18]'
                           }`}
                         >
                           {month}
@@ -973,11 +973,11 @@ export default function PnlReportPage({ ctx = {} }) {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">
           <div className="w-full max-w-[430px] rounded-t-[26px] border border-white/10 bg-[#0b0f14] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-5 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-[18px] font-semibold text-white">{t(language, 'pnlReport.dateFilterTitle', '时间筛选')}</h2>
+              <h2 className="text-[18px] font-semibold text-white/[0.86]">{t(language, 'pnlReport.dateFilterTitle', '时间筛选')}</h2>
               <button
                 type="button"
                 onClick={() => setDateFilterOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/48 transition active:scale-95"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.48] transition active:scale-95"
                 aria-label={t(language, 'pnlReport.closeFilter', '关闭筛选')}
               >
                 <X className="h-4 w-4" />
@@ -991,39 +991,39 @@ export default function PnlReportPage({ ctx = {} }) {
 
             {dateFilterMode === 'single' ? (
               <div className="mt-5">
-                <label className="text-[12px] text-white/42">{t(language, 'pnlReport.reportDate', '报表日期')}</label>
+                <label className="text-[12px] text-white/[0.42]">{t(language, 'pnlReport.reportDate', '报表日期')}</label>
                 <input
                   type="date"
                   value={draftDate}
                   onChange={(event) => setDraftDate(event.target.value)}
-                  className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-0 text-center text-[14px] font-normal leading-[44px] text-white outline-none [color-scheme:dark]"
+                  className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-0 text-center text-[14px] font-normal leading-[44px] text-white/[0.86] outline-none [color-scheme:dark]"
                 />
               </div>
             ) : (
               <div className="mt-5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
                 <div className="min-w-0">
-                  <label className="text-[12px] text-white/42">{t(language, 'pnlReport.startDate', '开始日期')}</label>
+                  <label className="text-[12px] text-white/[0.42]">{t(language, 'pnlReport.startDate', '开始日期')}</label>
                   <input
                     type="date"
                     value={draftStartDate}
                     onChange={(event) => setDraftStartDate(event.target.value)}
-                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-0 text-center text-[13px] font-normal leading-[44px] text-white outline-none [color-scheme:dark]"
+                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-0 text-center text-[13px] font-normal leading-[44px] text-white/[0.86] outline-none [color-scheme:dark]"
                   />
                 </div>
-                <div className="mb-3 text-[14px] text-white/30">-</div>
+                <div className="mb-3 text-[14px] text-white/[0.30]">-</div>
                 <div className="min-w-0">
-                  <label className="text-[12px] text-white/42">{t(language, 'pnlReport.endDate', '结束日期')}</label>
+                  <label className="text-[12px] text-white/[0.42]">{t(language, 'pnlReport.endDate', '结束日期')}</label>
                   <input
                     type="date"
                     value={draftEndDate}
                     onChange={(event) => setDraftEndDate(event.target.value)}
-                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-0 text-center text-[13px] font-normal leading-[44px] text-white outline-none [color-scheme:dark]"
+                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-0 text-center text-[13px] font-normal leading-[44px] text-white/[0.86] outline-none [color-scheme:dark]"
                   />
                 </div>
               </div>
             )}
 
-            <div className="mt-4 px-1 text-[11px] leading-4 text-white/32">
+            <div className="mt-4 px-1 text-[11px] leading-4 text-white/[0.32]">
               {t(language, 'pnlReport.dateFilterHint', '只读取已有数据，没有快照的日期不会使用其他日期替代。')}
             </div>
 

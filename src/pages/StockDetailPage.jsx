@@ -8,8 +8,9 @@ const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
 const DETAIL_LABEL_CLASS = 'text-white/40';
-const DETAIL_VALUE_CLASS = 'text-white/86';
-const DETAIL_HEADING_CLASS = 'text-white/72';
+const DETAIL_VALUE_CLASS = 'text-white/[0.86]';
+const DETAIL_HEADING_CLASS = 'text-white/[0.72]';
+const DETAIL_MUTED_VALUE_CLASS = 'text-white/[0.86]';
 const CHART_TOOLTIP_HOLD_MS = 12000;
 
 function toNumber(value) {
@@ -480,10 +481,10 @@ export default function StockDetailPage({ ctx = {} }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[13px] text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
+                  <div className={`text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
                   <div className="mt-1 text-[11px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
                 </div>
-                <div className="text-right text-[13px] text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                <div className={`text-right text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
                   {currency(record.amountUsd * displayRate, displayCurrency, 2)}
                 </div>
                 <div className={`text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
