@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表 7 日收盘快照回填
 
-- Commit: pending.
-- Deployment: pending.
+- Commit: `26de0e1`
+- Deployment: deployed to GitHub `main` via SSH from code commit `26de0e1e4d12cb326c74072db65d54f5ed931b20`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户反馈测试账号生成收盘快照后,收益报表顶部总数能显示,但收益日历没有显示每日收盘收益金额。复查确认前一版只把盘前 quote 投影成上一已完成交易日收盘价,可以计算累计盈亏,但缺少“收盘日的前一交易日 close”,因此 `dailyPnlUsd` 会写成 `null`,日历按设计不显示金额。
 - Changes:
   - 新增已登录服务端接口 `api/pnl-history-closes.js`,通过服务端 `EODHD_API_KEY` 读取多股票 EODHD 日线收盘价,前端不接触 provider token。
@@ -33,7 +33,8 @@
   - `npm run build` passed; new chunks include `PnlReportPage-BWSvP7kp.js`, `SettingsTab-C_kGKlTu.js`, `settingsChangelog-71g4wWTs.js`, `i18n-Czlpszke.js`, and `App-CBpjk6ce.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
-  - Production deployment pending.
+  - Production marker verification passed: entry `index-BR_I8TQs.js`; `App-cI_P69g-.js` imports `PnlReportPage-BWSvP7kp.js`, `SettingsTab-DNGcY-sr.js`, and `i18n-Czlpszke.js`; `PnlReportPage-BWSvP7kp.js` contains `/api/pnl-history-closes`; `SettingsTab-DNGcY-sr.js` contains `v10.7.9.224`; `i18n-Czlpszke.js` contains `最近 7 个收盘收益快照已生成` and `EODHD 日线回填`; `settingsChangelog-71g4wWTs.js` contains `v10.7.9.224`, `收益报表 7 日收盘快照回填`, and `/api/pnl-history-closes`.
+  - Production API boundary check passed: unauthenticated `/api/pnl-history-closes?symbols=NVDA&to=2026-07-07&days=8` returned `401`; unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426`.
 - Rollback: 回退本条涉及的新接口、7 日历史收盘快照构建、`v10.7.9.224` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.223`;不会影响交易页实时持仓/盈亏、行情 relay、RLS、Supabase 表结构或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表收盘快照读取保护
