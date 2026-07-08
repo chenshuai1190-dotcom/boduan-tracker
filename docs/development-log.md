@@ -6,7 +6,7 @@
 
 ### 2026-07-08 - 收益报表近两个月快照回填
 
-- Commit: `TBD`
+- Commit: `8049cda76cb7f5ad29f0c48dabcbf7a1f9b805e5`
 - Deployment: pending.
 - Background: 用户确认 `v10.7.9.226` 已修复收益报表区间口径后,希望在不改变现有计算逻辑的前提下,把手动生成收盘快照从最近 7 个交易日扩展为近两个月,用于查看每天的真实收益走势。
 - Changes:
