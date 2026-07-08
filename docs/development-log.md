@@ -4,6 +4,41 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表快照基础
+
+- Commit: this commit
+- Deployment: requested for GitHub `main` / Vercel production rollout; final production marker verification is reported after deploy.
+- Background: 用户确认交易系统和收益报表系统应保持独立,但 `stock_trades` 必须继续作为唯一事实源;交易里卖出或清仓股票后,报表需要通过独立快照保持历史盈亏一致,不能把已清仓股票从报表历史里丢掉。
+- Changes:
+  - 新增 `supabase/pnl_report_snapshots.sql`,定义组合每日快照、单股票每日快照、报表重算脏区间三张表,以及 `mark_pnl_report_dirty` RPC。
+  - `supabase/rls.sql` 同步新增三张收益报表表、索引、RPC、RLS 启用和用户级策略;`scripts/verify-rls-rest.mjs` 将三张表纳入匿名 REST RLS 探针清单。
+  - 新增 `src/lib/pnlReportSnapshots.js` 纯计算模块,从 `stockTrades + quoteRows + snapshotDate` 生成独立报表快照;部分卖出按移动平均成本计算已实现盈亏,全部清仓股票仍保留在 symbol 快照里。
+  - 新增 `src/lib/pnlReportDb.js` 独立数据库访问层,提供快照读写、重算状态读取和脏区间标记;`src/lib/db.js` 只在 `insertStockTrade`、`updateStockTrade`、`deleteStockTrade` 成功后 best-effort 标记报表重算日期。
+  - 脏区间标记失败只写 console warning,不阻断交易保存/编辑/删除;这是为了允许代码先部署,再由 Supabase SQL 正式启用快照表。
+  - 设置页版本和用户可见更新日志更新到 `v10.7.9.215`。
+  - 本次不把收益报表页面切换到真实数据库读取,不改收益报表前端 mock 展示、不改交易页持仓/盈亏实时显示、不改行情实时链路、EODHD token、`/api/quote` 鉴权或现有持仓计算。
+- Key files:
+  - `supabase/pnl_report_snapshots.sql`
+  - `supabase/rls.sql`
+  - `scripts/verify-rls-rest.mjs`
+  - `src/lib/pnlReportSnapshots.js`
+  - `src/lib/pnlReportDb.js`
+  - `src/lib/db.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/pnl-report-snapshots.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/pnl-report-snapshots.test.js` passed, 5/5 tests.
+  - `node --test tests/tool-ledger-boundaries.test.js` passed, 32/32 tests.
+  - `npm test` passed, 122/122 tests.
+  - `npm run build` passed; generated production chunks include `App-D2PUmTGV.js`, `SettingsTab-zXILlIQ6.js`, `settingsChangelog-BVQ_UoOR.js`, `PnlReportPage-BSaQ_zvZ.js`, and `index-ytbbuBbz.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - Live `npm run verify:rls:rest` was intentionally not run before production SQL application because the new report tables do not exist in Supabase until `supabase/pnl_report_snapshots.sql` is applied; run it immediately after SQL execution to verify anonymous REST access remains blocked.
+- Rollback: 回退本次提交即可移除报表快照 SQL、独立快照计算和交易脏区间标记;如果已在 Supabase 执行 SQL,需另行确认是否保留空表或按备份策略回滚数据库对象。
+
 ### 2026-07-08 - 收益报表功能精简
 
 - Commit: this commit

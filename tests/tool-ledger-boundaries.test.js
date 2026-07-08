@@ -14,6 +14,7 @@ const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.met
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const pnlReportPageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx', import.meta.url), 'utf8');
+const pnlReportSnapshotsSource = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
 const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
 const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangelog.js', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
@@ -33,6 +34,8 @@ const indicesProviderSource = readFileSync(new URL('../server/quote/providers/in
 const inviteServerSource = readFileSync(new URL('../server/inviteCodes.js', import.meta.url), 'utf8');
 const rlsSource = readFileSync(new URL('../supabase/rls.sql', import.meta.url), 'utf8');
 const inviteSqlSource = readFileSync(new URL('../supabase/invite_codes.sql', import.meta.url), 'utf8');
+const pnlReportSqlSource = readFileSync(new URL('../supabase/pnl_report_snapshots.sql', import.meta.url), 'utf8');
+const verifyRlsRestSource = readFileSync(new URL('../scripts/verify-rls-rest.mjs', import.meta.url), 'utf8');
 
 function readPngInfo(relativePath) {
   const buffer = readFileSync(new URL(relativePath, import.meta.url));
@@ -200,9 +203,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.214'), 'settings version badge should document the P&L report function cleanup update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.214'), 'settings changelog should document the P&L report function cleanup update');
-  assert.ok(settingsChangelogSource.includes('收益报表功能精简'), 'settings changelog should describe the P&L report function cleanup update');
+  assert.ok(settingsTabSource.includes('v10.7.9.215'), 'settings version badge should document the P&L report snapshot foundation update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.215'), 'settings changelog should document the P&L report snapshot foundation update');
+  assert.ok(settingsChangelogSource.includes('收益报表快照基础'), 'settings changelog should describe the P&L report snapshot foundation update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.211'), 'settings changelog should retain the index session chart update');
   assert.ok(settingsChangelogSource.includes('三大指数分时曲线锁定'), 'settings changelog should describe the index session chart update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.210'), 'settings changelog should retain the locked close price display update');
@@ -316,6 +319,26 @@ test('P&L report preview stays independent from trading data pipelines', () => {
   assert.ok(pnlReportPageSource.includes('pnlReport.stockPnl'), 'P&L report summary should use the stock-only cumulative P&L label');
   assert.equal(pnlReportPageSource.includes('supabase'), false, 'P&L report preview should not connect to Supabase yet');
   assert.equal(pnlReportPageSource.includes('deriveInvestmentSummary'), false, 'P&L report preview should not reuse the live trading summary pipeline');
+});
+
+test('P&L report snapshot foundation stays isolated behind stock_trades dirty marks', () => {
+  assert.ok(pnlReportSqlSource.includes('create table if not exists public.pnl_report_snapshots'), 'portfolio snapshot SQL should exist');
+  assert.ok(pnlReportSqlSource.includes('create table if not exists public.pnl_report_symbol_snapshots'), 'symbol snapshot SQL should exist');
+  assert.ok(pnlReportSqlSource.includes('create table if not exists public.pnl_report_rebuild_state'), 'dirty-state SQL should exist');
+  assert.ok(pnlReportSqlSource.includes('create or replace function public.mark_pnl_report_dirty'), 'dirty marker RPC should exist');
+  assert.ok(rlsSource.includes('alter table public.pnl_report_snapshots enable row level security'), 'portfolio snapshot RLS should be enabled');
+  assert.ok(rlsSource.includes('users can manage own pnl report snapshots'), 'portfolio snapshot policy should be user-scoped');
+  assert.ok(rlsSource.includes('users can manage own pnl report symbol snapshots'), 'symbol snapshot policy should be user-scoped');
+  assert.ok(rlsSource.includes('users can manage own pnl report rebuild state'), 'dirty-state policy should be user-scoped');
+  assert.ok(verifyRlsRestSource.includes("'pnl_report_snapshots'"), 'RLS REST probe should include portfolio snapshots');
+  assert.ok(verifyRlsRestSource.includes("'pnl_report_symbol_snapshots'"), 'RLS REST probe should include symbol snapshots');
+  assert.ok(verifyRlsRestSource.includes("'pnl_report_rebuild_state'"), 'RLS REST probe should include dirty state');
+  assert.ok(dbSource.includes('markPnlReportDirtyFromDate'), 'DB layer should expose a dirty marker');
+  assert.ok(dbSource.includes("markPnlReportDirtySafely(data.trade_date, 'stock_trade_inserted'"), 'stock trade insert should dirty the report window');
+  assert.ok(dbSource.includes("markPnlReportDirtySafely(earliestReportDate(existingTrade?.trade_date, data.trade_date), 'stock_trade_updated'"), 'stock trade update should dirty from the earlier affected date');
+  assert.ok(dbSource.includes("markPnlReportDirtySafely(existingTrade?.trade_date, 'stock_trade_deleted'"), 'stock trade delete should dirty from the deleted trade date');
+  assert.equal(pnlReportSnapshotsSource.includes('deriveInvestmentSummary'), false, 'snapshot builder should not import the live investment summary');
+  assert.equal(pnlReportSnapshotsSource.includes('derivePositionsFromTrades'), false, 'snapshot builder should not import the live position derivation');
 });
 
 test('home watchlist dialogs and add success notice use normal weights', () => {
@@ -929,9 +952,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.214'), 'settings version badge should document the P&L report function cleanup update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.214'), 'settings changelog should document the P&L report function cleanup update');
-  assert.ok(settingsChangelogSource.includes('收益报表功能精简'), 'settings changelog should describe the P&L report function cleanup update');
+  assert.ok(settingsTabSource.includes('v10.7.9.215'), 'settings version badge should document the P&L report snapshot foundation update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.215'), 'settings changelog should document the P&L report snapshot foundation update');
+  assert.ok(settingsChangelogSource.includes('收益报表快照基础'), 'settings changelog should describe the P&L report snapshot foundation update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.211'), 'settings changelog should retain the index session chart update');
   assert.ok(settingsChangelogSource.includes('三大指数分时曲线锁定'), 'settings changelog should describe the index session chart update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.210'), 'settings changelog should retain the locked close price display update');
@@ -1182,9 +1205,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.214'), 'settings version badge should document the P&L report function cleanup update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.214'), 'settings changelog should document the P&L report function cleanup update');
-  assert.ok(settingsChangelogSource.includes('收益报表功能精简'), 'settings changelog should describe the P&L report function cleanup update');
+  assert.ok(settingsTabSource.includes('v10.7.9.215'), 'settings version badge should document the P&L report snapshot foundation update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.215'), 'settings changelog should document the P&L report snapshot foundation update');
+  assert.ok(settingsChangelogSource.includes('收益报表快照基础'), 'settings changelog should describe the P&L report snapshot foundation update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.211'), 'settings changelog should retain the index session chart update');
   assert.ok(settingsChangelogSource.includes('三大指数分时曲线锁定'), 'settings changelog should describe the index session chart update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.210'), 'settings changelog should retain the locked close price display update');
