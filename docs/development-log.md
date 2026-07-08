@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - Quote 品牌和收益报表文案
 
-- Commit: pending
-- Deployment: not deployed in this step; awaiting user confirmation if production sync is needed.
+- Commit: `b20b6ea`
+- Deployment: deployed to GitHub `main` via SSH from runtime commit `b20b6ea2f436b62eb524669fc18ba4e0e39e8521`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户确认把产品正式命名为 `Quote`,同时希望收益报表“跑赢/跑输纳斯达克”卡片带上当前统计周期,收益报表头部测试标识改为 Quote 数据测试版,修复盈亏排行榜第一行左侧圆角被裁切的视觉问题,并补上报表页独立币种切换和周期日期轴。
 - Changes:
   - 产品可见品牌从旧品牌名统一替换为 `Quote`,覆盖设置页、PWA `index.html`、`manifest.json`、README、用户可见更新日志和交接文档中的当前品牌描述。
@@ -37,6 +37,8 @@
   - Source scan for the old brand string returned no matches.
   - Local dev server `npm run dev -- --host 127.0.0.1` started successfully and `http://127.0.0.1:5173/?tab=pnl-report` returned `200`.
   - `git diff --check` passed.
+  - Production marker check passed: production entry `/assets/index-C8G2MsV_.js`; runtime chunks include `/assets/App-BUyKhZCQ.js`, `/assets/PnlReportPage-Bg5iDM5O.js`, `/assets/SettingsTab-DSp5-f0w.js`, `/assets/i18n-DWbF6vqB.js`, and `/assets/settingsChangelog-D2PPBjbF.js`; production assets contain `v10.7.9.219`, `Quote 数据测试版`, `切换报表币种`, `CNY`, `USD`, `本年`, `跑赢`, `纳斯达克`, `Quote 品牌和收益报表文案`, and `Math.max(18,96`.
+  - Production auth boundary verification passed: unauthenticated `/api/quote?symbols=VIX` returned `401`, unauthenticated `/api/pnl-benchmark?symbol=QQQ&from=2026-01-01&to=2026-07-08` returned `401`, ordinary HTTPS `/api/stocks-realtime` and `/api/indices-realtime` returned `426`, unauthenticated `/api/btc-realtime?snapshot=1` returned `401`.
 - Rollback: 回退本次提交即可恢复 `v10.7.9.218` 的收益报表周期统计版本;不会影响已存在的报表快照表、交易主账本、行情 relay 或鉴权边界。
 
 ### 2026-07-08 - 收益报表周期统计
