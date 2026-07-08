@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.228', date: '2026-07-08', latest: true,
+    ver: 'v10.7.9.229', date: '2026-07-08', latest: true,
+    items: [
+      '📊 收益报表自动收盘快照',
+      '  - 新增服务端定时任务,美股收盘后自动为所有有交易账本的账户生成当日收益报表快照',
+      '  - 自动任务使用主交易账本 stock_trades 和 EODHD 日线收盘价,写入独立的组合快照和单股票快照表',
+      '  - 新增 CRON_SECRET 保护的 /api/pnl-report-daily-snapshot 入口和 Vercel Cron 配置,密钥只在服务端环境变量中使用',
+      '  - 本次只新增收益报表自动生成链路,不改交易页实时持仓/盈亏、手动近两个月回填、行情 relay、RLS 或 /api/quote 鉴权',
+    ],
+  },
+  {
+    ver: 'v10.7.9.228', date: '2026-07-08',
     items: [
       '📊 收益报表日历样式微调',
       '  - 收益日历年份视图移除外层和单元白色边框,保留收益/亏损色块表达',

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/pnl-report-daily-snapshot",
+      "schedule": "30 22 * * 1-5"
+    }
+  ]
+}

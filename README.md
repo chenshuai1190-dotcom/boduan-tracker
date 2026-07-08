@@ -7,7 +7,7 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 - React 18 + Vite
 - Tailwind CSS
 - Supabase Auth + Postgres
-- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, and `api/stocks-realtime.js`
+- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, and `api/pnl-report-daily-snapshot.js`
 - Authenticated stock streaming covers watchlist, main ledger positions, wave records, and cost-basis tool quote rows.
 - EODHD, Yahoo Finance, CNN FGI, and NASDAQ calendar data
 
@@ -44,10 +44,12 @@ Frontend:
 Server:
 
 - `EODHD_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CRON_SECRET`
 - `QUOTE_API_AUTH_REQUIRED=true`
 - `QUOTE_ALLOWED_ORIGINS=https://boduan-tracker.vercel.app`
 
-Do not add any `VITE_` EODHD token. Browser-direct market-data streaming has been removed; real-time streaming must use authenticated server-side relays.
+Do not add any `VITE_` EODHD token, service-role key, or cron secret. Browser-direct market-data streaming has been removed; real-time streaming must use authenticated server-side relays.
 
 ## Checks
 

@@ -11,6 +11,8 @@ This project started as a personal hand-built app, so the first priority is to m
 
 2. Verify Vercel environment variables.
    - Required: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `EODHD_API_KEY`.
+   - Required for server-side admin flows: `SUPABASE_SERVICE_ROLE_KEY`. Keep it server-only; never create a `VITE_` variant.
+   - Required for automated P&L report snapshots: `CRON_SECRET`. This protects `/api/pnl-report-daily-snapshot` and must only exist in Vercel server-side environment variables.
    - Recommended: `QUOTE_API_AUTH_REQUIRED=true`.
    - Recommended: `QUOTE_ALLOWED_ORIGINS=https://boduan-tracker.vercel.app`.
    - Do not add any frontend `VITE_` EODHD token or browser WebSocket toggle.
@@ -33,6 +35,12 @@ This project started as a personal hand-built app, so the first priority is to m
    - Keep the frontend registration path on `/api/register`, and disable direct public signups in Supabase Auth if hard invite-only enforcement is required.
    - Only `chenshuai1190@gmail.com` should see the invite-code management panel in Settings.
 
+6. Keep automated P&L report snapshots server-only.
+   - Vercel Cron calls `GET /api/pnl-report-daily-snapshot` after the US regular-session close.
+   - The endpoint must require `Authorization: Bearer <CRON_SECRET>` and must not accept normal frontend Supabase user tokens as a substitute.
+   - The endpoint uses `SUPABASE_SERVICE_ROLE_KEY` only on the server to read all users' `stock_trades` and write `pnl_report_snapshots` / `pnl_report_symbol_snapshots`.
+   - The route response must stay sanitized: never return `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `EODHD_API_KEY`, or raw per-user auth material.
+
 ## Code-Level Changes In This Baseline
 
 - `/api/quote` now requires a Supabase access token by default.
@@ -42,6 +50,7 @@ This project started as a personal hand-built app, so the first priority is to m
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
 - BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side. User stock streaming covers watchlist, main ledger positions, wave-record quote rows, and cost-basis tool quote rows.
 - Registration uses `/api/register` with server-side invite-code validation; invite-code administration uses `/api/invite-codes` and requires the logged-in admin account.
+- Automated P&L report snapshots use `/api/pnl-report-daily-snapshot`, protected by `CRON_SECRET`, and write only the independent P&L report snapshot tables.
 - Quote provider requests now go through timeout-aware provider fetch helpers.
 - First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.

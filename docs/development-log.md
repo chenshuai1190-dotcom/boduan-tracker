@@ -4,6 +4,40 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表自动收盘快照
+
+- Commit: same commit (本轮完成后以 `git log -1 --oneline` 为准)。
+- Deployment: pending;本轮需通过项目 SSH key 推送 `main` 并等待 Vercel production success。
+- Background: 用户确认收益报表手动回填和日历展示已进入可用状态后,提出明天开始系统应自动记录每日收盘数据,不再依赖手动点击生成快照。
+- Changes:
+  - 新增 `server/pnlReportDailySnapshot.js`,服务端批量读取所有账户 `stock_trades`,按最新已完成美股交易日或指定 `date` 拉取 EODHD 日线收盘价,并用严格 `ledger` 模式生成组合/单股票快照。
+  - 新增 `api/pnl-report-daily-snapshot.js`,只接受 `Authorization: Bearer <CRON_SECRET>` 的 `GET` 请求,返回脱敏汇总结果,不接受普通登录 token 代替。
+  - 新增 `vercel.json` Cron 配置,`30 22 * * 1-5` UTC 调用 `/api/pnl-report-daily-snapshot`,对应美股常规收盘后执行。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.229`;安全文档、开发流程和交接文档同步 `SUPABASE_SERVICE_ROLE_KEY` / `CRON_SECRET` 服务端边界。
+  - 本次只新增收益报表自动收盘快照链路,不改交易页实时持仓/盈亏、手动近两个月回填、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `api/pnl-report-daily-snapshot.js`
+  - `server/pnlReportDailySnapshot.js`
+  - `vercel.json`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-report-daily-snapshot-api.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `README.md`
+  - `docs/security-hardening.md`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-daily-snapshot-api.test.js tests/tool-ledger-boundaries.test.js` passed, 37/37 tests;覆盖缺少 `CRON_SECRET`、错误 Bearer、正确 Bearer 下的全账户快照写入、脱敏响应和 Vercel Cron 配置。
+  - `npm test` passed, 153/153 tests.
+  - `npm run build` passed; new chunks include `SettingsTab-Ciz7ZhKB.js`, `settingsChangelog-Bv0bG28U.js`, `PnlReportPage-CGeO8hp6.js`, and `App-D9OF7N8h.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Production verification:
+  - Pending: after deployment, verify production marker `v10.7.9.229`, `/api/pnl-report-daily-snapshot` auth boundary, `/api/quote` unauthenticated `401`, and realtime relay ordinary HTTP `426`.
+- Rollback: 回退本条涉及的新 API、服务端批量快照模块、`vercel.json` Cron、`v10.7.9.229` 设置页版本/更新日志、测试和文档即可恢复 `v10.7.9.228`;Vercel 中如已新增 `CRON_SECRET`,可保留但不再被使用。回滚不影响已存在的收益报表快照表、手动回填、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表日历样式微调
 
 - Commit: `9f3a6168930b11dd1b328aee2b4f96c3cdbec4f4`
