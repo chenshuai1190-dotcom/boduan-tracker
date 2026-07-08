@@ -24,6 +24,7 @@ const supabaseClientSource = readFileSync(new URL('../src/lib/supabase.js', impo
 const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.meta.url), 'utf8');
 const registerApiSource = readFileSync(new URL('../api/register.js', import.meta.url), 'utf8');
 const quoteApiSource = readFileSync(new URL('../api/quote.js', import.meta.url), 'utf8');
+const pnlBenchmarkApiSource = readFileSync(new URL('../api/pnl-benchmark.js', import.meta.url), 'utf8');
 const btcRealtimeApiSource = readFileSync(new URL('../api/btc-realtime.js', import.meta.url), 'utf8');
 const indicesRealtimeApiSource = readFileSync(new URL('../api/indices-realtime.js', import.meta.url), 'utf8');
 const stocksRealtimeApiSource = readFileSync(new URL('../api/stocks-realtime.js', import.meta.url), 'utf8');
@@ -203,7 +204,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.217'), 'settings version badge should document the P&L calendar visual update');
+  assert.ok(settingsTabSource.includes('v10.7.9.218'), 'settings version badge should document the P&L report period stats update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
+  assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('收益日历视觉优化'), 'settings changelog should describe the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.216'), 'settings changelog should document the P&L report real snapshot update');
@@ -314,6 +317,8 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSnapshots'), 'P&L report should read portfolio snapshots through the db boundary');
   assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSymbolSnapshots'), 'P&L report should read symbol snapshots through the db boundary');
   assert.ok(pnlReportPageSource.includes('db.upsertPnlReportSnapshots'), 'P&L report should expose a controlled manual snapshot generation path');
+  assert.ok(pnlReportPageSource.includes('/api/pnl-benchmark'), 'P&L report should read Nasdaq benchmark rows through a server API');
+  assert.ok(pnlReportPageSource.includes('stockTrades'), 'P&L report should compute period trade stats from the main trade fact source');
   assert.ok(pnlReportPageSource.includes('pnlReport.noSnapshotNotice'), 'P&L report should disclose when real snapshots are not available yet');
   assert.equal(pnlReportPageSource.includes('Maximize2'), false, 'P&L report should not show the unused expand icon');
   assert.equal(pnlReportPageSource.includes('Info'), false, 'P&L report should not show the unused info icon');
@@ -324,6 +329,13 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(pnlReportPageSource.includes('pnlReport.stockPnl'), 'P&L report summary should use the stock-only cumulative P&L label');
   assert.equal(pnlReportPageSource.includes("from '../lib/supabase'"), false, 'P&L report page should not import Supabase directly');
   assert.equal(pnlReportPageSource.includes('deriveInvestmentSummary'), false, 'P&L report should not reuse the live trading summary pipeline');
+});
+
+test('P&L benchmark API keeps provider token server-side and auth-gated', () => {
+  assert.ok(pnlBenchmarkApiSource.includes('requireQuoteAuth'), 'P&L benchmark API should require login auth');
+  assert.ok(pnlBenchmarkApiSource.includes('EODHD_API_KEY'), 'P&L benchmark API should read EODHD from server environment');
+  assert.ok(pnlBenchmarkApiSource.includes('https://eodhd.com/api/eod/'), 'P&L benchmark API should use EODHD daily EOD rows');
+  assert.equal(pnlBenchmarkApiSource.includes('VITE_EODHD_TOKEN'), false, 'P&L benchmark API must not introduce a frontend EODHD token');
 });
 
 test('P&L report snapshot foundation stays isolated behind stock_trades dirty marks', () => {
@@ -957,7 +969,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.217'), 'settings version badge should document the P&L calendar visual update');
+  assert.ok(settingsTabSource.includes('v10.7.9.218'), 'settings version badge should document the P&L report period stats update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
+  assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('收益日历视觉优化'), 'settings changelog should describe the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.216'), 'settings changelog should document the P&L report real snapshot update');
@@ -1213,7 +1227,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.217'), 'settings version badge should document the P&L calendar visual update');
+  assert.ok(settingsTabSource.includes('v10.7.9.218'), 'settings version badge should document the P&L report period stats update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
+  assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('收益日历视觉优化'), 'settings changelog should describe the P&L calendar visual update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.216'), 'settings changelog should document the P&L report real snapshot update');

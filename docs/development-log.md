@@ -4,6 +4,38 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表周期统计
+
+- Commit: this commit
+- Deployment: not deployed yet.
+- Background: 用户确认继续补上收益报表的“累计成交金额/交易股票数”和“跑赢/跑输纳斯达克”两块真实逻辑;报表继续作为独立系统,不混入交易页实时持仓计算。
+- Changes:
+  - `src/lib/pnlReportViewModel.js` 新增报表周期边界、周期成交统计和纳斯达克基准计算;累计成交金额和交易股票数改为按当前筛选周期从 `stockTrades` 计算。
+  - 新增登录鉴权接口 `api/pnl-benchmark.js`,使用服务端 `EODHD_API_KEY` 拉取 QQQ 的 EODHD 日线收盘价序列,前端不接触 provider token。
+  - `src/pages/PnlReportPage.jsx` 根据当前报表周期读取纳指基准序列,显示跑赢/跑输纳斯达克,并在走势里展示蓝色基准线;接口失败时保持 `--`,不阻断报表快照展示。
+  - 设置页版本和更新日志同步到 `v10.7.9.218`。
+  - 本次不改收益快照表结构、不改交易页实时持仓/盈亏、不改股票行情 relay、不改 RLS、不改 EODHD token 暴露方式或 `/api/quote` 鉴权。
+- Key files:
+  - `api/pnl-benchmark.js`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/pnl-benchmark-api.test.js`
+  - `tests/pnl-report-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/pnl-benchmark-api.test.js` passed, 8/8 tests.
+  - `node --test tests/pnl-report-view-model.test.js tests/pnl-benchmark-api.test.js tests/tool-ledger-boundaries.test.js` passed, 41/41 tests.
+  - `npm test` passed, 131/131 tests.
+  - `npm run build` passed; generated production chunks include `PnlReportPage-CECjOFn4.js`, `SettingsTab-D23h5WOa.js`, `settingsChangelog-SPqbrXrH.js`, and `App-t4SlaHsI.js`.
+  - `npm audit --audit-level=moderate` passed, found 0 vulnerabilities.
+  - `git diff --check` passed.
+  - Local dev server `npm run dev -- --host 127.0.0.1` started successfully and `http://127.0.0.1:5173/?tab=pnl-report` returned `200`.
+  - Dist/source marker check passed: built assets/source contain `v10.7.9.218`, `收益报表周期统计`, `/api/pnl-benchmark`, `跑赢纳斯达克`, and `跑输纳斯达克`.
+- Rollback: 回退本次提交即可恢复 `v10.7.9.217` 的收益报表日历视觉版本;不会影响已存在的报表快照表和交易主账本。
+
 ### 2026-07-08 - 收益日历视觉优化
 
 - Commit: `5261dc7`

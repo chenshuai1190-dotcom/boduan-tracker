@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildPnlReportViewModel, filterPnlSnapshotsByRange } from '../src/lib/pnlReportViewModel.js';
+import { buildPnlReportViewModel, filterPnlSnapshotsByRange, getPnlReportRangeBounds } from '../src/lib/pnlReportViewModel.js';
 
 test('builds P&L report view model from database snapshots', () => {
   const report = buildPnlReportViewModel({
@@ -63,6 +63,68 @@ test('filters snapshots by range without mutating source order', () => {
 
   assert.deepEqual(filtered.map((snapshot) => snapshot.snapshotDate), ['2026-06-08', '2026-07-08']);
   assert.deepEqual(snapshots.map((snapshot) => snapshot.snapshotDate), ['2026-01-01', '2026-06-08', '2026-07-08']);
+});
+
+test('computes period turnover and Nasdaq outperformance from independent inputs', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-08',
+        cumulativePnlUsd: 1300,
+        cumulativePnlPct: 0.13,
+        totalAssetsUsd: 11300,
+        dailyPnlUsd: 300,
+      },
+      {
+        snapshotDate: '2026-07-07',
+        cumulativePnlUsd: 1000,
+        cumulativePnlPct: 0.10,
+        totalAssetsUsd: 11000,
+        dailyPnlUsd: 120,
+      },
+      {
+        snapshotDate: '2026-01-02',
+        cumulativePnlUsd: 100,
+        cumulativePnlPct: 0.01,
+        totalAssetsUsd: 10100,
+        dailyPnlUsd: 100,
+      },
+    ],
+    stockTrades: [
+      { tradeDate: '2025-12-30', symbol: 'OLD', shares: 1, price: 1000 },
+      { tradeDate: '2026-01-02', symbol: 'NVDA', shares: 10, price: 100 },
+      { trade_date: '2026-07-08', symbol: 'MSFT', shares: 2, price: 200, side: 'sell' },
+    ],
+    benchmarkRows: [
+      { date: '2026-01-02', adjusted_close: 500 },
+      { date: '2026-07-07', adjusted_close: 545 },
+      { date: '2026-07-08', adjusted_close: 550 },
+    ],
+    range: 'ytd',
+    now: new Date('2026-07-08T12:00:00Z'),
+  });
+
+  assert.equal(report.benchmarkStartDate, '2026-01-01');
+  assert.equal(report.benchmarkEndDate, '2026-07-08');
+  assert.equal(report.totalPnlUsd, 1200);
+  assert.equal(Number(report.totalPnlPct.toFixed(4)), 0.12);
+  assert.equal(report.turnoverUsd, 1400);
+  assert.equal(report.tradeStockCount, 2);
+  assert.equal(Number(report.benchmarkReturnPct.toFixed(4)), 0.1);
+  assert.equal(Number(report.outperformPct.toFixed(4)), 0.02);
+  assert.equal(report.trend[0].benchmarkPct, 0);
+  assert.equal(Number(report.trend[2].benchmarkPct.toFixed(4)), 0.1);
+});
+
+test('returns report range bounds from latest snapshot and first trade', () => {
+  const bounds = getPnlReportRangeBounds({
+    portfolioSnapshots: [{ snapshotDate: '2026-07-08' }],
+    stockTrades: [{ tradeDate: '2026-04-05', symbol: 'NVDA' }],
+    range: 'all',
+    now: new Date('2026-07-08T12:00:00Z'),
+  });
+
+  assert.deepEqual(bounds, { startDate: '2026-04-05', endDate: '2026-07-08' });
 });
 
 test('returns explicit empty report when there are no snapshots', () => {

@@ -166,6 +166,7 @@ export default function PnlReportPage({ ctx = {} }) {
     portfolioCurrencyMode,
     quoteRows,
     stockTrades,
+    supabase,
     usdRate,
     user,
   } = ctx;
@@ -183,6 +184,9 @@ export default function PnlReportPage({ ctx = {} }) {
   const [reportError, setReportError] = React.useState('');
   const [reportMessage, setReportMessage] = React.useState('');
   const [rebuilding, setRebuilding] = React.useState(false);
+  const [benchmarkRows, setBenchmarkRows] = React.useState([]);
+  const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
+  const [benchmarkError, setBenchmarkError] = React.useState('');
   const loadReportSnapshots = React.useCallback(async () => {
     if (!db?.fetchPnlReportSnapshots) return;
     setReportLoading(true);
@@ -213,8 +217,55 @@ export default function PnlReportPage({ ctx = {} }) {
   const reportData = React.useMemo(() => buildPnlReportViewModel({
     portfolioSnapshots,
     symbolSnapshots,
+    stockTrades,
+    benchmarkRows,
+    benchmarkSymbol: 'QQQ',
     range,
-  }), [portfolioSnapshots, symbolSnapshots, range]);
+  }), [benchmarkRows, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadBenchmarkRows() {
+      if (!reportData.hasData || !supabase?.auth?.getSession) {
+        setBenchmarkRows([]);
+        setBenchmarkError('');
+        return;
+      }
+      const from = reportData.benchmarkStartDate;
+      const to = reportData.benchmarkEndDate;
+      if (!from || !to || from === '--' || to === '--') return;
+      setBenchmarkLoading(true);
+      setBenchmarkError('');
+      setBenchmarkRows([]);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
+        const res = await fetch(`/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+          cache: 'no-store',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || body?.success === false) {
+          throw new Error(body?.error || t(language, 'pnlReport.benchmarkFailed', '纳斯达克基准读取失败'));
+        }
+        if (!cancelled) setBenchmarkRows(Array.isArray(body?.rows) ? body.rows : []);
+      } catch (error) {
+        if (!cancelled) {
+          setBenchmarkRows([]);
+          setBenchmarkError(error?.message || String(error));
+        }
+      } finally {
+        if (!cancelled) setBenchmarkLoading(false);
+      }
+    }
+    loadBenchmarkRows();
+    return () => {
+      cancelled = true;
+    };
+  }, [language, reportData.benchmarkEndDate, reportData.benchmarkStartDate, reportData.hasData, supabase, user?.id]);
 
   const handleRebuildToday = React.useCallback(async () => {
     if (!db?.upsertPnlReportSnapshots) return;
@@ -267,6 +318,11 @@ export default function PnlReportPage({ ctx = {} }) {
   }));
   const rankingRows = reportData.rankings[rankMode] || [];
   const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
+  const benchmarkCompareLabel = reportData.outperformPct == null
+    ? t(language, 'pnlReport.vsNasdaq', '对比纳斯达克')
+    : reportData.outperformPct >= 0
+      ? t(language, 'pnlReport.outperformNasdaq', '跑赢纳斯达克')
+      : t(language, 'pnlReport.underperformNasdaq', '跑输纳斯达克');
   const statusText = reportLoading
     ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
     : reportError
@@ -348,10 +404,11 @@ export default function PnlReportPage({ ctx = {} }) {
           <div className="mt-2 text-[12px] text-white/42">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
-          <div className="text-[12px] text-white/46">{t(language, 'pnlReport.outperform', '全部跑赢')} {t(language, 'pnlReport.nasdaq', '纳斯达克')}</div>
+          <div className="text-[12px] text-white/46">{benchmarkCompareLabel}</div>
           <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${reportData.outperformPct == null ? 'text-white/36' : marketTextClass(reportData.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-            {reportData.outperformPct == null ? '--' : signedPct(reportData.outperformPct, 2)}
+            {benchmarkLoading && reportData.outperformPct == null ? '--' : reportData.outperformPct == null ? '--' : signedPct(reportData.outperformPct, 2)}
           </div>
+          {benchmarkError && <div className="mt-2 truncate text-[10px] text-white/28">{benchmarkError}</div>}
         </div>
       </section>
 
