@@ -6,8 +6,8 @@
 
 ### 2026-07-08 - 收益报表日期筛选
 
-- Commit: pending
-- Deployment: not deployed in this step; awaiting user confirmation if production sync is needed.
+- Commit: `b7935bc`
+- Deployment: deployed to GitHub `main` via SSH from runtime commit `b7935bc742a9f5199b7b9e415a8b052d494f7dbe7`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户确认收益报表继续坚持“不做假数据”,默认展示应从“全部”改为“本年”;右上角筛选需要支持具体日期当日报表;盈亏排行榜也要跟随本年、近 6 月、全部等头部周期切换,标题不能一直显示“全部盈亏排行榜”。
 - Changes:
   - `src/pages/PnlReportPage.jsx` 默认周期从 `all` 改为 `ytd`,并新增右上角时间筛选底部面板,支持单日报表和自定义日期区间。
@@ -33,6 +33,8 @@
   - `git diff --check` passed.
   - Local smoke: `curl -I http://127.0.0.1:5173/?tab=pnl-report` returned `HTTP/1.1 200 OK`.
   - Local browser verification:收益报表默认选中 `本年`,顶部周期标题和排行榜标题同步显示 `本年`;右上角时间筛选面板可打开,支持 `单日` 和 `区间`,切到 `单日` 后只显示一个日期输入框。
+  - Production marker verification passed: entry `index-DX4XOoZN.js`; `App-DyHMxG2x.js` imports `PnlReportPage-_niTCj5V.js` and `SettingsTab-QsdXyQ04.js`; `PnlReportPage-_niTCj5V.js` contains `时间筛选`; `i18n-Be3dt-nD.js` contains `pnlReport.dateFilterTitle` / `pnlReport.rankingShort`; `SettingsTab-QsdXyQ04.js` contains `v10.7.9.220`; `settingsChangelog-BUmB49BS.js` contains `v10.7.9.220` and `收益报表日期筛选`.
+  - Production API boundary check passed: unauthenticated `/api/quote?symbols=VIX` returned `401`; HTTP `/api/stocks-realtime` returned `426`.
 - Rollback: 回退本次提交即可恢复 `v10.7.9.219` 的收益报表币种/周期版本;不会影响收益报表数据库结构、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - Quote 品牌和收益报表文案
