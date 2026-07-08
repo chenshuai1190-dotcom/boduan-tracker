@@ -4,6 +4,29 @@
 
 ## 2026-07-08 Asia/Shanghai
 
+### 2026-07-08 - 收益报表日历样式微调
+
+- Commit: `b5a12d9be516a42f4d2ca7098f307522c56931cf`
+- Deployment: pending.
+- Background: 用户反馈收益日历切到年份视图后有白色边框,并且收益/收益率切换时底色和按钮宽度不统一;同时询问每日收盘快照是否已经能自动记录。
+- Changes:
+  - `src/pages/PnlReportPage.jsx` 为收益日历新增独立的固定双列 `CalendarSegmentButton`,让年/月、收益/收益率切换保持统一底色和按钮宽度。
+  - 年份视图移除外层白色边框和单元白线,改为暗底间距卡片,保留正负收益色块表达。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.228`;本次只改收益报表日历展示样式,不改收益计算、快照生成、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/pnl-report-view-model.test.js tests/tool-ledger-boundaries.test.js` passed, 48/48 tests.
+  - `npm test` passed, 149/149 tests.
+  - `npm run build` passed; new chunks include `PnlReportPage-CGeO8hp6.js`, `SettingsTab-CMUv8wzo.js`, `settingsChangelog-Dbl9d2eM.js`, and `App-DQ7a1Dd1.js`.
+  - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
+  - `git diff --check` passed.
+- Rollback: 回退本条涉及的收益日历样式、`v10.7.9.228` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.227`;不会影响收益报表计算口径、手动快照回填、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-08 - 收益报表近两个月快照回填
 
 - Commit: `8049cda76cb7f5ad29f0c48dabcbf7a1f9b805e5`

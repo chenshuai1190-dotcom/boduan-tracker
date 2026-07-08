@@ -225,6 +225,20 @@ function SegmentButton({ active, children, onClick }) {
   );
 }
 
+function CalendarSegmentButton({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-7 min-w-0 items-center justify-center rounded-full px-2 text-[11px] font-normal transition active:scale-95 ${
+        active ? 'bg-white text-[#101318]' : 'bg-transparent text-white/42'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function PnlReportPage({ ctx = {} }) {
   const {
     closePnlReport,
@@ -682,13 +696,13 @@ export default function PnlReportPage({ ctx = {} }) {
             {calendarView === 'year' ? selectedCalendarYear : reportData.selectedMonth}
             <ChevronDown className="h-3.5 w-3.5 text-white/42" />
           </button>
-          <div className="flex rounded-full border border-white/10 bg-white/[0.055] p-1">
-            <SegmentButton active={calendarView === 'year'} onClick={() => setCalendarView('year')}>{t(language, 'pnlReport.year', '年')}</SegmentButton>
-            <SegmentButton active={calendarView === 'month'} onClick={() => setCalendarView('month')}>{t(language, 'pnlReport.month', '月')}</SegmentButton>
+          <div className="grid min-w-[100px] grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
+            <CalendarSegmentButton active={calendarView === 'year'} onClick={() => setCalendarView('year')}>{t(language, 'pnlReport.year', '年')}</CalendarSegmentButton>
+            <CalendarSegmentButton active={calendarView === 'month'} onClick={() => setCalendarView('month')}>{t(language, 'pnlReport.month', '月')}</CalendarSegmentButton>
           </div>
-          <div className="flex rounded-full border border-white/10 bg-white/[0.055] p-1">
-            <SegmentButton active={calendarMode === 'pnl'} onClick={() => setCalendarMode('pnl')}>{t(language, 'pnlReport.pnl', '收益')}</SegmentButton>
-            <SegmentButton active={calendarMode === 'rate'} onClick={() => setCalendarMode('rate')}>{t(language, 'pnlReport.pnlRate', '收益率')}</SegmentButton>
+          <div className="grid min-w-[116px] grid-cols-2 rounded-full border border-white/10 bg-white/[0.055] p-1">
+            <CalendarSegmentButton active={calendarMode === 'pnl'} onClick={() => setCalendarMode('pnl')}>{t(language, 'pnlReport.pnl', '收益')}</CalendarSegmentButton>
+            <CalendarSegmentButton active={calendarMode === 'rate'} onClick={() => setCalendarMode('rate')}>{t(language, 'pnlReport.pnlRate', '收益率')}</CalendarSegmentButton>
           </div>
         </div>
         {calendarView === 'month' ? (
@@ -740,7 +754,7 @@ export default function PnlReportPage({ ctx = {} }) {
             </div>
           </>
         ) : (
-          <div className="mt-5 grid grid-cols-4 overflow-hidden rounded-xl border border-white/8 text-center">
+          <div className="mt-5 grid grid-cols-4 gap-1 text-center">
             {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => {
               const calendarItem = yearCalendarValues.get(month);
               const valueUsd = calendarItem?.valueUsd;
@@ -755,7 +769,6 @@ export default function PnlReportPage({ ctx = {} }) {
               const tileStyle = hasTint
                 ? {
                   background: `linear-gradient(180deg, ${tileColor}${alphaHex(0.14 + intensity * 0.12)}, ${tileColor}${alphaHex(0.07 + intensity * 0.08)})`,
-                  borderColor: `${tileColor}${alphaHex(0.12 + intensity * 0.10)}`,
                 }
                 : undefined;
               return (
@@ -766,7 +779,7 @@ export default function PnlReportPage({ ctx = {} }) {
                     setCalendarDate(monthDateKey(selectedCalendarYear, month));
                     setCalendarView('month');
                   }}
-                  className="flex h-[76px] flex-col items-center justify-center border border-white/[0.035] transition active:scale-[0.98]"
+                  className="flex h-[76px] flex-col items-center justify-center rounded-xl bg-white/[0.02] transition active:scale-[0.98]"
                   style={tileStyle}
                 >
                   <span className="text-[14px] font-normal text-white">{monthName(month, englishMode)}</span>

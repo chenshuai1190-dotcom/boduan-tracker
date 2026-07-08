@@ -206,7 +206,12 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.227'), 'settings version badge should document the P&L report two-month snapshot update');
+  assert.ok(settingsTabSource.includes('v10.7.9.228'), 'settings version badge should document the P&L report calendar style update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.228'), 'settings changelog should document the P&L report calendar style update');
+  assert.ok(settingsChangelogSource.includes('收益报表日历样式微调'), 'settings changelog should describe the P&L report calendar style update');
+  assert.ok(pnlReportPageSource.includes('function CalendarSegmentButton'), 'P&L report calendar should use a dedicated fixed-width segmented control');
+  assert.ok(pnlReportPageSource.includes('grid min-w-[116px] grid-cols-2'), 'P&L report calendar P&L/rate switch should keep a consistent two-column background');
+  assert.ok(pnlReportPageSource.includes('mt-5 grid grid-cols-4 gap-1 text-center'), 'P&L report year calendar should not keep the old white bordered grid');
   assert.ok(settingsChangelogSource.includes('v10.7.9.227'), 'settings changelog should document the P&L report two-month snapshot update');
   assert.ok(settingsChangelogSource.includes('收益报表近两个月快照回填'), 'settings changelog should describe the P&L report two-month snapshot update');
   assert.ok(pnlReportPageSource.includes('PNL_REPORT_HISTORY_SNAPSHOT_COUNT = 45'), 'P&L report manual generation should backfill about two months of trading days');
@@ -1012,7 +1017,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.227'), 'settings version badge should document the latest P&L report update');
+  assert.ok(settingsTabSource.includes('v10.7.9.228'), 'settings version badge should document the latest P&L report update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1270,7 +1275,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.227'), 'settings version badge should document the latest P&L report update');
+  assert.ok(settingsTabSource.includes('v10.7.9.228'), 'settings version badge should document the latest P&L report update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
