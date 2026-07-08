@@ -7,7 +7,7 @@
 ### 2026-07-08 - 收益报表近两个月快照回填
 
 - Commit: `8049cda76cb7f5ad29f0c48dabcbf7a1f9b805e5`
-- Deployment: pending.
+- Deployment: deployed to GitHub `main` via SSH from code commit `8049cda76cb7f5ad29f0c48dabcbf7a1f9b805e5`; Vercel production marker verified on `https://boduan-tracker.vercel.app`.
 - Background: 用户确认 `v10.7.9.226` 已修复收益报表区间口径后,希望在不改变现有计算逻辑的前提下,把手动生成收盘快照从最近 7 个交易日扩展为近两个月,用于查看每天的真实收益走势。
 - Changes:
   - `src/pages/PnlReportPage.jsx` 将手动生成窗口扩展为最近 45 个已完成交易日快照,并请求 46 条 EODHD 日线 close,为第一天日收益保留前一交易日基准。
@@ -29,6 +29,8 @@
   - `npm run build` passed; new chunks include `PnlReportPage-Crwm4pdO.js`, `SettingsTab-BlqooBxa.js`, `settingsChangelog-DrS8k80y.js`, `i18n-BpktuHM8.js`, and `App-C3rmU7qb.js`.
   - `npm audit --audit-level=moderate` passed, 0 vulnerabilities.
   - `git diff --check` passed.
+  - Production marker verification passed: entry `index-Bra0Isr1.js`; `App-ZkacKS_R.js` imports `PnlReportPage-Crwm4pdO.js`, `SettingsTab-CR_tgidW.js`, `settingsChangelog-DrS8k80y.js`, and `i18n-BpktuHM8.js`; `PnlReportPage-Crwm4pdO.js` contains the 45/46-day history request markers and `/api/pnl-history-closes`; `SettingsTab-CR_tgidW.js` contains `v10.7.9.227`; `i18n-BpktuHM8.js` contains `近两个月收盘收益快照已生成`; `settingsChangelog-DrS8k80y.js` contains `v10.7.9.227` and `收益报表近两个月快照回填`.
+  - Production API boundary check passed: unauthenticated `/api/pnl-history-closes?symbols=NVDA&to=2026-07-07&days=46` returned `401`; unauthenticated `/api/quote?symbols=VIX` returned `401`; ordinary non-WebSocket `https://boduan-tracker.vercel.app/api/stocks-realtime` returned `426`.
 - Rollback: 回退本条涉及的手动回填窗口、历史收盘价接口上限、`v10.7.9.227` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.226`;不会影响收益报表区间统计口径、交易页实时持仓/盈亏、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-08 - 收益报表区间口径修正
