@@ -176,7 +176,7 @@ const messages = {
     'pnlReport.reportDate': '报表日期',
     'pnlReport.startDate': '开始日期',
     'pnlReport.endDate': '结束日期',
-    'pnlReport.dateFilterHint': '只读取所选日期已有的收益快照。没有快照的日期不会用其他日期数据替代。',
+    'pnlReport.dateFilterHint': '只读取已有数据，没有快照的日期不会使用其他日期替代。',
     'pnlReport.resetYtd': '恢复本年',
     'pnlReport.confirmFilter': '确定',
 
@@ -741,7 +741,7 @@ const messages = {
     'pnlReport.reportDate': 'Report Date',
     'pnlReport.startDate': 'Start Date',
     'pnlReport.endDate': 'End Date',
-    'pnlReport.dateFilterHint': 'Only existing P&L snapshots for the selected dates are used. Missing dates are not replaced by other data.',
+    'pnlReport.dateFilterHint': 'Only existing data is used. Missing snapshot dates are not replaced by other dates.',
     'pnlReport.resetYtd': 'Reset YTD',
     'pnlReport.confirmFilter': 'Confirm',
 

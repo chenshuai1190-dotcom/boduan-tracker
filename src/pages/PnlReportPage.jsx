@@ -758,53 +758,42 @@ export default function PnlReportPage({ ctx = {} }) {
                   type="date"
                   value={draftDate}
                   onChange={(event) => setDraftDate(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-center text-[15px] font-normal text-white outline-none [color-scheme:dark]"
+                  className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-3 text-center text-[14px] font-normal text-white outline-none [color-scheme:dark]"
                 />
               </div>
             ) : (
-              <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-                <div>
+              <div className="mt-5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+                <div className="min-w-0">
                   <label className="text-[12px] text-white/42">{t(language, 'pnlReport.startDate', '开始日期')}</label>
                   <input
                     type="date"
                     value={draftStartDate}
                     onChange={(event) => setDraftStartDate(event.target.value)}
-                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
+                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
                   />
                 </div>
                 <div className="mb-3 text-[14px] text-white/30">-</div>
-                <div>
+                <div className="min-w-0">
                   <label className="text-[12px] text-white/42">{t(language, 'pnlReport.endDate', '结束日期')}</label>
                   <input
                     type="date"
                     value={draftEndDate}
                     onChange={(event) => setDraftEndDate(event.target.value)}
-                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
+                    className="mt-2 block h-11 min-w-0 w-full max-w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] px-2 text-center text-[13px] font-normal text-white outline-none [color-scheme:dark]"
                   />
                 </div>
               </div>
             )}
 
-            <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-[12px] leading-5 text-white/38">
-              {t(language, 'pnlReport.dateFilterHint', '只读取所选日期已有的收益快照。没有快照的日期不会用其他日期数据替代。')}
+            <div className="mt-4 px-1 text-[11px] leading-4 text-white/32">
+              {t(language, 'pnlReport.dateFilterHint', '只读取已有数据，没有快照的日期不会使用其他日期替代。')}
             </div>
 
-            <div className="mt-5 grid grid-cols-[0.8fr_1.2fr] gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setRange('ytd');
-                  setCustomRange(null);
-                  setDateFilterOpen(false);
-                }}
-                className="h-11 rounded-2xl border border-white/10 bg-white/[0.055] text-[14px] font-normal text-white/58 transition active:scale-[0.98]"
-              >
-                {t(language, 'pnlReport.resetYtd', '恢复本年')}
-              </button>
+            <div className="mt-5">
               <button
                 type="button"
                 onClick={confirmDateFilter}
-                className="h-11 rounded-2xl bg-[#f6b54b] text-[14px] font-semibold text-[#101318] shadow-[0_14px_30px_rgba(246,181,75,0.20)] transition active:scale-[0.98]"
+                className="h-11 w-full rounded-2xl bg-[#f6b54b] text-[14px] font-semibold text-[#101318] shadow-[0_14px_30px_rgba(246,181,75,0.20)] transition active:scale-[0.98]"
               >
                 {t(language, 'pnlReport.confirmFilter', '确定')}
               </button>
