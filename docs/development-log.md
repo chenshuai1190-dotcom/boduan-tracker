@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 首页财报日历视觉压缩
 
-- Commit: same commit;deployment verification docs follow-up will record the runtime hash after production success。
-- Deployment: requested;pending GitHub `main` push and Vercel production verification。
+- Commit: runtime code commit `b7422bd96b886952cc6233d218dd2c89eb89cf83`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `b7422bd96b886952cc6233d218dd2c89eb89cf83` returned success;production alias `https://boduan-tracker.vercel.app` serving entry `/assets/index-BqpC-_-q.js`,with recursive chunks `/assets/App-DIpd72KZ.js`,`/assets/HomeTab-Ccz_psNH.js`,`/assets/SettingsTab-BksfxnY3.js`,`/assets/settingsChangelog-CLyDdtoZ.js` verified。
 - Background: 用户反馈首页底部财报日历字体和图标过大,要求参考效果图压到一行展示,不做左右滑动;随后确认标题要和首页“自选”标题层级一致,删除标题旁信息图标,并让首页日期字号和弹窗日历日期保持一致。
 - Changes:
   - `EarningsCalendar` 首页预览从横向滚动 flex 改为固定一行 grid,5 支股票和日历入口在 390px 移动视口内完整显示。
@@ -28,6 +28,8 @@
   - Build: pass;`npm run build` completed successfully with `HomeTab-Ccz_psNH.js`,`SettingsTab-Blxg71ee.js`,`settingsChangelog-CLyDdtoZ.js`,`App-BEUCSR7t.js` bundles。
   - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
   - Diff whitespace: pass;`git diff --check` returned clean。
+  - Production marker: pass;production recursive chunks contain `v10.7.9.250`,`首页财报日历视觉压缩`,`grid min-h-[88px]`,`text-[14px] leading-none tabular-nums`,`h-5 w-5`,and do not contain the old `text-[18px] font-normal text-white/84` title marker;the remaining `overflow-x-auto [scrollbar-width:none]` marker is from the modal list date filter and homepage watchlist table,not the homepage earnings preview grid。
+  - Production auth/API boundary: pass;unauthenticated `/api/quote?symbols=VIX` returned `401`;unauthenticated `/api/earnings-calendar?symbols=NVDA` returned `401`;plain HTTP `/api/stocks-realtime` returned `426`。
 - Rollback: 回退 `EarningsCalendar` 首页预览 grid/字号/标题图标删除、`v10.7.9.250` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.249`;不影响独立财报 API、交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-09 - 交接文档刷新

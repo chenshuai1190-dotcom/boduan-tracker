@@ -6,15 +6,15 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新接手补充: `v10.7.9.249` 首页财报日历独立重构已完成并上线。本轮在首页最底部新增独立深色财报日历模块,支持关注/持仓股票横向预览、日历视图和列表视图;新增已登录 `/api/earnings-calendar` 服务端接口,由服务器端 `EODHD_API_KEY` 调用 EODHD 财报日历/趋势数据,前端不接触 token;旧 `/api/quote` 的 `CALENDAR:` 虚拟 symbol、NASDAQ calendar provider 和旧白色事件弹窗已删除。交易账本、收益快照、股票/指数/BTC realtime relay、RLS 和 `/api/quote` 鉴权不变。
-- 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码基准为 `8cc8194edabcacd15a5cd49b142dff946f765298`。
-- 当前生产运行时代码提交: `8cc8194edabcacd15a5cd49b142dff946f765298`;`v10.7.9.249` production marker verified。
-- 设置页版本: `v10.7.9.249`。
+- 最新接手补充: `v10.7.9.250` 首页财报日历视觉压缩已完成并上线。首页底部财报日历预览从横向滚动改为固定一行 grid,5 支股票和日历入口在 390px 移动视口内完整显示;首页日期字号与弹窗日历日期一致,股票图标/代码/日历图标整体收紧;首页和弹窗标题统一为首页“自选”标题层级并删除标题旁信息图标。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 和 `/api/quote` 鉴权不变。
+- 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码基准为 `b7422bd96b886952cc6233d218dd2c89eb89cf83`。
+- 当前生产运行时代码提交: `b7422bd96b886952cc6233d218dd2c89eb89cf83`;`v10.7.9.250` production marker verified。
+- 设置页版本: `v10.7.9.250`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: success;`v10.7.9.249` production marker verified,production alias `https://boduan-tracker.vercel.app` serving entry `/assets/index-5ffGz7Kp.js`。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.249` 运行时代码已部署成功,本轮文档回写为生产验证补充。
-- 线上关键验证: `HomeTab-C9G_M3kp.js` 包含 `/api/earnings-calendar`;`SettingsTab-C-lBieCt.js` 包含 `v10.7.9.249`;`settingsChangelog-CCGaX_TC.js` 包含 `首页财报日历独立重构`;`i18n-DDUtz1yJ.js` 包含 `财报日历`;生产运行时未检出旧 `CALENDAR:` / `selectedEvent` 标记;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;HTTPS 普通非 WebSocket `GET /api/stocks-realtime` 返回 `426`。
-- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
+- 最新 Vercel 状态: success;`v10.7.9.250` production marker verified,production alias `https://boduan-tracker.vercel.app` serving entry `/assets/index-BqpC-_-q.js`。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.250` 运行时代码已部署成功,本轮文档回写为生产验证补充。
+- 线上关键验证: `HomeTab-Ccz_psNH.js` 包含 `grid min-h-[88px]`,`text-[14px] leading-none tabular-nums` 和 `h-5 w-5`;`SettingsTab-BksfxnY3.js` 包含 `v10.7.9.250`;`settingsChangelog-CLyDdtoZ.js` 包含 `首页财报日历视觉压缩`;生产运行时未检出旧 `text-[18px] font-normal text-white/84` 标题 marker;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;HTTPS 普通非 WebSocket `GET /api/stocks-realtime` 返回 `426`。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
@@ -22,18 +22,18 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
-- 当前生产运行时基准提交: `8cc8194edabcacd15a5cd49b142dff946f765298`;`v10.7.9.249` production marker verified。
-- 最近应用代码提交: `8cc8194edabcacd15a5cd49b142dff946f765298`,本轮首页财报日历独立重构已推送部署。此前个股风险指标提交为 `c7f8396207c72b3bd6c9ca4d7f3dabbbeb62c258`;股票代码落库修复提交为 `d626841` 前序链路;收益报表、个股详情、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
+- 当前生产运行时基准提交: `b7422bd96b886952cc6233d218dd2c89eb89cf83`;`v10.7.9.250` production marker verified。
+- 最近应用代码提交: `b7422bd96b886952cc6233d218dd2c89eb89cf83`,本轮首页财报日历视觉压缩已推送部署。此前首页财报日历独立重构提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;个股风险指标提交为 `c7f8396207c72b3bd6c9ca4d7f3dabbbeb62c258`;股票代码落库修复提交为 `d626841` 前序链路;收益报表、个股详情、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.249`。
-- Vercel 最新运行时部署: 当前线上 success,`v10.7.9.249` production marker verified,production alias `https://boduan-tracker.vercel.app` serving runtime assets from production entry `/assets/index-5ffGz7Kp.js`。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.249` 运行时代码已部署成功,本轮文档回写为生产验证补充。
+- 设置页版本: `v10.7.9.250`。
+- Vercel 最新运行时部署: 当前线上 success,`v10.7.9.250` production marker verified,production alias `https://boduan-tracker.vercel.app` serving runtime assets from production entry `/assets/index-BqpC-_-q.js`。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.250` 运行时代码已部署成功,本轮文档回写为生产验证补充。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
-- 最新补充部署记录: `v10.7.9.249` runtime code commit `8cc8194edabcacd15a5cd49b142dff946f765298` pushed via project SSH key;Vercel status success;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-5ffGz7Kp.js`;关键 chunks 包括 `/assets/HomeTab-C9G_M3kp.js`,`/assets/SettingsTab-C-lBieCt.js`,`/assets/settingsChangelog-CCGaX_TC.js`,`/assets/i18n-DDUtz1yJ.js`。
+- 最新补充部署记录: `v10.7.9.250` runtime code commit `b7422bd96b886952cc6233d218dd2c89eb89cf83` pushed via project SSH key;Vercel status success;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-BqpC-_-q.js`;关键 chunks 包括 `/assets/App-DIpd72KZ.js`,`/assets/HomeTab-Ccz_psNH.js`,`/assets/SettingsTab-BksfxnY3.js`,`/assets/settingsChangelog-CLyDdtoZ.js`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
+产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
 ## 2. 先读这些文档
 
@@ -181,13 +181,13 @@ npm run dev -- --host 127.0.0.1
 
 最近完整验证记录:
 
-- `v10.7.9.249` 首页财报日历独立重构已完成部署和线上验证。当前生产运行时代码提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;生产入口为 `/assets/index-5ffGz7Kp.js`;Vercel production status 为 `success`。
-- 当前生产 marker: `HomeTab-C9G_M3kp.js` 包含 `/api/earnings-calendar`;`SettingsTab-C-lBieCt.js` 包含 `v10.7.9.249`;`settingsChangelog-CCGaX_TC.js` 包含 `首页财报日历独立重构`;`i18n-DDUtz1yJ.js` 包含 `财报日历`。
-- 旧首页财报日历链路已从运行时移除:生产运行时未检出旧 `CALENDAR:` 虚拟 symbol 或旧白色事件弹窗的 `selectedEvent` marker。
+- `v10.7.9.250` 首页财报日历视觉压缩已完成部署和线上验证。当前生产运行时代码提交为 `b7422bd96b886952cc6233d218dd2c89eb89cf83`;生产入口为 `/assets/index-BqpC-_-q.js`;Vercel production status 为 `success`。
+- 当前生产 marker: `HomeTab-Ccz_psNH.js` 包含 `grid min-h-[88px]`,`text-[14px] leading-none tabular-nums`,`h-5 w-5`;`SettingsTab-BksfxnY3.js` 包含 `v10.7.9.250`;`settingsChangelog-CLyDdtoZ.js` 包含 `首页财报日历视觉压缩`;生产运行时不包含旧 `text-[18px] font-normal text-white/84` 标题 marker。`overflow-x-auto [scrollbar-width:none]` 仍在弹窗列表日期筛选和首页自选表格中使用,不属于首页财报预览 grid。
+- 旧首页财报日历链路继续从运行时移除:生产运行时未检出旧 `CALENDAR:` 虚拟 symbol 或旧白色事件弹窗的 `selectedEvent` marker。
 - 当前鉴权边界:未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;普通 HTTP 访问 `/api/stocks-realtime` 返回 `426`。
-- `v10.7.9.249` 部署前本地检查: `npm test` 通过 170 个测试;`npm run build` 成功;`npm audit --audit-level=moderate` 返回 0 vulnerabilities;`git diff --check` 干净。
+- `v10.7.9.250` 部署前本地检查: `npm test` 通过 170 个测试;`npm run build` 成功;`npm audit --audit-level=moderate` 返回 0 vulnerabilities;`git diff --check` 干净;本地 390x844 视觉 smoke 确认首页财报日历固定一行且页面无横向溢出。
 
-以下保留历史验证摘录,用于追溯旧问题;接手时以本节最上面的 `v10.7.9.249` 证据为当前线上基线。
+以下保留历史验证摘录,用于追溯旧问题;接手时以本节最上面的 `v10.7.9.250` 证据为当前线上基线。
 
 - `v10.7.9.204` iOS 主屏股票秒级刷新已完成部署和线上验证:iOS 主屏股票/指数 snapshot 盘前、盘中和盘后使用 1.25 秒活跃轮询,其它时段 2.5 秒;启动/回前台 burst 前移到 0/0.8/1.6/3/5 秒;BTC 保持独立 WebSocket,不参与股票/指数 snapshot 或 warming。生产入口 `/assets/index-DnB_Z168.js`,runtime chunks include `App-BSWC9NlH.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-xej1q5lA.js`,`settingsChangelog-BHgcb57S.js`;marker 验证确认 `v10.7.9.204`,`iOS 主屏股票秒级刷新`,`/api/btc-realtime`,`/api/stocks-realtime`,`/api/indices-realtime`,`America/New_York`,faster burst 和 `stockFreshnessStartedAt` 均存在,且不含 BTC snapshot fetch、BTC warming reset、`v10.7.9.202` 或 `首屏当日盈亏兜底`;`/api/quote?symbols=VIX` 未登录返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`,三套 snapshot 未登录均返回 `401`。
 
@@ -604,7 +604,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.249` 或更新版本。
+- 设置页显示 `v10.7.9.250` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
 - `/api/earnings-calendar?symbols=NVDA` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
@@ -622,17 +622,16 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 生产地址: https://boduan-tracker.vercel.app
 
 当前 GitHub main: 以 `docs/handoff.md` 所在最新提交为准
-当前运行时代码提交: `8cc8194edabcacd15a5cd49b142dff946f765298`
-设置页版本: `v10.7.9.249`
-最新运行时 Vercel 部署: success,`v10.7.9.249` production marker verified
-最新生产入口: `/assets/index-5ffGz7Kp.js`
+当前运行时代码提交: `b7422bd96b886952cc6233d218dd2c89eb89cf83`
+设置页版本: `v10.7.9.250`
+最新运行时 Vercel 部署: success,`v10.7.9.250` production marker verified
+最新生产入口: `/assets/index-BqpC-_-q.js`
 
 关键线上验证:
-- `HomeTab-C9G_M3kp.js` 包含 `/api/earnings-calendar`
-- `SettingsTab-C-lBieCt.js` 包含 `v10.7.9.249`
-- `settingsChangelog-CCGaX_TC.js` 包含 `首页财报日历独立重构`
-- `i18n-DDUtz1yJ.js` 包含 `财报日历`
-- 生产运行时未检出旧 `CALENDAR:` / `selectedEvent` marker
+- `HomeTab-Ccz_psNH.js` 包含 `grid min-h-[88px]`,`text-[14px] leading-none tabular-nums`,`h-5 w-5`
+- `SettingsTab-BksfxnY3.js` 包含 `v10.7.9.250`
+- `settingsChangelog-CLyDdtoZ.js` 包含 `首页财报日历视觉压缩`
+- 生产运行时未检出旧 `CALENDAR:` / `selectedEvent` marker,也未检出旧 `text-[18px] font-normal text-white/84` 标题 marker
 - 未登录 `/api/quote?symbols=VIX` 返回 `401`
 - 未登录 `/api/earnings-calendar?symbols=NVDA` 返回 `401`
 - 普通 HTTP 访问 `/api/stocks-realtime` 返回 `426`
@@ -676,7 +675,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - 股票核心行情已去 Yahoo 混源:股票核心 quote 字段只用 EODHD;Yahoo 仅保留股票小曲线视觉 chart 来源。
 - 股票/指数/BTC realtime relay 保持登录鉴权;BTC、三大指数、股票持仓刷新逻辑已拆开。
 - 收益报表独立页、收益快照、自动收盘快照和个股只读收益详情页已上线;报表读取快照,不使用其它日期替代无快照日期。
-- 首页底部财报日历已在 `v10.7.9.249` 独立重构:新增 `/api/earnings-calendar`,前端不接触 EODHD token,旧 `CALENDAR:` / NASDAQ calendar / 白色事件弹窗已移除。
+- 首页底部财报日历已在 `v10.7.9.249` 独立重构:新增 `/api/earnings-calendar`,前端不接触 EODHD token,旧 `CALENDAR:` / NASDAQ calendar / 白色事件弹窗已移除;`v10.7.9.250` 已把首页预览压缩为固定一行,日期字号同步弹窗日历日期,并删除首页/弹窗标题旁信息图标。
 - 主交易账本、摊薄工具、波段记录、收益快照和财报日历是不同边界;不要为了省事互相写表或混 provider。
 
 当前优先事项:
