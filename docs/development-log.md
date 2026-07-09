@@ -4,6 +4,31 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 持仓试算当前价标记去重
+
+- Commit: pending runtime code;生产部署触发后补充实际提交和线上验证结果。
+- Deployment: requested;用户确认“部署”,本次只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 默认模拟价等于当前价时,价格位置条右侧同时显示“模拟价”和“当前价”两组标签,并且金色呼吸点与静态模拟价点位重合,视觉含义不够清楚。
+- Changes:
+  - `TradesTab` 新增 `simulatedMatchesCurrent`,当模拟价与当前价在同一显示精度内重合时,只保留当前价金色呼吸点和当前价标签。
+  - 模拟价离开当前价后仍恢复为独立静态白色圆环和“模拟价”标签,继续沿用 v10.7.9.267 的真实价格排序和标签错层逻辑。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.268`,并保留 `v10.7.9.267` 的已部署价格位置条顺序修复记录。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full test pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` -> 173/173 pass。
+  - Targeted boundary test pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` -> 35/35 pass。
+  - Production build pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` -> `TradesTab-DQutN9VX.js`,`SettingsTab-FDbVG8aq.js`,`settingsChangelog-CbXkSLFF.js`。
+  - Audit pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` -> 0 vulnerabilities。
+  - Local marker check pass:source contains `simulatedMatchesCurrent` and hidden duplicated `simulated` branch;dist contains `data-price-position-marker`,`scenario-marker-breathe`,`v10.7.9.268` and `当前价标记去重`。
+  - Diff hygiene pass:`git diff --check`。
+  - Local visual smoke pass:`http://127.0.0.1:5174/?tab=trades&v=268-current-dedupe`,390x844 iPhone UA,打开 NVDA 试算弹窗默认当前价状态,确认 `data-price-position-label` 只有 `cost/current`, `data-price-position-marker` 只有 `cost/current`,当前价金色呼吸点数量 1,模拟价标签和 marker 数量均为 0;点击 `+5%` 后 `simulated` 标签和 marker 恢复为 1。截图 `/tmp/boduan-trades-scenario-current-dedupe-v10.7.9.268.png`。
+- Rollback: 回退本条涉及的 `simulatedMatchesCurrent` 去重、`v10.7.9.268` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或 iOS 输入跳顶修复。
+
 ### 2026-07-09 - 持仓试算价格位置条顺序修复
 
 - Commit: runtime code `5abd9885f9c4690c9713c9f1407165314284abed`;本日志后续 docs-only 提交记录线上验证结果。

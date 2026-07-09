@@ -248,11 +248,13 @@ function PositionProfitScenarioSheet({
   const pointLeftPct = (value) => Math.min(100, Math.max(0, ((value - low) / range) * 100));
   const pointLeft = (value) => `${pointLeftPct(value)}%`;
   const pricePositionLaneGapPct = 24;
+  const simulatedMatchesCurrent = validPrice && currentPrice > 0 && sameScenarioPrice(inputPrice, currentPrice);
   const pricePositionItems = [
     { id: 'cost', label: tt('trades.scenarioCost', '成本价'), value: costPrice, tone: 'static', order: 0 },
     { id: 'current', label: tt('trades.scenarioCurrent', '当前价'), value: currentPrice, tone: 'current', order: 1 },
-    { id: 'simulated', label: tt('trades.scenarioSimulated', '模拟价'), value: validPrice ? inputPrice : currentPrice, tone: 'static', order: 2 },
+    simulatedMatchesCurrent ? null : { id: 'simulated', label: tt('trades.scenarioSimulated', '模拟价'), value: validPrice ? inputPrice : currentPrice, tone: 'static', order: 2 },
   ]
+    .filter(Boolean)
     .filter((item) => item.value > 0)
     .map((item) => ({ ...item, leftPct: pointLeftPct(item.value), left: pointLeft(item.value) }));
   const pricePositionLabels = (() => {
