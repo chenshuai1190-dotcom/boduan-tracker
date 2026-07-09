@@ -13,7 +13,7 @@
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最新 Vercel 状态: success;`v10.7.9.251` production marker verified,production alias `https://boduan-tracker.vercel.app` serving entry `/assets/index-DAoL7-1B.js`。
 - 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.251` 运行时代码已部署成功,本轮文档回写为生产验证补充。
-- 线上关键验证: `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg`、`earningsEstimateNumberOfAnalysts` 且不包含旧第一项高亮 marker `const active = index === 0` / `bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`;`SettingsTab-CcKDt9iU.js` 包含 `v10.7.9.251`;`settingsChangelog-BXm6UOoz.js` 包含 `财报日历营收字段修复`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;HTTPS 普通非 WebSocket `GET /api/stocks-realtime` 返回 `426`。本地真实 key smoke 另见 `docs/eodhd-local-testing.md`。
+- 线上关键验证: `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg` 且不包含旧第一项高亮 marker `const active = index === 0` / `bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`;`SettingsTab-CcKDt9iU.js` 包含 `v10.7.9.251`;`settingsChangelog-BXm6UOoz.js` 包含 `财报日历营收字段修复`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;HTTPS 普通非 WebSocket `GET /api/stocks-realtime` 返回 `426`。`earningsEstimateNumberOfAnalysts` 和 `flattenTrendRows` 属于 serverless/API 逻辑,由本地 handler 测试和真实 key smoke 覆盖;本地真实 key smoke 另见 `docs/eodhd-local-testing.md`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -184,7 +184,7 @@ npm run dev -- --host 127.0.0.1
 最近完整验证记录:
 
 - `v10.7.9.251` 财报日历营收字段修复已完成部署和线上验证。当前生产运行时代码提交为 `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;生产入口为 `/assets/index-DAoL7-1B.js`;Vercel production status 为 `success`。
-- 当前生产 marker: `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg`,`earningsEstimateNumberOfAnalysts`,且不包含旧第一项高亮 marker `const active = index === 0` / `bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`;`SettingsTab-CcKDt9iU.js` 包含 `v10.7.9.251`;`settingsChangelog-BXm6UOoz.js` 包含 `财报日历营收字段修复`;生产运行时继续不包含旧 `CALENDAR:` marker。Serverless-only `flattenTrendRows` 不会出现在 client chunks 中,由本地 handler 测试覆盖。
+- 当前生产 marker: `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg`,且不包含旧第一项高亮 marker `const active = index === 0` / `bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`;`SettingsTab-CcKDt9iU.js` 包含 `v10.7.9.251`;`settingsChangelog-BXm6UOoz.js` 包含 `财报日历营收字段修复`;生产运行时继续不包含旧 `CALENDAR:` marker。Serverless-only `flattenTrendRows` 和官方 analyst 字段不会出现在 client chunks 中,由本地 handler 测试和真实 key smoke 覆盖。
 - 旧首页财报日历链路继续从运行时移除:生产运行时未检出旧 `CALENDAR:` 虚拟 symbol 或旧白色事件弹窗的 `selectedEvent` marker。
 - 当前鉴权边界:未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;普通 HTTP 访问 `/api/stocks-realtime` 返回 `426`。
 - `v10.7.9.251` 部署前本地检查: `npm test` 通过 170 个测试;`npm run build` 成功;`npm audit --audit-level=moderate` 返回 0 vulnerabilities;`git diff --check` 干净;本地 390x844 视觉 smoke 确认首页财报日历第一项无默认背景且页面无横向溢出。
@@ -631,7 +631,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 最新生产入口: `/assets/index-DAoL7-1B.js`
 
 关键线上验证:
-- `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg`,`earningsEstimateNumberOfAnalysts`
+- `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg`
 - `HomeTab-D1DD7H1A.js` 不包含旧第一项高亮 marker `const active = index === 0` / `bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`
 - `SettingsTab-CcKDt9iU.js` 包含 `v10.7.9.251`
 - `settingsChangelog-BXm6UOoz.js` 包含 `财报日历营收字段修复`

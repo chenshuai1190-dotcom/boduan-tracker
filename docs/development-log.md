@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - EODHD 财报营收本地测试环境
 
-- Commit: pending。
-- Deployment: pending;本轮新增本地 smoke 脚本和开发文档,不改生产运行时代码。
+- Commit: code/docs commit `0c5c75954bf114f3416548d17edcaffbca87f913`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `0c5c75954bf114f3416548d17edcaffbca87f913` returned success;production alias `https://boduan-tracker.vercel.app` still serves frontend entry `/assets/index-DAoL7-1B.js`,with docs/script changes not bundled into client assets。
 - Background: 用户确认首页仍看不到“预计营收”,并授权登录 EODHD 获取秘钥、创建本地 EODHD 测试环境并写入开发文档。使用本机 Chrome 已登录 EODHD 控制台读取 API key 候选后,只做本地 `.env.local` 写入和真实接口验证,全程未把 token 打印到终端、聊天或文档。
 - Changes:
   - 当前工作区创建本地 `.env.local`,写入服务器端 `EODHD_API_KEY`,文件权限为 `600`,且 `.gitignore` 已排除 `.env.*`;该文件不提交。
@@ -33,6 +33,8 @@
   - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
   - Diff whitespace: pass;`git diff --check` returned clean。
   - Secret handling: pass;no token printed;`.env.local` remains ignored by Git;exact-token scan across `git ls-files` returned 0 tracked hits。
+  - Production marker: pass;production recursive chunks still contain `v10.7.9.251`,`财报日历营收字段修复`,`revenueEstimateAvg`;they do not contain `const active = index === 0`,`bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`,legacy `CALENDAR:`,or local smoke script markers。Serverless-only `earningsEstimateNumberOfAnalysts` / `flattenTrendRows` are covered by local handler tests and real-key smoke,not expected in client chunks except historical changelog text。
+  - Production auth/API boundary: pass;unauthenticated `/api/quote?symbols=VIX` returned `401`;unauthenticated `/api/earnings-calendar?symbols=NVDA` returned `401`;plain HTTP `/api/stocks-realtime` returned `426`。
 - Conclusion: EODHD 可以拿到预计营收,但来源是 `/api/calendar/trends` 的 `revenueEstimateAvg`,不是 `/api/calendar/earnings`。若生产仍显示空值,优先排查生产 `EODHD_API_KEY` 是否与本地同权限/同账号、Vercel env 是否更新、线上是否已运行 `flattenTrendRows` 修复,而不是把财报日历塞回 `/api/quote`。
 - Rollback: 删除 `scripts/eodhd-calendar-smoke.mjs`、`npm run smoke:eodhd-calendar`、`docs/eodhd-local-testing.md` 以及 README/handoff/log 对本地 smoke 的说明即可;不要删除或提交本机 `.env.local` 的真实 token。
 
@@ -64,7 +66,7 @@
   - Build: pass;`npm run build` completed successfully with `HomeTab-D1DD7H1A.js`,`SettingsTab-CAV0seae.js`,`settingsChangelog-BXm6UOoz.js`,`App-CVqQxcld.js` bundles。
   - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
   - Diff whitespace: pass;`git diff --check` returned clean。
-  - Production marker: pass;production recursive chunks contain `v10.7.9.251`,`财报日历营收字段修复`,`revenueEstimateAvg`,`earningsEstimateNumberOfAnalysts`;they do not contain `const active = index === 0`,`bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`,or legacy `CALENDAR:` marker。Serverless-only `flattenTrendRows` is not expected in client chunks and is covered by the local handler test。
+  - Production marker: pass;production recursive chunks contain `v10.7.9.251`,`财报日历营收字段修复`,`revenueEstimateAvg`;they do not contain `const active = index === 0`,`bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`,or legacy `CALENDAR:` marker。Serverless-only `flattenTrendRows` and official analyst fields are not expected in client chunks and are covered by the local handler test。
   - Production auth/API boundary: pass;unauthenticated `/api/quote?symbols=VIX` returned `401`;unauthenticated `/api/earnings-calendar?symbols=NVDA` returned `401`;plain HTTP `/api/stocks-realtime` returned `426`。
 - Rollback: 回退 `EarningsCalendar` 首页默认高亮删除、`api/earnings-calendar.js` trends flatten/字段映射、`v10.7.9.251` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.250`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
 
