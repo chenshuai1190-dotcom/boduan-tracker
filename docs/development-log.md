@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 财报日历券商式同比对比本地调整
 
-- Commit: pending;本地截图待用户确认,暂不提交。
-- Deployment: requested after local confirmation;通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `04248d08c22c61b04a83cd09def2b9c97ce74277`;本文件所在 docs-only follow-up 只回填部署验证状态。
+- Deployment: completed;通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。Vercel status `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GwePcHBLeezeTXRK4KHQuw3cwQwc`,production alias `https://boduan-tracker.vercel.app` 已更新。
 - Background: 用户提供券商 NVDA 财务页截图,要求拉取英伟达真实数据并评估是否能改成券商那套对比口径。复查确认券商截图的核心不是单独显示“实际值相对预测值差异”,而是把“公布值同比”和“预测值同比”并列展示,结果标签仍由实际值是否超过预测值判断。
 - Real EODHD probe:
   - `NVDA.US` 最新已公布财报: `report_date=2026-05-20`, fiscal `date=2026-04-30`, `before_after_market=AfterMarket`。
@@ -46,6 +46,9 @@
   - Diff hygiene: pass;`git diff --check` 无输出。
   - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` 以 `390x844` 视口验证列表页 NVDA 行显示真实营收/预测营收,详情弹窗展示券商式“公布值/同比”和“预测值/同比”表格;`documentElement.scrollWidth=390`,`clientWidth=390`,无横向溢出。截图保存到 `/tmp/boduan-earnings-broker-comparison-list-v10.7.9.255.png` 和 `/tmp/boduan-earnings-broker-comparison-detail-v10.7.9.255.png`。
   - Local visual follow-up: pass;按用户指出“列表视图百分比逻辑没改”后,`390x844` 视口确认列表页 NVDA 行已显示实际/预测同比 `+130.9%`、`+119.0%`、`+85.2%`、`+79.6%`,不再显示 surprise `+5.6%` / `+3.2%`;`scrollWidth=390`,`clientWidth=390`。截图保存到 `/tmp/boduan-earnings-broker-comparison-list-yoy-v10.7.9.255.png`。
+  - Production assets: pass;production HTML 入口为 `/assets/index-BvGLlodr.js`,实际运行时 chunks 包括 `/assets/App-DpU85JYz.js`,`/assets/HomeTab-CQoyCHyU.js`,`/assets/SettingsTab-ByCQZjZF.js`,`/assets/settingsChangelog-DQ86VTuA.js`。
+  - Production markers: pass;`HomeTab-CQoyCHyU.js` 包含 `revenueActualYoyPercent`,`epsActualYoyPercent`,`revenueEstimateYoyPercent`,`epsEstimateYoyPercent`,`公布值`,`预测值`;`SettingsTab-ByCQZjZF.js` 包含 `v10.7.9.255`;`settingsChangelog-DQ86VTuA.js` 包含 `v10.7.9.255`,`财报日历券商式对比口径`,`公布值`,`预测值`。
+  - Production auth boundaries: pass;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`。
 - Rollback: 回退本条涉及的 trend `0q` 优先、同比字段、券商式详情表、NVDA 本地 mock、`v10.7.9.255` 设置页版本/更新日志、EODHD 测试文档、测试和本日志即可恢复 `v10.7.9.254`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
 
 ### 2026-07-09 - 财报日历已公布结果本地调整
