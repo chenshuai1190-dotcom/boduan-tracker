@@ -642,12 +642,24 @@ export default function TradesTab({ ctx }) {
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
   const displayHoldingPnl = toNumber(summary.holdingPnl ?? summary.unrealizedPnl) * displayRate;
   const todayKey = localDateKey();
-  const todayTrades = (stockTrades || []).filter((trade) => trade.date === todayKey);
-  const todayBuys = todayTrades.filter((trade) => trade.side !== 'sell').length;
-  const todaySells = todayTrades.filter((trade) => trade.side === 'sell').length;
-  const ledgerTradeRecords = [...(stockTrades || [])].sort((a, b) => (
+  const todayTradeSummary = React.useMemo(() => {
+    const rows = [];
+    let buys = 0;
+    let sells = 0;
+    (stockTrades || []).forEach((trade) => {
+      if (trade.date !== todayKey) return;
+      rows.push(trade);
+      if (trade.side === 'sell') sells += 1;
+      else buys += 1;
+    });
+    return { rows, buys, sells };
+  }, [stockTrades, todayKey]);
+  const todayTrades = todayTradeSummary.rows;
+  const todayBuys = todayTradeSummary.buys;
+  const todaySells = todayTradeSummary.sells;
+  const ledgerTradeRecords = React.useMemo(() => [...(stockTrades || [])].sort((a, b) => (
     (b.date || '').localeCompare(a.date || '') || String(b.id || '').localeCompare(String(a.id || ''))
-  ));
+  )), [stockTrades]);
   const showWaveTool = toolPanel === 'waves';
   const showCostTool = toolPanel === 'cost';
   const showTradeRecordsTool = toolPanel === 'records';
@@ -670,11 +682,11 @@ export default function TradesTab({ ctx }) {
       subtitle: normalizedSymbol || displayName || '--',
     };
   }, [englishMode, stockDisplayName]);
-  const waveGroups = Array.isArray(wavesByStock) ? wavesByStock : [];
-  const activeWaveGroups = waveGroups.filter(group => group.activeWave);
-  const completedWaveGroups = waveGroups
+  const waveGroups = React.useMemo(() => (Array.isArray(wavesByStock) ? wavesByStock : []), [wavesByStock]);
+  const activeWaveGroups = React.useMemo(() => waveGroups.filter(group => group.activeWave), [waveGroups]);
+  const completedWaveGroups = React.useMemo(() => waveGroups
     .map(group => ({ ...group, completedWaves: (group.waves || []).filter(w => !w.isActive) }))
-    .filter(group => group.completedWaves.length > 0);
+    .filter(group => group.completedWaves.length > 0), [waveGroups]);
   const colorModeOptions = [
     { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: tt('trades.greenUpRedDown', '绿涨红跌'), upClass: 'bg-emerald-400', downClass: 'bg-[#ff4b1f]' },
     { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: tt('trades.redUpGreenDown', '绿跌红涨'), upClass: 'bg-[#ff4b1f]', downClass: 'bg-emerald-400' },

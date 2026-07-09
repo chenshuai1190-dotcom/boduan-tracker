@@ -4,6 +4,32 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 第二批低风险渲染效率优化
+
+- Commit: same commit;用户已确认部署,本提交随 GitHub `main` 推送触发 Vercel production 部署。
+- Deployment: pending in this commit;最终 GitHub Actions、Vercel target、生产入口和未登录 API 401 smoke 结果放在本轮最终回复,避免为回填纯部署证据再触发 docs-only 部署循环。不改变设置页版本或用户可见更新日志。
+- Background: 用户要求继续检查第二批低风险效率优化,范围限定在不影响功能、不触碰安全/数据边界的纯前端派生计算。
+- Workflow tier: `runtime`。
+- Changes:
+  - `AnalysisTab` 为账户列表和月度快照建立 `Map` 索引,把资产总览里重复的 `accounts.find` / `snapshots.find` 查找改为索引读取,并缓存近 12 个月曲线、账户分组、指标项和图表 path 派生结果。
+  - `TradesTab` 将当日交易统计改为单次遍历,缓存交易记录倒序排序结果,并缓存活跃/已完成波段分组派生结果。
+  - `HomeTab` 为热门股票搜索结果和表格指标列增加 `React.useMemo`,热门股票自定义添加判断改用常量 `Set`。
+  - 不修改 `/api/quote`、`/api/earnings-calendar`、RLS、环境变量、交易账本写入、收益快照、行情 relay 或任何数据库结构。
+- Key files:
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,173/173。
+  - `npm run build`: pass,生成 `App-CDXDAg8V.js`、`AnalysisTab-Da4e1ak0.js`、`TradesTab-BIsxU1SL.js`、`HomeTab-CkBjTg66.js`、`settingsChangelog-B9AdpNuM.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,第二批低风险效率优化为三个 tab 和本日志变更。
+  - Production verification: push 后运行 `npm run verify:deploy-status -- <commit>`,最终结果随本轮回复报告。
+- Rollback: 回退本条涉及的三个 tab 和本日志即可恢复原有 render 期间派生计算方式;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - 第一批死代码和渲染效率清理
 
 - Commit: same commit;用户已确认部署,本提交随 GitHub `main` 推送触发 Vercel production 部署。

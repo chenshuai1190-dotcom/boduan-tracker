@@ -138,28 +138,47 @@ export default function AnalysisTab({ ctx }) {
   const lastMonth = shiftMonth(currentMonth, -1);
   const yearStart = `${currentMonth.slice(0, 4)}-01`;
   const yearAgo = shiftMonth(currentMonth, -12);
-  const last12Months = Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, i - 11));
+  const last12Months = React.useMemo(
+    () => Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, i - 11)),
+    [currentMonth],
+  );
+  const accountById = React.useMemo(() => {
+    const map = new Map();
+    (accounts || []).forEach((account) => {
+      if (!map.has(account?.id)) map.set(account?.id, account);
+    });
+    return map;
+  }, [accounts]);
+  const balanceByAccountMonth = React.useMemo(() => {
+    const map = new Map();
+    (snapshots || []).forEach((snapshot) => {
+      if (!map.has(snapshot?.accountId)) map.set(snapshot?.accountId, new Map());
+      const monthMap = map.get(snapshot?.accountId);
+      if (!monthMap.has(snapshot?.month)) monthMap.set(snapshot?.month, numberValue(snapshot?.balance));
+    });
+    return map;
+  }, [snapshots]);
 
-  const getBalance = (accId, month) => {
-    const snap = snapshots.find(s => s.accountId === accId && s.month === month);
-    return snap ? numberValue(snap.balance) : 0;
-  };
+  const getBalance = React.useCallback((accId, month) => (
+    balanceByAccountMonth.get(accId)?.get(month) ?? 0
+  ), [balanceByAccountMonth]);
 
-  const toCNY = (balance, currency) => {
+  const toCNY = React.useCallback((balance, currency) => {
     const value = numberValue(balance);
     if (currency === 'USD') return value * usdRate;
     if (currency === 'HKD') return value * hkdRate;
     return value;
-  };
+  }, [hkdRate, usdRate]);
 
-  const balanceAtMonthCNY = (accId, month) => {
-    const acc = accounts.find(a => a.id === accId);
+  const balanceAtMonthCNY = React.useCallback((accId, month) => {
+    const acc = accountById.get(accId);
     if (!acc) return 0;
     return toCNY(getBalance(accId, month), acc.currency);
-  };
+  }, [accountById, getBalance, toCNY]);
 
-  const totalAtMonth = (month) =>
-    accounts.reduce((sum, acc) => sum + balanceAtMonthCNY(acc.id, month), 0);
+  const totalAtMonth = React.useCallback((month) => (
+    (accounts || []).reduce((sum, acc) => sum + balanceAtMonthCNY(acc.id, month), 0)
+  ), [accounts, balanceAtMonthCNY]);
 
   const fmtWan = (n) => {
     const v = Math.abs(numberValue(n)) / 10000;
@@ -176,11 +195,18 @@ export default function AnalysisTab({ ctx }) {
     return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
   };
 
-  const totalNow = totalAtMonth(currentMonth);
+  const {
+    totalNow,
+    totalLast,
+    totalYearStart,
+    totalYearAgo,
+  } = React.useMemo(() => ({
+    totalNow: totalAtMonth(currentMonth),
+    totalLast: totalAtMonth(lastMonth),
+    totalYearStart: totalAtMonth(yearStart),
+    totalYearAgo: totalAtMonth(yearAgo),
+  }), [currentMonth, lastMonth, totalAtMonth, yearAgo, yearStart]);
   const totalNowMoney = splitCurrencyAmount(totalNow, 'CNY', 2);
-  const totalLast = totalAtMonth(lastMonth);
-  const totalYearStart = totalAtMonth(yearStart);
-  const totalYearAgo = totalAtMonth(yearAgo);
 
   const monthChange = totalNow - totalLast;
   const monthChangePct = totalLast > 0 ? (monthChange / totalLast) * 100 : 0;
@@ -189,17 +215,50 @@ export default function AnalysisTab({ ctx }) {
   const yearChange = totalNow - totalYearAgo;
   const yearChangePct = totalYearAgo > 0 ? (yearChange / totalYearAgo) * 100 : 0;
 
-  const chartData = last12Months.map(m => totalAtMonth(m));
-  const nonZero = chartData.filter(v => v > 0);
-  const chartMin = nonZero.length > 0 ? Math.min(...nonZero) : 0;
-  const chartMax = nonZero.length > 0 ? Math.max(...nonZero) : 0;
-  const chartRange = chartMax - chartMin || 1;
-  const chartVisualMax = Math.max(chartMax, 1);
+  const chartData = React.useMemo(() => last12Months.map(m => totalAtMonth(m)), [last12Months, totalAtMonth]);
+  const {
+    chartMin,
+    chartMax,
+    chartRange,
+    chartVisualMax,
+  } = React.useMemo(() => {
+    const nonZero = chartData.filter(v => v > 0);
+    const max = nonZero.length > 0 ? Math.max(...nonZero) : 0;
+    const min = nonZero.length > 0 ? Math.min(...nonZero) : 0;
+    return {
+      chartMin: min,
+      chartMax: max,
+      chartRange: max - min || 1,
+      chartVisualMax: Math.max(max, 1),
+    };
+  }, [chartData]);
 
-  const myAccounts = accounts.filter(a => a.owner === '我');
-  const wifeAccounts = accounts.filter(a => a.owner === '老婆');
-  const myTotal = myAccounts.reduce((s, a) => s + balanceAtMonthCNY(a.id, currentMonth), 0);
-  const wifeTotal = wifeAccounts.reduce((s, a) => s + balanceAtMonthCNY(a.id, currentMonth), 0);
+  const {
+    myAccounts,
+    wifeAccounts,
+    myTotal,
+    wifeTotal,
+  } = React.useMemo(() => {
+    const mine = [];
+    const wife = [];
+    let mineTotal = 0;
+    let wifeSum = 0;
+    (accounts || []).forEach((account) => {
+      if (account.owner === '我') {
+        mine.push(account);
+        mineTotal += balanceAtMonthCNY(account.id, currentMonth);
+      } else if (account.owner === '老婆') {
+        wife.push(account);
+        wifeSum += balanceAtMonthCNY(account.id, currentMonth);
+      }
+    });
+    return {
+      myAccounts: mine,
+      wifeAccounts: wife,
+      myTotal: mineTotal,
+      wifeTotal: wifeSum,
+    };
+  }, [accounts, balanceAtMonthCNY, currentMonth]);
   const myPct = totalNow > 0 ? (myTotal / totalNow) * 100 : 0;
   const wifePct = totalNow > 0 ? (wifeTotal / totalNow) * 100 : 0;
 
@@ -246,16 +305,16 @@ export default function AnalysisTab({ ctx }) {
     });
   };
 
-  const ownerGroups = [
+  const ownerGroups = React.useMemo(() => [
     { owner: '我', accounts: myAccounts, total: myTotal, pct: myPct, accent: ASSET_GOLD },
     { owner: '老婆', accounts: wifeAccounts, total: wifeTotal, pct: wifePct, accent: ASSET_PINK },
-  ];
+  ], [myAccounts, myPct, myTotal, wifeAccounts, wifePct, wifeTotal]);
 
-  const metricItems = [
+  const metricItems = React.useMemo(() => [
     { label: tt('analysis.vsLastMonth', '较上月'), value: monthChange, pct: monthChangePct, enabled: totalLast > 0 },
     { label: tt('analysis.ytd', '年初至今'), value: ytdChange, pct: ytdChangePct, enabled: totalYearStart > 0 },
     { label: tt('analysis.oneYear', '近一年'), value: yearChange, pct: yearChangePct, enabled: totalYearAgo > 0 },
-  ];
+  ], [monthChange, monthChangePct, totalLast, totalYearAgo, totalYearStart, tt, yearChange, yearChangePct, ytdChange, ytdChangePct]);
 
   const chartLeft = 64;
   const chartRight = 306;
@@ -263,26 +322,28 @@ export default function AnalysisTab({ ctx }) {
   const chartBottom = 124;
   const chartWidth = chartRight - chartLeft;
   const chartHeight = chartBottom - chartTop;
-  const chartLabelIndices = new Set([0, Math.floor((last12Months.length - 1) / 2), last12Months.length - 1]);
-  const chartPoints = chartData
+  const chartLabelIndices = React.useMemo(() => (
+    new Set([0, Math.floor((last12Months.length - 1) / 2), last12Months.length - 1])
+  ), [last12Months.length]);
+  const chartPoints = React.useMemo(() => chartData
     .map((v, i) => {
       const x = chartLeft + (i / Math.max(chartData.length - 1, 1)) * chartWidth;
       const y = chartBottom - (v / chartVisualMax) * chartHeight;
       return { x, y, v, i };
     })
-    .filter(p => p.v > 0);
+    .filter(p => p.v > 0), [chartBottom, chartData, chartHeight, chartLeft, chartVisualMax, chartWidth]);
 
-  const chartPath = chartPoints.length > 1
+  const chartPath = React.useMemo(() => (chartPoints.length > 1
     ? `M ${chartPoints[0].x} ${chartPoints[0].y} ${chartPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`
-    : '';
-  const chartArea = chartPath
+    : ''), [chartPoints]);
+  const chartArea = React.useMemo(() => (chartPath
     ? `${chartPath} L ${chartPoints[chartPoints.length - 1].x} ${chartBottom} L ${chartPoints[0].x} ${chartBottom} Z`
-    : '';
-  const chartPathLength = Math.max(1, chartPoints.reduce((sum, point, idx) => {
+    : ''), [chartBottom, chartPath, chartPoints]);
+  const chartPathLength = React.useMemo(() => Math.max(1, chartPoints.reduce((sum, point, idx) => {
     if (idx === 0) return sum;
     const prev = chartPoints[idx - 1];
     return sum + Math.hypot(point.x - prev.x, point.y - prev.y);
-  }, 0));
+  }, 0)), [chartPoints]);
   const latestChartPoint = chartPoints[chartPoints.length - 1] || null;
   const visibleChartMarkerMonthIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
     ? chartSelectedMonthIdx
@@ -296,8 +357,8 @@ export default function AnalysisTab({ ctx }) {
     : 0;
   const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
   const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
-  const selectedActionAccount = accounts.find(acc => acc.id === accountActionId);
-  const editingAccount = accounts.find(acc => acc.id === editingAccountId);
+  const selectedActionAccount = accountById.get(accountActionId);
+  const editingAccount = accountById.get(editingAccountId);
 
   const currentVisibleAccounts = (items) =>
     items.filter(acc => balanceAtMonthCNY(acc.id, currentMonth) !== 0);

@@ -22,6 +22,7 @@ const POPULAR_US_STOCKS = [
   { symbol: 'META', name: 'Meta', company: 'Meta' },
   { symbol: 'IBKR', name: '盈透证券', company: 'Interactive Brokers' },
 ];
+const POPULAR_US_STOCK_SYMBOLS = new Set(POPULAR_US_STOCKS.map((item) => item.symbol));
 
 const emptySummary = {
   activePositions: [],
@@ -623,26 +624,26 @@ export default function HomeTab({ ctx }) {
     return map;
   }, [quoteRows]);
   const normalizedSearch = stockSearch.trim().toUpperCase();
-  const filteredPopularStocks = POPULAR_US_STOCKS.filter((item) => {
+  const filteredPopularStocks = React.useMemo(() => POPULAR_US_STOCKS.filter((item) => {
     if (!normalizedSearch) return true;
     const haystack = `${item.symbol} ${item.name} ${item.company}`.toUpperCase();
     return haystack.includes(normalizedSearch);
-  });
+  }), [normalizedSearch]);
   const canAddCustomStock = /^[A-Z0-9.-]{1,12}$/.test(normalizedSearch)
-    && !POPULAR_US_STOCKS.some((item) => item.symbol === normalizedSearch)
+    && !POPULAR_US_STOCK_SYMBOLS.has(normalizedSearch)
     && !watchlistSymbols.has(normalizedSearch);
   const isAddingStock = Boolean(addingStockSymbol);
   const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
   const showPnlColumn = tableTab === 'positions';
   const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 112px' : '68px 70px 88px 84px';
   const metricMinWidth = showPnlColumn ? 438 : 322;
-  const metricColumns = [
+  const metricColumns = React.useMemo(() => [
     { key: 'price', label: t(language, 'home.price', '价格') },
     { key: 'change', label: t(language, 'home.change', '涨跌幅') },
     { key: 'drawdown', label: t(language, 'home.drawdown52w', '52周跌幅') },
     { key: 'ytd', label: t(language, 'home.ytd', '年初至今') },
     ...(showPnlColumn ? [{ key: 'pnl', label: t(language, 'home.holdingPnl', '持仓盈亏') }] : []),
-  ];
+  ], [language, showPnlColumn]);
   const handleTableSort = (key) => {
     setTableSorts((current) => {
       const previous = current[tableTab] || { key: null, direction: 'desc' };
