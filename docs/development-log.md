@@ -4,6 +4,36 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 财报日历营收字段修复
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户反馈首页财报日历第一个股票的默认背景色不应自动高亮,并要求复查“预计营收”是否接口拿不到。复查发现 EODHD 官方 `/api/calendar/trends` 文档和 demo 返回都包含 `revenueEstimateAvg`,但真实返回结构是 `trends: [[...], [...]]` 嵌套数组;当前代码只处理扁平数组,导致预计营收在真实接口中可能无法合并进财报事件。当前 shell、`launchctl`、常见 shell 配置、`.codex/automations`、当前仓库和 `Documents/Codex` 下未找到可用本地 `EODHD_API_KEY`,只找到 `.env.example`/`CONTEXT.md` 占位或文档引用;本次未打印任何 token。
+- Changes:
+  - `EarningsCalendar` 首页预览取消第一项默认选中背景和黄色日期,页面进入时不再自动突出第一只股票。
+  - `api/earnings-calendar.js` 新增 `flattenTrendRows`,兼容 EODHD `/api/calendar/trends` 的真实嵌套数组结构,让 `revenueEstimateAvg` 能正确合并为 `revenueEstimate`。
+  - 分析师数量读取兼容 EODHD 官方字段 `earningsEstimateNumberOfAnalysts` 和 `revenueEstimateNumberOfAnalysts`,同时保留旧 `epsAnalystCount` 兼容。
+  - `tests/earnings-calendar.test.js` 的 trends mock 改为真实嵌套结构,覆盖预计营收合并和分析师数量映射。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.251`。
+  - 本次继续只改独立财报日历展示/API 合并层、设置页版本/更新日志、测试和本日志;不改 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `api/earnings-calendar.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - EODHD docs/demo audit: pass;official Calendar Trends docs list `revenueEstimateAvg` and `revenueEstimateNumberOfAnalysts`;demo `/api/calendar/trends?symbols=AAPL.US,MSFT.US` returned `trends` as nested arrays and rows containing `revenueEstimateAvg`。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` at 390x844 rendered 首页财报日历 without first-item default background;first event button computed `background=rgba(0,0,0,0)`,`boxShadow=none`,date font size `14px`;page `scrollWidth=390/clientWidth=390`,calendar grid `scrollWidth=332/clientWidth=332`;screenshot saved to `/tmp/boduan-earnings-calendar-v251-no-first-bg.png`。
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` passed 38 tests。
+  - Full test suite: pass;`npm test` passed 170 tests。
+  - Build: pass;`npm run build` completed successfully with `HomeTab-D1DD7H1A.js`,`SettingsTab-CAV0seae.js`,`settingsChangelog-BXm6UOoz.js`,`App-CVqQxcld.js` bundles。
+  - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+- Rollback: 回退 `EarningsCalendar` 首页默认高亮删除、`api/earnings-calendar.js` trends flatten/字段映射、`v10.7.9.251` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.250`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
 ### 2026-07-09 - 首页财报日历视觉压缩
 
 - Commit: runtime code commit `b7422bd96b886952cc6233d218dd2c89eb89cf83`;deployment verification docs follow-up is the current commit。

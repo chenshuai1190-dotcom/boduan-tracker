@@ -1,6 +1,16 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.250', date: '2026-07-09', latest: true,
+    ver: 'v10.7.9.251', date: '2026-07-09', latest: true,
+    items: [
+      '📅 财报日历营收字段修复',
+      '  - 首页财报日历预览取消第一个股票的默认选中背景和高亮日期,进入页面时不再自动突出第一项',
+      '  - `/api/earnings-calendar` 兼容 EODHD `/api/calendar/trends` 的真实嵌套数组返回,预计营收改为正确读取 `revenueEstimateAvg`',
+      '  - 分析师数量同步兼容 EODHD 官方字段 `earningsEstimateNumberOfAnalysts` 和 `revenueEstimateNumberOfAnalysts`',
+      '  - 本次继续保持财报日历独立边界,不改 `/api/quote`、交易账本、收益快照、行情 relay 或 RLS',
+    ],
+  },
+  {
+    ver: 'v10.7.9.250', date: '2026-07-09',
     items: [
       '📅 首页财报日历视觉压缩',
       '  - 首页底部财报日历预览压缩为固定一行,5 支股票和日历入口不再左右滑动',

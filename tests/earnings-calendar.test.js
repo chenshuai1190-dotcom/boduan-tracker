@@ -116,8 +116,26 @@ test('earnings calendar API reads EODHD calendar and trends through a dedicated 
     if (parsed.pathname === '/api/calendar/trends') {
       return jsonResponse({
         trends: [
-          { code: 'NVDA.US', date: '2026-07-08', revenueEstimateAvg: '284500000000', epsAnalystCount: 42 },
-          { code: 'MSFT.US', date: '2026-07-09', revenueEstimateAvg: '64500000000', epsAnalystCount: 36 },
+          [
+            {
+              code: 'NVDA.US',
+              date: '2026-07-08',
+              period: '0q',
+              revenueEstimateAvg: '284500000000',
+              earningsEstimateNumberOfAnalysts: '42',
+              revenueEstimateNumberOfAnalysts: '41',
+            },
+          ],
+          [
+            {
+              code: 'MSFT.US',
+              date: '2026-07-09',
+              period: '0q',
+              revenueEstimateAvg: '64500000000',
+              earningsEstimateNumberOfAnalysts: '36',
+              revenueEstimateNumberOfAnalysts: '35',
+            },
+          ],
         ],
       });
     }
@@ -137,6 +155,7 @@ test('earnings calendar API reads EODHD calendar and trends through a dedicated 
     assert.deepEqual(res.body.events.map((event) => event.symbol), ['NVDA', 'MSFT']);
     assert.equal(res.body.events[0].session, 'pre');
     assert.equal(res.body.events[0].revenueEstimate, 284500000000);
+    assert.equal(res.body.events[0].analystCount, 42);
     assert.ok(requestedUrls.every((url) => !url.includes('api.nasdaq.com')));
   } finally {
     globalThis.fetch = originalFetch;

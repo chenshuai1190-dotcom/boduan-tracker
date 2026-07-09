@@ -126,7 +126,7 @@ export function mergeEarningsTrendData(events, trends) {
       epsDifference: parseNumber(event.difference ?? event.epsDifference),
       surprisePercent: parseNumber(event.percent ?? event.surprisePercent),
       revenueEstimate: parseNumber(event.revenueEstimate ?? trend?.revenueEstimateAvg),
-      analystCount: parseNumber(event.analystCount ?? trend?.epsAnalystCount),
+      analystCount: parseNumber(event.analystCount ?? trend?.epsAnalystCount ?? trend?.earningsEstimateNumberOfAnalysts ?? trend?.revenueEstimateNumberOfAnalysts),
       currency: event.currency || event.Currency || trend?.currency || 'USD',
       source: 'eodhd-calendar',
     };
@@ -144,13 +144,21 @@ function normalizeCalendarPayload(body) {
 }
 
 function normalizeTrendPayload(body) {
-  if (Array.isArray(body)) return body;
-  if (Array.isArray(body?.trends)) return body.trends;
-  if (Array.isArray(body?.data)) return body.data;
+  if (Array.isArray(body)) return flattenTrendRows(body);
+  if (Array.isArray(body?.trends)) return flattenTrendRows(body.trends);
+  if (Array.isArray(body?.data)) return flattenTrendRows(body.data);
   if (body && typeof body === 'object') {
-    return Object.values(body).flatMap((value) => (Array.isArray(value) ? value : []));
+    return flattenTrendRows(Object.values(body));
   }
   return [];
+}
+
+function flattenTrendRows(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (Array.isArray(item)) return flattenTrendRows(item);
+    return item && typeof item === 'object' ? [item] : [];
+  });
 }
 
 function findNearestTrend(event, candidates) {

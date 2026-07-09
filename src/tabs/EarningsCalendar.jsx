@@ -421,17 +421,16 @@ export default function EarningsCalendar({
         ) : (
           previewEvents.map((event, index) => {
             const cachedLogoUrl = logoCache?.[event.symbol]?.url;
-            const active = index === 0;
             return (
               <button
                 key={event.id}
                 type="button"
                 onClick={() => openModal('calendar', event.reportDate)}
-                className={`flex min-w-0 flex-col items-center justify-center px-1 py-1.5 active:scale-[0.98] ${
+                className={`flex min-w-0 flex-col items-center justify-center rounded-xl px-1 py-1.5 active:scale-[0.98] ${
                   index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''
-                } ${active ? 'rounded-xl bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]' : ''}`}
+                }`}
               >
-                <div className={`text-[14px] leading-none tabular-nums ${active ? 'text-[#ffd18a]' : 'text-white/42'}`}>{shortDateLabel(event.reportDate)}</div>
+                <div className="text-[14px] leading-none tabular-nums text-white/42">{shortDateLabel(event.reportDate)}</div>
                 <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
                 <div className="mt-1.5 max-w-full truncate text-[12px] leading-none font-normal text-white/82">{event.symbol}</div>
                 <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${earningsSessionDotClass(event.session)}`} />
