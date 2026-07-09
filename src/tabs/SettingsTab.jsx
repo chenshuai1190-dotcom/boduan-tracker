@@ -15,6 +15,7 @@ export default function SettingsTab({ ctx }) {
     pwdLoading,
     pwdMsg,
     quoteDiagnosticLogs = [],
+    resetCurrentUserData,
     setChangelogExpanded,
     setLanguage,
     setNewPwd,
@@ -94,6 +95,8 @@ export default function SettingsTab({ ctx }) {
   const [inviteCodes, setInviteCodes] = React.useState([]);
   const [inviteLoading, setInviteLoading] = React.useState(false);
   const [inviteMessage, setInviteMessage] = React.useState(null);
+  const [dataResetLoading, setDataResetLoading] = React.useState(false);
+  const [dataResetMessage, setDataResetMessage] = React.useState(null);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
 
@@ -151,6 +154,36 @@ export default function SettingsTab({ ctx }) {
     }
   };
 
+  const startDataReset = () => {
+    if (dataResetLoading || !resetCurrentUserData) return;
+    showConfirm({
+      title: t(language, 'settings.dataResetConfirmTitle', '确认初始化数据?'),
+      desc: t(language, 'settings.dataResetConfirmDesc', '此操作会清空当前账号的所有业务记录,且不可恢复。'),
+      info: t(language, 'settings.dataResetConfirmInfo', '会删除交易记录、自选、资产、目标、复盘、摊薄工具和收益报表快照；不会删除登录账号或邀请码。'),
+      icon: '!',
+      confirmText: t(language, 'settings.dataResetConfirmButton', '确认初始化'),
+      confirmStyle: 'danger',
+      onConfirm: async () => {
+        setDataResetLoading(true);
+        setDataResetMessage(null);
+        try {
+          const result = await resetCurrentUserData();
+          setDataResetMessage({
+            type: 'success',
+            text: t(language, 'settings.dataResetSuccess', '初始化完成,已清空 {{count}} 条记录。', { count: result?.totalDeleted || 0 }),
+          });
+        } catch (error) {
+          setDataResetMessage({
+            type: 'error',
+            text: error?.message || t(language, 'settings.dataResetFailed', '初始化失败,请稍后重试'),
+          });
+        } finally {
+          setDataResetLoading(false);
+        }
+      },
+    });
+  };
+
   React.useEffect(() => {
     let cancelled = false;
     import('../lib/settingsChangelog.js')
@@ -188,7 +221,7 @@ export default function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.239
+                  v10.7.9.240
                 </span>
               </div>
             </div>
@@ -269,6 +302,45 @@ export default function SettingsTab({ ctx }) {
                   <LogOut className="w-4 h-4" /> {t(language, 'settings.logout', '退出登录')}
                 </button>
               </div>
+            </div>
+
+            {/* 数据初始化 */}
+            <div className="rounded-2xl border border-rose-400/16 bg-rose-400/[0.045] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-black text-white">{t(language, 'settings.dataResetTitle', '数据初始化')}</h2>
+                  <div className="mt-1 text-[12px] leading-5 text-white/40">
+                    {t(language, 'settings.dataResetDesc', '一键清空当前账号的交易、自选、资产、目标、复盘、摊薄工具和收益报表数据。操作不可恢复,请谨慎使用。')}
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full border border-rose-300/20 bg-rose-300/10 px-2.5 py-1 text-[10px] font-black text-rose-200">
+                  {t(language, 'settings.dataResetRiskBadge', '谨慎')}
+                </span>
+              </div>
+
+              {dataResetMessage && (
+                <div className={`mb-3 rounded-xl border px-3 py-2 text-[12px] ${
+                  dataResetMessage.type === 'error'
+                    ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+                    : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+                }`}>
+                  {dataResetMessage.text}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={startDataReset}
+                disabled={dataResetLoading || !resetCurrentUserData}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300/24 bg-rose-400/12 py-2.5 text-[13px] font-bold text-rose-200 transition active:scale-95 disabled:opacity-50"
+              >
+                {dataResetLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t(language, 'settings.dataResetRunning', '初始化中...')}
+                  </>
+                ) : t(language, 'settings.dataResetButton', '初始化数据')}
+              </button>
             </div>
 
             {isInviteAdmin && (
@@ -501,7 +573,7 @@ export default function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.239
+                  v10.7.9.240
                 </span>
               </div>
 
@@ -584,7 +656,7 @@ export default function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.239</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.240</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>

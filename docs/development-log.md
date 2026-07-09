@@ -4,6 +4,33 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 数据初始化功能
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户要求设置页新增一键数据初始化功能,用于清空当前账号所有用户操作记录;该功能必须真实清空云端业务数据,并在执行前明确提醒风险。
+- Changes:
+  - `db.resetCurrentUserData` 新增当前登录用户数据清空流程,只使用当前 Supabase 会话和 RLS,按 `user_id` 删除业务表数据。
+  - 清空范围覆盖交易记录、自选、资产账户/快照、目标页计划/保证金/心得/复盘/年度实绩、摊薄成本工具、收益报表组合/个股快照和 rebuild 状态。
+  - Settings 页新增“数据初始化”风险卡片和二次确认弹窗,提示不可恢复;确认后同步清空 App 内存态和本地用户数据缓存。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.240`。
+  - 本次不删除登录账号、邀请码、服务端配置,不改行情 relay、RLS 策略或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/db.js`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass;166 tests passed。
+  - `npm run build`: pass;built `SettingsTab-F2fKB9II.js`,`settingsChangelog-S-fqubg6.js`,`App-BchL-U8P.js` and `i18n-sIIiidWx.js`。
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.240`,`数据初始化功能`,`数据初始化`,`确认初始化`,`resetCurrentUserData`,`pnl_report_symbol_snapshots`,`pnl_report_rebuild_state`,`stock_trades`,`user_settings`,and do not contain `invite_codes` or `auth.users`。
+- Rollback: 回退 `resetCurrentUserData`、Settings 数据初始化卡片、App 内存态重置、`v10.7.9.240` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.239`;不影响登录账号、邀请码、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 清仓账户收益快照修复
 
 - Commit: runtime code commit `c079875730ed0197a8c9d0f759d486c5b4f3d35e`;deployment verification docs commit is the current documentation-only follow-up commit。

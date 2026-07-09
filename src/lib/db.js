@@ -31,6 +31,34 @@ const cacheSet = (key, value) => {
     localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
   } catch {}
 };
+const cacheRemove = (key) => {
+  try {
+    localStorage.removeItem(CACHE_PREFIX + key);
+  } catch {}
+};
+
+const USER_DATA_CACHE_KEYS = [
+  'trades',
+  'stock_trades',
+  'watchlist',
+  'wave_notes',
+  'settings',
+  'accounts',
+  'snapshots',
+  'investment_plan',
+  'margin_status',
+  'disciplines',
+  'review_logs',
+  'yearly_actuals',
+];
+
+export const clearUserDataLocalCache = () => {
+  USER_DATA_CACHE_KEYS.forEach(cacheRemove);
+  try {
+    localStorage.removeItem('bottomline_cost_basis');
+    localStorage.removeItem('bottomline_cost_basis_active');
+  } catch {}
+};
 
 const normalizeCostBasisSymbol = (symbol) => {
   const value = normalizeUserStockSymbol(symbol);
@@ -98,6 +126,50 @@ export const repairCurrentUserStockSymbols = async (preUser = null) => {
   const repaired = tables.reduce((sum, item) => sum + (item.repaired || 0), 0);
   if (repaired > 0) console.info('[symbolRepair] 已修复历史股票代码:', { repaired, tables });
   return { repaired, tables };
+};
+
+const USER_RESET_TABLES = [
+  'pnl_report_symbol_snapshots',
+  'pnl_report_snapshots',
+  'pnl_report_rebuild_state',
+  'balance_snapshots',
+  'cost_basis_trades',
+  'stock_trades',
+  'trades',
+  'watchlist',
+  'wave_notes',
+  'investment_plan',
+  'margin_status',
+  'disciplines',
+  'review_logs',
+  'yearly_actuals',
+  'accounts',
+  'user_settings',
+];
+
+const deleteCurrentUserRows = async (table, userId) => {
+  const { count, error } = await supabase
+    .from(table)
+    .delete({ count: 'exact' })
+    .eq('user_id', userId);
+  if (error) throw error;
+  return { table, deleted: count || 0 };
+};
+
+export const resetCurrentUserData = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const tables = [];
+  for (const table of USER_RESET_TABLES) {
+    tables.push(await deleteCurrentUserRows(table, user.id));
+  }
+  clearUserDataLocalCache();
+  return {
+    userId: user.id,
+    tables,
+    totalDeleted: tables.reduce((sum, item) => sum + (item.deleted || 0), 0),
+  };
 };
 
 // ============ TRADES (交易) ============
