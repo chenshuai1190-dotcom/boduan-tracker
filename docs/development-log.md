@@ -4,10 +4,10 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 财报列表过滤和持仓列距本地调试
+### 2026-07-09 - 财报列表过滤和持仓列距部署验证
 
-- Commit: same commit;用户确认本地截图后要求部署。
-- Deployment: user requested;本次按用户确认后的截图效果发布 `v10.7.9.270`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `ff0839e766c3b2d5f39e5923a29d78233e93e009`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
+- Deployment: completed;本次按用户确认后的截图效果发布 `v10.7.9.270`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 用户反馈财报日历弹窗列表视图混入上一财季已公布报表,希望列表不再显示这些历史项;同时交易页持仓分布首屏右侧会露出下一列持仓盈亏的红色 `+`,且“现价/成本”和“当日盈亏”距离偏近,需要在完整显示当日盈亏的前提下微调列距。
 - Changes:
   - `EarningsCalendar` 弹窗列表视图改为只展示 `isEarningsVisible` 当前仍可见事件,即未来未公布财报和公布后两天内的已公布结果;日历视图仍接收完整事件集,保留上一财季回看能力。
@@ -29,6 +29,13 @@
   - Diff hygiene pass:`git diff --check`。
   - Local visual smoke pass:`http://127.0.0.1:5173/?tab=home&v=270-local`,390x844 视口打开财报弹窗列表视图,确认列表不再出现 `04/15` 或其它 `04/xx` 上一财季项,仍显示当前窗口 `07/08`、`07/09`、`07/10`、`07/11` 等;截图 `~/Desktop/boduan-previews/财报列表过滤上一财季-v10.7.9.270.png`。
   - Local visual smoke pass:`http://127.0.0.1:5173/?tab=trades&v=270-local`,390x844 视口打开交易页持仓分布,确认表格 `scrollWidth=540/clientWidth=340`,前三行当日盈亏均完整可见,右边缘命中当日盈亏单元格而不是持仓盈亏列,持仓盈亏文本从可视区右侧 16px 后开始;截图 `~/Desktop/boduan-previews/交易页当日盈亏列距不露加号-v10.7.9.270.png`。
+- Production verification:
+  - GitHub `main`: `ff0839e766c3b2d5f39e5923a29d78233e93e009` pushed via `~/.ssh/boduan_tracker_github`。
+  - GitHub Actions: CI run `29023882832` completed `success` for `ff0839e766c3b2d5f39e5923a29d78233e93e009`。
+  - Vercel: Production deployment `5377282668` completed `success`,target `https://boduan-tracker-83xtuohgi-chenshuai1190-7580s-projects.vercel.app`。
+  - Production entry: `https://boduan-tracker.vercel.app/` points to `/assets/index-G7674gwo.js`。
+  - Production marker check: recursive asset scan found `data-trade-positions-table` / `single-grid`,`min-w-[540px]`,`grid-cols-[78px_84px_82px_96px_148px_52px]` and `overflow-hidden pl-4 text-right active:bg-white/[0.03]` in `/assets/TradesTab-D5sqY8jf.js`;`v10.7.9.270` in `/assets/SettingsTab-pci1tQYa.js` and `/assets/settingsChangelog-DWwauInu.js`;`财报列表和持仓列距微调` in `/assets/settingsChangelog-DWwauInu.js`。
+  - Production auth smoke pass:未登录请求 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`,确认 `/api/quote` 鉴权未关闭。
 - Rollback: 回退本条涉及的列表 `isEarningsVisible` 过滤、交易页列宽/持仓盈亏缓冲、`v10.7.9.270` 设置页版本/更新日志、测试和本日志即可;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报 API 鉴权或持仓收益试算弹窗。
 
 ### 2026-07-09 - 记录持仓表格对齐部署验证
