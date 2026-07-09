@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股收益浮层边界优化
 
-- Commit: pending。
-- Deployment: pending。
+- Commit: code commit `af3f4f5c69ce725fd916a0f4e9471f5c6c1bb934`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `af3f4f5c69ce725fd916a0f4e9471f5c6c1bb934` returned success;production marker verified on `index-CzBcbTlY.js`,`StockDetailPage-CCWvbr51.js`,`SettingsTab-BlLmRgZ3.js`,`settingsChangelog-CCgaCQeG.js`;unauthenticated `/api/quote?symbols=VIX` returned `401`;HTTP-forwarded `/api/stocks-realtime` returned `426`。
 - Background: 用户反馈个股详情页收益走势浮层里的累计盈亏金额会换行,高点浮层会切到下方或跑出图表顶框,右侧浮层也可能跑出卡片边界;同时图表右侧“当前”金额标注会和浮层/边界产生视觉冲突。
 - Changes:
   - `StockDetailPage` 的收益线浮层从旧的 transform 翻转定位改为图表内 clamp 定位,横向和纵向都夹在图表范围内。
