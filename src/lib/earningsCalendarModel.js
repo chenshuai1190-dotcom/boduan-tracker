@@ -1,4 +1,6 @@
 export const EARNINGS_SYMBOL_RE = /^[A-Z0-9.-]{1,15}$/;
+export const EARNINGS_PUBLISHED_RETENTION_DAYS = 2;
+export const EARNINGS_RESULT_THRESHOLD_PERCENT = 1;
 
 export function normalizeEarningsSymbol(value) {
   const raw = String(value || '').trim().toUpperCase();
@@ -70,6 +72,81 @@ export function earningsSessionDotClass(session) {
   return 'bg-white/35';
 }
 
+export function normalizeEarningsResult(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (['beat', 'surprise', 'outperform', 'above', '超预期'].includes(raw)) return 'beat';
+  if (['miss', 'below', 'underperform', '不及预期'].includes(raw)) return 'miss';
+  if (['mixed', 'split', '分化'].includes(raw)) return 'mixed';
+  if (['meet', 'inline', 'match', '符合预期'].includes(raw)) return 'meet';
+  return '';
+}
+
+export function isEarningsPublished(event) {
+  if (!event) return false;
+  if (event.earningsPublished === true) return true;
+  return numericOrNull(event.epsActual) !== null || numericOrNull(event.revenueActualUsd ?? event.revenueActual) !== null;
+}
+
+export function earningsPublishedUntil(event) {
+  const reportDate = dateKey(event?.reportDate || event?.report_date);
+  return reportDate ? addDays(reportDate, EARNINGS_PUBLISHED_RETENTION_DAYS) : '';
+}
+
+export function isEarningsVisible(event, today = todayDateKey()) {
+  const reportDate = dateKey(event?.reportDate || event?.report_date);
+  if (!reportDate) return false;
+  const todayKey = dateKey(today) || todayDateKey();
+  if (isEarningsPublished(event)) return todayKey <= addDays(reportDate, EARNINGS_PUBLISHED_RETENTION_DAYS);
+  return reportDate >= todayKey;
+}
+
+export function classifyEarningsResult(event) {
+  const explicit = normalizeEarningsResult(event?.earningsResult || event?.resultStatus);
+  if (explicit) return explicit;
+
+  const epsSurprise = numericOrNull(event?.surprisePercent ?? event?.epsSurprisePercent ?? event?.percent);
+  const revenueSurprise = numericOrNull(event?.revenueSurprisePercent);
+  const signals = [epsSurprise, revenueSurprise]
+    .filter((value) => value !== null)
+    .map((value) => {
+      if (value > EARNINGS_RESULT_THRESHOLD_PERCENT) return 'positive';
+      if (value < -EARNINGS_RESULT_THRESHOLD_PERCENT) return 'negative';
+      return 'neutral';
+    });
+
+  if (!signals.length) return 'meet';
+  const hasPositive = signals.includes('positive');
+  const hasNegative = signals.includes('negative');
+  const hasNeutral = signals.includes('neutral');
+  if (hasPositive && !hasNegative && !hasNeutral) return 'beat';
+  if (hasNegative && !hasPositive && !hasNeutral) return 'miss';
+  if (hasPositive && hasNegative) return 'mixed';
+  if ((hasPositive || hasNegative) && hasNeutral) return 'mixed';
+  return 'meet';
+}
+
+export function earningsResultText(result, language = 'zh') {
+  const normalized = normalizeEarningsResult(result) || 'meet';
+  if (language === 'en') {
+    if (normalized === 'beat') return 'Beat';
+    if (normalized === 'miss') return 'Miss';
+    if (normalized === 'mixed') return 'Mixed';
+    return 'In line';
+  }
+  if (normalized === 'beat') return '超预期';
+  if (normalized === 'miss') return '不及预期';
+  if (normalized === 'mixed') return '分化';
+  return '符合预期';
+}
+
+export function normalizeEarningsImpact(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (['high', 'important', '高影响'].includes(raw)) return 'high';
+  if (['medium', 'mid', '中影响'].includes(raw)) return 'medium';
+  if (['normal', 'watch', '关注'].includes(raw)) return 'normal';
+  return '';
+}
+
 export function buildEarningsSymbols({ watchlist = [], positions = [], max = 24 } = {}) {
   const symbols = [];
   const seen = new Set();
@@ -96,10 +173,11 @@ export function normalizeEarningsEvent(raw, context = {}) {
   const watchlist = context.watchlistBySymbol || new Set();
   const inPosition = positions.has(symbol);
   const inWatchlist = watchlist.has(symbol);
-  const impact = inPosition ? 'high' : inWatchlist ? 'medium' : 'normal';
+  const impact = normalizeEarningsImpact(raw?.impact ?? raw?.importance ?? raw?.impactLevel)
+    || (inPosition ? 'high' : inWatchlist ? 'medium' : 'normal');
   const session = normalizeEarningsSession(raw?.before_after_market || raw?.beforeAfterMarket || raw?.time || raw?.session);
 
-  return {
+  const normalized = {
     id: `${symbol}:${reportDate}:${session}`,
     symbol,
     code: code || `${symbol}.US`,
@@ -112,16 +190,43 @@ export function normalizeEarningsEvent(raw, context = {}) {
     epsActual: numericOrNull(raw?.actual ?? raw?.epsActual),
     epsDifference: numericOrNull(raw?.difference ?? raw?.epsDifference),
     surprisePercent: numericOrNull(raw?.percent ?? raw?.surprisePercent),
+    epsPreviousYear: numericOrNull(raw?.epsPreviousYear ?? raw?.earningsEstimateYearAgoEps),
+    epsActualYoyPercent: numericOrNull(raw?.epsActualYoyPercent),
+    epsEstimateYoyPercent: numericOrNull(raw?.epsEstimateYoyPercent),
     revenueEstimate: numericOrNull(raw?.revenueEstimate ?? raw?.revenueEstimateAvg),
     revenueEstimateUsd: numericOrNull(raw?.revenueEstimateUsd),
     revenueEstimateCurrency: raw?.revenueEstimateCurrency || null,
     revenueOriginalCurrency: raw?.revenueOriginalCurrency || raw?.currency || raw?.Currency || null,
     revenueFxRate: numericOrNull(raw?.revenueFxRate),
     revenueFxSource: raw?.revenueFxSource || null,
+    revenueEstimateYoyPercent: numericOrNull(raw?.revenueEstimateYoyPercent),
+    revenueActual: numericOrNull(raw?.revenueActual ?? raw?.actualRevenue),
+    revenueActualUsd: numericOrNull(raw?.revenueActualUsd),
+    revenueActualCurrency: raw?.revenueActualCurrency || null,
+    revenueActualOriginalCurrency: raw?.revenueActualOriginalCurrency || null,
+    revenueActualFxRate: numericOrNull(raw?.revenueActualFxRate),
+    revenueSurprisePercent: numericOrNull(raw?.revenueSurprisePercent),
+    revenuePreviousYear: numericOrNull(raw?.revenuePreviousYear),
+    revenuePreviousYearUsd: numericOrNull(raw?.revenuePreviousYearUsd),
+    revenuePreviousYearCurrency: raw?.revenuePreviousYearCurrency || null,
+    revenuePreviousYearOriginalCurrency: raw?.revenuePreviousYearOriginalCurrency || null,
+    revenueActualYoyPercent: numericOrNull(raw?.revenueActualYoyPercent),
+    marketReactionPercent: numericOrNull(raw?.marketReactionPercent),
+    marketReactionBaseDate: dateKey(raw?.marketReactionBaseDate),
+    marketReactionTargetDate: dateKey(raw?.marketReactionTargetDate),
+    marketReactionSession: raw?.marketReactionSession || null,
     analystCount: numericOrNull(raw?.analystCount ?? raw?.epsAnalystCount),
     impact,
     inPosition,
     inWatchlist,
+  };
+
+  const earningsPublished = raw?.earningsPublished === true || isEarningsPublished(normalized);
+  return {
+    ...normalized,
+    earningsPublished,
+    publishedUntil: raw?.publishedUntil || (earningsPublished ? earningsPublishedUntil(normalized) : null),
+    earningsResult: earningsPublished ? classifyEarningsResult({ ...normalized, earningsPublished }) : null,
   };
 }
 

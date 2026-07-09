@@ -1,7 +1,15 @@
 import { requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
 import { sendError } from '../server/quote/errors.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from '../server/quote/http.js';
-import { dateKey, normalizeEarningsSession, normalizeEarningsSymbol, toEodhdUsSymbol } from '../src/lib/earningsCalendarModel.js';
+import {
+  classifyEarningsResult,
+  dateKey,
+  EARNINGS_PUBLISHED_RETENTION_DAYS,
+  isEarningsPublished,
+  normalizeEarningsSession,
+  normalizeEarningsSymbol,
+  toEodhdUsSymbol,
+} from '../src/lib/earningsCalendarModel.js';
 
 const MAX_EARNINGS_SYMBOLS = 30;
 const MAX_RANGE_DAYS = 90;
@@ -36,8 +44,17 @@ export default async function handler(req, res) {
     const events = await fetchEodhdEarningsCalendar({ ...parsed, eodhdKey });
     const trends = await fetchEodhdEarningsTrends({ symbols: parsed.symbols, eodhdKey });
     const merged = mergeEarningsTrendData(events, trends);
-    const fxRates = await fetchEodhdUsdForexRates({ currencies: merged.map((event) => event.currency), eodhdKey });
-    const normalized = mergeEarningsRevenueUsd(merged, fxRates);
+    const enriched = await enrichPublishedEarningsData({ events: merged, eodhdKey });
+    const fxRates = await fetchEodhdUsdForexRates({
+      currencies: enriched.flatMap((event) => [
+        event.currency,
+        event.revenueOriginalCurrency,
+        event.revenueActualOriginalCurrency,
+        event.revenuePreviousYearOriginalCurrency,
+      ]),
+      eodhdKey,
+    });
+    const normalized = mergeEarningsRevenueUsd(enriched, fxRates);
 
     return res.status(200).json({
       success: true,
@@ -83,10 +100,31 @@ export function parseEarningsRequest(query = {}) {
 
 export async function fetchEodhdEarningsCalendar({ symbols, from, to, eodhdKey }) {
   const eodhdSymbols = symbols.map(toEodhdUsSymbol).filter(Boolean);
+  const requested = new Set(eodhdSymbols);
+  const today = new Date().toISOString().slice(0, 10);
+  const recentTo = minDate(to, addUtcDays(today, EARNINGS_PUBLISHED_RETENTION_DAYS));
+  const requests = [];
+
+  if (from <= recentTo) {
+    requests.push(fetchEodhdEarningsCalendarRows({ from, to: recentTo, eodhdKey }));
+  }
+  if (eodhdSymbols.length > 0) {
+    requests.push(fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, from, to, eodhdKey }));
+  }
+
+  const payloads = await Promise.all(requests);
+  return dedupeCalendarRows(payloads.flat()).filter((event) => {
+    const eodhdSymbol = toEodhdUsSymbol(event.code || event.symbol);
+    const reportDate = dateKey(event.report_date || event.reportDate || event.date);
+    return requested.has(eodhdSymbol) && reportDate >= from && reportDate <= to;
+  });
+}
+
+async function fetchEodhdEarningsCalendarRows({ symbols, from, to, eodhdKey }) {
   const url = new URL('https://eodhd.com/api/calendar/earnings');
   url.searchParams.set('api_token', eodhdKey);
   url.searchParams.set('fmt', 'json');
-  url.searchParams.set('symbols', eodhdSymbols.join(','));
+  if (Array.isArray(symbols) && symbols.length) url.searchParams.set('symbols', symbols.join(','));
   url.searchParams.set('from', from);
   url.searchParams.set('to', to);
 
@@ -94,6 +132,26 @@ export async function fetchEodhdEarningsCalendar({ symbols, from, to, eodhdKey }
   if (!response.ok) throw new Error(`EODHD earnings calendar HTTP ${response.status}`);
   const body = await response.json();
   return normalizeCalendarPayload(body);
+}
+
+function dedupeCalendarRows(rows) {
+  const merged = new Map();
+  (rows || []).forEach((row) => {
+    const key = [
+      toEodhdUsSymbol(row?.code || row?.symbol),
+      dateKey(row?.report_date || row?.reportDate || row?.date),
+      dateKey(row?.date || row?.fiscalDate),
+    ].join('|');
+    if (!key.startsWith('|') && !merged.has(key)) {
+      merged.set(key, row);
+      return;
+    }
+    const previous = merged.get(key);
+    if (parseNumber(previous?.actual ?? previous?.epsActual) === null && parseNumber(row?.actual ?? row?.epsActual) !== null) {
+      merged.set(key, row);
+    }
+  });
+  return Array.from(merged.values());
 }
 
 export async function fetchEodhdEarningsTrends({ symbols, eodhdKey }) {
@@ -156,7 +214,10 @@ export function mergeEarningsTrendData(events, trends) {
       epsActual: parseNumber(event.actual ?? event.epsActual),
       epsDifference: parseNumber(event.difference ?? event.epsDifference),
       surprisePercent: parseNumber(event.percent ?? event.surprisePercent),
+      epsPreviousYear: parseNumber(event.epsPreviousYear ?? trend?.earningsEstimateYearAgoEps),
+      epsEstimateYoyPercent: parseGrowthPercent(event.epsEstimateYoyPercent ?? trend?.earningsEstimateGrowth),
       revenueEstimate: parseNumber(event.revenueEstimate ?? trend?.revenueEstimateAvg),
+      revenueEstimateYoyPercent: parseGrowthPercent(event.revenueEstimateYoyPercent ?? trend?.revenueEstimateGrowth),
       analystCount: parseNumber(event.analystCount ?? trend?.epsAnalystCount ?? trend?.earningsEstimateNumberOfAnalysts ?? trend?.revenueEstimateNumberOfAnalysts),
       currency: normalizeCurrency(event.currency || event.Currency || trend?.currency || 'USD') || 'USD',
       source: 'eodhd-calendar',
@@ -172,7 +233,27 @@ export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
     const revenueEstimateUsd = revenueEstimate !== null && rate > 0
       ? (currency === 'USD' ? revenueEstimate : revenueEstimate / rate)
       : null;
-    return {
+    const actualCurrency = normalizeCurrency(event.revenueActualOriginalCurrency || event.revenueActualCurrency || currency) || currency;
+    const revenueActual = parseNumber(event.revenueActual);
+    const actualRate = readFxRate(fxRates, actualCurrency);
+    const revenueActualUsd = revenueActual !== null && actualRate > 0
+      ? (actualCurrency === 'USD' ? revenueActual : revenueActual / actualRate)
+      : null;
+    const previousRevenueCurrency = normalizeCurrency(event.revenuePreviousYearOriginalCurrency || event.revenuePreviousYearCurrency || actualCurrency || currency) || actualCurrency || currency;
+    const revenuePreviousYear = parseNumber(event.revenuePreviousYear);
+    const previousRevenueRate = readFxRate(fxRates, previousRevenueCurrency);
+    const revenuePreviousYearUsd = revenuePreviousYear !== null && previousRevenueRate > 0
+      ? (previousRevenueCurrency === 'USD' ? revenuePreviousYear : revenuePreviousYear / previousRevenueRate)
+      : null;
+    const revenueSurprisePercent = revenueEstimateUsd !== null && revenueEstimateUsd !== 0 && revenueActualUsd !== null
+      ? ((revenueActualUsd - revenueEstimateUsd) / Math.abs(revenueEstimateUsd)) * 100
+      : null;
+    const revenueActualYoyPercent = percentageChange(revenueActualUsd, revenuePreviousYearUsd);
+    const revenueEstimateYoyPercent = parseNumber(event.revenueEstimateYoyPercent) ?? percentageChange(revenueEstimateUsd, revenuePreviousYearUsd);
+    const epsPreviousYear = parseNumber(event.epsPreviousYear);
+    const epsActualYoyPercent = percentageChange(event.epsActual, epsPreviousYear);
+    const epsEstimateYoyPercent = parseNumber(event.epsEstimateYoyPercent) ?? percentageChange(event.epsEstimate, epsPreviousYear);
+    const output = {
       ...event,
       currency,
       revenueEstimate,
@@ -181,8 +262,155 @@ export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
       revenueOriginalCurrency: currency,
       revenueFxRate: rate || null,
       revenueFxSource: currency === 'USD' ? 'identity' : readFxSource(fxRates, currency),
+      revenueActual,
+      revenueActualUsd,
+      revenueActualCurrency: revenueActualUsd !== null ? 'USD' : null,
+      revenueActualOriginalCurrency: revenueActual !== null ? actualCurrency : null,
+      revenueActualFxRate: revenueActual !== null ? actualRate || null : null,
+      revenueActualFxSource: revenueActual !== null ? (actualCurrency === 'USD' ? 'identity' : readFxSource(fxRates, actualCurrency)) : null,
+      revenuePreviousYear,
+      revenuePreviousYearUsd,
+      revenuePreviousYearCurrency: revenuePreviousYearUsd !== null ? 'USD' : null,
+      revenuePreviousYearOriginalCurrency: revenuePreviousYear !== null ? previousRevenueCurrency : null,
+      revenuePreviousYearFxRate: revenuePreviousYear !== null ? previousRevenueRate || null : null,
+      revenueSurprisePercent,
+      revenueActualYoyPercent,
+      revenueEstimateYoyPercent,
+      epsPreviousYear,
+      epsActualYoyPercent,
+      epsEstimateYoyPercent,
+    };
+    const earningsPublished = isEarningsPublished(output);
+    return {
+      ...output,
+      earningsPublished,
+      publishedUntil: earningsPublished ? addUtcDays(output.reportDate, 2) : null,
+      earningsResult: earningsPublished ? classifyEarningsResult(output) : null,
     };
   });
+}
+
+export async function enrichPublishedEarningsData({ events, eodhdKey }) {
+  const published = (events || []).filter((event) => parseNumber(event.epsActual) !== null);
+  if (published.length === 0) return events || [];
+
+  const symbols = Array.from(new Set(published.map((event) => event.symbol).filter(Boolean)));
+  const [incomeRowsBySymbol, eodRowsBySymbol] = await Promise.all([
+    fetchEodhdQuarterlyIncomeStatements({ symbols, eodhdKey }),
+    fetchEodhdEodRowsForEarnings({ events: published, eodhdKey }),
+  ]);
+
+  return (events || []).map((event) => {
+    if (parseNumber(event.epsActual) === null) return event;
+    const incomeRows = incomeRowsBySymbol.get(event.symbol) || [];
+    const incomeRow = incomeRows.find((row) => dateKey(row.date) === event.fiscalDate) || null;
+    const previousIncomeRow = incomeRows.find((row) => dateKey(row.date) === previousYearDate(event.fiscalDate)) || null;
+    const eodRows = eodRowsBySymbol.get(event.symbol) || [];
+    const reaction = calculateEarningsMarketReaction({
+      rows: eodRows,
+      reportDate: event.reportDate,
+      session: event.session,
+    });
+    return {
+      ...event,
+      revenueActual: parseNumber(incomeRow?.totalRevenue),
+      revenueActualOriginalCurrency: normalizeCurrency(incomeRow?.currency_symbol || incomeRow?.currency || event.currency) || event.currency,
+      revenueActualSource: incomeRow ? 'eodhd-fundamentals-income-statement' : null,
+      revenuePreviousYear: parseNumber(previousIncomeRow?.totalRevenue),
+      revenuePreviousYearOriginalCurrency: normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency,
+      revenuePreviousYearSource: previousIncomeRow ? 'eodhd-fundamentals-income-statement' : null,
+      marketReactionPercent: reaction?.percent ?? null,
+      marketReactionBaseDate: reaction?.baseDate ?? null,
+      marketReactionTargetDate: reaction?.targetDate ?? null,
+      marketReactionSession: reaction?.session ?? event.session ?? null,
+    };
+  });
+}
+
+export async function fetchEodhdQuarterlyIncomeStatements({ symbols, eodhdKey }) {
+  const entries = await Promise.all((symbols || []).map(async (symbol) => {
+    const eodhdSymbol = toEodhdUsSymbol(symbol);
+    if (!eodhdSymbol) return [symbol, []];
+    try {
+      const url = new URL(`https://eodhd.com/api/v1.1/fundamentals/${eodhdSymbol}`);
+      url.searchParams.set('api_token', eodhdKey);
+      url.searchParams.set('fmt', 'json');
+      url.searchParams.set('filter', 'Financials::Income_Statement::quarterly');
+      const response = await fetchWithTimeout(url.toString(), {}, { provider: `eodhd:fundamentals-income:${eodhdSymbol}`, timeoutMs: QUOTE_TIMEOUTS.eodhd });
+      if (!response.ok) return [normalizeEarningsSymbol(symbol), []];
+      const body = await response.json();
+      return [normalizeEarningsSymbol(symbol), normalizeObjectRows(body)];
+    } catch {
+      return [normalizeEarningsSymbol(symbol), []];
+    }
+  }));
+  return new Map(entries);
+}
+
+export async function fetchEodhdEodRowsForEarnings({ events, eodhdKey }) {
+  const ranges = new Map();
+  (events || []).forEach((event) => {
+    const symbol = normalizeEarningsSymbol(event.symbol);
+    const reportDate = dateKey(event.reportDate);
+    if (!symbol || !reportDate) return;
+    const from = addUtcDays(reportDate, -5);
+    const to = addUtcDays(reportDate, 5);
+    const current = ranges.get(symbol);
+    ranges.set(symbol, {
+      from: current ? minDate(current.from, from) : from,
+      to: current ? maxDate(current.to, to) : to,
+    });
+  });
+
+  const entries = await Promise.all(Array.from(ranges.entries()).map(async ([symbol, range]) => {
+    const eodhdSymbol = toEodhdUsSymbol(symbol);
+    try {
+      const url = new URL(`https://eodhd.com/api/eod/${eodhdSymbol}`);
+      url.searchParams.set('api_token', eodhdKey);
+      url.searchParams.set('fmt', 'json');
+      url.searchParams.set('period', 'd');
+      url.searchParams.set('from', range.from);
+      url.searchParams.set('to', range.to);
+      const response = await fetchWithTimeout(url.toString(), {}, { provider: `eodhd:eod-earnings:${eodhdSymbol}`, timeoutMs: QUOTE_TIMEOUTS.eodhd });
+      if (!response.ok) return [symbol, []];
+      const body = await response.json();
+      return [symbol, Array.isArray(body) ? body : []];
+    } catch {
+      return [symbol, []];
+    }
+  }));
+  return new Map(entries);
+}
+
+export function calculateEarningsMarketReaction({ rows, reportDate, session }) {
+  const sorted = (Array.isArray(rows) ? rows : [])
+    .filter((row) => dateKey(row.date))
+    .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)));
+  const targetDate = dateKey(reportDate);
+  if (!sorted.length || !targetDate) return null;
+
+  let base = null;
+  let target = null;
+  if (session === 'post') {
+    base = sorted.find((row) => dateKey(row.date) === targetDate) || lastRowBefore(sorted, targetDate);
+    target = firstRowAfter(sorted, dateKey(base?.date || targetDate));
+  } else if (session === 'pre') {
+    target = firstRowOnOrAfter(sorted, targetDate);
+    base = lastRowBefore(sorted, dateKey(target?.date || targetDate));
+  } else {
+    target = firstRowOnOrAfter(sorted, targetDate);
+    base = lastRowBefore(sorted, dateKey(target?.date || targetDate));
+  }
+
+  const baseClose = closePrice(base);
+  const targetClose = closePrice(target);
+  if (!(baseClose > 0) || !(targetClose > 0)) return null;
+  return {
+    baseDate: dateKey(base.date),
+    targetDate: dateKey(target.date),
+    percent: ((targetClose - baseClose) / baseClose) * 100,
+    session,
+  };
 }
 
 function normalizeCalendarPayload(body) {
@@ -205,6 +433,12 @@ function normalizeTrendPayload(body) {
   return [];
 }
 
+function normalizeObjectRows(body) {
+  if (Array.isArray(body)) return body.filter((row) => row && typeof row === 'object');
+  if (body && typeof body === 'object') return Object.values(body).filter((row) => row && typeof row === 'object');
+  return [];
+}
+
 function flattenTrendRows(value) {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
@@ -215,12 +449,12 @@ function flattenTrendRows(value) {
 
 function findNearestTrend(event, candidates) {
   if (!candidates.length) return null;
-  const eventDate = dateKey(event.report_date || event.reportDate || event.date);
+  const eventDate = dateKey(event.date || event.fiscalDate || event.report_date || event.reportDate);
   if (!eventDate) return candidates[0];
   return [...candidates].sort((a, b) => {
     const aDiff = Math.abs(daysBetween(eventDate, dateKey(a.report_date || a.reportDate || a.date || a.period)));
     const bDiff = Math.abs(daysBetween(eventDate, dateKey(b.report_date || b.reportDate || b.date || b.period)));
-    return aDiff - bDiff;
+    return aDiff - bDiff || trendPeriodRank(a.period) - trendPeriodRank(b.period);
   })[0];
 }
 
@@ -228,6 +462,36 @@ function parseNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(String(value).replace(/[$,%\s,]/g, ''));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseGrowthPercent(value) {
+  const parsed = parseNumber(value);
+  if (parsed === null) return null;
+  return Math.abs(parsed) <= 5 ? parsed * 100 : parsed;
+}
+
+function percentageChange(current, previous) {
+  const currentValue = parseNumber(current);
+  const previousValue = parseNumber(previous);
+  if (currentValue === null || !(previousValue > 0)) return null;
+  return ((currentValue - previousValue) / previousValue) * 100;
+}
+
+function previousYearDate(value) {
+  const key = dateKey(value);
+  if (!key) return '';
+  const date = new Date(`${key}T00:00:00Z`);
+  date.setUTCFullYear(date.getUTCFullYear() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function trendPeriodRank(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === '0q' || raw === '0') return 0;
+  if (!raw) return 1;
+  if (raw === '+1q' || raw === '1q') return 2;
+  if (raw === '-1q') return 3;
+  return 4;
 }
 
 function normalizeCurrency(value) {
@@ -251,6 +515,41 @@ function addUtcDays(date, days) {
   const base = new Date(`${dateKey(date)}T00:00:00Z`);
   base.setUTCDate(base.getUTCDate() + Number(days || 0));
   return base.toISOString().slice(0, 10);
+}
+
+function minDate(a, b) {
+  const left = dateKey(a);
+  const right = dateKey(b);
+  if (!left) return right;
+  if (!right) return left;
+  return left < right ? left : right;
+}
+
+function maxDate(a, b) {
+  const left = dateKey(a);
+  const right = dateKey(b);
+  if (!left) return right;
+  if (!right) return left;
+  return left > right ? left : right;
+}
+
+function firstRowOnOrAfter(rows, targetDate) {
+  return rows.find((row) => dateKey(row.date) >= targetDate) || null;
+}
+
+function firstRowAfter(rows, targetDate) {
+  return rows.find((row) => dateKey(row.date) > targetDate) || null;
+}
+
+function lastRowBefore(rows, targetDate) {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (dateKey(rows[index].date) < targetDate) return rows[index];
+  }
+  return null;
+}
+
+function closePrice(row) {
+  return parseNumber(row?.adjusted_close ?? row?.close);
 }
 
 function daysBetween(a, b) {

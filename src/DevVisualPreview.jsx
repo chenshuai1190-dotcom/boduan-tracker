@@ -112,11 +112,11 @@ const mockHomeWatchlist = [
 ];
 
 const mockEarningsCalendarEvents = [
-  { symbol: 'NVDA', name: 'NVIDIA', reportDate: '2026-07-09', session: 'before', epsEstimate: 0.68, revenueEstimate: 284500000000, currency: 'USD', impact: 'high' },
-  { symbol: 'MSFT', name: 'Microsoft', reportDate: '2026-07-10', session: 'after', epsEstimate: 2.93, revenueEstimate: 64500000000, currency: 'USD', impact: 'medium' },
-  { symbol: 'META', name: 'Meta', reportDate: '2026-07-10', session: 'after', epsEstimate: 4.71, revenueEstimate: 39100000000, currency: 'USD', impact: 'medium' },
-  { symbol: 'TSM', name: 'TSMC', reportDate: '2026-07-11', session: 'before', epsEstimate: 1.45, revenueEstimate: 20300000000, currency: 'USD', impact: 'high' },
-  { symbol: 'GOOGL', name: 'Alphabet', reportDate: '2026-07-13', session: 'after', epsEstimate: 2.18, revenueEstimate: 96400000000, currency: 'USD', impact: 'normal' },
+  { symbol: 'NVDA', name: 'NVIDIA', reportDate: '2026-07-08', fiscalDate: '2026-04-30', session: 'after', epsEstimate: 1.77, epsActual: 1.87, surprisePercent: 5.6497, epsPreviousYear: 0.81, epsActualYoyPercent: 130.8642, epsEstimateYoyPercent: 118.98, revenueEstimate: 79115709670, revenueEstimateUsd: 79115709670, revenueActual: 81615000000, revenueActualUsd: 81615000000, revenuePreviousYear: 44062000000, revenuePreviousYearUsd: 44062000000, revenueEstimateYoyPercent: 79.5554, revenueActualYoyPercent: 85.2276, revenueSurprisePercent: 3.158, marketReactionPercent: -1.772, currency: 'USD', impact: 'high' },
+  { symbol: 'MSFT', name: 'Microsoft', reportDate: '2026-07-09', session: 'after', epsEstimate: 2.93, epsActual: 2.71, surprisePercent: -7.5, revenueEstimate: 64500000000, revenueEstimateUsd: 64500000000, revenueActual: 62800000000, revenueActualUsd: 62800000000, revenueSurprisePercent: -2.6, marketReactionPercent: -4.2, currency: 'USD', impact: 'medium' },
+  { symbol: 'META', name: 'Meta', reportDate: '2026-07-09', session: 'after', epsEstimate: 4.71, epsActual: 4.92, surprisePercent: 4.5, revenueEstimate: 39100000000, revenueEstimateUsd: 39100000000, revenueActual: 38400000000, revenueActualUsd: 38400000000, revenueSurprisePercent: -1.8, marketReactionPercent: -1.2, currency: 'USD', impact: 'medium' },
+  { symbol: 'TSM', name: 'TSMC', reportDate: '2026-07-10', session: 'before', epsEstimate: 1.45, revenueEstimate: 20300000000, revenueEstimateUsd: 20300000000, currency: 'USD', impact: 'high' },
+  { symbol: 'GOOGL', name: 'Alphabet', reportDate: '2026-07-11', session: 'after', epsEstimate: 2.18, revenueEstimate: 96400000000, revenueEstimateUsd: 96400000000, currency: 'USD', impact: 'normal' },
 ];
 
 const mockPnlPortfolioSnapshots = [

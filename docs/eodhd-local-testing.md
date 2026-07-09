@@ -32,9 +32,15 @@ npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-0
 Expected behavior with the current EODHD account:
 
 - `/api/calendar/earnings` returns report rows, dates, EPS fields, and currency, but does not include revenue estimate fields.
+- For historical published reports, `/api/calendar/earnings` can include `actual`, `estimate`, `difference`, and `percent`. Symbol-filtered calendar calls may prefer upcoming rows, so the app uses date-window calendar reads and filters to the requested user symbols.
 - `/api/calendar/trends` returns `trends` as nested arrays, one inner array per requested symbol.
 - Trend rows include `revenueEstimateAvg` and `revenueEstimateNumberOfAnalysts`.
+- The same fiscal `date` can include both `+1q` and `0q` trend rows. For the report being displayed, prefer `period: "0q"`; otherwise the app may accidentally use the next-quarter estimate.
+- Published actual revenue is read from EODHD Fundamentals v1.1 with `filter=Financials::Income_Statement::quarterly`, matched only by the same fiscal `date`; do not substitute another quarter if the exact row is missing.
+- Published comparison uses a broker-style basis when data is available: reported value plus year-over-year change next to estimate value plus estimate year-over-year change. Revenue YoY comes from the exact same-quarter prior-year income-statement row; EPS estimate YoY comes from EODHD trends, and EPS actual YoY uses `earningsEstimateYearAgoEps` as the prior-year basis.
+- Published market reaction is derived from EODHD daily EOD closes: pre-market reports use previous trading close to report-date close; after-market reports use report-date close to next trading close.
 - The project merge step should report `revenueMerged` greater than `0`; on 2026-07-09, NVDA/MSFT/GOOGL/META/TSM returned 5 earnings events, 472 trend rows, and 5 merged revenue estimates.
+- For published historical windows such as `--from=2026-04-01 --to=2026-05-31`, the project merge should also show non-zero `publishedMerged`, `actualRevenueMerged`, and `marketReactionMerged` when the requested symbols have already reported.
 
 The smoke output intentionally prints only status, counts, field names, and merged numeric estimates. It does not print the API key.
 
@@ -45,4 +51,6 @@ If the app shows empty "预计营收" while this smoke passes locally:
 - Confirm production `EODHD_API_KEY` is the same account tier or has Calendar Trends permission.
 - Confirm `/api/earnings-calendar` is deployed with the `flattenTrendRows` normalization fix.
 - Confirm the requested symbol has a matching trends row near the earnings `report_date` or fiscal `date`.
+- For empty "实际营收", confirm Fundamentals contains an exact quarterly income-statement row matching the earnings fiscal `date`.
+- For empty "盘前/盘后反应", confirm EODHD EOD has both required close rows around the report date; very recent after-market reports may not have the next trading close yet.
 - Keep `/api/earnings-calendar` separate from `/api/quote`; do not move calendar reads back into the quote provider.

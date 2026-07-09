@@ -8,6 +8,7 @@ import {
   fetchEodhdEarningsCalendar,
   fetchEodhdEarningsTrends,
   fetchEodhdUsdForexRates,
+  enrichPublishedEarningsData,
   mergeEarningsTrendData,
   mergeEarningsRevenueUsd,
 } from '../api/earnings-calendar.js';
@@ -33,16 +34,28 @@ const eodhdSymbols = symbols.map(toEodhdUsSymbol).filter(Boolean);
 
 try {
   const [rawEarnings, rawTrends, events, trends] = await Promise.all([
-    fetchEodhdJson('/api/calendar/earnings', { symbols: eodhdSymbols.join(','), from, to }),
+    fetchEodhdJson('/api/calendar/earnings', { from, to }),
     fetchEodhdJson('/api/calendar/trends', { symbols: eodhdSymbols.join(',') }),
     fetchEodhdEarningsCalendar({ symbols, from, to, eodhdKey }),
     fetchEodhdEarningsTrends({ symbols, eodhdKey }),
   ]);
   const merged = mergeEarningsTrendData(events, trends);
-  const fxRates = await fetchEodhdUsdForexRates({ currencies: merged.map((event) => event.currency), eodhdKey });
-  const normalized = mergeEarningsRevenueUsd(merged, fxRates);
+  const enriched = await enrichPublishedEarningsData({ events: merged, eodhdKey });
+  const fxRates = await fetchEodhdUsdForexRates({
+    currencies: enriched.flatMap((event) => [
+      event.currency,
+      event.revenueOriginalCurrency,
+      event.revenueActualOriginalCurrency,
+      event.revenuePreviousYearOriginalCurrency,
+    ]),
+    eodhdKey,
+  });
+  const normalized = mergeEarningsRevenueUsd(enriched, fxRates);
   const revenueRows = merged.filter((event) => event.revenueEstimate !== null && event.revenueEstimate !== undefined);
   const usdRevenueRows = normalized.filter((event) => event.revenueEstimateUsd !== null && event.revenueEstimateUsd !== undefined);
+  const publishedRows = normalized.filter((event) => event.earningsPublished);
+  const actualRevenueRows = normalized.filter((event) => event.revenueActualUsd !== null && event.revenueActualUsd !== undefined);
+  const marketReactionRows = normalized.filter((event) => event.marketReactionPercent !== null && event.marketReactionPercent !== undefined);
   const rawTrendRows = flattenRows(Array.isArray(rawTrends?.trends) ? rawTrends.trends : rawTrends);
   const rawEarningsRows = Array.isArray(rawEarnings?.earnings) ? rawEarnings.earnings : Array.isArray(rawEarnings) ? rawEarnings : [];
 
@@ -65,15 +78,29 @@ try {
       merged: normalized.length,
       revenueMerged: revenueRows.length,
       usdRevenueMerged: usdRevenueRows.length,
+      publishedMerged: publishedRows.length,
+      actualRevenueMerged: actualRevenueRows.length,
+      marketReactionMerged: marketReactionRows.length,
       rows: normalized.map((event) => ({
         symbol: event.symbol,
         reportDate: event.reportDate,
         fiscalDate: event.fiscalDate,
+        earningsPublished: event.earningsPublished,
+        earningsResult: event.earningsResult,
         revenueEstimate: event.revenueEstimate,
         revenueEstimateUsd: event.revenueEstimateUsd,
+        revenueEstimateYoyPercent: event.revenueEstimateYoyPercent,
+        revenueActualUsd: event.revenueActualUsd,
+        revenueActualYoyPercent: event.revenueActualYoyPercent,
+        revenueSurprisePercent: event.revenueSurprisePercent,
+        marketReactionPercent: event.marketReactionPercent,
         revenueFxRate: event.revenueFxRate,
         revenueFxSource: event.revenueFxSource,
         epsEstimate: event.epsEstimate,
+        epsActual: event.epsActual,
+        epsActualYoyPercent: event.epsActualYoyPercent,
+        epsEstimateYoyPercent: event.epsEstimateYoyPercent,
+        surprisePercent: event.surprisePercent,
         analystCount: event.analystCount,
         currency: event.currency,
       })),

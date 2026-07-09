@@ -6,15 +6,15 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新接手补充: `v10.7.9.251` 财报日历营收字段修复已完成并上线。首页财报日历预览取消第一项默认选中背景和黄色日期;`/api/earnings-calendar` 兼容 EODHD `/api/calendar/trends` 的真实嵌套数组返回,预计营收可从 `revenueEstimateAvg` 正确合并;分析师数量同步兼容 EODHD 官方字段。用户随后授权建立本地 EODHD 测试环境:当前工作区 `.env.local` 已写入服务器端 `EODHD_API_KEY`、权限 `600`、被 Git 忽略;用 `npm run smoke:eodhd-calendar` 已确认真实 EODHD 能返回并合并预计营收。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
-- 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码基准为 `1a5ae2605e51838514f3b508eb9ec6c769a7268a`。
-- 当前生产运行时代码提交: `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;`v10.7.9.251` production marker verified。
-- 设置页版本: `v10.7.9.251`。
+- 最新接手补充: `v10.7.9.255` 财报日历券商式同比对比口径准备部署。已公布财报详情改为“公布值同比 / 预测值同比”并列表格;列表视图已公布 EPS/营收百分比也同步改为同比口径,不再显示实际值相对预测值的 surprise;EODHD trends 同一 fiscal date 同时返回 `+1q` 和 `0q` 时优先使用 `0q`,避免误拿下一季预测。NVDA 真实 key smoke 已确认 `revenueEstimate=79115709670`,`revenueEstimateYoyPercent=79.56`,`revenueActualUsd=81615000000`,`revenueActualYoyPercent=85.2276`。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
+- 当前 GitHub `main`: 本文件所在最新提交为准;本轮 `v10.7.9.255` 由 GitHub `main` 推送触发 Vercel production 部署。
+- 当前生产运行时代码提交: 部署前仍以上一次已验证生产运行为准;本轮完成后以 `docs/development-log.md` 顶部 `v10.7.9.255` 线上验证记录为准。
+- 设置页版本: `v10.7.9.255`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: success;`v10.7.9.251` production marker verified,production alias `https://boduan-tracker.vercel.app` serving entry `/assets/index-DAoL7-1B.js`。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.251` 运行时代码已部署成功,本轮文档回写为生产验证补充。
-- 线上关键验证: `HomeTab-D1DD7H1A.js` 包含 `revenueEstimateAvg` 且不包含旧第一项高亮 marker `const active = index === 0` / `bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`;`SettingsTab-CcKDt9iU.js` 包含 `v10.7.9.251`;`settingsChangelog-BXm6UOoz.js` 包含 `财报日历营收字段修复`;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;HTTPS 普通非 WebSocket `GET /api/stocks-realtime` 返回 `426`。`earningsEstimateNumberOfAnalysts` 和 `flattenTrendRows` 属于 serverless/API 逻辑,由本地 handler 测试和真实 key smoke 覆盖;本地真实 key smoke 另见 `docs/eodhd-local-testing.md`。
-- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
+- 最新 Vercel 状态: `v10.7.9.255` deployment requested;production alias 和入口资源待本轮部署完成后回填。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.255` 生产验证完成后需要在 `docs/development-log.md` 回填最终入口和 marker。
+- 线上关键验证: 本轮部署前本地已通过 `npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check` 和真实 NVDA EODHD smoke。生产验证需确认 `v10.7.9.255`、`财报日历券商式对比口径`、`PublishedFinancialComparison`/`revenueActualYoyPercent` 等 marker 进入线上 chunk,且未登录 `/api/quote?symbols=VIX` 继续返回 `401`。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
@@ -22,18 +22,18 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
-- 当前生产运行时基准提交: `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;`v10.7.9.251` production marker verified。
-- 最近应用代码提交: `1a5ae2605e51838514f3b508eb9ec6c769a7268a`,本轮财报日历营收字段修复和首页默认高亮取消已推送部署。此前首页财报日历视觉压缩提交为 `b7422bd96b886952cc6233d218dd2c89eb89cf83`;首页财报日历独立重构提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;收益报表、个股详情、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
+- 当前生产运行时基准提交: 本轮 `v10.7.9.255` 部署完成前仍以上一次已验证生产运行为准;部署完成后以顶部和开发日志回填为准。
+- 最近应用代码提交: 本文件所在最新提交包含 `v10.7.9.255` 财报日历券商式同比对比口径。此前财报日历营收字段修复提交为 `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;首页财报日历视觉压缩提交为 `b7422bd96b886952cc6233d218dd2c89eb89cf83`;首页财报日历独立重构提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;收益报表、个股详情、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.251`。
-- Vercel 最新运行时部署: 当前线上 success,`v10.7.9.251` production marker verified,production alias `https://boduan-tracker.vercel.app` serving runtime assets from production entry `/assets/index-DAoL7-1B.js`。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.251` 运行时代码已部署成功,本轮文档回写为生产验证补充。
+- 设置页版本: `v10.7.9.255`。
+- Vercel 最新运行时部署: `v10.7.9.255` deployment requested;最终生产入口和 marker 待部署完成后回填。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;`v10.7.9.255` 生产验证完成后回填最终证据。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
 - 最新补充部署记录: `v10.7.9.251` runtime code commit `1a5ae2605e51838514f3b508eb9ec6c769a7268a` pushed via project SSH key;Vercel status success;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-DAoL7-1B.js`;关键 chunks 包括 `/assets/App-DAvT0Pr6.js`,`/assets/HomeTab-D1DD7H1A.js`,`/assets/SettingsTab-CcKDt9iU.js`,`/assets/settingsChangelog-BXm6UOoz.js`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
+产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报改为券商式同比对比口径。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
 本机已建立 EODHD 财报日历测试环境:当前工作区 `.env.local` 存在服务器端 `EODHD_API_KEY`,权限 `600`,由 `.gitignore` 排除。不要提交该文件或在文档/聊天中打印 key。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
 

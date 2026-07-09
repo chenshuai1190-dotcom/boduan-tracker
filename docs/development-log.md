@@ -4,6 +4,125 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 财报日历券商式同比对比本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: requested after local confirmation;通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户提供券商 NVDA 财务页截图,要求拉取英伟达真实数据并评估是否能改成券商那套对比口径。复查确认券商截图的核心不是单独显示“实际值相对预测值差异”,而是把“公布值同比”和“预测值同比”并列展示,结果标签仍由实际值是否超过预测值判断。
+- Real EODHD probe:
+  - `NVDA.US` 最新已公布财报: `report_date=2026-05-20`, fiscal `date=2026-04-30`, `before_after_market=AfterMarket`。
+  - `/api/calendar/earnings`: `epsActual=1.87`, `epsEstimate=1.77`, `surprisePercent=5.6497`。
+  - `/api/calendar/trends`: 同一 fiscal date 同时返回 `+1q` 和 `0q`;券商图的预测营收 `791亿` / `+79.56%` 对应 `period=0q`,不是 `+1q`。
+  - EODHD Fundamentals quarterly income statement: `totalRevenue=81.615B USD`,上年同期 `44.062B USD`,实际营收同比 `+85.23%`,和券商截图的营收口径一致。
+  - EODHD 当前可可靠复现营收这条券商口径;截图里的“息税前利润”和 EPS 数值与 EODHD 当前 calendar/fundamentals 字段口径不完全一致,因此本地实现只对 EPS 和营收采用可追溯字段,不伪造券商专有利润口径。
+- Changes:
+  - `/api/earnings-calendar` 的 trends 合并逻辑改为优先使用财报 fiscal date,并在同日多条 trend 时优先 `period=0q`,避免误拿下一季 `+1q` 预测值。
+  - `/api/earnings-calendar` 新增已公布财报同比字段:实际/预测营收同比、实际/预测 EPS 同比、上年同期营收。
+  - 已公布财报详情弹窗改为券商式对比表:指标、公布值/同比、预测值/同比;底部保留当前深色风格的盘前/盘后收盘反应和结果标签。
+  - 按用户反馈继续把已公布财报列表里的 EPS/营收百分比同步改为同比口径,列表不再展示实际值相对预测值的差异率。
+  - 本地视觉预览里的 NVDA 改为真实 EODHD 最新已公布财报数据,但 report date 保留在当前 D+2 可见窗口内用于本地预览。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.255`。
+  - EODHD 本地测试文档补充 `0q` trend 优先规则和券商式同比口径说明。
+  - 本次仍保持财报日历独立 `/api/earnings-calendar` 边界,不改 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `api/earnings-calendar.js`
+  - `src/lib/earningsCalendarModel.js`
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/lib/i18n.js`
+  - `src/DevVisualPreview.jsx`
+  - `scripts/eodhd-calendar-smoke.mjs`
+  - `docs/eodhd-local-testing.md`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过。
+  - Full tests: pass;`npm test` 共 173 个测试通过。
+  - Real EODHD smoke: pass;`npm run smoke:eodhd-calendar -- --symbols=NVDA --from=2026-05-20 --to=2026-05-22` 返回 `ok: true`,合并结果为 `revenueEstimate=79115709670`,`revenueEstimateYoyPercent=79.56`,`revenueActualUsd=81615000000`,`revenueActualYoyPercent=85.2276`,`epsActualYoyPercent=130.8642`,`epsEstimateYoyPercent=118.98`。
+  - Build: pass;`npm run build`,本地生成 `HomeTab-CQoyCHyU.js`、`SettingsTab-DP_wPo6G.js`、`settingsChangelog-DQ86VTuA.js`、`App-BpY7C6JH.js` 等产物。
+  - Audit: pass;`npm audit --audit-level=moderate` 返回 `found 0 vulnerabilities`。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` 以 `390x844` 视口验证列表页 NVDA 行显示真实营收/预测营收,详情弹窗展示券商式“公布值/同比”和“预测值/同比”表格;`documentElement.scrollWidth=390`,`clientWidth=390`,无横向溢出。截图保存到 `/tmp/boduan-earnings-broker-comparison-list-v10.7.9.255.png` 和 `/tmp/boduan-earnings-broker-comparison-detail-v10.7.9.255.png`。
+  - Local visual follow-up: pass;按用户指出“列表视图百分比逻辑没改”后,`390x844` 视口确认列表页 NVDA 行已显示实际/预测同比 `+130.9%`、`+119.0%`、`+85.2%`、`+79.6%`,不再显示 surprise `+5.6%` / `+3.2%`;`scrollWidth=390`,`clientWidth=390`。截图保存到 `/tmp/boduan-earnings-broker-comparison-list-yoy-v10.7.9.255.png`。
+- Rollback: 回退本条涉及的 trend `0q` 优先、同比字段、券商式详情表、NVDA 本地 mock、`v10.7.9.255` 设置页版本/更新日志、EODHD 测试文档、测试和本日志即可恢复 `v10.7.9.254`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
+### 2026-07-09 - 财报日历已公布结果本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: not requested;用户要求先本地测试和截图验证,暂不部署。
+- Background: 用户确认已公布财报应在公布后的两天内继续显示,不能当天公布后从首页消失,且已公布财报不能继续按“预计财报”展示。用户要求先查真实 EODHD 接口,再实现完整公布后逻辑,并保持现有深色风格、字体大小和图标一致性。
+- Real EODHD probe:
+  - Official docs and local key probe confirm `/api/calendar/earnings` returns `actual` / `estimate` / `difference` / `percent` for historical published reports, but does not return revenue estimate fields.
+  - `/api/calendar/trends` returns nested `trends` arrays and provides `revenueEstimateAvg` / `revenueEstimateNumberOfAnalysts`.
+  - EODHD Fundamentals v1.1 `filter=Financials::Income_Statement::quarterly` provides `totalRevenue` and `currency_symbol`;`TSM.US` actual revenue is TWD and must still be server-side converted to USD.
+  - EODHD `/api/eod/{symbol}.US` daily closes can derive pre/post market reaction:盘前用前一交易日收盘到发布日收盘,盘后用发布日收盘到下一交易日收盘。
+- Changes:
+  - `/api/earnings-calendar` 改为近期/历史 date-window calendar + upcoming symbol calendar 双路径合并,避免 symbol-filter calendar 漏掉历史 actual,同时避免默认未来窗口拉取全市场大范围数据。
+  - 已公布事件补充实际营收、美元换算、营收差异百分比、盘前/盘后收盘反应、`earningsPublished`、`publishedUntil` 和 `earningsResult`。
+  - 前端模型新增已公布判定、公布后两天可见性、结果分类和结果文案;未公布事件只显示今天和未来,已公布事件显示到 D+2。
+  - 首页小标记和日历日期点改为结果状态:未公布蓝点、超预期金色勾、不及预期绿色下箭头、分化半圆、符合预期灰色勾。
+  - 财报弹窗列表对已公布行改为实际 EPS / 预期 EPS / EPS 差异、实际营收 / 预期营收 / 营收差异、盘前/盘后反应和结果标签;未公布行保留当前预计 EPS/预计营收/影响等级布局。
+  - 按用户反馈继续加高已公布列表卡片,固定最小高度并放松上下间距,避免实际 EPS/营收/反应列过窄拥挤。
+  - 首页、日历日期点、图例、弹窗列表和详情弹窗的结果状态图标统一为同一套 10px 尺寸。
+  - 按用户反馈修正 TSM 这类事件传入 `impact: high` 时被降成“关注”的问题,改为保留“高影响”;详情弹窗结果区仅保留文字标签,不再重复状态图标;分化状态去掉容易显白的外边框。
+  - 新增已公布财报详情弹窗,展示实际与预期对比、差异、市场反应和结论。
+  - 本地预览 mock 增加已公布/未公布混合样本,用于无登录视觉 smoke。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.254`;`v10.7.9.253` 小太阳/月亮记录继续保留。
+  - 本次仍保持财报日历独立 `/api/earnings-calendar` 边界,不改 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `api/earnings-calendar.js`
+  - `src/lib/earningsCalendarModel.js`
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/lib/i18n.js`
+  - `src/DevVisualPreview.jsx`
+  - `scripts/eodhd-calendar-smoke.mjs`
+  - `docs/eodhd-local-testing.md`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过。
+  - Full tests: pass;`npm test` 共 173 个测试通过。
+  - Build: pass;`npm run build`,本地生成 `HomeTab-ns0bGsnM.js`、`SettingsTab-DzG8GTbG.js`、`settingsChangelog-s9bVtKlO.js`、`App-C-O_XoIH.js` 等产物。
+  - Follow-up targeted tests: pass;按用户卡片高度和图标统一反馈调整后,`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过。
+  - Follow-up build: pass;按用户反馈调整后,`npm run build`,本地生成 `HomeTab-CjkbgVSV.js`、`SettingsTab-B7jasxBl.js`、`settingsChangelog-Cc3cOc-g.js`、`App-BAcSpn_9.js` 等产物。
+  - Follow-up targeted tests 2: pass;按用户 TSM 影响等级、详情重复图标、分化白边反馈调整后,`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过。
+  - Follow-up build 2: pass;按用户第二轮反馈调整后,`npm run build`,本地生成 `HomeTab-CnrTxlDz.js`、`SettingsTab-Cer7sm_i.js`、`settingsChangelog-iStgoHlS.js`、`App-Cl3oJmP7.js` 等产物。
+  - Audit: pass;`npm audit --audit-level=moderate` 返回 `found 0 vulnerabilities`。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+  - Real EODHD smoke: pass;`npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,META,TSM --from=2026-04-01 --to=2026-05-31` 返回 `ok: true`,4 个 merged events 均为 `earningsPublished: true`,并均有 `actualRevenueMerged`、`marketReactionMerged` 和 `earningsResult`;`TSM` TWD 实际营收通过 `USDTWD.FOREX` 换算为 USD。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` 以 `390x844` 视口验证首页财报模块无横向溢出,已公布/未公布状态标记正确;弹窗列表营收短单位无省略;日历视图图例和日期点齐全;已公布详情弹窗展示完整“亿美元”营收和结论。截图保存到 `/tmp/boduan-earnings-published-home-bottom-v10.7.9.254.png`、`/tmp/boduan-earnings-published-list-compact-v10.7.9.254.png`、`/tmp/boduan-earnings-published-calendar-v10.7.9.254.png`、`/tmp/boduan-earnings-published-detail-v10.7.9.254.png`。
+  - Local visual follow-up: pass;`390x844` 视口验证首页、弹窗列表、日历图例和详情弹窗的结果状态 marker 都为统一 10px,已公布列表卡片高度约 `127px`,页面无横向溢出;截图保存到 `/tmp/boduan-earnings-published-home-icons-unified-v10.7.9.254.png`、`/tmp/boduan-earnings-published-list-taller-icons-unified-v10.7.9.254.png`、`/tmp/boduan-earnings-published-calendar-icons-unified-v10.7.9.254.png`、`/tmp/boduan-earnings-published-detail-icons-unified-v10.7.9.254.png`。
+  - Local visual follow-up 2: pass;`390x844` 视口验证 TSM 未公布行显示“高影响”,分化标签使用 `border-transparent` 且半圆图标无外框白边,详情弹窗结果区只显示“超预期”文字胶囊不再重复图标;截图保存到 `/tmp/boduan-earnings-list-impact-detail-fixes-v10.7.9.254.png` 和 `/tmp/boduan-earnings-detail-no-duplicate-icon-v10.7.9.254.png`。
+- Rollback: 回退本条涉及的 API enrichment、模型可见性/结果分类、已公布 UI、mock、smoke 脚本、EODHD 测试文档、`v10.7.9.254` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.253`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
+### 2026-07-09 - 财报日历盘前盘后图标本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: not requested;用户要求先做本地截图验证,暂不部署。
+- Background: 用户要求财报日历弹窗里的盘前/盘后标识参考效果图,做成非常可爱的小太阳和小月亮图标,并要求先本地截图验证。
+- Changes:
+  - 财报弹窗事件行新增内联 `EarningsSessionIcon`,盘前渲染暖黄色小太阳,盘后渲染蓝色小月亮。
+  - 日历视图下方事件列表和列表视图继续共用同一个 `EarningsEventRow`,因此盘前/盘后图标两处同步生效。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.253`。
+  - 本次只改财报日历展示层、设置页版本/更新日志、测试和本日志;不改 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 39 个测试通过。
+  - Build: pass;`npm run build`,本地生成 `HomeTab-BKgegzYn.js`、`SettingsTab-Cs1uhnG8.js`、`settingsChangelog-CE-upUDW.js`、`App-CnBnW6j7.js` 等产物。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/` 以 `390x844` 视口验证日历视图下方事件列表显示暖黄色小太阳,列表视图同时显示盘前小太阳和盘后蓝色小月亮,文档宽度等于视口宽度 `390px`;截图保存到 `/tmp/boduan-earnings-session-icons-calendar-v10.7.9.253.png` 和 `/tmp/boduan-earnings-session-icons-list-v10.7.9.253.png`。
+- Rollback: 回退本条涉及的 `EarningsSessionIcon`、盘前/盘后图标样式、`v10.7.9.253` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.252`;不影响财报接口、营收换算、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
 ### 2026-07-09 - 财报日历日期和美元营收本地调整
 
 - Commit: this deployment commit;由用户确认后提交并推送到 GitHub main。
