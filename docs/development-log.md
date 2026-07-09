@@ -29,7 +29,7 @@
   - `npm audit --audit-level=moderate`: pass;0 vulnerabilities。
   - `git diff --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.240`,`数据初始化功能`,`数据初始化`,`确认初始化`,`resetCurrentUserData`,`pnl_report_symbol_snapshots`,`pnl_report_rebuild_state`,`stock_trades`,`user_settings`,and do not contain `invite_codes` or `auth.users`。
-  - Production marker check: pass;entry `index-BwnfzC-Q.js`;dynamic assets contain `v10.7.9.240`,`数据初始化功能`,`数据初始化`,`确认初始化`,`resetCurrentUserData`,`pnl_report_symbol_snapshots`,`pnl_report_rebuild_state`,`stock_trades`,`user_settings`,and do not contain `invite_codes` or `auth.users`。
+  - Production marker check: pass;recursive production asset scan contains `v10.7.9.240`,`数据初始化功能`,`数据初始化`,`确认初始化`,`resetCurrentUserData`,`pnl_report_symbol_snapshots`,`pnl_report_rebuild_state`,`stock_trades`,`user_settings`,and does not contain `invite_codes` or `auth.users`。
   - Production auth/security check: pass;unauthenticated `/api/quote?symbols=VIX` returns `401`,and HTTP-forwarded `/api/stocks-realtime` returns `426`。
 - Rollback: 回退 `resetCurrentUserData`、Settings 数据初始化卡片、App 内存态重置、`v10.7.9.240` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.239`;不影响登录账号、邀请码、行情 relay、RLS 或 `/api/quote` 鉴权。
 
