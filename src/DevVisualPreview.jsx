@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import {
+  AlertCircle,
   BookOpen,
   Calendar,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
   ListChecks,
   Loader2,
   Pin,
+  Plus,
   RefreshCw,
   Settings,
   Target,
@@ -23,6 +25,7 @@ import { normalizeLanguage, t } from './lib/i18n.js';
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
+const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 
@@ -184,6 +187,54 @@ const mockActivePositions = [
   { symbol: 'AAPL', name: '苹果', currentPrice: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, totalPnl: -4200, totalPnlPct: -0.03 },
 ];
 
+const mockTradeActivePositions = [
+  {
+    symbol: 'NVDA',
+    name: '英伟达',
+    heldShares: 7000,
+    currentPrice: 204.345,
+    avgCost: 179.78,
+    effectiveCost: 179.78,
+    high: 220,
+    marketValue: 1430415,
+    holdingPnl: 171955,
+    holdingPnlPct: 0.13664,
+    todayPnl: 10713.71,
+    todayPnlPct: 0.0011,
+    hasTodayPnl: true,
+  },
+  {
+    symbol: 'MSFT',
+    name: '微软',
+    heldShares: 2300,
+    currentPrice: 412.07,
+    avgCost: 427.5,
+    effectiveCost: 427.5,
+    high: 458.2,
+    marketValue: 947761,
+    holdingPnl: -35489,
+    holdingPnlPct: -0.0361,
+    todayPnl: -35472.51,
+    todayPnlPct: -0.0059,
+    hasTodayPnl: true,
+  },
+  {
+    symbol: 'META',
+    name: 'Meta',
+    heldShares: 1000,
+    currentPrice: 607.662,
+    avgCost: 649.72,
+    effectiveCost: 649.72,
+    high: 740.91,
+    marketValue: 607662,
+    holdingPnl: -42058,
+    holdingPnlPct: -0.06473,
+    todayPnl: 30856.53,
+    todayPnlPct: 0.0075,
+    hasTodayPnl: true,
+  },
+];
+
 const mockLockedActivePositions = mockActivePositions.map((position, index) => ({
   ...position,
   dailyPnlLocked: true,
@@ -234,12 +285,37 @@ export default function DevVisualPreview() {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'analysis', 'review', 'pnl-report', 'stock-detail'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'pnl-report', 'stock-detail'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
+  const [tradeCurrencyMode, setTradeCurrencyMode] = React.useState('CNY');
+  const [tradeLookupStatus, setTradeLookupStatus] = React.useState(null);
+  const [tradeEntryScope, setTradeEntryScope] = React.useState('ledger');
+  const [showAddTrade, setShowAddTrade] = React.useState(false);
+  const [tradeDeleteConfirmId, setTradeDeleteConfirmId] = React.useState(null);
+  const [newTrade, setNewTrade] = React.useState({
+    symbol: '',
+    name: '',
+    side: 'buy',
+    date: new Date().toISOString().slice(0, 10),
+    price: '',
+    shares: '',
+    batch: '第1批',
+  });
+  const [costBasisActiveSymbol, setCostBasisActiveSymbol] = React.useState('');
+  const [costBasisData, setCostBasisData] = React.useState({});
+  const [costBasisNewSymbol, setCostBasisNewSymbol] = React.useState('');
+  const [costBasisNewTrade, setCostBasisNewTrade] = React.useState({ type: 'buy', price: '', shares: '', date: new Date().toISOString().slice(0, 10) });
+  const [showCostBasisAdd, setShowCostBasisAdd] = React.useState(false);
+  const [showCostBasisTrade, setShowCostBasisTrade] = React.useState(false);
+  const [allTradesModal, setAllTradesModal] = React.useState(false);
+  const [expandedTrades, setExpandedTrades] = React.useState({});
+  const [expandedWaves, setExpandedWaves] = React.useState({});
+  const [waveNotes, setWaveNotes] = React.useState({});
+  const [editingNoteId, setEditingNoteId] = React.useState(null);
   const btcPreviewMode = typeof window === 'undefined'
     ? 'live'
     : new URLSearchParams(window.location.search).get('btc');
@@ -340,6 +416,10 @@ export default function DevVisualPreview() {
     fetchPnlReportRebuildState: async () => null,
     upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
     clearPnlReportRebuildState: async () => ({}),
+    upsertWaveNote: async () => ({}),
+    deleteCostBasisTrade: async () => ({}),
+    deleteCostBasisSymbol: async () => ({}),
+    insertCostBasisTrade: async () => ({}),
   }), []);
 
   const fmt = React.useCallback((n, digits = 2) => {
@@ -349,6 +429,33 @@ export default function DevVisualPreview() {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits,
     });
+  }, []);
+  const noop = React.useCallback(() => {}, []);
+  const calcCostBasis = React.useCallback((rows = []) => {
+    let shares = 0;
+    let totalCost = 0;
+    let realizedPnl = 0;
+    [...rows].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((row) => {
+      const price = Number(row.price) || 0;
+      const qty = Number(row.shares) || 0;
+      if (price <= 0 || qty <= 0) return;
+      if (row.type === 'sell') {
+        const avg = shares > 0 ? totalCost / shares : 0;
+        const sold = Math.min(shares, qty);
+        realizedPnl += sold * (price - avg);
+        totalCost -= sold * avg;
+        shares -= sold;
+        if (shares <= 0) {
+          shares = 0;
+          totalCost = 0;
+        }
+        return;
+      }
+      shares += qty;
+      totalCost += price * qty;
+    });
+    const avgCost = shares > 0 ? totalCost / shares : 0;
+    return { shares, totalCost, avgCost, effectiveCost: avgCost, realizedPnl };
   }, []);
 
   const ctx = {
@@ -487,6 +594,97 @@ export default function DevVisualPreview() {
     watchlist: homeWatchlist,
   };
 
+  const tradePositionsMarketValue = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.marketValue || 0), 0);
+  const tradeHoldingPnl = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.holdingPnl || 0), 0);
+  const tradeTodayPnl = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.todayPnl || 0), 0);
+  const tradeQuoteRows = mockTradeActivePositions.map((item) => ({
+    symbol: item.symbol,
+    name: item.name,
+    price: item.currentPrice,
+    high: item.high,
+    week52High: item.high,
+  }));
+  const tradesCtx = {
+    addTrade: async () => {},
+    AlertCircle,
+    calcCostBasis,
+    calmRoomActiveCount: 0,
+    calmRoomAvgActiveDays: 0,
+    calmRoomCompletedCount: 0,
+    cacheStockLogo: noop,
+    CheckCircle2,
+    costBasisActiveSymbol,
+    costBasisData,
+    db,
+    deleteStockTradeRecord: async () => {},
+    editingNoteId,
+    expandedTrades,
+    expandedWaves,
+    fetching: false,
+    fetchRealtimePrices: async () => {},
+    fmt,
+    investmentSummary: {
+      activePositions: mockTradeActivePositions,
+      positions: mockTradeActivePositions,
+      positionsMarketValue: tradePositionsMarketValue,
+      totalAssetsUsd: tradePositionsMarketValue,
+      todayPnl: tradeTodayPnl,
+      todayPnlPct: tradePositionsMarketValue > 0 ? tradeTodayPnl / tradePositionsMarketValue : 0,
+      cumulativePnl: tradeHoldingPnl,
+      cumulativePnlPct: 0.064,
+      holdingPnl: tradeHoldingPnl,
+      holdingStockCount: mockTradeActivePositions.length,
+      sellTradeCount: 0,
+      hasTodayPnl: true,
+      usdRate: USD_RATE,
+    },
+    language,
+    logoCache: {},
+    lookupStatus: tradeLookupStatus,
+    marketColorMode: 'redUpGreenDown',
+    newTrade,
+    openPnlReport: () => setActiveTab('pnl-report'),
+    openStockDetail: noop,
+    portfolioCurrencyMode: tradeCurrencyMode,
+    Plus,
+    quoteRows: tradeQuoteRows,
+    RefreshCw,
+    setAllTradesModal,
+    setCostBasisActiveSymbol,
+    setCostBasisData,
+    setCostBasisNewSymbol,
+    setCostBasisNewTrade,
+    setEditingNoteId,
+    setExpandedTrades,
+    setExpandedWaves,
+    setLookupStatus: setTradeLookupStatus,
+    setMarketColorMode: noop,
+    setNewTrade,
+    setPortfolioCurrencyMode: setTradeCurrencyMode,
+    setShowAddTrade,
+    setShowCostBasisAdd,
+    setShowCostBasisTrade,
+    setTradeEntryScope,
+    setTradeDeleteConfirmId,
+    setWaveNotes,
+    showAddTrade,
+    showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
+    stockFreshnessStartedAt: 0,
+    stockTrades: mockPnlStockTrades,
+    displayStockName: (symbol, name, displayLanguage = language) => {
+      const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+      if (normalizeLanguage(displayLanguage) === 'en') return devStockNameEn[normalizedSymbol] || normalizedSymbol;
+      return name || normalizedSymbol;
+    },
+    tradeEntryScope,
+    tradeSubmitting: false,
+    trades: [],
+    usdRate: USD_RATE,
+    watchlist: tradeQuoteRows,
+    waveNotes,
+    wavesByStock: [],
+  };
+
   const reviewCtx = {
     BookOpen,
     Calendar,
@@ -554,6 +752,8 @@ export default function DevVisualPreview() {
           ? <StockDetailPage ctx={homeCtx} />
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
+          : activeTab === 'trades'
+          ? <TradesTab ctx={tradesCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
       </Suspense>
 

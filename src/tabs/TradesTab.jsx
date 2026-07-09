@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Grid2X2, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
+import { BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Grid2X2, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -88,11 +88,282 @@ function lockedCloseDisplayPrice(position) {
   return position?.dailyPnlLocked && price > 0 ? price : null;
 }
 
+function normalizeLogoUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw || !/^https?:\/\//i.test(raw)) return '';
+  return raw;
+}
+
+function stockLogoCandidates(symbol, cachedUrl) {
+  const upper = String(symbol || '').trim().toUpperCase();
+  const urls = [];
+  const cached = normalizeLogoUrl(cachedUrl);
+  if (cached) urls.push(cached);
+  if (upper) {
+    urls.push(`https://eodhd.com/img/logos/US/${upper}.png`);
+    urls.push(`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${upper}.png`);
+  }
+  return [...new Set(urls)];
+}
+
+function StockLogo({ symbol, urls = [], onLogoLoad, className = '' }) {
+  const [index, setIndex] = React.useState(0);
+  React.useEffect(() => setIndex(0), [symbol, urls.join('|')]);
+  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+  const currentUrl = urls[index];
+  const fallback = (
+    <div className={`flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-[11px] font-normal text-white/55 ${className}`}>
+      {normalizedSymbol.slice(0, 2) || '--'}
+    </div>
+  );
+  if (!currentUrl) return fallback;
+  return (
+    <img
+      src={currentUrl}
+      alt=""
+      className={`bg-black/20 object-contain ${className}`}
+      onLoad={(event) => onLogoLoad?.(normalizedSymbol, event.currentTarget.currentSrc || event.currentTarget.src)}
+      onError={() => setIndex((current) => current + 1)}
+    />
+  );
+}
+
+function formatScenarioInput(value) {
+  const price = toNumber(value);
+  return price > 0 ? price.toFixed(3) : '';
+}
+
+function sameScenarioPrice(left, right) {
+  const a = toNumber(left);
+  const b = toNumber(right);
+  return a > 0 && b > 0 && Math.abs(a - b) < 0.0005;
+}
+
+function isFlatScenarioValue(value, epsilon = 0.005) {
+  return Math.abs(toNumber(value)) < epsilon;
+}
+
+function PositionProfitScenarioSheet({
+  position,
+  onClose,
+  tt,
+  displayCurrency,
+  displayRate,
+  marketColorMode,
+  stockNameParts,
+  logoCache,
+  cacheStockLogo,
+}) {
+  const inputRef = React.useRef(null);
+  const symbol = String(position?.symbol || '').trim().toUpperCase();
+  const nameParts = stockNameParts(symbol, position?.name);
+  const quantity = toNumber(position?.heldShares);
+  const costPrice = toNumber(position?.effectiveCost || position?.avgCost);
+  const currentPrice = toNumber(position?.scenarioCurrentPrice || position?.currentPrice);
+  const highPrice = toNumber(position?.high || position?.week52High);
+  const [priceInput, setPriceInput] = React.useState(() => formatScenarioInput(currentPrice));
+
+  React.useEffect(() => {
+    setPriceInput(formatScenarioInput(currentPrice));
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 120);
+    return () => window.clearTimeout(timer);
+  }, [symbol, currentPrice]);
+
+  const inputPrice = Number.parseFloat(String(priceInput).replace(/,/g, ''));
+  const validPrice = Number.isFinite(inputPrice) && inputPrice > 0;
+  const canCalculate = validPrice && quantity > 0 && costPrice > 0 && currentPrice > 0;
+  const marketValue = canCalculate ? inputPrice * quantity * displayRate : 0;
+  const profit = canCalculate ? (inputPrice - costPrice) * quantity * displayRate : 0;
+  const profitRate = canCalculate ? (inputPrice - costPrice) / costPrice : 0;
+  const deltaFromCurrent = canCalculate ? (inputPrice - currentPrice) * quantity * displayRate : 0;
+  const deltaRateFromCurrent = canCalculate ? (inputPrice - currentPrice) / currentPrice : 0;
+  const profitPerDollar = quantity * displayRate;
+  const resultTone = profit > 0 ? 'profit' : profit < 0 ? 'loss' : 'flat';
+  const resultClass = resultTone === 'flat' ? 'text-[#f6b54b]' : strongPnlClass(profit, marketColorMode);
+  const deltaClass = deltaFromCurrent === 0 ? 'text-white/50' : pnlClass(deltaFromCurrent, marketColorMode);
+  const scenarioSignedCurrency = (value) => (
+    isFlatScenarioValue(value) ? currencyAmount(0, displayCurrency, 2) : signedCurrency(value, displayCurrency, 2)
+  );
+  const scenarioSignedPct = (value) => (
+    Math.abs(toNumber(value)) < 0.000001 ? '0.00%' : signedPct(value, 2)
+  );
+  const markerClass = resultTone === 'profit'
+    ? 'border-[#ff6a3d] bg-[#ff6a3d]'
+    : resultTone === 'loss'
+      ? 'border-emerald-400 bg-emerald-400'
+      : 'border-[#f6b54b] bg-[#f6b54b]';
+  const shortcutTargets = [
+    { id: 'current', label: tt('trades.scenarioCurrent', '当前价'), value: currentPrice, disabled: currentPrice <= 0 },
+    { id: 'cost', label: tt('trades.scenarioCost', '成本价'), value: costPrice, disabled: costPrice <= 0 },
+    { id: 'high', label: tt('trades.scenarioWeek52High', '52周高'), value: highPrice, disabled: highPrice <= 0 },
+    { id: 'plus5', label: '+5%', value: currentPrice > 0 ? currentPrice * 1.05 : 0, disabled: currentPrice <= 0 },
+    { id: 'minus5', label: '-5%', value: currentPrice > 0 ? currentPrice * 0.95 : 0, disabled: currentPrice <= 0 },
+  ];
+  const pricePoints = [costPrice, currentPrice, validPrice ? inputPrice : currentPrice].filter((value) => value > 0);
+  const minPoint = pricePoints.length ? Math.min(...pricePoints) : 0;
+  const maxPoint = pricePoints.length ? Math.max(...pricePoints) : 1;
+  const span = Math.max(maxPoint - minPoint, maxPoint * 0.02, 1);
+  const low = minPoint - span * 0.08;
+  const high = maxPoint + span * 0.08;
+  const range = Math.max(high - low, 1);
+  const pointLeft = (value) => `${Math.min(100, Math.max(0, ((value - low) / range) * 100))}%`;
+  const cachedLogoUrl = logoCache?.[symbol]?.url;
+  const logoUrls = stockLogoCandidates(symbol, cachedLogoUrl);
+
+  return (
+    <div
+      className="fixed inset-0 z-[170] flex items-end justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-8 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label={tt('trades.scenarioTitle', '持仓收益试算')}
+    >
+      <div className="flex max-h-[72dvh] w-full max-w-[410px] flex-col rounded-[24px] border border-white/10 bg-[#0b0f14] p-5 text-white shadow-[0_-24px_70px_rgba(0,0,0,0.5)]">
+        <div className="flex items-start gap-3">
+          <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 shrink-0 rounded-lg" />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-[14px] font-normal leading-none text-white">{symbol || '--'}</span>
+              <span className="truncate text-[13px] leading-none text-white/62">{nameParts.title !== symbol ? nameParts.title : nameParts.subtitle}</span>
+            </div>
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-none text-white/42">
+              <span className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(quantity, 0)}{tt('trades.shares', '股')}</span>
+              <span>{tt('trades.scenarioCostPrice', '成本价')} ${fmtAmount(costPrice, 3)}</span>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/58 active:scale-95" aria-label={tt('trades.closeScenario', '关闭持仓收益试算')}>
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </div>
+
+        <div className="mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
+          <label className="text-[11px] font-normal uppercase tracking-normal text-white/48" htmlFor={`scenario-price-${symbol}`}>
+            {tt('trades.scenarioInputTitle', '模拟股价 USD')}
+          </label>
+          <div className="mt-2 flex h-14 items-center rounded-xl border border-white/10 bg-white/[0.045] px-3.5 focus-within:border-[#f6b54b]/55 focus-within:bg-white/[0.07]">
+            <span className="mr-2 text-[18px] font-normal text-[#f6b54b]">$</span>
+            <input
+              ref={inputRef}
+              id={`scenario-price-${symbol}`}
+              value={priceInput}
+              onChange={(event) => setPriceInput(event.target.value)}
+              inputMode="decimal"
+              enterKeyHint="done"
+              className="block h-full min-w-0 flex-1 bg-transparent text-[24px] font-normal leading-none text-white outline-none placeholder:text-white/20 tabular-nums"
+              style={{ fontFamily: TRADE_NUMBER_FONT }}
+              placeholder="0.000"
+              aria-label={tt('trades.scenarioInputTitle', '模拟股价 USD')}
+            />
+            {priceInput ? (
+              <button type="button" onClick={() => setPriceInput('')} className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-white/35 active:scale-95" aria-label={tt('trades.clear', '清除')}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-3 grid grid-cols-5 gap-2">
+            {shortcutTargets.map((item) => {
+              const active = sameScenarioPrice(priceInput, item.value);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={() => setPriceInput(formatScenarioInput(item.value))}
+                  className={`h-[34px] rounded-lg border px-1 text-[11px] font-normal active:scale-95 disabled:opacity-35 ${
+                    active
+                      ? 'border-[#f6b54b]/55 bg-[#f6b54b]/16 text-[#ffd18a]'
+                      : 'border-white/10 bg-white/[0.035] text-white/58'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {!canCalculate ? (
+            <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-5 text-center text-[13px] font-normal text-white/55">
+              {tt('trades.scenarioInvalidPrice', '请输入有效价格')}
+            </div>
+          ) : (
+            <div className="mt-5 space-y-4">
+              <div className="border-b border-white/[0.07] pb-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] text-white/42">{tt('trades.scenarioProjectedPnl', '预计持仓盈亏')}</div>
+                    <div className={`mt-1 text-[25px] font-normal leading-none tabular-nums ${resultClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                      {scenarioSignedCurrency(profit)}
+                    </div>
+                  </div>
+                  <div className={`pb-0.5 text-[14px] font-normal tabular-nums ${resultClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                    {scenarioSignedPct(profitRate)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-b border-white/[0.07] pb-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] text-white/42">{tt('trades.scenarioDeltaCurrent', '较当前价变化')}</div>
+                    <div className={`mt-1 text-[20px] font-normal leading-none tabular-nums ${deltaClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                      {scenarioSignedCurrency(deltaFromCurrent)}
+                    </div>
+                  </div>
+                  <div className={`pb-0.5 text-[14px] font-normal tabular-nums ${deltaClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                    {scenarioSignedPct(deltaRateFromCurrent)}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[11px] text-white/42">{tt('trades.scenarioPricePosition', '价格位置')}</div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] leading-tight text-white/45">
+                  <div>
+                    <div>{tt('trades.scenarioCost', '成本价')}</div>
+                    <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(costPrice, 3)}</div>
+                  </div>
+                  <div className="text-center">
+                    <div>{tt('trades.scenarioCurrent', '当前价')}</div>
+                    <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(currentPrice, 3)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div>{tt('trades.scenarioSimulated', '模拟价')}</div>
+                    <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(inputPrice, 3)}</div>
+                  </div>
+                </div>
+                <div className="relative mt-2 h-4">
+                  <div className="absolute left-1 right-1 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-400 via-[#f6b54b] to-[#ff4b1f]" />
+                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(costPrice) }} />
+                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(currentPrice) }} />
+                  <span className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-[0_0_10px_rgba(255,255,255,0.18)] ${markerClass}`} style={{ left: pointLeft(inputPrice) }} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <div className="text-[11px] text-white/42">{tt('trades.scenarioMarketValue', '持仓市值')}</div>
+                  <div className="mt-1 text-[15px] font-normal text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(marketValue, displayCurrency, 2)}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <div className="text-[11px] text-white/42">{tt('trades.scenarioPerDollar', '每涨跌 $1')}</div>
+                  <div className="mt-1 text-[15px] font-normal text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(profitPerDollar, displayCurrency, 2)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function TradesTab({ ctx }) {
   const {
     addTrade,
     AlertCircle,
     calcCostBasis,
+    cacheStockLogo,
     calmRoomActiveCount,
     calmRoomAvgActiveDays,
     calmRoomCompletedCount,
@@ -109,6 +380,7 @@ export default function TradesTab({ ctx }) {
     fmt,
     investmentSummary,
     language = 'zh',
+    logoCache,
     lookupStatus,
     marketColorMode,
     newTrade,
@@ -169,8 +441,10 @@ export default function TradesTab({ ctx }) {
   const [toolPanel, setToolPanel] = React.useState('');
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
   const [orderActionTrade, setOrderActionTrade] = React.useState(null);
+  const [scenarioPosition, setScenarioPosition] = React.useState(null);
   const [waveView, setWaveView] = React.useState('active');
   const orderActionOpen = !!orderActionTrade;
+  const scenarioOpen = !!scenarioPosition;
 
   React.useEffect(() => {
     try {
@@ -180,7 +454,7 @@ export default function TradesTab({ ctx }) {
   }, [currencyMode]);
 
   React.useEffect(() => {
-    if ((!showAddTrade && !orderActionOpen) || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    if ((!showAddTrade && !orderActionOpen && !scenarioOpen) || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
 
     const scrollY = window.scrollY || window.pageYOffset || 0;
     const bodyStyle = document.body.style;
@@ -207,7 +481,7 @@ export default function TradesTab({ ctx }) {
       htmlStyle.overscrollBehavior = previous.htmlOverscrollBehavior;
       window.scrollTo(0, scrollY);
     };
-  }, [showAddTrade, orderActionOpen]);
+  }, [showAddTrade, orderActionOpen, scenarioOpen]);
 
   const summary = investmentSummary || {};
   const positions = summary.activePositions || [];
@@ -303,6 +577,15 @@ export default function TradesTab({ ctx }) {
     setLookupStatus(position?.symbol ? 'found' : null);
     setShowAddTrade(true);
   };
+
+  const openPositionScenario = React.useCallback((position, displayCurrentPrice = null) => {
+    if (!position) return;
+    const currentPrice = toNumber(displayCurrentPrice) || toNumber(position.currentPrice);
+    setScenarioPosition({
+      ...position,
+      scenarioCurrentPrice: currentPrice,
+    });
+  }, []);
 
   const openTradeEditModal = (trade) => {
     const symbol = trade?.symbol || '';
@@ -721,19 +1004,41 @@ export default function TradesTab({ ctx }) {
                           const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
                           const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
                           const lockedCurrentPrice = lockedCloseDisplayPrice(position);
+                          const displayCurrentPrice = maskCurrentPrice ? (lockedCurrentPrice || 0) : toNumber(position.currentPrice);
+                          const openScenarioFromCell = (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            openPositionScenario(position, displayCurrentPrice);
+                          };
                           return (
-                            <button
+                            <div
                               key={position.symbol}
-                              type="button"
+                              role="button"
+                              tabIndex={0}
                               onClick={() => openTradeModal(position, 'buy')}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  openTradeModal(position, 'buy');
+                                }
+                              }}
                               className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_144px_66px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
                             >
                               <span className="text-left">
                                 <span className="block max-w-full truncate text-[12px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
                               </span>
-                              <span className="text-right">
-                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{maskCurrentPrice ? (lockedCurrentPrice ? fmtAmount(lockedCurrentPrice, 3) : '--') : fmtAmount(position.currentPrice, 3)}</span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={openScenarioFromCell}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') openScenarioFromCell(event);
+                                }}
+                                className="-mr-1 block rounded-lg px-1 py-1 text-right active:bg-white/[0.03] focus:outline-none"
+                                aria-label={tt('trades.openScenarioAria', '打开持仓收益试算')}
+                              >
+                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{displayCurrentPrice > 0 ? fmtAmount(displayCurrentPrice, 3) : '--'}</span>
                                 <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
                               </span>
                               <span className="text-right">
@@ -747,7 +1052,7 @@ export default function TradesTab({ ctx }) {
                               <span className="text-right">
                                 <span className="block text-[13px] font-normal leading-[15px] text-white/80 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
                               </span>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -1965,6 +2270,19 @@ export default function TradesTab({ ctx }) {
           );
         })()}
 
+        {scenarioPosition && (
+          <PositionProfitScenarioSheet
+            position={scenarioPosition}
+            onClose={() => setScenarioPosition(null)}
+            tt={tt}
+            displayCurrency={displayCurrency}
+            displayRate={displayRate}
+            marketColorMode={marketColorMode}
+            stockNameParts={stockNameParts}
+            logoCache={logoCache}
+            cacheStockLogo={cacheStockLogo}
+          />
+        )}
 
     </>
   );

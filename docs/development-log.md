@@ -4,6 +4,104 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 持仓收益试算去除汇率说明并部署
+
+- Commit: pending;完成检查后提交并通过 GitHub `main` 触发 Vercel production 部署。
+- Deployment: requested;用户要求“汇率字样不需要显示,改完就可以部署了”。
+- Background: 持仓收益试算弹窗底部仍显示 `1 USD = x.xxxx CNY` 汇率说明,用户确认该字样不需要展示。金额本身仍需跟随交易页 USD/CNY 切换,只移除重复说明文案。
+- Changes:
+  - `TradesTab` 删除持仓收益试算弹窗底部汇率说明行。
+  - 删除 `trades.scenarioFxNote` 中英文 i18n 文案 key,避免保留不再使用的试算汇率说明。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.263`。
+  - 本次部署同时包含此前已本地验证的 `v10.7.9.260` 财报日历日期选择修复、`v10.7.9.261` 持仓收益试算、`v10.7.9.262` 试算弹窗毛玻璃/状态色补强。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` pass,173/173 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `dist/assets/TradesTab-DvorvnQv.js`、`dist/assets/SettingsTab-BZY3dZGo.js`、`dist/assets/settingsChangelog-DraUg6Cv.js`。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - `git diff --check` pass。
+  - Deployment and production verification pending after commit/push。
+- Rollback: 回退本次部署提交即可恢复到上一生产版本;主要影响财报日历日期选择、交易页持仓收益试算弹窗、设置页版本/更新日志和本日志,不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote` 鉴权或 EODHD token 边界。
+
+### 2026-07-09 - 持仓收益试算视觉补强本地开发
+
+- Commit: pending;本地实现和验证中,暂不提交/部署。
+- Deployment: not requested;用户要求确认弹窗毛玻璃背景、亏损绿色和持平黄色效果,当前先本地修改和截图验证。
+- Background: 用户反馈持仓收益试算弹窗打开时背景应该是毛玻璃效果,并确认亏损绿色、持平黄色是否已经实现。复查当前本地版只有黑色遮罩,亏损使用现有绿色,但持平状态仍是灰白中性。
+- Changes:
+  - `TradesTab` 持仓收益试算弹窗遮罩从纯黑透明层改为半透明黑色加 `backdrop-blur-md` 毛玻璃背景。
+  - 试算结果持平时,预计持仓盈亏金额、收益率和价格位置里的模拟价标记统一改为金色;亏损状态继续使用现有绿色。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.262`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,35/35 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `dist/assets/TradesTab-W9AVeHGY.js`、`dist/assets/SettingsTab-7c2f8VcI.js`、`dist/assets/settingsChangelog-CpzC-zPn.js`。
+  - Local visual smoke pass: `http://127.0.0.1:5174/?tab=trades&v=262`,390x844 视口,打开 NVDA 持仓收益试算弹窗后遮罩为 `rgba(0,0,0,0.6)` 且 `backdrop-filter: blur(12px)`;输入成本价 `179.780` 时预计持仓盈亏 `¥0.00 / 0.00%` 和模拟价标记为金色;输入 `170` 时预计持仓盈亏 `-¥463,474.20 / -5.44%` 和模拟价标记为绿色;截图 `/tmp/boduan-trades-scenario-flat-frosted-v10.7.9.262.png`、`/tmp/boduan-trades-scenario-loss-frosted-v10.7.9.262.png`。
+  - `git diff --check` pass。
+- Rollback: 回退本条涉及的毛玻璃遮罩、持平金色状态、`v10.7.9.262` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote` 或财报日历边界。
+
+### 2026-07-09 - 交易页持仓收益试算本地开发
+
+- Commit: pending;本地实现和验证中,暂不提交/部署。
+- Deployment: not requested;用户确认逻辑后要求开发,当前先本地实现和验证。
+- Background: 用户希望在交易页持仓列表里点击某只股票的现价/成本区域,打开底部半屏“持仓收益试算”弹窗;输入模拟股价后实时计算该持仓在该价格下的预计盈亏、收益率、较当前价变化、持仓市值和每涨跌 1 美元影响。用户确认金额输出跟随交易页 USD/CNY 切换,成本价沿用当前持仓列表口径,点击现价/成本区域不额外显示黄色边框。
+- Changes:
+  - `TradesTab` 新增纯前端持仓收益试算底部弹窗,默认模拟股价为当前价,输入框自动聚焦并使用数字键盘。
+  - 持仓列表右侧“现价/成本”单元格增加点击入口,保留现有表格视觉和整行点击行为;点击单元格会阻止冒泡并只打开试算弹窗。
+  - 试算公式使用 `heldShares`、列表同口径成本价 `effectiveCost || avgCost`、当前显示价和交易页汇率/币种,不写 `stock_trades`、不改交易账本、收益快照或行情接口。
+  - 快捷按钮支持当前价、成本价、52 周高、+5% 和 -5%;无效价格显示“请输入有效价格”且不展示计算结果。
+  - 本地 `DevVisualPreview` 增加 `?tab=trades` 交易页预览数据,便于在 390px 移动端视口直接验证持仓试算 UI。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.261`,并补充中英文系统文案。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,35/35 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `dist/assets/TradesTab-BqYJJu_D.js`、`dist/assets/App-BL4ADFqq.js`、`dist/assets/settingsChangelog-Dcvy9V6x.js`。
+  - Local visual smoke pass: `http://127.0.0.1:5174/?tab=trades&v=261`,390x844 视口,点击 NVDA 现价/成本区域打开底部持仓收益试算弹窗;默认输入 `204.345` 自动聚焦,CNY 模式显示 `+¥1,164,135.35`、较当前价 `¥0.00`;输入 `220` 显示盈利 `+¥1,906,025.80 / +22.37%`,输入 `170` 显示亏损 `-¥463,474.20 / -5.44%`,输入成本价 `179.780` 显示持平 `¥0.00 / 0.00%`;无效输入显示“请输入有效价格”;切到 USD 后弹窗金额改为 `$` 口径;截图 `/tmp/boduan-trades-position-scenario-v10.7.9.261.png`。
+  - `git diff --check` pass。
+- Rollback: 回退本条涉及的试算弹窗、现价/成本入口、`v10.7.9.261` 设置页版本/更新日志、i18n、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote` 或财报日历边界。
+
+### 2026-07-09 - 财报日历日期选择本地修复
+
+- Commit: pending;本地截图已完成,待用户确认后再决定是否提交/部署。
+- Deployment: not requested;用户要求先本地调试和修改确认,暂不部署。
+- Background: 用户反馈财报日历弹窗里点击具体日期后,页面会自动跳回默认第一个有财报的日期。复查发现财报数据 normalize、缓存命中或刷新时会无条件 `setSelectedDate(first.reportDate)`,覆盖用户在弹窗内刚刚手动选择的日期。
+- Changes:
+  - `EarningsCalendar` 新增 `userSelectedDateRef` 和 `modalOpenRef`,区分“系统默认日期初始化”和“用户手动选择日期”。
+  - 财报数据加载、缓存命中和本地 mock normalize 后只在未发生用户手动选择时设置默认日期;弹窗已打开且用户点过日期后保留当前日期,即使该日期没有关注股票财报也不自动跳回默认日期。
+  - 只有首页预览卡片传入明确日期、或弹窗日历日期点击时才标记为用户选择;右侧日历按钮打开弹窗不再误标记。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.260`。
+  - 本次只改财报日历弹窗选择状态、设置页版本/更新日志、测试和本日志;不改 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` pass,41/41 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `dist/assets/HomeTab-CkwBKssX.js`、`dist/assets/SettingsTab-DupqiATx.js`、`dist/assets/settingsChangelog-Cn3FkakY.js`。
+  - Local visual smoke pass: `http://127.0.0.1:5174/?tab=home&v=260`,390x844 视口,财报日历弹窗切到日历视图后点击 `2026-07-22`,等待后下方仍显示 `2026-07-22 · 0 项`,未跳回默认日期;截图 `/tmp/boduan-earnings-calendar-date-selection-v10.7.9.260.png`。
+  - `git diff --check` pass。
+- Rollback: 回退本条涉及的用户日期选择保护、`v10.7.9.260` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.259`;不影响独立财报 API、行情、账本、收益快照、RLS 或鉴权边界。
+
 ### 2026-07-09 - 财报日历 v10.7.9.259 部署
 
 - Commit: runtime code `2d357e7c284dfc281ac656eaf12f19e3ad384889`;本文件所在 docs-only follow-up 回填部署验证状态。

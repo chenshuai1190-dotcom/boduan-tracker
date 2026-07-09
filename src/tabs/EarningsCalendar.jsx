@@ -760,6 +760,28 @@ export default function EarningsCalendar({
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalView, setModalView] = React.useState('calendar');
   const [selectedDate, setSelectedDate] = React.useState(todayDateKey());
+  const modalOpenRef = React.useRef(false);
+  const userSelectedDateRef = React.useRef(false);
+
+  React.useEffect(() => {
+    modalOpenRef.current = modalOpen;
+    if (!modalOpen) userSelectedDateRef.current = false;
+  }, [modalOpen]);
+
+  const setDefaultSelectedDate = React.useCallback((normalized) => {
+    const today = todayDateKey();
+    const first = normalized.find((item) => isEarningsVisible(item, today)) || normalized[0];
+    if (!first) return;
+    setSelectedDate((current) => {
+      if (modalOpenRef.current && userSelectedDateRef.current && current) return current;
+      return first.reportDate;
+    });
+  }, []);
+
+  const setUserSelectedDate = React.useCallback((date) => {
+    userSelectedDateRef.current = true;
+    setSelectedDate(date || todayDateKey());
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -768,9 +790,7 @@ export default function EarningsCalendar({
       setEvents(normalized);
       setError('');
       setLoading(false);
-      const today = todayDateKey();
-      const first = normalized.find((item) => isEarningsVisible(item, today)) || normalized[0];
-      if (first) setSelectedDate(first.reportDate);
+      setDefaultSelectedDate(normalized);
       return () => { cancelled = true; };
     }
 
@@ -807,9 +827,7 @@ export default function EarningsCalendar({
           if (cancelled) return;
           const normalized = normalizeEarningsEvents(cachedEvents, { watchlist, positions });
           setEvents(normalized);
-          const today = todayDateKey();
-          const first = normalized.find((item) => isEarningsVisible(item, today)) || normalized[0];
-          if (first) setSelectedDate(first.reportDate);
+          setDefaultSelectedDate(normalized);
           return;
         }
         const params = new URLSearchParams({
@@ -829,9 +847,7 @@ export default function EarningsCalendar({
         if (cancelled) return;
         const normalized = normalizeEarningsEvents(rawEvents, { watchlist, positions });
         setEvents(normalized);
-        const today = todayDateKey();
-        const first = normalized.find((item) => isEarningsVisible(item, today)) || normalized[0];
-        if (first) setSelectedDate(first.reportDate);
+        setDefaultSelectedDate(normalized);
       } catch (fetchError) {
         if (!cancelled) {
           setEvents([]);
@@ -843,7 +859,7 @@ export default function EarningsCalendar({
     })();
 
     return () => { cancelled = true; };
-  }, [symbols.join(','), supabase, language, watchlist, positions, eventsOverride]);
+  }, [symbols.join(','), supabase, language, watchlist, positions, eventsOverride, setDefaultSelectedDate]);
 
   const displayEvents = React.useMemo(() => {
     const today = todayDateKey();
@@ -851,8 +867,14 @@ export default function EarningsCalendar({
   }, [events]);
   const previewEvents = displayEvents.slice(0, 5);
 
-  const openModal = (view = 'calendar', date = selectedDate) => {
-    setSelectedDate(date || selectedDate || todayDateKey());
+  const openModal = (view = 'calendar', date = null) => {
+    if (date) {
+      userSelectedDateRef.current = true;
+      setSelectedDate(date);
+    } else {
+      userSelectedDateRef.current = false;
+      setSelectedDate(selectedDate || todayDateKey());
+    }
     setModalView(view);
     setModalOpen(true);
   };
@@ -920,7 +942,7 @@ export default function EarningsCalendar({
         onClose={() => setModalOpen(false)}
         events={events}
         selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
+        setSelectedDate={setUserSelectedDate}
         view={modalView}
         setView={setModalView}
         logoCache={logoCache}
