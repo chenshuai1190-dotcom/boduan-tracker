@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 持仓列宽恢复 v230 口径本地调试
 
-- Commit: pending runtime commit;本地截图已由用户确认,准备通过 GitHub `main` 部署。
-- Deployment: pending;本次发布 `v10.7.9.273`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
+- Deployment: completed;本次发布 `v10.7.9.273`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。GitHub Actions `build` run `29027089232` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6hTahi7dFR54vCA8iEN2bjGGM3gR`;production alias 已更新,入口 `/assets/index-DVGBaPdi.js`。
 - Background: 用户反馈 `v10.7.9.272` 继续手动微调列宽仍不理想,要求直接参考 `v10.7.9.230` 交易页持仓列表当时已经调好的代码宽度,避免重复试错;首轮照搬 v230 两段式结构后本地截图出现行分割线断层,因此最终只沿用 v230 列宽,不沿用两段式 DOM。
 - Changes:
   - `TradesTab` 持仓分布改为单一横向 grid,整行使用同一个滚动面和同一组分割线,避免左侧名称列与右侧指标区断层。
@@ -28,6 +28,8 @@
   - `git diff --check`: pass。
   - Local visual smoke: `390x844` 视口下持仓表格 `data-trade-positions-table="v230-single-grid"`,整体可视宽约 340px、`scrollWidth=604`;列宽命中 `100/80/76/118/144/66`,横滑验证 `scrollLeft=210`;行分割线由单一 grid 承载,不再出现左侧名称列和右侧指标区断层。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列宽v230单grid默认首屏-v10.7.9.273.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列宽v230单grid横滑-v10.7.9.273.png`。
+  - Production markers: `/assets/App-vyFnr5a8.js` 引用 `/assets/TradesTab-BdDFtAFo.js`、`/assets/SettingsTab-CJgMfYo8.js`;`TradesTab-BdDFtAFo.js` 包含 `data-trade-positions-table`、`v230-single-grid`、`min-w-[604px]` 和 `grid-cols-[100px_80px_76px_118px_144px_66px]`;`SettingsTab-CJgMfYo8.js` 包含 `v10.7.9.273`;`settingsChangelog-DQzfIbv7.js` 包含 `v10.7.9.273`、`持仓列宽恢复 v230 口径`、`单一横向 grid` 和上一版 `v10.7.9.272`。
+  - Production auth boundary: 未登录 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`。
 - Rollback: 回退本条涉及的持仓表格布局/列宽、`v10.7.9.273` 设置页版本/更新日志、测试和本日志即可恢复当前生产 `v10.7.9.272`;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗计算逻辑。
 
 ### 2026-07-09 - 持仓列距再平衡
