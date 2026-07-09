@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 持仓收益试算去除汇率说明并部署
 
-- Commit: pending;完成检查后提交并通过 GitHub `main` 触发 Vercel production 部署。
-- Deployment: requested;用户要求“汇率字样不需要显示,改完就可以部署了”。
+- Commit: runtime code `08ff2ad5e16dcd0d42e543aec064634c998e4ea6`;本日志所在提交为部署验证 docs-only follow-up。
+- Deployment: completed;用户要求“汇率字样不需要显示,改完就可以部署了”,本次通过项目 SSH key 推送 GitHub `main` 后触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 持仓收益试算弹窗底部仍显示 `1 USD = x.xxxx CNY` 汇率说明,用户确认该字样不需要展示。金额本身仍需跟随交易页 USD/CNY 切换,只移除重复说明文案。
 - Changes:
   - `TradesTab` 删除持仓收益试算弹窗底部汇率说明行。
@@ -26,7 +26,9 @@
   - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `dist/assets/TradesTab-DvorvnQv.js`、`dist/assets/SettingsTab-BZY3dZGo.js`、`dist/assets/settingsChangelog-DraUg6Cv.js`。
   - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - `git diff --check` pass。
-  - Deployment and production verification pending after commit/push。
+  - Production entry check: `https://boduan-tracker.vercel.app` returns HTTP 200,latest entry includes `/assets/index-COanPFRA.js`。
+  - Production recursive bundle marker check: pass;production bundle set contains `v10.7.9.263` and `持仓收益试算去除汇率说明` in `SettingsTab-C1DNorVI.js` / `settingsChangelog-DraUg6Cv.js`, contains `TradesTab-DvorvnQv.js`, and does not contain removed `scenarioFxNote`。
+  - Production auth smoke: unauthenticated `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` returns `401`。
 - Rollback: 回退本次部署提交即可恢复到上一生产版本;主要影响财报日历日期选择、交易页持仓收益试算弹窗、设置页版本/更新日志和本日志,不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote` 鉴权或 EODHD token 边界。
 
 ### 2026-07-09 - 持仓收益试算视觉补强本地开发
