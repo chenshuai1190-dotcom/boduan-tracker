@@ -13,6 +13,7 @@ import {
 
 const MAX_EARNINGS_SYMBOLS = 30;
 const MAX_RANGE_DAYS = 90;
+const INCLUDE_PREVIOUS_PUBLISHED_PARAM = 'includePreviousPublished';
 const USD_FOREX_SYMBOL_BY_CURRENCY = {
   CNY: 'USDCNY.FOREX',
   HKD: 'USDHKD.FOREX',
@@ -95,14 +96,17 @@ export function parseEarningsRequest(query = {}) {
   if (from > to) return { error: 'from 不能晚于 to' };
   if (daysBetween(from, to) > MAX_RANGE_DAYS) return { error: `查询区间不能超过 ${MAX_RANGE_DAYS} 天` };
 
-  return { symbols, from, to };
+  const includePreviousPublished = parseBooleanQuery(query[INCLUDE_PREVIOUS_PUBLISHED_PARAM]);
+
+  return { symbols, from, to, includePreviousPublished };
 }
 
-export async function fetchEodhdEarningsCalendar({ symbols, from, to, eodhdKey }) {
+export async function fetchEodhdEarningsCalendar({ symbols, from, to, includePreviousPublished = false, eodhdKey }) {
   const eodhdSymbols = symbols.map(toEodhdUsSymbol).filter(Boolean);
   const requested = new Set(eodhdSymbols);
   const today = new Date().toISOString().slice(0, 10);
   const recentTo = minDate(to, addUtcDays(today, EARNINGS_PUBLISHED_RETENTION_DAYS));
+  const allowedRanges = [{ from, to }];
   const requests = [];
 
   if (from <= recentTo) {
@@ -111,12 +115,17 @@ export async function fetchEodhdEarningsCalendar({ symbols, from, to, eodhdKey }
   if (eodhdSymbols.length > 0) {
     requests.push(fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, from, to, eodhdKey }));
   }
+  if (includePreviousPublished) {
+    const previousPublishedRange = previousCalendarQuarterRange(today);
+    allowedRanges.push(previousPublishedRange);
+    requests.push(fetchEodhdEarningsCalendarRows({ ...previousPublishedRange, eodhdKey }));
+  }
 
   const payloads = await Promise.all(requests);
   return dedupeCalendarRows(payloads.flat()).filter((event) => {
     const eodhdSymbol = toEodhdUsSymbol(event.code || event.symbol);
     const reportDate = dateKey(event.report_date || event.reportDate || event.date);
-    return requested.has(eodhdSymbol) && reportDate >= from && reportDate <= to;
+    return requested.has(eodhdSymbol) && allowedRanges.some((range) => reportDate >= range.from && reportDate <= range.to);
   });
 }
 
@@ -470,6 +479,11 @@ function parseGrowthPercent(value) {
   return Math.abs(parsed) <= 5 ? parsed * 100 : parsed;
 }
 
+function parseBooleanQuery(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return ['1', 'true', 'yes', 'y'].includes(String(raw || '').trim().toLowerCase());
+}
+
 function percentageChange(current, previous) {
   const currentValue = parseNumber(current);
   const previousValue = parseNumber(previous);
@@ -515,6 +529,22 @@ function addUtcDays(date, days) {
   const base = new Date(`${dateKey(date)}T00:00:00Z`);
   base.setUTCDate(base.getUTCDate() + Number(days || 0));
   return base.toISOString().slice(0, 10);
+}
+
+export function previousCalendarQuarterRange(value = new Date().toISOString().slice(0, 10)) {
+  const key = dateKey(value) || new Date().toISOString().slice(0, 10);
+  const date = new Date(`${key}T00:00:00Z`);
+  const year = date.getUTCFullYear();
+  const quarter = Math.floor(date.getUTCMonth() / 3);
+  const previousQuarter = quarter === 0 ? 3 : quarter - 1;
+  const previousYear = quarter === 0 ? year - 1 : year;
+  const startMonth = previousQuarter * 3;
+  const start = new Date(Date.UTC(previousYear, startMonth, 1));
+  const end = new Date(Date.UTC(previousYear, startMonth + 3, 0));
+  return {
+    from: start.toISOString().slice(0, 10),
+    to: end.toISOString().slice(0, 10),
+  };
 }
 
 function minDate(a, b) {

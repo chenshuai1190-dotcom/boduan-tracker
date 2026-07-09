@@ -29,6 +29,12 @@ Run the real upstream smoke from the repo root:
 npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-07-01 --to=2026-09-30
 ```
 
+For the previous-quarter published-report review path used by the earnings-calendar modal:
+
+```bash
+npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-04-01 --to=2026-06-30
+```
+
 Expected behavior with the current EODHD account:
 
 - `/api/calendar/earnings` returns report rows, dates, EPS fields, and currency, but does not include revenue estimate fields.
@@ -40,7 +46,8 @@ Expected behavior with the current EODHD account:
 - Published comparison uses a broker-style basis when data is available: reported value plus year-over-year change next to estimate value plus estimate year-over-year change. Revenue YoY comes from the exact same-quarter prior-year income-statement row; EPS estimate YoY comes from EODHD trends, and EPS actual YoY uses `earningsEstimateYearAgoEps` as the prior-year basis.
 - Published market reaction is derived from EODHD daily EOD closes: pre-market reports use previous trading close to report-date close; after-market reports use report-date close to next trading close.
 - The project merge step should report `revenueMerged` greater than `0`; on 2026-07-09, NVDA/MSFT/GOOGL/META/TSM returned 5 earnings events, 472 trend rows, and 5 merged revenue estimates.
-- For published historical windows such as `--from=2026-04-01 --to=2026-05-31`, the project merge should also show non-zero `publishedMerged`, `actualRevenueMerged`, and `marketReactionMerged` when the requested symbols have already reported.
+- For published historical windows such as `--from=2026-04-01 --to=2026-06-30`, the project merge should also show non-zero `publishedMerged`, `actualRevenueMerged`, and `marketReactionMerged` when the requested symbols have already reported. On 2026-07-09, the previous-quarter smoke above returned 5 merged published events for NVDA/MSFT/GOOGL/META/TSM.
+- The app's authenticated `/api/earnings-calendar` request can pass `includePreviousPublished=1`; the handler keeps the normal current/future window and adds the previous completed calendar quarter as a separate server-side published-report window, then filters back to the requested user symbols.
 
 The smoke output intentionally prints only status, counts, field names, and merged numeric estimates. It does not print the API key.
 

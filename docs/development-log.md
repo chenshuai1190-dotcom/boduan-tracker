@@ -4,6 +4,142 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 财报日历 v10.7.9.259 部署准备
+
+- Commit: same commit;实际 hash 待推送后回填。
+- Deployment: requested by user;准备通过 GitHub `main` SSH 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户确认此前本地调整可以部署,本次把 `v10.7.9.256` 列表视图收紧、`v10.7.9.257` 上一财季已公布回看、`v10.7.9.258` 财报日历请求缓存和 `v10.7.9.259` 首页预览细节降重一起推进到生产。
+- Changes:
+  - 财报弹窗列表视图取消顶部重复日期筛选行,压缩公司列并加宽预计 EPS / 预计营收列。
+  - `/api/earnings-calendar` 支持 `includePreviousPublished=1`,额外拉取上一完整自然季度已公布财报供弹窗回看,首页预览仍只展示当前可见事件。
+  - 首页 `EarningsCalendar` 增加 15 分钟 client cache 和同 key in-flight 请求去重,避免反复回首页重复请求财报日历。
+  - 首页财报日历股票代码缩小到 `11px`,右侧日历按钮颜色降为 `text-white/40`。
+  - 设置页版本和用户可见更新日志保持 `v10.7.9.259` 为最新。
+  - 本次仍保持财报日历独立 `/api/earnings-calendar` 边界,不改 `/api/quote`、交易账本、收益快照、股票/指数/BTC realtime relay、RLS 或鉴权边界。
+- Key files:
+  - `api/earnings-calendar.js`
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `docs/eodhd-local-testing.md`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full tests: pass;`npm test` 共 173 个测试通过。
+  - Build: pass;`npm run build` 成功,本地生成 `HomeTab-BEBCPPm9.js`,`SettingsTab-Cr3h0H51.js`,`settingsChangelog-CXlN9ZKL.js`,`App-D2-Q4GfK.js` 等产物。
+  - Audit: pass;`npm audit --audit-level=moderate` 返回 `found 0 vulnerabilities`。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+- Production verification:
+  - Pending Vercel deployment and production marker/auth checks。
+- Rollback: 回退本条部署提交即可恢复生产到 `v10.7.9.255` 财报日历券商式同比对比基线;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权边界。
+
+### 2026-07-09 - 首页财报日历细节降重本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: not requested;用户要求先本地调整查看效果,暂不部署。
+- Background: 用户反馈首页财报日历预览下方股票代码仍偏大,同时右侧日历图标颜色过白,需要更轻一点,但不影响弹窗和财报接口逻辑。
+- Changes:
+  - 首页财报日历预览里的股票代码从上一档字号继续缩小到 `text-[11px]`,降低单行卡片里的视觉重量。
+  - 首页财报日历右侧日历按钮颜色从 `text-white/48` 降到 `text-white/40`,保留可见性但降低抢眼程度。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.259`。
+  - 本次只改首页财报日历展示层、设置页版本/更新日志、测试和本日志;不改 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home&v=259` 以 `390x844` 视口打开首页,财报日历预览股票代码计算字号为 `11px`,右侧日历按钮计算颜色为 `rgba(255, 255, 255, 0.4)`,`documentElement.scrollWidth=390`,`clientWidth=390`,无横向溢出。截图保存到 `/tmp/boduan-earnings-home-symbol-calendar-tone-crop-v10.7.9.259.png` 和 `/tmp/boduan-earnings-home-viewport-v10.7.9.259.png`。
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过,覆盖 `v10.7.9.259` 设置页版本、首页股票代码 `text-[11px]` 和右侧日历按钮 `text-white/40`。
+  - Build: pass;`npm run build` 成功,本地生成 `HomeTab-BEBCPPm9.js`,`SettingsTab-Cr3h0H51.js`,`settingsChangelog-CXlN9ZKL.js`,`App-D2-Q4GfK.js` 等产物。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+- Rollback: 回退本条涉及的首页股票代码字号、右侧日历按钮颜色、`v10.7.9.259` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.258`;不影响独立财报 API、行情、账本、收益快照、RLS 或鉴权边界。
+
+### 2026-07-09 - 财报日历请求缓存本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: not requested;当前继续本地确认,暂不部署。
+- Background: 用户担心上一财季回看会不会导致每次打开首页都重复请求。复查确认弹窗打开不额外请求,但首页组件重新挂载时会重新执行请求逻辑;因此需要加前端缓存和 in-flight 去重,避免底部 tab 来回切首页时重复打 `/api/earnings-calendar`。
+- Changes:
+  - `EarningsCalendar` 新增模块级 15 分钟 client cache,cache key 包含用户 id、symbols、当前日期窗口和 `includePreviousPublished` 状态。
+  - 同 key 的请求正在加载时复用同一个 in-flight promise,避免短时间内重复请求。
+  - 缓存只保存 server 返回的原始 events;每次渲染仍按当前 watchlist/positions 重新 `normalizeEarningsEvents`,避免持仓/自选影响等级卡死在旧上下文。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.258`。
+  - 本次只优化财报日历请求节流,不改 `/api/earnings-calendar` 返回口径、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过,覆盖 `v10.7.9.258` 设置页版本、15 分钟 client cache、in-flight 去重和上一财季请求参数。
+  - Build: pass;`npm run build` 成功,本地生成 `HomeTab-C2UeZehi.js`,`SettingsTab-DhTnhy-P.js`,`settingsChangelog-DHrLIEXw.js`,`App-DG0LnNam.js` 等产物。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+- Rollback: 回退本条涉及的 client cache/in-flight 去重、`v10.7.9.258` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.257`;不影响独立财报 API、行情、账本、收益快照、RLS 或鉴权边界。
+
+### 2026-07-09 - 财报日历上一财季回看本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: not requested;用户询问是否能系统拉取上一财季已公布财报,当前先本地实现和验证,暂不部署。
+- Background: 用户希望系统拉取上一财季已公布财报,方便在财报日历里查看已公布卡片、实际/预测同比和市场反应效果。当前前端只请求 `-7天` 到 `+45天`,且首页展示会按 D+2 保留规则过滤已公布事件,因此上一财季历史事件不会进入弹窗。
+- Real EODHD smoke:
+  - `npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,META,TSM,GOOGL --from=2026-04-01 --to=2026-06-30` 返回 `ok: true`。
+  - 真实返回 `earningsRows=18729`,`trendRows=472`;项目合并后过滤到 5 个关注符号事件,`publishedMerged=5`,`actualRevenueMerged=5`,`marketReactionMerged=5`,`usdRevenueMerged=5`。
+  - 上一财季样例包含 `TSM 2026-04-15`,`MSFT/META/GOOGL 2026-04-29`,`NVDA 2026-05-20`,均可合并实际 EPS、实际营收、预测营收、同比和盘前/盘后反应。
+- Changes:
+  - `/api/earnings-calendar` 新增 `includePreviousPublished=1` 查询参数;服务端保留当前正常请求窗口,并额外计算上一个完整自然季度作为已公布财报回看窗口。
+  - 上一季度历史窗口仍在服务端过滤回用户请求的关注/持仓 symbols,前端不接触 EODHD key,也不把财报逻辑塞回 `/api/quote`。
+  - 首页财报预览继续只使用当前可见事件,避免历史已公布事件占用首页卡位;财报弹窗日历视图和列表视图改为使用完整已拉取事件集,用于查看上一财季已公布效果。
+  - 本地视觉预览的财报 mock 增加上一财季已公布事件,便于不登录时直接截图确认效果。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.257`。
+  - EODHD 本地测试文档补充上一季度已公布窗口 smoke 命令和 `includePreviousPublished=1` 行为说明。
+  - 本次仍保持财报日历独立 `/api/earnings-calendar` 边界,不改 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `api/earnings-calendar.js`
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `docs/eodhd-local-testing.md`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Real EODHD smoke: pass;`npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,META,TSM,GOOGL --from=2026-04-01 --to=2026-06-30` 返回 `ok: true`,合并结果为 5 个上一财季已公布事件,且 `publishedMerged=5`,`actualRevenueMerged=5`,`marketReactionMerged=5`,`usdRevenueMerged=5`。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home&v=257` 以 `390x844` 视口打开财报弹窗,列表视图直接显示上一财季已公布事件 `04/15 TSM`,`04/29 META/MSFT/GOOGL`,`05/20 NVDA`;日历视图切到 `2026年4月` 后日期点展示已公布状态,点选 `2026-04-29` 显示 3 项已公布财报;`documentElement.scrollWidth=390`,`clientWidth=390`,无横向溢出。截图保存到 `/tmp/boduan-earnings-previous-quarter-list-v10.7.9.257.png` 和 `/tmp/boduan-earnings-previous-quarter-calendar-v10.7.9.257.png`。
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过。
+  - Build: pass;`npm run build` 成功,本地生成 `HomeTab-FtJkQNHo.js`,`SettingsTab-DOlluTCS.js`,`settingsChangelog-D-JmqDPP.js`,`App-Gp_mS0E4.js` 等产物。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+- Rollback: 回退本条涉及的 `includePreviousPublished` 参数、上一季度窗口计算、弹窗完整事件集、DevVisualPreview 上一财季 mock、`v10.7.9.257` 设置页版本/更新日志、EODHD 测试文档、测试和本日志即可恢复 `v10.7.9.256`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
+### 2026-07-09 - 财报日历列表视图收紧本地调整
+
+- Commit: pending;本地截图待用户确认,暂不提交。
+- Deployment: not requested;用户要求先本地修改并截图确认,暂不部署。
+- Background: 用户反馈财报弹窗列表视图顶部日期筛选行和卡片内日期重复,要求取消该日期行;同时要求预计 EPS 和预计营收字号加大,并压缩公司列宽度,把更多横向空间让给预计 EPS / 预计营收。
+- Changes:
+  - 财报弹窗列表视图移除顶部“全部 / 日期 / 日历按钮”筛选行,列表打开后直接展示财报卡片。
+  - 未公布财报行的 grid 从公司列优先改为数据列优先,公司列最小宽度降低,预计 EPS 列和预计营收列分别加宽。
+  - 未公布财报行的公司名层级略收紧,预计 EPS / 预计营收标题和数值字号上调一档。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.256`。
+  - 本次只改财报日历展示层、设置页版本/更新日志和本日志;不改 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` 以 `390x844` 视口打开财报弹窗列表视图,确认顶部重复日期筛选行已取消,列表直接从财报卡片开始;未公布 TSM/GOOGL 行的预计 EPS 和预计营收列加宽且字号上调,`documentElement.scrollWidth=390`,`clientWidth=390`,无横向溢出。截图保存到 `/tmp/boduan-earnings-list-no-date-row-v10.7.9.256.png` 和 `/tmp/boduan-earnings-list-upcoming-columns-v10.7.9.256.png`。
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 41 个测试通过。
+  - Build: pass;`npm run build` 成功,本地生成 `HomeTab-DZ-GbPcm.js`,`SettingsTab-_z_EG0cl.js`,`settingsChangelog-D5xVOt0O.js`,`App-7dmjWMYd.js` 等产物。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+- Rollback: 回退本条涉及的列表视图日期行删除、未公布行列宽/字号调整、`v10.7.9.256` 设置页版本/更新日志和本日志即可恢复 `v10.7.9.255`;不影响独立财报 API、行情、账本、收益快照、RLS 或鉴权边界。
+
 ### 2026-07-09 - 财报日历券商式同比对比本地调整
 
 - Commit: runtime code `04248d08c22c61b04a83cd09def2b9c97ce74277`;本文件所在 docs-only follow-up 只回填部署验证状态。

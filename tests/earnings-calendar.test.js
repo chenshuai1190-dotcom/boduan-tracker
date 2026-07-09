@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import handler, { parseEarningsRequest } from '../api/earnings-calendar.js';
+import handler, { parseEarningsRequest, previousCalendarQuarterRange } from '../api/earnings-calendar.js';
 import {
   buildCalendarMonth,
   buildEarningsSymbols,
@@ -57,7 +57,11 @@ test('earnings calendar request validates symbols and date range', () => {
     symbols: ['NVDA', 'MSFT'],
     from: '2026-07-01',
     to: '2026-07-31',
+    includePreviousPublished: false,
   });
+  assert.equal(parseEarningsRequest({ symbols: 'NVDA', includePreviousPublished: '1' }).includePreviousPublished, true);
+  assert.deepEqual(previousCalendarQuarterRange('2026-07-09'), { from: '2026-04-01', to: '2026-06-30' });
+  assert.deepEqual(previousCalendarQuarterRange('2026-01-15'), { from: '2025-10-01', to: '2025-12-31' });
 
   assert.match(parseEarningsRequest({ symbols: 'NV DA' }).error, /股票代码不合法/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-09-01', to: '2026-07-01' }).error, /from 不能晚于 to/);

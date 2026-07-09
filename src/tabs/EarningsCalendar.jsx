@@ -19,6 +19,57 @@ import { t } from '../lib/i18n.js';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
+const EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS = 15 * 60 * 1000;
+const EARNINGS_CALENDAR_CLIENT_CACHE_LIMIT = 12;
+const earningsCalendarClientCache = new Map();
+
+function earningsCalendarClientCacheKey({ userId, symbols, from, to, includePreviousPublished }) {
+  return [
+    userId || 'session',
+    Array.isArray(symbols) ? symbols.join(',') : '',
+    from || '',
+    to || '',
+    includePreviousPublished ? 'previous-published' : 'current-only',
+  ].join('|');
+}
+
+function readEarningsCalendarClientCache(cacheKey) {
+  const entry = earningsCalendarClientCache.get(cacheKey);
+  if (!entry) return null;
+  if (entry.events && entry.expiresAt > Date.now()) return entry.events;
+  if (!entry.promise) earningsCalendarClientCache.delete(cacheKey);
+  return null;
+}
+
+function writeEarningsCalendarClientCache(cacheKey, events) {
+  earningsCalendarClientCache.delete(cacheKey);
+  earningsCalendarClientCache.set(cacheKey, {
+    events: Array.isArray(events) ? events : [],
+    expiresAt: Date.now() + EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS,
+  });
+  while (earningsCalendarClientCache.size > EARNINGS_CALENDAR_CLIENT_CACHE_LIMIT) {
+    const firstKey = earningsCalendarClientCache.keys().next().value;
+    earningsCalendarClientCache.delete(firstKey);
+  }
+}
+
+function getOrStartEarningsCalendarRequest(cacheKey, requestFn) {
+  const entry = earningsCalendarClientCache.get(cacheKey);
+  if (entry?.promise) return entry.promise;
+  const promise = Promise.resolve()
+    .then(requestFn)
+    .then((events) => {
+      writeEarningsCalendarClientCache(cacheKey, events);
+      return events;
+    })
+    .catch((error) => {
+      const latest = earningsCalendarClientCache.get(cacheKey);
+      if (latest?.promise === promise) earningsCalendarClientCache.delete(cacheKey);
+      throw error;
+    });
+  earningsCalendarClientCache.set(cacheKey, { promise, expiresAt: Date.now() + EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS });
+  return promise;
+}
 
 function formatRevenueUsd(value, language = 'zh', options = {}) {
   if (value === null || value === undefined || value === '') return '--';
@@ -458,21 +509,21 @@ function UpcomingEarningsEventRow({ event, logoCache, cacheStockLogo, displaySto
           <span>{earningsSessionText(event.session, language)}</span>
         </span>
       </div>
-      <div className="grid grid-cols-[minmax(78px,1fr)_52px_92px_38px] items-center gap-1.5">
-        <div className="flex min-w-0 items-center gap-1.5">
+      <div className="grid grid-cols-[minmax(64px,0.82fr)_64px_104px_40px] items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1">
           <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-7 w-7 shrink-0 rounded-lg" />
           <div className="min-w-0">
-            <div className="truncate text-[14px] font-normal text-white/82">{event.symbol}</div>
-            <div className="truncate text-[10px] text-white/42">{name}</div>
+            <div className="truncate text-[13px] font-normal text-white/82">{event.symbol}</div>
+            <div className="truncate text-[9px] text-white/42">{name}</div>
           </div>
         </div>
         <div className="text-left">
-          <div className="text-[10px] text-white/36">{t(language, 'earningsCalendar.epsEstimate', '预计EPS')}</div>
-          <div className="mt-0.5 text-[12px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatNumber(event.epsEstimate)}</div>
+          <div className="text-[11px] text-white/36">{t(language, 'earningsCalendar.epsEstimate', '预计EPS')}</div>
+          <div className="mt-0.5 text-[13px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatNumber(event.epsEstimate)}</div>
         </div>
         <div className="text-left">
-          <div className="text-[10px] text-white/36">{t(language, 'earningsCalendar.revenueEstimate', '预计营收')}</div>
-          <div className="mt-0.5 whitespace-nowrap text-[11px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRevenueUsd(revenueValue(event, 'estimate'), language, { compact: true })}</div>
+          <div className="text-[11px] text-white/36">{t(language, 'earningsCalendar.revenueEstimate', '预计营收')}</div>
+          <div className="mt-0.5 whitespace-nowrap text-[12px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRevenueUsd(revenueValue(event, 'estimate'), language, { compact: true })}</div>
         </div>
         <div className={`text-right text-[11px] font-normal ${impactClass(event)}`}>
           {impactText(event, language)}
@@ -662,27 +713,6 @@ function EarningsModal({
           </div>
         ) : (
           <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
-            <div className="mb-3 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button type="button" onClick={() => setSelectedDate(eventDates[0] || todayDateKey())} className="h-8 shrink-0 rounded-full px-3 text-[12px] text-[#f6b54b]">
-                {t(language, 'earningsCalendar.all', '全部')}
-              </button>
-              {eventDates.slice(0, 6).map((key) => (
-                <button
-                  type="button"
-                  key={key}
-                  onClick={() => {
-                    setSelectedDate(key);
-                    setView('calendar');
-                  }}
-                  className="h-8 shrink-0 rounded-full px-3 text-[12px] text-white/48"
-                >
-                  {shortDateLabel(key)}
-                </button>
-              ))}
-              <button type="button" onClick={() => setView('calendar')} className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] text-white/48">
-                <CalendarDays className="h-4 w-4" />
-              </button>
-            </div>
             <div className="space-y-2">
               {listEvents.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-8 text-center text-[13px] text-white/36">
@@ -754,6 +784,9 @@ export default function EarningsCalendar({
     from.setDate(from.getDate() - 7);
     const to = new Date();
     to.setDate(to.getDate() + 45);
+    const fromKey = from.toISOString().slice(0, 10);
+    const toKey = to.toISOString().slice(0, 10);
+    const includePreviousPublished = true;
 
     (async () => {
       setLoading(true);
@@ -762,18 +795,39 @@ export default function EarningsCalendar({
         const { data } = await supabase.auth.getSession();
         const token = data?.session?.access_token;
         if (!token) throw new Error(t(language, 'earningsCalendar.authRequired', '请先登录后查看财报日历'));
+        const cacheKey = earningsCalendarClientCacheKey({
+          userId: data?.session?.user?.id,
+          symbols,
+          from: fromKey,
+          to: toKey,
+          includePreviousPublished,
+        });
+        const cachedEvents = readEarningsCalendarClientCache(cacheKey);
+        if (cachedEvents) {
+          if (cancelled) return;
+          const normalized = normalizeEarningsEvents(cachedEvents, { watchlist, positions });
+          setEvents(normalized);
+          const today = todayDateKey();
+          const first = normalized.find((item) => isEarningsVisible(item, today)) || normalized[0];
+          if (first) setSelectedDate(first.reportDate);
+          return;
+        }
         const params = new URLSearchParams({
           symbols: symbols.join(','),
-          from: from.toISOString().slice(0, 10),
-          to: to.toISOString().slice(0, 10),
+          from: fromKey,
+          to: toKey,
+          includePreviousPublished: includePreviousPublished ? '1' : '0',
         });
-        const response = await fetch(`/api/earnings-calendar?${params.toString()}`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const rawEvents = await getOrStartEarningsCalendarRequest(cacheKey, async () => {
+          const response = await fetch(`/api/earnings-calendar?${params.toString()}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const body = await response.json().catch(() => null);
+          if (!response.ok || body?.success === false) throw new Error(body?.error || response.statusText || 'request failed');
+          return body?.events || [];
         });
-        const body = await response.json().catch(() => null);
-        if (!response.ok || body?.success === false) throw new Error(body?.error || response.statusText || 'request failed');
         if (cancelled) return;
-        const normalized = normalizeEarningsEvents(body?.events || [], { watchlist, positions });
+        const normalized = normalizeEarningsEvents(rawEvents, { watchlist, positions });
         setEvents(normalized);
         const today = todayDateKey();
         const first = normalized.find((item) => isEarningsVisible(item, today)) || normalized[0];
@@ -841,7 +895,7 @@ export default function EarningsCalendar({
               >
                 <div className="text-[12px] leading-none tabular-nums text-white/35">{shortDateLabel(event.reportDate)}</div>
                 <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
-                <div className="mt-1.5 max-w-full truncate text-[12px] leading-none font-normal text-white/82">{event.symbol}</div>
+                <div className="mt-1.5 max-w-full truncate text-[11px] leading-none font-normal text-white/82">{event.symbol}</div>
                 <span className="mt-1.5 inline-flex h-3.5 items-center justify-center">
                   <EarningsResultMarker event={event} />
                 </span>
@@ -853,7 +907,7 @@ export default function EarningsCalendar({
           <button
             type="button"
             onClick={() => openModal('calendar')}
-            className="ml-2 flex min-w-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/48 active:scale-[0.98]"
+            className="ml-2 flex min-w-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/40 active:scale-[0.98]"
             aria-label={t(language, 'earningsCalendar.calendarView', '日历视图')}
           >
             <CalendarDays className="h-5 w-5" />
@@ -864,7 +918,7 @@ export default function EarningsCalendar({
       <EarningsModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        events={displayEvents}
+        events={events}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
         view={modalView}
