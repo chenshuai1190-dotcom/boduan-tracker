@@ -4,10 +4,10 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 财报日历 v10.7.9.259 部署准备
+### 2026-07-09 - 财报日历 v10.7.9.259 部署
 
-- Commit: same commit;实际 hash 待推送后回填。
-- Deployment: requested by user;准备通过 GitHub `main` SSH 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `2d357e7c284dfc281ac656eaf12f19e3ad384889`;本文件所在 docs-only follow-up 回填部署验证状态。
+- Deployment: completed;通过项目 SSH key 推送 GitHub `main` 后触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。Vercel status `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Hcj8fK1EcKxQ2ZcsVgBF614xZ2nX`,production alias `https://boduan-tracker.vercel.app` 已更新。
 - Background: 用户确认此前本地调整可以部署,本次把 `v10.7.9.256` 列表视图收紧、`v10.7.9.257` 上一财季已公布回看、`v10.7.9.258` 财报日历请求缓存和 `v10.7.9.259` 首页预览细节降重一起推进到生产。
 - Changes:
   - 财报弹窗列表视图取消顶部重复日期筛选行,压缩公司列并加宽预计 EPS / 预计营收列。
@@ -31,8 +31,13 @@
   - Build: pass;`npm run build` 成功,本地生成 `HomeTab-BEBCPPm9.js`,`SettingsTab-Cr3h0H51.js`,`settingsChangelog-CXlN9ZKL.js`,`App-D2-Q4GfK.js` 等产物。
   - Audit: pass;`npm audit --audit-level=moderate` 返回 `found 0 vulnerabilities`。
   - Diff hygiene: pass;`git diff --check` 无输出。
+  - GitHub Actions: pass;CI run `29008677595` for `2d357e7c284dfc281ac656eaf12f19e3ad384889` completed with `success`。
 - Production verification:
-  - Pending Vercel deployment and production marker/auth checks。
+  - Production HTML: pass;`GET https://boduan-tracker.vercel.app/?v=2d357e7-v259` 返回 `200`,生产入口为 `/assets/index-Di5iLtGe.js`。
+  - Production runtime chunks: pass;递归扫描到 `/assets/App-csYswyna.js`,`/assets/HomeTab-BEBCPPm9.js`,`/assets/SettingsTab-BUyy55Qd.js`,`/assets/settingsChangelog-CXlN9ZKL.js` 等运行时 chunk。
+  - Production markers: pass;`HomeTab-BEBCPPm9.js` 包含 `includePreviousPublished`,`previous-published`,`text-[11px] leading-none font-normal text-white/82`,`bg-white/[0.035] text-white/40`;`SettingsTab-BUyy55Qd.js` 和 `settingsChangelog-CXlN9ZKL.js` 包含 `v10.7.9.259`;`settingsChangelog-CXlN9ZKL.js` 包含 `首页财报日历细节降重`。
+  - Removed legacy markers: pass;生产运行时未检出旧 `CALENDAR:` 虚拟 symbol 或旧白色事件弹窗的 `selectedEvent` marker。
+  - Production auth boundaries: pass;未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;普通 HTTPS 访问 `/api/stocks-realtime` 返回 `426`。
 - Rollback: 回退本条部署提交即可恢复生产到 `v10.7.9.255` 财报日历券商式同比对比基线;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权边界。
 
 ### 2026-07-09 - 首页财报日历细节降重本地调整
