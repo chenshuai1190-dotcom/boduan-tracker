@@ -1,15 +1,15 @@
 import { normalizeUserStockSymbol } from './symbols.js';
 
-export const MAX_STOCK_REALTIME_SYMBOLS = 50;
-export const STOCK_REALTIME_ROW_MAX_AGE_MS = 120_000;
-export const STOCK_REALTIME_EXTENDED_ROW_MAX_AGE_MS = 5 * 60_000;
+const MAX_STOCK_REALTIME_SYMBOLS = 50;
+const STOCK_REALTIME_ROW_MAX_AGE_MS = 120_000;
+const STOCK_REALTIME_EXTENDED_ROW_MAX_AGE_MS = 5 * 60_000;
 
 function asNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
-export function normalizeStockRealtimeSymbol(value) {
+function normalizeStockRealtimeSymbol(value) {
   return normalizeUserStockSymbol(value);
 }
 

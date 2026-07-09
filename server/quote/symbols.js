@@ -1,9 +1,9 @@
-export const MAX_SYMBOLS = 30;
-export const MAX_SYMBOLS_PARAM_LENGTH = 2000;
-export const MAX_TRANSLATE_PAYLOAD_LENGTH = 1200;
-export const STOCK_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
+const MAX_SYMBOLS = 30;
+const MAX_SYMBOLS_PARAM_LENGTH = 2000;
+const MAX_TRANSLATE_PAYLOAD_LENGTH = 1200;
+const STOCK_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
 
-export function normalizeSymbolToken(token) {
+function normalizeSymbolToken(token) {
   const trimmed = (token || '').trim();
   if (!trimmed) return { error: 'symbols 里包含空代码' };
 

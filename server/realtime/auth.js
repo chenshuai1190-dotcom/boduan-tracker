@@ -3,7 +3,7 @@ import { configuredOrigins } from '../quote/auth.js';
 export const BTC_REALTIME_PROTOCOL = 'xmoney-btc';
 export const INDICES_REALTIME_PROTOCOL = 'xmoney-indices';
 export const STOCKS_REALTIME_PROTOCOL = 'xmoney-stocks';
-export const SUPABASE_PROTOCOL_PREFIX = 'supabase.';
+const SUPABASE_PROTOCOL_PREFIX = 'supabase.';
 
 export function parseWebSocketProtocols(value) {
   return String(value || '')

@@ -4,6 +4,48 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 第一批死代码和渲染效率清理
+
+- Commit: same commit;用户已确认部署,本提交随 GitHub `main` 推送触发 Vercel production 部署。
+- Deployment: pending in this commit;最终 GitHub Actions、Vercel target、生产入口和未登录 API 401 smoke 结果放在本轮最终回复,避免为回填纯部署证据再触发 docs-only 部署循环。不改变设置页版本或用户可见更新日志。
+- Background: 用户要求在不影响现有功能的前提下检查死代码和影响效率的代码,并确认先做第一批低风险清理。
+- Workflow tier: `runtime`。
+- Changes:
+  - 删除 `src/App.jsx` 中已无引用的股票卡片旧配色常量/函数和未使用的 `totalCapital` 状态。
+  - `fetchRealtimePrices` 在一次行情响应内构建 `resultBySymbol` 索引,替代同一数组上对股票、QQQ、VIX、FGI、INDICES 的重复线性查找;请求参数、鉴权、诊断日志和更新边界不变。
+  - `HomeTab` 对持仓/自选表格派生行、编辑自选行和搜索过滤结果增加 `React.useMemo`,减少无关状态刷新时的重复派生计算。
+  - 将 quote、realtime、earnings、amount display、symbol 等模块里仅供本文件内部使用的常量/函数改为非导出;删除 `server/quote/errors.js` 未使用的 `providerError`。
+  - 保留测试直接约束的恢复密码生产回跳常量导出,避免把测试契约误判为可删代码。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/lib/amountDisplay.js`
+  - `src/lib/btcRealtime.js`
+  - `src/lib/earningsCalendarModel.js`
+  - `src/lib/marketColorMode.js`
+  - `src/lib/stockRealtime.js`
+  - `src/lib/symbols.js`
+  - `server/fx/rates.js`
+  - `server/quote/errors.js`
+  - `server/quote/providers/eodhd.js`
+  - `server/quote/providers/vix.js`
+  - `server/quote/symbols.js`
+  - `server/realtime/auth.js`
+  - `server/realtime/btc.js`
+  - `server/realtime/indices.js`
+  - `server/realtime/stocks.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:toolchain`: pass。
+  - `npx --yes knip --reporter compact`: pass,无剩余报告。
+  - `npm test`: pass,173/173。
+  - `npm run build`: pass,生成 `App-BNvDQhgN.js`、`HomeTab-DQKbOcj2.js`、`settingsChangelog-B9AdpNuM.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,第一批清理为源码和本日志变更。
+  - Production verification: push 后运行 `npm run verify:deploy-status -- <commit>`,最终结果随本轮回复报告。
+- Rollback: 回退本条清理改动即可恢复原导出形态和原表格/行情派生计算方式;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - 新流程链路演练
 
 - Commit: docs-only test commit `6ab5513b25b01c732b0d33be0d0f57ffea2ab675`;本日志随 docs-only follow-up 回填线上验证。

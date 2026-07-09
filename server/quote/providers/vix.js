@@ -32,7 +32,7 @@ export async function fetchVixQuote(symbol, { eodhdKey }) {
   }
 }
 
-export async function fetchVixFallback() {
+async function fetchVixFallback() {
   try {
     const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d';
     const r = await providerFetch(yahooUrl, {

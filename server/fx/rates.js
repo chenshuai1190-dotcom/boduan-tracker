@@ -24,7 +24,7 @@ export function parseForexRate(data) {
   );
 }
 
-export async function fetchEodhdForexRate(symbol, { eodhdKey, fetchImpl } = {}) {
+async function fetchEodhdForexRate(symbol, { eodhdKey, fetchImpl } = {}) {
   const url = `https://eodhd.com/api/real-time/${symbol}?api_token=${encodeURIComponent(eodhdKey)}&fmt=json`;
   const response = await providerFetch(url, {}, {
     provider: `eodhd:fx:${symbol}`,

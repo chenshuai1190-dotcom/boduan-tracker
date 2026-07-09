@@ -1,5 +1,5 @@
-export const MAX_STOCK_REALTIME_SYMBOLS = 50;
-export const STOCK_REALTIME_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
+const MAX_STOCK_REALTIME_SYMBOLS = 50;
+const STOCK_REALTIME_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
 
 function asNumber(value) {
   const n = Number(value);
@@ -12,7 +12,7 @@ function parseTimestampMs(value, fallback = Date.now()) {
   return n < 1_000_000_000_000 ? Math.round(n * 1000) : Math.round(n);
 }
 
-export function normalizeStockRealtimeSymbol(value) {
+function normalizeStockRealtimeSymbol(value) {
   const upper = String(value || '').trim().toUpperCase();
   const withoutUsSuffix = upper.endsWith('.US') ? upper.slice(0, -3) : upper;
   return STOCK_REALTIME_SYMBOL_RE.test(withoutUsSuffix) ? withoutUsSuffix : '';

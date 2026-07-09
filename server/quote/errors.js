@@ -1,4 +1,4 @@
-export function errorBody(message, details = undefined) {
+function errorBody(message, details = undefined) {
   const body = { error: message };
   if (details !== undefined) body.details = details;
   return body;
@@ -6,9 +6,4 @@ export function errorBody(message, details = undefined) {
 
 export function sendError(res, statusCode, message, details = undefined) {
   return res.status(statusCode).json(errorBody(message, details));
-}
-
-export function providerError(symbol, provider, error) {
-  const message = error?.message || String(error);
-  return { symbol, error: `${provider} 请求失败: ${message}` };
 }

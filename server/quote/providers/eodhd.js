@@ -38,7 +38,7 @@ function getUsEquityTimeParts(now = Date.now()) {
   }
 }
 
-export function getUsEquityMarketDate(now = Date.now()) {
+function getUsEquityMarketDate(now = Date.now()) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/New_York',
@@ -56,7 +56,7 @@ export function getUsEquityMarketDate(now = Date.now()) {
   }
 }
 
-export function getUsEquityQuoteSession(now = Date.now()) {
+function getUsEquityQuoteSession(now = Date.now()) {
   const parts = getUsEquityTimeParts(now);
   if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return 'closed';
   const { minutes } = parts;
@@ -93,7 +93,7 @@ export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
   return candidates[candidates.length - 1] || null;
 }
 
-export function findCloseForMarketDateFromEodRows(rows = [], marketDate = '') {
+function findCloseForMarketDateFromEodRows(rows = [], marketDate = '') {
   if (!marketDate || !Array.isArray(rows)) return null;
   const match = rows.find((day) => day && String(day.date || '') === marketDate);
   if (!match) return null;

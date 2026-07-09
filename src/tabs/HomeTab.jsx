@@ -704,7 +704,7 @@ export default function HomeTab({ ctx }) {
       setAddingStockSymbol(null);
     }
   };
-  const rawTableRows = rows.map((row) => {
+  const rawTableRows = React.useMemo(() => rows.map((row) => {
     const isPosition = tableTab === 'positions';
     const symbol = row.symbol;
     const quote = quoteBySymbol.get(symbol) || row;
@@ -744,7 +744,7 @@ export default function HomeTab({ ctx }) {
       logoUrls,
       displayName,
     };
-  });
+  }), [rows, tableTab, quoteBySymbol, freshQuoteBySymbol, positionsBySymbol, displayRate, marketColorMode, logoCache, language, stockFreshnessStartedAt]);
   const tableRows = React.useMemo(() => {
     if (!activeTableSort?.key) return rawTableRows;
     const direction = activeTableSort.direction === 'asc' ? 1 : -1;
@@ -761,7 +761,7 @@ export default function HomeTab({ ctx }) {
     });
   }, [rawTableRows, activeTableSort]);
   const editSearchKey = editWatchlistSearch.trim().toUpperCase();
-  const editWatchlistRows = (watchlist || []).map((row) => {
+  const editWatchlistRows = React.useMemo(() => (watchlist || []).map((row) => {
     const symbol = String(row?.symbol || '').toUpperCase();
     const quote = quoteBySymbol.get(symbol) || row;
     const cachedLogoUrl = logoCache?.[symbol]?.url;
@@ -773,11 +773,11 @@ export default function HomeTab({ ctx }) {
       changePercent: quote?.changePercent ?? row?.changePercent,
       logoUrls: logoUrlCandidates(symbol, cachedLogoUrl, row?.logoURL, row?.logoUrl, quote?.logoURL, quote?.logoUrl),
     };
-  });
-  const filteredEditWatchlistRows = editWatchlistRows.filter((row) => {
+  }), [watchlist, quoteBySymbol, logoCache, language]);
+  const filteredEditWatchlistRows = React.useMemo(() => editWatchlistRows.filter((row) => {
     if (!editSearchKey) return true;
     return `${row.symbol} ${row.displayName || ''}`.toUpperCase().includes(editSearchKey);
-  });
+  }), [editWatchlistRows, editSearchKey]);
   const moveWatchlistItem = async (symbol, action) => {
     if (editActionKey) return;
     const index = (watchlist || []).findIndex((item) => String(item?.symbol || '').toUpperCase() === symbol);

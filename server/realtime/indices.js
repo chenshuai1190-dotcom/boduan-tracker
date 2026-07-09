@@ -1,4 +1,4 @@
-export const INDEX_REALTIME_CARDS = [
+const INDEX_REALTIME_CARDS = [
   { wsSymbol: 'GSPC.INDX', aliases: ['GSPC.INDX', 'GSPC', '^GSPC', '.SPX'], ticker: 'GSPC.INDX', displaySymbol: '.SPX', name: '标普500', cn: '标普500' },
   { wsSymbol: 'NDX.INDX', aliases: ['NDX.INDX', 'NDX', '^NDX', '.NDX'], ticker: 'NDX.INDX', displaySymbol: '.NDX', name: '纳斯达克100', cn: '纳斯达克100' },
   { wsSymbol: 'DJI.INDX', aliases: ['DJI.INDX', 'DJI', '^DJI', '.DJI'], ticker: 'DJI.INDX', displaySymbol: '.DJI', name: '道琼斯', cn: '道琼斯' },

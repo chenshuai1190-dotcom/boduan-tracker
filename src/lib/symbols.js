@@ -1,4 +1,4 @@
-export const USER_STOCK_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
+const USER_STOCK_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
 
 const INVISIBLE_SYMBOL_CHARS_RE = /[\u200B-\u200D\uFEFF]/g;
 const SYMBOL_WHITESPACE_RE = /\s+/g;

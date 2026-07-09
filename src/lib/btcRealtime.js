@@ -1,7 +1,7 @@
-export const BTC_REALTIME_SYMBOL = 'BTC-USD';
-export const BTC_REST_TICKER = 'BTC-USD.CC';
-export const BTC_DISPLAY_SYMBOL = 'BTCUSD';
-export const BTC_DISPLAY_NAME = 'BTC/美元';
+const BTC_REALTIME_SYMBOL = 'BTC-USD';
+const BTC_REST_TICKER = 'BTC-USD.CC';
+const BTC_DISPLAY_SYMBOL = 'BTCUSD';
+const BTC_DISPLAY_NAME = 'BTC/美元';
 
 function asNumber(value) {
   const n = Number(value);

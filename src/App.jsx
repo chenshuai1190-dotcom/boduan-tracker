@@ -1004,14 +1004,6 @@ function buildToolQuoteRows({ trades = [], costBasisData = {} } = {}) {
   return Array.from(bySymbol.values());
 }
 
-// ============ 股票配色 ============
-// 主流热门股配品牌色,非主流的根据代码 hash 自动分配
-// ============ 股票卡片颜色:统一翠绿色 ============
-// 所有股票卡片头部用同一种翠绿,简洁统一
-const UNIFIED_GREEN = { from: '#10b981', to: '#047857' };  // emerald 500→700
-
-const getStockColor = (symbol) => UNIFIED_GREEN;
-
 // ============ 内部主 App 组件(要求已登录) ============
 function MainApp({ user, onLogout }) {
   // ============ 核心状态 ============
@@ -1024,7 +1016,6 @@ function MainApp({ user, onLogout }) {
   });
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
-  const [totalCapital, setTotalCapital] = useState(500000);
 
   // 关注股票列表(可编辑价格)
   // high = 6个月滚动最高价,用于计算回撤预警
@@ -2649,7 +2640,8 @@ function MainApp({ user, onLogout }) {
         throw new Error(result.error || '拉取失败');
       }
 
-      const providerErrors = collectQuoteProviderErrors(result.data);
+      const resultRows = result.data;
+      const providerErrors = collectQuoteProviderErrors(resultRows);
       if (providerErrors.length > 0) {
         const diagnostic = buildQuoteDiagnosticEntry({
           trigger,
@@ -2664,6 +2656,9 @@ function MainApp({ user, onLogout }) {
           recordQuoteDiagnosticLog(diagnostic);
         }
       }
+      const resultBySymbol = new Map(
+        resultRows.map((item) => [String(item?.symbol || '').toUpperCase(), item]),
+      );
 
       // 更新股票价格
       // 行情全集写入独立 quoteCache;watchlist 只保存用户主动自选,不能被持仓股票污染。
@@ -2671,7 +2666,7 @@ function MainApp({ user, onLogout }) {
         // 只更新指数/VIX/FGI, 不动股票列表
       } else {
         const updatedQuotes = rowsForQuote.map(s => {
-          const fresh = result.data.find(d => d.symbol === s.symbol);
+          const fresh = resultBySymbol.get(String(s?.symbol || '').toUpperCase());
           if (fresh && fresh.price > 0) {
             // 52 周高的优先级:
             // - Yahoo (前复权) 或 EODHD-adjusted (我们自己算的复权) → 直接覆盖本地
@@ -2725,7 +2720,7 @@ function MainApp({ user, onLogout }) {
       }
 
       // 同步 QQQ 到核心信号参数
-      const qqqData = result.data.find(d => d.symbol === 'QQQ');
+      const qqqData = resultBySymbol.get('QQQ');
       if (qqqData?.price > 0) {
         setQqqCurrent(qqqData.price);
         // v10.7.9.41: QQQ 52周高直接信任 API 的 week52High (本身就是滚动52周最高)
@@ -2741,14 +2736,14 @@ function MainApp({ user, onLogout }) {
       }
 
       // 更新 VIX
-      const vixData = result.data.find(d => d.symbol === 'VIX');
+      const vixData = resultBySymbol.get('VIX');
       if (vixData?.price > 0) {
         setVix(vixData.price);
         if (vixData.dataDate) setVixDataDate(vixData.dataDate);
       }
 
       // 更新 FGI
-      const fgiData = result.data.find(d => d.symbol === 'FGI');
+      const fgiData = resultBySymbol.get('FGI');
       if (fgiData && typeof fgiData.price === 'number' && !fgiData.error) {
         setFgi(fgiData.price);
         if (fgiData.label) setFgiLabel(fgiData.label);
@@ -2760,7 +2755,7 @@ function MainApp({ user, onLogout }) {
       }
 
       // 更新三大指数
-      const indicesData = result.data.find(d => d.symbol === 'INDICES');
+      const indicesData = resultBySymbol.get('INDICES');
       if (indicesData?.data && Array.isArray(indicesData.data)) {
         const chartOptions = getIndexChartOptions();
         setMarketIndices((current) => mergeFreshIndexTicksIntoCards(
