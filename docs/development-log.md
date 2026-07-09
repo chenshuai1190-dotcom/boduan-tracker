@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股交易记录列宽收紧
 
-- Commit: current changeset for `v10.7.9.242`;deployment verification will be recorded after local validation and GitHub/Vercel rollout。
-- Deployment: pending;will push through GitHub `main` with project SSH key after local validation。
+- Commit: code commit `99e87e5480d3d2b0c9d057ae70cf452b18dd522c`;deployment verification docs follow-up is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;Vercel production deployment completed and production markers verified。
 - Background: 个股详情页“交易记录”上一版为了避免成交额和实现盈亏错位,把横向表格放宽到 `700px`;用户反馈整体过宽,日期和数量/价格都是固定格式,应给小列宽,只有成交额和实现盈亏略宽即可。
 - Changes:
   - `StockDetailPage` 交易记录横向表格从 `700px` 收紧到 `560px`。
@@ -28,6 +28,8 @@
   - `git diff --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.242`,`个股交易记录列宽收紧`,`stock-detail-trade-records-scroll`,`min-w-[560px]`,`grid-cols-[96px_112px_158px_158px]`,and no built/runtime source contains `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
   - Local visual check: pass at `390x844` via `http://127.0.0.1:5173/?tab=stock-detail`;trade-record scroller measured `clientWidth 324 / scrollWidth 560`,columns measured `96/112/158/158`,and the first row amount/realized P&L cells did not overflow。
+  - Production marker check: pass;production entry `index-B6er-mm9.js`,dynamic assets include `StockDetailPage-DFXSHUFf.js` with `stock-detail-trade-records-scroll`,`min-w-[560px]`,`grid-cols-[96px_112px_158px_158px]`,and `settingsChangelog-C05nbBIa.js` with `v10.7.9.242` and `个股交易记录列宽收紧`;production assets checked do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+  - Production auth/security check: pass;unauthenticated `/api/quote?symbols=VIX` returns `401`,and HTTP-forwarded `/api/stocks-realtime` returns `426`。
 - Rollback: 回退 `StockDetailPage` 交易记录列宽、`v10.7.9.242` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.241`;不影响交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-09 - 个股交易记录横向滚动
