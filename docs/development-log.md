@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股交易记录横向滚动
 
-- Commit: current changeset for `v10.7.9.241`;production verification will be recorded after GitHub/Vercel rollout。
-- Deployment: pending;will push through GitHub `main` with project SSH key after local validation。
+- Commit: `a9ab72c9a1abc96439751d9a60165463b1fd9033`。
+- Deployment: pushed to GitHub `main` via project SSH key;production rollout is pending because Vercel has not created a production deployment for this SHA yet。
 - Background: 个股详情页“交易记录”在手机窄屏下固定四列,成交额和实现盈亏列空间不足,大数字会挤压错位;用户要求改成交易页同类的左右滑动模式。
 - Changes:
   - `StockDetailPage` 的交易记录改为横向滚动表格,内层宽度固定为 `700px`,窄屏可左右滑动。
@@ -28,6 +28,7 @@
   - `git diff --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.241`,`个股交易记录横向滚动`,`stock-detail-trade-records-scroll`,`min-w-[700px]`,`grid-cols-[122px_142px_198px_198px]`,and no built/runtime source contains `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
   - Local visual check: pass at `390x844` via `http://127.0.0.1:5173/?tab=stock-detail`;trade-record scroller measured `clientWidth 324 / scrollWidth 700`,right-scroll position displayed amount and realized P&L columns without wrapping。
+  - Production marker check: pending/blocking;`https://boduan-tracker.vercel.app` still serves old entry `index-BwnfzC-Q.js`,which does not contain `v10.7.9.241`,`个股交易记录横向滚动` or `stock-detail-trade-records-scroll`;GitHub deployments latest production SHA remains `2caf1c78013f1fa3a4b9d6b0c43ed997b2bbca53`,not `a9ab72c9a1abc96439751d9a60165463b1fd9033`。
 - Rollback: 回退 `StockDetailPage` 交易记录横向滚动布局、`v10.7.9.241` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.239`;不影响交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-09 - 回退数据初始化功能
