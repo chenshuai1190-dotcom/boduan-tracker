@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 新流程链路演练
 
-- Commit: same commit;本轮用于验证新生产流程的 docs-only 测试改动。
-- Deployment: pending;推送 GitHub `main` 后会按新流程用 `npm run verify:deploy-status -- <commit>` 验证 GitHub Actions、Vercel、生产入口和未登录 API smoke。
+- Commit: docs-only test commit `6ab5513b25b01c732b0d33be0d0f57ffea2ab675`;本日志随 docs-only follow-up 回填线上验证。
+- Deployment: completed;推送 GitHub `main` 后按新流程运行 `npm run verify:deploy-status -- 6ab5513`,GitHub combined status success,GitHub Actions run `29032922120` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/H2KT8RvbzbUsDnmWmaSwB9XaLWTH`,生产入口 `/assets/index-BBbtWDtu.js`,未登录 quote/earnings 均为 `401`。
 - Background: 用户要求按照新流程做一个测试改动,完整走一遍工具链检查、docs-only 验证、SSH 推送、Vercel 自动部署和生产状态检查,观察链路变化。
 - Workflow tier: `docs-only`。
 - Changes:
@@ -21,6 +21,9 @@
   - `git diff --check`: pass。
   - `git diff --stat`: reviewed,docs-only,only `docs/development-log.md` changed。
   - Skipped `npm test` / `npm run build` / `npm audit --audit-level=moderate`: docs-only 流程演练,不改变运行时代码、依赖、配置或生产 bundle。
+  - Production verification: `npm run verify:deploy-status -- 6ab5513` pass,见 Deployment。
+- Follow-up observation:
+  - 新流程明显减少 docs-only 改动的本地验证成本,但如果每次 docs-only 部署都把最终 Vercel target 再写回日志,会触发新的 docs-only deployment cascade。后续可把“纯 docs-only 的最终部署状态”默认放在最终回复或只在 handoff 状态变化时回填,避免为了记录部署而无限增加部署记录。
 - Rollback: 回退本条日志即可移除本次流程演练记录;不影响任何生产运行时代码或用户数据。
 
 ## 2026-07-09 Asia/Shanghai
