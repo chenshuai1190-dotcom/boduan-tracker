@@ -5,6 +5,13 @@ import { dateKey, normalizeEarningsSession, normalizeEarningsSymbol, toEodhdUsSy
 
 const MAX_EARNINGS_SYMBOLS = 30;
 const MAX_RANGE_DAYS = 90;
+const USD_FOREX_SYMBOL_BY_CURRENCY = {
+  CNY: 'USDCNY.FOREX',
+  HKD: 'USDHKD.FOREX',
+  JPY: 'USDJPY.FOREX',
+  KRW: 'USDKRW.FOREX',
+  TWD: 'USDTWD.FOREX',
+};
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -29,6 +36,8 @@ export default async function handler(req, res) {
     const events = await fetchEodhdEarningsCalendar({ ...parsed, eodhdKey });
     const trends = await fetchEodhdEarningsTrends({ symbols: parsed.symbols, eodhdKey });
     const merged = mergeEarningsTrendData(events, trends);
+    const fxRates = await fetchEodhdUsdForexRates({ currencies: merged.map((event) => event.currency), eodhdKey });
+    const normalized = mergeEarningsRevenueUsd(merged, fxRates);
 
     return res.status(200).json({
       success: true,
@@ -36,7 +45,7 @@ export default async function handler(req, res) {
       from: parsed.from,
       to: parsed.to,
       fetchedAt: new Date().toISOString(),
-      events: merged,
+      events: normalized,
     });
   } catch (error) {
     return sendError(res, 502, `财报日历读取失败: ${sanitizeError(error)}`);
@@ -101,6 +110,28 @@ export async function fetchEodhdEarningsTrends({ symbols, eodhdKey }) {
   return normalizeTrendPayload(body);
 }
 
+export async function fetchEodhdUsdForexRates({ currencies, eodhdKey }) {
+  const uniqueCurrencies = Array.from(new Set((currencies || []).map(normalizeCurrency).filter((currency) => currency && currency !== 'USD')));
+  const rates = new Map([['USD', { localPerUsd: 1, source: 'identity' }]]);
+  await Promise.all(uniqueCurrencies.map(async (currency) => {
+    const symbol = USD_FOREX_SYMBOL_BY_CURRENCY[currency];
+    if (!symbol) return;
+    try {
+      const url = new URL(`https://eodhd.com/api/real-time/${symbol}`);
+      url.searchParams.set('api_token', eodhdKey);
+      url.searchParams.set('fmt', 'json');
+      const response = await fetchWithTimeout(url.toString(), {}, { provider: `eodhd:forex:${symbol}`, timeoutMs: QUOTE_TIMEOUTS.eodhd });
+      if (!response.ok) return;
+      const body = await response.json();
+      const localPerUsd = parseNumber(body.close ?? body.price ?? body.last ?? body.previousClose);
+      if (localPerUsd > 0) rates.set(currency, { localPerUsd, source: symbol });
+    } catch {
+      // Do not fail the calendar when a non-core FX quote is temporarily unavailable.
+    }
+  }));
+  return rates;
+}
+
 export function mergeEarningsTrendData(events, trends) {
   const trendsBySymbol = new Map();
   trends.forEach((trend) => {
@@ -127,10 +158,31 @@ export function mergeEarningsTrendData(events, trends) {
       surprisePercent: parseNumber(event.percent ?? event.surprisePercent),
       revenueEstimate: parseNumber(event.revenueEstimate ?? trend?.revenueEstimateAvg),
       analystCount: parseNumber(event.analystCount ?? trend?.epsAnalystCount ?? trend?.earningsEstimateNumberOfAnalysts ?? trend?.revenueEstimateNumberOfAnalysts),
-      currency: event.currency || event.Currency || trend?.currency || 'USD',
+      currency: normalizeCurrency(event.currency || event.Currency || trend?.currency || 'USD') || 'USD',
       source: 'eodhd-calendar',
     };
   }).filter((event) => event.symbol && event.reportDate);
+}
+
+export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
+  return (events || []).map((event) => {
+    const currency = normalizeCurrency(event.currency) || 'USD';
+    const revenueEstimate = parseNumber(event.revenueEstimate);
+    const rate = readFxRate(fxRates, currency);
+    const revenueEstimateUsd = revenueEstimate !== null && rate > 0
+      ? (currency === 'USD' ? revenueEstimate : revenueEstimate / rate)
+      : null;
+    return {
+      ...event,
+      currency,
+      revenueEstimate,
+      revenueEstimateUsd,
+      revenueEstimateCurrency: 'USD',
+      revenueOriginalCurrency: currency,
+      revenueFxRate: rate || null,
+      revenueFxSource: currency === 'USD' ? 'identity' : readFxSource(fxRates, currency),
+    };
+  });
 }
 
 function normalizeCalendarPayload(body) {
@@ -176,6 +228,23 @@ function parseNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(String(value).replace(/[$,%\s,]/g, ''));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeCurrency(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+}
+
+function readFxRate(fxRates, currency) {
+  if (currency === 'USD') return 1;
+  const item = fxRates instanceof Map ? fxRates.get(currency) : fxRates?.[currency];
+  if (typeof item === 'number') return item;
+  const rate = parseNumber(item?.localPerUsd ?? item?.rate);
+  return rate > 0 ? rate : null;
+}
+
+function readFxSource(fxRates, currency) {
+  const item = fxRates instanceof Map ? fxRates.get(currency) : fxRates?.[currency];
+  return item?.source || null;
 }
 
 function addUtcDays(date, days) {

@@ -4,6 +4,42 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 财报日历日期和美元营收本地调整
+
+- Commit: this deployment commit;由用户确认后提交并推送到 GitHub main。
+- Deployment: requested by user after local confirmation;通过 GitHub main 推送触发 Vercel production 部署,不直接修改 Vercel 或临时服务器文件。
+- Background: 用户要求首页财报日历日期再缩小一点,颜色改为和首页编辑自选股票弹窗里的灰色一致;同时要求“预计营收”改为美元口径的“千万/亿”单位,并确认 `TSM.US` 这类台币财报是否能直接拿美元口径或需要换算。本地真实 EODHD 检查确认 `TSM.US` 的 `/api/calendar/earnings` 返回 `currency: TWD`, `/api/calendar/trends` 仅返回台币口径 `revenueEstimateAvg`,没有美元字段;`/api/real-time/USDTWD.FOREX` 可返回美元/台币汇率,因此采用服务端换算。
+- Changes:
+  - 首页财报日历预览日期从 `14px` 调整为 `12px`,颜色改为 `text-white/35`,对齐编辑自选股票弹窗里的灰色层级。
+  - `/api/earnings-calendar` 在合并 earnings/trends 后按币种读取 EODHD Forex,为事件补充 `revenueEstimateUsd`、`revenueEstimateCurrency`、`revenueFxRate` 和 `revenueFxSource`。
+  - `TSM.US` 等非美元营收通过 `USDTWD.FOREX` 这类服务端汇率换算为美元;前端仍不接触 EODHD token。
+  - 财报列表“预计营收”改为美元口径展示,中文显示为“亿美元 / 千万美元 / 百万美元”,英文模式保留 `$B/$M`。
+  - 财报弹窗列表行重新分配列宽,营收值降为 `11px` 并保持单行,避免 `2845亿美元` 这类值在移动端换行。
+  - 按本地截图反馈继续压缩弹窗列表公司列,公司列改为 `minmax(78px,1fr)`,EPS/营收列放宽到 `52px`/`92px`,同时 logo、代码和公司名字号略收紧。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.252`。
+  - 本次继续只改独立财报日历展示/API 合并层、设置页版本/更新日志、测试和本日志;不改 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+- Key files:
+  - `api/earnings-calendar.js`
+  - `src/lib/earningsCalendarModel.js`
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `scripts/eodhd-calendar-smoke.mjs`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Local EODHD smoke: pass;`npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-07-01 --to=2026-09-30` 返回 `ok: true`,5 个事件均合并出 `revenueEstimateUsd`;`TSM` 原始 `currency: TWD`,`revenueEstimate: 1198275114650`,按 `USDTWD.FOREX` 汇率 `32.13` 换算为 `revenueEstimateUsd: 37294588068.783066`。
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js` 共 39 个测试通过。
+  - Full tests: pass;`npm test` 共 171 个测试通过。
+  - Build: pass;`npm run build`,本地生成 `HomeTab-CIjsnSz7.js`、`SettingsTab-CTZZ2vsP.js`、`settingsChangelog-VOX5SlXL.js`、`App-dbX-UIVb.js` 等产物。
+  - Audit: pass;`npm audit --audit-level=moderate` 返回 `found 0 vulnerabilities`。
+  - RLS REST: pass;`npm run verify:rls:rest` 检查 16 张用户表,匿名 REST 可见行均为 0。
+  - Diff hygiene: pass;`git diff --check` 无输出。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/` 以 `390x844` 视口验证首页财报日期为 `12px`、`rgba(255, 255, 255, 0.35)`,文档宽度等于视口宽度 `390px`;弹窗 `2845亿美元` 为 `11px`、`nowrap`,截图保存到 `/tmp/boduan-earnings-calendar-home-v10.7.9.252.png` 和 `/tmp/boduan-earnings-calendar-modal-fixed-v10.7.9.252.png`。
+  - Local visual follow-up: pass;按用户反馈再次验证弹窗行,EPS 列为 `52px`,预计营收列为 `92px`,`2845亿美元` 单行显示,截图保存到 `/tmp/boduan-earnings-calendar-modal-wide-metrics-v10.7.9.252.png`。
+- Rollback: 回退本条涉及的日期字号/颜色、美元营收格式、EODHD Forex 换算字段、`v10.7.9.252` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.251`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
 ### 2026-07-09 - EODHD 财报营收本地测试环境
 
 - Commit: code/docs commit `0c5c75954bf114f3416548d17edcaffbca87f913`;deployment verification docs follow-up is the current commit。

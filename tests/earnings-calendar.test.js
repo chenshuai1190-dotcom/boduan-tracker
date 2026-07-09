@@ -155,7 +155,80 @@ test('earnings calendar API reads EODHD calendar and trends through a dedicated 
     assert.deepEqual(res.body.events.map((event) => event.symbol), ['NVDA', 'MSFT']);
     assert.equal(res.body.events[0].session, 'pre');
     assert.equal(res.body.events[0].revenueEstimate, 284500000000);
+    assert.equal(res.body.events[0].revenueEstimateUsd, 284500000000);
+    assert.equal(res.body.events[0].revenueEstimateCurrency, 'USD');
     assert.equal(res.body.events[0].analystCount, 42);
+    assert.ok(requestedUrls.every((url) => !url.includes('api.nasdaq.com')));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
+    else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+    if (originalKey === undefined) delete process.env.EODHD_API_KEY;
+    else process.env.EODHD_API_KEY = originalKey;
+  }
+});
+
+test('earnings calendar API converts non-USD revenue estimates to USD', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
+  const originalKey = process.env.EODHD_API_KEY;
+  const requestedUrls = [];
+
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(String(url));
+    const parsed = new URL(url);
+    if (parsed.pathname === '/api/calendar/earnings') {
+      return jsonResponse({
+        earnings: [
+          {
+            code: 'TSM.US',
+            report_date: '2026-07-16',
+            date: '2026-06-30',
+            before_after_market: 'BeforeMarket',
+            currency: 'TWD',
+            estimate: '3.77',
+          },
+        ],
+      });
+    }
+    if (parsed.pathname === '/api/calendar/trends') {
+      return jsonResponse({
+        trends: [
+          [
+            {
+              code: 'TSM.US',
+              date: '2026-06-30',
+              period: '0q',
+              revenueEstimateAvg: '32000000000',
+              earningsEstimateNumberOfAnalysts: '6',
+            },
+          ],
+        ],
+      });
+    }
+    if (parsed.pathname === '/api/real-time/USDTWD.FOREX') {
+      return jsonResponse({ code: 'USDTWD.FOREX', close: 32 });
+    }
+    throw new Error(`unexpected url ${url}`);
+  };
+  process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+  process.env.EODHD_API_KEY = 'test-eodhd-key';
+
+  try {
+    const res = createResponse();
+    await handler(createRequest({ symbols: 'tsm', from: '2026-07-01', to: '2026-09-29' }), res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.events.length, 1);
+    assert.equal(res.body.events[0].symbol, 'TSM');
+    assert.equal(res.body.events[0].currency, 'TWD');
+    assert.equal(res.body.events[0].revenueEstimate, 32000000000);
+    assert.equal(res.body.events[0].revenueEstimateUsd, 1000000000);
+    assert.equal(res.body.events[0].revenueEstimateCurrency, 'USD');
+    assert.equal(res.body.events[0].revenueFxRate, 32);
+    assert.equal(res.body.events[0].revenueFxSource, 'USDTWD.FOREX');
+    assert.ok(requestedUrls.some((url) => url.includes('/api/real-time/USDTWD.FOREX')));
     assert.ok(requestedUrls.every((url) => !url.includes('api.nasdaq.com')));
   } finally {
     globalThis.fetch = originalFetch;

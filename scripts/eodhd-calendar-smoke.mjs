@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 import {
   fetchEodhdEarningsCalendar,
   fetchEodhdEarningsTrends,
+  fetchEodhdUsdForexRates,
   mergeEarningsTrendData,
+  mergeEarningsRevenueUsd,
 } from '../api/earnings-calendar.js';
 import { toEodhdUsSymbol } from '../src/lib/earningsCalendarModel.js';
 
@@ -37,12 +39,15 @@ try {
     fetchEodhdEarningsTrends({ symbols, eodhdKey }),
   ]);
   const merged = mergeEarningsTrendData(events, trends);
+  const fxRates = await fetchEodhdUsdForexRates({ currencies: merged.map((event) => event.currency), eodhdKey });
+  const normalized = mergeEarningsRevenueUsd(merged, fxRates);
   const revenueRows = merged.filter((event) => event.revenueEstimate !== null && event.revenueEstimate !== undefined);
+  const usdRevenueRows = normalized.filter((event) => event.revenueEstimateUsd !== null && event.revenueEstimateUsd !== undefined);
   const rawTrendRows = flattenRows(Array.isArray(rawTrends?.trends) ? rawTrends.trends : rawTrends);
   const rawEarningsRows = Array.isArray(rawEarnings?.earnings) ? rawEarnings.earnings : Array.isArray(rawEarnings) ? rawEarnings : [];
 
   const summary = {
-    ok: revenueRows.length > 0,
+    ok: revenueRows.length > 0 && usdRevenueRows.length > 0,
     symbols,
     from,
     to,
@@ -57,13 +62,17 @@ try {
     projectMerge: {
       events: events.length,
       trends: trends.length,
-      merged: merged.length,
+      merged: normalized.length,
       revenueMerged: revenueRows.length,
-      rows: merged.map((event) => ({
+      usdRevenueMerged: usdRevenueRows.length,
+      rows: normalized.map((event) => ({
         symbol: event.symbol,
         reportDate: event.reportDate,
         fiscalDate: event.fiscalDate,
         revenueEstimate: event.revenueEstimate,
+        revenueEstimateUsd: event.revenueEstimateUsd,
+        revenueFxRate: event.revenueFxRate,
+        revenueFxSource: event.revenueFxSource,
         epsEstimate: event.epsEstimate,
         analystCount: event.analystCount,
         currency: event.currency,

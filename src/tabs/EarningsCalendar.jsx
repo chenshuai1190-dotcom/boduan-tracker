@@ -17,15 +17,24 @@ import { t } from '../lib/i18n.js';
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 
-function formatMoneyShort(value, currency = 'USD') {
+function formatRevenueUsd(value, language = 'zh') {
   if (value === null || value === undefined || value === '') return '--';
   const n = Number(value);
   if (!Number.isFinite(n)) return '--';
-  const prefix = currency === 'USD' ? '$' : '';
   const abs = Math.abs(n);
-  if (abs >= 1_000_000_000) return `${prefix}${(n / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${prefix}${(n / 1_000_000).toFixed(1)}M`;
-  return `${prefix}${n.toFixed(2)}`;
+  if (language === 'en') {
+    if (abs >= 1_000_000_000) return `$${trimFixed(n / 1_000_000_000)}B`;
+    if (abs >= 1_000_000) return `$${trimFixed(n / 1_000_000)}M`;
+    return `$${trimFixed(n)}`;
+  }
+  if (abs >= 100_000_000) return `${trimFixed(n / 100_000_000)}亿美元`;
+  if (abs >= 10_000_000) return `${trimFixed(n / 10_000_000)}千万美元`;
+  if (abs >= 1_000_000) return `${trimFixed(n / 1_000_000)}百万美元`;
+  return `${trimFixed(n)}美元`;
+}
+
+function trimFixed(value, digits = 1) {
+  return Number(value).toFixed(digits).replace(/\.0$/, '');
 }
 
 function formatNumber(value, digits = 2) {
@@ -122,12 +131,12 @@ function EarningsEventRow({ event, logoCache, cacheStockLogo, displayStockName, 
         <span>{shortDateLabel(event.reportDate)}</span>
         <span>{earningsSessionText(event.session, language)}</span>
       </div>
-      <div className="grid grid-cols-[minmax(112px,1fr)_48px_60px_44px] items-center gap-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-8 w-8 shrink-0 rounded-lg" />
+      <div className="grid grid-cols-[minmax(78px,1fr)_52px_92px_38px] items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-7 w-7 shrink-0 rounded-lg" />
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-normal text-white/82">{event.symbol}</div>
-            <div className="truncate text-[11px] text-white/42">{name}</div>
+            <div className="truncate text-[14px] font-normal text-white/82">{event.symbol}</div>
+            <div className="truncate text-[10px] text-white/42">{name}</div>
           </div>
         </div>
         <div className="text-left">
@@ -136,7 +145,7 @@ function EarningsEventRow({ event, logoCache, cacheStockLogo, displayStockName, 
         </div>
         <div className="text-left">
           <div className="text-[10px] text-white/36">{t(language, 'earningsCalendar.revenueEstimate', '预计营收')}</div>
-          <div className="mt-0.5 text-[12px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatMoneyShort(event.revenueEstimate, event.currency)}</div>
+          <div className="mt-0.5 whitespace-nowrap text-[11px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRevenueUsd(event.revenueEstimateUsd ?? (event.currency === 'USD' ? event.revenueEstimate : null), language)}</div>
         </div>
         <div className={`text-right text-[11px] font-normal ${impactClass(event)}`}>
           {impactText(event, language)}
@@ -430,7 +439,7 @@ export default function EarningsCalendar({
                   index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''
                 }`}
               >
-                <div className="text-[14px] leading-none tabular-nums text-white/42">{shortDateLabel(event.reportDate)}</div>
+                <div className="text-[12px] leading-none tabular-nums text-white/35">{shortDateLabel(event.reportDate)}</div>
                 <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
                 <div className="mt-1.5 max-w-full truncate text-[12px] leading-none font-normal text-white/82">{event.symbol}</div>
                 <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${earningsSessionDotClass(event.session)}`} />
