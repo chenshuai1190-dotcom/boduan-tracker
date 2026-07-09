@@ -185,7 +185,7 @@ function RangePill({ active, children, onClick }) {
   );
 }
 
-function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDate, currencyMode, marketColorMode, displayRate, language, trendStats }) {
+function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMode, marketColorMode, displayRate, language, trendStats }) {
   const pointsKey = React.useMemo(() => (
     (Array.isArray(points) ? points : [])
       .map((point) => `${point?.date || ''}:${Number(point?.pnlUsd || 0).toFixed(4)}`)
@@ -195,7 +195,6 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
   const [selection, setSelection] = React.useState(null);
   const chartRootRef = React.useRef(null);
   const hideTimerRef = React.useRef(null);
-  const longPressTimerRef = React.useRef(null);
   const startMs = parseDateMs(startDate);
   const endMs = parseDateMs(endDate);
   const middleDate = startMs != null && endMs != null
@@ -205,50 +204,30 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
   const middle = formatAxisDate(middleDate);
   const last = formatAxisDate(endDate);
   const selectedPoint = selection?.type === 'point' ? chart.points[selection.index] || null : null;
-  const selectedTrade = selection?.type === 'trade' ? selection.trade : null;
   const selectedPointColor = selectedPoint ? marketHexColor(selectedPoint.value, marketColorMode) : color;
   const selectedPointLeft = selectedPoint ? `${(selectedPoint.x / 320) * 100}%` : '50%';
   const selectedPointTop = selectedPoint ? `${(selectedPoint.y / 186) * 100}%` : '50%';
   const selectedPointTransform = selectedPoint
     ? `${selectedPoint.x > 236 ? 'translateX(-100%)' : selectedPoint.x < 84 ? 'translateX(0)' : 'translateX(-50%)'} ${selectedPoint.y < 58 ? 'translateY(14px)' : 'translateY(calc(-100% - 14px))'}`
     : 'translate(-50%, -100%)';
-  const pointByDate = React.useMemo(() => new Map(chart.points.map((point) => [point.date, point])), [chart.points]);
-  const markerEvents = React.useMemo(() => (
-    (Array.isArray(tradeEvents) ? tradeEvents : [])
-      .map((trade, index) => {
-        const point = pointByDate.get(trade.markerDate);
-        if (!point) return null;
-        return {
-          ...trade,
-          point,
-          markerOffset: ((index % 3) - 1) * 9,
-        };
-      })
-      .filter(Boolean)
-  ), [pointByDate, tradeEvents]);
-  const tradeMarkerPoint = selectedTrade ? selectedTrade.point : null;
-  const tradeTooltipLeft = tradeMarkerPoint ? `${(tradeMarkerPoint.x / 320) * 100}%` : '50%';
-  const tradeTooltipTop = tradeMarkerPoint ? `${(tradeMarkerPoint.y / 186) * 100}%` : '50%';
-  const tradeTooltipTransform = tradeMarkerPoint
-    ? `${tradeMarkerPoint.x > 230 ? 'translateX(-100%)' : tradeMarkerPoint.x < 84 ? 'translateX(0)' : 'translateX(-50%)'} translateY(calc(12px))`
-    : 'translate(-50%, 12px)';
   const peakText = chart.peakPoint ? compactSignedCurrency(chart.peakPoint.value, currencyMode) : '--';
   const currentText = chart.currentPoint ? compactSignedCurrency(chart.currentPoint.value, currencyMode) : '--';
   const maxDrawdownText = trendStats?.maxDrawdownUsd == null
     ? '--'
     : compactSignedCurrency(toNumber(trendStats.maxDrawdownUsd) * displayRate, currencyMode);
+  const maxDrawdownPctText = trendStats?.maxDrawdownPct == null
+    ? ''
+    : ` ${signedPct(trendStats.maxDrawdownPct, 1).replace(/^\+/, '')}`;
   const showPeakCallout = Boolean(chart.peakPoint && chart.currentPoint && chart.peakPoint.index !== chart.currentPoint.index);
 
   React.useEffect(() => {
     setSelection(null);
     window.clearTimeout(hideTimerRef.current);
-    window.clearTimeout(longPressTimerRef.current);
   }, [pointsKey, startDate, endDate]);
 
   React.useEffect(() => {
     return () => {
       window.clearTimeout(hideTimerRef.current);
-      window.clearTimeout(longPressTimerRef.current);
     };
   }, []);
 
@@ -291,42 +270,19 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
 
   const handlePointerDown = React.useCallback((event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    window.clearTimeout(longPressTimerRef.current);
-    if (event.pointerType === 'mouse') {
-      updateSelectedPoint(event);
-      return;
-    }
-    longPressTimerRef.current = window.setTimeout(() => updateSelectedPoint(event), 260);
+    updateSelectedPoint(event);
   }, [updateSelectedPoint]);
 
   const handlePointerMove = React.useCallback((event) => {
     if (selection?.type === 'point') updateSelectedPoint(event);
   }, [selection, updateSelectedPoint]);
 
-  const clearLongPress = React.useCallback(() => {
-    window.clearTimeout(longPressTimerRef.current);
-  }, []);
-
-  const selectTrade = React.useCallback((event, trade) => {
-    event.stopPropagation();
-    window.clearTimeout(longPressTimerRef.current);
-    setSelection({ type: 'trade', trade });
-    keepSelectedPointVisible();
-  }, [keepSelectedPointVisible]);
-
   return (
     <div ref={chartRootRef} className="relative">
-      <div className="mt-3 inline-flex rounded-full border border-white/[0.08] bg-white/[0.045] p-1">
-        <span className="rounded-full border border-[#f6b54b]/25 bg-[#f6b54b]/16 px-4 py-1.5 text-[12px] font-semibold text-[#ffd18a]">
-          {t(language, 'stockDetail.totalPnl', '累计盈亏')}
-        </span>
-      </div>
       <div
-        className="relative mt-3 h-[218px] select-none"
+        className="relative mt-2 h-[218px] select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={clearLongPress}
-        onPointerCancel={clearLongPress}
         style={{ touchAction: 'pan-y' }}
       >
         {!chart.path && (
@@ -337,12 +293,12 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
         <svg viewBox="0 0 320 186" className="h-full w-full overflow-visible">
           <defs>
             <linearGradient id="stockDetailPnlArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#f6b54b" stopOpacity="0.46" />
-              <stop offset="58%" stopColor="#f6b54b" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#f6b54b" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#f6b54b" stopOpacity="0.22" />
+              <stop offset="58%" stopColor="#f6b54b" stopOpacity="0.07" />
+              <stop offset="100%" stopColor="#f6b54b" stopOpacity="0.01" />
             </linearGradient>
             <filter id="stockDetailPnlGlow" x="-18%" y="-60%" width="136%" height="220%">
-              <feGaussianBlur stdDeviation="2.2" result="coloredBlur" />
+              <feGaussianBlur stdDeviation="0.45" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
@@ -358,7 +314,7 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
             </text>
           ))}
           {chart.areaPath && <path d={chart.areaPath} fill="url(#stockDetailPnlArea)" />}
-          {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" filter="url(#stockDetailPnlGlow)" />}
+          {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" filter="url(#stockDetailPnlGlow)" />}
           {showPeakCallout && (
             <>
               <circle cx={chart.peakPoint.x} cy={chart.peakPoint.y} r="3.6" fill="#ffd18a" stroke="#05070b" strokeWidth="1.4" />
@@ -378,25 +334,6 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
               </text>
             </>
           )}
-          {markerEvents.map((trade, index) => {
-            const markerColor = trade.side === 'sell' ? '#22c989' : '#e44858';
-            const markerY = Math.max(22, Math.min(142, trade.point.y + trade.markerOffset));
-            return (
-              <g
-                key={`${trade.id || trade.date}-${trade.side}-${index}`}
-                role="button"
-                tabIndex="0"
-                onPointerDown={(event) => selectTrade(event, trade)}
-                onClick={(event) => selectTrade(event, trade)}
-                className="cursor-pointer"
-              >
-                <circle cx={trade.point.x} cy={markerY} r="6.2" fill={markerColor} stroke="#071014" strokeWidth="1.4" />
-                <text x={trade.point.x} y={markerY + 3.1} textAnchor="middle" fontSize="7.5" fontWeight="700" fill="#ffffff">
-                  {trade.side === 'sell' ? 'S' : 'B'}
-                </text>
-              </g>
-            );
-          })}
           {selectedPoint && (
             <>
               <line
@@ -408,7 +345,7 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
                 strokeDasharray="4 5"
               />
               <circle cx={selectedPoint.x} cy={selectedPoint.y} r="10" fill="#f6b54b" opacity="0.13" />
-              <circle cx={selectedPoint.x} cy={selectedPoint.y} r="5" fill="#05070b" stroke={selectedPointColor} strokeWidth="2" />
+              <circle cx={selectedPoint.x} cy={selectedPoint.y} r="5" fill="#05070b" stroke="#ffd18a" strokeWidth="1.6" />
             </>
           )}
           <text x="42" y="180" fontSize="9" fill="rgba(255,255,255,0.36)">{first}</text>
@@ -441,26 +378,6 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
             </div>
           </div>
         )}
-        {selectedTrade && tradeMarkerPoint && (
-          <div
-            className="pointer-events-none absolute z-10 min-w-[116px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2 text-left shadow-xl backdrop-blur"
-            style={{
-              left: tradeTooltipLeft,
-              top: tradeTooltipTop,
-              transform: tradeTooltipTransform,
-            }}
-          >
-            <div className={`text-[12px] font-semibold ${selectedTrade.side === 'sell' ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
-              {displayDate(selectedTrade.date)} {sideLabel(language, selectedTrade.side)}
-            </div>
-            <div className="mt-1 text-[11px] leading-4 text-white/[0.76] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {fmt(selectedTrade.shares, 0)} {t(language, 'stockDetail.shares', '股')} @ {fmt(selectedTrade.price, 2)}
-            </div>
-            <div className="text-[11px] leading-4 text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {t(language, 'stockDetail.amount', '成交额')} {currency(selectedTrade.amountUsd * displayRate, currencyMode, 2)}
-            </div>
-          </div>
-        )}
       </div>
       <div className="mt-3 border-t border-white/[0.06] pt-3">
         <div className="grid grid-cols-2 gap-4">
@@ -473,13 +390,9 @@ function PnlSparkline({ points, tradeEvents, color, emptyText, startDate, endDat
           <div>
             <div className="text-[11px] text-white/[0.36]">{t(language, 'stockDetail.maxDrawdown', '最大回撤')}</div>
             <div className={`mt-1 text-[17px] font-semibold tabular-nums ${marketTextClass(toNumber(trendStats?.maxDrawdownUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              {maxDrawdownText}
+              {maxDrawdownText}{maxDrawdownPctText}
             </div>
           </div>
-        </div>
-        <div className="mt-4 flex items-center gap-4 text-[11px] text-white/[0.48]">
-          <span className="inline-flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#e44858] text-[9px] font-bold text-white">B</span>{t(language, 'stockDetail.buy', '买入')}</span>
-          <span className="inline-flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#22c989] text-[9px] font-bold text-white">S</span>{t(language, 'stockDetail.sell', '卖出')}</span>
         </div>
       </div>
     </div>
@@ -634,7 +547,6 @@ export default function StockDetailPage({ ctx = {} }) {
         <div className="mt-2 text-[12px] text-[#ffd18a]">{t(language, 'stockDetail.myPnlLine', '我的收益线')}</div>
         <PnlSparkline
           points={view.trend.map((point) => ({ ...point, pnlUsd: point.pnlUsd * displayRate }))}
-          tradeEvents={view.tradeEvents}
           color="#f6b54b"
           emptyText={loading ? t(language, 'stockDetail.loading', '正在读取快照') : t(language, 'stockDetail.noTrend', '暂无足够快照')}
           startDate={view.axisStartDate}

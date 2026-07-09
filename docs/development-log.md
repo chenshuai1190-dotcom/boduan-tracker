@@ -4,6 +4,33 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股收益线交互修正
+
+- Commit: this commit。
+- Deployment: pending。
+- Background: 用户反馈个股详情页收益走势的长按十字线浮层无法稳定显示,曲线上的 B/S 买卖点在点位接近时重叠,走势图内的“累计盈亏”胶囊按钮也不应展示;同时最大回撤需要补充百分比,金色曲线要更接近效果图的细线视觉。
+- Changes:
+  - `StockDetailPage` 的收益线交互从长按延迟触发改为按下即显示十字线和日期浮层,保留点击外部关闭和自动收起。
+  - 暂时隐藏曲线上的 B/S 买卖点、买入/卖出图例和交易摘要浮层,避免密集点位重叠;交易记录列表仍完整展示买卖记录。
+  - 移除收益走势内部“累计盈亏”胶囊按钮,仅保留真实收益线和浮层。
+  - 最大回撤在金额后追加百分比;金色面积线降低填充和发光强度,线条收细到更接近参考图。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.245`。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js` passed 38 tests。
+  - Full tests: pass;`npm test` passed 166 tests。
+  - Build: pass;`npm run build` generated `StockDetailPage-D2GyEJp2.js`,`SettingsTab-DMNQXA-f.js`,`settingsChangelog-CBlcKyKm.js`。
+  - Audit: pass;`npm audit --audit-level=moderate` found 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+  - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered the stock-detail page,showed the crosshair tooltip with 当日盈亏/持仓市值/收盘价 on chart press,removed the in-chart 累计盈亏 button and B/S legend,and showed max drawdown with percentage;visual screenshot saved to `/tmp/boduan-stock-detail-v245-thin.png`。
+  - Dist marker check: pass;built assets contain `v10.7.9.245`,`个股收益线交互修正`,`stockDetailPnlArea`,`stockDetailPnlGlow`,`最大回撤`,`当日盈亏`,`收盘价`,and do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+- Rollback: 回退 `StockDetailPage` 收益线交互/视觉、`v10.7.9.245` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.244`;不影响交易账本、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股收益走势升级
 
 - Commit: pending。
