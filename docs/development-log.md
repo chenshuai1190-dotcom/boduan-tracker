@@ -4,10 +4,29 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 记录生产流程工具链部署验证
+
+- Commit: same commit;docs-only follow-up 回填 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4` 的部署证据。
+- Deployment: docs-only follow-up;推送 GitHub `main` 后由 Vercel 自动部署,不改变 App 运行时代码、设置页版本、数据库、RLS、行情 relay、交易账本、收益快照或财报日历。
+- Background: 生产流程工具链标准化提交已部署成功,需要按新流程把 GitHub Actions、Vercel、生产入口和鉴权 smoke 结果回填到日志和交接文档。
+- Workflow tier: `docs-only`。
+- Changes:
+  - `docs/development-log.md` 回填 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4` 的部署状态和生产验证结果。
+  - `docs/handoff.md` 当前状态、最新 Vercel 状态、可转发交接块和工具链流程说明同步到 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm run verify:deploy-status -- c47b6e0`: pass,GitHub combined status success,GitHub Actions run `29032325942` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/S1DxTYbMExky3U6CJ41e1pHefqBj`,生产入口 `/assets/index-BBbtWDtu.js`,未登录 quote/earnings 均为 `401`。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,docs-only。
+- Rollback: 回退本条 docs-only 回填只会移除部署证据和交接刷新,不影响 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4` 的流程工具链脚本或任何生产运行时代码。
+
 ### 2026-07-09 - 生产流程工具链标准化
 
-- Commit: same commit;部署完成后用 docs-only follow-up 回填实际 hash 和线上验证。
-- Deployment: pending;本轮会按用户要求推送 GitHub `main` 并触发 Vercel production 部署。设置页版本不更新,因为这是开发/部署流程和本地工具链标准化,不是用户可见 App 功能。
+- Commit: runtime tooling/process commit `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`;本日志随 docs-only follow-up 回填线上验证和交接状态。
+- Deployment: completed;本轮按用户要求推送 GitHub `main` 并触发 Vercel production 部署。GitHub Actions run `29032325942` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/S1DxTYbMExky3U6CJ41e1pHefqBj`;production alias 已更新,入口仍为 `/assets/index-BBbtWDtu.js`。设置页版本不更新,因为这是开发/部署流程和本地工具链标准化,不是用户可见 App 功能。
 - Background: 用户要求补齐基础调试环境并把流程改成标准化工具链,避免以后缺 `gh`、`vercel`、`rg` 或继续手写长 `curl` / `gh api` / 无边界 `rg` 扫长日志导致 token 和时间浪费。
 - Workflow tier: `runtime`。
 - Changes:
@@ -32,6 +51,7 @@
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `git diff --check`: pass。
   - Pre-change production baseline: `npm run verify:deploy-status -- 6c45506b1c0fb1a9d12c9795523a97b24861f50f` pass,GitHub/Vercel status success,生产入口 `/assets/index-BBbtWDtu.js`,未登录 quote/earnings 均为 `401`。
+  - Production verification: `npm run verify:deploy-status -- c47b6e0` pass,GitHub combined status success,GitHub Actions run `29032325942` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/S1DxTYbMExky3U6CJ41e1pHefqBj`,生产入口 `/assets/index-BBbtWDtu.js`,未登录 quote/earnings 均为 `401`。
 - Rollback: 回退本条新增脚本、`package.json` scripts 和流程文档即可恢复旧的手动工具链/部署状态检查方式;不影响前端 UI、设置页版本、数据库、RLS、行情 relay、交易账本、收益快照或财报日历。
 
 ### 2026-07-09 - 首页状态圆点降噪
