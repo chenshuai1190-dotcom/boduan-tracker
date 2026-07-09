@@ -21,6 +21,14 @@ npm run dev
 
 Fill `.env.local` with the real Supabase project values and a rotated EODHD API key.
 
+For EODHD earnings-calendar revenue validation, use the server-only local smoke:
+
+```bash
+npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-07-01 --to=2026-09-30
+```
+
+Details: `docs/eodhd-local-testing.md`.
+
 ## Development Workflow
 
 Before making or handing off any change, read:

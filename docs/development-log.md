@@ -4,11 +4,43 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 财报日历营收字段修复
+### 2026-07-09 - EODHD 财报营收本地测试环境
 
 - Commit: pending。
-- Deployment: pending。
-- Background: 用户反馈首页财报日历第一个股票的默认背景色不应自动高亮,并要求复查“预计营收”是否接口拿不到。复查发现 EODHD 官方 `/api/calendar/trends` 文档和 demo 返回都包含 `revenueEstimateAvg`,但真实返回结构是 `trends: [[...], [...]]` 嵌套数组;当前代码只处理扁平数组,导致预计营收在真实接口中可能无法合并进财报事件。当前 shell、`launchctl`、常见 shell 配置、`.codex/automations`、当前仓库和 `Documents/Codex` 下未找到可用本地 `EODHD_API_KEY`,只找到 `.env.example`/`CONTEXT.md` 占位或文档引用;本次未打印任何 token。
+- Deployment: pending;本轮新增本地 smoke 脚本和开发文档,不改生产运行时代码。
+- Background: 用户确认首页仍看不到“预计营收”,并授权登录 EODHD 获取秘钥、创建本地 EODHD 测试环境并写入开发文档。使用本机 Chrome 已登录 EODHD 控制台读取 API key 候选后,只做本地 `.env.local` 写入和真实接口验证,全程未把 token 打印到终端、聊天或文档。
+- Changes:
+  - 当前工作区创建本地 `.env.local`,写入服务器端 `EODHD_API_KEY`,文件权限为 `600`,且 `.gitignore` 已排除 `.env.*`;该文件不提交。
+  - 新增 `scripts/eodhd-calendar-smoke.mjs`,从 process env 或 `.env.local` 读取 EODHD key,同时验证原始 `/api/calendar/earnings`、原始 `/api/calendar/trends` 和项目自身 `mergeEarningsTrendData` 合并结果。
+  - `package.json` 新增 `npm run smoke:eodhd-calendar`。
+  - 新增 `docs/eodhd-local-testing.md`,记录本地 key 设置、smoke 命令、预期返回结构和排障路径;README 和交接文档链接该流程。
+- Key files:
+  - `.env.local` (local only, ignored, not committed)
+  - `scripts/eodhd-calendar-smoke.mjs`
+  - `package.json`
+  - `README.md`
+  - `docs/eodhd-local-testing.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - EODHD control panel access: pass;Chrome 登录态可访问 `https://eodhd.com/cp/dashboard`,识别到 23 位 API key 候选,并用该 key 验证 `/api/eod/AAPL.US` 返回 200。
+  - Real EODHD calendar smoke: pass;`npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-07-01 --to=2026-09-30` returned `ok: true`。
+  - Real EODHD shape: `/api/calendar/earnings` returned 5 rows with keys `code/report_date/date/before_after_market/currency/actual/estimate/difference/percent`,no revenue estimate field;`/api/calendar/trends` returned nested `trends` arrays with 472 rows,all containing `revenueEstimateAvg` plus `revenueEstimateNumberOfAnalysts`。
+  - Project merge with real key: pass;5 earnings events merged with 472 trend rows and produced 5 `revenueEstimate` values for GOOGL,NVDA,MSFT,META,TSM。
+  - Script syntax: pass;`node --check scripts/eodhd-calendar-smoke.mjs` returned clean。
+  - Full test suite: pass;`npm test` passed 170 tests。
+  - Build: pass;`npm run build` completed successfully with unchanged frontend chunks including `HomeTab-D1DD7H1A.js`,`SettingsTab-CAV0seae.js`,`settingsChangelog-BXm6UOoz.js`,`App-CVqQxcld.js`。
+  - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+  - Secret handling: pass;no token printed;`.env.local` remains ignored by Git;exact-token scan across `git ls-files` returned 0 tracked hits。
+- Conclusion: EODHD 可以拿到预计营收,但来源是 `/api/calendar/trends` 的 `revenueEstimateAvg`,不是 `/api/calendar/earnings`。若生产仍显示空值,优先排查生产 `EODHD_API_KEY` 是否与本地同权限/同账号、Vercel env 是否更新、线上是否已运行 `flattenTrendRows` 修复,而不是把财报日历塞回 `/api/quote`。
+- Rollback: 删除 `scripts/eodhd-calendar-smoke.mjs`、`npm run smoke:eodhd-calendar`、`docs/eodhd-local-testing.md` 以及 README/handoff/log 对本地 smoke 的说明即可;不要删除或提交本机 `.env.local` 的真实 token。
+
+### 2026-07-09 - 财报日历营收字段修复
+
+- Commit: runtime code commit `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `1a5ae2605e51838514f3b508eb9ec6c769a7268a` returned success;production alias `https://boduan-tracker.vercel.app` serving entry `/assets/index-DAoL7-1B.js`,with recursive chunks `/assets/App-DAvT0Pr6.js`,`/assets/HomeTab-D1DD7H1A.js`,`/assets/SettingsTab-CcKDt9iU.js`,`/assets/settingsChangelog-BXm6UOoz.js` verified。
+- Background: 用户反馈首页财报日历第一个股票的默认背景色不应自动高亮,并要求复查“预计营收”是否接口拿不到。复查发现 EODHD 官方 `/api/calendar/trends` 文档和 demo 返回都包含 `revenueEstimateAvg`,但真实返回结构是 `trends: [[...], [...]]` 嵌套数组;当前代码只处理扁平数组,导致预计营收在真实接口中可能无法合并进财报事件。初始 shell、`launchctl`、常见 shell 配置、`.codex/automations`、当前仓库和 `Documents/Codex` 下未找到可用本地 `EODHD_API_KEY`,只找到 `.env.example`/`CONTEXT.md` 占位或文档引用;后续经用户授权已建立本地 EODHD 测试环境,见上方条目。
 - Changes:
   - `EarningsCalendar` 首页预览取消第一项默认选中背景和黄色日期,页面进入时不再自动突出第一只股票。
   - `api/earnings-calendar.js` 新增 `flattenTrendRows`,兼容 EODHD `/api/calendar/trends` 的真实嵌套数组结构,让 `revenueEstimateAvg` 能正确合并为 `revenueEstimate`。
@@ -32,6 +64,8 @@
   - Build: pass;`npm run build` completed successfully with `HomeTab-D1DD7H1A.js`,`SettingsTab-CAV0seae.js`,`settingsChangelog-BXm6UOoz.js`,`App-CVqQxcld.js` bundles。
   - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
   - Diff whitespace: pass;`git diff --check` returned clean。
+  - Production marker: pass;production recursive chunks contain `v10.7.9.251`,`财报日历营收字段修复`,`revenueEstimateAvg`,`earningsEstimateNumberOfAnalysts`;they do not contain `const active = index === 0`,`bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]`,or legacy `CALENDAR:` marker。Serverless-only `flattenTrendRows` is not expected in client chunks and is covered by the local handler test。
+  - Production auth/API boundary: pass;unauthenticated `/api/quote?symbols=VIX` returned `401`;unauthenticated `/api/earnings-calendar?symbols=NVDA` returned `401`;plain HTTP `/api/stocks-realtime` returned `426`。
 - Rollback: 回退 `EarningsCalendar` 首页默认高亮删除、`api/earnings-calendar.js` trends flatten/字段映射、`v10.7.9.251` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.250`;不影响 `/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
 
 ### 2026-07-09 - 首页财报日历视觉压缩
