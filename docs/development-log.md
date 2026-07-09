@@ -7,7 +7,7 @@
 ### 2026-07-09 - 个股收益走势升级
 
 - Commit: pending。
-- Deployment: pending。
+- Deployment: first Vercel Production deployment for `ca5b0a792b379e1ff4f3165f53f47f4010fe4108` returned success, but production alias was still serving the previous runtime during marker polling;deployment retry is being triggered by a documentation follow-up commit。
 - Background: 用户给出个股详情页收益走势设计稿,要求第一版严格参考视觉效果,但未实现的曲线类型切换、对比线等能力不要先体现在前端。
 - Changes:
   - `StockDetailPage` 的收益走势改为金色面积线,增加峰值、当前值、底部峰值/最大回撤指标和 B/S 买卖标记。
