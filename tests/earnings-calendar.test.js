@@ -52,6 +52,16 @@ function jsonResponse(body, status = 200) {
   };
 }
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 test('earnings calendar request validates symbols and date range', () => {
   assert.deepEqual(parseEarningsRequest({ symbols: 'nvda, msft.us', from: '2026-07-01', to: '2026-07-31' }), {
     symbols: ['NVDA', 'MSFT'],
@@ -215,6 +225,74 @@ test('earnings calendar API reads EODHD calendar and trends through a dedicated 
     assert.equal(res.body.events[0].analystCount, 42);
     assert.ok(requestedUrls.every((url) => !url.includes('api.nasdaq.com')));
   } finally {
+    globalThis.fetch = originalFetch;
+    if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
+    else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+    if (originalKey === undefined) delete process.env.EODHD_API_KEY;
+    else process.env.EODHD_API_KEY = originalKey;
+  }
+});
+
+test('earnings calendar API starts trends request without waiting for calendar response', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
+  const originalKey = process.env.EODHD_API_KEY;
+  const calendarResponse = deferred();
+  const requestedPaths = [];
+  let calendarResolved = false;
+  let trendsStartedBeforeCalendarResolved = false;
+
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url);
+    requestedPaths.push(parsed.pathname);
+    if (parsed.pathname === '/api/calendar/earnings') {
+      return calendarResponse.promise;
+    }
+    if (parsed.pathname === '/api/calendar/trends') {
+      trendsStartedBeforeCalendarResolved = !calendarResolved;
+      return jsonResponse({
+        trends: [
+          {
+            code: 'NVDA.US',
+            date: '2026-07-08',
+            period: '0q',
+            revenueEstimateAvg: '284500000000',
+          },
+        ],
+      });
+    }
+    throw new Error(`unexpected url ${url}`);
+  };
+  process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+  process.env.EODHD_API_KEY = 'test-eodhd-key';
+
+  try {
+    const res = createResponse();
+    const handlerPromise = handler(createRequest({ symbols: 'NVDA', from: '2026-07-01', to: '2026-07-31' }), res);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const requestedBeforeCalendarResolved = [...requestedPaths];
+
+    calendarResolved = true;
+    calendarResponse.resolve(jsonResponse({
+      earnings: [
+        {
+          code: 'NVDA.US',
+          report_date: '2026-07-08',
+          before_after_market: 'before-market',
+          estimate: '0.68',
+        },
+      ],
+    }));
+    await handlerPromise;
+
+    assert.ok(requestedBeforeCalendarResolved.includes('/api/calendar/earnings'), 'calendar request should start');
+    assert.ok(requestedBeforeCalendarResolved.includes('/api/calendar/trends'), 'trends request should start before calendar resolves');
+    assert.equal(trendsStartedBeforeCalendarResolved, true);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.events.length, 1);
+  } finally {
+    calendarResolved = true;
+    calendarResponse.resolve(jsonResponse({ earnings: [] }));
     globalThis.fetch = originalFetch;
     if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
     else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;

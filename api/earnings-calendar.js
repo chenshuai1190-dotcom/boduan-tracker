@@ -42,8 +42,10 @@ export default async function handler(req, res) {
   if (!eodhdKey) return sendError(res, 500, '财报日历服务未配置: 缺少 EODHD_API_KEY');
 
   try {
-    const events = await fetchEodhdEarningsCalendar({ ...parsed, eodhdKey });
-    const trends = await fetchEodhdEarningsTrends({ symbols: parsed.symbols, eodhdKey });
+    const [events, trends] = await Promise.all([
+      fetchEodhdEarningsCalendar({ ...parsed, eodhdKey }),
+      fetchEodhdEarningsTrends({ symbols: parsed.symbols, eodhdKey }),
+    ]);
     const merged = mergeEarningsTrendData(events, trends);
     const enriched = await enrichPublishedEarningsData({ events: merged, eodhdKey });
     const fxRates = await fetchEodhdUsdForexRates({

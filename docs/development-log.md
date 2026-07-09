@@ -4,6 +4,34 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 财报日历 calendar/trends 并发
+
+- Commit: same commit;本地独立 sensitive 提交,等待用户确认后再推送/部署。
+- Deployment: not deployed;本轮只做本地 sensitive 改动、提交和验证,不改变设置页版本或用户可见更新日志。
+- Background: 用户确认先做更谨慎效率项中的方案 A,只优化 `/api/earnings-calendar` 内 EODHD calendar 与 trends 两路独立请求的等待方式,不混入 `tabCtx` 拆分。
+- Workflow tier: `sensitive`。
+- Changes:
+  - `/api/earnings-calendar` 在通过鉴权、参数校验和 EODHD key 检查后,用 `Promise.all` 并发启动 `fetchEodhdEarningsCalendar` 和 `fetchEodhdEarningsTrends`。
+  - 保持 response shape、calendar/trends 合并、已公布财报 enrichment、FX 汇率换算、cache header、鉴权和错误出口不变。
+  - 新增 earnings API 单测,用延迟 calendar 响应验证 trends 请求会在 calendar 返回前启动。
+- Key files:
+  - `api/earnings-calendar.js`
+  - `tests/earnings-calendar.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/earnings-calendar.test.js`: pass,7/7。
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,174/174。
+  - `npm run build`: pass,生成 `App-CDXDAg8V.js`、`settingsChangelog-B9AdpNuM.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:rls:rest`: pass,16 张用户表匿名 REST 均返回 0 visible rows。
+  - Local API auth smoke:未登录调用 `/api/earnings-calendar` handler 返回 `401`。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,仅 `api/earnings-calendar.js`、`tests/earnings-calendar.test.js` 和本日志变更。
+  - Production verification: not run,因为本轮未推送、未部署。
+- Rollback: 回退本条 `api/earnings-calendar.js` 的 `Promise.all` 改动、并发启动测试和本日志即可恢复 calendar 成功后再请求 trends 的串行行为;不影响 `/api/quote`、RLS、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - 第二批低风险渲染效率优化
 
 - Commit: same commit;用户已确认部署,本提交随 GitHub `main` 推送触发 Vercel production 部署。
