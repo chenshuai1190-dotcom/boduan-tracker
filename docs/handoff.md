@@ -7,6 +7,7 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 最新接手补充: `v10.7.9.274` 财报日历弹窗高度固定已部署上线。弹窗外框固定为 `h-[86dvh] max-h-[760px]`,标题、tab、月份导航、6 行日期网格和图例不再跟随选中日期财报数量上下乱串;只有下方选中日期财报列表独立滚动。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
+- 最新流程补充: 开发验证正式改为三档流程: `runtime` 跑完整测试/构建/audit/diff check;`docs-only` 只做 diff check、diff stat、定向文档一致性和必要生产状态/marker;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
 - 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `162d7a9230f578e6075e1475a498ad9aef6465c4` 已由 GitHub `main` 推送触发 Vercel production 部署。
 - 当前生产运行时代码提交: `162d7a9230f578e6075e1475a498ad9aef6465c4`。
 - 设置页版本: `v10.7.9.274`。
@@ -126,30 +127,45 @@ git status --short --branch
 npm ci
 ```
 
-每次代码、配置、部署、安全或文档改动,至少跑:
+每次改动先判定 workflow tier,再选择验证强度:
 
-```bash
-npm test
-npm run build
-npm audit
-git diff --check
-```
+1. `runtime`: 修改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何会改变生产 bundle/serverless 行为的内容。必须跑:
 
-生产敏感改动还要跑:
+   ```bash
+   npm test
+   npm run build
+   npm audit --audit-level=moderate
+   git diff --check
+   ```
 
-```bash
-npm run verify:rls:rest
-curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
-```
+2. `docs-only`: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。可跳过 `npm test` / `npm run build` / `npm audit`,但必须跑:
+
+   ```bash
+   git diff --check
+   git diff --stat
+   ```
+
+   同时做定向一致性检查:当前状态区、最近日志条目、可转发交接块、设置页版本/更新日志是否需要同步。不要对整份长日志做无边界 `rg -n` 并输出大量历史命中。
+
+3. `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界。先完整执行 `runtime` 验证,再按影响面补充:
+
+   ```bash
+   npm run verify:rls:rest
+   curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
+   curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
+   ```
+
+   敏感改动不能降级到 `docs-only`;如果判断不确定,按 `sensitive` 处理。
 
 默认收尾:
 
 1. 更新 `docs/development-log.md`。
-2. 用户可见更新同步 `src/tabs/SettingsTab.jsx` 更新日志和版本。
-3. 提交并推送 GitHub `main`。
-4. 等 Vercel 自动部署成功。
-5. 做线上验证。
-6. 把部署和线上验证写回 `docs/development-log.md`。
+2. 在日志里写明 workflow tier、已跑验证和未跑全量验证的原因。
+3. 用户可见更新同步 `src/tabs/SettingsTab.jsx` 更新日志和版本。
+4. 提交并推送 GitHub `main`。
+5. 等 Vercel 自动部署成功。
+6. 按 workflow tier 做线上验证;docs-only 只需确认 Vercel success、生产入口未异常切换和必要 marker/API smoke。
+7. 把部署和线上验证写回 `docs/development-log.md` 或最终交接摘要。
 
 推送注意:
 
@@ -657,19 +673,19 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - 不要关闭 `/api/quote` 鉴权。
 - 不要把财报日历塞回 `/api/quote` 的 `CALENDAR:` 虚拟 symbol 链路;当前财报日历走独立 `/api/earnings-calendar`。
 - HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
+- 每轮先判定 workflow tier: `runtime` / `docs-only` / `sensitive`,再决定验证强度;不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
 
 本机 Node 路径:
 `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`
 
-部署前至少跑:
-`npm test`
-`npm run build`
-`npm audit --audit-level=moderate`
-`git diff --check`
+验证流程:
+- `runtime`: 改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何生产 bundle/serverless 行为,必须跑 `npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
+- `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `git diff --check`、`git diff --stat` 和定向文档一致性检查。
+- `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
 
 生产敏感改动还要跑:
 `npm run verify:rls:rest`
-并确认未登录 `/api/quote?symbols=VIX` 返回 `401`。
+并确认未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 返回 `401`。
 
 当前已完成:
 - 英文模式已覆盖设置页、底部导航、首页、交易页、资产页、目标页;只翻译系统文案,用户自写内容保持原文。

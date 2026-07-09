@@ -4,6 +4,28 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 开发流程分层验证规则
+
+- Commit: same commit。
+- Deployment: docs-only process update;推送 GitHub `main` 后由 Vercel 自动部署,不改变运行时代码、设置页版本或生产 bundle 逻辑。
+- Background: 用户确认当前生产流程存在明显 token 和时间浪费,同意把经验里的风险分层工作流写入正式流程,并要求保证下一任可以继续按这套流程优化开发。
+- Workflow tier: `docs-only`。
+- Changes:
+  - `docs/development-process.md` 把原来的“每次可部署改动至少跑全量 test/build/audit”改为三档验证: `runtime`、`docs-only`、`sensitive`。
+  - 明确 `docs-only` 只适用于纯文档/部署证据回填,可跳过 `npm test`、`npm run build` 和 `npm audit`,但必须跑 `git diff --check`、`git diff --stat` 和定向文档一致性检查。
+  - 明确 `runtime` 改动仍必须跑 `npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
+  - 明确 `sensitive` 改动不能降级,必须在 runtime 验证基础上补 `/api/quote`、`/api/earnings-calendar`、RLS/API/security smoke。
+  - `docs/handoff.md` 第 6 节和可转发交接块同步三档流程,让下一位接手者先判定 workflow tier,再选择验证强度。
+- Key files:
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,docs-only。
+  - Targeted consistency check: pass;当前运行时代码、设置页版本和生产入口仍以 `v10.7.9.274` 为基线,本轮只改流程文档和日志,不需要更新设置页版本/更新日志。
+- Rollback: 回退本条文档改动即可恢复旧的全量验证流程说明;不影响运行时代码、生产 bundle、数据库、RLS、行情、交易账本或财报日历。
+
 ### 2026-07-09 - 财报日历弹窗高度固定部署验证
 
 - Commit: runtime code `162d7a9230f578e6075e1475a498ad9aef6465c4`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。

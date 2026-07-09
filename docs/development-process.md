@@ -40,23 +40,44 @@
    - 添加/修改/删除/确认类弹窗打开后必须锁定背景页面滚动;移动端不能允许遮罩背后的页面跟随手势移动。优先使用记录 `scrollY` + `body { position: fixed; overflow: hidden; width: 100%; top: -scrollY }` 的方式,关闭弹窗后恢复原位置。表单类弹窗默认居中自适应,不要无故贴底。
    - 视觉字重默认使用正常字重;除页面标题、重要模块标题和确有层级需要的标题外,普通文本、股票代码、数字、按钮、列表行和订单记录不要使用 `font-bold`、`font-semibold`、`font-black` 或等效加粗样式。
 
-4. **本地验证**
-   - 每次可部署改动至少运行:
+4. **分层验证**
+   - 每次改动先判定风险档位,再选择验证强度。不要把纯文档回填和高风险运行时代码改动混成同一流程;也不要为了省时间把运行时代码误判成 docs-only。
+
+   - **A. Runtime deploy / 常规运行时代码改动**
+     - 适用范围: 修改 `src/`、`api/`、`tests/`、`public/`、`package*.json`、Vite/Tailwind/build 配置、PWA 资源、用户可见 UI/文案,或任何会改变生产 bundle、serverless 行为、测试边界的内容。
+     - 必跑:
 
      ```bash
      npm test
      npm run build
-     npm audit
+     npm audit --audit-level=moderate
      git diff --check
      ```
 
-   - 涉及线上行为时,补充目标验证。例如:
-     - 登录页和已登录页面 smoke check
-     - `/api/quote` 未登录必须返回 `401`
-     - 安全边界改动必须有对应 `npm test` 覆盖
-     - 包体积治理必须记录 Vite chunk 输出和首页 preload 状态
-     - 数据库/RLS 改动必须说明 Supabase SQL 执行状态
-     - RLS 外部暴露复核可运行 `npm run verify:rls:rest`
+   - **B. Docs-only evidence / 纯文档和部署证据回填**
+     - 适用范围: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变应用源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。
+     - 可跳过 `npm test`、`npm run build` 和 `npm audit`,因为运行时代码没有变化;日志里必须明确本轮是 docs-only,并引用最近一次 runtime deploy 已通过的测试/构建/audit 结果。
+     - 必跑:
+
+     ```bash
+     git diff --check
+     git diff --stat
+     ```
+
+     - 还必须做定向一致性检查:只检查当前状态区、最近日志条目、可转发交接块、设置页版本/更新日志是否需要同步。不要对整份长日志做无边界 `rg -n` 后贴出大量历史命中。
+     - 如果 docs-only 用来回填刚完成的生产部署,仍需验证对应 GitHub/Vercel status、生产入口和关键 marker;这些验证只输出摘要,不要打印 minified bundle。
+
+   - **C. Sensitive change / 生产敏感改动**
+     - 适用范围: auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量、安全文档或任何可能影响跨用户数据边界的改动。
+     - 先完整执行 A 档验证,再按影响面补充:
+       - `/api/quote` 未登录必须返回 `401`。
+       - `/api/earnings-calendar` 未登录必须返回 `401`。
+       - RLS 外部暴露复核运行 `npm run verify:rls:rest`。
+       - 数据库/RLS 改动必须说明 Supabase SQL 执行状态。
+       - 安全边界改动必须有对应测试或线上 smoke 覆盖。
+     - 生产敏感改动不能降级到 docs-only;如果判断不确定,按 C 档处理。
+
+   - 涉及线上行为但不属于 C 档时,按任务补充目标验证。例如登录页和已登录页面 smoke check、生产 marker、Vite chunk 输出、首页 preload 状态等。
    - 涉及 UI、移动端布局、弹窗、字号、图标、颜色或交互位置的改动,必须先做本地视觉截图给用户确认:
      - 优先使用 `390x844` 左右的手机视口和当前任务入口,必要时补充桌面视口。
      - 截图保存到本机固定预览目录 `~/Desktop/boduan-previews/`,文件名写清页面、目标和版本,方便用户在电脑上直接打开。
@@ -66,12 +87,13 @@
 
 5. **必须更新开发日志**
    - 每次代码、配置、部署、安全或文档改动,都必须在同一个提交中更新 `docs/development-log.md`。
-   - 每次改进收尾时,必须同步核对所有记录面,避免版本、commit、部署、验证和线上状态互相不一致。至少检查 `docs/development-log.md`、`docs/handoff.md`、`README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 和设置页更新日志/版本号;若某个文件不需要改,在日志或交接说明中明确原因。
+   - 每次改进收尾时,必须同步核对所有记录面,避免版本、commit、部署、验证和线上状态互相不一致。核对方式按风险档位执行:runtime/sensitive 改动至少检查 `docs/development-log.md`、`docs/handoff.md`、`README.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 和设置页更新日志/版本号;docs-only 只需定向检查当前状态区、最近日志条目和可转发交接块。若某个文件不需要改,在日志或交接说明中明确原因。
    - `docs/handoff.md` 在以下任一情况必须同步更新:当前 `main`/关键 commit/部署状态/线上验证变化,设置页版本变化,产品规则或用户可见流程变化,安全边界/环境变量/Supabase/Vercel 配置变化,代码地图或主要风险变化,下一步优先级或可转发交接话术变化。
    - 用户可见更新必须同时更新设置页更新日志和版本号;产品状态、部署状态、安全基线或交接规则变化,必须同步更新对应文档,不能只改其中一个记录文件。
    - 日志必须包含:
      - 日期和时区
      - 背景/问题
+     - workflow tier: `runtime` / `docs-only` / `sensitive`
      - 核心改动
      - 关键文件
      - 验证命令和结果
@@ -103,11 +125,13 @@
    - 如果 Vercel 对运行时代码提交返回 `Deployment rate limited — retry in 24 hours` 或长时间没有创建 production deployment,不能停在“已推送但未上线”。应先把真实失败状态写入 `docs/development-log.md`,然后创建一个明确的部署重试提交,通过项目 SSH key 推送到 GitHub `main`,并继续轮询 Vercel 到 `success` 或再次确认真实阻塞。部署重试提交不要使用 `[skip ci]`,除非它只是成功上线后的纯文档证据记录。
    - 如果用户明确要求“部署”“再次部署”或“走 ssh”,必须优先执行上面的 SSH 推送/重试流程,不得改用 HTTPS、不得把第一次 Vercel rate limit 当作最终完成状态。
    - 如果 GitHub、CI、Vercel 或权限问题导致无法部署,必须在最终交接中明确说明阻塞原因和当前 commit。
+   - docs-only 提交触发 Vercel 后,只需确认 Vercel status 到 `success`、生产入口未异常切换、关键鉴权 smoke 仍符合预期;不需要因这次 docs-only 再重复 runtime 测试/构建/audit。
 
 8. **生产验证和交接**
    - 部署完成后验证生产 URL。
    - 把线上验证结果写入 `docs/development-log.md`。
    - 最终交接必须说明:
+     - 本轮 workflow tier
      - 当前 commit
      - GitHub Actions 状态
      - Vercel 生产状态
@@ -126,6 +150,7 @@
 - 线上行为和 GitHub `main` 不一致
 - 需要在 Vercel/腾讯云控制台手改代码才能生效
 - 数据库策略不确定,可能造成跨用户读写
+- docs-only 过程中发现源码、配置、依赖、测试或生产行为也被改动,必须升级到 runtime 或 sensitive 档并补跑对应验证
 
 ## Log Template
 
@@ -136,12 +161,13 @@
 
 - Commit: `<hash>` or `same commit`
 - Background:
+- Workflow tier: `runtime` / `docs-only` / `sensitive`
 - Changes:
 - Key files:
 - Validation:
-  - `npm test`: pass/fail
-  - `npm run build`: pass/fail
-  - `npm audit`: pass/fail
+  - Runtime: `npm test` / `npm run build` / `npm audit --audit-level=moderate` / `git diff --check`
+  - Docs-only: `git diff --check` / `git diff --stat` / targeted consistency check
+  - Sensitive: runtime checks plus affected API/RLS/security smoke
   - Other checks:
 - Deployment:
 - Production verification:
