@@ -4,6 +4,24 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 交接文档刷新
+
+- Commit: current docs-only handoff refresh commit。
+- Deployment: docs-only handoff refresh;不改运行时代码。当前生产运行时仍以 `v10.7.9.249` / `8cc8194edabcacd15a5cd49b142dff946f765298` 为基线。
+- Background: 用户准备把项目交给下一位同事继续开发,需要 `docs/handoff.md` 中的当前线上验证、下一步优先级和可直接转发交接块同步到最新生产状态。
+- Changes:
+  - `docs/handoff.md` 第 7 节前置 `v10.7.9.249` 当前生产验证证据,避免下一位同事先看到旧 `v10.7.9.204` 等历史记录。
+  - 更新第 12 节下一步优先级,明确首页财报日历、收益报表、个股详情、交易账本和行情 relay 必须继续保持模块边界。
+  - 更新第 13 节接手命令和检查项,补充 `/api/earnings-calendar` 未登录 `401` 验证,并把设置页版本基线改为 `v10.7.9.249`。
+  - 新增第 14 节最新可直接转发交接块,包含当前 runtime commit、生产入口、关键线上 marker、硬规则、当前完成项和下一步。
+  - 本次不改代码、配置、数据库、安全策略、设置页版本或用户可见更新日志。
+- Key files:
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - Diff whitespace: pass;`git diff --check` returned clean。
+- Rollback: 回退本次两个文档修改即可,不影响生产运行时代码。
+
 ### 2026-07-09 - 首页财报日历独立重构
 
 - Commit: code commit `8cc8194edabcacd15a5cd49b142dff946f765298`;deployment verification docs follow-up is the current commit。

@@ -181,6 +181,14 @@ npm run dev -- --host 127.0.0.1
 
 最近完整验证记录:
 
+- `v10.7.9.249` 首页财报日历独立重构已完成部署和线上验证。当前生产运行时代码提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;生产入口为 `/assets/index-5ffGz7Kp.js`;Vercel production status 为 `success`。
+- 当前生产 marker: `HomeTab-C9G_M3kp.js` 包含 `/api/earnings-calendar`;`SettingsTab-C-lBieCt.js` 包含 `v10.7.9.249`;`settingsChangelog-CCGaX_TC.js` 包含 `首页财报日历独立重构`;`i18n-DDUtz1yJ.js` 包含 `财报日历`。
+- 旧首页财报日历链路已从运行时移除:生产运行时未检出旧 `CALENDAR:` 虚拟 symbol 或旧白色事件弹窗的 `selectedEvent` marker。
+- 当前鉴权边界:未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;普通 HTTP 访问 `/api/stocks-realtime` 返回 `426`。
+- `v10.7.9.249` 部署前本地检查: `npm test` 通过 170 个测试;`npm run build` 成功;`npm audit --audit-level=moderate` 返回 0 vulnerabilities;`git diff --check` 干净。
+
+以下保留历史验证摘录,用于追溯旧问题;接手时以本节最上面的 `v10.7.9.249` 证据为当前线上基线。
+
 - `v10.7.9.204` iOS 主屏股票秒级刷新已完成部署和线上验证:iOS 主屏股票/指数 snapshot 盘前、盘中和盘后使用 1.25 秒活跃轮询,其它时段 2.5 秒;启动/回前台 burst 前移到 0/0.8/1.6/3/5 秒;BTC 保持独立 WebSocket,不参与股票/指数 snapshot 或 warming。生产入口 `/assets/index-DnB_Z168.js`,runtime chunks include `App-BSWC9NlH.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-xej1q5lA.js`,`settingsChangelog-BHgcb57S.js`;marker 验证确认 `v10.7.9.204`,`iOS 主屏股票秒级刷新`,`/api/btc-realtime`,`/api/stocks-realtime`,`/api/indices-realtime`,`America/New_York`,faster burst 和 `stockFreshnessStartedAt` 均存在,且不含 BTC snapshot fetch、BTC warming reset、`v10.7.9.202` 或 `首屏当日盈亏兜底`;`/api/quote?symbols=VIX` 未登录返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`,三套 snapshot 未登录均返回 `401`。
 
 - `v10.7.9.130` local validation: `npm test` pass,65 tests;`npm run build` pass (`index-Dsv8WFFh.css`,`HomeTab-D9pJyb08.js`,`SettingsTab-D6Cq8s1c.js`,`App-B_ap-HHi.js`);`npm audit` pass,0 vulnerabilities;`git diff --check` pass;build marker check confirms `HomeTab-D9pJyb08.js` contains `data-home-fear-card`, `VIX 恐慌指数`, `恐慌贪婪指数`, `gradientUnits`, and `SettingsTab-D6Cq8s1c.js` contains `v10.7.9.130` / `首页恐慌指标高保真卡片`;production assets do not contain `DevVisualPreview` or `mockHomeWatchlist`。
@@ -547,23 +555,31 @@ npm run dev -- --host 127.0.0.1
 - 检查 policies 均按 `auth.uid() = user_id` 隔离。
 - 继续保留 `npm run verify:rls:rest` 作为外部暴露探针。
 
-优先级 2: 拆 `App.jsx` 和 `db.js`。
+优先级 2: 保持模块边界,继续把新功能做成独立系统。
+
+- 首页财报日历已经拆成 `api/earnings-calendar.js`、`src/tabs/EarningsCalendar.jsx`、`src/lib/earningsCalendarModel.js`;后续扩展提醒、收藏、详情或更多字段时,继续沿这条独立链路做,不要重新塞回 `/api/quote` 或 realtime relay。
+- 收益报表和个股详情读取收益快照,不要用实时行情临时拼假数据;没有快照的日期保持空,不要用其它日期替代。
+- 交易页主账本仍以 `stock_trades` 为唯一正式买卖来源;波段记录和摊薄工具保持各自账本边界。
+
+优先级 3: 拆 `App.jsx` 和 `db.js`。
 
 - 建 `src/features/*`。
 - 把自选、交易、行情、设置相关状态拆出 hooks。
 - 让 `App.jsx` 只保留 shell 和 orchestrator。
 
-优先级 3: 拆 quote provider。
+优先级 4: 拆 quote provider。
 
 - 继续拆 `server/quote/providers/eodhd.js`。
-- 补 EODHD 失败、Yahoo fallback、calendar 部分失败的测试。
+- 补 EODHD 失败、Yahoo fallback、股票/指数/BTC relay、earnings calendar 部分失败的测试。
 - 保持 response-shape tests 不回退。
 
-优先级 4: 加完整视觉/流程 smoke。
+优先级 5: 加完整视觉/流程 smoke。
 
 - 登录/忘记密码/设置新密码。
 - 首页自选添加、编辑、删除。
 - 交易买入/卖出后首页和交易页收益率一致。
+- 收益报表手动生成快照、自动收盘快照、个股详情收益线。
+- iOS 主屏 PWA 回前台后的股票实时刷新和 BTC 独立连接。
 - PWA icon manifest 和 apple-touch-icon。
 
 ## 13. 下一个人接手后的第一步
@@ -579,23 +595,99 @@ git status --short --branch
 npm ci
 npm test
 npm run build
-npm audit
+npm audit --audit-level=moderate
 npm run verify:rls:rest
 curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
+curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 ```
 
 确认:
 
 - 工作区干净。
-- 设置页显示 `v10.7.9.173` 或更新版本。
+- 设置页显示 `v10.7.9.249` 或更新版本。
 - `/api/quote?symbols=VIX` 未登录返回 `401`。
+- `/api/earnings-calendar?symbols=NVDA` 未登录返回 `401`。
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
 - HTTPS push 缺 GitHub 凭证时报 `could not read Username` 时,使用项目 SSH key `~/.ssh/boduan_tracker_github` 推送。
 
 ## 14. 交接给下一位同事的话
 
-可以直接转发:
+最新可直接转发:
+
+```markdown
+你接手的是 `boduan-tracker`。
+
+仓库: `chenshuai1190-dotcom/boduan-tracker`
+生产地址: https://boduan-tracker.vercel.app
+
+当前 GitHub main: 以 `docs/handoff.md` 所在最新提交为准
+当前运行时代码提交: `8cc8194edabcacd15a5cd49b142dff946f765298`
+设置页版本: `v10.7.9.249`
+最新运行时 Vercel 部署: success,`v10.7.9.249` production marker verified
+最新生产入口: `/assets/index-5ffGz7Kp.js`
+
+关键线上验证:
+- `HomeTab-C9G_M3kp.js` 包含 `/api/earnings-calendar`
+- `SettingsTab-C-lBieCt.js` 包含 `v10.7.9.249`
+- `settingsChangelog-CCGaX_TC.js` 包含 `首页财报日历独立重构`
+- `i18n-DDUtz1yJ.js` 包含 `财报日历`
+- 生产运行时未检出旧 `CALENDAR:` / `selectedEvent` marker
+- 未登录 `/api/quote?symbols=VIX` 返回 `401`
+- 未登录 `/api/earnings-calendar?symbols=NVDA` 返回 `401`
+- 普通 HTTP 访问 `/api/stocks-realtime` 返回 `426`
+
+请先按顺序读:
+1. `docs/handoff.md`
+2. `README.md`
+3. `docs/development-process.md`
+4. `docs/development-log.md`
+5. `docs/security-hardening.md`
+6. `docs/architecture-security-audit.md`
+
+硬规则:
+- GitHub `main` 是唯一代码源头。
+- 不要直接改 Vercel、浏览器控制台、临时服务器文件。
+- 每次代码、配置、部署、安全或文档改动,都必须更新 `docs/development-log.md`。
+- 用户可见更新必须同步设置页更新日志和版本号。
+- UI 或功能涉及系统文案时,必须同步简体中文和 English;只翻译系统文案,用户自写目标箴言、心得、复盘、备注、日志和账户名保持原文。
+- 不要提交任何 token、`.env`、Supabase service role key。
+- 不要添加 `VITE_EODHD_TOKEN`。
+- 不要让浏览器直连 EODHD WebSocket。
+- 不要关闭 `/api/quote` 鉴权。
+- 不要把财报日历塞回 `/api/quote` 的 `CALENDAR:` 虚拟 symbol 链路;当前财报日历走独立 `/api/earnings-calendar`。
+- HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
+
+本机 Node 路径:
+`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`
+
+部署前至少跑:
+`npm test`
+`npm run build`
+`npm audit --audit-level=moderate`
+`git diff --check`
+
+生产敏感改动还要跑:
+`npm run verify:rls:rest`
+并确认未登录 `/api/quote?symbols=VIX` 返回 `401`。
+
+当前已完成:
+- 英文模式已覆盖设置页、底部导航、首页、交易页、资产页、目标页;只翻译系统文案,用户自写内容保持原文。
+- 股票核心行情已去 Yahoo 混源:股票核心 quote 字段只用 EODHD;Yahoo 仅保留股票小曲线视觉 chart 来源。
+- 股票/指数/BTC realtime relay 保持登录鉴权;BTC、三大指数、股票持仓刷新逻辑已拆开。
+- 收益报表独立页、收益快照、自动收盘快照和个股只读收益详情页已上线;报表读取快照,不使用其它日期替代无快照日期。
+- 首页底部财报日历已在 `v10.7.9.249` 独立重构:新增 `/api/earnings-calendar`,前端不接触 EODHD token,旧 `CALENDAR:` / NASDAQ calendar / 白色事件弹窗已移除。
+- 主交易账本、摊薄工具、波段记录、收益快照和财报日历是不同边界;不要为了省事互相写表或混 provider。
+
+当前优先事项:
+1. 用 Supabase SQL/admin 权限做 RLS metadata 审计。
+2. 保持首页财报日历、收益报表、个股详情、交易账本和行情 relay 的模块边界,继续按独立系统扩展。
+3. 继续拆 `src/App.jsx` 和 `src/lib/db.js`。
+4. 继续拆 quote provider,尤其是 `server/quote/providers/eodhd.js`。
+5. 增加登录、忘记密码、自选、交易收益率、收益快照、个股详情、iOS PWA 回前台刷新等端到端 smoke。
+```
+
+下面旧版转发块仅作历史参考,不要再转发:
 
 ```markdown
 你接手的是 `boduan-tracker`。
