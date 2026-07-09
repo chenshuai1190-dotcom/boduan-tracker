@@ -4,10 +4,10 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 持仓当日盈亏列距部署调试
+### 2026-07-09 - 持仓当日盈亏列距部署验证
 
-- Commit: same commit;用户确认本地截图后要求部署。
-- Deployment: user requested;本次按用户确认后的截图效果发布 `v10.7.9.271`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `fc10d7438957df986482869a96f7c0c6b44d79ea`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
+- Deployment: completed;本次按用户确认后的截图效果发布 `v10.7.9.271`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 用户线上反馈交易页持仓分布里“当日盈亏”和“现价/成本”在多数字时贴得过近,右侧仍会露出一点“持仓盈亏”的 `+`;同时确认可以适当加大后面横滑总宽度,让后续列距也保持舒服。
 - Changes:
   - `TradesTab` 持仓表格总宽从 540px 加到 592px,右侧“持仓盈亏/占比”获得更宽横滑空间。
@@ -28,6 +28,13 @@
   - Diff hygiene pass:`git diff --check`。
   - Local visual smoke pass:`http://127.0.0.1:5173/?tab=trades&v=271-wide-buffer-shot2`,390x844 视口打开交易页持仓分布,确认表格 `scrollWidth=592/clientWidth=340`,默认首屏只完整显示到“当日盈亏”,“持仓盈亏”从可视区右侧 16px 后开始;截图 `~/Desktop/boduan-previews/交易页当日盈亏列距缓冲-v10.7.9.271.png`。
   - Local visual smoke pass:同一页面横滑到 `scrollLeft=252`,确认“持仓盈亏”和“占比”在右侧横滑区有更宽空间;截图 `~/Desktop/boduan-previews/交易页横滑右侧完整列距-v10.7.9.271.png`。
+- Production verification:
+  - GitHub `main`: `fc10d7438957df986482869a96f7c0c6b44d79ea` pushed via `~/.ssh/boduan_tracker_github`。
+  - GitHub Actions: CI run `29024853317` completed `success` for `fc10d7438957df986482869a96f7c0c6b44d79ea`。
+  - Vercel: Production deployment `5377494084` completed `success`,target `https://boduan-tracker-47puk840m-chenshuai1190-7580s-projects.vercel.app`。
+  - Production entry: `https://boduan-tracker.vercel.app/` points to `/assets/index-wI46HtHz.js`。
+  - Production marker check: recursive asset scan found `data-trade-positions-table` / `single-grid`,`min-w-[592px]` and `grid-cols-[70px_84px_68px_118px_16px_176px_60px]` in `/assets/TradesTab-BSGzkbBY.js`;`v10.7.9.271` in `/assets/SettingsTab-4LlWv8mU.js` and `/assets/settingsChangelog-LnJojB44.js`;`持仓当日盈亏列距优化` in `/assets/settingsChangelog-LnJojB44.js`。
+  - Production auth smoke pass:未登录请求 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`,确认 `/api/quote` 鉴权未关闭。
 - Rollback: 回退本条涉及的持仓表格列宽/缓冲列、`v10.7.9.271` 设置页版本/更新日志、测试和本日志即可;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗。
 
 ### 2026-07-09 - 财报列表过滤和持仓列距部署验证
