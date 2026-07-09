@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 持仓试算当前价标记去重
 
-- Commit: pending runtime code;生产部署触发后补充实际提交和线上验证结果。
-- Deployment: requested;用户确认“部署”,本次只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `b19e5a0a1bfedec97e6b9b1a8eb8d97fc06f8378`;本日志后续 docs-only 提交记录线上验证结果。
+- Deployment: completed;用户确认“部署”,本次只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 默认模拟价等于当前价时,价格位置条右侧同时显示“模拟价”和“当前价”两组标签,并且金色呼吸点与静态模拟价点位重合,视觉含义不够清楚。
 - Changes:
   - `TradesTab` 新增 `simulatedMatchesCurrent`,当模拟价与当前价在同一显示精度内重合时,只保留当前价金色呼吸点和当前价标签。
@@ -27,6 +27,8 @@
   - Local marker check pass:source contains `simulatedMatchesCurrent` and hidden duplicated `simulated` branch;dist contains `data-price-position-marker`,`scenario-marker-breathe`,`v10.7.9.268` and `当前价标记去重`。
   - Diff hygiene pass:`git diff --check`。
   - Local visual smoke pass:`http://127.0.0.1:5174/?tab=trades&v=268-current-dedupe`,390x844 iPhone UA,打开 NVDA 试算弹窗默认当前价状态,确认 `data-price-position-label` 只有 `cost/current`, `data-price-position-marker` 只有 `cost/current`,当前价金色呼吸点数量 1,模拟价标签和 marker 数量均为 0;点击 `+5%` 后 `simulated` 标签和 marker 恢复为 1。截图 `/tmp/boduan-trades-scenario-current-dedupe-v10.7.9.268.png`。
+  - Production asset verification pass:`https://boduan-tracker.vercel.app/` 最新入口为 `/assets/index-B_U2J4zb.js`,递归扫描 22 个 JS assets;`/assets/TradesTab-DQutN9VX.js` 命中 `data-price-position-marker` 和 `scenario-marker-breathe`;`/assets/SettingsTab-BnIuu_J6.js` 命中 `v10.7.9.268`;`/assets/settingsChangelog-CbXkSLFF.js` 命中 `v10.7.9.268` 和 `当前价标记去重`。
+  - Production auth smoke pass:未登录请求 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`,确认 `/api/quote` 鉴权未关闭。
 - Rollback: 回退本条涉及的 `simulatedMatchesCurrent` 去重、`v10.7.9.268` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或 iOS 输入跳顶修复。
 
 ### 2026-07-09 - 持仓试算价格位置条顺序修复
