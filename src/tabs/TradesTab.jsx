@@ -143,6 +143,14 @@ function isFlatScenarioValue(value, epsilon = 0.005) {
   return Math.abs(toNumber(value)) < epsilon;
 }
 
+function isIOSLikeBrowser() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+  const touchPoints = Number(navigator.maxTouchPoints) || 0;
+  return /iPad|iPhone|iPod/i.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
+}
+
 function PositionProfitScenarioSheet({
   position,
   onClose,
@@ -155,6 +163,7 @@ function PositionProfitScenarioSheet({
   cacheStockLogo,
 }) {
   const inputRef = React.useRef(null);
+  const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
   const symbol = String(position?.symbol || '').trim().toUpperCase();
   const nameParts = stockNameParts(symbol, position?.name);
   const quantity = toNumber(position?.heldShares);
@@ -165,9 +174,43 @@ function PositionProfitScenarioSheet({
 
   React.useEffect(() => {
     setPriceInput(formatScenarioInput(currentPrice));
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 120);
+    if (isIOSLikeBrowser()) return undefined;
+    const timer = window.setTimeout(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      try {
+        input.focus({ preventScroll: true });
+      } catch {
+        input.focus();
+      }
+    }, 120);
     return () => window.clearTimeout(timer);
   }, [symbol, currentPrice]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !isIOSLikeBrowser() || !window.visualViewport) return undefined;
+    const viewport = window.visualViewport;
+    let rafId = 0;
+    const updateFrame = () => {
+      window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        setVisualViewportFrame({
+          top: `${Math.max(0, viewport.offsetTop || 0)}px`,
+          height: `${Math.max(320, viewport.height || window.innerHeight || 0)}px`,
+        });
+      });
+    };
+    updateFrame();
+    viewport.addEventListener('resize', updateFrame);
+    viewport.addEventListener('scroll', updateFrame);
+    window.addEventListener('orientationchange', updateFrame);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      viewport.removeEventListener('resize', updateFrame);
+      viewport.removeEventListener('scroll', updateFrame);
+      window.removeEventListener('orientationchange', updateFrame);
+    };
+  }, []);
 
   const inputPrice = Number.parseFloat(String(priceInput).replace(/,/g, ''));
   const validPrice = Number.isFinite(inputPrice) && inputPrice > 0;
@@ -187,11 +230,7 @@ function PositionProfitScenarioSheet({
   const scenarioSignedPct = (value) => (
     Math.abs(toNumber(value)) < 0.000001 ? '0.00%' : signedPct(value, 2)
   );
-  const markerClass = resultTone === 'profit'
-    ? 'border-[#ff6a3d] bg-[#ff6a3d]'
-    : resultTone === 'loss'
-      ? 'border-emerald-400 bg-emerald-400'
-      : 'border-[#f6b54b] bg-[#f6b54b]';
+  const markerGlowRgb = '246 181 75';
   const shortcutTargets = [
     { id: 'current', label: tt('trades.scenarioCurrent', '当前价'), value: currentPrice, disabled: currentPrice <= 0 },
     { id: 'cost', label: tt('trades.scenarioCost', '成本价'), value: costPrice, disabled: costPrice <= 0 },
@@ -209,15 +248,45 @@ function PositionProfitScenarioSheet({
   const pointLeft = (value) => `${Math.min(100, Math.max(0, ((value - low) / range) * 100))}%`;
   const cachedLogoUrl = logoCache?.[symbol]?.url;
   const logoUrls = stockLogoCandidates(symbol, cachedLogoUrl);
+  const dialogStyle = visualViewportFrame
+    ? {
+        top: visualViewportFrame.top,
+        height: visualViewportFrame.height,
+      }
+    : undefined;
+  const panelStyle = visualViewportFrame
+    ? { maxHeight: 'min(72dvh, calc(100% - env(safe-area-inset-top) - 0.75rem))' }
+    : undefined;
 
   return (
     <div
-      className="fixed inset-0 z-[170] flex items-end justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-8 backdrop-blur-md"
+      className="fixed left-0 right-0 top-0 z-[170] flex h-[100dvh] items-end justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-md"
+      style={dialogStyle}
       role="dialog"
       aria-modal="true"
       aria-label={tt('trades.scenarioTitle', '持仓收益试算')}
     >
-      <div className="flex max-h-[72dvh] w-full max-w-[410px] flex-col rounded-[24px] border border-white/10 bg-[#0b0f14] p-5 text-white shadow-[0_-24px_70px_rgba(0,0,0,0.5)]">
+      <style>{`
+        @keyframes scenario-marker-breathe {
+          0%, 100% {
+            transform: translate(-50%, -50%) scale(1);
+            box-shadow: 0 0 0 0 rgb(var(--scenario-marker-glow) / 0.16), 0 0 7px rgb(var(--scenario-marker-glow) / 0.22);
+          }
+          50% {
+            transform: translate(-50%, -50%) scale(1.22);
+            box-shadow: 0 0 0 4px rgb(var(--scenario-marker-glow) / 0.07), 0 0 12px rgb(var(--scenario-marker-glow) / 0.3);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .scenario-marker-breathe {
+            animation: none !important;
+          }
+        }
+        .scenario-marker-breathe {
+          animation: scenario-marker-breathe 3.2s ease-in-out infinite;
+        }
+      `}</style>
+      <div className="flex max-h-[72dvh] w-full max-w-[410px] flex-col rounded-[24px] border border-white/10 bg-[#0b0f14] p-5 text-white shadow-[0_-24px_70px_rgba(0,0,0,0.5)]" style={panelStyle}>
         <div className="flex items-start gap-3">
           <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 shrink-0 rounded-lg" />
           <div className="min-w-0 flex-1">
@@ -335,7 +404,7 @@ function PositionProfitScenarioSheet({
                   <div className="absolute left-1 right-1 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-400 via-[#f6b54b] to-[#ff4b1f]" />
                   <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(costPrice) }} />
                   <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(currentPrice) }} />
-                  <span className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-[0_0_10px_rgba(255,255,255,0.18)] ${markerClass}`} style={{ left: pointLeft(inputPrice) }} />
+                  <span className="scenario-marker-breathe pointer-events-none absolute top-1/2 h-[7px] w-[7px] rounded-full border border-[#ffd166]/90 bg-[#f6b54b]" style={{ left: pointLeft(inputPrice), '--scenario-marker-glow': markerGlowRgb }} aria-hidden="true" />
                 </div>
               </div>
 
@@ -463,21 +532,33 @@ export default function TradesTab({ ctx }) {
       bodyOverflow: bodyStyle.overflow,
       bodyPosition: bodyStyle.position,
       bodyTop: bodyStyle.top,
+      bodyLeft: bodyStyle.left,
+      bodyRight: bodyStyle.right,
       bodyWidth: bodyStyle.width,
+      bodyTouchAction: bodyStyle.touchAction,
+      htmlOverflow: htmlStyle.overflow,
       htmlOverscrollBehavior: htmlStyle.overscrollBehavior,
     };
 
     bodyStyle.overflow = 'hidden';
     bodyStyle.position = 'fixed';
     bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.left = '0';
+    bodyStyle.right = '0';
     bodyStyle.width = '100%';
+    bodyStyle.touchAction = 'none';
+    htmlStyle.overflow = 'hidden';
     htmlStyle.overscrollBehavior = 'none';
 
     return () => {
       bodyStyle.overflow = previous.bodyOverflow;
       bodyStyle.position = previous.bodyPosition;
       bodyStyle.top = previous.bodyTop;
+      bodyStyle.left = previous.bodyLeft;
+      bodyStyle.right = previous.bodyRight;
       bodyStyle.width = previous.bodyWidth;
+      bodyStyle.touchAction = previous.bodyTouchAction;
+      htmlStyle.overflow = previous.htmlOverflow;
       htmlStyle.overscrollBehavior = previous.htmlOverscrollBehavior;
       window.scrollTo(0, scrollY);
     };

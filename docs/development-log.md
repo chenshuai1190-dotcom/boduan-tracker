@@ -4,6 +4,55 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 持仓试算模拟价呼吸标记
+
+- Commit: pending;准备提交并通过 GitHub `main` 触发 Vercel production 部署。
+- Deployment: in progress;用户要求“部署”,本次只通过 GitHub `main` 推送触发 Vercel,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 持仓收益试算弹窗的价格位置条原先用圆点表示模拟价,小火箭图标在当前深色金融 UI 里视觉存在感偏强。最终改为 7px 固定金黄色小圆点,只增加轻微慢速呼吸柔光,让模拟价更容易识别但不抢主信息,也不和盈亏红绿状态混淆。
+- Changes:
+  - `TradesTab` 撤回 lucide `Rocket` 小图标,价格位置条模拟价标记改为 7px 固定金黄色小圆点,约为上一版圆点尺寸的一半。
+  - 模拟价小圆点增加 `scenario-marker-breathe` 慢速呼吸动画,周期 3.2s,仅做轻微缩放和低透明金色柔光;`prefers-reduced-motion` 下禁用动画。
+  - 呼吸标记不再跟随盈亏结果变红/绿,盈亏结果区本身仍沿用现有市场颜色逻辑。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.265`,并保留 `v10.7.9.264` 的 iOS 输入跳顶修复记录。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` pass,173/173 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,35/35 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `TradesTab-BARtuxRB.js`、`SettingsTab-0mN1SmIP.js`、`settingsChangelog-DJ5gAck6.js`。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
+  - Local visual smoke pass:`http://127.0.0.1:5174/?tab=trades&v=265-tiny-gold`,390x844 iPhone UA,打开 NVDA 试算弹窗并输入 `194.440`,确认 `.scenario-marker-breathe` 存在,marker class 为 `h-[7px] w-[7px] rounded-full border border-[#ffd166]/90 bg-[#f6b54b]`,动画周期 `3.2s`,背景色 `rgb(246, 181, 75)`,小火箭 SVG 不再存在,`scrollY=0`;截图 `/tmp/boduan-trades-scenario-tiny-gold-breathe-v10.7.9.265.png`。
+  - `git diff --check` pass。
+- Rollback: 回退本条涉及的圆点呼吸动效、`v10.7.9.265` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或 iOS 输入跳顶修复。
+
+### 2026-07-09 - iOS 持仓试算输入跳顶本地修复
+
+- Commit: pending;随 `v10.7.9.265` 本次 production 部署一起提交。
+- Deployment: in progress;此前按用户要求先本地测试,本次用户确认部署后随持仓试算呼吸标记一起通过 GitHub `main` 发布。
+- Background: 用户反馈在 iOS Web App 测试环境里,第一次打开持仓收益试算弹窗并输入数字时,弹窗会被键盘/浏览器滚到页面最上面,输入框贴近状态栏,体验很差;第二次输入恢复正常。复查当前实现会在弹窗打开后 120ms 直接 `focus()` 输入框,这会触发 iOS 首次键盘唤起时对 fixed 弹窗的系统滚动。
+- Changes:
+  - `TradesTab` 新增 iOS-like 浏览器检测,iOS 上不再程序化自动聚焦试算输入框,改为用户点击输入框后唤起键盘;非 iOS 仍保留自动聚焦,但使用 `focus({ preventScroll: true })`。
+  - iOS 支持 `visualViewport` 时,试算弹窗容器会跟随 `visualViewport.offsetTop/height` 更新,键盘出现时固定在当前可视区域而不是被顶到状态栏下。
+  - 弹窗打开时的滚动锁补充 `body.left/right/touchAction` 和 `html.overflow`,减少 iOS 首次键盘对底层页面的自动平移空间。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.264`。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` pass,35/35 tests。
+  - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` pass,产物包含 `TradesTab-DQq6z8JU.js`、`SettingsTab-N0Z4pcWm.js`、`settingsChangelog-D-vESeHt.js`。
+  - Local visual/source smoke pass:`http://127.0.0.1:5174/?tab=trades&v=264`,390x844 iPhone UA,打开 NVDA 试算弹窗后 iOS-like 路径不会自动聚焦输入框;点击输入 `194.440` 后 `scrollY=0`,dialog 固定为 `top=0,height=844`,body/html 锁滚动为 fixed/hidden/left/right/touchAction;截图 `/tmp/boduan-trades-scenario-ios-focus-v10.7.9.264.png`。缩小可视高度到 390x620 后 `visualViewport.height=620`,dialog 高度同步为 620,面板仍贴当前可视区域底部,截图 `/tmp/boduan-trades-scenario-ios-focus-v10.7.9.264-keyboard-approx.png`。
+  - `git diff --check` pass。
+  - Note: 本地 Chrome 只能近似验证 iOS Web App 键盘后的 `visualViewport` 行为;真实 iOS 原生键盘仍需在用户测试环境确认。
+- Rollback: 回退本条涉及的 iOS 自动聚焦保护、visualViewport 定位、滚动锁补强、`v10.7.9.264` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote` 或财报日历边界。
+
 ### 2026-07-09 - 持仓收益试算去除汇率说明并部署
 
 - Commit: runtime code `08ff2ad5e16dcd0d42e543aec064634c998e4ea6`;本日志所在提交为部署验证 docs-only follow-up。
