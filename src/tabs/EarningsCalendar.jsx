@@ -634,7 +634,7 @@ function EarningsModal({
 
   return (
     <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/72 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[3px]" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="flex max-h-[86dvh] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]" style={{ fontFamily: FONT }}>
+      <div className="flex h-[86dvh] max-h-[760px] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]" style={{ fontFamily: FONT }}>
         <div className="flex shrink-0 items-center justify-between">
           <div className="text-[14px] font-bold leading-none text-white">
             {t(language, 'earningsCalendar.title', '财报日历')}
@@ -661,57 +661,61 @@ function EarningsModal({
         </div>
 
         {view === 'calendar' ? (
-          <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/54 active:scale-95">
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <div className="text-[15px] font-normal text-white/78">{monthLabel(`${visibleMonth}-01`, language)}</div>
-              <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/54 active:scale-95">
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-2 grid grid-cols-7 border-b border-white/[0.06] pb-2 text-center text-[11px] text-white/42">
-              {(language === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['日', '一', '二', '三', '四', '五', '六']).map((item) => <span key={item}>{item}</span>)}
-            </div>
-            <div className="mt-1 grid grid-cols-7 gap-y-1 text-center">
-              {monthDays.map((day) => {
-                const active = selectedDate === day.key;
-                const hasEvents = day.events.length > 0;
-                return (
-                  <button
-                    key={day.key}
-                    type="button"
-                    onClick={() => {
-                      setSelectedDate(day.key);
-                      setVisibleMonth(day.key.slice(0, 7));
-                    }}
-                    className={`mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-xl text-[14px] font-normal active:scale-95 ${
-                      active
-                        ? 'border border-[#f6b54b]/65 bg-[#f6b54b]/12 text-[#ffd18a]'
-                        : day.inMonth ? 'text-white/76' : 'text-white/20'
-                    }`}
-                  >
-                    <span>{day.day}</span>
-                    {hasEvents ? <DayDots events={day.events} /> : <span className="mt-1 h-1.5" />}
-                  </button>
-                );
-              })}
-            </div>
-            <EarningsStatusLegend language={language} />
-
-            <div className="mt-4 space-y-2">
-              <div className="text-[12px] text-white/42">
-                {selectedDate ? `${selectedDate} · ${selectedEvents.length || 0} ${t(language, 'earningsCalendar.eventsUnit', '项')}` : t(language, 'earningsCalendar.noDateSelected', '选择日期查看财报')}
+          <div className="mt-4 flex min-h-0 flex-1 flex-col" data-earnings-calendar-view="fixed-calendar">
+            <div className="shrink-0">
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/54 active:scale-95">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div className="text-[15px] font-normal text-white/78">{monthLabel(`${visibleMonth}-01`, language)}</div>
+                <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/54 active:scale-95">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
               </div>
-              {selectedEvents.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-5 text-center text-[13px] text-white/36">
-                  {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : t(language, 'earningsCalendar.noEventsOnDate', '当天没有关注股票财报')}
+
+              <div className="mt-2 grid grid-cols-7 border-b border-white/[0.06] pb-2 text-center text-[11px] text-white/42">
+                {(language === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['日', '一', '二', '三', '四', '五', '六']).map((item) => <span key={item}>{item}</span>)}
+              </div>
+              <div className="mt-1 grid grid-cols-7 grid-rows-6 gap-y-1 text-center">
+                {monthDays.map((day) => {
+                  const active = selectedDate === day.key;
+                  const hasEvents = day.events.length > 0;
+                  return (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(day.key);
+                        setVisibleMonth(day.key.slice(0, 7));
+                      }}
+                      className={`mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-xl text-[14px] font-normal active:scale-95 ${
+                        active
+                          ? 'border border-[#f6b54b]/65 bg-[#f6b54b]/12 text-[#ffd18a]'
+                          : day.inMonth ? 'text-white/76' : 'text-white/20'
+                      }`}
+                    >
+                      <span>{day.day}</span>
+                      {hasEvents ? <DayDots events={day.events} /> : <span className="mt-1 h-1.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <EarningsStatusLegend language={language} />
+            </div>
+
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5" data-earnings-calendar-selected-list>
+              <div className="space-y-2">
+                <div className="text-[12px] text-white/42">
+                  {selectedDate ? `${selectedDate} · ${selectedEvents.length || 0} ${t(language, 'earningsCalendar.eventsUnit', '项')}` : t(language, 'earningsCalendar.noDateSelected', '选择日期查看财报')}
                 </div>
-              ) : selectedEvents.map((event) => (
-                <EarningsEventRow key={event.id} event={event} logoCache={logoCache} cacheStockLogo={cacheStockLogo} displayStockName={displayStockName} language={language} onOpenDetail={setDetailEvent} />
-              ))}
+                {selectedEvents.length === 0 ? (
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-5 text-center text-[13px] text-white/36">
+                    {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : t(language, 'earningsCalendar.noEventsOnDate', '当天没有关注股票财报')}
+                  </div>
+                ) : selectedEvents.map((event) => (
+                  <EarningsEventRow key={event.id} event={event} logoCache={logoCache} cacheStockLogo={cacheStockLogo} displayStockName={displayStockName} language={language} onOpenDetail={setDetailEvent} />
+                ))}
+              </div>
             </div>
           </div>
         ) : (

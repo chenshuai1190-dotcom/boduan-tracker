@@ -232,8 +232,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.273'), 'settings version badge should document the latest trade positions v230 width update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.273'), 'settings changelog should document the latest trade positions v230 width update');
+  assert.ok(settingsTabSource.includes('v10.7.9.274'), 'settings version badge should document the latest earnings calendar modal height fix');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.274'), 'settings changelog should document the latest earnings calendar modal height fix');
+  assert.ok(settingsChangelogSource.includes('财报日历弹窗高度固定'), 'settings changelog should describe the latest earnings calendar modal height fix');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.273'), 'settings changelog should retain the previous trade positions v230 width update');
   assert.ok(settingsChangelogSource.includes('持仓列宽恢复 v230 口径'), 'settings changelog should describe the trade positions v230 width update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.272'), 'settings changelog should retain the previous trade positions spacing rebalance update');
   assert.ok(settingsChangelogSource.includes('持仓列距再平衡'), 'settings changelog should describe the previous trade positions spacing rebalance update');
@@ -300,6 +302,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('userSelectedDateRef'), 'earnings calendar should track dates selected manually in the modal');
   assert.ok(earningsCalendarSource.includes('if (modalOpenRef.current && userSelectedDateRef.current && current) return current;'), 'earnings calendar should not reset a manually selected date after event refresh');
   assert.ok(earningsCalendarSource.includes('setSelectedDate={setUserSelectedDate}'), 'earnings calendar modal date clicks should mark the selection as user-controlled');
+  assert.ok(earningsCalendarSource.includes('h-[86dvh] max-h-[760px]'), 'earnings calendar modal should keep a stable fixed height instead of content-sized jumping');
+  assert.ok(earningsCalendarSource.includes('data-earnings-calendar-view="fixed-calendar"'), 'earnings calendar view should separate the fixed calendar area from the selected-date list');
+  assert.ok(earningsCalendarSource.includes('grid grid-cols-7 grid-rows-6'), 'earnings calendar month grid should keep a stable six-row footprint');
+  assert.ok(earningsCalendarSource.includes('data-earnings-calendar-selected-list'), 'earnings calendar selected-date list should be the only calendar-view scroll surface');
+  assert.equal(earningsCalendarSource.includes('view === \'calendar\' ? (\n          <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">'), false, 'earnings calendar view should not scroll the month grid together with the event list');
   assert.ok(tradesTabSource.includes('data-trade-positions-table="v230-single-grid"'), 'trade positions table should document that it uses v230 widths in a single grid');
   assert.ok(tradesTabSource.includes('min-w-[604px]'), 'trade positions table should include the v230 columns plus one grid gap set in a single scroll surface');
   assert.ok(tradesTabSource.includes('grid-cols-[100px_80px_76px_118px_144px_66px]'), 'trade positions table should restore the v230 column widths without a two-pane split');
@@ -1295,7 +1302,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.273'), 'settings version badge should document the latest trade positions v230 width update');
+  assert.ok(settingsTabSource.includes('v10.7.9.274'), 'settings version badge should document the latest earnings calendar modal height fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1557,7 +1564,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.273'), 'settings version badge should document the latest trade positions v230 width update');
+  assert.ok(settingsTabSource.includes('v10.7.9.274'), 'settings version badge should document the latest earnings calendar modal height fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

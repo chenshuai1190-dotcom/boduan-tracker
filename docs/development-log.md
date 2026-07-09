@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 财报日历弹窗高度固定本地调试
+
+- Commit: same commit;本次先按用户要求本地调试截图确认,暂未部署。
+- Deployment: not requested yet;本次不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户反馈首页财报日历弹窗在日历视图点击不同日期时,弹窗高度和上半部日历头部会跟随选中日期的财报数量上下乱串;期望标题、tab、月份导航、日历网格和图例保持稳定,只让下方选中日期财报列表区域变化或滚动。
+- Changes:
+  - `EarningsCalendar` 弹窗外框从内容撑开的 `max-h` 改为固定 `h-[86dvh] max-h-[760px]`,避免 0 项、1 项、2 项或多项财报改变外框高度。
+  - 日历视图拆成固定上半区和独立下半区:月份导航、星期行、6 行日期网格和图例全部 `shrink-0`;选中日期财报列表使用单独的 `min-h-0 flex-1 overflow-y-auto` 容器。
+  - 日期网格显式保持 6 行 footprint,避免月份或选中日期列表内容变化时压缩日历区域。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.274`,并保留 `v10.7.9.273` 的已部署持仓列宽恢复记录。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js`: pass,41/41。
+  - `npm run build`: pass,生成 `App-CrhaIi86.js`、`HomeTab-82VW8JC7.js`、`SettingsTab-AqTPr5-2.js`、`settingsChangelog-J9NxzMa_.js`。
+  - Local visual smoke: `390x844` 视口下打开财报日历弹窗,1 项、2 项和 0 项日期切换后外框保持 `y=59/h=726`,日历区保持 `y=182/h=558`;只有选中日期列表自身 `scrollHeight` 随财报数量变化。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/财报日历弹窗固定高度-1项-v10.7.9.274.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/财报日历弹窗固定高度-2项-v10.7.9.274.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/财报日历弹窗固定高度-0项-v10.7.9.274.png`。
+  - `npm test`: pass,173/173。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+- Rollback: 回退本条涉及的财报日历弹窗固定高度/列表独立滚动、`v10.7.9.274` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.273`;不影响 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
 ### 2026-07-09 - 持仓列宽恢复 v230 口径本地调试
 
 - Commit: runtime code `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
