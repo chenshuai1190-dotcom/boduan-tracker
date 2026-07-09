@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 首页状态圆点降噪
 
-- Commit: same commit;部署后回填线上运行时代码提交、Vercel target 和生产入口。
-- Deployment: pending;本次发布 `v10.7.9.275`,计划只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `41e77056d7a62a594830dda44eec8b4d54a51f5e`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
+- Deployment: completed;本次发布 `v10.7.9.275`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。GitHub Actions `CI` run `29030290230` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/26426ft19PxD7jgkCzo8i64U72W1`;production alias 已更新,入口 `/assets/index-BBbtWDtu.js`。
 - Background: 用户根据首页效果图反馈,当前信号“等待中”旁边的小圆点和 VIX 数值旁边的小绿点在视觉上重复,希望删除这两个装饰点,观察首页卡片降噪后的效果。
 - Workflow tier: `runtime`。
 - Changes:
@@ -27,6 +27,9 @@
   - `npm run build`: pass,生成 `App-DIozxW2P.js`、`HomeTab-sFGT_nuR.js`、`SettingsTab-DFEZTwPt.js`、`settingsChangelog-B9AdpNuM.js`。
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `git diff --check`: pass。
+  - GitHub Actions `CI` run `29030290230`: completed with `success`。
+  - Production markers: `/assets/index-BBbtWDtu.js` 加载 `/assets/App-BxXUBxvS.js`;`App-BxXUBxvS.js` 引用 `/assets/HomeTab-sFGT_nuR.js`、`/assets/SettingsTab-ew7K8Iqh.js`、`/assets/settingsChangelog-B9AdpNuM.js`;`HomeTab-sFGT_nuR.js` 中当前信号标题小点 `h-3 w-3 shrink-0 rounded-full` absent,VIX 数值小点 `0_0_14px` absent,风险条定位圆点 `absolute top-1/2 h-3.5 w-3.5 ... border-2 border-white bg-emerald-400` present;`SettingsTab-ew7K8Iqh.js` 包含 `v10.7.9.275`;`settingsChangelog-B9AdpNuM.js` 包含 `v10.7.9.275`、`首页状态圆点降噪`、上一版 `v10.7.9.274` 和 `财报日历弹窗高度固定`。
+  - Auth smoke:未登录 `/api/quote?symbols=VIX` 返回 `401`;未登录 `/api/earnings-calendar?symbols=NVDA` 返回 `401`。
 - Rollback: 回退本条涉及的首页两个装饰圆点删除、`v10.7.9.275` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.274`;不影响 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
 
 ### 2026-07-09 - 文档一致性检查脚本
