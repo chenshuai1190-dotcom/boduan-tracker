@@ -6,15 +6,15 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新接手补充: `v10.7.9.273` 交易页持仓列宽恢复 v230 口径已部署上线。持仓表格使用单一横向 grid 避免行分割线断层,列模板为 `100/80/76/118/144/66`,总宽 604px;宽度参考 `v10.7.9.230`,但保留后续新增的个股详情入口和现价/成本持仓收益试算入口。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
-- 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f` 已由 GitHub `main` 推送触发 Vercel production 部署。
-- 当前生产运行时代码提交: `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`。
-- 设置页版本: `v10.7.9.273`。
+- 最新接手补充: `v10.7.9.274` 财报日历弹窗高度固定已部署上线。弹窗外框固定为 `h-[86dvh] max-h-[760px]`,标题、tab、月份导航、6 行日期网格和图例不再跟随选中日期财报数量上下乱串;只有下方选中日期财报列表独立滚动。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
+- 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `162d7a9230f578e6075e1475a498ad9aef6465c4` 已由 GitHub `main` 推送触发 Vercel production 部署。
+- 当前生产运行时代码提交: `162d7a9230f578e6075e1475a498ad9aef6465c4`。
+- 设置页版本: `v10.7.9.274`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最新 Vercel 状态: `v10.7.9.273` production `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6hTahi7dFR54vCA8iEN2bjGGM3gR`;production alias 已更新,入口 `/assets/index-DVGBaPdi.js`。
-- 最近交接文档刷新部署: 本文件所在最新提交为准;本次 docs-only follow-up 回填 `v10.7.9.273` 部署证据,运行时代码仍是 `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`。
-- 线上关键验证: `TradesTab-BdDFtAFo.js` 包含 `data-trade-positions-table` / `v230-single-grid`,`min-w-[604px]` 和 `grid-cols-[100px_80px_76px_118px_144px_66px]`;`SettingsTab-CJgMfYo8.js` 包含 `v10.7.9.273`;`settingsChangelog-DQzfIbv7.js` 包含 `v10.7.9.273`、`持仓列宽恢复 v230 口径` 和 `单一横向 grid`;未登录 `/api/quote?symbols=VIX` 返回 `401`。
-- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算弹窗、iOS 输入跳顶修复和价格位置条当前价标记修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
+- 最新 Vercel 状态: `v10.7.9.274` production `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7PBu3saeop8YqvTw8ZfkxT2ESfQG`;production alias 已更新,入口 `/assets/index-BXhGeJGW.js`。
+- 最近交接文档刷新部署: 本文件所在最新提交为准;本次 docs-only follow-up 回填 `v10.7.9.274` 部署证据,运行时代码仍是 `162d7a9230f578e6075e1475a498ad9aef6465c4`。
+- 线上关键验证: `HomeTab-82VW8JC7.js` 包含 `fixed-calendar`、`data-earnings-calendar-selected-list`、`86dvh` 和 `grid-rows-6`;`SettingsTab-DfoY-rBe.js` 包含 `v10.7.9.274`;`settingsChangelog-J9NxzMa_.js` 包含 `v10.7.9.274`、`财报日历弹窗高度固定`、上一版 `v10.7.9.273` 和 `持仓列宽恢复 v230 口径`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。
+- 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算弹窗、iOS 输入跳顶修复和价格位置条当前价标记修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
 ## 1. 当前状态
@@ -22,18 +22,18 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 本文件所在最新提交。
-- 当前生产运行时基准提交: `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`。
-- 最近应用代码提交: `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f` 包含 `v10.7.9.273` 持仓列宽恢复 v230 口径。此前 `v10.7.9.272` 持仓列距再平衡由 `fc088bb60d078ce3f5c806f55a8e89e80d909d5d` 部署上线;`v10.7.9.271` 持仓当日盈亏列距优化由 `fc10d7438957df986482869a96f7c0c6b44d79ea` 部署上线;`v10.7.9.270` 财报列表过滤和持仓列距微调由 `ff0839e766c3b2d5f39e5923a29d78233e93e009` 部署上线;`v10.7.9.269` 交易页持仓表格行对齐和本地截图转发流程文档由 `af119ae2c1f3d7b3bbb67a30c406a226aba4057b` 部署上线;`v10.7.9.260-268` 包含财报日期选择修复、持仓收益试算弹窗、iOS 输入跳顶修复和价格位置条当前价标记修复;`v10.7.9.256-259` 财报日历列表视图、上一财季回看、请求缓存和首页细节降重由 `2d357e7c284dfc281ac656eaf12f19e3ad384889` 部署上线;`v10.7.9.255` 财报日历券商式同比对比口径已由 `04248d08c22c61b04a83cd09def2b9c97ce74277` 部署上线;财报日历营收字段修复提交为 `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;首页财报日历视觉压缩提交为 `b7422bd96b886952cc6233d218dd2c89eb89cf83`;首页财报日历独立重构提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;收益报表、个股详情、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
+- 当前生产运行时基准提交: `162d7a9230f578e6075e1475a498ad9aef6465c4`。
+- 最近应用代码提交: `162d7a9230f578e6075e1475a498ad9aef6465c4` 包含 `v10.7.9.274` 财报日历弹窗固定高度和选中日期列表独立滚动。此前 `v10.7.9.273` 持仓列宽恢复 v230 口径由 `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f` 部署上线;`v10.7.9.272` 持仓列距再平衡由 `fc088bb60d078ce3f5c806f55a8e89e80d909d5d` 部署上线;`v10.7.9.271` 持仓当日盈亏列距优化由 `fc10d7438957df986482869a96f7c0c6b44d79ea` 部署上线;`v10.7.9.270` 财报列表过滤和持仓列距微调由 `ff0839e766c3b2d5f39e5923a29d78233e93e009` 部署上线;`v10.7.9.269` 交易页持仓表格行对齐和本地截图转发流程文档由 `af119ae2c1f3d7b3bbb67a30c406a226aba4057b` 部署上线;`v10.7.9.260-268` 包含财报日期选择修复、持仓收益试算弹窗、iOS 输入跳顶修复和价格位置条当前价标记修复;`v10.7.9.256-259` 财报日历列表视图、上一财季回看、请求缓存和首页细节降重由 `2d357e7c284dfc281ac656eaf12f19e3ad384889` 部署上线;`v10.7.9.255` 财报日历券商式同比对比口径已由 `04248d08c22c61b04a83cd09def2b9c97ce74277` 部署上线;财报日历营收字段修复提交为 `1a5ae2605e51838514f3b508eb9ec6c769a7268a`;首页财报日历视觉压缩提交为 `b7422bd96b886952cc6233d218dd2c89eb89cf83`;首页财报日历独立重构提交为 `8cc8194edabcacd15a5cd49b142dff946f765298`;收益报表、个股详情、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
 - 最近文档/配置记录提交: 本文件所在最新提交。
-- 设置页版本: `v10.7.9.273`。
-- Vercel 最新运行时部署: `v10.7.9.273` success;production 入口 `/assets/index-DVGBaPdi.js`,关键 chunks `/assets/App-vyFnr5a8.js`,`/assets/HomeTab-CQFtNT4I.js`,`/assets/TradesTab-BdDFtAFo.js`,`/assets/SettingsTab-CJgMfYo8.js`,`/assets/settingsChangelog-DQzfIbv7.js`。
+- 设置页版本: `v10.7.9.274`。
+- Vercel 最新运行时部署: `v10.7.9.274` success;production 入口 `/assets/index-BXhGeJGW.js`,关键 chunks `/assets/App-Oa8Md3lB.js`,`/assets/HomeTab-82VW8JC7.js`,`/assets/TradesTab-BdDFtAFo.js`,`/assets/SettingsTab-DfoY-rBe.js`,`/assets/settingsChangelog-J9NxzMa_.js`。
 - 最近交接文档刷新部署: 本文件所在最新提交为准;本次 docs-only follow-up 只同步部署成功记录和交接状态。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
-- 最新补充部署记录: `v10.7.9.273` runtime code commit `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f` pushed via project SSH key;GitHub Actions `build` run `29027089232` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6hTahi7dFR54vCA8iEN2bjGGM3gR`;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-DVGBaPdi.js`;关键 chunks 包括 `/assets/App-vyFnr5a8.js`,`/assets/HomeTab-CQFtNT4I.js`,`/assets/TradesTab-BdDFtAFo.js`,`/assets/SettingsTab-CJgMfYo8.js`,`/assets/settingsChangelog-DQzfIbv7.js`。上一条持仓列距再平衡为 `v10.7.9.272` runtime code commit `fc088bb60d078ce3f5c806f55a8e89e80d909d5d`;上一条持仓当日盈亏列距优化为 `v10.7.9.271` runtime code commit `fc10d7438957df986482869a96f7c0c6b44d79ea`;上一条财报列表和持仓列距微调为 `v10.7.9.270` runtime code commit `ff0839e766c3b2d5f39e5923a29d78233e93e009`;上一条持仓表格行对齐为 `v10.7.9.269` runtime code commit `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`;上一条财报日历细节降重为 `v10.7.9.259` runtime code commit `2d357e7c284dfc281ac656eaf12f19e3ad384889`;财报日历券商式同比对比口径为 `v10.7.9.255` runtime code commit `04248d08c22c61b04a83cd09def2b9c97ce74277`。
+- 最新补充部署记录: `v10.7.9.274` runtime code commit `162d7a9230f578e6075e1475a498ad9aef6465c4` pushed via project SSH key;GitHub Actions `CI` run `29028434079` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7PBu3saeop8YqvTw8ZfkxT2ESfQG`;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-BXhGeJGW.js`;关键 chunks 包括 `/assets/App-Oa8Md3lB.js`,`/assets/HomeTab-82VW8JC7.js`,`/assets/TradesTab-BdDFtAFo.js`,`/assets/SettingsTab-DfoY-rBe.js`,`/assets/settingsChangelog-J9NxzMa_.js`。上一条持仓列宽恢复 v230 口径为 `v10.7.9.273` runtime code commit `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`;上一条持仓列距再平衡为 `v10.7.9.272` runtime code commit `fc088bb60d078ce3f5c806f55a8e89e80d909d5d`;上一条持仓当日盈亏列距优化为 `v10.7.9.271` runtime code commit `fc10d7438957df986482869a96f7c0c6b44d79ea`;上一条财报列表和持仓列距微调为 `v10.7.9.270` runtime code commit `ff0839e766c3b2d5f39e5923a29d78233e93e009`;上一条持仓表格行对齐为 `v10.7.9.269` runtime code commit `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`;上一条财报日历细节降重为 `v10.7.9.259` runtime code commit `2d357e7c284dfc281ac656eaf12f19e3ad384889`;财报日历券商式同比对比口径为 `v10.7.9.255` runtime code commit `04248d08c22c61b04a83cd09def2b9c97ce74277`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
-产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报改为券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
+产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报改为券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
 本机已建立 EODHD 财报日历测试环境:当前工作区 `.env.local` 存在服务器端 `EODHD_API_KEY`,权限 `600`,由 `.gitignore` 排除。不要提交该文件或在文档/聊天中打印 key。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
 
@@ -183,14 +183,14 @@ npm run dev -- --host 127.0.0.1
 
 最近完整验证记录:
 
-- `v10.7.9.273` 持仓列宽恢复 v230 口径已完成部署和线上验证。当前生产运行时代码提交为 `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`;生产入口为 `/assets/index-DVGBaPdi.js`;Vercel production status 为 `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6hTahi7dFR54vCA8iEN2bjGGM3gR`。
-- 当前生产 marker: `TradesTab-BdDFtAFo.js` 包含 `data-trade-positions-table` / `v230-single-grid`,`min-w-[604px]` 和 `grid-cols-[100px_80px_76px_118px_144px_66px]`;`SettingsTab-CJgMfYo8.js` 包含 `v10.7.9.273`;`settingsChangelog-DQzfIbv7.js` 包含 `v10.7.9.273`、`持仓列宽恢复 v230 口径` 和 `单一横向 grid`。
+- `v10.7.9.274` 财报日历弹窗高度固定已完成部署和线上验证。当前生产运行时代码提交为 `162d7a9230f578e6075e1475a498ad9aef6465c4`;生产入口为 `/assets/index-BXhGeJGW.js`;Vercel production status 为 `success`,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7PBu3saeop8YqvTw8ZfkxT2ESfQG`。
+- 当前生产 marker: `HomeTab-82VW8JC7.js` 包含 `fixed-calendar`、`data-earnings-calendar-selected-list`、`86dvh` 和 `grid-rows-6`;`SettingsTab-DfoY-rBe.js` 包含 `v10.7.9.274`;`settingsChangelog-J9NxzMa_.js` 包含 `v10.7.9.274`、`财报日历弹窗高度固定`、上一版 `v10.7.9.273` 和 `持仓列宽恢复 v230 口径`。
 - 旧首页财报日历链路继续从运行时移除:生产运行时未检出旧 `CALENDAR:` 虚拟 symbol 或旧白色事件弹窗的 `selectedEvent` marker。
-- 当前鉴权边界:未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 预期返回 `401`;普通 HTTPS 访问 `/api/stocks-realtime` 预期返回 `426`。
-- `v10.7.9.273` 部署前本地检查: `npm test` 通过 173 个测试;`npm run build` 成功;`npm audit --audit-level=moderate` 返回 0 vulnerabilities;`git diff --check` 干净;本地 390x844 视觉 smoke 确认单一横向 grid 表格 `scrollWidth=604/clientWidth=340`,列宽 `100/80/76/118/144/66`,行分割线不再出现左右断层。
-- GitHub Actions `build` run `29027089232` completed with `success`。
+- 当前鉴权边界:未登录 `GET /api/quote?symbols=VIX` 返回 `401`;未登录 `GET /api/earnings-calendar?symbols=NVDA` 返回 `401`;普通 HTTPS 访问 `/api/stocks-realtime` 预期返回 `426`。
+- `v10.7.9.274` 部署前本地检查: `npm test` 通过 173 个测试;`npm run build` 成功;`npm audit --audit-level=moderate` 返回 0 vulnerabilities;`git diff --check` 干净;本地 390x844 视觉 smoke 确认财报日历弹窗 1 项、2 项和 0 项日期切换时外框保持 `y=59/h=726`,日历区保持 `y=182/h=558`,只有选中日期列表自身滚动。
+- GitHub Actions `CI` run `29028434079` completed with `success`。
 
-以下保留历史验证摘录,用于追溯旧问题;接手时以本节最上面的 `v10.7.9.273` 证据为当前线上基线。
+以下保留历史验证摘录,用于追溯旧问题;接手时以本节最上面的 `v10.7.9.274` 证据为当前线上基线。
 
 - `v10.7.9.204` iOS 主屏股票秒级刷新已完成部署和线上验证:iOS 主屏股票/指数 snapshot 盘前、盘中和盘后使用 1.25 秒活跃轮询,其它时段 2.5 秒;启动/回前台 burst 前移到 0/0.8/1.6/3/5 秒;BTC 保持独立 WebSocket,不参与股票/指数 snapshot 或 warming。生产入口 `/assets/index-DnB_Z168.js`,runtime chunks include `App-BSWC9NlH.js`,`HomeTab-BzDNIrHi.js`,`TradesTab-DvTLX5c4.js`,`SettingsTab-xej1q5lA.js`,`settingsChangelog-BHgcb57S.js`;marker 验证确认 `v10.7.9.204`,`iOS 主屏股票秒级刷新`,`/api/btc-realtime`,`/api/stocks-realtime`,`/api/indices-realtime`,`America/New_York`,faster burst 和 `stockFreshnessStartedAt` 均存在,且不含 BTC snapshot fetch、BTC warming reset、`v10.7.9.202` 或 `首屏当日盈亏兜底`;`/api/quote?symbols=VIX` 未登录返回 `401`,普通 HTTPS `/api/stocks-realtime` 返回 `426`,三套 snapshot 未登录均返回 `401`。
 
@@ -625,17 +625,17 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 生产地址: https://boduan-tracker.vercel.app
 
 当前 GitHub main: 以 `docs/handoff.md` 所在最新提交为准
-当前运行时代码提交: `3fd95bbc070318137377a2d87c2a50ec8f9d6f6f`
-设置页版本: `v10.7.9.273`
-最新运行时 Vercel 部署: success,`v10.7.9.273` production marker verified
-最新生产入口: `/assets/index-DVGBaPdi.js`
+当前运行时代码提交: `162d7a9230f578e6075e1475a498ad9aef6465c4`
+设置页版本: `v10.7.9.274`
+最新运行时 Vercel 部署: success,`v10.7.9.274` production marker verified
+最新生产入口: `/assets/index-BXhGeJGW.js`
 
 关键线上验证:
-- `TradesTab-BdDFtAFo.js` 包含 `data-trade-positions-table` / `v230-single-grid`,`min-w-[604px]` 和 `grid-cols-[100px_80px_76px_118px_144px_66px]`
-- `SettingsTab-CJgMfYo8.js` 包含 `v10.7.9.273`
-- `settingsChangelog-DQzfIbv7.js` 包含 `v10.7.9.273`、`持仓列宽恢复 v230 口径` 和 `单一横向 grid`
-- 未登录 `/api/quote?symbols=VIX` 返回 `401`
-- GitHub Actions `build` run `29027089232` completed with `success`;本地 `npm test` / `npm run build` / `npm audit --audit-level=moderate` / `git diff --check` 已全部通过
+- `HomeTab-82VW8JC7.js` 包含 `fixed-calendar`、`data-earnings-calendar-selected-list`、`86dvh` 和 `grid-rows-6`
+- `SettingsTab-DfoY-rBe.js` 包含 `v10.7.9.274`
+- `settingsChangelog-J9NxzMa_.js` 包含 `v10.7.9.274`、`财报日历弹窗高度固定`、上一版 `v10.7.9.273` 和 `持仓列宽恢复 v230 口径`
+- 未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`
+- GitHub Actions `CI` run `29028434079` completed with `success`;本地 `npm test` / `npm run build` / `npm audit --audit-level=moderate` / `git diff --check` 已全部通过
 
 请先按顺序读:
 1. `docs/handoff.md`

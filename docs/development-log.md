@@ -4,21 +4,23 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 财报日历弹窗高度固定本地调试
+### 2026-07-09 - 财报日历弹窗高度固定部署验证
 
-- Commit: same commit;本次先按用户要求本地调试截图确认,暂未部署。
-- Deployment: not requested yet;本次不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `162d7a9230f578e6075e1475a498ad9aef6465c4`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
+- Deployment: completed;本次发布 `v10.7.9.274`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。GitHub Actions `CI` run `29028434079` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7PBu3saeop8YqvTw8ZfkxT2ESfQG`;production alias 已更新,入口 `/assets/index-BXhGeJGW.js`。
 - Background: 用户反馈首页财报日历弹窗在日历视图点击不同日期时,弹窗高度和上半部日历头部会跟随选中日期的财报数量上下乱串;期望标题、tab、月份导航、日历网格和图例保持稳定,只让下方选中日期财报列表区域变化或滚动。
 - Changes:
   - `EarningsCalendar` 弹窗外框从内容撑开的 `max-h` 改为固定 `h-[86dvh] max-h-[760px]`,避免 0 项、1 项、2 项或多项财报改变外框高度。
   - 日历视图拆成固定上半区和独立下半区:月份导航、星期行、6 行日期网格和图例全部 `shrink-0`;选中日期财报列表使用单独的 `min-h-0 flex-1 overflow-y-auto` 容器。
   - 日期网格显式保持 6 行 footprint,避免月份或选中日期列表内容变化时压缩日历区域。
-  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.274`,并保留 `v10.7.9.273` 的已部署持仓列宽恢复记录。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.274`,并保留 `v10.7.9.273` 的已部署持仓列宽恢复记录。
+  - 同步刷新 `docs/handoff.md`,把当前生产运行时、入口、关键 chunk、线上 marker、鉴权边界和下一任可转发接手块推进到 `v10.7.9.274`。
 - Key files:
   - `src/tabs/EarningsCalendar.jsx`
   - `src/tabs/SettingsTab.jsx`
   - `src/lib/settingsChangelog.js`
   - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
   - `node --test tests/earnings-calendar.test.js tests/tool-ledger-boundaries.test.js`: pass,41/41。
@@ -28,6 +30,10 @@
   - `npm test`: pass,173/173。
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `git diff --check`: pass。
+  - GitHub Actions `CI` run `29028434079`: completed with `success`。
+  - Production markers: `/assets/App-Oa8Md3lB.js` 引用 `/assets/HomeTab-82VW8JC7.js`、`/assets/SettingsTab-DfoY-rBe.js`、`/assets/TradesTab-BdDFtAFo.js`;`HomeTab-82VW8JC7.js` 包含 `fixed-calendar`、`data-earnings-calendar-selected-list`、`86dvh` 和 `grid-rows-6`;`SettingsTab-DfoY-rBe.js` 包含 `v10.7.9.274`;`settingsChangelog-J9NxzMa_.js` 包含 `v10.7.9.274`、`财报日历弹窗高度固定`、上一版 `v10.7.9.273` 和 `持仓列宽恢复 v230 口径`。
+  - Production auth boundary: 未登录 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`;未登录 `https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA` 返回 `401`。
+  - Consistency check: `README.md`、`docs/development-process.md`、`docs/security-hardening.md`、`docs/architecture-security-audit.md` 未包含需更新的当前版本/生产入口字段;本轮只需同步 `docs/handoff.md` 和本日志。
 - Rollback: 回退本条涉及的财报日历弹窗固定高度/列表独立滚动、`v10.7.9.274` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.273`;不影响 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
 
 ### 2026-07-09 - 持仓列宽恢复 v230 口径本地调试
