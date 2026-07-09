@@ -13,6 +13,7 @@
 - Changes:
   - `docs/development-log.md` 回填 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4` 的部署状态和生产验证结果。
   - `docs/handoff.md` 当前状态、最新 Vercel 状态、可转发交接块和工具链流程说明同步到 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
+  - `docs/handoff.md` 的“当前 GitHub main / 最新 Vercel”字段改为以本文件所在最新提交和 `verify:deploy-status` 结果为准,避免 docs-only 回填提交再次让写死的 main SHA 变旧。
 - Key files:
   - `docs/development-log.md`
   - `docs/handoff.md`
