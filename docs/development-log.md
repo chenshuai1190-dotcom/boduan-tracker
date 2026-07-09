@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 首页财报日历独立重构
 
-- Commit: pending;部署推送中。
-- Deployment: requested;等待 Vercel 生产部署完成后补充线上验证。
+- Commit: code commit `8cc8194edabcacd15a5cd49b142dff946f765298`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `8cc8194edabcacd15a5cd49b142dff946f765298` returned success;production marker verified on `index-5ffGz7Kp.js`,`HomeTab-C9G_M3kp.js`,`SettingsTab-C-lBieCt.js`,`settingsChangelog-CCGaX_TC.js`,`i18n-DDUtz1yJ.js`;unauthenticated `/api/quote?symbols=VIX` returned `401`;unauthenticated `/api/earnings-calendar?symbols=NVDA` returned `401`;HTTP-forwarded `/api/stocks-realtime` returned `426`。
 - Background: 用户要求参考效果图在首页最底部重做财报日历,模块必须独立,不和旧日历或行情结构混用,并删除旧日历模块代码。
 - Changes:
   - 新增独立 `EarningsCalendar` 首页底部模块,展示关注/持仓股票的财报横向预览,并提供深色弹窗里的日历视图和列表视图。
@@ -45,6 +45,7 @@
   - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
   - Legacy calendar removal audit: pass;`rg` shows old `CALENDAR:` only in rejection/removal tests and no runtime `selectedEvent`/`calendarEvents` legacy modal path。
   - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` at 390x844 rendered the new homepage bottom 财报日历 card;the list modal and calendar modal both rendered in the dark style,with NVDA/MSFT/META/TSM/GOOGL rows readable after the column-width fix。
+  - Production runtime marker: pass;production entry `/assets/index-5ffGz7Kp.js` loaded recursive chunks containing `/api/earnings-calendar`,`v10.7.9.249`,`首页财报日历独立重构` and `财报日历`;old runtime `CALENDAR:` / `selectedEvent` markers were not present。
   - Diff whitespace: pass;`git diff --check` returned clean。
 - Rollback: 回退本次新增财报日历组件/API/model、恢复旧 `CALENDAR:` provider/旧事件弹窗和 `v10.7.9.249` 设置页/文档日志即可;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
 
