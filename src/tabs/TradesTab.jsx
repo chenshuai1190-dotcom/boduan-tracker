@@ -245,7 +245,30 @@ function PositionProfitScenarioSheet({
   const low = minPoint - span * 0.08;
   const high = maxPoint + span * 0.08;
   const range = Math.max(high - low, 1);
-  const pointLeft = (value) => `${Math.min(100, Math.max(0, ((value - low) / range) * 100))}%`;
+  const pointLeftPct = (value) => Math.min(100, Math.max(0, ((value - low) / range) * 100));
+  const pointLeft = (value) => `${pointLeftPct(value)}%`;
+  const pricePositionLaneGapPct = 24;
+  const pricePositionItems = [
+    { id: 'cost', label: tt('trades.scenarioCost', '成本价'), value: costPrice, tone: 'static', order: 0 },
+    { id: 'current', label: tt('trades.scenarioCurrent', '当前价'), value: currentPrice, tone: 'current', order: 1 },
+    { id: 'simulated', label: tt('trades.scenarioSimulated', '模拟价'), value: validPrice ? inputPrice : currentPrice, tone: 'static', order: 2 },
+  ]
+    .filter((item) => item.value > 0)
+    .map((item) => ({ ...item, leftPct: pointLeftPct(item.value), left: pointLeft(item.value) }));
+  const pricePositionLabels = (() => {
+    const laneLastPct = [];
+    return [...pricePositionItems]
+      .sort((a, b) => (a.leftPct - b.leftPct) || (a.order - b.order))
+      .map((item) => {
+        let lane = laneLastPct.findIndex((lastPct) => item.leftPct - lastPct >= pricePositionLaneGapPct);
+        if (lane < 0) lane = laneLastPct.length;
+        laneLastPct[lane] = item.leftPct;
+        const edge = item.leftPct <= 12 ? 'left' : item.leftPct >= 88 ? 'right' : 'center';
+        return { ...item, lane, edge };
+      });
+  })();
+  const pricePositionLabelHeight = Math.max(24, 24 + Math.max(0, ...pricePositionLabels.map((item) => item.lane)) * 22);
+  const currentPositionItem = pricePositionItems.find((item) => item.id === 'current');
   const cachedLogoUrl = logoCache?.[symbol]?.url;
   const logoUrls = stockLogoCandidates(symbol, cachedLogoUrl);
   const dialogStyle = visualViewportFrame
@@ -386,27 +409,37 @@ function PositionProfitScenarioSheet({
 
               <div>
                 <div className="text-[11px] text-white/42">{tt('trades.scenarioPricePosition', '价格位置')}</div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] leading-tight text-white/45">
-                  <div>
-                    <div>{tt('trades.scenarioCost', '成本价')}</div>
-                    <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(costPrice, 3)}</div>
-                  </div>
-                  <div className="text-center">
-                    <div>{tt('trades.scenarioCurrent', '当前价')}</div>
-                    <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(currentPrice, 3)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div>{tt('trades.scenarioSimulated', '模拟价')}</div>
-                    <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(inputPrice, 3)}</div>
-                  </div>
+                <div className="relative mt-2" style={{ height: `${pricePositionLabelHeight}px` }}>
+                  {pricePositionLabels.map((item) => {
+                    const edgeClass = item.edge === 'left'
+                      ? 'translate-x-0 text-left'
+                      : item.edge === 'right'
+                        ? '-translate-x-full text-right'
+                        : '-translate-x-1/2 text-center';
+                    const left = item.edge === 'left' ? '0%' : item.edge === 'right' ? '100%' : item.left;
+                    return (
+                      <div
+                        key={`${item.id}-label`}
+                        data-price-position-label={item.id}
+                        className={`absolute w-[76px] text-[10px] leading-tight text-white/45 ${edgeClass}`}
+                        style={{ left, top: `${item.lane * 22}px` }}
+                      >
+                        <div>{item.label}</div>
+                        <div className="tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>${fmtAmount(item.value, 3)}</div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="relative mt-2 h-4">
                   <div className="absolute left-1 right-1 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-400 via-[#f6b54b] to-[#ff4b1f]" />
-                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(costPrice) }} />
-                  <span className="scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: pointLeft(currentPrice), '--scenario-marker-glow': markerGlowRgb }} aria-hidden="true">
-                    <span className="scenario-marker-breathe block h-[9px] w-[9px] rounded-full border border-[#ffd166]/95 bg-[#f6b54b]" />
-                  </span>
-                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(inputPrice) }} />
+                  {pricePositionItems.filter((item) => item.id !== 'current').map((item) => (
+                    <span key={`${item.id}-marker`} data-price-position-marker={item.id} className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: item.left }} />
+                  ))}
+                  {currentPositionItem ? (
+                    <span data-price-position-marker="current" className="scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: currentPositionItem.left, '--scenario-marker-glow': markerGlowRgb }} aria-hidden="true">
+                      <span className="scenario-marker-breathe block h-[9px] w-[9px] rounded-full border border-[#ffd166]/95 bg-[#f6b54b]" />
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
