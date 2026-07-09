@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股收益风险指标调整
 
-- Commit: pending。
-- Deployment: pending。
+- Commit: code commit `c7f8396207c72b3bd6c9ca4d7f3dabbbeb62c258`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `c7f8396207c72b3bd6c9ca4d7f3dabbbeb62c258` returned success;production marker verified on `index-eDj2IyNn.js`,`StockDetailPage-Dw3CTeQx.js`,`SettingsTab-DLbDEykw.js`,`settingsChangelog-BKBETbdq.js`;unauthenticated `/api/quote?symbols=VIX` returned `401`;HTTP-forwarded `/api/stocks-realtime` returned `426`。
 - Background: 用户明确个股详情页收益线底部风险指标需要拆成峰值、最大回吐、回撤率和回吐率;其中回撤率按资产净值计算,回吐率按利润峰值计算,同时这些指标数字取消加粗。
 - Changes:
   - `stockDetailViewModel` 将收益趋势统计拆出 `maxGivebackUsd`,`drawdownRate` 和 `givebackRate`;`maxDrawdownUsd` 仅保留为兼容别名。
