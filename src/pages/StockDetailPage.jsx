@@ -205,13 +205,13 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   const last = formatAxisDate(endDate);
   const selectedPoint = selection?.type === 'point' ? chart.points[selection.index] || null : null;
   const selectedPointColor = selectedPoint ? marketHexColor(selectedPoint.value, marketColorMode) : color;
-  const selectedPointLeft = selectedPoint ? `${(selectedPoint.x / 320) * 100}%` : '50%';
-  const selectedPointTop = selectedPoint ? `${(selectedPoint.y / 186) * 100}%` : '50%';
-  const selectedPointTransform = selectedPoint
-    ? `${selectedPoint.x > 236 ? 'translateX(-100%)' : selectedPoint.x < 84 ? 'translateX(0)' : 'translateX(-50%)'} ${selectedPoint.y < 58 ? 'translateY(14px)' : 'translateY(calc(-100% - 14px))'}`
-    : 'translate(-50%, -100%)';
+  const selectedPointLeft = selectedPoint
+    ? `clamp(8px, calc(${(selectedPoint.x / 320) * 100}% - 103px), calc(100% - 214px))`
+    : '8px';
+  const selectedPointTop = selectedPoint
+    ? `clamp(8px, calc(${(selectedPoint.y / 186) * 100}% - 126px), calc(100% - 138px))`
+    : '8px';
   const peakText = chart.peakPoint ? compactSignedCurrency(chart.peakPoint.value, currencyMode) : '--';
-  const currentText = chart.currentPoint ? compactSignedCurrency(chart.currentPoint.value, currencyMode) : '--';
   const maxDrawdownText = trendStats?.maxDrawdownUsd == null
     ? '--'
     : compactSignedCurrency(toNumber(trendStats.maxDrawdownUsd) * displayRate, currencyMode);
@@ -323,17 +323,6 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
               </text>
             </>
           )}
-          {chart.currentPoint && (
-            <>
-              <circle cx={chart.currentPoint.x} cy={chart.currentPoint.y} r="4" fill="#0b0f14" stroke="#ffd18a" strokeWidth="1.8" />
-              <text x={Math.max(210, chart.currentPoint.x - 22)} y={Math.max(20, chart.currentPoint.y - 8)} fontSize="9" fill="rgba(255,255,255,0.72)">
-                {t(language, 'stockDetail.currentLabel', '当前')}
-              </text>
-              <text x={Math.max(210, chart.currentPoint.x - 22)} y={Math.max(34, chart.currentPoint.y + 5)} fontSize="10" fill="#ffffff">
-                {currentText}
-              </text>
-            </>
-          )}
           {selectedPoint && (
             <>
               <line
@@ -354,27 +343,26 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
         </svg>
         {selectedPoint && (
           <div
-            className="pointer-events-none absolute z-10 min-w-[148px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-xl backdrop-blur"
+            className="pointer-events-none absolute z-10 w-[206px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-xl backdrop-blur"
             style={{
               left: selectedPointLeft,
               top: selectedPointTop,
-              transform: selectedPointTransform,
             }}
           >
-            <div className="text-[11px] leading-4 text-white/[0.72]">{displayDate(selectedPoint.date)}</div>
+            <div className="whitespace-nowrap text-[11px] leading-4 text-white/[0.72]">{displayDate(selectedPoint.date)}</div>
             <div className="mt-1 grid grid-cols-[58px_1fr] gap-x-2 gap-y-1 text-[11px] leading-4">
               <span className="text-white/[0.42]">{t(language, 'stockDetail.totalPnl', '累计盈亏')}</span>
-              <span className="text-right font-semibold tabular-nums" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>{signedCurrency(selectedPoint.value, currencyMode, 2)}</span>
+              <span className="whitespace-nowrap text-right font-semibold tabular-nums" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>{signedCurrency(selectedPoint.value, currencyMode, 2)}</span>
               <span className="text-white/[0.42]">{t(language, 'stockDetail.dailyPnl', '当日盈亏')}</span>
-              <span className={`text-right tabular-nums ${selectedPoint.point.dailyPnlUsd == null ? 'text-white/[0.34]' : marketTextClass(selectedPoint.point.dailyPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              <span className={`whitespace-nowrap text-right tabular-nums ${selectedPoint.point.dailyPnlUsd == null ? 'text-white/[0.34]' : marketTextClass(selectedPoint.point.dailyPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                 {selectedPoint.point.dailyPnlUsd == null ? '--' : signedCurrency(selectedPoint.point.dailyPnlUsd * displayRate, currencyMode, 2)}
               </span>
               <span className="text-white/[0.42]">{t(language, 'stockDetail.returnRate', '收益率')}</span>
-              <span className="text-right tabular-nums text-[#ffd18a]" style={{ fontFamily: NUMBER_FONT }}>{signedPct(selectedPoint.point.returnPct, 2)}</span>
+              <span className="whitespace-nowrap text-right tabular-nums text-[#ffd18a]" style={{ fontFamily: NUMBER_FONT }}>{signedPct(selectedPoint.point.returnPct, 2)}</span>
               <span className="text-white/[0.42]">{t(language, 'stockDetail.marketValue', '持仓市值')}</span>
-              <span className="text-right tabular-nums text-white/[0.82]" style={{ fontFamily: NUMBER_FONT }}>{currency(selectedPoint.point.marketValueUsd * displayRate, currencyMode, 2)}</span>
+              <span className="whitespace-nowrap text-right tabular-nums text-white/[0.82]" style={{ fontFamily: NUMBER_FONT }}>{currency(selectedPoint.point.marketValueUsd * displayRate, currencyMode, 2)}</span>
               <span className="text-white/[0.42]">{t(language, 'stockDetail.closePrice', '收盘价')}</span>
-              <span className="text-right tabular-nums text-white/[0.82]" style={{ fontFamily: NUMBER_FONT }}>${fmt(selectedPoint.point.closePriceUsd, 2)}</span>
+              <span className="whitespace-nowrap text-right tabular-nums text-white/[0.82]" style={{ fontFamily: NUMBER_FONT }}>${fmt(selectedPoint.point.closePriceUsd, 2)}</span>
             </div>
           </div>
         )}

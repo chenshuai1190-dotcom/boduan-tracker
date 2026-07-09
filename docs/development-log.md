@@ -4,6 +4,33 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股收益浮层边界优化
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户反馈个股详情页收益走势浮层里的累计盈亏金额会换行,高点浮层会切到下方或跑出图表顶框,右侧浮层也可能跑出卡片边界;同时图表右侧“当前”金额标注会和浮层/边界产生视觉冲突。
+- Changes:
+  - `StockDetailPage` 的收益线浮层从旧的 transform 翻转定位改为图表内 clamp 定位,横向和纵向都夹在图表范围内。
+  - 浮层宽度加大到固定宽度,日期、累计盈亏、当日盈亏、收益率、持仓市值和收盘价都保持单行显示,避免大金额换行。
+  - 高点浮层优先停在点位上方;空间不足时贴住图表顶部,不再切换到点位下方。
+  - 删除收益线右侧“当前”金额标注,保留十字线、峰值标注和底部峰值/最大回撤指标。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.246`。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js` passed 38 tests。
+  - Full tests: pass;`npm test` passed 166 tests。
+  - Build: pass;`npm run build` generated `StockDetailPage-CCWvbr51.js`,`SettingsTab-BpP9Rx32.js`,`settingsChangelog-CCgaCQeG.js`。
+  - Audit: pass;`npm audit --audit-level=moderate` found 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+  - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered the stock-detail chart;high-point and right-side tooltips stayed inside the chart container,large P&L values stayed on one line,and the old in-chart “当前” value label was absent;screenshots saved to `/tmp/boduan-stock-detail-v246-peak.png` and `/tmp/boduan-stock-detail-v246-right.png`。
+  - Dist marker check: pass;built assets contain `v10.7.9.246`,`个股收益浮层边界优化`,`stockDetailPnlArea`,`stockDetailPnlGlow`,`最大回撤`,`当日盈亏`,`收盘价`,and do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+- Rollback: 回退 `StockDetailPage` 收益线浮层定位/宽度和“当前”标注删除、`v10.7.9.246` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.245`;不影响交易账本、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股收益线交互修正
 
 - Commit: code commit `8eab701e7762ccc8952014a43709761b963543ab`;deployment verification docs follow-up is the current commit。
