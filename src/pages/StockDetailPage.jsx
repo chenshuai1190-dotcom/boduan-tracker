@@ -471,43 +471,54 @@ export default function StockDetailPage({ ctx = {} }) {
           <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
           <span className="text-[11px] text-white/[0.34]">{compactRangeLabel}</span>
         </div>
-        <div className="mt-4 grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 border-b border-white/[0.06] pb-2 text-[11px] text-white/[0.30]">
-          <span>{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
-          <span className="text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
-          <span className="text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
-          <span className="text-right">{t(language, 'stockDetail.realized', '实现盈亏')}</span>
-        </div>
-        <div className="divide-y divide-white/[0.06]">
-          {view.tradeRecords.length === 0 && (
+        {view.tradeRecords.length === 0 ? (
+          <div className="mt-4">
             <div className="py-8 text-center text-[12px] text-white/[0.34]">
               {t(language, 'stockDetail.noTrades', '当前周期暂无交易记录')}
             </div>
-          )}
-          {view.tradeRecords.map((record) => {
-            const isSell = record.side === 'sell';
-            const realizedValue = record.realizedPnlUsd == null ? null : record.realizedPnlUsd * displayRate;
-            return (
-              <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[1.2fr_1fr_0.9fr_1fr] gap-2 py-3">
-                <div className="min-w-0">
-                  <div className="text-[12px] tabular-nums text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
-                  <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
-                    {sideLabel(language, record.side)}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
-                  <div className="mt-1 text-[11px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
-                </div>
-                <div className={`text-right text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
-                  {currency(record.amountUsd * displayRate, displayCurrency, 2)}
-                </div>
-                <div className={`text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                  {realizedValue == null ? '--' : signedCurrency(realizedValue, displayCurrency, 2)}
-                </div>
+          </div>
+        ) : (
+          <div
+            className="stock-detail-trade-records-scroll mt-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            data-pull-refresh-block="true"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            <div className="min-w-[700px]">
+              <div className="grid grid-cols-[122px_142px_198px_198px] gap-3 border-b border-white/[0.06] pb-2 text-[11px] text-white/[0.30]">
+                <span className="whitespace-nowrap">{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
+                <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
+                <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
+                <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.realized', '实现盈亏')}</span>
               </div>
-            );
-          })}
-        </div>
+              <div className="divide-y divide-white/[0.06]">
+                {view.tradeRecords.map((record) => {
+                  const isSell = record.side === 'sell';
+                  const realizedValue = record.realizedPnlUsd == null ? null : record.realizedPnlUsd * displayRate;
+                  return (
+                    <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[122px_142px_198px_198px] gap-3 py-3">
+                      <div className="min-w-0">
+                        <div className="whitespace-nowrap text-[12px] tabular-nums text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
+                        <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
+                          {sideLabel(language, record.side)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`whitespace-nowrap text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
+                        <div className="mt-1 whitespace-nowrap text-[11px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
+                      </div>
+                      <div className={`whitespace-nowrap text-right text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
+                        {currency(record.amountUsd * displayRate, displayCurrency, 2)}
+                      </div>
+                      <div className={`whitespace-nowrap text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                        {realizedValue == null ? '--' : signedCurrency(realizedValue, displayCurrency, 2)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {(error || (!view.hasData && !loading)) && (

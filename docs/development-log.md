@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股交易记录横向滚动
+
+- Commit: current changeset for `v10.7.9.241`;production verification will be recorded after GitHub/Vercel rollout。
+- Deployment: pending;will push through GitHub `main` with project SSH key after local validation。
+- Background: 个股详情页“交易记录”在手机窄屏下固定四列,成交额和实现盈亏列空间不足,大数字会挤压错位;用户要求改成交易页同类的左右滑动模式。
+- Changes:
+  - `StockDetailPage` 的交易记录改为横向滚动表格,内层宽度固定为 `700px`,窄屏可左右滑动。
+  - 日期/操作、数量/价格、成交额、实现盈亏统一 `whitespace-nowrap`,其中成交额和实现盈亏列加宽到 `198px` 并右对齐。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.241`。
+  - 本次只改个股详情展示层布局,不改交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js`: pass,38/38 tests。
+  - `npm test`: pass,166/166 tests。
+  - `npm run build`: pass;new chunks include `StockDetailPage-B278ElDF.js`,`SettingsTab-BVrZOHaj.js`,`settingsChangelog-B2ZG9J7k.js`。
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.241`,`个股交易记录横向滚动`,`stock-detail-trade-records-scroll`,`min-w-[700px]`,`grid-cols-[122px_142px_198px_198px]`,and no built/runtime source contains `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+  - Local visual check: pass at `390x844` via `http://127.0.0.1:5173/?tab=stock-detail`;trade-record scroller measured `clientWidth 324 / scrollWidth 700`,right-scroll position displayed amount and realized P&L columns without wrapping。
+- Rollback: 回退 `StockDetailPage` 交易记录横向滚动布局、`v10.7.9.241` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.239`;不影响交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 回退数据初始化功能
 
 - Commit: `f353e3c64a91bf5359872960e4dcc2ee822e3ea4`。
