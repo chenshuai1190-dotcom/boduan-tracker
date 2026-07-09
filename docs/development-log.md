@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 持仓试算模拟价呼吸标记
 
-- Commit: pending;准备提交并通过 GitHub `main` 触发 Vercel production 部署。
-- Deployment: in progress;用户要求“部署”,本次只通过 GitHub `main` 推送触发 Vercel,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `73f4bde7e3eb972044089e684a0c5aa37181e9a2`;本日志后续 docs-only 提交记录线上验证结果。
+- Deployment: completed;用户要求“部署”,本次只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 持仓收益试算弹窗的价格位置条原先用圆点表示模拟价,小火箭图标在当前深色金融 UI 里视觉存在感偏强。最终改为 7px 固定金黄色小圆点,只增加轻微慢速呼吸柔光,让模拟价更容易识别但不抢主信息,也不和盈亏红绿状态混淆。
 - Changes:
   - `TradesTab` 撤回 lucide `Rocket` 小图标,价格位置条模拟价标记改为 7px 固定金黄色小圆点,约为上一版圆点尺寸的一半。
@@ -27,12 +27,14 @@
   - `PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` pass,0 vulnerabilities。
   - Local visual smoke pass:`http://127.0.0.1:5174/?tab=trades&v=265-tiny-gold`,390x844 iPhone UA,打开 NVDA 试算弹窗并输入 `194.440`,确认 `.scenario-marker-breathe` 存在,marker class 为 `h-[7px] w-[7px] rounded-full border border-[#ffd166]/90 bg-[#f6b54b]`,动画周期 `3.2s`,背景色 `rgb(246, 181, 75)`,小火箭 SVG 不再存在,`scrollY=0`;截图 `/tmp/boduan-trades-scenario-tiny-gold-breathe-v10.7.9.265.png`。
   - `git diff --check` pass。
+  - Production asset verification pass:`https://boduan-tracker.vercel.app/` 最新入口为 `/assets/index-B-1WBD_M.js`,递归 assets 命中 `/assets/TradesTab-BARtuxRB.js` 中的 `scenario-marker-breathe`、`h-[7px] w-[7px]`、`visualViewport`;`/assets/SettingsTab-D-9LgVzS.js` 命中 `v10.7.9.265`;`/assets/settingsChangelog-DJ5gAck6.js` 命中 `v10.7.9.265`、`持仓试算呼吸标记`、`修复 iOS 试算输入跳顶`。
+  - Production auth check pass:未登录请求 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`。
 - Rollback: 回退本条涉及的圆点呼吸动效、`v10.7.9.265` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或 iOS 输入跳顶修复。
 
 ### 2026-07-09 - iOS 持仓试算输入跳顶本地修复
 
-- Commit: pending;随 `v10.7.9.265` 本次 production 部署一起提交。
-- Deployment: in progress;此前按用户要求先本地测试,本次用户确认部署后随持仓试算呼吸标记一起通过 GitHub `main` 发布。
+- Commit: runtime code `73f4bde7e3eb972044089e684a0c5aa37181e9a2`;随 `v10.7.9.265` production 部署一起提交。
+- Deployment: completed;此前按用户要求先本地测试,本次用户确认部署后随持仓试算呼吸标记一起通过 GitHub `main` 发布。
 - Background: 用户反馈在 iOS Web App 测试环境里,第一次打开持仓收益试算弹窗并输入数字时,弹窗会被键盘/浏览器滚到页面最上面,输入框贴近状态栏,体验很差;第二次输入恢复正常。复查当前实现会在弹窗打开后 120ms 直接 `focus()` 输入框,这会触发 iOS 首次键盘唤起时对 fixed 弹窗的系统滚动。
 - Changes:
   - `TradesTab` 新增 iOS-like 浏览器检测,iOS 上不再程序化自动聚焦试算输入框,改为用户点击输入框后唤起键盘;非 iOS 仍保留自动聚焦,但使用 `focus({ preventScroll: true })`。
