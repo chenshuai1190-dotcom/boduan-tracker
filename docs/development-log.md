@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股详情标题颜色统一
+
+- Commit: current changeset for `v10.7.9.243`;deployment verification will be recorded after local validation and GitHub/Vercel rollout。
+- Deployment: pending;will push through GitHub `main` with project SSH key after local validation。
+- Background: 用户反馈个股详情页“累计盈亏”“收益走势”“交易统计”“交易记录”四个区块标题颜色不统一,其中交易记录标题是目标层级;同时交易记录中的日期仍偏灰,和同一行成交额不协调。
+- Changes:
+  - `StockDetailPage` 的累计盈亏标题和交易统计标题改用 `DETAIL_HEADING_CLASS`,与收益走势和交易记录标题保持一致。
+  - 交易记录日期从旧灰色层级改为 `DETAIL_MUTED_VALUE_CLASS`,与成交额同一白色层级;买入/卖出操作文案仍保持红绿。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.243`。
+  - 本次只改个股详情展示层颜色,不改交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js` passed 38 tests。
+  - Full tests: pass;`npm test` passed 166 tests。
+  - Build: pass;`npm run build` generated `StockDetailPage-CACQSFvp.js`,`SettingsTab-DMzQhmne.js`,`settingsChangelog-kCh_pV4K.js`。
+  - Audit: pass;`npm audit --audit-level=moderate` found 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+  - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered four section headings as `rgba(255,255,255,0.72)` and trade-record dates as `rgba(255,255,255,0.86)`。
+  - Dist marker check: pass;built assets contain `v10.7.9.243`,`个股详情标题颜色统一`,`text-white/[0.72]` / `text-white/[0.86]` compiled markers,and do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+- Rollback: 回退 `StockDetailPage` 标题/日期颜色、`v10.7.9.243` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.242`;不影响交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股交易记录列宽收紧
 
 - Commit: code commit `99e87e5480d3d2b0c9d057ae70cf452b18dd522c`;deployment verification docs follow-up is the current documentation-only follow-up commit。

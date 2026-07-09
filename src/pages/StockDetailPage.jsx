@@ -402,7 +402,7 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="relative">
-          <div className={`flex items-center gap-1.5 text-[12px] ${DETAIL_LABEL_CLASS}`}>
+          <div className={`flex items-center gap-1.5 text-[12px] ${DETAIL_HEADING_CLASS}`}>
             <span>{t(language, 'stockDetail.totalPnl', '累计盈亏')} ({displayCurrency})</span>
             <Info className="h-3.5 w-3.5 text-white/[0.28]" />
           </div>
@@ -457,7 +457,7 @@ export default function StockDetailPage({ ctx = {} }) {
       </section>
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <h2 className={`text-[13px] font-semibold ${DETAIL_LABEL_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
+        <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />
@@ -497,7 +497,7 @@ export default function StockDetailPage({ ctx = {} }) {
                   return (
                     <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[96px_112px_158px_158px] gap-3 py-3">
                       <div className="min-w-0">
-                        <div className="whitespace-nowrap text-[12px] tabular-nums text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
+                        <div className={`whitespace-nowrap text-[12px] tabular-nums ${DETAIL_MUTED_VALUE_CLASS}`} style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
                         <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
                           {sideLabel(language, record.side)}
                         </div>
