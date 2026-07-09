@@ -6,7 +6,7 @@
 
 ### 2026-07-09 - 数据初始化功能
 
-- Commit: pending。
+- Commit: `f91ef4384b5d108754e4bbeaa33ed81abcae7f39`。
 - Deployment: pending。
 - Background: 用户要求设置页新增一键数据初始化功能,用于清空当前账号所有用户操作记录;该功能必须真实清空云端业务数据,并在执行前明确提醒风险。
 - Changes:
