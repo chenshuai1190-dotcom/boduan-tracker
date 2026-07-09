@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 持仓试算价格位置条顺序修复
 
-- Commit: pending;准备提交并通过 GitHub `main` 触发 Vercel production 部署。
-- Deployment: requested;用户确认笑脸方案回退为无笑脸正常金色点后部署,本次仅通过 SSH 推送 GitHub `main` 触发生产部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `5abd9885f9c4690c9713c9f1407165314284abed`;本日志后续 docs-only 提交记录线上验证结果。
+- Deployment: completed;用户确认笑脸方案回退为无笑脸正常金色点后部署,本次仅通过 SSH 推送 GitHub `main` 触发生产部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 旧 UI 的圆点按真实价格映射,但标签固定为“成本价/当前价/模拟价”左中右三列。MSFT 这类 `当前价 < 成本价 < 模拟价` 场景会导致当前价金色呼吸点出现在“成本价”标签下方,视觉含义错乱。
 - Changes:
   - `TradesTab` 新增 `pricePositionItems`,统一为成本价、当前价、模拟价计算 `leftPct/left`,标签和圆点共用同一份价格点位数据。
@@ -29,6 +29,8 @@
   - Audit pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` -> 0 vulnerabilities。
   - Local visual smoke pass:`http://127.0.0.1:5174/?tab=trades&v=267-price-position-b`,390x844 iPhone UA,打开 MSFT 试算弹窗并点击 `52周高`,确认成本价高于当前价场景下标签和 marker 顺序均为 `current -> cost -> simulated`,当前价金色呼吸点在左侧,成本价静态圆环在中间,模拟价静态圆环在右侧;截图 `/tmp/boduan-trades-scenario-price-position-msft-v10.7.9.267.png`。
   - Diff hygiene pass:`git diff --check`。
+  - Production asset verification pass:`https://boduan-tracker.vercel.app/` 最新入口为 `/assets/index-9G2kPI2y.js`,递归 assets 命中 `/assets/TradesTab-CYB1T7ya.js` 中的 `data-price-position-label`、`data-price-position-marker`、`h-[9px]`、`scenario-marker-breathe`;`/assets/SettingsTab-CZXIfnbK.js` 命中 `v10.7.9.267`;`/assets/settingsChangelog-B9oKltN5.js` 命中 `v10.7.9.267` 和 `价格位置条顺序修复`;未命中 `v10.7.9.268`、`scenario-marker-smile` 或 `当前价笑脸标记`。
+  - Production auth smoke pass:未登录请求 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`,确认 `/api/quote` 鉴权未关闭。
 - Rollback: 回退本条涉及的价格位置条标签绝对定位、`pricePositionItems`/`pricePositionLabels` 点位模型、当前价 marker 后渲染、`v10.7.9.267` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或 iOS 输入跳顶修复。
 
 ### 2026-07-09 - 持仓试算当前价呼吸标记本地修复
