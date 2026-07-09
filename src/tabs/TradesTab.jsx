@@ -1080,14 +1080,13 @@ export default function TradesTab({ ctx }) {
                   <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">{tt('trades.recordFirstBuy', '记录第一笔买入')}</button>
                 </div>
               ) : (
-                <div className="overflow-x-auto border-t border-white/[0.06] [scrollbar-width:none]" data-trade-positions-table="single-grid">
-                  <div className="min-w-[552px]">
-                    <div className="grid grid-cols-[76px_88px_72px_104px_8px_144px_60px] gap-0 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
-                      <span className="sticky left-0 z-20 bg-[#0b0f14] pr-2 text-left">{tt('trades.nameTicker', '名称/代码')}</span>
+                <div className="overflow-x-auto border-t border-white/[0.06] [scrollbar-width:none]" data-trade-positions-table="v230-single-grid">
+                  <div className="min-w-[604px]">
+                    <div className="grid grid-cols-[100px_80px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                      <span className="sticky left-0 z-20 bg-[#0b0f14] pr-1.5 text-left">{tt('trades.nameTicker', '名称/代码')}</span>
                       <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
                       <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
                       <span className="text-right">{tt('trades.dailyPnl', '当日盈亏')}</span>
-                      <span aria-hidden="true" />
                       <span className="text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
                       <span className="text-right">{tt('trades.allocation', '占比')}</span>
                     </div>
@@ -1113,12 +1112,12 @@ export default function TradesTab({ ctx }) {
                         return (
                           <div
                             key={position.symbol}
-                            className="grid min-h-[60px] w-full grid-cols-[76px_88px_72px_104px_8px_144px_60px] items-center gap-0 py-3 text-left"
+                            className="grid min-h-[60px] w-full grid-cols-[100px_80px_76px_118px_144px_66px] items-center gap-1 py-3 text-left"
                           >
                             <button
                               type="button"
                               onClick={() => (typeof openStockDetail === 'function' ? openStockDetail(position.symbol) : openTradeModal(position, 'buy'))}
-                              className="sticky left-0 z-10 flex min-h-[36px] min-w-0 flex-col justify-center bg-[#0b0f14] pr-2 text-left active:bg-white/[0.03]"
+                              className="sticky left-0 z-10 flex min-h-[36px] min-w-0 flex-col justify-center bg-[#0b0f14] pr-1.5 text-left active:bg-white/[0.03]"
                               aria-label={tt('stockDetail.openAria', '打开个股收益详情')}
                             >
                               <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{nameParts.title}</span>
@@ -1141,7 +1140,6 @@ export default function TradesTab({ ctx }) {
                               <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(hasPositionTodayPnl ? todayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--'}</span>
                               <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(hasPositionTodayPnl ? toNumber(position.todayPnlPct) : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--'}</span>
                             </button>
-                            <span aria-hidden="true" />
                             <button type="button" onClick={() => openTradeModal(position, 'buy')} className="overflow-hidden text-right active:bg-white/[0.03]">
                               <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
                               <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(holdingPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(holdingPnlPct, 2)}</span>

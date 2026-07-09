@@ -4,16 +4,16 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 持仓列距再平衡
+### 2026-07-09 - 持仓列宽恢复 v230 口径本地调试
 
 - Commit: pending runtime commit;本地截图已由用户确认,准备通过 GitHub `main` 部署。
-- Deployment: pending;本次发布 `v10.7.9.272`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
-- Background: 用户在 iPhone 线上反馈 `v10.7.9.271` 默认首屏里“当日盈亏”后方视觉留空过多,横滑后“当日盈亏”和“持仓盈亏”之间距离也过大;希望把空白分回名称/代码、市值/数量、现价/成本和当日盈亏,让前后列距更均衡。
+- Deployment: pending;本次发布 `v10.7.9.273`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户反馈 `v10.7.9.272` 继续手动微调列宽仍不理想,要求直接参考 `v10.7.9.230` 交易页持仓列表当时已经调好的代码宽度,避免重复试错;首轮照搬 v230 两段式结构后本地截图出现行分割线断层,因此最终只沿用 v230 列宽,不沿用两段式 DOM。
 - Changes:
-  - `TradesTab` 持仓表格总宽从 592px 收回到 552px,避免右侧横滑区域过度松散。
-  - 首屏列模板改为 `76/88/72/104/8/144/60`,前四列仍保持 340px,但名称/代码、市值/数量和现价/成本比上一版更宽。
-  - 缓冲列从 16px 收到 8px,持仓盈亏列从 176px 收到 144px,减少横滑后“当日盈亏”和“持仓盈亏”的不合理距离。
-  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.272`,并保留 `v10.7.9.271` 的已部署持仓当日盈亏列距记录。
+  - `TradesTab` 持仓分布改为单一横向 grid,整行使用同一个滚动面和同一组分割线,避免左侧名称列与右侧指标区断层。
+  - 列宽恢复 `v10.7.9.230` 口径:名称/代码 `100px`,右侧指标 `80/76/118/144/66`,对应市值/数量、现价/成本、当日盈亏、持仓盈亏、占比,列间距使用 v230 的 `gap-1`,总宽 `604px`。
+  - 保留后续版本新增的个股详情入口和“现价/成本”持仓收益试算入口;只调整列表宽度和排列口径,不改持仓/盈亏计算。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.273`,并保留 `v10.7.9.272` 的已部署列距记录。
 - Key files:
   - `src/tabs/TradesTab.jsx`
   - `src/tabs/SettingsTab.jsx`
@@ -23,11 +23,41 @@
 - Validation:
   - `npm test`: pass,173/173。
   - `node --test tests/tool-ledger-boundaries.test.js`: pass,35/35。
+  - `npm run build`: pass,生成 `TradesTab-BdDFtAFo.js`、`SettingsTab-BjZnDUIh.js`、`settingsChangelog-DQzfIbv7.js`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Local visual smoke: `390x844` 视口下持仓表格 `data-trade-positions-table="v230-single-grid"`,整体可视宽约 340px、`scrollWidth=604`;列宽命中 `100/80/76/118/144/66`,横滑验证 `scrollLeft=210`;行分割线由单一 grid 承载,不再出现左侧名称列和右侧指标区断层。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列宽v230单grid默认首屏-v10.7.9.273.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列宽v230单grid横滑-v10.7.9.273.png`。
+- Rollback: 回退本条涉及的持仓表格布局/列宽、`v10.7.9.273` 设置页版本/更新日志、测试和本日志即可恢复当前生产 `v10.7.9.272`;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗计算逻辑。
+
+### 2026-07-09 - 持仓列距再平衡
+
+- Commit: runtime code `fc088bb60d078ce3f5c806f55a8e89e80d909d5d`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
+- Deployment: completed;本次发布 `v10.7.9.272`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。GitHub Actions `build` run `29025732996` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/9UsWzpPwQFWwdHjebhoHMJy18KdA`;production alias 已更新,入口 `/assets/index-CtrFGfuj.js`。
+- Background: 用户在 iPhone 线上反馈 `v10.7.9.271` 默认首屏里“当日盈亏”后方视觉留空过多,横滑后“当日盈亏”和“持仓盈亏”之间距离也过大;希望把空白分回名称/代码、市值/数量、现价/成本和当日盈亏,让前后列距更均衡。
+- Changes:
+  - `TradesTab` 持仓表格总宽从 592px 收回到 552px,避免右侧横滑区域过度松散。
+  - 首屏列模板改为 `76/88/72/104/8/144/60`,前四列仍保持 340px,但名称/代码、市值/数量和现价/成本比上一版更宽。
+  - 缓冲列从 16px 收到 8px,持仓盈亏列从 176px 收到 144px,减少横滑后“当日盈亏”和“持仓盈亏”的不合理距离。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.272`,并保留 `v10.7.9.271` 的已部署持仓当日盈亏列距记录。
+  - 交接文档同步当前生产运行时、入口、关键 chunk、线上 marker 和下一任可转发接手块。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,173/173。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,35/35。
   - `npm run build`: pass,生成 `TradesTab-BUr2h6s_.js`、`SettingsTab-BcUoUpty.js`、`settingsChangelog-5uJ2aGvP.js`。
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `git diff --check`: pass。
   - Local visual smoke: `390x844` 视口下首屏表格 `clientWidth=340`、`scrollWidth=552`、列宽 `76/88/72/104/8/144/60`;“当日盈亏”完整可见,右侧 2px 命中仍在当日盈亏列,未露出持仓盈亏符号。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列距再平衡默认首屏-v10.7.9.272.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列距再平衡横滑-v10.7.9.272.png`。
+  - Production markers: `/assets/App-BaydR-5O.js` 引用 `/assets/TradesTab-BUr2h6s_.js`、`/assets/SettingsTab-DGlnKY0o.js`;`TradesTab-BUr2h6s_.js` 包含 `data-trade-positions-table`、`min-w-[552px]` 和 `grid-cols-[76px_88px_72px_104px_8px_144px_60px]`;`SettingsTab-DGlnKY0o.js` 包含 `v10.7.9.272`;`settingsChangelog-5uJ2aGvP.js` 包含 `v10.7.9.272`、`持仓列距再平衡` 和上一版 `持仓当日盈亏列距优化`。
+  - Production auth boundary: 未登录 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`。
 - Rollback: 回退本条涉及的持仓表格列宽/缓冲列、`v10.7.9.272` 设置页版本/更新日志、测试和本日志即可;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗。
 
 ### 2026-07-09 - 持仓当日盈亏列距部署验证
