@@ -7,7 +7,7 @@
 ### 2026-07-09 - 回退数据初始化功能
 
 - Commit: `f353e3c64a91bf5359872960e4dcc2ee822e3ea4`。
-- Deployment: pending。
+- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and rollback markers verified。
 - Background: 数据初始化入口会一键清空当前用户全部业务数据,风险高于当前阶段需要;用户要求暂时取消并回退上一版本。
 - Changes:
   - 回退 Settings 页“数据初始化”风险卡片、二次确认弹窗和 `resetCurrentUserData` 清库入口。
@@ -28,6 +28,8 @@
   - `npm audit --audit-level=moderate`: pass;0 vulnerabilities。
   - `git diff --check` and `git diff --cached --check`: pass。
   - Dist marker check: pass;built assets contain `v10.7.9.239` and `清仓账户收益快照修复`,and no built/runtime source contains `数据初始化`,`dataReset`,`resetCurrentUserData`,`确认初始化`,`初始化数据` or `v10.7.9.240`。
+  - Production marker check: pass;entry `index-BwnfzC-Q.js`;dynamic assets contain `v10.7.9.239` and `清仓账户收益快照修复`,and do not contain `数据初始化`,`dataReset`,`resetCurrentUserData`,`确认初始化`,`初始化数据` or `v10.7.9.240`。
+  - Production auth/security check: pass;unauthenticated `/api/quote?symbols=VIX` returns `401`,and HTTP-forwarded `/api/stocks-realtime` returns `426`。
 - Rollback: 如后续需要重新开放,可基于 `f91ef4384b5d108754e4bbeaa33ed81abcae7f39` 重新设计更严格的权限和确认流程后再引入。
 
 ### 2026-07-09 - 清仓账户收益快照修复
