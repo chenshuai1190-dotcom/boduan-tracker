@@ -483,8 +483,8 @@ export default function StockDetailPage({ ctx = {} }) {
             data-pull-refresh-block="true"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            <div className="min-w-[700px]">
-              <div className="grid grid-cols-[122px_142px_198px_198px] gap-3 border-b border-white/[0.06] pb-2 text-[11px] text-white/[0.30]">
+            <div className="min-w-[560px]">
+              <div className="grid grid-cols-[96px_112px_158px_158px] gap-3 border-b border-white/[0.06] pb-2 text-[11px] text-white/[0.30]">
                 <span className="whitespace-nowrap">{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
                 <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
                 <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
@@ -495,7 +495,7 @@ export default function StockDetailPage({ ctx = {} }) {
                   const isSell = record.side === 'sell';
                   const realizedValue = record.realizedPnlUsd == null ? null : record.realizedPnlUsd * displayRate;
                   return (
-                    <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[122px_142px_198px_198px] gap-3 py-3">
+                    <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[96px_112px_158px_158px] gap-3 py-3">
                       <div className="min-w-0">
                         <div className="whitespace-nowrap text-[12px] tabular-nums text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
                         <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>

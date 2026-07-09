@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股交易记录列宽收紧
+
+- Commit: current changeset for `v10.7.9.242`;deployment verification will be recorded after local validation and GitHub/Vercel rollout。
+- Deployment: pending;will push through GitHub `main` with project SSH key after local validation。
+- Background: 个股详情页“交易记录”上一版为了避免成交额和实现盈亏错位,把横向表格放宽到 `700px`;用户反馈整体过宽,日期和数量/价格都是固定格式,应给小列宽,只有成交额和实现盈亏略宽即可。
+- Changes:
+  - `StockDetailPage` 交易记录横向表格从 `700px` 收紧到 `560px`。
+  - 日期/操作列收紧到 `96px`,数量/价格列收紧到 `112px`,成交额和实现盈亏列各保留 `158px`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.242`。
+  - 本次只改个股详情展示层布局,不改交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js`: pass,38/38 tests。
+  - `npm test`: pass,166/166 tests。
+  - `npm run build`: pass;new chunks include `StockDetailPage-DFXSHUFf.js`,`SettingsTab-33lUtWQ8.js`,`settingsChangelog-C05nbBIa.js`。
+  - `npm audit --audit-level=moderate`: pass;0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.242`,`个股交易记录列宽收紧`,`stock-detail-trade-records-scroll`,`min-w-[560px]`,`grid-cols-[96px_112px_158px_158px]`,and no built/runtime source contains `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+  - Local visual check: pass at `390x844` via `http://127.0.0.1:5173/?tab=stock-detail`;trade-record scroller measured `clientWidth 324 / scrollWidth 560`,columns measured `96/112/158/158`,and the first row amount/realized P&L cells did not overflow。
+- Rollback: 回退 `StockDetailPage` 交易记录列宽、`v10.7.9.242` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.241`;不影响交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股交易记录横向滚动
 
 - Commit: code commit `a9ab72c9a1abc96439751d9a60165463b1fd9033`;deployment verification docs follow-up is the current documentation-only follow-up commit。
