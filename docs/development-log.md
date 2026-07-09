@@ -4,6 +4,31 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 首页状态圆点降噪
+
+- Commit: same commit;部署后回填线上运行时代码提交、Vercel target 和生产入口。
+- Deployment: pending;本次发布 `v10.7.9.275`,计划只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户根据首页效果图反馈,当前信号“等待中”旁边的小圆点和 VIX 数值旁边的小绿点在视觉上重复,希望删除这两个装饰点,观察首页卡片降噪后的效果。
+- Workflow tier: `runtime`。
+- Changes:
+  - 首页当前信号标题行删除 `signalIsCalm` 驱动的小状态圆点,只保留“等待中”等文本本身。
+  - VIX 恐慌指数主数字右侧删除小绿点,保留下方风险条上的定位圆点、渐变条和 VIX 颜色逻辑。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.275`,并保留 `v10.7.9.274` 财报日历弹窗高度固定记录。
+  - 回归测试新增两个精确断言,避免当前信号标题小点和 VIX 数值小点后续误回归。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,35/35。
+  - `npm test`: pass,173/173。
+  - `npm run build`: pass,生成 `App-DIozxW2P.js`、`HomeTab-sFGT_nuR.js`、`SettingsTab-DFEZTwPt.js`、`settingsChangelog-B9AdpNuM.js`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+- Rollback: 回退本条涉及的首页两个装饰圆点删除、`v10.7.9.275` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.274`;不影响 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、行情 relay、RLS 或鉴权边界。
+
 ### 2026-07-09 - 文档一致性检查脚本
 
 - Commit: same commit。

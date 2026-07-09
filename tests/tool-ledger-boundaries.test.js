@@ -232,9 +232,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.274'), 'settings version badge should document the latest earnings calendar modal height fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.274'), 'settings changelog should document the latest earnings calendar modal height fix');
-  assert.ok(settingsChangelogSource.includes('财报日历弹窗高度固定'), 'settings changelog should describe the latest earnings calendar modal height fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.275'), 'settings version badge should document the latest home status dot cleanup');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.275'), 'settings changelog should document the latest home status dot cleanup');
+  assert.ok(settingsChangelogSource.includes('首页状态圆点降噪'), 'settings changelog should describe the latest home status dot cleanup');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.274'), 'settings changelog should retain the previous earnings calendar modal height fix');
+  assert.ok(settingsChangelogSource.includes('财报日历弹窗高度固定'), 'settings changelog should describe the previous earnings calendar modal height fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.273'), 'settings changelog should retain the previous trade positions v230 width update');
   assert.ok(settingsChangelogSource.includes('持仓列宽恢复 v230 口径'), 'settings changelog should describe the trade positions v230 width update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.272'), 'settings changelog should retain the previous trade positions spacing rebalance update');
@@ -1302,7 +1304,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.274'), 'settings version badge should document the latest earnings calendar modal height fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.275'), 'settings version badge should document the latest home status dot cleanup');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1541,6 +1543,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} language={language} />'), 'rollback should keep the inline CNN gauge with language-aware aria text');
   assert.ok(homeTabSource.includes("${englishMode ? 'text-[10px]' : 'text-[12px]'} font-normal text-white/60"), 'fear-card titles should keep the gray normal-weight style and shrink only in English mode');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
+  assert.equal(homeTabSource.includes("signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'"), false, 'current signal heading should not render the removed status dot');
+  assert.equal(homeTabSource.includes('h-3.5 w-3.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]'), false, 'VIX value should not render the removed green status dot');
   assert.ok(homeTabSource.includes('function fgiValueToAngle(value)'), 'CNN gauge should keep an explicit value-to-angle mapping');
   assert.ok(homeTabSource.includes('function describeFgiArc(cx, cy, radiusX, radiusY, startValue, endValue)'), 'CNN gauge should keep an explicit SVG arc generator');
   assert.ok(homeTabSource.includes('const radiusX = 54'), 'CNN gauge should stay expanded horizontally');
@@ -1564,7 +1568,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.274'), 'settings version badge should document the latest earnings calendar modal height fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.275'), 'settings version badge should document the latest home status dot cleanup');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

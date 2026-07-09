@@ -913,9 +913,8 @@ export default function HomeTab({ ctx }) {
         <div className="grid grid-cols-[62px_minmax(0,1fr)_70px] items-center gap-3">
           <RadarVisual active={signalIsCalm} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <div className="truncate text-base font-black text-white">{cleanSignalText(benchmarkStatus?.text, language)}</div>
-              <span className={`h-3 w-3 shrink-0 rounded-full ${signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_12px_rgba(52,211,153,0.75)]`} />
             </div>
             <div className="mt-1.5 text-[11px] text-white/50">{englishMode ? t(language, 'home.pullbackStayCash', '回撤<5%, 空仓等待') : (benchmarkStatus?.desc || '回撤<5%, 空仓等待')}</div>
             <div className="mt-2.5 truncate text-[11px] text-white/40">{t(language, 'home.waitHigherProbability', '耐心等待更高胜率机会')}</div>
@@ -980,9 +979,8 @@ export default function HomeTab({ ctx }) {
             {t(language, 'home.vix.title', 'VIX 恐慌指数')}
             {vixDateLabel && <span className="text-[10px] text-white/40">{vixDateLabel} {t(language, 'home.vix.close', '收盘')}</span>}
           </div>
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-2.5">
             <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
-            <span className="h-3.5 w-3.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]" />
           </div>
           <div className="mt-1.5 text-[11px] text-white/50">{englishMode ? t(language, 'home.vix.calmDesc', '市场平静, 无操作') : (vixSignal?.desc || '市场平静, 无操作')}</div>
           <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
