@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股收益线交互修正
 
-- Commit: this commit。
-- Deployment: pending。
+- Commit: code commit `8eab701e7762ccc8952014a43709761b963543ab`;deployment verification docs follow-up is the current commit。
+- Deployment: Vercel production deployment for `8eab701e7762ccc8952014a43709761b963543ab` returned success;production marker verified on `index-DjglV5jr.js`,`StockDetailPage-D2GyEJp2.js`,`SettingsTab-Ce-d2FnQ.js`,`settingsChangelog-CBlcKyKm.js`;unauthenticated `/api/quote?symbols=VIX` returned `401`;HTTP-forwarded `/api/stocks-realtime` returned `426`。
 - Background: 用户反馈个股详情页收益走势的长按十字线浮层无法稳定显示,曲线上的 B/S 买卖点在点位接近时重叠,走势图内的“累计盈亏”胶囊按钮也不应展示;同时最大回撤需要补充百分比,金色曲线要更接近效果图的细线视觉。
 - Changes:
   - `StockDetailPage` 的收益线交互从长按延迟触发改为按下即显示十字线和日期浮层,保留点击外部关闭和自动收起。
