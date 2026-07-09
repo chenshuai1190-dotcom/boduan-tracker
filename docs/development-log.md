@@ -6,8 +6,8 @@
 
 ### 2026-07-09 - 个股详情标题颜色统一
 
-- Commit: current changeset for `v10.7.9.243`;deployment verification will be recorded after local validation and GitHub/Vercel rollout。
-- Deployment: pending;will push through GitHub `main` with project SSH key after local validation。
+- Commit: code commit `3faebe7c5e439e58fc7dd180d16906063f8d6748`;deployment verification docs follow-up is the current documentation-only follow-up commit。
+- Deployment: deployed to GitHub `main` via project SSH key;Vercel production deployment completed and production markers verified。
 - Background: 用户反馈个股详情页“累计盈亏”“收益走势”“交易统计”“交易记录”四个区块标题颜色不统一,其中交易记录标题是目标层级;同时交易记录中的日期仍偏灰,和同一行成交额不协调。
 - Changes:
   - `StockDetailPage` 的累计盈亏标题和交易统计标题改用 `DETAIL_HEADING_CLASS`,与收益走势和交易记录标题保持一致。
@@ -28,6 +28,9 @@
   - Diff whitespace: pass;`git diff --check` returned clean。
   - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered four section headings as `rgba(255,255,255,0.72)` and trade-record dates as `rgba(255,255,255,0.86)`。
   - Dist marker check: pass;built assets contain `v10.7.9.243`,`个股详情标题颜色统一`,`text-white/[0.72]` / `text-white/[0.86]` compiled markers,and do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+  - GitHub/Vercel status: pass;commit `3faebe7` returned `Vercel: success`。
+  - Production marker check: pass;production entry `index-GE2xc5V6.js`,dynamic assets include `App-DnmGJKE2.js`,`StockDetailPage-CACQSFvp.js`,`SettingsTab-ChuCb6xo.js`,`settingsChangelog-kCh_pV4K.js`,and production assets contain `v10.7.9.243`,`个股详情标题颜色统一`,`text-white/[0.72]` / `text-white/[0.86]` compiled markers;production assets checked do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+  - Security probes: pass;unauthenticated `/api/quote?symbols=VIX` returned `401`,and HTTP-forwarded `/api/stocks-realtime` returned `426`。
 - Rollback: 回退 `StockDetailPage` 标题/日期颜色、`v10.7.9.243` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.242`;不影响交易账本、收益计算、行情 relay、RLS 或 `/api/quote` 鉴权。
 
 ### 2026-07-09 - 个股交易记录列宽收紧
