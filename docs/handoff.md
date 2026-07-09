@@ -72,7 +72,7 @@
 - `/api/btc-realtime`: 已登录 BTC WebSocket relay
 - `/api/indices-realtime`: 已登录三大指数 WebSocket relay
 - `/api/stocks-realtime`: 已登录用户股票 WebSocket relay,覆盖自选、正式持仓、波段记录和摊薄工具 quote rows;`v10.7.9.192` 起服务端同时连接 EODHD `/ws/us` 成交流和 `/ws/us-quote` 盘口流,成交价为主、盘口中间价为盘前兜底;`v10.7.9.193` 起前端股票 WebSocket 8 秒无首个 `stock_tick` 或无任何 live/tick activity 时主动重建连接
-- 市场数据: EODHD 核心 quote / realtime, Yahoo chart visuals, CNN Fear & Greed, NASDAQ calendar
+- 市场数据: EODHD 核心 quote / realtime, EODHD 财报日历, Yahoo chart visuals, CNN Fear & Greed
 - 测试: Node built-in test runner,命令为 `npm test`
 
 本机 Node 路径:

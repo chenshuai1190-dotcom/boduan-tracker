@@ -25,16 +25,6 @@ export function normalizeSymbolToken(token) {
     return { value: `ANALYST:${stockSym}` };
   }
 
-  if (upper.startsWith('CALENDAR')) {
-    if (upper === 'CALENDAR') return { value: upper };
-    if (!upper.startsWith('CALENDAR:')) return { error: `日历参数不合法: ${trimmed}` };
-    const watchSymbols = upper.slice('CALENDAR:'.length).split('|').filter(Boolean);
-    if (watchSymbols.length > MAX_SYMBOLS) return { error: `日历股票数量不能超过 ${MAX_SYMBOLS} 个` };
-    const invalid = watchSymbols.find(sym => !STOCK_SYMBOL_RE.test(sym));
-    if (invalid) return { error: `日历股票代码不合法: ${invalid}` };
-    return { value: `CALENDAR:${watchSymbols.join('|')}` };
-  }
-
   if (upper === 'VIX' || upper === 'FGI' || upper === 'INDICES') return { value: upper };
   if (!STOCK_SYMBOL_RE.test(upper)) return { error: `股票代码不合法: ${trimmed}` };
   return { value: upper };

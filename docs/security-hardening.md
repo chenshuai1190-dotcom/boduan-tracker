@@ -61,5 +61,5 @@ This project started as a personal hand-built app, so the first priority is to m
 
 - Continue validating server-side realtime relays in production after market-data changes.
 - Continue splitting the large `src/App.jsx` into feature modules.
-- Continue shrinking the quote provider modules and add error-path coverage for EODHD, Yahoo fallback, CNN, and NASDAQ partial failures.
+- Continue shrinking the quote provider modules and add error-path coverage for EODHD, Yahoo fallback, CNN, and the dedicated EODHD earnings-calendar endpoint.
 - Add metadata-level Supabase RLS verification through SQL/admin access.

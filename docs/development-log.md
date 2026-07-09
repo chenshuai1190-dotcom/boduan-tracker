@@ -4,6 +4,74 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 首页财报日历独立重构
+
+- Commit: pending;部署推送中。
+- Deployment: requested;等待 Vercel 生产部署完成后补充线上验证。
+- Background: 用户要求参考效果图在首页最底部重做财报日历,模块必须独立,不和旧日历或行情结构混用,并删除旧日历模块代码。
+- Changes:
+  - 新增独立 `EarningsCalendar` 首页底部模块,展示关注/持仓股票的财报横向预览,并提供深色弹窗里的日历视图和列表视图。
+  - 新增已登录 `/api/earnings-calendar` 服务端接口,使用服务器端 `EODHD_API_KEY` 调用 EODHD 财报日历和趋势数据,前端不接触 token。
+  - 从 `/api/quote` provider 链路删除旧 `CALENDAR:` 虚拟 symbol 和 NASDAQ calendar provider,并删除旧白色事件详情弹窗及其 `selectedEvent`/`calendarEvents` 状态。
+  - 为本地 `DevVisualPreview` 增加只读财报预览数据入口,方便在无生产环境变量时做首页底部模块和弹窗视觉 smoke;生产路径不传该字段,仍只走登录 session + 独立 API。
+  - README、handoff、安全审计文档同步当前市场数据来源:财报日历改为独立 EODHD endpoint,不再写 NASDAQ calendar。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.249`。
+  - 本次不改交易录入/编辑、收益快照生成、股票/指数/BTC realtime relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/lib/earningsCalendarModel.js`
+  - `api/earnings-calendar.js`
+  - `src/tabs/HomeTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/App.jsx`
+  - `server/quote/providers.js`
+  - `server/quote/providerHandlers.js`
+  - `server/quote/symbols.js`
+  - `tests/earnings-calendar.test.js`
+  - `tests/quote-symbols.test.js`
+  - `tests/quote-response-shape.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `README.md`
+  - `docs/handoff.md`
+  - `docs/security-hardening.md`
+  - `docs/architecture-security-audit.md`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full test suite: pass;`npm test` passed 170 tests。
+  - Targeted tests: pass;`node --test tests/earnings-calendar.test.js tests/quote-symbols.test.js tests/quote-response-shape.test.js tests/tool-ledger-boundaries.test.js` passed 57 tests。
+  - Build: pass;`npm run build` completed successfully with new `HomeTab-C9G_M3kp.js`,`App-DkqwwU-I.js`,`SettingsTab-B8cQFKev.js`,`settingsChangelog-CCGaX_TC.js` bundles。
+  - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
+  - Legacy calendar removal audit: pass;`rg` shows old `CALENDAR:` only in rejection/removal tests and no runtime `selectedEvent`/`calendarEvents` legacy modal path。
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` at 390x844 rendered the new homepage bottom 财报日历 card;the list modal and calendar modal both rendered in the dark style,with NVDA/MSFT/META/TSM/GOOGL rows readable after the column-width fix。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+- Rollback: 回退本次新增财报日历组件/API/model、恢复旧 `CALENDAR:` provider/旧事件弹窗和 `v10.7.9.249` 设置页/文档日志即可;不影响交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
+
+### 2026-07-09 - 个股峰值颜色统一
+
+- Commit: pending;本地待确认,暂不提交。
+- Deployment: not requested;暂不部署。
+- Background: 用户反馈个股详情页收益走势底部“峰值”数字仍是黄色,在当前红涨绿跌视觉下应和页面上涨红色保持一致;同时要求确认个股详情页是否和收益报表一样读取每日自动保存快照。
+- Changes:
+  - `StockDetailPage` 的峰值指标从固定 `text-[#ffd18a]` 改为 `marketTextClass(peakMetricUsd, marketColorMode)`,跟随全局涨跌色设置。
+  - 保留最大回吐、回撤率、回吐率按负向风险颜色展示,不改变四项指标计算口径和普通数字字重。
+  - 确认个股详情页通过 `stock_trades` 和 `pnl_report_symbol_snapshots` 构建只读详情;该表由收益报表自动收盘快照 `/api/pnl-report-daily-snapshot` 和 Vercel Cron 写入,不是个股页单独生成。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.248`。
+  - 本次只改个股详情只读展示层、设置页版本/更新日志、测试和本日志,不改交易录入/编辑、自动快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js` passed 39 tests。
+  - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered the stock detail page;in red-up-green-down mode the bottom `峰值` value resolved to `rgb(255, 75, 31)` with `font-weight: 400`,while `最大回吐`/`回撤率`/`回吐率` remained risk-colored;screenshot saved to `/tmp/boduan-stock-detail-v248-peak-red.png`。
+  - Snapshot source audit: pass;`StockDetailPage` builds the read-only detail from `stock_trades` and `pnl_report_symbol_snapshots`,and those symbol snapshots are written by the shared `/api/pnl-report-daily-snapshot` Cron path used by the P&L report,not by a separate stock-detail autosave path。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+- Rollback: 回退 `StockDetailPage` 峰值颜色、`v10.7.9.248` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.247`;不影响交易账本、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股收益风险指标调整
 
 - Commit: code commit `c7f8396207c72b3bd6c9ca4d7f3dabbbeb62c258`;deployment verification docs follow-up is the current commit。

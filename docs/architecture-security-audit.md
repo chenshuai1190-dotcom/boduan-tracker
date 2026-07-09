@@ -95,7 +95,7 @@ Goal: make the current app safer to change without altering product behavior.
   - `/api/quote` unauthenticated returns `401`
   - symbol validation rejects invalid input
   - delete guards scope by `user_id`
-- [x] Add quote response-shape tests for VIX, FGI, INDICES, CALENDAR, ANALYST, and normal stock symbols.
+- [x] Add quote response-shape tests for VIX, FGI, INDICES, ANALYST, and normal stock symbols; earnings calendar now has a dedicated EODHD endpoint test.
 - Add tests for key portfolio calculations.
 - [~] Verify Supabase RLS live: anonymous REST exposure probe passes for all user-owned tables; metadata-level `relrowsecurity` verification still requires Supabase SQL/admin access.
 
@@ -164,7 +164,7 @@ Only after Phases 0-2:
 Start with Phase 0 in this order:
 
 1. Continue shrinking the large EODHD provider module into stock, fundamentals, and shared parser helpers.
-2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and NASDAQ partial failures.
+2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and the dedicated EODHD earnings-calendar endpoint.
 3. Verify RLS metadata in Supabase SQL/admin when dashboard or CLI access is available.
 4. Extend server-side relay tests before adding more streamed symbols or user-configurable realtime watchlists.
 

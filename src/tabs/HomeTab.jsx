@@ -5,6 +5,7 @@ import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealt
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
+import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -479,6 +480,7 @@ export default function HomeTab({ ctx }) {
     ChevronRight,
     deleteWatchlistItem,
     displayStockName,
+    earningsCalendarEvents,
     fetchRealtimePrices,
     fetching,
     fgi,
@@ -509,6 +511,7 @@ export default function HomeTab({ ctx }) {
     setShowAddStock,
     showAddStock,
     stockFreshnessStartedAt = 0,
+    supabase,
     vix,
     vixDataDate,
     vixSignal,
@@ -1129,6 +1132,17 @@ export default function HomeTab({ ctx }) {
           </button>
         </div>
       )}
+
+      <EarningsCalendar
+        watchlist={displayWatchlist}
+        positions={positions}
+        logoCache={logoCache}
+        cacheStockLogo={cacheStockLogo}
+        displayStockName={stockDisplayName}
+        language={language}
+        supabase={supabase}
+        eventsOverride={earningsCalendarEvents}
+      />
 
       {showAddStock && isWatchlistTab && (
         <div

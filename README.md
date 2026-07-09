@@ -7,9 +7,9 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 - React 18 + Vite
 - Tailwind CSS
 - Supabase Auth + Postgres
-- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, and `api/pnl-report-daily-snapshot.js`
+- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, `api/earnings-calendar.js`, and `api/pnl-report-daily-snapshot.js`
 - Authenticated stock streaming covers watchlist, main ledger positions, wave records, and cost-basis tool quote rows.
-- EODHD, Yahoo Finance, CNN FGI, and NASDAQ calendar data
+- EODHD, Yahoo Finance, CNN FGI, and EODHD earnings calendar data
 
 ## Local Setup
 

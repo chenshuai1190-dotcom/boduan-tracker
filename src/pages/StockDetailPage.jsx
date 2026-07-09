@@ -212,6 +212,13 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
     ? `clamp(8px, calc(${(selectedPoint.y / 186) * 100}% - 126px), calc(100% - 138px))`
     : '8px';
   const peakText = chart.peakPoint ? compactSignedCurrency(chart.peakPoint.value, currencyMode) : '--';
+  const peakMetricUsd = trendStats?.peakPnlUsd == null ? null : toNumber(trendStats.peakPnlUsd);
+  const peakMetricText = peakMetricUsd == null
+    ? '--'
+    : compactSignedCurrency(peakMetricUsd * displayRate, currencyMode);
+  const peakMetricClass = peakMetricUsd == null
+    ? 'text-white/[0.34]'
+    : marketTextClass(peakMetricUsd, marketColorMode);
   const maxGivebackUsd = trendStats?.maxGivebackUsd ?? trendStats?.maxDrawdownUsd;
   const maxGivebackText = maxGivebackUsd == null
     ? '--'
@@ -375,8 +382,8 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
           <div className="flex min-w-0 items-baseline gap-1.5">
             <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.peak', '峰值')}</span>
-            <span className="min-w-0 truncate text-[16px] font-normal tabular-nums text-[#ffd18a]" style={{ fontFamily: NUMBER_FONT }}>
-              {trendStats?.peakPnlUsd == null ? '--' : compactSignedCurrency(toNumber(trendStats.peakPnlUsd) * displayRate, currencyMode)}
+            <span className={`min-w-0 truncate text-[16px] font-normal tabular-nums ${peakMetricClass}`} style={{ fontFamily: NUMBER_FONT }}>
+              {peakMetricText}
             </span>
           </div>
           <div className="flex min-w-0 items-baseline gap-1.5">

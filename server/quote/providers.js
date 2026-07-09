@@ -3,7 +3,6 @@ export const QUOTE_PROVIDER = Object.freeze({
   FGI: 'fgi',
   TRANSLATE: 'translate',
   ANALYST: 'analyst',
-  CALENDAR: 'calendar',
   INDICES: 'indices',
   STOCK: 'stock',
 });
@@ -14,6 +13,5 @@ export function providerForSymbol(symbol) {
   if (symbol === 'INDICES') return QUOTE_PROVIDER.INDICES;
   if (symbol.startsWith('TRANSLATE:')) return QUOTE_PROVIDER.TRANSLATE;
   if (symbol.startsWith('ANALYST:')) return QUOTE_PROVIDER.ANALYST;
-  if (symbol.startsWith('CALENDAR')) return QUOTE_PROVIDER.CALENDAR;
   return QUOTE_PROVIDER.STOCK;
 }

@@ -111,6 +111,14 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
+const mockEarningsCalendarEvents = [
+  { symbol: 'NVDA', name: 'NVIDIA', reportDate: '2026-07-09', session: 'before', epsEstimate: 0.68, revenueEstimate: 284500000000, currency: 'USD', impact: 'high' },
+  { symbol: 'MSFT', name: 'Microsoft', reportDate: '2026-07-10', session: 'after', epsEstimate: 2.93, revenueEstimate: 64500000000, currency: 'USD', impact: 'medium' },
+  { symbol: 'META', name: 'Meta', reportDate: '2026-07-10', session: 'after', epsEstimate: 4.71, revenueEstimate: 39100000000, currency: 'USD', impact: 'medium' },
+  { symbol: 'TSM', name: 'TSMC', reportDate: '2026-07-11', session: 'before', epsEstimate: 1.45, revenueEstimate: 20300000000, currency: 'USD', impact: 'high' },
+  { symbol: 'GOOGL', name: 'Alphabet', reportDate: '2026-07-13', session: 'after', epsEstimate: 2.18, revenueEstimate: 96400000000, currency: 'USD', impact: 'normal' },
+];
+
 const mockPnlPortfolioSnapshots = [
   {
     snapshotDate: '2026-07-08',
@@ -411,6 +419,7 @@ export default function DevVisualPreview() {
       }
       return name || normalizedSymbol;
     },
+    earningsCalendarEvents: mockEarningsCalendarEvents,
     fetchRealtimePrices: async () => {},
     fetching: false,
     fgi: 32,
@@ -461,6 +470,11 @@ export default function DevVisualPreview() {
     stockDetailSymbol: 'NVDA',
     stockTrades: mockPnlStockTrades,
     stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: 'dev-visual-preview-token' } } }),
+      },
+    },
     usdRate: USD_RATE,
     vix: 15.8,
     vixDataDate: '2026-07-03T00:00:00.000Z',

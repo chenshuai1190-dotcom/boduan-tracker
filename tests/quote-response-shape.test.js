@@ -175,42 +175,6 @@ async function mockProviderFetch(url) {
     }
   }
 
-  if (parsed.hostname === 'api.nasdaq.com') {
-    const today = new Date().toISOString().slice(0, 10);
-    const date = parsed.searchParams.get('date');
-    return jsonResponse({
-      data: {
-        rows: date === today ? [{
-          symbol: 'NVDA',
-          name: 'NVIDIA Corporation',
-          time: 'after-hours',
-          epsForecast: '1.20',
-          eps: null,
-          marketCap: '$4T',
-          fiscalQuarterEnding: 'Jul/2026',
-          noOfEsts: '35',
-          lastYearEPS: '0.80',
-          lastYearRptDt: '2025-07-03',
-        }] : [],
-      },
-    });
-  }
-
-  if (path.includes('/api/economic-events')) {
-    return jsonResponse([
-      {
-        event: 'Fed Interest Rate Decision',
-        date: '2026-07-15 18:00:00',
-        country: 'US',
-        actual: null,
-        estimate: '4.50%',
-        previous: '4.50%',
-        change: null,
-        change_percentage: null,
-      },
-    ]);
-  }
-
   if (path.includes('/api/us-quote-delayed')) {
     const requested = parsed.searchParams.get('s') || '';
     if (requested.includes('SPY.US') && requested.includes('QQQ.US')) {
@@ -630,17 +594,6 @@ test('INDICES quote response shape is stable', async () => {
   assert.equal(quote.data[0].price, 5435.21);
   assert.deepEqual(quote.data[0].intraday, [5440, 5438.25, 5436.8, 5435.21]);
   assert.equal(quote.data[0].source, 'EODHD');
-});
-
-test('CALENDAR quote response shape is stable', async () => {
-  const quote = await callQuote('CALENDAR:NVDA');
-
-  assert.equal(quote.symbol, 'CALENDAR:NVDA');
-  assert.equal(quote.source, 'NASDAQ + FOMC');
-  assert.equal(Array.isArray(quote.events), true);
-  assert.equal(quote.events.some(event => event.type === 'earnings' && event.symbol === 'NVDA'), true);
-  assert.equal(quote.events.some(event => event.type === 'fomc'), true);
-  assert.equal(typeof quote.fetchedAt, 'string');
 });
 
 test('ANALYST quote response shape is stable', async () => {
