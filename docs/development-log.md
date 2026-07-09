@@ -4,10 +4,59 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 财报列表过滤和持仓列距本地调试
+
+- Commit: same commit;用户确认本地截图后要求部署。
+- Deployment: user requested;本次按用户确认后的截图效果发布 `v10.7.9.270`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户反馈财报日历弹窗列表视图混入上一财季已公布报表,希望列表不再显示这些历史项;同时交易页持仓分布首屏右侧会露出下一列持仓盈亏的红色 `+`,且“现价/成本”和“当日盈亏”距离偏近,需要在完整显示当日盈亏的前提下微调列距。
+- Changes:
+  - `EarningsCalendar` 弹窗列表视图改为只展示 `isEarningsVisible` 当前仍可见事件,即未来未公布财报和公布后两天内的已公布结果;日历视图仍接收完整事件集,保留上一财季回看能力。
+  - `TradesTab` 持仓分布单行 grid 从 `84/86/72/98/144/52` 微调为 `78/84/82/96/148/52`,前四列仍保持 340px,保证 390px 手机首屏完整显示到当日盈亏。
+  - `持仓盈亏` 列增加左侧缓冲和 overflow 裁剪,避免默认首屏边缘露出下一列加号。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.270`,并保留 `v10.7.9.269` 的已部署持仓表格行对齐记录。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full test pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` -> 173/173 pass。
+  - Targeted boundary test pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` -> 35/35 pass。
+  - Production build pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` -> `TradesTab-D5sqY8jf.js`,`HomeTab-CQFtNT4I.js`,`SettingsTab-BPtFI_ut.js`,`settingsChangelog-DWwauInu.js`。
+  - Audit pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` -> 0 vulnerabilities。
+  - Diff hygiene pass:`git diff --check`。
+  - Local visual smoke pass:`http://127.0.0.1:5173/?tab=home&v=270-local`,390x844 视口打开财报弹窗列表视图,确认列表不再出现 `04/15` 或其它 `04/xx` 上一财季项,仍显示当前窗口 `07/08`、`07/09`、`07/10`、`07/11` 等;截图 `~/Desktop/boduan-previews/财报列表过滤上一财季-v10.7.9.270.png`。
+  - Local visual smoke pass:`http://127.0.0.1:5173/?tab=trades&v=270-local`,390x844 视口打开交易页持仓分布,确认表格 `scrollWidth=540/clientWidth=340`,前三行当日盈亏均完整可见,右边缘命中当日盈亏单元格而不是持仓盈亏列,持仓盈亏文本从可视区右侧 16px 后开始;截图 `~/Desktop/boduan-previews/交易页当日盈亏列距不露加号-v10.7.9.270.png`。
+- Rollback: 回退本条涉及的列表 `isEarningsVisible` 过滤、交易页列宽/持仓盈亏缓冲、`v10.7.9.270` 设置页版本/更新日志、测试和本日志即可;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报 API 鉴权或持仓收益试算弹窗。
+
+### 2026-07-09 - 记录持仓表格对齐部署验证
+
+- Commit: same commit;docs-only verification record for runtime code `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`。
+- Deployment: docs-only verification record;runtime code already deployed by GitHub `main` commit `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`。
+- Background: `v10.7.9.269` 持仓分布单行表格和本地截图转发流程已按用户要求推送到 GitHub `main`,Vercel production 已完成部署,需要把线上验证证据回填到开发日志和交接文档。
+- Changes:
+  - 回填 `af119ae2c1f3d7b3bbb67a30c406a226aba4057b` 的 GitHub Actions、Vercel production、生产 asset marker 和 `/api/quote` 鉴权验证结果。
+  - 刷新 `docs/handoff.md` 当前运行时代码提交、设置页版本、生产入口和下一位接手摘要。
+- Key files:
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - Diff hygiene pass:`git diff --check`。
+- Production verification:
+  - GitHub `main`: `af119ae2c1f3d7b3bbb67a30c406a226aba4057b` pushed via `~/.ssh/boduan_tracker_github`。
+  - GitHub Actions: CI run `29022790739` completed `success` for `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`。
+  - Vercel: Production deployment `5377042726` completed `success`,target `https://boduan-tracker-ot2daamp2-chenshuai1190-7580s-projects.vercel.app`。
+  - Production entry: `https://boduan-tracker.vercel.app/` points to `/assets/index-D3b3msjF.js`。
+  - Production marker check: recursive asset scan found `data-trade-positions-table` / `single-grid`, `min-w-[536px]` and `grid-cols-[84px_86px_72px_98px_144px_52px]` in `/assets/TradesTab-C4KCpDBb.js`;`v10.7.9.269` in `/assets/SettingsTab-B9iMA-IZ.js` and `/assets/settingsChangelog-DRT0Egni.js`;`持仓表格行对齐` in `/assets/settingsChangelog-DRT0Egni.js`。
+  - Production auth smoke pass:未登录请求 `https://boduan-tracker.vercel.app/api/quote?symbols=VIX` 返回 `401`,确认 `/api/quote` 鉴权未关闭。
+- Rollback: 回退本 docs-only 验证记录只会移除部署证据和交接刷新;若要回退运行时代码,回退 `af119ae2c1f3d7b3bbb67a30c406a226aba4057b` 中的持仓表格单行 grid、`v10.7.9.269` 设置页版本/更新日志、测试和截图流程文档即可。
+
 ### 2026-07-09 - 固化本地截图转发流程
 
-- Commit: same commit;随 `v10.7.9.269` 持仓分布对齐修复一起发布。
-- Deployment: user requested;本次只更新开发流程文档和开发日志,随同一 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime/docs code `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`;随 `v10.7.9.269` 持仓分布对齐修复一起发布。
+- Deployment: completed;本次只更新开发流程文档和开发日志,随同一 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 用户确认本地截图用绝对路径 Markdown 图片转发到聊天窗口可以在手机端查看,要求以后固定使用这种方式并写入开发文档。
 - Changes:
   - `docs/development-process.md` 的本地验证环节新增 UI/移动端视觉改动截图规则。
@@ -23,8 +72,8 @@
 
 ### 2026-07-09 - 持仓分布单行表格本地调试
 
-- Commit: same commit;用户确认截图后要求部署。
-- Deployment: user requested;本次按用户确认后的截图效果发布 `v10.7.9.269`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Commit: runtime code `af119ae2c1f3d7b3bbb67a30c406a226aba4057b`;本日志后续 docs-only 提交记录线上验证结果。
+- Deployment: completed;本次按用户确认后的截图效果发布 `v10.7.9.269`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
 - Background: 交易页持仓分布原先用左侧名称列表 + 右侧指标横向列表两套 `positions.map()` 伪装成一张表,两边只靠相同 `min-h-[60px]` 对齐。CNY 市值数字变长、iOS 字体渲染或某一侧内容轻微撑高时,名称/代码和市值/数量容易出现上下错位。
 - Changes:
   - `TradesTab` 持仓分布改为单一横向表格,每只股票的名称/代码、市值/数量、现价/成本、当日盈亏、持仓盈亏和占比都在同一个行容器内渲染。

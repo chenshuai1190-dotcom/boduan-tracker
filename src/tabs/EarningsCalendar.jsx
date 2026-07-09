@@ -608,7 +608,10 @@ function EarningsModal({
   const monthDays = React.useMemo(() => buildCalendarMonth(`${visibleMonth}-01`, events), [visibleMonth, events]);
   const selectedEvents = grouped.get(selectedDate) || [];
   const eventDates = React.useMemo(() => Array.from(grouped.keys()).sort(), [grouped]);
-  const listEvents = React.useMemo(() => events.slice(0, 80), [events]);
+  const listEvents = React.useMemo(() => {
+    const today = todayDateKey();
+    return events.filter((event) => isEarningsVisible(event, today)).slice(0, 80);
+  }, [events]);
 
   React.useEffect(() => {
     if (!open || typeof document === 'undefined') return undefined;
