@@ -22,6 +22,7 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
         realizedPnlUsd: 0,
         unrealizedPnlUsd: 100,
         cumulativePnlUsd: 100,
+        dailyPnlUsd: 100,
         totalBuyCostUsd: 1000,
       },
       {
@@ -35,6 +36,7 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
         realizedPnlUsd: 60,
         unrealizedPnlUsd: 144,
         cumulativePnlUsd: 204,
+        dailyPnlUsd: 104,
         totalBuyCostUsd: 1000,
         sellProceedsUsd: 260,
       },
@@ -55,6 +57,18 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
   assert.equal(detail.stats.sellCount, 1);
   assert.equal(detail.tradeRecords[0].side, 'sell');
   assert.equal(detail.tradeRecords[0].realizedPnlUsd, 60);
+  assert.equal(detail.trend.length, 2);
+  assert.equal(detail.trend[1].dailyPnlUsd, 104);
+  assert.equal(detail.trend[1].marketValueUsd, 944);
+  assert.equal(detail.trend[1].closePriceUsd, 118);
+  assert.equal(Number(detail.trend[1].returnPct.toFixed(3)), 0.204);
+  assert.equal(detail.trendStats.peakPnlUsd, 204);
+  assert.equal(detail.trendStats.maxDrawdownUsd, 0);
+  assert.equal(detail.tradeEvents.length, 2);
+  assert.equal(detail.tradeEvents[0].side, 'sell');
+  assert.equal(detail.tradeEvents[0].markerDate, '2026-07-08');
+  assert.equal(detail.tradeEvents[1].side, 'buy');
+  assert.equal(detail.tradeEvents[1].markerDate, '2026-07-07');
 });
 
 test('uses baseline snapshot for older holdings in selected ranges', () => {
@@ -129,4 +143,3 @@ test('keeps closed positions visible from symbol snapshots and trade ledger', ()
   assert.equal(detail.tradeRecords.length, 2);
   assert.equal(detail.tradeRecords[0].realizedPnlUsd, 300);
 });
-

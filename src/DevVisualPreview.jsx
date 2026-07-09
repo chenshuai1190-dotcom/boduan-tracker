@@ -157,6 +157,12 @@ const mockPnlSymbolSnapshotHistory = [
   { snapshotDate: '2026-07-02', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 180.6, marketValueUsd: 14448, realizedPnlUsd: 1400, unrealizedPnlUsd: 4848, cumulativePnlUsd: 6248, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
   { snapshotDate: '2026-07-01', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 176.4, marketValueUsd: 17640, realizedPnlUsd: 0, unrealizedPnlUsd: 5640, cumulativePnlUsd: 5640, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
   { snapshotDate: '2026-06-30', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 171.8, marketValueUsd: 17180, realizedPnlUsd: 0, unrealizedPnlUsd: 5180, cumulativePnlUsd: 5180, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-06-18', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 148.4, marketValueUsd: 14840, realizedPnlUsd: 0, unrealizedPnlUsd: 2840, cumulativePnlUsd: 2840, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-06-04', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 168.2, marketValueUsd: 16820, realizedPnlUsd: 0, unrealizedPnlUsd: 4820, cumulativePnlUsd: 4820, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-05-20', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 151.3, marketValueUsd: 15130, realizedPnlUsd: 0, unrealizedPnlUsd: 3130, cumulativePnlUsd: 3130, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-05-06', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 132.6, marketValueUsd: 13260, realizedPnlUsd: 0, unrealizedPnlUsd: 1260, cumulativePnlUsd: 1260, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-04-20', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 119.2, marketValueUsd: 11920, realizedPnlUsd: 0, unrealizedPnlUsd: -80, cumulativePnlUsd: -80, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
+  { snapshotDate: '2026-04-05', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 120, marketValueUsd: 12000, realizedPnlUsd: 0, unrealizedPnlUsd: 0, cumulativePnlUsd: 0, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
 ];
 
 const mockActivePositions = [

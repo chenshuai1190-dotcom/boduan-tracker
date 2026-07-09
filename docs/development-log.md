@@ -4,6 +4,36 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股收益走势升级
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户给出个股详情页收益走势设计稿,要求第一版严格参考视觉效果,但未实现的曲线类型切换、对比线等能力不要先体现在前端。
+- Changes:
+  - `StockDetailPage` 的收益走势改为金色面积线,增加峰值、当前值、底部峰值/最大回撤指标和 B/S 买卖标记。
+  - 长按或鼠标点击收益线可查看指定日期累计盈亏、当日盈亏、收益率、持仓市值和收盘价;点击买卖标记可查看该笔交易摘要。
+  - `stockDetailViewModel` 为走势图补充每日盈亏、收益率、市值、收盘价、趋势统计和交易标记日期映射。
+  - 本次只展示已实现能力,不露出收益率/已实现/未实现曲线切换和对比线入口;不改交易录入/编辑、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.244`。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/stockDetailViewModel.js`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/stock-detail-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js` passed 38 tests。
+  - Full tests: pass;`npm test` passed 166 tests。
+  - Build: pass;`npm run build` generated `StockDetailPage-C2xhXh7L.js`,`SettingsTab-Dp1KbW5P.js`,`settingsChangelog-DAC6MpUv.js`。
+  - Audit: pass;`npm audit --audit-level=moderate` found 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+  - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered the gold area P&L line,B/S markers,current-value callout,peak/max-drawdown labels,and click/long-press tooltip;unimplemented curve switches and comparison-line controls are not rendered。
+  - Dist marker check: pass;built assets contain `v10.7.9.244`,`个股收益走势升级`,`stockDetailPnlArea`,`stockDetailPnlGlow`,`最大回撤`,`当日盈亏`,`收盘价`,and do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+- Rollback: 回退 `StockDetailPage` 走势图 UI、`stockDetailViewModel` 趋势字段、`v10.7.9.244` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.243`;不影响交易账本、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股详情标题颜色统一
 
 - Commit: code commit `3faebe7c5e439e58fc7dd180d16906063f8d6748`;deployment verification docs follow-up is the current documentation-only follow-up commit。

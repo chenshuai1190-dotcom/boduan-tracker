@@ -171,6 +171,48 @@ function periodReturnPct(periodPnlUsd, latest, baseline, range, startsInsideRang
   return periodPnlUsd / basis;
 }
 
+function snapshotReturnPct(snapshot, pnlUsd, baseline, range, startsInsideRange) {
+  if (pnlUsd == null) return null;
+  if (range === 'all' || startsInsideRange) {
+    const basis = Math.max(toNumber(snapshot?.totalBuyCostUsd), toNumber(snapshot?.remainingCostUsd), 1);
+    return pnlUsd / basis;
+  }
+  const basis = Math.max(toNumber(baseline?.marketValueUsd), toNumber(baseline?.remainingCostUsd), toNumber(snapshot?.remainingCostUsd), 1);
+  return pnlUsd / basis;
+}
+
+function buildTrendStats(points) {
+  const valid = (Array.isArray(points) ? points : [])
+    .filter((point) => Number.isFinite(Number(point?.pnlUsd)));
+  if (valid.length === 0) {
+    return {
+      peakPnlUsd: null,
+      maxDrawdownUsd: null,
+      maxDrawdownPct: null,
+      peakDate: null,
+      currentPnlUsd: null,
+    };
+  }
+
+  let peakPoint = valid[0];
+  let runningPeak = valid[0];
+  let maxDrawdownUsd = 0;
+  valid.forEach((point) => {
+    if (toNumber(point.pnlUsd) > toNumber(peakPoint.pnlUsd)) peakPoint = point;
+    if (toNumber(point.pnlUsd) > toNumber(runningPeak.pnlUsd)) runningPeak = point;
+    const drawdown = toNumber(point.pnlUsd) - toNumber(runningPeak.pnlUsd);
+    if (drawdown < maxDrawdownUsd) maxDrawdownUsd = drawdown;
+  });
+  const peakValue = toNumber(peakPoint.pnlUsd);
+  return {
+    peakPnlUsd: peakValue,
+    maxDrawdownUsd,
+    maxDrawdownPct: peakValue > 0 ? maxDrawdownUsd / peakValue : null,
+    peakDate: peakPoint.date,
+    currentPnlUsd: toNumber(valid.at(-1)?.pnlUsd),
+  };
+}
+
 export function buildStockDetailViewModel({
   symbol,
   stockTrades = [],
@@ -213,8 +255,29 @@ export function buildStockDetailViewModel({
       date: snapshot.snapshotDate,
       label: monthLabel(snapshot.snapshotDate),
       pnlUsd,
+      cumulativePnlUsd: toNumber(snapshot.cumulativePnlUsd),
+      dailyPnlUsd: snapshot.dailyPnlUsd == null ? null : toNumber(snapshot.dailyPnlUsd),
+      returnPct: snapshotReturnPct(snapshot, pnlUsd, baseline, range, startsInsideRange),
+      marketValueUsd: toNumber(snapshot.marketValueUsd),
+      closePriceUsd: toNumber(snapshot.currentPriceUsd),
+      realizedPnlUsd: toNumber(snapshot.realizedPnlUsd),
+      unrealizedPnlUsd: toNumber(snapshot.unrealizedPnlUsd),
     };
   }).filter((point) => point.pnlUsd != null);
+  const trendDates = new Set(trend.map((point) => point.date));
+  const visibleTradeEvents = tradeRecords
+    .filter((record) => trend.length > 0)
+    .map((record) => {
+      const exactDate = trendDates.has(record.date)
+        ? record.date
+        : trend.find((point) => point.date >= record.date)?.date || trend.at(-1)?.date;
+      return {
+        ...record,
+        markerDate: exactDate,
+      };
+    })
+    .filter((record) => record.markerDate);
+  const trendStats = buildTrendStats(trend);
 
   const latestName = latest?.name || trades.find((trade) => trade.name)?.name || normalizedSymbol;
   return {
@@ -236,6 +299,8 @@ export function buildStockDetailViewModel({
     currentPriceUsd: toNumber(latest?.currentPriceUsd),
     stats,
     trend,
+    trendStats,
+    tradeEvents: visibleTradeEvents,
     tradeRecords,
   };
 }
