@@ -63,12 +63,59 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
   assert.equal(detail.trend[1].closePriceUsd, 118);
   assert.equal(Number(detail.trend[1].returnPct.toFixed(3)), 0.204);
   assert.equal(detail.trendStats.peakPnlUsd, 204);
+  assert.equal(detail.trendStats.maxGivebackUsd, 0);
   assert.equal(detail.trendStats.maxDrawdownUsd, 0);
+  assert.equal(detail.trendStats.drawdownRate, 0);
+  assert.equal(detail.trendStats.givebackRate, 0);
   assert.equal(detail.tradeEvents.length, 2);
   assert.equal(detail.tradeEvents[0].side, 'sell');
   assert.equal(detail.tradeEvents[0].markerDate, '2026-07-08');
   assert.equal(detail.tradeEvents[1].side, 'buy');
   assert.equal(detail.tradeEvents[1].markerDate, '2026-07-07');
+});
+
+test('separates stock detail giveback from net-asset drawdown rate', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: '1', trade_date: '2026-01-02', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+    ],
+    symbolSnapshots: [
+      {
+        snapshotDate: '2026-05-01',
+        symbol: 'NVDA',
+        cumulativePnlUsd: 100,
+        marketValueUsd: 1100,
+        remainingCostUsd: 1000,
+        totalBuyCostUsd: 1000,
+      },
+      {
+        snapshotDate: '2026-06-04',
+        symbol: 'NVDA',
+        cumulativePnlUsd: 300,
+        marketValueUsd: 1300,
+        remainingCostUsd: 1000,
+        totalBuyCostUsd: 1000,
+      },
+      {
+        snapshotDate: '2026-07-08',
+        symbol: 'NVDA',
+        cumulativePnlUsd: 120,
+        marketValueUsd: 1120,
+        remainingCostUsd: 1000,
+        totalBuyCostUsd: 1000,
+      },
+    ],
+    range: 'all',
+    now: new Date('2026-07-08T22:00:00.000Z'),
+  });
+
+  assert.equal(detail.trendStats.peakPnlUsd, 300);
+  assert.equal(detail.trendStats.maxGivebackUsd, -180);
+  assert.equal(detail.trendStats.maxDrawdownUsd, -180);
+  assert.equal(Number(detail.trendStats.drawdownRate.toFixed(3)), -0.138);
+  assert.equal(Number(detail.trendStats.maxDrawdownPct.toFixed(3)), -0.138);
+  assert.equal(Number(detail.trendStats.givebackRate.toFixed(3)), 0.6);
 });
 
 test('uses baseline snapshot for older holdings in selected ranges', () => {

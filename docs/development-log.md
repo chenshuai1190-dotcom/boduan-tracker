@@ -4,6 +4,35 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 个股收益风险指标调整
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户明确个股详情页收益线底部风险指标需要拆成峰值、最大回吐、回撤率和回吐率;其中回撤率按资产净值计算,回吐率按利润峰值计算,同时这些指标数字取消加粗。
+- Changes:
+  - `stockDetailViewModel` 将收益趋势统计拆出 `maxGivebackUsd`,`drawdownRate` 和 `givebackRate`;`maxDrawdownUsd` 仅保留为兼容别名。
+  - `StockDetailPage` 的收益走势底部改为两行四项:峰值、最大回吐、回撤率、回吐率,并统一使用轻量数字字重。
+  - 中文和英文文案补齐最大回吐、回撤率、回吐率,设置页版本和用户可见更新日志同步到 `v10.7.9.247`。
+  - 本次只改个股详情只读图表指标展示和计算口径,不改交易录入/编辑、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/lib/stockDetailViewModel.js`
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/stock-detail-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/stock-detail-view-model.test.js` passed 39 tests。
+  - Full tests: pass;`npm test` passed 167 tests。
+  - Build: pass;`npm run build` generated `StockDetailPage-Dw3CTeQx.js`,`SettingsTab-C_b0dY8X.js`,`settingsChangelog-BKBETbdq.js`。
+  - Audit: pass;`npm audit --audit-level=moderate` found 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+  - Local visual smoke: pass;`http://127.0.0.1:5173/?tab=stock-detail` at 390x844 rendered 峰值、最大回吐、回撤率 and 回吐率;the old chart-footer 最大回撤 label was absent,and the four metric numbers resolved to `font-weight: 400`;screenshot saved to `/tmp/boduan-stock-detail-v247-risk-metrics.png`。
+  - Dist marker check: pass;built assets contain `v10.7.9.247`,`个股收益风险指标调整`,`最大回吐`,`回撤率`,`回吐率`,`stockDetailPnlArea`,`stockDetailPnlGlow`,and do not contain `数据初始化`,`resetCurrentUserData` or `v10.7.9.240`。
+- Rollback: 回退 `stockDetailViewModel` 风险统计字段、`StockDetailPage` 底部四项指标、`v10.7.9.247` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.246`;不影响交易账本、收益快照生成、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 个股收益浮层边界优化
 
 - Commit: code commit `af3f4f5c69ce725fd916a0f4e9471f5c6c1bb934`;deployment verification docs follow-up is the current commit。

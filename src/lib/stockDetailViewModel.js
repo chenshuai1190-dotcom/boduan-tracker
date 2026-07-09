@@ -187,7 +187,10 @@ function buildTrendStats(points) {
   if (valid.length === 0) {
     return {
       peakPnlUsd: null,
+      maxGivebackUsd: null,
       maxDrawdownUsd: null,
+      drawdownRate: null,
+      givebackRate: null,
       maxDrawdownPct: null,
       peakDate: null,
       currentPnlUsd: null,
@@ -196,18 +199,27 @@ function buildTrendStats(points) {
 
   let peakPoint = valid[0];
   let runningPeak = valid[0];
-  let maxDrawdownUsd = 0;
+  let maxGivebackUsd = 0;
+  let maxGivebackPeakPoint = valid[0];
   valid.forEach((point) => {
     if (toNumber(point.pnlUsd) > toNumber(peakPoint.pnlUsd)) peakPoint = point;
     if (toNumber(point.pnlUsd) > toNumber(runningPeak.pnlUsd)) runningPeak = point;
-    const drawdown = toNumber(point.pnlUsd) - toNumber(runningPeak.pnlUsd);
-    if (drawdown < maxDrawdownUsd) maxDrawdownUsd = drawdown;
+    const giveback = toNumber(point.pnlUsd) - toNumber(runningPeak.pnlUsd);
+    if (giveback < maxGivebackUsd) {
+      maxGivebackUsd = giveback;
+      maxGivebackPeakPoint = runningPeak;
+    }
   });
   const peakValue = toNumber(peakPoint.pnlUsd);
+  const drawdownBase = toNumber(maxGivebackPeakPoint?.marketValueUsd);
   return {
     peakPnlUsd: peakValue,
-    maxDrawdownUsd,
-    maxDrawdownPct: peakValue > 0 ? maxDrawdownUsd / peakValue : null,
+    maxGivebackUsd,
+    // Keep the old field as an alias for older callers; the UI labels it as giveback.
+    maxDrawdownUsd: maxGivebackUsd,
+    drawdownRate: drawdownBase > 0 ? maxGivebackUsd / drawdownBase : null,
+    givebackRate: peakValue > 0 ? Math.abs(maxGivebackUsd) / peakValue : null,
+    maxDrawdownPct: drawdownBase > 0 ? maxGivebackUsd / drawdownBase : null,
     peakDate: peakPoint.date,
     currentPnlUsd: toNumber(valid.at(-1)?.pnlUsd),
   };

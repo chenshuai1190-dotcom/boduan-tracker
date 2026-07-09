@@ -212,12 +212,16 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
     ? `clamp(8px, calc(${(selectedPoint.y / 186) * 100}% - 126px), calc(100% - 138px))`
     : '8px';
   const peakText = chart.peakPoint ? compactSignedCurrency(chart.peakPoint.value, currencyMode) : '--';
-  const maxDrawdownText = trendStats?.maxDrawdownUsd == null
+  const maxGivebackUsd = trendStats?.maxGivebackUsd ?? trendStats?.maxDrawdownUsd;
+  const maxGivebackText = maxGivebackUsd == null
     ? '--'
-    : compactSignedCurrency(toNumber(trendStats.maxDrawdownUsd) * displayRate, currencyMode);
-  const maxDrawdownPctText = trendStats?.maxDrawdownPct == null
+    : compactSignedCurrency(toNumber(maxGivebackUsd) * displayRate, currencyMode);
+  const drawdownRateText = trendStats?.drawdownRate == null
     ? ''
-    : ` ${signedPct(trendStats.maxDrawdownPct, 1).replace(/^\+/, '')}`;
+    : signedPct(trendStats.drawdownRate, 1);
+  const givebackRateText = trendStats?.givebackRate == null
+    ? ''
+    : `${Math.abs(toNumber(trendStats.givebackRate) * 100).toFixed(1)}%`;
   const showPeakCallout = Boolean(chart.peakPoint && chart.currentPoint && chart.peakPoint.index !== chart.currentPoint.index);
 
   React.useEffect(() => {
@@ -368,18 +372,30 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
         )}
       </div>
       <div className="mt-3 border-t border-white/[0.06] pt-3">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-[11px] text-white/[0.36]">{t(language, 'stockDetail.peak', '峰值')}</div>
-            <div className="mt-1 text-[17px] font-semibold text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.peak', '峰值')}</span>
+            <span className="min-w-0 truncate text-[16px] font-normal tabular-nums text-[#ffd18a]" style={{ fontFamily: NUMBER_FONT }}>
               {trendStats?.peakPnlUsd == null ? '--' : compactSignedCurrency(toNumber(trendStats.peakPnlUsd) * displayRate, currencyMode)}
-            </div>
+            </span>
           </div>
-          <div>
-            <div className="text-[11px] text-white/[0.36]">{t(language, 'stockDetail.maxDrawdown', '最大回撤')}</div>
-            <div className={`mt-1 text-[17px] font-semibold tabular-nums ${marketTextClass(toNumber(trendStats?.maxDrawdownUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              {maxDrawdownText}{maxDrawdownPctText}
-            </div>
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.maxGiveback', '最大回吐')}</span>
+            <span className={`min-w-0 truncate text-[16px] font-normal tabular-nums ${marketTextClass(toNumber(maxGivebackUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              {maxGivebackText}
+            </span>
+          </div>
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.drawdownRate', '回撤率')}</span>
+            <span className={`min-w-0 truncate text-[15px] font-normal tabular-nums ${marketTextClass(toNumber(trendStats?.drawdownRate || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              {drawdownRateText || '--'}
+            </span>
+          </div>
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.givebackRate', '回吐率')}</span>
+            <span className={`min-w-0 truncate text-[15px] font-normal tabular-nums ${marketTextClass(toNumber(maxGivebackUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              {givebackRateText || '--'}
+            </span>
           </div>
         </div>
       </div>

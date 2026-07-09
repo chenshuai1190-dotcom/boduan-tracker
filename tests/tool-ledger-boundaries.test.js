@@ -230,8 +230,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.246'), 'settings version badge should document the stock detail tooltip boundary fix');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.246'), 'settings changelog should document the stock detail tooltip boundary fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.247'), 'settings version badge should document the stock detail risk metric fix');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.247'), 'settings changelog should document the stock detail risk metric fix');
+  assert.ok(settingsChangelogSource.includes('个股收益风险指标调整'), 'settings changelog should describe the stock detail risk metric fix');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.246'), 'settings changelog should retain the stock detail tooltip boundary fix');
   assert.ok(settingsChangelogSource.includes('个股收益浮层边界优化'), 'settings changelog should describe the stock detail tooltip boundary fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.245'), 'settings changelog should retain the stock detail chart interaction fix');
   assert.ok(settingsChangelogSource.includes('个股收益线交互修正'), 'settings changelog should describe the stock detail chart interaction fix');
@@ -504,9 +506,15 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes('calc(100% - 214px)'), 'stock detail chart tooltip should clamp horizontally inside the chart frame');
   assert.ok(stockDetailPageSource.includes('calc(100% - 138px)'), 'stock detail chart tooltip should clamp vertically inside the chart frame');
   assert.equal(stockDetailPageSource.includes("stockDetail.currentLabel', '当前'"), false, 'stock detail chart should not render the old current-value label over the line');
-  assert.ok(stockDetailPageSource.includes('maxDrawdownPctText'), 'stock detail chart should append a percentage to max drawdown');
+  assert.ok(stockDetailPageSource.includes('maxGivebackText'), 'stock detail chart should label the peak-to-trough profit decline as giveback');
+  assert.ok(stockDetailPageSource.includes('drawdownRateText'), 'stock detail chart should show drawdown rate based on net asset value');
+  assert.ok(stockDetailPageSource.includes('givebackRateText'), 'stock detail chart should show giveback rate based on peak profit');
   assert.equal(stockDetailPageSource.includes('markerEvents.map'), false, 'stock detail chart should hide dense buy/sell markers until overlap handling is implemented');
-  assert.ok(stockDetailPageSource.includes("stockDetail.maxDrawdown', '最大回撤'"), 'stock detail chart should show max drawdown');
+  assert.ok(stockDetailPageSource.includes("stockDetail.maxGiveback', '最大回吐'"), 'stock detail chart should show max giveback');
+  assert.ok(stockDetailPageSource.includes("stockDetail.drawdownRate', '回撤率'"), 'stock detail chart should show drawdown rate');
+  assert.ok(stockDetailPageSource.includes("stockDetail.givebackRate', '回吐率'"), 'stock detail chart should show giveback rate');
+  assert.ok(stockDetailViewModelSource.includes('drawdownRate'), 'stock detail view model should calculate net-asset drawdown rate');
+  assert.ok(stockDetailViewModelSource.includes('givebackRate'), 'stock detail view model should calculate peak-profit giveback rate');
   assert.equal(stockDetailPageSource.includes('tradeEvents={view.tradeEvents}'), false, 'stock detail chart should not pass trade events to the frontend marker layer while markers are hidden');
   assert.equal(stockDetailPageSource.includes("bg-[#e44858] text-[9px]"), false, 'stock detail chart should not render the unused buy marker legend');
   assert.equal(stockDetailPageSource.includes("bg-[#22c989] text-[9px]"), false, 'stock detail chart should not render the unused sell marker legend');
@@ -1137,7 +1145,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.246'), 'settings version badge should document the latest stock detail tooltip boundary fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.247'), 'settings version badge should document the latest stock detail risk metric fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1397,7 +1405,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.246'), 'settings version badge should document the latest stock detail tooltip boundary fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.247'), 'settings version badge should document the latest stock detail risk metric fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
