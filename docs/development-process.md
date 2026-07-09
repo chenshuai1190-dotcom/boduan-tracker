@@ -60,11 +60,13 @@
      - 必跑:
 
      ```bash
+     npm run verify:docs-consistency
      git diff --check
      git diff --stat
      ```
 
-     - 还必须做定向一致性检查:只检查当前状态区、最近日志条目、可转发交接块、设置页版本/更新日志是否需要同步。不要对整份长日志做无边界 `rg -n` 后贴出大量历史命中。
+     - `npm run verify:docs-consistency` 只读取当前状态区、最近日志条目、可转发交接块和设置页版本/更新日志,输出 PASS/FAIL 摘要;不要对整份长日志做无边界 `rg -n` 后贴出大量历史命中。
+     - 如果本轮改动的文档面超出脚本覆盖范围,再补充少量 `sed -n` 定位抽查;仍不要打印长历史日志。
      - 如果 docs-only 用来回填刚完成的生产部署,仍需验证对应 GitHub/Vercel status、生产入口和关键 marker;这些验证只输出摘要,不要打印 minified bundle。
 
    - **C. Sensitive change / 生产敏感改动**
@@ -166,7 +168,7 @@
 - Key files:
 - Validation:
   - Runtime: `npm test` / `npm run build` / `npm audit --audit-level=moderate` / `git diff --check`
-  - Docs-only: `git diff --check` / `git diff --stat` / targeted consistency check
+  - Docs-only: `npm run verify:docs-consistency` / `git diff --check` / `git diff --stat`
   - Sensitive: runtime checks plus affected API/RLS/security smoke
   - Other checks:
 - Deployment:

@@ -10,6 +10,7 @@
     "audit": "npm audit",
     "test": "node --test \"tests/**/*.test.js\"",
     "smoke:eodhd-calendar": "node scripts/eodhd-calendar-smoke.mjs",
+    "verify:docs-consistency": "node scripts/verify-docs-consistency.mjs",
     "verify:rls:rest": "node scripts/verify-rls-rest.mjs",
     "check": "npm run test && npm run build && npm audit"
   },

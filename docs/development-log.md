@@ -4,6 +4,30 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 文档一致性检查脚本
+
+- Commit: same commit。
+- Deployment: dev-tooling/runtime workflow update;推送 GitHub `main` 后由 Vercel 自动部署,但脚本不进入前端运行路径,不改变生产 bundle 行为、设置页版本或用户可见功能。
+- Background: 用户追问“无边界 `rg` 扫长日志”是否真正优化。前一轮只把规则写进流程,仍缺少固定工具,下一任仍可能手滑扫出大量历史记录;本轮把定向一致性检查沉淀为 npm script。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增 `scripts/verify-docs-consistency.mjs`,只读取设置页版本、更新日志最新版本、`docs/handoff.md` 当前摘要和可转发块、`docs/development-log.md` 最新条目、`docs/development-process.md` 分层流程 marker,输出 PASS/FAIL 摘要。
+  - `package.json` 新增 `npm run verify:docs-consistency`。
+  - `docs/development-process.md`、`docs/handoff.md` 把 docs-only 的“定向一致性检查”改为固定脚本,明确不再对整份长日志做无边界 `rg -n`。
+- Key files:
+  - `scripts/verify-docs-consistency.mjs`
+  - `package.json`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:docs-consistency`: pass。
+  - `npm test`: pass,173/173。
+  - `npm run build`: pass。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+- Rollback: 回退本条脚本、`package.json` script 和文档说明即可恢复手动定向检查流程;不影响运行时代码、生产 bundle、数据库、RLS、行情、交易账本或财报日历。
+
 ### 2026-07-09 - 开发流程分层验证规则
 
 - Commit: same commit。

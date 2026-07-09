@@ -7,7 +7,7 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 最新接手补充: `v10.7.9.274` 财报日历弹窗高度固定已部署上线。弹窗外框固定为 `h-[86dvh] max-h-[760px]`,标题、tab、月份导航、6 行日期网格和图例不再跟随选中日期财报数量上下乱串;只有下方选中日期财报列表独立滚动。交易账本、收益快照、股票/指数/BTC realtime relay、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
-- 最新流程补充: 开发验证正式改为三档流程: `runtime` 跑完整测试/构建/audit/diff check;`docs-only` 只做 diff check、diff stat、定向文档一致性和必要生产状态/marker;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
+- 最新流程补充: 开发验证正式改为三档流程: `runtime` 跑完整测试/构建/audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat 和必要生产状态/marker;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
 - 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `162d7a9230f578e6075e1475a498ad9aef6465c4` 已由 GitHub `main` 推送触发 Vercel production 部署。
 - 当前生产运行时代码提交: `162d7a9230f578e6075e1475a498ad9aef6465c4`。
 - 设置页版本: `v10.7.9.274`。
@@ -141,11 +141,12 @@ npm ci
 2. `docs-only`: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。可跳过 `npm test` / `npm run build` / `npm audit`,但必须跑:
 
    ```bash
+   npm run verify:docs-consistency
    git diff --check
    git diff --stat
    ```
 
-   同时做定向一致性检查:当前状态区、最近日志条目、可转发交接块、设置页版本/更新日志是否需要同步。不要对整份长日志做无边界 `rg -n` 并输出大量历史命中。
+   `npm run verify:docs-consistency` 只检查当前状态区、最近日志条目、可转发交接块和设置页版本/更新日志,输出 PASS/FAIL 摘要。不要对整份长日志做无边界 `rg -n` 并输出大量历史命中。
 
 3. `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界。先完整执行 `runtime` 验证,再按影响面补充:
 
@@ -680,7 +681,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 验证流程:
 - `runtime`: 改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何生产 bundle/serverless 行为,必须跑 `npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
-- `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `git diff --check`、`git diff --stat` 和定向文档一致性检查。
+- `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`。
 - `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
 
 生产敏感改动还要跑:
