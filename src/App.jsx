@@ -68,25 +68,6 @@ const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 800, 1600, 3000, 5000];
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
-const DEFAULT_BATCHES = [
-  { id: 1, name: '第1批', drawdown: -0.10, allocation: 0.25 },
-  { id: 2, name: '第2批', drawdown: -0.15, allocation: 0.35 },
-  { id: 3, name: '第3批', drawdown: -0.20, allocation: 0.40 },
-];
-const DEFAULT_EXIT_TARGETS = [
-  { id: 1, name: '止盈点1', gain: 0.50, sellRatio: 0.50 },
-  { id: 2, name: '止盈点2', gain: 0.70, sellRatio: 0.30 },
-];
-const buildDefaultInvestmentPlan = () => ({
-  startCapital: 0,
-  targetAnnualRate: 0.20,
-  startYear: new Date().getFullYear(),
-  totalYears: 10,
-  ageGoalAge: 0,
-  motto: '',
-  displayCurrency: 'USD',
-});
-const DEFAULT_MARGIN_STATUS = { currentMargin: 0, marginLimit: 0 };
 
 const TAB_COMPONENTS = {
   home: HomeTab,
@@ -1113,7 +1094,11 @@ function MainApp({ user, onLogout }) {
   });
 
   // 三档配置(可调)
-  const [batches, setBatches] = useState(() => DEFAULT_BATCHES.map(item => ({ ...item })));
+  const [batches, setBatches] = useState([
+    { id: 1, name: '第1批', drawdown: -0.10, allocation: 0.25 },
+    { id: 2, name: '第2批', drawdown: -0.15, allocation: 0.35 },
+    { id: 3, name: '第3批', drawdown: -0.20, allocation: 0.40 },
+  ]);
 
   // 波段记录旧账本:只给波段工具兼容使用,不再作为首页/交易主持仓来源。
   const [trades, setTrades] = useState([]);
@@ -1175,8 +1160,16 @@ function MainApp({ user, onLogout }) {
   const [chartSelectedMonthIdx, setChartSelectedMonthIdx] = useState(null); // v40 fix46: 12月走势点圆点
 
   // ===== 复盘 tab =====
-  const [investmentPlan, setInvestmentPlan] = useState(buildDefaultInvestmentPlan);
-  const [marginStatus, setMarginStatus] = useState(DEFAULT_MARGIN_STATUS);
+  const [investmentPlan, setInvestmentPlan] = useState({
+    startCapital: 0,
+    targetAnnualRate: 0.20,
+    startYear: new Date().getFullYear(),
+    totalYears: 10,
+    ageGoalAge: 0,
+    motto: '',
+    displayCurrency: 'USD',  // USD | CNY
+  });
+  const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 0 });
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [yearlyActuals, setYearlyActuals] = useState([]); // [{year, actualGain, endBalance}]
@@ -1237,7 +1230,10 @@ function MainApp({ user, onLogout }) {
   }, [fgi]);
 
   // 止盈配置
-  const [exitTargets, setExitTargets] = useState(() => DEFAULT_EXIT_TARGETS.map(item => ({ ...item })));
+  const [exitTargets, setExitTargets] = useState([
+    { id: 1, name: '止盈点1', gain: 0.50, sellRatio: 0.50 },
+    { id: 2, name: '止盈点2', gain: 0.70, sellRatio: 0.30 },
+  ]);
 
   // 拉取实时行情状态
   const [fetching, setFetching] = useState(false);
@@ -1870,10 +1866,8 @@ function MainApp({ user, onLogout }) {
 
   // 保存设置到云端(防抖,500ms 内多次改只保存最后一次)
   const settingsSaveTimerRef = useRef(null);
-  const settingsSaveSuppressedUntilRef = useRef(0);
   useEffect(() => {
     if (cloudLoading) return; // 加载期间不保存
-    if (Date.now() < settingsSaveSuppressedUntilRef.current) return;
     clearTimeout(settingsSaveTimerRef.current);
     settingsSaveTimerRef.current = setTimeout(() => {
       db.upsertSettings(buildSettingsPayload()).catch(e => console.error('设置保存失败:', e));
@@ -4330,49 +4324,6 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, cloudLoading]);
 
-  const handleResetCurrentUserData = useCallback(async () => {
-    settingsSaveSuppressedUntilRef.current = Date.now() + 5000;
-    clearTimeout(settingsSaveTimerRef.current);
-    const result = await db.resetCurrentUserData();
-    settingsSaveSuppressedUntilRef.current = Date.now() + 2000;
-
-    setTrades([]);
-    setStockTrades([]);
-    setWatchlist([]);
-    setWatchlistOrder([]);
-    setQuoteCache([]);
-    setWaveNotes({});
-    setAccounts([]);
-    setSnapshots([]);
-    setInvestmentPlan(buildDefaultInvestmentPlan());
-    setMarginStatus({ ...DEFAULT_MARGIN_STATUS });
-    setDisciplines([]);
-    setReviewLogs([]);
-    setYearlyActuals([]);
-    setCostBasisData({});
-    setCostBasisActiveSymbol('');
-    setCostBasisNewSymbol('');
-    setCostBasisNewTrade({
-      type: 'buy',
-      price: '',
-      shares: '',
-      date: new Date().toISOString().slice(0, 10),
-    });
-    setExpandedTrades({});
-    setExpandedWaves({});
-    setBatches(DEFAULT_BATCHES.map(item => ({ ...item })));
-    setExitTargets(DEFAULT_EXIT_TARGETS.map(item => ({ ...item })));
-    setBenchmarkSymbol('QQQ');
-    setFetchError(null);
-    setCloudError(null);
-    setQuoteDiagnosticLogs([]);
-    persistQuoteDiagnosticLogs([]);
-    closePnlReport();
-    closeStockDetail();
-
-    return result;
-  }, [closePnlReport, closeStockDetail]);
-
   // 添加交易表单:输入股票代码后 500ms 自动查询(填充中文名+当前价)
   useEffect(() => {
     if (!showAddTrade) return;
@@ -4537,7 +4488,6 @@ function MainApp({ user, onLogout }) {
     RefreshCw,
     removeStock,
     reorderWatchlist,
-    resetCurrentUserData: handleResetCurrentUserData,
     reviewLogs,
     clearQuoteDiagnosticLogs,
     closePnlReport,

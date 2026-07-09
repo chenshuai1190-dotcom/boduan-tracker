@@ -4,17 +4,16 @@
 
 ## 2026-07-09 Asia/Shanghai
 
-### 2026-07-09 - 数据初始化功能
+### 2026-07-09 - 回退数据初始化功能
 
-- Commit: `f91ef4384b5d108754e4bbeaa33ed81abcae7f39`。
-- Deployment: deployed to GitHub `main` via project SSH key;production alias `https://boduan-tracker.vercel.app` updated and `v10.7.9.240` production markers verified。
-- Background: 用户要求设置页新增一键数据初始化功能,用于清空当前账号所有用户操作记录;该功能必须真实清空云端业务数据,并在执行前明确提醒风险。
+- Commit: pending。
+- Deployment: pending。
+- Background: 数据初始化入口会一键清空当前用户全部业务数据,风险高于当前阶段需要;用户要求暂时取消并回退上一版本。
 - Changes:
-  - `db.resetCurrentUserData` 新增当前登录用户数据清空流程,只使用当前 Supabase 会话和 RLS,按 `user_id` 删除业务表数据。
-  - 清空范围覆盖交易记录、自选、资产账户/快照、目标页计划/保证金/心得/复盘/年度实绩、摊薄成本工具、收益报表组合/个股快照和 rebuild 状态。
-  - Settings 页新增“数据初始化”风险卡片和二次确认弹窗,提示不可恢复;确认后同步清空 App 内存态和本地用户数据缓存。
-  - 设置页版本和用户可见更新日志同步到 `v10.7.9.240`。
-  - 本次不删除登录账号、邀请码、服务端配置,不改行情 relay、RLS 策略或 `/api/quote` 鉴权。
+  - 回退 Settings 页“数据初始化”风险卡片、二次确认弹窗和 `resetCurrentUserData` 清库入口。
+  - 回退 App 内存态初始化处理和 `db.js` 中当前用户业务表批量删除逻辑。
+  - 设置页版本和用户可见更新日志恢复到上一版 `v10.7.9.239`。
+  - 本次不改收益快照、交易账本、行情 relay、RLS、登录账号、邀请码或 `/api/quote` 鉴权。
 - Key files:
   - `src/lib/db.js`
   - `src/App.jsx`
@@ -25,13 +24,11 @@
   - `docs/development-log.md`
 - Validation:
   - `npm test`: pass;166 tests passed。
-  - `npm run build`: pass;built `SettingsTab-F2fKB9II.js`,`settingsChangelog-S-fqubg6.js`,`App-BchL-U8P.js` and `i18n-sIIiidWx.js`。
+  - `npm run build`: pass;built `SettingsTab-Bhlcf7Vj.js`,`settingsChangelog-CLJMeTDK.js`,`App-BwNwIH9B.js` and `i18n-D6gQC1Ov.js`。
   - `npm audit --audit-level=moderate`: pass;0 vulnerabilities。
-  - `git diff --check`: pass。
-  - Dist marker check: pass;built assets contain `v10.7.9.240`,`数据初始化功能`,`数据初始化`,`确认初始化`,`resetCurrentUserData`,`pnl_report_symbol_snapshots`,`pnl_report_rebuild_state`,`stock_trades`,`user_settings`,and do not contain `invite_codes` or `auth.users`。
-  - Production marker check: pass;recursive production asset scan contains `v10.7.9.240`,`数据初始化功能`,`数据初始化`,`确认初始化`,`resetCurrentUserData`,`pnl_report_symbol_snapshots`,`pnl_report_rebuild_state`,`stock_trades`,`user_settings`,and does not contain `invite_codes` or `auth.users`。
-  - Production auth/security check: pass;unauthenticated `/api/quote?symbols=VIX` returns `401`,and HTTP-forwarded `/api/stocks-realtime` returns `426`。
-- Rollback: 回退 `resetCurrentUserData`、Settings 数据初始化卡片、App 内存态重置、`v10.7.9.240` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.239`;不影响登录账号、邀请码、行情 relay、RLS 或 `/api/quote` 鉴权。
+  - `git diff --check` and `git diff --cached --check`: pass。
+  - Dist marker check: pass;built assets contain `v10.7.9.239` and `清仓账户收益快照修复`,and no built/runtime source contains `数据初始化`,`dataReset`,`resetCurrentUserData`,`确认初始化`,`初始化数据` or `v10.7.9.240`。
+- Rollback: 如后续需要重新开放,可基于 `f91ef4384b5d108754e4bbeaa33ed81abcae7f39` 重新设计更严格的权限和确认流程后再引入。
 
 ### 2026-07-09 - 清仓账户收益快照修复
 

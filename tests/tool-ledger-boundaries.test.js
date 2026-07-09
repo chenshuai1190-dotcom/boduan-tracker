@@ -230,9 +230,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.240'), 'settings version badge should document the data initialization update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.240'), 'settings changelog should document the data initialization update');
-  assert.ok(settingsChangelogSource.includes('数据初始化功能'), 'settings changelog should describe the data initialization update');
+  assert.ok(settingsTabSource.includes('v10.7.9.239'), 'settings version badge should document the sold-out account P&L snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.239'), 'settings changelog should document the sold-out account P&L snapshot update');
   assert.ok(settingsChangelogSource.includes('清仓账户收益快照修复'), 'settings changelog should describe the sold-out account P&L snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.238'), 'settings changelog should retain the stock detail chart and report segmented-control update');
@@ -502,40 +500,15 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{addStockNotice.title}'), false, 'add success title should not keep the old font-black class');
 });
 
-test('settings data initialization clears only current-user business tables', () => {
-  assert.ok(settingsTabSource.includes('settings.dataResetTitle'), 'settings should expose the real data initialization card');
-  assert.ok(settingsTabSource.includes('resetCurrentUserData'), 'settings should call the cloud-backed reset handler');
-  assert.ok(settingsTabSource.includes('settings.dataResetConfirmDesc'), 'settings reset should require an irreversible-operation confirmation');
-  assert.ok(appSource.includes('resetCurrentUserData: handleResetCurrentUserData'), 'app should pass the reset handler into settings');
-  assert.ok(appSource.includes('clearTimeout(settingsSaveTimerRef.current)'), 'reset should cancel pending settings autosave before deleting data');
-  assert.ok(appSource.includes('settingsSaveSuppressedUntilRef.current = Date.now() + 2000'), 'reset should not immediately recreate user_settings through autosave');
-  assert.ok(dbSource.includes('export const resetCurrentUserData = async ()'), 'db layer should expose the current-user reset API');
-  assert.ok(dbSource.includes(".eq('user_id', userId)"), 'reset deletes must stay scoped to the current user id');
-  assert.ok(dbSource.includes('clearUserDataLocalCache'), 'reset should also clear user data caches');
-  [
-    'pnl_report_symbol_snapshots',
-    'pnl_report_snapshots',
-    'pnl_report_rebuild_state',
-    'cost_basis_trades',
-    'stock_trades',
-    'trades',
-    'watchlist',
-    'wave_notes',
-    'accounts',
-    'balance_snapshots',
-    'investment_plan',
-    'margin_status',
-    'disciplines',
-    'review_logs',
-    'yearly_actuals',
-    'user_settings',
-  ].forEach((table) => {
-    assert.ok(dbSource.includes(`'${table}'`), `reset table list should include ${table}`);
-  });
-  assert.equal(dbSource.includes("'invite_codes'"), false, 'reset must not delete invite codes');
-  assert.equal(dbSource.includes('auth.users'), false, 'reset must not touch auth users');
-  assert.equal(settingsTabSource.includes('重置本地数据'), false, 'settings should not revive the old local-only reset copy');
-  assert.equal(appSource.includes('const resetAll ='), false, 'app runtime should not revive the old local-only reset implementation');
+test('settings data maintenance reset entry and runtime reset code stay removed', () => {
+  assert.equal(settingsTabSource.includes('数据维护'), false, 'settings should not show the unused data maintenance card');
+  assert.equal(settingsTabSource.includes('重置本地数据'), false, 'settings should not show the local reset entry');
+  assert.equal(settingsTabSource.includes('resetAll'), false, 'settings should not receive a local reset handler');
+  assert.equal(settingsTabSource.includes('RotateCcw'), false, 'settings should not keep the reset icon dependency');
+  assert.equal(appSource.includes('const resetAll ='), false, 'app runtime should not keep the local reset implementation');
+  assert.equal(appSource.includes('RESET_LOCAL_DATA_CONFIRM_PHRASE'), false, 'app runtime should not keep the reset typed-confirmation phrase');
+  assert.equal(appSource.includes('resetConfirmOpen'), false, 'app runtime should not keep the reset modal state');
+  assert.equal(appSource.includes('云端数据不会被删除'), false, 'app runtime should not keep the removed reset modal copy');
 });
 
 test('legacy service worker file stays removed while old registrations are still cleaned up', () => {
@@ -1123,7 +1096,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.240'), 'settings version badge should document the latest data initialization update');
+  assert.ok(settingsTabSource.includes('v10.7.9.239'), 'settings version badge should document the latest sold-out account P&L snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1383,7 +1356,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.240'), 'settings version badge should document the latest data initialization update');
+  assert.ok(settingsTabSource.includes('v10.7.9.239'), 'settings version badge should document the latest sold-out account P&L snapshot update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
