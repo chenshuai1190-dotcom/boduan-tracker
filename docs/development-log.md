@@ -6,7 +6,7 @@
 
 ### 2026-07-09 - 回退数据初始化功能
 
-- Commit: pending。
+- Commit: `f353e3c64a91bf5359872960e4dcc2ee822e3ea4`。
 - Deployment: pending。
 - Background: 数据初始化入口会一键清空当前用户全部业务数据,风险高于当前阶段需要;用户要求暂时取消并回退上一版本。
 - Changes:
