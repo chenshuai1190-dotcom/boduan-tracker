@@ -4,6 +4,49 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 固化本地截图转发流程
+
+- Commit: same commit;随 `v10.7.9.269` 持仓分布对齐修复一起发布。
+- Deployment: user requested;本次只更新开发流程文档和开发日志,随同一 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户确认本地截图用绝对路径 Markdown 图片转发到聊天窗口可以在手机端查看,要求以后固定使用这种方式并写入开发文档。
+- Changes:
+  - `docs/development-process.md` 的本地验证环节新增 UI/移动端视觉改动截图规则。
+  - 规定截图优先使用 `390x844` 左右手机视口,保存到 `~/Desktop/boduan-previews/`,并用绝对路径 Markdown 图片转发到聊天窗口。
+  - 规定如果客户端没有渲染本地图片,需要立即 `open` 桌面预览文件并给出绝对路径。
+  - 补充截图前必须确认画面不包含 token、`.env`、Supabase service role key、付费 API key 或其它敏感信息。
+- Key files:
+  - `docs/development-process.md`
+  - `docs/development-log.md`
+- Validation:
+  - Diff hygiene pass:`git diff --check`。
+- Rollback: 回退本条开发流程和日志补充即可;不影响应用运行时代码、设置页版本、交易账本、RLS、`/api/quote`、财报日历或部署状态。
+
+### 2026-07-09 - 持仓分布单行表格本地调试
+
+- Commit: same commit;用户确认截图后要求部署。
+- Deployment: user requested;本次按用户确认后的截图效果发布 `v10.7.9.269`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 交易页持仓分布原先用左侧名称列表 + 右侧指标横向列表两套 `positions.map()` 伪装成一张表,两边只靠相同 `min-h-[60px]` 对齐。CNY 市值数字变长、iOS 字体渲染或某一侧内容轻微撑高时,名称/代码和市值/数量容易出现上下错位。
+- Changes:
+  - `TradesTab` 持仓分布改为单一横向表格,每只股票的名称/代码、市值/数量、现价/成本、当日盈亏、持仓盈亏和占比都在同一个行容器内渲染。
+  - 名称/代码列改为 `sticky left-0`,保留左侧固定、右侧指标横向滑动的交互,但不再使用两套独立列表。
+  - 前四列按 `84px/86px/72px/98px` 收紧在 340px 内,保证 390 宽手机首屏仍完整露出当日盈亏;持仓盈亏和占比继续在右侧横滑区域。
+  - 表格整体 `min-w` 调整为 536px,减少总宽增加带来的首屏信息回退。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.269`,并保留 `v10.7.9.268` 的已部署当前价标记去重记录。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full test pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` -> 173/173 pass。
+  - Targeted boundary test pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` -> 35/35 pass。
+  - Production build pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` -> `TradesTab-C4KCpDBb.js`,`SettingsTab-4Amilx-r.js`,`settingsChangelog-DRT0Egni.js`。
+  - Audit pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` -> 0 vulnerabilities。
+  - Diff hygiene pass:`git diff --check`。
+  - Local visual smoke pass:`http://127.0.0.1:5173/?tab=trades&v=269-single-grid-fit-daily`,390x844 iPhone UA,打开交易页持仓分布,确认表格 `scrollWidth=536/clientWidth=340`,当日盈亏表头和前三行当日盈亏均完整落在可视区内,前三行名称单元格和市值单元格中心点差均为 `0px`;截图 `/tmp/boduan-trades-positions-single-grid-fit-daily-v10.7.9.269.png` 和桌面预览 `~/Desktop/boduan-previews/交易页持仓对齐首屏当日盈亏-v10.7.9.269.png`。
+- Rollback: 回退本条涉及的单一横向表格、sticky 名称列、`v10.7.9.269` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗。
+
 ### 2026-07-09 - 持仓试算当前价标记去重
 
 - Commit: runtime code `b19e5a0a1bfedec97e6b9b1a8eb8d97fc06f8378`;本日志后续 docs-only 提交记录线上验证结果。

@@ -1080,100 +1080,76 @@ export default function TradesTab({ ctx }) {
                   <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">{tt('trades.recordFirstBuy', '记录第一笔买入')}</button>
                 </div>
               ) : (
-                <div className="grid grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)] border-t border-white/[0.06]">
-                  <div>
-                    <div className="px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">{tt('trades.nameTicker', '名称/代码')}</div>
+                <div className="overflow-x-auto border-t border-white/[0.06] [scrollbar-width:none]" data-trade-positions-table="single-grid">
+                  <div className="min-w-[536px]">
+                    <div className="grid grid-cols-[84px_86px_72px_98px_144px_52px] gap-0 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                      <span className="sticky left-0 z-20 bg-[#0b0f14] pr-2 text-left">{tt('trades.nameTicker', '名称/代码')}</span>
+                      <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
+                      <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
+                      <span className="text-right">{tt('trades.dailyPnl', '当日盈亏')}</span>
+                      <span className="text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
+                      <span className="text-right">{tt('trades.allocation', '占比')}</span>
+                    </div>
                     <div className="divide-y divide-white/[0.06]">
                       {positions.map((position) => {
                         const nameParts = stockNameParts(position.symbol, position.name);
+                        const cost = toNumber(position.effectiveCost || position.avgCost);
+                        const marketValue = toNumber(position.marketValue) * displayRate;
+                        const hasPositionTodayPnl = position.hasTodayPnl !== false;
+                        const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
+                        const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
+                        const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
+                        const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
+                        const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
+                        const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
+                        const lockedCurrentPrice = lockedCloseDisplayPrice(position);
+                        const displayCurrentPrice = maskCurrentPrice ? (lockedCurrentPrice || 0) : toNumber(position.currentPrice);
+                        const openScenarioFromCell = (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openPositionScenario(position, displayCurrentPrice);
+                        };
                         return (
-                          <button
+                          <div
                             key={position.symbol}
-                            type="button"
-                            onClick={() => (typeof openStockDetail === 'function' ? openStockDetail(position.symbol) : openTradeModal(position, 'buy'))}
-                            className="flex min-h-[60px] w-full min-w-0 flex-col justify-center py-3 pr-1.5 text-left active:bg-white/[0.03]"
-                            aria-label={tt('stockDetail.openAria', '打开个股收益详情')}
+                            className="grid min-h-[60px] w-full grid-cols-[84px_86px_72px_98px_144px_52px] items-center gap-0 py-3 text-left"
                           >
-                            <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{nameParts.title}</span>
-                            <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{nameParts.subtitle}</span>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => (typeof openStockDetail === 'function' ? openStockDetail(position.symbol) : openTradeModal(position, 'buy'))}
+                              className="sticky left-0 z-10 flex min-h-[36px] min-w-0 flex-col justify-center bg-[#0b0f14] pr-2 text-left active:bg-white/[0.03]"
+                              aria-label={tt('stockDetail.openAria', '打开个股收益详情')}
+                            >
+                              <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{nameParts.title}</span>
+                              <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{nameParts.subtitle}</span>
+                            </button>
+                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="block min-w-0 text-left active:bg-white/[0.03]">
+                              <span className="block max-w-full truncate text-[12px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
+                              <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={openScenarioFromCell}
+                              className="-mr-1 block rounded-lg px-1 py-1 text-right active:bg-white/[0.03] focus:outline-none"
+                              aria-label={tt('trades.openScenarioAria', '打开持仓收益试算')}
+                            >
+                              <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{displayCurrentPrice > 0 ? fmtAmount(displayCurrentPrice, 3) : '--'}</span>
+                              <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
+                            </button>
+                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="text-right active:bg-white/[0.03]">
+                              <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(hasPositionTodayPnl ? todayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--'}</span>
+                              <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(hasPositionTodayPnl ? toNumber(position.todayPnlPct) : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--'}</span>
+                            </button>
+                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="text-right active:bg-white/[0.03]">
+                              <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
+                              <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(holdingPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(holdingPnlPct, 2)}</span>
+                            </button>
+                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="text-right active:bg-white/[0.03]">
+                              <span className="block text-[13px] font-normal leading-[15px] text-white/80 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
+                            </button>
+                          </div>
                         );
                       })}
-                    </div>
-                  </div>
-                  <div className="overflow-x-auto [scrollbar-width:none]">
-                    <div className="min-w-[500px]">
-                      <div className="grid grid-cols-[80px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
-                        <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
-                        <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
-                        <span className="text-right">{tt('trades.dailyPnl', '当日盈亏')}</span>
-                        <span className="text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
-                        <span className="text-right">{tt('trades.allocation', '占比')}</span>
-                      </div>
-                      <div className="divide-y divide-white/[0.06]">
-                        {positions.map((position) => {
-                          const cost = toNumber(position.effectiveCost || position.avgCost);
-                          const marketValue = toNumber(position.marketValue) * displayRate;
-                          const hasPositionTodayPnl = position.hasTodayPnl !== false;
-                          const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
-                          const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
-                          const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
-                          const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
-                          const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
-                          const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
-                          const lockedCurrentPrice = lockedCloseDisplayPrice(position);
-                          const displayCurrentPrice = maskCurrentPrice ? (lockedCurrentPrice || 0) : toNumber(position.currentPrice);
-                          const openScenarioFromCell = (event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            openPositionScenario(position, displayCurrentPrice);
-                          };
-                          return (
-                            <div
-                              key={position.symbol}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => openTradeModal(position, 'buy')}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  openTradeModal(position, 'buy');
-                                }
-                              }}
-                              className="grid min-h-[60px] w-full grid-cols-[80px_76px_118px_144px_66px] items-center gap-1 py-3 text-left active:bg-white/[0.03]"
-                            >
-                              <span className="text-left">
-                                <span className="block max-w-full truncate text-[12px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
-                                <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
-                              </span>
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                onClick={openScenarioFromCell}
-                                onKeyDown={(event) => {
-                                  if (event.key === 'Enter' || event.key === ' ') openScenarioFromCell(event);
-                                }}
-                                className="-mr-1 block rounded-lg px-1 py-1 text-right active:bg-white/[0.03] focus:outline-none"
-                                aria-label={tt('trades.openScenarioAria', '打开持仓收益试算')}
-                              >
-                                <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{displayCurrentPrice > 0 ? fmtAmount(displayCurrentPrice, 3) : '--'}</span>
-                                <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
-                              </span>
-                              <span className="text-right">
-                                <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(hasPositionTodayPnl ? todayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--'}</span>
-                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(hasPositionTodayPnl ? toNumber(position.todayPnlPct) : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--'}</span>
-                              </span>
-                              <span className="text-right">
-                                <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(holdingPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(holdingPnlPct, 2)}</span>
-                              </span>
-                              <span className="text-right">
-                                <span className="block text-[13px] font-normal leading-[15px] text-white/80 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
                     </div>
                   </div>
                 </div>

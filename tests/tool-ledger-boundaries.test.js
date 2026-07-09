@@ -232,8 +232,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.268'), 'settings version badge should document the latest position scenario simulator current-marker dedupe update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.268'), 'settings changelog should document the latest position scenario simulator current-marker dedupe update');
+  assert.ok(settingsTabSource.includes('v10.7.9.269'), 'settings version badge should document the latest trade positions table alignment update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.269'), 'settings changelog should document the latest trade positions table alignment update');
+  assert.ok(settingsChangelogSource.includes('持仓表格行对齐'), 'settings changelog should describe the trade positions row alignment update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.268'), 'settings changelog should retain the position scenario simulator current-marker dedupe update');
   assert.ok(settingsChangelogSource.includes('当前价标记去重'), 'settings changelog should describe the simulator current-price marker dedupe update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.267'), 'settings changelog should retain the position scenario simulator price-position update');
   assert.ok(settingsChangelogSource.includes('价格位置条顺序修复'), 'settings changelog should describe the simulator price-position label order update');
@@ -288,6 +290,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('userSelectedDateRef'), 'earnings calendar should track dates selected manually in the modal');
   assert.ok(earningsCalendarSource.includes('if (modalOpenRef.current && userSelectedDateRef.current && current) return current;'), 'earnings calendar should not reset a manually selected date after event refresh');
   assert.ok(earningsCalendarSource.includes('setSelectedDate={setUserSelectedDate}'), 'earnings calendar modal date clicks should mark the selection as user-controlled');
+  assert.ok(tradesTabSource.includes('data-trade-positions-table="single-grid"'), 'trade positions table should render as a single row grid instead of separate left and right lists');
+  assert.ok(tradesTabSource.includes('min-w-[536px]'), 'trade positions table should keep enough horizontal room while preserving first-screen daily P&L');
+  assert.ok(tradesTabSource.includes('grid-cols-[84px_86px_72px_98px_144px_52px]'), 'trade positions table should share one column template across header and rows');
+  assert.ok(tradesTabSource.includes('sticky left-0 z-20 bg-[#0b0f14]'), 'trade positions table header should keep the name column sticky while scrolling metrics');
+  assert.equal(tradesTabSource.includes('grid grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)]'), false, 'trade positions table should not keep the old two-independent-list layout');
   assert.ok(tradesTabSource.includes('function PositionProfitScenarioSheet'), 'trades page should include the holding return simulator sheet');
   assert.ok(tradesTabSource.includes('position?.effectiveCost || position?.avgCost'), 'holding return simulator should use the same cost basis as the holdings list');
   assert.ok(tradesTabSource.includes('inputMode="decimal"'), 'holding return simulator should use a numeric decimal keyboard');
@@ -1277,7 +1284,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.268'), 'settings version badge should document the latest trades simulator update');
+  assert.ok(settingsTabSource.includes('v10.7.9.269'), 'settings version badge should document the latest trades table update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1539,7 +1546,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.268'), 'settings version badge should document the latest trades simulator update');
+  assert.ok(settingsTabSource.includes('v10.7.9.269'), 'settings version badge should document the latest trades table update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

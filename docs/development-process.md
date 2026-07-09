@@ -57,6 +57,12 @@
      - 包体积治理必须记录 Vite chunk 输出和首页 preload 状态
      - 数据库/RLS 改动必须说明 Supabase SQL 执行状态
      - RLS 外部暴露复核可运行 `npm run verify:rls:rest`
+   - 涉及 UI、移动端布局、弹窗、字号、图标、颜色或交互位置的改动,必须先做本地视觉截图给用户确认:
+     - 优先使用 `390x844` 左右的手机视口和当前任务入口,必要时补充桌面视口。
+     - 截图保存到本机固定预览目录 `~/Desktop/boduan-previews/`,文件名写清页面、目标和版本,方便用户在电脑上直接打开。
+     - 同时在聊天窗口用绝对路径 Markdown 图片转发截图,格式示例: `![交易页预览](/Users/chenshuaishuai/Desktop/boduan-previews/example.png)`。
+     - 如果 Codex 客户端或手机端未渲染本地图片,立即 `open` 桌面预览文件,并在回复中给出绝对路径;不能只描述“已截图”。
+     - 截图前确认画面里没有 token、`.env`、Supabase service role key、付费 API key 或其它敏感信息。
 
 5. **必须更新开发日志**
    - 每次代码、配置、部署、安全或文档改动,都必须在同一个提交中更新 `docs/development-log.md`。
