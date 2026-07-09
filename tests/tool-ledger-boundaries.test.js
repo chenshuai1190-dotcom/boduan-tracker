@@ -232,8 +232,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.270'), 'settings version badge should document the latest earnings list and trade positions spacing update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.270'), 'settings changelog should document the latest earnings list and trade positions spacing update');
+  assert.ok(settingsTabSource.includes('v10.7.9.271'), 'settings version badge should document the latest trade positions daily P&L spacing update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.271'), 'settings changelog should document the latest trade positions daily P&L spacing update');
+  assert.ok(settingsChangelogSource.includes('持仓当日盈亏列距优化'), 'settings changelog should describe the trade positions daily P&L spacing update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.270'), 'settings changelog should retain the earnings list and trade positions spacing update');
   assert.ok(settingsChangelogSource.includes('财报列表和持仓列距微调'), 'settings changelog should describe the earnings list and trade positions spacing update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.269'), 'settings changelog should retain the trade positions table alignment update');
   assert.ok(settingsChangelogSource.includes('持仓表格行对齐'), 'settings changelog should describe the trade positions row alignment update');
@@ -295,9 +297,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('if (modalOpenRef.current && userSelectedDateRef.current && current) return current;'), 'earnings calendar should not reset a manually selected date after event refresh');
   assert.ok(earningsCalendarSource.includes('setSelectedDate={setUserSelectedDate}'), 'earnings calendar modal date clicks should mark the selection as user-controlled');
   assert.ok(tradesTabSource.includes('data-trade-positions-table="single-grid"'), 'trade positions table should render as a single row grid instead of separate left and right lists');
-  assert.ok(tradesTabSource.includes('min-w-[540px]'), 'trade positions table should keep enough horizontal room while preserving first-screen daily P&L');
-  assert.ok(tradesTabSource.includes('grid-cols-[78px_84px_82px_96px_148px_52px]'), 'trade positions table should share one column template across header and rows');
-  assert.ok(tradesTabSource.includes('overflow-hidden pl-4 text-right active:bg-white/[0.03]'), 'trade positions table should buffer the holding P&L column so it does not leak into the first screen');
+  assert.ok(tradesTabSource.includes('min-w-[592px]'), 'trade positions table should keep wider horizontal room for later columns while preserving first-screen daily P&L');
+  assert.ok(tradesTabSource.includes('grid-cols-[70px_84px_68px_118px_16px_176px_60px]'), 'trade positions table should share one buffered column template across header and rows');
+  assert.ok(tradesTabSource.includes('<span aria-hidden="true" />'), 'trade positions table should insert a buffer column before holding P&L so it does not leak into the first screen');
+  assert.ok(tradesTabSource.includes('overflow-hidden text-right active:bg-white/[0.03]'), 'trade positions table should still clip long holding P&L values in their own column');
   assert.ok(tradesTabSource.includes('sticky left-0 z-20 bg-[#0b0f14]'), 'trade positions table header should keep the name column sticky while scrolling metrics');
   assert.equal(tradesTabSource.includes('grid grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)]'), false, 'trade positions table should not keep the old two-independent-list layout');
   assert.ok(tradesTabSource.includes('function PositionProfitScenarioSheet'), 'trades page should include the holding return simulator sheet');
@@ -1289,7 +1292,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.270'), 'settings version badge should document the latest earnings list and trades table spacing update');
+  assert.ok(settingsTabSource.includes('v10.7.9.271'), 'settings version badge should document the latest trade positions daily P&L spacing update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1551,7 +1554,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.270'), 'settings version badge should document the latest earnings list and trades table spacing update');
+  assert.ok(settingsTabSource.includes('v10.7.9.271'), 'settings version badge should document the latest trade positions daily P&L spacing update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -1081,13 +1081,14 @@ export default function TradesTab({ ctx }) {
                 </div>
               ) : (
                 <div className="overflow-x-auto border-t border-white/[0.06] [scrollbar-width:none]" data-trade-positions-table="single-grid">
-                  <div className="min-w-[540px]">
-                    <div className="grid grid-cols-[78px_84px_82px_96px_148px_52px] gap-0 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                  <div className="min-w-[592px]">
+                    <div className="grid grid-cols-[70px_84px_68px_118px_16px_176px_60px] gap-0 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
                       <span className="sticky left-0 z-20 bg-[#0b0f14] pr-2 text-left">{tt('trades.nameTicker', '名称/代码')}</span>
                       <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
                       <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
                       <span className="text-right">{tt('trades.dailyPnl', '当日盈亏')}</span>
-                      <span className="pl-4 text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
+                      <span aria-hidden="true" />
+                      <span className="text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
                       <span className="text-right">{tt('trades.allocation', '占比')}</span>
                     </div>
                     <div className="divide-y divide-white/[0.06]">
@@ -1112,7 +1113,7 @@ export default function TradesTab({ ctx }) {
                         return (
                           <div
                             key={position.symbol}
-                            className="grid min-h-[60px] w-full grid-cols-[78px_84px_82px_96px_148px_52px] items-center gap-0 py-3 text-left"
+                            className="grid min-h-[60px] w-full grid-cols-[70px_84px_68px_118px_16px_176px_60px] items-center gap-0 py-3 text-left"
                           >
                             <button
                               type="button"
@@ -1140,7 +1141,8 @@ export default function TradesTab({ ctx }) {
                               <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(hasPositionTodayPnl ? todayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--'}</span>
                               <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(hasPositionTodayPnl ? toNumber(position.todayPnlPct) : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--'}</span>
                             </button>
-                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="overflow-hidden pl-4 text-right active:bg-white/[0.03]">
+                            <span aria-hidden="true" />
+                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="overflow-hidden text-right active:bg-white/[0.03]">
                               <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
                               <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(holdingPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(holdingPnlPct, 2)}</span>
                             </button>

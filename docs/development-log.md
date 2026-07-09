@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 持仓当日盈亏列距部署调试
+
+- Commit: same commit;用户确认本地截图后要求部署。
+- Deployment: user requested;本次按用户确认后的截图效果发布 `v10.7.9.271`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户线上反馈交易页持仓分布里“当日盈亏”和“现价/成本”在多数字时贴得过近,右侧仍会露出一点“持仓盈亏”的 `+`;同时确认可以适当加大后面横滑总宽度,让后续列距也保持舒服。
+- Changes:
+  - `TradesTab` 持仓表格总宽从 540px 加到 592px,右侧“持仓盈亏/占比”获得更宽横滑空间。
+  - 首屏列模板改为 `70/84/68/118/16/176/60`,前四列仍保持 340px 首屏完整显示到“当日盈亏”,新增 16px 缓冲列把“持仓盈亏”推到首屏外。
+  - 收紧名称/代码和现价/成本列,把空间让给“当日盈亏”,缓解多数字时与现价/成本贴得过近的问题。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.271`,并保留 `v10.7.9.270` 的已部署财报列表和持仓列距记录。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full test pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` -> 173/173 pass。
+  - Targeted boundary test pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` -> 35/35 pass。
+  - Production build pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` -> `TradesTab-BSGzkbBY.js`,`SettingsTab-Cm3FrHzs.js`,`settingsChangelog-LnJojB44.js`。
+  - Audit pass:`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` -> 0 vulnerabilities。
+  - Diff hygiene pass:`git diff --check`。
+  - Local visual smoke pass:`http://127.0.0.1:5173/?tab=trades&v=271-wide-buffer-shot2`,390x844 视口打开交易页持仓分布,确认表格 `scrollWidth=592/clientWidth=340`,默认首屏只完整显示到“当日盈亏”,“持仓盈亏”从可视区右侧 16px 后开始;截图 `~/Desktop/boduan-previews/交易页当日盈亏列距缓冲-v10.7.9.271.png`。
+  - Local visual smoke pass:同一页面横滑到 `scrollLeft=252`,确认“持仓盈亏”和“占比”在右侧横滑区有更宽空间;截图 `~/Desktop/boduan-previews/交易页横滑右侧完整列距-v10.7.9.271.png`。
+- Rollback: 回退本条涉及的持仓表格列宽/缓冲列、`v10.7.9.271` 设置页版本/更新日志、测试和本日志即可;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗。
+
 ### 2026-07-09 - 财报列表过滤和持仓列距部署验证
 
 - Commit: runtime code `ff0839e766c3b2d5f39e5923a29d78233e93e009`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
