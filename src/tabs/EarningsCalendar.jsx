@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Info, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import {
   buildCalendarMonth,
   buildEarningsSymbols,
@@ -186,9 +186,8 @@ function EarningsModal({
     <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/72 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[3px]" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="flex max-h-[86dvh] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]" style={{ fontFamily: FONT }}>
         <div className="flex shrink-0 items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[18px] font-normal text-white/84">
+          <div className="text-[14px] font-bold leading-none text-white">
             {t(language, 'earningsCalendar.title', '财报日历')}
-            <Info className="h-4 w-4 text-white/36" />
           </div>
           <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/42 active:scale-95">
             <X className="h-4 w-4" />
@@ -398,9 +397,8 @@ export default function EarningsCalendar({
   return (
     <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" style={{ fontFamily: FONT }}>
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[18px] font-normal text-white/84">
+        <div className="text-[14px] font-bold leading-none text-white">
           {t(language, 'earningsCalendar.title', '财报日历')}
-          <Info className="h-4 w-4 text-white/36" />
         </div>
         <button
           type="button"
@@ -412,9 +410,12 @@ export default function EarningsCalendar({
         </button>
       </div>
 
-      <div className="flex min-h-[104px] items-stretch gap-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        className="grid min-h-[88px] items-stretch overflow-hidden"
+        style={{ gridTemplateColumns: previewEvents.length > 0 ? `repeat(${previewEvents.length}, minmax(0, 1fr)) 42px` : '1fr' }}
+      >
         {previewEvents.length === 0 ? (
-          <div className="flex min-h-[104px] flex-1 items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.025] px-4 text-center text-[13px] text-white/36">
+          <div className="flex min-h-[88px] flex-1 items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.025] px-4 text-center text-[12px] text-white/36">
             {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : error || t(language, 'earningsCalendar.noEvents', '暂无关注股票财报')}
           </div>
         ) : (
@@ -422,32 +423,32 @@ export default function EarningsCalendar({
             const cachedLogoUrl = logoCache?.[event.symbol]?.url;
             const active = index === 0;
             return (
-              <React.Fragment key={event.id}>
-                <button
-                  type="button"
-                  onClick={() => openModal('calendar', event.reportDate)}
-                  className={`flex w-[86px] shrink-0 flex-col items-center justify-center rounded-xl px-2 py-2 active:scale-[0.98] ${
-                    active ? 'bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]' : ''
-                  }`}
-                >
-                  <div className={`text-[13px] tabular-nums ${active ? 'text-[#ffd18a]' : 'text-white/42'}`}>{shortDateLabel(event.reportDate)}</div>
-                  <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-9 w-9 rounded-lg" />
-                  <div className="mt-2 max-w-full truncate text-[14px] font-normal text-white/82">{event.symbol}</div>
-                  <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${earningsSessionDotClass(event.session)}`} />
-                </button>
-                {index < previewEvents.length - 1 && <div className="my-4 w-px shrink-0 bg-white/[0.08]" />}
-              </React.Fragment>
+              <button
+                key={event.id}
+                type="button"
+                onClick={() => openModal('calendar', event.reportDate)}
+                className={`flex min-w-0 flex-col items-center justify-center px-1 py-1.5 active:scale-[0.98] ${
+                  index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''
+                } ${active ? 'rounded-xl bg-[#f6b54b]/10 shadow-[0_0_24px_rgba(246,181,75,0.08)]' : ''}`}
+              >
+                <div className={`text-[14px] leading-none tabular-nums ${active ? 'text-[#ffd18a]' : 'text-white/42'}`}>{shortDateLabel(event.reportDate)}</div>
+                <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
+                <div className="mt-1.5 max-w-full truncate text-[12px] leading-none font-normal text-white/82">{event.symbol}</div>
+                <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${earningsSessionDotClass(event.session)}`} />
+              </button>
             );
           })
         )}
-        <button
-          type="button"
-          onClick={() => openModal('calendar')}
-          className="ml-2 flex w-[72px] shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/48 active:scale-[0.98]"
-          aria-label={t(language, 'earningsCalendar.calendarView', '日历视图')}
-        >
-          <CalendarDays className="h-7 w-7" />
-        </button>
+        {previewEvents.length > 0 && (
+          <button
+            type="button"
+            onClick={() => openModal('calendar')}
+            className="ml-2 flex min-w-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/48 active:scale-[0.98]"
+            aria-label={t(language, 'earningsCalendar.calendarView', '日历视图')}
+          >
+            <CalendarDays className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       <EarningsModal

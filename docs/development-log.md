@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 首页财报日历视觉压缩
+
+- Commit: same commit;deployment verification docs follow-up will record the runtime hash after production success。
+- Deployment: requested;pending GitHub `main` push and Vercel production verification。
+- Background: 用户反馈首页底部财报日历字体和图标过大,要求参考效果图压到一行展示,不做左右滑动;随后确认标题要和首页“自选”标题层级一致,删除标题旁信息图标,并让首页日期字号和弹窗日历日期保持一致。
+- Changes:
+  - `EarningsCalendar` 首页预览从横向滚动 flex 改为固定一行 grid,5 支股票和日历入口在 390px 移动视口内完整显示。
+  - 首页预览日期改为 `14px`,与弹窗日历日期一致;股票图标、股票代码、日历入口图标和整体高度同步收紧。
+  - 首页和弹窗的 `财报日历` 标题同步为 `text-[14px] font-bold leading-none`,对齐首页“自选”标题层级,并删除标题旁 `Info` 图标。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.250`。
+  - 本次只改首页财报日历展示层、设置页版本/更新日志、测试和本日志;不改 `/api/earnings-calendar`、交易账本、收益快照、股票/指数/BTC realtime relay、RLS 或 `/api/quote` 鉴权。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Local visual smoke: pass;`http://127.0.0.1:5174/?tab=home` at 390x844 rendered 首页财报日历 as one fixed row;page `scrollWidth=390/clientWidth=390`,calendar grid `scrollWidth=332/clientWidth=332`,grid columns `58px 58px 58px 58px 58px 42px`,首页日期 measured `14px/14px`;screenshots saved to `/tmp/boduan-earnings-calendar-date-14-home.png` and `/tmp/boduan-earnings-calendar-title-modal.png`。
+  - Targeted tests: pass;`node --test tests/tool-ledger-boundaries.test.js tests/earnings-calendar.test.js` passed 38 tests。
+  - Full test suite: pass;`npm test` passed 170 tests。
+  - Build: pass;`npm run build` completed successfully with `HomeTab-Ccz_psNH.js`,`SettingsTab-Blxg71ee.js`,`settingsChangelog-CLyDdtoZ.js`,`App-BEUCSR7t.js` bundles。
+  - Audit: pass;`npm audit --audit-level=moderate` returned 0 vulnerabilities。
+  - Diff whitespace: pass;`git diff --check` returned clean。
+- Rollback: 回退 `EarningsCalendar` 首页预览 grid/字号/标题图标删除、`v10.7.9.250` 设置页版本/更新日志、测试和本日志即可恢复 `v10.7.9.249`;不影响独立财报 API、交易账本、收益快照、行情 relay、RLS 或 `/api/quote` 鉴权。
+
 ### 2026-07-09 - 交接文档刷新
 
 - Commit: current docs-only handoff refresh commit。
