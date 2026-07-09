@@ -269,12 +269,12 @@ function PositionProfitScenarioSheet({
       <style>{`
         @keyframes scenario-marker-breathe {
           0%, 100% {
-            transform: translate(-50%, -50%) scale(1);
-            box-shadow: 0 0 0 0 rgb(var(--scenario-marker-glow) / 0.16), 0 0 7px rgb(var(--scenario-marker-glow) / 0.22);
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgb(var(--scenario-marker-glow) / 0.2), 0 0 8px rgb(var(--scenario-marker-glow) / 0.28);
           }
           50% {
-            transform: translate(-50%, -50%) scale(1.22);
-            box-shadow: 0 0 0 4px rgb(var(--scenario-marker-glow) / 0.07), 0 0 12px rgb(var(--scenario-marker-glow) / 0.3);
+            transform: scale(1.34);
+            box-shadow: 0 0 0 6px rgb(var(--scenario-marker-glow) / 0.12), 0 0 16px rgb(var(--scenario-marker-glow) / 0.42);
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -403,8 +403,10 @@ function PositionProfitScenarioSheet({
                 <div className="relative mt-2 h-4">
                   <div className="absolute left-1 right-1 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-400 via-[#f6b54b] to-[#ff4b1f]" />
                   <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(costPrice) }} />
-                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(currentPrice) }} />
-                  <span className="scenario-marker-breathe pointer-events-none absolute top-1/2 h-[7px] w-[7px] rounded-full border border-[#ffd166]/90 bg-[#f6b54b]" style={{ left: pointLeft(inputPrice), '--scenario-marker-glow': markerGlowRgb }} aria-hidden="true" />
+                  <span className="scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: pointLeft(currentPrice), '--scenario-marker-glow': markerGlowRgb }} aria-hidden="true">
+                    <span className="scenario-marker-breathe block h-[9px] w-[9px] rounded-full border border-[#ffd166]/95 bg-[#f6b54b]" />
+                  </span>
+                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65 bg-[#0b0f14]" style={{ left: pointLeft(inputPrice) }} />
                 </div>
               </div>
 

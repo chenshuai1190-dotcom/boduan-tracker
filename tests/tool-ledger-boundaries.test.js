@@ -232,9 +232,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.265'), 'settings version badge should document the latest position scenario simulator marker update');
-  assert.ok(settingsChangelogSource.includes('v10.7.9.265'), 'settings changelog should document the latest position scenario simulator marker update');
-  assert.ok(settingsChangelogSource.includes('持仓试算呼吸标记'), 'settings changelog should describe the simulator breathing marker update');
+  assert.ok(settingsTabSource.includes('v10.7.9.266'), 'settings version badge should document the latest position scenario simulator marker position update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.266'), 'settings changelog should document the latest position scenario simulator marker position update');
+  assert.ok(settingsChangelogSource.includes('当前价呼吸标记'), 'settings changelog should describe the simulator current-price breathing marker update');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.265'), 'settings changelog should retain the previous simulator breathing marker update');
+  assert.ok(settingsChangelogSource.includes('持仓试算呼吸标记'), 'settings changelog should retain the simulator breathing marker update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.264'), 'settings changelog should retain the simulator iOS input update');
   assert.ok(settingsChangelogSource.includes('修复 iOS 试算输入跳顶'), 'settings changelog should describe the iOS simulator input jump fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.263'), 'settings changelog should retain the simulator fx-note removal update');
@@ -293,9 +295,12 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradesTabSource.includes("resultTone === 'flat' ? 'text-[#f6b54b]'"), 'holding return simulator should show flat P&L in the gold neutral state');
   assert.ok(tradesTabSource.includes("profit < 0 ? 'loss'") && tradesTabSource.includes('strongPnlClass(profit, marketColorMode)'), 'holding return simulator should keep loss and profit result colors driven by the market color mode');
   assert.equal(tradesTabSource.includes('Rocket'), false, 'holding return simulator should not keep the rejected rocket marker');
-  assert.ok(tradesTabSource.includes('@keyframes scenario-marker-breathe') && tradesTabSource.includes('scenario-marker-breathe'), 'holding return simulator should use a subtle breathing animation for the simulated-price marker');
-  assert.ok(tradesTabSource.includes('h-[7px] w-[7px] rounded-full border border-[#ffd166]/90 bg-[#f6b54b]'), 'holding return simulator should use a half-size fixed gold simulated-price marker');
-  assert.ok(tradesTabSource.includes("markerGlowRgb = '246 181 75'") && tradesTabSource.includes('--scenario-marker-glow'), 'holding return simulator should use a fixed gold breathing glow for the simulated-price marker');
+  assert.ok(tradesTabSource.includes('@keyframes scenario-marker-breathe') && tradesTabSource.includes('scenario-marker-breathe'), 'holding return simulator should use a subtle breathing animation for the current-price marker');
+  assert.ok(tradesTabSource.includes('scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2'), 'holding return simulator should keep current marker positioning independent from the breathing animation');
+  assert.ok(tradesTabSource.includes('block h-[9px] w-[9px] rounded-full border border-[#ffd166]/95 bg-[#f6b54b]'), 'holding return simulator should use a slightly larger fixed gold current-price marker');
+  assert.ok(tradesTabSource.includes("markerGlowRgb = '246 181 75'") && tradesTabSource.includes('--scenario-marker-glow'), 'holding return simulator should use a fixed gold breathing glow for the current-price marker');
+  assert.ok(tradesTabSource.includes("style={{ left: pointLeft(currentPrice), '--scenario-marker-glow': markerGlowRgb }}"), 'holding return simulator should place the breathing marker on current price');
+  assert.ok(tradesTabSource.includes('style={{ left: pointLeft(inputPrice) }}'), 'holding return simulator should keep simulated price as a static marker');
   assert.ok(tradesTabSource.includes('function isIOSLikeBrowser'), 'holding return simulator should detect iOS-like browsers for keyboard handling');
   assert.ok(tradesTabSource.includes('if (isIOSLikeBrowser()) return undefined;'), 'holding return simulator should not auto-focus the input on iOS');
   assert.ok(tradesTabSource.includes('input.focus({ preventScroll: true })'), 'holding return simulator should prevent focus scrolling on non-iOS auto-focus');
@@ -1260,7 +1265,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.265'), 'settings version badge should document the latest trades simulator update');
+  assert.ok(settingsTabSource.includes('v10.7.9.266'), 'settings version badge should document the latest trades simulator update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1522,7 +1527,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.265'), 'settings version badge should document the latest trades simulator update');
+  assert.ok(settingsTabSource.includes('v10.7.9.266'), 'settings version badge should document the latest trades simulator update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

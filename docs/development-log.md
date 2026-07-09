@@ -4,6 +4,31 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 持仓试算当前价呼吸标记本地修复
+
+- Commit: pending;准备提交并通过 GitHub `main` 触发 Vercel production 部署。
+- Deployment: requested;用户确认“部署”,本次仅通过 SSH 推送 GitHub `main` 触发生产部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: `v10.7.9.265` 将金黄色呼吸点绑定在模拟价 `inputPrice` 上,理解反了用户最初指的“下面中间那个小按钮”。同时呼吸动画不应和价格定位使用同一个元素,避免动画 `transform` 干扰居中定位。
+- Changes:
+  - `TradesTab` 将金黄色呼吸点移动到当前价 `pointLeft(currentPrice)`,模拟价 `pointLeft(inputPrice)` 恢复为普通静态白色圆环。
+  - 当前价呼吸标记拆为两层:外层 `scenario-marker-anchor` 只负责价格定位和居中位移,内层 `scenario-marker-breathe` 只负责金黄色圆点和呼吸动效。
+  - 金黄色圆点由 7px 调整为 9px,呼吸动画从 1.22x 提升到 1.34x,柔光半径和透明度略增,但仍保持小号提示点风格。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.266`,并保留 `v10.7.9.265` 的已部署呼吸标记记录。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - Full test pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm test` -> 173/173 pass。
+  - Targeted boundary test pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" node --test tests/tool-ledger-boundaries.test.js` -> 35/35 pass。
+  - Production build pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm run build` -> `TradesTab-C51pYhXe.js`,`SettingsTab-ByGW_u9N.js`,`settingsChangelog-beq22CKH.js`。
+  - Audit pass:`PATH="/tmp/node-v22.12.0-darwin-arm64/bin:$PATH" npm audit --audit-level=moderate` -> 0 vulnerabilities。
+  - Local visual smoke pass:`http://127.0.0.1:5174/?tab=trades&v=266-current-marker`,390x844 viewport,打开 NVDA 试算弹窗并输入 `236.265`,确认当前价金黄色呼吸点位于 `pointLeft(currentPrice)`,模拟价 `236.265` 位于右侧静态白色圆环,呼吸点 `9px`,动画 `scenario-marker-breathe 3.2s`,竖向中心与轨道一致(`anchorCenterDeltaYFromTrack=0`),截图 `/tmp/boduan-trades-scenario-current-marker-236-v10.7.9.266.png`。
+  - Diff hygiene pass:`git diff --check`。
+- Rollback: 回退本条涉及的当前价呼吸标记、模拟价静态圆环、`scenario-marker-anchor` 两层定位结构、9px 呼吸点、`v10.7.9.266` 设置页版本/更新日志、测试和本日志即可;不影响交易账本、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或 iOS 输入跳顶修复。
+
 ### 2026-07-09 - 持仓试算模拟价呼吸标记
 
 - Commit: runtime code `73f4bde7e3eb972044089e684a0c5aa37181e9a2`;本日志后续 docs-only 提交记录线上验证结果。
