@@ -4,6 +4,32 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 持仓列距再平衡
+
+- Commit: pending runtime commit;本地截图已由用户确认,准备通过 GitHub `main` 部署。
+- Deployment: pending;本次发布 `v10.7.9.272`,只通过 GitHub `main` 推送触发 Vercel production 部署,不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- Background: 用户在 iPhone 线上反馈 `v10.7.9.271` 默认首屏里“当日盈亏”后方视觉留空过多,横滑后“当日盈亏”和“持仓盈亏”之间距离也过大;希望把空白分回名称/代码、市值/数量、现价/成本和当日盈亏,让前后列距更均衡。
+- Changes:
+  - `TradesTab` 持仓表格总宽从 592px 收回到 552px,避免右侧横滑区域过度松散。
+  - 首屏列模板改为 `76/88/72/104/8/144/60`,前四列仍保持 340px,但名称/代码、市值/数量和现价/成本比上一版更宽。
+  - 缓冲列从 16px 收到 8px,持仓盈亏列从 176px 收到 144px,减少横滑后“当日盈亏”和“持仓盈亏”的不合理距离。
+  - 设置页版本和用户可见更新日志本地同步到 `v10.7.9.272`,并保留 `v10.7.9.271` 的已部署持仓当日盈亏列距记录。
+- Key files:
+  - `src/tabs/TradesTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm test`: pass,173/173。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,35/35。
+  - `npm run build`: pass,生成 `TradesTab-BUr2h6s_.js`、`SettingsTab-BcUoUpty.js`、`settingsChangelog-5uJ2aGvP.js`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Local visual smoke: `390x844` 视口下首屏表格 `clientWidth=340`、`scrollWidth=552`、列宽 `76/88/72/104/8/144/60`;“当日盈亏”完整可见,右侧 2px 命中仍在当日盈亏列,未露出持仓盈亏符号。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列距再平衡默认首屏-v10.7.9.272.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/交易页持仓列距再平衡横滑-v10.7.9.272.png`。
+- Rollback: 回退本条涉及的持仓表格列宽/缓冲列、`v10.7.9.272` 设置页版本/更新日志、测试和本日志即可;不影响交易账本写入、底部导航、行情 relay、收益快照、RLS、`/api/quote`、财报日历或持仓收益试算弹窗。
+
 ### 2026-07-09 - 持仓当日盈亏列距部署验证
 
 - Commit: runtime code `fc10d7438957df986482869a96f7c0c6b44d79ea`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。
