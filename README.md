@@ -14,6 +14,8 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 ## Local Setup
 
 ```bash
+export PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+npm run verify:toolchain
 npm ci
 cp .env.example .env.local
 npm run dev
@@ -42,6 +44,13 @@ Current rule: GitHub is the only code source of truth, Vercel deploys automatica
 
 UI or feature changes that touch system copy must keep Simplified Chinese and English in sync through the i18n layer. Translate system copy only; user-authored notes, reviews, mottos, logs, remarks, and account names stay in their original language.
 
+Use the risk-tiered workflow in `docs/development-process.md`:
+
+- `runtime`: run `npm run verify:toolchain`, `npm test`, `npm run build`, `npm audit --audit-level=moderate`, and `git diff --check`.
+- `docs-only`: run `npm run verify:docs-consistency`, `git diff --check`, and `git diff --stat`.
+- `sensitive`: run the runtime checks plus affected auth/RLS/API smoke tests.
+- After pushing a deployable commit, use `npm run verify:deploy-status -- <commit>` for the standard GitHub/Vercel/production-entry/auth summary.
+
 ## Required Environment Variables
 
 Frontend:
@@ -62,12 +71,26 @@ Do not add any `VITE_` EODHD token, service-role key, or cron secret. Browser-di
 ## Checks
 
 ```bash
+npm run verify:toolchain
 npm test
 npm run build
-npm audit
+npm audit --audit-level=moderate
+git diff --check
 ```
 
 The GitHub Actions workflow runs `npm ci`, `npm test`, `npm run build`, and `npm audit`.
+
+Docs/process consistency:
+
+```bash
+npm run verify:docs-consistency
+```
+
+Deployment status summary:
+
+```bash
+npm run verify:deploy-status -- <commit>
+```
 
 RLS exposure probe:
 

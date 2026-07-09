@@ -7,7 +7,7 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 最新接手补充: `v10.7.9.275` 首页状态圆点降噪已部署上线。首页当前信号“等待中”等标题旁的小状态圆点已删除,VIX 恐慌指数主数字右侧的小绿点已删除;VIX 下方风险条定位圆点、颜色逻辑、行情接口、交易账本、收益快照、财报日历、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
-- 最新流程补充: 开发验证正式改为三档流程: `runtime` 跑完整测试/构建/audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat 和必要生产状态/marker;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
+- 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建/audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。
 - 当前 GitHub `main`: 本文件所在最新提交为准;运行时代码提交 `41e77056d7a62a594830dda44eec8b4d54a51f5e` 已由 GitHub `main` 推送触发 Vercel production 部署。
 - 当前生产运行时代码提交: `41e77056d7a62a594830dda44eec8b4d54a51f5e`。
 - 设置页版本: `v10.7.9.275`。
@@ -78,10 +78,16 @@
 - 市场数据: EODHD 核心 quote / realtime, EODHD 财报日历, Yahoo chart visuals, CNN Fear & Greed
 - 测试: Node built-in test runner,命令为 `npm test`
 
-本机 Node 路径:
+本机工具链路径:
 
 ```bash
-PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+```
+
+工具链基线:
+
+```bash
+npm run verify:toolchain
 ```
 ## 5. 环境变量和安全边界
 
@@ -120,10 +126,12 @@ PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 开始前:
 
 ```bash
+PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 git fetch origin
 git checkout main
 git pull --ff-only origin main
 git status --short --branch
+npm run verify:toolchain
 npm ci
 ```
 
@@ -132,6 +140,7 @@ npm ci
 1. `runtime`: 修改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何会改变生产 bundle/serverless 行为的内容。必须跑:
 
    ```bash
+   npm run verify:toolchain
    npm test
    npm run build
    npm audit --audit-level=moderate
@@ -147,6 +156,7 @@ npm ci
    ```
 
    `npm run verify:docs-consistency` 只检查当前状态区、最近日志条目、可转发交接块和设置页版本/更新日志,输出 PASS/FAIL 摘要。不要对整份长日志做无边界 `rg -n` 并输出大量历史命中。
+   如果 docs-only 是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
 
 3. `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界。先完整执行 `runtime` 验证,再按影响面补充:
 
@@ -165,7 +175,7 @@ npm ci
 3. 用户可见更新同步 `src/tabs/SettingsTab.jsx` 更新日志和版本。
 4. 提交并推送 GitHub `main`。
 5. 等 Vercel 自动部署成功。
-6. 按 workflow tier 做线上验证;docs-only 只需确认 Vercel success、生产入口未异常切换和必要 marker/API smoke。
+6. 按 workflow tier 做线上验证;默认先跑 `npm run verify:deploy-status -- <commit>`,docs-only 只需确认 Vercel success、生产入口未异常切换和必要 marker/API smoke。
 7. 把部署和线上验证写回 `docs/development-log.md` 或最终交接摘要。
 
 推送注意:
@@ -182,7 +192,7 @@ npm ci
 推荐流程:
 
 ```bash
-PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 npm run dev -- --host 127.0.0.1
 ```
 
@@ -607,15 +617,17 @@ npm run dev -- --host 127.0.0.1
 复制执行:
 
 ```bash
-PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 git fetch origin
 git checkout main
 git pull --ff-only origin main
 git status --short --branch
+npm run verify:toolchain
 npm ci
 npm test
 npm run build
 npm audit --audit-level=moderate
+npm run verify:deploy-status -- <current-main-commit>
 npm run verify:rls:rest
 curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
 curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
@@ -630,6 +642,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - Supabase Auth URL Configuration 仍是生产域名。
 - Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
 - HTTPS push 缺 GitHub 凭证时报 `could not read Username` 时,使用项目 SSH key `~/.ssh/boduan_tracker_github` 推送。
+- `npm run verify:toolchain` 和 `npm run verify:deploy-status -- <commit>` 只输出短摘要,不要改回手写长 `gh api` / `curl` JSON。
 
 ## 14. 交接给下一位同事的话
 
@@ -676,13 +689,15 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
 - 每轮先判定 workflow tier: `runtime` / `docs-only` / `sensitive`,再决定验证强度;不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
 
-本机 Node 路径:
-`PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`
+本机工具链路径:
+`PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`
 
 验证流程:
-- `runtime`: 改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何生产 bundle/serverless 行为,必须跑 `npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
-- `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`。
+- 首次接手、换机、工具链异常或部署前环境不确定时,先跑 `npm run verify:toolchain`,确认 `node/npm/gh/vercel/rg/jq/git/ssh/curl`、GitHub CLI、Vercel CLI 和项目 SSH key 可用。
+- `runtime`: 改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何生产 bundle/serverless 行为,必须跑 `npm run verify:toolchain`、`npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
+- `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;如果是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
 - `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
+- 推送后默认用 `npm run verify:deploy-status -- <commit>` 汇总 GitHub Actions、Vercel commit status、生产入口和未登录 quote/earnings 401。不要再手写长 `gh api` / `curl` 输出,也不要对整份 `docs/development-log.md` 做无边界 `rg -n`。
 
 生产敏感改动还要跑:
 `npm run verify:rls:rest`

@@ -20,6 +20,7 @@
 1. **开始前同步仓库**
    - 从 GitHub 当前 `main` 开始。
    - 运行 `git status --short --branch`,确认工作树状态。
+   - 首次接手、换机、工具链异常或部署前环境不确定时,先运行 `npm run verify:toolchain`,确认 `node/npm/gh/vercel/rg/jq/git/ssh/curl`、GitHub CLI 登录、Vercel CLI 登录和项目 SSH key 都可用。
    - 先读 `docs/handoff.md`,再阅读 `README.md`、本文件、`docs/development-log.md` 和与任务相关的代码。
 
 2. **创建明确范围的分支**
@@ -48,6 +49,7 @@
      - 必跑:
 
      ```bash
+     npm run verify:toolchain
      npm test
      npm run build
      npm audit --audit-level=moderate
@@ -67,7 +69,7 @@
 
      - `npm run verify:docs-consistency` 只读取当前状态区、最近日志条目、可转发交接块和设置页版本/更新日志,输出 PASS/FAIL 摘要;不要对整份长日志做无边界 `rg -n` 后贴出大量历史命中。
      - 如果本轮改动的文档面超出脚本覆盖范围,再补充少量 `sed -n` 定位抽查;仍不要打印长历史日志。
-     - 如果 docs-only 用来回填刚完成的生产部署,仍需验证对应 GitHub/Vercel status、生产入口和关键 marker;这些验证只输出摘要,不要打印 minified bundle。
+     - 如果 docs-only 用来回填刚完成的生产部署,必须运行 `npm run verify:deploy-status -- <commit>`,验证对应 GitHub/Vercel status、生产入口和基础鉴权 smoke;额外任务 marker 仍只输出摘要,不要打印 minified bundle。
 
    - **C. Sensitive change / 生产敏感改动**
      - 适用范围: auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量、安全文档或任何可能影响跨用户数据边界的改动。
@@ -128,9 +130,17 @@
    - 如果用户明确要求“部署”“再次部署”或“走 ssh”,必须优先执行上面的 SSH 推送/重试流程,不得改用 HTTPS、不得把第一次 Vercel rate limit 当作最终完成状态。
    - 如果 GitHub、CI、Vercel 或权限问题导致无法部署,必须在最终交接中明确说明阻塞原因和当前 commit。
    - docs-only 提交触发 Vercel 后,只需确认 Vercel status 到 `success`、生产入口未异常切换、关键鉴权 smoke 仍符合预期;不需要因这次 docs-only 再重复 runtime 测试/构建/audit。
+   - 标准部署状态检查命令:
+
+     ```bash
+     npm run verify:deploy-status -- <commit>
+     ```
+
+     该脚本通过 `gh` 查询 GitHub Actions 和 Vercel commit status,再检查生产入口、未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 是否仍返回 `401`。脚本只输出短摘要,不要再手写长 `curl` / `gh api` JSON 并粘贴大段结果。
 
 8. **生产验证和交接**
    - 部署完成后验证生产 URL。
+   - 默认先跑 `npm run verify:deploy-status -- <commit>`,再按任务补充具体生产 marker。
    - 把线上验证结果写入 `docs/development-log.md`。
    - 最终交接必须说明:
      - 本轮 workflow tier
@@ -168,6 +178,7 @@
 - Key files:
 - Validation:
   - Runtime: `npm test` / `npm run build` / `npm audit --audit-level=moderate` / `git diff --check`
+  - Tooling/deploy: `npm run verify:toolchain` / `npm run verify:deploy-status -- <commit>`
   - Docs-only: `npm run verify:docs-consistency` / `git diff --check` / `git diff --stat`
   - Sensitive: runtime checks plus affected API/RLS/security smoke
   - Other checks:

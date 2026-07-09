@@ -4,6 +4,36 @@
 
 ## 2026-07-09 Asia/Shanghai
 
+### 2026-07-09 - 生产流程工具链标准化
+
+- Commit: same commit;部署完成后用 docs-only follow-up 回填实际 hash 和线上验证。
+- Deployment: pending;本轮会按用户要求推送 GitHub `main` 并触发 Vercel production 部署。设置页版本不更新,因为这是开发/部署流程和本地工具链标准化,不是用户可见 App 功能。
+- Background: 用户要求补齐基础调试环境并把流程改成标准化工具链,避免以后缺 `gh`、`vercel`、`rg` 或继续手写长 `curl` / `gh api` / 无边界 `rg` 扫长日志导致 token 和时间浪费。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增 `npm run verify:toolchain`,用固定脚本检查 `node/npm/npx/git/ssh/curl/rg/jq/gh/vercel`、GitHub CLI 登录、Vercel CLI 登录、项目 SSH key 权限和 GitHub SSH 读权限。
+  - 新增 `npm run verify:deploy-status -- <commit>`,统一查询 GitHub combined status、GitHub Actions、Vercel commit status、生产入口和未登录 quote/earnings 401 smoke。
+  - `npm run verify:docs-consistency` 增加对两个新标准脚本和 handoff/process marker 的检查,防止流程文档回退。
+  - `README.md`、`docs/development-process.md`、`docs/handoff.md` 同步新的工具链路径、三档验证流程、标准部署检查命令和“不要无边界扫长日志”的规则。
+- Key files:
+  - `scripts/verify-toolchain.mjs`
+  - `scripts/verify-deploy-status.mjs`
+  - `scripts/verify-docs-consistency.mjs`
+  - `package.json`
+  - `README.md`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:toolchain`: pass,确认 `node v22.23.1`、`npm/npx 10.9.8`、`gh 2.96.0`、`vercel 54.21.1`、`rg 15.1.0`、`jq 1.7.1`、Vercel/GitHub CLI 登录和项目 SSH key 均可用。
+  - `npm run verify:docs-consistency`: pass。
+  - `npm test`: pass,173/173。
+  - `npm run build`: pass,生成 `App-DIozxW2P.js`、`HomeTab-sFGT_nuR.js`、`TradesTab-BdDFtAFo.js`、`SettingsTab-DFEZTwPt.js`、`settingsChangelog-B9AdpNuM.js`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Pre-change production baseline: `npm run verify:deploy-status -- 6c45506b1c0fb1a9d12c9795523a97b24861f50f` pass,GitHub/Vercel status success,生产入口 `/assets/index-BBbtWDtu.js`,未登录 quote/earnings 均为 `401`。
+- Rollback: 回退本条新增脚本、`package.json` scripts 和流程文档即可恢复旧的手动工具链/部署状态检查方式;不影响前端 UI、设置页版本、数据库、RLS、行情 relay、交易账本、收益快照或财报日历。
+
 ### 2026-07-09 - 首页状态圆点降噪
 
 - Commit: runtime code `41e77056d7a62a594830dda44eec8b4d54a51f5e`;本日志随 docs-only follow-up 继续回填线上验证和交接状态。

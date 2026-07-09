@@ -104,6 +104,8 @@ const requiredProcessMarkers = [
   'Runtime deploy / 常规运行时代码改动',
   'Docs-only evidence / 纯文档和部署证据回填',
   'Sensitive change / 生产敏感改动',
+  'npm run verify:toolchain',
+  'npm run verify:deploy-status',
   'npm run verify:docs-consistency',
 ]
 
@@ -116,6 +118,8 @@ const requiredHandoffMarkers = [
   '`runtime`',
   '`docs-only`',
   '`sensitive`',
+  'npm run verify:toolchain',
+  'npm run verify:deploy-status',
   'npm run verify:docs-consistency',
 ]
 
@@ -125,6 +129,14 @@ for (const marker of requiredHandoffMarkers) {
 
 if (packageJson.scripts?.['verify:docs-consistency'] !== 'node scripts/verify-docs-consistency.mjs') {
   fail('package.json missing verify:docs-consistency script')
+}
+
+if (packageJson.scripts?.['verify:toolchain'] !== 'node scripts/verify-toolchain.mjs') {
+  fail('package.json missing verify:toolchain script')
+}
+
+if (packageJson.scripts?.['verify:deploy-status'] !== 'node scripts/verify-deploy-status.mjs') {
+  fail('package.json missing verify:deploy-status script')
 }
 
 summary.push(`SettingsTab=${settingsVersion || 'missing'}`)
