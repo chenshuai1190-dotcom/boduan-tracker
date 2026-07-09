@@ -2,6 +2,27 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-10 Asia/Shanghai
+
+### 2026-07-10 - 新流程链路演练
+
+- Commit: same commit;本轮用于验证新生产流程的 docs-only 测试改动。
+- Deployment: pending;推送 GitHub `main` 后会按新流程用 `npm run verify:deploy-status -- <commit>` 验证 GitHub Actions、Vercel、生产入口和未登录 API smoke。
+- Background: 用户要求按照新流程做一个测试改动,完整走一遍工具链检查、docs-only 验证、SSH 推送、Vercel 自动部署和生产状态检查,观察链路变化。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 只追加本条开发日志,作为新流程链路演练的最小可维护改动。
+  - 不修改 App 运行时代码、设置页版本、用户可见更新日志、数据库、RLS、行情 relay、交易账本、收益快照或财报日历。
+- Key files:
+  - `docs/development-log.md`
+- Validation:
+  - Pre-change `npm run verify:toolchain`: pass。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,docs-only,only `docs/development-log.md` changed。
+  - Skipped `npm test` / `npm run build` / `npm audit --audit-level=moderate`: docs-only 流程演练,不改变运行时代码、依赖、配置或生产 bundle。
+- Rollback: 回退本条日志即可移除本次流程演练记录;不影响任何生产运行时代码或用户数据。
+
 ## 2026-07-09 Asia/Shanghai
 
 ### 2026-07-09 - 记录生产流程工具链部署验证
