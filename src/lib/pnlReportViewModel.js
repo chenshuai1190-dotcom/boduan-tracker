@@ -395,6 +395,13 @@ function findCloseOnOrBefore(rows, dateKey) {
   return null;
 }
 
+function findCloseBefore(rows, dateKey) {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (rows[index].date < dateKey) return rows[index];
+  }
+  return null;
+}
+
 function sampleRows(rows, maxCount = 46) {
   if (rows.length <= maxCount) return rows;
   const lastIndex = rows.length - 1;
@@ -589,14 +596,21 @@ export function buildPnlReportViewModel({
     const benchmarkPoint = benchmarkStartClose
       ? findCloseOnOrBefore(benchmark.rows, date)
       : null;
+    const previousBenchmarkPoint = benchmarkPoint
+      ? findCloseBefore(benchmark.rows, benchmarkPoint.date)
+      : null;
     return {
       date,
       label: monthLabel(date),
+      dailyPnlPct: snapshot?.dailyPnlPct == null ? null : toNumber(snapshot.dailyPnlPct),
       pnlPct: snapshot ? (isSingleDay
         ? (snapshot.dailyPnlPct == null ? null : toNumber(snapshot.dailyPnlPct))
         : range === 'all'
         ? toNumber(snapshot.cumulativePnlPct)
         : toNumber(snapshot.cumulativePnlPct) - periodValues.baselinePct) : null,
+      benchmarkDailyPct: benchmarkPoint?.close && previousBenchmarkPoint?.close
+        ? benchmarkPoint.close / previousBenchmarkPoint.close - 1
+        : null,
       benchmarkPct: benchmarkPoint?.close && benchmarkStartClose
         ? benchmarkPoint.close / benchmarkStartClose - 1
         : (isFiniteNumber(snapshot?.benchmarkPct) ? toNumber(snapshot.benchmarkPct) : null),

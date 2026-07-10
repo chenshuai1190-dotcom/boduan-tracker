@@ -4,6 +4,46 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 收益报表对比浮层
+
+- Commit: same commit;本地实现等待用户确认截图后再推送部署。
+- Deployment: not deployed;当前 production 仍为 `v10.7.9.280` runtime commit `1596cd766bcbc0e03020fc2f7bcbcf7ff4f53657`。本轮只改收益报表展示层、本地视觉预览、设置页版本/更新日志、静态护栏和文档,不改变交易账本、收益快照写入、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
+- Background: 用户确认收益报表走势图弹窗对比功能可以做,并明确基准沿用现有对比逻辑:本年按 1 月 1 日起点收盘价计算纳斯达克基准收益率。
+- Workflow tier: `runtime`。
+- Changes:
+  - 收益报表“收益率走势”增加点击/滑动选点交互,浮层统一展示同一天“我的”和“纳斯达克”两条线。
+  - 浮层列出当日收益率与本期累计收益率;我的收益来自现有收益快照 `dailyPnlPct` / 周期累计收益率,纳斯达克累计收益率继续来自 `/api/pnl-benchmark` 按本期起点收盘价计算的 `benchmarkPct`。
+  - 基准当日收益率在 view model 中按同一基准 EOD 行的前一交易日收盘价计算,不新增前端行情 token。
+  - 本地 `DevVisualPreview` 增加 P&L benchmark mock 和 `pnlReportTooltipDate` 截图 QA 参数,只用于本地截图确认。
+  - 按本地截图反馈去掉对比浮层白色描边,并改成长桥式固定区域:浮层固定在图表上半区居中,横向延伸到刚好遮住右侧百分比坐标,取消额外加高并继续上抬以露出更多收益曲线,十字线和圆点继续跟随选中点位。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.281`。
+  - 补充静态测试护栏,锁定收益报表对比浮层、当日/累计文案、基准当日收益率字段和本地 mock QA 入口。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/lib/pnlReportViewModel.js`
+  - `src/AuthGate.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:workspace-state`: pass;工作区为 `main...origin/main`,本机稳定 env、`.env.local`、`node_modules` 和 `dist` present,仅提示 Vercel link missing。
+  - `npm run verify:local-env`: pass;只报告 key present/missing 和 key 名称,未输出 secret 值。
+  - `npm run verify:toolchain`: pass。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - `npm test`: pass,176/176。
+  - `npm run build`: pass,生成 `PnlReportPage-CNsznsKK.js`、`App-CtRdg_B_.js`、`SettingsTab-C8ngWfgy.js`、`settingsChangelog-Bo2IS9vJ.js` 等本地构建产物。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.281`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?devPreview=1&tab=pnl-report&pnlReportTooltipDate=2026-04-22&v=281-compare-tooltip-just-cover-raised`,收益报表对比浮层显示 `2026/4/22 星期三`、我的当日 `+2.36%` / 累计 `+9.09%`、纳斯达克当日 `+1.64%` / 累计 `+6.11%`,且浮层无白色描边、固定在图表上半区居中,横向延伸到刚好遮住右侧百分比坐标,取消额外加高并上抬以露出更多曲线。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-just-cover-raised-590x1280.png`;上一轮参考图保留 `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-narrower-raised-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-wide-fixed-tall-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-wide-fixed-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-fixed-center-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-borderless-raised-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-430x932.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-390x844.png`。
+- Rollback: 回退本条 `PnlReportPage` 浮层交互、`pnlReportViewModel` 基准当日收益字段、DevVisualPreview mock、`v10.7.9.281` 设置页版本/更新日志、测试和文档即可恢复上一版收益报表展示;不影响任何数据写入、行情鉴权或账本边界。
+
 ### 2026-07-10 - 个股收益峰值呼吸点
 
 - Commit: runtime `1596cd766bcbc0e03020fc2f7bcbcf7ff4f53657`;本条后续 docs-only 回填提交只同步部署证据。

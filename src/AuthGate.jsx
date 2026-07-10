@@ -12,6 +12,15 @@ function isRecoveryRoute() {
   return isRecoveryCallbackLocation(window.location);
 }
 
+function isDevVisualPreviewRequested() {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return new URLSearchParams(window.location.search).get('devPreview') === '1';
+  } catch {
+    return false;
+  }
+}
+
 function getSupabaseProjectRef() {
   try {
     return new URL(supabaseUrl).hostname.split('.')[0] || null;
@@ -106,7 +115,7 @@ export default function AuthGate() {
     };
   }, [authState.loading, authState.user?.id, isRecovery]);
 
-  if (!isSupabaseConfigured && import.meta.env.DEV) {
+  if (import.meta.env.DEV && (!isSupabaseConfigured || isDevVisualPreviewRequested())) {
     const DevVisualPreview = lazy(() => import('./DevVisualPreview.jsx'));
     return (
       <Suspense fallback={<LoadingScreen />}>

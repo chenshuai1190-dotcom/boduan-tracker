@@ -10,6 +10,9 @@ const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pr
 const USD_CNY_FALLBACK = 7.2;
 const PNL_REPORT_HISTORY_SNAPSHOT_COUNT = 45;
 const PNL_REPORT_HISTORY_CLOSE_ROWS = PNL_REPORT_HISTORY_SNAPSHOT_COUNT + 1;
+const PNL_CHART_WIDTH = 310;
+const PNL_CHART_HEIGHT = 150;
+const PNL_CHART_PAD = 10;
 
 function toNumber(value) {
   const n = Number(value);
@@ -129,11 +132,32 @@ function isRenderableChartValue(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
 
-function buildLinePath(points, key, width = 310, height = 150, pad = 10) {
+function displayTooltipDate(dateKey, englishMode) {
+  const [year, month, day] = String(dateKey || '').split('-');
+  if (!year || !month || !day) return '--';
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  const weekday = Number.isNaN(date.getTime()) ? null : date.getUTCDay();
+  if (englishMode) {
+    const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return `${names[weekday] || ''} ${Number(month)}/${Number(day)}/${year}`.trim();
+  }
+  const names = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  return `${year}/${Number(month)}/${Number(day)} ${names[weekday] || ''}`.trim();
+}
+
+function nullableSignedPct(value, digits = 2) {
+  return isRenderableChartValue(value) ? signedPct(value, digits) : '--';
+}
+
+function chartX(index, total, width = PNL_CHART_WIDTH, pad = PNL_CHART_PAD) {
+  return pad + (index / Math.max(total - 1, 1)) * (width - pad * 2);
+}
+
+function buildLinePoints(points, key, width = PNL_CHART_WIDTH, height = PNL_CHART_HEIGHT, pad = PNL_CHART_PAD) {
   const validPoints = points
     .map((point, index) => ({ point, index, value: Number(point?.[key]) }))
     .filter(({ point }) => isRenderableChartValue(point?.[key]));
-  if (!validPoints.length) return '';
+  if (!validPoints.length) return [];
   const values = validPoints.map(({ value }) => value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
@@ -144,54 +168,195 @@ function buildLinePath(points, key, width = 310, height = 150, pad = 10) {
   const domainMin = min - padding;
   const domainMax = max + padding;
   const span = domainMax - domainMin || 1;
-  return validPoints.map(({ index, value }, pathIndex) => {
-    const x = pad + (index / Math.max(points.length - 1, 1)) * (width - pad * 2);
+  return validPoints.map(({ point, index, value }) => {
+    const x = chartX(index, points.length, width, pad);
     const y = pad + (1 - ((value - domainMin) / span)) * (height - pad * 2);
-    return `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
-  }).join(' ');
+    return { point, index, value, x, y };
+  });
+}
+
+function buildLinePathFromPoints(points) {
+  return points.map(({ x, y }, pathIndex) => (
+    `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`
+  )).join(' ');
+}
+
+function buildLinePath(points, key, width = PNL_CHART_WIDTH, height = PNL_CHART_HEIGHT, pad = PNL_CHART_PAD) {
+  return buildLinePathFromPoints(buildLinePoints(points, key, width, height, pad));
 }
 
 function validPointCount(points, key) {
   return points.filter((point) => isRenderableChartValue(point?.[key])).length;
 }
 
-function buildAreaPath(linePath, width = 310, height = 150, pad = 10) {
+function buildAreaPath(linePath, width = PNL_CHART_WIDTH, height = PNL_CHART_HEIGHT, pad = PNL_CHART_PAD) {
   if (!linePath) return '';
   return `${linePath} L${width - pad} ${height - pad} L${pad} ${height - pad} Z`;
 }
 
-function SparkArea({ data, mode, color }) {
+function SparkArea({ data, mode, color, language, marketColorMode, initialSelectedDate = '' }) {
+  const englishMode = isEnglishLanguage(language);
+  const [selectedIndex, setSelectedIndex] = React.useState(null);
+  const chartRootRef = React.useRef(null);
   const primaryKey = mode === 'assets' ? 'assetUsd' : 'pnlPct';
-  const primaryPath = buildLinePath(data, primaryKey);
   const hasBenchmark = data.some(point => Number.isFinite(Number(point?.benchmarkPct)));
-  const benchmarkPath = hasBenchmark ? buildLinePath(data, 'benchmarkPct') : '';
+  const showBenchmark = mode === 'pnl' && hasBenchmark;
+  const primaryPoints = React.useMemo(() => buildLinePoints(data, primaryKey), [data, primaryKey]);
+  const benchmarkPoints = React.useMemo(() => (showBenchmark ? buildLinePoints(data, 'benchmarkPct') : []), [data, showBenchmark]);
+  const primaryPath = buildLinePathFromPoints(primaryPoints);
+  const benchmarkPath = showBenchmark ? buildLinePathFromPoints(benchmarkPoints) : '';
   const areaPath = validPointCount(data, primaryKey) > 1 ? buildAreaPath(primaryPath) : '';
   const firstLabel = data[0]?.label || '--';
   const middleLabel = data[Math.floor(data.length / 2)]?.label || firstLabel;
   const lastLabel = data[data.length - 1]?.label || firstLabel;
+  const pointSlots = React.useMemo(() => data.map((point, index) => ({
+    point,
+    index,
+    x: chartX(index, data.length),
+  })), [data]);
+  const primaryByIndex = React.useMemo(() => new Map(primaryPoints.map((point) => [point.index, point])), [primaryPoints]);
+  const benchmarkByIndex = React.useMemo(() => new Map(benchmarkPoints.map((point) => [point.index, point])), [benchmarkPoints]);
+  const selectedSlot = selectedIndex == null ? null : pointSlots[selectedIndex] || null;
+  const selectedPrimary = selectedSlot ? primaryByIndex.get(selectedSlot.index) || null : null;
+  const selectedBenchmark = selectedSlot ? benchmarkByIndex.get(selectedSlot.index) || null : null;
+  const selectedTooltipLeft = '50%';
+  const selectedTooltipTop = '0px';
+
+  React.useEffect(() => {
+    setSelectedIndex(null);
+  }, [data, mode]);
+
+  React.useEffect(() => {
+    if (!initialSelectedDate || mode !== 'pnl') return;
+    const nextIndex = data.findIndex((point) => point?.date === initialSelectedDate);
+    if (nextIndex >= 0) setSelectedIndex(nextIndex);
+  }, [data, initialSelectedDate, mode]);
+
+  React.useEffect(() => {
+    if (selectedIndex == null) return undefined;
+    const closeOnOutsidePointer = (event) => {
+      if (!chartRootRef.current?.contains(event.target)) setSelectedIndex(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+  }, [selectedIndex]);
+
+  const updateSelection = React.useCallback((event) => {
+    if (mode !== 'pnl' || pointSlots.length === 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width) return;
+    const x = ((event.clientX - rect.left) / rect.width) * PNL_CHART_WIDTH;
+    let nextIndex = pointSlots[0].index;
+    let nextDistance = Number.POSITIVE_INFINITY;
+    pointSlots.forEach((slot) => {
+      const distance = Math.abs(slot.x - x);
+      if (distance < nextDistance) {
+        nextDistance = distance;
+        nextIndex = slot.index;
+      }
+    });
+    setSelectedIndex(nextIndex);
+  }, [mode, pointSlots]);
+
+  const handlePointerDown = React.useCallback((event) => {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    updateSelection(event);
+  }, [updateSelection]);
+
+  const handlePointerMove = React.useCallback((event) => {
+    if (selectedIndex != null) updateSelection(event);
+  }, [selectedIndex, updateSelection]);
 
   return (
-    <svg viewBox="0 0 310 150" className="mt-3 h-[170px] w-full overflow-visible">
-      <defs>
-        <linearGradient id="pnlReportArea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.32" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      {[18, 50, 82, 114].map((y) => (
-        <line key={y} x1="10" y1={y} x2="300" y2={y} stroke="rgba(255,255,255,0.09)" strokeDasharray="3 4" />
-      ))}
-      {areaPath && <path d={areaPath} fill="url(#pnlReportArea)" />}
-      {primaryPath && <path d={primaryPath} fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />}
-      {benchmarkPath && <path d={benchmarkPath} fill="none" stroke="#51a7ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" />}
-      <text x="300" y="21" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">78.48%</text>
-      <text x="300" y="54" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">58.87%</text>
-      <text x="300" y="87" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">39.26%</text>
-      <text x="300" y="122" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">19.66%</text>
-      <text x="10" y="146" fontSize="9" fill="rgba(255,255,255,0.38)">{firstLabel}</text>
-      <text x="148" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.38)">{middleLabel}</text>
-      <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">{lastLabel}</text>
-    </svg>
+    <div
+      ref={chartRootRef}
+      className="relative mt-3 h-[170px] select-none"
+      data-pnl-report-chart-hit-area="true"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      style={{ touchAction: 'pan-y' }}
+    >
+      <svg viewBox="0 0 310 150" className="h-full w-full overflow-visible">
+        <defs>
+          <linearGradient id="pnlReportArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {[18, 50, 82, 114].map((y) => (
+          <line key={y} x1="10" y1={y} x2="300" y2={y} stroke="rgba(255,255,255,0.09)" strokeDasharray="3 4" />
+        ))}
+        {areaPath && <path d={areaPath} fill="url(#pnlReportArea)" />}
+        {primaryPath && <path d={primaryPath} fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />}
+        {benchmarkPath && <path d={benchmarkPath} fill="none" stroke="#51a7ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" />}
+        {selectedSlot && mode === 'pnl' && (
+          <>
+            <line
+              x1={selectedSlot.x}
+              y1="14"
+              x2={selectedSlot.x}
+              y2="132"
+              stroke="rgba(255,255,255,0.28)"
+              strokeDasharray="4 4"
+            />
+            {selectedPrimary && (
+              <circle cx={selectedPrimary.x} cy={selectedPrimary.y} r="3.4" fill={color} stroke="#101318" strokeWidth="1.2" />
+            )}
+            {selectedBenchmark && (
+              <circle cx={selectedBenchmark.x} cy={selectedBenchmark.y} r="3.4" fill="#51a7ff" stroke="#101318" strokeWidth="1.2" />
+            )}
+          </>
+        )}
+        <text x="300" y="21" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">78.48%</text>
+        <text x="300" y="54" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">58.87%</text>
+        <text x="300" y="87" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">39.26%</text>
+        <text x="300" y="122" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">19.66%</text>
+        <text x="10" y="146" fontSize="9" fill="rgba(255,255,255,0.38)">{firstLabel}</text>
+        <text x="148" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.38)">{middleLabel}</text>
+        <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">{lastLabel}</text>
+      </svg>
+      {selectedSlot && mode === 'pnl' && (
+        <div
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-xl bg-[#111820] px-4 py-3 text-left shadow-2xl backdrop-blur"
+          data-pnl-report-compare-tooltip="true"
+          style={{
+            left: selectedTooltipLeft,
+            top: selectedTooltipTop,
+            width: 'calc(100% - 22px)',
+          }}
+        >
+          <div className="grid grid-cols-[1fr_64px_64px] items-center gap-x-3 text-[12px] leading-5">
+            <div className="truncate text-white/[0.78]">{displayTooltipDate(selectedSlot.point?.date, englishMode)}</div>
+            <div className="text-right text-white/[0.46]">{t(language, 'pnlReport.tooltip.daily', '当日')}</div>
+            <div className="text-right text-white/[0.46]">{t(language, 'pnlReport.tooltip.cumulative', '累计')}</div>
+            <div className="mt-1 inline-flex min-w-0 items-center gap-1.5 text-white/[0.82]">
+              <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+              <span className="truncate">{t(language, 'pnlReport.mine', '我的')}</span>
+            </div>
+            <div className="mt-1 text-right text-[12px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+              {nullableSignedPct(selectedSlot.point?.dailyPnlPct, 2)}
+            </div>
+            <div className="mt-1 text-right text-[12px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+              {nullableSignedPct(selectedSlot.point?.pnlPct, 2)}
+            </div>
+            {showBenchmark && (
+              <>
+                <div className="mt-1 inline-flex min-w-0 items-center gap-1.5 text-white/[0.82]">
+                  <i className="h-2 w-2 shrink-0 rounded-full bg-[#51a7ff]" />
+                  <span className="truncate">{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>
+                </div>
+                <div className={`mt-1 text-right text-[12px] font-normal tabular-nums ${isRenderableChartValue(selectedSlot.point?.benchmarkDailyPct) ? marketTextClass(selectedSlot.point?.benchmarkDailyPct, marketColorMode) : 'text-white/[0.34]'}`} style={{ fontFamily: NUMBER_FONT }}>
+                  {nullableSignedPct(selectedSlot.point?.benchmarkDailyPct, 2)}
+                </div>
+                <div className={`mt-1 text-right text-[12px] font-normal tabular-nums ${isRenderableChartValue(selectedSlot.point?.benchmarkPct) ? marketTextClass(selectedSlot.point?.benchmarkPct, marketColorMode) : 'text-white/[0.34]'}`} style={{ fontFamily: NUMBER_FONT }}>
+                  {nullableSignedPct(selectedSlot.point?.benchmarkPct, 2)}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -243,9 +408,11 @@ export default function PnlReportPage({ ctx = {} }) {
   const {
     closePnlReport,
     db,
+    fetchPnlBenchmarkRows,
     investmentSummary,
     language = 'zh',
     marketColorMode,
+    pnlReportTooltipDate = '',
     quoteRows,
     stockTrades,
     supabase,
@@ -353,7 +520,7 @@ export default function PnlReportPage({ ctx = {} }) {
   React.useEffect(() => {
     let cancelled = false;
     async function loadBenchmarkRows() {
-      if (!reportData.hasData || !supabase?.auth?.getSession) {
+      if (!reportData.hasData || (!supabase?.auth?.getSession && typeof fetchPnlBenchmarkRows !== 'function')) {
         setBenchmarkRows([]);
         setBenchmarkError('');
         return;
@@ -365,6 +532,11 @@ export default function PnlReportPage({ ctx = {} }) {
       setBenchmarkError('');
       setBenchmarkRows([]);
       try {
+        if (typeof fetchPnlBenchmarkRows === 'function') {
+          const rows = await fetchPnlBenchmarkRows({ symbol: 'QQQ', from, to });
+          if (!cancelled) setBenchmarkRows(Array.isArray(rows) ? rows : []);
+          return;
+        }
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
@@ -392,7 +564,7 @@ export default function PnlReportPage({ ctx = {} }) {
     return () => {
       cancelled = true;
     };
-  }, [language, reportData.benchmarkEndDate, reportData.benchmarkStartDate, reportData.hasData, supabase, user?.id]);
+  }, [fetchPnlBenchmarkRows, language, reportData.benchmarkEndDate, reportData.benchmarkStartDate, reportData.hasData, supabase, user?.id]);
 
   const handleRebuildToday = React.useCallback(async () => {
     if (!db?.upsertPnlReportSnapshots) return;
@@ -664,7 +836,14 @@ export default function PnlReportPage({ ctx = {} }) {
             {hasBenchmarkTrend && <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>}
           </div>
         </div>
-        <SparkArea data={reportData.trend} mode={chartMode} color={totalColor} />
+        <SparkArea
+          data={reportData.trend}
+          mode={chartMode}
+          color={totalColor}
+          language={language}
+          marketColorMode={marketColorMode}
+          initialSelectedDate={pnlReportTooltipDate}
+        />
       </section>
 
       <section className="mt-3 grid grid-cols-2 gap-3">

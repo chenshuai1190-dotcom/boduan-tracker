@@ -131,27 +131,104 @@ const mockEarningsCalendarEvents = [
 
 const mockPnlPortfolioSnapshots = [
   {
-    snapshotDate: '2026-07-08',
-    cumulativePnlUsd: 118433.6,
-    cumulativePnlPct: 0.0365,
-    totalAssetsUsd: 3365931,
+    snapshotDate: '2026-01-02',
+    cumulativePnlUsd: 18500,
+    cumulativePnlPct: 0.0060,
+    totalAssetsUsd: 3068500,
     totalBuyCostUsd: 2850000,
     sellProceedsUsd: 420000,
-    dailyPnlUsd: -1485.6,
-    dailyPnlPct: -0.0004,
-    updatedAt: '2026-07-08T21:00:00Z',
+    dailyPnlUsd: 18500,
+    dailyPnlPct: 0.0060,
+    updatedAt: '2026-01-02T21:00:00Z',
   },
   {
-    snapshotDate: '2026-07-07',
-    cumulativePnlUsd: 119919.2,
-    cumulativePnlPct: 0.0371,
-    totalAssetsUsd: 3367416.6,
+    snapshotDate: '2026-02-03',
+    cumulativePnlUsd: 42600,
+    cumulativePnlPct: 0.0139,
+    totalAssetsUsd: 3092600,
     totalBuyCostUsd: 2850000,
     sellProceedsUsd: 420000,
-    dailyPnlUsd: 8240.3,
-    dailyPnlPct: 0.0025,
-    updatedAt: '2026-07-07T21:00:00Z',
+    dailyPnlUsd: 12800,
+    dailyPnlPct: 0.0042,
+    updatedAt: '2026-02-03T21:00:00Z',
   },
+  {
+    snapshotDate: '2026-03-11',
+    cumulativePnlUsd: 88400,
+    cumulativePnlPct: 0.0287,
+    totalAssetsUsd: 3138400,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: -6200,
+    dailyPnlPct: -0.0020,
+    updatedAt: '2026-03-11T21:00:00Z',
+  },
+  {
+    snapshotDate: '2026-04-21',
+    cumulativePnlUsd: 194000,
+    cumulativePnlPct: 0.0673,
+    totalAssetsUsd: 3244000,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: 31200,
+    dailyPnlPct: 0.0102,
+    updatedAt: '2026-04-21T21:00:00Z',
+  },
+  {
+    snapshotDate: '2026-04-22',
+    cumulativePnlUsd: 262471.75,
+    cumulativePnlPct: 0.0909,
+    totalAssetsUsd: 3312471.75,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: 68100,
+    dailyPnlPct: 0.0236,
+    updatedAt: '2026-04-22T21:00:00Z',
+  },
+  {
+    snapshotDate: '2026-05-12',
+    cumulativePnlUsd: 218300,
+    cumulativePnlPct: 0.0752,
+    totalAssetsUsd: 3268300,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: -24100,
+    dailyPnlPct: -0.0074,
+    updatedAt: '2026-05-12T21:00:00Z',
+  },
+  {
+    snapshotDate: '2026-06-04',
+    cumulativePnlUsd: 171700,
+    cumulativePnlPct: 0.0594,
+    totalAssetsUsd: 3221700,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: -18900,
+    dailyPnlPct: -0.0058,
+    updatedAt: '2026-06-04T21:00:00Z',
+  },
+  {
+    snapshotDate: '2026-07-08',
+    cumulativePnlUsd: 199938.7,
+    cumulativePnlPct: 0.0657,
+    totalAssetsUsd: 3249938.7,
+    totalBuyCostUsd: 2850000,
+    sellProceedsUsd: 420000,
+    dailyPnlUsd: 14600,
+    dailyPnlPct: 0.0045,
+    updatedAt: '2026-07-08T21:00:00Z',
+  },
+];
+
+const mockPnlBenchmarkRows = [
+  { date: '2026-01-02', close: 500.00 },
+  { date: '2026-02-03', close: 512.40 },
+  { date: '2026-03-11', close: 519.80 },
+  { date: '2026-04-21', close: 522.00 },
+  { date: '2026-04-22', close: 530.56 },
+  { date: '2026-05-12', close: 556.30 },
+  { date: '2026-06-04', close: 573.80 },
+  { date: '2026-07-08', close: 591.25 },
 ];
 
 const mockPnlSymbolSnapshots = [
@@ -293,6 +370,10 @@ export default function DevVisualPreview() {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
+  const pnlReportTooltipDate = React.useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('pnlReportTooltipDate') || '';
+  }, []);
   const [changelogExpanded, setChangelogExpanded] = React.useState(false);
   const [newPwd, setNewPwd] = React.useState('');
   const [pwdLoading, setPwdLoading] = React.useState(false);
@@ -573,6 +654,8 @@ export default function DevVisualPreview() {
       return name || normalizedSymbol;
     },
     earningsCalendarEvents: mockEarningsCalendarEvents,
+    fetchPnlBenchmarkRows: async ({ from, to }) => mockPnlBenchmarkRows
+      .filter((row) => (!from || row.date >= from) && (!to || row.date <= to)),
     fetchRealtimePrices: async () => {},
     fetching: false,
     fgi: 32,
@@ -607,6 +690,7 @@ export default function DevVisualPreview() {
     closePnlReport: () => setActiveTab('home'),
     openStockDetail: () => setActiveTab('stock-detail'),
     closeStockDetail: () => setActiveTab('trades'),
+    pnlReportTooltipDate,
     portfolioCurrencyMode: 'USD',
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
@@ -816,7 +900,10 @@ export default function DevVisualPreview() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#05070b] px-4 pb-24 text-white" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+    <div
+      className={`min-h-screen bg-[#05070b] pb-24 text-white ${['pnl-report', 'stock-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+    >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
