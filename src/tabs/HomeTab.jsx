@@ -915,7 +915,7 @@ export default function HomeTab({ ctx }) {
           <RadarVisual active={signalIsCalm} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center">
-              <div className="truncate text-base font-black text-white">{cleanSignalText(benchmarkStatus?.text, language)}</div>
+              <div className="truncate text-base font-normal text-white/80">{cleanSignalText(benchmarkStatus?.text, language)}</div>
             </div>
             <div className="mt-1.5 text-[11px] text-white/50">{englishMode ? t(language, 'home.pullbackStayCash', '回撤<5%, 空仓等待') : (benchmarkStatus?.desc || '回撤<5%, 空仓等待')}</div>
             <div className="mt-2.5 truncate text-[11px] text-white/40">{t(language, 'home.waitHigherProbability', '耐心等待更高胜率机会')}</div>
@@ -924,7 +924,7 @@ export default function HomeTab({ ctx }) {
             <button
               type="button"
               onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-              className={`text-[19px] font-black leading-none tabular-nums ${pnlColor(benchmarkDrawdown, marketColorMode)}`}
+              className={`text-[19px] font-normal leading-none tabular-nums ${pnlColor(benchmarkDrawdown, marketColorMode)}`}
               style={{ fontFamily: NUMBER_FONT }}
             >
               {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}

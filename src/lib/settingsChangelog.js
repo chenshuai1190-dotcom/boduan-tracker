@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.277', date: '2026-07-10', latest: true,
+    ver: 'v10.7.9.278', date: '2026-07-10', latest: true,
+    items: [
+      '🏠 首页当前信号文字降重',
+      '  - 当前信号状态文字取消粗体,并从纯白降为轻灰,等待中和接近建仓更安静',
+      '  - 策略状态右侧回撤百分比同步取消粗体,保留原来的涨跌颜色、字号和位置',
+      '  - 本次只改首页展示层,不改行情接口、交易账本、收益快照、财报日历、RLS 或鉴权边界',
+    ],
+  },
+  {
+    ver: 'v10.7.9.277', date: '2026-07-10',
     items: [
       '📱 iOS 主屏启动黑底图',
       '  - 为 iOS Web App 增加 Apple startup image 黑底启动图,覆盖 HTML/CSS 加载前的系统 launch screen',

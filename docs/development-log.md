@@ -4,6 +4,30 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 首页当前信号文字降重
+
+- Commit: same commit;本地待用户确认截图,暂未推送/部署。
+- Deployment: not deployed;本轮先按用户要求做首页视觉微调并提供本地截图确认,不改变生产运行时代码、设置页版本、数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照或行情 relay。
+- Background: 用户要求把首页当前信号模块里“等待中 / 接近建仓”等状态文字取消加粗,并把文字颜色从纯白调灰一点;随后要求右侧策略状态回撤百分比也取消加粗。
+- Workflow tier: `runtime`。
+- Changes:
+  - 首页当前信号状态主文字从 `font-black text-white` 改为 `font-normal text-white/80`,保留原字号、截断和布局。
+  - 策略状态右侧回撤百分比从 `font-black` 改为 `font-normal`,保留原字号、颜色和 tabular number 布局。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.278`。
+  - 补充静态测试护栏,避免这些文字回退到粗体纯白或粗体百分比。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?tab=home&v=signal-text-muted`,390×844 viewport,当前信号状态文字 computed style 为 `fontWeight=400`,`color=rgba(255,255,255,0.8)`;右侧百分比 computed style 为 `fontWeight=400`。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/home-signal-percent-normal-local-390x844.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/home-current-signal-percent-normal-local.png`。
+- Rollback: 回退本条 `HomeTab` class、静态测试和日志即可恢复原粗体纯白显示;不影响任何数据、行情、鉴权或账本边界。
+
 ### 2026-07-10 - 工作区状态和 Vercel Link 护栏
 
 - Commit: same commit;本地 tooling/docs 提交,等待用户确认后再推送/部署。
