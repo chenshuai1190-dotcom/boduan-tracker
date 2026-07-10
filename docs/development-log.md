@@ -4,10 +4,42 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 首页行情超限分批热修
+
+- Commit: pending;生产故障热修完成本地实现与专项验证,等待敏感级验证后推送。
+- Deployment: pending;当前生产仍为 `v10.7.9.286` / runtime `aa7fe68429491a170b637889ea4c95cd8670e3c3`。
+- Background: `v10.7.9.286` 部署后用户截图反馈首页提示“拉取失败:单次最多请求 30 个 symbols”,今日盈亏、指数和交易持仓行情无法正常显示。排查确认财报日历逻辑没有写入交易或 quote universe;直接故障点是首页主行情把自选/持仓、QQQ、TQQQ、VIX、FGI 和 INDICES 一次性提交给 `/api/quote`,账户合并 symbol 超过服务端既有 30 个上限后整批返回 `400`。
+- Workflow tier: `sensitive`。
+- Changes:
+  - 新增 `src/lib/quoteRequestBatches.js`,保持 `/api/quote` 单批最多 30 个 symbols,按原顺序去重并拆分为多个批次。
+  - `fetchRealtimePrices` 改为顺序读取所有批次并合并 quote 行,31 个 symbols 拆为 `30+1`,更大集合继续按 30 分批;单批失败仍进入现有诊断和页面错误提示。
+  - 服务端 `parseSymbolsParam`、30-symbol 上限、`/api/quote` 鉴权和 provider 路由均不改。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.287`。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/quoteRequestBatches.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/quote-request-batches.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/quote-request-batches.test.js tests/quote-symbols.test.js tests/quote-handler.test.js`: pass,11/11;覆盖 30、31、65 个 symbols 分批,并确认后端上限、鉴权和参数校验保持不变。
+  - `npm test`: initial fail,181/182;旧静态护栏仍查找单批 `fetchQuote(symbols, { fresh: true })`;更新为每个 `batch` 必须 fresh 且必须调用 `buildQuoteSymbolBatches(requestedSymbols)` 后重跑 pass,182/182。
+  - `npm run build`: pass;生成 `App-euolW0Tp.js`、`SettingsTab-VvuqJL1V.js` 和 `settingsChangelog-Bm14v7kO.js`。
+  - `npm run verify:frontend-smoke`: pass;首页、交易、资产、目标、设置 5 个主 tab 均 `root:1`、`errors:0`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.287`。
+  - `npm run verify:rls:rest`: pass;16 个用户表匿名 REST 可见行均为 0。
+  - `git diff --check`: pass。
+- Boundaries: 不改交易账本、财报日历请求、收益快照、数据库、RLS、行情 provider 或服务端鉴权;不新增 token 或环境变量。
+- Rollback: 回退批处理 helper、`fetchRealtimePrices` 分批循环、`v10.7.9.287` 版本/日志和测试即可恢复单批行为;不需要数据库回滚。
+
 ### 2026-07-10 - 首页财报日历智能上移
 
-- Commit: not committed;按用户要求先完成本地开发与验证,尚未推送或部署。
-- Deployment: not deployed;当前生产仍为 `v10.7.9.285` / runtime `a0832b369a657ca95029da78c727acabbdff36ef`。
+- Commit: runtime `aa7fe68429491a170b637889ea4c95cd8670e3c3`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29103998696` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6fnx58PDzhGjLieAXsokCtJmcQtZ`,production alias 已更新,入口 `/assets/index-Cue4nbNN.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认 `/assets/HomeTab-CzFb8Igz.js` 命中 `data-home-earnings-placement`、`promoted`、`default`、`order-1`、`order-3` 和 `/api/earnings-calendar`,`/assets/SettingsTab-D52JO6_h.js` 命中 `v10.7.9.286`,`/assets/settingsChangelog-C81hDGn6.js` 命中 `v10.7.9.286`、`首页财报日历智能上移`、`未来 15 天内` 和 `独立 /api/earnings-calendar`。本轮只改首页财报日历卡片位置判断、开发预览、设置页版本/日志、测试和文档,不新增请求,不改变 `/api/quote`、`/api/earnings-calendar` 鉴权、交易账本、收益快照、行情 relay、数据库或 RLS。
 - Background: 用户确认首页财报日历采用双条件动态位置逻辑:未来 15 天内自选与持仓合计至少 5 家公司有待公布财报,并且其中至少 1 家属于当前持仓时自动上移到自选/持仓模块上方;不足 5 家、没有持仓股票财报、无数据、加载中或读取失败时继续放在首页最下方。
 - Workflow tier: `runtime`。
 - Changes:
@@ -38,6 +70,8 @@
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.286`。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- aa7fe68`: pass;GitHub Actions run `29103998696` success,Vercel status success,production 入口 `/assets/index-Cue4nbNN.js`,未登录 quote/earnings 均为 `401`。
+  - Production marker check: pass;`HomeTab-CzFb8Igz.js`、`SettingsTab-D52JO6_h.js` 和 `settingsChangelog-C81hDGn6.js` 均命中本次运行时、版本与更新日志标记。
 - Boundaries: 继续使用独立已登录 `/api/earnings-calendar`;不新增或合并接口,不改 `/api/quote`、鉴权、EODHD token、交易账本、收益快照、行情 relay、数据库或 RLS。
 - Rollback: 回退 `shouldPromoteEarningsCalendar`、日历回调、首页 flex order、`v10.7.9.286` 设置页记录和对应测试/文档,即可恢复财报日历始终位于首页底部的行为。
 

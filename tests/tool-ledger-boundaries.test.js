@@ -259,7 +259,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.286'), 'settings version badge should document the latest earnings calendar placement update');
+  assert.ok(settingsTabSource.includes('v10.7.9.287'), 'settings version badge should document the latest quote batching hotfix');
+  assert.ok(settingsChangelogSource.includes('首页行情超限分批修复'), 'settings changelog should describe the quote batching hotfix');
   assert.ok(settingsChangelogSource.includes('首页财报日历智能上移'), 'settings changelog should describe the earnings calendar placement update');
   assert.ok(homeTabSource.includes("placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}"), 'home should move the same earnings calendar card between promoted and default positions');
   assert.ok(earningsCalendarSource.includes('onPromotionChange(shouldPromote)'), 'earnings calendar should report its promotion decision after loading');
@@ -980,7 +981,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('const fresh = requestOptions.fresh === true;'), 'quote fetch helper should support fresh no-cache requests');
   assert.ok(appSource.includes("headers['Cache-Control'] = 'no-cache';"), 'fresh quote requests should ask intermediaries not to reuse cached responses');
   assert.ok(appSource.includes('params.set(\'_ts\', String(Date.now()))'), 'fresh quote requests should append a cache-busting timestamp');
-  assert.ok(appSource.includes("fetchQuote(symbols, { fresh: true })"), 'main realtime quote refresh should always bypass browser caches');
+  assert.ok(appSource.includes("fetchQuote(batch.join(','), { fresh: true })"), 'every main realtime quote batch should bypass browser caches');
+  assert.ok(appSource.includes('buildQuoteSymbolBatches(requestedSymbols)'), 'main realtime quote refresh should split symbol sets at the API batch boundary');
   assert.ok(appSource.includes("cache: 'no-store'"), 'fresh quote requests should disable the browser HTTP cache');
   assert.ok(quoteApiSource.includes("'private, no-store, max-age=0, must-revalidate'"), 'authenticated quote responses should not be browser-cacheable');
   assert.ok(appSource.includes('requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result)'), 'cloud-loaded ledger rows should request an immediate quote snapshot before waiting for the polling effect');
@@ -1424,7 +1426,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.286'), 'settings version badge should document the latest earnings calendar placement update');
+  assert.ok(settingsTabSource.includes('v10.7.9.287'), 'settings version badge should document the latest quote batching hotfix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1706,7 +1708,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.286'), 'settings version badge should document the latest earnings calendar placement update');
+  assert.ok(settingsTabSource.includes('v10.7.9.287'), 'settings version badge should document the latest quote batching hotfix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

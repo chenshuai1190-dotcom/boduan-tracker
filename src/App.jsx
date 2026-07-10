@@ -10,6 +10,7 @@ import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, should
 import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
+import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -2669,20 +2670,24 @@ function MainApp({ user, onLogout }) {
       const coreSymbols = ['QQQ', 'TQQQ'];
       const symbolSet = new Set([...rowsForQuote.map(s => normalizeSymbolKey(s?.symbol)).filter(Boolean), ...coreSymbols]);
       requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
-      const symbols = requestedSymbols.join(',');
-      const r = await fetchQuote(symbols, { fresh: true });
-      responseStatus = r.status;
-      const result = await r.json().catch(() => ({}));
+      const resultRows = [];
+      for (const batch of buildQuoteSymbolBatches(requestedSymbols)) {
+        const r = await fetchQuote(batch.join(','), { fresh: true });
+        responseStatus = r.status;
+        const batchResult = await r.json().catch(() => ({}));
+        responseResult = batchResult;
+        if (!r.ok) {
+          throw new Error(batchResult.error || `行情接口返回 ${r.status}`);
+        }
+        if (!batchResult.success) {
+          throw new Error(batchResult.error || '拉取失败');
+        }
+        if (Array.isArray(batchResult.data)) resultRows.push(...batchResult.data);
+      }
+      const result = { success: true, data: resultRows };
+      responseStatus = 200;
       responseResult = result;
-      
-      if (!r.ok) {
-        throw new Error(result.error || `行情接口返回 ${r.status}`);
-      }
-      if (!result.success) {
-        throw new Error(result.error || '拉取失败');
-      }
 
-      const resultRows = result.data;
       const providerErrors = collectQuoteProviderErrors(resultRows);
       if (providerErrors.length > 0) {
         const diagnostic = buildQuoteDiagnosticEntry({
@@ -2690,7 +2695,7 @@ function MainApp({ user, onLogout }) {
           notifyOnError,
           symbols: requestedSymbols,
           rowsCount: rowsForQuote.length,
-          status: r.status,
+          status: responseStatus,
           result,
           durationMs: Date.now() - startedAt,
         });
