@@ -4,6 +4,36 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 个股收益峰值呼吸点
+
+- Commit: local pending;本轮按用户要求先做本地截图预览,暂未推送 GitHub `main`,暂未部署 Vercel。
+- Deployment: not deployed;当前生产仍是 `v10.7.9.279` runtime commit `d086188db6a33fa7a3b9fbe0a6298aa48350867b`,入口 `/assets/index-BPHh3Z6v.js`。
+- Background: 用户要求把个股收益详情页“我的收益线”里的峰值圆点做成类似持仓收益试算价格位置点的呼吸效果,同时限定只作用在峰值圆点,并且不改变圆球本体大小。
+- Workflow tier: `runtime`。
+- Changes:
+  - 个股收益走势图峰值圆点后方新增独立金色呼吸光晕,节奏对齐持仓收益试算价格位置点的 `3.2s ease-in-out`。
+  - 原峰值实心圆保持 `r="3.6"`、填充和描边不变;光晕设置 `pointerEvents="none"`,不接管图表点击/拖动交互。
+  - 增加 `prefers-reduced-motion` 降级,系统减少动态效果时光晕停止动画。
+  - 本地 `DevVisualPreview` 增加 `stockDetailPeak=past` 截图 QA 参数,仅用于让 mock 个股收益线出现“历史峰值高于当前值”的可视状态,默认预览不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.280`。
+  - 补充静态测试护栏,锁定峰值专属呼吸光晕、3.2 秒节奏、reduced motion 和原圆点半径不变。
+- Key files:
+  - `src/pages/StockDetailPage.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.280`。
+  - `npm run build`: pass,生成 `StockDetailPage-Co8EcS-Y.js`、`SettingsTab-Be5wnqPd.js`、`settingsChangelog-CFyuZAgS.js`、`App-Cc6O1w68.js` 等本地构建产物。
+  - `git diff --check`: pass。
+  - Local visual check: pass;Vite dev preview `http://127.0.0.1:54944/?tab=stock-detail&stockDetailPeak=past&v=peak-breathe-280-mid`,390×844 viewport,峰值呼吸环 `ringCount=1`,中心圆点 `dotR=3.6`,动画名 `stock-detail-peak-breathe`,时长 `3.2s`;两帧间光晕 box 从约 `13.0px` 变为 `16.6px`,圆点本体半径不变。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-peak-breathe-local-390x844-mid-a.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-peak-breathe-local-390x844-mid-b.png`。
+- Rollback: 回退本条 `StockDetailPage` 峰值光晕、`v10.7.9.280` 设置页版本/更新日志、静态测试和文档即可恢复上一版;不影响任何数据、行情、鉴权或账本边界。
+
 ### 2026-07-10 - 首页股票文字继续降重
 
 - Commit: runtime `d086188db6a33fa7a3b9fbe0a6298aa48350867b`;本条后续 docs-only 回填提交只同步部署证据。

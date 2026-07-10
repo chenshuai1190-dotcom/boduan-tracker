@@ -258,7 +258,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.279'), 'settings version badge should document the latest home typography update');
+  assert.ok(settingsTabSource.includes('v10.7.9.280'), 'settings version badge should document the latest stock detail peak breathing update');
+  assert.ok(settingsChangelogSource.includes('个股收益峰值呼吸点'), 'settings changelog should describe the latest stock detail peak breathing update');
+  assert.ok(settingsChangelogSource.includes('圆点本体半径保持不变'), 'settings changelog should document that the stock detail peak dot size is unchanged');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.279'), 'settings changelog should retain the latest home stock text weight update');
   assert.ok(settingsChangelogSource.includes('首页股票文字继续降重'), 'settings changelog should describe the latest home stock text weight update');
   assert.ok(settingsChangelogSource.includes('切换基准菜单里的股票代码取消粗体'), 'settings changelog should describe the benchmark menu symbol weight update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.278'), 'settings changelog should retain the home current signal text update');
@@ -692,6 +695,12 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.equal(stockDetailPageSource.includes('text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}'), false, 'stock detail trade record dates should not keep the old gray date color');
   assert.ok(stockDetailPageSource.includes('chartRootRef'), 'stock detail chart should keep a root ref for outside-click dismissal');
   assert.ok(stockDetailPageSource.includes('stockDetailPnlArea'), 'stock detail chart should render the gold area fill');
+  assert.ok(stockDetailPageSource.includes('@keyframes stock-detail-peak-breathe'), 'stock detail chart should define the peak-only breathing animation');
+  assert.ok(stockDetailPageSource.includes('stock-detail-peak-breathe-ring'), 'stock detail chart should render a separate breathing halo for the peak point');
+  assert.ok(stockDetailPageSource.includes('animation: stock-detail-peak-breathe 3.2s ease-in-out infinite'), 'stock detail peak halo should match the price position breathing rhythm');
+  assert.ok(stockDetailPageSource.includes('@media (prefers-reduced-motion: reduce)'), 'stock detail peak halo should respect reduced motion settings');
+  assert.ok(stockDetailPageSource.includes('pointerEvents="none"'), 'stock detail peak halo should not capture chart pointer interactions');
+  assert.ok(stockDetailPageSource.includes('r="3.6" fill="#ffd18a" stroke="#05070b" strokeWidth="1.4"'), 'stock detail peak dot body should keep its original size and styling');
   assert.ok(stockDetailPageSource.includes('updateSelectedPoint(event);'), 'stock detail chart should show the crosshair immediately on pointer down');
   assert.ok(stockDetailPageSource.includes('strokeDasharray="4 5"'), 'stock detail chart should render the selected-day crosshair line');
   assert.ok(stockDetailPageSource.includes('strokeWidth="1.15"'), 'stock detail chart should keep the P&L line thinner like the reference design');
@@ -1371,7 +1380,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.279'), 'settings version badge should document the latest home typography update');
+  assert.ok(settingsTabSource.includes('v10.7.9.280'), 'settings version badge should document the latest stock detail peak breathing update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1600,6 +1609,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes('<PnlReportPage ctx={homeCtx} />'), 'local visual preview should render the P&L report mock through the home/report context');
   assert.ok(devVisualPreviewSource.includes('<StockDetailPage ctx={homeCtx} />'), 'local visual preview should render the stock detail mock through the home/report context');
   assert.ok(devVisualPreviewSource.includes('fetchPnlReportSymbolSnapshotHistory: async (symbol)'), 'local visual preview should provide stock detail symbol snapshot history rows');
+  assert.ok(devVisualPreviewSource.includes("get('stockDetailPeak') === 'past'"), 'local visual preview should support forcing a past stock-detail peak for screenshot QA');
+  assert.ok(devVisualPreviewSource.includes('stockDetailSnapshotHistory'), 'local visual preview should isolate the stock-detail screenshot peak data from default mocks');
   assert.ok(devVisualPreviewSource.includes('fetchPnlReportSnapshots: async () => mockPnlPortfolioSnapshots'), 'local visual preview should provide P&L report snapshot rows');
   assert.ok(devVisualPreviewSource.includes("props.onDelete ? t(language, 'review.editReview', '编辑复盘') : t(language, 'review.addReview', '写复盘')"), 'local visual preview should reflect review log edit state');
   assert.equal(homeTabSource.includes("FearIndexCards.tsx"), false, 'home should not import the high-fidelity fear index card components after rollback');
@@ -1648,7 +1659,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.279'), 'settings version badge should document the latest home typography update');
+  assert.ok(settingsTabSource.includes('v10.7.9.280'), 'settings version badge should document the latest stock detail peak breathing update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

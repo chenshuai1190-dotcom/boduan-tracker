@@ -332,12 +332,46 @@ export default function DevVisualPreview() {
   const freshnessPreviewMode = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('freshness');
+  const stockDetailPeakPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';
   const previewMarketIndices = React.useMemo(() => {
     if (indicesPreviewMode === 'placeholder') return [];
     if (indicesPreviewMode === 'rest-empty') return mockRestMarketIndices;
     if (indicesPreviewMode === 'sampled') return mockSampledMarketIndices;
     return mockMarketIndices;
   }, [indicesPreviewMode]);
+  const stockDetailSnapshotHistory = React.useMemo(() => {
+    if (!stockDetailPeakPreview) return mockPnlSymbolSnapshotHistory;
+    return mockPnlSymbolSnapshotHistory.map((row) => {
+      if (row.symbol !== 'NVDA') return row;
+      if (row.snapshotDate === '2026-06-04') {
+        return {
+          ...row,
+          currentPriceUsd: 195.2,
+          marketValueUsd: 19520,
+          unrealizedPnlUsd: 7520,
+          cumulativePnlUsd: 7520,
+        };
+      }
+      if (row.snapshotDate === '2026-07-07') {
+        return {
+          ...row,
+          currentPriceUsd: 179.8,
+          marketValueUsd: 14384,
+          unrealizedPnlUsd: 4784,
+          cumulativePnlUsd: 6184,
+        };
+      }
+      if (row.snapshotDate !== '2026-07-08') return row;
+      return {
+        ...row,
+        currentPriceUsd: 178.4,
+        marketValueUsd: 14272,
+        unrealizedPnlUsd: 4272,
+        cumulativePnlUsd: 5672,
+      };
+    });
+  }, [stockDetailPeakPreview]);
   const previewActivePositions = freshnessPreviewMode === 'locked'
     ? mockLockedActivePositions
     : mockActivePositions;
@@ -419,7 +453,7 @@ export default function DevVisualPreview() {
     deleteReviewLog: async () => ({}),
     fetchPnlReportSnapshots: async () => mockPnlPortfolioSnapshots,
     fetchPnlReportSymbolSnapshots: async () => mockPnlSymbolSnapshots,
-    fetchPnlReportSymbolSnapshotHistory: async (symbol) => mockPnlSymbolSnapshotHistory.filter((row) => row.symbol === String(symbol || '').trim().toUpperCase()),
+    fetchPnlReportSymbolSnapshotHistory: async (symbol) => stockDetailSnapshotHistory.filter((row) => row.symbol === String(symbol || '').trim().toUpperCase()),
     fetchPnlReportRebuildState: async () => null,
     upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
     clearPnlReportRebuildState: async () => ({}),
@@ -427,7 +461,7 @@ export default function DevVisualPreview() {
     deleteCostBasisTrade: async () => ({}),
     deleteCostBasisSymbol: async () => ({}),
     insertCostBasisTrade: async () => ({}),
-  }), []);
+  }), [stockDetailSnapshotHistory]);
 
   const fmt = React.useCallback((n, digits = 2) => {
     const value = Number(n);

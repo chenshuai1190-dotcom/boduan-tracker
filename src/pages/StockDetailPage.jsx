@@ -303,6 +303,35 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
         )}
         <svg viewBox="0 0 320 186" className="h-full w-full overflow-visible">
           <defs>
+            <style>
+              {`
+                @keyframes stock-detail-peak-breathe {
+                  0%, 100% {
+                    opacity: 0.22;
+                    transform: scale(0.72);
+                  }
+                  50% {
+                    opacity: 0.06;
+                    transform: scale(1.42);
+                  }
+                }
+
+                .stock-detail-peak-breathe-ring {
+                  animation: stock-detail-peak-breathe 3.2s ease-in-out infinite;
+                  transform-box: fill-box;
+                  transform-origin: center;
+                  will-change: opacity, transform;
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                  .stock-detail-peak-breathe-ring {
+                    animation: none !important;
+                    opacity: 0.16;
+                    transform: scale(1);
+                  }
+                }
+              `}
+            </style>
             <linearGradient id="stockDetailPnlArea" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#f6b54b" stopOpacity="0.22" />
               <stop offset="58%" stopColor="#f6b54b" stopOpacity="0.07" />
@@ -328,6 +357,14 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
           {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" filter="url(#stockDetailPnlGlow)" />}
           {showPeakCallout && (
             <>
+              <circle
+                className="stock-detail-peak-breathe-ring"
+                cx={chart.peakPoint.x}
+                cy={chart.peakPoint.y}
+                r="7"
+                fill="#f6b54b"
+                pointerEvents="none"
+              />
               <circle cx={chart.peakPoint.x} cy={chart.peakPoint.y} r="3.6" fill="#ffd18a" stroke="#05070b" strokeWidth="1.4" />
               <text x={chart.peakPoint.x + 4} y={Math.max(12, chart.peakPoint.y - 9)} fontSize="9" fill="rgba(255,255,255,0.50)">
                 {t(language, 'stockDetail.peakLabel', '峰值')} {peakText}
