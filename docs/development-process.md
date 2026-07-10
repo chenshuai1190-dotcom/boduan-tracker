@@ -21,6 +21,7 @@
    - 从 GitHub 当前 `main` 开始。
    - 运行 `git status --short --branch`,确认工作树状态。
    - 首次接手、换机、工具链异常或部署前环境不确定时,先运行 `npm run verify:toolchain`,确认 `node/npm/gh/vercel/rg/jq/git/ssh/curl`、GitHub CLI 登录、Vercel CLI 登录和项目 SSH key 都可用。
+   - 需要本地登录、真实 Supabase 配置或真实 EODHD smoke 时,运行 `npm run verify:local-env`;如果当前工作区 `.env.local` 缺失或不完整,再运行 `npm run bootstrap:local-env` 从 `~/.config/boduan-tracker/local.env` 和 `~/.config/boduan-tracker/eodhd.env` 生成。只报告 key present/missing,不要打印任何值。
    - 先读 `docs/handoff.md`,再阅读 `README.md`、本文件、`docs/development-log.md` 和与任务相关的代码。
 
 2. **创建明确范围的分支**
@@ -31,6 +32,7 @@
 3. **本地实现**
    - 小步修改,避免顺手重构无关代码。
    - 不提交真实 `.env`、API token、截图中的密钥或 Supabase service role key。
+   - 不提交 `.vercel/`;它只是本机 Vercel link 状态,已由 `.gitignore` 排除。
    - 前端密钥只能使用公开 anon key;付费行情 token 必须只放在服务端环境变量 `EODHD_API_KEY`。
    - 定时任务、全账户批处理、邀请码等服务端管理流只能读取服务端环境变量;`SUPABASE_SERVICE_ROLE_KEY` 和 `CRON_SECRET` 的真实值绝不能写入前端 `VITE_` 变量、日志、截图、测试夹具或仓库文件。
    - 所有用户主动提交类操作(新增、保存、删除、同步、导入、导出等)必须在请求期间禁用重复提交,并在完成后给出明确成功或失败反馈;不能静默完成后让用户猜结果。

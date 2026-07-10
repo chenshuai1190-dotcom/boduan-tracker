@@ -4,6 +4,40 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 本地测试环境 Bootstrap
+
+- Commit: same commit;本地 tooling/docs 提交,等待用户确认后再推送/部署。
+- Deployment: not deployed;本轮只标准化新 Codex 工作区的本地测试环境恢复流程,不改变生产运行时代码、前端 UI、数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照或行情 relay。
+- Background: 新会话会在新工作区接手,不会继承旧工作区 `.env.local`、`.vercel/`、dev server 或测试状态。用户同意把本机稳定测试环境和当前工作区环境分开,通过脚本检查和生成,避免每次到旧日期目录找配置。
+- Workflow tier: `docs/tooling`。
+- Changes:
+  - 本机创建 `~/.config/boduan-tracker/local.env`,权限 `600`,保存公开 Supabase/本地 quote 配置;继续使用 `~/.config/boduan-tracker/eodhd.env` 保存 EODHD key。
+  - 新增 `scripts/verify-local-env.mjs`,只报告稳定本机 env、当前工作区 `.env.local`、Vercel link 的 present/missing 和权限状态,不打印值。
+  - 新增 `scripts/bootstrap-local-env.mjs`,从稳定本机 env 生成当前工作区 `.env.local`,默认保留已有值,不写入 `VITE_EODHD_TOKEN`。
+  - `package.json` 增加 `npm run verify:local-env` 和 `npm run bootstrap:local-env`。
+  - `.gitignore` 增加 `.vercel/`,避免本地 `vercel link` 状态污染工作区。
+  - `README.md`、`docs/development-process.md`、`docs/eodhd-local-testing.md`、`docs/handoff.md` 同步新会话本地测试环境恢复流程。
+- Key files:
+  - `scripts/verify-local-env.mjs`
+  - `scripts/bootstrap-local-env.mjs`
+  - `package.json`
+  - `.gitignore`
+  - `README.md`
+  - `docs/development-process.md`
+  - `docs/eodhd-local-testing.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - Stable local file setup: pass;`~/.config/boduan-tracker/local.env` created with directory mode `700` and file mode `600`,public Supabase config present,value not printed。
+  - `node --check scripts/verify-local-env.mjs && node --check scripts/bootstrap-local-env.mjs && node --check scripts/eodhd-calendar-smoke.mjs`: pass。
+  - `npm run verify:local-env`: pass;stable local env and EODHD key present,worktree `.env.local` mode `600`;Vercel link reported optional missing。
+  - `npm run bootstrap:local-env`: pass;generated/preserved `.env.local` from stable local env without printing values。
+  - `npm run verify:docs-consistency`: pass。
+  - `npm run smoke:eodhd-calendar -- --symbols=NVDA --from=2026-05-20 --to=2026-05-22`: pass;returned `ok: true`,`revenueMerged=1`,`usdRevenueMerged=1`,`publishedMerged=1`,`actualRevenueMerged=1`,`marketReactionMerged=1`,未打印 key。
+  - `npm test`: pass,176 tests。
+  - `git diff --check`: pass。
+- Rollback: 回退本条脚本、package scripts、`.gitignore` 和文档说明即可恢复旧的手动 `.env.local` 流程;本机 `~/.config/boduan-tracker/local.env` 与 `eodhd.env` 是未跟踪本地文件,不属于 Git 回滚范围,需要时可手动删除。
+
 ### 2026-07-10 - EODHD 本机稳定 key 路径
 
 - Commit: same commit;本地 tooling/docs 提交,等待用户确认后再推送/部署。

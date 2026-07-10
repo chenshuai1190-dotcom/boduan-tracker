@@ -30,13 +30,15 @@ chmod 600 ~/.config/boduan-tracker/eodhd.env
 For a fresh checkout that needs all app env vars, `.env.local` is still supported and remains ignored by Git:
 
 ```bash
-cp .env.example .env.local
-chmod 600 .env.local
+npm run verify:local-env
+npm run bootstrap:local-env
 ```
 
-Then add only server-side secrets locally:
+If the stable workstation files do not exist yet, fall back to a manual `.env.local` and add only server-side secrets locally:
 
 ```bash
+cp .env.example .env.local
+chmod 600 .env.local
 EODHD_API_KEY=...
 ```
 

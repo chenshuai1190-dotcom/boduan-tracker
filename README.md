@@ -17,11 +17,12 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 export PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 npm run verify:toolchain
 npm ci
-cp .env.example .env.local
+npm run verify:local-env
+npm run bootstrap:local-env
 npm run dev
 ```
 
-Fill `.env.local` with the real Supabase project values and a rotated EODHD API key.
+`verify:local-env` checks the stable workstation env files without printing values. `bootstrap:local-env` creates the current worktree `.env.local` from `~/.config/boduan-tracker/local.env` and `~/.config/boduan-tracker/eodhd.env`; the generated file stays ignored by Git.
 
 For EODHD earnings-calendar revenue validation, use the server-only local smoke:
 
