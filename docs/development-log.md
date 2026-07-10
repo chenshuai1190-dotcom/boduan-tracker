@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 热门股票弹窗实时行情
 
-- Commit: pending;用户要求本地实现,本轮不提交、不部署。
-- Deployment: not deployed;当前 production 仍为 `v10.7.9.283` runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`。本轮只改添加自选股票弹窗里的热门候选池、弹窗打开后的 quote 拉取、设置页版本/更新日志、静态护栏和文档,不新增接口,不改变 `/api/quote` 鉴权、EODHD token、首页默认行情加载、交易账本、收益快照、RLS 或数据库结构。
+- Commit: runtime `a0832b369a657ca95029da78c727acabbdff36ef`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29101142295` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/61estBzrkUXg8MTBsPDc8Mnhg6fe`,production alias 已更新,入口 `/assets/index-BXDcpMEr.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认 `/assets/HomeTab-QR0es07-.js` 命中 `PANW`、`CRWD`、`热门股票`、`添加自选` 和 `fetchPopularStockQuotes`,`/assets/App-DyCh41ih.js` 命中 `fetchPopularStockQuotes`、`EODHD-v2`、`priceSource`、`未找到这个美股代码`、`PANW` 和 `CRWD`,`/assets/i18n-DirP5Edj.js` 命中 `未找到这个美股代码` 和 `This U.S. stock ticker was not found and cannot be added.`,`/assets/settingsChangelog-BHSYb0ds.js` 命中 `v10.7.9.285`、`热门股票弹窗实时行情`、`v10.7.9.284` 和 `自选添加股票校验`,`/assets/SettingsTab-D4SvJF73.js` 命中 `v10.7.9.285`。本轮只改添加自选股票弹窗里的热门候选池、弹窗打开后的 quote 拉取、添加自选前 quote 校验、设置页版本/更新日志、静态护栏和文档,不新增接口,不改变 `/api/quote` 鉴权、EODHD token、首页默认行情加载、交易账本、收益快照、RLS 或数据库结构。
 - Background: 用户确认采用推荐改法:热门股票改为常用美股候选池,打开添加自选弹窗后再通过现有已登录 `/api/quote` 获取实时价格和涨跌幅;同时明确必须严格遵守“只有打开弹窗才触发,首页默认不全量加载”。
 - Workflow tier: `runtime`。
 - Changes:
@@ -35,12 +35,14 @@
   - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- a0832b3`: pass;GitHub combined status success,GitHub Actions run `29101142295` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/61estBzrkUXg8MTBsPDc8Mnhg6fe`,production entry `/assets/index-BXDcpMEr.js`,未登录 quote/earnings 均为 `401`。
+  - Production marker check: pass;`/assets/HomeTab-QR0es07-.js` 命中热门候选池和弹窗热门股票 marker,`/assets/App-DyCh41ih.js` 命中 `fetchPopularStockQuotes`、`EODHD-v2`、`priceSource` 和添加自选校验文案,`/assets/i18n-DirP5Edj.js` 命中中英文无效美股代码提示,`/assets/settingsChangelog-BHSYb0ds.js` 命中 `v10.7.9.285` / `v10.7.9.284` 更新记录,`/assets/SettingsTab-D4SvJF73.js` 命中 `v10.7.9.285`。
 - Rollback: 回退本条 `popularStocks` 候选池、`fetchPopularStockQuotes`、`HomeTab` 弹窗行情 effect、`v10.7.9.285` 设置页版本/更新日志、测试和文档即可恢复上一版热门列表;不影响 `v10.7.9.284` 添加自选前校验、已存在自选、交易账本、行情接口鉴权、RLS 或数据库结构。
 
 ### 2026-07-10 - 自选添加股票校验
 
-- Commit: pending;用户要求先做第一步并本地验证,本轮不提交、不部署。
-- Deployment: not deployed;当前 production 仍为 `v10.7.9.283` runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`。本轮只改添加自选前的前端校验、提示文案、设置页版本/更新日志、静态护栏和文档,不新增接口,不改变 `/api/quote` 鉴权、EODHD token、热门股票动态来源、行情 relay、交易账本、收益快照、RLS 或数据库结构。
+- Commit: runtime `a0832b369a657ca95029da78c727acabbdff36ef`;与 `v10.7.9.285` 热门股票弹窗实时行情同一运行时代码提交上线。
+- Deployment: completed;随 `v10.7.9.285` 部署上线,GitHub Actions run `29101142295` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/61estBzrkUXg8MTBsPDc8Mnhg6fe`,production alias 已更新,入口 `/assets/index-BXDcpMEr.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 `/assets/App-DyCh41ih.js` 命中 `EODHD-v2`、`priceSource` 和 `未找到这个美股代码`,`/assets/i18n-DirP5Edj.js` 命中中英文无效美股代码提示,`/assets/settingsChangelog-BHSYb0ds.js` 命中 `v10.7.9.284` 和 `自选添加股票校验`。本轮只改添加自选前的前端校验、提示文案、设置页版本/更新日志、静态护栏和文档,不新增接口,不改变 `/api/quote` 鉴权、EODHD token、热门股票动态来源、行情 relay、交易账本、收益快照、RLS 或数据库结构。
 - Background: 用户确认先做“添加股票限制”:如果行情接口里没有该美股代码,不允许添加非美股或不存在的股票代码;热门股票实时/动态列表暂不做。
 - Workflow tier: `runtime`。
 - Changes:
