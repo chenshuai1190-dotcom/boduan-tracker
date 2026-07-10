@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 收益报表浮层颜色和页面文案调整
 
-- Commit: pending;本地修复等待用户确认截图后再推送部署。
-- Deployment: not deployed;当前 production 仍为 `v10.7.9.281` runtime commit `d67062a9957d854f4872b971ce16dcb00a7325bb`。本轮只改收益报表展示层、设置页版本/更新日志、静态护栏和文档,不改变交易账本、收益快照写入逻辑、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
+- Commit: runtime `8674e9212cde3303d0551de2a40079fa2df61c47`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29094453049` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7HDFCuqzgEc679WTqFjs3kLziAFJ`,production alias 已更新,入口 `/assets/index-CTOGiBH1.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认 `/assets/PnlReportPage-2bsLqICO.js` 命中 `Quote Data testing`、`dailyPnlPct` 和 `pnlPct`,`/assets/SettingsTab-KmFRAqN2.js` 与 `/assets/settingsChangelog-BU1qNh_q.js` 命中 `v10.7.9.282`,`/assets/settingsChangelog-BU1qNh_q.js` 命中 `收益报表浮层颜色和页面文案调整` 和 `底层生成逻辑保留`。生产 `devPreview` 不绕过登录页鉴权;页面隐藏“生成收盘快照”入口以本地截图和静态护栏验证。本轮只改收益报表展示层、设置页版本/更新日志、静态护栏和文档,不改变交易账本、收益快照写入逻辑、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
 - Background: 用户截图反馈收益报表对比浮层里“我的”当日收益率为负时仍显示红色;正确口径应和纳斯达克行一致,按系统涨跌颜色设置决定红/绿。随后用户要求把收益报表标题下方 `Quote 数据测试版` 改为 `Quote Data testing`,并从页面移除底部“生成收盘快照”入口,但代码暂时保留方便以后测试。
 - Workflow tier: `runtime`。
 - Changes:
@@ -34,6 +34,8 @@
   - `git diff --check`: pass。
   - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?devPreview=1&tab=pnl-report&pnlReportTooltipDate=2026-05-12&v=282-quote-data-testing-hide-snapshot`,收益报表标题下方显示 `Quote Data testing`;页面可见文本不再包含“生成收盘快照”;收益报表对比浮层显示 `2026/5/12 星期二`,“我的”当日 `-0.74%` 为绿色、累计 `+7.52%` 为红色,纳斯达克行继续按同一系统涨跌颜色设置显示。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-v10.7.9.282-quote-data-testing-hide-snapshot-local-chrome-430x1600.png`;`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-v10.7.9.282-quote-data-testing-hide-snapshot-local-chrome-430x2600.png`。上一轮颜色修复参考图保留 `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-tooltip-color-fix-v10.7.9.282-local-590x1280.png`。
+  - `npm run verify:deploy-status -- 8674e92`: pass;GitHub combined status success,GitHub Actions run `29094453049` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7HDFCuqzgEc679WTqFjs3kLziAFJ`,production entry `/assets/index-CTOGiBH1.js`,未登录 quote/earnings 均为 `401`。
+  - Production marker check: pass;递归扫描 22 个 JS assets,`/assets/PnlReportPage-2bsLqICO.js` 命中 `Quote Data testing`、`dailyPnlPct` 和 `pnlPct`,`/assets/SettingsTab-KmFRAqN2.js` 与 `/assets/settingsChangelog-BU1qNh_q.js` 命中 `v10.7.9.282`,`/assets/settingsChangelog-BU1qNh_q.js` 命中 `收益报表浮层颜色和页面文案调整` 和 `底层生成逻辑保留`。
 - Rollback: 回退本条 `PnlReportPage` 浮层数值颜色、副标题文案、手动快照入口隐藏开关、`v10.7.9.282` 设置页版本/更新日志、测试和文档即可恢复上一版;不影响任何数据写入、行情鉴权或账本边界。
 
 ### 2026-07-10 - 收益报表对比浮层
