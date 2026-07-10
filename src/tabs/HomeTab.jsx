@@ -649,8 +649,8 @@ export default function HomeTab({ ctx }) {
   const isAddingStock = Boolean(addingStockSymbol);
   const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
   const showPnlColumn = tableTab === 'positions';
-  const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 112px' : '68px 70px 88px 84px';
-  const metricMinWidth = showPnlColumn ? 438 : 322;
+  const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 144px' : '68px 70px 88px 84px';
+  const metricMinWidth = showPnlColumn ? 470 : 322;
   const metricColumns = React.useMemo(() => [
     { key: 'price', label: t(language, 'home.price', '价格') },
     { key: 'change', label: t(language, 'home.change', '涨跌幅') },
@@ -1114,7 +1114,7 @@ export default function HomeTab({ ctx }) {
                         className="grid min-h-[54px] w-full items-center gap-1 py-2 text-left"
                         style={{ gridTemplateColumns: metricGridTemplate }}
                       >
-                        <span className="text-right text-[13px] tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)}</span>
+                        <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)}</span>
                         <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
                         <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                           {fmtDrawdownPct(item.highDrawdown)}
@@ -1123,13 +1123,13 @@ export default function HomeTab({ ctx }) {
                           {fmtOptionalMarketPct(item.ytdChangePercent)}
                         </span>
                         {showPnlColumn && (
-                          <span className={`text-right tabular-nums ${item.pnlValue === null ? 'text-white/25' : pnlColor(item.pnlValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                          <span className="overflow-hidden text-right tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                             {item.pnlValue === null ? (
-                              <span className="text-[13px] font-medium">--</span>
+                              <span className="block whitespace-nowrap text-[13px] font-normal text-white/25">--</span>
                             ) : (
                               <>
-                                <span className="block text-[13px] font-black leading-[15px]">{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
-                                <span className="mt-1 block text-[11px] font-bold leading-[13px]">{fmtSignedPct(item.pnlPct, 2)}</span>
+                                <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] ${pnlColor(item.pnlValue, marketColorMode)}`}>{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
+                                <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] ${pnlColor(item.pnlPct, marketColorMode)}`}>{fmtSignedPct(item.pnlPct, 2)}</span>
                               </>
                             )}
                           </span>

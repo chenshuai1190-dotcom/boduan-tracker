@@ -4,6 +4,38 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 首页持仓盈亏和自选亮度修复
+
+- Commit: pending runtime release;部署完成后回填实际提交。
+- Deployment: authorized;用户要求修复后立即部署。
+- Background: 用户反馈首页持仓 tab 的“持仓盈亏”金额和百分比仍沿用旧版粗体,颜色层级未与当前交易页统一;同时 112px 列宽且缺少不换行保护,较长金额的正号会被挤成单独一排。随后补充要求自选股票代码和价格都参考当前信号“等待中”的亮度,避免纯白过亮。
+- Workflow tier: `runtime`。
+- Changes:
+  - 首页持仓盈亏金额从 `font-black`、收益率从 `font-bold` 统一改为 `font-normal`,金额和百分比分别通过现有 `pnlColor` 跟随系统涨跌颜色设置。
+  - 参考交易页持仓表,首页持仓盈亏列从 `112px` 扩为 `144px`,持仓指标总宽从 `438px` 扩为 `470px`;自选 tab 的列宽保持不变。
+  - 金额和百分比增加 `whitespace-nowrap`、溢出隐藏和省略保护,避免正号与数字换成两排,同时不挤压前面的价格、涨跌幅、52 周跌幅和年初至今列。
+  - 自选/持仓共用的股票代码和价格均明确使用当前信号“等待中”同款 `text-white/80`;代码维持正常字重,价格从旧 `text-white/78` 统一到有效亮度 class。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.289`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm run verify:toolchain`: pass;Node `v22.23.1`,npm `10.9.8`,项目 SSH key、GitHub SSH read 和 Vercel CLI 可用。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37;锁定 144px 持仓盈亏列、470px 指标总宽、正常字重、单行保护、系统涨跌色和自选代码/价格 `text-white/80`。
+  - `npm test`: pass,182/182。
+  - `npm run build`: pass;生成 `HomeTab-B-xw838a.js`、`SettingsTab-DLDR7U4-.js`、`settingsChangelog-BHojI-oU.js` 和 `App-Da4AhrVY.js`。
+  - `npm run verify:frontend-smoke`: pass;首页、交易、资产、目标和设置 5 个主 tab 均 `errors:0`。
+  - Local visual check: pass;`390x844` 首页持仓预览中,持仓盈亏单元格实际宽度 `144px`,金额/收益率均为 `font-weight:400`、`white-space:nowrap`,盈利红色、亏损绿色并跟随当前系统设置;自选 NVDA 代码和价格与“等待中”实际颜色均为 `rgba(255, 255, 255, 0.8)`,页面 console error 为 0。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.289`。
+  - `git diff --check`: pass。
+- Boundaries: 不改持仓盈亏计算口径、交易账本、行情请求、财报日历、收益快照、数据库、RLS 或鉴权。
+- Rollback: 回退首页持仓盈亏 class/列宽、`v10.7.9.289` 版本记录、静态护栏和本条日志即可恢复旧展示。
+
 ### 2026-07-11 - 首页财报和股票文字层级降亮
 
 - Commit: runtime `c3fe394abe7f8ec10f7e14eb535b2fda9377cba9`;本条后续 docs-only 回填提交只同步部署证据。
