@@ -11,6 +11,7 @@ import {
   Home,
   ListChecks,
   Loader2,
+  LogOut,
   Pin,
   Plus,
   RefreshCw,
@@ -25,6 +26,7 @@ import { normalizeLanguage, t } from './lib/i18n.js';
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
+const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
@@ -285,12 +287,17 @@ export default function DevVisualPreview() {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'pnl-report', 'stock-detail'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
+  const [changelogExpanded, setChangelogExpanded] = React.useState(false);
+  const [newPwd, setNewPwd] = React.useState('');
+  const [pwdLoading, setPwdLoading] = React.useState(false);
+  const [pwdMsg, setPwdMsg] = React.useState(null);
+  const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [tradeCurrencyMode, setTradeCurrencyMode] = React.useState('CNY');
   const [tradeLookupStatus, setTradeLookupStatus] = React.useState(null);
   const [tradeEntryScope, setTradeEntryScope] = React.useState('ledger');
@@ -735,6 +742,37 @@ export default function DevVisualPreview() {
     yearlyActuals,
   };
 
+  const settingsCtx = {
+    changelogExpanded,
+    ChevronDown,
+    ChevronUp,
+    clearQuoteDiagnosticLogs: noop,
+    language,
+    Loader2,
+    LogOut,
+    newPwd,
+    onLogout: noop,
+    pwdLoading,
+    pwdMsg,
+    quoteDiagnosticLogs: [],
+    setChangelogExpanded,
+    setLanguage,
+    setNewPwd,
+    setPwdLoading,
+    setPwdMsg,
+    setShowChangePassword,
+    showChangePassword,
+    showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: 'dev-visual-preview-token' } } }),
+        updateUser: async () => ({ data: { user: { id: 'dev-user' } }, error: null }),
+      },
+    },
+    user: { email: 'preview@example.com' },
+    X,
+  };
+
   const nav = [
     { id: 'home', label: t(language, 'nav.home', '首页'), icon: Home },
     { id: 'trades', label: t(language, 'nav.trades', '交易'), icon: ListChecks },
@@ -754,6 +792,8 @@ export default function DevVisualPreview() {
           ? <HomeTab ctx={homeCtx} />
           : activeTab === 'trades'
           ? <TradesTab ctx={tradesCtx} />
+          : activeTab === 'settings'
+          ? <SettingsTab ctx={settingsCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
       </Suspense>
 

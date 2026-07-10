@@ -4,6 +4,38 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 前台白屏 smoke 护栏
+
+- Commit: same commit;runtime/tooling 提交,按用户确认推送 GitHub `main` 并触发 Vercel production 部署。
+- Deployment: user confirmed;本轮新增本地前台 smoke 护栏和开发预览设置页 mock,不改变设置页版本或用户可见更新日志。部署完成后的 Actions/Vercel target、生产入口和未登录 API 鉴权结果在最终回复中给出,避免为纯部署证据回填再触发 docs-only 部署循环。
+- Background: `AnalysisTab ctx` 拆分后资产页曾因 render 层局部变量作用域问题白屏,用户确认先补护栏,再继续后续 tab ctx 或效率优化。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增 `npm run verify:frontend-smoke`,脚本启动 Vite dev server 并用本地 Chrome/Chromium DevTools 协议打开开发预览主 tab,检查 `#root` 非空、关键文案存在,并捕获 `ReferenceError` / `TypeError` 等白屏级 runtime/console 错误。
+  - `DevVisualPreview` 增加 `SettingsTab` mock 渲染路径和最小 settings ctx,让本地 smoke 能覆盖首页、交易、资产、目标、设置 5 个底部主 tab。
+  - `docs/development-process.md`、`docs/handoff.md` 和 `verify:docs-consistency` 纳入 `verify:frontend-smoke` marker,防止后续前端效率清理漏跑白屏护栏。
+  - 保持生产功能、设置页版本、用户可见更新日志、`/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照和行情 relay 不变。
+- Key files:
+  - `scripts/verify-frontend-smoke.mjs`
+  - `src/DevVisualPreview.jsx`
+  - `package.json`
+  - `scripts/verify-docs-consistency.mjs`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:frontend-smoke`: pass;本地 Chrome `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` 打开 Vite 预览,`home/trades/analysis/review/settings` 均 `root:1`,关键文案存在,errors 0。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,176/176。
+  - `npm run build`: pass,生成 `App-CE3WohmT.js`、`HomeTab-CkBjTg66.js`、`TradesTab-BIsxU1SL.js`、`AnalysisTab-S-1dg2ey.js`、`SettingsTab-BYWUQdc0.js`、`settingsChangelog-B9AdpNuM.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --stat`: reviewed,7 files changed,仅新增 smoke 脚本、开发预览 settings mock、脚本/流程/交接/测试/日志更新。
+- Rollback: 回退本条新增 smoke 脚本、package script、开发预览 settings mock、静态测试和流程/交接/日志更新即可;不影响线上业务逻辑、数据库、鉴权、RLS 或行情/交易边界。
+
 ### 2026-07-10 - AnalysisTab ctx 拆分试点
 
 - Commit: same commit;runtime 提交,按用户确认推送 GitHub `main` 并触发 Vercel production 部署。

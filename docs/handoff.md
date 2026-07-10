@@ -7,7 +7,7 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 最新接手补充: `v10.7.9.275` 首页状态圆点降噪已部署上线。首页当前信号“等待中”等标题旁的小状态圆点已删除,VIX 恐慌指数主数字右侧的小绿点已删除;VIX 下方风险条定位圆点、颜色逻辑、行情接口、交易账本、收益快照、财报日历、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
-- 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建/audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。
+- 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 以本文件所在最新提交为准;流程/工具链运行提交 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4` 已推送并完成 Vercel production 部署;App 可见运行时行为仍是 `v10.7.9.275`。
 - 当前生产运行时基准提交: `41e77056d7a62a594830dda44eec8b4d54a51f5e`;最新流程/工具链部署提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
 - 设置页版本: `v10.7.9.275`。
@@ -143,6 +143,7 @@ npm ci
    npm run verify:toolchain
    npm test
    npm run build
+   npm run verify:frontend-smoke
    npm audit --audit-level=moderate
    git diff --check
    ```

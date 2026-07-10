@@ -107,6 +107,7 @@ const requiredProcessMarkers = [
   'npm run verify:toolchain',
   'npm run verify:deploy-status',
   'npm run verify:docs-consistency',
+  'npm run verify:frontend-smoke',
 ]
 
 for (const marker of requiredProcessMarkers) {
@@ -121,6 +122,7 @@ const requiredHandoffMarkers = [
   'npm run verify:toolchain',
   'npm run verify:deploy-status',
   'npm run verify:docs-consistency',
+  'npm run verify:frontend-smoke',
 ]
 
 for (const marker of requiredHandoffMarkers) {
@@ -137,6 +139,10 @@ if (packageJson.scripts?.['verify:toolchain'] !== 'node scripts/verify-toolchain
 
 if (packageJson.scripts?.['verify:deploy-status'] !== 'node scripts/verify-deploy-status.mjs') {
   fail('package.json missing verify:deploy-status script')
+}
+
+if (packageJson.scripts?.['verify:frontend-smoke'] !== 'node scripts/verify-frontend-smoke.mjs') {
+  fail('package.json missing verify:frontend-smoke script')
 }
 
 summary.push(`SettingsTab=${settingsVersion || 'missing'}`)

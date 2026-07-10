@@ -52,9 +52,12 @@
      npm run verify:toolchain
      npm test
      npm run build
+     npm run verify:frontend-smoke
      npm audit --audit-level=moderate
      git diff --check
      ```
+
+     - `npm run verify:frontend-smoke` 会用本地 Chrome/Chromium DevTools 协议启动 Vite 开发预览,在 mock 数据下打开首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空、关键文案存在,且没有 `ReferenceError` / `TypeError` 等白屏级运行时错误。若本机 Chrome 不在常见路径,设置 `CHROME_PATH` 指向可执行文件。
 
    - **B. Docs-only evidence / 纯文档和部署证据回填**
      - 适用范围: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变应用源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。
@@ -177,7 +180,7 @@
 - Changes:
 - Key files:
 - Validation:
-  - Runtime: `npm test` / `npm run build` / `npm audit --audit-level=moderate` / `git diff --check`
+  - Runtime: `npm test` / `npm run build` / `npm run verify:frontend-smoke` / `npm audit --audit-level=moderate` / `git diff --check`
   - Tooling/deploy: `npm run verify:toolchain` / `npm run verify:deploy-status -- <commit>`
   - Docs-only: `npm run verify:docs-consistency` / `git diff --check` / `git diff --stat`
   - Sensitive: runtime checks plus affected API/RLS/security smoke

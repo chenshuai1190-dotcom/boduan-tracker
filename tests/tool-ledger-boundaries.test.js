@@ -14,6 +14,7 @@ const earningsCalendarSource = readFileSync(new URL('../src/tabs/EarningsCalenda
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const packageSource = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
 const pnlReportPageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx', import.meta.url), 'utf8');
 const stockDetailPageSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const pnlReportSnapshotsSource = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
@@ -1538,12 +1539,15 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
-  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'pnl-report', 'stock-detail'].includes(requestedTab)"), 'local visual preview should support opening home, trades, review, P&L report, and stock detail pages directly');
+  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail'].includes(requestedTab)"), 'local visual preview should support opening home, trades, analysis, review, settings, P&L report, and stock detail pages directly');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');
+  assert.ok(devVisualPreviewSource.includes("const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'))"), 'local visual preview should be able to render the settings page mock');
   assert.ok(devVisualPreviewSource.includes('<HomeTab ctx={homeCtx} />'), 'local visual preview should render the home page mock');
   assert.ok(devVisualPreviewSource.includes('<TradesTab ctx={tradesCtx} />'), 'local visual preview should render the trades page mock');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
+  assert.ok(devVisualPreviewSource.includes('<SettingsTab ctx={settingsCtx} />'), 'local visual preview should render the settings page mock');
+  assert.ok(packageSource.includes('"verify:frontend-smoke": "node scripts/verify-frontend-smoke.mjs"'), 'package scripts should expose the frontend blank-screen smoke guard');
   assert.ok(devVisualPreviewSource.includes('<PnlReportPage ctx={homeCtx} />'), 'local visual preview should render the P&L report mock through the home/report context');
   assert.ok(devVisualPreviewSource.includes('<StockDetailPage ctx={homeCtx} />'), 'local visual preview should render the stock detail mock through the home/report context');
   assert.ok(devVisualPreviewSource.includes('fetchPnlReportSymbolSnapshotHistory: async (symbol)'), 'local visual preview should provide stock detail symbol snapshot history rows');
