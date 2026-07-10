@@ -5,6 +5,7 @@ import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealt
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
+import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -12,18 +13,6 @@ const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const BTC_STATUS_DISPLAY_GRACE_MS = 60_000;
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const POPULAR_US_STOCKS = [
-  { symbol: 'NVDA', name: '英伟达', company: 'NVIDIA' },
-  { symbol: 'MSFT', name: '微软', company: 'Microsoft' },
-  { symbol: 'AAPL', name: '苹果', company: 'Apple' },
-  { symbol: 'TSLA', name: '特斯拉', company: 'Tesla' },
-  { symbol: 'AMZN', name: '亚马逊', company: 'Amazon' },
-  { symbol: 'GOOGL', name: '谷歌A', company: 'Alphabet' },
-  { symbol: 'META', name: 'Meta', company: 'Meta' },
-  { symbol: 'IBKR', name: '盈透证券', company: 'Interactive Brokers' },
-];
-const POPULAR_US_STOCK_SYMBOLS = new Set(POPULAR_US_STOCKS.map((item) => item.symbol));
-
 const emptySummary = {
   activePositions: [],
   positions: [],
@@ -484,6 +473,7 @@ export default function HomeTab({ ctx }) {
     earningsCalendarEvents,
     fetchRealtimePrices,
     fetching,
+    fetchPopularStockQuotes,
     fgi,
     fgiDataDate,
     fgiMonth,
@@ -523,6 +513,8 @@ export default function HomeTab({ ctx }) {
   const [stockSearch, setStockSearch] = React.useState('');
   const [addingStockSymbol, setAddingStockSymbol] = React.useState(null);
   const [addStockNotice, setAddStockNotice] = React.useState(null);
+  const [popularQuoteRows, setPopularQuoteRows] = React.useState([]);
+  const [popularQuoteStatus, setPopularQuoteStatus] = React.useState('idle');
   const [showEditWatchlist, setShowEditWatchlist] = React.useState(false);
   const [editWatchlistSearch, setEditWatchlistSearch] = React.useState('');
   const [editActionKey, setEditActionKey] = React.useState(null);
@@ -623,12 +615,33 @@ export default function HomeTab({ ctx }) {
     });
     return map;
   }, [quoteRows]);
+  const popularQuoteBySymbol = React.useMemo(() => {
+    const map = new Map();
+    (popularQuoteRows || []).forEach((item) => {
+      if (item?.symbol) map.set(String(item.symbol).toUpperCase(), item);
+    });
+    return map;
+  }, [popularQuoteRows]);
   const normalizedSearch = stockSearch.trim().toUpperCase();
-  const filteredPopularStocks = React.useMemo(() => POPULAR_US_STOCKS.filter((item) => {
+  const popularStocksWithQuotes = React.useMemo(() => POPULAR_US_STOCKS.map((item, index) => {
+    const quote = popularQuoteBySymbol.get(item.symbol) || quoteBySymbol.get(item.symbol) || null;
+    return { ...item, quote, rank: index };
+  }).sort((a, b) => {
+    if (normalizedSearch) return a.rank - b.rank;
+    const aHasQuote = Number(a.quote?.price) > 0;
+    const bHasQuote = Number(b.quote?.price) > 0;
+    if (aHasQuote !== bHasQuote) return aHasQuote ? -1 : 1;
+    if (aHasQuote && bHasQuote) {
+      const diff = Math.abs(Number(b.quote?.changePercent) || 0) - Math.abs(Number(a.quote?.changePercent) || 0);
+      if (Math.abs(diff) > 0.000001) return diff;
+    }
+    return a.rank - b.rank;
+  }), [normalizedSearch, popularQuoteBySymbol, quoteBySymbol]);
+  const filteredPopularStocks = React.useMemo(() => popularStocksWithQuotes.filter((item) => {
     if (!normalizedSearch) return true;
     const haystack = `${item.symbol} ${item.name} ${item.company}`.toUpperCase();
     return haystack.includes(normalizedSearch);
-  }), [normalizedSearch]);
+  }), [normalizedSearch, popularStocksWithQuotes]);
   const canAddCustomStock = /^[A-Z0-9.-]{1,12}$/.test(normalizedSearch)
     && !POPULAR_US_STOCK_SYMBOLS.has(normalizedSearch)
     && !watchlistSymbols.has(normalizedSearch);
@@ -660,6 +673,26 @@ export default function HomeTab({ ctx }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [showAddStock, showEditWatchlist]);
+
+  React.useEffect(() => {
+    if (!showAddStock || !isWatchlistTab || typeof fetchPopularStockQuotes !== 'function') return undefined;
+    let cancelled = false;
+    setPopularQuoteStatus('loading');
+    fetchPopularStockQuotes(POPULAR_US_STOCKS.map((item) => item.symbol))
+      .then((result) => {
+        if (cancelled) return;
+        setPopularQuoteRows(Array.isArray(result?.data) ? result.data : []);
+        setPopularQuoteStatus('success');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.warn('[热门股票] 行情加载失败:', error?.message || error);
+        setPopularQuoteStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showAddStock, isWatchlistTab, fetchPopularStockQuotes]);
 
   const closeAddStockSheet = () => {
     if (isAddingStock) return;
@@ -1190,8 +1223,11 @@ export default function HomeTab({ ctx }) {
               </span>
             </div>
 
-            <div className="mt-4 shrink-0 text-[12px] font-normal text-white/55">
-              {normalizedSearch ? t(language, 'home.searchResults', '搜索结果') : t(language, 'home.popularStocks', '热门股票')}
+            <div className="mt-4 flex shrink-0 items-center gap-2 text-[12px] font-normal text-white/55">
+              <span>{normalizedSearch ? t(language, 'home.searchResults', '搜索结果') : t(language, 'home.popularStocks', '热门股票')}</span>
+              {!normalizedSearch && popularQuoteStatus === 'loading' && Loader2 ? (
+                <Loader2 className="h-3 w-3 animate-spin text-white/35" aria-hidden="true" />
+              ) : null}
             </div>
 
             <div className="mt-2 min-h-[160px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
@@ -1201,7 +1237,7 @@ export default function HomeTab({ ctx }) {
                 <>
                   {filteredPopularStocks.map((item) => {
                     const symbol = item.symbol;
-                    const quote = quoteBySymbol.get(symbol);
+                    const quote = item.quote || quoteBySymbol.get(symbol);
                     const quotePrice = quote?.price || quote?.currentPrice;
                     const isAdded = watchlistSymbols.has(symbol);
                     const color = marketColor(quote?.changePercent, marketColorMode);

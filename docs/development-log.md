@@ -4,6 +4,71 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 热门股票弹窗实时行情
+
+- Commit: pending;用户要求本地实现,本轮不提交、不部署。
+- Deployment: not deployed;当前 production 仍为 `v10.7.9.283` runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`。本轮只改添加自选股票弹窗里的热门候选池、弹窗打开后的 quote 拉取、设置页版本/更新日志、静态护栏和文档,不新增接口,不改变 `/api/quote` 鉴权、EODHD token、首页默认行情加载、交易账本、收益快照、RLS 或数据库结构。
+- Background: 用户确认采用推荐改法:热门股票改为常用美股候选池,打开添加自选弹窗后再通过现有已登录 `/api/quote` 获取实时价格和涨跌幅;同时明确必须严格遵守“只有打开弹窗才触发,首页默认不全量加载”。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增 `src/lib/popularStocks.js`,把热门股票从 8 个前端固定项扩展为 30 个常用美股/ETF 候选池。
+  - 新增 `fetchPopularStockQuotes`,复用现有已登录 `/api/quote` fresh 请求,只返回同候选池 symbol、无 provider error、`price > 0` 且 `priceSource: EODHD-v2` 的股票 quote 行。
+  - `HomeTab` 只在 `showAddStock && isWatchlistTab` 时触发热门候选池行情请求;首页默认渲染、首页主行情刷新和未打开弹窗状态不会请求这批候选股。
+  - 添加自选弹窗里的热门列表优先显示弹窗实时 quote,无 quote 时回退既有展示;未搜索时有实时 quote 的候选股按当日涨跌幅绝对值优先展示。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.285`,并保留本地上一条 `v10.7.9.284` 自选添加股票校验记录。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/lib/popularStocks.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:workspace-state`: pass;提示有本轮未提交改动和新增 `src/lib/popularStocks.js`,`.env.local`、本机 stable env、EODHD key、`node_modules` 和 `dist` 均存在,Vercel link 缺失但本轮不需要。
+  - `npm run verify:local-env`: pass;只确认本机 Supabase public keys 和 EODHD key present,未输出任何密钥值。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37;覆盖热门候选池独立模块、`fetchPopularStockQuotes` 复用已登录 `/api/quote`、只返回有效 `EODHD-v2` 股票 quote 行,以及热门行情必须由 `showAddStock && isWatchlistTab` 弹窗状态触发。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.285`。
+  - `npm run build`: pass;生成本地构建产物 `App-DyCh41ih.js`、`HomeTab-QR0es07-.js`、`SettingsTab-D4SvJF73.js`、`settingsChangelog-BHSYb0ds.js`。
+  - `npm test`: pass,177/177。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+- Rollback: 回退本条 `popularStocks` 候选池、`fetchPopularStockQuotes`、`HomeTab` 弹窗行情 effect、`v10.7.9.285` 设置页版本/更新日志、测试和文档即可恢复上一版热门列表;不影响 `v10.7.9.284` 添加自选前校验、已存在自选、交易账本、行情接口鉴权、RLS 或数据库结构。
+
+### 2026-07-10 - 自选添加股票校验
+
+- Commit: pending;用户要求先做第一步并本地验证,本轮不提交、不部署。
+- Deployment: not deployed;当前 production 仍为 `v10.7.9.283` runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`。本轮只改添加自选前的前端校验、提示文案、设置页版本/更新日志、静态护栏和文档,不新增接口,不改变 `/api/quote` 鉴权、EODHD token、热门股票动态来源、行情 relay、交易账本、收益快照、RLS 或数据库结构。
+- Background: 用户确认先做“添加股票限制”:如果行情接口里没有该美股代码,不允许添加非美股或不存在的股票代码;热门股票实时/动态列表暂不做。
+- Workflow tier: `runtime`。
+- Changes:
+  - `addStock` 添加自选前改为必须通过现有已登录 `/api/quote` fresh 请求校验 ticker。
+  - 只有 quote 返回同 symbol、没有 provider error、`price > 0` 且来自股票 quote 行 `priceSource: EODHD-v2` 时才继续写入 `watchlist`;接口失败、无效价格、非美股代码、特殊 quote 符号或不存在代码都直接返回错误提示。
+  - 补充中文和 English 错误提示:`未找到这个美股代码,暂不能添加` / `This U.S. stock ticker was not found and cannot be added.`。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.284`。
+  - 补充静态护栏,锁定添加自选必须走 auth-gated quote 校验,且不能在行情预拉取失败后继续落库。
+- Key files:
+  - `src/App.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:workspace-state`: pass;提示有本轮未提交改动,`.env.local`、本机 stable env、EODHD key、`node_modules` 和 `dist` 均存在,Vercel link 缺失但本轮不需要。
+  - `npm run verify:local-env`: pass;只确认本机 Supabase public keys 和 EODHD key present,未输出任何密钥值。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37;覆盖添加自选必须走已登录 quote fresh 校验、拒绝无有效股票价格/特殊 quote 行,且行情预拉取失败后不能继续落库。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.284`。
+  - `npm run build`: pass;生成本地构建产物 `App-B0xgauqx.js`、`HomeTab-HJwL8GeB.js`、`SettingsTab-CIUP3OYS.js`、`settingsChangelog-6S9rMoCb.js`、`i18n-DirP5Edj.js`。
+  - `npm test`: pass,177/177。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+- Rollback: 回退本条 `addStock` 校验、i18n 文案、`v10.7.9.284` 设置页版本/更新日志、测试和文档即可恢复上一版添加行为;不影响已存在自选、交易账本、行情接口鉴权、RLS 或数据库结构。
+
 ### 2026-07-10 - 个股详情持仓时间
 
 - Commit: runtime `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本条后续 docs-only 回填提交只同步部署证据。

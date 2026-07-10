@@ -1264,6 +1264,32 @@ function MainApp({ user, onLogout }) {
     });
   }, []);
 
+  const fetchPopularStockQuotes = useCallback(async (symbols = []) => {
+    const normalizedSymbols = Array.from(new Set(
+      (Array.isArray(symbols) ? symbols : [])
+        .map((symbol) => normalizeStrictSymbolKey(symbol))
+        .filter(Boolean),
+    )).slice(0, 30);
+    if (normalizedSymbols.length === 0) return { success: true, data: [] };
+
+    const r = await fetchQuote(normalizedSymbols.join(','), { fresh: true });
+    const result = await r.json().catch(() => ({}));
+    if (!r.ok || !result?.success) {
+      throw new Error(result?.error || `热门股票行情校验失败: ${r.status}`);
+    }
+
+    const allowedSymbols = new Set(normalizedSymbols);
+    const data = (Array.isArray(result?.data) ? result.data : [])
+      .map((row) => ({ ...row, symbol: normalizeStrictSymbolKey(row?.symbol) }))
+      .filter((row) => (
+        allowedSymbols.has(row.symbol)
+        && !row.error
+        && Number(row.price) > 0
+        && row.priceSource === 'EODHD-v2'
+      ));
+    return { success: true, data };
+  }, [fetchQuote]);
+
   const fetchRealtimeSnapshot = useCallback(async (endpoint, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
     const { data: { session } } = await supabase.auth.getSession();
@@ -2502,11 +2528,27 @@ function MainApp({ user, onLogout }) {
     }
     let fresh = null;
     try {
-      const r = await fetchQuote(symbol);
-      const result = await r.json();
-      fresh = result?.data?.find(d => d.symbol === symbol) || null;
+      const r = await fetchQuote(symbol, { fresh: true });
+      const result = await r.json().catch(() => ({}));
+      if (!r.ok || !result?.success) {
+        return {
+          success: false,
+          error: t(language, 'home.stockValidateFailed', '股票代码校验失败,请稍后重试'),
+        };
+      }
+      fresh = result?.data?.find(d => String(d?.symbol || '').toUpperCase() === symbol) || null;
+      if (!fresh || fresh.error || !(Number(fresh.price) > 0) || fresh.priceSource !== 'EODHD-v2') {
+        return {
+          success: false,
+          error: t(language, 'home.stockNotFound', '未找到这个美股代码,暂不能添加'),
+        };
+      }
     } catch (e) {
       console.warn(`[添加自选 ${symbol}] 行情预拉取失败:`, e.message);
+      return {
+        success: false,
+        error: t(language, 'home.stockValidateFailed', '股票代码校验失败,请稍后重试'),
+      };
     }
     const price = parseFloat(draft.price) || fresh?.price || 0;
     const high = parseFloat(draft.high) || fresh?.week52High || fresh?.high || price;
@@ -4362,6 +4404,7 @@ function MainApp({ user, onLogout }) {
     fetchError,
     fetching,
     fetchRealtimePrices: () => fetchRealtimePrices(null, { trigger: 'manual-button', notifyOnError: true }),
+    fetchPopularStockQuotes,
     fgi,
     fgiDataDate,
     fgiLabel,

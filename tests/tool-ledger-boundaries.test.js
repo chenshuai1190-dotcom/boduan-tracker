@@ -37,6 +37,7 @@ const pnlReportPageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx
 const stockDetailPageSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const pnlReportSnapshotsSource = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
 const pnlReportViewModelSource = readFileSync(new URL('../src/lib/pnlReportViewModel.js', import.meta.url), 'utf8');
+const popularStocksSource = readFileSync(new URL('../src/lib/popularStocks.js', import.meta.url), 'utf8');
 const stockDetailViewModelSource = readFileSync(new URL('../src/lib/stockDetailViewModel.js', import.meta.url), 'utf8');
 const reviewTabSource = readFileSync(new URL('../src/tabs/ReviewTab.jsx', import.meta.url), 'utf8');
 const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangelog.js', import.meta.url), 'utf8');
@@ -258,7 +259,13 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.283'), 'settings version badge should document the latest stock detail holding period update');
+  assert.ok(settingsTabSource.includes('v10.7.9.285'), 'settings version badge should document the latest popular stocks quote update');
+  assert.ok(settingsChangelogSource.includes('热门股票弹窗实时行情'), 'settings changelog should describe the latest popular stocks quote update');
+  assert.ok(settingsChangelogSource.includes('热门行情严格只在添加自选股票弹窗打开时触发'), 'settings changelog should document that popular quote loading is modal-gated');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.284'), 'settings changelog should retain the watchlist add validation update');
+  assert.ok(settingsChangelogSource.includes('自选添加股票校验'), 'settings changelog should describe the latest watchlist add validation update');
+  assert.ok(settingsChangelogSource.includes('添加自选股票前必须先通过已登录 /api/quote 校验美股代码存在且返回有效价格'), 'settings changelog should document the quote validation requirement');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.283'), 'settings changelog should retain the stock detail holding period update');
   assert.ok(settingsChangelogSource.includes('个股详情持仓时间'), 'settings changelog should describe the latest stock detail holding period update');
   assert.ok(settingsChangelogSource.includes('当前这一轮持仓的首次买入日'), 'settings changelog should document the current holding cycle basis');
   assert.ok(settingsChangelogSource.includes('v10.7.9.282'), 'settings changelog should retain the P&L report page update');
@@ -765,7 +772,7 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(homeTabSource.includes(`<h3 className="text-[17px] font-normal text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>`), 'edit watchlist title should not be bold');
   assert.ok(homeTabSource.includes('bg-transparent text-sm font-normal text-white'), 'watchlist search fields should use normal weight');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-[#f6b54b]'), 'popular filter chip should not be bold');
-  assert.ok(homeTabSource.includes('mt-4 shrink-0 text-[12px] font-normal text-white/55'), 'popular stocks section title should not be bold');
+  assert.ok(homeTabSource.includes('mt-4 flex shrink-0 items-center gap-2 text-[12px] font-normal text-white/55'), 'popular stocks section title should not be bold');
   assert.ok(homeTabSource.includes('<span className="text-[14px] font-normal text-white">{symbol}</span>'), 'watchlist ticker codes should not be bold');
   assert.ok(homeTabSource.includes('<span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>'), 'custom ticker code should not be bold');
   assert.ok(homeTabSource.includes('mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b]'), 'add custom stock button should not be bold');
@@ -773,6 +780,18 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(homeTabSource.includes('mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-normal text-[#111318]'), 'add success acknowledge button should not be bold');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{t(language, \'home.addWatchlistStock\''), false, 'add watchlist title should not keep the old font-black class');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{addStockNotice.title}'), false, 'add success title should not keep the old font-black class');
+  assert.ok(appSource.includes('fetchQuote(symbol, { fresh: true })'), 'adding a watchlist stock should validate the ticker through the auth-gated quote API');
+  assert.ok(appSource.includes('const fetchPopularStockQuotes = useCallback(async (symbols = []) => {'), 'popular stock quotes should be fetched through a narrow app helper');
+  assert.ok(appSource.includes("const r = await fetchQuote(normalizedSymbols.join(','), { fresh: true });"), 'popular stock quotes should reuse the auth-gated quote API with fresh requests');
+  assert.ok(appSource.includes("row.priceSource === 'EODHD-v2'"), 'popular stock quotes should only expose validated stock quote rows');
+  assert.ok(homeTabSource.includes("import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';"), 'popular stock candidates should live in a shared module');
+  assert.ok(popularStocksSource.includes("symbol: 'PANW'"), 'popular stock candidates should cover more than the old eight fixed rows');
+  assert.ok(homeTabSource.includes("if (!showAddStock || !isWatchlistTab || typeof fetchPopularStockQuotes !== 'function') return undefined;"), 'popular quote loading must be gated by the add-stock modal being open');
+  assert.ok(homeTabSource.includes('fetchPopularStockQuotes(POPULAR_US_STOCKS.map((item) => item.symbol))'), 'popular quote loading should only request the modal candidate pool');
+  assert.ok(appSource.includes("t(language, 'home.stockNotFound', '未找到这个美股代码,暂不能添加')"), 'unknown or non-US tickers should be rejected with a user-facing message');
+  assert.ok(appSource.includes("!fresh || fresh.error || !(Number(fresh.price) > 0) || fresh.priceSource !== 'EODHD-v2'"), 'watchlist add should reject non-stock quote rows and rows without a valid positive price');
+  assert.equal(appSource.includes('console.warn(`[添加自选 ${symbol}] 行情预拉取失败:`, e.message);\n    }\n    const price = parseFloat(draft.price) || fresh?.price || 0;'), false, 'watchlist add should not continue after quote validation failure');
+  assert.ok(i18nSource.includes("'home.stockNotFound': 'This U.S. stock ticker was not found and cannot be added.'"), 'English mode should have a stock validation error message');
 });
 
 test('settings data maintenance reset entry and runtime reset code stay removed', () => {
@@ -1402,7 +1421,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.283'), 'settings version badge should document the latest stock detail holding period update');
+  assert.ok(settingsTabSource.includes('v10.7.9.285'), 'settings version badge should document the latest popular stocks quote update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1684,7 +1703,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.283'), 'settings version badge should document the latest stock detail holding period update');
+  assert.ok(settingsTabSource.includes('v10.7.9.285'), 'settings version badge should document the latest popular stocks quote update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
