@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 首页股票代码和公司名称继续降亮
 
-- Commit: pending runtime release;部署完成后回填实际提交。
-- Deployment: authorized;按用户最新截图反馈修正后直接部署。
+- Commit: runtime `ce9e3c1f04a0608baebf21c33629e871c495384b`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29108801349` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/768NCGK6zF6TmmUR3DHYqAqayU6z`,production alias 已更新,入口 `/assets/index-DVIdFhU1.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `/assets/App-JFpVH1wU.js`、`/assets/HomeTab-CbBO9ySb.js`、`/assets/SettingsTab-DJv8xQ7Y.js` 和 `/assets/settingsChangelog-x7s3LGlG.js` 与本地验证构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.290`、股票代码 `text-white/70`、公司名称 `text-white/35` 和价格 `text-white/80`,上一版股票代码 `text-white/80` 与公司名称 `text-white/40` 的完整 class marker 均不存在。
 - Background: 用户查看生产页面后反馈首页自选/持仓左侧名称列仍明显过亮,要求继续降低股票代码和公司名称的白色亮度。此处只指文字,不调整股票 Logo 的白色底板。
 - Workflow tier: `runtime`。
 - Changes:
@@ -32,6 +32,8 @@
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.290`。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- ce9e3c1`: initial pending while GitHub Actions run `29108801349` was in progress;final pass,GitHub combined status and Vercel status both success,production 入口 `/assets/index-DVIdFhU1.js`,未登录 quote/earnings 均为 `401`。
+  - Production asset check: pass;`App-JFpVH1wU.js`、`HomeTab-CbBO9ySb.js`、`SettingsTab-DJv8xQ7Y.js` 和 `settingsChangelog-x7s3LGlG.js` 线上与本地 SHA-256 一致,版本、更新日志和新旧亮度 marker 均符合预期。
 - Boundaries: 只改首页名称列文字透明度;不改 Logo、价格、行情、交易账本、持仓盈亏、财报日历、收益快照、数据库、RLS 或鉴权。
 - Rollback: 回退两处文字透明度、`v10.7.9.290` 版本记录、静态护栏和本条日志即可恢复上一版亮度。
 
