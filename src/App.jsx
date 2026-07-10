@@ -4215,8 +4215,8 @@ function MainApp({ user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newTrade.symbol, showAddTrade]);
 
-  const fmt = (n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-  const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
+  const fmt = useCallback((n, d = 2) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }), []);
+  const fmtPct = useCallback((n) => `${(n * 100).toFixed(1)}%`, []);
 
 
   const isPnlReportPage = activePage === 'pnl-report';
@@ -4260,6 +4260,50 @@ function MainApp({ user, onLogout }) {
     showChangePassword,
     showConfirm,
     user,
+  ]);
+  const analysisTabCtx = useMemo(() => ({
+    accounts,
+    chartSelectedMonthIdx,
+    db,
+    fillMonth,
+    fmt,
+    hkdRate,
+    language,
+    newAccount,
+    setAccounts,
+    setChartSelectedMonthIdx,
+    setFillMonth,
+    setNewAccount,
+    setShowAddAccount,
+    setShowFillSnapshot,
+    setShowMonthsDetail,
+    setSnapshotDraft,
+    setSnapshots,
+    setSnapshotTab,
+    showAddAccount,
+    showConfirm,
+    showFillSnapshot,
+    showMonthsDetail,
+    snapshotDraft,
+    snapshots,
+    snapshotTab,
+    usdRate,
+  }), [
+    accounts,
+    chartSelectedMonthIdx,
+    fillMonth,
+    fmt,
+    hkdRate,
+    language,
+    newAccount,
+    showAddAccount,
+    showConfirm,
+    showFillSnapshot,
+    showMonthsDetail,
+    snapshotDraft,
+    snapshots,
+    snapshotTab,
+    usdRate,
   ]);
   const tabCtx = {
     accountDeleteConfirmId,
@@ -4474,7 +4518,11 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
-  const activeTabCtx = activeTab === 'settings' ? settingsTabCtx : tabCtx;
+  const activeTabCtx = activeTab === 'settings'
+    ? settingsTabCtx
+    : activeTab === 'analysis'
+      ? analysisTabCtx
+      : tabCtx;
   const darkShell = isStandalonePage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90';

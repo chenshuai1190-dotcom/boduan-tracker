@@ -85,7 +85,7 @@ function monthText(monthKey) {
   return String(monthKey || '').replace('-', '-');
 }
 
-export default function AnalysisTab({ ctx }) {
+function AnalysisTab({ ctx }) {
   const {
     accounts,
     chartSelectedMonthIdx,
@@ -221,6 +221,7 @@ export default function AnalysisTab({ ctx }) {
     chartMax,
     chartRange,
     chartVisualMax,
+    chartNonZeroCount,
   } = React.useMemo(() => {
     const nonZero = chartData.filter(v => v > 0);
     const max = nonZero.length > 0 ? Math.max(...nonZero) : 0;
@@ -230,6 +231,7 @@ export default function AnalysisTab({ ctx }) {
       chartMax: max,
       chartRange: max - min || 1,
       chartVisualMax: Math.max(max, 1),
+      chartNonZeroCount: nonZero.length,
     };
   }, [chartData]);
 
@@ -505,7 +507,7 @@ export default function AnalysisTab({ ctx }) {
         </div>
       </section>
 
-      {nonZero.length >= 2 && (
+      {chartNonZeroCount >= 2 && (
         <section
           className="rounded-[20px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
           style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}
@@ -1366,3 +1368,5 @@ export default function AnalysisTab({ ctx }) {
     </div>
   );
 }
+
+export default React.memo(AnalysisTab);

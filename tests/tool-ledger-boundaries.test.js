@@ -721,8 +721,19 @@ test('settings data maintenance reset entry and runtime reset code stay removed'
 
 test('settings tab uses a memoized narrow app context', () => {
   assert.ok(appSource.includes('const settingsTabCtx = useMemo(() => ({'), 'app should build a dedicated memoized context for settings');
-  assert.ok(appSource.includes("const activeTabCtx = activeTab === 'settings' ? settingsTabCtx : tabCtx"), 'settings tab should receive the narrow context instead of the full tab context');
+  assert.ok(appSource.includes("activeTab === 'settings'"), 'settings tab should have a dedicated active-tab context branch');
+  assert.ok(appSource.includes('? settingsTabCtx'), 'settings tab should receive the narrow context instead of the full tab context');
   assert.ok(settingsTabSource.includes('export default React.memo(SettingsTab);'), 'settings tab should be memoized to skip unrelated parent rerenders');
+});
+
+test('analysis tab uses a memoized narrow app context', () => {
+  assert.ok(appSource.includes('const analysisTabCtx = useMemo(() => ({'), 'app should build a dedicated memoized context for analysis');
+  assert.ok(appSource.includes("activeTab === 'analysis'"), 'analysis tab should have a dedicated active-tab context branch');
+  assert.ok(appSource.includes('? analysisTabCtx'), 'analysis tab should receive the narrow context instead of the full tab context');
+  assert.ok(appSource.includes('const fmt = useCallback('), 'analysis number formatter dependency should stay reference-stable');
+  assert.ok(analysisTabSource.includes('export default React.memo(AnalysisTab);'), 'analysis tab should be memoized to skip unrelated parent rerenders');
+  assert.ok(analysisTabSource.includes('chartNonZeroCount'), 'analysis chart should expose memoized non-zero count to the render scope');
+  assert.equal(analysisTabSource.includes('{nonZero.length >= 2 && ('), false, 'analysis chart must not reference chart metric locals outside their memo scope');
 });
 
 test('legacy service worker file stays removed while old registrations are still cleaned up', () => {

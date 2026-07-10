@@ -4,6 +4,35 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - AnalysisTab ctx 拆分试点
+
+- Commit: same commit;runtime 提交,按用户确认推送 GitHub `main` 并触发 Vercel production 部署。
+- Deployment: user confirmed;本轮继续 `App.jsx tabCtx` 低风险试点,不改变设置页版本或用户可见更新日志。部署完成后的 Actions/Vercel target、生产入口和未登录 API 鉴权结果在最终回复中给出,避免为纯部署证据回填再触发 docs-only 部署循环。
+- Background: 用户确认继续拆 `AnalysisTab ctx`,要求补静态测试、跑完整验证,并说明前台需要测试的资产页功能。
+- Workflow tier: `runtime`。
+- Changes:
+  - `App.jsx` 新增 `analysisTabCtx = useMemo(...)`,只包含 `AnalysisTab` 实际解构使用的 26 个字段,资产页不再接收每次 render 都新建的 211 字段大 `tabCtx`。
+  - `fmt` / `fmtPct` 改为 `useCallback` 稳定引用,避免 `AnalysisTab` 的窄 ctx 因格式化函数每次 render 新建而失去 memo 效果。
+  - `AnalysisTab` 改为 `React.memo(AnalysisTab)` 默认导出,让资产页在父级因行情、财报、设置或其它无关状态刷新时,可依赖稳定窄 ctx 跳过无关重渲染。
+  - 修复资产走势图卡片继续引用已收进 `chartMetrics` memo 内部的 `nonZero` 局部变量,改由 memo 输出 `chartNonZeroCount`,避免资产页打开时 `ReferenceError` 白屏。
+  - 保持 Home、Trades、独立收益报表页、个股详情页仍走原 `tabCtx`,不触碰 `/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照、行情 relay 或数据库结构。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/AnalysisTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - Local visual smoke pass:`http://127.0.0.1:5173/?tab=analysis&v=nonzero-fix-fresh`,资产页 `rootChildCount=1`,可见“家庭总资产”、`12 个月走势` 和底部 tab;修复后时间窗内 `nonZero` / `ReferenceError` 新错误为 0。
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,176/176。
+  - `npm run build`: pass,生成 `App-CE3WohmT.js`、`AnalysisTab-S-1dg2ey.js`、`SettingsTab-BYWUQdc0.js`、`settingsChangelog-B9AdpNuM.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,仅 `src/App.jsx`、`src/tabs/AnalysisTab.jsx`、`tests/tool-ledger-boundaries.test.js` 和本日志变更。
+- Rollback: 回退本条 `analysisTabCtx`、`fmt`/`fmtPct` 稳定引用、资产页 `React.memo`、静态测试和本日志即可恢复资产页共用原大 `tabCtx` 的行为;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - SettingsTab ctx 拆分试点
 
 - Commit: same commit;本地 runtime 提交,等待用户确认后再推送/部署。
