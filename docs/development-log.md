@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 首页当前信号文字降重
 
-- Commit: same commit;本地待用户确认截图,暂未推送/部署。
-- Deployment: not deployed;本轮先按用户要求做首页视觉微调并提供本地截图确认,不改变生产运行时代码、设置页版本、数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照或行情 relay。
+- Commit: runtime `f39ed715dd96d05d9b5ff7595ae9548ee8e29b85`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29078923118` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7pGEg2jtMb4tsKpzKUssjqAyrdHz`,production alias 已更新,入口 `/assets/index-CavRtviw.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认包含 `v10.7.9.278`、`首页当前信号文字降重`、新 normal-weight class,且不含旧粗体 class。本轮只改首页展示层、设置页版本/更新日志和静态护栏,不改变数据库、RLS、交易账本、收益快照、财报日历、行情 relay 或 API 鉴权边界。
 - Background: 用户要求把首页当前信号模块里“等待中 / 接近建仓”等状态文字取消加粗,并把文字颜色从纯白调灰一点;随后要求右侧策略状态回撤百分比也取消加粗。
 - Workflow tier: `runtime`。
 - Changes:
@@ -23,9 +23,20 @@
   - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
+  - `npm run verify:workspace-state`: pass;仅提示 tracked worktree changes present 和 Vercel link missing。
+  - `npm run verify:local-env`: pass;只报告 key present/missing 和 key 名称,未输出 secret 值。
   - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,176/176。
+  - `npm run build`: pass。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.278`。
+  - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- f39ed71`: pass;Actions run `29078923118` success,Vercel target `7pGEg2jtMb4tsKpzKUssjqAyrdHz`,production entry `/assets/index-CavRtviw.js`,quote/earnings 未登录均为 `401`。
   - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?tab=home&v=signal-text-muted`,390×844 viewport,当前信号状态文字 computed style 为 `fontWeight=400`,`color=rgba(255,255,255,0.8)`;右侧百分比 computed style 为 `fontWeight=400`。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/home-signal-percent-normal-local-390x844.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/home-current-signal-percent-normal-local.png`。
+  - Production marker check: pass;`v10.7.9.278`、`首页当前信号文字降重`、`truncate text-base font-normal text-white/80`、`text-[19px] font-normal leading-none tabular-nums` present,旧 `font-black` class absent。
 - Rollback: 回退本条 `HomeTab` class、静态测试和日志即可恢复原粗体纯白显示;不影响任何数据、行情、鉴权或账本边界。
 
 ### 2026-07-10 - 工作区状态和 Vercel Link 护栏
