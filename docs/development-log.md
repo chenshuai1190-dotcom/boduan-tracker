@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - iOS 主屏启动黑底图
 
-- Commit: same commit;本地 runtime/PWA 提交,等待用户确认后再推送/部署。
-- Deployment: not deployed;本轮继续处理 iOS Web App 首次重新打开仍出现白色 launch screen 的问题,同步设置页版本/更新日志到 `v10.7.9.277`,不改变业务功能、API、数据库或安全边界。
+- Commit: `8856f4c2a23e3ca0b7d15035702ee34d0ea9c405`。
+- Deployment: completed;用户确认“部署”后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29067723717` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BYeDZrqRpPpng6D9vXayoiVKV8j3`,production alias 已更新,入口 `/assets/index-BSpdQ3Yg.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。本轮继续处理 iOS Web App 首次重新打开仍出现白色 launch screen 的问题,同步设置页版本/更新日志到 `v10.7.9.277`,不改变业务功能、API、数据库或安全边界。
 - Background: `v10.7.9.276` 已把 HTML/CSS 加载后的入口背景改为黑底,但用户反馈 iOS 主屏 Web App 首次重新打开仍会先显示白色背景。复查代码确认当前缺少 `apple-touch-startup-image`,而 iOS 主屏 launch screen 可能发生在 HTML/CSS 执行之前。
 - Workflow tier: `runtime`。
 - Changes:
@@ -33,6 +33,7 @@
   - `npm run build`: pass,新入口构建为 `dist/assets/App-ezz63yWM.js` 等 assets。
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `npm run verify:frontend-smoke`: pass,home/trades/analysis/review/settings root 非空且 errors 0。
+  - `npm run verify:deploy-status -- 8856f4c`: pass,GitHub combined status success,Actions run `29067723717` success,Vercel status success,production entry `/assets/index-BSpdQ3Yg.js`,未登录 quote/earnings 均为 `401`。
 - Rollback: 回退本条 iOS startup image link、`public/splash` 黑底启动图、`v10.7.9.277` 设置页版本/更新日志、静态测试和文档即可恢复 `v10.7.9.276`;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
 
 ### 2026-07-10 - 启动黑色背景兜底
