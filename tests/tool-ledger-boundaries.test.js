@@ -259,8 +259,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.289'), 'settings version badge should document the latest home holding P&L style fix');
-  assert.ok(settingsChangelogSource.includes('首页持仓盈亏与自选亮度修复'), 'settings changelog should describe the home holding P&L and watchlist brightness fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.290'), 'settings version badge should document the latest home stock name brightness update');
+  assert.ok(settingsChangelogSource.includes('首页股票代码和公司名称降亮'), 'settings changelog should describe the home stock name brightness update');
+  assert.ok(settingsChangelogSource.includes('首页持仓盈亏与自选亮度修复'), 'settings changelog should retain the home holding P&L and watchlist brightness fix');
   assert.ok(settingsChangelogSource.includes('首页财报与股票文字降亮'), 'settings changelog should retain the homepage text hierarchy update');
   assert.ok(settingsChangelogSource.includes('首页行情超限分批修复'), 'settings changelog should describe the quote batching hotfix');
   assert.ok(settingsChangelogSource.includes('首页财报日历智能上移'), 'settings changelog should describe the earnings calendar placement update');
@@ -1429,7 +1430,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.289'), 'settings version badge should document the latest home holding P&L style fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.290'), 'settings version badge should document the latest home stock name brightness update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1686,7 +1687,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}"), 'home watchlist tab label should match the muted current-signal status brightness');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}"), 'home holdings tab label should match the muted current-signal status brightness');
   assert.ok(homeTabSource.includes('pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/40'), 'home name header should match the inactive price and change headers');
-  assert.ok(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/80'), 'home watchlist and holding ticker codes should use normal weight and muted white');
+  assert.ok(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/70'), 'home watchlist and holding ticker codes should use normal weight and reduced brightness');
+  assert.ok(homeTabSource.includes('block truncate text-[10px] leading-[12px] text-white/35'), 'home watchlist and holding company names should use the lower secondary brightness');
+  assert.equal(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/80'), false, 'home ticker codes should not retain the previous brighter white');
+  assert.equal(homeTabSource.includes('block truncate text-[10px] leading-[12px] text-white/40'), false, 'home company names should not retain the previous brighter secondary white');
   assert.equal(homeTabSource.includes('block truncate text-[13px] font-semibold leading-[14px] text-white'), false, 'home watchlist and holding ticker codes should not return to bold pure white');
   assert.ok(homeTabSource.includes('text-right text-[13px] tabular-nums text-white/80'), 'home watchlist and holding prices should match the muted current-signal status brightness');
   assert.equal(homeTabSource.includes('text-right text-[13px] tabular-nums text-white/78'), false, 'home prices should not retain the old over-bright opacity class');
@@ -1722,7 +1726,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.289'), 'settings version badge should document the latest home holding P&L style fix');
+  assert.ok(settingsTabSource.includes('v10.7.9.290'), 'settings version badge should document the latest home stock name brightness update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

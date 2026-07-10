@@ -1083,8 +1083,8 @@ export default function HomeTab({ ctx }) {
                     >
                       <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                       <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-normal leading-[14px] text-white/80">{item.symbol}</span>
-                        <span className="block truncate text-[10px] leading-[12px] text-white/40">{item.displayName}</span>
+                        <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
+                        <span className="block truncate text-[10px] leading-[12px] text-white/35">{item.displayName}</span>
                       </span>
                     </div>
                   ))}

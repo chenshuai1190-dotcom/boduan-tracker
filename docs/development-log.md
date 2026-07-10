@@ -4,6 +4,37 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 首页股票代码和公司名称继续降亮
+
+- Commit: pending runtime release;部署完成后回填实际提交。
+- Deployment: authorized;按用户最新截图反馈修正后直接部署。
+- Background: 用户查看生产页面后反馈首页自选/持仓左侧名称列仍明显过亮,要求继续降低股票代码和公司名称的白色亮度。此处只指文字,不调整股票 Logo 的白色底板。
+- Workflow tier: `runtime`。
+- Changes:
+  - 自选/持仓共用的股票代码从 `text-white/80` 降为 `text-white/70`,维持 13px 正常字重。
+  - 公司名称从 `text-white/40` 降为 `text-white/35`,维持 10px 次级层级。
+  - 股票 Logo、价格 `text-white/80`、涨跌颜色、持仓盈亏和表格宽度保持不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.290`。
+- Key files:
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm run verify:toolchain`: pass;Node `v22.23.1`,npm `10.9.8`,项目 SSH key、GitHub SSH read 和 Vercel CLI 可用。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37;锁定股票代码 `text-white/70`、公司名称 `text-white/35`,并禁止回退到上一版亮度。
+  - `npm test`: pass,182/182。
+  - `npm run build`: pass;生成 `HomeTab-CbBO9ySb.js`、`SettingsTab-DJv8xQ7Y.js`、`settingsChangelog-x7s3LGlG.js` 和 `App-JFpVH1wU.js`。
+  - `npm run verify:frontend-smoke`: pass;首页、交易、资产、目标和设置 5 个主 tab 均 `errors:0`。
+  - Local visual check: pass;`390x844` 首页自选预览中,NVDA 股票代码实际颜色为 `rgba(255, 255, 255, 0.7)`,公司名称为 `rgba(255, 255, 255, 0.35)`,价格保持 `rgba(255, 255, 255, 0.8)`,三者字重均为 `400`,页面 console error 为 0。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.290`。
+  - `git diff --check`: pass。
+- Boundaries: 只改首页名称列文字透明度;不改 Logo、价格、行情、交易账本、持仓盈亏、财报日历、收益快照、数据库、RLS 或鉴权。
+- Rollback: 回退两处文字透明度、`v10.7.9.290` 版本记录、静态护栏和本条日志即可恢复上一版亮度。
+
 ### 2026-07-11 - 首页持仓盈亏和自选亮度修复
 
 - Commit: runtime `42582e03432b71eb4a6893069ed04303c633f0e0`;本条后续 docs-only 回填提交只同步部署证据。
