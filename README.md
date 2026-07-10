@@ -17,12 +17,13 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 export PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
 npm run verify:toolchain
 npm ci
+npm run verify:workspace-state
 npm run verify:local-env
 npm run bootstrap:local-env
 npm run dev
 ```
 
-`verify:local-env` checks the stable workstation env files without printing values. `bootstrap:local-env` creates the current worktree `.env.local` from `~/.config/boduan-tracker/local.env` and `~/.config/boduan-tracker/eodhd.env`; the generated file stays ignored by Git.
+`verify:workspace-state` summarizes the current worktree-only state such as `.env.local`, `.vercel/`, `node_modules`, `dist`, and local Vite ports. `verify:local-env` checks the stable workstation env files without printing values. `bootstrap:local-env` creates the current worktree `.env.local` from `~/.config/boduan-tracker/local.env` and `~/.config/boduan-tracker/eodhd.env`; the generated file stays ignored by Git. If a task needs Vercel env pull/link in a fresh worktree, run `npm run bootstrap:vercel-link`.
 
 For EODHD earnings-calendar revenue validation, use the server-only local smoke:
 

@@ -4,6 +4,36 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 工作区状态和 Vercel Link 护栏
+
+- Commit: same commit;本地 tooling/docs 提交,等待用户确认后再推送/部署。
+- Deployment: not deployed;本轮只补新 Codex 工作区状态检查和本地 Vercel link bootstrap,不改变生产运行时代码、前端 UI、数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照或行情 relay。
+- Background: 新会话除了 `.env.local` 外,还容易缺 `.vercel/` link、`node_modules`、`dist`、dev server 或误判当前 Git 工作区状态。用户同意继续补两项,把这些首轮状态集中检查,并把 Vercel link 恢复做成显式本地脚本。
+- Workflow tier: `docs/tooling`。
+- Changes:
+  - 新增 `scripts/verify-workspace-state.mjs`,集中报告 Git 工作区、`.env.local`、稳定本机 env、`.vercel/project.json`、`node_modules`、`dist` 和本地 Vite dev/preview 端口状态,只报告 present/missing,不打印任何 env 值。
+  - 新增 `scripts/bootstrap-vercel-link.mjs`,需要 Vercel env pull/link 时创建本地 `.vercel/project.json` link;脚本先确认 `.vercel/project.json` 被 Git 忽略,只操作本地 link 状态,不改变远端 Vercel 项目配置。
+  - `package.json` 增加 `npm run verify:workspace-state` 和 `npm run bootstrap:vercel-link`。
+  - `README.md`、`docs/development-process.md`、`docs/handoff.md` 同步新会话先查 workspace state,再按需恢复 local env 或 Vercel link 的流程。
+- Key files:
+  - `scripts/verify-workspace-state.mjs`
+  - `scripts/bootstrap-vercel-link.mjs`
+  - `package.json`
+  - `README.md`
+  - `docs/development-process.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --check scripts/verify-workspace-state.mjs`: pass。
+  - `node --check scripts/bootstrap-vercel-link.mjs`: pass。
+  - `npm run verify:workspace-state`: pass;首次运行正确报告 `.vercel/` link missing,本机稳定 env、当前 `.env.local`、`node_modules` 和 `dist` present,未打印任何 env 值。
+  - `npm run bootstrap:vercel-link`: pass;创建本地 `.vercel/project.json` link,scope `chenshuai1190-7580s-projects`,project `boduan-tracker`;该目录被 Git 忽略,不提交。
+  - `npm run verify:workspace-state`: pass;二次运行确认 `vercelLink=present`。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `npm test`: pass,176 tests。
+- Rollback: 回退两个脚本、package scripts 和文档说明即可恢复旧的手动检查流程;本地 `.vercel/` link 状态被 Git 忽略,不属于提交内容,需要时可手动删除。
+
 ### 2026-07-10 - 本地测试环境 Bootstrap
 
 - Commit: same commit;本地 tooling/docs 提交,等待用户确认后再推送/部署。

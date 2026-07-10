@@ -21,7 +21,9 @@
    - 从 GitHub 当前 `main` 开始。
    - 运行 `git status --short --branch`,确认工作树状态。
    - 首次接手、换机、工具链异常或部署前环境不确定时,先运行 `npm run verify:toolchain`,确认 `node/npm/gh/vercel/rg/jq/git/ssh/curl`、GitHub CLI 登录、Vercel CLI 登录和项目 SSH key 都可用。
+   - 新 Codex 工作区或怀疑本地状态缺失时,运行 `npm run verify:workspace-state`,查看 `.env.local`、`.vercel/`、`node_modules`、`dist`、本地 Vite 端口和 Git 工作区状态;按脚本提示决定是否运行 bootstrap 命令。
    - 需要本地登录、真实 Supabase 配置或真实 EODHD smoke 时,运行 `npm run verify:local-env`;如果当前工作区 `.env.local` 缺失或不完整,再运行 `npm run bootstrap:local-env` 从 `~/.config/boduan-tracker/local.env` 和 `~/.config/boduan-tracker/eodhd.env` 生成。只报告 key present/missing,不要打印任何值。
+   - 只有需要 Vercel env pull/link 或部署 CLI 项目信息时,运行 `npm run bootstrap:vercel-link`;它只创建本地 `.vercel/` link 状态,不改变远端项目配置。
    - 先读 `docs/handoff.md`,再阅读 `README.md`、本文件、`docs/development-log.md` 和与任务相关的代码。
 
 2. **创建明确范围的分支**

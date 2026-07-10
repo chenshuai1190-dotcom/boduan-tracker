@@ -36,7 +36,7 @@
 
 产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报改为券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
-本机已建立稳定的本地测试环境路径:`~/.config/boduan-tracker/local.env` 保存公开 Supabase/本地 quote 配置,`~/.config/boduan-tracker/eodhd.env` 保存 EODHD key,权限均为 `600`,不跟随每个 Codex 工作区。新会话先跑 `npm run verify:local-env`;当前工作区缺 `.env.local` 时跑 `npm run bootstrap:local-env` 生成。不要提交、打印或在文档/聊天中复制 key 值;只报告 present/missing。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
+本机已建立稳定的本地测试环境路径:`~/.config/boduan-tracker/local.env` 保存公开 Supabase/本地 quote 配置,`~/.config/boduan-tracker/eodhd.env` 保存 EODHD key,权限均为 `600`,不跟随每个 Codex 工作区。新会话先跑 `npm run verify:workspace-state` 和 `npm run verify:local-env`;当前工作区缺 `.env.local` 时跑 `npm run bootstrap:local-env` 生成;需要 Vercel link 时跑 `npm run bootstrap:vercel-link`。不要提交、打印或在文档/聊天中复制 key 值;只报告 present/missing。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
 
 ## 2. 先读这些文档
 
@@ -693,7 +693,9 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 验证流程:
 - 首次接手、换机、工具链异常或部署前环境不确定时,先跑 `npm run verify:toolchain`,确认 `node/npm/gh/vercel/rg/jq/git/ssh/curl`、GitHub CLI、Vercel CLI 和项目 SSH key 可用。
+- 新 Codex 工作区先跑 `npm run verify:workspace-state`,它会检查 `.env.local`、`.vercel/`、`node_modules`、`dist`、本地 Vite 端口和 Git 工作区状态,并提示需要的 bootstrap 命令。
 - 需要本地登录、真实 Supabase 配置、真实 EODHD smoke 或新工作区恢复测试环境时,跑 `npm run verify:local-env`;若当前工作区 `.env.local` 缺失,跑 `npm run bootstrap:local-env` 从 `~/.config/boduan-tracker/local.env` 和 `~/.config/boduan-tracker/eodhd.env` 生成。
+- 需要 Vercel env pull/link 时,跑 `npm run bootstrap:vercel-link`;`.vercel/` 是本地状态并被 Git 忽略。
 - `runtime`: 改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何生产 bundle/serverless 行为,必须跑 `npm run verify:toolchain`、`npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
 - `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;如果是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
 - `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
@@ -758,7 +760,7 @@ Vercel 最新运行时部署: success,`v10.7.9.173` production marker verified
 
 本地调试提效:
 - 本机 Node 路径: `PATH="$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`。
-- 新 Codex 工作区默认不会继承 `.env.local`、`.vercel/` 或旧工作区测试状态;先用 `npm run verify:local-env` 查看稳定本机环境,再用 `npm run bootstrap:local-env` 生成当前工作区 `.env.local`。
+- 新 Codex 工作区默认不会继承 `.env.local`、`.vercel/`、`node_modules`、`dist`、dev server 或旧工作区测试状态;先用 `npm run verify:workspace-state` 判断缺什么,再用 `npm run bootstrap:local-env` / `npm run bootstrap:vercel-link` 恢复当前工作区本地状态。
 - UI/视觉任务先跑 `npm run dev -- --host 127.0.0.1`,打开 `http://127.0.0.1:5173/`,用 390×844 左右手机视口检查,不要每个字号/弹窗问题都直接靠部署验证。
 - 本地没有 Supabase 配置时,开发环境会通过 `src/AuthGate.jsx` 自动进入 `src/DevVisualPreview.jsx` 的只读 mock 预览,可以用 `?tab=home` 检查首页,用 `?tab=review` 检查目标页,快速检查首页卡片、资产页和目标页深色背景、卡片间距、按钮、输入框显色、年度目标结构和操作弹窗。
 - `DevVisualPreview` 不连接真实 Supabase,不会提交 `.env`,不会改生产数据;只能用于视觉和交互烟测,不能当真实数据来源。
