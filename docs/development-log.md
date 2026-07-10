@@ -4,6 +4,43 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 个股详情持仓时间
+
+- Commit: pending;本地实现等待用户确认截图后再推送部署。
+- Deployment: not deployed;当前 production 仍为 `v10.7.9.282` runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`。本轮只改个股详情展示层、纯计算模型、设置页版本/更新日志、静态护栏和文档,不改变数据库、交易写入、收益快照生成、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
+- Background: 用户希望在个股详情页累计盈亏卡中增加“持仓天数”和“建仓时间”,并确认采用当前这一轮持仓的首次买入日作为建仓日;如果中途清仓后重新买入,持仓天数重新计算。
+- Workflow tier: `runtime`。
+- Changes:
+  - `stockDetailViewModel` 从主交易账本 `stock_trades` 派生当前持仓周期,买入开仓、卖出减仓,当持仓归零后清空建仓日,重新买入后重新计时。
+  - 持仓天数按当前持仓周期首次买入日到最新收盘快照日的自然日 inclusive 口径计算,例如 `2026/05/01` 到 `2026/07/09` 显示 `70 天`。
+  - 个股详情页累计盈亏卡新增第三行两列:“持仓天数”和“首次建仓”,沿用现有 `StatCell` 字体、颜色、字号、分割线和两列布局。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.283`。
+  - 补充纯函数测试和静态护栏,锁定清仓后重新买入会重置持仓周期,且个股详情页仍保持只读,不写主交易账本。
+- Key files:
+  - `src/lib/stockDetailViewModel.js`
+  - `src/pages/StockDetailPage.jsx`
+  - `src/lib/i18n.js`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/stock-detail-view-model.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:workspace-state`: pass;提示工作区有本轮改动,`.env.local`、本机 stable env、`node_modules` 和 `dist` 均存在,Vercel link 缺失但本轮不需要。
+  - `npm run verify:local-env`: pass;只确认本机 Supabase public keys 和 EODHD key present,未输出任何密钥值。
+  - `npm run verify:toolchain`: pass;Node/npm/gh/vercel/rg/jq/git/ssh/curl 和项目 SSH key 可用。
+  - `node --test tests/stock-detail-view-model.test.js tests/tool-ledger-boundaries.test.js`: pass,42/42。
+  - `npm test`: pass,177/177。
+  - `npm run build`: pass,生成 `StockDetailPage-Ct8jpRni.js`、`SettingsTab-mJ1QZ6Md.js`、`settingsChangelog-By0oH33I.js` 等本地构建产物。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.283`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?devPreview=1&tab=stock-detail&stockDetailPeak=past&v=283-holding-period`,个股详情累计盈亏卡新增第三行“持仓天数 / 首次建仓”,截图 mock 显示 `95 天` 和 `2026/04/05`,字号、颜色和两列统计样式与上方统计行一致。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-v10.7.9.283-holding-period-local-chrome-590x1600.png`;`/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-v10.7.9.283-holding-period-local-chrome-430x1600.png`。
+- Rollback: 回退本条 `stockDetailViewModel` 持仓周期派生、`StockDetailPage` 新增统计行、`v10.7.9.283` 设置页版本/更新日志、测试和文档即可恢复上一版;不影响任何交易写入、快照写入、行情鉴权或账本边界。
+
 ### 2026-07-10 - 收益报表浮层颜色和页面文案调整
 
 - Commit: runtime `8674e9212cde3303d0551de2a40079fa2df61c47`;本条后续 docs-only 回填提交只同步部署证据。

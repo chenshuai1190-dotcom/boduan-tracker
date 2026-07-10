@@ -584,6 +584,16 @@ export default function StockDetailPage({ ctx = {} }) {
               value={view.avgCostUsd > 0 ? fmt(view.avgCostUsd, 3) : '--'}
             />
           </div>
+          <div className="mt-3 grid grid-cols-2 border-t border-white/[0.06] pt-3">
+            <StatCell
+              label={t(language, 'stockDetail.holdingDays', '持仓天数')}
+              value={view.holdingDays != null ? `${fmt(view.holdingDays, 0)} ${t(language, 'stockDetail.days', '天')}` : '--'}
+            />
+            <StatCell
+              label={t(language, 'stockDetail.firstEntry', '首次建仓')}
+              value={view.holdingStartDate ? displayDate(view.holdingStartDate) : '--'}
+            />
+          </div>
         </div>
       </section>
 

@@ -51,6 +51,8 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
   assert.equal(detail.realizedPnlUsd, 60);
   assert.equal(detail.unrealizedPnlUsd, 144);
   assert.equal(detail.heldShares, 8);
+  assert.equal(detail.holdingStartDate, '2026-07-04');
+  assert.equal(detail.holdingDays, 5);
   assert.equal(detail.stats.buyAmountUsd, 1000);
   assert.equal(detail.stats.sellAmountUsd, 260);
   assert.equal(detail.stats.buyCount, 1);
@@ -189,4 +191,37 @@ test('keeps closed positions visible from symbol snapshots and trade ledger', ()
   assert.equal(detail.periodPnlUsd, 300);
   assert.equal(detail.tradeRecords.length, 2);
   assert.equal(detail.tradeRecords[0].realizedPnlUsd, 300);
+  assert.equal(detail.holdingStartDate, null);
+  assert.equal(detail.holdingDays, null);
+});
+
+test('stock detail holding period resets after a full close and rebuy', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: '1', trade_date: '2026-05-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+      { id: '2', trade_date: '2026-06-01', symbol: 'NVDA', side: 'sell', shares: 10, price: 130 },
+      { id: '3', trade_date: '2026-07-01', symbol: 'NVDA', side: 'buy', shares: 5, price: 150 },
+      { id: '4', trade_date: '2026-07-04', symbol: 'NVDA', side: 'buy', shares: 2, price: 155 },
+    ],
+    symbolSnapshots: [
+      {
+        snapshotDate: '2026-07-09',
+        symbol: 'NVDA',
+        heldShares: 7,
+        avgCostUsd: 151.428571,
+        currentPriceUsd: 180,
+        marketValueUsd: 1260,
+        realizedPnlUsd: 300,
+        unrealizedPnlUsd: 200,
+        cumulativePnlUsd: 500,
+        totalBuyCostUsd: 1810,
+      },
+    ],
+    range: 'all',
+    now: new Date('2026-07-09T22:00:00.000Z'),
+  });
+
+  assert.equal(detail.holdingStartDate, '2026-07-01');
+  assert.equal(detail.holdingDays, 9);
 });

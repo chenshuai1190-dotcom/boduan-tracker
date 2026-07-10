@@ -25,6 +25,13 @@ function dateFromKey(dateKey) {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
+function inclusiveCalendarDays(startDate, endDate) {
+  const start = dateFromKey(startDate);
+  const end = dateFromKey(endDate);
+  const days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+  return Number.isFinite(days) && days > 0 ? days : null;
+}
+
 function addDays(dateKey, days) {
   const date = dateFromKey(dateKey);
   date.setUTCDate(date.getUTCDate() + days);
@@ -43,6 +50,10 @@ function startOfYear(dateKey) {
 
 function readTradeDate(trade) {
   return String(trade?.trade_date || trade?.tradeDate || trade?.date || '').slice(0, 10);
+}
+
+function readTradeCreatedAt(trade) {
+  return String(trade?.created_at || trade?.createdAt || '');
 }
 
 function normalizeSymbol(symbol) {
@@ -84,18 +95,26 @@ function isCompletedCloseSnapshot(snapshot, now = new Date()) {
 function filterSymbolTrades(stockTrades, symbol) {
   const normalizedSymbol = normalizeSymbol(symbol);
   return (Array.isArray(stockTrades) ? stockTrades : [])
-    .filter((trade) => normalizeSymbol(trade?.symbol) === normalizedSymbol)
-    .map((trade) => ({
+    .map((trade, orderIndex) => ({ trade, orderIndex }))
+    .filter(({ trade }) => normalizeSymbol(trade?.symbol) === normalizedSymbol)
+    .map(({ trade, orderIndex }) => ({
       ...trade,
       symbol: normalizedSymbol,
       side: trade?.side === 'sell' ? 'sell' : 'buy',
       date: readTradeDate(trade),
+      createdAt: readTradeCreatedAt(trade),
+      orderIndex,
       price: toNumber(trade?.price),
       shares: Math.abs(toNumber(trade?.shares)),
       fee: toNumber(trade?.fee),
     }))
     .filter((trade) => trade.date && trade.shares > 0 && trade.price > 0)
-    .sort((a, b) => a.date.localeCompare(b.date) || String(a.id || '').localeCompare(String(b.id || '')));
+    .sort((a, b) => (
+      a.date.localeCompare(b.date)
+      || a.createdAt.localeCompare(b.createdAt)
+      || a.orderIndex - b.orderIndex
+      || String(a.id || '').localeCompare(String(b.id || ''))
+    ));
 }
 
 function annotateTradeRecords(symbolTrades) {
@@ -150,6 +169,31 @@ function buildTradeStats(records, startDate, endDate, range) {
     buyCount: 0,
     sellCount: 0,
   });
+}
+
+function buildCurrentHoldingPeriod(symbolTrades, endDate, heldShares) {
+  if (toNumber(heldShares) <= 0.000001) {
+    return { holdingStartDate: null, holdingDays: null };
+  }
+  let shares = 0;
+  let holdingStartDate = null;
+  symbolTrades.forEach((trade) => {
+    if (trade.date > endDate) return;
+    if (trade.side === 'sell') {
+      shares = Math.max(0, shares - trade.shares);
+      if (shares <= 0.000001) {
+        shares = 0;
+        holdingStartDate = null;
+      }
+      return;
+    }
+    if (shares <= 0.000001) holdingStartDate = trade.date;
+    shares += trade.shares;
+  });
+  return {
+    holdingStartDate,
+    holdingDays: holdingStartDate ? inclusiveCalendarDays(holdingStartDate, endDate) : null,
+  };
 }
 
 function periodSnapshotPnl(row, baseline, range, startsInsideRange) {
@@ -290,6 +334,7 @@ export function buildStockDetailViewModel({
     })
     .filter((record) => record.markerDate);
   const trendStats = buildTrendStats(trend);
+  const holdingPeriod = buildCurrentHoldingPeriod(trades, endDate, latest?.heldShares);
 
   const latestName = latest?.name || trades.find((trade) => trade.name)?.name || normalizedSymbol;
   return {
@@ -306,6 +351,8 @@ export function buildStockDetailViewModel({
     realizedPnlUsd: toNumber(latest?.realizedPnlUsd),
     unrealizedPnlUsd: toNumber(latest?.unrealizedPnlUsd),
     heldShares: toNumber(latest?.heldShares),
+    holdingStartDate: holdingPeriod.holdingStartDate,
+    holdingDays: holdingPeriod.holdingDays,
     avgCostUsd: toNumber(latest?.avgCostUsd),
     marketValueUsd: toNumber(latest?.marketValueUsd),
     currentPriceUsd: toNumber(latest?.currentPriceUsd),
