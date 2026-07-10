@@ -44,6 +44,12 @@ function shiftMonth(monthKey, offset) {
   return localMonthKey(d);
 }
 
+function shiftedDateKey(offset, date = new Date()) {
+  const shifted = new Date(date);
+  shifted.setUTCDate(shifted.getUTCDate() + offset);
+  return shifted.toISOString().slice(0, 10);
+}
+
 const baseAccounts = [
   { id: 'dev_me_bank_cny', owner: '我', type: '银行', name: '招商银行', currency: 'CNY', icon: '银行', sortOrder: 0, balance: 80000 },
   { id: 'dev_me_bank_hkd', owner: '我', type: '银行', name: '招商永隆', currency: 'HKD', icon: '银行', sortOrder: 1, balance: 260436 },
@@ -413,6 +419,9 @@ export default function DevVisualPreview() {
   const freshnessPreviewMode = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('freshness');
+  const earningsScenario = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('earningsScenario');
   const stockDetailPeakPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';
   const previewMarketIndices = React.useMemo(() => {
@@ -456,7 +465,31 @@ export default function DevVisualPreview() {
   const previewActivePositions = freshnessPreviewMode === 'locked'
     ? mockLockedActivePositions
     : mockActivePositions;
-  const [homeWatchlist, setHomeWatchlist] = React.useState(() => mockHomeWatchlist);
+  const previewEarningsCalendarEvents = React.useMemo(() => {
+    if (!['dense', 'sparse'].includes(earningsScenario)) return mockEarningsCalendarEvents;
+    const simulatedEvents = [
+      ['NVDA', 'NVIDIA', 1, 'high'],
+      ['MSFT', 'Microsoft', 3, 'high'],
+      ['AAPL', 'Apple', 6, 'high'],
+      ['TSLA', 'Tesla', 10, 'medium'],
+      ['META', 'Meta', 15, 'medium'],
+    ].map(([symbol, name, offset, impact]) => ({
+      symbol,
+      name,
+      reportDate: shiftedDateKey(offset),
+      session: offset % 2 === 0 ? 'pre' : 'post',
+      epsEstimate: 1 + offset / 10,
+      revenueEstimateUsd: 10_000_000_000 + offset * 1_000_000_000,
+      currency: 'USD',
+      impact,
+    }));
+    return earningsScenario === 'dense' ? simulatedEvents : simulatedEvents.slice(0, 2);
+  }, [earningsScenario]);
+  const [homeWatchlist, setHomeWatchlist] = React.useState(() => (
+    ['dense', 'sparse'].includes(earningsScenario)
+      ? [...mockHomeWatchlist, { symbol: 'META', name: 'Meta', price: 607.66, changePercent: 0.75, high: 740.91, ytdChangePercent: 12.3, intraday: mockMarketIntraday.red }]
+      : mockHomeWatchlist
+  ));
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
   const [benchmarkSymbol, setBenchmarkSymbol] = React.useState('QQQ');
   const [showAddStock, setShowAddStock] = React.useState(false);
@@ -653,7 +686,7 @@ export default function DevVisualPreview() {
       }
       return name || normalizedSymbol;
     },
-    earningsCalendarEvents: mockEarningsCalendarEvents,
+    earningsCalendarEvents: previewEarningsCalendarEvents,
     fetchPnlBenchmarkRows: async ({ from, to }) => mockPnlBenchmarkRows
       .filter((row) => (!from || row.date >= from) && (!to || row.date <= to)),
     fetchRealtimePrices: async () => {},

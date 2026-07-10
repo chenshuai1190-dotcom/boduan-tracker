@@ -12,6 +12,7 @@ import {
   isEarningsVisible,
   monthLabel,
   normalizeEarningsEvents,
+  shouldPromoteEarningsCalendar,
   shortDateLabel,
   todayDateKey,
 } from '../lib/earningsCalendarModel.js';
@@ -759,6 +760,8 @@ export default function EarningsCalendar({
   language = 'zh',
   supabase,
   eventsOverride = null,
+  onPromotionChange,
+  placementClassName = '',
 }) {
   const symbols = React.useMemo(() => buildEarningsSymbols({ watchlist, positions }), [watchlist, positions]);
   const [events, setEvents] = React.useState([]);
@@ -804,6 +807,7 @@ export default function EarningsCalendar({
     if (!symbols.length || !supabase?.auth?.getSession) {
       setEvents([]);
       setError('');
+      setLoading(false);
       return () => { cancelled = true; };
     }
 
@@ -873,6 +877,16 @@ export default function EarningsCalendar({
     return events.filter((event) => isEarningsVisible(event, today));
   }, [events]);
   const previewEvents = displayEvents.slice(0, 5);
+  const shouldPromote = React.useMemo(() => shouldPromoteEarningsCalendar({
+    events,
+    watchlist,
+    positions,
+  }), [events, watchlist, positions]);
+
+  React.useEffect(() => {
+    if (loading || typeof onPromotionChange !== 'function') return;
+    onPromotionChange(shouldPromote);
+  }, [loading, onPromotionChange, shouldPromote]);
 
   const openModal = (view = 'calendar', date = null) => {
     if (date) {
@@ -887,7 +901,11 @@ export default function EarningsCalendar({
   };
 
   return (
-    <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" style={{ fontFamily: FONT }}>
+    <section
+      className={`mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${placementClassName}`}
+      data-home-earnings-placement={shouldPromote ? 'promoted' : 'default'}
+      style={{ fontFamily: FONT }}
+    >
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[14px] font-bold leading-none text-white">
           {t(language, 'earningsCalendar.title', '财报日历')}

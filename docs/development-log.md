@@ -4,6 +4,43 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 首页财报日历智能上移
+
+- Commit: not committed;按用户要求先完成本地开发与验证,尚未推送或部署。
+- Deployment: not deployed;当前生产仍为 `v10.7.9.285` / runtime `a0832b369a657ca95029da78c727acabbdff36ef`。
+- Background: 用户确认首页财报日历采用双条件动态位置逻辑:未来 15 天内自选与持仓合计至少 5 家公司有待公布财报,并且其中至少 1 家属于当前持仓时自动上移到自选/持仓模块上方;不足 5 家、没有持仓股票财报、无数据、加载中或读取失败时继续放在首页最下方。
+- Workflow tier: `runtime`。
+- Changes:
+  - `src/lib/earningsCalendarModel.js` 新增纯函数 `shouldPromoteEarningsCalendar`,按公司代码去重,将当天到第 15 天作为有效窗口,排除已公布财报,并同时校验 5 家阈值和持仓财报条件。
+  - `EarningsCalendar` 在数据读取完成后把上移判定回传首页;加载期间保留原位置,无股票、无会话或读取失败时回到默认底部位置。
+  - `HomeTab` 使用 flex `order` 移动同一个财报日历组件,上移时位于自选/持仓模块上方,默认位于操作按钮之后;不复制组件、不新增财报请求。
+  - `DevVisualPreview` 增加仅本地开发可用的 `earningsScenario=dense|sparse` 日期场景;`dense` 模拟未来第 1、3、6、10、15 天共 5 家且含持仓财报,`sparse` 只保留前 2 家,用于浏览器截图验证两种位置。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.286`。
+- Key files:
+  - `src/lib/earningsCalendarModel.js`
+  - `src/DevVisualPreview.jsx`
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/earnings-calendar.test.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `node --test tests/earnings-calendar.test.js`: pass,9/9;覆盖 5 家阈值、至少 1 家持仓、公司去重、第 15 天边界和已公布财报排除。
+  - `node --test tests/tool-ledger-boundaries.test.js`: initial fail,36/37;首页根节点新增 flex 后类名顺序改变导致旧静态字符串护栏未命中,横向溢出保护本身仍存在;恢复原类名连续顺序后重跑 pass,37/37。
+  - `npm run verify:toolchain`: pass;Node `v22.23.1`,npm `10.9.8`,项目 SSH key、GitHub SSH read 和 Vercel CLI 可用。
+  - `npm test`: pass,179/179。
+  - `npm run build`: pass;生成 `HomeTab-CzFb8Igz.js`、`SettingsTab-D52JO6_h.js`、`settingsChangelog-C81hDGn6.js` 和 `App-Di4LNbkX.js`。
+  - `npm run verify:frontend-smoke`: pass;本地 Chrome 检查首页、交易、资产、目标、设置 5 个主 tab,均 `root:1`、`errors:0`。
+  - Local date scenario visual check: pass;`390x844` 手机视口下,`earningsScenario=dense` 模拟未来第 1、3、6、10、15 天共 5 家且含持仓财报,组件状态为 `promoted`,财报卡片 top `709.25px`、自选/持仓 top `875.75px`;`earningsScenario=sparse` 只保留 2 家时状态为 `default`,自选/持仓 top `709.25px`、财报卡片 top `1128.25px`。截图保存为 `/tmp/boduan-tracker-earnings-dense-viewport.jpg` 和 `/tmp/boduan-tracker-earnings-sparse-viewport.jpg`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.286`。
+  - `git diff --check`: pass。
+- Boundaries: 继续使用独立已登录 `/api/earnings-calendar`;不新增或合并接口,不改 `/api/quote`、鉴权、EODHD token、交易账本、收益快照、行情 relay、数据库或 RLS。
+- Rollback: 回退 `shouldPromoteEarningsCalendar`、日历回调、首页 flex order、`v10.7.9.286` 设置页记录和对应测试/文档,即可恢复财报日历始终位于首页底部的行为。
+
 ### 2026-07-10 - 热门股票弹窗实时行情
 
 - Commit: runtime `a0832b369a657ca95029da78c727acabbdff36ef`;本条后续 docs-only 回填提交只同步部署证据。

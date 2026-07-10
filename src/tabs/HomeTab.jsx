@@ -515,6 +515,7 @@ export default function HomeTab({ ctx }) {
   const [addStockNotice, setAddStockNotice] = React.useState(null);
   const [popularQuoteRows, setPopularQuoteRows] = React.useState([]);
   const [popularQuoteStatus, setPopularQuoteStatus] = React.useState('idle');
+  const [promoteEarningsCalendar, setPromoteEarningsCalendar] = React.useState(false);
   const [showEditWatchlist, setShowEditWatchlist] = React.useState(false);
   const [editWatchlistSearch, setEditWatchlistSearch] = React.useState('');
   const [editActionKey, setEditActionKey] = React.useState(null);
@@ -851,7 +852,7 @@ export default function HomeTab({ ctx }) {
   };
 
   return (
-    <div className="mx-auto max-w-[430px] overflow-x-hidden pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
+    <div className="mx-auto max-w-[430px] overflow-x-hidden flex flex-col pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
       <style>{`
         @keyframes radarSpin {
           from { transform: rotate(0deg); }
@@ -1044,7 +1045,7 @@ export default function HomeTab({ ctx }) {
         </div>
       </section>
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="order-2 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-5">
             <button
@@ -1145,7 +1146,7 @@ export default function HomeTab({ ctx }) {
       </section>
 
       {isWatchlistTab && (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="order-2 mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setShowAddStock(true)}
@@ -1174,6 +1175,8 @@ export default function HomeTab({ ctx }) {
         language={language}
         supabase={supabase}
         eventsOverride={earningsCalendarEvents}
+        onPromotionChange={setPromoteEarningsCalendar}
+        placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}
       />
 
       {showAddStock && isWatchlistTab && (

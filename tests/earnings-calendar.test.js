@@ -9,6 +9,7 @@ import {
   groupEarningsByDate,
   isEarningsVisible,
   normalizeEarningsEvents,
+  shouldPromoteEarningsCalendar,
 } from '../src/lib/earningsCalendarModel.js';
 
 function createResponse() {
@@ -131,6 +132,54 @@ test('earnings model keeps published reports visible for two days with result st
   assert.equal(isEarningsVisible(published, '2026-07-11'), false);
   assert.equal(isEarningsVisible(unpublished, '2026-07-08'), true);
   assert.equal(isEarningsVisible(unpublished, '2026-07-09'), false);
+});
+
+test('earnings calendar promotes only for five upcoming followed companies including a holding', () => {
+  const watchlist = ['AAPL', 'MSFT', 'META', 'AMZN', 'GOOGL'].map((symbol) => ({ symbol }));
+  const positions = [{ symbol: 'NVDA' }];
+  const upcoming = [
+    ['NVDA', '2026-07-10'],
+    ['AAPL', '2026-07-12'],
+    ['MSFT', '2026-07-15'],
+    ['META', '2026-07-20'],
+    ['AMZN', '2026-07-25'],
+  ].map(([symbol, reportDate]) => ({ symbol, reportDate }));
+
+  assert.equal(shouldPromoteEarningsCalendar({ events: upcoming, watchlist, positions, today: '2026-07-10' }), true);
+  assert.equal(shouldPromoteEarningsCalendar({ events: upcoming.slice(0, 4), watchlist, positions, today: '2026-07-10' }), false);
+  assert.equal(shouldPromoteEarningsCalendar({
+    events: upcoming.map((event) => (event.symbol === 'NVDA' ? { symbol: 'GOOGL', reportDate: event.reportDate } : event)),
+    watchlist,
+    positions,
+    today: '2026-07-10',
+  }), false);
+});
+
+test('earnings calendar promotion dedupes companies and keeps the 15-day boundary', () => {
+  const watchlist = ['AAPL', 'MSFT', 'META', 'AMZN'].map((symbol) => ({ symbol }));
+  const positions = [{ symbol: 'NVDA' }];
+  const events = [
+    { symbol: 'NVDA', reportDate: '2026-07-10' },
+    { symbol: 'AAPL', reportDate: '2026-07-11' },
+    { symbol: 'AAPL', reportDate: '2026-07-12' },
+    { symbol: 'MSFT', reportDate: '2026-07-15' },
+    { symbol: 'META', reportDate: '2026-07-20' },
+    { symbol: 'AMZN', reportDate: '2026-07-25' },
+  ];
+
+  assert.equal(shouldPromoteEarningsCalendar({ events, watchlist, positions, today: '2026-07-10' }), true);
+  assert.equal(shouldPromoteEarningsCalendar({
+    events: events.map((event) => (event.symbol === 'AMZN' ? { ...event, reportDate: '2026-07-26' } : event)),
+    watchlist,
+    positions,
+    today: '2026-07-10',
+  }), false);
+  assert.equal(shouldPromoteEarningsCalendar({
+    events: events.map((event) => (event.symbol === 'NVDA' ? { ...event, earningsPublished: true } : event)),
+    watchlist,
+    positions,
+    today: '2026-07-10',
+  }), false);
 });
 
 test('earnings calendar API reads EODHD calendar and trends through a dedicated endpoint', async () => {

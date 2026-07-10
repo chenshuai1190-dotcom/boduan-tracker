@@ -259,7 +259,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.285'), 'settings version badge should document the latest popular stocks quote update');
+  assert.ok(settingsTabSource.includes('v10.7.9.286'), 'settings version badge should document the latest earnings calendar placement update');
+  assert.ok(settingsChangelogSource.includes('首页财报日历智能上移'), 'settings changelog should describe the earnings calendar placement update');
+  assert.ok(homeTabSource.includes("placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}"), 'home should move the same earnings calendar card between promoted and default positions');
+  assert.ok(earningsCalendarSource.includes('onPromotionChange(shouldPromote)'), 'earnings calendar should report its promotion decision after loading');
   assert.ok(settingsChangelogSource.includes('热门股票弹窗实时行情'), 'settings changelog should describe the latest popular stocks quote update');
   assert.ok(settingsChangelogSource.includes('热门行情严格只在添加自选股票弹窗打开时触发'), 'settings changelog should document that popular quote loading is modal-gated');
   assert.ok(settingsChangelogSource.includes('v10.7.9.284'), 'settings changelog should retain the watchlist add validation update');
@@ -1421,7 +1424,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.285'), 'settings version badge should document the latest popular stocks quote update');
+  assert.ok(settingsTabSource.includes('v10.7.9.286'), 'settings version badge should document the latest earnings calendar placement update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1703,7 +1706,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.285'), 'settings version badge should document the latest popular stocks quote update');
+  assert.ok(settingsTabSource.includes('v10.7.9.286'), 'settings version badge should document the latest earnings calendar placement update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -163,6 +163,40 @@ export function buildEarningsSymbols({ watchlist = [], positions = [], max = 24 
   return symbols.slice(0, max);
 }
 
+export function shouldPromoteEarningsCalendar({
+  events = [],
+  watchlist = [],
+  positions = [],
+  today = todayDateKey(),
+  windowDays = 15,
+  minimumCompanies = 5,
+} = {}) {
+  const todayKey = dateKey(today) || todayDateKey();
+  const endKey = addDays(todayKey, Math.max(0, Number(windowDays) || 0));
+  const threshold = Math.max(1, Math.trunc(Number(minimumCompanies) || 0));
+  const positionSymbols = new Set(
+    (Array.isArray(positions) ? positions : []).map((item) => normalizeEarningsSymbol(item?.symbol)).filter(Boolean),
+  );
+  const followedSymbols = new Set([
+    ...positionSymbols,
+    ...(Array.isArray(watchlist) ? watchlist : []).map((item) => normalizeEarningsSymbol(item?.symbol)).filter(Boolean),
+  ]);
+  if (positionSymbols.size === 0 || followedSymbols.size < threshold) return false;
+
+  const upcomingSymbols = new Set();
+  let hasPositionEarnings = false;
+  for (const event of Array.isArray(events) ? events : []) {
+    const symbol = normalizeEarningsSymbol(event?.symbol || event?.code || event?.ticker);
+    const reportDate = dateKey(event?.reportDate || event?.report_date || event?.date);
+    if (!symbol || !followedSymbols.has(symbol) || !reportDate) continue;
+    if (reportDate < todayKey || reportDate > endKey || isEarningsPublished(event)) continue;
+    upcomingSymbols.add(symbol);
+    if (positionSymbols.has(symbol)) hasPositionEarnings = true;
+  }
+
+  return upcomingSymbols.size >= threshold && hasPositionEarnings;
+}
+
 function normalizeEarningsEvent(raw, context = {}) {
   const code = String(raw?.code || raw?.symbol || raw?.ticker || '').trim().toUpperCase();
   const symbol = normalizeEarningsSymbol(code);

@@ -6,14 +6,15 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新接手补充: `v10.7.9.285` 热门股票弹窗实时行情已上线,production runtime commit `a0832b369a657ca95029da78c727acabbdff36ef`;本轮把添加自选股票弹窗里的热门列表扩展为 30 个常用美股/ETF 候选池,且严格只在 `showAddStock && isWatchlistTab` 时通过现有已登录 `/api/quote` fresh 请求拉取候选股实时价格和涨跌幅,首页默认渲染不请求这批候选股。交易账本、收益快照写入逻辑、首页默认行情加载、行情接口鉴权、财报日历、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
+- 最新本地开发补充: `v10.7.9.286` 首页财报日历智能上移已完成本地开发,尚未提交或部署;未来 15 天内自选与持仓合计至少 5 家公司有待公布财报,且至少 1 家属于当前持仓时,同一张财报日历卡片上移到自选/持仓模块上方;其余情况保持首页底部。独立 `/api/earnings-calendar`、`/api/quote`、交易账本、收益快照、RLS 和数据库不变。
+- 最新已上线补充: `v10.7.9.285` 热门股票弹窗实时行情已上线,production runtime commit `a0832b369a657ca95029da78c727acabbdff36ef`;本轮把添加自选股票弹窗里的热门列表扩展为 30 个常用美股/ETF 候选池,且严格只在 `showAddStock && isWatchlistTab` 时通过现有已登录 `/api/quote` fresh 请求拉取候选股实时价格和涨跌幅,首页默认渲染不请求这批候选股。交易账本、收益快照写入逻辑、首页默认行情加载、行情接口鉴权、财报日历、RLS、独立 `/api/earnings-calendar` 鉴权和 `/api/quote` 鉴权不变。
 - 上一条补充: `v10.7.9.284` 自选添加股票校验已随 `v10.7.9.285` 同一 runtime commit 上线;添加自选股票前必须先通过现有已登录 `/api/quote` 校验美股代码存在且返回有效股票价格,非美股代码、特殊行情符号、接口报错或 EODHD 未返回有效股票价格时不写入自选。
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 最新运行时代码提交 `a0832b369a657ca95029da78c727acabbdff36ef` 包含 `v10.7.9.285` 热门股票弹窗实时行情和 `v10.7.9.284` 自选添加股票校验;本文件所在最新提交为该 runtime 部署证据回填。
 - 当前生产运行时基准提交: `a0832b369a657ca95029da78c727acabbdff36ef`。
-- 设置页版本: `v10.7.9.285`。
+- 设置页版本: `v10.7.9.286`（本地待提交/部署;生产仍为 `v10.7.9.285`）。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最新 Vercel 状态: `npm run verify:deploy-status -- a0832b3` pass;GitHub Actions run `29101142295` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/61estBzrkUXg8MTBsPDc8Mnhg6fe`;production alias 已更新,入口 `/assets/index-BXDcpMEr.js`。
 - 最近交接文档刷新部署: 本文件所在最新提交为 `v10.7.9.285` runtime production 验证证据回填。
@@ -29,7 +30,7 @@
 - 当前生产运行时基准提交: `a0832b369a657ca95029da78c727acabbdff36ef`。
 - 最近应用代码提交: production 最近应用代码提交 `a0832b369a657ca95029da78c727acabbdff36ef` 包含 `v10.7.9.285` 热门股票弹窗实时行情和 `v10.7.9.284` 自选添加股票校验;此前 `d0b63f8f8b3c622b9c84b63b9964a307d442efc3` 包含 `v10.7.9.283` 个股详情持仓时间,`8674e9212cde3303d0551de2a40079fa2df61c47` 包含 `v10.7.9.282` 收益报表浮层颜色和页面文案调整;更早收益报表、个股详情、财报日历、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
 - 最近文档/配置记录提交: 本文件所在最新提交;流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 设置页版本: `v10.7.9.285`。
+- 设置页版本: `v10.7.9.286`（本地待提交/部署;生产仍为 `v10.7.9.285`）。
 - Vercel 最新部署: `v10.7.9.285` runtime commit `a0832b369a657ca95029da78c727acabbdff36ef` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/61estBzrkUXg8MTBsPDc8Mnhg6fe`,production 入口 `/assets/index-BXDcpMEr.js`,关键 chunks 包括 `/assets/HomeTab-QR0es07-.js`,`/assets/App-DyCh41ih.js`,`/assets/SettingsTab-D4SvJF73.js`,`/assets/settingsChangelog-BHSYb0ds.js`,`/assets/i18n-DirP5Edj.js`。
 - 最近交接文档刷新部署: 本文件所在最新提交只同步 `v10.7.9.285` runtime production 验证证据。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
@@ -660,11 +661,12 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 最新运行时代码提交 `a0832b369a657ca95029da78c727acabbdff36ef` 包含 `v10.7.9.285` 热门股票弹窗实时行情和 `v10.7.9.284` 自选添加股票校验;本文件所在最新提交为该 runtime 部署证据回填
 当前运行时基准提交: `a0832b369a657ca95029da78c727acabbdff36ef`
-设置页版本: `v10.7.9.285`
+设置页版本: `v10.7.9.286`（本地待提交/部署;生产仍为 `v10.7.9.285`）
 最新 Vercel 部署: `a0832b369a657ca95029da78c727acabbdff36ef` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/61estBzrkUXg8MTBsPDc8Mnhg6fe`
 最新生产入口: `/assets/index-BXDcpMEr.js`
 
 关键线上验证:
+- `v10.7.9.286` 本地待部署:未来 15 天内自选与持仓合计至少 5 家有待公布财报且至少 1 家属于当前持仓时,同一张财报日历卡片上移到自选/持仓模块上方;不满足时保持首页底部
 - `npm run verify:deploy-status -- a0832b3` pass: GitHub Actions run `29101142295` success,Vercel status success,生产入口 `/assets/index-BXDcpMEr.js`,未登录 quote/earnings 均为 `401`
 - `v10.7.9.285` 已上线:添加自选股票弹窗里的热门列表扩展为 30 个常用美股/ETF 候选池;严格只在 `showAddStock && isWatchlistTab` 时通过现有已登录 `/api/quote` fresh 请求拉取候选股实时价格和涨跌幅;首页默认渲染不请求这批候选股;生产 bundle marker 确认 `fetchPopularStockQuotes`、`EODHD-v2`、`priceSource`、`PANW`、`CRWD`、`热门股票` 和 `热门股票弹窗实时行情` 存在
 - `v10.7.9.284` 已上线:添加自选股票前必须先通过现有已登录 `/api/quote` fresh 请求校验美股代码存在且返回有效股票价格;非美股代码、特殊行情符号、接口报错或 EODHD 未返回有效股票价格时不写入自选列表;生产 bundle marker 确认中英文无效美股代码提示、`v10.7.9.284` 和 `自选添加股票校验` 存在
@@ -672,7 +674,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - `v10.7.9.282` 已上线:收益报表对比浮层里“我的”当日/累计收益率改为跟随系统涨跌颜色设置,下跌不再错误显示为红色;收益报表副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,底层生成逻辑保留;生产 bundle marker 确认 `v10.7.9.282`、`收益报表浮层颜色和页面文案调整`、`Quote Data testing`、`dailyPnlPct`、`pnlPct` 和 `底层生成逻辑保留` 存在
 - `v10.7.9.281` 已上线:收益报表“收益率走势”对比浮层展示“我的”和“纳斯达克”的当日/累计收益率,基准沿用现有本期起点收盘价口径
 - `v10.7.9.280` 已上线:个股收益详情页“我的收益线”峰值圆点新增独立呼吸光晕,原圆点半径保持 `r="3.6"` 不变
-- 本轮不改 `/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照、财报日历或行情 relay
+- 本轮只改首页财报日历卡片位置判断;不改 `/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照或行情 relay
 
 请先按顺序读:
 1. `docs/handoff.md`
