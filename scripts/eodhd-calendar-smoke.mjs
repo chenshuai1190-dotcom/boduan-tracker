@@ -15,12 +15,16 @@ import {
 import { toEodhdUsSymbol } from '../src/lib/earningsCalendarModel.js';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const stableLocalEnvPath = process.env.HOME
+  ? path.join(process.env.HOME, '.config', 'boduan-tracker', 'eodhd.env')
+  : null;
 
 loadLocalEnv(path.join(rootDir, '.env.local'));
+if (stableLocalEnvPath) loadLocalEnv(stableLocalEnvPath);
 
 const eodhdKey = cleanEnv(process.env.EODHD_API_KEY);
 if (!eodhdKey) {
-  console.error('EODHD_API_KEY missing. Set it in process env or local .env.local before running this smoke test.');
+  console.error('EODHD_API_KEY missing. Set it in process env, local .env.local, or ~/.config/boduan-tracker/eodhd.env before running this smoke test.');
   process.exit(2);
 }
 

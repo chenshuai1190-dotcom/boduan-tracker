@@ -36,7 +36,7 @@
 
 产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报改为券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
-本机已建立 EODHD 财报日历测试环境:当前工作区 `.env.local` 存在服务器端 `EODHD_API_KEY`,权限 `600`,由 `.gitignore` 排除。不要提交该文件或在文档/聊天中打印 key。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
+本机已建立稳定的 EODHD 本地测试 key 路径:`~/.config/boduan-tracker/eodhd.env`,权限 `600`,不跟随每个 Codex 工作区。EODHD smoke 脚本查找顺序为 `process.env.EODHD_API_KEY`、当前工作区 `.env.local`、稳定本机路径。不要提交、打印或在文档/聊天中复制 key 值;只报告 present/missing。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
 
 ## 2. 先读这些文档
 
@@ -708,7 +708,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - 股票/指数/BTC realtime relay 保持登录鉴权;BTC、三大指数、股票持仓刷新逻辑已拆开。
 - 收益报表独立页、收益快照、自动收盘快照和个股只读收益详情页已上线;报表读取快照,不使用其它日期替代无快照日期。
 - 首页底部财报日历已在 `v10.7.9.249` 独立重构:新增 `/api/earnings-calendar`,前端不接触 EODHD token,旧 `CALENDAR:` / NASDAQ calendar / 白色事件弹窗已移除;`v10.7.9.250` 已把首页预览压缩为固定一行,日期字号同步弹窗日历日期,并删除首页/弹窗标题旁信息图标;`v10.7.9.251` 已取消第一项默认高亮并修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报详情和列表改为券商式实际/预测同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重。
-- EODHD 本地测试环境已建立:当前工作区 `.env.local` 有服务器端 key 且被 Git 忽略;下一任可按 `docs/eodhd-local-testing.md` 跑 smoke,不要提交或外泄 key。
+- EODHD 本地测试环境已建立:本机稳定 key 路径为 `~/.config/boduan-tracker/eodhd.env`,脚本也兼容 `process.env.EODHD_API_KEY` 和当前工作区 `.env.local`;下一任可按 `docs/eodhd-local-testing.md` 跑 smoke,不要提交、打印或外泄 key。
 - 主交易账本、摊薄工具、波段记录、收益快照和财报日历是不同边界;不要为了省事互相写表或混 provider。
 
 当前优先事项:

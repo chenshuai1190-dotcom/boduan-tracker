@@ -4,16 +4,37 @@ This project keeps EODHD credentials server-only. Never commit `.env`, `.env.loc
 
 ## Local Key Setup
 
-The current workstation has a local `.env.local` created from the EODHD control panel on 2026-07-09 after user authorization. The file is `chmod 600` and ignored by Git through `.gitignore`.
+The current workstation keeps the reusable local EODHD key outside per-session worktrees at:
 
-For a fresh checkout:
+```text
+~/.config/boduan-tracker/eodhd.env
+```
+
+That file is local-only, `chmod 600`, and must never be committed, copied into docs, pasted into chat, or printed to terminal output. New Codex sessions should report only whether the key is present or missing.
+
+The smoke script reads `EODHD_API_KEY` in this order:
+
+1. `process.env.EODHD_API_KEY`
+2. current worktree `.env.local`
+3. `~/.config/boduan-tracker/eodhd.env`
+
+If the stable local file is missing, create it from the authorized EODHD control panel value:
+
+```bash
+mkdir -p ~/.config/boduan-tracker
+chmod 700 ~/.config/boduan-tracker
+printf 'EODHD_API_KEY=...\n' > ~/.config/boduan-tracker/eodhd.env
+chmod 600 ~/.config/boduan-tracker/eodhd.env
+```
+
+For a fresh checkout that needs all app env vars, `.env.local` is still supported and remains ignored by Git:
 
 ```bash
 cp .env.example .env.local
 chmod 600 .env.local
 ```
 
-Then add the real server-only key:
+Then add only server-side secrets locally:
 
 ```bash
 EODHD_API_KEY=...

@@ -4,6 +4,30 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - EODHD 本机稳定 key 路径
+
+- Commit: same commit;本地 tooling/docs 提交,等待用户确认后再推送/部署。
+- Deployment: not deployed;本轮只处理本机 EODHD smoke key 查找稳定性和交接文档,不改变生产运行时代码、前端 UI、数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照或行情 relay。
+- Background: 新 Codex 工作区不会继承旧工作区被 `.gitignore` 排除的 `.env.local`,导致每次真实 EODHD 本地测试都要重新查找旧路径。用户同意建立稳定本机 secret 路径并把查找规则写入文档。
+- Workflow tier: `docs/tooling`。
+- Changes:
+  - 本机创建 `~/.config/boduan-tracker/eodhd.env`,目录权限 `700`,文件权限 `600`,只保存 `EODHD_API_KEY`,不提交、不打印 key。
+  - `scripts/eodhd-calendar-smoke.mjs` 增加稳定路径 fallback,查找顺序为 `process.env.EODHD_API_KEY`、当前工作区 `.env.local`、`~/.config/boduan-tracker/eodhd.env`。
+  - `docs/eodhd-local-testing.md` 改为稳定路径说明、权限命令和 present/missing 报告规则。
+  - `docs/handoff.md` 移除“当前工作区 `.env.local` 一定存在”的过期说法,改为稳定本机路径和查找顺序。
+- Key files:
+  - `scripts/eodhd-calendar-smoke.mjs`
+  - `docs/eodhd-local-testing.md`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - Stable local file setup: pass;`~/.config/boduan-tracker/eodhd.env` created with directory mode `700` and file mode `600`,key value not printed。
+  - `node --check scripts/eodhd-calendar-smoke.mjs`: pass。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `npm run smoke:eodhd-calendar -- --symbols=NVDA --from=2026-05-20 --to=2026-05-22`: pass;当前工作区无 `.env.local` 时通过稳定本机路径读取 key,返回 `ok: true`,`revenueMerged=1`,`usdRevenueMerged=1`,`publishedMerged=1`,`actualRevenueMerged=1`,`marketReactionMerged=1`,未打印 key。
+- Rollback: 回退脚本 fallback 和文档说明即可恢复旧的只读当前 `.env.local` 行为;本机 `~/.config/boduan-tracker/eodhd.env` 是未跟踪本地 secret 文件,不属于 Git 回滚范围,需要时可手动删除。
+
 ### 2026-07-10 - iOS 主屏启动黑底图
 
 - Commit: `8856f4c2a23e3ca0b7d15035702ee34d0ea9c405`。
