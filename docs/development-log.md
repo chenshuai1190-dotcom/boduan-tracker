@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 首页股票文字继续降重
 
-- Commit: same commit;runtime 提交待推送/部署。
-- Deployment: user confirmed;本轮将按 runtime 流程推送 GitHub `main` 并触发 Vercel production 部署。最终 Actions/Vercel target、生产入口和未登录 API 401 smoke 结果会在部署后回填。本轮只改首页展示层、设置页版本/更新日志和静态护栏,不改变数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照、财报日历或行情 relay。
+- Commit: runtime `d086188db6a33fa7a3b9fbe0a6298aa48350867b`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29081460675` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2movNsYpNetPfPquVRTFFQi6E3AK`,production alias 已更新,入口 `/assets/index-BPHh3Z6v.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认包含 `v10.7.9.279`、`首页股票文字继续降重`、基准代码 `block font-normal` 和首页 tab `text-[14px] font-normal leading-none`,且不含旧 tab 粗体 class。本轮只改首页展示层、设置页版本/更新日志和静态护栏,不改变数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照、财报日历或行情 relay。
 - Background: 用户要求把首页“切换基准”菜单里的股票代码取消加粗,并把首页列表顶部“自选”和“持仓”两个 tab 标题取消加粗。
 - Workflow tier: `runtime`。
 - Changes:
@@ -33,8 +33,10 @@
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- d086188`: pass;Actions run `29081460675` success,Vercel target `2movNsYpNetPfPquVRTFFQi6E3AK`,production entry `/assets/index-BPHh3Z6v.js`,quote/earnings 未登录均为 `401`。
   - Local visual check: pass;Vite dev preview `http://127.0.0.1:53881/?tab=home&v=typography-279`,390×844 viewport,首页“自选” computed `fontWeight=400`,“持仓” computed `fontWeight=400`;切换基准菜单主股票代码 `QQQ/TQQQ` computed `fontWeight=400`。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/home-stock-tabs-normal-local-390x844.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/home-benchmark-symbol-normal-local-390x844.png`。
+  - Production marker check: pass;`v10.7.9.279`、`首页股票文字继续降重`、`block font-normal`、首页 tab `text-[14px] font-normal leading-none` present,旧 tab `font-bold leading-none` class absent。
 - Rollback: 回退本条 `HomeTab` class、`v10.7.9.279` 设置页版本/更新日志、静态测试和文档即可恢复上一版字重;不影响任何数据、行情、鉴权或账本边界。
 
 ### 2026-07-10 - 首页当前信号文字降重
