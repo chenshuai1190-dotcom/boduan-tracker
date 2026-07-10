@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 个股详情持仓时间
 
-- Commit: pending;本地实现等待用户确认截图后再推送部署。
-- Deployment: not deployed;当前 production 仍为 `v10.7.9.282` runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`。本轮只改个股详情展示层、纯计算模型、设置页版本/更新日志、静态护栏和文档,不改变数据库、交易写入、收益快照生成、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
+- Commit: runtime `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29096861655` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/35PNgFpQPw3N9RSeYtJtMdndLSNi`,production alias 已更新,入口 `/assets/index-DKa-fYMa.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认 `/assets/StockDetailPage-Ct8jpRni.js` 命中 `持仓天数`、`首次建仓`、`stockDetail.holdingDays` 和 `stockDetail.firstEntry`,`/assets/settingsChangelog-By0oH33I.js` 命中 `v10.7.9.283`、`个股详情持仓时间` 和 `当前这一轮持仓的首次买入日`,`/assets/SettingsTab-mJ1QZ6Md.js` 命中 `v10.7.9.283`,`/assets/i18n-DxinXk9Z.js` 命中 `Holding Days` 和 `First Entry`。本轮只改个股详情展示层、纯计算模型、设置页版本/更新日志、静态护栏和文档,不改变数据库、交易写入、收益快照生成、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
 - Background: 用户希望在个股详情页累计盈亏卡中增加“持仓天数”和“建仓时间”,并确认采用当前这一轮持仓的首次买入日作为建仓日;如果中途清仓后重新买入,持仓天数重新计算。
 - Workflow tier: `runtime`。
 - Changes:
@@ -39,6 +39,8 @@
   - `git diff --check`: pass。
   - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?devPreview=1&tab=stock-detail&stockDetailPeak=past&v=283-holding-period`,个股详情累计盈亏卡新增第三行“持仓天数 / 首次建仓”,截图 mock 显示 `95 天` 和 `2026/04/05`,字号、颜色和两列统计样式与上方统计行一致。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-v10.7.9.283-holding-period-local-chrome-590x1600.png`;`/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-v10.7.9.283-holding-period-local-chrome-430x1600.png`。
+  - `npm run verify:deploy-status -- d0b63f8`: pass;GitHub combined status success,GitHub Actions run `29096861655` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/35PNgFpQPw3N9RSeYtJtMdndLSNi`,production entry `/assets/index-DKa-fYMa.js`,未登录 quote/earnings 均为 `401`。
+  - Production marker check: pass;`/assets/StockDetailPage-Ct8jpRni.js` 命中 `持仓天数`、`首次建仓`、`stockDetail.holdingDays` 和 `stockDetail.firstEntry`;`/assets/settingsChangelog-By0oH33I.js` 命中 `v10.7.9.283`、`个股详情持仓时间` 和 `当前这一轮持仓的首次买入日`;`/assets/SettingsTab-mJ1QZ6Md.js` 命中 `v10.7.9.283`;`/assets/i18n-DxinXk9Z.js` 命中 `Holding Days` 和 `First Entry`。
 - Rollback: 回退本条 `stockDetailViewModel` 持仓周期派生、`StockDetailPage` 新增统计行、`v10.7.9.283` 设置页版本/更新日志、测试和文档即可恢复上一版;不影响任何交易写入、快照写入、行情鉴权或账本边界。
 
 ### 2026-07-10 - 收益报表浮层颜色和页面文案调整
