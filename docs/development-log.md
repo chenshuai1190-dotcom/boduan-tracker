@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 个股收益峰值呼吸点
 
-- Commit: local pending;本轮按用户要求先做本地截图预览,暂未推送 GitHub `main`,暂未部署 Vercel。
-- Deployment: not deployed;当前生产仍是 `v10.7.9.279` runtime commit `d086188db6a33fa7a3b9fbe0a6298aa48350867b`,入口 `/assets/index-BPHh3Z6v.js`。
+- Commit: runtime `1596cd766bcbc0e03020fc2f7bcbcf7ff4f53657`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29085474948` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Ch7VGXKrcWASg1t4ygxKL5MizZ3T`,production alias 已更新,入口 `/assets/index-CFgfUVjq.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认包含 `v10.7.9.280`、`个股收益峰值呼吸点`、`stock-detail-peak-breathe`、`stock-detail-peak-breathe-ring`、`r:3.6` 和 `pointerEvents:none`。本轮只改个股收益走势图展示层、本地视觉预览、设置页版本/更新日志和静态护栏,不改变数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar` 鉴权、交易账本、收益快照、财报日历或行情 relay。
 - Background: 用户要求把个股收益详情页“我的收益线”里的峰值圆点做成类似持仓收益试算价格位置点的呼吸效果,同时限定只作用在峰值圆点,并且不改变圆球本体大小。
 - Workflow tier: `runtime`。
 - Changes:
@@ -26,12 +26,18 @@
   - `docs/handoff.md`
   - `docs/development-log.md`
 - Validation:
+  - `npm run verify:toolchain`: pass。
   - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - `npm test`: pass,176/176。
   - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.280`。
   - `npm run build`: pass,生成 `StockDetailPage-Co8EcS-Y.js`、`SettingsTab-Be5wnqPd.js`、`settingsChangelog-CFyuZAgS.js`、`App-Cc6O1w68.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
   - `git diff --check`: pass。
   - Local visual check: pass;Vite dev preview `http://127.0.0.1:54944/?tab=stock-detail&stockDetailPeak=past&v=peak-breathe-280-mid`,390×844 viewport,峰值呼吸环 `ringCount=1`,中心圆点 `dotR=3.6`,动画名 `stock-detail-peak-breathe`,时长 `3.2s`;两帧间光晕 box 从约 `13.0px` 变为 `16.6px`,圆点本体半径不变。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-peak-breathe-local-390x844-mid-a.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/stock-detail-peak-breathe-local-390x844-mid-b.png`。
+  - `npm run verify:deploy-status -- 1596cd7`: pass;Actions run `29085474948` success,Vercel target `Ch7VGXKrcWASg1t4ygxKL5MizZ3T`,production entry `/assets/index-CFgfUVjq.js`,quote/earnings 未登录均为 `401`。
+  - Production marker check: pass;递归扫描 22 个 JS assets,`/assets/StockDetailPage-Co8EcS-Y.js` 命中 `stock-detail-peak-breathe`、`stock-detail-peak-breathe-ring`、`3.2s ease-in-out infinite`、`r:3.6`、`pointerEvents:none`,`/assets/SettingsTab-Be5wnqPd.js` 命中 `v10.7.9.280`,`/assets/settingsChangelog-CFyuZAgS.js` 命中 `v10.7.9.280` 和 `个股收益峰值呼吸点`。
 - Rollback: 回退本条 `StockDetailPage` 峰值光晕、`v10.7.9.280` 设置页版本/更新日志、静态测试和文档即可恢复上一版;不影响任何数据、行情、鉴权或账本边界。
 
 ### 2026-07-10 - 首页股票文字继续降重
