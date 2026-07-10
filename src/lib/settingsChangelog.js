@@ -1,6 +1,15 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.276', date: '2026-07-10', latest: true,
+    ver: 'v10.7.9.277', date: '2026-07-10', latest: true,
+    items: [
+      '📱 iOS 主屏启动黑底图',
+      '  - 为 iOS Web App 增加 Apple startup image 黑底启动图,覆盖 HTML/CSS 加载前的系统 launch screen',
+      '  - 保留上一版入口 HTML 深色背景兜底,这次补齐主屏首次重开时更早阶段的黑色底',
+      '  - 本次只改 PWA 启动壳和静态黑底图片,不改业务功能、交易账本、收益快照、行情接口、财报日历、RLS 或鉴权边界',
+    ],
+  },
+  {
+    ver: 'v10.7.9.276', date: '2026-07-10',
     items: [
       '🖤 启动黑色背景兜底',
       '  - 在入口 HTML 内提前声明深色背景,避免应用 CSS 加载前短暂露出浏览器默认白底',

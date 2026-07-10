@@ -4,6 +4,37 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - iOS 主屏启动黑底图
+
+- Commit: same commit;本地 runtime/PWA 提交,等待用户确认后再推送/部署。
+- Deployment: not deployed;本轮继续处理 iOS Web App 首次重新打开仍出现白色 launch screen 的问题,同步设置页版本/更新日志到 `v10.7.9.277`,不改变业务功能、API、数据库或安全边界。
+- Background: `v10.7.9.276` 已把 HTML/CSS 加载后的入口背景改为黑底,但用户反馈 iOS 主屏 Web App 首次重新打开仍会先显示白色背景。复查代码确认当前缺少 `apple-touch-startup-image`,而 iOS 主屏 launch screen 可能发生在 HTML/CSS 执行之前。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增 14 个纯 `#05070b` 不透明 RGB PNG 启动图,覆盖常见 iPhone/iPad 竖屏尺寸。
+  - `index.html` 增加默认 `apple-touch-startup-image` 和按设备尺寸匹配的 iOS 启动图 link,用于覆盖 iOS Web App 系统 launch screen。
+  - 保留上一版入口 HTML 深色背景、manifest/theme 黑底和 App 内深色壳,本轮不恢复旧的阻塞式 X MONEY 开屏,避免重新拖慢首页可见。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.277`,并保留 `v10.7.9.276` 启动黑色背景兜底记录。
+  - `tests/tool-ledger-boundaries.test.js` 增加 iOS startup image 链接数量、PNG 尺寸、RGB 无 alpha 和深色角落护栏。
+  - 不改 `/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照、行情 relay 或财报日历业务逻辑。
+- Key files:
+  - `index.html`
+  - `public/splash/*.png`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass。
+  - `npm run verify:docs-consistency`: pass。
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,176 tests。
+  - `npm run build`: pass,新入口构建为 `dist/assets/App-ezz63yWM.js` 等 assets。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:frontend-smoke`: pass,home/trades/analysis/review/settings root 非空且 errors 0。
+- Rollback: 回退本条 iOS startup image link、`public/splash` 黑底启动图、`v10.7.9.277` 设置页版本/更新日志、静态测试和文档即可恢复 `v10.7.9.276`;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - 启动黑色背景兜底
 
 - Commit: same commit;本地 runtime 提交,等待用户确认后再推送/部署。

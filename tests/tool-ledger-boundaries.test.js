@@ -17,6 +17,22 @@ const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'ut
 const indexHtmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const packageSource = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
 const manifestJson = JSON.parse(readFileSync(new URL('../public/manifest.json', import.meta.url), 'utf8'));
+const iosStartupImages = [
+  ['/splash/apple-splash-1290x2796.png', 1290, 2796],
+  ['/splash/apple-splash-1179x2556.png', 1179, 2556],
+  ['/splash/apple-splash-1170x2532.png', 1170, 2532],
+  ['/splash/apple-splash-1284x2778.png', 1284, 2778],
+  ['/splash/apple-splash-1242x2688.png', 1242, 2688],
+  ['/splash/apple-splash-828x1792.png', 828, 1792],
+  ['/splash/apple-splash-1125x2436.png', 1125, 2436],
+  ['/splash/apple-splash-750x1334.png', 750, 1334],
+  ['/splash/apple-splash-1242x2208.png', 1242, 2208],
+  ['/splash/apple-splash-640x1136.png', 640, 1136],
+  ['/splash/apple-splash-2048x2732.png', 2048, 2732],
+  ['/splash/apple-splash-1668x2388.png', 1668, 2388],
+  ['/splash/apple-splash-1620x2160.png', 1620, 2160],
+  ['/splash/apple-splash-1536x2048.png', 1536, 2048],
+];
 const pnlReportPageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx', import.meta.url), 'utf8');
 const stockDetailPageSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const pnlReportSnapshotsSource = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
@@ -242,7 +258,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.276'), 'settings version badge should document the dark startup background fallback');
+  assert.ok(settingsTabSource.includes('v10.7.9.277'), 'settings version badge should document the iOS startup image fix');
+  assert.ok(settingsChangelogSource.includes('iOS 主屏启动黑底图'), 'settings changelog should describe the latest iOS startup image fix');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.276'), 'settings changelog should retain the dark startup background fallback');
   assert.ok(settingsChangelogSource.includes('启动黑色背景兜底'), 'settings changelog should describe the latest dark startup background fallback');
   assert.ok(settingsChangelogSource.includes('v10.7.9.275'), 'settings changelog should retain the home status dot cleanup update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.275'), 'settings changelog should document the latest home status dot cleanup');
@@ -771,6 +789,20 @@ test('pwa app icons use opaque dark png assets without white iOS padding', () =>
     assert.equal(info.colorType, 2, `${path} should be RGB without an alpha channel so iOS cannot add white padding`);
     assert.equal(info.alphaMin, 255, `${path} should be fully opaque`);
     assert.ok(info.darkestCornerMax < 32, `${path} should have dark filled corners instead of white padding`);
+  }
+
+  const startupLinkCount = (indexHtmlSource.match(/rel="apple-touch-startup-image"/g) || []).length;
+  assert.equal(startupLinkCount, iosStartupImages.length + 1, 'index should expose a default iOS startup image plus device-specific startup images');
+
+  for (const [path, width, height] of iosStartupImages) {
+    assert.ok(indexHtmlSource.includes(`href="${path}"`), `${path} should be linked from index.html`);
+    const info = readPngInfo(`../public${path}`);
+    assert.equal(info.width, width, `${path} should keep the expected width`);
+    assert.equal(info.height, height, `${path} should keep the expected height`);
+    assert.equal(info.bitDepth, 8, `${path} should stay 8-bit PNG`);
+    assert.equal(info.colorType, 2, `${path} should be RGB without alpha so iOS cannot composite it over white`);
+    assert.equal(info.alphaMin, 255, `${path} should be fully opaque`);
+    assert.ok(info.darkestCornerMax < 16, `${path} should be a dark startup background, not a white launch screen`);
   }
 });
 
@@ -1333,7 +1365,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.276'), 'settings version badge should document the latest dark startup background fallback');
+  assert.ok(settingsTabSource.includes('v10.7.9.277'), 'settings version badge should document the latest iOS startup image fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1600,7 +1632,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.276'), 'settings version badge should document the latest dark startup background fallback');
+  assert.ok(settingsTabSource.includes('v10.7.9.277'), 'settings version badge should document the latest iOS startup image fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
