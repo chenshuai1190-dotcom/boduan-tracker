@@ -13,6 +13,8 @@ const PNL_REPORT_HISTORY_CLOSE_ROWS = PNL_REPORT_HISTORY_SNAPSHOT_COUNT + 1;
 const PNL_CHART_WIDTH = 310;
 const PNL_CHART_HEIGHT = 150;
 const PNL_CHART_PAD = 10;
+// Kept for controlled local/testing use; hidden from the product page for now.
+const SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS = false;
 
 function toNumber(value) {
   const n = Number(value);
@@ -333,10 +335,10 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
               <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
               <span className="truncate">{t(language, 'pnlReport.mine', '我的')}</span>
             </div>
-            <div className="mt-1 text-right text-[12px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+            <div className={`mt-1 text-right text-[12px] font-normal tabular-nums ${isRenderableChartValue(selectedSlot.point?.dailyPnlPct) ? marketTextClass(selectedSlot.point?.dailyPnlPct, marketColorMode) : 'text-white/[0.34]'}`} style={{ fontFamily: NUMBER_FONT }}>
               {nullableSignedPct(selectedSlot.point?.dailyPnlPct, 2)}
             </div>
-            <div className="mt-1 text-right text-[12px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+            <div className={`mt-1 text-right text-[12px] font-normal tabular-nums ${isRenderableChartValue(selectedSlot.point?.pnlPct) ? marketTextClass(selectedSlot.point?.pnlPct, marketColorMode) : 'text-white/[0.34]'}`} style={{ fontFamily: NUMBER_FONT }}>
               {nullableSignedPct(selectedSlot.point?.pnlPct, 2)}
             </div>
             {showBenchmark && (
@@ -748,7 +750,7 @@ export default function PnlReportPage({ ctx = {} }) {
           <div className="text-center">
             <h1 className="text-[17px] font-semibold leading-tight text-white/[0.86]">{t(language, 'pnlReport.title', '收益报表')}</h1>
             <div className="mt-0.5 text-[11px] text-white/[0.36]">
-              Quote {t(language, 'pnlReport.testDataBadge', '数据测试版')}
+              Quote Data testing
             </div>
           </div>
           <button
@@ -1048,21 +1050,23 @@ export default function PnlReportPage({ ctx = {} }) {
           })}
         </div>
       </section>
-      <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/[0.40]">
-        <div className="flex items-start gap-3">
-          <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b]" />
-          <div className="min-w-0 flex-1">{statusText}</div>
+      {SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS && (
+        <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/[0.40]">
+          <div className="flex items-start gap-3">
+            <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b]" />
+            <div className="min-w-0 flex-1">{statusText}</div>
+          </div>
+          <button
+            type="button"
+            onClick={handleRebuildToday}
+            disabled={rebuilding || reportLoading}
+            className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/45 bg-[#f6b54b]/12 px-3 text-[12px] font-normal text-[#ffd18a] transition active:scale-95 disabled:opacity-45"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+            {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成收盘快照')}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleRebuildToday}
-          disabled={rebuilding || reportLoading}
-          className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/45 bg-[#f6b54b]/12 px-3 text-[12px] font-normal text-[#ffd18a] transition active:scale-95 disabled:opacity-45"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
-          {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成收盘快照')}
-        </button>
-      </div>
+      )}
 
       {calendarPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">

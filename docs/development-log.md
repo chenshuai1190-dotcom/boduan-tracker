@@ -4,6 +4,38 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 收益报表浮层颜色和页面文案调整
+
+- Commit: pending;本地修复等待用户确认截图后再推送部署。
+- Deployment: not deployed;当前 production 仍为 `v10.7.9.281` runtime commit `d67062a9957d854f4872b971ce16dcb00a7325bb`。本轮只改收益报表展示层、设置页版本/更新日志、静态护栏和文档,不改变交易账本、收益快照写入逻辑、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
+- Background: 用户截图反馈收益报表对比浮层里“我的”当日收益率为负时仍显示红色;正确口径应和纳斯达克行一致,按系统涨跌颜色设置决定红/绿。随后用户要求把收益报表标题下方 `Quote 数据测试版` 改为 `Quote Data testing`,并从页面移除底部“生成收盘快照”入口,但代码暂时保留方便以后测试。
+- Workflow tier: `runtime`。
+- Changes:
+  - 收益报表对比浮层中“我的”当日收益率和累计收益率改用 `marketTextClass(..., marketColorMode)`,不再固定使用收益线颜色。
+  - 保留收益线和图例圆点原有颜色,只修正浮层数值文字颜色;红涨/绿涨模式都会跟随系统设置。
+  - 收益报表标题下方副标题改为固定英文 `Quote Data testing`。
+  - 页面底部“生成收盘快照”入口通过 `SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS = false` 暂时隐藏;`handleRebuildToday`、`db.upsertPnlReportSnapshots` 和相关快照生成逻辑保留,后续测试需要时可恢复。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.282`。
+  - 补充静态测试护栏,锁定“我的”当日/累计收益率也必须走市场涨跌颜色函数,并锁定收益报表副标题和手动快照入口隐藏状态。
+- Key files:
+  - `src/pages/PnlReportPage.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37。
+  - `npm test`: pass,176/176。
+  - `npm run build`: pass,生成 `PnlReportPage-2bsLqICO.js`、`App-B77LU2qx.js`、`SettingsTab-KmFRAqN2.js`、`settingsChangelog-BU1qNh_q.js` 等本地构建产物。
+  - `npm run verify:frontend-smoke`: pass;home/trades/analysis/review/settings 均非空且无白屏级错误。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.282`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `git diff --check`: pass。
+  - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?devPreview=1&tab=pnl-report&pnlReportTooltipDate=2026-05-12&v=282-quote-data-testing-hide-snapshot`,收益报表标题下方显示 `Quote Data testing`;页面可见文本不再包含“生成收盘快照”;收益报表对比浮层显示 `2026/5/12 星期二`,“我的”当日 `-0.74%` 为绿色、累计 `+7.52%` 为红色,纳斯达克行继续按同一系统涨跌颜色设置显示。
+  - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-v10.7.9.282-quote-data-testing-hide-snapshot-local-chrome-430x1600.png`;`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-v10.7.9.282-quote-data-testing-hide-snapshot-local-chrome-430x2600.png`。上一轮颜色修复参考图保留 `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-tooltip-color-fix-v10.7.9.282-local-590x1280.png`。
+- Rollback: 回退本条 `PnlReportPage` 浮层数值颜色、副标题文案、手动快照入口隐藏开关、`v10.7.9.282` 设置页版本/更新日志、测试和文档即可恢复上一版;不影响任何数据写入、行情鉴权或账本边界。
+
 ### 2026-07-10 - 收益报表对比浮层
 
 - Commit: runtime `d67062a9957d854f4872b971ce16dcb00a7325bb`;本条后续 docs-only 回填提交只同步部署证据。

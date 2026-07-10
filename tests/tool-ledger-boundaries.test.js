@@ -258,8 +258,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.281'), 'settings version badge should document the latest P&L report comparison tooltip update');
-  assert.ok(settingsChangelogSource.includes('收益报表对比浮层'), 'settings changelog should describe the latest P&L report comparison tooltip update');
+  assert.ok(settingsTabSource.includes('v10.7.9.282'), 'settings version badge should document the latest P&L report page update');
+  assert.ok(settingsChangelogSource.includes('收益报表浮层颜色和页面文案调整'), 'settings changelog should describe the latest P&L report page update');
+  assert.ok(settingsChangelogSource.includes('下跌不再错误显示为红色'), 'settings changelog should document the tooltip downside color fix');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.281'), 'settings changelog should retain the P&L report comparison tooltip update');
+  assert.ok(settingsChangelogSource.includes('收益报表对比浮层'), 'settings changelog should describe the P&L report comparison tooltip update');
   assert.ok(settingsChangelogSource.includes('本年基准继续沿用 1 月 1 日起点收盘价口径'), 'settings changelog should document the YTD benchmark baseline close logic');
   assert.ok(settingsChangelogSource.includes('v10.7.9.280'), 'settings changelog should retain the stock detail peak breathing update');
   assert.ok(settingsChangelogSource.includes('个股收益峰值呼吸点'), 'settings changelog should describe the latest stock detail peak breathing update');
@@ -511,7 +514,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(settingsChangelogSource.includes('收益报表日期筛选'), 'settings changelog should keep the P&L report date filter update history');
   assert.ok(settingsChangelogSource.includes('v10.7.9.219'), 'settings changelog should keep the Quote branding and P&L report copy update history');
   assert.ok(settingsChangelogSource.includes('Quote 品牌和收益报表文案'), 'settings changelog should describe the Quote branding and P&L report copy update');
-  assert.ok(pnlReportPageSource.includes("Quote {t(language, 'pnlReport.testDataBadge', '数据测试版')}"), 'P&L report header should show the Quote data beta badge');
+  assert.ok(pnlReportPageSource.includes('Quote Data testing'), 'P&L report header should show the English Quote data testing badge');
+  assert.ok(settingsChangelogSource.includes('Quote Data testing'), 'settings changelog should document the P&L report header badge update');
   assert.ok(pnlReportPageSource.includes('buildPnlReportCloseSnapshotInput'), 'P&L report manual snapshot generation should use close-based quote projection');
   assert.ok(pnlReportPageSource.includes('pnlReport.summaryShort'), 'P&L report summary title should follow the selected range');
   assert.ok(pnlReportPageSource.includes('leading-[44px]'), 'P&L report date filter inputs should vertically center date text');
@@ -633,10 +637,14 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSnapshots'), 'P&L report should read portfolio snapshots through the db boundary');
   assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSymbolSnapshots'), 'P&L report should read symbol snapshots through the db boundary');
   assert.ok(pnlReportPageSource.includes('db.upsertPnlReportSnapshots'), 'P&L report should expose a controlled manual snapshot generation path');
+  assert.ok(pnlReportPageSource.includes('SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS = false'), 'P&L report should hide manual snapshot generation controls from the product page');
+  assert.ok(settingsChangelogSource.includes('底层生成逻辑保留'), 'settings changelog should document that snapshot generation code is retained for testing');
   assert.ok(pnlReportPageSource.includes('/api/pnl-benchmark'), 'P&L report should read Nasdaq benchmark rows through a server API');
   assert.ok(pnlReportPageSource.includes('data-pnl-report-compare-tooltip'), 'P&L report chart should expose a unified comparison tooltip');
   assert.ok(pnlReportPageSource.includes('pnlReport.tooltip.daily'), 'P&L report comparison tooltip should show daily return');
   assert.ok(pnlReportPageSource.includes('pnlReport.tooltip.cumulative'), 'P&L report comparison tooltip should show cumulative return');
+  assert.ok(pnlReportPageSource.includes('marketTextClass(selectedSlot.point?.dailyPnlPct, marketColorMode)'), 'P&L report tooltip mine daily return should follow the configured market color mode');
+  assert.ok(pnlReportPageSource.includes('marketTextClass(selectedSlot.point?.pnlPct, marketColorMode)'), 'P&L report tooltip mine cumulative return should follow the configured market color mode');
   assert.ok(pnlReportViewModelSource.includes('benchmarkDailyPct'), 'P&L report view model should compute benchmark daily return for the tooltip');
   assert.ok(pnlReportPageSource.includes('stockTrades'), 'P&L report should compute period trade stats from the main trade fact source');
   assert.ok(pnlReportPageSource.includes('pnlReport.noSnapshotNotice'), 'P&L report should disclose when real snapshots are not available yet');
@@ -1387,7 +1395,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.281'), 'settings version badge should document the latest P&L report comparison tooltip update');
+  assert.ok(settingsTabSource.includes('v10.7.9.282'), 'settings version badge should document the latest P&L report page update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1669,7 +1677,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.281'), 'settings version badge should document the latest P&L report comparison tooltip update');
+  assert.ok(settingsTabSource.includes('v10.7.9.282'), 'settings version badge should document the latest P&L report page update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
