@@ -4,6 +4,38 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - 启动黑色背景兜底
+
+- Commit: same commit;本地 runtime 提交,等待用户确认后再推送/部署。
+- Deployment: user confirmed;按本提交推送 GitHub `main` 并触发 Vercel production 部署。最终 Actions/Vercel target、生产入口和未登录 API 401 smoke 结果放在本轮最终回复,避免为回填纯部署证据再触发 docs-only 部署循环。本轮只修复启动阶段白底闪现,同步设置页版本/更新日志到 `v10.7.9.276`,不改变业务功能、API、数据库或安全边界。
+- Background: 用户确认前台功能都能正常打开,但启动时出现白色背景,和此前黑色启动背景体验不一致。
+- Workflow tier: `runtime`。
+- Changes:
+  - `index.html` 在应用 CSS/JS 加载前内联声明 `html/body/#root` 的 `#05070b` 背景和 `color-scheme: dark`,避免浏览器默认白底在启动瞬间露出。
+  - `public/manifest.json` 和 `theme-color` 同步到 `#05070b`,保持 PWA 主屏启动底色、浏览器主题色和应用深色壳一致。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.276`,并保留 `v10.7.9.275` 首页状态圆点降噪记录。
+  - `tests/tool-ledger-boundaries.test.js` 增加入口 HTML/PWA 颜色护栏,防止后续入口壳回退到无黑色启动兜底。
+  - 不改 `/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照、行情 relay 或财报日历业务逻辑。
+- Key files:
+  - `index.html`
+  - `public/manifest.json`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/handoff.md`
+  - `docs/development-log.md`
+- Validation:
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37;覆盖入口 HTML 黑色启动兜底、PWA manifest/theme 颜色、设置页版本和更新日志。
+  - `npm run verify:docs-consistency`: pass;`SettingsTab`、`settingsChangelog`、handoff 当前摘要和可转发块均为 `v10.7.9.276`。
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,176/176。
+  - `npm run build`: pass,生成 `App-KdOs_jFo.js`、`SettingsTab-DI01Ie4u.js`、`settingsChangelog-BCAP_UhV.js`、`index-8fkBCyHg.css` 等本地构建产物;`dist/index.html` 和 `dist/manifest.json` 均包含 `#05070b` 启动/PWA 颜色。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:frontend-smoke`: pass;本地 Chrome 打开 Vite 预览,`home/trades/analysis/review/settings` 均 `root:1`,关键文案存在,errors 0。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,7 files changed,仅入口壳、manifest、设置页版本/更新日志、静态测试和文档同步。
+- Rollback: 回退本条入口 HTML 内联深色背景、manifest/theme 颜色同步、`v10.7.9.276` 设置页版本/更新日志、静态测试和文档即可恢复上一版启动壳;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - 前台白屏 smoke 护栏
 
 - Commit: same commit;runtime/tooling 提交,按用户确认推送 GitHub `main` 并触发 Vercel production 部署。

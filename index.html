@@ -6,8 +6,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Quote" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#05070b" />
     <meta name="description" content="Quote - 波段跟踪与复盘系统" />
+    <style>
+      /* 防止应用 CSS 加载前出现浏览器默认白底。 */
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        background: #05070b;
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
     <link rel="manifest" href="/manifest.json" />
     <!-- 浏览器 tab favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />

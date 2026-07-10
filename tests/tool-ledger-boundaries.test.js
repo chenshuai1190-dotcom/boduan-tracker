@@ -14,7 +14,9 @@ const earningsCalendarSource = readFileSync(new URL('../src/tabs/EarningsCalenda
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const indexHtmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const packageSource = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+const manifestJson = JSON.parse(readFileSync(new URL('../public/manifest.json', import.meta.url), 'utf8'));
 const pnlReportPageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx', import.meta.url), 'utf8');
 const stockDetailPageSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const pnlReportSnapshotsSource = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
@@ -233,7 +235,16 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
-  assert.ok(settingsTabSource.includes('v10.7.9.275'), 'settings version badge should document the latest home status dot cleanup');
+  const earlyDarkBackgroundIndex = indexHtmlSource.indexOf('background: #05070b;');
+  const appScriptIndex = indexHtmlSource.indexOf('/src/main.jsx');
+  assert.ok(indexHtmlSource.includes('<meta name="theme-color" content="#05070b" />'), 'app shell theme color should match the dark startup background');
+  assert.ok(earlyDarkBackgroundIndex > -1 && earlyDarkBackgroundIndex < appScriptIndex, 'index.html should define the dark background before the app script loads');
+  assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
+  assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
+  assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
+  assert.ok(settingsTabSource.includes('v10.7.9.276'), 'settings version badge should document the dark startup background fallback');
+  assert.ok(settingsChangelogSource.includes('启动黑色背景兜底'), 'settings changelog should describe the latest dark startup background fallback');
+  assert.ok(settingsChangelogSource.includes('v10.7.9.275'), 'settings changelog should retain the home status dot cleanup update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.275'), 'settings changelog should document the latest home status dot cleanup');
   assert.ok(settingsChangelogSource.includes('首页状态圆点降噪'), 'settings changelog should describe the latest home status dot cleanup');
   assert.ok(settingsChangelogSource.includes('v10.7.9.274'), 'settings changelog should retain the previous earnings calendar modal height fix');
@@ -1322,7 +1333,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.275'), 'settings version badge should document the latest home status dot cleanup');
+  assert.ok(settingsTabSource.includes('v10.7.9.276'), 'settings version badge should document the latest dark startup background fallback');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1589,7 +1600,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.275'), 'settings version badge should document the latest home status dot cleanup');
+  assert.ok(settingsTabSource.includes('v10.7.9.276'), 'settings version badge should document the latest dark startup background fallback');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
