@@ -1051,14 +1051,14 @@ export default function HomeTab({ ctx }) {
             <button
               type="button"
               onClick={() => setTableTab('watchlist')}
-              className={`text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/40'}`}
+              className={`text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}`}
             >
               {t(language, 'home.watchlist', '自选')}
             </button>
             <button
               type="button"
               onClick={() => setTableTab('positions')}
-              className={`text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/40'}`}
+              className={`text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}`}
             >
               {t(language, 'home.holdings', '持仓')}
             </button>
@@ -1074,7 +1074,7 @@ export default function HomeTab({ ctx }) {
           <>
             <div className="grid grid-cols-[minmax(92px,0.7fr)_minmax(0,3.15fr)] px-3">
               <div>
-                <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/36">{t(language, 'home.name', '名称')}</div>
+                <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/40">{t(language, 'home.name', '名称')}</div>
                 <div className="divide-y divide-white/[0.06]">
                   {tableRows.map((item) => (
                     <div
@@ -1083,7 +1083,7 @@ export default function HomeTab({ ctx }) {
                     >
                       <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                       <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-semibold leading-[14px] text-white">{item.symbol}</span>
+                        <span className="block truncate text-[13px] font-normal leading-[14px] text-white/80">{item.symbol}</span>
                         <span className="block truncate text-[10px] leading-[12px] text-white/40">{item.displayName}</span>
                       </span>
                     </div>

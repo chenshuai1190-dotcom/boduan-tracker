@@ -2,6 +2,40 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-11 Asia/Shanghai
+
+### 2026-07-11 - 首页财报和股票文字层级降亮
+
+- Commit: pending runtime release;部署完成后回填实际提交。
+- Deployment: authorized;用户已确认部署,等待 runtime 推送和线上验证。
+- Background: 用户反馈首页“财报日历”和“自选/持仓”当前标签明显过亮,要求参考当前信号“等待中”的文字颜色;同时要求“名称”表头与“价格/涨跌幅”统一灰色,并取消自选/持仓股票代码加粗、降低白色亮度。
+- Workflow tier: `runtime`。
+- Changes:
+  - 首页财报日历标题、首页财报代码和自选/持仓当前标签统一使用当前信号“等待中”的 `text-white/80` 亮度。
+  - 自选/持仓“名称”表头从 `text-white/36` 调整为 `text-white/40`,与未激活的价格/涨跌幅排序表头统一。
+  - 自选/持仓股票代码从 `font-semibold text-white` 调整为 `font-normal text-white/80`;公司名称副标题、价格、涨跌色和排序行为不变。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.288`。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/HomeTab.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation:
+  - `npm run verify:toolchain`: pass;Node `v22.23.1`,npm `10.9.8`,项目 SSH key、GitHub SSH read 和 Vercel CLI 可用。
+  - `node --test tests/tool-ledger-boundaries.test.js`: pass,37/37;锁定财报标题/代码、自选/持仓标签、“名称”表头和股票代码的透明度/字重。
+  - `npm test`: pass,182/182。
+  - `npm run build`: pass;生成 `HomeTab-CmMtgaID.js`、`SettingsTab-BVX7YHYH.js`、`settingsChangelog-Bp16Mh5K.js` 和 `App-BtJDwnkT.js`。
+  - `npm run verify:frontend-smoke`: pass;首页、交易、资产、目标和设置 5 个主 tab 均 `errors:0`。
+  - Local visual check: pass;`390x844`、`earningsScenario=dense` 下财报日历保持 `promoted`,“等待中”“财报日历”“自选”和股票代码实际颜色均为 `rgba(255, 255, 255, 0.8)`,“名称”“价格”“涨跌幅”均为 `rgba(255, 255, 255, 0.4)`,NVDA/MSFT 股票代码实际字重为 `400`;页面 console error 为 0。截图保存为 `/tmp/boduan-tracker-home-text-tone-v288.png`。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.288`,并明确生产仍为 `v10.7.9.287`。
+  - `git diff --check`: pass。
+- Boundaries: 只改首页文字字重、透明度和用户可见版本记录;不改行情请求、财报接口、交易账本、收益快照、数据库、RLS 或鉴权。
+- Rollback: 回退上述首页 class、`v10.7.9.288` 设置记录、静态护栏和本条日志即可恢复原视觉。
+
 ## 2026-07-10 Asia/Shanghai
 
 ### 2026-07-10 - 首页行情超限分批热修

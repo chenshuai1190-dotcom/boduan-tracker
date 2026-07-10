@@ -907,7 +907,7 @@ export default function EarningsCalendar({
       style={{ fontFamily: FONT }}
     >
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-[14px] font-bold leading-none text-white">
+        <div className="text-[14px] font-bold leading-none text-white/80">
           {t(language, 'earningsCalendar.title', '财报日历')}
         </div>
         <button
@@ -942,7 +942,7 @@ export default function EarningsCalendar({
               >
                 <div className="text-[12px] leading-none tabular-nums text-white/35">{shortDateLabel(event.reportDate)}</div>
                 <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
-                <div className="mt-1.5 max-w-full truncate text-[11px] leading-none font-normal text-white/82">{event.symbol}</div>
+                <div className="mt-1.5 max-w-full truncate text-[11px] leading-none font-normal text-white/80">{event.symbol}</div>
                 <span className="mt-1.5 inline-flex h-3.5 items-center justify-center">
                   <EarningsResultMarker event={event} />
                 </span>

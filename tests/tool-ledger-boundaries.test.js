@@ -259,7 +259,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.287'), 'settings version badge should document the latest quote batching hotfix');
+  assert.ok(settingsTabSource.includes('v10.7.9.288'), 'settings version badge should document the latest homepage text hierarchy update');
+  assert.ok(settingsChangelogSource.includes('首页财报与股票文字降亮'), 'settings changelog should describe the homepage text hierarchy update');
   assert.ok(settingsChangelogSource.includes('首页行情超限分批修复'), 'settings changelog should describe the quote batching hotfix');
   assert.ok(settingsChangelogSource.includes('首页财报日历智能上移'), 'settings changelog should describe the earnings calendar placement update');
   assert.ok(homeTabSource.includes("placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}"), 'home should move the same earnings calendar card between promoted and default positions');
@@ -346,7 +347,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('grid min-h-[88px]'), 'earnings calendar homepage preview should use a fixed one-line grid');
   assert.ok(earningsCalendarSource.includes('overflow-hidden'), 'earnings calendar homepage preview should not expose horizontal scrolling');
   assert.ok(earningsCalendarSource.includes('text-[12px] leading-none tabular-nums text-white/35'), 'earnings calendar homepage date should be smaller and use the edit-watchlist gray');
-  assert.ok(earningsCalendarSource.includes('text-[11px] leading-none font-normal text-white/82'), 'earnings calendar homepage symbol should stay one step smaller than before');
+  assert.ok(earningsCalendarSource.includes('text-[14px] font-bold leading-none text-white/80'), 'earnings calendar homepage title should match the muted current-signal status brightness');
+  assert.ok(earningsCalendarSource.includes('text-[11px] leading-none font-normal text-white/80'), 'earnings calendar homepage symbol should match the muted current-signal status brightness');
   assert.ok(earningsCalendarSource.includes('bg-white/[0.035] text-white/40'), 'earnings calendar homepage calendar button should use a lowered icon color');
   assert.ok(earningsCalendarSource.includes('grid-cols-[minmax(64px,0.82fr)_64px_104px_40px]'), 'earnings calendar modal row should reserve more room for EPS and USD revenue text');
   assert.ok(earningsCalendarSource.includes('whitespace-nowrap text-[12px] text-white/80 tabular-nums'), 'earnings calendar modal revenue should stay on one line with the larger type');
@@ -1426,7 +1428,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.287'), 'settings version badge should document the latest quote batching hotfix');
+  assert.ok(settingsTabSource.includes('v10.7.9.288'), 'settings version badge should document the latest homepage text hierarchy update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1680,8 +1682,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('text-[19px] font-black leading-none tabular-nums'), false, 'current signal percentage should not return to bold');
   assert.ok(homeTabSource.includes('<span className="block font-normal">{item.symbol}</span>'), 'benchmark menu symbol should use normal weight');
   assert.equal(homeTabSource.includes('<span className="block font-black">{item.symbol}</span>'), false, 'benchmark menu symbol should not return to bold');
-  assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/40'}"), 'home watchlist tab label should use normal weight');
-  assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/40'}"), 'home holdings tab label should use normal weight');
+  assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}"), 'home watchlist tab label should match the muted current-signal status brightness');
+  assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}"), 'home holdings tab label should match the muted current-signal status brightness');
+  assert.ok(homeTabSource.includes('pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/40'), 'home name header should match the inactive price and change headers');
+  assert.ok(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/80'), 'home watchlist and holding ticker codes should use normal weight and muted white');
+  assert.equal(homeTabSource.includes('block truncate text-[13px] font-semibold leading-[14px] text-white'), false, 'home watchlist and holding ticker codes should not return to bold pure white');
   assert.equal(homeTabSource.includes("text-[14px] font-bold leading-none ${tableTab === 'watchlist' ? 'text-white' : 'text-white/40'}"), false, 'home watchlist tab label should not return to bold');
   assert.equal(homeTabSource.includes("text-[14px] font-bold leading-none ${tableTab === 'positions' ? 'text-white' : 'text-white/40'}"), false, 'home holdings tab label should not return to bold');
   assert.equal(homeTabSource.includes('h-3.5 w-3.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]'), false, 'VIX value should not render the removed green status dot');
@@ -1708,7 +1713,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.287'), 'settings version badge should document the latest quote batching hotfix');
+  assert.ok(settingsTabSource.includes('v10.7.9.288'), 'settings version badge should document the latest homepage text hierarchy update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
