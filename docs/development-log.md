@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 财报日历全模块白色文字降亮
 
-- Commit: pending runtime release;部署完成后回填实际提交。
-- Deployment: authorized;用户要求修改后直接部署。
+- Commit: runtime `777275ee90fcf3ecda6fb3f178c4843730a87194`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29110782214` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/36mEvUU5ujoWKbtX9zDUXJtd4MpR`,production alias 已更新,入口 `/assets/index-BQPidEgS.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `/assets/index-BQPidEgS.js`、`/assets/App-CNh8j2yB.js`、`/assets/HomeTab-BkYBfiNd.js`、`/assets/SettingsTab-BQAgaNlw.js` 和 `/assets/settingsChangelog-DAuFV9li.js` 与本地验证构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.291`、财报标题/代码/实际值 70%、预期值 60%、月份/普通日期 65% 和公司名 40%。
 - Background: 用户要求财报日历整个模块参考首页当前文字层级,把所有明显偏亮的白色标题、股票代码、日期和数值统一降低亮度,避免深色页面上白色数字过亮。
 - Workflow tier: `runtime`。
 - Changes:
