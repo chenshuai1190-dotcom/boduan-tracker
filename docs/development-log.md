@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 收益报表对比浮层
 
-- Commit: same commit;本地实现等待用户确认截图后再推送部署。
-- Deployment: not deployed;当前 production 仍为 `v10.7.9.280` runtime commit `1596cd766bcbc0e03020fc2f7bcbcf7ff4f53657`。本轮只改收益报表展示层、本地视觉预览、设置页版本/更新日志、静态护栏和文档,不改变交易账本、收益快照写入、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
+- Commit: runtime `d67062a9957d854f4872b971ce16dcb00a7325bb`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;用户确认部署后使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29092928690` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AJEjt7GAjXGLW3XzjYK7jFMucQK8`,production alias 已更新,入口 `/assets/index-DIAi9o6L.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。生产 bundle marker 已确认包含 `v10.7.9.281`、`收益报表对比浮层`、`data-pnl-report-compare-tooltip`、`pnlReportTooltipDate` 和 `benchmarkDailyPct`。本轮只改收益报表展示层、本地视觉预览、设置页版本/更新日志、静态护栏和文档,不改变交易账本、收益快照写入、行情接口、财报日历、RLS、`/api/quote` 鉴权或 `/api/earnings-calendar` 鉴权。
 - Background: 用户确认收益报表走势图弹窗对比功能可以做,并明确基准沿用现有对比逻辑:本年按 1 月 1 日起点收盘价计算纳斯达克基准收益率。
 - Workflow tier: `runtime`。
 - Changes:
@@ -42,6 +42,8 @@
   - `git diff --check`: pass。
   - Local visual check: pass;Vite dev preview `http://127.0.0.1:5173/?devPreview=1&tab=pnl-report&pnlReportTooltipDate=2026-04-22&v=281-compare-tooltip-just-cover-raised`,收益报表对比浮层显示 `2026/4/22 星期三`、我的当日 `+2.36%` / 累计 `+9.09%`、纳斯达克当日 `+1.64%` / 累计 `+6.11%`,且浮层无白色描边、固定在图表上半区居中,横向延伸到刚好遮住右侧百分比坐标,取消额外加高并上抬以露出更多曲线。
   - Local screenshots: `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-just-cover-raised-590x1280.png`;上一轮参考图保留 `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-narrower-raised-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-wide-fixed-tall-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-wide-fixed-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-fixed-center-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-borderless-raised-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-590x1280.png`、`/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-430x932.png` 和 `/Users/chenshuaishuai/Desktop/boduan-previews/pnl-report-compare-tooltip-v10.7.9.281-local-390x844.png`。
+  - `npm run verify:deploy-status -- d67062a`: pass;GitHub combined status success,GitHub Actions run `29092928690` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AJEjt7GAjXGLW3XzjYK7jFMucQK8`,production entry `/assets/index-DIAi9o6L.js`,未登录 quote/earnings 均为 `401`。
+  - Production marker check: pass;递归扫描 40 个 JS assets,`/assets/SettingsTab-C8ngWfgy.js` 和 `/assets/settingsChangelog-Bo2IS9vJ.js` 命中 `v10.7.9.281`,`/assets/settingsChangelog-Bo2IS9vJ.js` 命中 `收益报表对比浮层`,`/assets/PnlReportPage-CNsznsKK.js` 命中 `data-pnl-report-compare-tooltip`、`pnlReportTooltipDate` 和 `benchmarkDailyPct`。
 - Rollback: 回退本条 `PnlReportPage` 浮层交互、`pnlReportViewModel` 基准当日收益字段、DevVisualPreview mock、`v10.7.9.281` 设置页版本/更新日志、测试和文档即可恢复上一版收益报表展示;不影响任何数据写入、行情鉴权或账本边界。
 
 ### 2026-07-10 - 个股收益峰值呼吸点
