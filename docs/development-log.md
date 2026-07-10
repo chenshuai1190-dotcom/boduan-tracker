@@ -4,6 +4,30 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 财报日历全模块白色文字降亮
+
+- Commit: pending runtime release;部署完成后回填实际提交。
+- Deployment: authorized;用户要求修改后直接部署。
+- Background: 用户要求财报日历整个模块参考首页当前文字层级,把所有明显偏亮的白色标题、股票代码、日期和数值统一降低亮度,避免深色页面上白色数字过亮。
+- Workflow tier: `runtime`。
+- Changes:
+  - 首页财报卡片标题和股票代码、列表/日历行股票代码、财报详情股票代码及实际值统一降为 `text-white/70`。
+  - 对比表实际值从 `text-white/88` 降为 `text-white/70`,预期值从 `text-white/78` 降为 `text-white/60`;详情实际值从 `text-white/86` 降为 `text-white/70`。
+  - 弹窗标题从纯白降为 `text-white/70`,月份和普通日历日期分别从 `text-white/78`、`text-white/76` 统一降为 `text-white/65`。
+  - 预计 EPS/营收从 `text-white/80` 降为 `text-white/70`;原本已在 62% 以下的辅助说明继续保持,红绿结果与金色选中/操作状态不变。
+  - 清理财报模块内 `/34`、`/36`、`/42`、`/46`、`/48`、`/52`、`/54`、`/56`、`/62` 等无效白色透明度 class,替换为有效的 5% 档位,避免浏览器未生成规则后继承成纯白。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.291`。
+- Key files:
+  - `src/tabs/EarningsCalendar.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation: `npm run verify:toolchain` pass;`node --test tests/tool-ledger-boundaries.test.js` 37/37 pass;`npm test` 182/182 pass;`npm run build` pass（`HomeTab-BkYBfiNd.js`、`SettingsTab-BQAgaNlw.js`、`settingsChangelog-DAuFV9li.js`）;`npm run verify:frontend-smoke` pass（home/trades/analysis/review/settings 均无 console/runtime error）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 本地密集财报预览复核：首页/弹窗标题、代码和主要值计算色为 `rgba(255,255,255,0.7)`,公司名为 0.4,月份和普通日期为 0.65,布局正常且 console error 为 0。
+- Boundaries: 只改财报日历展示层文字透明度;不改 `/api/earnings-calendar`、`/api/quote`、财报数据口径、交易账本、收益快照、数据库、RLS 或鉴权。
+- Rollback: 回退财报日历白色文字 class、`v10.7.9.291` 版本记录、静态护栏和本条日志即可恢复上一版亮度。
+
 ### 2026-07-11 - 首页股票代码和公司名称继续降亮
 
 - Commit: runtime `ce9e3c1f04a0608baebf21c33629e871c495384b`;本条后续 docs-only 回填提交只同步部署证据。

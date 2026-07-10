@@ -115,7 +115,7 @@ function formatSignedPercent(value, digits = 1) {
 
 function signedPercentClass(value) {
   const n = Number(value);
-  if (!Number.isFinite(n) || n === 0) return 'text-white/56';
+  if (!Number.isFinite(n) || n === 0) return 'text-white/55';
   return n > 0 ? 'text-[#ff6b55]' : 'text-emerald-400';
 }
 
@@ -183,7 +183,7 @@ function impactText(event, language) {
 function impactClass(event) {
   if (event.impact === 'high') return 'text-[#ff4b1f]';
   if (event.impact === 'medium') return 'text-[#f6b54b]';
-  return 'text-white/42';
+  return 'text-white/40';
 }
 
 function DayDots({ events }) {
@@ -201,7 +201,7 @@ function earningsResultTone(result) {
   if (result === 'beat') return 'border-[#f6b54b]/30 bg-[#f6b54b]/14 text-[#ffd18a]';
   if (result === 'miss') return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300';
   if (result === 'mixed') return 'border-transparent bg-[#f6b54b]/12 text-[#f6b54b] shadow-[inset_0_0_0_1px_rgba(246,181,75,0.18)]';
-  return 'border-white/[0.08] bg-white/[0.06] text-white/48';
+  return 'border-white/[0.08] bg-white/[0.06] text-white/45';
 }
 
 function EarningsResultMarker({ event, result: explicitResult }) {
@@ -250,7 +250,7 @@ function EarningsStatusLegend({ language }) {
     ['meet', earningsResultText('meet', language)],
   ];
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2.5 py-2 text-[10px] text-white/34">
+    <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2.5 py-2 text-[10px] text-white/30">
       <span>{t(language, 'earningsCalendar.legend', '图例')}</span>
       {items.map(([result, label]) => (
         <span key={result} className="inline-flex items-center gap-1">
@@ -302,7 +302,7 @@ function EarningsSessionIcon({ session }) {
 function earningsSessionTone(session) {
   if (session === 'pre') return 'text-[#f6b54b]';
   if (session === 'post') return 'text-[#6f86ff]';
-  return 'text-white/42';
+  return 'text-white/40';
 }
 
 function revenueValue(event, key) {
@@ -327,7 +327,7 @@ function metricResultFromSurprise(value) {
 function metricResultTone(result) {
   if (result === 'beat') return 'text-[#ff7b5a]';
   if (result === 'miss') return 'text-emerald-400';
-  return 'text-white/42';
+  return 'text-white/40';
 }
 
 function buildPublishedFinancialRows(event, language) {
@@ -398,7 +398,7 @@ function PublishedFinancialComparison({ event, language }) {
   if (!rows.length) return null;
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.025]">
-      <div className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center border-b border-white/[0.06] px-3 py-2 text-[10px] leading-4 text-white/36">
+      <div className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center border-b border-white/[0.06] px-3 py-2 text-[10px] leading-4 text-white/35">
         <span>{t(language, 'earningsCalendar.metric', '指标')}</span>
         <span className="text-right">{t(language, 'earningsCalendar.actualValue', '公布值')}<br />{t(language, 'earningsCalendar.yoy', '同比')}</span>
         <span className="text-right">{t(language, 'earningsCalendar.forecastValue', '预测值')}<br />{t(language, 'earningsCalendar.yoy', '同比')}</span>
@@ -408,15 +408,15 @@ function PublishedFinancialComparison({ event, language }) {
         return (
           <div key={row.key} className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center px-3 py-3">
             <div className="min-w-0">
-              <div className="truncate text-[12px] font-normal text-white/82">{row.label}</div>
+              <div className="truncate text-[12px] font-normal text-white/70">{row.label}</div>
               <div className={`mt-1 text-[10px] ${metricResultTone(result)}`}>{earningsResultText(result, language)}</div>
             </div>
             <div className="min-w-0 text-right">
-              <div className="truncate text-[15px] leading-none text-white/88 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.actual}</div>
+              <div className="truncate text-[15px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.actual}</div>
               <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.actualYoy)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(row.actualYoy)}</div>
             </div>
             <div className="min-w-0 text-right">
-              <div className="truncate text-[15px] leading-none text-white/78 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.estimate}</div>
+              <div className="truncate text-[15px] leading-none text-white/60 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.estimate}</div>
               <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.estimateYoy)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(row.estimateYoy)}</div>
             </div>
           </div>
@@ -429,10 +429,10 @@ function PublishedFinancialComparison({ event, language }) {
 function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, language }) {
   return (
     <div className="min-w-0 text-left">
-      <div className="text-[10px] leading-none text-white/36">{label}</div>
-      <div className="mt-1.5 truncate text-[12px] leading-none text-white/86 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{actual}</div>
+      <div className="text-[10px] leading-none text-white/35">{label}</div>
+      <div className="mt-1.5 truncate text-[12px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{actual}</div>
       <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(actualPercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(actualPercent)}</div>
-      <div className="mt-1.5 truncate text-[10px] leading-none text-white/34 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{t(language, 'earningsCalendar.forecastShort', '预期')} {estimate}</div>
+      <div className="mt-1.5 truncate text-[10px] leading-none text-white/30 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{t(language, 'earningsCalendar.forecastShort', '预期')} {estimate}</div>
       <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(estimatePercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(estimatePercent)}</div>
     </div>
   );
@@ -449,7 +449,7 @@ function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displaySt
       onClick={() => onOpenDetail?.(event)}
       className="min-h-[118px] w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-3.5 py-4 text-left active:scale-[0.99]"
     >
-      <div className="mb-3 flex items-center justify-between gap-2 text-[11px] text-white/52">
+      <div className="mb-3 flex items-center justify-between gap-2 text-[11px] text-white/50">
         <div className="flex min-w-0 items-center gap-2">
           <span>{shortDateLabel(event.reportDate)}</span>
           <span className={`inline-flex items-center gap-1 font-normal ${earningsSessionTone(event.session)}`}>
@@ -466,8 +466,8 @@ function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displaySt
         <div className="flex min-w-0 items-center gap-1.5">
           <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-8 w-8 shrink-0 rounded-lg" />
           <div className="min-w-0">
-            <div className="truncate text-[14px] font-normal text-white/82">{event.symbol}</div>
-            <div className="truncate text-[10px] text-white/42">{name}</div>
+            <div className="truncate text-[14px] font-normal text-white/70">{event.symbol}</div>
+            <div className="truncate text-[10px] text-white/40">{name}</div>
           </div>
         </div>
         <MetricStack
@@ -487,7 +487,7 @@ function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displaySt
           language={language}
         />
         <div className="min-w-0 text-right">
-          <div className="text-[10px] leading-none text-white/36">{reactionLabel(event, language)}</div>
+          <div className="text-[10px] leading-none text-white/35">{reactionLabel(event, language)}</div>
           <div className={`mt-1.5 text-[12px] leading-none tabular-nums ${signedPercentClass(reaction)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction)}</div>
           <div className="mt-3 flex justify-end">
             <EarningsResultMarker event={event} />
@@ -503,7 +503,7 @@ function UpcomingEarningsEventRow({ event, logoCache, cacheStockLogo, displaySto
   const cachedLogoUrl = logoCache?.[event.symbol]?.url;
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-3">
-      <div className="mb-2 flex items-center gap-2 text-[11px] text-white/52">
+      <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
         <span>{shortDateLabel(event.reportDate)}</span>
         <span className={`inline-flex items-center gap-1 font-normal ${earningsSessionTone(event.session)}`}>
           <EarningsSessionIcon session={event.session} />
@@ -514,17 +514,17 @@ function UpcomingEarningsEventRow({ event, logoCache, cacheStockLogo, displaySto
         <div className="flex min-w-0 items-center gap-1">
           <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-7 w-7 shrink-0 rounded-lg" />
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-normal text-white/82">{event.symbol}</div>
-            <div className="truncate text-[9px] text-white/42">{name}</div>
+            <div className="truncate text-[13px] font-normal text-white/70">{event.symbol}</div>
+            <div className="truncate text-[9px] text-white/40">{name}</div>
           </div>
         </div>
         <div className="text-left">
-          <div className="text-[11px] text-white/36">{t(language, 'earningsCalendar.epsEstimate', '预计EPS')}</div>
-          <div className="mt-0.5 text-[13px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatNumber(event.epsEstimate)}</div>
+          <div className="text-[11px] text-white/35">{t(language, 'earningsCalendar.epsEstimate', '预计EPS')}</div>
+          <div className="mt-0.5 text-[13px] text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatNumber(event.epsEstimate)}</div>
         </div>
         <div className="text-left">
-          <div className="text-[11px] text-white/36">{t(language, 'earningsCalendar.revenueEstimate', '预计营收')}</div>
-          <div className="mt-0.5 whitespace-nowrap text-[12px] text-white/80 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRevenueUsd(revenueValue(event, 'estimate'), language, { compact: true })}</div>
+          <div className="text-[11px] text-white/35">{t(language, 'earningsCalendar.revenueEstimate', '预计营收')}</div>
+          <div className="mt-0.5 whitespace-nowrap text-[12px] text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRevenueUsd(revenueValue(event, 'estimate'), language, { compact: true })}</div>
         </div>
         <div className={`text-right text-[11px] font-normal ${impactClass(event)}`}>
           {impactText(event, language)}
@@ -550,30 +550,30 @@ function PublishedEarningsDetail({ event, logoCache, cacheStockLogo, displayStoc
           <div className="flex min-w-0 items-center gap-2.5">
             <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-9 w-9 shrink-0 rounded-lg" />
             <div className="min-w-0">
-              <div className="truncate text-[16px] font-normal text-white/88">{event.symbol} <span className="text-[12px] text-white/42">{name}</span></div>
-              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/42">
+              <div className="truncate text-[16px] font-normal text-white/70">{event.symbol} <span className="text-[12px] text-white/40">{name}</span></div>
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40">
                 <span>{event.reportDate}</span>
                 <span>{earningsSessionText(event.session, language)}</span>
                 <PublishedBadge language={language} />
               </div>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/42 active:scale-95">
+          <button type="button" onClick={onClose} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/40 active:scale-95">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
         <div className="mt-4 border-t border-white/[0.06] pt-3">
-          <div className="flex items-center justify-between gap-3 text-[10px] text-white/36">
+          <div className="flex items-center justify-between gap-3 text-[10px] text-white/35">
             <span>{t(language, 'earningsCalendar.currencyUsd', '币种: USD')}</span>
             <span>{t(language, 'earningsCalendar.fiscalDate', '财报期')} {event.fiscalDate || event.reportDate}</span>
           </div>
-          <div className="mt-2 text-[12px] leading-5 text-white/62">{financialOverviewText(event, name, language)}</div>
+          <div className="mt-2 text-[12px] leading-5 text-white/60">{financialOverviewText(event, name, language)}</div>
         </div>
         <PublishedFinancialComparison event={event} language={language} />
         <div className="mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-3">
           <div>
-            <div className="text-[10px] text-white/36">{reactionLabel(event, language)}</div>
-            <div className="mt-1 text-[10px] text-white/34">{t(language, 'earningsCalendar.closeReaction', '收盘反应')}</div>
+            <div className="text-[10px] text-white/35">{reactionLabel(event, language)}</div>
+            <div className="mt-1 text-[10px] text-white/30">{t(language, 'earningsCalendar.closeReaction', '收盘反应')}</div>
           </div>
           <div className="text-right">
             <div className={`text-[15px] leading-none tabular-nums ${signedPercentClass(event.marketReactionPercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(event.marketReactionPercent)}</div>
@@ -582,7 +582,7 @@ function PublishedEarningsDetail({ event, logoCache, cacheStockLogo, displayStoc
         </div>
         <div className="mt-4">
           <div className="text-[11px] text-white/40">{t(language, 'earningsCalendar.conclusion', '结论')}</div>
-          <div className="mt-1 text-[12px] leading-5 text-white/62">{resultConclusion(event, language)}</div>
+          <div className="mt-1 text-[12px] leading-5 text-white/60">{resultConclusion(event, language)}</div>
         </div>
       </div>
     </div>
@@ -637,10 +637,10 @@ function EarningsModal({
     <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/72 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[3px]" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="flex h-[86dvh] max-h-[760px] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]" style={{ fontFamily: FONT }}>
         <div className="flex shrink-0 items-center justify-between">
-          <div className="text-[14px] font-bold leading-none text-white">
+          <div className="text-[14px] font-bold leading-none text-white/70">
             {t(language, 'earningsCalendar.title', '财报日历')}
           </div>
-          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/42 active:scale-95">
+          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/40 active:scale-95">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -654,7 +654,7 @@ function EarningsModal({
               key={key}
               type="button"
               onClick={() => setView(key)}
-              className={`h-8 rounded-md text-[13px] font-normal active:scale-[0.99] ${view === key ? 'bg-[#f6b54b]/16 text-[#f6b54b]' : 'text-white/46'}`}
+              className={`h-8 rounded-md text-[13px] font-normal active:scale-[0.99] ${view === key ? 'bg-[#f6b54b]/16 text-[#f6b54b]' : 'text-white/45'}`}
             >
               {label}
             </button>
@@ -665,16 +665,16 @@ function EarningsModal({
           <div className="mt-4 flex min-h-0 flex-1 flex-col" data-earnings-calendar-view="fixed-calendar">
             <div className="shrink-0">
               <div className="flex items-center justify-between">
-                <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/54 active:scale-95">
+                <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/50 active:scale-95">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <div className="text-[15px] font-normal text-white/78">{monthLabel(`${visibleMonth}-01`, language)}</div>
-                <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/54 active:scale-95">
+                <div className="text-[15px] font-normal text-white/65">{monthLabel(`${visibleMonth}-01`, language)}</div>
+                <button type="button" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/50 active:scale-95">
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="mt-2 grid grid-cols-7 border-b border-white/[0.06] pb-2 text-center text-[11px] text-white/42">
+              <div className="mt-2 grid grid-cols-7 border-b border-white/[0.06] pb-2 text-center text-[11px] text-white/40">
                 {(language === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['日', '一', '二', '三', '四', '五', '六']).map((item) => <span key={item}>{item}</span>)}
               </div>
               <div className="mt-1 grid grid-cols-7 grid-rows-6 gap-y-1 text-center">
@@ -692,7 +692,7 @@ function EarningsModal({
                       className={`mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-xl text-[14px] font-normal active:scale-95 ${
                         active
                           ? 'border border-[#f6b54b]/65 bg-[#f6b54b]/12 text-[#ffd18a]'
-                          : day.inMonth ? 'text-white/76' : 'text-white/20'
+                          : day.inMonth ? 'text-white/65' : 'text-white/20'
                       }`}
                     >
                       <span>{day.day}</span>
@@ -706,11 +706,11 @@ function EarningsModal({
 
             <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5" data-earnings-calendar-selected-list>
               <div className="space-y-2">
-                <div className="text-[12px] text-white/42">
+                <div className="text-[12px] text-white/40">
                   {selectedDate ? `${selectedDate} · ${selectedEvents.length || 0} ${t(language, 'earningsCalendar.eventsUnit', '项')}` : t(language, 'earningsCalendar.noDateSelected', '选择日期查看财报')}
                 </div>
                 {selectedEvents.length === 0 ? (
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-5 text-center text-[13px] text-white/36">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-5 text-center text-[13px] text-white/35">
                     {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : t(language, 'earningsCalendar.noEventsOnDate', '当天没有关注股票财报')}
                   </div>
                 ) : selectedEvents.map((event) => (
@@ -723,7 +723,7 @@ function EarningsModal({
           <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
             <div className="space-y-2">
               {listEvents.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-8 text-center text-[13px] text-white/36">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-8 text-center text-[13px] text-white/35">
                   {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : t(language, 'earningsCalendar.noEvents', '暂无关注股票财报')}
                 </div>
               ) : listEvents.map((event) => (
@@ -907,7 +907,7 @@ export default function EarningsCalendar({
       style={{ fontFamily: FONT }}
     >
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-[14px] font-bold leading-none text-white/80">
+        <div className="text-[14px] font-bold leading-none text-white/70">
           {t(language, 'earningsCalendar.title', '财报日历')}
         </div>
         <button
@@ -925,7 +925,7 @@ export default function EarningsCalendar({
         style={{ gridTemplateColumns: previewEvents.length > 0 ? `repeat(${previewEvents.length}, minmax(0, 1fr)) 42px` : '1fr' }}
       >
         {previewEvents.length === 0 ? (
-          <div className="flex min-h-[88px] flex-1 items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.025] px-4 text-center text-[12px] text-white/36">
+          <div className="flex min-h-[88px] flex-1 items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.025] px-4 text-center text-[12px] text-white/35">
             {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : error || t(language, 'earningsCalendar.noEvents', '暂无关注股票财报')}
           </div>
         ) : (
@@ -942,7 +942,7 @@ export default function EarningsCalendar({
               >
                 <div className="text-[12px] leading-none tabular-nums text-white/35">{shortDateLabel(event.reportDate)}</div>
                 <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
-                <div className="mt-1.5 max-w-full truncate text-[11px] leading-none font-normal text-white/80">{event.symbol}</div>
+                <div className="mt-1.5 max-w-full truncate text-[11px] leading-none font-normal text-white/70">{event.symbol}</div>
                 <span className="mt-1.5 inline-flex h-3.5 items-center justify-center">
                   <EarningsResultMarker event={event} />
                 </span>

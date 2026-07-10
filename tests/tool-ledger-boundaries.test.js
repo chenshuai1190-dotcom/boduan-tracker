@@ -259,8 +259,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.290'), 'settings version badge should document the latest home stock name brightness update');
-  assert.ok(settingsChangelogSource.includes('首页股票代码和公司名称降亮'), 'settings changelog should describe the home stock name brightness update');
+  assert.ok(settingsTabSource.includes('v10.7.9.291'), 'settings version badge should document the earnings calendar brightness update');
+  assert.ok(settingsChangelogSource.includes('财报日历全模块白色文字降亮'), 'settings changelog should describe the earnings calendar brightness update');
+  assert.ok(settingsChangelogSource.includes('首页股票代码和公司名称降亮'), 'settings changelog should retain the home stock name brightness update');
   assert.ok(settingsChangelogSource.includes('首页持仓盈亏与自选亮度修复'), 'settings changelog should retain the home holding P&L and watchlist brightness fix');
   assert.ok(settingsChangelogSource.includes('首页财报与股票文字降亮'), 'settings changelog should retain the homepage text hierarchy update');
   assert.ok(settingsChangelogSource.includes('首页行情超限分批修复'), 'settings changelog should describe the quote batching hotfix');
@@ -349,11 +350,21 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('grid min-h-[88px]'), 'earnings calendar homepage preview should use a fixed one-line grid');
   assert.ok(earningsCalendarSource.includes('overflow-hidden'), 'earnings calendar homepage preview should not expose horizontal scrolling');
   assert.ok(earningsCalendarSource.includes('text-[12px] leading-none tabular-nums text-white/35'), 'earnings calendar homepage date should be smaller and use the edit-watchlist gray');
-  assert.ok(earningsCalendarSource.includes('text-[14px] font-bold leading-none text-white/80'), 'earnings calendar homepage title should match the muted current-signal status brightness');
-  assert.ok(earningsCalendarSource.includes('text-[11px] leading-none font-normal text-white/80'), 'earnings calendar homepage symbol should match the muted current-signal status brightness');
+  assert.ok(earningsCalendarSource.includes('text-[14px] font-bold leading-none text-white/70'), 'earnings calendar titles should use the reduced primary brightness');
+  assert.ok(earningsCalendarSource.includes('text-[11px] leading-none font-normal text-white/70'), 'earnings calendar homepage symbol should use the reduced primary brightness');
+  assert.ok(earningsCalendarSource.includes('text-[15px] leading-none text-white/70 tabular-nums'), 'earnings actual values should use the reduced primary brightness');
+  assert.ok(earningsCalendarSource.includes('text-[15px] leading-none text-white/60 tabular-nums'), 'earnings estimate values should use the lower secondary brightness');
+  assert.ok(earningsCalendarSource.includes("day.inMonth ? 'text-white/65' : 'text-white/20'"), 'earnings calendar day numbers should use the reduced date brightness');
+  assert.equal(earningsCalendarSource.includes('text-white/82'), false, 'earnings calendar should not retain the old bright symbol text');
+  assert.equal(earningsCalendarSource.includes('text-white/88'), false, 'earnings calendar should not retain the old bright actual-value text');
+  assert.equal(earningsCalendarSource.includes('text-white/86'), false, 'earnings calendar should not retain the old bright detail-value text');
+  assert.equal(earningsCalendarSource.includes('text-white/78'), false, 'earnings calendar should not retain the old bright month or estimate text');
+  for (const invalidOpacity of ['34', '36', '42', '46', '48', '52', '54', '56', '62']) {
+    assert.equal(earningsCalendarSource.includes(`text-white/${invalidOpacity}`), false, `earnings calendar should not use unsupported white opacity ${invalidOpacity}`);
+  }
   assert.ok(earningsCalendarSource.includes('bg-white/[0.035] text-white/40'), 'earnings calendar homepage calendar button should use a lowered icon color');
   assert.ok(earningsCalendarSource.includes('grid-cols-[minmax(64px,0.82fr)_64px_104px_40px]'), 'earnings calendar modal row should reserve more room for EPS and USD revenue text');
-  assert.ok(earningsCalendarSource.includes('whitespace-nowrap text-[12px] text-white/80 tabular-nums'), 'earnings calendar modal revenue should stay on one line with the larger type');
+  assert.ok(earningsCalendarSource.includes('whitespace-nowrap text-[12px] text-white/70 tabular-nums'), 'earnings calendar modal revenue should stay on one line with reduced brightness');
   assert.equal(earningsCalendarSource.includes('eventDates.slice(0, 6).map'), false, 'earnings calendar list view should not keep the duplicated date filter row');
   assert.ok(earningsCalendarSource.includes('const includePreviousPublished = true'), 'earnings calendar should enable the previous published quarter for modal review');
   assert.ok(earningsCalendarSource.includes("includePreviousPublished: includePreviousPublished ? '1' : '0'"), 'earnings calendar should pass the previous published quarter query parameter');
@@ -1430,7 +1441,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.290'), 'settings version badge should document the latest home stock name brightness update');
+  assert.ok(settingsTabSource.includes('v10.7.9.291'), 'settings version badge should document the earnings calendar brightness update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1726,7 +1737,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.290'), 'settings version badge should document the latest home stock name brightness update');
+  assert.ok(settingsTabSource.includes('v10.7.9.291'), 'settings version badge should document the earnings calendar brightness update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
