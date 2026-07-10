@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 首页持仓盈亏和自选亮度修复
 
-- Commit: pending runtime release;部署完成后回填实际提交。
-- Deployment: authorized;用户要求修复后立即部署。
+- Commit: runtime `42582e03432b71eb4a6893069ed04303c633f0e0`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29107423264` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/ZxxvCwqxFtudpym1roAk9W8VvsXJ`,production alias 已更新,入口 `/assets/index-CWyS0wxR.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `/assets/App-Da4AhrVY.js`、`/assets/HomeTab-B-xw838a.js`、`/assets/SettingsTab-DLDR7U4-.js` 和 `/assets/settingsChangelog-BHojI-oU.js` 与本地验证构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.289`、`144px` 持仓盈亏列、正常字重/单行保护和自选价格 `text-white/80`,旧 `112px`、粗体持仓盈亏和 `text-white/78` 价格 marker 均不存在。
 - Background: 用户反馈首页持仓 tab 的“持仓盈亏”金额和百分比仍沿用旧版粗体,颜色层级未与当前交易页统一;同时 112px 列宽且缺少不换行保护,较长金额的正号会被挤成单独一排。随后补充要求自选股票代码和价格都参考当前信号“等待中”的亮度,避免纯白过亮。
 - Workflow tier: `runtime`。
 - Changes:
@@ -33,6 +33,8 @@
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
   - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.289`。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- 42582e0`: pass;GitHub Actions run `29107423264` success,Vercel status success,production 入口 `/assets/index-CWyS0wxR.js`,未登录 quote/earnings 均为 `401`。
+  - Production asset check: pass;`App-Da4AhrVY.js`、`HomeTab-B-xw838a.js`、`SettingsTab-DLDR7U4-.js` 和 `settingsChangelog-BHojI-oU.js` 线上与本地 SHA-256 一致,版本、更新日志、新样式 marker 和旧样式移除均符合预期。
 - Boundaries: 不改持仓盈亏计算口径、交易账本、行情请求、财报日历、收益快照、数据库、RLS 或鉴权。
 - Rollback: 回退首页持仓盈亏 class/列宽、`v10.7.9.289` 版本记录、静态护栏和本条日志即可恢复旧展示。
 
