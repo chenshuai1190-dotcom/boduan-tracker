@@ -6,8 +6,8 @@
 
 ### 2026-07-10 - 首页行情超限分批热修
 
-- Commit: pending;生产故障热修完成本地实现与专项验证,等待敏感级验证后推送。
-- Deployment: pending;当前生产仍为 `v10.7.9.286` / runtime `aa7fe68429491a170b637889ea4c95cd8670e3c3`。
+- Commit: runtime `ca932917d893ce966a05a999d4ead2d415291724`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29104581387` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FPGATbpobwY9ScZokNWLw8QTXgZM`,production alias 已更新,入口 `/assets/index-Cbh2QSg0.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `/assets/App-euolW0Tp.js`、`/assets/SettingsTab-VvuqJL1V.js` 和 `/assets/settingsChangelog-Bm14v7kO.js` 与本地验证构建 SHA-256 完全一致;生产 marker 命中 `行情接口返回`、`拉取失败`、`v10.7.9.287`、`首页行情超限分批修复`、`超过 30 个 symbols` 和 `不放宽 /api/quote 服务端上限`。
 - Background: `v10.7.9.286` 部署后用户截图反馈首页提示“拉取失败:单次最多请求 30 个 symbols”,今日盈亏、指数和交易持仓行情无法正常显示。排查确认财报日历逻辑没有写入交易或 quote universe;直接故障点是首页主行情把自选/持仓、QQQ、TQQQ、VIX、FGI 和 INDICES 一次性提交给 `/api/quote`,账户合并 symbol 超过服务端既有 30 个上限后整批返回 `400`。
 - Workflow tier: `sensitive`。
 - Changes:
@@ -33,6 +33,8 @@
   - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.287`。
   - `npm run verify:rls:rest`: pass;16 个用户表匿名 REST 可见行均为 0。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- ca93291`: pass;GitHub Actions run `29104581387` success,Vercel status success,production 入口 `/assets/index-Cbh2QSg0.js`,未登录 quote/earnings 均为 `401`。
+  - Production asset check: pass;`App-euolW0Tp.js`、`SettingsTab-VvuqJL1V.js`、`settingsChangelog-Bm14v7kO.js` 线上与本地 SHA-256 一致,版本和热修 marker 命中。
 - Boundaries: 不改交易账本、财报日历请求、收益快照、数据库、RLS、行情 provider 或服务端鉴权;不新增 token 或环境变量。
 - Rollback: 回退批处理 helper、`fetchRealtimePrices` 分批循环、`v10.7.9.287` 版本/日志和测试即可恢复单批行为;不需要数据库回滚。
 
