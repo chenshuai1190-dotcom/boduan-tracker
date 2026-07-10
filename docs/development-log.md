@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 首页财报和股票文字层级降亮
 
-- Commit: pending runtime release;部署完成后回填实际提交。
-- Deployment: authorized;用户已确认部署,等待 runtime 推送和线上验证。
+- Commit: runtime `c3fe394abe7f8ec10f7e14eb535b2fda9377cba9`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29106135911` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Hmz9qmLKnbA9Baat2QWLVVNNDK5x`,production alias 已更新,入口 `/assets/index-CxiEJZF5.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `/assets/App-BtJDwnkT.js`、`/assets/HomeTab-CmMtgaID.js`、`/assets/SettingsTab-BVX7YHYH.js` 和 `/assets/settingsChangelog-Bp16Mh5K.js` 与本地验证构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.288`、`首页财报与股票文字降亮`、`text-white/80`、`text-white/40` 和新的正常字重股票代码 class,旧粗体股票代码 class 不存在。
 - Background: 用户反馈首页“财报日历”和“自选/持仓”当前标签明显过亮,要求参考当前信号“等待中”的文字颜色;同时要求“名称”表头与“价格/涨跌幅”统一灰色,并取消自选/持仓股票代码加粗、降低白色亮度。
 - Workflow tier: `runtime`。
 - Changes:
@@ -31,8 +31,10 @@
   - `npm run verify:frontend-smoke`: pass;首页、交易、资产、目标和设置 5 个主 tab 均 `errors:0`。
   - Local visual check: pass;`390x844`、`earningsScenario=dense` 下财报日历保持 `promoted`,“等待中”“财报日历”“自选”和股票代码实际颜色均为 `rgba(255, 255, 255, 0.8)`,“名称”“价格”“涨跌幅”均为 `rgba(255, 255, 255, 0.4)`,NVDA/MSFT 股票代码实际字重为 `400`;页面 console error 为 0。截图保存为 `/tmp/boduan-tracker-home-text-tone-v288.png`。
   - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
-  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.288`,并明确生产仍为 `v10.7.9.287`。
+  - `npm run verify:docs-consistency`: pass;SettingsTab、settingsChangelog、handoff current/forwardable 均为 `v10.7.9.288`。
   - `git diff --check`: pass。
+  - `npm run verify:deploy-status -- c3fe394`: initial pending while GitHub Actions run `29106135911` was in progress;final pass,GitHub combined status and Vercel status both success,production 入口 `/assets/index-CxiEJZF5.js`,未登录 quote/earnings 均为 `401`。
+  - Production asset check: pass;`App-BtJDwnkT.js`、`HomeTab-CmMtgaID.js`、`SettingsTab-BVX7YHYH.js` 和 `settingsChangelog-Bp16Mh5K.js` 线上与本地 SHA-256 一致,版本、更新日志和新旧字体 marker 均符合预期。
 - Boundaries: 只改首页文字字重、透明度和用户可见版本记录;不改行情请求、财报接口、交易账本、收益快照、数据库、RLS 或鉴权。
 - Rollback: 回退上述首页 class、`v10.7.9.288` 设置记录、静态护栏和本条日志即可恢复原视觉。
 
