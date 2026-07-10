@@ -4223,6 +4223,44 @@ function MainApp({ user, onLogout }) {
   const isStockDetailPage = activePage === 'stock-detail';
   const isStandalonePage = isPnlReportPage || isStockDetailPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
+  const settingsTabCtx = useMemo(() => ({
+    changelogExpanded,
+    ChevronDown,
+    ChevronUp,
+    clearQuoteDiagnosticLogs,
+    Loader2,
+    LogOut,
+    language,
+    newPwd,
+    onLogout,
+    pwdLoading,
+    pwdMsg,
+    quoteDiagnosticLogs,
+    setChangelogExpanded,
+    setLanguage,
+    setNewPwd,
+    setPwdLoading,
+    setPwdMsg,
+    setShowChangePassword,
+    showChangePassword,
+    showConfirm,
+    supabase,
+    user,
+    X,
+  }), [
+    changelogExpanded,
+    clearQuoteDiagnosticLogs,
+    language,
+    newPwd,
+    onLogout,
+    pwdLoading,
+    pwdMsg,
+    quoteDiagnosticLogs,
+    setLanguage,
+    showChangePassword,
+    showConfirm,
+    user,
+  ]);
   const tabCtx = {
     accountDeleteConfirmId,
     accounts,
@@ -4436,6 +4474,7 @@ function MainApp({ user, onLogout }) {
     YearlyActualModal,
     yearlyActuals,
   };
+  const activeTabCtx = activeTab === 'settings' ? settingsTabCtx : tabCtx;
   const darkShell = isStandalonePage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
   const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90';
@@ -4573,7 +4612,7 @@ function MainApp({ user, onLogout }) {
             ? <PnlReportPage ctx={tabCtx} />
             : isStockDetailPage
               ? <StockDetailPage ctx={tabCtx} />
-              : <ActiveTab ctx={tabCtx} />}
+              : <ActiveTab ctx={activeTabCtx} />}
         </Suspense>
 
 

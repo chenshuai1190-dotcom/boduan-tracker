@@ -4,6 +4,31 @@
 
 ## 2026-07-10 Asia/Shanghai
 
+### 2026-07-10 - SettingsTab ctx 拆分试点
+
+- Commit: same commit;本地 runtime 提交,等待用户确认后再推送/部署。
+- Deployment: not deployed;本轮先做 `App.jsx tabCtx` 低风险试点和本地验证,不改变设置页版本或用户可见更新日志。
+- Background: 用户确认先做 `App.jsx tabCtx` 效率债的谨慎试点,要求先从低风险边界开始,不要一次性拆 Home/Trades/收益/财报相关上下文。
+- Workflow tier: `runtime`。
+- Changes:
+  - `App.jsx` 新增 `settingsTabCtx = useMemo(...)`,只包含 `SettingsTab` 实际解构使用的 23 个字段,设置页不再接收每次 render 都新建的 211 字段大 `tabCtx`。
+  - `SettingsTab` 改为 `React.memo(SettingsTab)` 默认导出,让设置页在父级因行情、交易、财报或其它无关状态刷新时,可依赖稳定窄 ctx 跳过无关重渲染。
+  - 保持其它 tab、独立收益报表页、个股详情页仍走原 `tabCtx`,不触碰 `/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照、行情 relay 或数据库结构。
+- Key files:
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+- Validation:
+  - `npm run verify:toolchain`: pass。
+  - `npm test`: pass,175/175。
+  - `npm run build`: pass,生成 `App-BullWBd-.js`、`SettingsTab-rAupgyb4.js`、`settingsChangelog-B9AdpNuM.js` 等本地构建产物。
+  - `npm audit --audit-level=moderate`: pass,0 vulnerabilities。
+  - `npm run verify:docs-consistency`: pass。
+  - `git diff --check`: pass。
+  - `git diff --stat`: reviewed,仅 `src/App.jsx`、`src/tabs/SettingsTab.jsx`、`tests/tool-ledger-boundaries.test.js` 和本日志变更。
+- Rollback: 回退本条 `settingsTabCtx`、设置页 `React.memo` 和本日志即可恢复所有 tab 共用原大 `tabCtx` 的行为;不影响数据库、RLS、`/api/quote` 鉴权、`/api/earnings-calendar`、交易账本、收益快照或行情 relay 边界。
+
 ### 2026-07-10 - 财报日历 calendar/trends 并发
 
 - Commit: same commit;本地独立 sensitive 提交,等待用户确认后再推送/部署。

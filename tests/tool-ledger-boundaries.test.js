@@ -719,6 +719,12 @@ test('settings data maintenance reset entry and runtime reset code stay removed'
   assert.equal(appSource.includes('云端数据不会被删除'), false, 'app runtime should not keep the removed reset modal copy');
 });
 
+test('settings tab uses a memoized narrow app context', () => {
+  assert.ok(appSource.includes('const settingsTabCtx = useMemo(() => ({'), 'app should build a dedicated memoized context for settings');
+  assert.ok(appSource.includes("const activeTabCtx = activeTab === 'settings' ? settingsTabCtx : tabCtx"), 'settings tab should receive the narrow context instead of the full tab context');
+  assert.ok(settingsTabSource.includes('export default React.memo(SettingsTab);'), 'settings tab should be memoized to skip unrelated parent rerenders');
+});
+
 test('legacy service worker file stays removed while old registrations are still cleaned up', () => {
   assert.equal(existsSync(new URL('../public/sw.js', import.meta.url)), false, 'deprecated service worker file should not be shipped');
   assert.ok(mainSource.includes('navigator.serviceWorker.getRegistrations()'), 'entry should still enumerate old service worker registrations');

@@ -1,7 +1,7 @@
 import React from 'react';
 import { normalizeLanguage, t } from '../lib/i18n.js';
 
-export default function SettingsTab({ ctx }) {
+function SettingsTab({ ctx }) {
   const {
     changelogExpanded,
     ChevronDown,
@@ -597,3 +597,5 @@ export default function SettingsTab({ ctx }) {
     </>
   );
 }
+
+export default React.memo(SettingsTab);
