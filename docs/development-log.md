@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 波段股票报价固定 USD 修复
 
-- Commit: pending runtime commit;部署完成后回填提交和线上证据。
-- Deployment: pending;本地双币视觉复核和 runtime 验证完成后推送 GitHub `main`。
+- Commit: runtime `121016fadf1b9b4bd010527e6b8a82a73bae71a0`;本条后续 docs-only 提交只回填部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29146470542` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/E8Ncr2w58Z1WMh2AgoxVfANs4M1B`,production alias 已更新,入口 `/assets/index-COrRNEPC.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `index-COrRNEPC.js`,`waveCurrencyDisplay-BGpgorgg.js`,`TradesTab-8JOrG3zA.js`,`App-BBUa2igl.js`,`SettingsTab-DQ91Rde0.js` 和 `settingsChangelog-CJzHHAcT.js` 与本地构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.296`、“波段股票报价固定美元”和“不影响其他模块”。
 - Background: `v10.7.9.295` 上线后用户发现首页选择 CNY 时,波段卡片的买入均价和当前价也被换算成人民币;股票每股报价必须保持交易市场的 USD,不能与汇总金额使用同一换算规则。
 - Workflow tier: `runtime`。
 - Changes:
@@ -17,7 +17,7 @@
   - 删除两个已无调用且语义模糊的 unit-price currency wrapper,并用调用次数护栏锁定所有重复波段分支。
   - 设置页三个可见版本面和更新日志同步到 `v10.7.9.296`。
 - Key files: `src/lib/waveCurrencyDisplay.js`,`src/tabs/TradesTab.jsx`,`src/App.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/wave-currency-display.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
-- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;`node --test tests/wave-currency-display.test.js tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 187/187 pass;`npm run build` pass（`waveCurrencyDisplay-BGpgorgg.js`,`TradesTab-8JOrG3zA.js`,`App-BBUa2igl.js`,`SettingsTab-DQ91Rde0.js`,`settingsChangelog-CJzHHAcT.js`）;`npm run verify:frontend-smoke` pass（5 个主 tab 均 `errors:0`）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass;独立只读审查确认显示点分类和存储/计算边界。390x844 本地 CNY 模式复核:进行中买入均价 `$100.00`、现价 `$110.00`、浮盈 `+¥677`;已完成单价 `$100.00 → $120.00`、盈亏 `+¥1,354`;明细 `@$100.00 / @$120.00`,总金额 `-¥6,770 / +¥8,124`;USD 模式汇总金额恢复 `$`;`scrollWidth=390`,console error 0。截图:`~/Desktop/boduan-previews/v10.7.9.296-wave-usd-prices-cny-pnl-local.png`。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;`node --test tests/wave-currency-display.test.js tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 187/187 pass;`npm run build` pass（`waveCurrencyDisplay-BGpgorgg.js`,`TradesTab-8JOrG3zA.js`,`App-BBUa2igl.js`,`SettingsTab-DQ91Rde0.js`,`settingsChangelog-CJzHHAcT.js`）;`npm run verify:frontend-smoke` pass（5 个主 tab 均 `errors:0`）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass;独立只读审查确认显示点分类和存储/计算边界;`npm run verify:deploy-status -- 121016f` pass。390x844 本地 CNY 模式复核:进行中买入均价 `$100.00`、现价 `$110.00`、浮盈 `+¥677`;已完成单价 `$100.00 → $120.00`、盈亏 `+¥1,354`;明细 `@$100.00 / @$120.00`,总金额 `-¥6,770 / +¥8,124`;USD 模式汇总金额恢复 `$`;`scrollWidth=390`,console error 0。截图:`~/Desktop/boduan-previews/v10.7.9.296-wave-usd-prices-cny-pnl-local.png`。
 - Boundaries: 只修正 legacy 波段工具“每股报价固定 USD、汇总金额跟随首页”的展示边界。波段 `trades` USD 存储、`wavesByStock` 切段/均价/盈亏计算、行情原始价格和删除回调不变;不改首页、正式 `stock_trades`、摊薄成本、资产、收益报表、个股详情、收益快照、数据库/RLS、行情 relay、`/api/quote`、`/api/earnings-calendar`、鉴权或环境变量。`README.md`、`docs/security-hardening.md` 和 `docs/architecture-security-audit.md` 无需修改。
 - Rollback: 回退 USD 单价格式化接入、`v10.7.9.296` 设置记录、测试护栏、本条日志和交接摘要即可恢复 `v10.7.9.295`;无需数据库或服务端回滚。
 
