@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 账户、订单和删除弹窗视觉重构
 
-- Commit: pending runtime release;部署完成后回填实际提交。
-- Deployment: authorized;用户确认本地静态原型效果完全一致,要求真实组件截图无误后直接部署。
+- Commit: runtime `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`;本条后续 docs-only 回填提交只同步部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29141643669` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`,production alias 已更新,入口 `/assets/index-DlHnRYc2.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `/assets/index-DlHnRYc2.js`、`/assets/App-Ba5PyXf7.js`、`/assets/ActionModalCard-BtddQ5Q3.js`、`/assets/AnalysisTab-CoHai3vU.js`、`/assets/TradesTab-CLgvxu5_.js`、`/assets/SettingsTab-H-9GmAy7.js` 和 `/assets/settingsChangelog-CMiC9WuX.js` 与本地验证构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.292`、操作卡 314x232 几何、账户 Logo URL/类型图标兜底、股票 Logo provider、删除确认固定位置与危险按钮渐变。
 - Background: 用户提供账户操作、订单操作和删除交易确认卡设计稿,要求完全参考设计图重构现有弹窗,并补充订单股票 Logo 与账户 Logo/默认图标能力。
 - Workflow tier: `runtime`。
 - Changes:
