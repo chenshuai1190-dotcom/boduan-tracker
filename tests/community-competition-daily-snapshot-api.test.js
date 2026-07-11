@@ -2,8 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import handler from '../api/community-competition-daily-snapshot.js';
+import communityCompetitionHandler from '../api/community-competition.js';
 import { computeCompetitionLedgerHash } from '../server/communityCompetitionSnapshotModel.js';
+
+const handler = (req, res) => communityCompetitionHandler({
+  ...req,
+  query: { ...(req.query || {}), operation: 'daily-snapshot' },
+}, res);
 
 function createResponse() {
   return {
@@ -438,6 +443,10 @@ test('competition cron rejects any eligible-date ledger edit before the first sn
 
 test('Vercel keeps the existing P&L cron and adds an independent competition cron', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(vercelConfig.rewrites, [{
+    source: '/api/community-competition-daily-snapshot',
+    destination: '/api/community-competition?operation=daily-snapshot',
+  }]);
   assert.deepEqual(vercelConfig.crons, [
     { path: '/api/pnl-report-daily-snapshot', schedule: '30 22 * * 1-5' },
     { path: '/api/community-competition-daily-snapshot', schedule: '45 22 * * 1-5' },

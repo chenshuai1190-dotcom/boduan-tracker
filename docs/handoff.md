@@ -7,7 +7,7 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 当前本地待发布版本: `v10.7.9.303` 收益比赛真实收盘快照版。比赛改为服务端真实鉴权、自愿加入、已确认社区资料门槛和独立不可覆盖的收盘收益率快照;生产页已删除 localStorage 加入态、固定 mock 数字和固定假曲线。加入时固化 eligible-date 账本哈希,后续只接受连续交易日的 USD/adjusted-close 快照;空仓延续、单 symbol 行情失败隔离和锁定历史复核均已覆盖,缺数据只显示等待。最新版 Profile/Competition SQL 已执行且匿名 REST 20/20 pass;部署和线上证据待收口。
-- 独立边界: 新增 `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立比赛 Cron;只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单响应不含 user id、邮箱、金额、持仓或交易。
+- 独立边界: 新增 `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径;只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。Hobby 版通过 rewrite 把 Cron 路径送入 community function 的 `CRON_SECRET` 专用分支,用户 Bearer 分支保持隔离。榜单响应不含 user id、邮箱、金额、持仓或交易。
 - 当前本地已提交待随下一次发布上线版本: `v10.7.9.302` 社区头像白边修正,commit `797fab626136719e5448692e1536f2a533d28b19`。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切,避免素材边缘浅色像素露出;只改设置页展示样式。边界定向 42/42、390x844 视觉检查、横向溢出和 console error 检查均通过。
 - 当前本地设置页版本: `v10.7.9.303`;当前生产设置页版本仍为 `v10.7.9.301`,当前生产运行时基准提交为 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`,入口为 `/assets/index-B4MFy0ZP.js`。
 - 最新已上线: `v10.7.9.301` 设置页社区资料基础。设置页新增“社区资料”模块,可真实读写后续社区比赛使用的公开昵称和 6 个默认头像;资料写入独立 `community_profiles`,只存 `nickname` 与 `avatar_key`,不存邮箱、资产、收益或交易账本。本轮不开放头像上传、不接 Supabase Storage。

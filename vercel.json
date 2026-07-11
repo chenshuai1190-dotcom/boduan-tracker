@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/community-competition-daily-snapshot",
+      "destination": "/api/community-competition?operation=daily-snapshot"
+    }
+  ],
   "crons": [
     {
       "path": "/api/pnl-report-daily-snapshot",
