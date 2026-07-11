@@ -22,6 +22,7 @@ const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
+const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
 const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
@@ -4214,6 +4215,12 @@ function MainApp({ user, onLogout }) {
   const closeWaveTracker = useCallback(() => {
     setActivePage(null);
   }, []);
+  const openCommunityCompetition = useCallback(() => {
+    setActivePage('community-competition');
+  }, []);
+  const closeCommunityCompetition = useCallback(() => {
+    setActivePage(null);
+  }, []);
   const syncSwingWaveQuoteRows = useCallback((rows = []) => {
     const bySymbol = new Map();
     (Array.isArray(rows) ? rows : []).forEach((row) => {
@@ -4311,7 +4318,8 @@ function MainApp({ user, onLogout }) {
   const isPnlReportPage = activePage === 'pnl-report';
   const isStockDetailPage = activePage === 'stock-detail';
   const isWaveTrackerPage = activePage === 'wave-tracker';
-  const isStandalonePage = isPnlReportPage || isStockDetailPage || isWaveTrackerPage;
+  const isCommunityCompetitionPage = activePage === 'community-competition';
+  const isStandalonePage = isPnlReportPage || isStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     changelogExpanded,
@@ -4489,6 +4497,7 @@ function MainApp({ user, onLogout }) {
     openPnlReport,
     openStockDetail,
     openWaveTracker,
+    openCommunityCompetition,
     Pin,
     portfolioCurrencyMode,
     Plus,
@@ -4504,6 +4513,7 @@ function MainApp({ user, onLogout }) {
     closePnlReport,
     closeStockDetail,
     closeWaveTracker,
+    closeCommunityCompetition,
     setAccountDeleteConfirmId,
     setAccounts,
     setAlertsMuted,
@@ -4756,6 +4766,8 @@ function MainApp({ user, onLogout }) {
               ? <StockDetailPage ctx={tabCtx} />
               : isWaveTrackerPage
                 ? <WaveTrackerPage ctx={tabCtx} />
+                : isCommunityCompetitionPage
+                  ? <CommunityCompetitionPage ctx={tabCtx} />
               : <ActiveTab ctx={activeTabCtx} />}
         </Suspense>
 

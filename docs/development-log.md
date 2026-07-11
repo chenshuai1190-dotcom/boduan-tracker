@@ -4,6 +4,25 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 社区比赛 mock 小工具第一版
+
+- Commit: local runtime change pending;未提交、未推送。
+- Deployment: 未部署;生产仍为 `v10.7.9.299` / runtime `e0debb22507b8399b71e1a4754face776fd10453`。
+- Background: 用户确认社区比赛第一版先做 HTML + mock 模拟数据,完整还原效果图;入口不新增底部 tab,而是从交易页现有工具区进入,并把原“摊薄工具”收录到“全部功能”。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增 lazy-loaded `CommunityCompetitionPage`,作为交易页小工具独立页面打开;底部导航仍保留,不新增“比赛”一级 tab。
+  - 交易页主工具区把“摊薄工具”替换为“社区比赛”;新增“全部功能”操作卡,保留“摊薄工具”“交易记录”“波段记录”“社区比赛”入口。
+  - 社区比赛页面使用 mock 日榜/周榜/月榜/年榜数据,展示我的排名、收益率、跑赢纳指、参赛人数、排行榜和本日/本周/本月/本年基准卡片。
+  - 首次进入显示自愿加入底部弹框;未点击确认加入时页面内容弱化并不可交互,点击确认后只用 `boduan_community_competition_joined_v1` localStorage 记住 mock 加入状态。
+  - 排行榜头像边框按名次分层:第 1/2/3 名保留金/蓝/铜色,第 4 名及以后统一改为低亮深灰,避免出现白色头像边框。
+  - `DevVisualPreview` 支持 `?devPreview=1&preview=community-competition` 直达本地视觉 smoke,便于 390x844 检查首访弹框与加入后的榜单页。
+  - 设置页三个可见版本面和更新日志同步为 `v10.7.9.300`。
+- Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/App.jsx`,`src/tabs/TradesTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/lib/settingsChangelog.js`,`src/tabs/SettingsTab.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`node --test tests/tool-ledger-boundaries.test.js` 41/41 pass;`npm test` 202/202 pass;`npm run build` pass,生成 `CommunityCompetitionPage-sFBPPnBQ.js`,`TradesTab-YTBUkhPh.js`,`SettingsTab-CV_7bZrF.js`,`settingsChangelog-BuACAEgI.js` 和 `App-BKWfipPv.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` found 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 本地 `?devPreview=1&preview=community-competition` 视觉复核:首访显示自愿加入底部弹框,底层榜单弱化且不可交互;点击“确认加入”后榜单进入并写入 `boduan_community_competition_joined_v1=joined`;顶部三项收益率无截断(`scrollWidth == clientWidth`),第 4-8 名头像边框均为 `rgba(42,49,59,0.9)` 且页面不含旧 `border-white/12`,页面 `scrollWidth=390`;交易页 `?devPreview=1&tab=trades` 复核主工具区有“社区比赛”且不再直接显示“摊薄工具”,点击“全部功能”后可见“摊薄工具”和边界说明。截图: `~/Desktop/boduan-previews/community-competition-join-390x844.png`,`community-competition-board-fixed-390x844.png`,`community-competition-rank-border-fixed-390x844.png`,`trades-community-tool-entry-390x844.png`。
+- Boundaries: 本轮只做 HTML/mock 展示、交易页入口调整、本地 localStorage 加入态、版本/更新日志、测试和文档;不接 Supabase,不新增/修改 SQL 或 RLS,不写 `stock_trades`、`trades`、`cost_basis_trades` 或 `swing_waves`,不计算真实收益,不改收益快照、行情 universe/relay、`/api/quote` 鉴权、独立 `/api/earnings-calendar`、Auth、环境变量或任何 token。
+- Rollback: 回退新增页面、交易页入口、App/DevVisualPreview 接线、i18n、设置页版本/更新日志、测试和本条文档即可;无需数据库或数据回滚。
+
 ### 2026-07-11 - 波段首页折叠状态记忆恢复
 
 - Commit: runtime `e0debb22507b8399b71e1a4754face776fd10453`;本条后续 docs-only 提交只回填部署证据。

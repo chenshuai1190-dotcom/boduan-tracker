@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Grid2X2, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Grid2X2, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Trophy, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -456,6 +456,7 @@ export default function TradesTab({ ctx }) {
     openStockDetail,
     openPnlReport,
     openWaveTracker,
+    openCommunityCompetition,
     portfolioCurrencyMode,
     Plus,
     quoteRows,
@@ -509,6 +510,7 @@ export default function TradesTab({ ctx }) {
   }, [setPortfolioCurrencyMode]);
   const [mainView, setMainView] = React.useState('positions');
   const [toolPanel, setToolPanel] = React.useState('');
+  const [showAllToolsModal, setShowAllToolsModal] = React.useState(false);
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
   const [orderActionTrade, setOrderActionTrade] = React.useState(null);
   const [scenarioPosition, setScenarioPosition] = React.useState(null);
@@ -915,28 +917,37 @@ export default function TradesTab({ ctx }) {
         <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           {[
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: BookOpen },
-            { id: 'cost', label: tt('trades.averagingTool', '摊薄工具'), icon: Calculator },
+            { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: Trophy },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
-            { id: 'all', label: tt('trades.allTools', '全部功能'), icon: Grid2X2, disabled: true },
+            { id: 'all', label: tt('trades.allTools', '全部功能'), icon: Grid2X2 },
           ].map((item, index) => {
             const Icon = item.icon;
-            const active = !item.disabled && item.id !== 'waves' && toolPanel === item.id;
+            const active = item.id !== 'waves' && item.id !== 'competition' && item.id !== 'all' && toolPanel === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (item.disabled) return;
                   if (item.id === 'waves') {
                     setColorMenuOpen(false);
                     setToolPanel('');
                     openWaveTracker?.();
                     return;
                   }
+                  if (item.id === 'competition') {
+                    setColorMenuOpen(false);
+                    setToolPanel('');
+                    openCommunityCompetition?.();
+                    return;
+                  }
+                  if (item.id === 'all') {
+                    setColorMenuOpen(false);
+                    setShowAllToolsModal(true);
+                    return;
+                  }
                   toggleToolPanel(item.id);
                 }}
-                disabled={item.disabled}
-                className={`flex min-h-[86px] flex-col items-center justify-center gap-2 ${item.disabled ? 'cursor-default opacity-35' : 'active:bg-white/[0.04]'} ${index > 0 ? 'border-l border-white/10' : ''}`}
+                className={`flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04] ${index > 0 ? 'border-l border-white/10' : ''}`}
               >
                 <Icon className={`h-6 w-6 ${active ? 'text-[#f6b54b]' : 'text-white/70'}`} strokeWidth={1.8} />
                 <span className={`text-[12px] font-normal ${active ? 'text-[#f6b54b]' : 'text-white/70'}`}>{item.label}</span>
@@ -944,6 +955,56 @@ export default function TradesTab({ ctx }) {
             );
           })}
         </section>
+
+        {showAllToolsModal && (
+          <ActionModalCard
+            title={tt('trades.allTools', '全部功能')}
+            closeLabel={tt('trades.closeAllTools', '关闭全部功能')}
+            onClose={() => setShowAllToolsModal(false)}
+            actionGridClassName="grid-cols-2"
+            actions={[
+              {
+                key: 'cost',
+                label: tt('trades.averagingTool', '摊薄工具'),
+                onClick: () => {
+                  setShowAllToolsModal(false);
+                  setToolPanel('cost');
+                },
+              },
+              {
+                key: 'records',
+                label: tt('trades.tradeLog', '交易记录'),
+                onClick: () => {
+                  setShowAllToolsModal(false);
+                  setToolPanel('records');
+                },
+              },
+              {
+                key: 'waves',
+                label: tt('trades.swingLog', '波段记录'),
+                onClick: () => {
+                  setShowAllToolsModal(false);
+                  setToolPanel('');
+                  openWaveTracker?.();
+                },
+              },
+              {
+                key: 'competition',
+                label: tt('competition.toolEntry', '社区比赛'),
+                onClick: () => {
+                  setShowAllToolsModal(false);
+                  setToolPanel('');
+                  openCommunityCompetition?.();
+                },
+              },
+            ]}
+          >
+            <div className="space-y-2 text-[12px] leading-5 text-white/[0.58]">
+              <div className="text-[14px] text-white/[0.86]">{tt('trades.allToolsTitle', '交易辅助工具')}</div>
+              <div>{tt('trades.allToolsDesc', '摊薄工具已收录到全部功能里;社区比赛为独立 mock 小功能,不影响正式交易账本。')}</div>
+            </div>
+          </ActionModalCard>
+        )}
 
         {showTradeRecordsTool && (
           <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4">

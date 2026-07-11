@@ -6,8 +6,10 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 当前本地已验证: `v10.7.9.300` 社区比赛 mock 小工具第一版。交易页主工具入口把“摊薄工具”替换为“社区比赛”,“摊薄工具”迁入“全部功能”;社区比赛为独立 mock 页面,首次进入需自愿确认加入,加入状态只写本地 `boduan_community_competition_joined_v1`。本轮只做 HTML/mock 视觉还原和本地入口,不接数据库、不写交易账本、不计算真实收益、不改 RLS、行情 relay 或鉴权边界。
+- `v10.7.9.300` 本地验证:边界定向 41/41、完整测试 202/202、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 本地社区比赛首访加入弹框、确认加入后榜单页、顶部收益率不截断、第 4 名及以后头像深灰边框、交易页工具入口和“全部功能”内摊薄工具均已复核,页面 `scrollWidth=390`。
 - 最新已上线: `v10.7.9.299` 波段首页折叠状态记忆恢复已上线,运行时代码提交 `e0debb22507b8399b71e1a4754face776fd10453`。波段首页恢复折叠/展开,按“全部 / 进行中 / 已完成”筛选和股票代码记忆用户上次状态;没有记忆时同股多波段仍默认展开,新增波段后仍自动展开对应进行中股票。本轮只改波段页 UI 状态和本地 localStorage 记忆,不改 `swing_waves` 数据、收益计算、正式交易账本、RLS、行情 relay 或鉴权边界。
-- 当前生产设置页版本: `v10.7.9.299`;当前生产运行时基准提交为 `e0debb22507b8399b71e1a4754face776fd10453`,入口为 `/assets/index-Y_ZLNfsn.js`。
+- 当前本地设置页版本: `v10.7.9.300`;当前生产设置页版本仍为 `v10.7.9.299`;当前生产运行时基准提交为 `e0debb22507b8399b71e1a4754face776fd10453`,入口为 `/assets/index-Y_ZLNfsn.js`。
 - `v10.7.9.299` 验证:波段/边界定向 52/52、完整测试 201/201、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 本地只读 wave-v2 preview 已确认默认展开、手动收起、刷新保持收起、再次展开和刷新保持展开,console error 0。`npm run verify:deploy-status -- e0debb2` pass;GitHub Actions run `29155636911` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GXZsHBsMf7NLDFSwPLpFYQEg2sg6` success,未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.299`、`波段首页折叠记忆恢复`、`boduan_wave_tracker_expanded_v1`、`WaveTrackerPage-SBnFf21m.js`、`SettingsTab-CZfiG-s9.js` 和 `settingsChangelog-anvmF17-.js`,且生产 chunk 不含旧 `lockedExpanded` / `const forceExpanded`。
 - 上一条已上线补充: `v10.7.9.298` 波段首页与新增弹框小修复已上线,运行时代码提交 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。默认筛选改为“进行中”,仅已完成股票只在“已完成”筛选出现;同股多波段在无用户记忆的默认状态下完整展开。共用 `ActionModalCard` 跟随 iOS `visualViewport`,修复首次聚焦输入时弹框跳顶,日期文字垂直居中;确认与取消统一为中性色,但未满足条件时确认按钮仍为原生 `disabled` 并阻止提交,危险确认仍为红色。
 - `v10.7.9.298` 验证:波段定向 52/52、完整测试 201/201、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 首页/新增弹框、390x500 与 390x300 键盘压缩视口复核通过,四个输入字段均可到达,弹框未跳出可视区,关闭后滚动锁恢复,console error 0。`npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn` success,未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.298`、`WaveTrackerPage-ClYqGD2a.js`、`ActionModalCard-CTI_wgqk.js`、`SettingsTab-BUnYaY2P.js` 和 `settingsChangelog-BXVNnlzy.js`。
@@ -31,7 +33,7 @@
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `e0debb22507b8399b71e1a4754face776fd10453`。
 - 当前生产运行时基准提交: `e0debb22507b8399b71e1a4754face776fd10453`。
-- 当前生产设置页版本: `v10.7.9.299`。
+- 当前本地设置页版本: `v10.7.9.300`;当前生产设置页版本仍为 `v10.7.9.299`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- e0debb2` pass;GitHub Actions run `29155636911` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GXZsHBsMf7NLDFSwPLpFYQEg2sg6`;production alias 已更新,入口 `/assets/index-Y_ZLNfsn.js`。
@@ -44,12 +46,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前生产版本: `v10.7.9.299`;波段首页恢复折叠/展开并按筛选+股票代码记忆用户上次状态,没有记忆时同股多波段仍默认展开;此前默认进行中、已完成仅在已完成筛选出现、iOS 首次聚焦弹框跟随 `visualViewport`、日期垂直居中和 `ActionModalCard` 中性按钮保持上线。
+- 当前本地已验证版本: `v10.7.9.300`;社区比赛 mock 小工具第一版,生产仍为 `v10.7.9.299`。生产波段首页恢复折叠/展开并按筛选+股票代码记忆用户上次状态,没有记忆时同股多波段仍默认展开;此前默认进行中、已完成仅在已完成筛选出现、iOS 首次聚焦弹框跟随 `visualViewport`、日期垂直居中和 `ActionModalCard` 中性按钮保持上线。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `e0debb22507b8399b71e1a4754face776fd10453`。
 - 当前生产运行时基准提交: `e0debb22507b8399b71e1a4754face776fd10453`。
 - 最近应用代码提交: production 最近应用代码提交 `e0debb22507b8399b71e1a4754face776fd10453` 包含 `v10.7.9.299` 波段首页折叠状态记忆恢复;此前 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e` 包含 `v10.7.9.298` 波段首页和新增弹框修复,`b56b7127ab69bd40bee1932c12eab722ebb4064d` 包含 `v10.7.9.297` 波段记录 V2 独立页面。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前生产设置页版本: `v10.7.9.299`。
+- 当前本地设置页版本: `v10.7.9.300`;当前生产设置页版本仍为 `v10.7.9.299`。
 - Vercel 最新部署: `v10.7.9.299` runtime commit `e0debb22507b8399b71e1a4754face776fd10453` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GXZsHBsMf7NLDFSwPLpFYQEg2sg6`,production 入口 `/assets/index-Y_ZLNfsn.js`,关键 chunks 包括 `/assets/App-BuRpZ0wn.js`,`/assets/WaveTrackerPage-SBnFf21m.js`,`/assets/ActionModalCard-CTI_wgqk.js`,`/assets/SettingsTab-CZfiG-s9.js`,`/assets/settingsChangelog-anvmF17-.js`。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
@@ -226,7 +228,7 @@ npm run dev -- --host 127.0.0.1
 关键点:
 
 - `src/AuthGate.jsx` 在 `import.meta.env.DEV` 且本地缺少 Supabase 配置时,会渲染 `src/DevVisualPreview.jsx`,不会卡在 `Supabase 配置缺失` 页面。
-- `DevVisualPreview` 是只读 mock 视觉预览,提供首页行情/恐慌指标、固定账户、月度快照、当日 MSFT 买入订单、进行中/已完成 NVDA 波段、目标页年度数据、投资心得和复盘日志 mock。首页可打开 `http://127.0.0.1:5173/?tab=home`,交易页可打开 `http://127.0.0.1:5173/?tab=trades`,资产页可打开 `http://127.0.0.1:5173/?tab=analysis`,目标页可打开 `http://127.0.0.1:5173/?tab=review`;`v10.7.9.295` 的波段 USD/CNY 展示可在交易预览中切换复核。
+- `DevVisualPreview` 是只读 mock 视觉预览,提供首页行情/恐慌指标、固定账户、月度快照、当日 MSFT 买入订单、进行中/已完成 NVDA 波段、目标页年度数据、投资心得、复盘日志和社区比赛 mock。首页可打开 `http://127.0.0.1:5173/?tab=home`,交易页可打开 `http://127.0.0.1:5173/?tab=trades`,资产页可打开 `http://127.0.0.1:5173/?tab=analysis`,目标页可打开 `http://127.0.0.1:5173/?tab=review`,社区比赛可打开 `http://127.0.0.1:5173/?devPreview=1&preview=community-competition`;`v10.7.9.295` 的波段 USD/CNY 展示可在交易预览中切换复核。
 - 账户图片 Logo 不是必填项;招商银行等没有可用图片时直接显示账户类型默认图标,不要为补品牌图标阻塞功能或引入不明来源资源。订单股票 Logo 继续走现有 `StockLogo` 缓存和 EODHD/Finnhub 候选链路,失败时显示股票代码兜底。
 - 这个预览不连接真实 Supabase,不提交 `.env`,不修改生产数据;不要把它当真实数据来源。
 - 涉及真实登录、真实账户数据、行情、RLS、鉴权或部署后的缓存切换时,仍必须用生产地址和线上 marker/API 验证。
@@ -706,10 +708,15 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `e0debb22507b8399b71e1a4754face776fd10453`
 当前前台可见运行时基准提交: `e0debb22507b8399b71e1a4754face776fd10453`
-当前生产设置页版本: `v10.7.9.299`
+当前本地设置页版本: `v10.7.9.300`;当前生产设置页版本仍为 `v10.7.9.299`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `e0debb22507b8399b71e1a4754face776fd10453` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GXZsHBsMf7NLDFSwPLpFYQEg2sg6`
 最新生产入口: `/assets/index-Y_ZLNfsn.js`
+
+当前本地已验证:
+- `v10.7.9.300` 社区比赛 mock 小工具第一版:交易页主工具入口把“摊薄工具”替换为“社区比赛”,“摊薄工具”迁入“全部功能”;社区比赛为独立 mock 页面,首次进入需自愿确认加入,加入状态只写本地 `boduan_community_competition_joined_v1`
+- 本轮只做 HTML/mock 视觉还原和本地入口,不接 Supabase、不写正式交易账本、不计算真实收益、不改 RLS、收益快照、行情 relay、`/api/quote` 鉴权或独立 `/api/earnings-calendar`
+- 本地验证:边界定向 41/41、完整测试 202/202、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 复核首访加入弹框、确认加入后榜单页、顶部收益率不截断、第 4 名及以后头像深灰边框、交易页工具入口和“全部功能”内摊薄工具
 
 最新已上线:
 - `v10.7.9.299` 波段首页折叠状态记忆恢复已上线:恢复波段首页折叠/展开;折叠状态按“全部 / 进行中 / 已完成”筛选和股票代码记忆,下次进入保持上次状态;没有记忆时同股多波段仍默认展开,新增波段后自动展开对应进行中股票;390x844 本地预览已确认收起/展开刷新记忆

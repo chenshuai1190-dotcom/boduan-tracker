@@ -17,6 +17,7 @@ const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', im
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const waveTrackerPrototypeSource = readFileSync(new URL('../src/dev/WaveTrackerPrototype.jsx', import.meta.url), 'utf8');
 const waveTrackerPageSource = readFileSync(new URL('../src/pages/WaveTrackerPage.jsx', import.meta.url), 'utf8');
+const communityCompetitionPageSource = readFileSync(new URL('../src/pages/CommunityCompetitionPage.jsx', import.meta.url), 'utf8');
 const swingWavesViewModelSource = readFileSync(new URL('../src/lib/swingWavesViewModel.js', import.meta.url), 'utf8');
 const earningsCalendarSource = readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
@@ -259,6 +260,37 @@ test('tool submissions require confirmation and duplicate-submit guards', () => 
   assert.ok(tradesTabSource.includes('不会进入正式持仓、当日订单或总资产计算'), 'wave confirmation must state its ledger boundary');
 });
 
+test('community competition is an isolated mock trade-page utility', () => {
+  assert.ok(appSource.includes("const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));"), 'app should lazy-load the community competition page');
+  assert.ok(appSource.includes("activePage === 'community-competition'"), 'community competition should be a standalone active page, not a bottom tab');
+  assert.ok(appSource.includes('<CommunityCompetitionPage ctx={tabCtx} />'), 'app should render community competition through the trade context');
+  assert.ok(appSource.includes('openCommunityCompetition'), 'app should expose an opener for the trade-page utility');
+  assert.ok(appSource.includes('closeCommunityCompetition'), 'app should expose a closer for the trade-page utility');
+  assert.ok(tradesTabSource.includes("id: 'competition'") && tradesTabSource.includes("tt('competition.toolEntry', '社区比赛')"), 'trade-page tool grid should expose the community competition entry');
+  assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone mock page');
+  assert.ok(tradesTabSource.includes("id: 'all'") && tradesTabSource.includes("tt('trades.allTools', '全部功能')"), 'trade-page tool grid should expose all tools');
+  assert.ok(tradesTabSource.includes("key: 'cost'") && tradesTabSource.includes("setToolPanel('cost')"), 'averaging tool must remain reachable from all tools');
+  assert.ok(tradesTabSource.includes("tt('trades.allToolsDesc', '摊薄工具已收录到全部功能里;社区比赛为独立 mock 小功能,不影响正式交易账本。')"), 'all-tools copy should document the mock boundary');
+  assert.ok(communityCompetitionPageSource.includes("const JOIN_STORAGE_KEY = 'boduan_community_competition_joined_v1';"), 'join state should be local-only for the mock page');
+  assert.ok(communityCompetitionPageSource.includes("window.localStorage.setItem(JOIN_STORAGE_KEY, 'joined')"), 'confirmed join should persist only in localStorage');
+  assert.ok(communityCompetitionPageSource.includes("tt('competition.joinTitle', '加入收益比赛')"), 'first visit should show the voluntary join sheet');
+  assert.ok(communityCompetitionPageSource.includes("tt('competition.notJoin', '暂不加入')"), 'join sheet should support declining');
+  assert.ok(communityCompetitionPageSource.includes("tt('competition.confirmJoin', '确认加入')"), 'join sheet should support confirming join');
+  assert.ok(communityCompetitionPageSource.includes('const PERIOD_STATS = {'), 'leaderboard should use mock period stats');
+  assert.ok(communityCompetitionPageSource.includes('const LEADERS = ['), 'leaderboard should use mock leader rows');
+  assert.ok(communityCompetitionPageSource.includes("'border-[#2a313b]/90'"), 'rank 4+ avatars should use a muted dark border instead of white');
+  assert.equal(communityCompetitionPageSource.includes("'border-white/12'"), false, 'rank 4+ avatars must not render a white avatar border');
+  assert.equal(communityCompetitionPageSource.includes('supabase'), false, 'mock competition page must not talk to Supabase');
+  assert.equal(communityCompetitionPageSource.includes('fetch('), false, 'mock competition page must not call API endpoints');
+  assert.equal(communityCompetitionPageSource.includes('insertStockTrade'), false, 'mock competition page must not write the formal ledger');
+  assert.equal(communityCompetitionPageSource.includes('stock_trades'), false, 'mock competition page must not reference formal ledger tables');
+  assert.equal(communityCompetitionPageSource.includes('swing_waves'), false, 'mock competition page must not reference swing-wave storage');
+  assert.ok(devVisualPreviewSource.includes("'community-competition'"), 'local visual preview should support direct community competition smoke checks');
+  assert.ok(devVisualPreviewSource.includes('<CommunityCompetitionPage ctx={tradesCtx} />'), 'local visual preview should render the community mock page');
+  assert.ok(i18nSource.includes("'competition.toolEntry': '社区比赛'"), 'Chinese i18n should include the competition tool entry');
+  assert.ok(i18nSource.includes("'competition.toolEntry': 'Community'"), 'English i18n should include the competition tool entry');
+});
+
 test('trade and wave form validation avoids native alert dialogs', () => {
   const addTradeStart = appSource.indexOf('const addTrade = async (sideOverride = null) =>');
   const nextToolStart = appSource.indexOf('const confirmCostBasisTradeSubmit =', addTradeStart);
@@ -323,9 +355,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.299/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.299', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
-  assert.ok(settingsChangelogSource.includes('波段首页折叠记忆恢复'), 'settings changelog should describe the wave fold-memory fix');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.300/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.300', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('社区比赛 mock 小工具第一版'), 'settings changelog should describe the community competition mock release');
+  assert.ok(settingsChangelogSource.includes('本次只做 HTML / mock 视觉还原'), 'settings changelog should document the mock-only boundary');
+  assert.ok(settingsChangelogSource.includes('波段首页折叠记忆恢复'), 'settings changelog should retain the previous wave fold-memory fix');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.298'"), 'settings changelog should retain the previous wave mobile dialog release');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.297'"), 'settings changelog should retain the deployed V2 wave-page release');
   assert.ok(settingsChangelogSource.includes('波段记录 V2 独立页面'), 'settings changelog should describe the production V2 wave page');
@@ -1483,7 +1517,7 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(appSource.includes("setActivePage('wave-tracker')") && appSource.includes("activePage === 'wave-tracker'"), 'App should route V2 through the standalone page state');
   assert.ok(appSource.includes('<WaveTrackerPage ctx={tabCtx} />'), 'App should render the independent V2 page before the active bottom tab');
   assert.ok(tradesTabSource.includes("if (item.id === 'waves')") && tradesTabSource.includes('openWaveTracker?.()'), 'wave toolbox tile should open V2 instead of the legacy inline panel');
-  assert.ok(devVisualPreviewSource.includes("initialTab={preview === 'wave-v2' ? 'wave-tracker' : ''}"), 'local visual preview should render the production page with safe fixtures');
+  assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''"), 'local visual preview should render the production page with safe fixtures');
 
   for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'completeSwingWave', 'deleteSwingWave']) {
     assert.ok(waveTrackerPageSource.includes(`db.${api}`), `V2 page must call ${api}`);
@@ -1618,7 +1652,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.299/g) || []).length, 3, 'settings version surfaces should document the current local wave-page fix');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.300/g) || []).length, 3, 'settings version surfaces should document the current local community-competition mock release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1853,7 +1887,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
-  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker'].includes(requestedTab)"), 'local visual preview should support all tabs plus P&L, stock detail, and wave tracker pages directly');
+  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab)"), 'local visual preview should support all tabs plus P&L, stock detail, wave tracker, and community competition pages directly');
   assert.ok(authGateSource.includes("get('devPreview') === '1'"), 'local visual preview should be force-openable for screenshot QA even when Supabase env is present');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');
@@ -1932,7 +1966,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.299/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.300/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

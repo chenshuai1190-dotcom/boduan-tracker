@@ -33,6 +33,7 @@ const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
+const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
 const WaveTrackerPrototype = lazy(() => import('./dev/WaveTrackerPrototype.jsx'));
 
 const USD_RATE = 6.77;
@@ -468,7 +469,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
@@ -928,6 +929,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const waveTrackerCtx = {
     ...homeCtx,
     closeWaveTracker: () => setActiveTab('trades'),
+    closeCommunityCompetition: () => setActiveTab('trades'),
     db,
     fetchPopularStockQuotes: async (symbols = []) => ({
       success: true,
@@ -989,9 +991,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     lookupStatus: tradeLookupStatus,
     marketColorMode: 'redUpGreenDown',
     newTrade,
+    closeCommunityCompetition: () => setActiveTab('trades'),
     openPnlReport: () => setActiveTab('pnl-report'),
     openStockDetail: noop,
     openWaveTracker: () => setActiveTab('wave-tracker'),
+    openCommunityCompetition: () => setActiveTab('community-competition'),
     portfolioCurrencyMode: tradeCurrencyMode,
     Plus,
     quoteRows: tradeQuoteRows,
@@ -1123,8 +1127,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen bg-[#05070b] pb-24 text-white ${['pnl-report', 'stock-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
-      style={{ paddingTop: activeTab === 'wave-tracker' ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      className={`min-h-screen bg-[#05070b] pb-24 text-white ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      style={{ paddingTop: ['wave-tracker', 'community-competition'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
@@ -1133,6 +1137,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           ? <StockDetailPage ctx={homeCtx} />
           : activeTab === 'wave-tracker'
           ? <WaveTrackerPage ctx={waveTrackerCtx} />
+          : activeTab === 'community-competition'
+          ? <CommunityCompetitionPage ctx={tradesCtx} />
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : activeTab === 'trades'
@@ -1155,7 +1161,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           <div className="grid grid-cols-5">
             {nav.map(tab => {
               const Icon = tab.icon;
-              const isActive = tab.id === activeTab || (activeTab === 'wave-tracker' && tab.id === 'trades');
+              const isActive = tab.id === activeTab || (['wave-tracker', 'community-competition'].includes(activeTab) && tab.id === 'trades');
               return (
                 <button
                   key={tab.id}
@@ -1189,5 +1195,5 @@ export default function DevVisualPreview() {
     );
   }
 
-  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : ''} />;
+  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''} />;
 }
