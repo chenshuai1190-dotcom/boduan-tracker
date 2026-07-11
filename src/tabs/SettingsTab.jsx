@@ -276,7 +276,7 @@ function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.301
+                  v10.7.9.302
                 </span>
               </div>
             </div>
@@ -375,11 +375,11 @@ function SettingsTab({ ctx }) {
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="flex items-center gap-4">
-                  <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#070a0f] shadow-[0_0_28px_rgba(246,181,75,0.12)]">
+                  <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_28px_rgba(246,181,75,0.12)]">
                     <img
                       src={selectedCommunityAvatar.src}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="h-full w-full scale-[1.1] object-cover"
                       draggable={false}
                     />
                   </div>
@@ -426,10 +426,12 @@ function SettingsTab({ ctx }) {
                           className={`relative aspect-square rounded-full border bg-[#080b11] p-0.5 transition active:scale-95 disabled:opacity-60 ${
                             active
                               ? 'border-[#f6a524] shadow-[0_0_18px_rgba(246,181,75,0.22)]'
-                              : 'border-white/10 opacity-70'
+                              : 'border-transparent opacity-70'
                           }`}
                         >
-                          <img src={avatar.src} alt="" className="h-full w-full rounded-full object-cover" draggable={false} />
+                          <span className="block h-full w-full overflow-hidden rounded-full bg-[#080b11]">
+                            <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+                          </span>
                           {active && (
                             <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#f6a524]" />
                           )}
@@ -693,7 +695,7 @@ function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.301
+                  v10.7.9.302
                 </span>
               </div>
 
@@ -776,7 +778,7 @@ function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.301</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.302</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>

@@ -2,6 +2,24 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-12 Asia/Shanghai
+
+### 2026-07-12 - 社区头像白边修正
+
+- Commit: same commit;未推送、未部署。
+- Deployment: 未部署;生产仍为 `v10.7.9.301` / runtime `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
+- Background: 用户核对生产截图后反馈设置页社区资料头像出现额外白色边框,要求先本地调试并取消。
+- Workflow tier: `runtime`。
+- Changes:
+  - 设置页社区资料主头像预览取消额外 `border-white/10` CSS 边框。
+  - 默认头像选择器未选中态取消额外白色边框,改为透明边框保留布局尺寸。
+  - 头像图片在圆形容器内轻微放大裁切,避免预设头像素材边缘浅色像素露出。
+  - 设置页三个可见版本面和更新日志同步为 `v10.7.9.302`,新增“社区头像白边修正”。
+- Key files: `src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`git diff --check` pass。390x844 本地 `?devPreview=1&tab=settings` 已确认社区资料主头像没有额外白色 CSS 边框,默认头像选择器未选中态不再显示白边,页面 `scrollWidth=390` / `clientWidth=390`,命中 `v10.7.9.302`,console error 0。截图: `~/Desktop/boduan-previews/settings-community-avatar-no-white-border-v302-390x844.png`。完整 runtime 验证将在下一次部署前统一执行。
+- Boundaries: 本轮只改设置页社区资料头像展示样式、版本和文档;不改 `community_profiles` 表结构/数据、头像 key、RLS、Supabase Storage、社区比赛 mock、交易账本、收益快照、行情 relay、`/api/quote` 鉴权或独立 `/api/earnings-calendar`。
+- Rollback: 回退设置页头像容器样式、`v10.7.9.302` 版本/更新日志、测试断言和本条文档即可。
+
 ## 2026-07-11 Asia/Shanghai
 
 ### 2026-07-11 - 设置页社区资料基础

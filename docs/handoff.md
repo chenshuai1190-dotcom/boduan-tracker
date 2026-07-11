@@ -6,8 +6,9 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 当前本地已验证待提交版本: `v10.7.9.302` 社区头像白边修正。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切,避免素材边缘浅色像素露出;只改设置页展示样式。边界定向 42/42、390x844 视觉检查、横向溢出和 console error 检查均通过。
+- 当前本地设置页版本: `v10.7.9.302`;当前生产设置页版本仍为 `v10.7.9.301`,当前生产运行时基准提交为 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`,入口为 `/assets/index-B4MFy0ZP.js`。
 - 最新已上线: `v10.7.9.301` 设置页社区资料基础。设置页新增“社区资料”模块,可真实读写后续社区比赛使用的公开昵称和 6 个默认头像;资料写入独立 `community_profiles`,只存 `nickname` 与 `avatar_key`,不存邮箱、资产、收益或交易账本。本轮不开放头像上传、不接 Supabase Storage。
-- 当前生产设置页版本: `v10.7.9.301`,当前生产运行时基准提交为 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`,入口为 `/assets/index-B4MFy0ZP.js`。
 - `v10.7.9.301` 验证:边界定向 42/42、完整测试 203/203、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency、diff check 和 `npm run verify:deploy-status -- 4bfab84` 均通过;GitHub Actions run `29159386949` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5BdqRfYevu2vMhpshwAUrCUqoqXo` success。2026-07-12 已在 Supabase SQL Editor 执行 `supabase/community_profiles.sql`;`npm run verify:rls:rest` 18/18 pass,`community_profiles` 匿名 REST 为 `401`;未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.301`、`设置页社区资料上线`、`community_profiles`、`community-avatars/avatar-gold.webp`、`社区资料`、`保存社区资料` 和 `默认头像`。本机 Vercel env pull 只能得到空 encrypted value,无法导出 service role 或 DB URL 做双用户 smoke。
 - 上一条已上线: `v10.7.9.300` 社区比赛 mock 小工具第一版,运行时代码提交 `eae8a7a1e4c4f7076d600cb9ac9c58f57ee587c5`。交易页主工具入口把“摊薄工具”替换为“社区比赛”,“摊薄工具”迁入“全部功能”;社区比赛为独立 mock 页面,首次进入需自愿确认加入,加入状态只写本地 `boduan_community_competition_joined_v1`。本轮只做 HTML/mock 视觉还原和本地入口,不接数据库、不写交易账本、不计算真实收益、不改 RLS、行情 relay 或鉴权边界。
 - `v10.7.9.300` 验证:边界定向 41/41、完整测试 202/202、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 本地社区比赛首访加入弹框、确认加入后榜单页、顶部收益率不截断、第 4 名及以后头像深灰边框、交易页工具入口和“全部功能”内摊薄工具均已复核,页面 `scrollWidth=390`。`npm run verify:deploy-status -- eae8a7a` pass;GitHub Actions run `29156492612` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7mr1AwcSoVhKz5VToaTjoYgtPAh2` success,未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.300`、`社区比赛 mock 小工具第一版`、`boduan_community_competition_joined_v1` 和 `border-[#2a313b]/90`,且不含旧 `border-white/12`。
@@ -34,7 +35,7 @@
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `eae8a7a1e4c4f7076d600cb9ac9c58f57ee587c5`。
 - 当前生产运行时基准提交: `eae8a7a1e4c4f7076d600cb9ac9c58f57ee587c5`。
-- 当前生产设置页版本: `v10.7.9.300`。
+- 当前生产设置页版本: `v10.7.9.301`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- eae8a7a` pass;GitHub Actions run `29156492612` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7mr1AwcSoVhKz5VToaTjoYgtPAh2`;production alias 已更新,入口 `/assets/index-BXPK-qSG.js`。
@@ -47,7 +48,7 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前生产设置页版本: `v10.7.9.301`;设置页社区资料基础已上线。2026-07-12 已执行 `supabase/community_profiles.sql`,匿名 REST RLS gate 18/18 pass;当前生产社区比赛仍为 mock 小工具第一版,尚不读取真实社区资料。
+- 当前本地待验证设置页版本: `v10.7.9.302`;生产仍为 `v10.7.9.301`。本轮只取消社区资料头像额外白边和裁切素材浅色边缘,不改 `community_profiles` 数据、头像 key、RLS 或社区比赛 mock 逻辑。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
 - 当前生产运行时基准提交: `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
 - 最近应用代码提交: production 最近应用代码提交 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad` 包含 `v10.7.9.301` 设置页社区资料基础。此前 `eae8a7a1e4c4f7076d600cb9ac9c58f57ee587c5` 包含 `v10.7.9.300` 社区比赛 mock 小工具第一版,`e0debb22507b8399b71e1a4754face776fd10453` 包含 `v10.7.9.299` 波段首页折叠状态记忆恢复,`18f25333c8fb4cfddb54eb4298afc8d9e20d171e` 包含 `v10.7.9.298` 波段首页和新增弹框修复,`b56b7127ab69bd40bee1932c12eab722ebb4064d` 包含 `v10.7.9.297` 波段记录 V2 独立页面。
@@ -710,10 +711,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`
 当前前台可见运行时基准提交: `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`
-当前生产设置页版本: `v10.7.9.301`
+当前本地设置页版本: `v10.7.9.302`;当前生产设置页版本仍为 `v10.7.9.301`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5BdqRfYevu2vMhpshwAUrCUqoqXo`
 最新生产入口: `/assets/index-B4MFy0ZP.js`
+
+当前本地待验证:
+- `v10.7.9.302` 社区头像白边修正:设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切,避免素材边缘浅色像素露出;只改设置页头像展示样式,不改 `community_profiles` 数据、头像 key、RLS、交易账本或社区比赛 mock 逻辑
 
 最新已上线:
 - `v10.7.9.301` 设置页社区资料基础:设置页新增“社区资料”模块,真实读写独立 `community_profiles`,只存公开 `nickname` 与 `avatar_key`;提供 6 个默认头像,不开放头像上传,不接 Supabase Storage,不存邮箱、资产、收益或交易账本字段
