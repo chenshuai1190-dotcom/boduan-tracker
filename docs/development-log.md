@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - v10.7.9.292 最终交接文档刷新
 
-- Commit: pending docs-only release;推送后回填实际提交和部署证据。
-- Deployment: pending docs-only release;不改变当前生产运行时 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` 或前台版本 `v10.7.9.292`。
+- Commit: docs-only handoff refresh `a48c4ad64ea2870ff989f6313b13fbb3a3873170`;本条后续 docs-only 提交只回填部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`,production 入口保持 `/assets/index-DlHnRYc2.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。本次 docs-only 部署不改变生产运行时 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` 或前台版本 `v10.7.9.292`。
 - Background: 用户要求为下一位同事写完整交接文档,并提供一段无需二次编辑即可复制转发的接手描述。
 - Workflow tier: `docs-only`。
 - Changes:
@@ -17,7 +17,7 @@
   - 更新下一位同事首轮命令和第 14 节可直接转发交接块,保留 RLS metadata、模块边界、`App.jsx`/`db.js`/quote provider 拆分和端到端 smoke 优先事项。
   - 本轮不提升设置页版本,因为没有用户可见运行时变更。
 - Key files: `docs/handoff.md`,`docs/development-log.md`。
-- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:deploy-status -- a7070d4` pass;`npm run verify:docs-consistency` pass;`git diff --check` pass;`git diff --stat` 仅包含 `docs/handoff.md` 和 `docs/development-log.md`。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:deploy-status -- a48c4ad` pass;`npm run verify:docs-consistency` pass;`git diff --check` pass;`git diff --stat` 仅包含 `docs/handoff.md` 和 `docs/development-log.md`。
 - Boundaries: 只改交接和开发日志;不改前端 bundle、API、数据库、RLS、交易账本、收益快照、行情 relay、鉴权、环境变量或 Vercel 配置。
 
 ### 2026-07-11 - 账户、订单和删除弹窗视觉重构
