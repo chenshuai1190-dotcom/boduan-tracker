@@ -56,7 +56,7 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 2. **Verify RLS live, not just SQL file**
    - `supabase/rls.sql` is present and correct in shape.
    - Before major feature development, confirm in Supabase that every user-owned table has RLS enabled and policies scoped to `auth.uid() = user_id`.
-   - `supabase/swing_waves.sql` was applied to production on 2026-07-11 and its schema/grant/RLS metadata verification passed 13/13 checks. The post-migration anonymous REST probe also passes. A two-real-Auth-user SQL/JWT-claim CRUD/RLS isolation smoke passed 14/14 checks and cleanup confirmed zero residual rows, so the `v10.7.9.297` gate is complete; production still serves `v10.7.9.296` until the pending frontend is deployed. The smoke used existing Auth user IDs in the SQL editor and did not export a service-role key or exercise password-login REST sessions.
+   - `supabase/swing_waves.sql` was applied to production on 2026-07-11 and its schema/grant/RLS metadata verification passed 13/13 checks. The post-migration anonymous REST probe also passes. A two-real-Auth-user SQL/JWT-claim CRUD/RLS isolation smoke passed 14/14 checks and cleanup confirmed zero residual rows. The smoke used existing Auth user IDs in the SQL editor and did not export a service-role key or exercise password-login REST sessions. The standalone page is deployed as `v10.7.9.297`, runtime commit `b56b7127ab69bd40bee1932c12eab722ebb4064d`.
 
 3. **Split and harden `/api/quote.js`**
    - The endpoint now handles auth, validation, dispatch, and response envelope only.
@@ -99,7 +99,7 @@ Goal: make the current app safer to change without altering product behavior.
 - [x] Add quote response-shape tests for VIX, FGI, INDICES, ANALYST, and normal stock symbols; earnings calendar now has a dedicated EODHD endpoint test.
 - Add tests for key portfolio calculations.
 - [~] Verify Supabase RLS live: the anonymous REST probe passes across 17 user-owned tables, `swing_waves` metadata passed 13/13 checks, and its two-real-user authenticated-role/JWT-claim CRUD isolation smoke passed 14/14; metadata auditing for the remaining user-owned tables still remains.
-- [~] Add the independent V2 wave ledger: production schema/RLS execution, metadata audit, and two-user isolation gate are complete; the real standalone page, page-scoped CRUD, pure view model, active-only quote subscription, REST baseline preheat, and ledger-first realtime priority are implemented locally and ready for the normal deploy path.
+- [x] Add the independent V2 wave ledger: production schema/RLS execution, metadata audit, two-user isolation gate, real standalone page, page-scoped CRUD, pure view model, active-only quote subscription, REST baseline preheat, ledger-first realtime priority, and production deployment are complete in `v10.7.9.297`.
 
 ### Phase 1 - Feature Boundary Split
 
@@ -167,7 +167,7 @@ Start with Phase 0 in this order:
 
 1. Continue shrinking the large EODHD provider module into stock, fundamentals, and shared parser helpers.
 2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and the dedicated EODHD earnings-calendar endpoint.
-3. Deploy the locally implemented `v10.7.9.297` standalone page through the normal sensitive release path; the `swing_waves` two-user isolation gate is complete. Continue the remaining all-table RLS metadata audit independently.
+3. Continue the remaining all-table RLS metadata audit; the `swing_waves` two-user isolation gate and `v10.7.9.297` standalone-page deployment are complete.
 4. Extend server-side relay tests before adding more streamed symbols or user-configurable realtime watchlists.
 
 This sequence reduces future bug risk before adding new professional features.

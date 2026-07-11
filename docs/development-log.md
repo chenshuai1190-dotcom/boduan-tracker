@@ -4,10 +4,10 @@
 
 ## 2026-07-11 Asia/Shanghai
 
-### 2026-07-11 - 波段记录 V2 真实独立页面接入（本地待部署）
+### 2026-07-11 - 波段记录 V2 真实独立页面接入与生产部署
 
-- Commit: local sensitive change pending;未提交、未推送。
-- Deployment: 尚未进行前端/Vercel 部署。生产前台继续运行 `v10.7.9.296` runtime commit `121016fadf1b9b4bd010527e6b8a82a73bae71a0`;本地用户可见版本和设置页更新日志已预备为 `v10.7.9.297`。生产 `swing_waves` SQL/RLS 已在上一阶段执行并通过 metadata 核验,不能把数据库已就绪写成 V2 页面已上线。
+- Commit: runtime `b56b7127ab69bd40bee1932c12eab722ebb4064d`;本条后续 docs-only 提交只回填部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29154192896` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B44CodL2WgfoRBHcFqSCr1yQcMH1`,production alias 已更新,入口 `/assets/index-D58eoxFB.js`。线上 `App-Ye5GmQSu.js` 引用独立 `WaveTrackerPage-DijsB-a2.js`,`SettingsTab-BPMtXyIq.js` 命中 `v10.7.9.297` 并引用 `settingsChangelog-8fy72x0C.js`;波段 chunk 命中“波段记录”“新增波段”和“波段需一次性卖出，不支持部分卖出。”。`npm run verify:deploy-status -- b56b712` pass,未登录 `/api/quote?symbols=VIX` 与 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。
 - Background: 高保真原型和独立数据基础确认后,把波段记录从交易页内联弹层升级为类似个股详情的独立页面,并接入真实 `swing_waves` CRUD。业务规则保持一行代表一次完整买入和一次同股数完整卖出;同一股票允许多个互不合并的进行中波段;第一版不计算佣金和手续费。
 - Workflow tier: `sensitive`。
 - Changes:
@@ -22,14 +22,14 @@
   - 修复新增波段弹窗复用 `stockDetail.buy` 后实际得到“买入”两字、却仍被放进 28px 圆形徽标而发生竖排挤压的问题;改用波段专属中英徽标文案和 `40px` 最小宽度横排胶囊,不改买入提交逻辑。
   - 股票展开态只移除第一条波段行的顶部边框,消除“总持仓”汇总区下方多余白色粗线;波段 01/02/03 之间的细分隔继续保留,不改展开和点击操作逻辑。
   - 发布收口移除正式 `WaveTrackerPage` 的 `data-testid` / `data-wave-tracker-page` 调试属性;开发态原型标记继续只存在于 DEV preview,生产功能和可访问性文案不变。Vercel CLI 自动追加的 `.gitignore` 内容不纳入提交。
-  - 设置页三个可见版本面和更新日志已在本地同步到 `v10.7.9.297`;这只是待发布版本,生产设置页仍为 `v10.7.9.296`。
+  - 设置页三个可见版本面和更新日志已同步上线为 `v10.7.9.297`。
 - Key files: `src/pages/WaveTrackerPage.jsx`,`src/components/StockLogo.jsx`,`src/lib/swingWavesViewModel.js`,`src/App.jsx`,`src/tabs/TradesTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/lib/settingsChangelog.js`,`src/tabs/SettingsTab.jsx`,`tests/swing-waves.test.js`,`tests/tool-ledger-boundaries.test.js`,`tests/wave-currency-display.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;波段定向测试 56/56 pass;`npm test` 201/201 pass;`npm run build` pass（1569 modules transformed,`WaveTrackerPage` 37.07 kB / gzip 10.47 kB）;`npm run verify:frontend-smoke` pass（5/5 主 tab,全部 `errors:0`）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass;独立复核确认 active-only 行情订阅、REST/WS 新鲜度合并、昨收预热、ledger 优先级、碎股展示和删除错误路径 7/7 闭环。390x844 真实页面复核:交易工具卡可进入独立页并通过返回键回到交易页;折叠态、NVDA 三段展开态、单波段操作卡、新增和完整卖出均可交互;第一段顶部边框为 `0px`,后续段间边框为 `1px`,汇总区下方不再出现多余白线;CNY 模式下买入/现价保持 `$`,盈亏为 `¥`;页面 `scrollWidth=390`,console error 0。320x568 复核:顶部统计两列两行;页面 `scrollWidth=320`;新增和完整卖出弹框为 244px,所有输入/日期控件均位于弹框边界内且 `scrollWidth=clientWidth`,超高内容只在弹框正文内部纵向滚动;修复后“买入”徽标为 40x28px、`white-space:nowrap`,`scrollWidth=clientWidth`,页面和弹框均无横向溢出,console error 0。截图:`~/Desktop/boduan-previews/wave-v2-390x844.png`,`wave-v2-expanded-divider-fixed-390x844.png`,`wave-v2-actions-390x844.png`,`wave-v2-320x568.png`,`wave-v2-add-badge-fixed-320x568.png`,`wave-v2-sell-320x568.png`。
-- Sensitive remote note: 本轮代码修改前、生产 SQL 执行后已确认 `npm run verify:rls:rest` 17/17 pass,其中 `swing_waves` 匿名 GET 为 `401`,未登录 quote/earnings 均为 `401`。本轮收口重跑时本机到 `boduan-tracker.vercel.app:443` 连续发生 TLS `ECONNRESET` / `SSL_ERROR_SYSCALL`,因此该次重跑只得到 HTTP `000`,不能伪记为新的通过证据。随后在生产 Supabase SQL editor 选取两个现有真实 `auth.users`,分别设置 `role=authenticated` 与对应 `request.jwt.claim.sub`,完成独立 A/B 记录的 CRUD/RLS 隔离 smoke:双方只读取本人记录,跨用户 read/update/delete 均为 0,owner update/complete/delete 均为 1,1.5 碎股保持准确,最终 14/14 结果均为 `true`;独立清理查询 `no_smoke_rows=true`。该验证未导出 service-role key,也不是密码登录 REST token 会话。发布门槛已解除,前端在实际提交部署前仍不得标记已上线。
+- Sensitive remote note: 本轮代码修改前、生产 SQL 执行后已确认 `npm run verify:rls:rest` 17/17 pass,其中 `swing_waves` 匿名 GET 为 `401`,未登录 quote/earnings 均为 `401`。收口中曾遇到本机到生产域名的 TLS 重置,但部署完成后的标准状态脚本已成功取回生产入口并重新确认 quote/earnings `401`。生产 Supabase SQL editor 选取两个现有真实 `auth.users`,分别设置 `role=authenticated` 与对应 `request.jwt.claim.sub`,完成独立 A/B 记录的 CRUD/RLS 隔离 smoke:双方只读取本人记录,跨用户 read/update/delete 均为 0,owner update/complete/delete 均为 1,1.5 碎股保持准确,最终 14/14 结果均为 `true`;独立清理查询 `no_smoke_rows=true`。该验证未导出 service-role key,也不是密码登录 REST token 会话。
 - Database/RLS status: 生产 `swing_waves` transaction 已成功执行,13/13 schema/grant/RLS metadata 项均为 `true`;SQL 后 `npm run verify:rls:rest` 17/17 pass,其中 `swing_waves` 匿名 GET 返回 `401`,生产表当前为空。数据库已就绪不等于前端已上线。
 - Boundaries: 本轮真实页面只读写独立 `swing_waves`;不触碰或双写 `trades`、`stock_trades`、`cost_basis_trades`、正式持仓/收益计算、收益快照/dirty marker、账户/目标或财报日历。行情只把进行中波段扩充到现有登录态股票 universe,并显式保持正式 ledger/自选优先于工具 symbol;不改 relay provider、`/api/quote` 鉴权、独立 `/api/earnings-calendar`、Supabase Auth、环境变量或任何 token。
-- Rollout gate: 本地 390x844 与 320x568 真实页面/弹框视觉复核、完整 `sensitive` 验证和双真实 Auth 用户 CRUD/RLS 14/14 隔离 smoke 均已完成,允许提交、推送和部署 `v10.7.9.297`;部署后仍需核对生产入口、版本 marker、登录态页面和未登录 quote/earnings `401`。
-- Rollback: 前端未部署前可回退独立页面、入口、view model、共用 Logo、i18n、版本/更新日志和测试;不要删除已创建且当前为空的生产 `swing_waves` 表。若未来明确要求数据库回滚,必须另做显式审计 SQL,不得顺带删除旧波段或其它账本数据。
+- Rollout gate: 本地 390x844 与 320x568 真实页面/弹框视觉复核、完整 `sensitive` 验证、双真实 Auth 用户 CRUD/RLS 14/14 隔离 smoke、GitHub Actions、Vercel、生产入口/版本 marker 和未登录 quote/earnings `401` 均已完成。
+- Rollback: 如需回退,撤销独立页面、入口、view model、共用 Logo、i18n、版本/更新日志和测试并重新部署;不要删除已创建且当前为空的生产 `swing_waves` 表。若未来明确要求数据库回滚,必须另做显式审计 SQL,不得顺带删除旧波段或其它账本数据。
 
 ### 2026-07-11 - 波段 V2 独立数据基础、生产 SQL 与 RLS metadata 核验
 
