@@ -4,6 +4,8 @@ const USER_TABLES = [
   'stock_trades',
   'swing_waves',
   'community_profiles',
+  'community_competition_members',
+  'community_competition_snapshots',
   'pnl_report_snapshots',
   'pnl_report_symbol_snapshots',
   'pnl_report_rebuild_state',

@@ -217,12 +217,10 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   assert.ok(calls.some((call) => call.href.includes('api_token=eodhd-secret')), 'EODHD key should only be used in outbound provider request');
 });
 
-test('vercel cron is configured for the all-account daily P&L snapshot endpoint', () => {
+test('vercel keeps the all-account daily P&L snapshot cron unchanged', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(vercelConfig.crons, [
-    {
-      path: '/api/pnl-report-daily-snapshot',
-      schedule: '30 22 * * 1-5',
-    },
-  ]);
+  assert.deepEqual(
+    vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot'),
+    { path: '/api/pnl-report-daily-snapshot', schedule: '30 22 * * 1-5' }
+  );
 });

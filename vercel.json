@@ -3,6 +3,10 @@
     {
       "path": "/api/pnl-report-daily-snapshot",
       "schedule": "30 22 * * 1-5"
+    },
+    {
+      "path": "/api/community-competition-daily-snapshot",
+      "schedule": "45 22 * * 1-5"
     }
   ]
 }

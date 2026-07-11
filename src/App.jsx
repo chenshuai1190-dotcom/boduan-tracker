@@ -4176,6 +4176,7 @@ function MainApp({ user, onLogout }) {
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
   const [activePage, setActivePage] = useState(null);
+  const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
@@ -4220,6 +4221,11 @@ function MainApp({ user, onLogout }) {
   }, []);
   const closeCommunityCompetition = useCallback(() => {
     setActivePage(null);
+  }, []);
+  const openCommunityProfileSettings = useCallback(() => {
+    setActivePage(null);
+    setActiveTab('settings');
+    setCommunityProfileFocusRequest((current) => current + 1);
   }, []);
   const syncSwingWaveQuoteRows = useCallback((rows = []) => {
     const bySymbol = new Map();
@@ -4326,6 +4332,7 @@ function MainApp({ user, onLogout }) {
     ChevronDown,
     ChevronUp,
     clearQuoteDiagnosticLogs,
+    communityProfileFocusRequest,
     db,
     Loader2,
     LogOut,
@@ -4349,6 +4356,7 @@ function MainApp({ user, onLogout }) {
   }), [
     changelogExpanded,
     clearQuoteDiagnosticLogs,
+    communityProfileFocusRequest,
     language,
     newPwd,
     onLogout,
@@ -4499,6 +4507,7 @@ function MainApp({ user, onLogout }) {
     openStockDetail,
     openWaveTracker,
     openCommunityCompetition,
+    openCommunityProfileSettings,
     Pin,
     portfolioCurrencyMode,
     Plus,

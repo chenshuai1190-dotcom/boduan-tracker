@@ -6,7 +6,7 @@ import {
   validateCommunityNickname,
 } from './communityProfile.js';
 
-const SELECT_COLUMNS = 'user_id,nickname,avatar_key,created_at,updated_at';
+const SELECT_COLUMNS = 'user_id,nickname,avatar_key,profile_completed_at,created_at,updated_at';
 
 export function createCommunityProfilesRepository(client) {
   if (!client?.from) throw new Error('Supabase client is required');
@@ -34,12 +34,14 @@ export function createCommunityProfilesRepository(client) {
     }
 
     const avatarKey = normalizeCommunityAvatarKey(profile.avatarKey || profile.avatar_key, fallback.avatarKey);
+    const profileCompletedAt = new Date().toISOString();
     const { data, error } = await client
       .from(COMMUNITY_PROFILE_TABLE)
       .upsert({
         user_id: user.id,
         nickname: nicknameResult.nickname,
         avatar_key: avatarKey,
+        profile_completed_at: profileCompletedAt,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       .select(SELECT_COLUMNS)
@@ -52,7 +54,22 @@ export function createCommunityProfilesRepository(client) {
     if (!user?.id) return null;
     const existing = await fetch(user);
     if (existing) return existing;
-    return upsert(user, buildDefaultCommunityProfile(user));
+
+    const fallback = buildDefaultCommunityProfile(user);
+    const { data, error } = await client
+      .from(COMMUNITY_PROFILE_TABLE)
+      .insert({
+        user_id: user.id,
+        nickname: fallback.nickname,
+        avatar_key: fallback.avatarKey,
+        profile_completed_at: null,
+      })
+      .select(SELECT_COLUMNS)
+      .single();
+
+    if (error?.code === '23505') return fetch(user);
+    if (error) throw error;
+    return map(data, user);
   };
 
   return {

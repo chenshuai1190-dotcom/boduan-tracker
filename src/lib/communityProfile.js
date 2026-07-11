@@ -69,7 +69,12 @@ export function buildDefaultCommunityProfile(user) {
     userId,
     nickname: buildDefaultCommunityNickname(userId),
     avatarKey: pickDefaultCommunityAvatarKey(userId),
+    profileCompletedAt: null,
   };
+}
+
+export function isCommunityProfileCompleted(profile) {
+  return Boolean(profile?.profileCompletedAt || profile?.profile_completed_at);
 }
 
 export function mapCommunityProfileRow(row, user = null) {
@@ -78,6 +83,7 @@ export function mapCommunityProfileRow(row, user = null) {
     userId: row?.user_id || fallback.userId,
     nickname: normalizeCommunityNickname(row?.nickname) || fallback.nickname,
     avatarKey: normalizeCommunityAvatarKey(row?.avatar_key, fallback.avatarKey),
+    profileCompletedAt: row?.profile_completed_at || null,
     createdAt: row?.created_at || null,
     updatedAt: row?.updated_at || null,
   };

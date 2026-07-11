@@ -464,6 +464,59 @@ function makeSnapshots(accounts) {
   );
 }
 
+function buildCommunityCompetitionPreview(state, period = 'day') {
+  if (state === 'profile_required') return { success: true, state: 'profile_required' };
+  if (state === 'join_required') return { success: true, state: 'join_required' };
+  if (state === 'waiting_snapshot') {
+    return {
+      success: true,
+      state: 'waiting_snapshot',
+      joinedAt: '2026-07-12T12:00:00.000Z',
+      eligibleAfterSnapshotDate: '2026-07-13',
+    };
+  }
+  return {
+    success: true,
+    state: 'ready',
+    period,
+    asOfDate: '2026-07-10',
+    calculationStartDate: period === 'day' ? '2026-07-10' : '2026-07-01',
+    benchmarkReturnPct: 0.0042,
+    stats: {
+      participants: 12486,
+      beatRatePct: 0.63,
+      profitableRatePct: 0.78,
+      averageReturnPct: 0.0537,
+      top10AverageReturnPct: 0.1836,
+    },
+    leaders: [
+      { rank: 1, nickname: 'Alpha陈', avatarKey: 'gold', returnPct: 0.2863, outperformancePct: 0.2821 },
+      { rank: 2, nickname: 'ValueLee', avatarKey: 'blue', returnPct: 0.2417, outperformancePct: 0.2375 },
+      { rank: 3, nickname: 'QuantM', avatarKey: 'purple', returnPct: 0.2109, outperformancePct: 0.2067 },
+      { rank: 4, nickname: '牛牛哥', avatarKey: 'green', returnPct: 0.1964, outperformancePct: 0.1922 },
+      { rank: 5, nickname: 'HangzhouQ', avatarKey: 'cyan', returnPct: 0.1788, outperformancePct: 0.1746 },
+      { rank: 6, nickname: 'TT_Invest', avatarKey: 'silver', returnPct: -0.0312, outperformancePct: -0.0354 },
+    ],
+    self: { rank: 18, nickname: '波段玩家1836', avatarKey: 'gold', returnPct: 0.1286, outperformancePct: 0.1244 },
+    trend: {
+      self: [
+        { date: '2026-07-01', value: 0 },
+        { date: '2026-07-03', value: 0.031 },
+        { date: '2026-07-06', value: 0.067 },
+        { date: '2026-07-08', value: 0.094 },
+        { date: '2026-07-10', value: 0.1286 },
+      ],
+      benchmark: [
+        { date: '2026-07-01', value: 0 },
+        { date: '2026-07-03', value: -0.002 },
+        { date: '2026-07-06', value: 0.001 },
+        { date: '2026-07-08', value: 0.003 },
+        { date: '2026-07-10', value: 0.0042 },
+      ],
+    },
+  };
+}
+
 function StandardDevVisualPreview({ initialTab = '' }) {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (initialTab) return initialTab;
@@ -471,6 +524,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
     return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
+  const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = React.useState(0);
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
@@ -526,6 +580,23 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('earningsScenario');
   const stockDetailPeakPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';
+  const competitionPreviewState = typeof window === 'undefined'
+    ? 'ready'
+    : new URLSearchParams(window.location.search).get('competitionState') || 'ready';
+  const communityCompetitionClient = React.useMemo(() => ({
+    fetch: async ({ period }) => {
+      const requestedState = {
+        profile: 'profile_required',
+        join: 'join_required',
+        waiting: 'waiting_snapshot',
+      }[competitionPreviewState] || competitionPreviewState;
+      return buildCommunityCompetitionPreview(
+        ['profile_required', 'join_required', 'waiting_snapshot', 'ready'].includes(requestedState) ? requestedState : 'ready',
+        period,
+      );
+    },
+    join: async () => buildCommunityCompetitionPreview('waiting_snapshot'),
+  }), [competitionPreviewState]);
   const previewMarketIndices = React.useMemo(() => {
     if (indicesPreviewMode === 'placeholder') return [];
     if (indicesPreviewMode === 'rest-empty') return mockRestMarketIndices;
@@ -677,6 +748,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       userId: 'dev-user',
       nickname: '波段玩家1836',
       avatarKey: 'gold',
+      profileCompletedAt: ['profile', 'profile_required'].includes(competitionPreviewState)
+        ? null
+        : '2026-07-11T00:00:00.000Z',
       createdAt: '2026-07-11T00:00:00.000Z',
       updatedAt: '2026-07-11T00:00:00.000Z',
     }),
@@ -684,6 +758,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       userId: 'dev-user',
       nickname: profile.nickname || '波段玩家1836',
       avatarKey: profile.avatarKey || 'gold',
+      profileCompletedAt: new Date().toISOString(),
       createdAt: '2026-07-11T00:00:00.000Z',
       updatedAt: new Date().toISOString(),
     }),
@@ -736,7 +811,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     deleteCostBasisTrade: async () => ({}),
     deleteCostBasisSymbol: async () => ({}),
     insertCostBasisTrade: async () => ({}),
-  }), [stockDetailSnapshotHistory]);
+  }), [competitionPreviewState, stockDetailSnapshotHistory]);
 
   const fmt = React.useCallback((n, digits = 2) => {
     const value = Number(n);
@@ -977,6 +1052,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     CheckCircle2,
     costBasisActiveSymbol,
     costBasisData,
+    communityCompetitionClient,
     db,
     deleteStockTradeRecord: async () => {},
     editingNoteId,
@@ -1006,6 +1082,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     marketColorMode: 'redUpGreenDown',
     newTrade,
     closeCommunityCompetition: () => setActiveTab('trades'),
+    openCommunityProfileSettings: () => {
+      setCommunityProfileFocusRequest((current) => current + 1);
+      setActiveTab('settings');
+    },
     openPnlReport: () => setActiveTab('pnl-report'),
     openStockDetail: noop,
     openWaveTracker: () => setActiveTab('wave-tracker'),
@@ -1105,6 +1185,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     ChevronDown,
     ChevronUp,
     clearQuoteDiagnosticLogs: noop,
+    communityProfileFocusRequest,
     db,
     language,
     Loader2,

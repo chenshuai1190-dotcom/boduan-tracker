@@ -1,12 +1,14 @@
 import React from 'react';
-import { ArrowLeft, Info, Trophy, X } from 'lucide-react';
+import { ArrowLeft, Info, Loader2, RefreshCw, Trophy, X } from 'lucide-react';
+import { getCommunityAvatarOption } from '../lib/communityProfile.js';
+import { communityCompetitionApi } from '../lib/communityCompetitionApi.js';
 import { t } from '../lib/i18n.js';
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const JOIN_STORAGE_KEY = 'boduan_community_competition_joined_v1';
 const PROFIT = '#ff5b50';
-const GREEN = '#36c49a';
+const LOSS = '#36c49a';
+const NEUTRAL = 'rgba(255,255,255,0.58)';
 const GOLD = '#f6b54b';
 
 const PERIODS = [
@@ -16,66 +18,40 @@ const PERIODS = [
   ['year', '年榜'],
 ];
 
-const PERIOD_STATS = {
-  day: { ownRank: 18, ownReturn: 12.86, benchmark: 0.42, outperformance: 12.44, participants: 12486, beatRate: 63, profitRate: 78, averageReturn: 5.37, top10Average: 18.36, benchmarkLabel: '本日收益率', baselineTitle: '本日基准' },
-  week: { ownRank: 26, ownReturn: 18.72, benchmark: 1.84, outperformance: 16.88, participants: 12820, beatRate: 58, profitRate: 71, averageReturn: 6.42, top10Average: 24.91, benchmarkLabel: '本周收益率', baselineTitle: '本周基准' },
-  month: { ownRank: 42, ownReturn: 21.48, benchmark: 4.32, outperformance: 17.16, participants: 13204, beatRate: 61, profitRate: 74, averageReturn: 8.18, top10Average: 31.64, benchmarkLabel: '本月收益率', baselineTitle: '本月基准' },
-  year: { ownRank: 96, ownReturn: 38.65, benchmark: 13.72, outperformance: 24.93, participants: 14112, beatRate: 55, profitRate: 69, averageReturn: 16.52, top10Average: 52.70, benchmarkLabel: '本年收益率', baselineTitle: '本年基准' },
-};
-
-const LEADERS = [
-  ['1', '🐯', 'Alpha陈', 28.63, 28.21],
-  ['2', '🌙', 'ValueLee', 24.17, 23.75],
-  ['3', '🧑‍🚀', 'QuantM', 21.09, 20.67],
-  ['4', '🐂', '牛牛哥', 19.64, 19.22],
-  ['5', '🌌', 'HangzhouQ', 17.88, 17.46],
-  ['6', '🌃', 'TT_Invest', 16.32, 15.90],
-  ['7', '🛰️', 'ChenS', 15.07, 14.65],
-  ['8', '🐶', 'BluePapa', 13.54, 13.12],
-  ['9', '🌈', 'GrowthX', 12.91, 12.49],
-];
-
-const SELF_ROW = ['18', '🐯', '我自己', 12.86, 12.44];
-
-function readJoined() {
-  if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem(JOIN_STORAGE_KEY) === 'joined';
-  } catch {
-    return false;
-  }
+function isFiniteValue(value) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
 
-function writeJoined() {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(JOIN_STORAGE_KEY, 'joined');
-  } catch {}
+function valueColor(value) {
+  if (!isFiniteValue(value) || Number(value) === 0) return NEUTRAL;
+  return Number(value) > 0 ? PROFIT : LOSS;
 }
 
-function pct(value) {
-  const n = Number(value) || 0;
-  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+function formatPercent(value, digits = 2) {
+  if (!isFiniteValue(value)) return '--';
+  const percentage = Number(value) * 100;
+  const sign = percentage > 0 ? '+' : '';
+  return `${sign}${percentage.toFixed(digits)}%`;
 }
 
-function Sparkline({ compact = false }) {
-  return (
-    <svg viewBox="0 0 168 72" className={compact ? 'h-[54px] w-full' : 'h-[72px] w-full'} aria-hidden="true">
-      <defs>
-        <linearGradient id="competitionSparkGlow" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="rgba(246,181,75,0.28)" />
-          <stop offset="100%" stopColor="rgba(255,91,80,0.02)" />
-        </linearGradient>
-      </defs>
-      <path d="M4 62 C18 58 20 49 31 46 C43 42 41 35 52 36 C64 37 66 24 79 26 C92 28 95 19 109 17 C122 15 127 11 139 8 C151 5 156 2 164 4 L164 72 L4 72 Z" fill="url(#competitionSparkGlow)" />
-      <path d="M4 63 C20 59 25 54 39 53 C54 52 58 43 70 45 C82 47 89 39 101 38 C116 37 123 31 136 30 C148 29 154 24 164 22" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M4 62 C18 58 20 49 31 46 C43 42 41 35 52 36 C64 37 66 24 79 26 C92 28 95 19 109 17 C122 15 127 11 139 8 C151 5 156 2 164 4" fill="none" stroke="#d05a32" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="164" cy="4" r="2.5" fill="#f6b54b" />
-    </svg>
-  );
+function formatInteger(value, language = 'zh') {
+  if (!isFiniteValue(value)) return '--';
+  return Math.max(0, Math.trunc(Number(value))).toLocaleString(language === 'en' ? 'en-US' : 'zh-CN');
 }
 
-function MetricBlock({ label, value, color = 'rgba(255,255,255,0.88)' }) {
+function formatDate(value, language = 'zh') {
+  if (!value) return '--';
+  const parts = String(value).slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return '--';
+  const date = new Date(parts[0], parts[1] - 1, parts[2]);
+  return date.toLocaleDateString(language === 'en' ? 'en-US' : 'zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function MetricBlock({ label, value, color = NEUTRAL }) {
   return (
     <div className="min-w-0">
       <div className="truncate text-[10px] text-white/[0.42]">{label}</div>
@@ -93,46 +69,98 @@ function StatCard({ label, value, color = 'rgba(255,255,255,0.86)' }) {
   );
 }
 
-function Avatar({ icon, rank }) {
-  const ring = rank === '1' ? 'border-[#f6b54b]/50' : rank === '2' ? 'border-[#93a4ff]/40' : rank === '3' ? 'border-[#d97745]/45' : 'border-[#2a313b]/90';
+function Avatar({ avatarKey, rank }) {
+  const avatar = getCommunityAvatarOption(avatarKey);
+  const rankValue = Number(rank);
+  const ring = rankValue === 1
+    ? 'border-[#f6b54b]/50'
+    : rankValue === 2
+      ? 'border-[#93a4ff]/40'
+      : rankValue === 3
+        ? 'border-[#d97745]/45'
+        : 'border-[#2a313b]/90';
   return (
-    <div className={`flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border ${ring} bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.18),rgba(255,255,255,0.02)_55%,rgba(0,0,0,0.22))] text-[18px] shadow-[0_6px_16px_rgba(0,0,0,0.28)]`}>
-      {icon}
+    <div className={`h-8 w-8 shrink-0 overflow-hidden rounded-full border bg-[#070a0f] shadow-[0_6px_16px_rgba(0,0,0,0.28)] ${ring}`}>
+      <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
     </div>
   );
 }
 
 function RankRow({ row, self = false }) {
-  const [rank, icon, name, returnPct, outperformance] = row;
-  const rankColor = rank === '1' ? '#f8c45c' : rank === '2' ? '#8ea2ff' : rank === '3' ? '#d46b42' : 'rgba(255,255,255,0.64)';
+  if (!row) return null;
+  const rank = isFiniteValue(row.rank) ? String(Math.trunc(Number(row.rank))) : '--';
+  const rankValue = Number(row.rank);
+  const rankColor = rankValue === 1 ? '#f8c45c' : rankValue === 2 ? '#8ea2ff' : rankValue === 3 ? '#d46b42' : 'rgba(255,255,255,0.64)';
   return (
     <div className={`grid grid-cols-[34px_minmax(0,1fr)_82px_82px] items-center gap-2 border-t border-white/[0.045] px-3 py-2.5 ${self ? 'rounded-xl border-t-0 bg-[#2a241c]/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]' : ''}`}>
       <div className="text-center text-[15px] tabular-nums" style={{ color: rankColor, fontFamily: NUMBER_FONT }}>{rank}</div>
       <div className="flex min-w-0 items-center gap-3">
-        <Avatar icon={icon} rank={rank} />
-        <div className={`truncate text-[13.5px] ${self ? 'text-white/[0.94]' : 'text-white/[0.72]'}`}>{name}</div>
+        <Avatar avatarKey={row.avatarKey} rank={rankValue} />
+        <div className={`truncate text-[13.5px] ${self ? 'text-white/[0.94]' : 'text-white/[0.72]'}`}>{row.nickname || '--'}</div>
       </div>
-      <div className="text-right text-[13.5px] tabular-nums" style={{ color: PROFIT, fontFamily: NUMBER_FONT }}>{pct(returnPct)}</div>
-      <div className="text-right text-[13.5px] tabular-nums" style={{ color: GREEN, fontFamily: NUMBER_FONT }}>{pct(outperformance)}</div>
+      <div className="text-right text-[13.5px] tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
+      <div className="text-right text-[13.5px] tabular-nums" style={{ color: valueColor(row.outperformancePct), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
     </div>
   );
 }
 
-function ProgressLine({ label, value, max = 30, color = GOLD }) {
-  const width = Math.max(0, Math.min(100, (Number(value) / max) * 100));
+function normalizeTrendPoints(points) {
+  return (Array.isArray(points) ? points : [])
+    .filter((point) => point?.date && isFiniteValue(point?.value))
+    .map((point) => ({ date: String(point.date).slice(0, 10), value: Number(point.value) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function TrendChart({ self = [], benchmark = [], compact = false }) {
+  const ownPoints = React.useMemo(() => normalizeTrendPoints(self), [self]);
+  const benchmarkPoints = React.useMemo(() => normalizeTrendPoints(benchmark), [benchmark]);
+  const allPoints = [...ownPoints, ...benchmarkPoints];
+  if (allPoints.length < 2 || (ownPoints.length < 2 && benchmarkPoints.length < 2)) {
+    return <div className={`flex ${compact ? 'h-[54px]' : 'h-[72px]'} items-center justify-center text-[12px] text-white/28`}>--</div>;
+  }
+
+  const dates = Array.from(new Set(allPoints.map((point) => point.date))).sort();
+  const values = allPoints.map((point) => point.value);
+  let minValue = Math.min(...values);
+  let maxValue = Math.max(...values);
+  if (minValue === maxValue) {
+    minValue -= 0.01;
+    maxValue += 0.01;
+  }
+  const xFor = (date) => 4 + (dates.indexOf(date) / Math.max(1, dates.length - 1)) * 160;
+  const yFor = (value) => 66 - ((value - minValue) / (maxValue - minValue)) * 60;
+  const pathFor = (points) => points.map((point, index) => `${index === 0 ? 'M' : 'L'}${xFor(point.date).toFixed(2)} ${yFor(point.value).toFixed(2)}`).join(' ');
+
   return (
-    <div className="grid grid-cols-[70px_minmax(0,1fr)_52px] items-center gap-2">
+    <svg viewBox="0 0 168 72" className={compact ? 'h-[54px] w-full' : 'h-[72px] w-full'} role="img" aria-label="Return trend">
+      {benchmarkPoints.length >= 2 ? <path d={pathFor(benchmarkPoints)} fill="none" stroke="rgba(255,255,255,0.34)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /> : null}
+      {ownPoints.length >= 2 ? <path d={pathFor(ownPoints)} fill="none" stroke="#d05a32" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> : null}
+      {ownPoints.length >= 2 ? <circle cx={xFor(ownPoints.at(-1).date)} cy={yFor(ownPoints.at(-1).value)} r="2.5" fill={valueColor(ownPoints.at(-1).value)} /> : null}
+    </svg>
+  );
+}
+
+function ProgressLine({ label, value, maxMagnitude }) {
+  const hasValue = isFiniteValue(value);
+  const width = hasValue ? Math.max(0, Math.min(100, (Math.abs(Number(value)) / maxMagnitude) * 100)) : 0;
+  const color = valueColor(value);
+  return (
+    <div className="grid grid-cols-[70px_minmax(0,1fr)_58px] items-center gap-2">
       <div className="text-[11px] text-white/[0.58]">{label}</div>
-      <div className="relative h-2 overflow-hidden rounded-full bg-white/[0.055]">
-        <div className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#ff9e2f] to-[#ffc65e]" style={{ width: `${width}%` }} />
-        <span className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-white/60 bg-[#ffb347] shadow-[0_0_12px_rgba(246,181,75,0.5)]" style={{ left: `calc(${width}% - 7px)` }} />
+      <div className="relative h-2 overflow-visible rounded-full bg-white/[0.055]">
+        {hasValue ? (
+          <>
+            <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${width}%`, background: color }} />
+            <span className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-white/50 shadow-[0_0_12px_rgba(246,181,75,0.28)]" style={{ left: `calc(${width}% - 7px)`, background: color }} />
+          </>
+        ) : null}
       </div>
-      <div className="text-right text-[11px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{pct(value)}</div>
+      <div className="text-right text-[11px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{formatPercent(value)}</div>
     </div>
   );
 }
 
-function JoinSheet({ onJoin, onDecline, tt }) {
+function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/[0.48] backdrop-blur-[2px]">
       <div className="w-full max-w-[430px] rounded-t-[30px] border border-white/[0.08] bg-[linear-gradient(165deg,rgba(28,30,36,0.98),rgba(15,17,23,0.98)_62%,rgba(10,12,18,0.99))] px-6 pb-[calc(env(safe-area-inset-bottom)+22px)] pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -141,7 +169,7 @@ function JoinSheet({ onJoin, onDecline, tt }) {
           <div className="flex-1" />
           <div className="text-[18px] font-semibold text-white/[0.92]">{tt('competition.joinTitle', '加入收益比赛')}</div>
           <div className="flex flex-1 justify-end">
-            <button type="button" onClick={onDecline} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-white/[0.58] active:scale-95" aria-label={tt('competition.closeJoin', '关闭加入收益比赛')}>
+            <button type="button" onClick={onDecline} disabled={joining} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-white/[0.58] active:scale-95 disabled:opacity-40" aria-label={tt('competition.closeJoin', '关闭加入收益比赛')}>
               <X className="h-5 w-5" strokeWidth={1.7} />
             </button>
           </div>
@@ -150,19 +178,19 @@ function JoinSheet({ onJoin, onDecline, tt }) {
           <div className="relative flex h-[92px] w-[112px] items-center justify-center">
             <div className="absolute inset-0 rounded-full bg-[#f6b54b]/20 blur-2xl" />
             <Trophy className="relative h-[68px] w-[68px] text-[#f6bd61] drop-shadow-[0_0_16px_rgba(246,181,75,0.45)]" strokeWidth={1.45} />
-            <span className="absolute right-1 top-3 h-1.5 w-1.5 rounded-full bg-[#ffe0a0] shadow-[0_0_12px_#ffd37a]" />
-            <span className="absolute left-3 bottom-5 h-1 w-1 rounded-full bg-[#ffd37a] shadow-[0_0_10px_#ffd37a]" />
           </div>
         </div>
-        <div className="mx-auto mt-5 max-w-[270px] text-center text-[14px] leading-7 text-white/[0.58]">
+        <div className="mx-auto mt-5 max-w-[292px] text-center text-[14px] leading-7 text-white/[0.58]">
           {tt('competition.joinDesc', '本功能需要您自己自愿加入后，才可以进入排行榜单，请您选择是否加入。')}
         </div>
+        {error ? <div className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-center text-[12px] text-rose-200">{error}</div> : null}
         <div className="mt-8 grid grid-cols-2 gap-5">
-          <button type="button" onClick={onDecline} className="h-[52px] rounded-[13px] border border-[#f6b54b]/65 bg-transparent text-[14px] text-white/[0.82] active:scale-[0.98]">
+          <button type="button" onClick={onDecline} disabled={joining} className="h-[52px] rounded-[13px] border border-[#f6b54b]/65 bg-transparent text-[14px] text-white/[0.82] active:scale-[0.98] disabled:opacity-40">
             {tt('competition.notJoin', '暂不加入')}
           </button>
-          <button type="button" onClick={onJoin} className="h-[52px] rounded-[13px] bg-gradient-to-r from-[#ffb13d] to-[#ffab32] text-[14px] font-medium text-[#2d1a05] shadow-[0_12px_30px_rgba(246,181,75,0.22)] active:scale-[0.98]">
-            {tt('competition.confirmJoin', '确认加入')}
+          <button type="button" onClick={onJoin} disabled={joining} className="flex h-[52px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-r from-[#ffb13d] to-[#ffab32] text-[14px] font-medium text-[#2d1a05] shadow-[0_12px_30px_rgba(246,181,75,0.22)] active:scale-[0.98] disabled:opacity-55">
+            {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {joining ? tt('competition.joining', '加入中...') : tt('competition.confirmJoin', '确认加入')}
           </button>
         </div>
       </div>
@@ -170,122 +198,231 @@ function JoinSheet({ onJoin, onDecline, tt }) {
   );
 }
 
+function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = false }) {
+  return (
+    <section className="mx-0.5 mt-8 rounded-[20px] border border-white/[0.075] bg-[#0b1017]/98 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
+      <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
+      <p className="mx-auto mt-3 max-w-[310px] text-[13px] leading-6 text-white/42">{desc}</p>
+      {note ? <p className="mx-auto mt-3 max-w-[310px] text-[10.5px] leading-5 text-white/28">{note}</p> : null}
+      {actionLabel ? (
+        <button type="button" onClick={onAction} disabled={busy} className="mx-auto mt-6 flex h-11 min-w-[148px] items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/12 px-5 text-[13px] font-semibold text-[#ffd18a] active:scale-95 disabled:opacity-50">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {actionLabel}
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function CompetitionContent({ data, period, language, tt }) {
+  const ready = data?.state === 'ready';
+  const stats = ready ? (data.stats || {}) : {};
+  const leaders = ready && Array.isArray(data.leaders) ? data.leaders : [];
+  const self = ready ? data.self : null;
+  const selfLeaderIndex = self
+    ? leaders.findIndex((row) => Number(row?.rank) === Number(self.rank) && row?.nickname === self.nickname)
+    : -1;
+  const trend = ready ? (data.trend || {}) : {};
+  const periodMetricLabel = tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
+  const baselineTitle = tt(`competition.baseline.${period}`, '收益基准');
+  const maxMagnitude = Math.max(
+    0.01,
+    isFiniteValue(stats.averageReturnPct) ? Math.abs(Number(stats.averageReturnPct)) : 0,
+    isFiniteValue(stats.top10AverageReturnPct) ? Math.abs(Number(stats.top10AverageReturnPct)) : 0,
+  ) * 1.18;
+
+  return (
+    <div className="space-y-3 px-0.5 pt-3">
+      <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(104px,0.75fr)] gap-2">
+          <div className="min-w-0">
+            <div className="flex items-end gap-3">
+              <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
+              <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08]">
+              <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
+              <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', '纳指100基准（QQQ）')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
+              <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
+            </div>
+          </div>
+          <div className="self-end">
+            <TrendChart self={trend.self} benchmark={trend.benchmark} />
+          </div>
+        </div>
+        <div className="mt-2 text-right text-[9.5px] text-white/24">
+          {ready ? tt('competition.snapshotAsOf', '收盘快照更新至 {{date}}', { date: formatDate(data?.asOfDate, language) }) : '--'}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/[0.07] bg-[#0c1118]/95 px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <StatCard label={tt('competition.participants', '参赛人数')} value={formatInteger(stats.participants, language)} />
+        <StatCard label={tt('competition.beatNasdaq', '跑赢 QQQ')} value={formatPercent(stats.beatRatePct, 0)} color={valueColor(stats.beatRatePct)} />
+        <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={formatPercent(stats.profitableRatePct, 0)} color={valueColor(stats.profitableRatePct)} />
+        <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
+      </section>
+
+      <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <div className="grid grid-cols-[minmax(0,1fr)_82px_82px] items-center px-3.5 py-3">
+          <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
+            {tt('competition.rankingTitle', '收益率排行榜')}
+            <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
+          </div>
+          <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.returnRate', '收益率')}</div>
+          <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.outperformShort', '跑赢 QQQ')}</div>
+        </div>
+        <div className="px-1 pb-1">
+          {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} />) : (
+            <div className="border-t border-white/[0.045] px-4 py-10 text-center text-[12px] text-white/28">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
+          )}
+          {self && selfLeaderIndex < 0 ? <RankRow row={self} self /> : null}
+        </div>
+        <div className="border-t border-white/[0.045] px-4 py-2.5 text-[9.5px] leading-4 text-white/25">
+          {tt('competition.dataDisclosure', '收益基于用户正式交易记录与服务端收盘价快照，不代表券商认证。')}
+        </div>
+      </section>
+
+      <section className="rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[14px] text-white/[0.88]">
+            {baselineTitle}
+            <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
+          </div>
+          <div className="text-[9.5px] text-white/24">
+            {ready ? tt('competition.calculationStart', '起算 {{date}}', { date: formatDate(data?.calculationStartDate, language) }) : '--'}
+          </div>
+        </div>
+        <div className="grid grid-cols-[98px_minmax(0,1fr)] gap-5">
+          <div className="min-w-0">
+            <div className="text-[12px] text-white/[0.42]">{tt('competition.nasdaq100Index', 'QQQ ETF')}</div>
+            <div className="mt-4 text-[20px] tabular-nums" style={{ color: valueColor(data?.benchmarkReturnPct), fontFamily: NUMBER_FONT }}>{formatPercent(data?.benchmarkReturnPct)}</div>
+            <div className="mt-1"><TrendChart benchmark={trend.benchmark} compact /></div>
+          </div>
+          <div className="min-w-0 space-y-4 pt-2">
+            <ProgressLine label={tt('competition.communityAverage', '社区平均')} value={stats.averageReturnPct} maxMagnitude={maxMagnitude} />
+            <ProgressLine label={tt('competition.top10Average', 'TOP10 平均')} value={stats.top10AverageReturnPct} maxMagnitude={maxMagnitude} />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function CommunityCompetitionPage({ ctx = {} }) {
   const {
     closeCommunityCompetition,
+    communityCompetitionClient = communityCompetitionApi,
     language = 'zh',
+    openCommunityProfileSettings,
+    supabase,
   } = ctx;
   const tt = React.useCallback((key, fallback, vars) => t(language, key, fallback, vars), [language]);
   const [period, setPeriod] = React.useState('day');
-  const [joined, setJoined] = React.useState(readJoined);
-  const stats = PERIOD_STATS[period] || PERIOD_STATS.day;
+  const [view, setView] = React.useState({ state: 'loading', data: null, error: '' });
+  const [joining, setJoining] = React.useState(false);
+  const [joinError, setJoinError] = React.useState('');
+  const joiningRef = React.useRef(false);
+  const profileRedirectedRef = React.useRef(false);
 
-  const join = () => {
-    writeJoined();
-    setJoined(true);
+  const load = React.useCallback(async (signal) => {
+    setView({ state: 'loading', data: null, error: '' });
+    setJoinError('');
+    try {
+      const data = await communityCompetitionClient.fetch({ supabase, period, signal });
+      if (signal?.aborted) return;
+      setView({ state: data.state, data, error: '' });
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') return;
+      setView({ state: 'error', data: null, error: error?.message || tt('competition.loadFailed', '收益比赛读取失败') });
+    }
+  }, [communityCompetitionClient, period, supabase, tt]);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  React.useEffect(() => {
+    if (view.state !== 'profile_required' || profileRedirectedRef.current) return;
+    profileRedirectedRef.current = true;
+    openCommunityProfileSettings?.();
+  }, [openCommunityProfileSettings, view.state]);
+
+  const join = async () => {
+    if (joiningRef.current) return;
+    joiningRef.current = true;
+    setJoining(true);
+    setJoinError('');
+    try {
+      const data = await communityCompetitionClient.join({ supabase });
+      setView({ state: data.state, data, error: '' });
+    } catch (error) {
+      if (error?.state === 'profile_required') {
+        setView({ state: 'profile_required', data: null, error: '' });
+        return;
+      }
+      setJoinError(error?.message || tt('competition.joinFailed', '加入收益比赛失败'));
+    } finally {
+      joiningRef.current = false;
+      setJoining(false);
+    }
   };
 
   const decline = () => {
-    if (typeof closeCommunityCompetition === 'function') {
-      closeCommunityCompetition();
-      return;
-    }
-    setJoined(false);
+    if (joiningRef.current) return;
+    closeCommunityCompetition?.();
   };
+
+  const contentDimmed = view.state === 'join_required';
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[430px] overflow-x-hidden bg-[radial-gradient(circle_at_50%_-12%,rgba(24,45,70,0.18),transparent_42%),#05070b] pb-[calc(env(safe-area-inset-bottom)+92px)] text-white" style={{ fontFamily: PAGE_FONT }}>
-      <div className={joined ? '' : 'pointer-events-none select-none blur-[0.5px] brightness-[0.72]'}>
-        <header className="sticky top-0 z-30 -mx-4 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3">
-            <button type="button" onClick={closeCommunityCompetition} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] active:scale-95" aria-label={tt('competition.back', '返回')}>
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[21px] font-semibold leading-7 text-white/[0.95]">{tt('competition.title', '收益比赛')} <span className="text-[18px]">🏆</span></h1>
-              <div className="mt-0.5 truncate text-[12px] text-white/[0.42]">{tt('competition.subtitle', '社区投资者收益排行')}</div>
-            </div>
-            <div className="grid h-11 w-[164px] grid-cols-4 rounded-full bg-white/[0.055] p-1">
-              {PERIODS.map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setPeriod(id)} className={`rounded-full text-[11px] transition ${period === id ? 'bg-[#ffb13d] text-[#2a1905] shadow-[0_8px_18px_rgba(246,181,75,0.2)]' : 'text-white/[0.42]'}`}>
-                  {tt(`competition.period.${id}`, label)}
-                </button>
-              ))}
-            </div>
+      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={closeCommunityCompetition} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] active:scale-95" aria-label={tt('competition.back', '返回')}>
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[21px] font-semibold leading-7 text-white/[0.95]">{tt('competition.title', '收益比赛')} <span className="text-[18px]">🏆</span></h1>
+            <div className="mt-0.5 truncate text-[12px] text-white/[0.42]">{tt('competition.subtitle', '社区投资者收益排行')}</div>
           </div>
-        </header>
-
-        <div className="space-y-3 px-0.5 pt-3">
-          <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-            <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(104px,0.75fr)] gap-2">
-              <div className="min-w-0">
-                <div className="flex items-end gap-3">
-                  <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
-                  <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>#{stats.ownRank}</div>
-                </div>
-                <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08]">
-                  <MetricBlock label={stats.benchmarkLabel} value={pct(stats.ownReturn)} color={PROFIT} />
-                  <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', '纳斯达克100')} value={pct(stats.benchmark)} color={PROFIT} /></div>
-                  <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢纳指')} value={pct(stats.outperformance)} color={GREEN} /></div>
-                </div>
-              </div>
-              <div className="self-end">
-                <Sparkline />
-              </div>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/[0.07] bg-[#0c1118]/95 px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-            <StatCard label={tt('competition.participants', '参赛人数')} value={stats.participants.toLocaleString('en-US')} />
-            <StatCard label={tt('competition.beatNasdaq', '跑赢纳指')} value={`${stats.beatRate}%`} color={GREEN} />
-            <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={`${stats.profitRate}%`} color={GREEN} />
-            <StatCard label={tt('competition.averageReturn', '平均收益率')} value={pct(stats.averageReturn)} color={PROFIT} />
-          </section>
-
-          <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-            <div className="grid grid-cols-[minmax(0,1fr)_82px_82px] items-center px-3.5 py-3">
-              <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
-                {tt('competition.rankingTitle', '收益率排行榜')}
-                <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
-              </div>
-              <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.returnRate', '收益率')}</div>
-              <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.outperformShort', '跑赢纳指')}</div>
-            </div>
-            <div className="px-1 pb-1">
-              {LEADERS.map((row) => <RankRow key={row[0]} row={row} />)}
-              <RankRow row={SELF_ROW} self />
-            </div>
-          </section>
-
-          <section className="rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-            <div className="mb-3 flex items-center gap-1.5 text-[14px] text-white/[0.88]">
-              {stats.baselineTitle}
-              <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
-            </div>
-            <div className="grid grid-cols-[98px_minmax(0,1fr)] gap-5">
-              <div className="min-w-0">
-                <div className="text-[12px] text-white/[0.42]">{tt('competition.nasdaq100Index', '纳斯达克100指数')}</div>
-                <div className="mt-4 text-[20px] tabular-nums" style={{ color: PROFIT, fontFamily: NUMBER_FONT }}>{pct(stats.benchmark)}</div>
-                <div className="mt-1">
-                  <Sparkline compact />
-                </div>
-              </div>
-              <div className="min-w-0 space-y-4 pt-2">
-                <ProgressLine label={tt('competition.communityAverage', '社区平均')} value={stats.averageReturn} />
-                <ProgressLine label={tt('competition.top10Average', 'TOP10 平均')} value={stats.top10Average} />
-                <div className="grid grid-cols-4 text-[10px] text-white/[0.32]">
-                  <span>0%</span>
-                  <span className="text-center">10%</span>
-                  <span className="text-center">20%</span>
-                  <span className="text-right">30%</span>
-                </div>
-              </div>
-            </div>
-          </section>
+          <div className="grid h-11 w-[164px] grid-cols-4 rounded-full bg-white/[0.055] p-1">
+            {PERIODS.map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setPeriod(id)} disabled={view.state === 'loading' || joining} className={`rounded-full text-[11px] transition disabled:opacity-50 ${period === id ? 'bg-[#ffb13d] text-[#2a1905] shadow-[0_8px_18px_rgba(246,181,75,0.2)]' : 'text-white/[0.42]'}`}>
+                {tt(`competition.period.${id}`, label)}
+              </button>
+            ))}
+          </div>
         </div>
+      </header>
+
+      <div className={`px-3 ${contentDimmed ? 'pointer-events-none select-none blur-[0.5px] brightness-[0.62]' : ''}`}>
+        {view.state === 'loading' ? (
+          <StatusCard icon={<Loader2 className="h-7 w-7 animate-spin text-[#f6b54b]" />} title={tt('competition.loading', '正在读取真实收盘快照')} desc={tt('competition.loadingDesc', '正在验证社区资料、参赛状态和已锁定的收盘收益快照。')} />
+        ) : null}
+        {view.state === 'profile_required' ? (
+          <StatusCard icon="👤" title={tt('competition.profileRequired', '请先完成社区资料')} desc={tt('competition.profileRequiredDesc', '正在前往设置页，请选择社区昵称和默认头像并保存后再参加比赛。')} />
+        ) : null}
+        {view.state === 'join_required' ? <CompetitionContent data={null} period={period} language={language} tt={tt} /> : null}
+        {view.state === 'waiting_snapshot' ? (
+          <StatusCard
+            icon="🕰️"
+            title={tt('competition.waitingTitle', '等待下一次真实收盘快照')}
+            desc={view.data?.eligibleAfterSnapshotDate
+              ? tt('competition.waitingEligibleDesc', '你已加入收益比赛。排名将在 {{date}} 之后的首个完整收盘快照生成，快照生成前不会展示估算或模拟数据。', { date: formatDate(view.data.eligibleAfterSnapshotDate, language) })
+              : tt('competition.waitingDesc', '你已加入收益比赛。排名将从符合条件的下一次完整收盘快照开始计算，快照生成前不会展示估算或模拟数据。')}
+            note={tt('competition.dataDisclosure', '收益基于用户正式交易记录与服务端收盘价快照，不代表券商认证。')}
+          />
+        ) : null}
+        {view.state === 'ready' ? <CompetitionContent data={view.data} period={period} language={language} tt={tt} /> : null}
+        {view.state === 'error' ? (
+          <StatusCard icon="!" title={tt('competition.loadFailed', '收益比赛读取失败')} desc={view.error || tt('competition.tryAgainLater', '请稍后重试。')} actionLabel={tt('competition.retry', '重新读取')} onAction={() => load()} />
+        ) : null}
       </div>
 
-      {!joined ? <JoinSheet onJoin={join} onDecline={decline} tt={tt} /> : null}
+      {view.state === 'join_required' ? <JoinSheet onJoin={join} onDecline={decline} joining={joining} error={joinError} tt={tt} /> : null}
     </main>
   );
 }

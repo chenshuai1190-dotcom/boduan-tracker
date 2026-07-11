@@ -7,7 +7,7 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 - React 18 + Vite
 - Tailwind CSS
 - Supabase Auth + Postgres
-- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, `api/earnings-calendar.js`, and `api/pnl-report-daily-snapshot.js`
+- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, `api/earnings-calendar.js`, `api/pnl-report-daily-snapshot.js`, `api/community-competition.js`, and `api/community-competition-daily-snapshot.js`
 - Authenticated stock streaming covers watchlist, main ledger positions, wave records, and cost-basis tool quote rows.
 - EODHD, Yahoo Finance, CNN FGI, and EODHD earnings calendar data
 
@@ -119,16 +119,24 @@ Committing a SQL file does not apply future schema changes to Supabase. The auth
 
 ## Community Profile Foundation
 
-The community profile layer is intentionally separate from financial data. `community_profiles` stores only `user_id`, public `nickname`, public `avatar_key`, and timestamps for future community features such as leaderboards. It must not store email, assets, returns, trades, P&L snapshots, or upload metadata. The first version uses six static default avatars in `public/community-avatars/`; it does not enable Supabase Storage uploads.
+The community profile layer is intentionally separate from financial data. `community_profiles` stores only `user_id`, public `nickname`, public `avatar_key`, `profile_completed_at`, and timestamps. `profile_completed_at` remains null for auto-created defaults and is set only when the user explicitly saves the profile. It must not store email, assets, returns, trades, P&L snapshots, or upload metadata. The first version uses six static default avatars in `public/community-avatars/`; it does not enable Supabase Storage uploads.
 
-Production database status (2026-07-12): `supabase/community_profiles.sql` has been applied to production Supabase through the Supabase SQL editor. `npm run verify:rls:rest` now passes across 18 user-owned tables, and anonymous REST receives `401` for `community_profiles`.
+Production database status (2026-07-12): `supabase/community_profiles.sql` and the profile completion change in `supabase/community_competition.sql` have been applied to production Supabase through the Supabase SQL editor. `npm run verify:rls:rest` now passes across all 20 checked user-owned tables, and anonymous REST receives `401` for `community_profiles`, `community_competition_members`, and `community_competition_snapshots`.
 
 For rollout:
 
 1. Apply `supabase/community_profiles.sql` in the production Supabase SQL editor.
-2. Verify schema constraints, trigger, grants, and RLS policies: authenticated users may read public community profiles, but may insert/update only their own row; no delete grant is given.
+2. Verify schema constraints, trigger, grants, and RLS policies: authenticated users may read/insert/update only their own profile; leaderboard identity is exposed only by the authenticated competition API for active members. No delete grant is given.
 3. Run `npm run verify:rls:rest`; anonymous REST must not expose user-owned rows.
-4. When a non-empty service-role or DB admin channel is available, run a two-real-Auth-user isolation smoke: both users can read public profile rows, owner update succeeds, cross-user update affects zero rows, and no smoke rows remain.
+4. When a non-empty service-role or DB admin channel is available, run a two-real-Auth-user isolation smoke: each user can read only their own profile row, cross-user select/update affects zero rows, owner update succeeds, and no smoke rows remain. Public leaderboard identity must remain mediated by the authenticated competition API.
+
+## Community Return Competition
+
+The real competition is an isolated opt-in feature. `community_competition_members` stores participation, the join-time eligible-ledger hash, and the fixed ranking start; `community_competition_snapshots` stores only server-generated daily/cumulative return ratios, close date, lock time, source version, and a one-way `ledger_hash` integrity value. It never stores email, assets, positions, symbols, trades, or P&L amounts. Authenticated clients can read only their own membership and cannot read or write competition snapshots. Snapshot rows are immutable to `service_role` after insert.
+
+`/api/community-competition` always verifies the Supabase bearer token, requires an explicitly saved community profile, freezes the eligible ledger hash at voluntary join, and returns only active-member leaderboard fields. `/api/community-competition-daily-snapshot` is protected by `CRON_SECRET`, reads USD `stock_trades` without mutating it, uses adjusted EODHD closes with raw daily high/low validation, and writes only the competition tables. Its independent cash-flow return model neutralizes daily buys/sells, compounds consecutive locked daily returns, carries an already-ranked empty portfolio at zero daily return, and rejects join-baseline changes, locked-history changes, date gaps, late records, or out-of-range prices. A failed symbol is isolated to affected participants instead of blocking all snapshots. Missing authoritative data produces a waiting state; the UI has no mock, realtime-price, or estimate fallback. The benchmark is QQQ ETF close-to-close data, not the NDX index itself.
+
+Production database status (2026-07-12): `supabase/community_competition.sql` has been applied and the anonymous REST gate passes 20/20. The SQL/admin metadata result still needs to be read after the Supabase Dashboard translation-plugin crash is cleared. For future changes, apply the SQL, audit its RLS/grants, and rerun `npm run verify:rls:rest`; committing the SQL file alone does not update production Supabase.
 
 ## Security Baseline
 

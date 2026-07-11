@@ -1,5 +1,6 @@
--- Community profile public identity for future competition leaderboards.
--- Stores only nickname and preset avatar key; no email, portfolio, return, or ledger data.
+-- Community identity for server-mediated competition leaderboards.
+-- Authenticated clients can read only their own profile; the service-role API assembles
+-- public leaderboard identity without exposing email, portfolio, return, or ledger data.
 
 begin;
 
@@ -7,6 +8,7 @@ create table if not exists public.community_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   nickname text not null,
   avatar_key text not null default 'gold',
+  profile_completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
@@ -17,6 +19,9 @@ create table if not exists public.community_profiles (
   constraint community_profiles_avatar_key_check
     check (avatar_key in ('gold', 'blue', 'purple', 'green', 'cyan', 'silver'))
 );
+
+alter table public.community_profiles
+add column if not exists profile_completed_at timestamptz;
 
 create index if not exists community_profiles_updated_at_idx
 on public.community_profiles (updated_at desc);
@@ -53,7 +58,7 @@ create policy "authenticated can read community profiles"
 on public.community_profiles
 for select
 to authenticated
-using (true);
+using (auth.uid() = user_id);
 
 drop policy if exists "users can insert own community profile"
 on public.community_profiles;
@@ -78,5 +83,9 @@ revoke all privileges on table public.community_profiles from public, anon, auth
 grant select, insert, update
 on table public.community_profiles
 to authenticated;
+
+grant select
+on table public.community_profiles
+to service_role;
 
 commit;

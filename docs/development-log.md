@@ -4,9 +4,30 @@
 
 ## 2026-07-12 Asia/Shanghai
 
-### 2026-07-12 - 社区头像白边修正
+### 2026-07-12 - 收益比赛真实收盘快照版
 
 - Commit: same commit;未推送、未部署。
+- Deployment: pending;生产仍为 `v10.7.9.301` / runtime `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
+- Background: 用户要求收益比赛必须自愿参加,缺少已确认昵称/头像时返回设置页,所有收益率严格来自真实收盘快照且绝不展示虚假数据;同时要求该功能独立,不能影响其他模块。
+- Workflow tier: `sensitive`。
+- Changes:
+  - `community_profiles` 新增 `profile_completed_at`;自动生成的默认资料保持未确认,只有用户主动保存才满足比赛资料门槛。资料表 authenticated SELECT 从跨用户公开读取收紧为 `auth.uid() = user_id` 的本人行读取,排行榜需要的跨用户昵称/头像只由严格鉴权的比赛 API 汇总返回。
+  - 新增独立 `community_competition_members` 与 `community_competition_snapshots`;客户端只能读取自己的参赛状态,不能写参赛表或读写比赛快照。成员表在自愿加入时固化 eligible-date 账本哈希;快照只存收益率/日期/锁定元数据,`service_role` 仅有 select/insert,同 user/date 锁定后不可覆盖。生产已执行过初版 SQL,因此 hash 列使用可重跑的 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 增量迁移。
+  - 新增始终要求 Supabase Bearer 的 `/api/community-competition`;门槛顺序为资料确认→自愿加入→下一份权威收盘快照。API 只返回公开昵称、头像、排名、收益率和真实 QQQ 基准,不返回 user id、邮箱、金额、持仓或交易。
+  - 新增受 `CRON_SECRET` 保护的独立 `/api/community-competition-daily-snapshot`,只读 active members 与 `stock_trades`,使用比赛专用现金流日收益公式消除当日买入/部分卖出/全部卖出的口径失真,再按日复合累计;不写现有 P&L 表或任何交易账本。
+  - 首份快照复核加入时固化的 eligible-date hash,不再信任客户端可写的 `created_at`;每份比赛快照继续保存单向 `ledger_hash`,历史编辑/删除/回填即跳过。快照必须按实际交易日连续生成,缺口明确拒绝并保留按 date 顺序补跑能力;USD 估值优先使用 adjusted close,交易价仍用 raw high/low 校验。
+  - EODHD 多 symbol 拉取改为失败隔离,只请求当前持仓和目标日交易实际需要的代码;单个无效/退市 ticker 或 provider 失败只跳过受影响用户。已有 prior snapshot 的完整空仓日写入 `daily=0` 并延续累计收益/hash,不会从同日榜单消失;非 USD 账本按用户拒绝,不混算币种。
+  - 生产比赛页删除 localStorage 加入态、固定榜单数字和固定曲线;改为 loading/profile_required/join_required/waiting_snapshot/ready/error 状态。资料不完整自动跳设置页社区资料,缺数据只显示等待/`--`,不使用 mock、估算或实时行情替代。
+  - 日/周/月/年榜统一同一 as-of close;中途加入者按自己的真实起算日计算 QQQ ETF 对比,并列收益使用标准竞赛排名。界面明确说明收益基于用户正式交易记录与服务端收盘快照,不代表券商认证。
+  - Vercel 保留原 22:30 UTC P&L Cron,新增 22:45 UTC 独立比赛 Cron;设置页版本/更新日志同步为 `v10.7.9.303`。
+- Key files: `supabase/community_competition.sql`,`supabase/community_profiles.sql`,`supabase/rls.sql`,`api/community-competition.js`,`api/community-competition-daily-snapshot.js`,`server/communityCompetition*.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/lib/communityCompetitionApi.js`,`src/lib/communityProfile.js`,`src/lib/communityProfilesRepository.js`,`src/App.jsx`,`src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`vercel.json`,`tests/community-competition*.test.js`,`tests/community-profiles.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:toolchain` pass;社区 API/Cron/model/profile/boundary 定向测试 78/78 pass,包含加入基线 hash、快照缺口、adjusted close、USD 拒绝、空仓延续和单 symbol provider 失败隔离;修复后 `npm test` 239/239 pass;`npm run build` pass;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。2026-07-12 已在生产 Supabase SQL Editor 重新执行最新版 `supabase/community_profiles.sql` 与 `supabase/community_competition.sql`;执行后 `npm run verify:rls:rest` 20/20 pass,匿名 `community_profiles`、`community_competition_members`、`community_competition_snapshots` 均为 `401`;REST schema 探针读取真实 `eligible_ledger_hash` 返回权限拒绝 `401`,而不存在列返回 `400`,确认增量列已生效。Dashboard 随后被浏览器翻译插件触发 React `removeChild` 错误,SQL/admin metadata 查询结果尚未稳定读取,该项与应用部署证据仍待收口。390x844 本地只读 fixture 已覆盖 `?devPreview=1&preview=community-competition&competitionState=join`、`competitionState=waiting` 和 `competitionState=ready`;页面 `scrollWidth=390` / `clientWidth=390`,console error 0;截图: `~/Desktop/boduan-previews/community-competition-v303-join-390x844.png`,`community-competition-v303-waiting-390x844.png`,`community-competition-v303-ready-390x844.png`。
+- Boundaries: 不改 `stock_trades`/`trades`/`cost_basis_trades`/`swing_waves` 写入,不改个人 `pnl_report_snapshots`/symbol snapshot/rebuild state,不改 `/api/quote`、独立 `/api/earnings-calendar`、BTC/指数/股票 relay、EODHD token 前端边界或其他模块计算。
+- Rollback: 回退本次代码/版本/文档和独立 Cron;若 SQL 已执行,保留空表不影响现有模块,需要删除时先确认无参赛成员/快照再单独审计回滚。
+
+### 2026-07-12 - 社区头像白边修正
+
+- Commit: `797fab626136719e5448692e1536f2a533d28b19`;已提交,未推送、未部署。
 - Deployment: 未部署;生产仍为 `v10.7.9.301` / runtime `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
 - Background: 用户核对生产截图后反馈设置页社区资料头像出现额外白色边框,要求先本地调试并取消。
 - Workflow tier: `runtime`。

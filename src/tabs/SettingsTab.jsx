@@ -12,6 +12,7 @@ function SettingsTab({ ctx }) {
     ChevronDown,
     ChevronUp,
     clearQuoteDiagnosticLogs,
+    communityProfileFocusRequest = 0,
     db,
     Loader2,
     LogOut,
@@ -105,6 +106,7 @@ function SettingsTab({ ctx }) {
   const [communityLoading, setCommunityLoading] = React.useState(false);
   const [communitySaving, setCommunitySaving] = React.useState(false);
   const [communityMessage, setCommunityMessage] = React.useState(null);
+  const communityProfileSectionRef = React.useRef(null);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
   const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
@@ -112,6 +114,8 @@ function SettingsTab({ ctx }) {
   const communityDirty = Boolean(
     communityProfile
     && (
+      !communityProfile.profileCompletedAt
+      ||
       communityNicknameValidation.nickname !== communityProfile.nickname
       || selectedCommunityAvatar.key !== communityProfile.avatarKey
     ),
@@ -233,6 +237,18 @@ function SettingsTab({ ctx }) {
     };
   }, [db, language, user?.id]);
 
+  React.useEffect(() => {
+    if (!communityProfileFocusRequest) return;
+    setCommunityMessage({
+      type: 'info',
+      text: t(language, 'settings.communityRequiredForCompetition', '参加收益比赛前，请选择社区昵称和默认头像并保存。'),
+    });
+    const frame = window.requestAnimationFrame(() => {
+      communityProfileSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [communityProfileFocusRequest, language]);
+
   const saveCommunityProfile = async () => {
     if (communitySaving || !db?.upsertCommunityProfile) return;
     const nicknameResult = validateCommunityNickname(communityDraft.nickname);
@@ -276,7 +292,7 @@ function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.302
+                  v10.7.9.303
                 </span>
               </div>
             </div>
@@ -360,7 +376,7 @@ function SettingsTab({ ctx }) {
             </div>
 
             {/* 社区资料 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div ref={communityProfileSectionRef} className="scroll-mt-24 rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <h2 className="text-lg font-black text-white">{t(language, 'settings.communityProfile', '社区资料')}</h2>
@@ -445,7 +461,9 @@ function SettingsTab({ ctx }) {
                   <div className={`mt-3 rounded-xl border px-3 py-2 text-[12px] ${
                     communityMessage.type === 'error'
                       ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
-                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+                      : communityMessage.type === 'info'
+                        ? 'border-[#f6a524]/25 bg-[#f6a524]/10 text-[#ffd18a]'
+                        : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
                   }`}>
                     {communityMessage.text}
                   </div>
@@ -695,7 +713,7 @@ function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.302
+                  v10.7.9.303
                 </span>
               </div>
 
@@ -778,7 +796,7 @@ function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.302</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.303</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>
