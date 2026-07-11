@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 波段首页与新增弹框移动端细节修复
 
-- Commit: local runtime change pending;未提交、未推送。
-- Deployment: 未部署;生产仍为 `v10.7.9.297`,运行时基准仍为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`,生产入口仍为 `/assets/index-D58eoxFB.js`。
+- Commit: runtime `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`;本条后续 docs-only 提交只回填部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29155184666` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn`,production alias 已更新,入口 `/assets/index-C4i0j3Ob.js`。线上 `App-CFi3XLQy.js` 引用 `WaveTrackerPage-ClYqGD2a.js`、`ActionModalCard-CTI_wgqk.js` 和 `SettingsTab-BUnYaY2P.js`;设置页与 `settingsChangelog-BXVNnlzy.js` 均命中 `v10.7.9.298`,波段 chunk 命中默认 `active` 筛选、`wave-form-date-input` 和完整卖出提示。`npm run verify:deploy-status -- 18f2533` pass,未登录 `/api/quote?symbols=VIX` 与 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。
 - Background: 用户在 iOS 真机发现新增波段弹框首次聚焦股票代码、买入成本、买入数量或备注时会整体跳到视口上方,日期文字也未垂直居中;同时要求波段首页默认聚焦进行中记录、自动展示同股全部进行中波段,并统一操作卡按钮的中性色层级。
 - Workflow tier: `runtime`。
 - Changes:
@@ -16,11 +16,11 @@
   - 共用 `ActionModalCard` 跟随 iOS `visualViewport` 的高度和顶部偏移,并补齐波段页弹框打开期间的页面滚动锁,避免软键盘首次出现时把整张操作卡推到页面顶部;弹框正文继续在自身边界内滚动。
   - 波段日期输入统一为 40px 行高、零垂直内边距并垂直/水平居中,不改日期值、校验或保存口径。
   - `ActionModalCard` 的确认与取消按钮统一为同一套中性色;未满足表单条件时确认按钮仍保留原生 `disabled` 并阻止提交,危险删除确认继续使用独立红色样式。
-  - 设置页三个可见版本面和更新日志已同步为本地待部署 `v10.7.9.298`。
+  - 设置页三个可见版本面和更新日志已同步上线为 `v10.7.9.298`。
 - Key files: `src/components/ActionModalCard.jsx`,`src/pages/WaveTrackerPage.jsx`,`src/index.css`,`src/lib/settingsChangelog.js`,`src/tabs/SettingsTab.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `node --test tests/swing-waves.test.js tests/tool-ledger-boundaries.test.js` 52/52、`npm test` 201/201、`npm run build`、`npm run verify:frontend-smoke` 5/5、`npm audit --audit-level=moderate`（0 vulnerabilities）、`npm run verify:docs-consistency` 和 `git diff --check` 均通过。使用真实生产页面组件与只读 `DevVisualPreview` 在 390x844 完成首页/新增弹框截图复核,并在 390x500、390x300 键盘压缩视口依次录入股票代码、买入成本、买入数量和备注;弹框始终位于可视区域内、备注可滚动到达、关闭后滚动锁完整恢复,浏览器 console error 0。运行时样式确认日期 `line-height: 40px`、上下 padding 为 0;取消和确认的 color/background/border/opacity 完全一致,无效表单下确认仍有原生 `disabled`。尚未执行生产 marker、Vercel 或未登录 API 复核,因为本轮尚未部署。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;`node --test tests/swing-waves.test.js tests/tool-ledger-boundaries.test.js` 52/52、`npm test` 201/201、`npm run build`、`npm run verify:frontend-smoke` 5/5、`npm audit --audit-level=moderate`（0 vulnerabilities）、`npm run verify:docs-consistency` 和 `git diff --check` 均通过。使用真实生产页面组件与只读 `DevVisualPreview` 在 390x844 完成首页/新增弹框截图复核,并在 390x500、390x300 键盘压缩视口依次录入股票代码、买入成本、买入数量和备注;弹框始终位于可视区域内、备注可滚动到达、关闭后滚动锁完整恢复,浏览器 console error 0。运行时样式确认日期 `line-height: 40px`、上下 padding 为 0;取消和确认的 color/background/border/opacity 完全一致,无效表单下确认仍有原生 `disabled`。线上 `npm run verify:deploy-status -- 18f2533` pass,生产 marker 命中 `v10.7.9.298`、新 `WaveTrackerPage` / `ActionModalCard` / `SettingsTab` chunks 与更新日志。
 - Boundaries: 本轮只修改波段独立页面的默认筛选/展开展示、共用操作卡移动端视口适配与按钮视觉、日期输入样式、版本/更新日志和静态护栏;不改 `swing_waves` schema、CRUD 参数、收益/股数/币种计算、完整卖出规则、正式 `stock_trades` / `trades` 账本、收益快照、数据库、RLS、Auth、行情 universe/relay、`/api/quote` 或独立 `/api/earnings-calendar`。
-- Rollout gate: 仅本地修复,未提交、未推送、未部署。部署前必须完成本地视觉复核和 `runtime` 分层验证;上线后再补 GitHub Actions、Vercel、生产版本 marker 与未登录 quote/earnings `401` 证据。
+- Rollout gate: 本地视觉复核、完整 `runtime` 验证、GitHub Actions、Vercel、生产入口/版本 marker 和未登录 quote/earnings `401` 均已完成。
 - Rollback: 撤销上述页面、共用操作卡、日期样式、版本/更新日志、测试和本条文档即可;无需数据库或数据回滚。
 
 ### 2026-07-11 - 波段记录 V2 真实独立页面接入与生产部署

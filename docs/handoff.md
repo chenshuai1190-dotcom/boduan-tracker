@@ -6,10 +6,10 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前本地待部署: `v10.7.9.298` 已完成波段首页与新增弹框小修复。默认筛选改为“进行中”,仅已完成股票只在“已完成”筛选出现;同股多波段在首页自动展开并全部显示。共用 `ActionModalCard` 跟随 iOS `visualViewport`,修复首次聚焦输入时弹框跳顶,日期文字垂直居中;确认与取消统一为中性色,但未满足条件时确认按钮仍为原生 `disabled` 并阻止提交,危险确认仍为红色。该改动尚未提交、推送或部署。
-- 当前本地设置页版本: `v10.7.9.298`（未部署）。当前生产设置页仍为 `v10.7.9.297`,生产运行时仍为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`,入口仍为 `/assets/index-D58eoxFB.js`。
-- `v10.7.9.298` 本地验证:波段定向 52/52、完整测试 201/201、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 首页/新增弹框、390x500 与 390x300 键盘压缩视口复核通过,四个输入字段均可到达,弹框未跳出可视区,关闭后滚动锁恢复,console error 0。该证据仅为本地结果,不代表已上线。
-- 最新已上线: 波段记录 V2 真实独立页面、页面级 `swing_waves` CRUD、纯 view model、共用股票 Logo、active-only 登录态行情接入和中英文案已在 `v10.7.9.297` 上线,运行时代码提交 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。正式 ledger/自选在 realtime 50-symbol 上限前优先于工具 symbol,已完成波段不占 relay 名额。生产数据库表/RLS metadata 13/13、两个现有真实 Auth 用户的 authenticated role/JWT subject CRUD/RLS 隔离 smoke 14/14 和残留数据为零均通过。该 smoke 在生产 SQL editor 中模拟两个用户上下文,未导出 service-role key,也不是密码登录 REST token 会话。旧 `trades` 未清理也不双写。
+- 最新已上线: `v10.7.9.298` 波段首页与新增弹框小修复已上线,运行时代码提交 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。默认筛选改为“进行中”,仅已完成股票只在“已完成”筛选出现;同股多波段在首页自动展开并全部显示。共用 `ActionModalCard` 跟随 iOS `visualViewport`,修复首次聚焦输入时弹框跳顶,日期文字垂直居中;确认与取消统一为中性色,但未满足条件时确认按钮仍为原生 `disabled` 并阻止提交,危险确认仍为红色。
+- 当前生产设置页版本: `v10.7.9.298`;当前生产运行时基准提交为 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`,入口为 `/assets/index-C4i0j3Ob.js`。
+- `v10.7.9.298` 验证:波段定向 52/52、完整测试 201/201、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 首页/新增弹框、390x500 与 390x300 键盘压缩视口复核通过,四个输入字段均可到达,弹框未跳出可视区,关闭后滚动锁恢复,console error 0。`npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn` success,未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.298`、`WaveTrackerPage-ClYqGD2a.js`、`ActionModalCard-CTI_wgqk.js`、`SettingsTab-BUnYaY2P.js` 和 `settingsChangelog-BXVNnlzy.js`。
+- 上一条已上线补充: `v10.7.9.297` 波段记录 V2 真实独立页面、页面级 `swing_waves` CRUD、纯 view model、共用股票 Logo、active-only 登录态行情接入和中英文案已上线,运行时代码提交 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。正式 ledger/自选在 realtime 50-symbol 上限前优先于工具 symbol,已完成波段不占 relay 名额。生产数据库表/RLS metadata 13/13、两个现有真实 Auth 用户的 authenticated role/JWT subject CRUD/RLS 隔离 smoke 14/14 和残留数据为零均通过。该 smoke 在生产 SQL editor 中模拟两个用户上下文,未导出 service-role key,也不是密码登录 REST token 会话。旧 `trades` 未清理也不双写。
 - `v10.7.9.297` 上线前本地验证: 波段定向 56/56、完整测试 201/201、build、5/5 frontend smoke、moderate audit、docs consistency 和 diff check 均通过;390x844 与 320x568 真实页面/弹框无横向溢出,console error 0。收口时当前机器到 Vercel 的 TLS 握手连续重置,远端探针得到 HTTP `000`;沿用本轮 SQL 后已完成的 17/17 RLS 与 quote/earnings `401` 作为历史证据,但不能把本次失败重跑写成新通过。
 - 最新已上线补充: `v10.7.9.296` 已修复 `v10.7.9.295` 把波段每股报价错误换算为 CNY 的问题,production runtime commit `121016fadf1b9b4bd010527e6b8a82a73bae71a0`;买入均价、卖出均价、当前价和交易单价固定 USD,只有浮盈、总盈亏和成交总金额跟随首页 USD/CNY。波段存储/计算及其他模块不变。
 - 上一条已上线补充: `v10.7.9.295` 已修复波段记录汇总金额未跟随首页的问题,production runtime commit `8468442cb235b3e0ce33d08f456e6a88c6af6a23`;波段浮盈、总盈亏和成交总金额共用首页 USD/CNY 及汇率,波段录入/存储/计算仍为 USD。
@@ -27,14 +27,14 @@
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
-- 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。
-- 当前生产运行时基准提交: `b56b7127ab69bd40bee1932c12eab722ebb4064d`。
-- 当前生产设置页版本: `v10.7.9.297`。
+- 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。
+- 当前生产运行时基准提交: `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。
+- 当前生产设置页版本: `v10.7.9.298`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
-- 最新运行时部署: `npm run verify:deploy-status -- b56b712` pass;GitHub Actions run `29154192896` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B44CodL2WgfoRBHcFqSCr1yQcMH1`;production alias 已更新,入口 `/assets/index-D58eoxFB.js`。
-- 最近交接文档刷新部署: `41f96d6` 已回填 `v10.7.9.293` 部署证据;本次 runtime 提交部署完成后继续回填新证据。
-- 线上关键验证: `npm run verify:deploy-status -- b56b712` pass;GitHub Actions run `29154192896` success,Vercel status success,入口 `/assets/index-D58eoxFB.js`,未登录 quote/earnings 均为 `401`;线上 `App-Ye5GmQSu.js` 引用 `WaveTrackerPage-DijsB-a2.js`,设置页命中 `v10.7.9.297`,波段 chunk 命中“波段记录”“新增波段”和完整卖出提示。
+- 最新运行时部署: `npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn`;production alias 已更新,入口 `/assets/index-C4i0j3Ob.js`。
+- 最近交接文档刷新部署: 本文件所在最新提交只回填 `v10.7.9.298` 部署证据,不改生产运行时。
+- 线上关键验证: `npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel status success,入口 `/assets/index-C4i0j3Ob.js`,未登录 quote/earnings 均为 `401`;线上 `App-CFi3XLQy.js` 引用 `WaveTrackerPage-ClYqGD2a.js` 和 `ActionModalCard-CTI_wgqk.js`,设置页命中 `v10.7.9.298`,更新日志 chunk 命中“波段首页与 iOS 弹框细节修复”。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图;`v10.7.9.278` 已上线首页当前信号文字降重;`v10.7.9.279` 已上线首页股票文字继续降重;`v10.7.9.280` 已上线个股收益峰值呼吸点;`v10.7.9.281` 已上线收益报表对比浮层;`v10.7.9.282` 已上线收益报表浮层颜色和页面文案调整;`v10.7.9.283` 已上线个股详情持仓时间;`v10.7.9.284` 已上线自选添加股票校验;`v10.7.9.285` 已上线热门股票弹窗实时行情。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -42,16 +42,16 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地待部署版本: `v10.7.9.298`;波段首页默认进行中、多波段自动展开、已完成仅在已完成筛选出现、iOS 首次聚焦弹框跟随 `visualViewport`、日期垂直居中和 `ActionModalCard` 中性按钮已完成本地实现,尚未提交、推送或部署。
-- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。
-- 当前生产运行时基准提交: `b56b7127ab69bd40bee1932c12eab722ebb4064d`。
-- 最近应用代码提交: production 最近应用代码提交 `b56b7127ab69bd40bee1932c12eab722ebb4064d` 包含 `v10.7.9.297` 波段记录 V2 独立页面;此前 `121016fadf1b9b4bd010527e6b8a82a73bae71a0` 包含 `v10.7.9.296` 波段报价固定 USD 修复。
+- 当前生产版本: `v10.7.9.298`;波段首页默认进行中、多波段自动展开、已完成仅在已完成筛选出现、iOS 首次聚焦弹框跟随 `visualViewport`、日期垂直居中和 `ActionModalCard` 中性按钮已上线。
+- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。
+- 当前生产运行时基准提交: `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。
+- 最近应用代码提交: production 最近应用代码提交 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e` 包含 `v10.7.9.298` 波段首页和新增弹框修复;此前 `b56b7127ab69bd40bee1932c12eab722ebb4064d` 包含 `v10.7.9.297` 波段记录 V2 独立页面。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前生产设置页版本: `v10.7.9.297`。
-- Vercel 最新部署: `v10.7.9.297` runtime commit `b56b7127ab69bd40bee1932c12eab722ebb4064d` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B44CodL2WgfoRBHcFqSCr1yQcMH1`,production 入口 `/assets/index-D58eoxFB.js`,关键 chunks 包括 `/assets/App-Ye5GmQSu.js`,`/assets/WaveTrackerPage-DijsB-a2.js`,`/assets/TradesTab-BkWtHqeM.js`,`/assets/SettingsTab-BPMtXyIq.js`,`/assets/settingsChangelog-8fy72x0C.js`。
+- 当前生产设置页版本: `v10.7.9.298`。
+- Vercel 最新部署: `v10.7.9.298` runtime commit `18f25333c8fb4cfddb54eb4298afc8d9e20d171e` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn`,production 入口 `/assets/index-C4i0j3Ob.js`,关键 chunks 包括 `/assets/App-CFi3XLQy.js`,`/assets/WaveTrackerPage-ClYqGD2a.js`,`/assets/ActionModalCard-CTI_wgqk.js`,`/assets/SettingsTab-BUnYaY2P.js`,`/assets/settingsChangelog-BXVNnlzy.js`。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
-- 最新补充部署记录: `v10.7.9.297` runtime code commit `b56b7127ab69bd40bee1932c12eab722ebb4064d` pushed via project SSH key;GitHub Actions `CI` run `29154192896` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B44CodL2WgfoRBHcFqSCr1yQcMH1`;production alias updated;active runtime assets、版本 marker 和 auth boundaries verified。生产入口 `/assets/index-D58eoxFB.js`;关键 chunks 包括 `/assets/App-Ye5GmQSu.js`,`/assets/WaveTrackerPage-DijsB-a2.js`,`/assets/TradesTab-BkWtHqeM.js`,`/assets/SettingsTab-BPMtXyIq.js`,`/assets/settingsChangelog-8fy72x0C.js`。上一条 `v10.7.9.296` 运行时代码提交为 `121016fadf1b9b4bd010527e6b8a82a73bae71a0`;更早运行时代码部署历史见 `docs/development-log.md`。
+- 最新补充部署记录: `v10.7.9.298` runtime code commit `18f25333c8fb4cfddb54eb4298afc8d9e20d171e` pushed via project SSH key;GitHub Actions `CI` run `29155184666` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn`;production alias updated;active runtime assets、版本 marker 和 auth boundaries verified。生产入口 `/assets/index-C4i0j3Ob.js`;关键 chunks 包括 `/assets/App-CFi3XLQy.js`,`/assets/WaveTrackerPage-ClYqGD2a.js`,`/assets/ActionModalCard-CTI_wgqk.js`,`/assets/SettingsTab-BUnYaY2P.js`,`/assets/settingsChangelog-BXVNnlzy.js`。上一条 `v10.7.9.297` 运行时代码提交为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`;更早运行时代码部署历史见 `docs/development-log.md`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - `swing_waves` 生产状态: 2026-07-11 已从 `postgres` role 执行仓库独立 transaction;执行前表不存在,执行后 13/13 metadata 项为 `true`。SQL 后 `verify:rls:rest` 17/17 pass;随后两个真实 Auth 用户的 authenticated role/JWT subject CRUD/RLS smoke 14/14 pass,双方只见本人数据、跨用户读写删均为 0、owner 生命周期与 1.5 碎股均通过,独立清理查询为 `no_smoke_rows=true`。真实 V2 独立页面已随 `v10.7.9.297` 上线。
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
@@ -702,21 +702,21 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
 
-当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`
-当前前台可见运行时基准提交: `b56b7127ab69bd40bee1932c12eab722ebb4064d`
-当前本地设置页版本: `v10.7.9.298`（未部署）
-当前生产设置页版本: `v10.7.9.297`
+当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`
+当前前台可见运行时基准提交: `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`
+当前生产设置页版本: `v10.7.9.298`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
-最新运行时部署: `b56b7127ab69bd40bee1932c12eab722ebb4064d` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B44CodL2WgfoRBHcFqSCr1yQcMH1`
-最新生产入口: `/assets/index-D58eoxFB.js`
+最新运行时部署: `18f25333c8fb4cfddb54eb4298afc8d9e20d171e` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn`
+最新生产入口: `/assets/index-C4i0j3Ob.js`
 
-当前本地待部署:
+最新已上线:
 - `v10.7.9.298` 波段首页默认选中“进行中”;仅已完成股票不在默认首页显示,仍可在“已完成”筛选查看;同股多个波段自动展开并全部显示
 - 新增波段弹框跟随 iOS `visualViewport`,修复首次聚焦股票代码、买入成本、买入数量或备注时整卡跳顶;日期文字垂直居中
 - 共用 `ActionModalCard` 的确认与取消统一为同一中性色;确认按钮在表单无效时仍为原生 `disabled` 并阻止提交,危险删除确认仍保持红色
-- 本轮没有数据库、API、RLS、正式交易账本、收益快照、行情 relay 或 `swing_waves` CRUD/计算变化;尚未提交、推送或部署,生产继续保持 `v10.7.9.297` / `b56b7127ab69bd40bee1932c12eab722ebb4064d`
+- 本轮没有数据库、API、RLS、正式交易账本、收益快照、行情 relay 或 `swing_waves` CRUD/计算变化
 
 关键线上验证:
+- `v10.7.9.298` 已上线:`npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel status success,生产入口 `/assets/index-C4i0j3Ob.js`,未登录 quote/earnings 均为 `401`;生产引用 `WaveTrackerPage-ClYqGD2a.js`,`ActionModalCard-CTI_wgqk.js`,`SettingsTab-BUnYaY2P.js`,`settingsChangelog-BXVNnlzy.js`
 - `v10.7.9.297` 已上线:波段记录升级为独立真实页面,支持同股多个独立进行中波段、完整买入/完整卖出、股票 Logo、深色操作弹框和页面级 `swing_waves` CRUD;双真实 Auth 用户 RLS 14/14 及零残留通过
 - `npm run verify:deploy-status -- b56b712` pass: GitHub Actions run `29154192896` success,Vercel status success,生产入口 `/assets/index-D58eoxFB.js`,未登录 quote/earnings 均为 `401`;设置页命中 `v10.7.9.297`,生产引用独立 `WaveTrackerPage-DijsB-a2.js`
 - `v10.7.9.296` 已上线:波段买入/卖出均价、当前价和交易单价固定 USD;浮盈、总盈亏和成交总金额继续跟随首页 USD/CNY;存储、计算和其他模块不变
@@ -790,7 +790,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 并确认未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 返回 `401`。
 
 当前已完成:
-- `v10.7.9.298` 波段首页与新增弹框细节已在本地完成、尚未部署:默认进行中,已完成记录仅在已完成筛选出现,多波段自动展开;弹框跟随 iOS `visualViewport`,日期垂直居中,共用操作卡按钮统一中性色且 disabled/危险确认语义保持不变。生产仍为 `v10.7.9.297`。
+- `v10.7.9.298` 波段首页与新增弹框细节已上线:默认进行中,已完成记录仅在已完成筛选出现,多波段自动展开;弹框跟随 iOS `visualViewport`,日期垂直居中,共用操作卡按钮统一中性色且 disabled/危险确认语义保持不变。
 - 波段记录 V2 真实独立页面已在 `v10.7.9.297` 上线:交易页工具卡进入 lazy 独立页,真实读写独立 `swing_waves`,支持同股多个进行中波段和一次性完整卖出;买入/卖出/当前单价固定 USD,盈亏金额跟随首页币种。生产 SQL/RLS 已通过 13/13 metadata、匿名 REST 和双真实 Auth 用户 CRUD/RLS 14/14 核验,残留数据为零。
 - 英文模式已覆盖设置页、底部导航、首页、交易页、资产页、目标页;只翻译系统文案,用户自写内容保持原文。
 - 股票核心行情已去 Yahoo 混源:股票核心 quote 字段只用 EODHD;Yahoo 仅保留股票小曲线视觉 chart 来源。
