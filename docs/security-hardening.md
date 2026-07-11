@@ -23,6 +23,7 @@ This project started as a personal hand-built app, so the first priority is to m
    - Run `npm run verify:rls:rest` to confirm anonymous REST clients cannot see user-owned rows.
    - Production `swing_waves` status (2026-07-11): preflight confirmed the table was absent, `supabase/swing_waves.sql` was applied to project `ykgotnmtqcqdzqtrlayq`, and the schema/grant/RLS metadata audit passed 13/13 checks. Keep this preflight/apply/audit sequence for future schema changes.
    - `swing_waves` must remain independent from `trades`, `stock_trades`, `cost_basis_trades`, and P&L snapshots. Do not include legacy-wave deletion in the table/RLS migration.
+   - `community_profiles` status (2026-07-12): `supabase/community_profiles.sql` has been applied to production, and `npm run verify:rls:rest` passes across 18 tables with anonymous `401` on `community_profiles`. It must store only public nickname/avatar metadata, allow authenticated public reads, allow owner-only insert/update, grant no delete, and remain outside trades, assets, returns, snapshots, quote relay, and Storage uploads.
 
 4. Validate production behavior.
    - Login works.
@@ -58,6 +59,7 @@ This project started as a personal hand-built app, so the first priority is to m
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.
 - The V2 wave feature uses a dedicated `swing_waves` row per full buy/full sell, explicit authenticated-only grants, `auth.uid() = user_id` RLS, lifecycle checks, and optimistic concurrency on edits. The production table and RLS are applied and metadata-audited. A two-real-Auth-user SQL/JWT-claim CRUD/RLS smoke passed 14/14 checks and cleanup confirmed no smoke rows; no service-role key was exported. The real standalone page and page-scoped CRUD are deployed as `v10.7.9.297`, runtime commit `b56b7127ab69bd40bee1932c12eab722ebb4064d`.
 - The local V2 page must keep wave rows outside the global startup data load. Only unique active symbols may enter the existing authenticated quote universe, together with the minimal REST quote/baseline fields required for safe relay ticks; completed history must not consume relay slots, and formal ledger/watchlist rows stay ahead of tool rows at the 50-symbol cap. It must not weaken `/api/quote`, create a browser-direct EODHD path, or write `trades`, `stock_trades`, `cost_basis_trades`, or P&L snapshot tables.
+- The community profile foundation is implemented for `v10.7.9.301` with production SQL applied and anonymous REST exposure blocked. It uses a dedicated `community_profiles` table for public nickname and default-avatar key only; it must not introduce avatar uploads, Supabase Storage, private profile fields, or leaderboard calculations in this rollout.
 - Stale duplicate quote implementations were removed; `api/quote.js` is the only quote API entry.
 - GitHub Actions CI runs install, test, build, and audit checks.
 
@@ -67,4 +69,5 @@ This project started as a personal hand-built app, so the first priority is to m
 - Continue splitting the large `src/App.jsx` into feature modules.
 - Continue shrinking the quote provider modules and add error-path coverage for EODHD, Yahoo fallback, CNN, and the dedicated EODHD earnings-calendar endpoint.
 - Complete metadata-level RLS verification for the remaining user-owned tables; `swing_waves` passed its 13/13 metadata checks.
+- Complete a full two-real-user `community_profiles` owner/cross-user isolation smoke when a non-empty service-role or DB admin channel is available; the SQL is applied and anonymous REST boundary is already passing.
 - The authenticated two-real-user CRUD/RLS isolation gate for `v10.7.9.297` is complete. The production SQL-editor smoke used two existing `auth.users`, authenticated role/JWT subject claims, and verified 14/14 owner/cross-user/lifecycle/fractional-share checks plus zero residual rows. Repeat this gate after future `swing_waves` policy or schema changes; it did not replace a password-login REST end-to-end test.

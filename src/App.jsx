@@ -4326,6 +4326,7 @@ function MainApp({ user, onLogout }) {
     ChevronDown,
     ChevronUp,
     clearQuoteDiagnosticLogs,
+    db,
     Loader2,
     LogOut,
     language,

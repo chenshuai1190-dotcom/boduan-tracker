@@ -4,6 +4,28 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 设置页社区资料基础
+
+- Commit: local sensitive runtime change pending;未提交、未推送。
+- Deployment: 待部署;生产仍为 `v10.7.9.300` / runtime `eae8a7a1e4c4f7076d600cb9ac9c58f57ee587c5`。2026-07-12 已在生产 Supabase SQL Editor 执行 `supabase/community_profiles.sql`;`npm run verify:rls:rest` 18/18 pass,`community_profiles` 匿名 REST 返回 `401`。
+- Background: 用户确认设置页头像和昵称必须是真实有效资料,用于后续社区比赛排行榜,不能只放 localStorage;头像第一阶段使用用户提供的 6 个默认头像,暂不开放上传空间。
+- Workflow tier: `sensitive`。
+- Changes:
+  - 新增 `community_profiles` 独立资料表 SQL,只存 `user_id`、`nickname`、`avatar_key`、时间戳;不存邮箱、资产、收益、交易账本或任何私密财务数据。
+  - RLS 设计为登录用户可读取社区公开资料,但只能 insert/update 自己的资料;不授予 delete,用户注销时仍随 `auth.users` cascade 删除。
+  - 新增社区资料数据层 `communityProfile` / `communityProfilesRepository` / `communityProfilesDb`,默认昵称按用户 id 稳定生成 `波段玩家####`,默认头像按用户 id 从 6 个预设中稳定分配。
+  - 设置页新增“社区资料”模块,支持真实读取/保存昵称和默认头像;保存走 `db.upsertCommunityProfile`,不接 Supabase Storage,不上传图片。
+  - 用户提供的 6 张头像已转为 `public/community-avatars/*.webp` 512x512 静态资源,用于设置页与后续排行榜复用。
+  - `DevVisualPreview` 补齐社区资料 mock 读写,设置页本地视觉 smoke 不连接生产数据。
+  - `README.md`、`docs/security-hardening.md` 和 `docs/architecture-security-audit.md` 同步新增社区资料表的 SQL/RLS 边界,并在生产 SQL 执行后更新匿名 REST gate 结果。
+  - 设置页三个可见版本面和更新日志同步为 `v10.7.9.301`。
+- Key files: `supabase/community_profiles.sql`,`supabase/rls.sql`,`scripts/verify-rls-rest.mjs`,`src/lib/communityProfile.js`,`src/lib/communityProfilesRepository.js`,`src/lib/communityProfilesDb.js`,`src/lib/db.js`,`src/tabs/SettingsTab.jsx`,`src/App.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/lib/settingsChangelog.js`,`public/community-avatars/*.webp`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 203/203 pass;`npm run build` pass,生成 `SettingsTab-CynW1UAG.js`,`communityProfile-BQxHddR-.js`,`settingsChangelog-ChrBLMSV.js`,`i18n-8IWC6k6Q.js` 和 `App-ToHpWbAd.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` found 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 本地 `?devPreview=1&tab=settings` CDP 视觉复核:社区资料模块显示默认头像、昵称输入、6 个默认头像和保存按钮;`scrollWidth=390` / `clientWidth=390`,设置页命中 `v10.7.9.301`,console error 0。截图: `~/Desktop/boduan-previews/settings-community-profile-top-cdp-390x844.png`,`settings-community-profile-module-cdp-390x844.png`。
+- Sensitive status: 生产 DDL 已通过 Chrome 登录 Supabase SQL Editor 执行;执行后 `npm run verify:rls:rest` 18/18 pass。Dashboard 随后被浏览器翻译插件触发 React `removeChild` 错误,只读 metadata 查询结果未能稳定读取;Vercel env pull 只能得到空 encrypted value,没有可用 `SUPABASE_SERVICE_ROLE_KEY` 或 `DATABASE_URL` 做双用户 REST smoke。上线前仍需验证未登录 `/api/quote` 和 `/api/earnings-calendar` 继续 `401`;后续获得非空 admin 通道后补做 authenticated owner/cross-user 隔离 smoke。
+- Boundaries: 本轮只新增真实社区公开资料基础和设置页编辑入口;社区比赛页面仍保持 mock/localStorage 加入态,不读取排行榜真实数据;不新增头像上传、不接 Supabase Storage、不写 `stock_trades`、`trades`、`cost_basis_trades`、`swing_waves`、收益快照或行情 relay,不改 `/api/quote` 鉴权或独立 `/api/earnings-calendar`。
+- Rollout gate: 本地代码/视觉验证已完成;生产 SQL 和匿名 REST RLS gate 已完成;部署、线上 marker 和 quote/earnings `401` 尚未完成。
+- Rollback: 若未执行生产 SQL,回退新增资料模块、数据层、SQL 文件、头像资源、版本/更新日志、测试和本条文档即可;若 SQL 已执行,回滚前先确认没有用户资料数据,必要时单独审计删除 `community_profiles`。
+
 ### 2026-07-11 - 社区比赛 mock 小工具第一版
 
 - Commit: runtime `eae8a7a1e4c4f7076d600cb9ac9c58f57ee587c5`;本条后续 docs-only 提交只回填部署证据。

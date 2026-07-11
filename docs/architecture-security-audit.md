@@ -57,6 +57,7 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
    - `supabase/rls.sql` is present and correct in shape.
    - Before major feature development, confirm in Supabase that every user-owned table has RLS enabled and policies scoped to `auth.uid() = user_id`.
    - `supabase/swing_waves.sql` was applied to production on 2026-07-11 and its schema/grant/RLS metadata verification passed 13/13 checks. The post-migration anonymous REST probe also passes. A two-real-Auth-user SQL/JWT-claim CRUD/RLS isolation smoke passed 14/14 checks and cleanup confirmed zero residual rows. The smoke used existing Auth user IDs in the SQL editor and did not export a service-role key or exercise password-login REST sessions. The standalone page is deployed as `v10.7.9.297`, runtime commit `b56b7127ab69bd40bee1932c12eab722ebb4064d`.
+   - `community_profiles` is added for the `v10.7.9.301` settings profile foundation, and production SQL execution is complete. The anonymous REST probe now passes across 18 tables with `community_profiles` returning `401`. Its intended boundary is public nickname/avatar metadata only, authenticated public reads, owner-only insert/update, no delete grant, and no linkage to trades, assets, returns, snapshots, quote relay, or Supabase Storage.
 
 3. **Split and harden `/api/quote.js`**
    - The endpoint now handles auth, validation, dispatch, and response envelope only.
@@ -98,7 +99,7 @@ Goal: make the current app safer to change without altering product behavior.
   - delete guards scope by `user_id`
 - [x] Add quote response-shape tests for VIX, FGI, INDICES, ANALYST, and normal stock symbols; earnings calendar now has a dedicated EODHD endpoint test.
 - Add tests for key portfolio calculations.
-- [~] Verify Supabase RLS live: the anonymous REST probe passes across 17 user-owned tables, `swing_waves` metadata passed 13/13 checks, and its two-real-user authenticated-role/JWT-claim CRUD isolation smoke passed 14/14; metadata auditing for the remaining user-owned tables still remains.
+- [~] Verify Supabase RLS live: the production anonymous REST probe passes across 18 currently deployed user-owned tables including `community_profiles`; `swing_waves` metadata passed 13/13 checks, and its two-real-user authenticated-role/JWT-claim CRUD isolation smoke passed 14/14. Complete a two-user owner/cross-user isolation smoke for `community_profiles` when a non-empty service-role or DB admin channel is available.
 - [x] Add the independent V2 wave ledger: production schema/RLS execution, metadata audit, two-user isolation gate, real standalone page, page-scoped CRUD, pure view model, active-only quote subscription, REST baseline preheat, ledger-first realtime priority, and production deployment are complete in `v10.7.9.297`.
 
 ### Phase 1 - Feature Boundary Split
@@ -167,7 +168,8 @@ Start with Phase 0 in this order:
 
 1. Continue shrinking the large EODHD provider module into stock, fundamentals, and shared parser helpers.
 2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and the dedicated EODHD earnings-calendar endpoint.
-3. Continue the remaining all-table RLS metadata audit; the `swing_waves` two-user isolation gate and `v10.7.9.297` standalone-page deployment are complete.
-4. Extend server-side relay tests before adding more streamed symbols or user-configurable realtime watchlists.
+3. Complete a two-real-user `community_profiles` owner/cross-user isolation smoke when a non-empty service-role or DB admin channel is available.
+4. Continue the remaining all-table RLS metadata audit; the `swing_waves` two-user isolation gate and `v10.7.9.297` standalone-page deployment are complete.
+5. Extend server-side relay tests before adding more streamed symbols or user-configurable realtime watchlists.
 
 This sequence reduces future bug risk before adding new professional features.

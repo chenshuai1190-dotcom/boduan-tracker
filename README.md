@@ -117,6 +117,19 @@ For a new environment or future rebuild, keep the same sequence:
 
 Committing a SQL file does not apply future schema changes to Supabase. The authenticated two-real-user CRUD/RLS release gate for this rollout is complete and `v10.7.9.297` is deployed. Repeat both the REST boundary probe and cross-user isolation smoke for future RLS/schema changes. Do not clear legacy `trades` in this migration; any cleanup must be a separate, explicitly audited operation.
 
+## Community Profile Foundation
+
+The community profile layer is intentionally separate from financial data. `community_profiles` stores only `user_id`, public `nickname`, public `avatar_key`, and timestamps for future community features such as leaderboards. It must not store email, assets, returns, trades, P&L snapshots, or upload metadata. The first version uses six static default avatars in `public/community-avatars/`; it does not enable Supabase Storage uploads.
+
+Production database status (2026-07-12): `supabase/community_profiles.sql` has been applied to production Supabase through the Supabase SQL editor. `npm run verify:rls:rest` now passes across 18 user-owned tables, and anonymous REST receives `401` for `community_profiles`.
+
+For rollout:
+
+1. Apply `supabase/community_profiles.sql` in the production Supabase SQL editor.
+2. Verify schema constraints, trigger, grants, and RLS policies: authenticated users may read public community profiles, but may insert/update only their own row; no delete grant is given.
+3. Run `npm run verify:rls:rest`; anonymous REST must not expose user-owned rows.
+4. When a non-empty service-role or DB admin channel is available, run a two-real-Auth-user isolation smoke: both users can read public profile rows, owner update succeeds, cross-user update affects zero rows, and no smoke rows remain.
+
 ## Security Baseline
 
 Before treating a deployment as safe:

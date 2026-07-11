@@ -673,6 +673,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fetchPnlReportRebuildState: async () => null,
     upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
     clearPnlReportRebuildState: async () => ({}),
+    fetchCommunityProfile: async () => ({
+      userId: 'dev-user',
+      nickname: '波段玩家1836',
+      avatarKey: 'gold',
+      createdAt: '2026-07-11T00:00:00.000Z',
+      updatedAt: '2026-07-11T00:00:00.000Z',
+    }),
+    upsertCommunityProfile: async (profile) => ({
+      userId: 'dev-user',
+      nickname: profile.nickname || '波段玩家1836',
+      avatarKey: profile.avatarKey || 'gold',
+      createdAt: '2026-07-11T00:00:00.000Z',
+      updatedAt: new Date().toISOString(),
+    }),
     upsertWaveNote: async () => ({}),
     listSwingWaves: async () => mockSwingWaves.map((wave) => ({ ...wave })),
     createSwingWave: async (input) => ({
@@ -1091,6 +1105,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     ChevronDown,
     ChevronUp,
     clearQuoteDiagnosticLogs: noop,
+    db,
     language,
     Loader2,
     LogOut,
@@ -1113,7 +1128,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         updateUser: async () => ({ data: { user: { id: 'dev-user' } }, error: null }),
       },
     },
-    user: { email: 'preview@example.com' },
+    user: { id: 'dev-user', email: 'preview@example.com' },
     X,
   };
 

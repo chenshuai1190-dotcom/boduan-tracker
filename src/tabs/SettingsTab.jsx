@@ -1,4 +1,9 @@
 import React from 'react';
+import {
+  COMMUNITY_AVATAR_OPTIONS,
+  getCommunityAvatarOption,
+  validateCommunityNickname,
+} from '../lib/communityProfile.js';
 import { normalizeLanguage, t } from '../lib/i18n.js';
 
 function SettingsTab({ ctx }) {
@@ -7,6 +12,7 @@ function SettingsTab({ ctx }) {
     ChevronDown,
     ChevronUp,
     clearQuoteDiagnosticLogs,
+    db,
     Loader2,
     LogOut,
     language = 'zh',
@@ -94,8 +100,22 @@ function SettingsTab({ ctx }) {
   const [inviteCodes, setInviteCodes] = React.useState([]);
   const [inviteLoading, setInviteLoading] = React.useState(false);
   const [inviteMessage, setInviteMessage] = React.useState(null);
+  const [communityProfile, setCommunityProfile] = React.useState(null);
+  const [communityDraft, setCommunityDraft] = React.useState({ nickname: '', avatarKey: 'gold' });
+  const [communityLoading, setCommunityLoading] = React.useState(false);
+  const [communitySaving, setCommunitySaving] = React.useState(false);
+  const [communityMessage, setCommunityMessage] = React.useState(null);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
+  const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
+  const communityNicknameValidation = validateCommunityNickname(communityDraft.nickname);
+  const communityDirty = Boolean(
+    communityProfile
+    && (
+      communityNicknameValidation.nickname !== communityProfile.nickname
+      || selectedCommunityAvatar.key !== communityProfile.avatarKey
+    ),
+  );
 
   const fetchInviteApi = React.useCallback(async (options = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -173,6 +193,74 @@ function SettingsTab({ ctx }) {
     if (isInviteAdmin) loadInviteCodes();
   }, [isInviteAdmin, loadInviteCodes]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!user?.id || !db?.fetchCommunityProfile) {
+      setCommunityProfile(null);
+      setCommunityDraft({ nickname: '', avatarKey: 'gold' });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setCommunityLoading(true);
+    setCommunityMessage(null);
+    db.fetchCommunityProfile(user)
+      .then((profile) => {
+        if (cancelled) return;
+        setCommunityProfile(profile);
+        setCommunityDraft({
+          nickname: profile?.nickname || '',
+          avatarKey: profile?.avatarKey || 'gold',
+        });
+      })
+      .catch((error) => {
+        console.warn('[Settings] 社区资料加载失败:', error?.message || error);
+        if (!cancelled) {
+          setCommunityProfile(null);
+          setCommunityMessage({
+            type: 'error',
+            text: error?.message || t(language, 'settings.communityLoadFailed', '社区资料加载失败'),
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCommunityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [db, language, user?.id]);
+
+  const saveCommunityProfile = async () => {
+    if (communitySaving || !db?.upsertCommunityProfile) return;
+    const nicknameResult = validateCommunityNickname(communityDraft.nickname);
+    if (!nicknameResult.valid) {
+      setCommunityMessage({ type: 'error', text: t(language, 'settings.communityNicknameInvalid', '昵称需为 2-16 个字符') });
+      return;
+    }
+
+    setCommunitySaving(true);
+    setCommunityMessage(null);
+    try {
+      const next = await db.upsertCommunityProfile({
+        nickname: nicknameResult.nickname,
+        avatarKey: selectedCommunityAvatar.key,
+      }, user);
+      setCommunityProfile(next);
+      setCommunityDraft({ nickname: next.nickname, avatarKey: next.avatarKey });
+      setCommunityMessage({ type: 'success', text: t(language, 'settings.communitySaved', '社区资料已保存') });
+    } catch (error) {
+      setCommunityMessage({
+        type: 'error',
+        text: error?.message || t(language, 'settings.communitySaveFailed', '社区资料保存失败'),
+      });
+    } finally {
+      setCommunitySaving(false);
+    }
+  };
+
   const visibleChangelog = Array.isArray(changelog)
     ? (changelogExpanded ? changelog : changelog.slice(0, 5))
     : [];
@@ -188,7 +276,7 @@ function SettingsTab({ ctx }) {
                   <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.300
+                  v10.7.9.301
                 </span>
               </div>
             </div>
@@ -267,6 +355,110 @@ function SettingsTab({ ctx }) {
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-400/10 py-2.5 text-sm font-bold text-rose-300 active:scale-95 transition"
                 >
                   <LogOut className="w-4 h-4" /> {t(language, 'settings.logout', '退出登录')}
+                </button>
+              </div>
+            </div>
+
+            {/* 社区资料 */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-black text-white">{t(language, 'settings.communityProfile', '社区资料')}</h2>
+                  <div className="mt-1 text-[12px] leading-5 text-white/40">
+                    {t(language, 'settings.communityProfileDesc', '昵称和头像会用于后续社区比赛排行榜展示,不会展示邮箱。')}
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full border border-[#f6a524]/20 bg-[#f6a524]/10 px-2.5 py-1 text-[10px] font-black text-[#f6a524]">
+                  {t(language, 'settings.communityPublic', '公开资料')}
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#070a0f] shadow-[0_0_28px_rgba(246,181,75,0.12)]">
+                    <img
+                      src={selectedCommunityAvatar.src}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <label className="mb-1.5 block text-[11px] font-bold text-white/42">
+                      {t(language, 'settings.communityNickname', '社区昵称')}
+                    </label>
+                    <input
+                      type="text"
+                      value={communityDraft.nickname}
+                      onChange={(event) => {
+                        setCommunityDraft((current) => ({ ...current, nickname: event.target.value }));
+                        setCommunityMessage(null);
+                      }}
+                      maxLength={24}
+                      placeholder={t(language, 'settings.communityNicknamePlaceholder', '请输入 2-16 个字符')}
+                      disabled={communityLoading || communitySaving}
+                      className="h-11 w-full rounded-xl border border-white/10 bg-[#080b11] px-3 text-[14px] font-semibold text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]/70 disabled:opacity-60"
+                    />
+                    <div className={`mt-1.5 text-[10px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/32' : 'text-rose-300'}`}>
+                      {t(language, 'settings.communityNicknameRule', '2-16 个字符,用于排行榜公开展示')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-[11px] font-bold text-white/42">{t(language, 'settings.communityAvatar', '默认头像')}</div>
+                    {communityLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/35" />}
+                  </div>
+                  <div className="grid grid-cols-6 gap-2">
+                    {COMMUNITY_AVATAR_OPTIONS.map((avatar) => {
+                      const active = selectedCommunityAvatar.key === avatar.key;
+                      return (
+                        <button
+                          key={avatar.key}
+                          type="button"
+                          onClick={() => {
+                            setCommunityDraft((current) => ({ ...current, avatarKey: avatar.key }));
+                            setCommunityMessage(null);
+                          }}
+                          disabled={communityLoading || communitySaving}
+                          aria-label={currentLanguage === 'en' ? avatar.labelEn : avatar.labelZh}
+                          className={`relative aspect-square rounded-full border bg-[#080b11] p-0.5 transition active:scale-95 disabled:opacity-60 ${
+                            active
+                              ? 'border-[#f6a524] shadow-[0_0_18px_rgba(246,181,75,0.22)]'
+                              : 'border-white/10 opacity-70'
+                          }`}
+                        >
+                          <img src={avatar.src} alt="" className="h-full w-full rounded-full object-cover" draggable={false} />
+                          {active && (
+                            <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#f6a524]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {communityMessage && (
+                  <div className={`mt-3 rounded-xl border px-3 py-2 text-[12px] ${
+                    communityMessage.type === 'error'
+                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+                  }`}>
+                    {communityMessage.text}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={saveCommunityProfile}
+                  disabled={communityLoading || communitySaving || !communityNicknameValidation.valid || !communityDirty}
+                  className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#f6a524]/25 bg-[#f6a524]/14 text-[13px] font-black text-[#ffd18a] transition active:scale-95 disabled:border-white/10 disabled:bg-white/[0.05] disabled:text-white/30"
+                >
+                  {communitySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {communitySaving
+                    ? t(language, 'settings.communitySaving', '保存中...')
+                    : t(language, 'settings.communitySave', '保存社区资料')}
                 </button>
               </div>
             </div>
@@ -501,7 +693,7 @@ function SettingsTab({ ctx }) {
                   {t(language, 'settings.changelog', '更新日志')}
                 </h2>
                 <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.300
+                  v10.7.9.301
                 </span>
               </div>
 
@@ -584,7 +776,7 @@ function SettingsTab({ ctx }) {
               <div className="space-y-2 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.300</span>
+                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.301</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>{t(language, 'settings.dataSource', '数据源')}</span>

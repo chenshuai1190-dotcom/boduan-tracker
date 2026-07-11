@@ -54,6 +54,9 @@ const settingsChangelogSource = readFileSync(new URL('../src/lib/settingsChangel
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
+const communityProfileSource = readFileSync(new URL('../src/lib/communityProfile.js', import.meta.url), 'utf8');
+const communityProfilesRepositorySource = readFileSync(new URL('../src/lib/communityProfilesRepository.js', import.meta.url), 'utf8');
+const communityProfilesDbSource = readFileSync(new URL('../src/lib/communityProfilesDb.js', import.meta.url), 'utf8');
 const supabaseClientSource = readFileSync(new URL('../src/lib/supabase.js', import.meta.url), 'utf8');
 const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.meta.url), 'utf8');
 const earningsCalendarApiSource = readFileSync(new URL('../api/earnings-calendar.js', import.meta.url), 'utf8');
@@ -74,6 +77,7 @@ const pnlDailySnapshotServerSource = readFileSync(new URL('../server/pnlReportDa
 const vercelConfigSource = readFileSync(new URL('../vercel.json', import.meta.url), 'utf8');
 const rlsSource = readFileSync(new URL('../supabase/rls.sql', import.meta.url), 'utf8');
 const inviteSqlSource = readFileSync(new URL('../supabase/invite_codes.sql', import.meta.url), 'utf8');
+const communityProfilesSqlSource = readFileSync(new URL('../supabase/community_profiles.sql', import.meta.url), 'utf8');
 const pnlReportSqlSource = readFileSync(new URL('../supabase/pnl_report_snapshots.sql', import.meta.url), 'utf8');
 const verifyRlsRestSource = readFileSync(new URL('../scripts/verify-rls-rest.mjs', import.meta.url), 'utf8');
 
@@ -291,6 +295,54 @@ test('community competition is an isolated mock trade-page utility', () => {
   assert.ok(i18nSource.includes("'competition.toolEntry': 'Community'"), 'English i18n should include the competition tool entry');
 });
 
+test('community profile settings use a dedicated public identity table without storage uploads', () => {
+  const tableBlock = communityProfilesSqlSource.match(/create table if not exists public\.community_profiles[\s\S]*?\n\);/)?.[0] || '';
+  const aggregateTableBlock = rlsSource.match(/create table if not exists public\.community_profiles[\s\S]*?\n\);/)?.[0] || '';
+  assert.ok(tableBlock);
+  assert.equal(aggregateTableBlock, tableBlock, 'standalone and aggregate community profile schemas must stay identical');
+  assert.match(tableBlock, /user_id uuid primary key references auth\.users\(id\) on delete cascade/);
+  assert.match(tableBlock, /nickname text not null/);
+  assert.match(tableBlock, /avatar_key text not null default 'gold'/);
+  assert.match(tableBlock, /char_length\(btrim\(nickname\)\) between 2 and 16/);
+  assert.match(tableBlock, /avatar_key in \('gold', 'blue', 'purple', 'green', 'cyan', 'silver'\)/);
+  assert.equal(/email|portfolio|assets|return|pnl|stock_trades|trades|swing_waves/i.test(tableBlock), false, 'community profile table must not store private identity or ledger data');
+
+  assert.match(communityProfilesSqlSource, /alter table public\.community_profiles enable row level security/);
+  assert.match(communityProfilesSqlSource, /for select\s+to authenticated\s+using \(true\)/);
+  assert.match(communityProfilesSqlSource, /for insert\s+to authenticated\s+with check \(auth\.uid\(\) = user_id\)/);
+  assert.match(communityProfilesSqlSource, /for update\s+to authenticated\s+using \(auth\.uid\(\) = user_id\)\s+with check \(auth\.uid\(\) = user_id\)/);
+  assert.match(communityProfilesSqlSource, /revoke all privileges on table public\.community_profiles from public, anon, authenticated/);
+  assert.match(communityProfilesSqlSource, /grant select, insert, update\s+on table public\.community_profiles\s+to authenticated/);
+  assert.equal(/grant[\s\S]{0,80}delete[\s\S]{0,80}community_profiles/i.test(communityProfilesSqlSource), false, 'community profile UI should not grant delete');
+  assert.match(verifyRlsRestSource, /'community_profiles'/);
+
+  assert.ok(communityProfileSource.includes("COMMUNITY_PROFILE_TABLE = 'community_profiles'"));
+  for (const key of ['avatar-gold.webp', 'avatar-blue.webp', 'avatar-purple.webp', 'avatar-green.webp', 'avatar-cyan.webp', 'avatar-silver.webp']) {
+    assert.ok(communityProfileSource.includes(`/community-avatars/${key}`), `${key} should be registered as a preset community avatar`);
+    const assetPath = new URL(`../public/community-avatars/${key}`, import.meta.url);
+    assert.ok(existsSync(assetPath), `${key} should exist in public assets`);
+    const asset = readFileSync(assetPath);
+    assert.equal(asset.toString('ascii', 0, 4), 'RIFF', `${key} should be a webp RIFF asset`);
+    assert.equal(asset.toString('ascii', 8, 12), 'WEBP', `${key} should be a webp asset`);
+  }
+
+  assert.ok(communityProfilesRepositorySource.includes("from(COMMUNITY_PROFILE_TABLE)"));
+  assert.ok(communityProfilesRepositorySource.includes('.upsert({'));
+  assert.ok(communityProfilesRepositorySource.includes("onConflict: 'user_id'"));
+  assert.ok(communityProfilesDbSource.includes('supabase.auth.getUser()'));
+  assert.ok(dbSource.includes('fetchCommunityProfile') && dbSource.includes('upsertCommunityProfile'));
+  assert.ok(appSource.includes('const settingsTabCtx = useMemo(() => ({') && appSource.includes('db,'), 'settings context should receive db methods');
+  assert.ok(settingsTabSource.includes("t(language, 'settings.communityProfile', '社区资料')"));
+  assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)'));
+  assert.ok(settingsTabSource.includes('db.upsertCommunityProfile({'));
+  assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
+  assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
+  assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => ({'), 'local visual preview should mock community profile reads');
+  assert.ok(devVisualPreviewSource.includes('upsertCommunityProfile: async (profile) => ({'), 'local visual preview should mock community profile writes');
+  assert.ok(i18nSource.includes("'settings.communityProfile': '社区资料'"));
+  assert.ok(i18nSource.includes("'settings.communityProfile': 'Community Profile'"));
+});
+
 test('trade and wave form validation avoids native alert dialogs', () => {
   const addTradeStart = appSource.indexOf('const addTrade = async (sideOverride = null) =>');
   const nextToolStart = appSource.indexOf('const confirmCostBasisTradeSubmit =', addTradeStart);
@@ -355,9 +407,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.300/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.300', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
-  assert.ok(settingsChangelogSource.includes('社区比赛 mock 小工具第一版'), 'settings changelog should describe the community competition mock release');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.301/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.301', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
+  assert.ok(settingsChangelogSource.includes('社区比赛 mock 小工具第一版'), 'settings changelog should retain the previous community competition mock release');
   assert.ok(settingsChangelogSource.includes('本次只做 HTML / mock 视觉还原'), 'settings changelog should document the mock-only boundary');
   assert.ok(settingsChangelogSource.includes('波段首页折叠记忆恢复'), 'settings changelog should retain the previous wave fold-memory fix');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.298'"), 'settings changelog should retain the previous wave mobile dialog release');
@@ -1652,7 +1705,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.300/g) || []).length, 3, 'settings version surfaces should document the current local community-competition mock release');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.301/g) || []).length, 3, 'settings version surfaces should document the current local community profile release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1966,7 +2019,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.300/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.301/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
