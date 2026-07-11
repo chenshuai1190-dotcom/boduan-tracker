@@ -9,6 +9,7 @@ const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.u
 const confirmModalSource = readFileSync(new URL('../src/components/ConfirmModal.jsx', import.meta.url), 'utf8');
 const confirmModalOptionsSource = readFileSync(new URL('../src/lib/confirmModal.js', import.meta.url), 'utf8');
 const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', import.meta.url), 'utf8');
+const waveCurrencyDisplaySource = readFileSync(new URL('../src/lib/waveCurrencyDisplay.js', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
@@ -171,6 +172,43 @@ test('wave record entry writes legacy trades before main ledger stock_trades', (
   assert.ok(insertTradeBlock.includes("throw new Error('股票代码格式不正确')"), 'legacy wave trades should expose the same invalid ticker error');
 });
 
+test('wave currency follows the shared portfolio mode without changing its USD ledger boundary', () => {
+  const waveUiStart = tradesTabSource.indexOf('{/* 波段记录(取代原来的');
+  const waveUiEnd = tradesTabSource.indexOf('{/* 添加成交表单 - Modal 弹窗 */}', waveUiStart);
+  const waveUiBlock = tradesTabSource.slice(waveUiStart, waveUiEnd);
+  const allTradesStart = appSource.indexOf('{/* === 📋 全部交易记录弹窗 === */}');
+  const allTradesEnd = appSource.indexOf('{/* === 删除确认弹窗 (交易记录) === */}', allTradesStart);
+  const allTradesBlock = appSource.slice(allTradesStart, allTradesEnd);
+  const deleteConfirmEnd = appSource.indexOf('{/* === 删除确认弹窗 (关注股票) === */}', allTradesEnd);
+  const deleteConfirmBlock = appSource.slice(allTradesEnd, deleteConfirmEnd);
+  const waveComputationStart = appSource.indexOf('const wavesByStock = useMemo(() => {');
+  const waveComputationEnd = appSource.indexOf('// 顶部"持仓冷静室"总览', waveComputationStart);
+  const waveComputationBlock = appSource.slice(waveComputationStart, waveComputationEnd);
+
+  assert.ok(waveUiStart > -1 && waveUiEnd > waveUiStart, 'missing isolated wave UI boundary');
+  assert.ok(allTradesStart > -1 && allTradesEnd > allTradesStart, 'missing legacy all-trades modal boundary');
+  assert.ok(deleteConfirmEnd > allTradesEnd, 'missing legacy wave delete-confirm boundary');
+  assert.ok(waveCurrencyDisplaySource.includes('export function convertWaveUsdAmount'), 'wave display conversion should live in a dedicated helper');
+  assert.ok(waveCurrencyDisplaySource.includes("if (currency !== 'CNY') return amount"), 'canonical USD values must pass through unchanged');
+  assert.ok(waveUiBlock.includes('waveCurrencyAmount(w.avgBuyPrice)'), 'wave prices should use the shared display mode');
+  assert.ok(waveUiBlock.includes('signedWaveCurrencyAmount(w.gainAmount, 0)'), 'wave profit amounts should use the shared display mode');
+  assert.ok(waveUiBlock.includes('signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)'), 'wave trade detail totals should use the shared display mode');
+  assert.equal(waveUiBlock.includes("signedCurrency(w.gainAmount, 'USD', 0)"), false, 'wave profit must not stay hardcoded to USD');
+  assert.equal(waveUiBlock.includes('@${fmt(t.price)}'), false, 'wave trade detail prices must not stay hardcoded to USD');
+  assert.equal(waveUiBlock.includes('$${fmt(w.currentPrice)}'), false, 'active wave price must not stay hardcoded to USD');
+  assert.ok(allTradesBlock.includes('waveCurrencyAmount(trade.price)'), 'legacy all-trades modal should follow the same wave display currency');
+  assert.ok(allTradesBlock.includes('signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)'), 'legacy all-trades totals should follow the same wave display currency');
+  assert.ok(deleteConfirmBlock.includes('@{waveCurrencyAmount(trade.price)}'), 'legacy delete confirmation should follow the same wave display currency');
+  assert.equal(allTradesBlock.includes('${fmt(trade.price)}'), false, 'legacy all-trades modal must not retain a hardcoded dollar unit price');
+  assert.equal(deleteConfirmBlock.includes('@${fmt(trade.price)}'), false, 'legacy delete confirmation must not retain a hardcoded dollar unit price');
+  assert.equal(waveComputationBlock.includes('formatWaveCurrencyAmount'), false, 'currency conversion must not enter wave calculations');
+  assert.equal(waveComputationBlock.includes('waveDisplayRate'), false, 'display rate must not enter wave calculations');
+  assert.ok(tradesTabSource.includes("tt('trades.priceUsd', '价格 ($)')"), 'wave input should remain explicitly canonical USD');
+  assert.equal(appSource.includes('waveCurrencyMode'), false, 'wave tool must not create an independent currency state');
+  assert.equal(`${appSource}\n${tradesTabSource}`.includes('xmoney_wave_currency'), false, 'wave tool must not create an independent storage key');
+  assert.ok(devVisualPreviewSource.includes('mockWavesByStock'), 'local visual smoke should include deterministic wave-only fixture data');
+});
+
 test('legacy stock symbols are repaired before quote universe construction', () => {
   const normalizeNameStart = appSource.indexOf('function normalizeStockSymbolForName');
   const normalizeNameEnd = appSource.indexOf('function isPlaceholderStockName', normalizeNameStart);
@@ -259,7 +297,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.294/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.295/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes('波段记录币种跟随首页'), 'settings changelog should describe the wave currency display fix');
   assert.ok(settingsChangelogSource.includes('目标页年度卡片配色与布局优化'), 'settings changelog should describe the annual target visual hierarchy update');
   assert.ok(settingsChangelogSource.includes('账户、订单和删除弹窗视觉重构'), 'settings changelog should describe the action modal redesign');
   assert.ok(settingsChangelogSource.includes('财报日历全模块白色文字降亮'), 'settings changelog should retain the earnings calendar brightness update');
@@ -1444,7 +1483,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.294/g) || []).length, 3, 'settings version surfaces should document the current target page update');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.295/g) || []).length, 3, 'settings version surfaces should document the current wave currency update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1758,7 +1797,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.294/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current release');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.295/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

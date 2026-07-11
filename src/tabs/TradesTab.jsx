@@ -8,6 +8,7 @@ import {
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
+import { formatWaveCurrencyAmount } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -616,6 +617,17 @@ export default function TradesTab({ ctx }) {
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
+  const waveCurrencyAmount = (value, digits = 2) => formatWaveCurrencyAmount(value, {
+    currency: displayCurrency,
+    rate: displayRate,
+    digits,
+  });
+  const signedWaveCurrencyAmount = (value, digits = 2) => formatWaveCurrencyAmount(value, {
+    currency: displayCurrency,
+    rate: displayRate,
+    digits,
+    signed: true,
+  });
   const englishMode = isEnglishLanguage(language);
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
   const sideLabel = React.useCallback((side, short = false) => (
@@ -1382,7 +1394,7 @@ export default function TradesTab({ ctx }) {
                                 <span className="ml-1 text-[10px] font-normal text-white/45">· {daysText(w.heldDays)}</span>
                               </span>
                               <span className="mt-1 block text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                ${fmt(w.avgBuyPrice)} → ${fmt(w.avgSellPrice)}
+                                {waveCurrencyAmount(w.avgBuyPrice)} → {waveCurrencyAmount(w.avgSellPrice)}
                               </span>
                             </span>
                             <span className="text-right">
@@ -1390,7 +1402,7 @@ export default function TradesTab({ ctx }) {
                                 {signedPct(w.gainPct, 1)}
                               </span>
                               <span className={`block text-[10px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {signedCurrency(w.gainAmount, 'USD', 0)}
+                                {signedWaveCurrencyAmount(w.gainAmount, 0)}
                               </span>
                             </span>
                           </button>
@@ -1462,12 +1474,12 @@ export default function TradesTab({ ctx }) {
                                           {(t.date || '').slice(5)}
                                         </span>
                                         <span className="truncate text-[11px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                          {sharesText(t.shares, 0)} @${fmt(t.price)}
+                                          {sharesText(t.shares, 0)} @{waveCurrencyAmount(t.price)}
                                         </span>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-2">
                                         <span className={`text-[11px] font-normal tabular-nums ${isBuy ? 'text-white/70' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                          {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                          {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
                                         </span>
                                         <button
                                           type="button"
@@ -1558,7 +1570,7 @@ export default function TradesTab({ ctx }) {
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center">
                         <div className={`text-[13px] font-normal tabular-nums ${pnlClass(totalGain, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                          {signedCurrency(totalGain, 'USD', 0)}
+                          {signedWaveCurrencyAmount(totalGain, 0)}
                         </div>
                         <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.totalPnlMetric', '总盈亏')}</div>
                       </div>
@@ -1617,13 +1629,13 @@ export default function TradesTab({ ctx }) {
                             <div>
                               <div className="text-[10px] font-normal text-white/40">{tt('trades.avgBuy', '买入均')}</div>
                               <div className="mt-1 text-[12px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                ${fmt(w.avgBuyPrice)}
+                                {waveCurrencyAmount(w.avgBuyPrice)}
                               </div>
                             </div>
                             <div>
                               <div className="text-[10px] font-normal text-white/40">{tt('trades.currentPrice', '现价')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${w.currentPrice === w.avgBuyPrice ? 'text-white/90' : pnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {w.currentPrice > 0 ? `$${fmt(w.currentPrice)}` : '—'}
+                                {w.currentPrice > 0 ? waveCurrencyAmount(w.currentPrice) : '—'}
                               </div>
                             </div>
                             <div>
@@ -1635,7 +1647,7 @@ export default function TradesTab({ ctx }) {
                             <div>
                               <div className="text-[10px] font-normal text-white/40">{tt('trades.floatingProfit', '浮盈')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {signedCurrency(w.gainAmount, 'USD', 0)}
+                                {signedWaveCurrencyAmount(w.gainAmount, 0)}
                               </div>
                             </div>
                           </div>
@@ -1708,12 +1720,12 @@ export default function TradesTab({ ctx }) {
                                         {(t.date || '').slice(5)}
                                       </span>
                                       <span className="truncate text-[11px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                        {sharesText(t.shares, 0)} @${fmt(t.price)}
+                                        {sharesText(t.shares, 0)} @{waveCurrencyAmount(t.price)}
                                       </span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                       <span className={`text-[11px] font-normal tabular-nums ${isBuy ? 'text-white/70' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                        {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                        {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
                                       </span>
                                       <button
                                         type="button"
@@ -1778,7 +1790,7 @@ export default function TradesTab({ ctx }) {
                                       <span className="ml-1 text-[9px] font-normal text-white/40">· {daysText(w.heldDays)}</span>
                                     </span>
                                     <span className="mt-0.5 block text-[9px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                      ${fmt(w.avgBuyPrice)} → ${fmt(w.avgSellPrice)}
+                                      {waveCurrencyAmount(w.avgBuyPrice)} → {waveCurrencyAmount(w.avgSellPrice)}
                                     </span>
                                   </span>
                                   <span className="text-right">
@@ -1786,7 +1798,7 @@ export default function TradesTab({ ctx }) {
                                       {signedPct(w.gainPct, 1)}
                                     </span>
                                     <span className={`block text-[9px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                      {signedCurrency(w.gainAmount, 'USD', 0)}
+                                      {signedWaveCurrencyAmount(w.gainAmount, 0)}
                                     </span>
                                   </span>
                                 </button>
@@ -1864,12 +1876,12 @@ export default function TradesTab({ ctx }) {
                                                 {(t.date || '').slice(5)}
                                               </span>
                                               <span className="truncate text-[10px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                                {sharesText(t.shares, 0)} @${fmt(t.price)}
+                                                {sharesText(t.shares, 0)} @{waveCurrencyAmount(t.price)}
                                               </span>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-2">
                                               <span className={`text-[10px] font-normal tabular-nums ${isBuy ? 'text-white/70' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                                {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                                {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
                                               </span>
                                               <button
                                                 type="button"

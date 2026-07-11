@@ -11,6 +11,7 @@ import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRea
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
+import { formatWaveCurrencyAmount } from './lib/waveCurrencyDisplay.js';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -4169,6 +4170,19 @@ function MainApp({ user, onLogout }) {
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
     setPortfolioCurrencyModeState(normalizePortfolioCurrency(nextCurrency));
   }, []);
+  const waveDisplayCurrency = normalizePortfolioCurrency(portfolioCurrencyMode);
+  const waveDisplayRate = waveDisplayCurrency === 'CNY' ? (validRate(usdRate) || DEFAULT_USD_CNY_RATE) : 1;
+  const waveCurrencyAmount = useCallback((value, digits = 2) => formatWaveCurrencyAmount(value, {
+    currency: waveDisplayCurrency,
+    rate: waveDisplayRate,
+    digits,
+  }), [waveDisplayCurrency, waveDisplayRate]);
+  const signedWaveCurrencyAmount = useCallback((value, digits = 2) => formatWaveCurrencyAmount(value, {
+    currency: waveDisplayCurrency,
+    rate: waveDisplayRate,
+    digits,
+    signed: true,
+  }), [waveDisplayCurrency, waveDisplayRate]);
   const openPnlReport = useCallback(() => {
     setActivePage('pnl-report');
   }, []);
@@ -5031,13 +5045,13 @@ function MainApp({ user, onLogout }) {
                               <div>
                                 <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">{t(language, 'trades.unitPrice', '单价')}</div>
                                 <div className="font-bold text-slate-900 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  ${fmt(trade.price)}
+                                  {waveCurrencyAmount(trade.price)}
                                 </div>
                               </div>
                               <div>
                                 <div className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">{t(language, 'trades.amount', '金额')}</div>
                                 <div className={`font-bold tabular-nums ${isBuy ? 'text-[#e63a18]' : 'text-emerald-600'}`} style={{ fontFamily: 'ui-monospace, monospace' }}>
-                                  {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                                  {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
                                 </div>
                               </div>
                             </div>
@@ -5103,7 +5117,7 @@ function MainApp({ user, onLogout }) {
                     <span className="text-xs text-slate-500">{tradeName}</span>
                   </div>
                   <div className="text-xs text-slate-700 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                    {trade.date} · {trade.shares}{t(language, 'trades.shares', '股')} @${fmt(trade.price)} · {isBuy ? '-' : '+'}${fmt(amount, 0)}
+                    {trade.date} · {trade.shares}{t(language, 'trades.shares', '股')} @{waveCurrencyAmount(trade.price)} · {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
                   </div>
                 </div>
                 {/* 按钮 */}

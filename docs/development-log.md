@@ -4,6 +4,22 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 波段记录币种跟随首页修复
+
+- Commit: pending runtime commit;部署完成后回填提交和线上证据。
+- Deployment: pending;本地验证和 390x844 双币视觉确认完成后推送 GitHub `main`。
+- Background: 用户反馈波段记录仍沿用旧的美元固定显示,没有跟随首页 USD/CNY 货币设置,并明确要求本次修复只能影响波段工具。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增波段专用纯展示 helper,把 canonical USD 金额按首页共享币种和共享汇率格式化为 USD/CNY;不改变波段原始金额。
+  - 波段进行中/已完成卡片、均价、现价、浮盈、总盈亏、交易明细、全部波段交易弹窗和波段删除确认统一使用该展示 helper。
+  - `DevVisualPreview` 增加只读波段 fixture,用于 390x844 下固定汇率的 USD/CNY 本地截图,不连接或写入生产数据。
+  - 设置页三个可见版本面和更新日志同步到 `v10.7.9.295`;新增数值换算和源码边界护栏。
+- Key files: `src/lib/waveCurrencyDisplay.js`,`src/tabs/TradesTab.jsx`,`src/App.jsx`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/wave-currency-display.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:workspace-state` pass（改动前工作区干净）;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;`node --test tests/wave-currency-display.test.js tests/tool-ledger-boundaries.test.js` 41/41 pass;`npm test` 186/186 pass;`npm run build` pass（`waveCurrencyDisplay-DvW048u6.js`,`TradesTab-BEgO9Tq9.js`,`App-DGehFpDG.js`,`SettingsTab-BZN8EteV.js`,`settingsChangelog-N6RRPbgX.js`）;`npm run verify:frontend-smoke` pass（home/trades/analysis/review/settings 均 `errors:0`）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 本地真实组件双币复核:进行中 `$100.00 / $110.00 / +$100` 切换 CNY 后为 `¥677.00 / ¥744.70 / +¥677`;已完成 `$100.00 → $120.00 / +$200` 切换后为 `¥677.00 → ¥812.40 / +¥1,354`;`scrollWidth=390`,console error 0。截图:`~/Desktop/boduan-previews/v10.7.9.295-wave-currency-cny-local.png`,`~/Desktop/boduan-previews/v10.7.9.295-wave-currency-usd-local.png`。
+- Boundaries: 只改 legacy 波段工具展示层及其专属弹窗和开发态 mock。波段录入标签 `价格 ($)`、`trades` 表 USD 存储、`wavesByStock` 切段/盈亏计算和删除回调保持不变;不改首页、正式 `stock_trades` 账本、摊薄成本、资产、收益报表、个股详情、收益快照、数据库/RLS、行情 relay、`/api/quote`、`/api/earnings-calendar`、鉴权或环境变量。`README.md`、`docs/security-hardening.md` 和 `docs/architecture-security-audit.md` 无需修改,因为产品范围、架构和安全边界均未改变。
+- Rollback: 回退波段展示 helper/接入、开发态 fixture、`v10.7.9.295` 设置记录、测试护栏、本条日志和交接摘要即可恢复固定 USD 显示;无需数据库或服务端回滚。
+
 ### 2026-07-11 - 目标页年度卡片配色和摘要布局优化
 
 - Commit: runtime `ce2ddb444e3144ad264bb9ebbc1dee8929410493`;本条后续 docs-only 提交只回填部署证据。

@@ -341,6 +341,64 @@ const mockTradeActivePositions = [
   },
 ];
 
+const mockWaveTrades = [
+  { id: 9101, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-06-30', shares: 10, price: 100, batch: '第1批' },
+  { id: 9001, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-05-01', shares: 10, price: 100, batch: '第1批' },
+  { id: 9002, symbol: 'NVDA', name: '英伟达', side: 'sell', date: '2026-05-15', shares: 10, price: 120, batch: '第1批' },
+];
+
+const mockActiveWave = {
+  id: 'wave-NVDA-2026-06-30',
+  index: 2,
+  startDate: '2026-06-30',
+  endDate: null,
+  buys: [mockWaveTrades[0]],
+  sells: [],
+  isActive: true,
+  totalBuyShares: 10,
+  totalBuyCost: 1000,
+  avgBuyPrice: 100,
+  totalSellShares: 0,
+  totalSellRevenue: 0,
+  avgSellPrice: 0,
+  heldShares: 10,
+  heldDays: 12,
+  gainAmount: 100,
+  gainPct: 0.1,
+  currentPrice: 110,
+};
+
+const mockCompletedWave = {
+  id: 'wave-NVDA-2026-05-01',
+  index: 1,
+  startDate: '2026-05-01',
+  endDate: '2026-05-15',
+  buys: [mockWaveTrades[1]],
+  sells: [mockWaveTrades[2]],
+  isActive: false,
+  totalBuyShares: 10,
+  totalBuyCost: 1000,
+  avgBuyPrice: 100,
+  totalSellShares: 10,
+  totalSellRevenue: 1200,
+  avgSellPrice: 120,
+  heldShares: 0,
+  heldDays: 14,
+  gainAmount: 200,
+  gainPct: 0.2,
+  currentPrice: 0,
+};
+
+const mockWavesByStock = [{
+  symbol: 'NVDA',
+  name: '英伟达',
+  waves: [mockActiveWave, mockCompletedWave],
+  completedCount: 1,
+  avgHeldDays: 14,
+  avgGainPct: 0.2,
+  activeWave: mockActiveWave,
+}];
+
 const mockLockedActivePositions = mockActivePositions.map((position, index) => ({
   ...position,
   dailyPnlLocked: true,
@@ -817,9 +875,9 @@ export default function DevVisualPreview() {
     addTrade: async () => {},
     AlertCircle,
     calcCostBasis,
-    calmRoomActiveCount: 0,
-    calmRoomAvgActiveDays: 0,
-    calmRoomCompletedCount: 0,
+    calmRoomActiveCount: 1,
+    calmRoomAvgActiveDays: 12,
+    calmRoomCompletedCount: 1,
     cacheStockLogo: noop,
     CheckCircle2,
     costBasisActiveSymbol,
@@ -887,11 +945,11 @@ export default function DevVisualPreview() {
     },
     tradeEntryScope,
     tradeSubmitting: false,
-    trades: [],
+    trades: mockWaveTrades,
     usdRate: USD_RATE,
     watchlist: tradeQuoteRows,
     waveNotes,
-    wavesByStock: [],
+    wavesByStock: mockWavesByStock,
   };
 
   const reviewCtx = {
