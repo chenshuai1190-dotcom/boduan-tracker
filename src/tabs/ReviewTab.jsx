@@ -840,9 +840,9 @@ export default function ReviewTab({ ctx }) {
         </div>
 
         <div className="relative z-10 mt-5">
-          <div className="mb-2 flex items-center justify-between text-[13px] font-normal text-[#ffd18a]">
+          <div className="mb-2 flex items-center justify-between text-[13px] font-normal text-white/82">
             <span>{tt('review.currentAmount', '当前 {{amount}}', { amount: money(currentBalance) })}</span>
-            <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</span>
+            <span className="text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%</span>
           </div>
           <div className="h-2.5 rounded-full bg-white/[0.075]">
             <div
@@ -861,7 +861,7 @@ export default function ReviewTab({ ctx }) {
 
         <div className="relative z-10 mb-1.5 mt-auto flex items-center justify-between gap-3">
           {plan.motto ? (
-            <div className="min-w-0 truncate text-[12px] leading-tight text-[#ffd18a]">“{plan.motto}”</div>
+            <div className="min-w-0 truncate text-[12px] italic leading-tight text-white/50">“{plan.motto}”</div>
           ) : (
             <div className="text-[12px] text-white/35">{tt('review.goalReminderPlaceholder', '设置一句目标提醒')}</div>
           )}
@@ -925,30 +925,32 @@ export default function ReviewTab({ ctx }) {
                   onClick={() => setYearAction(yearItem)}
                   className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <div className="text-[22px] font-semibold leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
-                      <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">{tt('review.thisYear', '本年')}</span>
-                      <span className={`rounded-md border px-1.5 py-0.5 text-[10px] ${isOverTarget ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-rose-400/25 bg-rose-400/10 text-rose-300'}`}>{projectedLabel}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-[minmax(0,1fr)_124px] items-start gap-2.5">
-                    <div className="min-w-0 pt-1">
-                      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[12px] text-white/50">
-                        <span className="whitespace-nowrap">{tt('review.planned', '计划')} {signedMoney(yearItem.planTarget)}</span>
-                        <span className="text-white/25">→</span>
-                        <span>{tt('review.actual', '实际')}</span>
+                  <div className="grid grid-cols-[minmax(0,1fr)_124px] items-start gap-2.5">
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <div className="text-[22px] font-semibold leading-none text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
+                        <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">{tt('review.thisYear', '本年')}</span>
+                        <span className={`rounded-md border px-1.5 py-0.5 text-[10px] ${isOverTarget ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'}`}>{projectedLabel}</span>
                       </div>
-                      <div className={`mt-1 whitespace-nowrap text-[20px] font-normal tabular-nums ${hasActual ? pnlTextClass(yearItem.actualGain) : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {hasActual ? signedMoney(yearItem.actualGain) : tt('review.pending', '待填写')}
+                      <div className="mt-5">
+                        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[12px] text-white/50">
+                          <span className="whitespace-nowrap">{tt('review.planned', '计划')} <span className="text-white/78 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget)}</span></span>
+                          <span className="text-white/25">→</span>
+                          <span>{tt('review.actual', '实际')}</span>
+                        </div>
+                        <div className={`mt-1 whitespace-nowrap text-[20px] font-normal tabular-nums ${hasActual ? pnlTextClass(yearItem.actualGain) : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
+                          {hasActual ? signedMoney(yearItem.actualGain) : tt('review.pending', '待填写')}
+                        </div>
                       </div>
                     </div>
-                    <div className="w-full shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2 text-[11px] leading-relaxed">
+                    <div className="w-full shrink-0 space-y-1 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2.5 text-[11px] leading-[1.45]">
                       <div className="whitespace-nowrap text-white/62">
                         {tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.planTarget)}</span>
                       </div>
-                      <div className={`mt-0.5 whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : pnlTextClass(targetGap)}`} style={{ fontFamily: NUMBER_FONT }}>
+                      <div className={`whitespace-nowrap tabular-nums ${hasActual ? 'text-[#ff4b1f]' : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
+                        {tt('review.achieved', '实现')} {hasActual ? money(yearItem.actualGain) : tt('review.pending', '待填写')}
+                      </div>
+                      <div className={`whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'}`} style={{ fontFamily: NUMBER_FONT }}>
                         {targetGap === null
                           ? tt('review.pending', '待填写')
                           : targetGap < 0
@@ -961,7 +963,7 @@ export default function ReviewTab({ ctx }) {
                   <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-white/[0.035] px-3 py-3">
                     <div>
                       <div className="text-[11px] text-white/40">{tt('review.yearStart', '年初起点')}</div>
-                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
+                      <div className="mt-1 text-[12px] font-normal text-white/58 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-center">
@@ -971,7 +973,7 @@ export default function ReviewTab({ ctx }) {
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-right">
                       <div className="text-[11px] text-white/40">{tt('review.yearEnd', '终点')}</div>
-                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
+                      <div className="mt-1 text-[12px] font-normal text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
                     </div>
                   </div>
 
@@ -986,7 +988,7 @@ export default function ReviewTab({ ctx }) {
                         }}
                       />
                     </div>
-                    <span className="w-11 text-right text-[14px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearProgressPct.toFixed(0)}%</span>
+                    <span className="w-11 text-right text-[14px] text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearProgressPct.toFixed(0)}%</span>
                   </div>
                 </button>
               );
