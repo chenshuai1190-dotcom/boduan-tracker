@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - 收益比赛真实收盘快照版
 
-- Commit: same commit;未推送、未部署。
-- Deployment: pending;生产仍为 `v10.7.9.301` / runtime `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
+- Commit: feature commit `a363e64deebbf460a4c322c59099e7feb571bf0d`;Hobby function-limit routing commit `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。
+- Deployment: completed;`a363e64` 首次 Vercel deployment `gn2MbDpda3pGTLvrZuT4QXyCT1qc` 因 Hobby 13 functions 超过 12 上限失败,未切换生产;`bf48e5a` 使用 rewrite 收口后 GitHub Actions run `29161655826` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6` success,production alias 已更新,入口 `/assets/index-CD6hu3eq.js`。
 - Background: 用户要求收益比赛必须自愿参加,缺少已确认昵称/头像时返回设置页,所有收益率严格来自真实收盘快照且绝不展示虚假数据;同时要求该功能独立,不能影响其他模块。
 - Workflow tier: `sensitive`。
 - Changes:
@@ -22,14 +22,14 @@
   - Vercel 保留原 22:30 UTC P&L Cron,新增 22:45 UTC 独立比赛 Cron;设置页版本/更新日志同步为 `v10.7.9.303`。
   - 首次 Vercel 构建完成后因 Hobby 最多 12 个 Serverless Functions 被拒;保留独立公开 Cron 路径 `/api/community-competition-daily-snapshot`,通过 `vercel.json` rewrite 进入 `api/community-competition.js` 内严格 `CRON_SECRET` 分支,不与用户 Bearer API 混用鉴权,物理函数数恢复到 12。
 - Key files: `supabase/community_competition.sql`,`supabase/community_profiles.sql`,`supabase/rls.sql`,`api/community-competition.js`,`server/communityCompetition*.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/lib/communityCompetitionApi.js`,`src/lib/communityProfile.js`,`src/lib/communityProfilesRepository.js`,`src/App.jsx`,`src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`vercel.json`,`tests/community-competition*.test.js`,`tests/community-profiles.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `npm run verify:toolchain` pass;社区 API/Cron/model/profile/boundary 定向测试 78/78 pass,包含加入基线 hash、快照缺口、adjusted close、USD 拒绝、空仓延续和单 symbol provider 失败隔离;修复后 `npm test` 239/239 pass;`npm run build` pass;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。2026-07-12 已在生产 Supabase SQL Editor 重新执行最新版 `supabase/community_profiles.sql` 与 `supabase/community_competition.sql`;执行后 `npm run verify:rls:rest` 20/20 pass,匿名 `community_profiles`、`community_competition_members`、`community_competition_snapshots` 均为 `401`;REST schema 探针读取真实 `eligible_ledger_hash` 返回权限拒绝 `401`,而不存在列返回 `400`,确认增量列已生效。Dashboard 随后被浏览器翻译插件触发 React `removeChild` 错误,SQL/admin metadata 查询结果尚未稳定读取,该项与应用部署证据仍待收口。390x844 本地只读 fixture 已覆盖 `?devPreview=1&preview=community-competition&competitionState=join`、`competitionState=waiting` 和 `competitionState=ready`;页面 `scrollWidth=390` / `clientWidth=390`,console error 0;截图: `~/Desktop/boduan-previews/community-competition-v303-join-390x844.png`,`community-competition-v303-waiting-390x844.png`,`community-competition-v303-ready-390x844.png`。
+- Validation: `npm run verify:toolchain` pass;社区 API/Cron/model/profile/boundary 定向测试 78/78 pass,包含加入基线 hash、快照缺口、adjusted close、USD 拒绝、空仓延续和单 symbol provider 失败隔离;修复后 `npm test` 239/239 pass;`npm run build` pass;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。2026-07-12 已在生产 Supabase SQL Editor 重新执行最新版 `supabase/community_profiles.sql` 与 `supabase/community_competition.sql`;执行后 `npm run verify:rls:rest` 20/20 pass,匿名 `community_profiles`、`community_competition_members`、`community_competition_snapshots` 均为 `401`;REST schema 探针读取真实 `eligible_ledger_hash` 返回权限拒绝 `401`,而不存在列返回 `400`,确认增量列已生效。Dashboard 随后被浏览器翻译插件触发 React `removeChild` 错误,SQL/admin metadata 查询结果尚未稳定读取。390x844 本地只读 fixture 已覆盖 join/waiting/ready,页面 `scrollWidth=390` / `clientWidth=390`,console error 0;截图: `~/Desktop/boduan-previews/community-competition-v303-join-390x844.png`,`community-competition-v303-waiting-390x844.png`,`community-competition-v303-ready-390x844.png`。`npm run verify:deploy-status -- bf48e5a` pass;生产未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;递归扫描 28 个生产 chunks 命中 `v10.7.9.303`、`收益比赛真实收盘快照版`、waiting/profile 状态且不含 `DevVisualPreview`;`CommunityCompetitionPage-DKvHV44c.js` 命中真实 API/披露文案且不含 localStorage、旧 join key、`12486` 或 `PERIOD_STATS`。
 - Boundaries: 不改 `stock_trades`/`trades`/`cost_basis_trades`/`swing_waves` 写入,不改个人 `pnl_report_snapshots`/symbol snapshot/rebuild state,不改 `/api/quote`、独立 `/api/earnings-calendar`、BTC/指数/股票 relay、EODHD token 前端边界或其他模块计算。
 - Rollback: 回退本次代码/版本/文档和独立 Cron;若 SQL 已执行,保留空表不影响现有模块,需要删除时先确认无参赛成员/快照再单独审计回滚。
 
 ### 2026-07-12 - 社区头像白边修正
 
-- Commit: `797fab626136719e5448692e1536f2a533d28b19`;已提交,未推送、未部署。
-- Deployment: 未部署;生产仍为 `v10.7.9.301` / runtime `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`。
+- Commit: `797fab626136719e5448692e1536f2a533d28b19`;已随 `bf48e5accd79c55e40e1d578e5618dd1eced0ad8` 推送并上线。
+- Deployment: completed;包含在 `v10.7.9.303` production runtime `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`,Vercel target `6DCsp5jvNsubXhoKnZFybTM8gpf6`,入口 `/assets/index-CD6hu3eq.js`。
 - Background: 用户核对生产截图后反馈设置页社区资料头像出现额外白色边框,要求先本地调试并取消。
 - Workflow tier: `runtime`。
 - Changes:

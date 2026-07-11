@@ -102,7 +102,7 @@ Goal: make the current app safer to change without altering product behavior.
 - Add tests for key portfolio calculations.
 - [~] Verify Supabase RLS live: the production anonymous REST probe passes 20/20 across the currently checked user-owned tables, including anonymous `401` for `community_profiles`, `community_competition_members`, and `community_competition_snapshots`; `swing_waves` metadata passed 13/13 checks, and its two-real-user authenticated-role/JWT-claim CRUD isolation smoke passed 14/14. Complete the competition metadata read and a two-user owner/cross-user isolation smoke for `community_profiles` when a stable admin channel is available.
 - [x] Add the independent V2 wave ledger: production schema/RLS execution, metadata audit, two-user isolation gate, real standalone page, page-scoped CRUD, pure view model, active-only quote subscription, REST baseline preheat, ledger-first realtime priority, and production deployment are complete in `v10.7.9.297`.
-- [~] Add the independent real community competition boundary: code, RLS SQL, strict auth, opt-in gating, immutable percentage-only close snapshots, no-mock UI, tests, production SQL execution, and the anonymous REST 20/20 gate are complete; metadata readback and application deployment evidence remain pending before the rollout is complete.
+- [~] Add the independent real community competition boundary: code, RLS SQL, strict auth, opt-in gating, immutable percentage-only close snapshots, no-mock UI, tests, production SQL execution, anonymous REST 20/20, and `v10.7.9.303` application deployment are complete; SQL/admin metadata readback remains pending after the Dashboard translation-plugin crash.
 
 ### Phase 1 - Feature Boundary Split
 
