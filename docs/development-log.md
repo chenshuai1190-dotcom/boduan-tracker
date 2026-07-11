@@ -7,7 +7,7 @@
 ### 2026-07-12 - 收益比赛真实收盘快照版
 
 - Commit: feature commit `a363e64deebbf460a4c322c59099e7feb571bf0d`;Hobby function-limit routing commit `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。
-- Deployment: completed;`a363e64` 首次 Vercel deployment `gn2MbDpda3pGTLvrZuT4QXyCT1qc` 因 Hobby 13 functions 超过 12 上限失败,未切换生产;`bf48e5a` 使用 rewrite 收口后 GitHub Actions run `29161655826` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6` success,production alias 已更新,入口 `/assets/index-CD6hu3eq.js`。
+- Deployment: completed;`a363e64` 首次 Vercel deployment `gn2MbDpda3pGTLvrZuT4QXyCT1qc` 因 Hobby 13 functions 超过 12 上限失败,未切换生产;`bf48e5a` 使用 rewrite 收口后 GitHub Actions run `29161655826` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6` success,production alias 已更新,入口 `/assets/index-CD6hu3eq.js`;部署证据提交 `0aa87dfe72b3690bedb4c5425016c699f607cb01` 随后通过 Actions run `29161798255` 和 Vercel target `G9h6ueyaBhcPdNKUY4xTuPwEyzFL`,入口保持不变。
 - Background: 用户要求收益比赛必须自愿参加,缺少已确认昵称/头像时返回设置页,所有收益率严格来自真实收盘快照且绝不展示虚假数据;同时要求该功能独立,不能影响其他模块。
 - Workflow tier: `sensitive`。
 - Changes:
