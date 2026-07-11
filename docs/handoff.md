@@ -6,7 +6,8 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新已上线: `v10.7.9.298` 波段首页与新增弹框小修复已上线,运行时代码提交 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。默认筛选改为“进行中”,仅已完成股票只在“已完成”筛选出现;同股多波段在首页自动展开并全部显示。共用 `ActionModalCard` 跟随 iOS `visualViewport`,修复首次聚焦输入时弹框跳顶,日期文字垂直居中;确认与取消统一为中性色,但未满足条件时确认按钮仍为原生 `disabled` 并阻止提交,危险确认仍为红色。
+- 当前本地已验证设置页版本: `v10.7.9.299`;本地改动恢复波段首页折叠/展开并按筛选+股票代码记忆用户上次状态,尚未提交、推送或部署。没有记忆时同股多波段仍默认展开,新增波段后仍自动展开对应进行中股票。本地验证已确认收起/展开刷新后均保持上次状态,console error 0。
+- 最新已上线: `v10.7.9.298` 波段首页与新增弹框小修复已上线,运行时代码提交 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`。默认筛选改为“进行中”,仅已完成股票只在“已完成”筛选出现;同股多波段在无用户记忆的默认状态下完整展开。共用 `ActionModalCard` 跟随 iOS `visualViewport`,修复首次聚焦输入时弹框跳顶,日期文字垂直居中;确认与取消统一为中性色,但未满足条件时确认按钮仍为原生 `disabled` 并阻止提交,危险确认仍为红色。
 - 当前生产设置页版本: `v10.7.9.298`;当前生产运行时基准提交为 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`,入口为 `/assets/index-C4i0j3Ob.js`。
 - `v10.7.9.298` 验证:波段定向 52/52、完整测试 201/201、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 首页/新增弹框、390x500 与 390x300 键盘压缩视口复核通过,四个输入字段均可到达,弹框未跳出可视区,关闭后滚动锁恢复,console error 0。`npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn` success,未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.298`、`WaveTrackerPage-ClYqGD2a.js`、`ActionModalCard-CTI_wgqk.js`、`SettingsTab-BUnYaY2P.js` 和 `settingsChangelog-BXVNnlzy.js`。
 - 上一条已上线补充: `v10.7.9.297` 波段记录 V2 真实独立页面、页面级 `swing_waves` CRUD、纯 view model、共用股票 Logo、active-only 登录态行情接入和中英文案已上线,运行时代码提交 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。正式 ledger/自选在 realtime 50-symbol 上限前优先于工具 symbol,已完成波段不占 relay 名额。生产数据库表/RLS metadata 13/13、两个现有真实 Auth 用户的 authenticated role/JWT subject CRUD/RLS 隔离 smoke 14/14 和残留数据为零均通过。该 smoke 在生产 SQL editor 中模拟两个用户上下文,未导出 service-role key,也不是密码登录 REST token 会话。旧 `trades` 未清理也不双写。
@@ -704,12 +705,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`
 当前前台可见运行时基准提交: `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`
-当前生产设置页版本: `v10.7.9.298`
+当前本地已验证设置页版本: `v10.7.9.299`;生产设置页版本仍为 `v10.7.9.298`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `18f25333c8fb4cfddb54eb4298afc8d9e20d171e` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FGs3ThBsRE6nE1XLB8zW8tpdKDZn`
 最新生产入口: `/assets/index-C4i0j3Ob.js`
 
 最新已上线:
+- 本地已验证 `v10.7.9.299`:恢复波段首页折叠/展开;折叠状态按“全部 / 进行中 / 已完成”筛选和股票代码记忆,下次进入保持上次状态;没有记忆时同股多波段仍默认展开,新增波段后自动展开对应进行中股票;390x844 本地预览已确认收起/展开刷新记忆,尚未提交、推送或部署
 - `v10.7.9.298` 波段首页默认选中“进行中”;仅已完成股票不在默认首页显示,仍可在“已完成”筛选查看;同股多个波段自动展开并全部显示
 - 新增波段弹框跟随 iOS `visualViewport`,修复首次聚焦股票代码、买入成本、买入数量或备注时整卡跳顶;日期文字垂直居中
 - 共用 `ActionModalCard` 的确认与取消统一为同一中性色;确认按钮在表单无效时仍为原生 `disabled` 并阻止提交,危险删除确认仍保持红色

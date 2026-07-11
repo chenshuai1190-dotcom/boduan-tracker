@@ -4,6 +4,24 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 波段首页折叠状态记忆恢复
+
+- Commit: local runtime change pending,尚未提交、推送或部署。
+- Deployment: not deployed;本轮按用户要求先做本地修复和验证。
+- Background: 用户反馈 `v10.7.9.298` 为了让同股多波段全部显示,把波段首页折叠能力实际取消了;现在要求恢复折叠/展开,并在用户下次进入时保持上一次状态。
+- Workflow tier: `runtime`。
+- Changes:
+  - 波段首页恢复股票卡片折叠/展开按钮,同股多波段不再被 `lockedExpanded` 强制锁定展开。
+  - 新增 `boduan_wave_tracker_expanded_v1` 本地状态,按“全部 / 进行中 / 已完成”筛选和标准化股票代码分别记忆展开状态。
+  - 没有用户记忆时,当前筛选下同一股票多个波段仍默认展开,保留完整展示的默认体验;用户手动收起后下次进入保持收起。
+  - 新增波段成功后继续切到“进行中”并把对应股票记为展开,方便直接查看刚录入的波段。
+  - 设置页三个可见版本面和更新日志同步为 `v10.7.9.299`。
+- Key files: `src/pages/WaveTrackerPage.jsx`,`src/lib/settingsChangelog.js`,`src/tabs/SettingsTab.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`node --test tests/swing-waves.test.js tests/tool-ledger-boundaries.test.js` 52/52 pass;`npm test` 201/201 pass;`npm run build` pass,生成 `WaveTrackerPage-SBnFf21m.js`,`SettingsTab-CZfiG-s9.js` 和 `settingsChangelog-anvmF17-.js`;`npm run verify:frontend-smoke` 5/5 pass,console error 0;`npm audit --audit-level=moderate` found 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 本地 `?devPreview=1&preview=wave-v2` 使用只读 fixture 验证:默认 NVDA 多波段展开;点击 NVDA 卡片可收起且 `波段 01/02/03` 隐藏;刷新后仍保持收起;再次点击展开后 `波段 01/02/03` 恢复显示;再次刷新后仍保持展开;浏览器 console error 0。
+- Boundaries: 本轮只修改波段独立页面的首页 UI 状态、本地 localStorage 记忆、版本/更新日志、测试和文档;不改 `swing_waves` schema/CRUD 参数、收益/股数/币种计算、完整卖出规则、正式 `stock_trades` / `trades` 账本、收益快照、数据库、RLS、Auth、行情 universe/relay、`/api/quote` 或独立 `/api/earnings-calendar`。
+- Rollout gate: local verification complete;不部署。
+- Rollback: 回退上述页面状态记忆、设置页版本/更新日志、测试和本条文档即可;无需数据库或数据回滚。
+
 ### 2026-07-11 - 波段首页与新增弹框移动端细节修复
 
 - Commit: runtime `18f25333c8fb4cfddb54eb4298afc8d9e20d171e`;本条后续 docs-only 提交只回填部署证据。

@@ -323,8 +323,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.298/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.298', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.299/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.299', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('波段首页折叠记忆恢复'), 'settings changelog should describe the wave fold-memory fix');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.298'"), 'settings changelog should retain the previous wave mobile dialog release');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.297'"), 'settings changelog should retain the deployed V2 wave-page release');
   assert.ok(settingsChangelogSource.includes('波段记录 V2 独立页面'), 'settings changelog should describe the production V2 wave page');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.296'"), 'settings changelog should retain the previous wave unit-price release');
@@ -1498,7 +1500,15 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(waveTrackerPageSource.includes('h-full max-h-[52dvh]') && waveTrackerPageSource.includes("WebkitMinLogicalWidth: '0px'"), 'production modal forms should stay inside keyboard-reduced mobile viewports');
   assert.ok(waveTrackerPageSource.includes("const [filter, setFilter] = React.useState('active')"), 'production wave page should default to active waves');
   assert.ok(waveTrackerPageSource.includes("setFilter('active')"), 'creating a wave should keep the active-only home view');
-  assert.ok(waveTrackerPageSource.includes('const forceExpanded = visibleWaveCount > 1') && waveTrackerPageSource.includes('lockedExpanded={forceExpanded}'), 'stocks with multiple visible waves should stay fully expanded');
+  assert.ok(waveTrackerPageSource.includes("const EXPANDED_STATE_STORAGE_KEY = 'boduan_wave_tracker_expanded_v1'"), 'wave fold state should persist under a dedicated local key');
+  assert.ok(waveTrackerPageSource.includes('function normalizeExpandedState') && waveTrackerPageSource.includes('function readExpandedState') && waveTrackerPageSource.includes('function writeExpandedState'), 'wave fold memory should sanitize localStorage reads and writes');
+  assert.ok(waveTrackerPageSource.includes('function setExpandedMemory') && waveTrackerPageSource.includes('[filterKey]') && waveTrackerPageSource.includes('[normalizedSymbol]: Boolean(expanded)'), 'wave fold memory should be stored per filter and symbol');
+  assert.ok(waveTrackerPageSource.includes('const [expandedState, setExpandedState] = React.useState(readExpandedState)'), 'wave page should initialize fold memory from localStorage');
+  assert.ok(waveTrackerPageSource.includes('return visibleWaveCountForGroup(group) > 1;'), 'multi-wave stocks should still default to expanded when no user memory exists');
+  assert.ok(waveTrackerPageSource.includes('const toggleGroupExpanded = React.useCallback') && waveTrackerPageSource.includes('setExpandedMemory(current, filter, symbol, !currentExpanded)'), 'user fold toggles should update persisted memory');
+  assert.ok(waveTrackerPageSource.includes("setExpandedMemory(current, 'active', created.symbol, true)"), 'creating a wave should open that active stock in memory');
+  assert.equal(waveTrackerPageSource.includes('lockedExpanded'), false, 'multi-wave stocks must not be locked open');
+  assert.equal(waveTrackerPageSource.includes('const forceExpanded'), false, 'fold logic should not use the removed force-expanded lock');
   assert.ok(waveTrackerPageSource.includes("filter === 'active' ? group.activeCount > 0"), 'completed-only stocks should stay out of the default active view');
   assert.ok(waveTrackerPageSource.includes('wave-form-date-input text-center leading-[40px]') && waveTrackerPageSource.includes("lineHeight: '40px'"), 'wave date inputs should vertically center their native value');
   assert.ok(indexCssSource.includes('.wave-form-date-input::-webkit-date-and-time-value') && indexCssSource.includes('line-height: 40px'), 'Safari date value pseudo-elements should keep the date text vertically centered');
@@ -1608,7 +1618,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.298/g) || []).length, 3, 'settings version surfaces should document the current local wave-page fix');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.299/g) || []).length, 3, 'settings version surfaces should document the current local wave-page fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1922,7 +1932,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.298/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.299/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -26,6 +26,8 @@ const PROFIT = '#ff5b50';
 const LOSS = '#36c49a';
 const GOLD = '#f6b54b';
 const FALLBACK_USD_CNY_RATE = 7.2;
+const EXPANDED_STATE_STORAGE_KEY = 'boduan_wave_tracker_expanded_v1';
+const FILTER_KEYS = ['all', 'active', 'completed'];
 
 function number(value) {
   const parsed = Number(value);
@@ -85,6 +87,50 @@ function localDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function normalizeExpandedState(value) {
+  if (!value || typeof value !== 'object') return {};
+  return FILTER_KEYS.reduce((result, filterKey) => {
+    const bySymbol = value[filterKey];
+    if (!bySymbol || typeof bySymbol !== 'object') return result;
+    const entries = Object.entries(bySymbol)
+      .map(([symbol, expanded]) => [String(symbol || '').trim().toUpperCase(), expanded])
+      .filter(([symbol, expanded]) => /^[A-Z0-9._-]{1,24}$/.test(symbol) && typeof expanded === 'boolean');
+    if (entries.length > 0) result[filterKey] = Object.fromEntries(entries);
+    return result;
+  }, {});
+}
+
+function readExpandedState() {
+  if (typeof window === 'undefined' || !window.localStorage) return {};
+  try {
+    return normalizeExpandedState(JSON.parse(window.localStorage.getItem(EXPANDED_STATE_STORAGE_KEY) || '{}'));
+  } catch {
+    return {};
+  }
+}
+
+function writeExpandedState(value) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(EXPANDED_STATE_STORAGE_KEY, JSON.stringify(normalizeExpandedState(value)));
+  } catch {}
+}
+
+function setExpandedMemory(current, filterKey, symbol, expanded) {
+  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+  if (!FILTER_KEYS.includes(filterKey) || !/^[A-Z0-9._-]{1,24}$/.test(normalizedSymbol)) {
+    return normalizeExpandedState(current);
+  }
+  const normalized = normalizeExpandedState(current);
+  return {
+    ...normalized,
+    [filterKey]: {
+      ...(normalized[filterKey] || {}),
+      [normalizedSymbol]: Boolean(expanded),
+    },
+  };
 }
 
 function statusAccent(status, value) {
@@ -241,13 +287,13 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
   );
 }
 
-function StockCard({ group, expanded, lockedExpanded = false, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey }) {
+function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey }) {
   const summary = summarizeSwingWaveGroup(group, filter, todayKey);
   const isActive = summary.status === 'active';
   const displayPnl = summary.pnlUsd == null ? null : summary.pnlUsd * displayRate;
   return (
     <article className="overflow-hidden rounded-[18px] border border-[#1a2530] bg-[linear-gradient(145deg,rgba(15,21,29,0.98),rgba(8,13,19,0.98))] shadow-[0_15px_38px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.025)]">
-      <button type="button" onClick={onToggle} disabled={lockedExpanded} className="block w-full px-3.5 py-3.5 text-left outline-none active:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-[#f6b54b]/40" aria-expanded={expanded}>
+      <button type="button" onClick={onToggle} className="block w-full px-3.5 py-3.5 text-left outline-none active:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-[#f6b54b]/40" aria-expanded={expanded}>
         <div className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3">
           <LogoBadge symbol={group.symbol} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
           <div className="min-w-0">
@@ -315,7 +361,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
   const [localQuotes, setLocalQuotes] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
-  const [expandedSymbol, setExpandedSymbol] = React.useState('');
+  const [expandedState, setExpandedState] = React.useState(readExpandedState);
   const [filter, setFilter] = React.useState('active');
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null);
@@ -509,6 +555,31 @@ export default function WaveTrackerPage({ ctx = {} }) {
     setLoadError(desc || title);
   }, [showConfirm, tt]);
 
+  React.useEffect(() => {
+    writeExpandedState(expandedState);
+  }, [expandedState]);
+
+  const visibleWaveCountForGroup = React.useCallback((group) => (
+    filter === 'active'
+      ? group.activeCount
+      : filter === 'completed'
+        ? group.completedCount
+        : group.waves.length
+  ), [filter]);
+
+  const isGroupExpanded = React.useCallback((group) => {
+    const symbol = normalizeStrictUserStockSymbol(group?.symbol);
+    const stored = expandedState?.[filter]?.[symbol];
+    if (typeof stored === 'boolean') return stored;
+    return visibleWaveCountForGroup(group) > 1;
+  }, [expandedState, filter, visibleWaveCountForGroup]);
+
+  const toggleGroupExpanded = React.useCallback((group) => {
+    const symbol = normalizeStrictUserStockSymbol(group?.symbol);
+    const currentExpanded = isGroupExpanded(group);
+    setExpandedState((current) => setExpandedMemory(current, filter, symbol, !currentExpanded));
+  }, [filter, isGroupExpanded]);
+
   const runMutation = React.useCallback(async (task, applyResult, { closeModal = true } = {}) => {
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -566,7 +637,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
       }),
       (created) => {
         setRows((current) => [created, ...current]);
-        setExpandedSymbol(created.symbol);
+        setExpandedState((current) => setExpandedMemory(current, 'active', created.symbol, true));
         setFilter('active');
       },
     );
@@ -695,7 +766,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
                   ['active', tt('trades.active', '进行中')],
                   ['completed', tt('trades.completed', '已完成')],
                 ].map(([id, label]) => (
-                  <button key={id} type="button" onClick={() => { setFilter(id); setFilterOpen(false); setExpandedSymbol(''); }} className={`block w-full rounded-lg px-2 py-2 text-left text-[11px] ${filter === id ? 'bg-white/[0.07] text-[#f6bd61]' : 'text-white/[0.58]'}`}>
+                  <button key={id} type="button" onClick={() => { setFilter(id); setFilterOpen(false); }} className={`block w-full rounded-lg px-2 py-2 text-left text-[11px] ${filter === id ? 'bg-white/[0.07] text-[#f6bd61]' : 'text-white/[0.58]'}`}>
                     {label}
                   </button>
                 ))}
@@ -722,31 +793,22 @@ export default function WaveTrackerPage({ ctx = {} }) {
               <div className="mt-1 text-[10.5px] text-white/[0.34]">{tt('swing.emptyDesc', '每个波段独立记录一次完整买入和完整卖出。')}</div>
               {filter === 'all' ? <button type="button" onClick={openAdd} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.addFirst', '新增第一个波段')}</button> : null}
             </div>
-          ) : visibleGroups.map((group) => {
-            const visibleWaveCount = filter === 'active'
-              ? group.activeCount
-              : filter === 'completed'
-                ? group.completedCount
-                : group.waves.length;
-            const forceExpanded = visibleWaveCount > 1;
-            return (
-              <StockCard
-                key={group.symbol}
-                group={group}
-                expanded={forceExpanded || expandedSymbol === group.symbol}
-                lockedExpanded={forceExpanded}
-                filter={filter}
-                onToggle={() => setExpandedSymbol((current) => (current === group.symbol ? '' : group.symbol))}
-                onAction={openActions}
-                tt={tt}
-                displayRate={displayRate}
-                displayCurrency={displayCurrency}
-                logoCache={logoCache}
-                cacheStockLogo={cacheStockLogo}
-                todayKey={todayKey}
-              />
-            );
-          })}
+          ) : visibleGroups.map((group) => (
+            <StockCard
+              key={group.symbol}
+              group={group}
+              expanded={isGroupExpanded(group)}
+              filter={filter}
+              onToggle={() => toggleGroupExpanded(group)}
+              onAction={openActions}
+              tt={tt}
+              displayRate={displayRate}
+              displayCurrency={displayCurrency}
+              logoCache={logoCache}
+              cacheStockLogo={cacheStockLogo}
+              todayKey={todayKey}
+            />
+          ))}
         </section>
 
         {!loading && !loadError && visibleGroups.length > 0 ? (
