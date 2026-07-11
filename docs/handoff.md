@@ -6,8 +6,11 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 当前本地待部署: `v10.7.9.298` 已完成波段首页与新增弹框小修复。默认筛选改为“进行中”,仅已完成股票只在“已完成”筛选出现;同股多波段在首页自动展开并全部显示。共用 `ActionModalCard` 跟随 iOS `visualViewport`,修复首次聚焦输入时弹框跳顶,日期文字垂直居中;确认与取消统一为中性色,但未满足条件时确认按钮仍为原生 `disabled` 并阻止提交,危险确认仍为红色。该改动尚未提交、推送或部署。
+- 当前本地设置页版本: `v10.7.9.298`（未部署）。当前生产设置页仍为 `v10.7.9.297`,生产运行时仍为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`,入口仍为 `/assets/index-D58eoxFB.js`。
+- `v10.7.9.298` 本地验证:波段定向 52/52、完整测试 201/201、build、5/5 frontend smoke、moderate audit（0 vulnerabilities）、docs consistency 和 diff check 均通过;390x844 首页/新增弹框、390x500 与 390x300 键盘压缩视口复核通过,四个输入字段均可到达,弹框未跳出可视区,关闭后滚动锁恢复,console error 0。该证据仅为本地结果,不代表已上线。
 - 最新已上线: 波段记录 V2 真实独立页面、页面级 `swing_waves` CRUD、纯 view model、共用股票 Logo、active-only 登录态行情接入和中英文案已在 `v10.7.9.297` 上线,运行时代码提交 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。正式 ledger/自选在 realtime 50-symbol 上限前优先于工具 symbol,已完成波段不占 relay 名额。生产数据库表/RLS metadata 13/13、两个现有真实 Auth 用户的 authenticated role/JWT subject CRUD/RLS 隔离 smoke 14/14 和残留数据为零均通过。该 smoke 在生产 SQL editor 中模拟两个用户上下文,未导出 service-role key,也不是密码登录 REST token 会话。旧 `trades` 未清理也不双写。
-- 本地验证: 波段定向 56/56、完整测试 201/201、build、5/5 frontend smoke、moderate audit、docs consistency 和 diff check 均通过;390x844 与 320x568 真实页面/弹框无横向溢出,console error 0。收口时当前机器到 Vercel 的 TLS 握手连续重置,远端探针得到 HTTP `000`;沿用本轮 SQL 后已完成的 17/17 RLS 与 quote/earnings `401` 作为历史证据,但不能把本次失败重跑写成新通过。
+- `v10.7.9.297` 上线前本地验证: 波段定向 56/56、完整测试 201/201、build、5/5 frontend smoke、moderate audit、docs consistency 和 diff check 均通过;390x844 与 320x568 真实页面/弹框无横向溢出,console error 0。收口时当前机器到 Vercel 的 TLS 握手连续重置,远端探针得到 HTTP `000`;沿用本轮 SQL 后已完成的 17/17 RLS 与 quote/earnings `401` 作为历史证据,但不能把本次失败重跑写成新通过。
 - 最新已上线补充: `v10.7.9.296` 已修复 `v10.7.9.295` 把波段每股报价错误换算为 CNY 的问题,production runtime commit `121016fadf1b9b4bd010527e6b8a82a73bae71a0`;买入均价、卖出均价、当前价和交易单价固定 USD,只有浮盈、总盈亏和成交总金额跟随首页 USD/CNY。波段存储/计算及其他模块不变。
 - 上一条已上线补充: `v10.7.9.295` 已修复波段记录汇总金额未跟随首页的问题,production runtime commit `8468442cb235b3e0ce33d08f456e6a88c6af6a23`;波段浮盈、总盈亏和成交总金额共用首页 USD/CNY 及汇率,波段录入/存储/计算仍为 USD。
 - 上一条已上线补充: `v10.7.9.294` 目标页年度卡片配色和摘要布局优化已上线,production runtime commit `ce2ddb444e3144ad264bb9ebbc1dee8929410493`;个人箴言改为灰色斜体,当前年摘要上移到与年份状态行同高并补齐目标/实现/落后三行,目标与路径使用白/黄中性层级,实现和完成率使用系统红色,落后/未达使用系统绿色。年度计划、实际、差额/复利计算、数据库和安全边界不变。
@@ -39,6 +42,7 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
+- 当前本地待部署版本: `v10.7.9.298`;波段首页默认进行中、多波段自动展开、已完成仅在已完成筛选出现、iOS 首次聚焦弹框跟随 `visualViewport`、日期垂直居中和 `ActionModalCard` 中性按钮已完成本地实现,尚未提交、推送或部署。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`。
 - 当前生产运行时基准提交: `b56b7127ab69bd40bee1932c12eab722ebb4064d`。
 - 最近应用代码提交: production 最近应用代码提交 `b56b7127ab69bd40bee1932c12eab722ebb4064d` 包含 `v10.7.9.297` 波段记录 V2 独立页面;此前 `121016fadf1b9b4bd010527e6b8a82a73bae71a0` 包含 `v10.7.9.296` 波段报价固定 USD 修复。
@@ -700,10 +704,17 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `b56b7127ab69bd40bee1932c12eab722ebb4064d`
 当前前台可见运行时基准提交: `b56b7127ab69bd40bee1932c12eab722ebb4064d`
+当前本地设置页版本: `v10.7.9.298`（未部署）
 当前生产设置页版本: `v10.7.9.297`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `b56b7127ab69bd40bee1932c12eab722ebb4064d` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/B44CodL2WgfoRBHcFqSCr1yQcMH1`
 最新生产入口: `/assets/index-D58eoxFB.js`
+
+当前本地待部署:
+- `v10.7.9.298` 波段首页默认选中“进行中”;仅已完成股票不在默认首页显示,仍可在“已完成”筛选查看;同股多个波段自动展开并全部显示
+- 新增波段弹框跟随 iOS `visualViewport`,修复首次聚焦股票代码、买入成本、买入数量或备注时整卡跳顶;日期文字垂直居中
+- 共用 `ActionModalCard` 的确认与取消统一为同一中性色;确认按钮在表单无效时仍为原生 `disabled` 并阻止提交,危险删除确认仍保持红色
+- 本轮没有数据库、API、RLS、正式交易账本、收益快照、行情 relay 或 `swing_waves` CRUD/计算变化;尚未提交、推送或部署,生产继续保持 `v10.7.9.297` / `b56b7127ab69bd40bee1932c12eab722ebb4064d`
 
 关键线上验证:
 - `v10.7.9.297` 已上线:波段记录升级为独立真实页面,支持同股多个独立进行中波段、完整买入/完整卖出、股票 Logo、深色操作弹框和页面级 `swing_waves` CRUD;双真实 Auth 用户 RLS 14/14 及零残留通过
@@ -779,6 +790,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 并确认未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 返回 `401`。
 
 当前已完成:
+- `v10.7.9.298` 波段首页与新增弹框细节已在本地完成、尚未部署:默认进行中,已完成记录仅在已完成筛选出现,多波段自动展开;弹框跟随 iOS `visualViewport`,日期垂直居中,共用操作卡按钮统一中性色且 disabled/危险确认语义保持不变。生产仍为 `v10.7.9.297`。
 - 波段记录 V2 真实独立页面已在 `v10.7.9.297` 上线:交易页工具卡进入 lazy 独立页,真实读写独立 `swing_waves`,支持同股多个进行中波段和一次性完整卖出;买入/卖出/当前单价固定 USD,盈亏金额跟随首页币种。生产 SQL/RLS 已通过 13/13 metadata、匿名 REST 和双真实 Auth 用户 CRUD/RLS 14/14 核验,残留数据为零。
 - 英文模式已覆盖设置页、底部导航、首页、交易页、资产页、目标页;只翻译系统文案,用户自写内容保持原文。
 - 股票核心行情已去 Yahoo 混源:股票核心 quote 字段只用 EODHD;Yahoo 仅保留股票小曲线视觉 chart 来源。

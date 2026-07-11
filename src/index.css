@@ -24,6 +24,17 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+.wave-form-date-input::-webkit-date-and-time-value {
+  min-height: 40px;
+  margin: 0;
+  line-height: 40px;
+  text-align: center;
+}
+
+.wave-form-date-input::-webkit-datetime-edit {
+  padding: 0;
+}
+
 /* ============ 暗黑模式 ============ */
 .dark {
   color-scheme: dark;

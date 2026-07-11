@@ -22,6 +22,7 @@ const earningsCalendarSource = readFileSync(new URL('../src/tabs/EarningsCalenda
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const indexCssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 const indexHtmlSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const packageSource = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
 const manifestJson = JSON.parse(readFileSync(new URL('../public/manifest.json', import.meta.url), 'utf8'));
@@ -322,8 +323,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.297/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.297', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.298/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.298', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.297'"), 'settings changelog should retain the deployed V2 wave-page release');
   assert.ok(settingsChangelogSource.includes('波段记录 V2 独立页面'), 'settings changelog should describe the production V2 wave page');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.296'"), 'settings changelog should retain the previous wave unit-price release');
   assert.ok(settingsChangelogSource.includes('波段股票报价固定美元'), 'settings changelog should describe the wave unit-price correction');
@@ -1444,7 +1446,7 @@ test('wave tracker v2 prototype stays development-only and preserves tool bounda
   assert.ok(waveTrackerPrototypeSource.includes('overflow-x-hidden') && waveTrackerPrototypeSource.includes("WebkitMinLogicalWidth: '0px'"), 'prototype form controls should prevent iOS date inputs from forcing horizontal overflow');
   assert.ok(waveTrackerPrototypeSource.includes('min-[360px]:grid-cols-2'), 'form pairs should collapse to one column on narrow screens');
   assert.ok(waveTrackerPrototypeSource.includes('min-h-[100dvh] overflow-x-hidden'), 'prototype root should prevent background content from widening narrow modal viewports');
-  assert.ok(actionModalCardSource.includes('min-w-0 max-w-full overflow-hidden'), 'shared action modal content should clip horizontal child overflow');
+  assert.ok(actionModalCardSource.includes('min-w-0 max-w-full flex-1 overflow-hidden'), 'shared action modal content should clip horizontal child overflow');
   assert.ok(waveTrackerPrototypeSource.includes('group.waves.findIndex((item) => item.id === wave.id)'), 'wave numbers should remain stable after status filtering');
   assert.ok(waveTrackerPrototypeSource.includes('summary.sellAverage'), 'completed group cards should use the weighted sell average');
   assert.equal(waveTrackerPrototypeSource.includes("accent: 'amber'"), false, 'active wave status should not use an undefined yellow state');
@@ -1493,7 +1495,14 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(completeBlock.includes('db.completeSwingWave'));
   assert.equal(completeBlock.includes('shares:'), false, 'full sell must not submit a partial sell quantity');
   assert.ok(waveTrackerPageSource.includes('波段需一次性卖出，不支持部分卖出。'));
-  assert.ok(waveTrackerPageSource.includes('max-h-[52dvh]') && waveTrackerPageSource.includes("WebkitMinLogicalWidth: '0px'"), 'production modal forms should stay inside 320px viewports');
+  assert.ok(waveTrackerPageSource.includes('h-full max-h-[52dvh]') && waveTrackerPageSource.includes("WebkitMinLogicalWidth: '0px'"), 'production modal forms should stay inside keyboard-reduced mobile viewports');
+  assert.ok(waveTrackerPageSource.includes("const [filter, setFilter] = React.useState('active')"), 'production wave page should default to active waves');
+  assert.ok(waveTrackerPageSource.includes("setFilter('active')"), 'creating a wave should keep the active-only home view');
+  assert.ok(waveTrackerPageSource.includes('const forceExpanded = visibleWaveCount > 1') && waveTrackerPageSource.includes('lockedExpanded={forceExpanded}'), 'stocks with multiple visible waves should stay fully expanded');
+  assert.ok(waveTrackerPageSource.includes("filter === 'active' ? group.activeCount > 0"), 'completed-only stocks should stay out of the default active view');
+  assert.ok(waveTrackerPageSource.includes('wave-form-date-input text-center leading-[40px]') && waveTrackerPageSource.includes("lineHeight: '40px'"), 'wave date inputs should vertically center their native value');
+  assert.ok(indexCssSource.includes('.wave-form-date-input::-webkit-date-and-time-value') && indexCssSource.includes('line-height: 40px'), 'Safari date value pseudo-elements should keep the date text vertically centered');
+  assert.ok(waveTrackerPageSource.includes("document.body.style.touchAction = 'none'") && waveTrackerPageSource.includes("document.documentElement.style.overscrollBehavior = 'none'"), 'wave dialogs should fully lock iOS background scrolling');
   assert.ok(waveTrackerPageSource.includes("return parsed > 0 ? `$${formatNumber(parsed, 2)}` : '--'"), 'stock unit prices must remain canonical USD');
   assert.ok(waveTrackerPageSource.includes('dashboard.cumulativePnlUsd * displayRate'), 'only P&L amounts should follow the shared display currency');
   assert.ok(waveTrackerPageSource.includes("import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx'"));
@@ -1599,7 +1608,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.297/g) || []).length, 3, 'settings version surfaces should document the current V2 wave page');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.298/g) || []).length, 3, 'settings version surfaces should document the current local wave-page fix');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1913,7 +1922,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.297/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current release');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.298/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2076,6 +2085,11 @@ test('account, order, and delete action modals match the approved glass-card des
   assert.ok(actionModalCardSource.includes('min-h-[232px] w-[calc(100vw-76px)] max-w-[360px] rounded-[27px]'), 'shared action modal should use the approved 314x232 mobile geometry');
   assert.ok(actionModalCardSource.includes('bg-black/[0.62]') && actionModalCardSource.includes('backdrop-blur-[10px]'), 'shared action modal should use the approved blurred overlay');
   assert.ok(actionModalCardSource.includes('h-[46px]') && actionModalCardSource.includes('text-white/[0.43]'), 'shared edit/delete buttons should use the neutral low-brightness style');
+  assert.ok(actionModalCardSource.includes('updateFrame();') && actionModalCardSource.includes("viewport.addEventListener('resize', updateFrame)") && actionModalCardSource.includes("viewport.addEventListener('scroll', updateFrame)") && actionModalCardSource.includes('height: visualViewportFrame.height'), 'shared action modal should follow the first iOS visual viewport resize and scroll when the keyboard opens');
+  assert.ok(actionModalCardSource.includes("viewport.removeEventListener('resize', updateFrame)") && actionModalCardSource.includes("viewport.removeEventListener('scroll', updateFrame)"), 'shared action modal should clean up visual viewport listeners');
+  assert.equal(actionModalCardSource.includes('Math.max(320'), false, 'short visual viewports should not be forced beyond their real keyboard-reduced height');
+  assert.ok(actionModalCardSource.includes('disabled:opacity-100') && !actionModalCardSource.includes('disabled:opacity-45'), 'disabled normal actions should keep the same neutral color as sibling actions');
+  assert.ok(actionModalCardSource.includes('disabled={action.disabled}') && actionModalCardSource.includes('disabled:active:scale-100'), 'same-color disabled actions must still block submission and press feedback');
   assert.ok(orderActionBlock.includes('<ActionModalCard'), 'order action should use the shared approved card shell');
   assert.ok(orderActionBlock.includes('<StockLogo') && orderActionBlock.includes('orderLogoUrls'), 'order action should render the existing stock logo chain');
   assert.ok(orderActionBlock.includes('className="h-6 w-6 rounded-[4px]"'), 'order logo should fit the circular icon container');

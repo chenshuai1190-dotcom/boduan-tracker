@@ -118,6 +118,7 @@ function Metric({ label, value, valueColor = 'rgba(255,255,255,0.84)', align = '
 }
 
 function FormField({ label, prefix, children, ...inputProps }) {
+  const isDateInput = inputProps.type === 'date';
   return (
     <label className="block min-w-0 max-w-full overflow-hidden">
       <span className="mb-1.5 block text-[10.5px] font-normal text-white/[0.38]">{label}</span>
@@ -126,13 +127,20 @@ function FormField({ label, prefix, children, ...inputProps }) {
         {children || (
           <input
             {...inputProps}
-            className="block h-full min-w-0 max-w-full flex-1 appearance-none bg-transparent text-[12.5px] font-normal text-white/[0.82] outline-none placeholder:text-white/[0.18] tabular-nums"
+            className={`block h-full min-w-0 max-w-full flex-1 appearance-none border-0 bg-transparent p-0 text-[12.5px] font-normal text-white/[0.82] outline-none placeholder:text-white/[0.18] tabular-nums ${isDateInput ? 'wave-form-date-input text-center leading-[40px]' : ''}`}
             style={{
               boxSizing: 'border-box',
               colorScheme: 'dark',
               fontFamily: NUMBER_FONT,
               maxWidth: '100%',
               minWidth: 0,
+              ...(isDateInput ? {
+                lineHeight: '40px',
+                paddingBottom: 0,
+                paddingTop: 0,
+                textAlign: 'center',
+                WebkitAppearance: 'none',
+              } : {}),
               WebkitMinLogicalWidth: '0px',
               width: '100%',
             }}
@@ -145,7 +153,7 @@ function FormField({ label, prefix, children, ...inputProps }) {
 
 function ModalFormScroller({ children }) {
   return (
-    <div className="max-h-[52dvh] min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain pr-0.5">
+    <div className="h-full max-h-[52dvh] min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain pr-0.5">
       {children}
     </div>
   );
@@ -233,13 +241,13 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
   );
 }
 
-function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey }) {
+function StockCard({ group, expanded, lockedExpanded = false, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey }) {
   const summary = summarizeSwingWaveGroup(group, filter, todayKey);
   const isActive = summary.status === 'active';
   const displayPnl = summary.pnlUsd == null ? null : summary.pnlUsd * displayRate;
   return (
     <article className="overflow-hidden rounded-[18px] border border-[#1a2530] bg-[linear-gradient(145deg,rgba(15,21,29,0.98),rgba(8,13,19,0.98))] shadow-[0_15px_38px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.025)]">
-      <button type="button" onClick={onToggle} className="block w-full px-3.5 py-3.5 text-left outline-none active:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-[#f6b54b]/40" aria-expanded={expanded}>
+      <button type="button" onClick={onToggle} disabled={lockedExpanded} className="block w-full px-3.5 py-3.5 text-left outline-none active:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-[#f6b54b]/40" aria-expanded={expanded}>
         <div className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3">
           <LogoBadge symbol={group.symbol} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
           <div className="min-w-0">
@@ -308,7 +316,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
   const [expandedSymbol, setExpandedSymbol] = React.useState('');
-  const [filter, setFilter] = React.useState('all');
+  const [filter, setFilter] = React.useState('active');
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null);
   const [draft, setDraft] = React.useState({});
@@ -439,20 +447,32 @@ export default function WaveTrackerPage({ ctx = {} }) {
       bodyOverflow: document.body.style.overflow,
       bodyPosition: document.body.style.position,
       bodyTop: document.body.style.top,
+      bodyLeft: document.body.style.left,
+      bodyRight: document.body.style.right,
       bodyWidth: document.body.style.width,
+      bodyTouchAction: document.body.style.touchAction,
       htmlOverflow: document.documentElement.style.overflow,
+      htmlOverscrollBehavior: document.documentElement.style.overscrollBehavior,
     };
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
     document.body.style.width = '100%';
+    document.body.style.touchAction = 'none';
     document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
     return () => {
       document.body.style.overflow = previous.bodyOverflow;
       document.body.style.position = previous.bodyPosition;
       document.body.style.top = previous.bodyTop;
+      document.body.style.left = previous.bodyLeft;
+      document.body.style.right = previous.bodyRight;
       document.body.style.width = previous.bodyWidth;
+      document.body.style.touchAction = previous.bodyTouchAction;
       document.documentElement.style.overflow = previous.htmlOverflow;
+      document.documentElement.style.overscrollBehavior = previous.htmlOverscrollBehavior;
       window.scrollTo(0, scrollY);
     };
   }, [modal]);
@@ -547,7 +567,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
       (created) => {
         setRows((current) => [created, ...current]);
         setExpandedSymbol(created.symbol);
-        setFilter('all');
+        setFilter('active');
       },
     );
   };
@@ -702,22 +722,31 @@ export default function WaveTrackerPage({ ctx = {} }) {
               <div className="mt-1 text-[10.5px] text-white/[0.34]">{tt('swing.emptyDesc', '每个波段独立记录一次完整买入和完整卖出。')}</div>
               {filter === 'all' ? <button type="button" onClick={openAdd} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.addFirst', '新增第一个波段')}</button> : null}
             </div>
-          ) : visibleGroups.map((group) => (
-            <StockCard
-              key={group.symbol}
-              group={group}
-              expanded={expandedSymbol === group.symbol}
-              filter={filter}
-              onToggle={() => setExpandedSymbol((current) => (current === group.symbol ? '' : group.symbol))}
-              onAction={openActions}
-              tt={tt}
-              displayRate={displayRate}
-              displayCurrency={displayCurrency}
-              logoCache={logoCache}
-              cacheStockLogo={cacheStockLogo}
-              todayKey={todayKey}
-            />
-          ))}
+          ) : visibleGroups.map((group) => {
+            const visibleWaveCount = filter === 'active'
+              ? group.activeCount
+              : filter === 'completed'
+                ? group.completedCount
+                : group.waves.length;
+            const forceExpanded = visibleWaveCount > 1;
+            return (
+              <StockCard
+                key={group.symbol}
+                group={group}
+                expanded={forceExpanded || expandedSymbol === group.symbol}
+                lockedExpanded={forceExpanded}
+                filter={filter}
+                onToggle={() => setExpandedSymbol((current) => (current === group.symbol ? '' : group.symbol))}
+                onAction={openActions}
+                tt={tt}
+                displayRate={displayRate}
+                displayCurrency={displayCurrency}
+                logoCache={logoCache}
+                cacheStockLogo={cacheStockLogo}
+                todayKey={todayKey}
+              />
+            );
+          })}
         </section>
 
         {!loading && !loadError && visibleGroups.length > 0 ? (
