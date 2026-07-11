@@ -21,6 +21,7 @@ const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
+const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
 const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
@@ -987,23 +988,28 @@ function localizeStockNameRow(row) {
   };
 }
 
-function buildToolQuoteRows({ trades = [], costBasisData = {} } = {}) {
+function buildToolQuoteRows({ trades = [], costBasisData = {}, swingWaves = [] } = {}) {
   const bySymbol = new Map();
-  const addSymbol = (symbol, name = '') => {
+  const addSymbol = (symbol, name = '', quoteRow = null) => {
     const normalizedSymbol = normalizeStockSymbolForName(symbol);
     if (!normalizedSymbol) return;
     const existing = bySymbol.get(normalizedSymbol) || {};
+    const incoming = quoteRow && typeof quoteRow === 'object' ? quoteRow : {};
+    const incomingPrice = Number(incoming.price);
+    const incomingHigh = Number(incoming.high || incoming.week52High);
     bySymbol.set(normalizedSymbol, {
       ...existing,
+      ...incoming,
       symbol: normalizedSymbol,
       name: displayStockName(normalizedSymbol, name || existing.name || normalizedSymbol),
-      price: existing.price || 0,
-      high: existing.high || 0,
+      price: Number.isFinite(incomingPrice) && incomingPrice > 0 ? incomingPrice : (existing.price || 0),
+      high: Number.isFinite(incomingHigh) && incomingHigh > 0 ? incomingHigh : (existing.high || 0),
     });
   };
 
   Object.keys(sanitizeCostBasisData(costBasisData)).forEach((symbol) => addSymbol(symbol));
   (trades || []).forEach((trade) => addSymbol(trade?.symbol || 'TQQQ', trade?.name));
+  (swingWaves || []).forEach((wave) => addSymbol(wave?.symbol, wave?.name, wave));
 
   return Array.from(bySymbol.values());
 }
@@ -1081,6 +1087,8 @@ function MainApp({ user, onLogout }) {
   const [trades, setTrades] = useState([]);
   // 主交易账本:独立记录真实股票买入/卖出流水,由 stock_trades 表持久化。
   const [stockTrades, setStockTrades] = useState([]);
+  // V2 波段页面只向全局行情层同步最小 symbol/name 集合;真实记录仍由独立页面按需读取。
+  const [swingWaveQuoteRows, setSwingWaveQuoteRows] = useState([]);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [tradeEntryScope, setTradeEntryScope] = useState('ledger'); // ledger = 主交易账本, wave = 波段记录旧账本
   const [tradeSubmitting, setTradeSubmitting] = useState(false);
@@ -1642,8 +1650,8 @@ function MainApp({ user, onLogout }) {
   const localizedWatchlist = useMemo(() => watchlist.map(localizeStockNameRow), [watchlist]);
   const localizedQuoteCache = useMemo(() => quoteCache.map(localizeStockNameRow), [quoteCache]);
   const toolQuoteRows = useMemo(() => (
-    buildToolQuoteRows({ trades, costBasisData }).map(localizeStockNameRow)
-  ), [trades, costBasisData]);
+    buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows }).map(localizeStockNameRow)
+  ), [trades, costBasisData, swingWaveQuoteRows]);
   const quoteUniverse = useMemo(
     () => buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows),
     [localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows],
@@ -1658,7 +1666,13 @@ function MainApp({ user, onLogout }) {
     });
     return map;
   }, [quoteRows]);
-  const stockRealtimeSymbols = useMemo(() => selectStockRealtimeSymbols(quoteRows), [quoteRows]);
+  const stockRealtimePriorityRows = useMemo(() => ([
+    ...quoteUniverse.ledgerRows,
+    ...quoteUniverse.watchlistRows,
+    ...quoteUniverse.toolRows,
+    ...quoteUniverse.allRows,
+  ]), [quoteUniverse]);
+  const stockRealtimeSymbols = useMemo(() => selectStockRealtimeSymbols(stockRealtimePriorityRows), [stockRealtimePriorityRows]);
   const stockRealtimeSymbolsKey = stockRealtimeSymbols.join(',');
   useEffect(() => {
     quoteRowsRef.current = quoteRows;
@@ -4194,6 +4208,25 @@ function MainApp({ user, onLogout }) {
     setActivePage(null);
     setStockDetailSymbol('');
   }, []);
+  const openWaveTracker = useCallback(() => {
+    setActivePage('wave-tracker');
+  }, []);
+  const closeWaveTracker = useCallback(() => {
+    setActivePage(null);
+  }, []);
+  const syncSwingWaveQuoteRows = useCallback((rows = []) => {
+    const bySymbol = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const symbol = normalizeStrictSymbolKey(row?.symbol);
+      if (!symbol) return;
+      bySymbol.set(symbol, {
+        ...row,
+        symbol,
+        name: displayStockName(symbol, row?.name),
+      });
+    });
+    setSwingWaveQuoteRows(Array.from(bySymbol.values()));
+  }, []);
 
   useEffect(() => {
     try {
@@ -4277,7 +4310,8 @@ function MainApp({ user, onLogout }) {
 
   const isPnlReportPage = activePage === 'pnl-report';
   const isStockDetailPage = activePage === 'stock-detail';
-  const isStandalonePage = isPnlReportPage || isStockDetailPage;
+  const isWaveTrackerPage = activePage === 'wave-tracker';
+  const isStandalonePage = isPnlReportPage || isStockDetailPage || isWaveTrackerPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     changelogExpanded,
@@ -4454,6 +4488,7 @@ function MainApp({ user, onLogout }) {
     onLogout,
     openPnlReport,
     openStockDetail,
+    openWaveTracker,
     Pin,
     portfolioCurrencyMode,
     Plus,
@@ -4468,6 +4503,7 @@ function MainApp({ user, onLogout }) {
     clearQuoteDiagnosticLogs,
     closePnlReport,
     closeStockDetail,
+    closeWaveTracker,
     setAccountDeleteConfirmId,
     setAccounts,
     setAlertsMuted,
@@ -4551,6 +4587,7 @@ function MainApp({ user, onLogout }) {
     stockTrades,
     stockDetailSymbol,
     stockFreshnessStartedAt: warmStartedAt,
+    syncSwingWaveQuoteRows,
     supabase,
     Target,
     tradeEntryScope,
@@ -4717,6 +4754,8 @@ function MainApp({ user, onLogout }) {
             ? <PnlReportPage ctx={tabCtx} />
             : isStockDetailPage
               ? <StockDetailPage ctx={tabCtx} />
+              : isWaveTrackerPage
+                ? <WaveTrackerPage ctx={tabCtx} />
               : <ActiveTab ctx={activeTabCtx} />}
         </Suspense>
 

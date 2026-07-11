@@ -2,6 +2,7 @@ const APP_URL = 'https://boduan-tracker.vercel.app';
 const USER_TABLES = [
   'trades',
   'stock_trades',
+  'swing_waves',
   'pnl_report_snapshots',
   'pnl_report_symbol_snapshots',
   'pnl_report_rebuild_state',

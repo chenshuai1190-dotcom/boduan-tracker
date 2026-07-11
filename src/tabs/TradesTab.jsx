@@ -10,6 +10,7 @@ import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -88,46 +89,6 @@ function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
 function lockedCloseDisplayPrice(position) {
   const price = toNumber(position?.dailyPnlPrice);
   return position?.dailyPnlLocked && price > 0 ? price : null;
-}
-
-function normalizeLogoUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw || !/^https?:\/\//i.test(raw)) return '';
-  return raw;
-}
-
-function stockLogoCandidates(symbol, cachedUrl) {
-  const upper = String(symbol || '').trim().toUpperCase();
-  const urls = [];
-  const cached = normalizeLogoUrl(cachedUrl);
-  if (cached) urls.push(cached);
-  if (upper) {
-    urls.push(`https://eodhd.com/img/logos/US/${upper}.png`);
-    urls.push(`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${upper}.png`);
-  }
-  return [...new Set(urls)];
-}
-
-function StockLogo({ symbol, urls = [], onLogoLoad, className = '' }) {
-  const [index, setIndex] = React.useState(0);
-  React.useEffect(() => setIndex(0), [symbol, urls.join('|')]);
-  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
-  const currentUrl = urls[index];
-  const fallback = (
-    <div className={`flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-[11px] font-normal text-white/55 ${className}`}>
-      {normalizedSymbol.slice(0, 2) || '--'}
-    </div>
-  );
-  if (!currentUrl) return fallback;
-  return (
-    <img
-      src={currentUrl}
-      alt=""
-      className={`bg-black/20 object-contain ${className}`}
-      onLoad={(event) => onLogoLoad?.(normalizedSymbol, event.currentTarget.currentSrc || event.currentTarget.src)}
-      onError={() => setIndex((current) => current + 1)}
-    />
-  );
 }
 
 function formatScenarioInput(value) {
@@ -494,6 +455,7 @@ export default function TradesTab({ ctx }) {
     newTrade,
     openStockDetail,
     openPnlReport,
+    openWaveTracker,
     portfolioCurrencyMode,
     Plus,
     quoteRows,
@@ -958,13 +920,20 @@ export default function TradesTab({ ctx }) {
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: Grid2X2, disabled: true },
           ].map((item, index) => {
             const Icon = item.icon;
-            const active = !item.disabled && toolPanel === item.id;
+            const active = !item.disabled && item.id !== 'waves' && toolPanel === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (!item.disabled) toggleToolPanel(item.id);
+                  if (item.disabled) return;
+                  if (item.id === 'waves') {
+                    setColorMenuOpen(false);
+                    setToolPanel('');
+                    openWaveTracker?.();
+                    return;
+                  }
+                  toggleToolPanel(item.id);
                 }}
                 disabled={item.disabled}
                 className={`flex min-h-[86px] flex-col items-center justify-center gap-2 ${item.disabled ? 'cursor-default opacity-35' : 'active:bg-white/[0.04]'} ${index > 0 ? 'border-l border-white/10' : ''}`}

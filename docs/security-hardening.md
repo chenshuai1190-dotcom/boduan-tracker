@@ -21,6 +21,8 @@ This project started as a personal hand-built app, so the first priority is to m
    - Run `supabase/rls.sql` in the Supabase SQL editor.
    - Confirm each user-owned table has RLS enabled and policies scoped to `auth.uid() = user_id`.
    - Run `npm run verify:rls:rest` to confirm anonymous REST clients cannot see user-owned rows.
+   - Production `swing_waves` status (2026-07-11): preflight confirmed the table was absent, `supabase/swing_waves.sql` was applied to project `ykgotnmtqcqdzqtrlayq`, and the schema/grant/RLS metadata audit passed 13/13 checks. Keep this preflight/apply/audit sequence for future schema changes.
+   - `swing_waves` must remain independent from `trades`, `stock_trades`, `cost_basis_trades`, and P&L snapshots. Do not include legacy-wave deletion in the table/RLS migration.
 
 4. Validate production behavior.
    - Login works.
@@ -54,6 +56,8 @@ This project started as a personal hand-built app, so the first priority is to m
 - Quote provider requests now go through timeout-aware provider fetch helpers.
 - First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.
 - `deleteTrade` now scopes deletion by both `id` and `user_id`.
+- The V2 wave feature uses a dedicated `swing_waves` row per full buy/full sell, explicit authenticated-only grants, `auth.uid() = user_id` RLS, lifecycle checks, and optimistic concurrency on edits. The production table and RLS are applied and metadata-audited. A two-real-Auth-user SQL/JWT-claim CRUD/RLS smoke passed 14/14 checks and cleanup confirmed no smoke rows; no service-role key was exported. The real standalone page and page-scoped CRUD are implemented locally as pending `v10.7.9.297`, but have not been deployed; production remains on `v10.7.9.296`.
+- The local V2 page must keep wave rows outside the global startup data load. Only unique active symbols may enter the existing authenticated quote universe, together with the minimal REST quote/baseline fields required for safe relay ticks; completed history must not consume relay slots, and formal ledger/watchlist rows stay ahead of tool rows at the 50-symbol cap. It must not weaken `/api/quote`, create a browser-direct EODHD path, or write `trades`, `stock_trades`, `cost_basis_trades`, or P&L snapshot tables.
 - Stale duplicate quote implementations were removed; `api/quote.js` is the only quote API entry.
 - GitHub Actions CI runs install, test, build, and audit checks.
 
@@ -62,4 +66,5 @@ This project started as a personal hand-built app, so the first priority is to m
 - Continue validating server-side realtime relays in production after market-data changes.
 - Continue splitting the large `src/App.jsx` into feature modules.
 - Continue shrinking the quote provider modules and add error-path coverage for EODHD, Yahoo fallback, CNN, and the dedicated EODHD earnings-calendar endpoint.
-- Add metadata-level Supabase RLS verification through SQL/admin access.
+- Complete metadata-level RLS verification for the remaining user-owned tables; `swing_waves` passed its 13/13 metadata checks.
+- The authenticated two-real-user CRUD/RLS isolation gate for `v10.7.9.297` is complete. The production SQL-editor smoke used two existing `auth.users`, authenticated role/JWT subject claims, and verified 14/14 owner/cross-user/lifecycle/fractional-share checks plus zero residual rows. Repeat this gate after future `swing_waves` policy or schema changes; it did not replace a password-login REST end-to-end test.

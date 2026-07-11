@@ -23,7 +23,7 @@ Date: 2026-07-03 Asia/Shanghai
 - 五个 tab 文件合计超过 5200 行,主要是 JSX 搬迁,还没有真正形成业务模块边界。
 - `api/quote.js` 约 1100 行,同时处理认证、行情源请求、日历、财报、新闻、分析师、指数、VIX、FGI 和降级逻辑。
 - 缺少 lint、单元测试、集成测试和关键金融计算测试。
-- 数据库访问集中在 `src/lib/db.js`,没有类型约束、schema validator 或迁移检查。
+- 数据库访问仍主要集中在 `src/lib/db.js`;V2 波段已先拆出独立 model/repository/wrapper 和输入校验,但全局 schema validator 与统一 migration 机制仍缺失。
 - 浏览器直连 EODHD WebSocket token path 已作为 Phase 0 第一项移除;实时行情必须继续走已登录服务端 relay。
 
 结论: **不要直接进入大量专业功能开发。先做一次架构安全升级,再扩功能。**
@@ -56,6 +56,7 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 2. **Verify RLS live, not just SQL file**
    - `supabase/rls.sql` is present and correct in shape.
    - Before major feature development, confirm in Supabase that every user-owned table has RLS enabled and policies scoped to `auth.uid() = user_id`.
+   - `supabase/swing_waves.sql` was applied to production on 2026-07-11 and its schema/grant/RLS metadata verification passed 13/13 checks. The post-migration anonymous REST probe also passes. A two-real-Auth-user SQL/JWT-claim CRUD/RLS isolation smoke passed 14/14 checks and cleanup confirmed zero residual rows, so the `v10.7.9.297` gate is complete; production still serves `v10.7.9.296` until the pending frontend is deployed. The smoke used existing Auth user IDs in the SQL editor and did not export a service-role key or exercise password-login REST sessions.
 
 3. **Split and harden `/api/quote.js`**
    - The endpoint now handles auth, validation, dispatch, and response envelope only.
@@ -97,7 +98,8 @@ Goal: make the current app safer to change without altering product behavior.
   - delete guards scope by `user_id`
 - [x] Add quote response-shape tests for VIX, FGI, INDICES, ANALYST, and normal stock symbols; earnings calendar now has a dedicated EODHD endpoint test.
 - Add tests for key portfolio calculations.
-- [~] Verify Supabase RLS live: anonymous REST exposure probe passes for all user-owned tables; metadata-level `relrowsecurity` verification still requires Supabase SQL/admin access.
+- [~] Verify Supabase RLS live: the anonymous REST probe passes across 17 user-owned tables, `swing_waves` metadata passed 13/13 checks, and its two-real-user authenticated-role/JWT-claim CRUD isolation smoke passed 14/14; metadata auditing for the remaining user-owned tables still remains.
+- [~] Add the independent V2 wave ledger: production schema/RLS execution, metadata audit, and two-user isolation gate are complete; the real standalone page, page-scoped CRUD, pure view model, active-only quote subscription, REST baseline preheat, and ledger-first realtime priority are implemented locally and ready for the normal deploy path.
 
 ### Phase 1 - Feature Boundary Split
 
@@ -127,7 +129,7 @@ Goal: stop expanding `App.jsx` and `api/quote.js`.
 Goal: make professional finance features reliable.
 
 - Add schema validation for Supabase rows and API responses.
-- Add a migration strategy for Supabase schema changes.
+- [~] Add a migration strategy for Supabase schema changes. `supabase/swing_waves.sql` provides a first small, standalone execution unit, but the repository still has no automated migration runner.
 - Create a pure calculation layer for:
   - realized P/L
   - holding P/L
@@ -165,7 +167,7 @@ Start with Phase 0 in this order:
 
 1. Continue shrinking the large EODHD provider module into stock, fundamentals, and shared parser helpers.
 2. Add quote API error-path tests for EODHD failures, Yahoo fallback, CNN failures, and the dedicated EODHD earnings-calendar endpoint.
-3. Verify RLS metadata in Supabase SQL/admin when dashboard or CLI access is available.
+3. Deploy the locally implemented `v10.7.9.297` standalone page through the normal sensitive release path; the `swing_waves` two-user isolation gate is complete. Continue the remaining all-table RLS metadata audit independently.
 4. Extend server-side relay tests before adding more streamed symbols or user-configurable realtime watchlists.
 
 This sequence reduces future bug risk before adding new professional features.

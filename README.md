@@ -100,6 +100,23 @@ RLS exposure probe:
 npm run verify:rls:rest
 ```
 
+## Swing Wave V2
+
+The V2 wave ledger is intentionally independent from the main `stock_trades` ledger, legacy `trades`, cost-basis trades, and P&L snapshots. One `swing_waves` row represents one full buy and, when completed, one full sell. Unit prices are stored in canonical USD; current prices and display-currency conversion stay outside the table.
+
+Production database status (2026-07-11): `supabase/swing_waves.sql` has been applied to production project `ykgotnmtqcqdzqtrlayq`. The preflight confirmed that the table did not already exist, and the post-apply schema, constraints, indexes, trigger, grants, function privileges, and RLS metadata audit passed 13/13 checks. `npm run verify:rls:rest` then passed across 17 user-owned tables; `swing_waves` rejects anonymous reads with `401`. A two-real-Auth-user SQL/JWT-claim CRUD/RLS isolation smoke also passed 14/14 checks: each user saw only its own row, cross-user reads/updates/deletes affected zero rows, owner lifecycle operations and fractional shares passed, and a final cleanup query confirmed zero smoke rows. This used two existing `auth.users` with the authenticated role and per-user JWT subject claims in the production SQL editor; it did not export a service-role key or exercise password-login REST sessions. Legacy `trades` were not cleared.
+
+Frontend status (2026-07-11): the standalone `WaveTrackerPage` and real page-scoped `swing_waves` CRUD are implemented locally as the pending `v10.7.9.297` release. The Trades tool tile opens this lazy page; it does not add wave rows to the global startup data load. Buy, sell, and current unit prices remain USD, while P/L amounts use the shared USD/CNY display mode. Only active wave symbols join the authenticated quote/stock-relay universe; fresh REST rows seed the quote baseline before realtime ticks, completed history consumes no relay slots, and formal ledger/watchlist symbols remain ahead of tool rows at the realtime cap. The browser does not connect to EODHD directly. This frontend has not been deployed: production still serves `v10.7.9.296` and its legacy wave UI.
+
+For a new environment or future rebuild, keep the same sequence:
+
+1. Confirm that `public.swing_waves` does not already exist unexpectedly with `select to_regclass('public.swing_waves');`.
+2. Apply `supabase/swing_waves.sql` in the production Supabase SQL editor. `supabase/rls.sql` contains the same schema and policy for full-baseline setup.
+3. Verify `pg_class.relrowsecurity = true` and inspect `pg_policies` for the authenticated `auth.uid() = user_id` policy.
+4. Run `npm run verify:rls:rest`; anonymous REST must return no user rows.
+
+Committing a SQL file does not apply future schema changes to Supabase. The authenticated two-real-user CRUD/RLS release gate for this rollout is complete, so the pending `v10.7.9.297` frontend may be deployed after the normal sensitive validation. Repeat both the REST boundary probe and cross-user isolation smoke for future RLS/schema changes. Do not clear legacy `trades` in this migration; any cleanup must be a separate, explicitly audited operation.
+
 ## Security Baseline
 
 Before treating a deployment as safe:

@@ -16,6 +16,14 @@ export {
   upsertPnlReportSnapshots,
 } from './pnlReportDb';
 
+export {
+  completeSwingWave,
+  createSwingWave,
+  deleteSwingWave,
+  listSwingWaves,
+  updateSwingWave,
+} from './swingWavesDb';
+
 // ============ 离线缓存 ============
 // 把最近一次拉取的数据缓存到 localStorage
 // 这样断网时也能看,联网后会被云端最新数据覆盖

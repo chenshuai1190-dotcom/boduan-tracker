@@ -5,6 +5,7 @@ import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
+const stockLogoSource = readFileSync(new URL('../src/components/StockLogo.jsx', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
 const confirmModalSource = readFileSync(new URL('../src/components/ConfirmModal.jsx', import.meta.url), 'utf8');
 const confirmModalOptionsSource = readFileSync(new URL('../src/lib/confirmModal.js', import.meta.url), 'utf8');
@@ -14,6 +15,9 @@ const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 
 const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+const waveTrackerPrototypeSource = readFileSync(new URL('../src/dev/WaveTrackerPrototype.jsx', import.meta.url), 'utf8');
+const waveTrackerPageSource = readFileSync(new URL('../src/pages/WaveTrackerPage.jsx', import.meta.url), 'utf8');
+const swingWavesViewModelSource = readFileSync(new URL('../src/lib/swingWavesViewModel.js', import.meta.url), 'utf8');
 const earningsCalendarSource = readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
@@ -318,7 +322,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.296/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.297/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.297', date: '2026-07-11', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('波段记录 V2 独立页面'), 'settings changelog should describe the production V2 wave page');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.296'"), 'settings changelog should retain the previous wave unit-price release');
   assert.ok(settingsChangelogSource.includes('波段股票报价固定美元'), 'settings changelog should describe the wave unit-price correction');
   assert.ok(settingsChangelogSource.includes('波段记录币种跟随首页'), 'settings changelog should describe the wave currency display fix');
   assert.ok(settingsChangelogSource.includes('目标页年度卡片配色与布局优化'), 'settings changelog should describe the annual target visual hierarchy update');
@@ -1136,7 +1143,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('iosPwaRealtimeSnapshotBurstRef.current(nextTrigger, { resetFreshness })'), 'iOS standalone resume should prefer realtime snapshot burst over REST quote refresh');
   assert.ok(appSource.includes("pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })"), 'iOS standalone cloud load should wait for realtime snapshot burst instead of falling back to REST quotes');
   assert.ok(homeTabSource.includes("'home.market.warming'"), 'market card label should still support warming state for non-BTC snapshot statuses');
-  assert.ok(appSource.includes('buildToolQuoteRows({ trades, costBasisData })'), 'wave and cost-basis tool symbols should join the realtime quote universe');
+  assert.ok(appSource.includes('buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows })'), 'legacy tools and V2 swing symbols should join the realtime quote universe');
   assert.ok(appSource.includes('buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows)'), 'tool-only symbols must be included in quote rows for REST and WebSocket quotes');
   assert.ok(appSource.includes('quoteBySymbol.get(normalizeSymbolKey(g.symbol))'), 'wave records should read current prices from the realtime quote map');
   assert.ok(tradesTabSource.includes('quoteRows,'), 'trades tools should receive the shared realtime quote rows');
@@ -1419,6 +1426,93 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(settingsChangelogSource.includes('对齐资产页字号和走势图细节'), 'settings changelog should document the asset typography and chart fix');
 });
 
+test('wave tracker v2 prototype stays development-only and preserves tool boundaries', () => {
+  assert.ok(devVisualPreviewSource.includes("lazy(() => import('./dev/WaveTrackerPrototype.jsx'))"), 'wave prototype should load through the existing local preview shell');
+  assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2-prototype'"), 'wave prototype should require its explicit local-only preview query');
+  assert.ok(authGateSource.includes('import.meta.env.DEV && (!isSupabaseConfigured || isDevVisualPreviewRequested())'), 'wave prototype must remain behind the existing DEV-only auth gate');
+  assert.equal(appSource.includes('WaveTrackerPrototype'), false, 'production App must not import the wave prototype');
+  assert.equal(tradesTabSource.includes('WaveTrackerPrototype'), false, 'production wave tool must not import the prototype');
+
+  assert.ok(waveTrackerPrototypeSource.includes('data-wave-prototype="v2-static"'), 'prototype should expose a stable visual-smoke marker');
+  assert.ok(waveTrackerPrototypeSource.includes("id: 'nvda-wave-01'") && waveTrackerPrototypeSource.includes("id: 'nvda-wave-02'") && waveTrackerPrototypeSource.includes("id: 'nvda-wave-03'"), 'NVDA should demonstrate three independent active waves');
+  assert.ok(waveTrackerPrototypeSource.includes("import ActionModalCard from '../components/ActionModalCard.jsx'"), 'all prototype dialogs should reuse the shared transaction action modal');
+  assert.ok(waveTrackerPrototypeSource.includes("import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx'"), 'prototype should reuse the extracted stock-logo chain');
+  assert.ok(waveTrackerPrototypeSource.includes('波段需一次性卖出，不支持部分卖出。') && waveTrackerPrototypeSource.includes('卖出数量'), 'sell dialog should use the approved full-position exit wording');
+  assert.equal(waveTrackerPrototypeSource.includes('本波段必须一次性卖出全部'), false, 'sell dialog should remove the previous verbose warning');
+  assert.ok(waveTrackerPrototypeSource.includes('draft.endDate >= selection.wave.startDate'), 'sell dialog should reject an end date before the buy date');
+  assert.ok(waveTrackerPrototypeSource.includes('max-h-[52dvh]') && waveTrackerPrototypeSource.includes('overflow-y-auto'), 'long prototype forms should stay reachable when the mobile keyboard reduces the viewport');
+  assert.ok(waveTrackerPrototypeSource.includes('overflow-x-hidden') && waveTrackerPrototypeSource.includes("WebkitMinLogicalWidth: '0px'"), 'prototype form controls should prevent iOS date inputs from forcing horizontal overflow');
+  assert.ok(waveTrackerPrototypeSource.includes('min-[360px]:grid-cols-2'), 'form pairs should collapse to one column on narrow screens');
+  assert.ok(waveTrackerPrototypeSource.includes('min-h-[100dvh] overflow-x-hidden'), 'prototype root should prevent background content from widening narrow modal viewports');
+  assert.ok(actionModalCardSource.includes('min-w-0 max-w-full overflow-hidden'), 'shared action modal content should clip horizontal child overflow');
+  assert.ok(waveTrackerPrototypeSource.includes('group.waves.findIndex((item) => item.id === wave.id)'), 'wave numbers should remain stable after status filtering');
+  assert.ok(waveTrackerPrototypeSource.includes('summary.sellAverage'), 'completed group cards should use the weighted sell average');
+  assert.equal(waveTrackerPrototypeSource.includes("accent: 'amber'"), false, 'active wave status should not use an undefined yellow state');
+  assert.ok(waveTrackerPrototypeSource.includes('statusAccent(wave.status, wave.returnPct)'), 'individual wave status dots should use the shared red-up green-down state');
+  assert.ok(waveTrackerPrototypeSource.includes("if (status === 'completed' || result === 0) return 'gray'") && waveTrackerPrototypeSource.includes("return result > 0 ? 'red' : 'green'"), 'completed and flat states should be gray while active gains and losses are red and green');
+  assert.ok(waveTrackerPrototypeSource.includes('draft.startDate !== wave.startDate || draft.endDate !== wave.endDate'), 'editing completed dates should refresh the held-day count');
+  assert.ok(waveTrackerPrototypeSource.includes("setModal({ type: 'actions'") && waveTrackerPrototypeSource.includes('title="波段操作"'), 'clicking a wave row should open the shared action modal');
+  assert.ok(waveTrackerPrototypeSource.includes("actionGridClassName={selection.wave.status === 'active' ? 'grid-cols-3' : 'grid-cols-2'}"), 'active action modal should present detail edit and sell together');
+  const waveRowStart = waveTrackerPrototypeSource.indexOf('function WaveRow(');
+  const waveRowEnd = waveTrackerPrototypeSource.indexOf('function StockCard(', waveRowStart);
+  const waveRowBlock = waveTrackerPrototypeSource.slice(waveRowStart, waveRowEnd);
+  assert.equal(waveRowBlock.includes('text-[#e7b35f]'), false, 'clickable wave rows should not keep a redundant visible operation prompt');
+  const stockCardStart = waveTrackerPrototypeSource.indexOf('function StockCard(');
+  const stockCardEnd = waveTrackerPrototypeSource.indexOf('function ModalStockHeader(', stockCardStart);
+  const stockCardBlock = waveTrackerPrototypeSource.slice(stockCardStart, stockCardEnd);
+  assert.equal(stockCardBlock.includes('<StatusDot'), false, 'stock summary cards should not repeat the individual wave status');
+  const waveAddButtonStart = waveTrackerPrototypeSource.indexOf('data-testid="wave-add-button"');
+  const waveAddButtonEnd = waveTrackerPrototypeSource.indexOf('</button>', waveAddButtonStart);
+  const waveAddButtonBlock = waveTrackerPrototypeSource.slice(waveAddButtonStart, waveAddButtonEnd);
+  assert.ok(waveAddButtonBlock.includes('bg-[#f6b54b]/[0.08]'), 'wave add button should keep a subtle warm background');
+  assert.equal(waveAddButtonBlock.includes(' border'), false, 'wave add button should not render a white or outlined border');
+  assert.ok(waveTrackerPrototypeSource.includes('买入成本价（USD）') && waveTrackerPrototypeSource.includes('卖出价格（USD）'), 'unit prices should remain USD inputs');
+  assert.ok(waveTrackerPrototypeSource.includes('第一版不计算佣金和手续费'), 'prototype should state the v1 fee boundary');
+
+  for (const forbidden of ['supabase', '.from(', 'fetch(', 'localStorage', '/api/']) {
+    assert.equal(waveTrackerPrototypeSource.includes(forbidden), false, `prototype must not access ${forbidden}`);
+  }
+});
+
+test('production V2 wave tracker is an independent real-data page with isolated mutations', () => {
+  assert.ok(appSource.includes("const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'))"), 'V2 page should lazy-load outside TradesTab');
+  assert.ok(appSource.includes("setActivePage('wave-tracker')") && appSource.includes("activePage === 'wave-tracker'"), 'App should route V2 through the standalone page state');
+  assert.ok(appSource.includes('<WaveTrackerPage ctx={tabCtx} />'), 'App should render the independent V2 page before the active bottom tab');
+  assert.ok(tradesTabSource.includes("if (item.id === 'waves')") && tradesTabSource.includes('openWaveTracker?.()'), 'wave toolbox tile should open V2 instead of the legacy inline panel');
+  assert.ok(devVisualPreviewSource.includes("initialTab={preview === 'wave-v2' ? 'wave-tracker' : ''}"), 'local visual preview should render the production page with safe fixtures');
+
+  for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'completeSwingWave', 'deleteSwingWave']) {
+    assert.ok(waveTrackerPageSource.includes(`db.${api}`), `V2 page must call ${api}`);
+  }
+  for (const forbidden of ['insertTrade', 'insertStockTrade', 'cost_basis_trades', 'markPnlReportDirty', 'pnl_report_snapshots', 'WaveTrackerPrototype']) {
+    assert.equal(waveTrackerPageSource.includes(forbidden), false, `V2 page must stay isolated from ${forbidden}`);
+  }
+  const completeStart = waveTrackerPageSource.indexOf('const completeWave = () =>');
+  const completeEnd = waveTrackerPageSource.indexOf('const confirmDelete = () =>', completeStart);
+  const completeBlock = waveTrackerPageSource.slice(completeStart, completeEnd);
+  assert.ok(completeBlock.includes('db.completeSwingWave'));
+  assert.equal(completeBlock.includes('shares:'), false, 'full sell must not submit a partial sell quantity');
+  assert.ok(waveTrackerPageSource.includes('波段需一次性卖出，不支持部分卖出。'));
+  assert.ok(waveTrackerPageSource.includes('max-h-[52dvh]') && waveTrackerPageSource.includes("WebkitMinLogicalWidth: '0px'"), 'production modal forms should stay inside 320px viewports');
+  assert.ok(waveTrackerPageSource.includes("return parsed > 0 ? `$${formatNumber(parsed, 2)}` : '--'"), 'stock unit prices must remain canonical USD');
+  assert.ok(waveTrackerPageSource.includes('dashboard.cumulativePnlUsd * displayRate'), 'only P&L amounts should follow the shared display currency');
+  assert.ok(waveTrackerPageSource.includes("import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx'"));
+  assert.ok(stockLogoSource.includes('https://eodhd.com/img/logos/US/') && stockLogoSource.includes('static2.finnhub.io'), 'shared logo chain should keep EODHD, Finnhub, and ticker fallback');
+  assert.ok(waveTrackerPageSource.includes('syncSwingWaveQuoteRows') && waveTrackerPageSource.includes('fetchPopularStockQuotes'), 'wave-only symbols should get authenticated REST and existing relay coverage');
+  assert.ok(waveTrackerPageSource.includes("rows.filter((wave) => wave?.status === 'active')"), 'only active waves may join the realtime quote universe');
+  assert.ok(waveTrackerPageSource.includes('mergeSwingWaveQuoteRows(current, nextQuotes)') && waveTrackerPageSource.includes('quoteRequestRef.current'), 'partial or out-of-order REST quote responses must not erase newer wave quotes');
+  assert.ok(waveTrackerPageSource.includes('maximumFractionDigits: 6') && waveTrackerPageSource.includes('formatShares(selection.wave.shares)'), 'fractional shares must be displayed without rounding to whole shares');
+  assert.ok(waveTrackerPageSource.includes("window.setTimeout(() => showNotice(tt('swing.operationFailed'"), 'delete failures should resolve the shared confirm callback and surface a follow-up error');
+  assert.ok(waveTrackerPageSource.includes('grid-cols-2 items-center gap-y-3') && waveTrackerPageSource.includes("min-[360px]:grid-cols-[0.82fr_1.32fr_1fr_auto]"), 'top metrics should wrap safely below 360px');
+  assert.ok(waveTrackerPageSource.includes("tt('swing.buyBadge', '买入')") && waveTrackerPageSource.includes('min-w-[40px]') && waveTrackerPageSource.includes('whitespace-nowrap'), 'add-wave buy badge should stay horizontal on narrow screens');
+  assert.ok(waveTrackerPageSource.includes('first:border-t-0'), 'the first expanded wave should not draw an extra divider below the stock summary');
+  assert.ok(appSource.includes('...quoteUniverse.ledgerRows') && appSource.includes('...quoteUniverse.toolRows'), 'formal ledger symbols must stay ahead of tool-only symbols at the realtime limit');
+  assert.ok(appSource.includes('...row,\n        symbol,'), 'wave REST baselines should be preserved when App syncs active quote rows');
+  assert.ok(appSource.includes('addSymbol(wave?.symbol, wave?.name, wave)'), 'active wave quote rows should seed price and previous-close data before relay ticks arrive');
+  assert.ok(swingWavesViewModelSource.includes('sequence: index + 1') && swingWavesViewModelSource.includes('pnlUsd / totalCostUsd'), 'stable numbering and weighted returns should live in the pure view model');
+  assert.ok(i18nSource.includes("'swing.fullSellOnly': 'A swing must be sold in full. Partial sells are not supported.'"), 'production wave UI must include English system copy');
+});
+
 test('asset account list hides zero-balance rows and uses action modal for edit/delete', () => {
   const accountActionStart = analysisTabSource.indexOf('{selectedActionAccount && (');
   const accountActionEnd = analysisTabSource.indexOf('{editingAccount && accountEditDraft && (', accountActionStart);
@@ -1505,7 +1599,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.296/g) || []).length, 3, 'settings version surfaces should document the current wave currency update');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.297/g) || []).length, 3, 'settings version surfaces should document the current V2 wave page');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1740,7 +1834,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
-  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail'].includes(requestedTab)"), 'local visual preview should support opening home, trades, analysis, review, settings, P&L report, and stock detail pages directly');
+  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker'].includes(requestedTab)"), 'local visual preview should support all tabs plus P&L, stock detail, and wave tracker pages directly');
   assert.ok(authGateSource.includes("get('devPreview') === '1'"), 'local visual preview should be force-openable for screenshot QA even when Supabase env is present');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');
@@ -1819,7 +1913,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.296/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current release');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.297/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -32,6 +32,8 @@ const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
+const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
+const WaveTrackerPrototype = lazy(() => import('./dev/WaveTrackerPrototype.jsx'));
 
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
@@ -399,6 +401,22 @@ const mockWavesByStock = [{
   activeWave: mockActiveWave,
 }];
 
+const mockSwingWaves = [
+  { id: 'swing-nvda-01', symbol: 'NVDA', name: '英伟达', status: 'active', buyDate: '2026-04-21', buyPriceUsd: 176.2, shares: 600, sellDate: null, sellPriceUsd: null, note: '计划 250 开始分批卖出', createdAt: '2026-04-21T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
+  { id: 'swing-nvda-02', symbol: 'NVDA', name: '英伟达', status: 'active', buyDate: '2026-05-05', buyPriceUsd: 182.5, shares: 700, sellDate: null, sellPriceUsd: null, note: '跌破 30MA 减仓', createdAt: '2026-05-05T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
+  { id: 'swing-nvda-03', symbol: 'NVDA', name: '英伟达', status: 'active', buyDate: '2026-05-19', buyPriceUsd: 179.1, shares: 700, sellDate: null, sellPriceUsd: null, note: '作为核心波段继续持有', createdAt: '2026-05-19T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
+  { id: 'swing-msft-01', symbol: 'MSFT', name: '微软', status: 'active', buyDate: '2026-03-15', buyPriceUsd: 420.49, shares: 1000, sellDate: null, sellPriceUsd: null, note: '等待基本面修复后再决定', createdAt: '2026-03-15T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
+  { id: 'swing-aapl-01', symbol: 'AAPL', name: '苹果', status: 'active', buyDate: '2026-02-28', buyPriceUsd: 192.4, shares: 1500, sellDate: null, sellPriceUsd: null, note: '观察新产品周期', createdAt: '2026-02-28T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
+  { id: 'swing-tsla-01', symbol: 'TSLA', name: '特斯拉', status: 'completed', buyDate: '2025-11-10', buyPriceUsd: 217.36, shares: 800, sellDate: '2026-02-10', sellPriceUsd: 265.21, note: '达到计划价后一次性卖出', createdAt: '2025-11-10T08:00:00.000Z', updatedAt: '2026-02-10T08:00:00.000Z' },
+];
+
+const mockSwingQuotes = [
+  { symbol: 'NVDA', name: '英伟达', price: 210.77, priceSource: 'EODHD-v2' },
+  { symbol: 'MSFT', name: '微软', price: 385.12, priceSource: 'EODHD-v2' },
+  { symbol: 'AAPL', name: '苹果', price: 201.18, priceSource: 'EODHD-v2' },
+  { symbol: 'TSLA', name: '特斯拉', price: 265.21, priceSource: 'EODHD-v2' },
+];
+
 const mockLockedActivePositions = mockActivePositions.map((position, index) => ({
   ...position,
   dailyPnlLocked: true,
@@ -445,11 +463,12 @@ function makeSnapshots(accounts) {
   );
 }
 
-export default function DevVisualPreview() {
+function StandardDevVisualPreview({ initialTab = '' }) {
   const [activeTab, setActiveTab] = React.useState(() => {
+    if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
@@ -654,6 +673,51 @@ export default function DevVisualPreview() {
     upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
     clearPnlReportRebuildState: async () => ({}),
     upsertWaveNote: async () => ({}),
+    listSwingWaves: async () => mockSwingWaves.map((wave) => ({ ...wave })),
+    createSwingWave: async (input) => ({
+      id: `swing-preview-${Date.now()}`,
+      symbol: String(input.symbol || '').toUpperCase(),
+      name: input.name || input.symbol,
+      status: 'active',
+      buyDate: input.buyDate,
+      buyPriceUsd: Number(input.buyPriceUsd),
+      shares: Number(input.shares),
+      sellDate: null,
+      sellPriceUsd: null,
+      note: input.note || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    updateSwingWave: async (id, input) => {
+      const current = mockSwingWaves.find((wave) => wave.id === id) || {};
+      return {
+        ...current,
+        id,
+        symbol: input.symbol || current.symbol,
+        name: input.name || current.name,
+        buyDate: input.buyDate || current.buyDate,
+        buyPriceUsd: Number(input.buyPriceUsd || current.buyPriceUsd),
+        shares: Number(input.shares || current.shares),
+        note: input.note ?? current.note,
+        ...(current.status === 'completed' ? {
+          sellDate: input.sellDate || current.sellDate,
+          sellPriceUsd: Number(input.sellPriceUsd || current.sellPriceUsd),
+        } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+    completeSwingWave: async (id, input) => {
+      const current = mockSwingWaves.find((wave) => wave.id === id) || {};
+      return {
+        ...current,
+        id,
+        status: 'completed',
+        sellDate: input.sellDate,
+        sellPriceUsd: Number(input.sellPriceUsd),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+    deleteSwingWave: async () => ({}),
     deleteCostBasisTrade: async () => ({}),
     deleteCostBasisSymbol: async () => ({}),
     insertCostBasisTrade: async () => ({}),
@@ -861,6 +925,21 @@ export default function DevVisualPreview() {
     watchlist: homeWatchlist,
   };
 
+  const waveTrackerCtx = {
+    ...homeCtx,
+    closeWaveTracker: () => setActiveTab('trades'),
+    db,
+    fetchPopularStockQuotes: async (symbols = []) => ({
+      success: true,
+      data: mockSwingQuotes.filter((row) => symbols.includes(row.symbol)),
+    }),
+    portfolioCurrencyMode: tradeCurrencyMode,
+    quoteRows: mockSwingQuotes,
+    showConfirm: showPreviewConfirm,
+    syncSwingWaveQuoteRows: noop,
+    user: { id: 'dev-user', email: 'preview@example.com' },
+  };
+
   const tradePositionsMarketValue = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.marketValue || 0), 0);
   const tradeHoldingPnl = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.holdingPnl || 0), 0);
   const tradeTodayPnl = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.todayPnl || 0), 0);
@@ -912,6 +991,7 @@ export default function DevVisualPreview() {
     newTrade,
     openPnlReport: () => setActiveTab('pnl-report'),
     openStockDetail: noop,
+    openWaveTracker: () => setActiveTab('wave-tracker'),
     portfolioCurrencyMode: tradeCurrencyMode,
     Plus,
     quoteRows: tradeQuoteRows,
@@ -1044,13 +1124,15 @@ export default function DevVisualPreview() {
   return (
     <div
       className={`min-h-screen bg-[#05070b] pb-24 text-white ${['pnl-report', 'stock-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
-      style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+      style={{ paddingTop: activeTab === 'wave-tracker' ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
           : activeTab === 'stock-detail'
           ? <StockDetailPage ctx={homeCtx} />
+          : activeTab === 'wave-tracker'
+          ? <WaveTrackerPage ctx={waveTrackerCtx} />
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : activeTab === 'trades'
@@ -1073,7 +1155,7 @@ export default function DevVisualPreview() {
           <div className="grid grid-cols-5">
             {nav.map(tab => {
               const Icon = tab.icon;
-              const isActive = tab.id === activeTab;
+              const isActive = tab.id === activeTab || (activeTab === 'wave-tracker' && tab.id === 'trades');
               return (
                 <button
                   key={tab.id}
@@ -1092,4 +1174,20 @@ export default function DevVisualPreview() {
       )}
     </div>
   );
+}
+
+export default function DevVisualPreview() {
+  const preview = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('preview');
+
+  if (preview === 'wave-v2-prototype') {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-[#05070b] py-12 text-center text-sm text-white/45">加载波段原型...</div>}>
+        <WaveTrackerPrototype />
+      </Suspense>
+    );
+  }
+
+  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : ''} />;
 }
