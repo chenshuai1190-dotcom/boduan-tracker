@@ -4,6 +4,21 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 收益比赛标题样式统一
+
+- Commit: pending。
+- Deployment: pending。
+- Background: 用户要求收益比赛与波段记录的页面标题保持一致。
+- Workflow tier: `runtime`。
+- Changes:
+  - 收益比赛标题从 `21px + semibold` 调整为与波段记录一致的 `18px + normal`,并同步相同字距和文字亮度。
+  - 奖杯缩小到与新标题层级匹配;副标题、周期切换、页面布局和所有比赛状态保持不变。
+  - 设置页三个可见版本面和更新日志同步为 `v10.7.9.304`。
+- Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 239/239 pass;`npm run build` pass,生成 `CommunityCompetitionPage-AXx1lHTj.js`,`SettingsTab-D-N-aYSI.js` 和 `settingsChangelog-8XgumEps.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 本地对照确认收益比赛与波段记录标题的计算样式均为 `18px / 400 / 0.18px / rgba(255,255,255,0.94)`,两页 `scrollWidth=390`,console warning/error 0。
+- Boundaries: 只调整收益比赛标题视觉;不改自愿参赛、社区资料门槛、排行榜、服务端收盘快照、交易账本、个人收益快照、RLS、行情 relay、`/api/quote` 鉴权或独立 `/api/earnings-calendar`。
+- Rollback: 回退比赛标题 class、`v10.7.9.304` 版本/更新日志、测试断言和本条文档即可。
+
 ### 2026-07-12 - 收益比赛真实收盘快照版
 
 - Commit: feature commit `a363e64deebbf460a4c322c59099e7feb571bf0d`;Hobby function-limit routing commit `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。

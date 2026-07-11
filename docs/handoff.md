@@ -6,7 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新已上线版本: `v10.7.9.303` 收益比赛真实收盘快照版,production runtime `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。比赛改为服务端真实鉴权、自愿加入、已确认社区资料门槛和独立不可覆盖的收盘收益率快照;生产页已删除 localStorage 加入态、固定 mock 数字和固定假曲线。加入时固化 eligible-date 账本哈希,后续只接受连续交易日的 USD/adjusted-close 快照;空仓延续、单 symbol 行情失败隔离和锁定历史复核均已覆盖,缺数据只显示等待。最新版 Profile/Competition SQL、匿名 REST 20/20、生产 API/marker 验证均已完成。
+- 最新待部署版本: `v10.7.9.304` 收益比赛标题样式统一;标题改为与波段记录一致的 18px 常规字重、相同字距和亮度,不改比赛逻辑。当前已上线版本仍为 `v10.7.9.303` 收益比赛真实收盘快照版,production runtime `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。比赛保持服务端真实鉴权、自愿加入、已确认社区资料门槛和独立不可覆盖的收盘收益率快照;最新版 Profile/Competition SQL、匿名 REST 20/20、生产 API/marker 验证均已完成。
 - 独立边界: 新增 `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径;只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。Hobby 版通过 rewrite 把 Cron 路径送入 community function 的 `CRON_SECRET` 专用分支,用户 Bearer 分支保持隔离。榜单响应不含 user id、邮箱、金额、持仓或交易。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
 - 当前本地与生产设置页版本均为 `v10.7.9.303`;当前生产运行时基准提交为 `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`,入口为 `/assets/index-CD6hu3eq.js`。
@@ -38,7 +38,7 @@
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、`/api/community-competition`、比赛 Cron、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。
 - 当前生产运行时基准提交: `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`。
-- 当前生产设置页版本: `v10.7.9.303`。
+- 当前本地设置页版本: `v10.7.9.304`;当前生产设置页版本: `v10.7.9.303`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- bf48e5a` pass;GitHub Actions run `29161655826` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6`;production alias 已更新,入口 `/assets/index-CD6hu3eq.js`。
@@ -717,7 +717,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`
 当前前台可见运行时基准提交: `bf48e5accd79c55e40e1d578e5618dd1eced0ad8`
-当前本地与生产设置页版本: `v10.7.9.303`
+设置页版本: `v10.7.9.304`（本地待部署;当前生产为 `v10.7.9.303`）
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `bf48e5accd79c55e40e1d578e5618dd1eced0ad8` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6`,Actions run `29161655826`
 最新生产入口: `/assets/index-CD6hu3eq.js`

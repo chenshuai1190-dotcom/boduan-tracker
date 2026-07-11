@@ -385,7 +385,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[21px] font-semibold leading-7 text-white/[0.95]">{tt('competition.title', '收益比赛')} <span className="text-[18px]">🏆</span></h1>
+            <h1 className="truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]">{tt('competition.title', '收益比赛')} <span className="text-[15px]">🏆</span></h1>
             <div className="mt-0.5 truncate text-[12px] text-white/[0.42]">{tt('competition.subtitle', '社区投资者收益排行')}</div>
           </div>
           <div className="grid h-11 w-[164px] grid-cols-4 rounded-full bg-white/[0.055] p-1">
