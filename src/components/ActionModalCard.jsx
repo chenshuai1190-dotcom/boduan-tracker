@@ -1,0 +1,61 @@
+import React from 'react';
+import { X } from 'lucide-react';
+
+const ACTION_MODAL_BUTTON_CLASS = 'flex h-[46px] items-center justify-center rounded-full border border-white/[0.16] bg-black/[0.18] px-2 text-[14px] font-normal tracking-normal text-white/[0.43] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] active:scale-95 disabled:opacity-45 disabled:active:scale-100';
+
+export default function ActionModalCard({
+  title,
+  closeLabel,
+  onClose,
+  children,
+  actions = [],
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.62] px-0 py-6 backdrop-blur-[10px]"
+      onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="min-h-[232px] w-[calc(100vw-76px)] max-w-[360px] rounded-[27px] border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-0.5 pb-4">
+          <h2 className="text-[17px] font-normal leading-[30px] tracking-normal text-white/[0.87]">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-[31px] w-[31px] items-center justify-center rounded-full border border-white/10 bg-black/[0.28] text-white/[0.67] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] active:scale-90"
+            aria-label={closeLabel}
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={1.7} />
+          </button>
+        </div>
+
+        <div className="min-h-[84px] rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)]">
+          {children}
+        </div>
+
+        <div className={`mt-4 grid gap-2.5 ${actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {actions.map((action) => (
+            <button
+              key={action.key || action.label}
+              type="button"
+              onClick={action.onClick}
+              disabled={action.disabled}
+              className={ACTION_MODAL_BUTTON_CLASS}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

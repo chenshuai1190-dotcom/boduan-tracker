@@ -4,6 +4,36 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 账户、订单和删除弹窗视觉重构
+
+- Commit: pending runtime release;部署完成后回填实际提交。
+- Deployment: authorized;用户确认本地静态原型效果完全一致,要求真实组件截图无误后直接部署。
+- Background: 用户提供账户操作、订单操作和删除交易确认卡设计稿,要求完全参考设计图重构现有弹窗,并补充订单股票 Logo 与账户 Logo/默认图标能力。
+- Workflow tier: `runtime`。
+- Changes:
+  - 新增共用 `ActionModalCard`,资产账户操作和交易订单操作统一为 314x232 手机端深色玻璃卡、强背景模糊、圆形关闭按钮和低亮度中性操作按钮;“删除”只在最终确认阶段显示红色。
+  - 账户操作新增 `AccountLogo`:支持现有记录可选 `logoURL`、`logoUrl` 或 URL 形式 `icon`,图片缺失/加载失败时使用账户类型 Lucide 图标兜底;不新增数据库字段或品牌资源。
+  - 订单操作接入现有 `StockLogo`、Logo 缓存与 EODHD/Finnhub 候选链路;图片失败继续显示股票代码兜底,不新增行情请求。
+  - 把全局确认展示抽为 `ConfirmModal`,删除确认改为设计稿同款 314x387 独立面板;`confirmSubmittingRef` 防重复提交、原 `onConfirm` 回调与云端删除流程保持不变。
+  - 本地 `DevVisualPreview` 增加当日 MSFT 模拟订单并渲染真实共用确认卡,只用于开发态截图,不读取或写入生产数据。
+  - 设置页版本和用户可见更新日志同步到 `v10.7.9.292`。
+- Key files:
+  - `src/components/ActionModalCard.jsx`
+  - `src/components/ConfirmModal.jsx`
+  - `src/lib/confirmModal.js`
+  - `src/tabs/AnalysisTab.jsx`
+  - `src/tabs/TradesTab.jsx`
+  - `src/DevVisualPreview.jsx`
+  - `src/App.jsx`
+  - `src/tabs/SettingsTab.jsx`
+  - `src/lib/settingsChangelog.js`
+  - `tests/tool-ledger-boundaries.test.js`
+  - `docs/development-log.md`
+  - `docs/handoff.md`
+- Validation: `npm run verify:toolchain` pass;`node --test tests/tool-ledger-boundaries.test.js` 37/37 pass;`npm test` 182/182 pass;`npm run build` pass（`ActionModalCard-BtddQ5Q3.js`、`AnalysisTab-CoHai3vU.js`、`TradesTab-CLgvxu5_.js`、`App-Ba5PyXf7.js`、`SettingsTab-H-9GmAy7.js`、`settingsChangelog-CMiC9WuX.js`）;`npm run verify:frontend-smoke` pass（home/trades/analysis/review/settings 均无 console/runtime error）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass。390x844 真实组件截图复核:账户和订单操作卡均为 314x232、无横向溢出,招商银行使用默认银行图标,MSFT Logo 成功加载 `https://eodhd.com/img/logos/US/MSFT.png`;删除确认卡为 314x387、位置与静态原型一致,取消后弹窗关闭且 console error 为 0。
+- Boundaries: 只改弹窗展示组件和开发态 mock;不改账户/交易数据库结构、账户余额、订单金额、修改/删除回调、交易账本、收益快照、行情 API、RLS 或鉴权。
+- Rollback: 回退共用弹窗组件及账户/订单接入、`DevVisualPreview` mock、`v10.7.9.292` 版本记录、静态护栏和本条日志即可恢复上一版。
+
 ### 2026-07-11 - 财报日历全模块白色文字降亮
 
 - Commit: runtime `777275ee90fcf3ecda6fb3f178c4843730a87194`;本条后续 docs-only 回填提交只同步部署证据。

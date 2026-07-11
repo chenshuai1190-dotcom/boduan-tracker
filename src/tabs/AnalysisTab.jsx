@@ -11,13 +11,12 @@ import {
   Landmark,
   LineChart,
   MessageCircle,
-  Pencil,
   PiggyBank,
   Plus,
-  Trash2,
   WalletCards,
   X,
 } from 'lucide-react';
+import ActionModalCard from '../components/ActionModalCard.jsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
@@ -73,6 +72,32 @@ function AccountTypeIcon({ type, className = 'h-5 w-5' }) {
   const found = ACCOUNT_TYPE_OPTIONS.find(item => item.type === type);
   const Icon = found?.Icon || CircleDollarSign;
   return <Icon className={className} strokeWidth={1.8} />;
+}
+
+function accountLogoUrl(account) {
+  const candidates = [account?.logoURL, account?.logoUrl, account?.icon];
+  return candidates.find(value => /^https?:\/\//i.test(String(value || '').trim())) || '';
+}
+
+function AccountLogo({ account }) {
+  const logoUrl = accountLogoUrl(account);
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => setFailed(false), [logoUrl]);
+
+  return (
+    <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.13] bg-black/[0.38] text-[#f6c56f] shadow-[0_7px_18px_rgba(0,0,0,0.27)]">
+      {logoUrl && !failed ? (
+        <img
+          src={logoUrl}
+          alt=""
+          className="h-full w-full bg-black/20 object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <AccountTypeIcon type={account?.type} className="h-[19px] w-[19px]" />
+      )}
+    </div>
+  );
 }
 
 function currencyPrefix(currency) {
@@ -926,67 +951,39 @@ function AnalysisTab({ ctx }) {
       )}
 
       {selectedActionAccount && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
-          onClick={(e) => { if (e.target === e.currentTarget) closeAccountAction(); }}
-          style={{
-            paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
-            paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-          }}
+        <ActionModalCard
+          title={tt('analysis.accountActions', '账户操作')}
+          closeLabel={tt('analysis.closeAccountActions', '关闭账户操作')}
+          onClose={closeAccountAction}
+          actions={[
+            {
+              key: 'edit',
+              label: tt('analysis.edit', '修改'),
+              onClick: () => openAccountEdit(selectedActionAccount),
+            },
+            {
+              key: 'delete',
+              label: tt('analysis.delete', '删除'),
+              onClick: () => confirmDeleteAccount(selectedActionAccount),
+            },
+          ]}
         >
-          <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
-            <div className="border-b border-white/10 px-4 pb-3 pt-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-[15px] text-white">{tt('analysis.accountActions', '账户操作')}</h2>
-                <button
-                  type="button"
-                  onClick={closeAccountAction}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
-                  aria-label={tt('analysis.closeAccountActions', '关闭账户操作')}
-                >
-                  ×
-                </button>
-              </div>
-              <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] text-white">{accountNameLabel(selectedActionAccount.name)}</div>
-                    <div className="mt-1 truncate text-[11px] text-white/60">
-                      {ownerLabel(selectedActionAccount.owner)} · {accountTypeLabel(selectedActionAccount.type)} · {selectedActionAccount.currency || 'CNY'}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountBalanceText(selectedActionAccount)}</div>
-                    {accountApproxText(selectedActionAccount) && (
-                      <div className="mt-1 text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountApproxText(selectedActionAccount)}</div>
-                    )}
-                  </div>
-                </div>
+          <div className="grid min-h-[58px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5">
+            <AccountLogo account={selectedActionAccount} />
+            <div className="min-w-0">
+              <div className="truncate text-[15px] font-normal leading-5 text-white/[0.82]">{accountNameLabel(selectedActionAccount.name)}</div>
+              <div className="mt-[3px] truncate text-[11.5px] font-normal leading-4 text-white/[0.42]">
+                {ownerLabel(selectedActionAccount.owner)} · {accountTypeLabel(selectedActionAccount.type)} · {selectedActionAccount.currency || 'CNY'}
               </div>
             </div>
-
-            <div className="px-4 pb-4 pt-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => openAccountEdit(selectedActionAccount)}
-                  className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6c56f]/30 bg-[#f6c56f]/[0.045] px-2 text-[12px] font-normal text-[#f6c56f] active:scale-95"
-                >
-                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  {tt('analysis.edit', '修改')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => confirmDeleteAccount(selectedActionAccount)}
-                  className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-                  {tt('analysis.delete', '删除')}
-                </button>
-              </div>
+            <div className="shrink-0 text-right">
+              <div className="whitespace-nowrap text-[16px] font-normal tracking-normal text-white/[0.78] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountBalanceText(selectedActionAccount)}</div>
+              {accountApproxText(selectedActionAccount) && (
+                <div className="mt-1 whitespace-nowrap text-[10.5px] text-white/[0.37] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountApproxText(selectedActionAccount)}</div>
+              )}
             </div>
           </div>
-        </div>
+        </ActionModalCard>
       )}
 
       {editingAccount && accountEditDraft && (

@@ -11,6 +11,8 @@ import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRea
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
+import ConfirmModal from './components/ConfirmModal.jsx';
+import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -1463,30 +1465,28 @@ function MainApp({ user, onLogout }) {
   const showConfirm = useCallback((opts) => {
     confirmSubmittingRef.current = false;
     setConfirmSubmitting(false);
-    setConfirmModal({
-      title: opts.title || '确认操作?',
-      desc: opts.desc || '此操作不可撤销',
-      info: opts.info || null,
-      confirmText: opts.confirmText || '删除',
-      cancelText: opts.cancelText || '取消',
-      confirmStyle: opts.confirmStyle || 'danger', // 'danger' | 'primary'
-      icon: opts.icon || '🗑',
-      showCancel: opts.showCancel !== false,
-      onConfirm: opts.onConfirm,
-    });
+    setConfirmModal(normalizeConfirmModalOptions(opts));
   }, []);
-  const confirmIconNode = useMemo(() => {
-    if (!confirmModal) return null;
-    if (React.isValidElement(confirmModal.icon)) return confirmModal.icon;
-    if (confirmModal.confirmStyle === 'danger') {
-      return confirmModal.icon === '🗑'
-        ? <Trash2 className="h-5 w-5" strokeWidth={1.9} />
-        : <AlertTriangle className="h-5 w-5" strokeWidth={1.9} />;
+  const closeConfirmModal = useCallback(() => {
+    if (confirmSubmittingRef.current) return;
+    setConfirmModal(null);
+  }, []);
+  const submitConfirmModal = useCallback(async () => {
+    if (confirmSubmittingRef.current) return;
+    const callback = confirmModal?.onConfirm;
+    if (!callback) {
+      setConfirmModal(null);
+      return;
     }
-    if (confirmModal.icon === '!') {
-      return <AlertCircle className="h-5 w-5" strokeWidth={1.9} />;
+    confirmSubmittingRef.current = true;
+    setConfirmSubmitting(true);
+    try {
+      await callback();
+      setConfirmModal(null);
+    } finally {
+      confirmSubmittingRef.current = false;
+      setConfirmSubmitting(false);
     }
-    return <CheckCircle2 className="h-5 w-5" strokeWidth={1.9} />;
   }, [confirmModal]);
 
   useEffect(() => {
@@ -4724,93 +4724,12 @@ function MainApp({ user, onLogout }) {
         {/* ====== 设置 tab ====== */}
 
 
-        {/* === 🗑 通用删除确认 Modal (v10.7.9.41) === */}
-        {confirmModal && (
-          <div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/[0.65] px-4 py-5 backdrop-blur-md animate-in fade-in"
-            onClick={(e) => { if (e.target === e.currentTarget && !confirmSubmitting) setConfirmModal(null); }}
-            style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
-            }}
-          >
-            <div
-              className="w-full max-w-[342px] rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.06)]"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/25"></div>
-              <div className="px-4 pb-4 pt-3">
-                {/* 图标 */}
-                <div
-                  className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border ${
-                    confirmModal.confirmStyle === 'danger'
-                      ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ffb09c]'
-                      : confirmModal.icon === '!'
-                        ? 'border-amber-300/25 bg-amber-300/10 text-amber-200'
-                        : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
-                  }`}
-                >
-                  {confirmIconNode}
-                </div>
-                {/* 标题 */}
-                <div className="mb-1.5 text-center text-[16px] font-semibold text-white">
-                  {confirmModal.title}
-                </div>
-                {/* 描述 */}
-                <div className="mb-4 text-center text-[13px] leading-relaxed text-white/[0.58]">
-                  {confirmModal.desc}
-                </div>
-                {/* 信息框 (可选) */}
-                {confirmModal.info && (
-                  <div
-                    className="mb-4 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5 text-center text-[13px] font-normal leading-5 text-white/[0.66]"
-                  >
-                    {confirmModal.info}
-                  </div>
-                )}
-                {/* 按钮 */}
-                <div className={`grid gap-2 ${confirmModal.showCancel ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {confirmModal.showCancel && (
-                    <button
-                      onClick={() => { if (!confirmSubmitting) setConfirmModal(null); }}
-                      disabled={confirmSubmitting}
-                      className="h-11 rounded-xl border border-white/10 bg-white/[0.06] text-[13px] font-semibold text-white/[0.62] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                    >
-                      {confirmModal.cancelText}
-                    </button>
-                  )}
-                  <button
-                    onClick={async () => {
-                      if (confirmSubmittingRef.current) return;
-                      const cb = confirmModal.onConfirm;
-                      if (!cb) {
-                        setConfirmModal(null);
-                        return;
-                      }
-                      confirmSubmittingRef.current = true;
-                      setConfirmSubmitting(true);
-                      try {
-                        await cb();
-                        setConfirmModal(null);
-                      } finally {
-                        confirmSubmittingRef.current = false;
-                        setConfirmSubmitting(false);
-                      }
-                    }}
-                    disabled={confirmSubmitting}
-                    className={`h-11 rounded-xl text-[13px] font-semibold active:scale-95 disabled:opacity-60 disabled:active:scale-100 ${
-                      confirmModal.confirmStyle === 'danger'
-                        ? 'bg-[#ff4b1f] text-white shadow-[0_14px_34px_rgba(255,75,31,0.26)]'
-                        : 'bg-[#f6b54b] text-[#101318] shadow-[0_14px_34px_rgba(246,181,75,0.18)]'
-                    }`}
-                  >
-                    {confirmSubmitting ? '处理中...' : confirmModal.confirmText}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          modal={confirmModal}
+          submitting={confirmSubmitting}
+          onCancel={closeConfirmModal}
+          onConfirm={submitConfirmModal}
+        />
 
         {/* === 摊薄成本 - 新增股票弹窗 === */}
         {showCostBasisAdd && (

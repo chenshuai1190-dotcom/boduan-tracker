@@ -4,7 +4,10 @@ import { test } from 'node:test';
 import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
+const confirmModalSource = readFileSync(new URL('../src/components/ConfirmModal.jsx', import.meta.url), 'utf8');
+const confirmModalOptionsSource = readFileSync(new URL('../src/lib/confirmModal.js', import.meta.url), 'utf8');
 const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', import.meta.url), 'utf8');
@@ -202,7 +205,7 @@ test('trade and wave form validation avoids native alert dialogs', () => {
   assert.equal(addTradeBlock.includes('alert('), false, 'trade/wave submit path must not use native alert');
   assert.ok(addTradeBlock.includes('const tradeDraft = sideOverride'), 'buy/sell submit buttons should pass the selected side into the save path');
   assert.ok(addTradeBlock.includes("side: tradeDraft.side || 'buy'"), 'ledger payload should use the button-selected side');
-  assert.ok(appSource.includes('showCancel: opts.showCancel !== false'), 'custom notice modal must support hiding cancel button');
+  assert.ok(confirmModalOptionsSource.includes('showCancel: options.showCancel !== false'), 'custom notice modal must support hiding cancel button');
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
 });
 
@@ -210,14 +213,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   const tradeModalStart = tradesTabSource.indexOf('{showAddTrade && (');
   const tradeModalEnd = tradesTabSource.indexOf('{showCostTool && (() => {', tradeModalStart);
   const tradeModalBlock = tradesTabSource.slice(tradeModalStart, tradeModalEnd);
-  const confirmModalStart = appSource.indexOf('{confirmModal && (');
-  const confirmModalEnd = appSource.indexOf('{showCostBasisAdd && (', confirmModalStart);
-  const confirmModalBlock = appSource.slice(confirmModalStart, confirmModalEnd);
 
   assert.ok(tradeModalStart > -1, 'missing trade entry modal');
   assert.ok(tradeModalEnd > tradeModalStart, 'missing boundary after trade entry modal');
-  assert.ok(confirmModalStart > -1, 'missing global confirmation modal');
-  assert.ok(confirmModalEnd > confirmModalStart, 'missing boundary after confirmation modal');
+  assert.ok(appSource.includes('<ConfirmModal'), 'app should render the shared confirmation modal component');
+  assert.ok(appSource.includes('normalizeConfirmModalOptions(opts)'), 'app should keep normalizing confirmation options before display');
   assert.ok(tradesTabSource.includes('import { BookOpen, Calculator, CalendarDays, ChevronRight'), 'trade modal should use lucide date and chevron icons');
   assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should use lucide search and buy/sell trend icons');
   assert.ok(tradeModalBlock.includes("tt('trades.stockTicker'"), 'first row should be stock ticker');
@@ -238,13 +238,13 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes('<TrendingUp className="h-4 w-4"'), 'buy button should include the new trend-up icon');
   assert.ok(tradeModalBlock.includes('<TrendingDown className="h-4 w-4"'), 'sell button should include the new trend-down icon');
   assert.ok(tradeModalBlock.includes('h-11 items-center justify-center gap-2 rounded-xl'), 'buy/sell buttons should stay compact rather than oversized');
-  assert.ok(confirmModalBlock.includes('items-center justify-center bg-black/[0.65]'), 'confirmation modal should be centered over a dark overlay');
-  assert.ok(confirmModalBlock.includes('bg-[#0b0f16]'), 'confirmation modal should use the current dark modal surface');
-  assert.ok(appSource.includes('const confirmIconNode = useMemo'), 'confirmation modal should map legacy icon tokens to lucide icons');
-  assert.ok(confirmModalBlock.includes('{confirmIconNode}'), 'confirmation modal should render the current icon node instead of legacy emoji text');
-  assert.ok(confirmModalBlock.includes('text-[13px] font-normal leading-5 text-white/[0.66]'), 'confirmation info line should use the current app font sizing');
-  assert.equal(confirmModalBlock.includes("fontFamily: 'ui-monospace, monospace'"), false, 'confirmation info line should not use the old mono font');
-  assert.equal(confirmModalBlock.includes('bg-white rounded-t-3xl'), false, 'confirmation modal should not keep the old white bottom sheet');
+  assert.ok(confirmModalSource.includes('items-start justify-center overflow-y-auto') && confirmModalSource.includes('bg-black/[0.62]') && confirmModalSource.includes('pt-[34.5vh]'), 'confirmation modal should match the approved fixed vertical placement over a blurred overlay');
+  assert.ok(confirmModalSource.includes('w-[calc(100vw-76px)] max-w-[342px] rounded-[27px]'), 'confirmation modal should use the approved narrow glass panel geometry');
+  assert.ok(confirmModalSource.includes('<ConfirmIcon modal={modal} />'), 'confirmation modal should map legacy icon tokens to lucide icons');
+  assert.ok(confirmModalSource.includes('min-h-[62px]') && confirmModalSource.includes('text-[14px] font-normal tracking-normal text-white/[0.55]'), 'confirmation info line should use the approved summary sizing');
+  assert.ok(confirmModalSource.includes('bg-[linear-gradient(145deg,#a7232a,#8e1d24)]'), 'danger color should appear on the final confirmation button');
+  assert.equal(confirmModalSource.includes("fontFamily: 'ui-monospace, monospace'"), false, 'confirmation info line should not use the old mono font');
+  assert.equal(confirmModalSource.includes('bg-white rounded-t-3xl'), false, 'confirmation modal should not keep the old white bottom sheet');
   assert.ok(tradesTabSource.includes('await addTrade(tradeDraft.side);'), 'confirmed trade save should preserve the selected buy/sell side');
   assert.ok(tradesTabSource.includes("info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'}`"), 'trade confirmation info should omit the long date segment');
   assert.equal(tradesTabSource.includes("icon: '✅'"), false, 'trade confirmation should not pass the legacy check emoji icon');
@@ -259,8 +259,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes('v10.7.9.291'), 'settings version badge should document the earnings calendar brightness update');
-  assert.ok(settingsChangelogSource.includes('财报日历全模块白色文字降亮'), 'settings changelog should describe the earnings calendar brightness update');
+  assert.ok(settingsTabSource.includes('v10.7.9.292'), 'settings version badge should document the action modal redesign');
+  assert.ok(settingsChangelogSource.includes('账户、订单和删除弹窗视觉重构'), 'settings changelog should describe the action modal redesign');
+  assert.ok(settingsChangelogSource.includes('财报日历全模块白色文字降亮'), 'settings changelog should retain the earnings calendar brightness update');
   assert.ok(settingsChangelogSource.includes('首页股票代码和公司名称降亮'), 'settings changelog should retain the home stock name brightness update');
   assert.ok(settingsChangelogSource.includes('首页持仓盈亏与自选亮度修复'), 'settings changelog should retain the home holding P&L and watchlist brightness fix');
   assert.ok(settingsChangelogSource.includes('首页财报与股票文字降亮'), 'settings changelog should retain the homepage text hierarchy update');
@@ -1370,8 +1371,9 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.ok(analysisTabSource.includes('setAccountActionId(acc.id)'), 'clicking an account row should open the action modal');
   assert.ok(analysisTabSource.includes('账户操作'), 'asset account action modal should be present');
   assert.ok(accountActionStart > -1 && accountActionEnd > accountActionStart, 'missing account action modal boundary');
-  assert.ok(accountActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6c56f]/30'), 'account action edit button should use the compact pill style');
-  assert.ok(accountActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20'), 'account action delete button should use the compact pill style');
+  assert.ok(accountActionBlock.includes('<ActionModalCard'), 'account action should use the approved shared card shell');
+  assert.ok(accountActionBlock.includes("key: 'edit'") && accountActionBlock.includes("key: 'delete'"), 'account action should keep separate edit and delete commands');
+  assert.ok(actionModalCardSource.includes('border border-white/[0.16] bg-black/[0.18]'), 'account action commands should use the approved neutral pill style');
   assert.equal(accountActionBlock.includes('修改账户'), false, 'account action edit label should stay compact');
   assert.equal(accountActionBlock.includes('删除账户'), false, 'account action delete label should stay compact');
   assert.equal(accountActionBlock.includes('min-h-[48px]'), false, 'account action buttons should not keep oversized card height');
@@ -1441,7 +1443,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes('v10.7.9.291'), 'settings version badge should document the earnings calendar brightness update');
+  assert.ok(settingsTabSource.includes('v10.7.9.292'), 'settings version badge should document the action modal redesign');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1737,7 +1739,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes('v10.7.9.291'), 'settings version badge should document the earnings calendar brightness update');
+  assert.ok(settingsTabSource.includes('v10.7.9.292'), 'settings version badge should document the action modal redesign');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -1887,21 +1889,34 @@ test('review edit modals use in-app validation instead of native alerts', () => 
   assert.ok(logBlock.includes("setError(tt('review.contentRequired', '请输入内容'))"), 'review log modal should show an in-app validation message');
 });
 
-test('order action modal stays compact like the current trade record reference', () => {
+test('account, order, and delete action modals match the approved glass-card design', () => {
   const orderActionStart = tradesTabSource.indexOf('{orderActionTrade && (() => {');
   const orderActionEnd = tradesTabSource.indexOf('{/* 波段记录', orderActionStart);
   const orderActionBlock = tradesTabSource.slice(orderActionStart, orderActionEnd);
+  const accountActionStart = analysisTabSource.indexOf('{selectedActionAccount && (');
+  const accountActionEnd = analysisTabSource.indexOf('{editingAccount && accountEditDraft && (', accountActionStart);
+  const accountActionBlock = analysisTabSource.slice(accountActionStart, accountActionEnd);
 
   assert.ok(orderActionStart > -1 && orderActionEnd > orderActionStart, 'missing order action modal boundary');
-  assert.ok(orderActionBlock.includes('w-[calc(100vw-72px)] max-w-[360px]'), 'order action modal should use the narrower centered reference width');
-  assert.ok(orderActionBlock.includes('rounded-[22px]'), 'order action modal should keep a compact rounded panel');
-  assert.ok(orderActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30'), 'order action edit button should use the compact pill style');
-  assert.ok(orderActionBlock.includes('flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20'), 'order action delete button should use the compact pill style');
+  assert.ok(accountActionStart > -1 && accountActionEnd > accountActionStart, 'missing account action modal boundary');
+  assert.ok(actionModalCardSource.includes('min-h-[232px] w-[calc(100vw-76px)] max-w-[360px] rounded-[27px]'), 'shared action modal should use the approved 314x232 mobile geometry');
+  assert.ok(actionModalCardSource.includes('bg-black/[0.62]') && actionModalCardSource.includes('backdrop-blur-[10px]'), 'shared action modal should use the approved blurred overlay');
+  assert.ok(actionModalCardSource.includes('h-[46px]') && actionModalCardSource.includes('text-white/[0.43]'), 'shared edit/delete buttons should use the neutral low-brightness style');
+  assert.ok(orderActionBlock.includes('<ActionModalCard'), 'order action should use the shared approved card shell');
+  assert.ok(orderActionBlock.includes('<StockLogo') && orderActionBlock.includes('orderLogoUrls'), 'order action should render the existing stock logo chain');
+  assert.ok(orderActionBlock.includes('className="h-6 w-6 rounded-[4px]"'), 'order logo should fit the circular icon container');
+  assert.ok(orderActionBlock.includes('text-white/[0.48]'), 'order side and quantity should use the approved neutral gray instead of a market color');
+  assert.ok(accountActionBlock.includes('<ActionModalCard'), 'account action should use the shared approved card shell');
+  assert.ok(accountActionBlock.includes('<AccountLogo account={selectedActionAccount} />'), 'account action should render account logo support');
+  assert.ok(analysisTabSource.includes('const candidates = [account?.logoURL, account?.logoUrl, account?.icon]'), 'account logo should accept existing optional URL fields without a schema change');
+  assert.ok(analysisTabSource.includes('<AccountTypeIcon type={account?.type}'), 'account logo should fall back to the account type icon');
+  assert.ok(confirmModalSource.includes('h-[52px] rounded-[17px]') && confirmModalSource.includes('bg-[linear-gradient(145deg,#a7232a,#8e1d24)]'), 'delete confirmation should reserve red for the final danger action');
+  assert.ok(devVisualPreviewSource.includes('mockTodayStockTrade'), 'local preview should expose a deterministic current-day order for screenshot QA');
+  assert.ok(devVisualPreviewSource.includes('showConfirm: showPreviewConfirm'), 'local preview should render the real shared confirmation card instead of auto-confirming');
   assert.equal(orderActionBlock.includes('修改记录'), false, 'order action edit label should stay compact');
   assert.equal(orderActionBlock.includes('删除记录'), false, 'order action delete label should stay compact');
-  assert.equal(orderActionBlock.includes('min-h-[48px]'), false, 'order action edit/delete buttons should not keep oversized card height');
-  assert.equal(orderActionBlock.includes('min-h-[42px]'), false, 'order action modal should not keep a bottom cancel button');
-  assert.ok(orderActionBlock.includes('px-4 pb-4 pt-3'), 'order action button area should use compact vertical padding');
+  assert.equal(orderActionBlock.includes('border-[#f6b54b]/30'), false, 'order action edit should no longer use the old gold pill');
+  assert.equal(orderActionBlock.includes('border-rose-300/20'), false, 'order action delete should no longer look dangerous before confirmation');
 });
 
 test('wave records keep editable notes and completed waves remain reachable', () => {

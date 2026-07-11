@@ -21,6 +21,8 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import ConfirmModal from './components/ConfirmModal.jsx';
+import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 import { normalizeLanguage, t } from './lib/i18n.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -36,6 +38,13 @@ const HKD_RATE = 0.86;
 
 function localMonthKey(date = new Date()) {
   return date.toISOString().slice(0, 7);
+}
+
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function shiftMonth(monthKey, offset) {
@@ -250,6 +259,18 @@ const mockPnlStockTrades = [
   { id: 'dev_trade_4', symbol: 'AAPL', name: '苹果', side: 'buy', trade_date: '2026-05-01', date: '2026-05-01', price: 220, shares: 60 },
 ];
 
+const mockTodayStockTrade = {
+  id: 'dev_trade_today_msft',
+  symbol: 'MSFT',
+  name: '微软',
+  side: 'buy',
+  trade_date: localDateKey(),
+  date: localDateKey(),
+  price: 412.07,
+  shares: 2300,
+  currency: 'USD',
+};
+
 const mockPnlSymbolSnapshotHistory = [
   { snapshotDate: '2026-07-08', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 196.5, marketValueUsd: 15720, realizedPnlUsd: 1400, unrealizedPnlUsd: 6120, cumulativePnlUsd: 7520, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
   { snapshotDate: '2026-07-07', symbol: 'NVDA', name: 'NVIDIA', heldShares: 80, avgCostUsd: 120, currentPriceUsd: 192.3, marketValueUsd: 15384, realizedPnlUsd: 1400, unrealizedPnlUsd: 5784, cumulativePnlUsd: 7184, totalBuyCostUsd: 12000, remainingCostUsd: 9600 },
@@ -390,6 +411,9 @@ export default function DevVisualPreview() {
   const [tradeEntryScope, setTradeEntryScope] = React.useState('ledger');
   const [showAddTrade, setShowAddTrade] = React.useState(false);
   const [tradeDeleteConfirmId, setTradeDeleteConfirmId] = React.useState(null);
+  const [previewConfirmModal, setPreviewConfirmModal] = React.useState(null);
+  const [previewConfirmSubmitting, setPreviewConfirmSubmitting] = React.useState(false);
+  const previewConfirmSubmittingRef = React.useRef(false);
   const [newTrade, setNewTrade] = React.useState({
     symbol: '',
     name: '',
@@ -586,6 +610,32 @@ export default function DevVisualPreview() {
     });
   }, []);
   const noop = React.useCallback(() => {}, []);
+  const showPreviewConfirm = React.useCallback((options) => {
+    previewConfirmSubmittingRef.current = false;
+    setPreviewConfirmSubmitting(false);
+    setPreviewConfirmModal(normalizeConfirmModalOptions(options));
+  }, []);
+  const closePreviewConfirm = React.useCallback(() => {
+    if (previewConfirmSubmittingRef.current) return;
+    setPreviewConfirmModal(null);
+  }, []);
+  const submitPreviewConfirm = React.useCallback(async () => {
+    if (previewConfirmSubmittingRef.current) return;
+    const callback = previewConfirmModal?.onConfirm;
+    if (!callback) {
+      setPreviewConfirmModal(null);
+      return;
+    }
+    previewConfirmSubmittingRef.current = true;
+    setPreviewConfirmSubmitting(true);
+    try {
+      await callback();
+      setPreviewConfirmModal(null);
+    } finally {
+      previewConfirmSubmittingRef.current = false;
+      setPreviewConfirmSubmitting(false);
+    }
+  }, [previewConfirmModal]);
   const calcCostBasis = React.useCallback((rows = []) => {
     let shares = 0;
     let totalCost = 0;
@@ -640,6 +690,7 @@ export default function DevVisualPreview() {
     snapshots,
     snapshotTab,
     usdRate: USD_RATE,
+    showConfirm: showPreviewConfirm,
   };
 
   const homeCtx = {
@@ -826,9 +877,9 @@ export default function DevVisualPreview() {
     setTradeDeleteConfirmId,
     setWaveNotes,
     showAddTrade,
-    showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
+    showConfirm: showPreviewConfirm,
     stockFreshnessStartedAt: 0,
-    stockTrades: mockPnlStockTrades,
+    stockTrades: [mockTodayStockTrade, ...mockPnlStockTrades],
     displayStockName: (symbol, name, displayLanguage = language) => {
       const normalizedSymbol = String(symbol || '').trim().toUpperCase();
       if (normalizeLanguage(displayLanguage) === 'en') return devStockNameEn[normalizedSymbol] || normalizedSymbol;
@@ -882,7 +933,7 @@ export default function DevVisualPreview() {
     showAllDisciplines,
     showAllLogs,
     showAllYears,
-    showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
+    showConfirm: showPreviewConfirm,
     showPlanSettings,
     Target,
     Pin,
@@ -913,7 +964,7 @@ export default function DevVisualPreview() {
     setPwdMsg,
     setShowChangePassword,
     showChangePassword,
-    showConfirm: ({ onConfirm }) => { if (typeof onConfirm === 'function') onConfirm(); },
+    showConfirm: showPreviewConfirm,
     supabase: {
       auth: {
         getSession: async () => ({ data: { session: { access_token: 'dev-visual-preview-token' } } }),
@@ -950,6 +1001,13 @@ export default function DevVisualPreview() {
           ? <SettingsTab ctx={settingsCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
       </Suspense>
+
+      <ConfirmModal
+        modal={previewConfirmModal}
+        submitting={previewConfirmSubmitting}
+        onCancel={closePreviewConfirm}
+        onConfirm={submitPreviewConfirm}
+      />
 
       {activeTab !== 'pnl-report' && (
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>

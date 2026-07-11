@@ -8,6 +8,7 @@ import {
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
+import ActionModalCard from '../components/ActionModalCard.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -1215,67 +1216,47 @@ export default function TradesTab({ ctx }) {
       </div>
 
         {orderActionTrade && (() => {
-          const isSell = orderActionTrade.side === 'sell';
           const amount = toNumber(orderActionTrade.price) * toNumber(orderActionTrade.shares) * displayRate;
           const displayName = stockDisplayName(orderActionTrade.symbol, orderActionTrade.name);
+          const orderSymbol = String(orderActionTrade.symbol || '').trim().toUpperCase();
+          const orderLogoUrls = stockLogoCandidates(orderSymbol, logoCache?.[orderSymbol]?.url);
           return (
-            <div
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
-              onClick={(e) => { if (e.target === e.currentTarget) setOrderActionTrade(null); }}
-              style={{
-                paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
-                paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-              }}
+            <ActionModalCard
+              title={tt('trades.orderActions', '订单操作')}
+              closeLabel={tt('trades.closeOrderActions', '关闭订单操作')}
+              onClose={() => setOrderActionTrade(null)}
+              actions={[
+                {
+                  key: 'edit',
+                  label: tt('trades.modify', '修改'),
+                  onClick: editOrderFromAction,
+                },
+                {
+                  key: 'delete',
+                  label: tt('trades.delete', '删除'),
+                  onClick: deleteOrderFromAction,
+                },
+              ]}
             >
-              <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
-                <div className="border-b border-white/10 px-4 pb-3 pt-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-[15px] font-semibold text-white">{tt('trades.orderActions', '订单操作')}</h2>
-                    <button
-                      type="button"
-                      onClick={() => setOrderActionTrade(null)}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
-                      aria-label={tt('trades.closeOrderActions', '关闭订单操作')}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-[13px] font-normal text-white">{orderActionTrade.symbol || '--'}</div>
-                        <div className="mt-1 truncate text-[11px] text-white/60">{displayName || orderActionTrade.symbol || '--'}</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`}>{sideLabel(orderActionTrade.side)} {sharesText(orderActionTrade.shares, 0)}</div>
-                        <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(orderActionTrade.price, 2)}</div>
-                      </div>
-                    </div>
-                  </div>
+              <div className="grid min-h-[58px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5">
+                <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.13] bg-black/[0.38] shadow-[0_7px_18px_rgba(0,0,0,0.27)]">
+                  <StockLogo
+                    symbol={orderSymbol}
+                    urls={orderLogoUrls}
+                    onLogoLoad={cacheStockLogo}
+                    className="h-6 w-6 rounded-[4px]"
+                  />
                 </div>
-
-                <div className="px-4 pb-4 pt-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={editOrderFromAction}
-                      className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" strokeWidth={1.8} />
-                      {tt('trades.modify', '修改')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={deleteOrderFromAction}
-                      className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-                      {tt('trades.delete', '删除')}
-                    </button>
-                  </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-normal leading-5 text-white/[0.82]">{orderSymbol || '--'}</div>
+                  <div className="mt-[3px] truncate text-[11.5px] font-normal leading-4 text-white/[0.42]">{displayName || orderSymbol || '--'}</div>
+                </div>
+                <div className="min-w-[116px] shrink-0 text-right">
+                  <div className="whitespace-nowrap text-[13.5px] font-normal leading-[18px] text-white/[0.48]">{sideLabel(orderActionTrade.side)} {sharesText(orderActionTrade.shares, 0)}</div>
+                  <div className="mt-0.5 whitespace-nowrap text-[11.5px] font-normal leading-[15px] text-white/[0.37] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(orderActionTrade.price, 2)}</div>
                 </div>
               </div>
-            </div>
+            </ActionModalCard>
           );
         })()}
 
