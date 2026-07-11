@@ -1585,8 +1585,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('text-[22px] font-semibold leading-none text-white/55'), 'future annual years should use a lighter weight');
   assert.ok(reviewTabSource.includes('px-1.5 py-0.5 text-[10px] text-[#f6b54b]'), 'current year label badge should shrink with the year number');
   assert.ok(reviewTabSource.includes('rounded-md border px-1.5 py-0.5 text-[10px]'), 'current year status badge should shrink with the year number');
-  assert.ok(reviewTabSource.includes('text-[11px] text-white/38">{tt(\'review.start\''), 'future year start label should omit the parenthesized year and read from i18n');
-  assert.ok(reviewTabSource.includes('text-[11px] text-white/38">{tt(\'review.target\''), 'future year target label should omit the parenthesized year and read from i18n');
+  assert.ok(reviewTabSource.includes('text-[11px] text-white/38">{tt(\'review.yearStart\''), 'future year start label should identify the year opening balance through i18n');
+  assert.ok(reviewTabSource.includes('text-[11px] text-white/38">{tt(\'review.yearEnd\''), 'future year end label should identify the year ending balance through i18n');
   assert.equal(reviewTabSource.includes('起点 ({yearItem.year - 1}目标)'), false, 'future year start label should not include the old year suffix');
   assert.equal(reviewTabSource.includes('目标 ({yearItem.year})'), false, 'future year target label should not include the old year suffix');
   assert.ok(reviewTabSource.includes('mt-1 text-[12px] font-normal text-white/35 tabular-nums'), 'future year start and target amounts should use neutral gray');
@@ -1602,6 +1602,12 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(appSource.includes('.progress-shine { position: relative; overflow: hidden; }'), 'progress shine must stay clipped inside the progress bar');
   assert.ok(reviewTabSource.includes('.progress-shine {'), 'review local preview should carry its own clipped progress shine styles');
   assert.ok(reviewTabSource.includes('targetGap'), 'current year card should show target gap/lag information');
+  assert.ok(reviewTabSource.includes("{money(yearItem.planTarget)}</span>"), 'current year summary target should show the annual planned gain');
+  assert.equal(reviewTabSource.includes("{money(currentYearTarget)}</span>\n                      </div>\n                      <div className={`mt-0.5"), false, 'current year summary target should not show the year-end total balance');
+  assert.equal((reviewTabSource.match(/tt\('review\.yearStart', '年初起点'\)/g) || []).length, 2, 'current and projected annual cards should label the opening balance as year start');
+  assert.equal((reviewTabSource.match(/tt\('review\.yearEnd', '终点'\)/g) || []).length, 2, 'current and projected annual cards should label the ending balance as year end');
+  assert.ok(i18nSource.includes("'review.yearStart': 'Year Start'"), 'English annual cards should include the year-start label');
+  assert.ok(i18nSource.includes("'review.yearEnd': 'Year End'"), 'English annual cards should include the year-end label');
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
   assert.ok(reviewTabSource.includes('mb-4 flex min-h-10 items-center justify-between gap-4'), 'discipline section title row should align with the add button');

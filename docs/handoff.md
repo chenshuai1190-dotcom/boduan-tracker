@@ -6,7 +6,8 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新已上线补充: `v10.7.9.292` 账户、订单和删除弹窗视觉重构已上线,production runtime commit `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`;账户/订单操作统一为设计稿同款深色玻璃卡,订单接入现有股票 Logo 链路,账户支持可选图片 Logo 并以账户类型图标兜底,危险删除改为独立确认面板。账户、订单、删除回调、交易账本、数据库、RLS 和鉴权不变。
+- 最新待上线补充: `v10.7.9.293` 年度目标当年计划口径和年度路径标签修正已完成本地验证,运行时提交待生成;当前年卡片右上角目标改为当年计划,落后/超额继续按当年计划与实际差额计算,当前与预测年度路径统一为“年初起点/当前/终点”。投资计划、年度实际、复利、北极星总目标、数据库和安全边界不变。
+- 上一条已上线补充: `v10.7.9.292` 账户、订单和删除弹窗视觉重构已上线,production runtime commit `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`;账户/订单操作统一为设计稿同款深色玻璃卡,订单接入现有股票 Logo 链路,账户支持可选图片 Logo 并以账户类型图标兜底,危险删除改为独立确认面板。账户、订单、删除回调、交易账本、数据库、RLS 和鉴权不变。
 - 上一条已上线补充: `v10.7.9.291` 财报日历全模块白色文字降亮已上线,production runtime commit `777275ee90fcf3ecda6fb3f178c4843730a87194`;首页财报卡、弹窗、列表和详情里的白色标题/代码/实际值统一为 70%,预期值 60%,月份与普通日期 65%,并清理会继承成纯白的无效透明度档位;红绿结果和金色状态不变。
 - 上一条已上线补充: `v10.7.9.290` 首页股票代码和公司名称继续降亮已上线,production runtime commit `ce9e3c1f04a0608baebf21c33629e871c495384b`;自选/持仓股票代码从 `text-white/80` 降为 `text-white/70`,公司名称从 `text-white/40` 降为 `text-white/35`,股票 Logo、价格、涨跌色、持仓盈亏和数据逻辑不变。
 - 上一条已上线补充: `v10.7.9.289` 首页持仓盈亏和自选亮度修复已上线,production runtime commit `42582e03432b71eb4a6893069ed04303c633f0e0`;持仓盈亏金额和收益率取消粗体并分别跟随系统涨跌颜色,持仓盈亏列参考交易页从 `112px` 扩为 `144px`,金额/收益率固定单行显示;自选股票代码和价格统一为当前信号“等待中”的 `text-white/80`。持仓盈亏计算、交易账本、行情接口、收益快照、数据库、RLS 和鉴权不变。
@@ -20,7 +21,7 @@
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已独立验证的交接刷新基准为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,最新运行时代码提交为 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`。
 - 当前生产运行时基准提交: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`。
-- 设置页版本: `v10.7.9.292`。
+- 设置页版本: `v10.7.9.293`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- 3e8b6f1` pass;GitHub Actions run `29141643669` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`;production alias 已更新,入口 `/assets/index-DlHnRYc2.js`。
@@ -677,12 +678,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;最近已验证交接刷新基准为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`
 当前前台可见运行时基准提交: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`
-设置页版本: `v10.7.9.292`
+设置页版本: `v10.7.9.293`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`
 最新生产入口: `/assets/index-DlHnRYc2.js`
 
 关键线上验证:
+- `v10.7.9.293` 待上线:年度目标当前年卡片右上角目标改为当年计划;当前与预测年度路径标签改为年初起点/当前/终点,金额和计算逻辑不变
 - `v10.7.9.292` 已上线:账户/订单操作和危险删除确认卡按设计稿重构,订单接入现有股票 Logo 链路,账户支持可选图片并在缺失或加载失败时显示类型图标;操作回调和数据边界不变
 - `npm run verify:deploy-status -- 3e8b6f1` pass: GitHub Actions run `29141643669` success,Vercel status success,生产入口 `/assets/index-DlHnRYc2.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
 - `npm run verify:deploy-status -- a48c4ad` pass: GitHub Actions run `29142090108` success,Vercel status success,文档部署未改变生产入口,未登录 quote/earnings 均保持 `401`
@@ -698,7 +700,7 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - `v10.7.9.282` 已上线:收益报表对比浮层里“我的”当日/累计收益率改为跟随系统涨跌颜色设置,下跌不再错误显示为红色;收益报表副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,底层生成逻辑保留;生产 bundle marker 确认 `v10.7.9.282`、`收益报表浮层颜色和页面文案调整`、`Quote Data testing`、`dailyPnlPct`、`pnlPct` 和 `底层生成逻辑保留` 存在
 - `v10.7.9.281` 已上线:收益报表“收益率走势”对比浮层展示“我的”和“纳斯达克”的当日/累计收益率,基准沿用现有本期起点收盘价口径
 - `v10.7.9.280` 已上线:个股收益详情页“我的收益线”峰值圆点新增独立呼吸光晕,原圆点半径保持 `r="3.6"` 不变
-- 本轮只改账户/订单操作卡、删除确认卡、Logo 展示与开发态预览;不改账户/交易数据库结构、操作回调、`/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照或行情 relay
+- 本轮只改年度目标展示值、年度路径中英文标签、设置页版本/更新日志和静态护栏;不改投资计划、年度实际、复利、北极星总目标、数据库、`/api/quote`、`/api/earnings-calendar`、RLS、交易账本、收益快照或行情 relay
 
 请先按顺序读:
 1. `docs/handoff.md`

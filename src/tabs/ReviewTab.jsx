@@ -946,7 +946,7 @@ export default function ReviewTab({ ctx }) {
                     </div>
                     <div className="w-full shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2 text-[11px] leading-relaxed">
                       <div className="whitespace-nowrap text-white/62">
-                        {tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</span>
+                        {tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.planTarget)}</span>
                       </div>
                       <div className={`mt-0.5 whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : pnlTextClass(targetGap)}`} style={{ fontFamily: NUMBER_FONT }}>
                         {targetGap === null
@@ -960,7 +960,7 @@ export default function ReviewTab({ ctx }) {
 
                   <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-white/[0.035] px-3 py-3">
                     <div>
-                      <div className="text-[11px] text-white/40">{tt('review.start', '起点')}</div>
+                      <div className="text-[11px] text-white/40">{tt('review.yearStart', '年初起点')}</div>
                       <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
@@ -970,7 +970,7 @@ export default function ReviewTab({ ctx }) {
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-right">
-                      <div className="text-[11px] text-white/40">{tt('review.target', '目标')}</div>
+                      <div className="text-[11px] text-white/40">{tt('review.yearEnd', '终点')}</div>
                       <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
                     </div>
                   </div>
@@ -1011,12 +1011,12 @@ export default function ReviewTab({ ctx }) {
 
                 <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-black/15 px-3 py-3">
                   <div>
-                    <div className="text-[11px] text-white/38">{tt('review.start', '起点')}</div>
+                    <div className="text-[11px] text-white/38">{tt('review.yearStart', '年初起点')}</div>
                     <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance)}</div>
                   </div>
                   <div className="px-4 text-white/25">→</div>
                   <div className="text-right">
-                    <div className="text-[11px] text-white/38">{tt('review.target', '目标')}</div>
+                    <div className="text-[11px] text-white/38">{tt('review.yearEnd', '终点')}</div>
                     <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                   </div>
                 </div>

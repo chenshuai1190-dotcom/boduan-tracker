@@ -4,6 +4,22 @@
 
 ## 2026-07-11 Asia/Shanghai
 
+### 2026-07-11 - 年度目标当年计划口径和年度路径标签修正
+
+- Commit: `same commit`;部署证据将在上线后回填。
+- Deployment: pending;本地 runtime 验证通过后使用项目 SSH key 推送 GitHub `main`,等待 Vercel 自动部署。
+- Background: 用户要求把目标页年度目标当前年卡片右上角的“目标”从年末总资产改为当年计划,使其和旁边“落后/超额”的年度收益口径一致;随后补充要求当前年和预测年度的资产路径标签统一改为“年初起点/当前/终点”,只改文字不改逻辑。
+- Workflow tier: `runtime`。
+- Changes:
+  - 当前年卡片右上角“目标”从 `startBalance + planTarget` 改为直接显示 `planTarget`;“落后/超额”继续使用既有 `planTarget - actualGain` 差额口径。
+  - 当前年度下方路径从“起点 → 当前 → 目标”改为“年初起点 → 当前 → 终点”;起点、当前和年末资产金额不变。
+  - 预测年度路径同步从“起点 → 目标”改为“年初起点 → 终点”;预测金额、复利和增长目标逻辑不变。
+  - 新增中英文 `Year Start` / `Year End` 系统文案,设置页版本和更新日志同步到 `v10.7.9.293`。
+- Key files: `src/tabs/ReviewTab.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:toolchain` pass;`node --test tests/tool-ledger-boundaries.test.js` 37/37 pass;`npm test` 182/182 pass;`npm run build` pass（`ReviewTab-C63VY092.js`,`i18n-Clmb7kN5.js`,`SettingsTab-T6tPnj-M.js`,`settingsChangelog-BJePtnNO.js`,`App-Bk6gLogJ.js`）;`npm run verify:frontend-smoke` pass（home/trades/analysis/review/settings 均无 console/runtime error）;`npm audit --audit-level=moderate` 0 vulnerabilities。390x844 本地真实组件复核:2026 计划 `+$480,000`,右上角目标 `$480,000`,落后 `$410,000`;路径为“年初起点 $2,400,000 → 当前 $2,470,000 → 终点 $2,880,000”;2027 预测路径为“年初起点 $2,880,000 → 终点 $2,964,000”,console error 为 0。预览截图:`~/Desktop/boduan-previews/v10.7.9.293-annual-goal-plan-labels.png`。
+- Boundaries: 只改年度目标展示值和中英文标签;不改投资计划、年度实际、复利、进度、北极星总目标、数据库、交易账本、收益快照、行情 API、RLS 或鉴权。
+- Rollback: 回退年度目标右上角值绑定、年度路径标签/i18n、`v10.7.9.293` 设置记录、静态护栏和本条日志即可恢复上一版。
+
 ### 2026-07-11 - v10.7.9.292 最终交接文档刷新
 
 - Commit: docs-only handoff refresh `a48c4ad64ea2870ff989f6313b13fbb3a3873170`;本条后续 docs-only 提交只回填部署证据。
