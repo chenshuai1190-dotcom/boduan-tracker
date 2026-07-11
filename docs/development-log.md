@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 年度目标当年计划口径和年度路径标签修正
 
-- Commit: `same commit`;部署证据将在上线后回填。
-- Deployment: pending;本地 runtime 验证通过后使用项目 SSH key 推送 GitHub `main`,等待 Vercel 自动部署。
+- Commit: runtime `874dd1766901dbcbf3671a6fda4b79ddce4e87fd`;本条后续 docs-only 提交只回填部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29143029685` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5WbWTjFeEFnoiaotNCkBmqo56khb`,production alias 已更新,入口 `/assets/index-DtMRK-G6.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `ReviewTab-C63VY092.js`,`i18n-Clmb7kN5.js`,`SettingsTab-T6tPnj-M.js`,`settingsChangelog-BJePtnNO.js` 和 `App-Bk6gLogJ.js` 与本地构建 SHA-256 完全一致;生产 marker 命中 `v10.7.9.293`、年度目标当年计划口径修正、年初起点/终点及英文 `Year Start` / `Year End`。
 - Background: 用户要求把目标页年度目标当前年卡片右上角的“目标”从年末总资产改为当年计划,使其和旁边“落后/超额”的年度收益口径一致;随后补充要求当前年和预测年度的资产路径标签统一改为“年初起点/当前/终点”,只改文字不改逻辑。
 - Workflow tier: `runtime`。
 - Changes:

@@ -6,7 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新待上线补充: `v10.7.9.293` 年度目标当年计划口径和年度路径标签修正已完成本地验证,运行时提交待生成;当前年卡片右上角目标改为当年计划,落后/超额继续按当年计划与实际差额计算,当前与预测年度路径统一为“年初起点/当前/终点”。投资计划、年度实际、复利、北极星总目标、数据库和安全边界不变。
+- 最新已上线补充: `v10.7.9.293` 年度目标当年计划口径和年度路径标签修正已上线,production runtime commit `874dd1766901dbcbf3671a6fda4b79ddce4e87fd`;当前年卡片右上角目标改为当年计划,落后/超额继续按当年计划与实际差额计算,当前与预测年度路径统一为“年初起点/当前/终点”。投资计划、年度实际、复利、北极星总目标、数据库和安全边界不变。
 - 上一条已上线补充: `v10.7.9.292` 账户、订单和删除弹窗视觉重构已上线,production runtime commit `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`;账户/订单操作统一为设计稿同款深色玻璃卡,订单接入现有股票 Logo 链路,账户支持可选图片 Logo 并以账户类型图标兜底,危险删除改为独立确认面板。账户、订单、删除回调、交易账本、数据库、RLS 和鉴权不变。
 - 上一条已上线补充: `v10.7.9.291` 财报日历全模块白色文字降亮已上线,production runtime commit `777275ee90fcf3ecda6fb3f178c4843730a87194`;首页财报卡、弹窗、列表和详情里的白色标题/代码/实际值统一为 70%,预期值 60%,月份与普通日期 65%,并清理会继承成纯白的无效透明度档位;红绿结果和金色状态不变。
 - 上一条已上线补充: `v10.7.9.290` 首页股票代码和公司名称继续降亮已上线,production runtime commit `ce9e3c1f04a0608baebf21c33629e871c495384b`;自选/持仓股票代码从 `text-white/80` 降为 `text-white/70`,公司名称从 `text-white/40` 降为 `text-white/35`,股票 Logo、价格、涨跌色、持仓盈亏和数据逻辑不变。
@@ -19,14 +19,14 @@
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
-- 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已独立验证的交接刷新基准为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,最新运行时代码提交为 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`。
-- 当前生产运行时基准提交: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`。
+- 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `874dd1766901dbcbf3671a6fda4b79ddce4e87fd`。
+- 当前生产运行时基准提交: `874dd1766901dbcbf3671a6fda4b79ddce4e87fd`。
 - 设置页版本: `v10.7.9.293`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
-- 最新运行时部署: `npm run verify:deploy-status -- 3e8b6f1` pass;GitHub Actions run `29141643669` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`;production alias 已更新,入口 `/assets/index-DlHnRYc2.js`。
-- 最近交接文档刷新部署: 本文件所在最新提交只刷新交接材料,不改变 `v10.7.9.292` 生产 bundle、API、数据库或安全边界。
-- 线上关键验证: `npm run verify:deploy-status -- 3e8b6f1` pass;GitHub Actions run `29141643669` success;Vercel status success;生产入口 `/assets/index-DlHnRYc2.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`;线上 `index-DlHnRYc2.js`、`App-Ba5PyXf7.js`、`ActionModalCard-BtddQ5Q3.js`、`AnalysisTab-CoHai3vU.js`、`TradesTab-CLgvxu5_.js`、`SettingsTab-H-9GmAy7.js` 和 `settingsChangelog-CMiC9WuX.js` 与本地构建 SHA-256 一致,生产 marker 确认 `v10.7.9.292`、操作卡几何、账户 Logo 兜底、股票 Logo provider、删除确认位置和危险按钮渐变。
+- 最新运行时部署: `npm run verify:deploy-status -- 874dd17` pass;GitHub Actions run `29143029685` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5WbWTjFeEFnoiaotNCkBmqo56khb`;production alias 已更新,入口 `/assets/index-DtMRK-G6.js`。
+- 最近交接文档刷新部署: 本文件所在最新提交只回填 `v10.7.9.293` 部署证据,不改变 production bundle、API、数据库或安全边界。
+- 线上关键验证: `npm run verify:deploy-status -- 874dd17` pass;GitHub Actions run `29143029685` success;Vercel status success;生产入口 `/assets/index-DtMRK-G6.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`;线上 `ReviewTab-C63VY092.js`,`i18n-Clmb7kN5.js`,`SettingsTab-T6tPnj-M.js`,`settingsChangelog-BJePtnNO.js` 和 `App-Bk6gLogJ.js` 与本地构建 SHA-256 一致,生产 marker 确认 `v10.7.9.293`、年度目标当年计划口径修正、年初起点/终点及英文 `Year Start` / `Year End`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图;`v10.7.9.278` 已上线首页当前信号文字降重;`v10.7.9.279` 已上线首页股票文字继续降重;`v10.7.9.280` 已上线个股收益峰值呼吸点;`v10.7.9.281` 已上线收益报表对比浮层;`v10.7.9.282` 已上线收益报表浮层颜色和页面文案调整;`v10.7.9.283` 已上线个股详情持仓时间;`v10.7.9.284` 已上线自选添加股票校验;`v10.7.9.285` 已上线热门股票弹窗实时行情。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -35,14 +35,14 @@
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已独立验证的交接刷新基准为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`。
-- 当前生产运行时基准提交: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`。
-- 最近应用代码提交: production 最近应用代码提交 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` 包含 `v10.7.9.292` 账户、订单和删除弹窗视觉重构;此前 `777275ee90fcf3ecda6fb3f178c4843730a87194` 包含 `v10.7.9.291` 财报日历全模块白色文字降亮,`ce9e3c1f04a0608baebf21c33629e871c495384b` 包含 `v10.7.9.290` 首页股票代码和公司名称继续降亮;更早收益报表、个股详情、财报日历、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
+- 当前生产运行时基准提交: `874dd1766901dbcbf3671a6fda4b79ddce4e87fd`。
+- 最近应用代码提交: production 最近应用代码提交 `874dd1766901dbcbf3671a6fda4b79ddce4e87fd` 包含 `v10.7.9.293` 年度目标当年计划口径和年度路径标签修正;此前 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` 包含 `v10.7.9.292` 账户、订单和删除弹窗视觉重构。更早收益报表、个股详情、财报日历、BTC/指数拆分和 iOS 主屏实时链路历史见开发日志。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 设置页版本: `v10.7.9.292`。
-- Vercel 最新部署: `v10.7.9.292` runtime commit `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`,production 入口 `/assets/index-DlHnRYc2.js`,关键 chunks 包括 `/assets/App-Ba5PyXf7.js`,`/assets/ActionModalCard-BtddQ5Q3.js`,`/assets/AnalysisTab-CoHai3vU.js`,`/assets/TradesTab-CLgvxu5_.js`,`/assets/SettingsTab-H-9GmAy7.js`,`/assets/settingsChangelog-CMiC9WuX.js`。
+- 设置页版本: `v10.7.9.293`。
+- Vercel 最新部署: `v10.7.9.293` runtime commit `874dd1766901dbcbf3671a6fda4b79ddce4e87fd` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5WbWTjFeEFnoiaotNCkBmqo56khb`,production 入口 `/assets/index-DtMRK-G6.js`,关键 chunks 包括 `/assets/App-Bk6gLogJ.js`,`/assets/ReviewTab-C63VY092.js`,`/assets/i18n-Clmb7kN5.js`,`/assets/SettingsTab-T6tPnj-M.js`,`/assets/settingsChangelog-BJePtnNO.js`。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
-- 最新补充部署记录: `v10.7.9.292` runtime code commit `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` pushed via project SSH key;GitHub Actions `CI` run `29141643669` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-DlHnRYc2.js`;关键 chunks 包括 `/assets/App-Ba5PyXf7.js`,`/assets/ActionModalCard-BtddQ5Q3.js`,`/assets/AnalysisTab-CoHai3vU.js`,`/assets/TradesTab-CLgvxu5_.js`,`/assets/SettingsTab-H-9GmAy7.js`,`/assets/settingsChangelog-CMiC9WuX.js`。上一条 `v10.7.9.291` 财报日历全模块白色文字降亮为 runtime code commit `777275ee90fcf3ecda6fb3f178c4843730a87194`;更早运行时代码部署历史见 `docs/development-log.md`。
+- 最新补充部署记录: `v10.7.9.293` runtime code commit `874dd1766901dbcbf3671a6fda4b79ddce4e87fd` pushed via project SSH key;GitHub Actions `CI` run `29143029685` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5WbWTjFeEFnoiaotNCkBmqo56khb`;production alias updated;active runtime assets and auth boundaries verified。生产入口 `/assets/index-DtMRK-G6.js`;关键 chunks 包括 `/assets/App-Bk6gLogJ.js`,`/assets/ReviewTab-C63VY092.js`,`/assets/i18n-Clmb7kN5.js`,`/assets/SettingsTab-T6tPnj-M.js`,`/assets/settingsChangelog-BJePtnNO.js`。上一条 `v10.7.9.292` 运行时代码提交为 `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`;更早运行时代码部署历史见 `docs/development-log.md`。
 - Supabase 项目 ref: `ykgotnmtqcqdzqtrlayq`
 - 交接文档刷新提交: 本文件所在最新提交,接手后以 `git log -1 --oneline` 为准。
 
@@ -677,14 +677,15 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 生产地址: https://boduan-tracker.vercel.app
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;最近已验证交接刷新基准为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`
-当前前台可见运行时基准提交: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096`
+当前前台可见运行时基准提交: `874dd1766901dbcbf3671a6fda4b79ddce4e87fd`
 设置页版本: `v10.7.9.293`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
-最新运行时部署: `3e8b6f1117112ab4f41fbf7128cb3f7cdabd3096` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Gn9Pv3tJK9ztgwwmVNCdstzd4ghL`
-最新生产入口: `/assets/index-DlHnRYc2.js`
+最新运行时部署: `874dd1766901dbcbf3671a6fda4b79ddce4e87fd` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5WbWTjFeEFnoiaotNCkBmqo56khb`
+最新生产入口: `/assets/index-DtMRK-G6.js`
 
 关键线上验证:
-- `v10.7.9.293` 待上线:年度目标当前年卡片右上角目标改为当年计划;当前与预测年度路径标签改为年初起点/当前/终点,金额和计算逻辑不变
+- `v10.7.9.293` 已上线:年度目标当前年卡片右上角目标改为当年计划;当前与预测年度路径标签改为年初起点/当前/终点,金额和计算逻辑不变
+- `npm run verify:deploy-status -- 874dd17` pass: GitHub Actions run `29143029685` success,Vercel status success,生产入口 `/assets/index-DtMRK-G6.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
 - `v10.7.9.292` 已上线:账户/订单操作和危险删除确认卡按设计稿重构,订单接入现有股票 Logo 链路,账户支持可选图片并在缺失或加载失败时显示类型图标;操作回调和数据边界不变
 - `npm run verify:deploy-status -- 3e8b6f1` pass: GitHub Actions run `29141643669` success,Vercel status success,生产入口 `/assets/index-DlHnRYc2.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
 - `npm run verify:deploy-status -- a48c4ad` pass: GitHub Actions run `29142090108` success,Vercel status success,文档部署未改变生产入口,未登录 quote/earnings 均保持 `401`
