@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   convertWaveUsdAmount,
   formatWaveCurrencyAmount,
+  formatWaveUsdPrice,
 } from '../src/lib/waveCurrencyDisplay.js';
 
 test('wave currency display converts canonical USD values with the shared rate', () => {
@@ -26,6 +27,12 @@ test('wave trade totals and profit signs stay correct in USD and CNY', () => {
   assert.equal(formatWaveCurrencyAmount(200, cny), '+¥1,440');
   assert.equal(formatWaveCurrencyAmount(100, cny), '+¥720');
   assert.equal(formatWaveCurrencyAmount(-100, cny), '-¥720');
+});
+
+test('wave stock unit prices always remain USD quotes', () => {
+  assert.equal(formatWaveUsdPrice(100), '$100.00');
+  assert.equal(formatWaveUsdPrice(110), '$110.00');
+  assert.equal(formatWaveUsdPrice(120, 3), '$120.000');
 });
 
 test('wave display formatter safely normalizes invalid options', () => {

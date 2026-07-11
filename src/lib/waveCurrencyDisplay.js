@@ -32,3 +32,11 @@ export function formatWaveCurrencyAmount(value, {
   const sign = signed ? (converted >= 0 ? '+' : '-') : (converted < 0 ? '-' : '');
   return `${sign}${normalizedCurrency === 'CNY' ? '¥' : '$'}${absolute}`;
 }
+
+export function formatWaveUsdPrice(value, digits = 2) {
+  return formatWaveCurrencyAmount(value, {
+    currency: 'USD',
+    rate: 1,
+    digits,
+  });
+}

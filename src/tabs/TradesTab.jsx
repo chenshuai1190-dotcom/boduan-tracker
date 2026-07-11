@@ -8,7 +8,7 @@ import {
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
-import { formatWaveCurrencyAmount } from '../lib/waveCurrencyDisplay.js';
+import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -617,11 +617,6 @@ export default function TradesTab({ ctx }) {
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayCurrencyLabel = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
-  const waveCurrencyAmount = (value, digits = 2) => formatWaveCurrencyAmount(value, {
-    currency: displayCurrency,
-    rate: displayRate,
-    digits,
-  });
   const signedWaveCurrencyAmount = (value, digits = 2) => formatWaveCurrencyAmount(value, {
     currency: displayCurrency,
     rate: displayRate,
@@ -824,11 +819,15 @@ export default function TradesTab({ ctx }) {
   const confirmTradeSubmit = (sideOverride = newTrade.side || 'buy') => {
     if (tradeSubmitting) return;
     const tradeDraft = { ...newTrade, side: sideOverride };
+    const isWaveEntry = tradeEntryScope === 'wave';
+    const noticePrice = Number(tradeDraft.price) > 0 && isWaveEntry
+      ? formatWaveUsdPrice(tradeDraft.price)
+      : (tradeDraft.price || '--');
     if (!tradeDraft.symbol || !tradeDraft.price || !tradeDraft.shares) {
       showTradeFormNotice(
         tt('trades.requiredTitle', '请填写完整信息'),
         tt('trades.requiredDesc', '股票代码、价格和股数都是必填项。'),
-        `${tradeDraft.symbol || '--'} · ${tradeDraft.price || '--'} · ${tradeDraft.shares || '--'}`
+        `${tradeDraft.symbol || '--'} · ${noticePrice} · ${tradeDraft.shares || '--'}`
       );
       return;
     }
@@ -843,15 +842,17 @@ export default function TradesTab({ ctx }) {
     }
     const shares = Number(tradeDraft.shares) || 0;
     const price = Number(tradeDraft.price) || 0;
+    const confirmationPrice = price > 0
+      ? (isWaveEntry ? formatWaveUsdPrice(price) : price.toFixed(2))
+      : '--';
     if (shares <= 0 || price <= 0) {
       showTradeFormNotice(
         tt('trades.positiveTitle', '价格和股数需要大于 0'),
         tt('trades.positiveDesc', '请检查输入后再提交。'),
-        `${symbol || '--'} · ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'}`
+        `${symbol || '--'} · ${sharesText(shares, 0)} @ ${confirmationPrice}`
       );
       return;
     }
-    const isWaveEntry = tradeEntryScope === 'wave';
     const currentSideLabel = sideLabel(tradeDraft.side);
     setNewTrade(current => ({ ...current, side: tradeDraft.side }));
     showConfirm({
@@ -861,7 +862,7 @@ export default function TradesTab({ ctx }) {
       desc: isWaveEntry
         ? tt('trades.confirmWaveSaveDesc', '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。')
         : tt('trades.confirmLedgerSaveDesc', '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。'),
-      info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${price > 0 ? price.toFixed(2) : '--'}`,
+      info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${confirmationPrice}`,
       confirmText: tt('trades.confirmSave', '确认保存'),
       confirmStyle: 'primary',
       icon: 'check',
@@ -1394,7 +1395,7 @@ export default function TradesTab({ ctx }) {
                                 <span className="ml-1 text-[10px] font-normal text-white/45">· {daysText(w.heldDays)}</span>
                               </span>
                               <span className="mt-1 block text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {waveCurrencyAmount(w.avgBuyPrice)} → {waveCurrencyAmount(w.avgSellPrice)}
+                                {formatWaveUsdPrice(w.avgBuyPrice)} → {formatWaveUsdPrice(w.avgSellPrice)}
                               </span>
                             </span>
                             <span className="text-right">
@@ -1474,7 +1475,7 @@ export default function TradesTab({ ctx }) {
                                           {(t.date || '').slice(5)}
                                         </span>
                                         <span className="truncate text-[11px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                          {sharesText(t.shares, 0)} @{waveCurrencyAmount(t.price)}
+                                          {sharesText(t.shares, 0)} @{formatWaveUsdPrice(t.price)}
                                         </span>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-2">
@@ -1629,13 +1630,13 @@ export default function TradesTab({ ctx }) {
                             <div>
                               <div className="text-[10px] font-normal text-white/40">{tt('trades.avgBuy', '买入均')}</div>
                               <div className="mt-1 text-[12px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {waveCurrencyAmount(w.avgBuyPrice)}
+                                {formatWaveUsdPrice(w.avgBuyPrice)}
                               </div>
                             </div>
                             <div>
                               <div className="text-[10px] font-normal text-white/40">{tt('trades.currentPrice', '现价')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${w.currentPrice === w.avgBuyPrice ? 'text-white/90' : pnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                {w.currentPrice > 0 ? waveCurrencyAmount(w.currentPrice) : '—'}
+                                {w.currentPrice > 0 ? formatWaveUsdPrice(w.currentPrice) : '—'}
                               </div>
                             </div>
                             <div>
@@ -1720,7 +1721,7 @@ export default function TradesTab({ ctx }) {
                                         {(t.date || '').slice(5)}
                                       </span>
                                       <span className="truncate text-[11px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                        {sharesText(t.shares, 0)} @{waveCurrencyAmount(t.price)}
+                                        {sharesText(t.shares, 0)} @{formatWaveUsdPrice(t.price)}
                                       </span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
@@ -1790,7 +1791,7 @@ export default function TradesTab({ ctx }) {
                                       <span className="ml-1 text-[9px] font-normal text-white/40">· {daysText(w.heldDays)}</span>
                                     </span>
                                     <span className="mt-0.5 block text-[9px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                      {waveCurrencyAmount(w.avgBuyPrice)} → {waveCurrencyAmount(w.avgSellPrice)}
+                                      {formatWaveUsdPrice(w.avgBuyPrice)} → {formatWaveUsdPrice(w.avgSellPrice)}
                                     </span>
                                   </span>
                                   <span className="text-right">
@@ -1876,7 +1877,7 @@ export default function TradesTab({ ctx }) {
                                                 {(t.date || '').slice(5)}
                                               </span>
                                               <span className="truncate text-[10px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                                {sharesText(t.shares, 0)} @{waveCurrencyAmount(t.price)}
+                                                {sharesText(t.shares, 0)} @{formatWaveUsdPrice(t.price)}
                                               </span>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-2">
