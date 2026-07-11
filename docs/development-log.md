@@ -6,8 +6,8 @@
 
 ### 2026-07-11 - 目标页年度卡片配色和摘要布局优化
 
-- Commit: `same commit`;推送后回填实际 runtime commit。
-- Deployment: pending;用户已确认本地视觉稿并要求部署,本条随运行时代码使用项目 SSH key 推送 GitHub `main`,等待 GitHub Actions 和 Vercel 自动部署后回填证据。
+- Commit: runtime `ce2ddb444e3144ad264bb9ebbc1dee8929410493`;本条后续 docs-only 提交只回填部署证据。
+- Deployment: completed;使用项目 SSH key 推送 GitHub `main`,GitHub Actions run `29145076024` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JBBnXuAUeWGJDTNSVfVqMzc4sccr`,production alias 已更新,入口 `/assets/index-C71PVvAU.js`;未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 均返回 `401`。线上 `index-C71PVvAU.js`,`App-DFkLvmSf.js`,`ReviewTab-Cckoyxb7.js`,`i18n-Q3YLxp8o.js`,`SettingsTab-NiDvc-Fx.js` 和 `settingsChangelog-BP6Nv3GF.js` 与本地构建 SHA-256 完全一致;生产 marker 包含 `v10.7.9.294`、目标页年度卡片配色与布局优化及“实现 / Achieved”。
 - Background: 用户要求个人箴言改为灰色斜体,当前年度右侧摘要增加当年实现金额并重新定义目标/实现/落后的颜色;本地首版确认后继续要求摘要上移到与“年份/本年/未达”同高,并参考首页头卡把目标页从大面积黄色调整为黄色、白色、红色和绿色的结果层级。
 - Workflow tier: `runtime`。
 - Changes:
@@ -17,7 +17,7 @@
   - 当前年份、计划、年初起点和终点改为白色层级,当前位置和进度条保留黄色;北极星当前金额改为中性白色,总体与本年完成率改为红色。
   - 设置页三个可见版本面、更新日志和版本号统一到 `v10.7.9.294`,并补测试防止设置顶部、更新日志和关于卡版本再次不同步。
 - Key files: `src/tabs/ReviewTab.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
-- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;`node --test tests/tool-ledger-boundaries.test.js` 37/37 pass;`npm test` 182/182 pass;`npm run build` pass（`ReviewTab-Cckoyxb7.js`,`i18n-Q3YLxp8o.js`,`SettingsTab-NiDvc-Fx.js`,`settingsChangelog-BP6Nv3GF.js`,`App-DFkLvmSf.js`）;`npm run verify:frontend-smoke` pass（home/trades/analysis/review/settings 均 `errors:0`）;`npm audit --audit-level=moderate` 0 vulnerabilities;`git diff --check` pass。390x844 本地 CNY 预览确认 `scrollWidth=390`,右侧摘要与年份顶部误差为 0;总体 `16.6%` 和本年 `15%` 均为 `rgb(255,75,31)`,“未达”为 `rgb(52,211,153)`,年初/终点为白色、当前为黄色。截图:`~/Desktop/boduan-previews/target-four-color-hierarchy-cny-390x844.png`。
+- Validation: `npm run verify:workspace-state` pass;`npm run verify:local-env` pass;`npm run verify:toolchain` pass;`node --test tests/tool-ledger-boundaries.test.js` 37/37 pass;`npm test` 182/182 pass;`npm run build` pass（`ReviewTab-Cckoyxb7.js`,`i18n-Q3YLxp8o.js`,`SettingsTab-NiDvc-Fx.js`,`settingsChangelog-BP6Nv3GF.js`,`App-DFkLvmSf.js`）;`npm run verify:frontend-smoke` pass（home/trades/analysis/review/settings 均 `errors:0`）;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:docs-consistency` pass;`git diff --check` pass;`npm run verify:deploy-status -- ce2ddb4` pass。390x844 本地 CNY 预览确认 `scrollWidth=390`,右侧摘要与年份顶部误差为 0;总体 `16.6%` 和本年 `15%` 均为 `rgb(255,75,31)`,“未达”为 `rgb(52,211,153)`,年初/终点为白色、当前为黄色。截图:`~/Desktop/boduan-previews/target-four-color-hierarchy-cny-390x844.png`;生产未登录页 390x844 正常加载且 console error 为 0,登录后的目标页由上述一致性校验通过的同一组 production chunks 提供。
 - Boundaries: 只改目标页展示、布局、中英文系统文案、设置页版本记录和静态护栏;不改年度计划、实际收益、差额/复利计算、数据库、交易账本、收益快照、行情 relay、`/api/quote`、`/api/earnings-calendar`、RLS、鉴权或环境变量。`README.md`、`docs/security-hardening.md` 和 `docs/architecture-security-audit.md` 无需修改,因为技术栈、安全基线和架构边界均未改变。
 - Rollback: 回退目标页视觉/摘要/i18n、`v10.7.9.294` 设置记录、测试护栏、本条日志和交接摘要即可恢复 `v10.7.9.293` 展示;无需数据库或服务端回滚。
 
