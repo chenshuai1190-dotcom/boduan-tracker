@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 设置页折叠式重设计正式接入
 
-- Deployment: not deployed;本轮按用户要求先完成本地实装与验证。
+- Deployment: completed;runtime commit `256585c1c4cf0caf8726a86be61fd1ea9480ce99`,GitHub Actions run `29179082664` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5uNuTVKCmjyuBLRkyk59tFj3rs4f` success,production alias 已更新,入口 `/assets/index-CcX_3A7Q.js`。
 - Background: 用户确认设置页第一阶段 HTML 原型及“展开区不再内套大框”的视觉,要求开始接入正式代码并本地测试。
 - Workflow tier: `runtime`。
 - Changes:
@@ -20,7 +20,7 @@
   - 根据正式页本地截图反馈,社区身份头卡保持原宽度和圆角,整体高度从 252px 缩小约 30% 至 176px,头像从 94px 缩至 66px,昵称、说明字号与间距同步压缩。
   - 设置页和更新日志版本同步为 `v10.7.9.308`。
 - Key files: `src/tabs/SettingsTab.jsx`,`src/App.jsx`,`src/DevVisualPreview.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,最终生成 `SettingsTab-DHHSCjsY.js`、`TradesTab-BLHitRsx.js` 和 `settingsChangelog-Cy-fvut6.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;toolchain、docs consistency、`git diff --check` pass。390x844 正式 `SettingsTab` 本地交互复核:默认页、显示设置、账户改密、社区资料和更新日志均可展开,页面 `scrollWidth/clientWidth=390/390`;社区昵称与改密输入框均为 316px,六个头像完整;设置页切换“绿涨红跌”后交易页原有齿轮菜单立即显示同一选项激活;更新日志命中 v308/数据源,可见行情诊断面板不存在。头卡缩小 30% 后测得宽/高 358/176px、头像 66px,页面仍为 390/390;截图 `~/Desktop/boduan-previews/settings-production-v308-header-minus30-390x844.png`、`settings-production-v308-display-expanded-390x844.png`、`settings-production-v308-community-expanded-390x844.png`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,最终生成 `SettingsTab-DHHSCjsY.js`、`TradesTab-BLHitRsx.js` 和 `settingsChangelog-Cy-fvut6.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;toolchain、docs consistency、`git diff --check` pass。390x844 正式 `SettingsTab` 本地交互复核:默认页、显示设置、账户改密、社区资料和更新日志均可展开,页面 `scrollWidth/clientWidth=390/390`;社区昵称与改密输入框均为 316px,六个头像完整;设置页切换“绿涨红跌”后交易页原有齿轮菜单立即显示同一选项激活;更新日志命中 v308/数据源,可见行情诊断面板不存在。头卡缩小 30% 后测得宽/高 358/176px、头像 66px,页面仍为 390/390;截图 `~/Desktop/boduan-previews/settings-production-v308-header-minus30-390x844.png`、`settings-production-v308-display-expanded-390x844.png`、`settings-production-v308-community-expanded-390x844.png`。`npm run verify:deploy-status -- 256585c` pass;生产 `SettingsTab-DHHSCjsY.js` 命中 `phase-1-production` / `v10.7.9.308` / `显示设置` / `邀请码管理` 且不含可见行情诊断标题,`TradesTab-BLHitRsx.js` 继续命中配色齿轮文案,更新日志命中“设置页折叠式重设计”;未登录 quote、earnings 均为 `401`。
 - Boundaries: 不改登录认证协议、Supabase session 存储、数据库结构/RLS、社区资料表、邀请码 API、交易账本、收益快照、比赛快照、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
 - Rollback: 回退正式设置页、`v10.7.9.308` 更新日志、上下文/测试和本条日志即可;交易页原有配色入口不需回滚,无需数据库回滚。
 
