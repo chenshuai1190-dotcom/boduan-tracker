@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - iOS 共享弹窗聚焦输入与本地验收准则
 
-- Commit: `same v10.7.9.322 release commit`。
-- Deployment: 用户已确认部署为 `v10.7.9.322`,供生产 iOS 主屏真机复测;runtime 提交、Actions、Vercel target 和生产入口待回填。
+- Commit: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
+- Deployment: `v10.7.9.322` 已上线供生产 iOS 主屏真机复测。`npm run verify:deploy-status -- a61fc55` pass;GitHub Actions run `29197665639` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CQBi1sr3EMRztDk7g8QYKF1FgbiT` success,生产入口 `/assets/index-Do0OzKUa.js`。
 - Background: 用户提供的编辑波段对照显示同一共享弹窗在聚焦区域原本位于短视口内时表现正常;新增交易日期、修改账户余额等位于更下方的控件则不会随 `visualViewport` 缩短自动滚回可见区。键盘下缩短弹窗是必要的可视区适配,真正缺失的是当前聚焦控件的内部滚动定位。
 - Workflow tier: `runtime`。
 - Changes:
@@ -17,7 +17,7 @@
   - 开发准则改为所有前端视觉、交互、键盘、滚动、安全区和 PWA 验收必须使用本机 Xcode iOS Simulator 的 Safari 或主屏 Web App;禁止桌面 Chrome、Codex 内置浏览器、浏览器缩短视口和 `verify:frontend-smoke` 充当视觉通过证据。
   - 定向代码测试、`npm test`、build、docs consistency、diff 和安全检查继续作为代码门禁,但不得替代 iOS 验收。
 - Key files: `src/components/ActionModalCard.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/development-process.md`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `npm run verify:toolchain` pass、完整测试 255/255 pass、`npm run build` pass、high audit 0 vulnerabilities、docs consistency 和 `git diff --check` pass。已启动本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator,在 Safari 打开真实 `http://127.0.0.1:5173/?devPreview=1` 并拉起系统软件键盘:新增交易聚焦股数后,股票区自动上卷,股数、日期和买入/卖出按钮同时完整可见;修改账户从账户名切换到本月余额后,内容区自动滚动,币种、余额输入和取消/保存按钮同时位于数字键盘上方。两条路径输入宽度不变,只改变最近内部滚动容器的 `scrollTop`。截图: `~/Desktop/boduan-previews/ios-simulator-trade-focus-fixed.png`,`~/Desktop/boduan-previews/ios-simulator-account-balance-focus-fixed.png`。编辑波段继续优先使用自身 `ModalFormScroller`,且定向断言保持该嵌套容器边界。按新准则未运行 Chrome/内置浏览器视觉测试或旧 `verify:frontend-smoke`;真实用户 iOS 主屏 Web App 仍需在部署后最终复测。
+- Validation: `npm run verify:toolchain` pass、完整测试 255/255 pass、`npm run build` pass、high audit 0 vulnerabilities、docs consistency、`git diff --check` 和 deploy status 均 pass。已启动本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator,在 Safari 打开真实 `http://127.0.0.1:5173/?devPreview=1` 并拉起系统软件键盘:新增交易聚焦股数后,股票区自动上卷,股数、日期和买入/卖出按钮同时完整可见;修改账户从账户名切换到本月余额后,内容区自动滚动,币种、余额输入和取消/保存按钮同时位于数字键盘上方。两条路径输入宽度不变,只改变最近内部滚动容器的 `scrollTop`。截图: `~/Desktop/boduan-previews/ios-simulator-trade-focus-fixed.png`,`~/Desktop/boduan-previews/ios-simulator-account-balance-focus-fixed.png`。编辑波段继续优先使用自身 `ModalFormScroller`,且定向断言保持该嵌套容器边界。生产入口、共享弹窗、设置与更新日志 4 个关键文件均与本地 SHA-256 一致,线上命中 v322/更新标题 marker;quote、earnings 未登录保持 `401`。按新准则未运行 Chrome/内置浏览器视觉测试或旧 `verify:frontend-smoke`;真实用户 iOS 主屏 Web App 仍需最终复测。
 - Boundaries: 不改任何字段、输入宽度、表单验证、保存回调、`stock_trades`、资产账户数据、波段数据、持仓、收益快照、数据库、RLS、鉴权或 API。
 - Rollback: 回退共享组件聚焦定位 refs/callback、测试和本条日志即可;无数据或环境回滚。
 
