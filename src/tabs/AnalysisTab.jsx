@@ -478,6 +478,80 @@ function AnalysisTab({ ctx }) {
     }
   };
 
+  const saveNewAccount = async () => {
+    const accountName = newAccount.name.trim();
+    if (!newAccount.type) {
+      setAssetMessage({ type: 'error', text: tt('analysis.chooseAccountType', '请选择账户类型') });
+      return;
+    }
+    if (!accountName) {
+      setAssetMessage({ type: 'error', text: tt('analysis.fillAccountName', '请填写账户名') });
+      return;
+    }
+    if (accounts.find(a => a.owner === newAccount.owner && a.name === accountName)) {
+      setAssetMessage({ type: 'error', text: tt('analysis.duplicateAccount', '该账户已存在') });
+      return;
+    }
+    try {
+      const saved = await db.insertAccount({
+        owner: newAccount.owner,
+        type: newAccount.type,
+        name: accountName,
+        currency: newAccount.currency,
+        icon: newAccount.type,
+        sortOrder: accounts.length,
+      });
+      setAccounts([...accounts, saved]);
+      if (newAccount.balance && parseFloat(newAccount.balance) > 0) {
+        const val = parseFloat(newAccount.balance);
+        await db.upsertSnapshot(saved.id, currentMonth, val);
+        setSnapshots([...snapshots, {
+          id: `new_${Date.now()}`,
+          accountId: saved.id,
+          month: currentMonth,
+          balance: val,
+        }]);
+      }
+      setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' });
+      closeAddAccount();
+    } catch (e) {
+      console.error('[添加账户] 失败:', e);
+      setAssetMessage({ type: 'error', text: `${tt('analysis.addFailed', '添加失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
+    }
+  };
+
+  const saveFillSnapshot = async () => {
+    const validEntries = Object.entries(snapshotDraft)
+      .map(([accId, valStr]) => ({ accId, val: parseFloat(valStr) }))
+      .filter(({ val }) => !isNaN(val) && val >= 0);
+    if (validEntries.length === 0) {
+      closeFillSnapshot();
+      return;
+    }
+    try {
+      await Promise.all(validEntries.map(({ accId, val }) => db.upsertSnapshot(accId, fillMonth, val)));
+      const newSnapshots = [...snapshots];
+      validEntries.forEach(({ accId, val }) => {
+        const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === fillMonth);
+        if (idx >= 0) {
+          newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
+        } else {
+          newSnapshots.push({
+            id: `new_${Date.now()}_${accId}`,
+            accountId: accId,
+            month: fillMonth,
+            balance: val,
+          });
+        }
+      });
+      setSnapshots(newSnapshots);
+      closeFillSnapshot();
+    } catch (e) {
+      console.error('[保存快照] 失败:', e);
+      setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
+    }
+  };
+
   return (
     <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -777,19 +851,17 @@ function AnalysisTab({ ctx }) {
       })}
 
       {showAddAccount && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 py-8 backdrop-blur-sm" onClick={closeAddAccount}>
-          <div
-            className="w-full max-w-[420px] rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[17px] text-white/[0.92]">{tt('analysis.addAccount', '新增账户')}</h3>
-              <button onClick={closeAddAccount} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            </div>
-
-            <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
+        <ActionModalCard
+          title={tt('analysis.addAccount', '新增账户')}
+          closeLabel={tt('analysis.closeAddAccount', '关闭新增账户')}
+          onClose={closeAddAccount}
+          widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
+          actions={[
+            { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeAddAccount },
+            { key: 'save', label: tt('analysis.add', '添加'), onClick: saveNewAccount },
+          ]}
+        >
+            <div className="min-w-0">
               <div className="space-y-5">
                 <div>
                   <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.owner', '拥有人')}</label>
@@ -799,7 +871,7 @@ function AnalysisTab({ ctx }) {
                         key={owner}
                         onClick={() => setNewAccount({ ...newAccount, owner })}
                         className="rounded-lg py-2.5 text-[13px] transition"
-                        style={newAccount.owner === owner ? { background: 'rgba(37,99,235,0.34)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.7)' } : { color: 'rgba(255,255,255,0.52)' }}
+                        style={newAccount.owner === owner ? { background: 'rgba(255,255,255,0.08)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' } : { color: 'rgba(255,255,255,0.52)' }}
                       >
                         {ownerLabel(owner)}
                       </button>
@@ -818,7 +890,7 @@ function AnalysisTab({ ctx }) {
                           onClick={() => setNewAccount({ ...newAccount, type, icon: type })}
                           className="flex aspect-square min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl border text-[12px] transition"
                           style={active
-                            ? { borderColor: '#2563eb', color: ASSET_GOLD, background: 'rgba(37,99,235,0.18)', boxShadow: '0 0 18px rgba(37,99,235,0.18)' }
+                            ? { borderColor: 'rgba(246,197,111,0.38)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.07)' }
                             : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
                         >
                           <Icon className="h-5 w-5" strokeWidth={1.7} />
@@ -861,7 +933,7 @@ function AnalysisTab({ ctx }) {
                         onClick={() => setNewAccount({ ...newAccount, currency })}
                         className="rounded-xl border py-2.5 text-[13px] tabular-nums transition"
                         style={newAccount.currency === currency
-                          ? { borderColor: '#2563eb', color: '#f7fbff', background: 'rgba(37,99,235,0.34)', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.45)' }
+                          ? { borderColor: 'rgba(246,197,111,0.38)', color: '#f7fbff', background: 'rgba(246,197,111,0.07)' }
                           : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.56)', background: 'rgba(255,255,255,0.035)' }}
                       >
                         {currency}
@@ -891,63 +963,8 @@ function AnalysisTab({ ctx }) {
                 )}
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <button
-                  onClick={closeAddAccount}
-                  className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
-                >
-                  {tt('analysis.cancel', '取消')}
-                </button>
-                <button
-                  onClick={async () => {
-                    const accountName = newAccount.name.trim();
-                    if (!newAccount.type) {
-                      setAssetMessage({ type: 'error', text: tt('analysis.chooseAccountType', '请选择账户类型') });
-                      return;
-                    }
-                    if (!accountName) {
-                      setAssetMessage({ type: 'error', text: tt('analysis.fillAccountName', '请填写账户名') });
-                      return;
-                    }
-                    if (accounts.find(a => a.owner === newAccount.owner && a.name === accountName)) {
-                      setAssetMessage({ type: 'error', text: tt('analysis.duplicateAccount', '该账户已存在') });
-                      return;
-                    }
-                    try {
-                      const saved = await db.insertAccount({
-                        owner: newAccount.owner,
-                        type: newAccount.type,
-                        name: accountName,
-                        currency: newAccount.currency,
-                        icon: newAccount.type,
-                        sortOrder: accounts.length,
-                      });
-                      setAccounts([...accounts, saved]);
-                      if (newAccount.balance && parseFloat(newAccount.balance) > 0) {
-                        const val = parseFloat(newAccount.balance);
-                        await db.upsertSnapshot(saved.id, currentMonth, val);
-                        setSnapshots([...snapshots, {
-                          id: `new_${Date.now()}`,
-                          accountId: saved.id,
-                          month: currentMonth,
-                          balance: val,
-                        }]);
-                      }
-                      setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' });
-                      closeAddAccount();
-                    } catch (e) {
-                      console.error('[添加账户] 失败:', e);
-                      setAssetMessage({ type: 'error', text: `${tt('analysis.addFailed', '添加失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
-                    }
-                  }}
-                  className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
-                >
-                  {tt('analysis.add', '添加')}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
+        </ActionModalCard>
       )}
 
       {selectedActionAccount && (
@@ -987,19 +1004,17 @@ function AnalysisTab({ ctx }) {
       )}
 
       {editingAccount && accountEditDraft && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 py-8 backdrop-blur-sm" onClick={closeAccountEdit}>
-          <div
-            className="w-full max-w-[420px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[17px] text-white/[0.92]">{tt('analysis.editAccount', '修改账户')}</h3>
-              <button onClick={closeAccountEdit} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            </div>
-
-            <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
+        <ActionModalCard
+          title={tt('analysis.editAccount', '修改账户')}
+          closeLabel={tt('analysis.closeEditAccount', '关闭修改账户')}
+          onClose={closeAccountEdit}
+          widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
+          actions={[
+            { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeAccountEdit },
+            { key: 'save', label: tt('analysis.saveChanges', '保存修改'), onClick: saveAccountEdit },
+          ]}
+        >
+            <div className="min-w-0">
               <div className="space-y-5">
                 <div>
                   <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.owner', '拥有人')}</label>
@@ -1009,7 +1024,7 @@ function AnalysisTab({ ctx }) {
                         key={owner}
                         onClick={() => setAccountEditDraft({ ...accountEditDraft, owner })}
                         className="rounded-lg py-2.5 text-[13px] transition"
-                        style={accountEditDraft.owner === owner ? { background: 'rgba(37,99,235,0.34)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.7)' } : { color: 'rgba(255,255,255,0.52)' }}
+                        style={accountEditDraft.owner === owner ? { background: 'rgba(255,255,255,0.08)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' } : { color: 'rgba(255,255,255,0.52)' }}
                       >
                         {ownerLabel(owner)}
                       </button>
@@ -1028,7 +1043,7 @@ function AnalysisTab({ ctx }) {
                           onClick={() => setAccountEditDraft({ ...accountEditDraft, type, icon: type })}
                           className="flex aspect-square min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl border text-[12px] transition"
                           style={active
-                            ? { borderColor: '#2563eb', color: ASSET_GOLD, background: 'rgba(37,99,235,0.18)', boxShadow: '0 0 18px rgba(37,99,235,0.18)' }
+                            ? { borderColor: 'rgba(246,197,111,0.38)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.07)' }
                             : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
                         >
                           <Icon className="h-5 w-5" strokeWidth={1.7} />
@@ -1071,7 +1086,7 @@ function AnalysisTab({ ctx }) {
                         onClick={() => setAccountEditDraft({ ...accountEditDraft, currency })}
                         className="rounded-xl border py-2.5 text-[13px] tabular-nums transition"
                         style={accountEditDraft.currency === currency
-                          ? { borderColor: '#2563eb', color: '#f7fbff', background: 'rgba(37,99,235,0.34)', boxShadow: 'inset 0 0 0 1px rgba(68,121,255,0.45)' }
+                          ? { borderColor: 'rgba(246,197,111,0.38)', color: '#f7fbff', background: 'rgba(246,197,111,0.07)' }
                           : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.56)', background: 'rgba(255,255,255,0.035)' }}
                       >
                         {currency}
@@ -1101,25 +1116,8 @@ function AnalysisTab({ ctx }) {
                 )}
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={closeAccountEdit}
-                  className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
-                >
-                  {tt('analysis.cancel', '取消')}
-                </button>
-                <button
-                  type="button"
-                  onClick={saveAccountEdit}
-                  className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
-                >
-                  {tt('analysis.saveChanges', '保存修改')}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
+        </ActionModalCard>
       )}
 
       {showMonthsDetail && (
@@ -1188,16 +1186,17 @@ function AnalysisTab({ ctx }) {
       )}
 
       {showFillSnapshot && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 py-8 backdrop-blur-sm" onClick={closeFillSnapshot}>
-          <div className="w-full max-w-[420px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <h3 className="text-[17px] text-white/[0.92]">{tt('analysis.addMonthlyBalance', '填月度余额')}</h3>
-              <button onClick={closeFillSnapshot} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            </div>
-
-            <div className="max-h-[calc(100vh-150px)] overflow-y-auto px-4 pb-4 pt-4">
+        <ActionModalCard
+          title={tt('analysis.addMonthlyBalance', '填月度余额')}
+          closeLabel={tt('analysis.closeMonthlyBalance', '关闭填月度余额')}
+          onClose={closeFillSnapshot}
+          widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
+          actions={[
+            { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeFillSnapshot },
+            { key: 'save', label: tt('analysis.saveMonth', '保存 {{month}}', { month: fillMonth }), onClick: saveFillSnapshot },
+          ]}
+        >
+            <div className="min-w-0">
               <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
                 <div className="mb-3 text-[12px] text-white/[0.52]">{tt('analysis.selectMonth', '选择月份')}</div>
                 <div className="flex items-center gap-3">
@@ -1254,7 +1253,7 @@ function AnalysisTab({ ctx }) {
                               key={owner}
                               onClick={() => setSnapshotTab(owner)}
                               className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-[13px] transition"
-                              style={active ? { background: 'rgba(37,99,235,0.32)', color: '#f7fbff' } : { color: 'rgba(255,255,255,0.52)' }}
+                              style={active ? { background: 'rgba(255,255,255,0.08)', color: '#f7fbff' } : { color: 'rgba(255,255,255,0.52)' }}
                             >
                               <span>{ownerLabel(owner)}</span>
                               <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{accs.length}</span>
@@ -1308,58 +1307,8 @@ function AnalysisTab({ ctx }) {
                 </div>
               )}
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <button
-                  onClick={closeFillSnapshot}
-                  className="min-h-[46px] rounded-xl border border-white/10 bg-white/[0.055] text-[13px] text-white/70 active:scale-95 transition"
-                >
-                  {tt('analysis.cancel', '取消')}
-                </button>
-                <button
-                  onClick={async () => {
-                    const validEntries = Object.entries(snapshotDraft)
-                      .map(([accId, valStr]) => ({ accId, val: parseFloat(valStr) }))
-                      .filter(({ val }) => !isNaN(val) && val >= 0);
-
-                    if (validEntries.length === 0) {
-                      closeFillSnapshot();
-                      return;
-                    }
-
-                    try {
-                      await Promise.all(
-                        validEntries.map(({ accId, val }) => db.upsertSnapshot(accId, fillMonth, val))
-                      );
-
-                      const newSnapshots = [...snapshots];
-                      validEntries.forEach(({ accId, val }) => {
-                        const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === fillMonth);
-                        if (idx >= 0) {
-                          newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
-                        } else {
-                          newSnapshots.push({
-                            id: `new_${Date.now()}_${accId}`,
-                            accountId: accId,
-                            month: fillMonth,
-                            balance: val,
-                          });
-                        }
-                      });
-                      setSnapshots(newSnapshots);
-                      closeFillSnapshot();
-                    } catch (e) {
-                      console.error('[保存快照] 失败:', e);
-                      setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
-                    }
-                  }}
-                  className="min-h-[46px] rounded-xl bg-[#2563eb] text-[13px] text-white active:scale-95 transition"
-                >
-                  {tt('analysis.saveMonth', '保存 {{month}}', { month: fillMonth })}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
+        </ActionModalCard>
       )}
     </div>
   );

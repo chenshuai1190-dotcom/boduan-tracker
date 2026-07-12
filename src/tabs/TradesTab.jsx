@@ -1944,35 +1944,18 @@ export default function TradesTab({ ctx }) {
 
         {/* 添加成交表单 - Modal 弹窗 */}
         {showAddTrade && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-3 py-4 backdrop-blur-md animate-in fade-in"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowAddTrade(false); }}
-            style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
-            }}
+          <ActionModalCard
+            title={tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
+            closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
+            onClose={() => !tradeSubmitting && setShowAddTrade(false)}
+            widthClassName="w-[calc(100vw-24px)] max-w-md"
+            panelClassName="min-h-0"
+            actions={[
+              { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
+              { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },
+            ]}
           >
-            <div
-              className="w-full max-w-md min-w-0 overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]"
-              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px)' }}
-            >
-              {/* 顶部把手 + 标题 */}
-              <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
-                <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[16px] font-normal text-white">
-                    {tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
-                  </h2>
-                  <button
-                    onClick={() => setShowAddTrade(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              <div className="min-w-0 p-3.5">
+              <div className="min-w-0">
                 {/* 股票代码 */}
                 <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
                   <div className="min-w-0">
@@ -2088,27 +2071,8 @@ export default function TradesTab({ ctx }) {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  <button
-                    onClick={() => confirmTradeSubmit('buy')}
-                    disabled={tradeSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#ff4b1f]/30 bg-[#ff4b1f] text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(255,75,31,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                  >
-                    <TrendingUp className="h-4 w-4" strokeWidth={1.8} />
-                    <span>{tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入')}</span>
-                  </button>
-                  <button
-                    onClick={() => confirmTradeSubmit('sell')}
-                    disabled={tradeSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-500/15 text-[14px] font-normal text-emerald-100 shadow-[0_14px_34px_rgba(16,185,129,0.16)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                  >
-                    <TrendingDown className="h-4 w-4" strokeWidth={1.8} />
-                    <span>{tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出')}</span>
-                  </button>
-                </div>
               </div>
-            </div>
-          </div>
+          </ActionModalCard>
         )}
 
         {/* ============ 摊薄成本计算器 ============ */}

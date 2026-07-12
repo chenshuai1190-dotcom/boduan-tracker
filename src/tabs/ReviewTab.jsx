@@ -1,4 +1,5 @@
 import React from 'react';
+import ActionModalCard from '../components/ActionModalCard.jsx';
 import { t } from '../lib/i18n.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
 
@@ -110,38 +111,19 @@ function UsFlagBackground({ strength = 0.56, shade = 0.36 }) {
 
 function ReviewActionSheet({ title, desc, children, language = 'zh', onClose }) {
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-0 py-6 backdrop-blur-md"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-      }}
+    <ActionModalCard
+      title={title}
+      closeLabel={t(language, 'review.closeRecordDetails', '关闭记录详情')}
+      onClose={onClose}
+      widthClassName="w-[calc(100vw-72px)] max-w-[360px]"
     >
-      <div className="w-[calc(100vw-72px)] max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]">
-        <div className="border-b border-white/10 px-4 pb-3 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[15px] font-semibold text-white">{title}</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-[17px] text-white/45 active:scale-90"
-              aria-label={t(language, 'review.closeRecordDetails', '关闭记录详情')}
-            >
-              ×
-            </button>
-          </div>
-          {desc && (
-            <div className="mt-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5 text-[12px] leading-relaxed text-white/65">
-              {desc}
-            </div>
-          )}
+      {desc && (
+        <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2.5 text-[12px] leading-relaxed text-white/65">
+          {desc}
         </div>
-        <div className="space-y-2 px-4 pb-4 pt-3">{children}</div>
-      </div>
-    </div>
+      )}
+      <div className="space-y-2">{children}</div>
+    </ActionModalCard>
   );
 }
 
@@ -172,62 +154,26 @@ function formatDisciplineDetailText(text) {
 function DisciplineDetailModal({ discipline, Edit2, Pin, Trash2, X, language = 'zh', onClose, onEdit, onTogglePin, onDelete }) {
   const tt = (key, fallback, values) => t(language, key, fallback, values);
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-6 py-8 backdrop-blur-md"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 32px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
-      }}
+    <ActionModalCard
+      title={tt('review.recordDetails', '记录详情')}
+      closeLabel={tt('review.closeRecordDetails', '关闭记录详情')}
+      onClose={onClose}
+      widthClassName="w-[calc(100vw-48px)] max-w-[360px]"
+      panelClassName="relative"
+      actionGridClassName="grid-cols-3"
+      actions={[
+        { key: 'edit', label: tt('review.edit', '修改'), onClick: onEdit },
+        { key: 'delete', label: tt('review.delete', '删除'), onClick: onDelete },
+        { key: 'pin', label: discipline.pinned ? tt('review.unpin', '取消置顶') : tt('review.pin', '置顶'), onClick: onTogglePin },
+      ]}
     >
-      <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <div className="relative min-w-0 overflow-hidden rounded-2xl px-1">
         <UsFlagBackground strength={0.42} shade={0.7} />
-        <div className="relative z-10 flex items-center justify-between gap-3">
-          <h2 className="text-[18px] font-semibold tracking-normal text-white">{tt('review.recordDetails', '记录详情')}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/52 active:scale-90"
-            aria-label={tt('review.closeRecordDetails', '关闭记录详情')}
-          >
-            {X ? <X className="h-4 w-4" strokeWidth={1.8} /> : '×'}
-          </button>
-        </div>
-
-        <div className="relative z-10 mt-5 max-h-[52vh] min-h-[168px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative z-10 max-h-[52vh] min-h-[168px] overflow-y-auto px-2 py-2 pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {formatDisciplineDetailText(discipline.text)}
         </div>
-
-        <div className="relative z-10 mt-5 grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
-          >
-            {Edit2 && <Edit2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>{tt('review.edit', '修改')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
-          >
-            {Trash2 && <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>{tt('review.delete', '删除')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onTogglePin}
-            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/[0.045] px-2 text-[12px] font-normal text-emerald-200/80 active:scale-95"
-          >
-            {Pin && <Pin className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>{discipline.pinned ? tt('review.unpin', '取消置顶') : tt('review.pin', '置顶')}</span>
-          </button>
-        </div>
       </div>
-    </div>
+    </ActionModalCard>
   );
 }
 
@@ -248,59 +194,29 @@ function formatReviewLogDetailText(text) {
 function ReviewLogDetailModal({ log, Edit2, Trash2, X, language = 'zh', onClose, onEdit, onDelete }) {
   const tt = (key, fallback, values) => t(language, key, fallback, values);
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-6 py-8 backdrop-blur-md"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 32px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
-      }}
+    <ActionModalCard
+      title={tt('review.reviewDetails', '复盘详情')}
+      closeLabel={tt('review.closeReviewDetails', '关闭复盘详情')}
+      onClose={onClose}
+      widthClassName="w-[calc(100vw-48px)] max-w-[360px]"
+      panelClassName="relative"
+      actions={[
+        { key: 'edit', label: tt('review.edit', '修改'), onClick: onEdit },
+        { key: 'delete', label: tt('review.delete', '删除'), onClick: onDelete },
+      ]}
     >
-      <div className="relative w-full max-w-[360px] overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f16] px-5 pb-5 pt-4 shadow-[0_24px_90px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <div className="relative min-w-0 overflow-hidden rounded-2xl px-1">
         <UsFlagBackground strength={0.38} shade={0.72} />
-        <div className="relative z-10 flex items-center justify-between gap-3">
-          <h2 className="text-[18px] font-semibold tracking-normal text-white">{tt('review.reviewDetails', '复盘详情')}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/52 active:scale-90"
-            aria-label={tt('review.closeReviewDetails', '关闭复盘详情')}
-          >
-            {X ? <X className="h-4 w-4" strokeWidth={1.8} /> : '×'}
-          </button>
-        </div>
-
-        <div className="relative z-10 mt-4 max-h-[58vh] min-h-[220px] overflow-y-auto pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative z-10 max-h-[58vh] min-h-[220px] overflow-y-auto px-2 py-2 pr-1 text-[14px] font-normal leading-[1.82] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {formatReviewLogDetailText(log.text)}
         </div>
 
-        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
+        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-2 px-2 pb-2 text-[12px] text-white/35">
           <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
           {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}
         </div>
-
-        <div className="relative z-10 mt-5 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/30 bg-[#f6b54b]/[0.045] px-2 text-[12px] font-normal text-[#f6b54b] active:scale-95"
-          >
-            {Edit2 && <Edit2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>{tt('review.edit', '修改')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex h-9 items-center justify-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-400/[0.045] px-2 text-[12px] font-normal text-rose-300/85 active:scale-95"
-          >
-            {Trash2 && <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
-            <span>{tt('review.delete', '删除')}</span>
-          </button>
-        </div>
       </div>
-    </div>
+    </ActionModalCard>
   );
 }
 
@@ -1284,14 +1200,14 @@ export default function ReviewTab({ ctx }) {
           <button
             type="button"
             onClick={() => openYearEdit(yearAction.year)}
-            className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-[#f6b54b]/35 bg-[#f6b54b]/10 text-[13px] font-normal text-[#f6b54b] active:scale-95"
+            className="flex min-h-[46px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-[13px] font-normal text-white/78 active:scale-95"
           >
             {tt('review.editYearData', '修改年度数据')}
           </button>
           <button
             type="button"
             onClick={() => setYearAction(null)}
-            className="flex min-h-[42px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/80 active:scale-95"
+            className="flex min-h-[46px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-[13px] font-normal text-white/62 active:scale-95"
           >
             {tt('review.cancel', '取消')}
           </button>
@@ -1327,31 +1243,35 @@ export default function ReviewTab({ ctx }) {
       )}
 
       {showPlanSettings && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-md"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setShowPlanSettings(false);
-          }}
-          style={{
-            paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
-            paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
-          }}
+        <ActionModalCard
+          title={tt('review.planSettings', '北极星设置')}
+          closeLabel={tt('review.closePlanSettings', '关闭北极星设置')}
+          onClose={() => setShowPlanSettings(false)}
+          widthClassName="w-[calc(100vw-32px)] max-w-sm"
+          actions={[
+            { key: 'cancel', label: tt('review.cancel', '取消'), onClick: () => setShowPlanSettings(false) },
+            {
+              key: 'save',
+              label: tt('review.save', '保存'),
+              onClick: async () => {
+                try {
+                  await db.upsertInvestmentPlan(investmentPlan);
+                  setShowPlanSettings(false);
+                } catch (error) {
+                  console.error('[目标页设置] 保存失败:', error);
+                }
+              },
+            },
+          ]}
         >
-          <div className="w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 40px)' }} onClick={(event) => event.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[16px] font-semibold text-white">{tt('review.planSettings', '北极星设置')}</h3>
-              <button type="button" onClick={() => setShowPlanSettings(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/50">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <label className="block">
+            <div className="min-w-0 space-y-3">
+              <label className="block min-w-0">
                 <span className="mb-1 block text-[11px] text-white/50">{tt('review.basePrincipal', '基础本金 ({{symbol}})', { symbol })}</span>
                 <input
                   type="number"
                   value={Math.round(startCapital * rate)}
                   onChange={(event) => setInvestmentPlan({ ...plan, startCapital: (parseFloat(event.target.value) || 0) / rate })}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                  className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
                   style={{ colorScheme: 'dark' }}
                 />
               </label>
@@ -1361,7 +1281,7 @@ export default function ReviewTab({ ctx }) {
                   type="number"
                   value={(targetAnnualRate * 100).toFixed(0)}
                   onChange={(event) => setInvestmentPlan({ ...plan, targetAnnualRate: (parseFloat(event.target.value) || 0) / 100 })}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                  className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
                   style={{ colorScheme: 'dark' }}
                 />
               </label>
@@ -1372,7 +1292,7 @@ export default function ReviewTab({ ctx }) {
                     type="number"
                     value={plan.startYear === '' ? '' : startYear}
                     onChange={(event) => setInvestmentPlan({ ...plan, startYear: event.target.value === '' ? '' : (parseInt(event.target.value, 10) || 0) })}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
+                    className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
                     style={{ colorScheme: 'dark' }}
                   />
                 </label>
@@ -1382,7 +1302,7 @@ export default function ReviewTab({ ctx }) {
                     type="number"
                     value={plan.totalYears === '' ? '' : totalYears}
                     onChange={(event) => setInvestmentPlan({ ...plan, totalYears: event.target.value === '' ? '' : (parseInt(event.target.value, 10) || 0) })}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
+                    className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
                     style={{ colorScheme: 'dark' }}
                   />
                 </label>
@@ -1393,7 +1313,7 @@ export default function ReviewTab({ ctx }) {
                   type="number"
                   value={plan.ageGoalAge === '' ? '' : ageGoalAge}
                   onChange={(event) => setInvestmentPlan({ ...plan, ageGoalAge: event.target.value === '' ? '' : (parseInt(event.target.value, 10) || 0) })}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
+                  className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums focus:border-[#f6b54b]/70"
                   style={{ colorScheme: 'dark' }}
                 />
               </label>
@@ -1403,7 +1323,7 @@ export default function ReviewTab({ ctx }) {
                   value={plan.motto || ''}
                   onChange={(event) => setInvestmentPlan({ ...plan, motto: event.target.value })}
                   rows={2}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                  className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
                   style={{ colorScheme: 'dark' }}
                   placeholder={tt('review.mottoPlaceholder', '例: 我要变得很有钱!')}
                 />
@@ -1412,25 +1332,7 @@ export default function ReviewTab({ ctx }) {
                 {tt('review.planReach', '按此计划 {{years}} 年后将达 {{amount}}', { years: totalYears, amount: money(ageGoalAmount) })}
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setShowPlanSettings(false)} className="rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-[13px] text-white/70 active:scale-95">{tt('review.cancel', '取消')}</button>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await db.upsertInvestmentPlan(investmentPlan);
-                    setShowPlanSettings(false);
-                  } catch (error) {
-                    console.error('[目标页设置] 保存失败:', error);
-                  }
-                }}
-                className="rounded-xl bg-[#f6b54b] py-2.5 text-[13px] font-semibold text-[#101318] active:scale-95"
-              >
-                {tt('review.save', '保存')}
-              </button>
-            </div>
-          </div>
-        </div>
+        </ActionModalCard>
       )}
 
       {(showAddDiscipline || ctx.editingDisciplineId) && (() => {

@@ -4,6 +4,24 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 已确认弹窗统一实装
+
+- Deployment: not deployed;当前仅完成本地代码、视觉和运行时验证,生产仍为 `v10.7.9.315` / runtime `99c1883e69fe6808a7bd3d24847c6e375e392dd0` / 入口 `/assets/index-Mg_XwO77.js`。
+- Background: 用户确认静态效果图后,要求先实装已出图的弹窗,保持各宽版现有宽度,普通操作使用中性色,红色只留给最终危险确认;同时要求输入框和日期框不能横向撑出,首次输入或 iOS 键盘弹出时弹窗不能跳到页面顶端。
+- Workflow tier: `runtime`。
+- Changes:
+  - 扩展共享 `ActionModalCard`,允许每个弹窗族保留原有宽度,内容区改为纵向内部滚动,并继续用 `visualViewport` 的 offset/height 跟随 iOS 键盘首轮 resize/scroll。
+  - 交易新增/修改、摊薄工具新增股票与新增交易共 3 组;资产新增账户、修改账户、填月度余额共 3 组;设置修改密码 1 组;目标年度操作、心得详情、复盘详情、北极星设置、心得编辑、复盘编辑、年度实际编辑共 7 组;首页添加自选结果 1 组,合计 15 组已确认弹窗统一到新版玻璃卡片风格。
+  - 各弹窗保留现有 310px、358px 或 366px 手机宽度和原业务回调;普通按钮统一中性低亮,删除仍进入现有二次确认,只有最终危险确认保留红色。
+  - 复盘详情的修改、删除、置顶/取消置顶操作移除图标;修改密码提示与输入框增加稳定间距;资产选择态从旧蓝色弱化为中性/低亮金色层级。
+  - 所有本次表单的 input/date/textarea 增加或保留 `w-full min-w-0 max-w-full box-border`,日期输入使用无原生外扩样式,并移除本次弹窗首次打开时的 `autoFocus`。
+  - 管理员邀请码列表恢复显示已使用邀请码对应的 `usedByEmail`;入口仍只对指定管理员账号渲染。
+  - 设置页与更新日志版本同步为 `v10.7.9.316`。
+- Key files: `src/components/ActionModalCard.jsx`,`src/tabs/TradesTab.jsx`,`src/tabs/AnalysisTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/tabs/ReviewTab.jsx`,`src/tabs/HomeTab.jsx`,`src/App.jsx`,`src/lib/settingsChangelog.js`,`src/dev/SettingsRedesignPrototype.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 新增弹窗/边界定向测试 45/45、完整测试 253/253、production build、5/5 frontend smoke、high audit 0 vulnerabilities 均 pass。正式 `DevVisualPreview` 在 390x844 实测:交易弹窗 366px,资产新增/修改密码/北极星设置均 358px;各页面 `scrollWidth/clientWidth=390/390`,输入框和日期框均未越过弹窗内容边界。390x568 短视口聚焦股票代码输入框后,弹窗为 `x=12,y=24.5,w=366,h=519`,输入框仍在 `top=128.5,bottom=171.5`,未跳到页面顶端;控制台 error 0。截图: `/tmp/boduan-v316-trade-modal.png`,`/tmp/boduan-v316-trade-modal-short.png`,`/tmp/boduan-v316-asset-add-modal.png`,`/tmp/boduan-v316-password-modal.png`,`/tmp/boduan-v316-review-settings-modal.png`。
+- Boundaries: 未改 `stock_trades` 写入/修改/删除逻辑,未改资产账户或月度快照数据库方法,未改比赛收益与收盘快照、收益报表、个股详情、波段工具数据、Supabase SQL/RLS、鉴权、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
+- Rollback: 回退上述前端组件、测试、版本与文档即可;无 SQL、数据或环境变量回滚。
+
 ### 2026-07-12 - 注册必选社区昵称与头像
 
 - Deployment: completed;runtime commit `99c1883e69fe6808a7bd3d24847c6e375e392dd0`,GitHub Actions run `29185593537` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CLPNWdw4bgKAdSDaqVHkLKqXuAJj` success,production alias 已更新,入口 `/assets/index-Mg_XwO77.js`。2026-07-12 已在生产 Supabase SQL Editor 执行独立权限迁移 `supabase/registration_community_profile_v315.sql`,页面返回 `Success. No rows returned`。

@@ -28,7 +28,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.315';
+const SETTINGS_VERSION = 'v10.7.9.316';
 
 function communityAvatarImageClass() {
   return 'scale-[1.15]';
@@ -345,6 +345,35 @@ function SettingsTab({ ctx }) {
     });
   };
 
+  const closeChangePassword = () => {
+    setShowChangePassword(false);
+    setNewPwd('');
+    setPwdMsg(null);
+  };
+
+  const saveNewPassword = async () => {
+    if (!newPwd || newPwd.length < 6) {
+      setPwdMsg({ type: 'error', text: t(language, 'settings.passwordTooShort', '密码至少 6 位') });
+      return;
+    }
+    setPwdLoading(true);
+    setPwdMsg(null);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPwd });
+      if (error) {
+        setPwdMsg({ type: 'error', text: error.message });
+      } else {
+        setPwdMsg({ type: 'success', text: t(language, 'settings.passwordUpdated', '密码已更新，下次登录请使用新密码') });
+        setNewPwd('');
+        window.setTimeout(closeChangePassword, 1800);
+      }
+    } catch (error) {
+      setPwdMsg({ type: 'error', text: error.message || t(language, 'settings.passwordUpdateFailed', '更新失败') });
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
   const visibleChangelog = Array.isArray(changelog)
     ? (changelogExpanded ? changelog : changelog.slice(0, 5))
     : [];
@@ -524,7 +553,14 @@ function SettingsTab({ ctx }) {
                   }}
                   className="flex w-full min-w-0 items-center rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 text-left"
                 >
-                  <span className="min-w-0 flex-1 truncate font-mono text-[12px] tracking-[0.08em] text-white/70">{invite.code}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-mono text-[12px] tracking-[0.08em] text-white/70">{invite.code}</span>
+                    {used && invite.usedByEmail && (
+                      <span className="mt-1 block truncate text-[10px] tracking-normal text-white/32">
+                        {t(language, 'settings.inviteUsedByEmail', '注册邮箱: {{email}}', { email: invite.usedByEmail })}
+                      </span>
+                    )}
+                  </span>
                   <span className={`mr-2 rounded-full px-2 py-1 text-[9px] ${used ? 'bg-white/[0.05] text-white/30' : 'bg-[#2cce91]/10 text-[#49daa7]'}`}>
                     {used ? t(language, 'settings.inviteUsed', '已使用') : t(language, 'settings.inviteActive', '可用')}
                   </span>
@@ -807,29 +843,22 @@ function SettingsTab({ ctx }) {
       )}
 
       {showChangePassword && (
-        <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm sm:items-center"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setShowChangePassword(false);
-              setNewPwd('');
-              setPwdMsg(null);
-            }
-          }}
-          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        <ActionModalCard
+          title={t(language, 'settings.changePassword', '修改密码')}
+          closeLabel={t(language, 'settings.closePassword', '关闭修改密码')}
+          onClose={closeChangePassword}
+          widthClassName="w-[calc(100vw-32px)] max-w-md"
+          actions={[
+            { key: 'cancel', label: t(language, 'settings.cancel', '取消'), onClick: closeChangePassword },
+            {
+              key: 'save',
+              label: pwdLoading ? t(language, 'settings.saving', '保存中...') : t(language, 'settings.saveNewPassword', '保存新密码'),
+              disabled: pwdLoading,
+              onClick: saveNewPassword,
+            },
+          ]}
         >
-          <div className="w-full max-w-md rounded-[22px] border border-white/10 bg-[#0b0f16] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.5)]">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[15px] font-medium text-white">{t(language, 'settings.changePassword', '修改密码')}</h3>
-              <button
-                type="button"
-                aria-label={t(language, 'settings.closePassword', '关闭修改密码')}
-                onClick={() => { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); }}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/45"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+          <div className="min-w-0">
             <label className="mb-1.5 block text-[11px] text-white/42">{t(language, 'settings.newPassword', '新密码（至少 6 位）')}</label>
             <input
               type="password"
@@ -837,41 +866,12 @@ function SettingsTab({ ctx }) {
               value={newPwd}
               onChange={(event) => setNewPwd(event.target.value)}
               placeholder={t(language, 'settings.passwordPlaceholder', '至少 6 位')}
-              className="mb-3 block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-black/30 px-3.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]/50"
+              className="block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-black/30 px-3.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]/50"
             />
-            {pwdMsg && <StatusMessage message={pwdMsg} className="mb-3" />}
-            <button
-              type="button"
-              onClick={async () => {
-                if (!newPwd || newPwd.length < 6) {
-                  setPwdMsg({ type: 'error', text: t(language, 'settings.passwordTooShort', '密码至少 6 位') });
-                  return;
-                }
-                setPwdLoading(true);
-                setPwdMsg(null);
-                try {
-                  const { error } = await supabase.auth.updateUser({ password: newPwd });
-                  if (error) {
-                    setPwdMsg({ type: 'error', text: error.message });
-                  } else {
-                    setPwdMsg({ type: 'success', text: t(language, 'settings.passwordUpdated', '密码已更新，下次登录请使用新密码') });
-                    setNewPwd('');
-                    window.setTimeout(() => { setShowChangePassword(false); setPwdMsg(null); }, 1800);
-                  }
-                } catch (error) {
-                  setPwdMsg({ type: 'error', text: error.message || t(language, 'settings.passwordUpdateFailed', '更新失败') });
-                } finally {
-                  setPwdLoading(false);
-                }
-              }}
-              disabled={pwdLoading}
-              className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl border border-[#f2a83a]/25 bg-[#f2a83a]/[0.08] text-[13px] font-medium text-[#f2b65d] active:scale-[0.99] disabled:opacity-50"
-            >
-              {pwdLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {pwdLoading ? t(language, 'settings.saving', '保存中...') : t(language, 'settings.saveNewPassword', '保存新密码')}
-            </button>
+            <p className="mt-3 text-[11px] leading-5 text-white/35">{t(language, 'settings.passwordChangeHint', '修改后，下次登录请使用新密码。')}</p>
+            {pwdMsg && <StatusMessage message={pwdMsg} className="mt-3" />}
           </div>
-        </div>
+        </ActionModalCard>
       )}
     </>
   );

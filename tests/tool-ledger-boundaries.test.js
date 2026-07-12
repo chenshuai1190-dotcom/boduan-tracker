@@ -443,11 +443,12 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.equal(tradeModalBlock.includes("tt('trades.confirmAdd'"), false, 'trade modal should not keep a duplicate confirm-add button');
   assert.equal(tradeModalBlock.includes("tt('trades.confirmEdit'"), false, 'trade modal should not keep a duplicate confirm-edit button');
   assert.equal(tradeModalBlock.includes("tt('trades.cancel'"), false, 'trade modal should not keep a duplicate cancel button');
-  assert.ok(tradeModalBlock.includes("onClick={() => confirmTradeSubmit('buy')}"), 'buy button should submit with buy side');
-  assert.ok(tradeModalBlock.includes("onClick={() => confirmTradeSubmit('sell')}"), 'sell button should submit with sell side');
-  assert.ok(tradeModalBlock.includes('<TrendingUp className="h-4 w-4"'), 'buy button should include the new trend-up icon');
-  assert.ok(tradeModalBlock.includes('<TrendingDown className="h-4 w-4"'), 'sell button should include the new trend-down icon');
-  assert.ok(tradeModalBlock.includes('h-11 items-center justify-center gap-2 rounded-xl'), 'buy/sell buttons should stay compact rather than oversized');
+  assert.ok(tradeModalBlock.includes("onClick: () => confirmTradeSubmit('buy')"), 'buy button should submit with buy side');
+  assert.ok(tradeModalBlock.includes("onClick: () => confirmTradeSubmit('sell')"), 'sell button should submit with sell side');
+  assert.ok(tradeModalBlock.includes('<ActionModalCard'), 'trade entry should reuse the approved shared modal shell');
+  assert.ok(tradeModalBlock.includes('widthClassName="w-[calc(100vw-24px)] max-w-md"'), 'trade entry should preserve its existing wide mobile geometry');
+  assert.equal(tradeModalBlock.includes('<TrendingUp className="h-4 w-4"'), false, 'shared modal actions should use text-only neutral controls');
+  assert.equal(tradeModalBlock.includes('<TrendingDown className="h-4 w-4"'), false, 'shared modal actions should use text-only neutral controls');
   assert.ok(confirmModalSource.includes('items-start justify-center overflow-y-auto') && confirmModalSource.includes('bg-black/[0.62]') && confirmModalSource.includes('pt-[34.5vh]'), 'confirmation modal should match the approved fixed vertical placement over a blurred overlay');
   assert.ok(confirmModalSource.includes('w-[calc(100vw-76px)] max-w-[342px] rounded-[27px]'), 'confirmation modal should use the approved narrow glass panel geometry');
   assert.ok(confirmModalSource.includes('<ConfirmIcon modal={modal} />'), 'confirmation modal should map legacy icon tokens to lucide icons');
@@ -459,7 +460,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradesTabSource.includes("info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${confirmationPrice}`"), 'trade confirmation info should omit the long date segment');
   assert.equal(tradesTabSource.includes("icon: '✅'"), false, 'trade confirmation should not pass the legacy check emoji icon');
   assert.ok(tradesTabSource.includes("icon: 'check'"), 'trade confirmation should use the current check icon token');
-  assert.ok(tradeModalBlock.includes('<h2 className="text-[16px] font-normal text-white">'), 'trade entry modal title should be 16px and not bold');
+  assert.ok(tradeModalBlock.includes("title={tradeEntryScope === 'wave'"), 'trade entry modal title should be supplied by the shared shell');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
   assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
   const earlyDarkBackgroundIndex = indexHtmlSource.indexOf('background: #05070b;');
@@ -469,8 +470,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.315'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.315', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.316'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.316', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1020,8 +1021,8 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(homeTabSource.includes('<span className="text-[14px] font-normal text-white">{symbol}</span>'), 'watchlist ticker codes should not be bold');
   assert.ok(homeTabSource.includes('<span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>'), 'custom ticker code should not be bold');
   assert.ok(homeTabSource.includes('mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b]'), 'add custom stock button should not be bold');
-  assert.ok(homeTabSource.includes('<div className="mt-3 text-[17px] font-normal text-white">{addStockNotice.title}</div>'), 'add success title should not be bold');
-  assert.ok(homeTabSource.includes('mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-normal text-[#111318]'), 'add success acknowledge button should not be bold');
+  assert.ok(homeTabSource.includes('title={addStockNotice.title}'), 'add success title should use the shared normal-weight modal title');
+  assert.ok(homeTabSource.includes("{ key: 'close', label: t(language, 'home.gotIt', '知道了')"), 'add success acknowledge action should use the shared neutral button');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{t(language, \'home.addWatchlistStock\''), false, 'add watchlist title should not keep the old font-black class');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{addStockNotice.title}'), false, 'add success title should not keep the old font-black class');
   assert.ok(appSource.includes('fetchQuote(symbol, { fresh: true })'), 'adding a watchlist stock should validate the ticker through the auth-gated quote API');
@@ -1131,16 +1132,16 @@ test('cost basis tool uses dark custom UI without legacy title icon or native al
   assert.ok(tradesTabSource.includes('pnlClass(profit, marketColorMode)'), 'cost-basis expanded profit should use the same color class as the header cards');
   assert.ok(appSource.includes('新增摊薄股票'), 'cost-basis add stock modal should be custom in-app UI');
   assert.ok(appSource.includes('添加摊薄交易'), 'cost-basis add trade modal should be custom in-app UI');
-  assert.ok(costBasisTradeBlock.includes('items-center justify-center bg-black/[0.65] px-3 py-4 backdrop-blur-md'), 'cost-basis add trade modal should use the same centered overlay as the trade entry modal');
-  assert.ok(costBasisTradeBlock.includes('rounded-3xl border border-white/10 bg-[#0b0f16]'), 'cost-basis add trade modal should use the current dark modal surface');
+  assert.ok(costBasisTradeBlock.includes('<ActionModalCard'), 'cost-basis add trade modal should use the same shared overlay as the trade entry modal');
+  assert.ok(costBasisTradeBlock.includes('widthClassName="w-[calc(100vw-24px)] max-w-md"'), 'cost-basis add trade modal should preserve its wide geometry');
   assert.ok(costBasisTradeBlock.includes("t(language, 'trades.stockTicker'"), 'cost-basis add trade modal should keep the stock ticker row');
   assert.ok(costBasisTradeBlock.includes("t(language, 'trades.priceShares'"), 'cost-basis add trade modal should keep the price and shares row');
   assert.ok(costBasisTradeBlock.includes("t(language, 'trades.date'"), 'cost-basis add trade modal should keep the date row');
   assert.ok(costBasisTradeBlock.includes('value={costBasisNewTrade.date}'), 'cost-basis add trade date input should use the date draft value');
   assert.ok(costBasisTradeBlock.includes("confirmCostBasisTradeSubmit('buy')"), 'cost-basis buy button should submit with buy type');
   assert.ok(costBasisTradeBlock.includes("confirmCostBasisTradeSubmit('sell')"), 'cost-basis sell button should submit with sell type');
-  assert.ok(costBasisTradeBlock.includes('<TrendingUp className="h-4 w-4"'), 'cost-basis buy button should include the trend-up icon');
-  assert.ok(costBasisTradeBlock.includes('<TrendingDown className="h-4 w-4"'), 'cost-basis sell button should include the trend-down icon');
+  assert.equal(costBasisTradeBlock.includes('<TrendingUp className="h-4 w-4"'), false, 'cost-basis shared actions should be text-only');
+  assert.equal(costBasisTradeBlock.includes('<TrendingDown className="h-4 w-4"'), false, 'cost-basis shared actions should be text-only');
   assert.equal(costBasisTradeBlock.includes("t(language, 'trades.cancel'"), false, 'cost-basis add trade modal should not keep the duplicate cancel button');
   assert.equal(costBasisTradeBlock.includes("t(language, 'trades.ok'"), false, 'cost-basis add trade modal should not keep the duplicate OK button');
   assert.equal(costBasisTradeBlock.includes('costBasisModalInactiveSegmentClass'), false, 'cost-basis add trade modal should not keep the old buy/sell segmented selector');
@@ -1612,7 +1613,7 @@ test('wave tracker v2 prototype stays development-only and preserves tool bounda
   assert.ok(waveTrackerPrototypeSource.includes('overflow-x-hidden') && waveTrackerPrototypeSource.includes("WebkitMinLogicalWidth: '0px'"), 'prototype form controls should prevent iOS date inputs from forcing horizontal overflow');
   assert.ok(waveTrackerPrototypeSource.includes('min-[360px]:grid-cols-2'), 'form pairs should collapse to one column on narrow screens');
   assert.ok(waveTrackerPrototypeSource.includes('min-h-[100dvh] overflow-x-hidden'), 'prototype root should prevent background content from widening narrow modal viewports');
-  assert.ok(actionModalCardSource.includes('min-w-0 max-w-full flex-1 overflow-hidden'), 'shared action modal content should clip horizontal child overflow');
+  assert.ok(actionModalCardSource.includes('min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain'), 'shared action modal content should scroll vertically without widening child controls');
   assert.ok(waveTrackerPrototypeSource.includes('group.waves.findIndex((item) => item.id === wave.id)'), 'wave numbers should remain stable after status filtering');
   assert.ok(waveTrackerPrototypeSource.includes('summary.sellAverage'), 'completed group cards should use the weighted sell average');
   assert.equal(waveTrackerPrototypeSource.includes("accent: 'amber'"), false, 'active wave status should not use an undefined yellow state');
@@ -1830,7 +1831,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.315'"), 'settings version source should document the current registration profile release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.316'"), 'settings version source should document the current modal unification release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2036,7 +2037,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(appSource.includes('style={{ backgroundColor: l.ringColor, borderColor: l.ringBorder }}'), 'discipline edit modal should use colored dots for level choices');
   assert.equal(appSource.includes('<span className="text-base">{l.level}</span>'), false, 'discipline edit modal should not render emoji level icons');
   assert.ok(reviewTabSource.includes('function DisciplineDetailModal'), 'discipline rows should open a record detail modal');
-  assert.ok(reviewTabSource.includes('fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.65] px-6 py-8 backdrop-blur-md'), 'discipline and review detail modals should use the same lighter overlay as the trade modal');
+  assert.ok(reviewTabSource.includes('widthClassName="w-[calc(100vw-48px)] max-w-[360px]"'), 'discipline and review detail modals should preserve their approved narrow width in the shared shell');
   assert.equal(reviewTabSource.includes('bg-black/70 px-6 py-8 backdrop-blur-lg'), false, 'discipline and review detail modals should not keep the overly dark legacy overlay');
   assert.ok(reviewTabSource.includes("tt('review.recordDetails'"), 'discipline detail modal should use the record detail title through i18n');
   assert.ok(reviewTabSource.includes('<UsFlagBackground strength={0.42} shade={0.7} />'), 'discipline detail modal should mute the US flag background with a deeper readability mask');
@@ -2044,8 +2045,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('min-h-[168px]'), 'discipline detail modal should reserve enough space for short content');
   assert.ok(reviewTabSource.includes('formatDisciplineDetailText(discipline.text)'), 'discipline detail modal should render the full text body');
   assert.ok(reviewTabSource.includes("discipline.pinned ? tt('review.unpin'"), 'discipline detail modal must keep pin/unpin through i18n');
-  assert.ok(reviewTabSource.includes('grid grid-cols-3 gap-2'), 'discipline detail actions should use compact three-button layout');
-  assert.ok(reviewTabSource.includes('flex h-9 items-center justify-center gap-1.5 rounded-full'), 'discipline detail action buttons should be compact pills');
+  assert.ok(reviewTabSource.includes('actionGridClassName="grid-cols-3"'), 'discipline detail actions should use a compact three-button layout');
+  assert.equal(reviewTabSource.includes('{Edit2 && <Edit2'), false, 'discipline detail actions should not render icons');
   assert.equal(reviewTabSource.includes('删除戒律'), false, 'discipline detail modal should not keep the large legacy delete label');
   assert.equal(reviewTabSource.includes('修改戒律'), false, 'discipline detail modal should not keep the large legacy edit label');
   assert.ok(reviewTabSource.includes('return index >= currentYearIndex && index < currentYearIndex + 2'), 'annual target list should show only two years by default');
@@ -2146,7 +2147,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.315'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.316'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2306,7 +2307,8 @@ test('account, order, and delete action modals match the approved glass-card des
 
   assert.ok(orderActionStart > -1 && orderActionEnd > orderActionStart, 'missing order action modal boundary');
   assert.ok(accountActionStart > -1 && accountActionEnd > accountActionStart, 'missing account action modal boundary');
-  assert.ok(actionModalCardSource.includes('min-h-[232px] w-[calc(100vw-76px)] max-w-[360px] rounded-[27px]'), 'shared action modal should use the approved 314x232 mobile geometry');
+  assert.ok(actionModalCardSource.includes("widthClassName = 'w-[calc(100vw-76px)] max-w-[360px]'"), 'shared action modal should retain the approved 314px default width');
+  assert.ok(actionModalCardSource.includes('min-h-[232px] ${widthClassName} rounded-[27px]'), 'shared action modal should keep the approved height and accept per-family widths');
   assert.ok(actionModalCardSource.includes('bg-black/[0.62]') && actionModalCardSource.includes('backdrop-blur-[10px]'), 'shared action modal should use the approved blurred overlay');
   assert.ok(actionModalCardSource.includes('h-[46px]') && actionModalCardSource.includes('text-white/[0.43]'), 'shared edit/delete buttons should use the neutral low-brightness style');
   assert.ok(actionModalCardSource.includes('updateFrame();') && actionModalCardSource.includes("viewport.addEventListener('resize', updateFrame)") && actionModalCardSource.includes("viewport.addEventListener('scroll', updateFrame)") && actionModalCardSource.includes('height: visualViewportFrame.height'), 'shared action modal should follow the first iOS visual viewport resize and scroll when the keyboard opens');
@@ -2329,6 +2331,28 @@ test('account, order, and delete action modals match the approved glass-card des
   assert.equal(orderActionBlock.includes('删除记录'), false, 'order action delete label should stay compact');
   assert.equal(orderActionBlock.includes('border-[#f6b54b]/30'), false, 'order action edit should no longer use the old gold pill');
   assert.equal(orderActionBlock.includes('border-rose-300/20'), false, 'order action delete should no longer look dangerous before confirmation');
+});
+
+test('approved modal families share the new shell without widening business boundaries', () => {
+  const tradeEntryBlock = tradesTabSource.slice(tradesTabSource.indexOf('{showAddTrade && ('), tradesTabSource.indexOf('{showCostTool && (() => {'));
+  const costBasisDialogsBlock = appSource.slice(appSource.indexOf('{showCostBasisAdd && ('), appSource.indexOf('{allTradesModal !== null'));
+  const assetDialogsBlock = analysisTabSource.slice(analysisTabSource.indexOf('{showAddAccount && ('), analysisTabSource.indexOf('{showMonthsDetail && ('))
+    + analysisTabSource.slice(analysisTabSource.indexOf('{showFillSnapshot && ('), analysisTabSource.lastIndexOf('</div>'));
+  const passwordDialogBlock = settingsTabSource.slice(settingsTabSource.indexOf('{showChangePassword && ('), settingsTabSource.indexOf('export default React.memo'));
+  const reviewEditorBlock = appSource.slice(appSource.indexOf('function DisciplineModal'), appSource.indexOf('// ============ 美股中英对照表'));
+  const homeNoticeBlock = homeTabSource.slice(homeTabSource.indexOf('{addStockNotice && ('), homeTabSource.lastIndexOf('</div>'));
+
+  assert.ok(tradeEntryBlock.includes('<ActionModalCard') && costBasisDialogsBlock.match(/<ActionModalCard/g)?.length === 2, 'transaction and cost-basis dialogs should cover the three approved transaction families');
+  assert.ok(assetDialogsBlock.match(/<ActionModalCard/g)?.length >= 4, 'asset add, account action, edit, and monthly balance dialogs should reuse the shared shell');
+  assert.ok(passwordDialogBlock.includes('<ActionModalCard') && passwordDialogBlock.includes('passwordChangeHint'), 'password editor should use the shared shell and preserve the approved hint spacing');
+  assert.ok(reviewTabSource.includes('function ReviewActionSheet') && reviewTabSource.includes('actionGridClassName="grid-cols-3"') && reviewTabSource.includes("title={tt('review.planSettings', '北极星设置')}"), 'year actions, detail actions, and North Star settings should use the approved review modal style');
+  assert.ok(reviewEditorBlock.match(/<ActionModalCard/g)?.length === 3, 'discipline, review-log, and yearly-actual editors should use the shared shell');
+  assert.ok(homeNoticeBlock.includes('<ActionModalCard') && homeNoticeBlock.includes('widthClassName="w-[310px] max-w-[calc(100vw-32px)]"'), 'home add-watchlist result should preserve its compact width in the shared shell');
+  assert.equal([tradeEntryBlock, costBasisDialogsBlock, assetDialogsBlock, passwordDialogBlock, reviewEditorBlock, homeNoticeBlock].some((block) => block.includes('autoFocus')), false, 'approved forms should not auto-focus and jump when first opened on iOS');
+  assert.ok(actionModalCardSource.includes('visualViewport') && actionModalCardSource.includes('overflow-y-auto overscroll-contain'), 'shared modal should follow the visual viewport and keep long content internally scrollable');
+  assert.ok(settingsTabSource.includes('invite.usedByEmail') && settingsTabSource.includes('inviteUsedByEmail'), 'used invite codes should show the registration email in the admin-only panel');
+  assert.ok(analysisTabSource.includes('await db.insertAccount') && analysisTabSource.includes('await db.updateAccount') && analysisTabSource.includes('db.upsertSnapshot'), 'asset modal unification must preserve existing account and snapshot database methods');
+  assert.ok(tradesTabSource.includes("onClick: () => confirmTradeSubmit('buy')") && appSource.includes("onClick: () => confirmCostBasisTradeSubmit('buy')"), 'transaction modal unification must preserve the existing confirmation paths');
 });
 
 test('wave records keep editable notes and completed waves remain reachable', () => {

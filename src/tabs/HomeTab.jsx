@@ -6,6 +6,7 @@ import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
+import ActionModalCard from '../components/ActionModalCard.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -1474,13 +1475,16 @@ export default function HomeTab({ ctx }) {
       )}
 
       {addStockNotice && (
-        <div
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 px-4 backdrop-blur-[2px]"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setAddStockNotice(null);
-          }}
+        <ActionModalCard
+          title={addStockNotice.title}
+          closeLabel={t(language, 'home.closeAddStockNotice', '关闭添加自选结果')}
+          onClose={() => setAddStockNotice(null)}
+          widthClassName="w-[310px] max-w-[calc(100vw-32px)]"
+          actions={[
+            { key: 'close', label: t(language, 'home.gotIt', '知道了'), onClick: () => setAddStockNotice(null) },
+          ]}
         >
-          <div className="w-full max-w-[310px] rounded-2xl border border-white/10 bg-[#0b0f14] p-5 text-center shadow-[0_22px_54px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="min-w-0 py-1 text-center">
             <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
               addStockNotice.type === 'success'
                 ? 'bg-emerald-400/12 text-emerald-300'
@@ -1492,17 +1496,9 @@ export default function HomeTab({ ctx }) {
                 <X className="h-5 w-5" />
               )}
             </div>
-            <div className="mt-3 text-[17px] font-normal text-white">{addStockNotice.title}</div>
-            <div className="mt-2 text-[13px] leading-5 text-white/52">{addStockNotice.desc}</div>
-            <button
-              type="button"
-              onClick={() => setAddStockNotice(null)}
-              className="mt-5 h-11 w-full rounded-xl bg-[#f6b54b] text-[14px] font-normal text-[#111318] active:scale-[0.99]"
-            >
-              {t(language, 'home.gotIt', '知道了')}
-            </button>
+            <div className="mt-3 break-words text-[13px] leading-5 text-white/52">{addStockNotice.desc}</div>
           </div>
-        </div>
+        </ActionModalCard>
       )}
     </div>
   );

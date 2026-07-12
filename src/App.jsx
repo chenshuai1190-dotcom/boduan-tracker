@@ -13,6 +13,7 @@ import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './l
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
+import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -512,15 +513,25 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
     { level: '❗', label: tt('review.levelWarning', '警告'), dotColor: '#ef0018', ringColor: 'rgba(239, 0, 24, 0.13)', ringBorder: 'rgba(239, 0, 24, 0.16)' },
   ];
 
+  const saveDiscipline = () => {
+    if (!text.trim()) { setError(tt('review.contentRequired', '请输入内容')); return; }
+    onSave({ level, text: text.trim(), pinned });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.65] p-4 backdrop-blur-md" onClick={onCancel}>
-      <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-base text-white">{isEdit ? tt('review.editDiscipline', '编辑心得') : tt('review.addDiscipline', '添加心得')}</h3>
-          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
-            <X className="w-4 h-4"/>
-          </button>
-        </div>
+    <ActionModalCard
+      title={isEdit ? tt('review.editDiscipline', '编辑心得') : tt('review.addDiscipline', '添加心得')}
+      closeLabel={tt('review.closeDisciplineEditor', '关闭心得编辑')}
+      onClose={onCancel}
+      widthClassName="w-[calc(100vw-32px)] max-w-sm"
+      actionGridClassName={onDelete ? 'grid-cols-3' : 'grid-cols-2'}
+      actions={[
+        { key: 'cancel', label: tt('review.cancel', '取消'), onClick: onCancel },
+        ...(onDelete ? [{ key: 'delete', label: tt('review.delete', '删除'), onClick: onDelete }] : []),
+        { key: 'save', label: tt('review.save', '保存'), onClick: saveDiscipline },
+      ]}
+    >
+      <div className="min-w-0">
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs text-white/50">{tt('review.level', '等级')}</label>
@@ -549,7 +560,7 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
                 onChange={e => { setText(e.target.value); if (error) setError(''); }}
                 placeholder={tt('review.disciplinePlaceholder', '写下你的投资心得...')}
                 rows={4}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+                className="block w-full min-w-0 max-w-full box-border resize-none rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
                 style={{ colorScheme: 'dark' }}
               />
               <div className="mt-0.5 text-[10px] text-white/35">{tt('review.disciplineHint', '超过 60 字会折叠, 点"展开"查看全文')}</div>
@@ -565,23 +576,8 @@ function DisciplineModal({ initial, language = 'zh', onCancel, onSave, onDelete 
             <span className="text-sm text-white/70">{tt('review.pinImportant', '置顶 (重要心得永远显示在最上)')}</span>
           </label>
         </div>
-        <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">{tt('review.cancel', '取消')}</button>
-          {onDelete && (
-            <button onClick={onDelete} className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-2.5 text-sm font-normal text-rose-300">
-              <Trash2 className="w-4 h-4 inline"/>
-            </button>
-          )}
-          <button
-            onClick={() => {
-              if (!text.trim()) { setError(tt('review.contentRequired', '请输入内容')); return; }
-              onSave({ level, text: text.trim(), pinned });
-            }}
-            className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
-          >{tt('review.save', '保存')}</button>
-        </div>
       </div>
-    </div>
+    </ActionModalCard>
   );
 }
 
@@ -603,15 +599,25 @@ function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
     tt('review.moodCalm', '冷静'),
   ];
 
+  const saveLog = () => {
+    if (!text.trim()) { setError(tt('review.contentRequired', '请输入内容')); return; }
+    onSave({ date, mood: mood.trim(), text: text.trim() });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.65] p-4 backdrop-blur-md" onClick={onCancel}>
-      <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-white">{isEdit ? tt('review.editReview', '编辑复盘') : tt('review.addReview', '写复盘')}</h3>
-          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
-            <X className="w-4 h-4"/>
-          </button>
-        </div>
+    <ActionModalCard
+      title={isEdit ? tt('review.editReview', '编辑复盘') : tt('review.addReview', '写复盘')}
+      closeLabel={tt('review.closeReviewEditor', '关闭复盘编辑')}
+      onClose={onCancel}
+      widthClassName="w-[calc(100vw-32px)] max-w-sm"
+      actionGridClassName={isEdit ? 'grid-cols-3' : 'grid-cols-2'}
+      actions={[
+        { key: 'cancel', label: tt('review.cancel', '取消'), onClick: onCancel },
+        ...(isEdit ? [{ key: 'delete', label: tt('review.delete', '删除'), onClick: onDelete }] : []),
+        { key: 'save', label: tt('review.save', '保存'), onClick: saveLog },
+      ]}
+    >
+      <div className="min-w-0">
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs text-white/50">{tt('review.date', '日期')}</label>
@@ -619,8 +625,8 @@ function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none focus:border-[#f6b54b]/70"
-              style={{ colorScheme: 'dark' }}
+              className="block h-11 w-full min-w-0 max-w-full box-border appearance-none rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none focus:border-[#f6b54b]/70"
+              style={{ colorScheme: 'dark', WebkitAppearance: 'none' }}
             />
           </div>
           <div>
@@ -639,7 +645,7 @@ function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
               value={mood}
               onChange={e => setMood(e.target.value)}
               placeholder={tt('review.customMoodPlaceholder', '或自己写')}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
           </div>
@@ -650,29 +656,14 @@ function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete }) {
               onChange={e => { setText(e.target.value); if (error) setError(''); }}
               placeholder={tt('review.reviewPlaceholder', '今天做了什么操作? 对错? 下周计划? 市场感受?')}
               rows={6}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              className="block w-full min-w-0 max-w-full box-border resize-none rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
             {error && <div className="mt-1 text-[11px] text-rose-300">{error}</div>}
           </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">{tt('review.cancel', '取消')}</button>
-          {isEdit && (
-            <button onClick={onDelete} className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-2.5 text-sm font-normal text-rose-300">
-              <Trash2 className="w-4 h-4 inline"/>
-            </button>
-          )}
-          <button
-            onClick={() => {
-              if (!text.trim()) { setError(tt('review.contentRequired', '请输入内容')); return; }
-              onSave({ date, mood: mood.trim(), text: text.trim() });
-            }}
-            className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
-          >{tt('review.save', '保存')}</button>
-        </div>
       </div>
-    </div>
+    </ActionModalCard>
   );
 }
 
@@ -686,15 +677,25 @@ function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, c
   const [actualGain, setActualGain] = useState(initial.actualGain !== null && initial.actualGain !== undefined ? String(Math.round(initial.actualGain * rate)) : '');
   const [endBalance, setEndBalance] = useState(initial.endBalance !== null && initial.endBalance !== undefined ? String(Math.round(initial.endBalance * rate)) : '');
 
+  const saveYearlyActual = () => {
+    const divisor = isCNY ? rate : 1;
+    const ag = actualGain === '' ? null : parseFloat(actualGain) / divisor;
+    const eb = endBalance === '' ? null : parseFloat(endBalance) / divisor;
+    onSave(ag, eb);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0b0f16] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.68)]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-white">{tt('review.actualDataTitle', '{{year}} 年实际数据', { year })}</h3>
-          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/55">
-            <X className="w-4 h-4"/>
-          </button>
-        </div>
+    <ActionModalCard
+      title={tt('review.actualDataTitle', '{{year}} 年实际数据', { year })}
+      closeLabel={tt('review.closeActualData', '关闭年度实际编辑')}
+      onClose={onCancel}
+      widthClassName="w-[calc(100vw-32px)] max-w-sm"
+      actions={[
+        { key: 'cancel', label: tt('review.cancel', '取消'), onClick: onCancel },
+        { key: 'save', label: tt('review.save', '保存'), onClick: saveYearlyActual },
+      ]}
+    >
+      <div className="min-w-0">
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs text-white/50">{tt('review.actualGrowth', '实际增长 ({{symbol}})', { symbol })}</label>
@@ -703,7 +704,7 @@ function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, c
               value={actualGain}
               onChange={e => setActualGain(e.target.value)}
               placeholder={isCNY ? tt('review.actualGrowthPlaceholderCny', '例: 1440000 (144万¥)') : tt('review.actualGrowthPlaceholderUsd', '例: 200000 (20万$)')}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
             <div className="mt-0.5 text-[10px] text-white/35">{tt('review.actualGrowthHint', '这一年涨了多少 (留空则按年末余额倒算)')}</div>
@@ -715,7 +716,7 @@ function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, c
               value={endBalance}
               onChange={e => setEndBalance(e.target.value)}
               placeholder={isCNY ? tt('review.yearEndPlaceholderCny', '例: 19440000 (1944万¥)') : tt('review.yearEndPlaceholderUsd', '例: 2600000 (260万$)')}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
+              className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-sm text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
               style={{ colorScheme: 'dark' }}
             />
             <div className="mt-0.5 text-[10px] text-white/35">{tt('review.yearEndHint', '这一年结束总共多少 (留空则按上年余额+本年增长自动算)')}</div>
@@ -724,22 +725,8 @@ function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, c
             {tt('review.currentCurrency', '当前币种: {{currency}}', { currency: '' })}<span className="font-semibold">{currency}</span>{isCNY ? tt('review.currencySaveNote', ' · 汇率 1 USD = {{rate}} CNY · 保存时自动换算为 USD 存储', { rate }) : ''}
           </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-white/10 bg-white/[0.035] py-2.5 text-sm font-normal text-white/75">{tt('review.cancel', '取消')}</button>
-          <button
-            onClick={() => {
-              // 输入的是当前显示币种的数字
-              // 存储时: 如果是 CNY, 除以 rate 换算成 USD
-              const divisor = isCNY ? rate : 1;
-              const ag = actualGain === '' ? null : parseFloat(actualGain) / divisor;
-              const eb = endBalance === '' ? null : parseFloat(endBalance) / divisor;
-              onSave(ag, eb);
-            }}
-            className="flex-1 rounded-xl bg-[#f6b54b] py-2.5 text-sm font-semibold text-[#101318]"
-          >{tt('review.save', '保存')}</button>
-        </div>
       </div>
-    </div>
+    </ActionModalCard>
   );
 }
 
@@ -4640,11 +4627,37 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       : tabCtx;
   const darkShell = isStandalonePage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
-  const costBasisModalCloseClass = 'flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/45 transition hover:bg-white/[0.08] hover:text-white/70 active:scale-90';
   const costBasisModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const costBasisModalInputClass = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] font-normal text-white outline-none tabular-nums transition placeholder:text-white/[0.28] focus:bg-white/[0.085]';
   const costBasisModalSymbolInputClass = `${costBasisModalInputClass} px-3.5 py-3 uppercase`;
-  const costBasisModalCancelClass = 'rounded-xl border border-white/10 bg-white/[0.06] py-2.5 text-[12px] font-normal text-white/[0.62] active:scale-95';
+  const submitCostBasisSymbol = () => {
+    const sym = normalizeStrictSymbolKey(costBasisNewSymbol);
+    if (!sym) {
+      showConfirm({
+        title: t(language, 'trades.invalidSymbolTitle', '股票代码格式不正确'),
+        desc: t(language, 'trades.invalidSymbolDesc', '请输入正确的股票代码,不要包含空格或特殊字符。'),
+        confirmText: t(language, 'trades.close', '关闭'),
+        confirmStyle: 'primary',
+        icon: '!',
+        showCancel: false,
+      });
+      return;
+    }
+    if (costBasisData[sym]) {
+      showConfirm({
+        title: t(language, 'trades.symbolExistsTitle', '{{symbol}} 已存在', { symbol: sym }),
+        desc: t(language, 'trades.symbolExistsDesc', '这只股票已经在摊薄成本工具中,可以直接切换查看。'),
+        confirmText: t(language, 'trades.close', '关闭'),
+        confirmStyle: 'primary',
+        icon: '!',
+        showCancel: false,
+      });
+      return;
+    }
+    setCostBasisData(prev => ({ ...prev, [sym]: [] }));
+    setCostBasisActiveSymbol(sym);
+    setShowCostBasisAdd(false);
+  };
   const pullRefreshLabel = pullRefreshStatus === 'updating'
     ? '发现新版本,正在更新'
     : pullRefreshStatus === 'refreshing'
@@ -4804,119 +4817,46 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
         {/* === 摊薄成本 - 新增股票弹窗 === */}
         {showCostBasisAdd && (
-          <div
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisAdd(false); }}
-            style={{
-              paddingTop: 'calc(1rem + env(safe-area-inset-top))',
-              paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
-            }}
+          <ActionModalCard
+            title={t(language, 'trades.addAveragingStock', '新增摊薄股票')}
+            closeLabel={t(language, 'trades.closeAddAveragingStock', '关闭新增摊薄股票')}
+            onClose={() => setShowCostBasisAdd(false)}
+            widthClassName="w-[calc(100vw-32px)] max-w-md"
+            panelClassName="min-h-0"
+            actions={[
+              { key: 'cancel', label: t(language, 'trades.cancel', '取消'), onClick: () => setShowCostBasisAdd(false) },
+              { key: 'confirm', label: t(language, 'trades.ok', '确定'), onClick: submitCostBasisSymbol },
+            ]}
           >
-            <div
-              className="max-h-[88svh] w-full max-w-md overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div className="text-[15px] font-normal text-white">{t(language, 'trades.addAveragingStock', '新增摊薄股票')}</div>
-                <button
-                  type="button"
-                  onClick={() => setShowCostBasisAdd(false)}
-                  className={costBasisModalCloseClass}
-                  aria-label={t(language, 'trades.closeAddAveragingStock', '关闭新增摊薄股票')}
-                >
-                  <X className="h-4 w-4" strokeWidth={1.8} />
-                </button>
-              </div>
-              <div className="space-y-3 p-5">
-                <label className="block">
-                  <span className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</span>
-                  <input
-                    type="text"
-                    value={costBasisNewSymbol}
-                    onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
-                    placeholder={t(language, 'trades.tickerPlaceholder', '股票代码 (如 NVDA)')}
-                    className={costBasisModalSymbolInputClass}
-                    style={{ fontFamily: 'ui-monospace, monospace' }}
-                    autoFocus
-                  />
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setShowCostBasisAdd(false)}
-                    className={costBasisModalCancelClass}
-                  >
-                    {t(language, 'trades.cancel', '取消')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      const sym = normalizeStrictSymbolKey(costBasisNewSymbol);
-                      if (!sym) {
-                        showConfirm({
-                          title: t(language, 'trades.invalidSymbolTitle', '股票代码格式不正确'),
-                          desc: t(language, 'trades.invalidSymbolDesc', '请输入正确的股票代码,不要包含空格或特殊字符。'),
-                          confirmText: t(language, 'trades.close', '关闭'),
-                          confirmStyle: 'primary',
-                          icon: '!',
-                          showCancel: false,
-                        });
-                        return;
-                      }
-                      if (costBasisData[sym]) {
-                        showConfirm({
-                          title: t(language, 'trades.symbolExistsTitle', '{{symbol}} 已存在', { symbol: sym }),
-                          desc: t(language, 'trades.symbolExistsDesc', '这只股票已经在摊薄成本工具中,可以直接切换查看。'),
-                          confirmText: t(language, 'trades.close', '关闭'),
-                          confirmStyle: 'primary',
-                          icon: '!',
-                          showCancel: false,
-                        });
-                        return;
-                      }
-                      setCostBasisData(prev => ({ ...prev, [sym]: [] }));
-                      setCostBasisActiveSymbol(sym);
-                      setShowCostBasisAdd(false);
-                    }}
-                    className="rounded-xl border border-[#f6b54b]/30 bg-[#f6b54b]/15 py-2.5 text-[12px] font-normal text-[#ffd18a] active:scale-95"
-                  >
-                    {t(language, 'trades.ok', '确定')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            <label className="block min-w-0">
+              <span className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</span>
+              <input
+                type="text"
+                value={costBasisNewSymbol}
+                onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
+                placeholder={t(language, 'trades.tickerPlaceholder', '股票代码 (如 NVDA)')}
+                className={costBasisModalSymbolInputClass}
+                style={{ fontFamily: 'ui-monospace, monospace' }}
+              />
+            </label>
+            <p className="mt-3 text-[11px] leading-5 text-white/[0.38]">{t(language, 'trades.costBasisIsolatedHint', '创建后只进入独立摊薄工具,不写入正式交易账本。')}</p>
+          </ActionModalCard>
         )}
 
         {/* === 摊薄成本 - 添加交易弹窗 === */}
         {showCostBasisTrade && (
-          <div
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/[0.65] px-3 py-4 backdrop-blur-md animate-in fade-in"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowCostBasisTrade(false); }}
-            style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
-            }}
+          <ActionModalCard
+            title={t(language, 'trades.addAveragingTrade', '添加摊薄交易')}
+            closeLabel={t(language, 'trades.closeAddAveragingTrade', '关闭添加摊薄交易')}
+            onClose={() => !costBasisSubmitting && setShowCostBasisTrade(false)}
+            widthClassName="w-[calc(100vw-24px)] max-w-md"
+            panelClassName="min-h-0"
+            actions={[
+              { key: 'buy', label: costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.buy', '买入'), disabled: costBasisSubmitting, onClick: () => confirmCostBasisTradeSubmit('buy') },
+              { key: 'sell', label: costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.sell', '卖出'), disabled: costBasisSubmitting, onClick: () => confirmCostBasisTradeSubmit('sell') },
+            ]}
           >
-            <div
-              className="w-full max-w-md min-w-0 overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0f16] shadow-[0_24px_80px_rgba(0,0,0,0.68)]"
-              style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f16]/95 px-4 pb-2 pt-3 backdrop-blur">
-                <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[14px] font-normal text-white">{t(language, 'trades.addAveragingTrade', '添加摊薄交易')}</h2>
-                  <button
-                    type="button"
-                    onClick={() => setShowCostBasisTrade(false)}
-                    className={costBasisModalCloseClass}
-                    aria-label={t(language, 'trades.closeAddAveragingTrade', '关闭添加摊薄交易')}
-                  >
-                    <X className="h-4 w-4" strokeWidth={1.8} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="min-w-0 p-3.5">
+              <div className="min-w-0">
                 <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
                   <label className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</label>
                   <input
@@ -4940,10 +4880,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                         inputMode="decimal"
                         value={costBasisNewTrade.price}
                         onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
-                        placeholder={t(language, 'trades.inputPrice', '输入价格')}
-                        className={costBasisModalInputClass}
-                        style={{ fontFamily: 'ui-monospace, monospace' }}
-                        autoFocus
+                      placeholder={t(language, 'trades.inputPrice', '输入价格')}
+                      className={costBasisModalInputClass}
+                      style={{ fontFamily: 'ui-monospace, monospace' }}
                       />
                     </div>
                     <div className="min-w-0">
@@ -4976,27 +4915,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  <button
-                    onClick={() => confirmCostBasisTradeSubmit('buy')}
-                    disabled={costBasisSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#ff4b1f]/30 bg-[#ff4b1f] text-[14px] font-normal text-white shadow-[0_14px_34px_rgba(255,75,31,0.28)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                  >
-                    <TrendingUp className="h-4 w-4" strokeWidth={1.8} />
-                    <span>{costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.buy', '买入')}</span>
-                  </button>
-                  <button
-                    onClick={() => confirmCostBasisTradeSubmit('sell')}
-                    disabled={costBasisSubmitting}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-500/15 text-[14px] font-normal text-emerald-100 shadow-[0_14px_34px_rgba(16,185,129,0.16)] transition active:scale-95 disabled:opacity-55 disabled:active:scale-100"
-                  >
-                    <TrendingDown className="h-4 w-4" strokeWidth={1.8} />
-                    <span>{costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.sell', '卖出')}</span>
-                  </button>
-                </div>
               </div>
-            </div>
-          </div>
+          </ActionModalCard>
         )}
 
         {/* === 📋 全部交易记录弹窗 === */}

@@ -10,6 +10,9 @@ export default function ActionModalCard({
   children,
   actions = [],
   actionGridClassName = '',
+  widthClassName = 'w-[calc(100vw-76px)] max-w-[360px]',
+  panelClassName = '',
+  contentClassName = '',
 }) {
   const actionColumns = actionGridClassName || (actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
@@ -59,7 +62,7 @@ export default function ActionModalCard({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="min-h-[232px] w-[calc(100vw-76px)] max-w-[360px] rounded-[27px] flex max-h-full min-w-0 flex-col overflow-hidden border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)]"
+        className={`min-h-[232px] ${widthClassName} rounded-[27px] flex max-h-full min-w-0 flex-col overflow-hidden border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)] ${panelClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between px-0.5 pb-4">
@@ -74,23 +77,25 @@ export default function ActionModalCard({
           </button>
         </div>
 
-        <div className="min-h-[84px] min-w-0 max-w-full flex-1 overflow-hidden rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)]">
+        <div className={`min-h-[84px] min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] ${contentClassName}`}>
           {children}
         </div>
 
-        <div className={`mt-4 grid shrink-0 gap-2.5 ${actionColumns}`}>
-          {actions.map((action) => (
-            <button
-              key={action.key || action.label}
-              type="button"
-              onClick={action.onClick}
-              disabled={action.disabled}
-              className={ACTION_MODAL_BUTTON_CLASS}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+        {actions.length > 0 && (
+          <div className={`mt-4 grid shrink-0 gap-2.5 ${actionColumns}`}>
+            {actions.map((action) => (
+              <button
+                key={action.key || action.label}
+                type="button"
+                onClick={action.onClick}
+                disabled={action.disabled}
+                className={ACTION_MODAL_BUTTON_CLASS}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
