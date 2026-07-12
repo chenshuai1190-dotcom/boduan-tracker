@@ -62,7 +62,7 @@
 - 当前生产运行时基准提交: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`。
 - 当前本地与生产设置页版本均为 `v10.7.9.323`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
+- 最近已验证 docs-only 部署: `npm run verify:deploy-status -- 5af7ba6` pass;GitHub Actions run `29198726448` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/54zRgRzn78ssxueVAr7qoLo5efwU`;production 入口保持 `/assets/index-DN2-ymxd.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- d8ea6ef` pass;GitHub Actions run `29198603364` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2`;production alias 已更新,入口 `/assets/index-DN2-ymxd.js`。
 - 最近交接文档刷新部署: `0aa87dfe72b3690bedb4c5425016c699f607cb01` 已通过 GitHub Actions run `29161798255` 和 Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G9h6ueyaBhcPdNKUY4xTuPwEyzFL`;生产入口保持 `/assets/index-CD6hu3eq.js`,运行时代码仍为 `bf48e5a` / `v10.7.9.303`。
 - 线上关键验证: 未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;生产 marker 命中 `v10.7.9.305`、`收益比赛收盘持仓公开与用户卡`、`收盘持仓代码`、`当前空仓` 和 `持仓暂不可用`,且不含 `DevVisualPreview`。
@@ -702,33 +702,73 @@ npm run dev -- --host 127.0.0.1
 - iOS 主屏 PWA 回前台后的股票实时刷新和 BTC 独立连接。
 - PWA icon manifest 和 apple-touch-icon。
 
-## 13. 下一个人接手后的第一步
+## 13. 下一个人接手后的第一步与快速门禁
 
-复制执行:
+首次接手先执行:
 
 ```bash
 PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
-git fetch origin
+GIT_SSH_COMMAND='ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes' git fetch origin
 git checkout main
 git pull --ff-only origin main
 git status --short --branch
 npm run verify:workspace-state
-npm run verify:toolchain
-npm ci
 ```
 
-上面只是首次环境与仓库同步,不是每次改动的全量验证清单。后续先按 `ui-fast / runtime / docs-only / sensitive` 判定风险再跑对应命令。`verify:local-env`、RLS 和 API smoke 只在任务确实需要时运行。
+根据 workspace 提示补环境,不要无条件重复初始化:
 
-确认:
+```bash
+npm run bootstrap:local-env       # 只有缺 .env.local 且任务确实需要真实本地环境时
+npm run bootstrap:vercel-link     # 只有需要 Vercel link/env pull 时
+npm ci                            # 只有 node_modules 缺失或 lockfile 变化时
+npm run verify:toolchain          # 首次接手、换机、工具链异常或 runtime/sensitive 前
+```
 
-- 工作区干净。
-- 设置页显示 `v10.7.9.294`。
-- `/api/quote?symbols=VIX` 未登录返回 `401`。
-- `/api/earnings-calendar?symbols=NVDA` 未登录返回 `401`。
-- Supabase Auth URL Configuration 仍是生产域名。
-- Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
-- HTTPS push 缺 GitHub 凭证时报 `could not read Username` 时,使用项目 SSH key `~/.ssh/boduan_tracker_github` 推送。
-- `npm run verify:toolchain` 和 `npm run verify:deploy-status -- <commit>` 只输出短摘要,不要改回手写长 `gh api` / `curl` JSON。
+接手基准必须确认:
+
+- `git status --short --branch` 干净,`main` 与 `origin/main` 同步。
+- 设置页版本为 `v10.7.9.323`。
+- 当前生产运行时为 `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`,入口 `/assets/index-DN2-ymxd.js`。
+- `/api/quote?symbols=VIX` 与 `/api/earnings-calendar?symbols=NVDA` 未登录均返回 `401`。
+- Supabase Auth URL Configuration 仍指向生产域名,Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
+- GitHub push 必须使用 `~/.ssh/boduan_tracker_github`;不要改成 HTTPS token 流程。
+
+### 快速上线必须通过（UI-fast）
+
+以下五项是快速通道红线,任一失败都不得部署:
+
+1. 与改动直接相关的定向测试通过;确实没有对应测试时,在 `docs/development-log.md` 明确说明原因。
+2. `npm run build` 通过。
+3. `npm run verify:docs-consistency` 与 `git diff --check` 通过。
+4. 用户可见前端改动必须在本机 Xcode iOS Simulator 验收;输入问题必须拉起系统软件键盘。禁止桌面 Chrome、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 充当视觉通过证据。
+5. 推送后 `npm run verify:deploy-status -- <commit>` 必须为 PASS,Actions/Vercel success,生产入口正常,quote/earnings 未登录继续 `401`。
+
+UI-fast 只允许纯视觉和只改变当前呈现的轻量交互:文字、颜色、图标、间距、宽高、对齐、展开/收起、页签、弹窗开关、焦点/按压态、局部滚动、键盘可见性、安全区和 loading/空状态/错误状态展示。允许组件内临时展示状态,但不能改业务回调、持久化、全局/跨模块状态、计算、数据源或安全边界。UI-fast 不默认跑完整 `npm test` 或 audit。
+
+### 必须升级为完整流程
+
+出现以下任一项就不能走 UI-fast:业务逻辑/计算/判断;保存、删除、提交、确认、同步、导入或导出等改变业务结果的交互;数据库或持久化;全局/跨模块状态;API/provider;鉴权/RLS/安全;交易账本/持仓/收益/快照/币种换算;路由结果;PWA 生命周期/回前台刷新/service worker;依赖/build/CI/环境配置;会改变多个模块数据或业务行为的共享组件。
+
+Runtime 必须通过:
+
+```bash
+npm run verify:toolchain
+npm test
+npm run build
+npm audit --audit-level=high
+npm run verify:docs-consistency
+git diff --check
+```
+
+Sensitive 在 runtime 基础上按影响面追加 `npm run verify:rls:rest`、Supabase SQL metadata、登录隔离和 API/security smoke。涉及 auth、RLS、数据库策略、quote、earnings、比赛 API/Cron、行情 relay、交易主账本、收益快照、付费 token 或环境变量时,绝不能降级。
+
+Docs-only 只跑:
+
+```bash
+npm run verify:docs-consistency
+git diff --check
+git diff --stat
+```
 
 ## 14. 交接给下一位同事的话
 
@@ -739,77 +779,23 @@ npm ci
 
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
+GitHub `main` 是唯一代码源头。
 
-当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前生产运行时代码提交为 `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`
-当前前台可见运行时基准提交: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`
-设置页版本: `v10.7.9.323`
-最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
-最新运行时部署: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2`,Actions run `29198603364`
-最新生产入口: `/assets/index-DN2-ymxd.js`
+当前生产基准:
+- 运行时代码: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`
+- 设置页版本: `v10.7.9.323`
+- 生产入口: `/assets/index-DN2-ymxd.js`
+- Runtime Actions: `29198603364` success
+- Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2` success
+- 最近 docs-only commit: `5af7ba6`；Actions `29198726448`、Vercel `54zRgRzn78ssxueVAr7qoLo5efwU` success
+- 未登录 `/api/quote?symbols=VIX`: `401`
+- 未登录 `/api/earnings-calendar?symbols=NVDA`: `401`
 
-最新已上线:
-- `v10.7.9.323` 已上线:设置页新增的系统文案键完整补齐英文,Language、Display、Account、Admin、Switch Account、密码和确认流程不再回退中文;社区昵称和邮箱等用户内容保持原文。定向 46/46、build、iOS Simulator、docs/diff、Actions/Vercel 和生产鉴权检查均 pass。
-- `v10.7.9.322` 已上线:共享弹窗在 iOS 键盘缩短视口后自动把当前输入滚到偏上安全区,新增交易股数/日期和修改账户余额/保存按钮已在 Xcode iOS 26.5 iPhone 17 Pro Simulator 实际键盘中验证;前端验收环境改为本地 iOS only。完整测试 255/255、build、high audit、docs/diff、Actions/Vercel 和生产鉴权检查均 pass。
-- `v10.7.9.321` 已上线但真机仍复现共享输入问题:仅新增/修改交易启用整卡滚动,未覆盖修改账户等其他共享弹窗;由 v322 统一替代。
-- `v10.7.9.320` 已上线:资产走势统一新版弹窗并取消列表外侧内框;新增/修改交易修复 iOS 键盘下内容无法滚动遮挡;定向 46/46、build、docs consistency、diff check 和 deploy status 均 pass,5 个关键生产文件与本地 SHA-256 一致,不改数据与回调。
-- `v10.7.9.316` 已上线:只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示;完整测试 253/253、build、5/5 frontend smoke、high audit、390px/短视口和生产 marker/鉴权验证均 pass
-- `v10.7.9.315` 已上线:邀请注册增加必选社区昵称与 18 款头像明确选择;服务端先写完整社区资料再消费邀请码,失败回滚 Auth 用户;不自动加入收益比赛;生产 SQL、metadata/RLS、Actions/Vercel、资源与鉴权边界均已验证
-- `v10.7.9.314` 已上线:设置页头部头像增加独立中性外框并从 79px 放大到 95px;头像选择器和收益比赛展示不变
-- `v10.7.9.313` 已上线:头像统一裁出素材白边,设置页头部头像放大约 20%,删除头卡昵称下方提示文字;头像 key、社区资料、比赛和数据库逻辑不变
-- `v10.7.9.312` 已上线:社区默认头像替换并扩展到 18 款;保留原 6 key 兼容已有资料;生产 constraint 迁移、18 key 回查、18 张资源、RLS/鉴权边界和线上 marker 均已验证
-- `v10.7.9.311` 已上线:设置页多账户真一键切换,不保存密码;最多 5 个 Supabase session,普通退出仅 local scope;数据库离线缓存、摊薄工具、波段折叠和行情诊断均按 user id 隔离,切换后强制重挂载应用
-- `v10.7.9.310` 已上线:六款社区默认头像替换为新的蓝/金/紫/绿/青/银人物设计;头部身份卡直达真实资料弹窗,下方重复社区行移除;原头像 key、社区资料表、数据库、RLS 和比赛收益逻辑不变
-- `v10.7.9.309` 已上线:移除设置页顶部重复标题;社区资料加载前显示中性占位;蓝色头像保持原裁切,其余头像加大裁切减弱粗外圈。runtime `61c438d34cdf5f9e7a52e02532697ca1c79d518c`,Actions `29179842191`,Vercel `BbCFJTQLooZKwAiuCon4sfbJnrBp` 均 success
-- `v10.7.9.308` 已上线:设置页折叠式重设计接入真实社区资料、语言、改密、管理员邀请码、更新日志和全局红绿配色;交易页原有配色齿轮继续保留。设置页不再显示行情诊断面板;头卡缩小约 30%;切换账户本阶段只安全退出返回登录页,不保存密码或复用跨账户缓存
-- `v10.7.9.307` 已上线:资产“我/老婆”卡片取消人物彩色边框,金额/进度条统一系统红,账户类型图标统一中性默认色;布局和计算不变
-- `v10.7.9.306` 已上线:首页自选/持仓表格改为单一股票行 grid,修复名称侧与行情侧分隔线错位;首页卡片和各列宽度不变
-- `v10.7.9.305` 已上线:排行榜用户卡公开经同日 `ledger_hash` 验证的收盘持仓代码,只返回 ticker,不返回股数、成本、金额、仓位或交易明细;不新增 SQL
-- `v10.7.9.304` 收益比赛标题样式统一:收益比赛与波段记录标题统一为 18px 常规字重、相同字距和亮度;只改标题视觉,比赛数据与安全边界不变
-- `v10.7.9.303` 收益比赛真实收盘快照版:社区资料需主动保存,参赛需自愿确认,排名从加入后的下一份权威收盘快照开始;生产页不再包含 mock/localStorage/fixed sparkline。比赛使用独立成员表、不可覆盖的百分比快照表、严格鉴权 API 和独立 Cron URL,只读 `stock_trades` 且不改其他模块;生产 SQL、匿名 REST 20/20、Actions/Vercel、线上 401 和 marker 均已验证
-- `v10.7.9.302` 社区头像白边修正已随 v303 上线;只改设置页头像展示样式,不改 `community_profiles` 数据、头像 key、RLS、交易账本或当时的社区比赛逻辑
-
-- `v10.7.9.301` 设置页社区资料基础:设置页新增“社区资料”模块,真实读写独立 `community_profiles`,只存公开 `nickname` 与 `avatar_key`;提供 6 个默认头像,不开放头像上传,不接 Supabase Storage,不存邮箱、资产、收益或交易账本字段
-- `v10.7.9.301` 已上线:`npm run verify:deploy-status -- 4bfab84` pass;GitHub Actions run `29159386949` success,Vercel status success,生产入口 `/assets/index-B4MFy0ZP.js`,未登录 quote/earnings 均为 `401`;`npm run verify:rls:rest` 18/18 pass,`community_profiles` 匿名 REST 为 `401`;生产 marker 命中 `v10.7.9.301`、`设置页社区资料上线`、`community_profiles`、`community-avatars/avatar-gold.webp`、`社区资料`、`保存社区资料` 和 `默认头像`
-- `v10.7.9.300` 社区比赛 mock 小工具第一版:交易页主工具入口把“摊薄工具”替换为“社区比赛”,“摊薄工具”迁入“全部功能”;社区比赛为独立 mock 页面,首次进入需自愿确认加入,加入状态只写本地 `boduan_community_competition_joined_v1`
-- 本轮只做 HTML/mock 视觉还原和本地入口,不接 Supabase、不写正式交易账本、不计算真实收益、不改 RLS、收益快照、行情 relay、`/api/quote` 鉴权或独立 `/api/earnings-calendar`
-- `v10.7.9.300` 已上线:`npm run verify:deploy-status -- eae8a7a` pass;GitHub Actions run `29156492612` success,Vercel status success,生产入口 `/assets/index-BXPK-qSG.js`,未登录 quote/earnings 均为 `401`;生产 marker 命中 `v10.7.9.300`、`社区比赛 mock 小工具第一版`、`boduan_community_competition_joined_v1` 和 `border-[#2a313b]/90`;本地 390x844 复核首访加入弹框、确认加入后榜单页、顶部收益率不截断、第 4 名及以后头像深灰边框、交易页工具入口和“全部功能”内摊薄工具
-
-上一条已上线:
-- `v10.7.9.299` 波段首页折叠状态记忆恢复已上线:恢复波段首页折叠/展开;折叠状态按“全部 / 进行中 / 已完成”筛选和股票代码记忆,下次进入保持上次状态;没有记忆时同股多波段仍默认展开,新增波段后自动展开对应进行中股票;390x844 本地预览已确认收起/展开刷新记忆
-- `v10.7.9.298` 波段首页默认选中“进行中”;仅已完成股票不在默认首页显示,仍可在“已完成”筛选查看;同股多个波段自动展开并全部显示
-- 新增波段弹框跟随 iOS `visualViewport`,修复首次聚焦股票代码、买入成本、买入数量或备注时整卡跳顶;日期文字垂直居中
-- 共用 `ActionModalCard` 的确认与取消统一为同一中性色;确认按钮在表单无效时仍为原生 `disabled` 并阻止提交,危险删除确认仍保持红色
-- 本轮没有数据库、API、RLS、正式交易账本、收益快照、行情 relay 或 `swing_waves` CRUD/计算变化
-
-关键线上验证:
-- `v10.7.9.299` 已上线:`npm run verify:deploy-status -- e0debb2` pass;GitHub Actions run `29155636911` success,Vercel status success,生产入口 `/assets/index-Y_ZLNfsn.js`,未登录 quote/earnings 均为 `401`;生产引用 `WaveTrackerPage-SBnFf21m.js`,`SettingsTab-CZfiG-s9.js`,`settingsChangelog-anvmF17-.js`,设置页命中 `v10.7.9.299`,更新日志命中“波段首页折叠记忆恢复”,波段 chunk 命中 `boduan_wave_tracker_expanded_v1` 且不含旧 `lockedExpanded` / `const forceExpanded`
-- `v10.7.9.298` 已上线:`npm run verify:deploy-status -- 18f2533` pass;GitHub Actions run `29155184666` success,Vercel status success,生产入口 `/assets/index-C4i0j3Ob.js`,未登录 quote/earnings 均为 `401`;生产引用 `WaveTrackerPage-ClYqGD2a.js`,`ActionModalCard-CTI_wgqk.js`,`SettingsTab-BUnYaY2P.js`,`settingsChangelog-BXVNnlzy.js`
-- `v10.7.9.297` 已上线:波段记录升级为独立真实页面,支持同股多个独立进行中波段、完整买入/完整卖出、股票 Logo、深色操作弹框和页面级 `swing_waves` CRUD;双真实 Auth 用户 RLS 14/14 及零残留通过
-- `npm run verify:deploy-status -- b56b712` pass: GitHub Actions run `29154192896` success,Vercel status success,生产入口 `/assets/index-D58eoxFB.js`,未登录 quote/earnings 均为 `401`;设置页命中 `v10.7.9.297`,生产引用独立 `WaveTrackerPage-DijsB-a2.js`
-- `v10.7.9.296` 已上线:波段买入/卖出均价、当前价和交易单价固定 USD;浮盈、总盈亏和成交总金额继续跟随首页 USD/CNY;存储、计算和其他模块不变
-- `npm run verify:deploy-status -- 121016f` pass: GitHub Actions run `29146470542` success,Vercel status success,生产入口 `/assets/index-COrRNEPC.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.295` 已上线:波段进行中/已完成卡片、均价/现价/浮盈/总盈亏、交易明细、全部波段交易与波段删除确认跟随首页 USD/CNY;波段录入、存储和计算仍为 USD,只影响波段工具
-- `npm run verify:deploy-status -- 8468442` pass: GitHub Actions run `29146141182` success,Vercel status success,生产入口 `/assets/index-DEPEiYoB.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.294` 已上线:个人箴言改为灰色斜体;当前年摘要上移并补齐目标/实现/落后三行;目标和中性金额使用白色,实现与完成率使用红色,落后/未达使用绿色,当前位置和进度条保留黄色
-- `npm run verify:deploy-status -- ce2ddb4` pass: GitHub Actions run `29145076024` success,Vercel status success,生产入口 `/assets/index-C71PVvAU.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.293` 已上线:年度目标当前年卡片右上角目标改为当年计划;当前与预测年度路径标签改为年初起点/当前/终点,金额和计算逻辑不变
-- `npm run verify:deploy-status -- 874dd17` pass: GitHub Actions run `29143029685` success,Vercel status success,生产入口 `/assets/index-DtMRK-G6.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.292` 已上线:账户/订单操作和危险删除确认卡按设计稿重构,订单接入现有股票 Logo 链路,账户支持可选图片并在缺失或加载失败时显示类型图标;操作回调和数据边界不变
-- `npm run verify:deploy-status -- 3e8b6f1` pass: GitHub Actions run `29141643669` success,Vercel status success,生产入口 `/assets/index-DlHnRYc2.js`,未登录 quote/earnings 均为 `401`;生产关键 assets 与本地构建 SHA-256 一致
-- `npm run verify:deploy-status -- a48c4ad` pass: GitHub Actions run `29142090108` success,Vercel status success,文档部署未改变生产入口,未登录 quote/earnings 均保持 `401`
-- `v10.7.9.291` 已上线:财报日历首页卡、弹窗、列表和详情的白色标题/代码/实际值统一为 70%,预期值 60%,月份和普通日期 65%;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.290` 已上线:首页自选/持仓股票代码降为 70% 白色,公司名称降为 35% 白色;价格保持 80%,生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.289` 已上线:首页持仓盈亏取消粗体、跟随系统涨跌色并扩大到交易页同款 144px 单行列;自选股票代码和价格统一为“等待中”同款 `text-white/80`;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.288` 已上线:首页财报日历标题/代码、自选/持仓当前标签和股票代码统一降到 `text-white/80`,名称表头与价格/涨跌幅统一为 `text-white/40`,股票代码取消粗体;生产关键 assets 与本地构建 SHA-256 一致
-- `v10.7.9.287` 已上线:首页主行情超过 30 个 symbols 时按 30 个一批顺序读取并合并,服务端上限和 `/api/quote` 鉴权不变;生产 App/Settings/Changelog assets 与本地构建 SHA-256 一致
-- `v10.7.9.286` 已上线:未来 15 天内自选与持仓合计至少 5 家有待公布财报且至少 1 家属于当前持仓时,同一张财报日历卡片上移到自选/持仓模块上方;不满足时保持首页底部
-- `v10.7.9.285` 已上线:添加自选股票弹窗里的热门列表扩展为 30 个常用美股/ETF 候选池;严格只在 `showAddStock && isWatchlistTab` 时通过现有已登录 `/api/quote` fresh 请求拉取候选股实时价格和涨跌幅;首页默认渲染不请求这批候选股;生产 bundle marker 确认 `fetchPopularStockQuotes`、`EODHD-v2`、`priceSource`、`PANW`、`CRWD`、`热门股票` 和 `热门股票弹窗实时行情` 存在
-- `v10.7.9.284` 已上线:添加自选股票前必须先通过现有已登录 `/api/quote` fresh 请求校验美股代码存在且返回有效股票价格;非美股代码、特殊行情符号、接口报错或 EODHD 未返回有效股票价格时不写入自选列表;生产 bundle marker 确认中英文无效美股代码提示、`v10.7.9.284` 和 `自选添加股票校验` 存在
-- `v10.7.9.283` 已上线:个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时;生产 bundle marker 确认 `v10.7.9.283`、`个股详情持仓时间`、`持仓天数`、`首次建仓`、`stockDetail.holdingDays`、`stockDetail.firstEntry`、`Holding Days` 和 `First Entry` 存在
-- `v10.7.9.282` 已上线:收益报表对比浮层里“我的”当日/累计收益率改为跟随系统涨跌颜色设置,下跌不再错误显示为红色;收益报表副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,底层生成逻辑保留;生产 bundle marker 确认 `v10.7.9.282`、`收益报表浮层颜色和页面文案调整`、`Quote Data testing`、`dailyPnlPct`、`pnlPct` 和 `底层生成逻辑保留` 存在
-- `v10.7.9.281` 已上线:收益报表“收益率走势”对比浮层展示“我的”和“纳斯达克”的当日/累计收益率,基准沿用现有本期起点收盘价口径
-- `v10.7.9.280` 已上线:个股收益详情页“我的收益线”峰值圆点新增独立呼吸光晕,原圆点半径保持 `r="3.6"` 不变
-- 本轮只修正 legacy 波段每股报价的 USD 展示 helper、波段卡片/专属弹窗、设置页版本/更新日志和静态护栏;汇总金额继续按首页币种显示,不改波段 USD 存储与计算、首页、正式 `stock_trades`、摊薄成本、资产、收益报表、数据库、`/api/quote`、`/api/earnings-calendar`、RLS、收益快照、鉴权或行情 relay
+最近完成:
+- `v10.7.9.323`: 设置页 77 个 `settings.*` 系统文案键中英文完整覆盖;Language、Display、Account、Admin、Switch Account、密码和确认流程不再回退中文。社区昵称、邮箱和用户自写内容保持原文。设置/弹窗定向 46/46、build、iOS 26.5 Simulator、docs/diff 和部署检查全部通过。
+- `v10.7.9.322`: `ActionModalCard` 在 iOS 键盘缩短视口后自动把当前输入滚到安全可见区;新增交易股数/日期和修改账户余额/保存按钮已用 iPhone 17 Pro Simulator 系统键盘验证。共享宽度、字段、验证、保存回调、数据库和安全边界不变。
+- 收益比赛是真实独立功能:用户必须保存社区资料并自愿参赛,榜单严格使用不可覆盖的权威收盘快照;只读正式 `stock_trades`,只写独立比赛表。不得伪造实时收益或改写个人收益快照。
+- 波段记录 V2 使用独立 `swing_waves`;支持同股多个独立波段、完整买入/一次性完整卖出。股票单价固定 USD,盈亏金额跟随首页币种;不得写入正式 `stock_trades`。
 
 请先按顺序读:
 1. `docs/handoff.md`
@@ -819,61 +805,75 @@ npm ci
 5. `docs/security-hardening.md`
 6. `docs/architecture-security-audit.md`
 
+首次接手:
+```bash
+PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
+GIT_SSH_COMMAND='ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes' git fetch origin
+git checkout main
+git pull --ff-only origin main
+git status --short --branch
+npm run verify:workspace-state
+```
+
+快速上线必须通过（UI-fast）:
+1. 相关定向测试通过,或日志明确说明没有对应测试。
+2. `npm run build` 通过。
+3. `npm run verify:docs-consistency` 和 `git diff --check` 通过。
+4. 用户可见前端改动必须用本机 Xcode iOS Simulator 验收;输入问题必须使用系统软件键盘。桌面 Chrome、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 不算通过证据。
+5. 推送后 `npm run verify:deploy-status -- <commit>` 必须 PASS,Actions/Vercel success,quote/earnings 未登录继续 `401`。
+
+UI-fast 范围:
+- 文字、颜色、图标、字号、边框、间距、固定宽高、对齐。
+- 展开/收起、页签、弹窗开关、焦点/按压态、局部滚动、键盘可见性、安全区、loading/空状态/错误状态等只影响当前呈现的轻量交互。
+- 不改变业务回调、持久化、全局/跨模块状态、计算、数据源、API、数据库或安全边界。
+- 不默认跑完整 `npm test` 或 audit。
+
+以下任一项必须升级完整 runtime:
+- 业务逻辑、计算或判断规则。
+- 保存/删除/提交/确认/同步/导入/导出等改变业务结果的交互。
+- 数据库/持久化、全局/跨模块状态、API/provider。
+- auth、RLS、安全、交易账本、持仓、收益、快照、币种换算。
+- 路由、PWA 生命周期/回前台刷新/service worker、依赖、build、CI、环境配置。
+
+Runtime 必跑:
+```bash
+npm run verify:toolchain
+npm test
+npm run build
+npm audit --audit-level=high
+npm run verify:docs-consistency
+git diff --check
+```
+
+Sensitive 在 runtime 基础上追加 RLS、Supabase SQL metadata、登录隔离和受影响 API/security smoke。敏感改动绝不能降级。
+
 硬规则:
-- GitHub `main` 是唯一代码源头。
-- 不要直接改 Vercel、浏览器控制台、临时服务器文件。
-- 每次代码、配置、部署、安全或文档改动,都必须更新 `docs/development-log.md`。
-- 用户可见更新必须同步设置页更新日志和版本号。
-- UI 或功能涉及系统文案时,必须同步简体中文和 English;只翻译系统文案,用户自写目标箴言、心得、复盘、备注、日志和账户名保持原文。
-- 不要提交任何 token、`.env`、Supabase service role key。
-- 不要添加 `VITE_EODHD_TOKEN`。
-- 不要让浏览器直连 EODHD WebSocket。
-- 不要关闭 `/api/quote` 鉴权。
-- 不要把财报日历塞回 `/api/quote` 的 `CALENDAR:` 虚拟 symbol 链路;当前财报日历走独立 `/api/earnings-calendar`。
-- HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
-- 每轮先判定 workflow tier: `ui-fast` / `runtime` / `docs-only` / `sensitive`,再决定验证强度;纯 UI 不再默认跑全量流程。
+- 不直接修改 Vercel、浏览器控制台或临时服务器文件。
+- 每次代码、配置、部署、安全或文档改动都必须更新 `docs/development-log.md`。
+- 用户可见发布同步设置页版本和更新日志;系统文案同步简体中文和 English,用户自写内容保持原文。
+- 不提交 token、`.env`、Supabase service role key;不添加 `VITE_EODHD_TOKEN`。
+- 浏览器不得直连 EODHD WebSocket;付费行情 token 只允许服务端 `EODHD_API_KEY`。
+- 不关闭 `/api/quote` 鉴权。
+- 财报日历继续使用独立 `/api/earnings-calendar`,不得塞回 `/api/quote` 或 `CALENDAR:` 虚拟 symbol。
+- 正式交易只写 `stock_trades`;波段 V2 只写 `swing_waves`;摊薄工具只写 `cost_basis_trades`;收益比赛只写独立比赛表。
+- 推送必须使用 `~/.ssh/boduan_tracker_github`。
 
-本机工具链路径:
-`PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`
-
-验证流程:
-- 首次接手、换机、工具链异常或部署环境不确定时,先跑 `npm run verify:toolchain`;同一会话已 pass 后不为每个小 UI 改动重复跑。
-- 新 Codex 工作区先跑 `npm run verify:workspace-state`,它会检查 `.env.local`、`.vercel/`、`node_modules`、`dist`、本地 Vite 端口和 Git 工作区状态,并提示需要的 bootstrap 命令。
-- 需要本地登录、真实 Supabase、EODHD smoke 或 API 验证时才跑 `npm run verify:local-env`;纯 UI 不跑。若任务确实需要且 `.env.local` 缺失,再跑 `npm run bootstrap:local-env`。
-- 需要 Vercel env pull/link 时,跑 `npm run bootstrap:vercel-link`;`.vercel/` 是本地状态并被 Git 忽略。
-- `ui-fast`: 纯视觉和仅改变当前界面呈现的轻量交互(展开/收起、页签、弹窗开关、焦点/按压态、局部滚动、键盘可见性、安全区、loading/空状态/错误状态展示),且不改业务回调语义、持久化、全局/跨模块状态、计算、数据源、API、数据库或安全边界;只跑相关定向测试、`npm run build`、`git diff --check`。部署不会自动要求补跑全量 test/audit。
-- `runtime`: 改业务逻辑/计算,保存/删除/提交/同步等业务交互,持久化/数据库,全局或跨模块状态,API/provider,鉴权/RLS/安全,账本/收益/快照/换算,路由/PWA 生命周期,共享业务行为或依赖/build/CI/环境配置,跑 `npm run verify:toolchain`、`npm test`、`npm run build`、`npm audit --audit-level=high`、`git diff --check`。
-- `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;如果是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
-- `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
-- 推送后默认用 `npm run verify:deploy-status -- <commit>` 汇总 GitHub Actions、Vercel commit status、生产入口和未登录 quote/earnings 401。不要再手写长 `gh api` / `curl` 输出,也不要对整份 `docs/development-log.md` 做无边界 `rg -n`。
-
-本地视觉调试:
-- 运行 `npm run dev -- --host 127.0.0.1`,用 390x844 左右手机视口检查。
-- `?tab=home` 看首页,`?tab=trades` 看订单操作/删除确认,`?tab=analysis` 看账户操作,`?tab=review` 看目标页。
-- 缺 Supabase 配置时会进入只读 `DevVisualPreview`;它不连接真实 Supabase、不写生产数据,只能用于视觉和交互 smoke。
-- 招商银行等账户没有可用图片时使用默认账户类型图标,不要为寻找品牌 Logo 阻塞开发;股票订单 Logo 继续沿用现有 provider,失败时显示 ticker。
-
-生产敏感改动还要跑:
-`npm run verify:rls:rest`
-并确认未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 返回 `401`。
-
-当前已完成:
-- `v10.7.9.298` 波段首页与新增弹框细节已上线:默认进行中,已完成记录仅在已完成筛选出现,多波段自动展开;弹框跟随 iOS `visualViewport`,日期垂直居中,共用操作卡按钮统一中性色且 disabled/危险确认语义保持不变。
-- 波段记录 V2 真实独立页面已在 `v10.7.9.297` 上线:交易页工具卡进入 lazy 独立页,真实读写独立 `swing_waves`,支持同股多个进行中波段和一次性完整卖出;买入/卖出/当前单价固定 USD,盈亏金额跟随首页币种。生产 SQL/RLS 已通过 13/13 metadata、匿名 REST 和双真实 Auth 用户 CRUD/RLS 14/14 核验,残留数据为零。
-- 英文模式已覆盖设置页、底部导航、首页、交易页、资产页、目标页;只翻译系统文案,用户自写内容保持原文。
-- 股票核心行情已去 Yahoo 混源:股票核心 quote 字段只用 EODHD;Yahoo 仅保留股票小曲线视觉 chart 来源。
-- 股票/指数/BTC realtime relay 保持登录鉴权;BTC、三大指数、股票持仓刷新逻辑已拆开。
-- 收益报表独立页、收益快照、自动收盘快照和个股只读收益详情页已上线;报表读取快照,不使用其它日期替代无快照日期。
-- 首页底部财报日历已在 `v10.7.9.249` 独立重构:新增 `/api/earnings-calendar`,前端不接触 EODHD token,旧 `CALENDAR:` / NASDAQ calendar / 白色事件弹窗已移除;`v10.7.9.250` 已把首页预览压缩为固定一行,日期字号同步弹窗日历日期,并删除首页/弹窗标题旁信息图标;`v10.7.9.251` 已取消第一项默认高亮并修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报详情和列表改为券商式实际/预测同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重。
-- EODHD 本地测试环境已建立:本机稳定 key 路径为 `~/.config/boduan-tracker/eodhd.env`,脚本也兼容 `process.env.EODHD_API_KEY` 和当前工作区 `.env.local`;下一任可按 `docs/eodhd-local-testing.md` 跑 smoke,不要提交、打印或外泄 key。
-- 主交易账本、摊薄工具、波段记录、收益快照和财报日历是不同边界;不要为了省事互相写表或混 provider。
+本地 iOS 验收:
+```bash
+npm run dev -- --host 127.0.0.1
+xcrun simctl list devices available
+xcrun simctl boot <UDID>              # 已 Booted 时跳过
+open -a Simulator
+xcrun simctl openurl <UDID> 'http://127.0.0.1:5173/?devPreview=1&tab=settings&lang=en'
+```
+`DevVisualPreview` 只允许在 iOS Simulator 中做只读视觉/交互 smoke,不连接或写入生产数据。主屏 PWA 特有问题必须添加到模拟器主屏后复测。
 
 当前优先事项:
-1. 完成其余用户表的 RLS metadata 审计;`swing_waves` 双用户隔离 smoke 已完成。
-2. 保持首页财报日历、收益报表、个股详情、交易账本和行情 relay 的模块边界,继续按独立系统扩展。
-3. 继续拆 `src/App.jsx` 和 `src/lib/db.js`。
-4. 继续拆 quote provider,尤其是 `server/quote/providers/eodhd.js`。
-5. 增加登录、忘记密码、自选、交易收益率、收益快照、个股详情、iOS PWA 回前台刷新等端到端 smoke。
+1. 完成其余用户表 RLS metadata 审计和登录隔离 smoke;`swing_waves` 已完成 metadata 13/13、双真实 Auth 用户 14/14 且无残留。
+2. 周一真实测试收益比赛;继续保证昵称/头像、自愿参赛、加入后下一份权威收盘快照和公开持仓 ticker 的规则,绝不展示虚假收益。
+3. 保持财报日历、收益报表、个股详情、正式交易账本、波段、摊薄工具和行情 relay 的独立边界。
+4. 继续拆 `src/App.jsx`、`src/lib/db.js` 和 `server/quote/providers/eodhd.js`。
+5. 补登录、忘记密码、自选、交易收益率、收益快照、个股详情和 iOS PWA 回前台刷新端到端 smoke。
 ```
 
 下面旧版转发块仅作历史参考,不要再转发:
