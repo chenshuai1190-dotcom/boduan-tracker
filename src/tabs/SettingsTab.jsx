@@ -28,10 +28,10 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.312';
+const SETTINGS_VERSION = 'v10.7.9.313';
 
 function communityAvatarImageClass() {
-  return 'scale-[1.02]';
+  return 'scale-[1.15]';
 }
 
 function DetailShell({ children }) {
@@ -584,7 +584,7 @@ function SettingsTab({ ctx }) {
           aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
           className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
         >
-          <span className="relative h-[66px] w-[66px]">
+          <span className="relative h-[79px] w-[79px]">
             <span className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
               {communityHydrating
                 ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
@@ -598,9 +598,6 @@ function SettingsTab({ ctx }) {
           </span>
           <span className="mt-3 max-w-full truncate text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">
             {communityHydrating ? t(language, 'settings.loading', '加载中...') : communityDisplayName}
-          </span>
-          <span className="mt-2 text-center text-[10px] text-white/40">
-            {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}
           </span>
         </button>
 

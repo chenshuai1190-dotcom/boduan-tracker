@@ -4,6 +4,21 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 设置页头像去白边与放大
+
+- Deployment: not deployed;本地 `v10.7.9.313`,生产仍为 `v10.7.9.312`。
+- Background: 用户反馈新头像素材的白色外缘仍可见,要求删除头卡头像下方提示文字并把头像放大约 20%。
+- Workflow tier: `runtime`。
+- Changes:
+  - 设置页、资料选择器与收益比赛头像统一从 `scale-[1.02]` 加深到 `scale-[1.15]`,把素材圆形外侧的白底完全裁出可视区域。
+  - 设置页头部身份头像从 `66px` 放大到 `79px`,约增加 20%;头像卡片宽度和最小高度不变。
+  - 删除头部头像昵称下方“2-16 个字符,用于排行榜公开展示”提示;社区资料弹窗内的昵称规则提示继续保留。
+  - 设置页与更新日志版本同步为 `v10.7.9.313`。
+- Key files: `src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/pages/CommunityCompetitionPage.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 社区/边界定向测试 53/53、完整测试 247/247、production build、5/5 frontend smoke（各 tab console/runtime error 0）、high audit 0 vulnerabilities、docs consistency 和 diff check 全部 pass。390x844 正式设置页 mock 复核红色夜行者与蓝色少年:头像均为 `79×79px`,图片裁切 transform 为 `scale(1.15)`,白边不可见,头卡提示文字不存在,卡片仍为 358×176px,页面 `scrollWidth=390` / `clientWidth=390`。本地截图: `/tmp/boduan-settings-avatar-red-v313.png`,`/tmp/boduan-settings-avatar-blue-v313.png`。
+- Boundaries: 只改社区头像视觉和头卡提示文字;不改头像 key、昵称校验、资料保存、Supabase、RLS、比赛收益/快照、持仓披露、交易账本、行情 relay、`/api/quote` 或 `/api/earnings-calendar`。
+- Rollback: 回退本条 UI、版本、更新日志、测试和文档即可;没有 SQL、数据或配置变更。
+
 ### 2026-07-12 - 社区默认头像扩展为 18 款
 
 - Deployment: completed;runtime commit `dc49c3a30f66aa019df6141056a81fec343649c1`,GitHub Actions run `29182253805` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Bw1hyXdMRykyQNCm1rms9TA9tFMq` success,production alias 已更新,入口 `/assets/index-DtlUDXCw.js`。生产 Supabase 已先执行独立头像约束迁移。

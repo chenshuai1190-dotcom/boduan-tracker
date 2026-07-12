@@ -66,7 +66,7 @@ const INVITE_CODES = [
 ];
 
 function communityAvatarImageClass() {
-  return 'scale-[1.02]';
+  return 'scale-[1.15]';
 }
 
 function DetailShell({ children }) {
@@ -265,7 +265,7 @@ export default function SettingsRedesignPrototype() {
           onClick={() => setShowCommunityProfile(true)}
           type="button"
         >
-          <span className="relative h-[66px] w-[66px]">
+          <span className="relative h-[79px] w-[79px]">
             <span className="absolute inset-0 overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
               <img alt="社区头像" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} src={avatar.src} />
             </span>
@@ -274,7 +274,6 @@ export default function SettingsRedesignPrototype() {
             </span>
           </span>
           <span className="mt-3 text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">{nickname}</span>
-          <span className="mt-2 text-[10px] text-white/40">2-16 个字符，用于排行榜公开展示</span>
         </button>
 
         <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#0c1016] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
@@ -301,7 +300,7 @@ export default function SettingsRedesignPrototype() {
           <button className="flex min-h-[62px] w-full items-center gap-3 px-5 text-left" onClick={() => setShowLog((value) => !value)} type="button">
             <Globe2 className="h-[18px] w-[18px] text-white/42" />
             <span className="flex-1 text-[13px] text-white/68">更新日志</span>
-            <span className="text-[10px] text-white/28">v10.7.9.312</span>
+            <span className="text-[10px] text-white/28">v10.7.9.313</span>
             {showLog ? <ChevronDown className="h-4 w-4 text-white/30" /> : <ChevronRight className="h-4 w-4 text-white/30" />}
           </button>
           {showLog && (
