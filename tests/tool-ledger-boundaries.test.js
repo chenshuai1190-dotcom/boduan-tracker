@@ -60,6 +60,8 @@ const communityProfileSource = readFileSync(new URL('../src/lib/communityProfile
 const communityProfilesRepositorySource = readFileSync(new URL('../src/lib/communityProfilesRepository.js', import.meta.url), 'utf8');
 const communityProfilesDbSource = readFileSync(new URL('../src/lib/communityProfilesDb.js', import.meta.url), 'utf8');
 const supabaseClientSource = readFileSync(new URL('../src/lib/supabase.js', import.meta.url), 'utf8');
+const accountSessionVaultSource = readFileSync(new URL('../src/lib/accountSessionVault.js', import.meta.url), 'utf8');
+const userScopedStorageSource = readFileSync(new URL('../src/lib/userScopedStorage.js', import.meta.url), 'utf8');
 const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.meta.url), 'utf8');
 const earningsCalendarApiSource = readFileSync(new URL('../api/earnings-calendar.js', import.meta.url), 'utf8');
 const registerApiSource = readFileSync(new URL('../api/register.js', import.meta.url), 'utf8');
@@ -449,8 +451,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.310'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.310', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.311'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.311', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1631,7 +1633,7 @@ test('settings redesign phase-one prototype stays development-only and keeps req
   assert.equal(settingsRedesignPrototypeSource.includes('行情报错'), false, 'prototype should remove the visible quote diagnostics entry');
 });
 
-test('production settings redesign connects existing features without account-memory or ledger changes', () => {
+test('production settings redesign connects isolated account memory without ledger changes', () => {
   assert.ok(settingsTabSource.includes('data-settings-redesign="phase-1-production"'), 'production settings should use the approved redesign shell');
   assert.ok(settingsTabSource.includes('mx-5 border-t border-white/[0.06] pb-5 pt-4'), 'expanded settings should avoid a second rounded card');
   assert.ok(settingsTabSource.includes("id: 'language'") && settingsTabSource.includes("id: 'display'") && settingsTabSource.includes("id: 'account'"), 'language display and account settings should remain clickable accordion rows');
@@ -1647,13 +1649,18 @@ test('production settings redesign connects existing features without account-me
   assert.ok(settingsTabSource.includes('if (!communityProfileFocusRequest) return undefined;') && settingsTabSource.includes('setShowCommunityProfile(true);'), 'competition profile-required routing should open the same real community modal');
   assert.ok(settingsTabSource.includes("fetch('/api/invite-codes'"), 'invite accordion should keep the authenticated invite API');
   assert.ok(settingsTabSource.includes('supabase.auth.updateUser({ password: newPwd })'), 'account accordion should keep the real password update path');
-  assert.ok(settingsTabSource.includes("onConfirm: async () => { await onLogout(); }"), 'switch-account and logout actions should use the existing safe sign-out path');
-  assert.equal(settingsTabSource.includes('localStorage.setItem'), false, 'phase one should not introduce remembered-account storage');
+  assert.ok(settingsTabSource.includes("onConfirm: async () => { await onLogout(); }"), 'logout should keep the confirmed sign-out path');
+  assert.ok(settingsTabSource.includes('accountManager?.switch?.(account.userId)') && settingsTabSource.includes('onAddAccount?.()'), 'account switcher should expose direct switching and add-account actions');
+  assert.equal(settingsTabSource.includes('localStorage.setItem'), false, 'session persistence should stay outside the settings view');
   assert.equal(settingsTabSource.includes('<h1'), false, 'settings should not repeat a page title above the community identity card');
   assert.ok(settingsTabSource.includes('React.useState(Boolean(user?.id))') && settingsTabSource.includes('communityHydrating'), 'community identity should render a neutral hydration state before the real profile arrives');
   assert.ok(settingsTabSource.includes("communityAvatarImageClass(selectedCommunityAvatar.key)"), 'the top identity avatar should use the per-avatar crop rule');
   assert.ok(settingsChangelogSource.includes('设置页折叠式重设计'), 'settings changelog should describe the production redesign');
   assert.ok(settingsChangelogSource.includes('账户记忆留待独立缓存隔离完成后再接入'), 'release notes should state the account-memory boundary');
+  assert.ok(accountSessionVaultSource.includes('MAX_REMEMBERED_ACCOUNTS = 5') && accountSessionVaultSource.includes('refreshToken'), 'account session vault should stay bounded and retain refresh capability');
+  assert.ok(supabaseClientSource.includes("signOut({ scope: 'local' })") && supabaseClientSource.includes('auth.setSession({'), 'account auth should use local sign-out and Supabase session switching');
+  assert.ok(authGateSource.includes('key={authState.user.id}') && appSource.includes('userScopedStorageKey'), 'account changes should remount app state and scope local tools by user');
+  assert.ok(dbSource.includes("cacheGet(user.id, 'trades')") && userScopedStorageSource.includes('encodeURIComponent(normalizedUserId)'), 'offline database cache keys should be user isolated');
 });
 
 test('production V2 wave tracker is an independent real-data page with isolated mutations', () => {
@@ -1681,7 +1688,7 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(waveTrackerPageSource.includes("const EXPANDED_STATE_STORAGE_KEY = 'boduan_wave_tracker_expanded_v1'"), 'wave fold state should persist under a dedicated local key');
   assert.ok(waveTrackerPageSource.includes('function normalizeExpandedState') && waveTrackerPageSource.includes('function readExpandedState') && waveTrackerPageSource.includes('function writeExpandedState'), 'wave fold memory should sanitize localStorage reads and writes');
   assert.ok(waveTrackerPageSource.includes('function setExpandedMemory') && waveTrackerPageSource.includes('[filterKey]') && waveTrackerPageSource.includes('[normalizedSymbol]: Boolean(expanded)'), 'wave fold memory should be stored per filter and symbol');
-  assert.ok(waveTrackerPageSource.includes('const [expandedState, setExpandedState] = React.useState(readExpandedState)'), 'wave page should initialize fold memory from localStorage');
+  assert.ok(waveTrackerPageSource.includes('const [expandedState, setExpandedState] = React.useState(() => readExpandedState(user?.id))'), 'wave page should initialize user-scoped fold memory from localStorage');
   assert.ok(waveTrackerPageSource.includes('return visibleWaveCountForGroup(group) > 1;'), 'multi-wave stocks should still default to expanded when no user memory exists');
   assert.ok(waveTrackerPageSource.includes('const toggleGroupExpanded = React.useCallback') && waveTrackerPageSource.includes('setExpandedMemory(current, filter, symbol, !currentExpanded)'), 'user fold toggles should update persisted memory');
   assert.ok(waveTrackerPageSource.includes("setExpandedMemory(current, 'active', created.symbol, true)"), 'creating a wave should open that active stock in memory');
@@ -1796,7 +1803,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.310'"), 'settings version source should document the current avatar replacement release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.311'"), 'settings version source should document the current account switch release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2112,7 +2119,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.310'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.311'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

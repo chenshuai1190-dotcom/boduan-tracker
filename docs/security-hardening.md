@@ -57,6 +57,8 @@ This project started as a personal hand-built app, so the first priority is to m
 - `/api/quote` validates and caps the `symbols` parameter.
 - `/api/quote` no longer sends wildcard CORS headers.
 - Frontend quote calls attach the current Supabase access token.
+- Multi-account switching stores up to five Supabase browser sessions locally without passwords. Account restoration must use `auth.setSession`, normal logout must stay `scope: 'local'`, and refreshed sessions must replace their older vault entry. Never print, expose through UI, upload, or add analytics around the stored tokens. Treat the vault like Supabase's default persisted browser session: it is JS-readable device-local sensitive data and is not appropriate on a shared or untrusted device.
+- Every user-data local cache must include the authenticated `user.id` in its storage key. Database offline caches, cost-basis tool state, wave fold memory, quote diagnostics, and alert memory must not fall back to pre-v311 unscoped keys; a switch must remount `MainApp` by user ID before target-user data renders.
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
 - BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side. User stock streaming covers watchlist, main ledger positions, wave-record quote rows, and cost-basis tool quote rows.
 - Registration uses `/api/register` with server-side invite-code validation; invite-code administration uses `/api/invite-codes` and requires the logged-in admin account.

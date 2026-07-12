@@ -7,10 +7,11 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 最新已上线版本: `v10.7.9.310` 社区六款默认头像与资料入口优化,production runtime `94d6d870e366817809b22379166afb7117115d75`;六款人物素材已更新且保留原头像 key,头部身份卡直接打开真实社区资料弹窗,下方重复“社区资料”行已移除,比赛资料缺失也会打开同一弹窗。
-- 当前本地与生产均为 `v10.7.9.310`,无待发布运行时代码。
+- 当前本地为待发布 `v10.7.9.311`,生产仍为 `v10.7.9.310`。v311 已实现最多 5 个 Supabase 会话的一键切换、不保存密码、local-scope 退出、按 `user.id` 强制重挂载与用户缓存隔离;尚未部署,不要把本地验证写成生产证据。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地与生产设置页版本均为 `v10.7.9.310`,生产运行时基准提交为 `94d6d870e366817809b22379166afb7117115d75`,入口 `/assets/index-M0RXABkA.js`。
+- 当前本地设置页版本: `v10.7.9.311`;当前生产设置页版本: `v10.7.9.310`。生产运行时基准提交为 `94d6d870e366817809b22379166afb7117115d75`,入口 `/assets/index-M0RXABkA.js`。
+- `v10.7.9.311` 本地验证:完整测试 246/246、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff、匿名 REST RLS 20/20 均 pass;未登录 quote、earnings、competition 和 competition Cron 均为 `401`。390x844 确认账户切换弹窗 314×321px、长邮箱截断、移除二次确认和横向零溢出,console error 0。当前只有一个真实业务账户,没有伪造第二个生产 Auth 用户;上线后需由用户添加第二个真实账户完成最终切换验收。
 - `v10.7.9.310` 验证:定向 44/44、完整测试 242/242、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 均 pass;390x844 确认六款头像、头卡直达资料弹窗、取消回滚、保存更新和 390/390 宽度。GitHub Actions run `29180814130` 与 Vercel target `DnBY7bQZ4TCSpXZuHm612BVR8Y2d` success;生产六张头像字节、v310/弹窗/裁切 marker 和 quote/earnings `401` 已验证。
 - `v10.7.9.309` 验证:定向 44/44、完整测试 242/242、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 均 pass;390x844 确认无重复标题、加载阶段无金色头像闪现、页面 390/390,蓝色与非蓝色头像裁切均已复核。GitHub Actions run `29179842191` 与 Vercel target `BbCFJTQLooZKwAiuCon4sfbJnrBp` success;生产 v309/加载占位/两档裁切 marker 和 quote/earnings `401` 已验证。
 - `v10.7.9.308` 验证:定向 44/44、完整测试 242/242、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff 均 pass;390x844 确认头卡 358×176px、头像 66px、页面 390/390,设置页与交易页配色状态同步。GitHub Actions run `29179082664` 与 Vercel target `5uNuTVKCmjyuBLRkyk59tFj3rs4f` success;生产 v308/折叠入口/交易页齿轮 marker 和 quote/earnings `401` 已验证。
@@ -46,7 +47,7 @@
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、`/api/community-competition`、比赛 Cron、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `94d6d870e366817809b22379166afb7117115d75`。
 - 当前生产运行时基准提交: `94d6d870e366817809b22379166afb7117115d75`。
-- 当前本地设置页版本: `v10.7.9.310`;当前生产设置页版本: `v10.7.9.310`。
+- 当前本地设置页版本: `v10.7.9.311`;当前生产设置页版本: `v10.7.9.310`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- 94d6d87` pass;GitHub Actions run `29180814130` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DnBY7bQZ4TCSpXZuHm612BVR8Y2d`;production alias 已更新,入口 `/assets/index-M0RXABkA.js`。
@@ -59,7 +60,7 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地与生产设置页版本均为 `v10.7.9.310`;六款默认头像与头卡直达资料弹窗已部署,头像 key、社区资料表和数据库结构不变。生产 SQL、匿名 REST 20/20、应用部署与线上鉴权证据已完成;SQL/admin metadata 结果仍因 Dashboard 翻译插件崩溃未能稳定读取。
+- 当前本地设置页版本为待发布 `v10.7.9.311`,生产设置页仍为 `v10.7.9.310`;v311 只新增本机多会话与用户缓存隔离,没有 SQL 或数据库结构变更。生产 v310 六款头像、头卡资料弹窗、匿名 REST 20/20 和线上鉴权证据保持有效;SQL/admin metadata 结果仍因 Dashboard 翻译插件崩溃未能稳定读取。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `94d6d870e366817809b22379166afb7117115d75`。
 - 当前生产运行时基准提交: `94d6d870e366817809b22379166afb7117115d75`。
 - 最近应用代码提交: `94d6d870e366817809b22379166afb7117115d75` 包含 `v10.7.9.310` 六款头像与资料弹窗;`61c438d34cdf5f9e7a52e02532697ca1c79d518c` 包含 `v10.7.9.309` 设置页头像加载与边框优化;`256585c1c4cf0caf8726a86be61fd1ea9480ce99` 包含 `v10.7.9.308` 设置页折叠式重设计;`6db05e3e9bf243d548e1f90a22a7d952b2d365f4` 包含 `v10.7.9.307` 资产人物卡配色统一。
@@ -102,7 +103,7 @@
 - 交易页: 手动买入/卖出主账本,派生当前持仓、有效成本、浮动盈亏、累计收益率。`v10.7.9.116` 起交易页总资产主数字同步大整数 + 小号两位小数显示;`v10.7.9.141` 起持仓股票 tick 写入 `quoteCache`,交易页头部和持仓列表通过 `investmentSummary` 秒级刷新;`v10.7.9.142` 起摊薄工具和波段记录的工具-only symbol 也进入 `quoteRows`,现价通过同一股票 WebSocket/REST 行情口径刷新,但仍不写入正式主账本;`v10.7.9.157` 起股票实时 tick 只有价格时也会沿用 REST/基础行情昨收计算当日盈亏,并避免手动/下拉刷新用延迟 REST 价覆盖更新鲜实时价;`v10.7.9.158` 起盘前/盘后低频成交股票的实时价保护窗口放宽到 30 分钟,避免 NOK 这类股票被 REST 常规盘价反复冲回;`v10.7.9.167` 起持仓列表单只股票市值显示两位小数,和当日盈亏、持仓盈亏保持一致。
 - 资产/分析页: 深色家庭总资产卡、12 个月走势、我/老婆账户分组、月度余额填报和新增账户。`v10.7.9.116` 起家庭总资产主数字改为完整金额 + 小号两位小数,其它走势图和账户列表仍保留 `万` 简写;`v10.7.9.148` 起资产页家庭总资产头卡尺寸、外壳、金额颜色和金额位置与首页/交易页头卡对齐;`v10.7.9.149` 起账户行不再保留老版模块级缩放。
 - 目标页: 北极星目标、年度目标进度、复盘和投资心得。`v10.7.9.111` 起目标页第一阶段统一深色移动端风格,北极星目标支持 USD/RMB 切换并使用现有汇率状态,年度目标和投资戒律都改为点击记录后弹出操作面板,投资戒律保留置顶/取消置顶;`v10.7.9.112` 修正目标页视觉对齐,头部卡片压回移动端紧凑高度,年度进度条微光限制在进度条内,年度目标区域删除多余外层卡片,当前年补回右侧目标/落后信息,未开始年度补回起点、目标、增长目标虚线和两端金额结构;`v10.7.9.113` 目标页金额改为首页同款完整数字和正常字重,头部卡片进一步压缩,USD/RMB 切换同步首页尺寸,头部卡删除右下角半圆和金色边框,年度目标区域继续外扩,涨跌粉色同步首页颜色体系;`v10.7.9.114` 目标页金额取消两位小数,本年卡边框同步北极星头卡弱边框,头卡 `设置` 按钮上移;`v10.7.9.115` 只在北极星头卡大目标金额恢复两位小数,小数后缀用小字号显示,年度目标等其它金额仍保持无小数;`v10.7.9.116` 小数后缀显式保持正常字重;`v10.7.9.117` 目标页不再显示行情失败 toast,北极星提醒文案单独下移,年度年份数字缩小并降为 `font-bold`;`v10.7.9.118` 北极星设置按钮和未开始年度起点/目标/虚线进一步降为中性色,并移除未开始年度起点/目标括号年份;`v10.7.9.119` 删除北极星头卡 RMB 汇率辅助文案,年目标说明和剩余年限说明降到 12px,年度目标标题降到 15px,年度年份字重降到 `font-semibold`;`v10.7.9.120` 投资戒律模块按新图改为独立标题、灰色胶囊按钮、彩色圆点筛选和深色卡片,筛选项在 390px 移动端一行完整显示,置顶/展开/等级选择都降为低色彩;`v10.7.9.121` 投资戒律标题、正文、按钮、筛选、日期、置顶和展开入口整体降一档字号;`v10.7.9.122` 投资戒律标题继续缩小,删除标题下方数量,标题与添加按钮同排居中对齐;`v10.7.9.123` 投资戒律点击后改为记录详情弹窗,正文完整显示,底部只保留三个小号操作按钮;`v10.7.9.124` 复盘日志同步投资戒律标题和深色卡片,日期/情绪放卡片底部同一行,点击先打开 `复盘详情`,年度目标默认只展示 2 年;`v10.7.9.125` 复盘日志列表正文同步投资戒律正文,复盘日期/情绪和戒律日期/置顶同步详情弹窗灰色 meta 效果;`v10.7.9.126` 点击北极星目标卡片可打开复利明细弹窗,复用当前本金/年化/年限/目标完成度逻辑,展示目标终值、累计收益、复利倍数、实际进度、账户曲线和每年收益表;`v10.7.9.127` 复利明细弹窗加宽、改弱金色边框、完整显示十年年份并将收益统一为首页粉色;`v10.7.9.128` 复利明细内部统计卡、实际进度、曲线和每年收益表边框/分割线降为暗线,标签统一降为灰色;`v10.7.9.166` 起目标页系统文案支持英文模式,用户自己写的戒律、复盘、目标箴言和心情保持原文;`v10.7.9.172` 起目标页当前系统显示名改为“投资心得” / `Investment Notes`,底层 `disciplines` 数据和用户自写内容不迁移。
-- 设置页: `v10.7.9.310` 已上线六款社区默认头像、统一轻裁切和头卡直达真实社区资料弹窗,下方重复社区资料行已移除。`v10.7.9.309` 的中性加载占位继续保持;语言、显示、账户和管理员邀请码折叠入口不变。市场红绿配色在设置页和交易页保留两个同步入口;社区资料、改密和邀请码继续连接真实逻辑。“切换账户”当前安全退出返回登录页,不保存密码。
+- 设置页: 本地 `v10.7.9.311` 已把“切换账户”升级为最多 5 个 Supabase session 的真正一键切换,不保存密码;支持添加、确认移除、快捷登录和 local-scope 退出,并完成用户缓存隔离。生产仍为 `v10.7.9.310` 六款头像与头卡资料弹窗版本。语言、显示、改密、社区资料和管理员邀请码逻辑不变。
 - PWA: 支持保存到手机桌面,当前图标为用户提供的蓝绿 K 线箭头 Logo;`v10.7.9.147` 起 512/192/180/32/16 五套最终发布 PNG 均为 RGB 不透明深色底,避免 iOS 主屏把透明区域垫成白边。
 
 ## 4. 技术栈
@@ -725,12 +726,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `94d6d870e366817809b22379166afb7117115d75`
 当前前台可见运行时基准提交: `94d6d870e366817809b22379166afb7117115d75`
-设置页版本: `v10.7.9.310`
+设置页版本: `v10.7.9.311`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `94d6d870e366817809b22379166afb7117115d75` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DnBY7bQZ4TCSpXZuHm612BVR8Y2d`,Actions run `29180814130`
 最新生产入口: `/assets/index-M0RXABkA.js`
 
 最新已上线:
+- 本地待发布 `v10.7.9.311`:设置页多账户真一键切换,不保存密码;最多 5 个 Supabase session,普通退出仅 local scope;数据库离线缓存、摊薄工具、波段折叠和行情诊断均按 user id 隔离,切换后强制重挂载应用。生产仍为 v310
 - `v10.7.9.310` 已上线:六款社区默认头像替换为新的蓝/金/紫/绿/青/银人物设计;头部身份卡直达真实资料弹窗,下方重复社区行移除;原头像 key、社区资料表、数据库、RLS 和比赛收益逻辑不变
 - `v10.7.9.309` 已上线:移除设置页顶部重复标题;社区资料加载前显示中性占位;蓝色头像保持原裁切,其余头像加大裁切减弱粗外圈。runtime `61c438d34cdf5f9e7a52e02532697ca1c79d518c`,Actions `29179842191`,Vercel `BbCFJTQLooZKwAiuCon4sfbJnrBp` 均 success
 - `v10.7.9.308` 已上线:设置页折叠式重设计接入真实社区资料、语言、改密、管理员邀请码、更新日志和全局红绿配色;交易页原有配色齿轮继续保留。设置页不再显示行情诊断面板;头卡缩小约 30%;切换账户本阶段只安全退出返回登录页,不保存密码或复用跨账户缓存

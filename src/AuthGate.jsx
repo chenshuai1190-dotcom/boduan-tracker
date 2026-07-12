@@ -78,11 +78,25 @@ function ConfigMissingScreen() {
 
 export default function AuthGate() {
   const [isRecovery, setIsRecovery] = useState(() => isRecoveryRoute());
+  const [addingAccount, setAddingAccount] = useState(false);
+  const [rememberedAccounts, setRememberedAccounts] = useState([]);
   const [authState, setAuthState] = useState(() => ({
     loading: isRecoveryRoute() || hasStoredSupabaseSession(),
     user: null,
     error: null,
   }));
+
+  const refreshRememberedAccounts = async () => {
+    const { getRememberedAccounts } = await import('./lib/supabase');
+    const accounts = getRememberedAccounts();
+    setRememberedAccounts(accounts);
+    return accounts;
+  };
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    refreshRememberedAccounts().catch(() => setRememberedAccounts([]));
+  }, []);
 
   useEffect(() => {
     const shouldInitAuth = authState.loading || !!authState.user || isRecovery;
@@ -152,7 +166,38 @@ export default function AuthGate() {
   if (!authState.user) {
     return (
       <Suspense fallback={<LoadingScreen />}>
-        <Login onSuccess={(user) => setAuthState({ loading: false, user, error: null })} />
+        <Login
+          rememberedAccounts={rememberedAccounts}
+          onSwitchRememberedAccount={async (userId) => {
+            const { switchAccount } = await import('./lib/supabase');
+            const result = await switchAccount(userId);
+            if (result.error) throw result.error;
+            const user = result.data?.session?.user || result.data?.user;
+            if (!user) throw new Error('账户切换失败，请重新登录');
+            await refreshRememberedAccounts();
+            setAuthState({ loading: false, user, error: null });
+          }}
+          onSuccess={async (user) => {
+            await refreshRememberedAccounts();
+            setAuthState({ loading: false, user, error: null });
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (addingAccount) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <Login
+          accountSwitchMode
+          onCancelAccountSwitch={() => setAddingAccount(false)}
+          onSuccess={async (user) => {
+            setAddingAccount(false);
+            await refreshRememberedAccounts();
+            setAuthState({ loading: false, user, error: null });
+          }}
+        />
       </Suspense>
     );
   }
@@ -160,10 +205,38 @@ export default function AuthGate() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <MainApp
+        key={authState.user.id}
         user={authState.user}
+        accountManager={{
+          list: refreshRememberedAccounts,
+          switch: async (userId) => {
+            const { switchAccount } = await import('./lib/supabase');
+            const result = await switchAccount(userId);
+            if (result.error) throw result.error;
+            const user = result.data?.session?.user || result.data?.user;
+            if (!user) throw new Error('账户切换失败，请重新登录');
+            await refreshRememberedAccounts();
+            setAuthState({ loading: false, user, error: null });
+            return user;
+          },
+          remove: async (userId) => {
+            const { forgetRememberedAccount } = await import('./lib/supabase');
+            forgetRememberedAccount(userId);
+            return refreshRememberedAccounts();
+          },
+        }}
+        onAddAccount={async () => {
+          const { rememberCurrentAccount } = await import('./lib/supabase');
+          const result = await rememberCurrentAccount();
+          if (result.error) throw result.error;
+          await refreshRememberedAccounts();
+          setAddingAccount(true);
+        }}
         onLogout={async () => {
           const { signOut } = await import('./lib/supabase');
-          await signOut();
+          const result = await signOut();
+          if (result.error) throw result.error;
+          await refreshRememberedAccounts();
           setAuthState({ loading: false, user: null, error: null });
         }}
       />

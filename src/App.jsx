@@ -12,6 +12,7 @@ import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
+import { userScopedStorageKey } from './lib/userScopedStorage.js';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -334,20 +335,22 @@ function formatRealtimeFetchError(error) {
   return rawMessage || '行情拉取失败';
 }
 
-function readQuoteDiagnosticLogs() {
+function readQuoteDiagnosticLogs(userId) {
   if (typeof localStorage === 'undefined') return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY) || '[]');
+    const storageKey = userScopedStorageKey(QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY, userId);
+    const parsed = JSON.parse(localStorage.getItem(storageKey) || '[]');
     return Array.isArray(parsed) ? parsed.slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT) : [];
   } catch {
     return [];
   }
 }
 
-function persistQuoteDiagnosticLogs(logs) {
+function persistQuoteDiagnosticLogs(logs, userId) {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY, JSON.stringify(logs.slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT)));
+    const storageKey = userScopedStorageKey(QUOTE_DIAGNOSTIC_LOG_STORAGE_KEY, userId);
+    if (storageKey) localStorage.setItem(storageKey, JSON.stringify(logs.slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT)));
   } catch {
     // ignore storage failures, diagnostics should never block quotes
   }
@@ -1016,7 +1019,7 @@ function buildToolQuoteRows({ trades = [], costBasisData = {}, swingWaves = [] }
 }
 
 // ============ 内部主 App 组件(要求已登录) ============
-function MainApp({ user, onLogout }) {
+function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // ============ 核心状态 ============
   const [marketColorMode, setMarketColorMode] = useState(() => {
     try {
@@ -1066,13 +1069,13 @@ function MainApp({ user, onLogout }) {
   // 预警通知开关 (持久化 localStorage)
   // v10.7.9.41: 用户折叠后记住, 下次打开还是折叠
   const [alertsMuted, setAlertsMuted] = useState(() => {
-    try { return localStorage.getItem('bottomline_alerts_muted') === 'true'; } catch { return false; }
+    try { return localStorage.getItem(userScopedStorageKey('bottomline_alerts_muted', user.id)) === 'true'; } catch { return false; }
   });
   // 上次看到的预警股票 + 等级 (用于检测"新预警")
   // 格式: { TQQQ: 3, SOXL: 7 }
   const [lastSeenAlerts, setLastSeenAlerts] = useState(() => {
     try {
-      const raw = localStorage.getItem('bottomline_last_seen_alerts');
+      const raw = localStorage.getItem(userScopedStorageKey('bottomline_last_seen_alerts', user.id));
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   });
@@ -1507,12 +1510,12 @@ function MainApp({ user, onLogout }) {
   // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
   const [costBasisData, setCostBasisData] = useState(() => {
     try {
-      const raw = localStorage.getItem('bottomline_cost_basis');
+      const raw = localStorage.getItem(userScopedStorageKey('bottomline_cost_basis', user.id));
       return raw ? sanitizeCostBasisData(JSON.parse(raw)) : {};
     } catch { return {}; }
   });
   const [costBasisActiveSymbol, setCostBasisActiveSymbol] = useState(() => {
-    try { return normalizeCostBasisSymbol(localStorage.getItem('bottomline_cost_basis_active')) || ''; } catch { return ''; }
+    try { return normalizeCostBasisSymbol(localStorage.getItem(userScopedStorageKey('bottomline_cost_basis_active', user.id))) || ''; } catch { return ''; }
   });
   const [showCostBasisAdd, setShowCostBasisAdd] = useState(false);  // 添加新股票 modal
   const [showCostBasisTrade, setShowCostBasisTrade] = useState(false);  // 添加交易 modal
@@ -1530,11 +1533,11 @@ function MainApp({ user, onLogout }) {
 
   // 持久化到 localStorage
   useEffect(() => {
-    try { localStorage.setItem('bottomline_cost_basis', JSON.stringify(sanitizeCostBasisData(costBasisData))); } catch {}
-  }, [costBasisData]);
+    try { localStorage.setItem(userScopedStorageKey('bottomline_cost_basis', user.id), JSON.stringify(sanitizeCostBasisData(costBasisData))); } catch {}
+  }, [costBasisData, user.id]);
   useEffect(() => {
-    try { localStorage.setItem('bottomline_cost_basis_active', normalizeCostBasisSymbol(costBasisActiveSymbol)); } catch {}
-  }, [costBasisActiveSymbol]);
+    try { localStorage.setItem(userScopedStorageKey('bottomline_cost_basis_active', user.id), normalizeCostBasisSymbol(costBasisActiveSymbol)); } catch {}
+  }, [costBasisActiveSymbol, user.id]);
 
   useEffect(() => {
     const sanitized = sanitizeCostBasisData(costBasisData);
@@ -1587,7 +1590,7 @@ function MainApp({ user, onLogout }) {
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
   const [fetchError, setFetchError] = useState(null);
-  const [quoteDiagnosticLogs, setQuoteDiagnosticLogs] = useState(() => readQuoteDiagnosticLogs());
+  const [quoteDiagnosticLogs, setQuoteDiagnosticLogs] = useState(() => readQuoteDiagnosticLogs(user.id));
   const [btcRealtimeStatus, setBtcRealtimeStatus] = useState('idle');
   const [btcRealtimeLastTick, setBtcRealtimeLastTick] = useState(null);
   const [btcRealtimeError, setBtcRealtimeError] = useState(null);
@@ -1745,15 +1748,15 @@ function MainApp({ user, onLogout }) {
       } else {
         next = [entry, ...currentLogs].slice(0, QUOTE_DIAGNOSTIC_LOG_LIMIT);
       }
-      persistQuoteDiagnosticLogs(next);
+      persistQuoteDiagnosticLogs(next, user.id);
       return next;
     });
-  }, []);
+  }, [user.id]);
 
   const clearQuoteDiagnosticLogs = useCallback(() => {
-    persistQuoteDiagnosticLogs([]);
+    persistQuoteDiagnosticLogs([], user.id);
     setQuoteDiagnosticLogs([]);
-  }, []);
+  }, [user.id]);
 
   const applyCloudUserData = useCallback((result, logLabel = '[云端加载]') => {
     const {
@@ -2051,7 +2054,7 @@ function MainApp({ user, onLogout }) {
     if (hasNewOrUpgraded && alertsMuted) {
       // 自动展开 (用户之前折叠过, 但有新情况)
       setAlertsMuted(false);
-      try { localStorage.setItem('bottomline_alerts_muted', 'false'); } catch {}
+      try { localStorage.setItem(userScopedStorageKey('bottomline_alerts_muted', user.id), 'false'); } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triggeredAlerts]);
@@ -4328,12 +4331,14 @@ function MainApp({ user, onLogout }) {
   const isStandalonePage = isPnlReportPage || isStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
+    accountManager,
     changelogExpanded,
     communityProfileFocusRequest,
     db,
     language,
     marketColorMode,
     newPwd,
+    onAddAccount,
     onLogout,
     pwdLoading,
     pwdMsg,
@@ -4349,11 +4354,13 @@ function MainApp({ user, onLogout }) {
     supabase,
     user,
   }), [
+    accountManager,
     changelogExpanded,
     communityProfileFocusRequest,
     language,
     marketColorMode,
     newPwd,
+    onAddAccount,
     onLogout,
     pwdLoading,
     pwdMsg,

@@ -72,9 +72,10 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 
 ### Medium Priority
 
-1. **Local storage contains personal finance cache**
-   - Current localStorage cache improves offline behavior.
-   - This is acceptable for a personal app, but it should be treated as device-local sensitive data.
+1. **Local storage contains personal finance cache and remembered account sessions**
+   - Current localStorage cache improves offline behavior; from `v10.7.9.311` every user-data cache key is scoped by authenticated user ID and old unscoped cache is ignored.
+   - True one-click switching retains up to five Supabase sessions without passwords. The safe account list never exposes tokens, logout is local-scope, and `MainApp` remounts on user ID before cloud data reloads.
+   - This is acceptable for a personal app on a trusted device, but both finance cache and refresh sessions are JS-readable device-local sensitive data. Do not use the remembered-account feature on shared or untrusted devices; future XSS-hardening remains defense-in-depth priority.
 
 2. **Auth gate still blocks on Supabase session verification**
    - This is safer than optimistic rendering.

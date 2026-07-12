@@ -1188,12 +1188,23 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   };
 
   const settingsCtx = {
+    accountManager: {
+      list: async () => [
+        { userId: 'dev-user', email: 'preview@example.com', lastUsedAt: Date.now() },
+        { userId: 'dev-user-2', email: 'long.account.name@example.com', lastUsedAt: Date.now() - 1000 },
+      ],
+      switch: async () => {},
+      remove: async (userId) => (userId === 'dev-user-2'
+        ? [{ userId: 'dev-user', email: 'preview@example.com', lastUsedAt: Date.now() }]
+        : []),
+    },
     changelogExpanded,
     communityProfileFocusRequest,
     db,
     language,
     marketColorMode,
     newPwd,
+    onAddAccount: noop,
     onLogout: noop,
     pwdLoading,
     pwdMsg,

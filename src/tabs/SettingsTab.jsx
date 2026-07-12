@@ -15,6 +15,8 @@ import {
   RefreshCw,
   ShieldCheck,
   Ticket,
+  Trash2,
+  UserPlus,
   X,
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
@@ -26,7 +28,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.310';
+const SETTINGS_VERSION = 'v10.7.9.311';
 
 function communityAvatarImageClass() {
   return 'scale-[1.02]';
@@ -76,12 +78,14 @@ function StatusMessage({ message, className = '' }) {
 
 function SettingsTab({ ctx }) {
   const {
+    accountManager,
     changelogExpanded,
     communityProfileFocusRequest = 0,
     db,
     language = 'zh',
     marketColorMode = MARKET_COLOR_MODES.GREEN_UP_RED_DOWN,
     newPwd,
+    onAddAccount,
     onLogout,
     pwdLoading,
     pwdMsg,
@@ -112,6 +116,10 @@ function SettingsTab({ ctx }) {
   const [communitySaving, setCommunitySaving] = React.useState(false);
   const [communityMessage, setCommunityMessage] = React.useState(null);
   const [showCommunityProfile, setShowCommunityProfile] = React.useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = React.useState(false);
+  const [rememberedAccounts, setRememberedAccounts] = React.useState([]);
+  const [accountSwitchingId, setAccountSwitchingId] = React.useState('');
+  const [accountSwitchMessage, setAccountSwitchMessage] = React.useState(null);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
   const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
@@ -283,21 +291,57 @@ function SettingsTab({ ctx }) {
     }
   };
 
-  const requestLogout = (mode) => {
-    const switching = mode === 'switch';
+  const requestLogout = () => {
     showConfirm({
-      title: switching
-        ? t(language, 'settings.switchAccountTitle', '切换账户?')
-        : t(language, 'settings.logoutTitle', '退出登录?'),
-      desc: switching
-        ? t(language, 'settings.switchAccountDesc', '将退出当前账户并返回登录页，请重新输入要登录的账户。')
-        : t(language, 'settings.logoutDesc', '下次进入需要重新登录'),
-      icon: switching ? 'switch' : 'logout',
-      confirmText: switching
-        ? t(language, 'settings.switchAccountConfirm', '继续切换')
-        : t(language, 'settings.logout', '退出登录'),
-      confirmStyle: switching ? 'primary' : 'danger',
+      title: t(language, 'settings.logoutTitle', '退出登录?'),
+      desc: t(language, 'settings.logoutDesc', '只退出当前设备上的这个账户，其他已添加账户仍会保留'),
+      icon: 'logout',
+      confirmText: t(language, 'settings.logout', '退出登录'),
+      confirmStyle: 'danger',
       onConfirm: async () => { await onLogout(); },
+    });
+  };
+
+  const openAccountSwitcher = async () => {
+    setAccountSwitchMessage(null);
+    setShowAccountSwitcher(true);
+    try {
+      const accounts = await accountManager?.list?.();
+      setRememberedAccounts(Array.isArray(accounts) ? accounts : []);
+    } catch (error) {
+      setAccountSwitchMessage({ type: 'error', text: error?.message || t(language, 'settings.accountListFailed', '账户列表加载失败') });
+    }
+  };
+
+  const selectRememberedAccount = async (account) => {
+    if (!account?.userId || account.userId === user?.id || accountSwitchingId) return;
+    setAccountSwitchMessage(null);
+    setAccountSwitchingId(account.userId);
+    try {
+      await accountManager?.switch?.(account.userId);
+    } catch (error) {
+      setAccountSwitchMessage({ type: 'error', text: error?.message || t(language, 'settings.switchAccountFailed', '账户切换失败，请重新添加账户') });
+      const accounts = await accountManager?.list?.();
+      setRememberedAccounts(Array.isArray(accounts) ? accounts : []);
+      setAccountSwitchingId('');
+    }
+  };
+
+  const removeAccount = async (account) => {
+    if (!account?.userId || account.userId === user?.id || accountSwitchingId) return;
+    const accounts = await accountManager?.remove?.(account.userId);
+    setRememberedAccounts(Array.isArray(accounts) ? accounts : []);
+  };
+
+  const requestRemoveAccount = (account) => {
+    if (!account?.userId || account.userId === user?.id || accountSwitchingId) return;
+    showConfirm({
+      title: t(language, 'settings.removeAccountTitle', '移除快捷账户?'),
+      desc: t(language, 'settings.removeAccountDesc', '将从本机移除 {{email}}，下次需要重新输入密码添加。', { email: account.email }),
+      icon: 'logout',
+      confirmText: t(language, 'settings.removeAccountConfirm', '确认移除'),
+      confirmStyle: 'danger',
+      onConfirm: async () => { await removeAccount(account); },
     });
   };
 
@@ -577,14 +621,14 @@ function SettingsTab({ ctx }) {
           <div className="grid grid-cols-2 gap-3 px-4 py-4">
             <button
               type="button"
-              onClick={() => requestLogout('switch')}
+              onClick={openAccountSwitcher}
               className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] border border-white/[0.09] bg-white/[0.025] text-[13px] text-white/65 active:bg-white/[0.05]"
             >
               <RefreshCw className="h-4 w-4" /> {t(language, 'settings.switchAccount', '切换账户')}
             </button>
             <button
               type="button"
-              onClick={() => requestLogout('logout')}
+              onClick={requestLogout}
               className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] border border-[#e04d5e]/20 bg-[#8f1f2c]/20 text-[13px] text-[#f08391] active:bg-[#8f1f2c]/28"
             >
               <LogOut className="h-4 w-4" /> {t(language, 'settings.logout', '退出登录')}
@@ -687,6 +731,81 @@ function SettingsTab({ ctx }) {
           ]}
         >
           {renderExpandedPanel('community')}
+        </ActionModalCard>
+      )}
+
+      {showAccountSwitcher && (
+        <ActionModalCard
+          title={t(language, 'settings.switchAccount', '切换账户')}
+          closeLabel={t(language, 'settings.closeAccountSwitcher', '关闭账户切换')}
+          onClose={() => { if (!accountSwitchingId) setShowAccountSwitcher(false); }}
+          actions={[
+            {
+              key: 'cancel',
+              label: t(language, 'common.cancel', '取消'),
+              disabled: Boolean(accountSwitchingId),
+              onClick: () => setShowAccountSwitcher(false),
+            },
+            {
+              key: 'add',
+              label: t(language, 'settings.addAccount', '添加账户'),
+              disabled: Boolean(accountSwitchingId),
+              onClick: async () => {
+                try {
+                  await onAddAccount?.();
+                } catch (error) {
+                  setAccountSwitchMessage({ type: 'error', text: error?.message || t(language, 'settings.addAccountFailed', '无法添加账户') });
+                }
+              },
+            },
+          ]}
+        >
+          <div className="space-y-2">
+            <p className="px-1 pb-1 text-[11px] leading-5 text-white/38">
+              {t(language, 'settings.accountSwitchDesc', '选择已添加账户可直接切换，不保存密码。')}
+            </p>
+            {rememberedAccounts.map((account) => {
+              const current = account.userId === user?.id;
+              const switching = accountSwitchingId === account.userId;
+              return (
+                <div key={account.userId} className={`flex min-h-[54px] items-center gap-2 rounded-xl border px-3 ${current ? 'border-[#f2a83a]/25 bg-[#f2a83a]/[0.07]' : 'border-white/[0.07] bg-black/20'}`}>
+                  <button
+                    type="button"
+                    onClick={() => selectRememberedAccount(account)}
+                    disabled={current || Boolean(accountSwitchingId)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+                  >
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${current ? 'bg-[#f2a83a]/15 text-[#f2b65d]' : 'bg-white/[0.05] text-white/45'}`}>
+                      {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] text-white/75">{account.email}</span>
+                      <span className={`mt-0.5 block text-[9px] ${current ? 'text-[#f2b65d]' : 'text-white/28'}`}>
+                        {current ? t(language, 'settings.currentAccount', '当前账户') : t(language, 'settings.tapToSwitch', '点击直接切换')}
+                      </span>
+                    </span>
+                  </button>
+                  {!current && (
+                    <button
+                      type="button"
+                      onClick={() => requestRemoveAccount(account)}
+                      disabled={Boolean(accountSwitchingId)}
+                      aria-label={t(language, 'settings.removeRememberedAccount', '移除已添加账户')}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/25 active:bg-white/[0.05] active:text-rose-300"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {rememberedAccounts.length === 0 && (
+              <div className="flex min-h-[72px] items-center justify-center gap-2 text-[11px] text-white/35">
+                <UserPlus className="h-4 w-4" /> {t(language, 'settings.noRememberedAccount', '暂无已添加账户')}
+              </div>
+            )}
+            <StatusMessage message={accountSwitchMessage} className="mt-2" />
+          </div>
         </ActionModalCard>
       )}
 

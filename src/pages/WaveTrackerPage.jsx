@@ -14,6 +14,7 @@ import ActionModalCard from '../components/ActionModalCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import { t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
+import { userScopedStorageKey } from '../lib/userScopedStorage.js';
 import {
   buildSwingWaveDashboard,
   mergeSwingWaveQuoteRows,
@@ -102,19 +103,20 @@ function normalizeExpandedState(value) {
   }, {});
 }
 
-function readExpandedState() {
+function readExpandedState(userId) {
   if (typeof window === 'undefined' || !window.localStorage) return {};
   try {
-    return normalizeExpandedState(JSON.parse(window.localStorage.getItem(EXPANDED_STATE_STORAGE_KEY) || '{}'));
+    return normalizeExpandedState(JSON.parse(window.localStorage.getItem(userScopedStorageKey(EXPANDED_STATE_STORAGE_KEY, userId)) || '{}'));
   } catch {
     return {};
   }
 }
 
-function writeExpandedState(value) {
+function writeExpandedState(value, userId) {
   if (typeof window === 'undefined' || !window.localStorage) return;
   try {
-    window.localStorage.setItem(EXPANDED_STATE_STORAGE_KEY, JSON.stringify(normalizeExpandedState(value)));
+    const storageKey = userScopedStorageKey(EXPANDED_STATE_STORAGE_KEY, userId);
+    if (storageKey) window.localStorage.setItem(storageKey, JSON.stringify(normalizeExpandedState(value)));
   } catch {}
 }
 
@@ -361,7 +363,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
   const [localQuotes, setLocalQuotes] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
-  const [expandedState, setExpandedState] = React.useState(readExpandedState);
+  const [expandedState, setExpandedState] = React.useState(() => readExpandedState(user?.id));
   const [filter, setFilter] = React.useState('active');
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null);
@@ -556,8 +558,8 @@ export default function WaveTrackerPage({ ctx = {} }) {
   }, [showConfirm, tt]);
 
   React.useEffect(() => {
-    writeExpandedState(expandedState);
-  }, [expandedState]);
+    writeExpandedState(expandedState, user?.id);
+  }, [expandedState, user?.id]);
 
   const visibleWaveCountForGroup = React.useCallback((group) => (
     filter === 'active'

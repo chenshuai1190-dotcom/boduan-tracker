@@ -52,6 +52,9 @@ const LOGIN_COPY = {
     switchLanguage: 'Switch to Chinese',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
+    addAccount: 'Add Account',
+    quickAccounts: 'Quick accounts',
+    switchFailed: 'Account switch failed. Please sign in again.',
   },
   zh: {
     signIn: '登录',
@@ -99,6 +102,9 @@ const LOGIN_COPY = {
     switchLanguage: 'Switch to English',
     showPassword: '显示密码',
     hidePassword: '隐藏密码',
+    addAccount: '添加账户',
+    quickAccounts: '快捷账户',
+    switchFailed: '账户切换失败，请重新登录',
   },
 };
 
@@ -166,7 +172,13 @@ function InlineMessage({ type, text }) {
   );
 }
 
-export default function Login({ onSuccess }) {
+export default function Login({
+  accountSwitchMode = false,
+  onCancelAccountSwitch,
+  onSuccess,
+  onSwitchRememberedAccount,
+  rememberedAccounts = [],
+}) {
   const [mode, setMode] = useState('signin');
   const [language, setLanguage] = useState(getInitialLoginLanguage);
   const [email, setEmail] = useState('');
@@ -180,6 +192,7 @@ export default function Login({ onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [switchingAccountId, setSwitchingAccountId] = useState('');
 
   const copy = LOGIN_COPY[language] || LOGIN_COPY.en;
   const isAuthMode = mode === 'signin' || mode === 'signup';
@@ -364,10 +377,33 @@ export default function Login({ onSuccess }) {
     if (!loading) handleSubmit();
   };
 
+  const handleRememberedAccount = async (userId) => {
+    if (!userId || switchingAccountId || typeof onSwitchRememberedAccount !== 'function') return;
+    setError('');
+    setInfo('');
+    setSwitchingAccountId(userId);
+    try {
+      await onSwitchRememberedAccount(userId);
+    } catch (switchError) {
+      setError(switchError?.message || copy.switchFailed);
+    } finally {
+      setSwitchingAccountId('');
+    }
+  };
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020714] text-white">
+    <main className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-[#020714] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(27,80,155,0.18),transparent_44%),linear-gradient(180deg,#050c1a_0%,#020712_58%,#01040b_100%)]" />
       <MarketBackdrop />
+      {accountSwitchMode && (
+        <button
+          type="button"
+          onClick={onCancelAccountSwitch}
+          className="absolute left-5 top-[calc(env(safe-area-inset-top)+18px)] z-20 flex h-9 items-center gap-2 rounded-full border border-[#274260]/80 bg-[#07101d]/80 px-3 text-[12px] text-[#9dc6ff] backdrop-blur-md active:scale-[0.98]"
+        >
+          <ArrowLeft className="h-4 w-4" /> {copy.backToSignIn}
+        </button>
+      )}
       <button
         type="button"
         onClick={handleLanguageToggle}
@@ -386,9 +422,33 @@ export default function Login({ onSuccess }) {
           >
             Quote
           </h1>
+          {accountSwitchMode && <p className="mt-2 text-[13px] text-[#7d8cab]">{copy.addAccount}</p>}
         </section>
 
-        <form onSubmit={handleFormSubmit} className={mode === 'signup' ? 'mt-[28px]' : 'mt-[78px]'}>
+        {!accountSwitchMode && mode === 'signin' && rememberedAccounts.length > 0 && (
+          <section className="mt-8 rounded-[14px] border border-[#1f304d]/80 bg-[#030a18]/45 p-2.5">
+            <div className="px-2 pb-2 pt-1 text-[11px] uppercase tracking-[0.08em] text-[#657594]">{copy.quickAccounts}</div>
+            <div className="space-y-1.5">
+              {rememberedAccounts.map((account) => (
+                <button
+                  key={account.userId}
+                  type="button"
+                  onClick={() => handleRememberedAccount(account.userId)}
+                  disabled={Boolean(switchingAccountId)}
+                  className="flex min-h-[48px] w-full items-center gap-3 rounded-[10px] border border-white/[0.05] bg-white/[0.025] px-3 text-left text-[13px] text-white/75 active:bg-white/[0.06] disabled:opacity-50"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#167fff]/30 to-[#25efe6]/15 text-[#7fc5ff]">
+                    <User className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{account.email}</span>
+                  {switchingAccountId === account.userId && <Loader2 className="h-4 w-4 animate-spin text-[#2a9dff]" />}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <form onSubmit={handleFormSubmit} className={mode === 'signup' ? 'mt-[28px]' : (!accountSwitchMode && rememberedAccounts.length > 0 && mode === 'signin' ? 'mt-[28px]' : 'mt-[78px]')}>
           {isAuthMode ? (
             <div className="relative grid h-[54px] grid-cols-2 overflow-hidden rounded-[9px] border border-[#1f304d]/80 bg-[#030a18]/[0.34] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <button

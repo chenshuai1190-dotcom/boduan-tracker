@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
 import { earliestReportDate, markPnlReportDirtySafely } from './pnlReportDb';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols';
+import { userScopedStorageKey } from './userScopedStorage.js';
 
 export {
   clearPnlReportRebuildState,
@@ -33,15 +34,15 @@ export {
 // 把最近一次拉取的数据缓存到 localStorage
 // 这样断网时也能看,联网后会被云端最新数据覆盖
 const CACHE_PREFIX = 'bottomline_cache_';
-const cacheGet = (key) => {
+const cacheGet = (userId, key) => {
   try {
-    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    const raw = localStorage.getItem(userScopedStorageKey(CACHE_PREFIX + key, userId));
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 };
-const cacheSet = (key, value) => {
+const cacheSet = (userId, key, value) => {
   try {
-    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
+    localStorage.setItem(userScopedStorageKey(CACHE_PREFIX + key, userId), JSON.stringify(value));
   } catch {}
 };
 
@@ -126,7 +127,7 @@ export const fetchTrades = async (preUser = null) => {
     .order('date', { ascending: true });
   if (error) {
     console.error('fetchTrades 失败:', error);
-    return cacheGet('trades') || [];
+    return cacheGet(user.id, 'trades') || [];
   }
   // 字段映射:数据库蛇形命名 → 前端驼峰命名(我们直接用蛇形)
   const trades = (data || []).map(t => ({
@@ -138,7 +139,7 @@ export const fetchTrades = async (preUser = null) => {
     price: Number(t.price),
     shares: Number(t.shares),
   })).filter((trade) => trade.symbol);
-  cacheSet('trades', trades);
+  cacheSet(user.id, 'trades', trades);
   return trades;
 };
 
@@ -209,12 +210,12 @@ export const fetchStockTrades = async (preUser = null) => {
     .order('created_at', { ascending: true });
   if (error) {
     console.error('fetchStockTrades 失败:', error);
-    const cached = cacheGet('stock_trades');
+    const cached = cacheGet(user.id, 'stock_trades');
     if (cached) return cached;
     throw error;
   }
   const stockTrades = (data || []).map(mapStockTrade);
-  cacheSet('stock_trades', stockTrades);
+  cacheSet(user.id, 'stock_trades', stockTrades);
   return stockTrades;
 };
 
@@ -319,7 +320,7 @@ export const fetchWatchlist = async (preUser = null) => {
     .order('id', { ascending: true });
   if (error) {
     console.error('fetchWatchlist 失败:', error);
-    return cacheGet('watchlist') || [];
+    return cacheGet(user.id, 'watchlist') || [];
   }
   const list = (data || []).map(w => ({
     symbol: normalizeUserStockSymbol(w.symbol),
@@ -329,7 +330,7 @@ export const fetchWatchlist = async (preUser = null) => {
     cost: Number(w.cost),
     shares: Number(w.shares),
   })).filter((item) => item.symbol);
-  cacheSet('watchlist', list);
+  cacheSet(user.id, 'watchlist', list);
   return list;
 };
 
@@ -380,12 +381,12 @@ export const fetchWaveNotes = async (preUser = null) => {
     .eq('user_id', user.id);
   if (error) {
     console.error('fetchWaveNotes 失败:', error);
-    return cacheGet('wave_notes') || {};
+    return cacheGet(user.id, 'wave_notes') || {};
   }
   // 转成 { wave_id: note } 字典格式
   const notes = {};
   (data || []).forEach(n => { notes[n.wave_id] = n.note || ''; });
-  cacheSet('wave_notes', notes);
+  cacheSet(user.id, 'wave_notes', notes);
   return notes;
 };
 
@@ -417,13 +418,13 @@ export const fetchSettings = async (preUser = null) => {
     .maybeSingle();
   if (error) {
     console.error('fetchSettings 失败:', error);
-    return cacheGet('settings') || null;
+    return cacheGet(user.id, 'settings') || null;
   }
   const settings = data ? {
     benchmarkSymbol: data.benchmark_symbol || 'QQQ',
     ...data.data,
   } : null;
-  if (settings) cacheSet('settings', settings);
+  if (settings) cacheSet(user.id, 'settings', settings);
   return settings;
 };
 
@@ -441,7 +442,7 @@ export const upsertSettings = async (settings) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
   if (error) throw error;
-  cacheSet('settings', settings);
+  cacheSet(user.id, 'settings', settings);
 };
 
 // ============ 一次性拉取所有数据 ============
@@ -536,7 +537,7 @@ export const fetchAccounts = async (preUser = null) => {
     .order('created_at', { ascending: true });
   if (error) {
     console.error('fetchAccounts 失败:', error);
-    return cacheGet('accounts') || [];
+    return cacheGet(user.id, 'accounts') || [];
   }
   const list = (data || []).map(a => ({
     id: a.id,
@@ -547,7 +548,7 @@ export const fetchAccounts = async (preUser = null) => {
     icon: a.icon || '💰',
     sortOrder: a.sort_order || 0,
   }));
-  cacheSet('accounts', list);
+  cacheSet(user.id, 'accounts', list);
   return list;
 };
 
@@ -629,7 +630,7 @@ export const fetchSnapshots = async (preUser = null) => {
     .order('month', { ascending: true });
   if (error) {
     console.error('fetchSnapshots 失败:', error);
-    return cacheGet('snapshots') || [];
+    return cacheGet(user.id, 'snapshots') || [];
   }
   const list = (data || []).map(s => ({
     id: s.id,
@@ -637,7 +638,7 @@ export const fetchSnapshots = async (preUser = null) => {
     month: s.month,
     balance: Number(s.balance),
   }));
-  cacheSet('snapshots', list);
+  cacheSet(user.id, 'snapshots', list);
   return list;
 };
 
@@ -670,7 +671,7 @@ export const fetchInvestmentPlan = async (preUser = null) => {
     .maybeSingle();
   if (error) {
     console.error('fetchInvestmentPlan 失败:', error);
-    return cacheGet('investment_plan') || null;
+    return cacheGet(user.id, 'investment_plan') || null;
   }
   const plan = data ? {
     startCapital: Number(data.start_capital),
@@ -681,7 +682,7 @@ export const fetchInvestmentPlan = async (preUser = null) => {
     motto: data.motto || '',
     displayCurrency: data.display_currency || 'USD',
   } : null;
-  if (plan) cacheSet('investment_plan', plan);
+  if (plan) cacheSet(user.id, 'investment_plan', plan);
   return plan;
 };
 
@@ -718,13 +719,13 @@ export const fetchMarginStatus = async (preUser = null) => {
     .maybeSingle();
   if (error) {
     console.error('fetchMarginStatus 失败:', error);
-    return cacheGet('margin_status') || null;
+    return cacheGet(user.id, 'margin_status') || null;
   }
   const status = data ? {
     currentMargin: Number(data.current_margin),
     marginLimit: Number(data.margin_limit),
   } : null;
-  if (status) cacheSet('margin_status', status);
+  if (status) cacheSet(user.id, 'margin_status', status);
   return status;
 };
 
@@ -757,7 +758,7 @@ export const fetchDisciplines = async (preUser = null) => {
     .order('created_at', { ascending: false });
   if (error) {
     console.error('fetchDisciplines 失败:', error);
-    return cacheGet('disciplines') || [];
+    return cacheGet(user.id, 'disciplines') || [];
   }
   const list = (data || []).map(d => ({
     id: d.id,
@@ -767,7 +768,7 @@ export const fetchDisciplines = async (preUser = null) => {
     sortOrder: d.sort_order || 0,
     date: d.created_at ? d.created_at.slice(0, 10) : '',
   }));
-  cacheSet('disciplines', list);
+  cacheSet(user.id, 'disciplines', list);
   return list;
 };
 
@@ -833,7 +834,7 @@ export const fetchReviewLogs = async (preUser = null) => {
     .order('log_date', { ascending: false });
   if (error) {
     console.error('fetchReviewLogs 失败:', error);
-    return cacheGet('review_logs') || [];
+    return cacheGet(user.id, 'review_logs') || [];
   }
   const list = (data || []).map(l => ({
     id: l.id,
@@ -841,7 +842,7 @@ export const fetchReviewLogs = async (preUser = null) => {
     mood: l.mood || '',
     text: l.text,
   }));
-  cacheSet('review_logs', list);
+  cacheSet(user.id, 'review_logs', list);
   return list;
 };
 
@@ -904,7 +905,7 @@ export const fetchYearlyActuals = async (preUser = null) => {
     .order('year', { ascending: true });
   if (error) {
     console.error('fetchYearlyActuals 失败:', error);
-    return cacheGet('yearly_actuals') || [];
+    return cacheGet(user.id, 'yearly_actuals') || [];
   }
   const list = (data || []).map(y => ({
     id: y.id,
@@ -912,7 +913,7 @@ export const fetchYearlyActuals = async (preUser = null) => {
     actualGain: y.actual_gain != null ? Number(y.actual_gain) : null,
     endBalance: y.end_balance != null ? Number(y.end_balance) : null,
   }));
-  cacheSet('yearly_actuals', list);
+  cacheSet(user.id, 'yearly_actuals', list);
   return list;
 };
 

@@ -4,6 +4,24 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 多账户一键切换与用户缓存隔离
+
+- Deployment: not deployed;`v10.7.9.311` 已完成本地实现、定向视觉和第一轮完整测试/构建,等待 sensitive 全量门禁与发布决定。
+- Background: 用户选择方案 B,要求保留多个 Supabase 登录会话并在设置页真正一键切换账户,而不是退出后重新输入密码。
+- Workflow tier: `sensitive`。
+- Changes:
+  - 新增最多 5 个账户的本机会话保险箱,只保存 Supabase access/refresh session 与邮箱展示信息,不保存密码;设置页可查看当前账户、直接切换、确认移除和添加账户。
+  - 使用官方 `auth.setSession` 恢复目标账户;普通退出显式使用 `signOut({ scope: 'local' })`,避免默认 global 退出使其他设备或已添加账户会话失效。
+  - `AuthGate` 以 `user.id` 作为 `MainApp` key,账户变化后完整卸载旧应用状态并重新读取目标用户云端数据;添加账户期间可取消回到原账户。
+  - 数据库离线缓存、摊薄工具记录/当前标的、波段展开记忆、行情诊断和预警记忆改为 `user.id` 隔离键;旧全局缓存不迁移,防止复制到另一账户。
+  - 登录页在无当前会话时展示仍有效的快捷账户;新增账户模式保留返回入口并支持小屏纵向滚动。
+  - 设置页与更新日志版本同步为 `v10.7.9.311`;`DevVisualPreview` 增加双账户安全 fixture。
+- Key files: `src/lib/accountSessionVault.js`,`src/lib/userScopedStorage.js`,`src/lib/supabase.js`,`src/AuthGate.jsx`,`src/Login.jsx`,`src/App.jsx`,`src/lib/db.js`,`src/pages/WaveTrackerPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/settingsChangelog.js`,`tests/accountSessionVault.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:workspace-state`、`npm run verify:local-env`、`npm run verify:toolchain` pass;完整测试 246/246、production build、5/5 frontend smoke、high audit 0 vulnerabilities、docs consistency、diff check 全部 pass;匿名 REST RLS gate 20/20 pass,未登录 quote、earnings、competition 与 competition Cron 均为 `401`。上线前再次确认 `HomeTab`、`TradesTab`、`AnalysisTab`、`ReviewTab`、`api/`、`server/`、`supabase/` 与 `vercel.json` 均为零差异,首页/交易收益/资产/目标/个股/账本定向测试 76/76 pass。390x844 `DevVisualPreview` 账户切换弹窗为 314×321px,当前/第二账户、长邮箱截断、取消与添加入口完整可见,页面横向溢出 0;移除操作会再打开 314px 危险确认卡,console error 0。由于当前只有一个真实业务账户,本轮未伪造第二个生产 Auth 用户或写入生产数据;真正双账户切换需由用户添加第二个真实账户后验收。
+- Security note: 方案 B 的多个 refresh session 与 Supabase 默认浏览器持久会话处于同一 JS 可读本地存储信任边界,不应在共享或不可信设备使用;不记录、不显示、不上传 token,账户列表 API 只返回 user id/email/last-used 元数据。
+- Boundaries: 不改数据库表、RLS、交易账本、收益快照、比赛快照、`/api/quote`、独立 `/api/earnings-calendar`、社区比赛 API/Cron 或任何行情 relay。
+- Rollback: 回退本条运行时代码、v311 更新日志、测试和文档即可;没有 SQL、数据库数据或 Vercel 配置需要回滚。旧 v310 单账户 Supabase session 仍由官方默认 key 保持兼容。
+
 ### 2026-07-12 - 设置页头像直达社区资料弹窗正式接入
 
 - Deployment: completed;与六款新头像同批上线,runtime commit `94d6d870e366817809b22379166afb7117115d75`,GitHub Actions run `29180814130` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DnBY7bQZ4TCSpXZuHm612BVR8Y2d` success,production alias 已更新,入口 `/assets/index-M0RXABkA.js`。
