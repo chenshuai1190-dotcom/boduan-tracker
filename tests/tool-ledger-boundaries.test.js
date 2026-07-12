@@ -447,8 +447,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.305/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.305', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.306/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.306', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1405,7 +1405,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(appSource.includes("tt('review.editDiscipline', '编辑心得')"), 'Review investment notes modal should read labels from i18n');
   assert.ok(appSource.includes("function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete })"), 'Review log modal should accept the current language');
   assert.ok(appSource.includes("function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, currency, rate })"), 'Review yearly actual modal should accept the current language');
-  assert.ok(homeTabSource.includes('min-w-0 max-w-full overflow-x-auto'), 'home quote metrics should keep their horizontal scroll contained inside the table');
+  assert.ok(homeTabSource.includes('overflow-x-auto px-3 [scrollbar-width:none]') && homeTabSource.includes('data-home-market-table="single-grid"'), 'home quote metrics should keep their horizontal scroll contained inside the single-grid table');
   assert.ok(settingsTabSource.includes("setLanguage?.(item.id)"), 'Settings should expose a language switch');
   assert.ok(settingsTabSource.includes("settings.languageDesc"), 'Settings should state that user-written logs and notes are not translated');
   assert.ok(devVisualPreviewSource.includes("new URLSearchParams(window.location.search).get('lang')"), 'local visual preview should support direct English home checks');
@@ -1747,7 +1747,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.305/g) || []).length, 3, 'settings version surfaces should document the current competition holding-card release');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.306/g) || []).length, 3, 'settings version surfaces should document the current home watchlist alignment release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2021,7 +2021,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('<span className="block font-black">{item.symbol}</span>'), false, 'benchmark menu symbol should not return to bold');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}"), 'home watchlist tab label should match the muted current-signal status brightness');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}"), 'home holdings tab label should match the muted current-signal status brightness');
-  assert.ok(homeTabSource.includes('pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/40'), 'home name header should match the inactive price and change headers');
+  assert.ok(homeTabSource.includes('sticky left-0 z-20 bg-[#0b0f14] text-white/40'), 'home name header should match the inactive price and change headers while remaining fixed during metric scrolling');
   assert.ok(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/70'), 'home watchlist and holding ticker codes should use normal weight and reduced brightness');
   assert.ok(homeTabSource.includes('block truncate text-[10px] leading-[12px] text-white/35'), 'home watchlist and holding company names should use the lower secondary brightness');
   assert.equal(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/80'), false, 'home ticker codes should not retain the previous brighter white');
@@ -2029,7 +2029,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('block truncate text-[13px] font-semibold leading-[14px] text-white'), false, 'home watchlist and holding ticker codes should not return to bold pure white');
   assert.ok(homeTabSource.includes('text-right text-[13px] tabular-nums text-white/80'), 'home watchlist and holding prices should match the muted current-signal status brightness');
   assert.equal(homeTabSource.includes('text-right text-[13px] tabular-nums text-white/78'), false, 'home prices should not retain the old over-bright opacity class');
-  assert.ok(homeTabSource.includes("const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 144px' : '68px 70px 88px 84px';"), 'home holding P&L column should match the trade table 144px width');
+  assert.ok(homeTabSource.includes("? '92px 68px 74px 92px 88px 148px'"), 'home holding grid should preserve the former 92px name column and metric positions, including the 144px P&L content width plus its existing gap');
+  assert.ok(homeTabSource.includes("data-home-market-table=\"single-grid\""), 'home watchlist and positions should use one shared row grid instead of separate name and metric lists');
+  assert.equal(homeTabSource.includes('grid-cols-[minmax(92px,0.7fr)_minmax(0,3.15fr)]'), false, 'home table must not return to the two-list layout that lets header and row dividers drift apart');
   assert.ok(homeTabSource.includes('const metricMinWidth = showPnlColumn ? 470 : 322;'), 'home holding metrics should expand with the wider P&L column instead of squeezing cells');
   assert.ok(homeTabSource.includes('block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] ${pnlColor(item.pnlValue, marketColorMode)}'), 'home holding P&L amount should stay on one line with normal weight and system market color');
   assert.ok(homeTabSource.includes('mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] ${pnlColor(item.pnlPct, marketColorMode)}'), 'home holding P&L percent should stay on one line with normal weight and system market color');
@@ -2061,7 +2063,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.305/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
+  assert.equal((settingsTabSource.match(/v10\.7\.9\.306/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

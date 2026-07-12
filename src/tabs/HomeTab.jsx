@@ -649,8 +649,11 @@ export default function HomeTab({ ctx }) {
   const isAddingStock = Boolean(addingStockSymbol);
   const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
   const showPnlColumn = tableTab === 'positions';
-  const metricGridTemplate = showPnlColumn ? '68px 70px 88px 84px 144px' : '68px 70px 88px 84px';
   const metricMinWidth = showPnlColumn ? 470 : 322;
+  const homeTableGridTemplate = showPnlColumn
+    ? '92px 68px 74px 92px 88px 148px'
+    : '92px 68px 74px 92px 88px';
+  const homeTableMinWidth = 92 + metricMinWidth;
   const metricColumns = React.useMemo(() => [
     { key: 'price', label: t(language, 'home.price', '价格') },
     { key: 'change', label: t(language, 'home.change', '涨跌幅') },
@@ -1071,76 +1074,62 @@ export default function HomeTab({ ctx }) {
             {tableTab === 'positions' ? t(language, 'home.noPositions', '暂无持仓记录, 先在交易页添加买入记录。') : t(language, 'home.noWatchlist', '暂无自选股票。')}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-[minmax(92px,0.7fr)_minmax(0,3.15fr)] px-3">
-              <div>
-                <div className="pb-1.5 pt-2 text-[11px] font-medium leading-none text-white/40">{t(language, 'home.name', '名称')}</div>
-                <div className="divide-y divide-white/[0.06]">
-                  {tableRows.map((item) => (
-                    <div
-                      key={item.symbol}
-                      className="flex min-h-[54px] w-full min-w-0 items-center gap-2 py-2 pr-2 text-left"
-                    >
+          <div className="overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-home-market-table="single-grid">
+            <div style={{ minWidth: `${homeTableMinWidth}px` }}>
+              <div
+                className="grid pb-1.5 pt-2 text-[11px] font-medium leading-none"
+                style={{ gridTemplateColumns: homeTableGridTemplate }}
+              >
+                <div className="sticky left-0 z-20 bg-[#0b0f14] text-white/40">{t(language, 'home.name', '名称')}</div>
+                {metricColumns.map((column) => (
+                  <SortHeader
+                    key={column.key}
+                    label={column.label}
+                    sortKey={column.key}
+                    sortState={activeTableSort}
+                    onSort={handleTableSort}
+                  />
+                ))}
+              </div>
+              <div className="divide-y divide-white/[0.06]">
+                {tableRows.map((item) => (
+                  <div
+                    key={item.symbol}
+                    className="grid min-h-[54px] w-full items-center py-2 text-left"
+                    style={{ gridTemplateColumns: homeTableGridTemplate }}
+                  >
+                    <div className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0f14] pr-2">
                       <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
                         <span className="block truncate text-[10px] leading-[12px] text-white/35">{item.displayName}</span>
                       </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="min-w-0 max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div style={{ minWidth: `${metricMinWidth}px` }}>
-                  <div
-                    className="grid gap-1 pb-1.5 pt-2 text-[11px] font-medium leading-none"
-                    style={{ gridTemplateColumns: metricGridTemplate }}
-                  >
-                    {metricColumns.map((column) => (
-                      <SortHeader
-                        key={column.key}
-                        label={column.label}
-                        sortKey={column.key}
-                        sortState={activeTableSort}
-                        onSort={handleTableSort}
-                      />
-                    ))}
-                  </div>
-                  <div className="divide-y divide-white/[0.06]">
-                    {tableRows.map((item) => (
-                      <div
-                        key={item.symbol}
-                        className="grid min-h-[54px] w-full items-center gap-1 py-2 text-left"
-                        style={{ gridTemplateColumns: metricGridTemplate }}
-                      >
-                        <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)}</span>
-                        <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
-                        <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                          {fmtDrawdownPct(item.highDrawdown)}
-                        </span>
-                        <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.ytdColor, fontFamily: NUMBER_FONT }}>
-                          {fmtOptionalMarketPct(item.ytdChangePercent)}
-                        </span>
-                        {showPnlColumn && (
-                          <span className="overflow-hidden text-right tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                            {item.pnlValue === null ? (
-                              <span className="block whitespace-nowrap text-[13px] font-normal text-white/25">--</span>
-                            ) : (
-                              <>
-                                <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] ${pnlColor(item.pnlValue, marketColorMode)}`}>{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
-                                <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] ${pnlColor(item.pnlPct, marketColorMode)}`}>{fmtSignedPct(item.pnlPct, 2)}</span>
-                              </>
-                            )}
-                          </span>
+                    <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)}</span>
+                    <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
+                    <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                      {fmtDrawdownPct(item.highDrawdown)}
+                    </span>
+                    <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.ytdColor, fontFamily: NUMBER_FONT }}>
+                      {fmtOptionalMarketPct(item.ytdChangePercent)}
+                    </span>
+                    {showPnlColumn && (
+                      <span className="overflow-hidden text-right tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                        {item.pnlValue === null ? (
+                          <span className="block whitespace-nowrap text-[13px] font-normal text-white/25">--</span>
+                        ) : (
+                          <>
+                            <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] ${pnlColor(item.pnlValue, marketColorMode)}`}>{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
+                            <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] ${pnlColor(item.pnlPct, marketColorMode)}`}>{fmtSignedPct(item.pnlPct, 2)}</span>
+                          </>
                         )}
-                      </div>
-                    ))}
+                      </span>
+                    )}
                   </div>
-                </div>
+                ))}
               </div>
             </div>
-          </>
+          </div>
         )}
 
       </section>
