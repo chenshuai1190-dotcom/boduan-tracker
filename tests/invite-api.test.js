@@ -47,6 +47,44 @@ test('register endpoint rejects signup without an invite code before admin confi
   assert.equal(res.headers['cache-control'], 'no-store');
 });
 
+test('register endpoint requires a completed nickname and avatar before admin work', async () => {
+  const req = {
+    method: 'POST',
+    headers: { host: 'localhost:3000' },
+    body: {
+      email: 'new-user@example.com',
+      password: '123456',
+      inviteCode: 'QTE-ABCD-EFGH',
+    },
+  };
+  const res = createMockRes();
+
+  await registerHandler(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body, { success: false, error: '昵称需为 2-16 个字符' });
+});
+
+test('register endpoint rejects avatar keys outside the preset catalog', async () => {
+  const req = {
+    method: 'POST',
+    headers: { host: 'localhost:3000' },
+    body: {
+      email: 'new-user@example.com',
+      password: '123456',
+      inviteCode: 'QTE-ABCD-EFGH',
+      nickname: '新用户',
+      avatarKey: 'uploaded-avatar',
+    },
+  };
+  const res = createMockRes();
+
+  await registerHandler(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body, { success: false, error: '请选择有效头像' });
+});
+
 test('invite-code management endpoint rejects missing auth before admin work', async () => {
   const req = {
     method: 'GET',

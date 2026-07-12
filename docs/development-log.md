@@ -4,6 +4,23 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 注册必选社区昵称与头像
+
+- Deployment: application pending;生产仍为 `v10.7.9.314`。2026-07-12 已在生产 Supabase SQL Editor 执行独立权限迁移 `supabase/registration_community_profile_v315.sql`,页面返回 `Success. No rows returned`。
+- Background: 用户要求把昵称和头像接入注册流程并设为必选,让新用户注册后已经具备完整社区身份,进入收益比赛时无需二次返回设置页补资料。
+- Workflow tier: `sensitive`。
+- Changes:
+  - 注册改为两步流程:第一步校验邮箱、密码、确认密码和邀请码格式,第二步要求输入 2-16 字符社区昵称并明确选择 18 款预设头像之一;未选择头像不会隐式使用默认值。
+  - `/api/register` 同步接收昵称与头像 key,服务端使用与设置页相同的昵称规则和头像白名单再次校验,客户端校验不作为安全边界。
+  - Auth 用户创建后先写入已完成的 `community_profiles`,成功后才消费邀请码;资料写入或邀请码占用竞争失败时删除本次新建 Auth 用户,资料行由外键级联清理。
+  - `community_profiles` 仅新增 `service_role` INSERT 权限供注册 API 建档;authenticated 用户原有本人 SELECT/INSERT/UPDATE RLS 不变,public/anon 仍无 INSERT 权限。
+  - 注册只建立社区身份,不写 `community_competition_members`;收益比赛仍必须由已登录用户独立、自愿确认加入。
+  - 设置页与更新日志版本同步为 `v10.7.9.315`。
+- Key files: `src/Login.jsx`,`src/lib/supabase.js`,`api/register.js`,`server/inviteCodes.js`,`supabase/community_profiles.sql`,`supabase/rls.sql`,`supabase/registration_community_profile_v315.sql`,`tests/invite-api.test.js`,`tests/registration-community-profile.test.js`,`tests/community-profiles.test.js`,`tests/tool-ledger-boundaries.test.js`,`src/lib/settingsChangelog.js`,`src/tabs/SettingsTab.jsx`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 注册/API/社区资料/边界定向测试 60/60、完整测试 252/252、production build、5/5 frontend smoke、high audit 0 vulnerabilities、匿名 REST RLS 20/20、docs consistency 和 diff check 全部 pass。生产 SQL 后 metadata 回读为 `service_role SELECT=true`,`service_role INSERT=true`,`anon INSERT=false`,`authenticated INSERT=true`,`relrowsecurity=true`;`pg_policies` 仍只有 authenticated 本人 SELECT/INSERT/UPDATE 三条 `auth.uid() = user_id` 策略。390x844 正式登录页本地实测:第一步 4 个输入框均为 318px 且页面 `scrollWidth/clientWidth=390/390`;第二步 18 个头像为 6 列×3 行,最右侧止于 354px,选择前计数 `0/1`,选择蓝狼后为 `1/1` 并出现蓝色选中边框,横向零溢出。未点击最终注册,未创建测试 Auth 用户或写入任何外部数据。截图 `/tmp/boduan-signup-v315-step1.png`、`/tmp/boduan-signup-v315-step2.png`。
+- Boundaries: 不自动加入比赛,不改比赛收益公式/快照/Cron,不改 `stock_trades`、交易账本、个人收益快照、首页/交易/资产/目标、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`;不新增头像上传或 Supabase Storage。
+- Rollback: 如需回退,先回退应用代码,再撤销 `service_role` 对 `community_profiles` 的 INSERT grant;现有完整社区资料行可保留。
+
 ### 2026-07-12 - 设置页头部头像外框与二次放大
 
 - Deployment: completed;runtime commit `0f9d7858ff9468613d6f25a7d73891b871bb9831`,GitHub Actions run `29184108557` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/43bTjZaX3mZr8cRyorYsA8jRBeCj` success,production alias 已更新,入口 `/assets/index-CqZqA4y0.js`。

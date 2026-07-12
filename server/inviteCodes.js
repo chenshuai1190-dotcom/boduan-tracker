@@ -1,9 +1,11 @@
 import crypto from 'node:crypto';
+import { COMMUNITY_AVATAR_OPTIONS, validateCommunityNickname } from '../src/lib/communityProfile.js';
 
 export const INVITE_ADMIN_EMAIL = 'chenshuai1190@gmail.com';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEFAULT_LIST_LIMIT = 20;
+const COMMUNITY_AVATAR_KEYS = new Set(COMMUNITY_AVATAR_OPTIONS.map((avatar) => avatar.key));
 
 export function normalizeInviteCode(value) {
   return String(value || '')
@@ -179,6 +181,48 @@ async function createAuthUser({ email, password, inviteCode }) {
   });
 }
 
+export function validateRegistrationCommunityProfile({ nickname, avatarKey } = {}) {
+  const nicknameResult = validateCommunityNickname(nickname);
+  if (!nicknameResult.valid) {
+    const error = new Error('昵称需为 2-16 个字符');
+    error.status = 400;
+    throw error;
+  }
+
+  const normalizedAvatarKey = String(avatarKey || '').trim().toLowerCase();
+  if (!COMMUNITY_AVATAR_KEYS.has(normalizedAvatarKey)) {
+    const error = new Error('请选择有效头像');
+    error.status = 400;
+    throw error;
+  }
+
+  return {
+    nickname: nicknameResult.nickname,
+    avatarKey: normalizedAvatarKey,
+  };
+}
+
+async function createRegistrationCommunityProfile({ userId, nickname, avatarKey, completedAt }) {
+  const rows = await supabaseRestFetch('/rest/v1/community_profiles', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      user_id: userId,
+      nickname,
+      avatar_key: avatarKey,
+      profile_completed_at: completedAt,
+      updated_at: completedAt,
+    }),
+  });
+  const profile = Array.isArray(rows) ? rows[0] : rows;
+  if (!profile?.user_id) {
+    const error = new Error('社区资料创建失败');
+    error.status = 500;
+    throw error;
+  }
+  return profile;
+}
+
 async function deleteAuthUser(userId) {
   if (!userId) return;
   try {
@@ -190,7 +234,7 @@ async function deleteAuthUser(userId) {
   }
 }
 
-export async function registerUserWithInvite({ email, password, inviteCode }) {
+export async function registerUserWithInvite({ email, password, inviteCode, nickname, avatarKey }) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const normalizedCode = normalizeInviteCode(inviteCode);
 
@@ -209,6 +253,7 @@ export async function registerUserWithInvite({ email, password, inviteCode }) {
     error.status = 403;
     throw error;
   }
+  const profileInput = validateRegistrationCommunityProfile({ nickname, avatarKey });
 
   const invite = await findInviteCode(normalizedCode);
   if (!isUsableInvite(invite)) {
@@ -234,27 +279,43 @@ export async function registerUserWithInvite({ email, password, inviteCode }) {
 
   const userId = user?.id;
   const now = new Date().toISOString();
+  if (!userId) {
+    const error = new Error('注册失败: 用户标识缺失');
+    error.status = 500;
+    throw error;
+  }
   const url = new URL('/rest/v1/invite_codes', 'https://placeholder.local');
   url.searchParams.set('id', `eq.${invite.id}`);
   url.searchParams.set('status', 'eq.active');
   url.searchParams.set('used_at', 'is.null');
 
-  const updatedRows = await supabaseRestFetch(`${url.pathname}${url.search}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({
-      status: 'used',
-      used_by: userId,
-      used_by_email: normalizedEmail,
-      used_at: now,
-      updated_at: now,
-    }),
-  });
-
-  if (!Array.isArray(updatedRows) || updatedRows.length !== 1) {
+  let profile = null;
+  let updatedRows = null;
+  try {
+    profile = await createRegistrationCommunityProfile({
+      userId,
+      nickname: profileInput.nickname,
+      avatarKey: profileInput.avatarKey,
+      completedAt: now,
+    });
+    updatedRows = await supabaseRestFetch(`${url.pathname}${url.search}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        status: 'used',
+        used_by: userId,
+        used_by_email: normalizedEmail,
+        used_at: now,
+        updated_at: now,
+      }),
+    });
+    if (!Array.isArray(updatedRows) || updatedRows.length !== 1) {
+      const error = new Error('邀请码已被使用,请换一个邀请码');
+      error.status = 409;
+      throw error;
+    }
+  } catch (error) {
     await deleteAuthUser(userId);
-    const error = new Error('邀请码已被使用,请换一个邀请码');
-    error.status = 409;
     throw error;
   }
 
@@ -262,6 +323,11 @@ export async function registerUserWithInvite({ email, password, inviteCode }) {
     user: {
       id: userId,
       email: user?.email || normalizedEmail,
+    },
+    profile: {
+      nickname: profile.nickname,
+      avatarKey: profile.avatar_key,
+      profileCompletedAt: profile.profile_completed_at,
     },
     invite: sanitizeInviteRecord(updatedRows[0]),
   };

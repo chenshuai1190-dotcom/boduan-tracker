@@ -469,7 +469,7 @@ grant select, insert, update
 on table public.community_profiles
 to authenticated;
 
-grant select
+grant select, insert
 on table public.community_profiles
 to service_role;
 

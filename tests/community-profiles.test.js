@@ -214,7 +214,7 @@ test('authenticated clients can read only their own community profile', () => {
     );
     assert.match(
       sql,
-      /grant select\s+on table public\.community_profiles\s+to service_role/,
+      /grant select, insert\s+on table public\.community_profiles\s+to service_role/,
     );
   }
 });

@@ -25,6 +25,7 @@ This project started as a personal hand-built app, so the first priority is to m
    - `swing_waves` must remain independent from `trades`, `stock_trades`, `cost_basis_trades`, and P&L snapshots. Do not include legacy-wave deletion in the table/RLS migration.
    - `community_profiles` status (2026-07-12): `supabase/community_profiles.sql` has been applied to production. It stores only nickname/avatar metadata; authenticated clients may read/insert/update only their own row, and active-member public identity is mediated by the competition API. No delete grant is given, and it remains outside trades, assets, returns, quote relay, and Storage uploads.
    - `v10.7.9.312` expands only the `community_profiles_avatar_key_check` allowlist from 6 to 18 preset keys. Apply `supabase/community_avatar_options_v312.sql` before the frontend deploy, confirm all existing rows still satisfy the constraint, and keep the same owner-only RLS policies and table grants.
+   - `v10.7.9.315` requires `supabase/registration_community_profile_v315.sql` before application deployment. The production migration was applied and read back on 2026-07-12: `service_role` SELECT/INSERT is true, anonymous INSERT is false, authenticated INSERT and RLS remain true, and the authenticated owner SELECT/INSERT/UPDATE policies are unchanged.
    - `community_competition_members` and `community_competition_snapshots` are a separate competition boundary. Their production SQL was applied on 2026-07-12 and the anonymous REST gate passes 20/20; metadata readback remains pending after the Supabase Dashboard translation-plugin crash. Authenticated clients may only read their own membership; they cannot write membership or read/write competition snapshots. Snapshot `service_role` privileges are limited to select/insert so a locked row cannot be overwritten or deleted.
 
 4. Validate production behavior.
@@ -39,6 +40,8 @@ This project started as a personal hand-built app, so the first priority is to m
    - Run `supabase/invite_codes.sql` or the full `supabase/rls.sql` in the Supabase SQL editor before using invite registration.
    - Set `SUPABASE_SERVICE_ROLE_KEY` only in Vercel server-side environment variables; never expose it as a `VITE_` variable or commit it.
    - Keep the frontend registration path on `/api/register`, and disable direct public signups in Supabase Auth if hard invite-only enforcement is required.
+   - Registration must validate nickname and preset avatar both in the browser and again in `/api/register`. Create the completed profile before marking the invite used; if either profile creation or invite consumption fails, delete the newly created Auth user. Do not put the community profile in user-editable Auth metadata as a second source of truth.
+   - Completing a profile during registration must never create `community_competition_members`; competition enrollment remains a separate voluntary authenticated action.
    - Only `chenshuai1190@gmail.com` should see the invite-code management panel in Settings.
 
 6. Keep automated P&L report snapshots server-only.
@@ -62,7 +65,7 @@ This project started as a personal hand-built app, so the first priority is to m
 - Every user-data local cache must include the authenticated `user.id` in its storage key. Database offline caches, cost-basis tool state, wave fold memory, quote diagnostics, and alert memory must not fall back to pre-v311 unscoped keys; a switch must remount `MainApp` by user ID before target-user data renders.
 - Browser-direct EODHD WebSocket mode has been removed from the frontend.
 - BTC, three-index, and user stock streaming use authenticated server-side WebSocket relays (`/api/btc-realtime`, `/api/indices-realtime`, `/api/stocks-realtime`) and keep `EODHD_API_KEY` server-side. User stock streaming covers watchlist, main ledger positions, wave-record quote rows, and cost-basis tool quote rows.
-- Registration uses `/api/register` with server-side invite-code validation; invite-code administration uses `/api/invite-codes` and requires the logged-in admin account.
+- Registration uses `/api/register` with server-side invite-code, nickname, and preset-avatar validation. It creates the canonical completed `community_profiles` row before consuming the invite and rolls back the new Auth user on failure; invite-code administration uses `/api/invite-codes` and requires the logged-in admin account.
 - Automated P&L report snapshots use `/api/pnl-report-daily-snapshot`, protected by `CRON_SECRET`, and write only the independent P&L report snapshot tables.
 - Quote provider requests now go through timeout-aware provider fetch helpers.
 - First automated test baseline covers quote auth, symbol validation, provider routing, timeout behavior, and delete scoping.

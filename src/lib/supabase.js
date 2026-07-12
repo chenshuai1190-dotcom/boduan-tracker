@@ -68,11 +68,17 @@ export const signUp = async (email, password) => {
   };
 };
 
-export const signUpWithInvite = async (email, password, inviteCode) => {
+export const signUpWithInvite = async (email, password, inviteCode, profile = {}) => {
   const res = await fetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, inviteCode }),
+    body: JSON.stringify({
+      email,
+      password,
+      inviteCode,
+      nickname: profile.nickname,
+      avatarKey: profile.avatarKey,
+    }),
   });
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.success === false) {

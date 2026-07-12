@@ -83,6 +83,7 @@ const rlsSource = readFileSync(new URL('../supabase/rls.sql', import.meta.url), 
 const inviteSqlSource = readFileSync(new URL('../supabase/invite_codes.sql', import.meta.url), 'utf8');
 const communityProfilesSqlSource = readFileSync(new URL('../supabase/community_profiles.sql', import.meta.url), 'utf8');
 const communityAvatarOptionsMigrationSource = readFileSync(new URL('../supabase/community_avatar_options_v312.sql', import.meta.url), 'utf8');
+const registrationCommunityProfileMigrationSource = readFileSync(new URL('../supabase/registration_community_profile_v315.sql', import.meta.url), 'utf8');
 const pnlReportSqlSource = readFileSync(new URL('../supabase/pnl_report_snapshots.sql', import.meta.url), 'utf8');
 const verifyRlsRestSource = readFileSync(new URL('../scripts/verify-rls-rest.mjs', import.meta.url), 'utf8');
 
@@ -356,6 +357,10 @@ test('community profile settings use a dedicated public identity table without s
   assert.match(communityProfilesSqlSource, /for update\s+to authenticated\s+using \(auth\.uid\(\) = user_id\)\s+with check \(auth\.uid\(\) = user_id\)/);
   assert.match(communityProfilesSqlSource, /revoke all privileges on table public\.community_profiles from public, anon, authenticated/);
   assert.match(communityProfilesSqlSource, /grant select, insert, update\s+on table public\.community_profiles\s+to authenticated/);
+  assert.match(communityProfilesSqlSource, /grant select, insert\s+on table public\.community_profiles\s+to service_role/);
+  assert.match(registrationCommunityProfileMigrationSource, /revoke insert\s+on table public\.community_profiles\s+from public, anon/);
+  assert.match(registrationCommunityProfileMigrationSource, /grant insert\s+on table public\.community_profiles\s+to service_role/);
+  assert.equal(registrationCommunityProfileMigrationSource.includes('from public, anon, authenticated'), false, 'registration migration must preserve authenticated owner inserts');
   assert.equal(/grant[\s\S]{0,80}delete[\s\S]{0,80}community_profiles/i.test(communityProfilesSqlSource), false, 'community profile UI should not grant delete');
   assert.match(verifyRlsRestSource, /'community_profiles'/);
 
@@ -464,8 +469,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.314'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.314', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.315'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.315', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1464,11 +1469,16 @@ test('login screen uses Quote dark bilingual design without changing auth flow',
   assert.ok(loginSource.includes('requiredConfirmPassword'), 'signup should validate missing confirm password');
   assert.ok(loginSource.includes('passwordMismatch'), 'signup should reject mismatched passwords');
   assert.ok(loginSource.includes('requiredInviteCode'), 'signup should reject missing invite code before network submission');
+  assert.ok(loginSource.includes('signupStep === 1'), 'signup should separate account and community profile steps');
+  assert.ok(loginSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'signup should require an explicit preset avatar choice');
+  assert.ok(loginSource.includes('validateCommunityNickname(communityNickname)'), 'signup should validate its nickname before submission');
+  assert.ok(loginSource.includes('requiredAvatar'), 'signup should reject missing avatar selection');
   assert.ok(loginSource.includes('resetPassword(email)'), 'forgot-password flow should stay wired to Supabase reset');
   assert.ok(loginSource.includes('signIn(email, password)'), 'sign-in flow should stay wired to Supabase auth');
-  assert.ok(loginSource.includes('signUpWithInvite(email, password, inviteCode)'), 'sign-up flow should go through the invite-code server registration path');
+  assert.ok(loginSource.includes('signUpWithInvite(email, password, inviteCode, {'), 'sign-up flow should send the required community profile through the invite registration path');
   assert.equal(loginSource.includes('signUp(email, password)'), false, 'signup UI should not call public Supabase signUp directly');
   assert.ok(supabaseClientSource.includes("fetch('/api/register'"), 'invite signup should call the server registration endpoint');
+  assert.ok(supabaseClientSource.includes('nickname: profile.nickname') && supabaseClientSource.includes('avatarKey: profile.avatarKey'), 'registration client should submit the chosen public identity');
   assert.ok(supabaseClientSource.includes('注册需要邀请码'), 'legacy direct signUp export should fail closed');
   assert.equal(supabaseClientSource.includes('auth.signUp({'), false, 'client helper should not keep a public Supabase signUp path');
   assert.equal(loginSource.includes('Bottomline'), false, 'login should not keep the old Bottomline branding');
@@ -1478,6 +1488,7 @@ test('login screen uses Quote dark bilingual design without changing auth flow',
 test('invite-code registration gate stays server-side and admin-only', () => {
   assert.ok(registerApiSource.includes("req.method !== 'POST'"), 'public register endpoint should only accept POST');
   assert.ok(registerApiSource.includes('registerUserWithInvite'), 'public register endpoint should delegate signup to the invite server module');
+  assert.ok(registerApiSource.includes('nickname: body.nickname') && registerApiSource.includes('avatarKey: body.avatarKey'), 'register endpoint should forward only explicit profile fields');
   assert.ok(registerApiSource.includes("res.setHeader('Cache-Control', 'no-store')"), 'register responses should not be cached');
   assert.ok(inviteApiSource.includes('authenticateAccessToken'), 'invite management endpoint should authenticate the current session token');
   assert.ok(inviteApiSource.includes('isInviteAdmin(auth.user)'), 'invite management endpoint should be admin-only');
@@ -1489,7 +1500,10 @@ test('invite-code registration gate stays server-side and admin-only', () => {
   assert.ok(inviteServerSource.includes("return `QTE-${raw.slice(0, 4)}-${raw.slice(4)}`"), 'invite code format should stay readable and app-specific');
   assert.ok(inviteServerSource.includes('email_confirm: true'), 'server-created auth users should be immediately usable by the client sign-in');
   assert.ok(inviteServerSource.includes('createAuthUser'), 'registration should create the Supabase auth user server-side');
-  assert.ok(inviteServerSource.includes('deleteAuthUser(userId)'), 'registration should roll back auth user creation if invite consumption loses the race');
+  assert.ok(inviteServerSource.includes('validateRegistrationCommunityProfile'), 'registration should enforce nickname and preset avatar validation server-side');
+  assert.ok(inviteServerSource.includes('createRegistrationCommunityProfile'), 'registration should create a completed community profile server-side');
+  assert.ok(inviteServerSource.indexOf('profile = await createRegistrationCommunityProfile') < inviteServerSource.indexOf("status: 'used'"), 'profile creation should complete before consuming the invite');
+  assert.ok(inviteServerSource.includes('deleteAuthUser(userId)'), 'registration should roll back auth user creation and cascade its profile after any post-create failure');
   assert.ok(inviteServerSource.includes("status: 'used'"), 'registration should consume the invite after creating a user');
   assert.ok(inviteServerSource.includes('used_by_email: normalizedEmail'), 'registration should record which email consumed the invite');
   assert.ok(settingsTabSource.includes("chenshuai1190@gmail.com"), 'settings invite manager should only render for the admin email');
@@ -1816,7 +1830,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.314'"), 'settings version source should document the current avatar frame release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.315'"), 'settings version source should document the current registration profile release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2132,7 +2146,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.314'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.315'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -47,6 +47,8 @@ export default async function handler(req, res) {
       email: body.email,
       password: body.password,
       inviteCode: body.inviteCode,
+      nickname: body.nickname,
+      avatarKey: body.avatarKey,
     });
     return res.status(200).json({ success: true, ...result });
   } catch (error) {
@@ -54,4 +56,3 @@ export default async function handler(req, res) {
     return sendError(res, status, error?.message || '注册失败');
   }
 }
-

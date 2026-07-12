@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Lock, User } from 'lucide-react';
 import { getRecoveryCallbackError, isRecoveryCallbackLocation } from './lib/authRecovery.js';
+import { COMMUNITY_AVATAR_OPTIONS, validateCommunityNickname } from './lib/communityProfile.js';
 import { LANGUAGE_STORAGE_KEY, normalizeLanguage, saveStoredLanguage } from './lib/i18n.js';
 
 const loadAuthApi = () => import('./lib/supabase');
@@ -55,6 +56,18 @@ const LOGIN_COPY = {
     addAccount: 'Add Account',
     quickAccounts: 'Quick accounts',
     switchFailed: 'Account switch failed. Please sign in again.',
+    next: 'Next',
+    accountStep: 'Account',
+    profileStep: 'Community Profile',
+    profileStepHint: 'Choose the public identity you will use if you voluntarily join the return contest.',
+    communityNickname: 'Community nickname',
+    communityNicknamePlaceholder: '2-16 characters',
+    communityNicknameRule: '2-16 characters. You can change it later in Settings.',
+    chooseAvatar: 'Choose an avatar',
+    requiredNickname: 'Please enter a community nickname.',
+    invalidNickname: 'Nickname must be 2-16 characters.',
+    requiredAvatar: 'Please choose an avatar.',
+    backToAccountStep: 'Back to account details',
   },
   zh: {
     signIn: '登录',
@@ -105,6 +118,18 @@ const LOGIN_COPY = {
     addAccount: '添加账户',
     quickAccounts: '快捷账户',
     switchFailed: '账户切换失败，请重新登录',
+    next: '下一步',
+    accountStep: '账户信息',
+    profileStep: '社区资料',
+    profileStepHint: '请选择自愿加入收益比赛后用于排行榜展示的公开身份。',
+    communityNickname: '社区昵称',
+    communityNicknamePlaceholder: '请输入 2-16 个字符',
+    communityNicknameRule: '2-16 个字符，之后仍可在设置中修改。',
+    chooseAvatar: '选择头像',
+    requiredNickname: '请填写社区昵称',
+    invalidNickname: '昵称需为 2-16 个字符',
+    requiredAvatar: '请选择一个头像',
+    backToAccountStep: '返回账户信息',
   },
 };
 
@@ -185,6 +210,9 @@ export default function Login({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [signupStep, setSignupStep] = useState(1);
+  const [communityNickname, setCommunityNickname] = useState('');
+  const [communityAvatarKey, setCommunityAvatarKey] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -319,6 +347,23 @@ export default function Login({
         setError(copy.requiredInviteCode);
         return;
       }
+      if (signupStep === 1) {
+        setSignupStep(2);
+        return;
+      }
+      if (!communityNickname.trim()) {
+        setError(copy.requiredNickname);
+        return;
+      }
+      const nicknameValidation = validateCommunityNickname(communityNickname);
+      if (!nicknameValidation.valid) {
+        setError(copy.invalidNickname);
+        return;
+      }
+      if (!communityAvatarKey) {
+        setError(copy.requiredAvatar);
+        return;
+      }
     }
     setLoading(true);
 
@@ -338,7 +383,11 @@ export default function Login({
           onSuccess(data.user);
         }
       } else {
-        const { data, error } = await signUpWithInvite(email, password, inviteCode);
+        const nicknameValidation = validateCommunityNickname(communityNickname);
+        const { data, error } = await signUpWithInvite(email, password, inviteCode, {
+          nickname: nicknameValidation.nickname,
+          avatarKey: communityAvatarKey,
+        });
         if (error) {
           if (error.message.includes('already registered')) {
             setError(copy.alreadyRegistered);
@@ -358,6 +407,7 @@ export default function Login({
 
   const switchMode = (newMode) => {
     setMode(newMode);
+    setSignupStep(1);
     setError('');
     setInfo('');
     setShowPassword(false);
@@ -367,7 +417,7 @@ export default function Login({
   const submitLabel = (() => {
     if (loading) return loadingText;
     if (mode === 'signin') return copy.signInNow;
-    if (mode === 'signup') return copy.createAccount;
+    if (mode === 'signup') return signupStep === 1 ? copy.next : copy.createAccount;
     if (mode === 'forgot') return copy.sendReset;
     return copy.saveNewPassword;
   })();
@@ -449,7 +499,27 @@ export default function Login({
         )}
 
         <form onSubmit={handleFormSubmit} className={mode === 'signup' ? 'mt-[28px]' : (!accountSwitchMode && rememberedAccounts.length > 0 && mode === 'signin' ? 'mt-[28px]' : 'mt-[78px]')}>
-          {isAuthMode ? (
+          {isAuthMode ? (mode === 'signup' && signupStep === 2 ? (
+            <div className="flex min-h-[54px] items-center gap-3 rounded-[9px] border border-[#1f304d]/80 bg-[#030a18]/[0.34] px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setSignupStep(1);
+                  setError('');
+                }}
+                disabled={loading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#274260]/80 bg-[#07101d]/80 text-[#9dc6ff] active:scale-95"
+                aria-label={copy.backToAccountStep}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] text-white/90">{copy.profileStep}</div>
+                <div className="mt-0.5 text-[10px] text-[#667797]">2 / 2</div>
+              </div>
+              <span className="text-[11px] text-[#2a9dff]">{copy.accountStep} ✓</span>
+            </div>
+          ) : (
             <div className="relative grid h-[54px] grid-cols-2 overflow-hidden rounded-[9px] border border-[#1f304d]/80 bg-[#030a18]/[0.34] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <button
                 type="button"
@@ -475,7 +545,7 @@ export default function Login({
                 )}
               </button>
             </div>
-          ) : (
+          )) : (
             <div className="mb-7 flex items-center gap-3">
               <button
                 type="button"
@@ -497,7 +567,7 @@ export default function Login({
             </div>
           )}
 
-          {mode !== 'newpw' && (
+          {mode !== 'newpw' && !(mode === 'signup' && signupStep === 2) && (
             <div className="relative mt-[34px]">
               <User className="pointer-events-none absolute left-[22px] top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-[#777794]" />
               <input
@@ -512,7 +582,7 @@ export default function Login({
             </div>
           )}
 
-          {isAuthMode && (
+          {isAuthMode && !(mode === 'signup' && signupStep === 2) && (
             <>
               <div className="relative mt-[22px]">
                 <Lock className="pointer-events-none absolute left-[22px] top-1/2 h-[21px] w-[21px] -translate-y-1/2 text-[#777794]" />
@@ -585,6 +655,57 @@ export default function Login({
                 </>
               )}
             </>
+          )}
+
+          {mode === 'signup' && signupStep === 2 && (
+            <section className="mt-[26px]">
+              <p className="text-[12px] leading-5 text-[#75839f]">{copy.profileStepHint}</p>
+              <label className="mt-5 block text-[11px] text-[#7786a4]" htmlFor="signup-community-nickname">
+                {copy.communityNickname}
+              </label>
+              <input
+                id="signup-community-nickname"
+                type="text"
+                autoComplete="nickname"
+                value={communityNickname}
+                onChange={(event) => {
+                  setCommunityNickname(event.target.value);
+                  setError('');
+                }}
+                maxLength={16}
+                placeholder={copy.communityNicknamePlaceholder}
+                className="mt-2 h-[54px] w-full appearance-none rounded-[8px] border border-[#1f304d]/90 bg-[#030a18]/[0.36] px-4 text-[15px] font-normal text-white outline-none transition placeholder:text-[#777794] focus:border-[#1d8dff]/80 focus:bg-[#051024]/[0.72]"
+                disabled={loading}
+              />
+              <p className="mt-2 text-[10px] leading-4 text-[#66728c]">{copy.communityNicknameRule}</p>
+
+              <div className="mb-2.5 mt-5 flex items-center justify-between">
+                <p className="text-[11px] text-[#7786a4]">{copy.chooseAvatar}</p>
+                <span className="text-[10px] text-[#66728c]">{communityAvatarKey ? '1 / 1' : '0 / 1'}</span>
+              </div>
+              <div className="grid grid-cols-6 gap-2">
+                {COMMUNITY_AVATAR_OPTIONS.map((avatar) => {
+                  const selected = communityAvatarKey === avatar.key;
+                  return (
+                    <button
+                      key={avatar.key}
+                      type="button"
+                      onClick={() => {
+                        setCommunityAvatarKey(avatar.key);
+                        setError('');
+                      }}
+                      disabled={loading}
+                      aria-label={language === 'en' ? avatar.labelEn : avatar.labelZh}
+                      aria-pressed={selected}
+                      className={`relative aspect-square min-w-0 overflow-hidden rounded-full border bg-[#070a0f] transition active:scale-95 disabled:opacity-60 ${selected ? 'border-[#2a9dff] shadow-[0_0_14px_rgba(42,157,255,0.30)]' : 'border-[#1f304d]/65 opacity-70'}`}
+                    >
+                      <img src={avatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} />
+                      {selected && <span className="absolute inset-x-[30%] bottom-0 h-0.5 rounded-full bg-[#25d8e6]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           )}
 
           {mode === 'newpw' && (
