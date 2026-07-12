@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - 新增交易 iOS 键盘遮挡修复
 
-- Commit: `same v10.7.9.320 release commit`。
-- Deployment: 用户已确认与资产走势弹窗一起部署;runtime 提交、Actions、Vercel target 和生产入口待回填。
+- Commit: `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`。
+- Deployment: 已与资产走势弹窗一起上线。`npm run verify:deploy-status -- 28cecac` pass;GitHub Actions run `29195304295` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G2HNApMpsV9nmGzBAsPnwmaG5gTB` success,生产入口 `/assets/index-DsdkiR0I.js`。
 - Background: 用户在 iOS 新增交易弹窗输入股数时,键盘缩小可见视口后日期区域被下方操作区遮挡,且弹窗内容无法正常纵向滚动。
 - Workflow tier: `ui-fast`。
 - Root cause: 交易页打开弹窗时已用 `body position: fixed + overflow: hidden` 锁定背景,但同时又设置 `body touch-action: none`;iOS 的触摸手势会综合命中元素与祖先级 `touch-action`,因此这条规则连弹窗内部滚动也一起禁止。
@@ -15,14 +15,14 @@
   - 移除交易页弹窗锁定中的 `body touch-action: none`;继续保留 `body position: fixed`、`overflow: hidden`、原滚动位置恢复和 `html overscroll-behavior: none`,背景仍不可滚动。
   - 新增/修改交易表单的共享内容区显式增加 `touch-pan-y`、底部滚动留白和 iOS 惯性滚动,键盘打开后可把日期区域滚动到可见位置。
 - Key files: `src/tabs/TradesTab.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`。
-- Validation: 按 `ui-fast` 执行交易/弹窗定向测试 46/46 pass、`npm run build` pass、`git diff --check` pass。本地 390x560 聚焦股数后确认 `body touch-action=auto`、内容区 `touch-action=pan-y`、页面 `scrollWidth/clientWidth=390/390`;进一步压缩到 390x460 后,内容区为 `scrollHeight/clientHeight=372/265`,纵向滚动从 `scrollTop=0` 到 `107`,日期输入顺利移到可见区域。修复后的本地“新增交易”页已在电脑 Chrome 打开并保持 `META / 669.5 / 500` 输入状态供用户调试。本轮不改交易数据、提交回调或安全边界,因此不跑完整 `npm test`、5 页 frontend smoke 或 audit。
+- Validation: 按 `ui-fast` 执行交易/弹窗定向测试 46/46 pass、`npm run build` pass、docs consistency pass、`git diff --check` pass。本地 390x560 聚焦股数后确认 `body touch-action=auto`、内容区 `touch-action=pan-y`、页面 `scrollWidth/clientWidth=390/390`;进一步压缩到 390x460 后,内容区为 `scrollHeight/clientHeight=372/265`,纵向滚动从 `scrollTop=0` 到 `107`,日期输入顺利移到可见区域。修复后的本地“新增交易”页已在电脑 Chrome 打开并保持 `META / 669.5 / 500` 输入状态供用户调试。生产 `TradesTab-SSoa6G1O.js` 与本地 SHA-256 一致;未登录 quote、earnings 均保持 `401`。本轮不改交易数据、提交回调或安全边界,因此不跑完整 `npm test`、5 页 frontend smoke 或 audit。
 - Boundaries: 不改 `confirmTradeSubmit`、`addTrade`、买入/卖出、价格/股数/日期数据、`stock_trades`、持仓、收益快照、数据库、RLS、鉴权、行情 relay、API、环境变量或 Vercel 配置。
 - Rollback: 回退本条交易页 CSS class、测试和日志即可;无账本、数据或环境回滚。
 
 ### 2026-07-12 - 资产走势弹窗统一新版视觉
 
-- Commit: `same v10.7.9.320 release commit`。
-- Deployment: 用户已确认与新增交易 iOS 滚动修复一起部署;runtime 提交、Actions、Vercel target 和生产入口待回填。
+- Commit: `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`。
+- Deployment: 已与新增交易 iOS 滚动修复一起上线。`npm run verify:deploy-status -- 28cecac` pass;GitHub Actions run `29195304295` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G2HNApMpsV9nmGzBAsPnwmaG5gTB` success,生产入口 `/assets/index-DsdkiR0I.js`。
 - Background: 用户要求立即用新 `ui-fast` 流程把资产页弹窗与现有新版交易弹窗风格同步。检查确认新增账户、账户操作、修改账户和填月度余额已经使用共享 `ActionModalCard`,剩余未统一的是“12 个月资产走势”详情。
 - Workflow tier: `ui-fast`。
 - Changes:
@@ -32,7 +32,7 @@
   - 月份、资产金额、环比金额/比例、红绿配色和“补录/修改月度余额”回调保持原样;当前月只改为较弱中性选中层级。
   - 增加中英文关闭语义和定向边界断言,确保共享外壳数量、原宽度、原回调与旧外壳清理可回归。
 - Key files: `src/tabs/AnalysisTab.jsx`,`src/lib/i18n.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`。
-- Validation: 按 `ui-fast` 执行资产/弹窗定向测试 46/46 pass、`npm run build` pass、`git diff --check` pass。390x844 本地视觉确认弹窗为 358px 宽、页面 `scrollWidth/clientWidth=390/390`、共享内容区独立滚动、底部中性按钮固定可用;从走势弹窗进入“填月度余额”回调正常。输入视口压缩到 390x560 后,数字输入框仍为 116px 宽且位于可见区中部,页面仍为 390/390 无横向溢出。截图: `~/Desktop/boduan-previews/assets-month-trend-new-style.jpg`。本轮不改业务、数据或安全边界,因此不跑完整 `npm test`、5 页 frontend smoke 或 audit。
+- Validation: 按 `ui-fast` 执行资产/弹窗定向测试 46/46 pass、`npm run build` pass、docs consistency pass、`git diff --check` pass。390x844 本地视觉确认弹窗为 358px 宽、页面 `scrollWidth/clientWidth=390/390`、共享内容区独立滚动、底部中性按钮固定可用;从走势弹窗进入“填月度余额”回调正常。输入视口压缩到 390x560 后,数字输入框仍为 116px 宽且位于可见区中部,页面仍为 390/390 无横向溢出。生产入口、Analysis、Trades、Settings 与更新日志 5 个关键构建文件均与本地 SHA-256 一致,线上命中 `v10.7.9.320` 和本次更新标题 marker;未登录 quote、earnings 均保持 `401`。截图: `~/Desktop/boduan-previews/assets-month-trend-borderless.jpg`。本轮不改业务、数据或安全边界,因此不跑完整 `npm test`、5 页 frontend smoke 或 audit。
 - Boundaries: 不改 `db.insertAccount`、`db.updateAccount`、`db.upsertSnapshot`、月度汇总、资产计算、交易账本、收益快照、数据库、RLS、鉴权、行情 relay、API、环境变量或 Vercel 配置。
 - Rollback: 回退本条弹窗 JSX、i18n、测试和日志即可;无数据或环境回滚。
 

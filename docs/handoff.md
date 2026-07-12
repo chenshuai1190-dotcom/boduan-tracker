@@ -7,12 +7,13 @@
 ## 0. 给下一位同事的直接接手摘要
 
 - 当前本地与生产版本: `v10.7.9.320`;资产页 12 个月走势已统一新版弹窗并取消列表外侧内框,新增/修改交易已修复 iOS 键盘下内容无法滚动的遮挡问题;资产与交易数据逻辑不变。
-- 最新已上线版本为 `v10.7.9.319`,production runtime `320f0520b29f7a20d24322e299ce89d4cff1267b`,入口 `/assets/index-BgVJzVSl.js`。
+- 最新已上线版本为 `v10.7.9.320`,production runtime `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`,入口 `/assets/index-DsdkiR0I.js`。
 - `v10.7.9.316` 只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地与生产设置页版本均为 `v10.7.9.319`。生产运行时基准提交为 `320f0520b29f7a20d24322e299ce89d4cff1267b`,入口 `/assets/index-BgVJzVSl.js`。
+- 当前本地与生产设置页版本均为 `v10.7.9.320`。生产运行时基准提交为 `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`,入口 `/assets/index-DsdkiR0I.js`。
+- `v10.7.9.320` 验证:资产/交易弹窗定向 46/46、build、docs consistency、diff check 和 `verify:deploy-status -- 28cecac` 均 pass;Actions `29195304295` 与 Vercel `G2HNApMpsV9nmGzBAsPnwmaG5gTB` success。生产入口、Analysis、Trades、Settings 与更新日志 5 个关键文件均与本地 SHA-256 一致,线上命中 v320/更新标题 marker,quote、earnings 未登录保持 `401`。按 `ui-fast` 规则未跑完整测试、5 页 smoke 或 audit。
 - `v10.7.9.319` 验证:目标页定向 46/46、完整测试 255/255、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 均 pass。`verify:deploy-status -- 320f052` pass,Actions `29193491014` 与 Vercel `CAf9PQWVdE19L7Kau2Wh1vUgKWzP` success;三个关键 chunk 与本地 SHA-256 一致,生产命中 v319/100%/公式/160px marker,quote、earnings 未登录保持 `401`。
 - `v10.7.9.316` 验证:定向 45/45、完整测试 253/253、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 和 `npm run verify:deploy-status -- 4302f0a` 均 pass;GitHub Actions run `29188138401` 与 Vercel target `EfhqACofs6jB8oUok8AgTqNaY8o1` success。390x844 与 390x568 输入聚焦视觉检查横向零溢出、未跳顶、console error 0;生产 29 个 assets 命中 v316/新版弹窗/visual viewport/邀请码邮箱 marker,quote、earnings 均为 `401`。
 - `v10.7.9.318` 验证:波段/边界定向 59/59、完整测试 255/255、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 和 390x844/390x560 视觉检查均 pass。波段目标价只做弹窗内纯计算,单价保持 USD,收益金额跟随首页币种;不写数据库或账本。最新收益点创新高时峰值标记已恢复。`verify:deploy-status -- 3e38485` pass,Actions `29192839345` 与 Vercel `8E6Na4UWfXb5chs4Z9WqCPHuo8nP` success;生产 28 个 JS assets 命中 v318/目标价/峰值 marker,四个关键 chunk 与本地构建 SHA-256 一致,quote、earnings 未登录保持 `401`。
@@ -60,7 +61,7 @@
 - 当前本地与生产设置页版本均为 `v10.7.9.320`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
-- 最新运行时部署: `npm run verify:deploy-status -- 320f052` pass;GitHub Actions run `29193491014` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP`;production alias 已更新,入口 `/assets/index-BgVJzVSl.js`。
+- 最新运行时部署: `npm run verify:deploy-status -- 28cecac` pass;GitHub Actions run `29195304295` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G2HNApMpsV9nmGzBAsPnwmaG5gTB`;production alias 已更新,入口 `/assets/index-DsdkiR0I.js`。
 - 最近交接文档刷新部署: `0aa87dfe72b3690bedb4c5425016c699f607cb01` 已通过 GitHub Actions run `29161798255` 和 Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G9h6ueyaBhcPdNKUY4xTuPwEyzFL`;生产入口保持 `/assets/index-CD6hu3eq.js`,运行时代码仍为 `bf48e5a` / `v10.7.9.303`。
 - 线上关键验证: 未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;生产 marker 命中 `v10.7.9.305`、`收益比赛收盘持仓公开与用户卡`、`收盘持仓代码`、`当前空仓` 和 `持仓暂不可用`,且不含 `DevVisualPreview`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图;`v10.7.9.278` 已上线首页当前信号文字降重;`v10.7.9.279` 已上线首页股票文字继续降重;`v10.7.9.280` 已上线个股收益峰值呼吸点;`v10.7.9.281` 已上线收益报表对比浮层;`v10.7.9.282` 已上线收益报表浮层颜色和页面文案调整;`v10.7.9.283` 已上线个股详情持仓时间;`v10.7.9.284` 已上线自选添加股票校验;`v10.7.9.285` 已上线热门股票弹窗实时行情。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
@@ -738,15 +739,15 @@ npm ci
 仓库: `chenshuai1190-dotcom/boduan-tracker`
 生产地址: https://boduan-tracker.vercel.app
 
-当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `320f0520b29f7a20d24322e299ce89d4cff1267b`
-当前前台可见运行时基准提交: `320f0520b29f7a20d24322e299ce89d4cff1267b`
+当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`
+当前前台可见运行时基准提交: `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`
 设置页版本: `v10.7.9.320`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
-最新运行时部署: `320f0520b29f7a20d24322e299ce89d4cff1267b` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP`,Actions run `29193491014`
-最新生产入口: `/assets/index-BgVJzVSl.js`
+最新运行时部署: `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G2HNApMpsV9nmGzBAsPnwmaG5gTB`,Actions run `29195304295`
+最新生产入口: `/assets/index-DsdkiR0I.js`
 
 最新已上线:
-- `v10.7.9.320` 已接入:资产走势统一新版弹窗并取消列表外侧内框;新增/修改交易修复 iOS 键盘下内容无法滚动遮挡;定向 46/46、build 和 diff check 均 pass,不改数据与回调,部署证据待回填。
+- `v10.7.9.320` 已上线:资产走势统一新版弹窗并取消列表外侧内框;新增/修改交易修复 iOS 键盘下内容无法滚动遮挡;定向 46/46、build、docs consistency、diff check 和 deploy status 均 pass,5 个关键生产文件与本地 SHA-256 一致,不改数据与回调。
 - `v10.7.9.316` 已上线:只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示;完整测试 253/253、build、5/5 frontend smoke、high audit、390px/短视口和生产 marker/鉴权验证均 pass
 - `v10.7.9.315` 已上线:邀请注册增加必选社区昵称与 18 款头像明确选择;服务端先写完整社区资料再消费邀请码,失败回滚 Auth 用户;不自动加入收益比赛;生产 SQL、metadata/RLS、Actions/Vercel、资源与鉴权边界均已验证
 - `v10.7.9.314` 已上线:设置页头部头像增加独立中性外框并从 79px 放大到 95px;头像选择器和收益比赛展示不变
