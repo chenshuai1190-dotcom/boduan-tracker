@@ -6,7 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前本地与生产版本: `v10.7.9.319`;当前年度目标右侧摘要已增加目标/实现/落后或超额百分比,摘要列加宽到 `160px`,不改整卡宽度或年度目标计算。
+- 当前本地与生产版本: `v10.7.9.320`;资产页 12 个月走势已统一新版弹窗并取消列表外侧内框,新增/修改交易已修复 iOS 键盘下内容无法滚动的遮挡问题;资产与交易数据逻辑不变。
 - 最新已上线版本为 `v10.7.9.319`,production runtime `320f0520b29f7a20d24322e299ce89d4cff1267b`,入口 `/assets/index-BgVJzVSl.js`。
 - `v10.7.9.316` 只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
@@ -57,7 +57,7 @@
 - 最新流程补充: 开发验证改为四档风险流程。`ui-fast` 是纯文字/颜色/间距/字号/边框/已确认原型等价接入的快速通道,只跑相关定向测试、build 和 diff check,不默认跑全量 test/smoke/audit/环境检查;`runtime` 用于业务计算、状态、回调、数据读写和构建行为;`docs-only` 用于纯文档;`sensitive` 用于账本、数据库、RLS、鉴权、行情和安全边界。同一会话已 pass 的工具链/环境结果不重复跑;用户说先本地时不推送,明确说部署时 `ui-fast` 可直接用快速验证上线。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `320f0520b29f7a20d24322e299ce89d4cff1267b`。
 - 当前生产运行时基准提交: `320f0520b29f7a20d24322e299ce89d4cff1267b`。
-- 当前本地与生产设置页版本均为 `v10.7.9.319`。
+- 当前本地与生产设置页版本均为 `v10.7.9.320`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- 320f052` pass;GitHub Actions run `29193491014` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP`;production alias 已更新,入口 `/assets/index-BgVJzVSl.js`。
@@ -70,12 +70,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地与生产设置页版本均为 `v10.7.9.319`。v319 仅给当前年度目标摘要增加百分比并加宽摘要列;v318 的波段预测、收益峰值修复和 v317 清理继续有效。
+- 当前本地与生产设置页版本均为 `v10.7.9.320`。v320 包含资产走势新版弹窗和 iOS 新增交易内部滚动修复;v319 年度目标百分比继续有效。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `320f0520b29f7a20d24322e299ce89d4cff1267b`。
 - 当前生产运行时基准提交: `320f0520b29f7a20d24322e299ce89d4cff1267b`。
 - 最近应用代码提交: `320f0520b29f7a20d24322e299ce89d4cff1267b` 包含 `v10.7.9.319` 年度目标摘要百分比;`3e384856646901c0f6884ec87e4b95d60f24c0fe` 包含 `v10.7.9.318` 波段预测、峰值修复和 v317 清理;`4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` 包含 `v10.7.9.316` 已确认弹窗统一。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前生产设置页版本: `v10.7.9.319`。
+- 当前生产设置页版本: `v10.7.9.320`。
 - Vercel 最新部署: `v10.7.9.319` runtime commit `320f0520b29f7a20d24322e299ce89d4cff1267b` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP`,production 入口 `/assets/index-BgVJzVSl.js`,目标/设置/更新日志三个关键 chunk 与本地构建 SHA-256 一致。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
@@ -740,13 +740,13 @@ npm ci
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `320f0520b29f7a20d24322e299ce89d4cff1267b`
 当前前台可见运行时基准提交: `320f0520b29f7a20d24322e299ce89d4cff1267b`
-设置页版本: `v10.7.9.319`
+设置页版本: `v10.7.9.320`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `320f0520b29f7a20d24322e299ce89d4cff1267b` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP`,Actions run `29193491014`
 最新生产入口: `/assets/index-BgVJzVSl.js`
 
 最新已上线:
-- `v10.7.9.319` 已上线:当前年度目标摘要显示目标 100%、实现百分比与落后/超额百分比,摘要列加宽到 160px,不改整卡宽度或原计算;完整测试 255/255、build、5/5 smoke、high audit、Actions/Vercel/生产 marker/鉴权均 pass。
+- `v10.7.9.320` 已接入:资产走势统一新版弹窗并取消列表外侧内框;新增/修改交易修复 iOS 键盘下内容无法滚动遮挡;定向 46/46、build 和 diff check 均 pass,不改数据与回调,部署证据待回填。
 - `v10.7.9.316` 已上线:只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示;完整测试 253/253、build、5/5 frontend smoke、high audit、390px/短视口和生产 marker/鉴权验证均 pass
 - `v10.7.9.315` 已上线:邀请注册增加必选社区昵称与 18 款头像明确选择;服务端先写完整社区资料再消费邀请码,失败回滚 Auth 用户;不自动加入收益比赛;生产 SQL、metadata/RLS、Actions/Vercel、资源与鉴权边界均已验证
 - `v10.7.9.314` 已上线:设置页头部头像增加独立中性外框并从 79px 放大到 95px;头像选择器和收益比赛展示不变

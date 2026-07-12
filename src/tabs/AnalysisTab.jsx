@@ -14,7 +14,6 @@ import {
   PiggyBank,
   Plus,
   WalletCards,
-  X,
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
@@ -1121,18 +1120,24 @@ function AnalysisTab({ ctx }) {
       )}
 
       {showMonthsDetail && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/[0.72] px-4 backdrop-blur-sm" onClick={() => setShowMonthsDetail(false)}>
-          <div className="w-full max-w-[390px] overflow-hidden rounded-[24px] border border-white/[0.12] bg-[#0b1018] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-              <div className="flex items-center gap-1.5 text-[16px] text-white/[0.92]">
-                <CalendarDays className="h-4 w-4" style={{ color: ASSET_GOLD }} strokeWidth={1.8} />
-                <span>{tt('analysis.monthTrendTitle', '12 个月资产走势')}</span>
-              </div>
-              <button onClick={() => setShowMonthsDetail(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.55]">
-                <X className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            </div>
-            <div className="max-h-[70vh] space-y-2 overflow-y-auto p-3">
+        <ActionModalCard
+          title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
+          closeLabel={tt('analysis.closeMonthTrend', '关闭 12 个月资产走势')}
+          onClose={() => setShowMonthsDetail(false)}
+          widthClassName="w-[calc(100vw-32px)] max-w-[390px]"
+          contentClassName="space-y-2 !border-0 !bg-transparent !p-0 !shadow-none"
+          actions={[
+            {
+              key: 'fill-monthly-balance',
+              label: tt('analysis.fillOrEditMonthlyBalance', '补录/修改月度余额'),
+              onClick: () => {
+                setShowMonthsDetail(false);
+                setFillMonth(currentMonth);
+                setShowFillSnapshot(true);
+              },
+            },
+          ]}
+        >
               {[...last12Months].reverse().map((m, idx) => {
                 const reversedIdx = last12Months.length - 1 - idx;
                 const total = chartData[reversedIdx];
@@ -1144,10 +1149,7 @@ function AnalysisTab({ ctx }) {
                 return (
                   <div
                     key={m}
-                    className="flex items-center justify-between rounded-xl border px-3 py-3"
-                    style={isCurrent
-                      ? { borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' }
-                      : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}
+                    className={`flex items-center justify-between rounded-[13px] border px-3 py-3 ${isCurrent ? 'border-white/[0.11] bg-white/[0.045]' : 'border-white/[0.055] bg-black/[0.12]'}`}
                   >
                     <div>
                       <div className="text-[13px] tabular-nums text-white/[0.82]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{m}</div>
@@ -1166,23 +1168,7 @@ function AnalysisTab({ ctx }) {
                   </div>
                 );
               })}
-            </div>
-            <div className="border-t border-white/10 p-4">
-              <button
-                onClick={() => {
-                  setShowMonthsDetail(false);
-                  setFillMonth(currentMonth);
-                  setShowFillSnapshot(true);
-                }}
-                className="flex min-h-[46px] w-full items-center justify-center gap-1.5 rounded-xl border text-[13px] active:scale-95 transition"
-                style={{ borderColor: 'rgba(246,197,111,0.55)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
-                {tt('analysis.fillOrEditMonthlyBalance', '补录/修改月度余额')}
-              </button>
-            </div>
-          </div>
-        </div>
+        </ActionModalCard>
       )}
 
       {showFillSnapshot && (

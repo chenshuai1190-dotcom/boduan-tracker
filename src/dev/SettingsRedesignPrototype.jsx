@@ -300,7 +300,7 @@ export default function SettingsRedesignPrototype() {
           <button className="flex min-h-[62px] w-full items-center gap-3 px-5 text-left" onClick={() => setShowLog((value) => !value)} type="button">
             <Globe2 className="h-[18px] w-[18px] text-white/42" />
             <span className="flex-1 text-[13px] text-white/68">更新日志</span>
-            <span className="text-[10px] text-white/28">v10.7.9.319</span>
+            <span className="text-[10px] text-white/28">v10.7.9.320</span>
             {showLog ? <ChevronDown className="h-4 w-4 text-white/30" /> : <ChevronRight className="h-4 w-4 text-white/30" />}
           </button>
           {showLog && (

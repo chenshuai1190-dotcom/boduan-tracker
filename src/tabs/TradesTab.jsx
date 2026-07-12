@@ -538,7 +538,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       bodyLeft: bodyStyle.left,
       bodyRight: bodyStyle.right,
       bodyWidth: bodyStyle.width,
-      bodyTouchAction: bodyStyle.touchAction,
       htmlOverflow: htmlStyle.overflow,
       htmlOverscrollBehavior: htmlStyle.overscrollBehavior,
     };
@@ -549,7 +548,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     bodyStyle.left = '0';
     bodyStyle.right = '0';
     bodyStyle.width = '100%';
-    bodyStyle.touchAction = 'none';
     htmlStyle.overflow = 'hidden';
     htmlStyle.overscrollBehavior = 'none';
 
@@ -560,7 +558,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       bodyStyle.left = previous.bodyLeft;
       bodyStyle.right = previous.bodyRight;
       bodyStyle.width = previous.bodyWidth;
-      bodyStyle.touchAction = previous.bodyTouchAction;
       htmlStyle.overflow = previous.htmlOverflow;
       htmlStyle.overscrollBehavior = previous.htmlOverscrollBehavior;
       window.scrollTo(0, scrollY);
@@ -2065,6 +2062,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
             widthClassName="w-[calc(100vw-24px)] max-w-md"
             panelClassName="min-h-0"
+            contentClassName="touch-pan-y scroll-pb-24 [-webkit-overflow-scrolling:touch]"
             actions={[
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },

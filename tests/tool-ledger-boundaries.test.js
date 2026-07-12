@@ -447,6 +447,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes("onClick: () => confirmTradeSubmit('buy')"), 'buy button should submit with buy side');
   assert.ok(tradeModalBlock.includes("onClick: () => confirmTradeSubmit('sell')"), 'sell button should submit with sell side');
   assert.ok(tradeModalBlock.includes('<ActionModalCard'), 'trade entry should reuse the approved shared modal shell');
+  assert.ok(tradeModalBlock.includes('contentClassName="touch-pan-y scroll-pb-24 [-webkit-overflow-scrolling:touch]"'), 'trade entry content should remain vertically scrollable when the iOS keyboard reduces the visual viewport');
+  assert.equal(tradesTabSource.includes("bodyStyle.touchAction = 'none'"), false, 'trade dialog background locking must not disable touch scrolling inside the modal');
+  assert.ok(tradesTabSource.includes("bodyStyle.position = 'fixed'") && tradesTabSource.includes("bodyStyle.overflow = 'hidden'"), 'trade dialog should keep the background locked without blocking modal gestures');
   assert.ok(tradeModalBlock.includes('widthClassName="w-[calc(100vw-24px)] max-w-md"'), 'trade entry should preserve its existing wide mobile geometry');
   assert.equal(tradeModalBlock.includes('<TrendingUp className="h-4 w-4"'), false, 'shared modal actions should use text-only neutral controls');
   assert.equal(tradeModalBlock.includes('<TrendingDown className="h-4 w-4"'), false, 'shared modal actions should use text-only neutral controls');
@@ -471,8 +474,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.319'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.319', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.320'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.320', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1546,7 +1549,7 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.ok(analysisTabSource.includes('ACCOUNT_TYPE_OPTIONS'), 'asset accounts should use the custom line-icon type grid');
   assert.ok(analysisTabSource.includes('Landmark'), 'bank accounts should use lucide line icons rather than emoji');
   assert.ok(analysisTabSource.includes('WalletCards'), 'payment accounts should use lucide line icons rather than emoji');
-  assert.ok(analysisTabSource.includes('bg-black/[0.72]'), 'asset modals should use centered dark in-app overlays');
+  assert.ok(analysisTabSource.includes('<ActionModalCard') && actionModalCardSource.includes('bg-black/[0.62]'), 'asset modals should use the shared centered dark in-app overlay');
   assert.ok(analysisTabSource.includes('text-[#f5f7fb]'), 'asset modal inputs should force visible dark-theme text');
   assert.ok(analysisTabSource.includes('placeholder:text-[#6f7887]'), 'asset modal placeholders should stay visible on iOS keyboards');
   assert.ok(analysisTabSource.includes('db.insertAccount'), 'add account must keep the existing account insert path');
@@ -1839,7 +1842,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.319'"), 'settings version source should document the current annual summary percentage release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.320'"), 'settings version source should document the current asset modal and iOS scroll release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2159,7 +2162,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.319'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.320'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2348,14 +2351,18 @@ test('account, order, and delete action modals match the approved glass-card des
 test('approved modal families share the new shell without widening business boundaries', () => {
   const tradeEntryBlock = tradesTabSource.slice(tradesTabSource.indexOf('{showAddTrade && ('), tradesTabSource.indexOf('{showCostTool && (() => {'));
   const costBasisDialogsBlock = appSource.slice(appSource.indexOf('{showCostBasisAdd && ('), appSource.indexOf('{/* 底部 5 tab 导航栏 */}'));
-  const assetDialogsBlock = analysisTabSource.slice(analysisTabSource.indexOf('{showAddAccount && ('), analysisTabSource.indexOf('{showMonthsDetail && ('))
-    + analysisTabSource.slice(analysisTabSource.indexOf('{showFillSnapshot && ('), analysisTabSource.lastIndexOf('</div>'));
+  const assetDialogsBlock = analysisTabSource.slice(analysisTabSource.indexOf('{showAddAccount && ('), analysisTabSource.lastIndexOf('</div>'));
   const passwordDialogBlock = settingsTabSource.slice(settingsTabSource.indexOf('{showChangePassword && ('), settingsTabSource.indexOf('export default React.memo'));
   const reviewEditorBlock = appSource.slice(appSource.indexOf('function DisciplineModal'), appSource.indexOf('// ============ 美股中英对照表'));
   const homeNoticeBlock = homeTabSource.slice(homeTabSource.indexOf('{addStockNotice && ('), homeTabSource.lastIndexOf('</div>'));
 
   assert.ok(tradeEntryBlock.includes('<ActionModalCard') && costBasisDialogsBlock.match(/<ActionModalCard/g)?.length === 2, 'transaction and cost-basis dialogs should cover the three approved transaction families');
-  assert.ok(assetDialogsBlock.match(/<ActionModalCard/g)?.length >= 4, 'asset add, account action, edit, and monthly balance dialogs should reuse the shared shell');
+  assert.equal(assetDialogsBlock.match(/<ActionModalCard/g)?.length, 5, 'asset add, account action, edit, month trend, and monthly balance dialogs should reuse the shared shell');
+  assert.ok(assetDialogsBlock.includes("title={tt('analysis.monthTrendTitle', '12 个月资产走势')}") && assetDialogsBlock.includes('widthClassName="w-[calc(100vw-32px)] max-w-[390px]"'), 'asset month trend should keep its wide geometry while adopting the shared modal style');
+  assert.ok(assetDialogsBlock.includes('contentClassName="space-y-2 !border-0 !bg-transparent !p-0 !shadow-none"'), 'asset month trend should remove the redundant full-content inner frame');
+  assert.ok(assetDialogsBlock.includes("key: 'fill-monthly-balance'") && assetDialogsBlock.includes('setShowFillSnapshot(true);'), 'asset month trend should preserve the existing monthly balance handoff');
+  assert.equal(assetDialogsBlock.includes('fixed inset-0 z-[100]'), false, 'asset month trend should remove its legacy custom overlay');
+  assert.equal(assetDialogsBlock.includes('max-h-[70vh]'), false, 'asset month trend should rely on the shared internal scroller');
   assert.ok(passwordDialogBlock.includes('<ActionModalCard') && passwordDialogBlock.includes('passwordChangeHint'), 'password editor should use the shared shell and preserve the approved hint spacing');
   assert.ok(reviewTabSource.includes('function ReviewActionSheet') && reviewTabSource.includes('actionGridClassName="grid-cols-3"') && reviewTabSource.includes("title={tt('review.planSettings', '北极星设置')}"), 'year actions, detail actions, and North Star settings should use the approved review modal style');
   assert.ok(reviewEditorBlock.match(/<ActionModalCard/g)?.length === 3, 'discipline, review-log, and yearly-actual editors should use the shared shell');
