@@ -4,6 +4,21 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 设置页头部头像外框与二次放大
+
+- Deployment: not deployed;本地 `v10.7.9.314`,生产仍为 `v10.7.9.313`。
+- Background: 用户要求设置页头像区域增加独立外边框,同时把头部头像再放大约 20%,且不能影响头像在收益比赛等展示页面的效果。
+- Workflow tier: `runtime`。
+- Changes:
+  - 仅在设置页头部身份卡的头像容器增加低亮中性外边框、暗色底层和轻量外发光,素材本身继续保持 v313 的无白边裁切。
+  - 头部头像容器从 `79px` 放大到 `95px`,约增加 20%;卡片宽度、最小高度和昵称位置逻辑不变。
+  - 设置页头像选择器与 `CommunityCompetitionPage` 继续沿用原尺寸和 `scale-[1.15]` 裁切,不继承本次外框。
+  - 设置页与更新日志版本同步为 `v10.7.9.314`。
+- Key files: `src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 社区/边界定向测试 53/53、完整测试 247/247、production build、5/5 frontend smoke（各 tab console/runtime error 0）、high audit 0 vulnerabilities、docs consistency 和 diff check 全部 pass。390x844 正式设置页 mock 复核:头部外框为 95×95px、1px `rgba(255,255,255,0.18)`,内部头像 91×91px 且 border width 为 0,卡片仍为 358×176px,页面 `scrollWidth=390` / `clientWidth=390`;截图 `/tmp/boduan-settings-avatar-frame-v314.png`。收益比赛预览 7 个榜单头像仍为 32×32px、原排名边框和 `scale(1.15)`,设置页 95px 外框节点为 0。
+- Boundaries: 只改设置页头部头像容器视觉;不改头像素材/key、选择器、收益比赛头像、昵称校验、资料保存、Supabase、RLS、比赛收益/快照、交易账本、行情 relay、`/api/quote` 或 `/api/earnings-calendar`。
+- Rollback: 回退本条 UI、版本、更新日志、测试和文档即可;没有 SQL、数据或配置变更。
+
 ### 2026-07-12 - 设置页头像去白边与放大
 
 - Deployment: completed;runtime commit `e37bd8643c68f928b58919114c6bb72a6cea351e`,GitHub Actions run `29183688396` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CvEfjcmjcs1pYrwPJU94zRYB72pC` success,production alias 已更新,入口 `/assets/index-CgpI3hB0.js`。

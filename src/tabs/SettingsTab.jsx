@@ -28,7 +28,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.313';
+const SETTINGS_VERSION = 'v10.7.9.314';
 
 function communityAvatarImageClass() {
   return 'scale-[1.15]';
@@ -584,8 +584,8 @@ function SettingsTab({ ctx }) {
           aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
           className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
         >
-          <span className="relative h-[79px] w-[79px]">
-            <span className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
+          <span className="relative h-[95px] w-[95px] rounded-full border border-white/[0.18] bg-[#080c12] shadow-[0_0_0_3px_rgba(255,255,255,0.025),0_0_24px_rgba(36,90,202,0.18)]">
+            <span className="absolute inset-px flex items-center justify-center overflow-hidden rounded-full bg-[#070a0f]">
               {communityHydrating
                 ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
                 : <img src={selectedCommunityAvatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(selectedCommunityAvatar.key)}`} draggable={false} />}

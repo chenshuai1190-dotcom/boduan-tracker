@@ -265,8 +265,8 @@ export default function SettingsRedesignPrototype() {
           onClick={() => setShowCommunityProfile(true)}
           type="button"
         >
-          <span className="relative h-[79px] w-[79px]">
-            <span className="absolute inset-0 overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
+          <span className="relative h-[95px] w-[95px] rounded-full border border-white/[0.18] bg-[#080c12] shadow-[0_0_0_3px_rgba(255,255,255,0.025),0_0_24px_rgba(36,90,202,0.18)]">
+            <span className="absolute inset-px overflow-hidden rounded-full bg-[#070a0f]">
               <img alt="社区头像" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} src={avatar.src} />
             </span>
             <span className="absolute -bottom-0.5 -right-0.5 flex h-[21px] w-[21px] items-center justify-center rounded-full border border-white/[0.12] bg-[#11161f] text-[#f2b65d] shadow-[0_4px_10px_rgba(0,0,0,0.45)]">
@@ -300,7 +300,7 @@ export default function SettingsRedesignPrototype() {
           <button className="flex min-h-[62px] w-full items-center gap-3 px-5 text-left" onClick={() => setShowLog((value) => !value)} type="button">
             <Globe2 className="h-[18px] w-[18px] text-white/42" />
             <span className="flex-1 text-[13px] text-white/68">更新日志</span>
-            <span className="text-[10px] text-white/28">v10.7.9.313</span>
+            <span className="text-[10px] text-white/28">v10.7.9.314</span>
             {showLog ? <ChevronDown className="h-4 w-4 text-white/30" /> : <ChevronRight className="h-4 w-4 text-white/30" />}
           </button>
           {showLog && (

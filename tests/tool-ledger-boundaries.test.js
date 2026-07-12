@@ -387,10 +387,11 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)'));
   assert.ok(settingsTabSource.includes('db.upsertCommunityProfile({'));
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
-  assert.ok(settingsTabSource.includes('border border-transparent bg-[#070a0f]'), 'main community avatar preview should not add a white CSS border');
+  assert.ok(settingsTabSource.includes('absolute inset-px flex items-center justify-center overflow-hidden rounded-full bg-[#070a0f]'), 'the avatar image itself should remain borderless inside the settings-only outer frame');
   assert.ok(settingsTabSource.includes("'border-transparent opacity-65'"), 'inactive community avatar options should not add a white CSS border');
   assert.ok(settingsTabSource.includes("return 'scale-[1.15]'"), 'the replacement community avatar set should crop past the source white edge');
-  assert.ok(settingsTabSource.includes('relative h-[79px] w-[79px]'), 'the settings identity avatar should be about twenty percent larger');
+  assert.ok(settingsTabSource.includes('relative h-[95px] w-[95px] rounded-full border border-white/[0.18]'), 'the settings identity avatar should gain a dedicated border and another twenty percent of size');
+  assert.ok(communityCompetitionPageSource.includes('scale-[1.15]'), 'the competition avatar crop should remain unchanged by the settings-only outer frame');
   assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
   assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => {'), 'local visual preview should mock community profile reads');
   assert.ok(devVisualPreviewSource.includes("get('communityProfileDelay') === '1'"), 'local visual preview should expose a delayed profile path for hydration smoke');
@@ -463,8 +464,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.313'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.313', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.314'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.314', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1815,7 +1816,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.313'"), 'settings version source should document the current avatar visual fix release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.314'"), 'settings version source should document the current avatar frame release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2131,7 +2132,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.313'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.314'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
