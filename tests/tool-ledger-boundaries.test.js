@@ -447,9 +447,12 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes("onClick: () => confirmTradeSubmit('buy')"), 'buy button should submit with buy side');
   assert.ok(tradeModalBlock.includes("onClick: () => confirmTradeSubmit('sell')"), 'sell button should submit with sell side');
   assert.ok(tradeModalBlock.includes('<ActionModalCard'), 'trade entry should reuse the approved shared modal shell');
-  assert.ok(tradeModalBlock.includes('scrollPanel'), 'trade entry should opt into one whole-card scroll chain when the iOS keyboard reduces the visual viewport');
-  assert.ok(actionModalCardSource.includes("scrollPanel ? 'touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain scroll-pb-24 [-webkit-overflow-scrolling:touch]' : 'overflow-hidden'"), 'the opt-in modal panel should own vertical scrolling instead of relying on a nested form scroller');
-  assert.ok(actionModalCardSource.includes("scrollPanel ? 'shrink-0 overflow-visible' : 'flex-1 overflow-y-auto overscroll-contain'"), 'whole-card scrolling should disable the nested content scroller for opted-in dialogs');
+  assert.equal(tradeModalBlock.includes('scrollPanel'), false, 'trade entry should use the same keyboard-safe content scroller as the proven wave edit dialog');
+  assert.ok(actionModalCardSource.includes('keepFocusedControlVisible') && actionModalCardSource.includes('focusedControlRef'), 'shared action dialogs should keep the active input visible after the iOS visual viewport changes');
+  assert.ok(actionModalCardSource.includes("overflowY === 'auto' || overflowY === 'scroll'"), 'focused-input recovery should select the nearest real vertical scroller, including nested wave forms');
+  assert.ok(actionModalCardSource.includes('scrollerRect.height * 0.45') && actionModalCardSource.includes('Math.min(96'), 'focused inputs should reserve lower context so the next date or field remains visible above the iOS keyboard');
+  assert.ok(actionModalCardSource.includes('scroller.scrollTop += controlRect.bottom - visibleBottom'), 'focused inputs below the shortened content viewport should scroll back into view');
+  assert.ok(actionModalCardSource.includes('ref={contentRef}') && actionModalCardSource.includes('flex-1 overflow-y-auto overscroll-contain'), 'shared modal content should retain its normal keyboard-height scroller');
   assert.equal(tradesTabSource.includes("bodyStyle.touchAction = 'none'"), false, 'trade dialog background locking must not disable touch scrolling inside the modal');
   assert.ok(tradesTabSource.includes("bodyStyle.position = 'fixed'") && tradesTabSource.includes("bodyStyle.overflow = 'hidden'"), 'trade dialog should keep the background locked without blocking modal gestures');
   assert.ok(tradeModalBlock.includes('widthClassName="w-[calc(100vw-24px)] max-w-md"'), 'trade entry should preserve its existing wide mobile geometry');
@@ -476,8 +479,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.321'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.321', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.322'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.322', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1621,7 +1624,7 @@ test('wave tracker v2 prototype stays development-only and preserves tool bounda
   assert.ok(waveTrackerPrototypeSource.includes('overflow-x-hidden') && waveTrackerPrototypeSource.includes("WebkitMinLogicalWidth: '0px'"), 'prototype form controls should prevent iOS date inputs from forcing horizontal overflow');
   assert.ok(waveTrackerPrototypeSource.includes('min-[360px]:grid-cols-2'), 'form pairs should collapse to one column on narrow screens');
   assert.ok(waveTrackerPrototypeSource.includes('min-h-[100dvh] overflow-x-hidden'), 'prototype root should prevent background content from widening narrow modal viewports');
-  assert.ok(actionModalCardSource.includes("scrollPanel ? 'shrink-0 overflow-visible' : 'flex-1 overflow-y-auto overscroll-contain'"), 'shared action modal content should keep its nested scroller by default while allowing the trade-only whole-card mode');
+  assert.ok(actionModalCardSource.includes('min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain'), 'shared action modal content should scroll vertically without widening child controls');
   assert.ok(waveTrackerPrototypeSource.includes('group.waves.findIndex((item) => item.id === wave.id)'), 'wave numbers should remain stable after status filtering');
   assert.ok(waveTrackerPrototypeSource.includes('summary.sellAverage'), 'completed group cards should use the weighted sell average');
   assert.equal(waveTrackerPrototypeSource.includes("accent: 'amber'"), false, 'active wave status should not use an undefined yellow state');
@@ -1844,7 +1847,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.321'"), 'settings version source should document the iOS whole-card scroll correction');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.322'"), 'settings version source should document shared iOS focused-input visibility');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2164,7 +2167,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.321'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.322'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

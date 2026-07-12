@@ -13,10 +13,41 @@ export default function ActionModalCard({
   widthClassName = 'w-[calc(100vw-76px)] max-w-[360px]',
   panelClassName = '',
   contentClassName = '',
-  scrollPanel = false,
 }) {
   const actionColumns = actionGridClassName || (actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
+  const panelRef = React.useRef(null);
+  const contentRef = React.useRef(null);
+  const focusedControlRef = React.useRef(null);
+
+  const keepFocusedControlVisible = React.useCallback((target = focusedControlRef.current) => {
+    const panel = panelRef.current;
+    if (!panel || !target || !panel.contains(target)) return;
+
+    let scroller = target.parentElement;
+    while (scroller && scroller !== panel) {
+      const overflowY = window.getComputedStyle(scroller).overflowY;
+      if ((overflowY === 'auto' || overflowY === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break;
+      scroller = scroller.parentElement;
+    }
+
+    if (!scroller || scroller === panel) {
+      const content = contentRef.current;
+      if (!content || content.scrollHeight <= content.clientHeight + 1) return;
+      scroller = content;
+    }
+
+    const controlRect = target.getBoundingClientRect();
+    const scrollerRect = scroller.getBoundingClientRect();
+    const visibleTop = scrollerRect.top + 12;
+    const lowerContextReserve = Math.min(96, Math.max(12, scrollerRect.height * 0.45));
+    const visibleBottom = scrollerRect.bottom - lowerContextReserve;
+    if (controlRect.bottom > visibleBottom) {
+      scroller.scrollTop += controlRect.bottom - visibleBottom;
+    } else if (controlRect.top < visibleTop) {
+      scroller.scrollTop -= visibleTop - controlRect.top;
+    }
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return undefined;
@@ -46,6 +77,12 @@ export default function ActionModalCard({
     };
   }, []);
 
+  React.useLayoutEffect(() => {
+    if (!focusedControlRef.current) return;
+    const rafId = window.requestAnimationFrame(() => keepFocusedControlVisible());
+    return () => window.cancelAnimationFrame(rafId);
+  }, [keepFocusedControlVisible, visualViewportFrame]);
+
   return (
     <div
       className="fixed left-0 right-0 top-0 z-[100] flex h-[100dvh] items-center justify-center overflow-y-auto bg-black/[0.62] px-0 py-6 backdrop-blur-[10px]"
@@ -60,11 +97,16 @@ export default function ActionModalCard({
       }}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`min-h-[232px] ${widthClassName} rounded-[27px] flex max-h-full min-w-0 flex-col border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)] ${scrollPanel ? 'touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain scroll-pb-24 [-webkit-overflow-scrolling:touch]' : 'overflow-hidden'} ${panelClassName}`}
+        className={`min-h-[232px] ${widthClassName} rounded-[27px] flex max-h-full min-w-0 flex-col overflow-hidden border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)] ${panelClassName}`}
         onClick={(event) => event.stopPropagation()}
+        onFocusCapture={(event) => {
+          focusedControlRef.current = event.target;
+          window.requestAnimationFrame(() => keepFocusedControlVisible(event.target));
+        }}
       >
         <div className="flex shrink-0 items-center justify-between px-0.5 pb-4">
           <h2 className="text-[17px] font-normal leading-[30px] tracking-normal text-white/[0.87]">{title}</h2>
@@ -78,7 +120,7 @@ export default function ActionModalCard({
           </button>
         </div>
 
-        <div className={`min-h-[84px] min-w-0 max-w-full rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] ${scrollPanel ? 'shrink-0 overflow-visible' : 'flex-1 overflow-y-auto overscroll-contain'} ${contentClassName}`}>
+        <div ref={contentRef} className={`min-h-[84px] min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] ${contentClassName}`}>
           {children}
         </div>
 

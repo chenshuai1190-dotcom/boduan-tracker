@@ -46,6 +46,7 @@
 
 4. **分层验证**
    - 默认原则:验证强度与改动风险成比例。改到 `src/` 不等于必须全量验证;先看是否改变数据、状态、回调、计算、接口或安全边界。纯视觉改动不得默认升级为全量 runtime 流程。
+   - 前端视觉、交互、键盘、滚动、安全区和 PWA 验收统一使用本机 Xcode iOS Simulator。禁止使用桌面 Chrome、Codex 内置浏览器、浏览器响应式视口或缩短浏览器窗口作为视觉通过证据;`npm run verify:frontend-smoke` 也不得作为本地视觉验收。自动化测试与 build 只证明代码门禁,不能替代 iOS 验收。
 
    - **A. UI-fast / 小型纯 UI 改动（默认快速通道）**
      - 适用范围:文字、颜色、图标、字号、字重、边框、间距、固定宽高、对齐、静态显示条件,以及已确认 HTML 原型的等价接入。
@@ -59,7 +60,7 @@
      ```
 
      - 不默认运行 `npm test`、`npm run verify:frontend-smoke`、`npm audit` 或重复 `verify:toolchain/local-env`;UI-fast 日志必须写明为什么没有运行全量验证。
-     - 只有新建复杂响应式布局、弹窗/输入框、iOS 键盘、滚动/固定定位,或用户明确要求时才必须本地截图。单纯改文字、颜色、边框、字号可用定向检查 + build 收尾。
+     - 只有新建复杂响应式布局、弹窗/输入框、iOS 键盘、滚动/固定定位,或用户明确要求时才必须本地截图;截图必须来自 Xcode iOS Simulator。单纯改文字、颜色、边框、字号可用定向检查 + build 收尾。
      - 用户已确认静态原型,正式接入与原型等价时,不重复制作同一张截图;只核对差异和构建即可。
      - 用户说“先本地”、“先看效果”时停在本地,不提前推送。用户明确说“部署”、“上线”、“快速接入并部署”时,上述快速验证 pass 后可直接提交、推送和运行 `npm run verify:deploy-status -- <commit>`;不因要部署而自动补跑全量测试。
 
@@ -71,12 +72,12 @@
      npm run verify:toolchain
      npm test
      npm run build
-     npm run verify:frontend-smoke
      npm audit --audit-level=high
      git diff --check
      ```
 
-     - `npm run verify:frontend-smoke` 会用本地 Chrome/Chromium DevTools 协议启动 Vite 开发预览,在 mock 数据下打开首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空、关键文案存在,且没有 `ReferenceError` / `TypeError` 等白屏级运行时错误。若本机 Chrome 不在常见路径,设置 `CHROME_PATH` 指向可执行文件。
+     - 旧 `npm run verify:frontend-smoke` 使用 Chrome/Chromium,从本条准则起不再运行或引用为前端验收结果;保留脚本只为历史兼容,不得写入新发布的视觉通过证据。
+     - runtime 若包含用户可见前端行为,必须在上述代码门禁外补充本地 iOS Simulator 验收;纯服务端 runtime 不要求无关视觉截图。
 
    - **C. Docs-only evidence / 纯文档和部署证据回填**
      - 适用范围: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变应用源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。
@@ -104,8 +105,10 @@
      - 生产敏感改动不能降级到 UI-fast 或 docs-only;如果判断不确定,按 D 档处理。
 
    - 涉及线上行为但不属于 C 档时,按任务补充目标验证。例如登录页和已登录页面 smoke check、生产 marker、Vite chunk 输出、首页 preload 状态等。
-   - 需要视觉验收时,按以下方式输出本地截图:
-     - 优先使用 `390x844` 左右的手机视口和当前任务入口,必要时补充桌面视口。
+   - 需要视觉验收时,按以下方式使用本地 iOS 环境并输出截图:
+     - 运行 `npm run dev -- --host 127.0.0.1`,通过 `xcrun simctl list devices available` 选择本机 iPhone Simulator,用 `xcrun simctl boot <UDID>`、`open -a Simulator` 和 `xcrun simctl openurl <UDID> '<本地任务 URL>'` 打开页面。
+     - 默认使用可用的 iPhone Pro 设备与已安装 iOS runtime;输入问题必须用 Simulator 系统软件键盘实际聚焦并输入,不能只压缩视口。主屏 PWA 特有问题必须在模拟器中添加到主屏后复测。
+     - `DevVisualPreview` 只允许作为 iOS Simulator 内的只读 mock 数据入口,不能在桌面浏览器或 Codex 内置浏览器中充当验收环境。
      - 截图保存到本机固定预览目录 `~/Desktop/boduan-previews/`,文件名写清页面、目标和版本,方便用户在电脑上直接打开。
      - 同时在聊天窗口用绝对路径 Markdown 图片转发截图,格式示例: `![交易页预览](/Users/chenshuaishuai/Desktop/boduan-previews/example.png)`。
      - 如果 Codex 客户端或手机端未渲染本地图片,立即 `open` 桌面预览文件,并在回复中给出绝对路径;不能只描述“已截图”。

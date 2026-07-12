@@ -48,10 +48,27 @@ UI or feature changes that touch system copy must keep Simplified Chinese and En
 
 Use the risk-tiered workflow in `docs/development-process.md`:
 
+- `ui-fast`: run the directly related targeted test, `npm run build`, and `git diff --check`.
 - `runtime`: run `npm run verify:toolchain`, `npm test`, `npm run build`, `npm audit --audit-level=moderate`, and `git diff --check`.
 - `docs-only`: run `npm run verify:docs-consistency`, `git diff --check`, and `git diff --stat`.
 - `sensitive`: run the runtime checks plus affected auth/RLS/API smoke tests.
 - After pushing a deployable commit, use `npm run verify:deploy-status -- <commit>` for the standard GitHub/Vercel/production-entry/auth summary.
+
+### Local iOS acceptance
+
+All frontend visual, interaction, keyboard, scrolling, safe-area, and PWA acceptance must run in the local Xcode iOS Simulator. Desktop Chrome, Codex's in-app browser, browser viewport emulation, and `npm run verify:frontend-smoke` are not accepted as visual evidence. Automated targeted tests, `npm test`, build, docs checks, and security probes remain code gates only.
+
+Use an available iPhone simulator, start Vite on localhost, then open the task URL inside Simulator Safari. Install it to the simulated Home Screen when standalone PWA behavior matters.
+
+```bash
+npm run dev -- --host 127.0.0.1
+xcrun simctl list devices available
+xcrun simctl boot <DEVICE_UDID>
+open -a Simulator
+xcrun simctl openurl <DEVICE_UDID> 'http://127.0.0.1:5173/?devPreview=1&tab=trades'
+```
+
+Use the iOS software keyboard for input checks (`Cmd-K` in Simulator), save Simulator screenshots under `~/Desktop/boduan-previews/`, and record the exact runtime/device plus tested path in `docs/development-log.md`.
 
 ## Required Environment Variables
 
