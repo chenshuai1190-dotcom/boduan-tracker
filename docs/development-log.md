@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 年度目标摘要增加百分比
 
-- Deployment: requested;runtime 提交、GitHub Actions、Vercel target 和生产入口待本轮验证通过后回填。
+- Deployment: completed;runtime commit `320f0520b29f7a20d24322e299ce89d4cff1267b`,GitHub Actions run `29193491014` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP` success,production alias 已更新,入口 `/assets/index-BgVJzVSl.js`。
 - Background: 用户确认当前年度目标右侧摘要框增加百分比,为容纳金额和百分比适当加宽摘要框,并要求作为小型改动快速上线。
 - Workflow tier: `runtime`。
 - Changes:
@@ -15,7 +15,7 @@
   - 摘要列由 `124px` 调整为 `160px`,不改整张年度目标卡宽度、下方年初起点/当前/终点或进度条逻辑。
   - 移除仅用于静态预览的开关,把已确认效果正式接入;设置页和更新日志版本同步为 `v10.7.9.319`。
 - Key files: `src/tabs/ReviewTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `verify:workspace-state`、`verify:local-env`、`verify:toolchain` 均 pass;目标页定向测试 46/46、完整测试 255/255、production build、5/5 frontend smoke（各主 tab console/runtime error 0）、high audit 0 vulnerabilities 均 pass;docs consistency、diff check 和生产验证待部署前最终确认与回填。已确认的 390x844 CNY 开发预览截图为 `/tmp/boduan-annual-summary-percent-cny-prototype.jpg`,页面卡片宽度和左侧数据未发生变化。
+- Validation: `verify:workspace-state`、`verify:local-env`、`verify:toolchain` 均 pass;目标页定向测试 46/46、完整测试 255/255、production build、5/5 frontend smoke（各主 tab console/runtime error 0）、high audit 0 vulnerabilities、docs consistency 和 diff check 均 pass。已确认的 390x844 CNY 开发预览截图为 `/tmp/boduan-annual-summary-percent-cny-prototype.jpg`,页面卡片宽度和左侧数据未发生变化。`npm run verify:deploy-status -- 320f052` pass;Actions `29193491014` 与 Vercel `CAf9PQWVdE19L7Kau2Wh1vUgKWzP` success,未登录 quote、earnings 均保持 `401`。生产 `ReviewTab-BT3YT1J9.js`、`SettingsTab-ClQKFCHY.js`、`settingsChangelog-DvxQCwuc.js` 与本地构建 SHA-256 一致,并命中 `100%`、百分比公式、`160px`、v319 和更新日志 marker。
 - Boundaries: 不改年度计划、实际收益、进度条、交易账本、资产、收益快照、数据库 SQL/RLS、鉴权、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`;没有 SQL、环境变量或 Vercel 配置变更。
 - Rollback: 回退本条前端展示、测试、版本和文档即可;无数据库、生产数据或环境配置回滚。
 
