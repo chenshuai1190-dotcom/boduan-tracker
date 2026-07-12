@@ -6,13 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前本地与生产版本: `v10.7.9.322`;所有共享输入弹窗已增加 iOS 聚焦可见性管理,本机 iOS 26.5 Simulator 系统键盘验证通过,等待用户主屏真机复测;交易和资产数据逻辑不变。
+- 当前本地目标版本: `v10.7.9.323`;设置页新增的 36 个系统文案键已补齐英文,社区昵称和邮箱等用户内容保持原文。生产仍为 `v10.7.9.322`,等待本轮 UI-fast 验证和推送。
 - 最新已上线版本为 `v10.7.9.322`,production runtime `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`,入口 `/assets/index-Do0OzKUa.js`。
 - `v10.7.9.316` 只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地与生产设置页版本均为 `v10.7.9.322`。生产运行时基准提交为 `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`,入口 `/assets/index-Do0OzKUa.js`。
+- 设置页版本: `v10.7.9.323`（本轮发布目标,production alias 待推送后验证）。当前已验证生产运行时基准提交仍为 `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`,入口 `/assets/index-Do0OzKUa.js`。
 - `v10.7.9.322` 验证:完整测试 255/255、build、high audit 0 vulnerabilities、docs/diff、iOS 26.5 Simulator 系统键盘和 `verify:deploy-status -- a61fc55` 均 pass;Actions `29197665639` 与 Vercel `CQBi1sr3EMRztDk7g8QYKF1FgbiT` success。4 个关键生产文件与本地 SHA-256 一致,quote、earnings 未登录保持 `401`;按新准则未运行桌面/内置浏览器视觉测试。
 - `v10.7.9.320` 验证:资产/交易弹窗定向 46/46、build、docs consistency、diff check 和 `verify:deploy-status -- 28cecac` 均 pass;Actions `29195304295` 与 Vercel `G2HNApMpsV9nmGzBAsPnwmaG5gTB` success。生产入口、Analysis、Trades、Settings 与更新日志 5 个关键文件均与本地 SHA-256 一致,线上命中 v320/更新标题 marker,quote、earnings 未登录保持 `401`。按 `ui-fast` 规则未跑完整测试、5 页 smoke 或 audit。
 - `v10.7.9.319` 验证:目标页定向 46/46、完整测试 255/255、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 均 pass。`verify:deploy-status -- 320f052` pass,Actions `29193491014` 与 Vercel `CAf9PQWVdE19L7Kau2Wh1vUgKWzP` success;三个关键 chunk 与本地 SHA-256 一致,生产命中 v319/100%/公式/160px marker,quote、earnings 未登录保持 `401`。
@@ -59,7 +59,7 @@
 - 最新流程补充: 开发验证仍按 `ui-fast/runtime/docs-only/sensitive` 四档风险流程执行。纯视觉及只改变界面呈现的轻量交互(展开/收起、页签、弹窗开关、焦点、滚动、键盘可见性和展示状态)走 UI-fast,不默认跑完整测试;业务逻辑/计算、持久化、保存删除等业务交互、跨模块状态、API、鉴权/RLS、安全、账本/收益/快照/换算、路由/PWA 生命周期和依赖/构建/CI/环境配置才走完整 runtime。所有前端视觉、交互、键盘、滚动、安全区和 PWA 验收必须使用本机 Xcode iOS Simulator;禁止桌面浏览器、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 作为视觉通过证据。自动化测试、build、docs 和安全检查继续作为代码门禁。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
 - 当前生产运行时基准提交: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
-- 当前本地与生产设置页版本均为 `v10.7.9.322`。
+- 当前本地与生产设置页版本均为 `v10.7.9.323`（本轮发布目标,production alias 待验证）。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- a61fc55` pass;GitHub Actions run `29197665639` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CQBi1sr3EMRztDk7g8QYKF1FgbiT`;production alias 已更新,入口 `/assets/index-Do0OzKUa.js`。
@@ -72,7 +72,7 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地与生产设置页版本均为 `v10.7.9.322`。v322 统一保证共享弹窗当前输入及下方上下文可见;v321 的交易整卡滚动方案经真机确认仍未解决共享问题。
+- 当前本地与生产设置页版本均为 `v10.7.9.323`（本轮发布目标,production alias 待验证）。v323 补齐新版设置页英文词典;v322 统一保证共享弹窗当前输入及下方上下文可见。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新生产运行时代码提交为 `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
 - 当前生产运行时基准提交: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
 - 最近应用代码提交: `320f0520b29f7a20d24322e299ce89d4cff1267b` 包含 `v10.7.9.319` 年度目标摘要百分比;`3e384856646901c0f6884ec87e4b95d60f24c0fe` 包含 `v10.7.9.318` 波段预测、峰值修复和 v317 清理;`4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` 包含 `v10.7.9.316` 已确认弹窗统一。
@@ -741,7 +741,7 @@ npm ci
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前生产运行时代码提交为 `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`
 当前前台可见运行时基准提交: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`
-设置页版本: `v10.7.9.322`
+设置页版本: `v10.7.9.323`（本轮发布目标,production alias 待验证）
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CQBi1sr3EMRztDk7g8QYKF1FgbiT`,Actions run `29197665639`
 最新生产入口: `/assets/index-Do0OzKUa.js`

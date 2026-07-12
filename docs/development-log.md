@@ -4,6 +4,23 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 设置页英文翻译补全
+
+- Commit: `same v10.7.9.323 release commit`。
+- Deployment: `v10.7.9.323` 准备推送;由 GitHub `main` 自动部署,不直接修改 Vercel 文件。
+- Background: 用户在生产英文模式截图中确认新版设置页仍显示“语言设置、简体中文、显示设置、红涨绿跌、管理员、切换账户”等中文系统文案,要求立即补齐并上线。
+- Workflow tier: `ui-fast`。
+- Root cause: 设置页重构后新增了 36 个 `settings.*` 文案键,组件已经调用 `t(...)`,但中英文词典没有登记这些键,因此英文模式回退到了 JSX 中的中文 fallback。
+- Changes:
+  - 中英文词典补齐设置页使用的全部 75 个 `settings.*` 键;英文模式中的语言、显示配色、账户状态、邀请码、账户切换、社区资料、修改密码、错误提示和无障碍关闭文案不再回退中文。
+  - 英文模式下语言选项“简体中文”改为 `Simplified Chinese`;红绿配色改为 `Red Up · Green Down` / `Green Up · Red Down`;管理员和切换账户分别为 `Admin` / `Switch Account`。
+  - 通用确认卡支持调用方传入本地化 `submittingText`;设置页退出和移除快捷账户提交中显示 `Processing...`,其他模块默认文案与确认行为不变。
+  - 设置页更新日志升至 `v10.7.9.323`,新增中英文发布说明;设置页英文模式优先显示当前版本的 `itemsEn`。社区昵称、账户邮箱等用户内容继续保持原文。
+- Key files: `src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/components/ConfirmModal.jsx`,`src/lib/confirmModal.js`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 设置/弹窗定向测试 46/46 pass、`npm run build` pass;词典静态扫描确认设置页使用的 77 个 `settings.*` 键在中英文词典均 77/77 存在。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 打开 `?devPreview=1&tab=settings&lang=en`:Language、Display、Account、Switch Account、Log Out、Changelog 和底部导航均为英文,配色摘要 `Red ↑ · Green ↓` 完整显示;社区昵称“波段玩家1836”按用户内容规则保持原文。截图: `~/Desktop/boduan-previews/settings-english-v323.png`。本轮不改业务逻辑、数据或安全边界,因此不跑完整 `npm test` 或 audit;部署状态在发布收尾时回填。
+- Boundaries: 不改语言存储、配色存储、账户切换、密码更新、社区资料、邀请码、数据库、RLS、交易账本、收益快照、行情 relay、quote、earnings 或鉴权逻辑。
+- Rollback: 回退本条词典、显示版本、确认卡可选文案、定向断言、交接和日志即可;无数据或环境回滚。
+
 ### 2026-07-12 - UI-fast 扩展到轻量展示交互
 
 - Commit: `same commit`。

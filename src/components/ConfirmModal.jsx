@@ -76,7 +76,7 @@ export default function ConfirmModal({
                 : 'border-[#f6b54b]/60 bg-[linear-gradient(145deg,#e3a13f,#b77220)] text-[#101318] shadow-[0_13px_27px_rgba(130,78,18,0.22),inset_0_1px_0_rgba(255,255,255,0.12)]'
             }`}
           >
-            {submitting ? '处理中...' : modal.confirmText}
+            {submitting ? modal.submittingText : modal.confirmText}
           </button>
         </div>
       </div>

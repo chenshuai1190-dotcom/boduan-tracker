@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.322', date: '2026-07-12', latest: true,
+    ver: 'v10.7.9.323', date: '2026-07-12', latest: true,
+    items: [
+      '🌐 设置页英文翻译补全',
+      '  - 补齐语言、显示、账户、邀请码、账户切换、修改密码和确认流程的英文文案',
+      '  - 英文模式下“简体中文”、红绿配色、管理员和切换账户等不再回退显示中文',
+      '  - 社区昵称属于用户自写内容,继续保持原文;不改账户、社区资料、邀请码或设置保存逻辑',
+    ],
+    itemsEn: [
+      '🌐 Complete English translation for Settings',
+      '  - Added English copy for language, display, account, invite-code, account-switching, password, and confirmation controls',
+      '  - Simplified Chinese, market color modes, Admin, and Switch Account no longer fall back to Chinese in English mode',
+      '  - User-created community nicknames remain unchanged; account, profile, invite-code, and settings persistence are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.322', date: '2026-07-12',
     items: [
       '⌨️ iOS 共享弹窗聚焦输入自动可见',
       '  - iOS 键盘缩短弹窗后,当前输入框会自动滚到内容区偏上位置,并为下一个日期或字段保留显示空间',

@@ -28,7 +28,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.322';
+const SETTINGS_VERSION = 'v10.7.9.323';
 
 function communityAvatarImageClass() {
   return 'scale-[1.15]';
@@ -297,6 +297,7 @@ function SettingsTab({ ctx }) {
       desc: t(language, 'settings.logoutDesc', '只退出当前设备上的这个账户，其他已添加账户仍会保留'),
       icon: 'logout',
       confirmText: t(language, 'settings.logout', '退出登录'),
+      submittingText: t(language, 'settings.processing', '处理中...'),
       confirmStyle: 'danger',
       onConfirm: async () => { await onLogout(); },
     });
@@ -340,6 +341,7 @@ function SettingsTab({ ctx }) {
       desc: t(language, 'settings.removeAccountDesc', '将从本机移除 {{email}}，下次需要重新输入密码添加。', { email: account.email }),
       icon: 'logout',
       confirmText: t(language, 'settings.removeAccountConfirm', '确认移除'),
+      submittingText: t(language, 'settings.processing', '处理中...'),
       confirmStyle: 'danger',
       onConfirm: async () => { await removeAccount(account); },
     });
@@ -589,8 +591,8 @@ function SettingsTab({ ctx }) {
       icon: Monitor,
       label: t(language, 'settings.displaySettings', '显示设置'),
       value: normalizedColorMode === MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
-        ? t(language, 'settings.redUpGreenDown', '红涨绿跌')
-        : t(language, 'settings.greenUpRedDown', '绿涨红跌'),
+        ? t(language, 'settings.redUpGreenDownShort', '红涨绿跌')
+        : t(language, 'settings.greenUpRedDownShort', '绿涨红跌'),
     },
     {
       id: 'account',
@@ -702,7 +704,7 @@ function SettingsTab({ ctx }) {
                         <span className="font-mono text-[9px] text-white/30">{log.date}</span>
                       </div>
                       <ul className="space-y-0.5">
-                        {log.items.map((item, itemIndex) => (
+                        {(currentLanguage === 'en' && Array.isArray(log.itemsEn) ? log.itemsEn : log.items).map((item, itemIndex) => (
                           <li key={itemIndex} className="relative pl-3 text-[11px] leading-5 text-white/52">
                             <span className="absolute left-0 text-[#f6a524]">·</span>{item}
                           </li>
