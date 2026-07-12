@@ -6,12 +6,13 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前本地版本: `v10.7.9.315` 注册必选社区昵称与头像,应用尚未部署;生产前置 SQL 已执行并完成 metadata 回读。设置页版本: `v10.7.9.315`。
-- 最新已上线版本仍为 `v10.7.9.314`,production runtime `0f9d7858ff9468613d6f25a7d73891b871bb9831`,入口 `/assets/index-CqZqA4y0.js`。
+- 当前本地和生产版本: `v10.7.9.315` 注册必选社区昵称与头像;生产前置 SQL、应用部署和线上验证均已完成。设置页版本: `v10.7.9.315`。
+- 最新已上线版本为 `v10.7.9.315`,production runtime `99c1883c9360261c334e2ab5a81ae7a89c9e2d62`,入口 `/assets/index-Mg_XwO77.js`。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地设置页版本为 `v10.7.9.315`,生产设置页版本仍为 `v10.7.9.314`。生产运行时基准提交为 `0f9d7858ff9468613d6f25a7d73891b871bb9831`,入口 `/assets/index-CqZqA4y0.js`。
+- 当前本地和生产设置页版本均为 `v10.7.9.315`。生产运行时基准提交为 `99c1883c9360261c334e2ab5a81ae7a89c9e2d62`,入口 `/assets/index-Mg_XwO77.js`。
+- `v10.7.9.315` 验证:定向 60/60、完整测试 252/252、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff、匿名 RLS 20/20 均 pass;生产 SQL metadata/RLS 回读符合预期。GitHub Actions run `29185593537` 与 Vercel target `CLPNWdw4bgKAdSDaqVHkLKqXuAJj` success;生产 28 个 chunks 命中 v315/两步注册/社区资料 marker,18/18 头像资源 `200`,缺资料注册 `400`,quote、earnings、competition GET/POST 和 competition Cron 均为 `401`。
 - `v10.7.9.314` 验证:定向 53/53、完整测试 247/247、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 均 pass;390x844 头部外框 95px、内部头像无边框、卡片 358×176px 且页面横向零溢出。GitHub Actions run `29184108557` 与 Vercel target `43bTjZaX3mZr8cRyorYsA8jRBeCj` success;生产设置 chunk 命中 v314/95px/独立外框,比赛 chunk 不含设置页外框并保持 1.15 裁切,quote、earnings、competition GET/POST 和 competition Cron 均为 `401`。
 - `v10.7.9.313` 验证:定向 53/53、完整测试 247/247、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff 均 pass;390x844 红色/蓝色头像均为 79px、白边不可见、头卡提示删除且页面横向零溢出。GitHub Actions run `29183688396` 与 Vercel target `CvEfjcmjcs1pYrwPJU94zRYB72pC` success;生产 29 个 chunks 命中 v313/1.15 裁切/79px,旧 1.02 裁切不存在,quote、earnings、competition GET/POST 和 competition Cron 均为 `401`。
 - `v10.7.9.312` 验证:定向 53/53、完整测试 247/247、build、5/5 frontend smoke、high audit 0 vulnerabilities、docs/diff、匿名 RLS 20/20 均 pass;390x844 设置页 18/18 图片加载、6 列×3 行、横向零溢出,排行榜动物/赛博头像加载正常。GitHub Actions run `29182253805` 与 Vercel target `Bw1hyXdMRykyQNCm1rms9TA9tFMq` success;生产递归扫描 29 个 chunks 命中 v312/更新日志/新头像路径,18 张资源全部 `200`,quote、earnings、competition GET/POST 和 competition Cron 均为 `401`。
@@ -64,10 +65,10 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地设置页版本为 `v10.7.9.315`,生产仍为 `v10.7.9.314`;v315 的两步注册应用待上线,service-role profile INSERT 迁移已在生产执行并完成权限/RLS 回读。v314 头像外框、v313 无白边裁切、v312 的 18 款头像继续有效。
-- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `0f9d7858ff9468613d6f25a7d73891b871bb9831`。
-- 当前生产运行时基准提交: `0f9d7858ff9468613d6f25a7d73891b871bb9831`。
-- 最近应用代码提交: `0f9d7858ff9468613d6f25a7d73891b871bb9831` 包含 `v10.7.9.314` 设置页头像外框;`e37bd8643c68f928b58919114c6bb72a6cea351e` 包含 `v10.7.9.313` 头像视觉修复;`dc49c3a30f66aa019df6141056a81fec343649c1` 包含 `v10.7.9.312` 十八款社区头像。
+- 当前本地与生产设置页版本均为 `v10.7.9.315`;v315 两步注册和 service-role profile INSERT 迁移均已上线并完成权限/RLS/线上回读。v314 头像外框、v313 无白边裁切、v312 的 18 款头像继续有效。
+- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `99c1883c9360261c334e2ab5a81ae7a89c9e2d62`。
+- 当前生产运行时基准提交: `99c1883c9360261c334e2ab5a81ae7a89c9e2d62`。
+- 最近应用代码提交: `99c1883c9360261c334e2ab5a81ae7a89c9e2d62` 包含 `v10.7.9.315` 注册必选社区资料;`0f9d7858ff9468613d6f25a7d73891b871bb9831` 包含 `v10.7.9.314` 设置页头像外框;`e37bd8643c68f928b58919114c6bb72a6cea351e` 包含 `v10.7.9.313` 头像视觉修复。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
 - 当前生产设置页版本: `v10.7.9.314`。
 - Vercel 最新部署: `v10.7.9.314` runtime commit `0f9d7858ff9468613d6f25a7d73891b871bb9831` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/43bTjZaX3mZr8cRyorYsA8jRBeCj`,production 入口 `/assets/index-CqZqA4y0.js`,设置 chunk `/assets/SettingsTab-DuGoLdsg.js`。
@@ -729,14 +730,14 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 生产地址: https://boduan-tracker.vercel.app
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `0f9d7858ff9468613d6f25a7d73891b871bb9831`
-当前前台可见运行时基准提交: `0f9d7858ff9468613d6f25a7d73891b871bb9831`
+当前前台可见运行时基准提交: `99c1883c9360261c334e2ab5a81ae7a89c9e2d62`
 设置页版本: `v10.7.9.315`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
-最新运行时部署: `0f9d7858ff9468613d6f25a7d73891b871bb9831` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/43bTjZaX3mZr8cRyorYsA8jRBeCj`,Actions run `29184108557`
-最新生产入口: `/assets/index-CqZqA4y0.js`
+最新运行时部署: `99c1883c9360261c334e2ab5a81ae7a89c9e2d62` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CLPNWdw4bgKAdSDaqVHkLKqXuAJj`,Actions run `29185593537`
+最新生产入口: `/assets/index-Mg_XwO77.js`
 
 最新已上线:
-- `v10.7.9.315` 应用待部署:邀请注册增加必选社区昵称与 18 款头像明确选择;服务端先写完整社区资料再消费邀请码,失败回滚 Auth 用户;不自动加入收益比赛;生产前置 SQL 已执行并通过 metadata 回读
+- `v10.7.9.315` 已上线:邀请注册增加必选社区昵称与 18 款头像明确选择;服务端先写完整社区资料再消费邀请码,失败回滚 Auth 用户;不自动加入收益比赛;生产 SQL、metadata/RLS、Actions/Vercel、资源与鉴权边界均已验证
 - `v10.7.9.314` 已上线:设置页头部头像增加独立中性外框并从 79px 放大到 95px;头像选择器和收益比赛展示不变
 - `v10.7.9.313` 已上线:头像统一裁出素材白边,设置页头部头像放大约 20%,删除头卡昵称下方提示文字;头像 key、社区资料、比赛和数据库逻辑不变
 - `v10.7.9.312` 已上线:社区默认头像替换并扩展到 18 款;保留原 6 key 兼容已有资料;生产 constraint 迁移、18 key 回查、18 张资源、RLS/鉴权边界和线上 marker 均已验证
