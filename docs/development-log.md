@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - 首页自选分隔线对齐
 
-- Commit: pending。
-- Deployment: pending;本轮先本地验证,未修改生产。
+- Commit: `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
+- Deployment: completed;GitHub Actions run `29177139868` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7n18YeG4g6329NyX3qwZmqDF7uDu` success,production alias 已更新,入口 `/assets/index-BdrG4ob7.js`。
 - Background: 用户生产截图显示首页自选表格的名称侧与行情侧分隔线固定错位,要求查明原因并参考交易持仓最终修复方式,且绝对不能改变首页现有模块宽度。
 - Workflow tier: `runtime`。
 - Root cause:
@@ -20,7 +20,7 @@
   - 外层首页卡片 class、宽度、边距和页面宽度均未修改;390px 视口下卡片仍为 358px,页面 `scrollWidth/clientWidth` 仍为 390/390。
   - 设置页三个可见版本面和更新日志同步为 `v10.7.9.306`。
 - Key files: `src/tabs/HomeTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `HomeTab-BWgfe4TS.js`、`SettingsTab-DKa6-XWx.js` 和 `settingsChangelog-D78iP-Ac.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;docs consistency、`git diff --check` pass。390x844 本地视觉/几何复核:修复前名称/行情两套首行 top 分别为 780.25/785.25px,固定错开 5px;修复后只有一套分隔行,卡片宽度保持 358px,页面 `scrollWidth/clientWidth=390/390`,自选内容宽/列位保持 414px,持仓保持 562px,横滑到底后名称列仍固定在 x=29,console warning/error 0;截图 `~/Desktop/boduan-previews/home-watchlist-row-alignment-v306-390x844.png`。未部署。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `HomeTab-BWgfe4TS.js`、`SettingsTab-DKa6-XWx.js` 和 `settingsChangelog-D78iP-Ac.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;docs consistency、`git diff --check` pass。390x844 本地视觉/几何复核:修复前名称/行情两套首行 top 分别为 780.25/785.25px,固定错开 5px;修复后只有一套分隔行,卡片宽度保持 358px,页面 `scrollWidth/clientWidth=390/390`,自选内容宽/列位保持 414px,持仓保持 562px,横滑到底后名称列仍固定在 x=29,console warning/error 0;截图 `~/Desktop/boduan-previews/home-watchlist-row-alignment-v306-390x844.png`。`npm run verify:deploy-status -- c6d4748` pass;生产 `HomeTab-BWgfe4TS.js` 命中 `data-home-market-table` / `single-grid`,`SettingsTab-DKa6-XWx.js` 与 `settingsChangelog-D78iP-Ac.js` 命中 `v10.7.9.306` / `首页自选分隔线对齐`;未登录 quote、earnings 均为 `401`。
 - Boundaries: 只改首页自选/持仓表格 DOM 布局和分隔线归属;不改卡片宽度、列表内容、排序、横滑、价格/涨跌/收益计算、自选数据、正式交易账本、波段、收益快照、数据库、RLS、行情 relay、`/api/quote` 或 `/api/earnings-calendar`。
 - Rollback: 回退首页单 grid、`v10.7.9.306` 版本/更新日志、测试和本条文档即可;无需数据库回滚。
 
