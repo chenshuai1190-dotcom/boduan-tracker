@@ -17,6 +17,7 @@ import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { userScopedStorageKey } from '../lib/userScopedStorage.js';
 import {
   buildSwingWaveDashboard,
+  calculateSwingWaveForecast,
   mergeSwingWaveQuoteRows,
   summarizeSwingWaveGroup,
 } from '../lib/swingWavesViewModel.js';
@@ -29,6 +30,13 @@ const GOLD = '#f6b54b';
 const FALLBACK_USD_CNY_RATE = 7.2;
 const EXPANDED_STATE_STORAGE_KEY = 'boduan_wave_tracker_expanded_v1';
 const FILTER_KEYS = ['all', 'active', 'completed'];
+const FORECAST_PRESETS = [
+  { id: 'current', labelKey: 'swing.forecastCurrent', label: '当前价' },
+  { id: 'cost', labelKey: 'swing.forecastCost', label: '成本价' },
+  { id: 'up10', label: '+10%', multiplier: 1.1 },
+  { id: 'up20', label: '+20%', multiplier: 1.2 },
+  { id: 'up30', label: '+30%', multiplier: 1.3 },
+];
 
 function number(value) {
   const parsed = Number(value);
@@ -368,6 +376,8 @@ export default function WaveTrackerPage({ ctx = {} }) {
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null);
   const [draft, setDraft] = React.useState({});
+  const [forecastTargetInput, setForecastTargetInput] = React.useState('');
+  const [forecastPreset, setForecastPreset] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const submittingRef = React.useRef(false);
   const quoteRequestRef = React.useRef(0);
@@ -541,6 +551,12 @@ export default function WaveTrackerPage({ ctx = {} }) {
     const wave = group?.waves.find((item) => item.id === modal.waveId) || null;
     return { group, wave };
   }, [groups, modal]);
+  const forecast = React.useMemo(() => calculateSwingWaveForecast({
+    buyPriceUsd: selection.wave?.buyPriceUsd,
+    currentPriceUsd: selection.wave?.currentPriceUsd,
+    shares: selection.wave?.shares,
+    targetPriceUsd: forecastTargetInput,
+  }), [forecastTargetInput, selection.wave]);
 
   const showNotice = React.useCallback((title, desc) => {
     if (typeof showConfirm === 'function') {
@@ -606,7 +622,17 @@ export default function WaveTrackerPage({ ctx = {} }) {
     setDraft({ symbol: '', buyPrice: '', shares: '', startDate: todayKey, note: '' });
     setModal({ type: 'add' });
   };
-  const openActions = (group, wave) => setModal({ type: 'actions', waveId: wave.id, symbol: group.symbol });
+  const openActions = (group, wave) => {
+    const currentPrice = positive(wave?.currentPriceUsd);
+    if (wave?.status === 'active' && currentPrice > 0) {
+      setForecastTargetInput((currentPrice * 1.1).toFixed(2));
+      setForecastPreset('up10');
+    } else {
+      setForecastTargetInput('');
+      setForecastPreset('');
+    }
+    setModal({ type: 'actions', waveId: wave.id, symbol: group.symbol });
+  };
   const openDetail = (wave) => setModal({ type: 'detail', waveId: wave.id });
   const openEdit = (wave) => {
     setDraft({
@@ -700,6 +726,19 @@ export default function WaveTrackerPage({ ctx = {} }) {
         }
       },
     });
+  };
+
+  const applyForecastPreset = (preset) => {
+    const currentPrice = positive(selection.wave?.currentPriceUsd);
+    const buyPrice = positive(selection.wave?.buyPriceUsd);
+    const nextPrice = preset.id === 'current'
+      ? currentPrice
+      : preset.id === 'cost'
+        ? buyPrice
+        : currentPrice * positive(preset.multiplier);
+    if (!(nextPrice > 0)) return;
+    setForecastTargetInput(nextPrice.toFixed(2));
+    setForecastPreset(preset.id);
   };
 
   const addReady = normalizeStrictUserStockSymbol(draft.symbol)
@@ -856,21 +895,127 @@ export default function WaveTrackerPage({ ctx = {} }) {
       ) : null}
 
       {modal?.type === 'actions' && selection.group && selection.wave ? (
-        <ActionModalCard title={tt('swing.actions', '波段操作')} closeLabel={tt('swing.closeActions', '关闭波段操作')} onClose={() => setModal(null)} actionGridClassName={selection.wave.status === 'active' ? 'grid-cols-3' : 'grid-cols-2'} actions={[
+        <ActionModalCard
+          title={tt('swing.actions', '波段操作')}
+          closeLabel={tt('swing.closeActions', '关闭波段操作')}
+          onClose={() => setModal(null)}
+          actionGridClassName={selection.wave.status === 'active' ? 'grid-cols-3' : 'grid-cols-2'}
+          widthClassName={selection.wave.status === 'active' ? 'w-[calc(100vw-28px)] max-w-[380px]' : undefined}
+          panelClassName={selection.wave.status === 'active' ? 'px-[18px]' : ''}
+          contentClassName={selection.wave.status === 'active' ? 'rounded-none border-0 bg-transparent px-0 py-0 shadow-none' : ''}
+          actions={[
           { key: 'detail', label: tt('swing.detail', '详情'), onClick: () => openDetail(selection.wave) },
           { key: 'edit', label: tt('trades.edit', '编辑'), onClick: () => openEdit(selection.wave) },
           ...(selection.wave.status === 'active' ? [{ key: 'sell', label: tt('trades.sell', '卖出'), onClick: () => openSell(selection.wave) }] : []),
-        ]}>
-          <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={`${tt('swing.waveNumber', '波段 {{number}}', { number: String(selection.wave.sequence).padStart(2, '0') })} · ${selection.wave.status === 'active' ? tt('trades.active', '进行中') : tt('trades.completed', '已完成')}`} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
-          <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
-            <Metric label={tt('swing.returnRate', '收益率')} value={formatPct(selection.wave.returnPct)} valueColor={tone(selection.wave.returnPct)} />
-            <Metric label={selection.wave.status === 'active' ? tt('swing.currentPrice', '当前价') : tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct)} />
-            <Metric label={selection.wave.status === 'active' ? tt('swing.unrealized', '浮盈') : tt('swing.realized', '已实现')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd)} align="right" />
-          </div>
-          <div className="mt-3 flex items-start gap-2 border-t border-white/[0.06] pt-3 text-[10.5px] leading-4 text-white/[0.4]">
-            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{selection.wave.note || tt('swing.noNote', '暂无计划备注')}</span>
-          </div>
+        ]}
+        >
+          <ModalStockHeader
+            group={selection.group}
+            wave={selection.wave}
+            sideLabel={selection.wave.status === 'active' ? (
+              <span className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                <StatusDot accent={statusAccent(selection.wave.status, selection.wave.returnPct)} pulse />
+                <span className="text-white/[0.44]">{tt('swing.waveNumber', '波段 {{number}}', { number: String(selection.wave.sequence).padStart(2, '0') })} ·</span>
+                <span style={{ color: tone(selection.wave.returnPct) }}>{tt('trades.active', '进行中')}</span>
+              </span>
+            ) : `${tt('swing.waveNumber', '波段 {{number}}', { number: String(selection.wave.sequence).padStart(2, '0') })} · ${tt('trades.completed', '已完成')}`}
+            logoCache={logoCache}
+            cacheStockLogo={cacheStockLogo}
+          />
+          {selection.wave.status === 'active' ? (
+            <>
+              <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.07] border-y border-white/[0.07] py-3.5">
+                <div className="min-w-0 pr-2.5">
+                  <div className="text-[10px] text-white/[0.4]">{tt('swing.currentPnl', '当前收益')}</div>
+                  <div className="mt-1.5 truncate text-[17px] tabular-nums" style={{ color: tone(selection.wave.pnlUsd), fontFamily: NUMBER_FONT }}>
+                    {formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)}
+                  </div>
+                </div>
+                <div className="min-w-0 px-2.5">
+                  <div className="text-[10px] text-white/[0.4]">{tt('swing.currentPrice', '现价')}</div>
+                  <div className="mt-1.5 truncate text-[17px] text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatUsdPrice(selection.wave.currentPriceUsd)}</div>
+                </div>
+                <div className="min-w-0 pl-2.5">
+                  <div className="text-[10px] text-white/[0.4]">{tt('swing.unrealized', '浮盈')}</div>
+                  <div className="mt-1.5 truncate text-[17px] tabular-nums" style={{ color: tone(selection.wave.returnPct), fontFamily: NUMBER_FONT }}>{formatPct(selection.wave.returnPct)}</div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <label htmlFor="wave-forecast-target" className="text-[10.5px] text-white/[0.52]">{tt('swing.targetPriceUsd', '目标股价（USD）')}</label>
+                <div className="mt-2.5 flex h-[56px] w-full min-w-0 max-w-full items-center overflow-hidden rounded-[14px] border border-white/[0.11] bg-black/[0.2] px-3 focus-within:border-[#f6b54b]/45">
+                  <span className="mr-2 shrink-0 text-[19px] text-[#f6b54b]">$</span>
+                  <input
+                    id="wave-forecast-target"
+                    value={forecastTargetInput}
+                    onChange={(event) => { setForecastTargetInput(event.target.value); setForecastPreset(''); }}
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0.00"
+                    className="block h-full min-w-0 max-w-full flex-1 appearance-none border-0 bg-transparent p-0 text-[23px] font-normal text-white/[0.9] outline-none placeholder:text-white/[0.16] tabular-nums"
+                    style={{ boxSizing: 'border-box', fontFamily: NUMBER_FONT, minWidth: 0, width: '100%', WebkitMinLogicalWidth: '0px' }}
+                  />
+                  {forecastTargetInput ? (
+                    <button type="button" onClick={() => { setForecastTargetInput(''); setForecastPreset(''); }} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-white/[0.28]" aria-label={tt('swing.clearTarget', '清空目标股价')}>
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 grid min-w-0 grid-cols-5 gap-2">
+                  {FORECAST_PRESETS.map((preset) => {
+                    const needsCurrent = preset.id !== 'cost';
+                    const disabled = needsCurrent && !(positive(selection.wave.currentPriceUsd) > 0);
+                    const active = forecastPreset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => applyForecastPreset(preset)}
+                        className="h-9 min-w-0 whitespace-nowrap rounded-full border px-1 text-[10.5px] tabular-nums disabled:opacity-30"
+                        style={active
+                          ? { borderColor: `${tone(selection.wave.returnPct)}70`, backgroundColor: `${tone(selection.wave.returnPct)}12`, color: tone(selection.wave.returnPct) }
+                          : { borderColor: 'rgba(255,255,255,0.11)', backgroundColor: 'rgba(255,255,255,0.025)', color: 'rgba(255,255,255,0.48)' }}
+                      >
+                        {preset.labelKey ? tt(preset.labelKey, preset.label) : preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="text-[10.5px] text-white/[0.52]">{tt('swing.forecastPnl', '预计收益')}</div>
+                <div className="mt-1.5 flex min-w-0 items-end justify-between gap-3">
+                  <div className="min-w-0 truncate text-[27px] font-normal tabular-nums" style={{ color: tone(forecast.forecastPnlUsd), fontFamily: NUMBER_FONT }}>
+                    {formatPnl(forecast.forecastPnlUsd == null ? null : forecast.forecastPnlUsd * displayRate, displayCurrency, 2)}
+                  </div>
+                  <div className="shrink-0 pb-1 text-[17px] tabular-nums" style={{ color: tone(forecast.forecastReturnPct), fontFamily: NUMBER_FONT }}>{formatPct(forecast.forecastReturnPct)}</div>
+                </div>
+                <div className="relative mt-4 h-[3px] rounded-full bg-white/[0.12]">
+                  <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${forecast.progressPct * 100}%`, backgroundColor: tone(forecast.forecastPnlUsd) }} />
+                  <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-[#10151d]" style={{ left: `${2 + forecast.progressPct * 96}%`, borderColor: tone(forecast.forecastPnlUsd) }} />
+                </div>
+                <div className="mt-2.5 flex justify-between gap-3 text-[10px] text-white/[0.3] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                  <span>{formatUsdPrice(selection.wave.buyPriceUsd)} {tt('swing.forecastCost', '成本价')}</span>
+                  <span className="text-right">{formatUsdPrice(forecast.targetPriceUsd)} {tt('swing.forecastTarget', '目标')}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
+                <Metric label={tt('swing.returnRate', '收益率')} value={formatPct(selection.wave.returnPct)} valueColor={tone(selection.wave.returnPct)} />
+                <Metric label={tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct)} />
+                <Metric label={tt('swing.realized', '已实现')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd)} align="right" />
+              </div>
+              <div className="mt-3 flex items-start gap-2 border-t border-white/[0.06] pt-3 text-[10.5px] leading-4 text-white/[0.4]">
+                <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{selection.wave.note || tt('swing.noNote', '暂无计划备注')}</span>
+              </div>
+            </>
+          )}
         </ActionModalCard>
       ) : null}
 

@@ -11,10 +11,34 @@ import {
 import { createSwingWavesRepository } from '../src/lib/swingWavesRepository.js';
 import {
   buildSwingWaveDashboard,
+  calculateSwingWaveForecast,
   mergeSwingWaveQuoteRows,
   summarizeSwingWaveGroup,
   swingWaveInclusiveDays,
 } from '../src/lib/swingWavesViewModel.js';
+
+test('swing wave forecast is a read-only calculation based on USD unit prices', () => {
+  const forecast = calculateSwingWaveForecast({
+    buyPriceUsd: 355,
+    currentPriceUsd: 385.12,
+    shares: 100,
+    targetPriceUsd: 420,
+  });
+  assert.equal(Number(forecast.currentPnlUsd.toFixed(2)), 3012);
+  assert.equal(Number(forecast.currentReturnPct.toFixed(4)), 0.0848);
+  assert.equal(forecast.forecastPnlUsd, 6500);
+  assert.equal(Number(forecast.forecastReturnPct.toFixed(4)), 0.1831);
+  assert.equal(Number(forecast.progressPct.toFixed(4)), 0.4634);
+
+  const downForecast = calculateSwingWaveForecast({
+    buyPriceUsd: 355,
+    currentPriceUsd: 340,
+    shares: 100,
+    targetPriceUsd: 300,
+  });
+  assert.equal(downForecast.forecastPnlUsd, -5500);
+  assert.equal(Number(downForecast.forecastReturnPct.toFixed(4)), -0.1549);
+});
 
 function createFakeSupabase({ userId = 'user-a', rows = [], beforeUpdate = null } = {}) {
   const state = {

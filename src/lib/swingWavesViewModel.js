@@ -32,6 +32,37 @@ export function swingWaveCompletedDays(startDate, endDate) {
   return Math.max(1, Math.round((end - start) / DAY_MS));
 }
 
+export function calculateSwingWaveForecast({
+  buyPriceUsd,
+  currentPriceUsd,
+  shares,
+  targetPriceUsd,
+} = {}) {
+  const buyPrice = positiveNumber(buyPriceUsd);
+  const currentPrice = positiveNumber(currentPriceUsd);
+  const shareCount = positiveNumber(shares);
+  const targetPrice = positiveNumber(targetPriceUsd);
+  const hasHolding = buyPrice != null && shareCount != null;
+  const currentPnlUsd = hasHolding && currentPrice != null
+    ? (currentPrice - buyPrice) * shareCount
+    : null;
+  const forecastPnlUsd = hasHolding && targetPrice != null
+    ? (targetPrice - buyPrice) * shareCount
+    : null;
+  const rawProgress = currentPrice != null && targetPrice != null && targetPrice !== buyPrice
+    ? Math.abs((currentPrice - buyPrice) / (targetPrice - buyPrice))
+    : 0;
+
+  return {
+    currentPnlUsd,
+    currentReturnPct: currentPnlUsd == null ? null : (currentPrice - buyPrice) / buyPrice,
+    forecastPnlUsd,
+    forecastReturnPct: forecastPnlUsd == null ? null : (targetPrice - buyPrice) / buyPrice,
+    progressPct: Math.max(0, Math.min(1, rawProgress)),
+    targetPriceUsd: targetPrice,
+  };
+}
+
 function normalizeSymbol(value) {
   return String(value || '').trim().toUpperCase();
 }

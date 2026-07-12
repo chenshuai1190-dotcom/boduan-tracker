@@ -190,20 +190,21 @@ test('wave record entry writes legacy trades before main ledger stock_trades', (
 
 test('wave P&L follows the shared currency while stock unit prices and the ledger stay USD', () => {
   const waveUiStart = tradesTabSource.indexOf('{/* 波段记录(取代原来的');
-  const waveUiEnd = tradesTabSource.indexOf('{/* 添加成交表单 - Modal 弹窗 */}', waveUiStart);
+  const waveUiEnd = tradesTabSource.indexOf('{/* 旧波段兼容账本的完整交易历史', waveUiStart);
   const waveUiBlock = tradesTabSource.slice(waveUiStart, waveUiEnd);
-  const allTradesStart = appSource.indexOf('{/* === 📋 全部交易记录弹窗 === */}');
-  const allTradesEnd = appSource.indexOf('{/* === 删除确认弹窗 (交易记录) === */}', allTradesStart);
-  const allTradesBlock = appSource.slice(allTradesStart, allTradesEnd);
-  const deleteConfirmEnd = appSource.indexOf('{/* === 删除确认弹窗 (关注股票) === */}', allTradesEnd);
-  const deleteConfirmBlock = appSource.slice(allTradesEnd, deleteConfirmEnd);
+  const allTradesStart = tradesTabSource.indexOf('{allTradesModal !== null');
+  const allTradesEnd = tradesTabSource.indexOf('{/* 添加成交表单 - Modal 弹窗 */}', allTradesStart);
+  const allTradesBlock = tradesTabSource.slice(allTradesStart, allTradesEnd);
+  const deleteConfirmStart = appSource.indexOf('const requestDeleteLegacyTrade = (tradeId) => {');
+  const deleteConfirmEnd = appSource.indexOf('const updateStockPrice =', deleteConfirmStart);
+  const deleteConfirmBlock = appSource.slice(deleteConfirmStart, deleteConfirmEnd);
   const waveComputationStart = appSource.indexOf('const wavesByStock = useMemo(() => {');
   const waveComputationEnd = appSource.indexOf('// 顶部"持仓冷静室"总览', waveComputationStart);
   const waveComputationBlock = appSource.slice(waveComputationStart, waveComputationEnd);
 
   assert.ok(waveUiStart > -1 && waveUiEnd > waveUiStart, 'missing isolated wave UI boundary');
   assert.ok(allTradesStart > -1 && allTradesEnd > allTradesStart, 'missing legacy all-trades modal boundary');
-  assert.ok(deleteConfirmEnd > allTradesEnd, 'missing legacy wave delete-confirm boundary');
+  assert.ok(deleteConfirmStart > -1 && deleteConfirmEnd > deleteConfirmStart, 'missing shared legacy wave delete-confirm boundary');
   assert.ok(waveCurrencyDisplaySource.includes('export function convertWaveUsdAmount'), 'wave display conversion should live in a dedicated helper');
   assert.ok(waveCurrencyDisplaySource.includes('export function formatWaveUsdPrice'), 'wave stock unit prices should have an explicit USD-only formatter');
   assert.ok(waveCurrencyDisplaySource.includes("if (currency !== 'CNY') return amount"), 'canonical USD values must pass through unchanged');
@@ -229,7 +230,7 @@ test('wave P&L follows the shared currency while stock unit prices and the ledge
   assert.equal(waveUiBlock.includes('$${fmt(w.currentPrice)}'), false, 'active wave price must not stay hardcoded to USD');
   assert.ok(allTradesBlock.includes('formatWaveUsdPrice(trade.price)'), 'legacy all-trades modal unit prices should remain USD quotes');
   assert.ok(allTradesBlock.includes('signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)'), 'legacy all-trades totals should follow the same wave display currency');
-  assert.ok(deleteConfirmBlock.includes('@{formatWaveUsdPrice(trade.price)}'), 'legacy delete confirmation unit price should remain a USD quote');
+  assert.ok(deleteConfirmBlock.includes('formatWaveUsdPrice(trade.price)'), 'legacy delete confirmation unit price should remain a USD quote');
   assert.equal((`${allTradesBlock}\n${deleteConfirmBlock}`.match(/formatWaveUsdPrice\(trade\.price\)/g) || []).length, 2, 'both legacy modal unit-price surfaces should remain USD');
   assert.equal((`${allTradesBlock}\n${deleteConfirmBlock}`.match(/signedWaveCurrencyAmount\(isBuy \? -amount : amount, 0\)/g) || []).length, 2, 'both legacy modal totals should follow the shared currency');
   assert.equal(allTradesBlock.includes('${fmt(trade.price)}'), false, 'legacy all-trades modal must not retain a hardcoded dollar unit price');
@@ -470,8 +471,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.316'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.316', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.318'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.318', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -975,6 +976,8 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes('@media (prefers-reduced-motion: reduce)'), 'stock detail peak halo should respect reduced motion settings');
   assert.ok(stockDetailPageSource.includes('pointerEvents="none"'), 'stock detail peak halo should not capture chart pointer interactions');
   assert.ok(stockDetailPageSource.includes('r="3.6" fill="#ffd18a" stroke="#05070b" strokeWidth="1.4"'), 'stock detail peak dot body should keep its original size and styling');
+  assert.ok(stockDetailPageSource.includes('const showPeakCallout = Boolean(chart.peakPoint && chart.currentPoint);'), 'stock detail chart should show the peak marker when the latest close reaches a new high');
+  assert.ok(stockDetailPageSource.includes("textAnchor={peakCalloutOnRight ? 'end' : 'start'}"), 'a latest-close peak label should expand left instead of overflowing the right edge');
   assert.ok(stockDetailPageSource.includes('updateSelectedPoint(event);'), 'stock detail chart should show the crosshair immediately on pointer down');
   assert.ok(stockDetailPageSource.includes('strokeDasharray="4 5"'), 'stock detail chart should render the selected-day crosshair line');
   assert.ok(stockDetailPageSource.includes('strokeWidth="1.15"'), 'stock detail chart should keep the P&L line thinner like the reference design');
@@ -1112,7 +1115,7 @@ test('cost basis tool uses dark custom UI without legacy title icon or native al
   const costSubmitEnd = appSource.indexOf('const deleteStockTradeRecord =', costSubmitStart);
   const costSubmitBlock = appSource.slice(costSubmitStart, costSubmitEnd);
   const costBasisTradeStart = appSource.indexOf('{showCostBasisTrade && (');
-  const costBasisTradeEnd = appSource.indexOf('{allTradesModal !== null', costBasisTradeStart);
+  const costBasisTradeEnd = appSource.indexOf('{/* 底部 5 tab 导航栏 */}', costBasisTradeStart);
   const costBasisTradeBlock = appSource.slice(costBasisTradeStart, costBasisTradeEnd);
 
   assert.ok(costSubmitStart > -1, 'missing cost-basis submit implementation');
@@ -1408,7 +1411,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(tradesTabSource.includes("displayStockName(symbol, name, language)"), 'Trades tab should pass language into stock display names');
   assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"), 'Trades header should read labels from i18n');
   assert.ok(tradesTabSource.includes("tt('trades.tradeLog', '交易记录')"), 'Trades tool labels should read from i18n');
-  assert.ok(appSource.includes("displayStockName(sym, allTradesModal.name, language)"), 'trade detail modals should display language-aware stock names');
+  assert.ok(tradesTabSource.includes('stockDisplayName(sym, allTradesModal.name)'), 'trade detail modals should reuse the language-aware stock display helper');
   assert.ok(appSource.includes("t(language, 'trades.addAveragingTrade', '添加摊薄交易')"), 'cost-basis trade modal should read labels from i18n');
   assert.ok(i18nSource.includes("'trades.totalAssets': 'Total Assets'"), 'English dictionary should include trade header labels');
   assert.ok(i18nSource.includes("'trades.tradeLog': 'Trade Log'"), 'English dictionary should include trade tool labels');
@@ -1724,6 +1727,11 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.equal(waveTrackerPageSource.includes('const forceExpanded'), false, 'fold logic should not use the removed force-expanded lock');
   assert.ok(waveTrackerPageSource.includes("filter === 'active' ? group.activeCount > 0"), 'completed-only stocks should stay out of the default active view');
   assert.ok(waveTrackerPageSource.includes('wave-form-date-input text-center leading-[40px]') && waveTrackerPageSource.includes("lineHeight: '40px'"), 'wave date inputs should vertically center their native value');
+  assert.ok(waveTrackerPageSource.includes('calculateSwingWaveForecast') && waveTrackerPageSource.includes("setForecastPreset('up10')"), 'active wave actions should initialize the isolated target-price forecast from the live price');
+  assert.ok(waveTrackerPageSource.includes("multiplier: 1.1") && waveTrackerPageSource.includes("multiplier: 1.2") && waveTrackerPageSource.includes("multiplier: 1.3"), 'forecast percentage presets should use formal current-price multipliers');
+  assert.ok(waveTrackerPageSource.includes('id="wave-forecast-target"') && waveTrackerPageSource.includes("WebkitMinLogicalWidth: '0px'"), 'manual forecast input should stay inside keyboard-reduced mobile viewports');
+  assert.ok(waveTrackerPageSource.includes("document.body.style.position = 'fixed'") && actionModalCardSource.includes('window.visualViewport'), 'wave forecast input should reuse the locked body and visual viewport modal safeguards');
+  assert.equal(waveTrackerPageSource.includes('db.saveSwingWaveForecast'), false, 'the forecast simulator must not add a persistence path');
   assert.ok(indexCssSource.includes('.wave-form-date-input::-webkit-date-and-time-value') && indexCssSource.includes('line-height: 40px'), 'Safari date value pseudo-elements should keep the date text vertically centered');
   assert.ok(waveTrackerPageSource.includes("document.body.style.touchAction = 'none'") && waveTrackerPageSource.includes("document.documentElement.style.overscrollBehavior = 'none'"), 'wave dialogs should fully lock iOS background scrolling');
   assert.ok(waveTrackerPageSource.includes("return parsed > 0 ? `$${formatNumber(parsed, 2)}` : '--'"), 'stock unit prices must remain canonical USD');
@@ -1831,7 +1839,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.316'"), 'settings version source should document the current modal unification release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.318'"), 'settings version source should document the current wave forecast release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2072,7 +2080,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');
   assert.ok(devVisualPreviewSource.includes("const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'))"), 'local visual preview should be able to render the settings page mock');
   assert.ok(devVisualPreviewSource.includes('<HomeTab ctx={homeCtx} />'), 'local visual preview should render the home page mock');
-  assert.ok(devVisualPreviewSource.includes('<TradesTab ctx={tradesCtx} />'), 'local visual preview should render the trades page mock');
+  assert.ok(devVisualPreviewSource.includes('<TradesTab') && devVisualPreviewSource.includes('ctx={tradesCtx}'), 'local visual preview should render the trades page mock');
   assert.ok(devVisualPreviewSource.includes('<ReviewTab ctx={reviewCtx} />'), 'local visual preview should render the review page mock');
   assert.ok(devVisualPreviewSource.includes('<SettingsTab ctx={settingsCtx} />'), 'local visual preview should render the settings page mock');
   assert.ok(packageSource.includes('"verify:frontend-smoke": "node scripts/verify-frontend-smoke.mjs"'), 'package scripts should expose the frontend blank-screen smoke guard');
@@ -2147,7 +2155,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.316'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.318'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2335,7 +2343,7 @@ test('account, order, and delete action modals match the approved glass-card des
 
 test('approved modal families share the new shell without widening business boundaries', () => {
   const tradeEntryBlock = tradesTabSource.slice(tradesTabSource.indexOf('{showAddTrade && ('), tradesTabSource.indexOf('{showCostTool && (() => {'));
-  const costBasisDialogsBlock = appSource.slice(appSource.indexOf('{showCostBasisAdd && ('), appSource.indexOf('{allTradesModal !== null'));
+  const costBasisDialogsBlock = appSource.slice(appSource.indexOf('{showCostBasisAdd && ('), appSource.indexOf('{/* 底部 5 tab 导航栏 */}'));
   const assetDialogsBlock = analysisTabSource.slice(analysisTabSource.indexOf('{showAddAccount && ('), analysisTabSource.indexOf('{showMonthsDetail && ('))
     + analysisTabSource.slice(analysisTabSource.indexOf('{showFillSnapshot && ('), analysisTabSource.lastIndexOf('</div>'));
   const passwordDialogBlock = settingsTabSource.slice(settingsTabSource.indexOf('{showChangePassword && ('), settingsTabSource.indexOf('export default React.memo'));
@@ -2353,6 +2361,26 @@ test('approved modal families share the new shell without widening business boun
   assert.ok(settingsTabSource.includes('invite.usedByEmail') && settingsTabSource.includes('inviteUsedByEmail'), 'used invite codes should show the registration email in the admin-only panel');
   assert.ok(analysisTabSource.includes('await db.insertAccount') && analysisTabSource.includes('await db.updateAccount') && analysisTabSource.includes('db.upsertSnapshot'), 'asset modal unification must preserve existing account and snapshot database methods');
   assert.ok(tradesTabSource.includes("onClick: () => confirmTradeSubmit('buy')") && appSource.includes("onClick: () => confirmCostBasisTradeSubmit('buy')"), 'transaction modal unification must preserve the existing confirmation paths');
+});
+
+test('legacy wave trade dialogs use the dark shell and shared danger confirmation without dead watchlist state', () => {
+  const allTradesStart = tradesTabSource.indexOf('{allTradesModal !== null');
+  const allTradesEnd = tradesTabSource.indexOf('{/* 添加成交表单 - Modal 弹窗 */}', allTradesStart);
+  const allTradesBlock = tradesTabSource.slice(allTradesStart, allTradesEnd);
+
+  assert.ok(allTradesStart > -1 && allTradesEnd > allTradesStart, 'missing legacy all-trades modal boundary');
+  assert.ok(allTradesBlock.includes('w-full max-w-md') && allTradesBlock.includes('max-h-[85vh]'), 'legacy all-trades modal should preserve its approved wide dimensions');
+  assert.ok(allTradesBlock.includes('border border-white/10') && allTradesBlock.includes('linear-gradient(158deg'), 'legacy all-trades modal should use the current dark glass surface');
+  assert.equal(allTradesBlock.includes('bg-white rounded-t-3xl'), false, 'legacy all-trades modal should not keep the white panel');
+  assert.equal(allTradesBlock.includes('text-slate-'), false, 'legacy all-trades modal should not keep light-theme typography');
+  assert.equal(allTradesBlock.includes('📋'), false, 'legacy all-trades heading should use the current line icon instead of the old emoji');
+  assert.ok(allTradesBlock.includes('requestDeleteLegacyTrade(trade.id)'), 'all-trades rows should enter the shared delete confirmation path');
+  assert.equal(tradesTabSource.match(/requestDeleteLegacyTrade\(t\.id\)/g)?.length, 3, 'all three legacy wave detail surfaces should enter the shared delete confirmation path');
+  assert.ok(appSource.includes("confirmStyle: 'danger'") && appSource.includes("await deleteTrade(trade.id)"), 'legacy trade deletion should reserve red for the final shared confirmation');
+  assert.equal(appSource.includes('tradeDeleteConfirmId'), false, 'legacy trade deletion should not retain its old modal state');
+  assert.equal(appSource.includes('stockDeleteConfirmId'), false, 'unreachable watchlist deletion state and modal should be removed');
+  assert.ok(appSource.includes('const [stockTrades, setStockTrades] = useState([]);'), 'main stock trade ledger state must remain intact');
+  assert.ok(appSource.includes('const [trades, setTrades] = useState([]);'), 'legacy wave compatibility ledger must remain intact');
 });
 
 test('wave records keep editable notes and completed waves remain reachable', () => {

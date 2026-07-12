@@ -427,7 +427,7 @@ function PositionProfitScenarioSheet({
   );
 }
 
-export default function TradesTab({ ctx }) {
+export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const {
     addTrade,
     AlertCircle,
@@ -461,7 +461,7 @@ export default function TradesTab({ ctx }) {
     Plus,
     quoteRows,
     RefreshCw,
-    setAllTradesModal,
+    requestDeleteLegacyTrade,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,
@@ -477,7 +477,6 @@ export default function TradesTab({ ctx }) {
     setShowCostBasisAdd,
     setShowCostBasisTrade,
     setTradeEntryScope,
-    setTradeDeleteConfirmId,
     setWaveNotes,
     showAddTrade,
     showConfirm,
@@ -509,7 +508,8 @@ export default function TradesTab({ ctx }) {
     if (typeof setPortfolioCurrencyMode === 'function') setPortfolioCurrencyMode(normalized);
   }, [setPortfolioCurrencyMode]);
   const [mainView, setMainView] = React.useState('positions');
-  const [toolPanel, setToolPanel] = React.useState('');
+  const [toolPanel, setToolPanel] = React.useState(initialToolPanel);
+  const [allTradesModal, setAllTradesModal] = React.useState(null);
   const [showAllToolsModal, setShowAllToolsModal] = React.useState(false);
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
   const [orderActionTrade, setOrderActionTrade] = React.useState(null);
@@ -1514,7 +1514,7 @@ export default function TradesTab({ ctx }) {
                                         </span>
                                         <button
                                           type="button"
-                                          onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
+                                          onClick={(e) => { e.stopPropagation(); requestDeleteLegacyTrade(t.id); }}
                                           className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
                                           aria-label={tt('trades.delete', '删除')}
                                         >
@@ -1760,7 +1760,7 @@ export default function TradesTab({ ctx }) {
                                       </span>
                                       <button
                                         type="button"
-                                        onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
+                                        onClick={(e) => { e.stopPropagation(); requestDeleteLegacyTrade(t.id); }}
                                         className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
                                         aria-label={tt('trades.delete', '删除')}
                                       >
@@ -1916,7 +1916,7 @@ export default function TradesTab({ ctx }) {
                                               </span>
                                               <button
                                                 type="button"
-                                                onClick={(e) => { e.stopPropagation(); setTradeDeleteConfirmId(t.id); }}
+                                                onClick={(e) => { e.stopPropagation(); requestDeleteLegacyTrade(t.id); }}
                                                 className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
                                                 aria-label={tt('trades.delete', '删除')}
                                               >
@@ -1941,6 +1941,121 @@ export default function TradesTab({ ctx }) {
             })}
           </div>
         )}
+
+        {/* 旧波段兼容账本的完整交易历史:保留宽版结构,统一深色视觉。 */}
+        {allTradesModal !== null && (() => {
+          const sym = allTradesModal.symbol;
+          const name = stockDisplayName(sym, allTradesModal.name);
+          const symbolTrades = trades
+            .filter((trade) => (trade.symbol || 'TQQQ') === sym)
+            .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id - a.id));
+
+          return (
+            <div
+              className="fixed inset-0 z-[90] flex items-end justify-center bg-black/[0.68] backdrop-blur-[10px] sm:items-center sm:px-4"
+              onClick={() => setAllTradesModal(null)}
+            >
+              <div
+                className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-[radial-gradient(circle_at_50%_0,rgba(47,52,65,0.16),transparent_28%),linear-gradient(158deg,rgba(17,20,27,0.99),rgba(8,10,15,0.995))] shadow-[0_30px_80px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.045)] sm:rounded-[28px]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="relative overflow-hidden border-b border-white/[0.08] px-5 py-4">
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-[17px] w-[17px] text-white/[0.54]" strokeWidth={1.7} />
+                        <h3 className="text-[18px] font-medium tracking-normal text-white/[0.92]">
+                          {tt('trades.allTrades', '全部交易')}
+                        </h3>
+                      </div>
+                      <div className="mt-1 truncate text-[11px] font-normal text-white/[0.42]">
+                        <span className="text-white/[0.72]">{sym}</span>
+                        <span className="mx-1.5 text-white/[0.18]">·</span>
+                        <span>{name}</span>
+                        <span className="mx-1.5 text-white/[0.18]">·</span>
+                        <span>{symbolTrades.length} {tt('trades.entries', '条记录')}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAllTradesModal(null)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.035] text-white/[0.48] active:scale-95"
+                      aria-label={tt('trades.close', '关闭')}
+                    >
+                      <X className="h-4 w-4" strokeWidth={1.8} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                  {symbolTrades.length === 0 ? (
+                    <div className="py-12 text-center text-sm text-white/[0.38]">
+                      {tt('trades.noTrades', '暂无交易记录')}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {symbolTrades.map((trade, index) => {
+                        const isBuy = !trade.side || trade.side === 'buy';
+                        const amount = toNumber(trade.shares) * toNumber(trade.price);
+                        return (
+                          <div
+                            key={trade.id}
+                            className="rounded-[16px] border border-white/[0.08] bg-white/[0.028] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]"
+                          >
+                            <div className="mb-2 flex items-center gap-2">
+                              <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium text-white/[0.92] ${isBuy ? 'bg-[#ff4b1f]/85' : 'bg-emerald-500/75'}`}>
+                                {isBuy ? tt('trades.buy', '买入') : tt('trades.sell', '卖出')}
+                              </span>
+                              <span className="text-[11px] font-normal tabular-nums text-white/[0.46]" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                {trade.date || '—'}
+                              </span>
+                              <span className="text-[10px] font-normal text-white/[0.26]">#{symbolTrades.length - index}</span>
+                              <button
+                                type="button"
+                                onClick={() => requestDeleteLegacyTrade(trade.id)}
+                                className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.025] text-white/[0.35] active:scale-90"
+                                title={tt('trades.deleteThis', '删除这条')}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-[12px]">
+                              <div>
+                                <div className="text-[9px] font-normal uppercase tracking-wider text-white/[0.32]">{tt('trades.quantity', '股数')}</div>
+                                <div className="mt-0.5 font-normal tabular-nums text-white/[0.74]" style={{ fontFamily: TRADE_NUMBER_FONT }}>{trade.shares}</div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-normal uppercase tracking-wider text-white/[0.32]">{tt('trades.unitPrice', '单价')}</div>
+                                <div className="mt-0.5 font-normal tabular-nums text-white/[0.74]" style={{ fontFamily: TRADE_NUMBER_FONT }}>{formatWaveUsdPrice(trade.price)}</div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-normal uppercase tracking-wider text-white/[0.32]">{tt('trades.amount', '金额')}</div>
+                                <div className={`mt-0.5 font-normal tabular-nums ${isBuy ? 'text-[#ff6048]' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                  {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
+                                </div>
+                              </div>
+                            </div>
+                            {trade.batch && (
+                              <div className="mt-2 border-t border-white/[0.06] pt-2 text-[10px] font-normal text-white/[0.32]">
+                                {tt('trades.batch', '批次')}: {trade.batch}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-white/[0.07] bg-black/[0.12] px-5 py-3">
+                  <p className="text-center text-[10px] font-normal leading-relaxed text-white/[0.32]">
+                    {tt('trades.allTradesHint', '删除单笔交易不影响其他波段 · 按日期倒序排列')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 添加成交表单 - Modal 弹窗 */}
         {showAddTrade && (

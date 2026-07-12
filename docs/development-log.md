@@ -4,6 +4,39 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 波段目标价预测与最新收益峰值修复
+
+- Deployment: requested;上线前本地实现与验证已完成,生产暂时仍为 `v10.7.9.316` / runtime `4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` / 入口 `/assets/index-7SGlsBBr.js`。
+- Background: 用户要求进行中波段的操作弹窗增加极简股价预测,按正式数学口径支持手动目标价和快捷涨幅,并继续遵守输入框不溢出、iOS 键盘弹出不跳顶的开发原则;同批修复个股收益曲线最新点创新高时不显示峰值标记的问题。
+- Workflow tier: `runtime`。
+- Changes:
+  - 进行中波段操作弹窗增加目标股价 USD 输入、当前价、成本价及按当前实时价格严格计算的 `+10% / +20% / +30%` 快捷选择;默认打开使用当前价 `+10%`。
+  - 预计收益严格使用 `(目标价 - 波段买入成本价) × 该波段完整股数`,预计收益率使用 `(目标价 - 成本价) / 成本价`;单价继续固定 USD,预计收益金额继续跟随首页 USD/CNY 与现有汇率。
+  - 右上角进行中状态使用波段首页同一套红涨绿跌、灰色持平和呼吸点;详情、编辑、完整卖出按钮继续调用原回调。
+  - 目标价只保存在当前 React 弹窗状态,不新增数据库字段、API 或保存路径;纯计算集中在 `calculateSwingWaveForecast` 并覆盖上涨、下跌与进度测试。
+  - 输入框保持固定 `56px` 高度、`min-w-0/max-w-full` 和 `WebkitMinLogicalWidth: 0`,复用共享 `ActionModalCard` 的 `visualViewport` 锚定、内容内滚动与波段页面 body 锁定。
+  - 个股收益曲线取消“峰值恰好是最新点时隐藏标记”的旧条件;最新收盘创新高也显示峰值圆点与呼吸光晕,位于右边缘时峰值文字向左展开。
+  - 同批包含 `v10.7.9.317` 已完成的旧白色“全部交易”、旧删除确认和不可达关注删除代码清理;设置页与更新日志版本统一提升为 `v10.7.9.318`。
+- Key files: `src/pages/WaveTrackerPage.jsx`,`src/lib/swingWavesViewModel.js`,`src/pages/StockDetailPage.jsx`,`src/lib/i18n.js`,`src/App.jsx`,`src/tabs/TradesTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/swing-waves.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `verify:workspace-state`、`verify:local-env`、`verify:toolchain` 均 pass;波段/边界定向测试 59/59、完整测试 255/255、production build、5/5 frontend smoke（各主 tab console/runtime error 0）、high audit 0 vulnerabilities、docs consistency 和 diff check 均 pass。390x844 正式 `wave-v2` 预览确认 NVDA 波段 01 默认目标 `$231.85`、预计收益 `+¥226,050.30`、预计收益率 `+31.6%`,右上角为系统红色呼吸状态;手动输入 `$420.00` 后按 600 股和 `$176.20` 成本实时得到 `+¥990,315.60 / +138.4%`。模拟键盘把可视区压缩到 390x560 并聚焦输入后,输入框仍位于弹窗中部,没有跳顶;下方内容在弹窗内部滚动,底部操作保持可用。最新点创新高截图也确认峰值圆点、呼吸光晕与向左文字均正常。截图: `/tmp/boduan-wave-forecast-production-local.jpg`,`/tmp/boduan-wave-forecast-keyboard-viewport.jpg`,`/tmp/boduan-v317-latest-peak-hd.jpg`。生产部署和在线验证在推送后继续执行。
+- Boundaries: 不改 `swing_waves` 表、CRUD、完整卖出规则、`stock_trades`、交易账本、收益快照、社区比赛、数据库 SQL/RLS、鉴权、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`;没有 SQL、环境变量或 Vercel 配置变更。
+- Rollback: 回退本条前端、纯计算、i18n、测试、版本与文档,并回退同批 v317 清理即可;无数据库、生产数据或环境配置回滚。
+
+### 2026-07-12 - 旧白色交易弹窗与不可达代码清理
+
+- Deployment: not requested;本轮仅完成本地实现与验证,生产继续保持 `v10.7.9.316` / runtime `4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` / 入口 `/assets/index-7SGlsBBr.js`。
+- Background: 用户确认现有宽版大模块色系无需更换,只要求清理审计中剩余的两处白色旧交易弹窗和一处无用旧代码,并保持宽版现有宽度。
+- Workflow tier: `runtime`。
+- Changes:
+  - 旧波段兼容账本“全部交易”弹窗保留 `w-full max-w-md max-h-[85vh]`、移动端底部抽屉和桌面居中结构,仅把白底、浅色列表、渐变标题和 emoji 改为当前深色玻璃视觉与线性图标。
+  - 三处旧波段交易明细删除入口和“全部交易”列表统一进入共享 `ConfirmModal`;入口按钮保持中性,最终删除确认继续使用系统红色危险态,底层仍调用原 `db.deleteTrade`。
+  - 删除无任何入口的 `stockDeleteConfirmId` 状态及“从关注列表删除”旧白色弹窗,同时移除旧交易删除状态和专用白色确认弹窗。
+  - 设置页与更新日志版本同步为 `v10.7.9.317`。
+- Key files: `src/App.jsx`,`src/tabs/TradesTab.jsx`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 定向边界测试 46/46、完整测试 254/254、production build、5/5 frontend smoke、high audit 0 vulnerabilities、docs consistency 和 diff check 均 pass。正式 `DevVisualPreview` 在 390x844 实测:“全部交易”移动端保持 390px 满宽、桌面上限仍为 `max-w-md`,页面 `scrollWidth/clientWidth=390/390`;单笔删除进入共享 314px 危险确认卡,确认卡 `x=38,y=291.18,w=314,h=363`,未点击最终删除、未写入任何数据。截图: `/tmp/boduan-v317-all-trades-dark.png`,`/tmp/boduan-v317-legacy-delete-confirm.png`。
+- Boundaries: 未改旧波段账本表结构或计算,未改波段 V2、`stock_trades`、正式持仓、资产、目标、收益快照、比赛、数据库 SQL/RLS、鉴权、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
+- Rollback: 回退上述前端、测试、版本与文档即可;无 SQL、生产数据或环境变量回滚。
+
 ### 2026-07-12 - 已确认弹窗统一实装
 
 - Deployment: completed;runtime commit `4302f0abbb78c74e85f09657aa0ace7d6c35b5f4`,GitHub Actions run `29188138401` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EfhqACofs6jB8oUok8AgTqNaY8o1` success,production alias 已更新,入口 `/assets/index-7SGlsBBr.js`。

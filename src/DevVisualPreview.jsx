@@ -544,7 +544,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [tradeLookupStatus, setTradeLookupStatus] = React.useState(null);
   const [tradeEntryScope, setTradeEntryScope] = React.useState('ledger');
   const [showAddTrade, setShowAddTrade] = React.useState(false);
-  const [tradeDeleteConfirmId, setTradeDeleteConfirmId] = React.useState(null);
   const [previewConfirmModal, setPreviewConfirmModal] = React.useState(null);
   const [previewConfirmSubmitting, setPreviewConfirmSubmitting] = React.useState(false);
   const previewConfirmSubmittingRef = React.useRef(false);
@@ -563,7 +562,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [costBasisNewTrade, setCostBasisNewTrade] = React.useState({ type: 'buy', price: '', shares: '', date: new Date().toISOString().slice(0, 10) });
   const [showCostBasisAdd, setShowCostBasisAdd] = React.useState(false);
   const [showCostBasisTrade, setShowCostBasisTrade] = React.useState(false);
-  const [allTradesModal, setAllTradesModal] = React.useState(false);
   const [expandedTrades, setExpandedTrades] = React.useState({});
   const [expandedWaves, setExpandedWaves] = React.useState({});
   const [waveNotes, setWaveNotes] = React.useState({});
@@ -834,6 +832,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     setPreviewConfirmSubmitting(false);
     setPreviewConfirmModal(normalizeConfirmModalOptions(options));
   }, []);
+  const requestDeleteLegacyTrade = React.useCallback((tradeId) => {
+    const trade = mockWaveTrades.find((item) => String(item.id) === String(tradeId));
+    if (!trade) return;
+    const isBuy = !trade.side || trade.side === 'buy';
+    showPreviewConfirm({
+      title: '确定删除这笔交易?',
+      desc: '删除后无法恢复',
+      info: `${isBuy ? '买' : '卖'} · ${trade.symbol || 'TQQQ'} · ${trade.date || '—'} · ${trade.shares}股 @$${Number(trade.price).toFixed(2)}`,
+      confirmText: '删除',
+      confirmStyle: 'danger',
+      icon: '🗑',
+      onConfirm: async () => {},
+    });
+  }, [showPreviewConfirm]);
   const closePreviewConfirm = React.useCallback(() => {
     if (previewConfirmSubmittingRef.current) return;
     setPreviewConfirmModal(null);
@@ -1101,7 +1113,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     Plus,
     quoteRows: tradeQuoteRows,
     RefreshCw,
-    setAllTradesModal,
+    requestDeleteLegacyTrade,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,
@@ -1117,7 +1129,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     setShowCostBasisAdd,
     setShowCostBasisTrade,
     setTradeEntryScope,
-    setTradeDeleteConfirmId,
     setWaveNotes,
     showAddTrade,
     showConfirm: showPreviewConfirm,
@@ -1251,7 +1262,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : activeTab === 'trades'
-          ? <TradesTab ctx={tradesCtx} />
+          ? <TradesTab
+              ctx={tradesCtx}
+              initialToolPanel={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('legacyWaveTool') === '1' ? 'waves' : ''}
+            />
           : activeTab === 'settings'
           ? <SettingsTab ctx={settingsCtx} />
           : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}

@@ -229,7 +229,8 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   const givebackRateText = trendStats?.givebackRate == null
     ? ''
     : `${Math.abs(toNumber(trendStats.givebackRate) * 100).toFixed(1)}%`;
-  const showPeakCallout = Boolean(chart.peakPoint && chart.currentPoint && chart.peakPoint.index !== chart.currentPoint.index);
+  const showPeakCallout = Boolean(chart.peakPoint && chart.currentPoint);
+  const peakCalloutOnRight = Boolean(chart.peakPoint && chart.peakPoint.x > 260);
 
   React.useEffect(() => {
     setSelection(null);
@@ -366,7 +367,13 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
                 pointerEvents="none"
               />
               <circle cx={chart.peakPoint.x} cy={chart.peakPoint.y} r="3.6" fill="#ffd18a" stroke="#05070b" strokeWidth="1.4" />
-              <text x={chart.peakPoint.x + 4} y={Math.max(12, chart.peakPoint.y - 9)} fontSize="9" fill="rgba(255,255,255,0.50)">
+              <text
+                x={peakCalloutOnRight ? chart.peakPoint.x - 5 : chart.peakPoint.x + 4}
+                y={Math.max(12, chart.peakPoint.y - 9)}
+                textAnchor={peakCalloutOnRight ? 'end' : 'start'}
+                fontSize="9"
+                fill="rgba(255,255,255,0.50)"
+              >
                 {t(language, 'stockDetail.peakLabel', '峰值')} {peakText}
               </text>
             </>
