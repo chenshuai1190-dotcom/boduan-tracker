@@ -85,7 +85,7 @@ function AccountLogo({ account }) {
   React.useEffect(() => setFailed(false), [logoUrl]);
 
   return (
-    <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.13] bg-black/[0.38] text-[#f6c56f] shadow-[0_7px_18px_rgba(0,0,0,0.27)]">
+    <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.13] bg-black/[0.38] text-white/[0.55] shadow-[0_7px_18px_rgba(0,0,0,0.27)]">
       {logoUrl && !failed ? (
         <img
           src={logoUrl}
@@ -333,8 +333,8 @@ function AnalysisTab({ ctx }) {
   };
 
   const ownerGroups = React.useMemo(() => [
-    { owner: '我', accounts: myAccounts, total: myTotal, pct: myPct, accent: ASSET_GOLD },
-    { owner: '老婆', accounts: wifeAccounts, total: wifeTotal, pct: wifePct, accent: ASSET_PINK },
+    { owner: '我', accounts: myAccounts, total: myTotal, pct: myPct },
+    { owner: '老婆', accounts: wifeAccounts, total: wifeTotal, pct: wifePct },
   ], [myAccounts, myPct, myTotal, wifeAccounts, wifePct, wifeTotal]);
 
   const metricItems = React.useMemo(() => [
@@ -715,27 +715,27 @@ function AnalysisTab({ ctx }) {
         </section>
       )}
 
-      {ownerGroups.map(({ owner, accounts: ownerAccs, total, pct, accent }) => {
+      {ownerGroups.map(({ owner, accounts: ownerAccs, total, pct }) => {
         const visibleOwnerAccs = currentVisibleAccounts(ownerAccs);
         if (visibleOwnerAccs.length === 0) return null;
         return (
           <section
             key={owner}
           className="rounded-[20px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-          style={{ background: ASSET_CARD, borderColor: accent === ASSET_GOLD ? 'rgba(246,197,111,0.38)' : 'rgba(245,111,152,0.38)' }}
+          style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}
         >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[16px] leading-none text-white/[0.92]">{ownerGroupLabel(owner)}</div>
                 <div className="mt-2 text-[12px] text-white/[0.45]">{tt('analysis.accountsSummary', '{{count}} 个账户 · 占总资产 {{pct}}%', { count: visibleOwnerAccs.length, pct: pct.toFixed(0) })}</div>
               </div>
-              <div className="text-right text-[21px] leading-none tabular-nums" style={{ color: accent, fontFamily: ASSET_NUMBER_FONT }}>
+              <div className="text-right text-[21px] leading-none tabular-nums" style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}>
                 ¥{fmtWan(total)}万
               </div>
             </div>
 
             <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/[0.055]">
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: accent }} />
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: ASSET_PINK }} />
             </div>
 
             <div className="mt-4 space-y-2">
@@ -752,7 +752,7 @@ function AnalysisTab({ ctx }) {
                     }}
                     className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-left transition"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
                       <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
@@ -1275,10 +1275,9 @@ function AnalysisTab({ ctx }) {
                       {currentAccs.map(acc => {
                         const currentBal = getBalance(acc.id, fillMonth);
                         const draftVal = snapshotDraft[acc.id] ?? (currentBal || '');
-                        const accent = acc.owner === '老婆' ? ASSET_PINK : ASSET_GOLD;
                         return (
                           <div key={acc.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18]" style={{ color: accent }}>
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
                               <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 flex-1">

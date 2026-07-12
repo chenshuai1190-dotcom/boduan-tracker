@@ -4,6 +4,22 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 资产人物卡配色统一
+
+- Commit: pending。
+- Deployment: pending;本轮先本地截图确认,未修改生产。
+- Background: 用户要求资产页“我/老婆”分组取消人物彩色外框,两组金额与进度条统一系统红,各小账户类型图标取消人物强调色并恢复中性默认色。
+- Workflow tier: `runtime`。
+- Changes:
+  - “我”和“老婆”资产分组卡外框统一使用既有 `ASSET_BORDER` 中性边框,不再根据人物切换金色/红色。
+  - 两组右上角资产金额与占比进度条统一使用现有系统市场红 `marketHexColor(-1)`;不再让“我”使用金色。
+  - 主账户列表、月度余额编辑列表和账户操作 Logo fallback 的账户类型图标统一使用 `text-white/[0.55]` 中性默认色;可用的账户图片 Logo 继续显示原图。
+  - 设置页三个可见版本面和更新日志同步为 `v10.7.9.307`。
+- Key files: `src/tabs/AnalysisTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `AnalysisTab-BXR4pcEc.js`、`SettingsTab-DB5cWEyB.js` 和 `settingsChangelog-BMKfba7N.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;docs consistency、`git diff --check` pass。390x844 本地视觉/计算样式复核:“我/老婆”卡片宽度均保持 358px,两者边框均为 `rgba(255,255,255,0.11)`,金额/进度条均为系统红 `rgb(255,75,31)`,账户类型图标均为 `rgba(255,255,255,0.55)`,页面 `scrollWidth/clientWidth=390/390`,console warning/error 0;截图 `~/Desktop/boduan-previews/asset-owner-neutral-border-red-accent-v307-390x844.png`。未部署。
+- Boundaries: 只改资产页颜色样式;不改人物标题、卡片宽度/布局、账户展示过滤、余额/占比/汇率计算、账户增删改、月度快照、数据库、RLS、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
+- Rollback: 回退资产人物卡与账户图标颜色、`v10.7.9.307` 版本/更新日志、测试和本条文档即可;无需数据库回滚。
+
 ### 2026-07-12 - 首页自选分隔线对齐
 
 - Commit: `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
