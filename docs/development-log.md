@@ -4,6 +4,23 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - UI-fast 扩展到轻量展示交互
+
+- Commit: `same commit`。
+- Deployment: docs-only 流程边界更新;推送后由 Vercel 自动部署文档,不改变当前 `v10.7.9.322` 生产运行时 bundle。
+- Background: 用户明确要求简单交互和 UI 不再跑完整测试,只有涉及业务逻辑、数据库、实质交互等高影响面时才执行完整流程。
+- Workflow tier: `docs-only`。
+- Changes:
+  - UI-fast 从静态视觉扩展到只影响当前界面呈现的轻量交互:展开/收起、页签、弹窗开关、焦点/按压态、局部滚动、键盘可见性、安全区以及 loading/空状态/错误状态展示。
+  - 允许轻量交互使用组件内临时展示状态;只要不改变业务回调语义、持久化、全局/跨模块状态、计算、数据源或安全边界,就不默认跑完整 `npm test` 和 audit。
+  - 完整 runtime 明确用于业务逻辑/计算/判断、保存删除提交同步等会改变业务结果的交互、数据库/持久化、全局或跨模块状态、API/provider、鉴权/RLS/安全、交易账本/持仓/收益/快照/币种换算、路由/PWA 生命周期以及依赖/build/CI/环境配置。
+  - 交互按结果而不是外观分档:只改变“怎么显示”走 UI-fast;改变“保存什么、计算什么、请求什么、下次看到什么或其他模块收到什么”走 runtime。不确定时不降级。
+  - iOS-only 前端验收规则不变;所有用户可见视觉、交互、键盘、滚动、安全区和 PWA 验收仍以本机 Xcode iOS Simulator 为准,代码门禁强度再按风险分档。
+- Key files: `README.md`,`docs/development-process.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 按 docs-only 执行 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;本轮不改源码、测试、依赖、构建配置或生产 bundle,因此不运行 `npm test`、build、audit 或 iOS 视觉验收。
+- Boundaries: 不改应用交互、交易账本、资产、目标、收益快照、数据库、RLS、鉴权、行情 relay、API、环境变量或 Vercel 配置;不升设置页版本。
+- Rollback: 回退本条流程、README、交接和日志文档即可;无运行时或数据回滚。
+
 ### 2026-07-12 - iOS 共享弹窗聚焦输入与本地验收准则
 
 - Commit: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。

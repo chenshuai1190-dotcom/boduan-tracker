@@ -48,8 +48,8 @@ UI or feature changes that touch system copy must keep Simplified Chinese and En
 
 Use the risk-tiered workflow in `docs/development-process.md`:
 
-- `ui-fast`: run the directly related targeted test, `npm run build`, and `git diff --check`.
-- `runtime`: run `npm run verify:toolchain`, `npm test`, `npm run build`, `npm audit --audit-level=moderate`, and `git diff --check`.
+- `ui-fast`: covers visual changes and local presentation-only interactions such as expand/collapse, tabs, modal open/close, focus, scrolling, keyboard visibility, and display states when they do not change business callbacks, persistence, calculations, data sources, or cross-module state. Run the directly related targeted test, `npm run build`, and `git diff --check`; do not add the full suite by default.
+- `runtime`: covers business logic/calculations, persistence/database work, save/delete/submit/sync behavior, global or cross-module state, APIs/providers, auth/RLS/security, ledgers/returns/snapshots/currency conversion, routing/PWA lifecycle, dependencies, build, CI, and environment configuration. Run `npm run verify:toolchain`, `npm test`, `npm run build`, `npm audit --audit-level=moderate`, and `git diff --check`.
 - `docs-only`: run `npm run verify:docs-consistency`, `git diff --check`, and `git diff --stat`.
 - `sensitive`: run the runtime checks plus affected auth/RLS/API smoke tests.
 - After pushing a deployable commit, use `npm run verify:deploy-status -- <commit>` for the standard GitHub/Vercel/production-entry/auth summary.

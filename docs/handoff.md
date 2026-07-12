@@ -56,7 +56,7 @@
 - 上一条补充: `v10.7.9.284` 自选添加股票校验已随 `v10.7.9.285` 同一 runtime commit 上线;添加自选股票前必须先通过现有已登录 `/api/quote` 校验美股代码存在且返回有效股票价格,非美股代码、特殊行情符号、接口报错或 EODHD 未返回有效股票价格时不写入自选。
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
-- 最新流程补充: 开发验证仍按 `ui-fast/runtime/docs-only/sensitive` 四档风险流程执行,但所有前端视觉、交互、键盘、滚动、安全区和 PWA 验收必须使用本机 Xcode iOS Simulator;禁止桌面浏览器、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 作为视觉通过证据。自动化测试、build、docs 和安全检查继续作为代码门禁。
+- 最新流程补充: 开发验证仍按 `ui-fast/runtime/docs-only/sensitive` 四档风险流程执行。纯视觉及只改变界面呈现的轻量交互(展开/收起、页签、弹窗开关、焦点、滚动、键盘可见性和展示状态)走 UI-fast,不默认跑完整测试;业务逻辑/计算、持久化、保存删除等业务交互、跨模块状态、API、鉴权/RLS、安全、账本/收益/快照/换算、路由/PWA 生命周期和依赖/构建/CI/环境配置才走完整 runtime。所有前端视觉、交互、键盘、滚动、安全区和 PWA 验收必须使用本机 Xcode iOS Simulator;禁止桌面浏览器、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 作为视觉通过证据。自动化测试、build、docs 和安全检查继续作为代码门禁。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
 - 当前生产运行时基准提交: `a61fc55c482aeda5c84ac1ad7321f03bdf6a896a`。
 - 当前本地与生产设置页版本均为 `v10.7.9.322`。
@@ -191,7 +191,7 @@ npm ci
 
 每次改动先判定 workflow tier,再选择验证强度。纯 UI 不再归入全量 runtime:
 
-1. `ui-fast`: 纯文字、颜色、图标、字号/字重、边框、间距、固定宽高、对齐或已确认原型等价接入,且不改数据、状态、回调、业务计算、API、数据库、RLS、鉴权或账本。只需跑:
+1. `ui-fast`: 纯文字、颜色、图标、字号/字重、边框、间距、固定宽高、对齐、已确认原型等价接入,以及仅影响当前界面呈现的展开/收起、页签、弹窗开关、焦点、按压态、局部滚动、键盘可见性、安全区和 loading/空状态/错误状态展示。允许组件内临时展示状态,但不得改持久化、全局/跨模块状态、业务计算、数据源、API、数据库、RLS、鉴权、账本或保存/删除/提交等业务回调语义。只需跑:
 
    ```bash
    <相关定向测试;没有时记录原因>
@@ -201,13 +201,12 @@ npm ci
 
    不默认跑全量 `npm test`、frontend smoke、audit 或重复环境检查。用户已确认原型时不重复出同一张图;用户说“先本地”时不推送,说“部署”时快速验证 pass 后直接上线并跑 `verify:deploy-status`。
 
-2. `runtime`: 业务计算、状态流转、回调、数据读写、路由、共享组件行为、API/PWA/依赖/构建配置改动。必须跑:
+2. `runtime`: 业务逻辑/计算/判断,保存、删除、提交、确认、同步、导入或导出等改变业务结果的交互,持久化/数据库读写,全局/跨模块状态,API/provider,鉴权/RLS/安全,交易账本/持仓/收益/快照/币种换算,路由结果,PWA 生命周期/回前台刷新/service worker,依赖/build/CI/环境配置,或会改变多个模块数据与业务行为的共享组件改动。必须跑:
 
    ```bash
    npm run verify:toolchain
    npm test
    npm run build
-   npm run verify:frontend-smoke
    npm audit --audit-level=high
    git diff --check
    ```
@@ -840,8 +839,8 @@ npm ci
 - 新 Codex 工作区先跑 `npm run verify:workspace-state`,它会检查 `.env.local`、`.vercel/`、`node_modules`、`dist`、本地 Vite 端口和 Git 工作区状态,并提示需要的 bootstrap 命令。
 - 需要本地登录、真实 Supabase、EODHD smoke 或 API 验证时才跑 `npm run verify:local-env`;纯 UI 不跑。若任务确实需要且 `.env.local` 缺失,再跑 `npm run bootstrap:local-env`。
 - 需要 Vercel env pull/link 时,跑 `npm run bootstrap:vercel-link`;`.vercel/` 是本地状态并被 Git 忽略。
-- `ui-fast`: 纯文字/颜色/图标/字号/边框/间距/对齐/已确认原型等价接入,且不改数据、状态、回调、计算、API、数据库或安全边界;只跑相关定向测试、`npm run build`、`git diff --check`。部署不会自动要求补跑全量 test/smoke/audit。
-- `runtime`: 改业务计算、状态流转、回调、数据读写、路由、共享组件行为、API/PWA/依赖/构建配置,跑 `npm run verify:toolchain`、`npm test`、`npm run build`、frontend smoke、`npm audit --audit-level=high`、`git diff --check`。
+- `ui-fast`: 纯视觉和仅改变当前界面呈现的轻量交互(展开/收起、页签、弹窗开关、焦点/按压态、局部滚动、键盘可见性、安全区、loading/空状态/错误状态展示),且不改业务回调语义、持久化、全局/跨模块状态、计算、数据源、API、数据库或安全边界;只跑相关定向测试、`npm run build`、`git diff --check`。部署不会自动要求补跑全量 test/audit。
+- `runtime`: 改业务逻辑/计算,保存/删除/提交/同步等业务交互,持久化/数据库,全局或跨模块状态,API/provider,鉴权/RLS/安全,账本/收益/快照/换算,路由/PWA 生命周期,共享业务行为或依赖/build/CI/环境配置,跑 `npm run verify:toolchain`、`npm test`、`npm run build`、`npm audit --audit-level=high`、`git diff --check`。
 - `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;如果是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
 - `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
 - 推送后默认用 `npm run verify:deploy-status -- <commit>` 汇总 GitHub Actions、Vercel commit status、生产入口和未登录 quote/earnings 401。不要再手写长 `gh api` / `curl` 输出,也不要对整份 `docs/development-log.md` 做无边界 `rg -n`。
