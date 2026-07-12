@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 设置页头像加载与边框优化
 
-- Deployment: not deployed;本轮按用户要求先完成本地截图确认。
+- Deployment: completed;runtime commit `61c438d34cdf5f9e7a52e02532697ca1c79d518c`,GitHub Actions run `29179842191` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BbCFJTQLooZKwAiuCon4sfbJnrBp` success,production alias 已更新,入口 `/assets/index-CMYMd7fa.js`。
 - Background: 生产截图显示顶部“设置”标题重复,社区资料加载时先闪现金色默认头像再切换到用户头像,且除蓝色外其余默认头像的素材外圈显得过重。
 - Workflow tier: `runtime`。
 - Changes:
@@ -16,7 +16,7 @@
   - `DevVisualPreview` 增加仅由 `communityProfileDelay=1` 触发的 700ms 社区资料读取延迟,用于稳定复核 hydrating 状态;不进入正式数据链路。
   - 设置页与更新日志版本同步为 `v10.7.9.309`。
 - Key files: `src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-Du1eNMed.js`、`settingsChangelog-C_IlEGG2.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。390x844 正式设置页本地复核:顶部 `h1` 数量 0,`scrollWidth/clientWidth=390/390`;延迟资料读取时仅显示中性转圈/“加载中…”,未出现默认金色头像;蓝色保持原细边框,金色与紫色复核确认粗素材外圈已减弱。截图 `~/Desktop/boduan-previews/settings-v309-loading-neutral-390x844.png`、`settings-v309-blue-avatar-390x844.png`、`settings-v309-gold-avatar-390x844.png`、`settings-v309-nonblue-avatar-border-390x844.png`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-Du1eNMed.js`、`settingsChangelog-C_IlEGG2.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。390x844 正式设置页本地复核:顶部 `h1` 数量 0,`scrollWidth/clientWidth=390/390`;延迟资料读取时仅显示中性转圈/“加载中…”,未出现默认金色头像;蓝色保持原细边框,金色与紫色复核确认粗素材外圈已减弱。截图 `~/Desktop/boduan-previews/settings-v309-loading-neutral-390x844.png`、`settings-v309-blue-avatar-390x844.png`、`settings-v309-gold-avatar-390x844.png`、`settings-v309-nonblue-avatar-border-390x844.png`。`npm run verify:deploy-status -- 61c438d` pass;生产 `/assets/SettingsTab-Du1eNMed.js` 命中 `v10.7.9.309`、`phase-1-production`、`加载中`、`scale-[1.1]` 和 `scale-[1.32]`;未登录 quote、earnings 均为 `401`。
 - Boundaries: 不改 `community_profiles` 表、昵称/头像保存、头像 key、RLS、比赛资料门槛、邀请码、认证、交易账本、行情或收益快照。
 - Rollback: 回退标题/加载占位/裁切规则、v309 更新日志、测试和本条文档即可;无需数据库回滚。
 
