@@ -3,6 +3,7 @@ import { fetchWithTimeout, QUOTE_TIMEOUTS } from './quote/http.js';
 import {
   CompetitionSnapshotValidationError,
   computeCompetitionLedgerHash,
+  deriveVerifiedCompetitionHoldingSymbols,
 } from './communityCompetitionSnapshotModel.js';
 import {
   buildCompetitionLeaderboard,
@@ -166,6 +167,7 @@ async function fetchLeaderboardData({ fromDate, asOfDate }) {
     'daily_return_pct',
     'cumulative_return_pct',
     'locked_at',
+    'ledger_hash',
   ].join(','));
   snapshotUrl.searchParams.set('snapshot_date', `gte.${fromDate}`);
   snapshotUrl.searchParams.append('snapshot_date', `lte.${asOfDate}`);
@@ -178,6 +180,44 @@ async function fetchLeaderboardData({ fromDate, asOfDate }) {
     fetchPaged(`${snapshotUrl.pathname}${snapshotUrl.search}`),
   ]);
   return { members, profiles, snapshots };
+}
+
+async function fetchVerifiedHoldingSymbols({ members = [], profiles = [], snapshots = [], asOfDate }) {
+  const completedProfileIds = new Set(
+    profiles
+      .filter((profile) => isCompletedProfile(profile))
+      .map((profile) => String(profile.user_id || ''))
+      .filter(Boolean),
+  );
+  const snapshotByUser = new Map();
+  snapshots.forEach((snapshot) => {
+    if (
+      String(snapshot?.snapshot_date || '').slice(0, 10) === asOfDate
+      && snapshot?.locked_at
+      && /^[a-f0-9]{64}$/i.test(String(snapshot?.ledger_hash || ''))
+    ) {
+      snapshotByUser.set(String(snapshot.user_id || ''), snapshot);
+    }
+  });
+  const userIds = members
+    .filter((member) => member?.status === 'active')
+    .map((member) => String(member.user_id || ''))
+    .filter((userId) => userId && completedProfileIds.has(userId) && snapshotByUser.has(userId));
+
+  const entries = await Promise.all(userIds.map(async (userId) => {
+    try {
+      const trades = await fetchEligibleLedgerTrades(userId, asOfDate);
+      const snapshot = snapshotByUser.get(userId);
+      return [userId, deriveVerifiedCompetitionHoldingSymbols({
+        stockTrades: trades,
+        throughDate: asOfDate,
+        expectedLedgerHash: snapshot.ledger_hash,
+      })];
+    } catch {
+      return [userId, null];
+    }
+  }));
+  return new Map(entries);
 }
 
 async function fetchBenchmarkRows({ from, to }) {
@@ -239,12 +279,16 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
   });
   if (!preliminary.self) return waiting;
 
-  const benchmarkRows = await fetchBenchmarkRows({ from: fetchFromDate, to: asOfDate });
+  const [benchmarkRows, holdingSymbolsByUser] = await Promise.all([
+    fetchBenchmarkRows({ from: fetchFromDate, to: asOfDate }),
+    fetchVerifiedHoldingSymbols({ ...data, asOfDate }),
+  ]);
   const leaderboard = buildCompetitionLeaderboard({
     ...data,
     period: normalizedPeriod,
     asOfDate,
     benchmarkRows,
+    holdingSymbolsByUser,
     selfUserId: userId,
   });
 

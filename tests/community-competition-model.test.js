@@ -94,7 +94,7 @@ test('benchmark uses real close-to-close data and returns null when baseline is 
   assert.ok(Math.abs(laterStart.returnPct - 0.21) < 1e-12);
 });
 
-test('leaderboard ranks only completed profiles and exposes no identity or portfolio details', () => {
+test('leaderboard ranks only completed profiles and exposes only public holding symbols', () => {
   const members = [
     { user_id: 'user-a', status: 'active', ranking_start_snapshot_date: '2026-07-08', ranking_baseline_return_pct: 0.1 },
     { user_id: 'user-b', status: 'active', ranking_start_snapshot_date: '2026-07-08', ranking_baseline_return_pct: 0.2 },
@@ -121,6 +121,10 @@ test('leaderboard ranks only completed profiles and exposes no identity or portf
       { date: '2026-07-07', close: 100 },
       { date: '2026-07-08', close: 101 },
     ],
+    holdingSymbolsByUser: new Map([
+      ['user-a', ['NVDA', 'MSFT', 'NVDA']],
+      ['user-b', []],
+    ]),
     selfUserId: 'user-a',
   });
 
@@ -131,8 +135,10 @@ test('leaderboard ranks only completed profiles and exposes no identity or portf
   assert.equal(result.stats.participants, 2);
   assert.equal(result.stats.beatRatePct, 1);
   assert.equal(result.stats.profitableRatePct, 1);
+  assert.deepEqual(result.self.holdingSymbols, ['MSFT', 'NVDA']);
+  assert.deepEqual(result.leaders[0].holdingSymbols, []);
   const serialized = JSON.stringify(result);
-  assert.doesNotMatch(serialized, /user-a|user-b|user-c|example\.com|market_value|holding|trade/i);
+  assert.doesNotMatch(serialized, /user-a|user-b|user-c|example\.com|market_value|shares|price|amount|trade|_usd/i);
 });
 
 test('each entrant and beat-rate stat use QQQ from that entrant own calculation start', () => {

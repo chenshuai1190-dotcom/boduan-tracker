@@ -6,10 +6,11 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新已上线版本: `v10.7.9.304` 收益比赛标题样式统一,production runtime `9c856370337c1945336eed9ba3fa5dab6a39e379`;标题与波段记录统一为 18px 常规字重、相同字距和亮度,不改比赛逻辑。比赛继续使用服务端真实鉴权、自愿加入、已确认社区资料门槛和独立不可覆盖的收盘收益率快照;最新版 Profile/Competition SQL、匿名 REST 20/20、生产 API/marker 验证均已完成。
-- 独立边界: 新增 `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径;只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。Hobby 版通过 rewrite 把 Cron 路径送入 community function 的 `CRON_SECRET` 专用分支,用户 Bearer 分支保持隔离。榜单响应不含 user id、邮箱、金额、持仓或交易。
+- 最新待部署版本: `v10.7.9.305` 收益比赛收盘持仓公开与用户卡;排行榜服务端在 `asOfDate` 从正式 `stock_trades` 推导收盘持仓代码,且必须通过同日锁定快照 `ledger_hash` 才返回。当前已上线版本仍为 `v10.7.9.304`,production runtime `9c856370337c1945336eed9ba3fa5dab6a39e379`。
+- 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地与生产设置页版本均为 `v10.7.9.304`;当前生产运行时基准提交为 `9c856370337c1945336eed9ba3fa5dab6a39e379`,入口为 `/assets/index-CPJKiFds.js`。
+- 当前本地设置页版本为 `v10.7.9.305`,当前生产仍为 `v10.7.9.304`;当前生产运行时基准提交为 `9c856370337c1945336eed9ba3fa5dab6a39e379`,入口为 `/assets/index-CPJKiFds.js`。
+- `v10.7.9.305` 本地验证:定向 63/63、完整测试 240/240、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、匿名 RLS 20/20、docs/diff 均 pass;390x844 确认 320px 用户卡、头像箭头锚点、12 ticker 换行、空仓文案与横向零溢出。待 GitHub/Vercel/线上鉴权验证。
 - `v10.7.9.304` 验证:定向 42/42、完整测试 239/239、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff 均 pass;390x844 对照确认收益比赛与波段记录标题计算样式完全一致。GitHub Actions run `29162215875` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GLo8GFDrxfEwbWznX5adZXyEHDht` success;未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`。
 - `v10.7.9.303` 验证:定向 78/78、完整测试 239/239、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff/RLS 20/20 均 pass;GitHub Actions run `29161655826` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6` success。未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;生产 chunk 命中 v303/真实 API/披露/等待状态,比赛页面 chunk 不含 localStorage、旧 join key 或固定 mock 数字。
 - 最新已上线: `v10.7.9.301` 设置页社区资料基础。设置页新增“社区资料”模块,可真实读写后续社区比赛使用的公开昵称和 6 个默认头像;资料写入独立 `community_profiles`,只存 `nickname` 与 `avatar_key`,不存邮箱、资产、收益或交易账本。本轮不开放头像上传、不接 Supabase Storage。
@@ -52,7 +53,7 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地与生产设置页版本均为 `v10.7.9.304`;收益比赛标题已与波段记录统一,真实、独立、权威收盘快照比赛逻辑不变。生产 SQL、匿名 REST 20/20、应用部署与线上鉴权证据已完成;SQL/admin metadata 结果仍因 Dashboard 翻译插件崩溃未能稳定读取。
+- 当前本地设置页版本: `v10.7.9.305`;当前生产为 `v10.7.9.304`。本地待部署版本新增经过同日账本哈希验证的收盘持仓代码和排行榜用户卡,不新增 SQL。生产 SQL、匿名 REST 20/20、应用部署与线上鉴权证据已完成;SQL/admin metadata 结果仍因 Dashboard 翻译插件崩溃未能稳定读取。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `9c856370337c1945336eed9ba3fa5dab6a39e379`。
 - 当前生产运行时基准提交: `9c856370337c1945336eed9ba3fa5dab6a39e379`。
 - 最近应用代码提交: `9c856370337c1945336eed9ba3fa5dab6a39e379` 包含 `v10.7.9.304` 标题统一;`bf48e5accd79c55e40e1d578e5618dd1eced0ad8` 包含 `v10.7.9.303` 真实收益比赛与 Hobby 12-function rewrite;`a363e64deebbf460a4c322c59099e7feb571bf0d` 为完整功能提交,`797fab626136719e5448692e1536f2a533d28b19` 为随同上线的 v302 头像白边修复。
@@ -718,12 +719,13 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `9c856370337c1945336eed9ba3fa5dab6a39e379`
 当前前台可见运行时基准提交: `9c856370337c1945336eed9ba3fa5dab6a39e379`
-设置页版本: `v10.7.9.304`
+设置页版本: `v10.7.9.305`（本地待部署;当前生产为 `v10.7.9.304`）
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
 最新运行时部署: `9c856370337c1945336eed9ba3fa5dab6a39e379` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GLo8GFDrxfEwbWznX5adZXyEHDht`,Actions run `29162215875`
 最新生产入口: `/assets/index-CPJKiFds.js`
 
 最新已上线:
+- 待部署 `v10.7.9.305`:排行榜用户卡公开经同日 `ledger_hash` 验证的收盘持仓代码,只返回 ticker,不返回股数、成本、金额、仓位或交易明细;不新增 SQL
 - `v10.7.9.304` 收益比赛标题样式统一:收益比赛与波段记录标题统一为 18px 常规字重、相同字距和亮度;只改标题视觉,比赛数据与安全边界不变
 - `v10.7.9.303` 收益比赛真实收盘快照版:社区资料需主动保存,参赛需自愿确认,排名从加入后的下一份权威收盘快照开始;生产页不再包含 mock/localStorage/fixed sparkline。比赛使用独立成员表、不可覆盖的百分比快照表、严格鉴权 API 和独立 Cron URL,只读 `stock_trades` 且不改其他模块;生产 SQL、匿名 REST 20/20、Actions/Vercel、线上 401 和 marker 均已验证
 - `v10.7.9.302` 社区头像白边修正已随 v303 上线;只改设置页头像展示样式,不改 `community_profiles` 数据、头像 key、RLS、交易账本或当时的社区比赛逻辑

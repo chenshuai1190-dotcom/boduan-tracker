@@ -5,6 +5,8 @@ import {
   buildCompetitionCashFlowSnapshot,
   CompetitionSnapshotValidationError,
   computeCompetitionLedgerHash,
+  deriveCompetitionHoldingSymbols,
+  deriveVerifiedCompetitionHoldingSymbols,
 } from '../server/communityCompetitionSnapshotModel.js';
 
 const TARGET_DATE = '2026-07-08';
@@ -180,4 +182,28 @@ test('ledger hash is canonical and changes when locked economic history changes'
   const changed = computeCompetitionLedgerHash([buy({ price: 91 }), sell()], TARGET_DATE);
   assert.equal(first, reordered);
   assert.notEqual(first, changed);
+});
+
+test('public holding symbols reflect the locked close date without exposing quantities', () => {
+  const rows = [
+    buy({ id: 'nvda-buy', shares: 10 }),
+    { ...buy({ id: 'msft-buy', shares: 5 }), symbol: 'MSFT' },
+    sell({ id: 'nvda-sell', shares: 10, price: 110 }),
+    { ...buy({ id: 'future-aapl', date: '2026-07-09', shares: 2 }), symbol: 'AAPL', created_at: '2026-07-09T14:00:00Z' },
+  ];
+  assert.deepEqual(deriveCompetitionHoldingSymbols(rows, TARGET_DATE), ['MSFT']);
+  const ledgerHash = computeCompetitionLedgerHash(rows, TARGET_DATE);
+  assert.deepEqual(deriveVerifiedCompetitionHoldingSymbols({
+    stockTrades: rows,
+    throughDate: TARGET_DATE,
+    expectedLedgerHash: ledgerHash,
+  }), ['MSFT']);
+  assert.equal(deriveVerifiedCompetitionHoldingSymbols({
+    stockTrades: rows,
+    throughDate: TARGET_DATE,
+    expectedLedgerHash: '0'.repeat(64),
+  }), null);
+  expectCode('unsupported_currency', () => deriveCompetitionHoldingSymbols([
+    { ...buy(), currency: 'CNY' },
+  ], TARGET_DATE));
 });

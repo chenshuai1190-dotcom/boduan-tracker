@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import handler from '../api/community-competition.js';
+import { computeCompetitionLedgerHash } from '../server/communityCompetitionSnapshotModel.js';
 
 function createResponse() {
   return {
@@ -173,6 +174,20 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
   const env = snapshotEnv(ENV_KEYS);
   configureEnv();
   const originalFetch = globalThis.fetch;
+  const userATrades = [{
+    id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', side: 'buy', trade_date: '2026-07-07',
+    price: 100, shares: 10, fee: 0, currency: 'USD', created_at: '2026-07-07T14:00:00Z',
+  }];
+  const userBTrades = [
+    {
+      id: 'trade-b1', user_id: 'user-b', symbol: 'MSFT', side: 'buy', trade_date: '2026-07-07',
+      price: 200, shares: 5, fee: 0, currency: 'USD', created_at: '2026-07-07T14:00:00Z',
+    },
+    {
+      id: 'trade-b2', user_id: 'user-b', symbol: 'QQQ', side: 'buy', trade_date: '2026-07-08',
+      price: 500, shares: 2, fee: 0, currency: 'USD', created_at: '2026-07-08T15:00:00Z',
+    },
+  ];
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'user-a', email: 'private@example.com' });
@@ -211,9 +226,13 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
         return jsonResponse([{ snapshot_date: '2026-07-08' }]);
       }
       return jsonResponse([
-        { user_id: 'user-a', snapshot_date: '2026-07-08', daily_return_pct: 0.02, cumulative_return_pct: 0.12, locked_at: '2026-07-08T22:45:00Z' },
-        { user_id: 'user-b', snapshot_date: '2026-07-08', daily_return_pct: 0.04, cumulative_return_pct: 0.24, locked_at: '2026-07-08T22:45:00Z' },
+        { user_id: 'user-a', snapshot_date: '2026-07-08', daily_return_pct: 0.02, cumulative_return_pct: 0.12, locked_at: '2026-07-08T22:45:00Z', ledger_hash: computeCompetitionLedgerHash(userATrades, '2026-07-08') },
+        { user_id: 'user-b', snapshot_date: '2026-07-08', daily_return_pct: 0.04, cumulative_return_pct: 0.24, locked_at: '2026-07-08T22:45:00Z', ledger_hash: computeCompetitionLedgerHash(userBTrades, '2026-07-08') },
       ]);
+    }
+    if (href.includes('/rest/v1/stock_trades')) {
+      if (href.includes('user_id=eq.user-a')) return jsonResponse(userATrades);
+      if (href.includes('user_id=eq.user-b')) return jsonResponse(userBTrades);
     }
     throw new Error(`unexpected fetch: ${href} ${options.method || 'GET'}`);
   };
@@ -237,7 +256,9 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
   assert.equal(res.body.self.nickname, 'Alpha');
   assert.equal(res.body.self.rank, 2);
   assert.deepEqual(res.body.leaders.map((row) => row.nickname), ['Beta', 'Alpha']);
+  assert.deepEqual(res.body.self.holdingSymbols, ['NVDA']);
+  assert.deepEqual(res.body.leaders[0].holdingSymbols, ['MSFT', 'QQQ']);
   assert.deepEqual(res.body.trend.self, [{ date: '2026-07-08', value: 0.02 }]);
   const serialized = JSON.stringify(res.body);
-  assert.doesNotMatch(serialized, /user-a|user-b|private@example\.com|service-role-secret|eodhd-secret|holding|position|trade|_usd/i);
+  assert.doesNotMatch(serialized, /user-a|user-b|private@example\.com|service-role-secret|eodhd-secret|position|shares|price|amount|trade|_usd/i);
 });

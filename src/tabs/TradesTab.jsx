@@ -1001,7 +1001,7 @@ export default function TradesTab({ ctx }) {
           >
             <div className="space-y-2 text-[12px] leading-5 text-white/[0.58]">
               <div className="text-[14px] text-white/[0.86]">{tt('trades.allToolsTitle', '交易辅助工具')}</div>
-              <div>{tt('trades.allToolsDesc', '摊薄工具已收录到全部功能里;社区比赛为独立 mock 小功能,不影响正式交易账本。')}</div>
+              <div>{tt('trades.allToolsDesc', '摊薄工具已收录到全部功能里;社区比赛为独立功能,不影响正式交易账本。')}</div>
             </div>
           </ActionModalCard>
         )}

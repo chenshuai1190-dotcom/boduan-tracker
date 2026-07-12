@@ -88,6 +88,30 @@ export function computeCompetitionLedgerHash(stockTrades = [], throughDate) {
   return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
 
+export function deriveCompetitionHoldingSymbols(stockTrades = [], throughDate) {
+  const date = normalizeDate(throughDate);
+  if (!date) fail('invalid_date', '持仓代码日期不合法');
+  const positions = new Map();
+  normalizeTrades(stockTrades, date).forEach((trade) => {
+    addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+  });
+  return [...positions.entries()]
+    .filter(([, shares]) => shares > EPSILON)
+    .map(([symbol]) => symbol)
+    .sort((a, b) => a.localeCompare(b, 'en-US'));
+}
+
+export function deriveVerifiedCompetitionHoldingSymbols({
+  stockTrades = [],
+  throughDate,
+  expectedLedgerHash,
+} = {}) {
+  const expected = String(expectedLedgerHash || '').trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(expected)) return null;
+  if (computeCompetitionLedgerHash(stockTrades, throughDate) !== expected) return null;
+  return deriveCompetitionHoldingSymbols(stockTrades, throughDate);
+}
+
 function normalizeCloseRows(rows) {
   return (Array.isArray(rows) ? rows : [])
     .map((row) => {

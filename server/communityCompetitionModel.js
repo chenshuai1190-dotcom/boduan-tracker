@@ -217,6 +217,13 @@ function assignCompetitionRanks(entries) {
   });
 }
 
+function publicHoldingSymbols(source, userId) {
+  const value = source instanceof Map ? source.get(userId) : source?.[userId];
+  if (!Array.isArray(value)) return null;
+  return [...new Set(value.map((symbol) => String(symbol || '').trim().toUpperCase()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'en-US'));
+}
+
 export function buildCompetitionLeaderboard({
   members = [],
   profiles = [],
@@ -224,6 +231,7 @@ export function buildCompetitionLeaderboard({
   period = 'day',
   asOfDate,
   benchmarkRows = [],
+  holdingSymbolsByUser = {},
   selfUserId = '',
   leadersLimit = 10,
 } = {}) {
@@ -264,6 +272,7 @@ export function buildCompetitionLeaderboard({
           ? null
           : calculation.returnPct - benchmark.returnPct,
         calculationStartDate: calculation.calculationStartDate,
+        holdingSymbols: publicHoldingSymbols(holdingSymbolsByUser, member.userId),
         trend: calculation.trend,
         benchmarkTrend: benchmark.trend,
       };
@@ -278,6 +287,7 @@ export function buildCompetitionLeaderboard({
     avatarKey: entry.avatarKey,
     returnPct: entry.returnPct,
     outperformancePct: entry.outperformancePct,
+    holdingSymbols: entry.holdingSymbols,
   } : null;
   const selfEntry = ranked.find((entry) => entry.internalUserId === selfUserId) || null;
   const returns = ranked.map((entry) => entry.returnPct);

@@ -51,10 +51,22 @@ function formatDate(value, language = 'zh') {
   });
 }
 
+function keepTogether(value) {
+  return Array.from(String(value || '')).join('\u2060');
+}
+
+function protectHintText(value) {
+  if (typeof value !== 'string') return value;
+  return ['收盘价快照', '收盘快照', '服务端', '估算或模拟数据', '不代表券商认证'].reduce(
+    (text, phrase) => text.replaceAll(phrase, keepTogether(phrase)),
+    value,
+  );
+}
+
 function MetricBlock({ label, value, color = NEUTRAL }) {
   return (
     <div className="min-w-0">
-      <div className="truncate text-[10px] text-white/[0.42]">{label}</div>
+      <div className="whitespace-nowrap text-[10px] leading-4 text-white/[0.42]">{label}</div>
       <div className="mt-1.5 whitespace-nowrap text-[15px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
@@ -80,27 +92,131 @@ function Avatar({ avatarKey, rank }) {
         ? 'border-[#d97745]/45'
         : 'border-[#2a313b]/90';
   return (
-    <div className={`h-8 w-8 shrink-0 overflow-hidden rounded-full border bg-[#070a0f] shadow-[0_6px_16px_rgba(0,0,0,0.28)] ${ring}`}>
+    <div data-rank-avatar className={`h-8 w-8 shrink-0 overflow-hidden rounded-full border bg-[#070a0f] shadow-[0_6px_16px_rgba(0,0,0,0.28)] ${ring}`}>
       <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
     </div>
   );
 }
 
-function RankRow({ row, self = false }) {
+function RankRow({ row, self = false, selected = false, onSelect }) {
   if (!row) return null;
   const rank = isFiniteValue(row.rank) ? String(Math.trunc(Number(row.rank))) : '--';
   const rankValue = Number(row.rank);
   const rankColor = rankValue === 1 ? '#f8c45c' : rankValue === 2 ? '#8ea2ff' : rankValue === 3 ? '#d46b42' : 'rgba(255,255,255,0.64)';
   return (
-    <div className={`grid grid-cols-[34px_minmax(0,1fr)_82px_82px] items-center gap-2 border-t border-white/[0.045] px-3 py-2.5 ${self ? 'rounded-xl border-t-0 bg-[#2a241c]/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]' : ''}`}>
+    <button
+      type="button"
+      onClick={(event) => {
+        const avatar = event.currentTarget.querySelector('[data-rank-avatar]');
+        onSelect?.(
+          row,
+          event.currentTarget.getBoundingClientRect(),
+          avatar?.getBoundingClientRect() || event.currentTarget.getBoundingClientRect(),
+        );
+      }}
+      className={`grid w-full grid-cols-[26px_minmax(0,1fr)_68px_72px] items-center gap-1.5 border-t border-white/[0.045] px-3 py-2.5 text-left outline-none transition-colors active:bg-white/[0.045] focus:outline-none ${self ? 'rounded-xl border-t-0 bg-[#2a241c]/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]' : ''} ${selected ? 'bg-white/[0.055] ring-1 ring-inset ring-white/[0.055]' : ''}`}
+      aria-label={`${row.nickname || '--'} ${formatPercent(row.returnPct)}`}
+      aria-expanded={selected}
+    >
       <div className="text-center text-[15px] tabular-nums" style={{ color: rankColor, fontFamily: NUMBER_FONT }}>{rank}</div>
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
         <Avatar avatarKey={row.avatarKey} rank={rankValue} />
         <div className={`truncate text-[13.5px] ${self ? 'text-white/[0.94]' : 'text-white/[0.72]'}`}>{row.nickname || '--'}</div>
       </div>
-      <div className="text-right text-[13.5px] tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
-      <div className="text-right text-[13.5px] tabular-nums" style={{ color: valueColor(row.outperformancePct), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
-    </div>
+      <div className="text-right text-[12.5px] tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
+      <div className="text-right text-[12.5px] tabular-nums" style={{ color: valueColor(row.outperformancePct), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
+    </button>
+  );
+}
+
+function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, onClose, tt }) {
+  const cardRef = React.useRef(null);
+  const [layout, setLayout] = React.useState(null);
+  const row = selection?.row;
+  const holdingsAvailable = Array.isArray(row?.holdingSymbols);
+  const holdingSymbols = (holdingsAvailable ? row.holdingSymbols : [])
+    .map((symbol) => String(symbol || '').trim().toUpperCase())
+    .filter(Boolean);
+
+  React.useLayoutEffect(() => {
+    const card = cardRef.current;
+    const anchor = selection?.anchorRect;
+    const arrowTarget = selection?.arrowRect || anchor;
+    if (!card || !anchor || typeof window === 'undefined') return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const cardRect = card.getBoundingClientRect();
+      const margin = 10;
+      const anchorCenter = anchor.left + anchor.width / 2;
+      const arrowTargetCenter = arrowTarget.left + arrowTarget.width / 2;
+      const left = Math.max(margin, Math.min(window.innerWidth - cardRect.width - margin, anchorCenter - cardRect.width / 2));
+      let top = anchor.bottom + 10;
+      let placement = 'below';
+      if (top + cardRect.height > window.innerHeight - margin) {
+        top = Math.max(margin, anchor.top - cardRect.height - 10);
+        placement = 'above';
+      }
+      setLayout({
+        left,
+        top,
+        placement,
+        arrowLeft: Math.max(24, Math.min(cardRect.width - 24, arrowTargetCenter - left)),
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selection]);
+
+  if (!row) return null;
+  const avatar = getCommunityAvatarOption(row.avatarKey);
+
+  return (
+    <>
+      <button type="button" className="fixed inset-0 z-[130] cursor-default bg-transparent" onClick={onClose} aria-label={tt('competition.closeUserCard', '关闭用户资料卡')} />
+      <div
+        ref={cardRef}
+        className="fixed z-[131] w-[320px] max-w-[calc(100vw-20px)] rounded-[20px] bg-[linear-gradient(135deg,rgba(76,126,158,0.58)_0%,rgba(142,75,112,0.52)_44%,rgba(70,73,82,0.2)_100%)] p-px shadow-[0_22px_70px_rgba(0,0,0,0.7)]"
+        style={{
+          left: layout?.left ?? 0,
+          top: layout?.top ?? 0,
+          visibility: layout ? 'visible' : 'hidden',
+        }}
+        role="dialog"
+        aria-label={tt('competition.userCard', '参赛用户资料')}
+      >
+        {layout ? (
+          <span
+            className={`absolute h-3.5 w-3.5 rotate-45 bg-[linear-gradient(135deg,rgba(76,126,158,0.72),rgba(142,75,112,0.62))] p-px ${layout.placement === 'below' ? '-top-[7px]' : '-bottom-[7px]'}`}
+            style={{ left: layout.arrowLeft - 7 }}
+          >
+            <span className="block h-full w-full bg-[#181b22]" />
+          </span>
+        ) : null}
+        <div className="relative rounded-[19px] bg-[linear-gradient(150deg,rgba(25,28,35,0.99),rgba(12,15,21,0.995))] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+          <div className="flex items-center gap-3.5">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/[0.12] bg-[#070a0f]">
+              <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[19px] text-white/[0.92]">{row.nickname || '--'}</div>
+              <div className="mt-1 text-[10px] text-white/[0.34]">#{isFiniteValue(row.rank) ? Math.trunc(Number(row.rank)) : '--'} · {formatDate(snapshotDate, language)}</div>
+            </div>
+          </div>
+          <div className="mt-5 text-[11px] text-white/[0.38]">{periodMetricLabel}</div>
+          <div className="mt-1 text-[30px] leading-none tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
+          <div className="mt-5 text-[11px] text-white/[0.38]">{tt('competition.closeHoldingSymbols', '收盘持仓代码')}</div>
+          <div className="mt-2.5 max-h-[112px] overflow-y-auto overscroll-contain pr-1">
+            {!holdingsAvailable ? (
+              <div className="text-[12px] text-white/[0.46]">{tt('competition.holdingsUnavailable', '持仓暂不可用')}</div>
+            ) : holdingSymbols.length ? (
+              <div className="flex flex-wrap gap-2">
+                {holdingSymbols.map((symbol) => (
+                  <span key={symbol} className="rounded-lg border border-white/[0.055] bg-white/[0.055] px-2.5 py-1.5 text-[12px] leading-none text-white/[0.74]">{symbol}</span>
+                ))}
+              </div>
+            ) : <div className="text-[12px] text-white/[0.46]">{tt('competition.noHoldings', '当前空仓')}</div>}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -180,8 +296,8 @@ function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
             <Trophy className="relative h-[68px] w-[68px] text-[#f6bd61] drop-shadow-[0_0_16px_rgba(246,181,75,0.45)]" strokeWidth={1.45} />
           </div>
         </div>
-        <div className="mx-auto mt-5 max-w-[292px] text-center text-[14px] leading-7 text-white/[0.58]">
-          {tt('competition.joinDesc', '本功能需要您自己自愿加入后，才可以进入排行榜单，请您选择是否加入。')}
+        <div className="mx-auto mt-5 max-w-[276px] text-center text-[13px] leading-6 text-white/[0.58] [text-wrap:balance]">
+          {tt('competition.joinDesc', '自愿加入后即可查看真实收益排行榜，请选择是否加入。')}
         </div>
         {error ? <div className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-center text-[12px] text-rose-200">{error}</div> : null}
         <div className="mt-8 grid grid-cols-2 gap-5">
@@ -203,8 +319,8 @@ function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = fal
     <section className="mx-0.5 mt-8 rounded-[20px] border border-white/[0.075] bg-[#0b1017]/98 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
       <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
-      <p className="mx-auto mt-3 max-w-[310px] text-[13px] leading-6 text-white/42">{desc}</p>
-      {note ? <p className="mx-auto mt-3 max-w-[310px] text-[10.5px] leading-5 text-white/28">{note}</p> : null}
+      <p className="mx-auto mt-3 max-w-[286px] text-[13px] leading-[1.8] text-white/42 [text-wrap:pretty]">{protectHintText(desc)}</p>
+      {note ? <p className="mx-auto mt-3 max-w-[286px] text-[10.5px] leading-[1.7] text-white/28 [text-wrap:pretty]">{protectHintText(note)}</p> : null}
       {actionLabel ? (
         <button type="button" onClick={onAction} disabled={busy} className="mx-auto mt-6 flex h-11 min-w-[148px] items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/12 px-5 text-[13px] font-semibold text-[#ffd18a] active:scale-95 disabled:opacity-50">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -216,6 +332,7 @@ function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = fal
 }
 
 function CompetitionContent({ data, period, language, tt }) {
+  const [selection, setSelection] = React.useState(null);
   const ready = data?.state === 'ready';
   const stats = ready ? (data.stats || {}) : {};
   const leaders = ready && Array.isArray(data.leaders) ? data.leaders : [];
@@ -226,6 +343,22 @@ function CompetitionContent({ data, period, language, tt }) {
   const trend = ready ? (data.trend || {}) : {};
   const periodMetricLabel = tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
   const baselineTitle = tt(`competition.baseline.${period}`, '收益基准');
+  React.useEffect(() => setSelection(null), [period]);
+  React.useEffect(() => {
+    if (!selection || typeof window === 'undefined') return undefined;
+    const close = () => setSelection(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [selection]);
+  const selectRow = React.useCallback((row, anchorRect, arrowRect) => {
+    setSelection((current) => (
+      current?.row === row ? null : { row, anchorRect, arrowRect }
+    ));
+  }, []);
   const maxMagnitude = Math.max(
     0.01,
     isFiniteValue(stats.averageReturnPct) ? Math.abs(Number(stats.averageReturnPct)) : 0,
@@ -243,7 +376,7 @@ function CompetitionContent({ data, period, language, tt }) {
             </div>
             <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08]">
               <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
-              <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', '纳指100基准（QQQ）')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
+              <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
               <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
             </div>
           </div>
@@ -251,7 +384,7 @@ function CompetitionContent({ data, period, language, tt }) {
             <TrendChart self={trend.self} benchmark={trend.benchmark} />
           </div>
         </div>
-        <div className="mt-2 text-right text-[9.5px] text-white/24">
+        <div className="mt-2 whitespace-nowrap text-right text-[9.5px] text-white/24">
           {ready ? tt('competition.snapshotAsOf', '收盘快照更新至 {{date}}', { date: formatDate(data?.asOfDate, language) }) : '--'}
         </div>
       </section>
@@ -263,8 +396,8 @@ function CompetitionContent({ data, period, language, tt }) {
         <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
       </section>
 
-      <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-        <div className="grid grid-cols-[minmax(0,1fr)_82px_82px] items-center px-3.5 py-3">
+      <section className="relative overflow-visible rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <div className="grid grid-cols-[minmax(0,1fr)_68px_72px] items-center gap-1.5 px-3.5 py-3">
           <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
             {tt('competition.rankingTitle', '收益率排行榜')}
             <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
@@ -273,14 +406,15 @@ function CompetitionContent({ data, period, language, tt }) {
           <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.outperformShort', '跑赢 QQQ')}</div>
         </div>
         <div className="px-1 pb-1">
-          {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} />) : (
+          {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} selected={selection?.row === row} onSelect={selectRow} />) : (
             <div className="border-t border-white/[0.045] px-4 py-10 text-center text-[12px] text-white/28">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
           )}
-          {self && selfLeaderIndex < 0 ? <RankRow row={self} self /> : null}
+          {self && selfLeaderIndex < 0 ? <RankRow row={self} self selected={selection?.row === self} onSelect={selectRow} /> : null}
         </div>
-        <div className="border-t border-white/[0.045] px-4 py-2.5 text-[9.5px] leading-4 text-white/25">
-          {tt('competition.dataDisclosure', '收益基于用户正式交易记录与服务端收盘价快照，不代表券商认证。')}
+        <div className="border-t border-white/[0.045] px-4 py-2.5 text-center text-[10px] leading-[1.65] text-white/25 [text-wrap:balance]">
+          {protectHintText(tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'))}
         </div>
+        {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} /> : null}
       </section>
 
       <section className="rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
@@ -289,7 +423,7 @@ function CompetitionContent({ data, period, language, tt }) {
             {baselineTitle}
             <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
           </div>
-          <div className="text-[9.5px] text-white/24">
+          <div className="whitespace-nowrap text-[9.5px] text-white/24">
             {ready ? tt('competition.calculationStart', '起算 {{date}}', { date: formatDate(data?.calculationStartDate, language) }) : '--'}
           </div>
         </div>
@@ -411,9 +545,9 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
             icon="🕰️"
             title={tt('competition.waitingTitle', '等待下一次真实收盘快照')}
             desc={view.data?.eligibleAfterSnapshotDate
-              ? tt('competition.waitingEligibleDesc', '你已加入收益比赛。排名将在 {{date}} 之后的首个完整收盘快照生成，快照生成前不会展示估算或模拟数据。', { date: formatDate(view.data.eligibleAfterSnapshotDate, language) })
-              : tt('competition.waitingDesc', '你已加入收益比赛。排名将从符合条件的下一次完整收盘快照开始计算，快照生成前不会展示估算或模拟数据。')}
-            note={tt('competition.dataDisclosure', '收益基于用户正式交易记录与服务端收盘价快照，不代表券商认证。')}
+              ? tt('competition.waitingEligibleDesc', '已加入收益比赛。排名将在 {{date}} 后的首个收盘快照生成；此前不展示估算或模拟数据。', { date: keepTogether(formatDate(view.data.eligibleAfterSnapshotDate, language)) })
+              : tt('competition.waitingDesc', '已加入收益比赛。排名从下一份有效收盘快照开始；此前不展示估算或模拟数据。')}
+            note={tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。')}
           />
         ) : null}
         {view.state === 'ready' ? <CompetitionContent data={view.data} period={period} language={language} tt={tt} /> : null}
