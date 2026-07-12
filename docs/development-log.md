@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 波段目标价预测与最新收益峰值修复
 
-- Deployment: requested;上线前本地实现与验证已完成,生产暂时仍为 `v10.7.9.316` / runtime `4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` / 入口 `/assets/index-7SGlsBBr.js`。
+- Deployment: completed;runtime commit `3e384856646901c0f6884ec87e4b95d60f24c0fe`,GitHub Actions run `29192839345` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8E6Na4UWfXb5chs4Z9WqCPHuo8nP` success,production alias 已更新,入口 `/assets/index-C5csRlAa.js`。
 - Background: 用户要求进行中波段的操作弹窗增加极简股价预测,按正式数学口径支持手动目标价和快捷涨幅,并继续遵守输入框不溢出、iOS 键盘弹出不跳顶的开发原则;同批修复个股收益曲线最新点创新高时不显示峰值标记的问题。
 - Workflow tier: `runtime`。
 - Changes:
@@ -18,13 +18,13 @@
   - 个股收益曲线取消“峰值恰好是最新点时隐藏标记”的旧条件;最新收盘创新高也显示峰值圆点与呼吸光晕,位于右边缘时峰值文字向左展开。
   - 同批包含 `v10.7.9.317` 已完成的旧白色“全部交易”、旧删除确认和不可达关注删除代码清理;设置页与更新日志版本统一提升为 `v10.7.9.318`。
 - Key files: `src/pages/WaveTrackerPage.jsx`,`src/lib/swingWavesViewModel.js`,`src/pages/StockDetailPage.jsx`,`src/lib/i18n.js`,`src/App.jsx`,`src/tabs/TradesTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/swing-waves.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `verify:workspace-state`、`verify:local-env`、`verify:toolchain` 均 pass;波段/边界定向测试 59/59、完整测试 255/255、production build、5/5 frontend smoke（各主 tab console/runtime error 0）、high audit 0 vulnerabilities、docs consistency 和 diff check 均 pass。390x844 正式 `wave-v2` 预览确认 NVDA 波段 01 默认目标 `$231.85`、预计收益 `+¥226,050.30`、预计收益率 `+31.6%`,右上角为系统红色呼吸状态;手动输入 `$420.00` 后按 600 股和 `$176.20` 成本实时得到 `+¥990,315.60 / +138.4%`。模拟键盘把可视区压缩到 390x560 并聚焦输入后,输入框仍位于弹窗中部,没有跳顶;下方内容在弹窗内部滚动,底部操作保持可用。最新点创新高截图也确认峰值圆点、呼吸光晕与向左文字均正常。截图: `/tmp/boduan-wave-forecast-production-local.jpg`,`/tmp/boduan-wave-forecast-keyboard-viewport.jpg`,`/tmp/boduan-v317-latest-peak-hd.jpg`。生产部署和在线验证在推送后继续执行。
+- Validation: `verify:workspace-state`、`verify:local-env`、`verify:toolchain` 均 pass;波段/边界定向测试 59/59、完整测试 255/255、production build、5/5 frontend smoke（各主 tab console/runtime error 0）、high audit 0 vulnerabilities、docs consistency 和 diff check 均 pass。390x844 正式 `wave-v2` 预览确认 NVDA 波段 01 默认目标 `$231.85`、预计收益 `+¥226,050.30`、预计收益率 `+31.6%`,右上角为系统红色呼吸状态;手动输入 `$420.00` 后按 600 股和 `$176.20` 成本实时得到 `+¥990,315.60 / +138.4%`。模拟键盘把可视区压缩到 390x560 并聚焦输入后,输入框仍位于弹窗中部,没有跳顶;下方内容在弹窗内部滚动,底部操作保持可用。最新点创新高截图也确认峰值圆点、呼吸光晕与向左文字均正常。截图: `/tmp/boduan-wave-forecast-production-local.jpg`,`/tmp/boduan-wave-forecast-keyboard-viewport.jpg`,`/tmp/boduan-v317-latest-peak-hd.jpg`。`npm run verify:deploy-status -- 3e38485` pass;生产递归扫描 28 个 JS assets 命中 v318、更新日志、目标股价、预计收益和峰值呼吸 marker,`WaveTrackerPage-DCU770aH.js`、`StockDetailPage-obBX8ijo.js`、`SettingsTab-BGjRrJcl.js`、`settingsChangelog-BGoLwUJ0.js` 与本地构建 SHA-256 一致。`VITE_EODHD_TOKEN` 只存在历史更新日志文本,活动 App/Wave/Stock runtime 不含浏览器 token 路径;未登录 quote、earnings 均保持 `401`。
 - Boundaries: 不改 `swing_waves` 表、CRUD、完整卖出规则、`stock_trades`、交易账本、收益快照、社区比赛、数据库 SQL/RLS、鉴权、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`;没有 SQL、环境变量或 Vercel 配置变更。
 - Rollback: 回退本条前端、纯计算、i18n、测试、版本与文档,并回退同批 v317 清理即可;无数据库、生产数据或环境配置回滚。
 
 ### 2026-07-12 - 旧白色交易弹窗与不可达代码清理
 
-- Deployment: not requested;本轮仅完成本地实现与验证,生产继续保持 `v10.7.9.316` / runtime `4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` / 入口 `/assets/index-7SGlsBBr.js`。
+- Deployment: completed as part of `v10.7.9.318`;runtime commit `3e384856646901c0f6884ec87e4b95d60f24c0fe`,GitHub Actions run `29192839345`、Vercel target `8E6Na4UWfXb5chs4Z9WqCPHuo8nP` 均 success,生产入口 `/assets/index-C5csRlAa.js`。
 - Background: 用户确认现有宽版大模块色系无需更换,只要求清理审计中剩余的两处白色旧交易弹窗和一处无用旧代码,并保持宽版现有宽度。
 - Workflow tier: `runtime`。
 - Changes:
