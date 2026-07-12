@@ -101,11 +101,26 @@ create table if not exists public.community_profiles (
   constraint community_profiles_nickname_no_control_check
     check (nickname !~ '[[:cntrl:]]'),
   constraint community_profiles_avatar_key_check
-    check (avatar_key in ('gold', 'blue', 'purple', 'green', 'cyan', 'silver'))
+    check (avatar_key in (
+      'gold', 'blue', 'purple', 'green', 'cyan', 'silver',
+      'wolf', 'fox', 'tiger', 'cat', 'eagle', 'panda',
+      'cyber-cyan', 'cyber-magenta', 'cyber-void', 'cyber-red', 'cyber-visor', 'cyber-crystal'
+    ))
 );
 
 alter table public.community_profiles
 add column if not exists profile_completed_at timestamptz;
+
+alter table public.community_profiles
+drop constraint if exists community_profiles_avatar_key_check;
+
+alter table public.community_profiles
+add constraint community_profiles_avatar_key_check
+check (avatar_key in (
+  'gold', 'blue', 'purple', 'green', 'cyan', 'silver',
+  'wolf', 'fox', 'tiger', 'cat', 'eagle', 'panda',
+  'cyber-cyan', 'cyber-magenta', 'cyber-void', 'cyber-red', 'cyber-visor', 'cyber-crystal'
+));
 
 create index if not exists community_profiles_updated_at_idx
 on public.community_profiles (updated_at desc);

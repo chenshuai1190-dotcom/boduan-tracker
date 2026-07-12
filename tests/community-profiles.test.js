@@ -4,8 +4,10 @@ import test from 'node:test';
 
 import {
   buildDefaultCommunityProfile,
+  COMMUNITY_AVATAR_OPTIONS,
   isCommunityProfileCompleted,
   mapCommunityProfileRow,
+  normalizeCommunityAvatarKey,
 } from '../src/lib/communityProfile.js';
 import { createCommunityProfilesRepository } from '../src/lib/communityProfilesRepository.js';
 
@@ -86,6 +88,17 @@ test('default community profiles remain unconfirmed until an explicit save', () 
   });
   assert.equal(mapped.profileCompletedAt, null);
   assert.equal(isCommunityProfileCompleted(mapped), false);
+});
+
+test('community avatar catalog exposes eighteen presets and keeps legacy keys valid', () => {
+  assert.equal(COMMUNITY_AVATAR_OPTIONS.length, 18);
+  assert.equal(new Set(COMMUNITY_AVATAR_OPTIONS.map((avatar) => avatar.key)).size, 18);
+  for (const legacyKey of ['gold', 'blue', 'purple', 'green', 'cyan', 'silver']) {
+    assert.equal(normalizeCommunityAvatarKey(legacyKey), legacyKey);
+  }
+  for (const newKey of ['wolf', 'fox', 'tiger', 'cat', 'eagle', 'panda', 'cyber-cyan', 'cyber-magenta', 'cyber-void', 'cyber-red', 'cyber-visor', 'cyber-crystal']) {
+    assert.equal(normalizeCommunityAvatarKey(newKey), newKey);
+  }
 });
 
 test('ensure inserts a default profile with a null completion marker', async () => {

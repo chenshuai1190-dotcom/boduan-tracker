@@ -4,6 +4,22 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 社区默认头像扩展为 18 款
+
+- Deployment: 前端尚未部署;`v10.7.9.312` 待推送,生产前端仍为 `v10.7.9.311`。生产 Supabase 已先执行独立头像约束迁移。
+- Background: 用户提供三张 3×2 头像设计图,要求替换当前 6 个头像并把社区默认头像总数扩展到 18 个。
+- Workflow tier: `sensitive`。
+- Changes:
+  - 从三张用户原图逐格精准裁切人物、动物和赛博夜行者三组共 18 张正方形 JPEG,未重新生成或改变人物造型;删除上一版 6 张 WebP 资源。
+  - 原 `gold/blue/purple/green/cyan/silver` 六个 key 保留并改指向第一组 6 张新头像,保证已保存用户继续正常显示;新增动物与赛博组 12 个 key。
+  - 设置页和开发态原型继续使用 6 列选择器,由 1 行扩展为 3 行;排行榜和用户卡头像裁切统一为轻量 `scale-[1.02]`。
+  - `community_profiles` 头像 check constraint 扩展到 18 个 key,新增独立幂等迁移 `supabase/community_avatar_options_v312.sql`,并同步 aggregate RLS schema。
+  - 设置页与更新日志版本同步为 `v10.7.9.312`。
+- Key files: `public/community-avatars/*.jpg`,`src/lib/communityProfile.js`,`src/tabs/SettingsTab.jsx`,`src/pages/CommunityCompetitionPage.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`supabase/community_avatar_options_v312.sql`,`supabase/community_profiles.sql`,`supabase/rls.sql`,`src/lib/settingsChangelog.js`,`tests/community-profiles.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 18 张 JPEG 均为正方形且全部注册,总字节约 643KB;社区/边界定向测试 53/53、完整测试 247/247、production build、5/5 frontend smoke、high audit 0 vulnerabilities、docs consistency、diff check 全部 pass。390x844 正式设置页 mock 复核:18/18 图片加载成功,6 列×3 行,弹窗 314×436px,页面横向溢出 0,新增“蓝狼”可选且保存按钮启用;排行榜复核动物组 6 张和赛博头像共 7 张全部加载,页面横向溢出 0,console error 0。2026-07-12 已在生产 Supabase SQL Editor 执行 `community_avatar_options_v312.sql`,页面返回成功;只读回查确认 `community_profiles_avatar_key_check` 包含完整 18 个 key,现有不兼容资料行 `invalid_rows=0`。前端代码尚未部署。
+- Boundaries: 不改昵称规则、社区资料 RLS owner scope、比赛收益/快照、持仓披露、交易账本、个人收益快照、行情 relay、`/api/quote` 或 `/api/earnings-calendar`。
+- Rollback: 先回退前端 v312,再把头像 constraint 恢复为原 6 key;旧 6 key 全程保留,无需迁移已有资料行。
+
 ### 2026-07-12 - 多账户一键切换与用户缓存隔离
 
 - Deployment: completed;runtime commit `d23bd16204e676d7260a0400e7353830d52be11f`,GitHub Actions run `29181586305` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CYh9UvECvKQwK2E6WgD3QqqExrtL` success,production alias 已更新,入口 `/assets/index-DD-cQ-qs.js`。

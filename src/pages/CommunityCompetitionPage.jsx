@@ -93,7 +93,7 @@ function Avatar({ avatarKey, rank }) {
         : 'border-[#2a313b]/90';
   return (
     <div data-rank-avatar className={`h-8 w-8 shrink-0 overflow-hidden rounded-full border bg-[#070a0f] shadow-[0_6px_16px_rgba(0,0,0,0.28)] ${ring}`}>
-      <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+      <img src={avatar.src} alt="" className="h-full w-full scale-[1.02] object-cover" draggable={false} />
     </div>
   );
 }
@@ -193,7 +193,7 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
         <div className="relative rounded-[19px] bg-[linear-gradient(150deg,rgba(25,28,35,0.99),rgba(12,15,21,0.995))] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
           <div className="flex items-center gap-3.5">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/[0.12] bg-[#070a0f]">
-              <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+              <img src={avatar.src} alt="" className="h-full w-full scale-[1.02] object-cover" draggable={false} />
             </div>
             <div className="min-w-0">
               <div className="truncate text-[19px] text-white/[0.92]">{row.nickname || '--'}</div>

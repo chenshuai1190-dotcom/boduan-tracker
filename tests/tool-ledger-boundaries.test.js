@@ -82,6 +82,7 @@ const vercelConfigSource = readFileSync(new URL('../vercel.json', import.meta.ur
 const rlsSource = readFileSync(new URL('../supabase/rls.sql', import.meta.url), 'utf8');
 const inviteSqlSource = readFileSync(new URL('../supabase/invite_codes.sql', import.meta.url), 'utf8');
 const communityProfilesSqlSource = readFileSync(new URL('../supabase/community_profiles.sql', import.meta.url), 'utf8');
+const communityAvatarOptionsMigrationSource = readFileSync(new URL('../supabase/community_avatar_options_v312.sql', import.meta.url), 'utf8');
 const pnlReportSqlSource = readFileSync(new URL('../supabase/pnl_report_snapshots.sql', import.meta.url), 'utf8');
 const verifyRlsRestSource = readFileSync(new URL('../scripts/verify-rls-rest.mjs', import.meta.url), 'utf8');
 
@@ -344,7 +345,9 @@ test('community profile settings use a dedicated public identity table without s
   assert.match(tableBlock, /avatar_key text not null default 'gold'/);
   assert.match(tableBlock, /profile_completed_at timestamptz/);
   assert.match(tableBlock, /char_length\(btrim\(nickname\)\) between 2 and 16/);
-  assert.match(tableBlock, /avatar_key in \('gold', 'blue', 'purple', 'green', 'cyan', 'silver'\)/);
+  for (const avatarKey of ['gold', 'blue', 'purple', 'green', 'cyan', 'silver', 'wolf', 'fox', 'tiger', 'cat', 'eagle', 'panda', 'cyber-cyan', 'cyber-magenta', 'cyber-void', 'cyber-red', 'cyber-visor', 'cyber-crystal']) {
+    assert.ok(tableBlock.includes(`'${avatarKey}'`), `${avatarKey} should be allowed by the community profile constraint`);
+  }
   assert.equal(/email|portfolio|assets|return|pnl|stock_trades|trades|swing_waves/i.test(tableBlock), false, 'community profile table must not store private identity or ledger data');
 
   assert.match(communityProfilesSqlSource, /alter table public\.community_profiles enable row level security/);
@@ -357,14 +360,22 @@ test('community profile settings use a dedicated public identity table without s
   assert.match(verifyRlsRestSource, /'community_profiles'/);
 
   assert.ok(communityProfileSource.includes("COMMUNITY_PROFILE_TABLE = 'community_profiles'"));
-  for (const key of ['avatar-gold.webp', 'avatar-blue.webp', 'avatar-purple.webp', 'avatar-green.webp', 'avatar-cyan.webp', 'avatar-silver.webp']) {
+  const avatarAssets = [
+    'avatar-human-blue.jpg', 'avatar-human-purple.jpg', 'avatar-human-green.jpg', 'avatar-human-pink.jpg', 'avatar-human-cyan.jpg', 'avatar-human-gold.jpg',
+    'avatar-animal-wolf.jpg', 'avatar-animal-fox.jpg', 'avatar-animal-tiger.jpg', 'avatar-animal-cat.jpg', 'avatar-animal-eagle.jpg', 'avatar-animal-panda.jpg',
+    'avatar-cyber-cyan.jpg', 'avatar-cyber-magenta.jpg', 'avatar-cyber-void.jpg', 'avatar-cyber-red.jpg', 'avatar-cyber-visor.jpg', 'avatar-cyber-crystal.jpg',
+  ];
+  assert.ok(communityProfileSource.includes('COMMUNITY_AVATAR_OPTIONS = ['));
+  for (const key of avatarAssets) {
     assert.ok(communityProfileSource.includes(`/community-avatars/${key}`), `${key} should be registered as a preset community avatar`);
     const assetPath = new URL(`../public/community-avatars/${key}`, import.meta.url);
     assert.ok(existsSync(assetPath), `${key} should exist in public assets`);
     const asset = readFileSync(assetPath);
-    assert.equal(asset.toString('ascii', 0, 4), 'RIFF', `${key} should be a webp RIFF asset`);
-    assert.equal(asset.toString('ascii', 8, 12), 'WEBP', `${key} should be a webp asset`);
+    assert.equal(asset[0], 0xff, `${key} should be a JPEG asset`);
+    assert.equal(asset[1], 0xd8, `${key} should be a JPEG asset`);
   }
+  assert.match(communityAvatarOptionsMigrationSource, /drop constraint if exists community_profiles_avatar_key_check/);
+  assert.match(communityAvatarOptionsMigrationSource, /add constraint community_profiles_avatar_key_check/);
 
   assert.ok(communityProfilesRepositorySource.includes("from(COMMUNITY_PROFILE_TABLE)"));
   assert.ok(communityProfilesRepositorySource.includes('.upsert({'));
@@ -451,8 +462,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.311'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.311', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.312'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.312', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1803,7 +1814,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.311'"), 'settings version source should document the current account switch release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.312'"), 'settings version source should document the current avatar expansion release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2119,7 +2130,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.311'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.312'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -1,12 +1,24 @@
 export const COMMUNITY_PROFILE_TABLE = 'community_profiles';
 
 export const COMMUNITY_AVATAR_OPTIONS = [
-  { key: 'gold', labelZh: '金色', labelEn: 'Gold', src: '/community-avatars/avatar-gold.webp', accent: '#f6b54b' },
-  { key: 'blue', labelZh: '蓝色', labelEn: 'Blue', src: '/community-avatars/avatar-blue.webp', accent: '#38bdf8' },
-  { key: 'purple', labelZh: '紫色', labelEn: 'Purple', src: '/community-avatars/avatar-purple.webp', accent: '#a855f7' },
-  { key: 'green', labelZh: '绿色', labelEn: 'Green', src: '/community-avatars/avatar-green.webp', accent: '#34d399' },
-  { key: 'cyan', labelZh: '青色', labelEn: 'Cyan', src: '/community-avatars/avatar-cyan.webp', accent: '#22d3ee' },
-  { key: 'silver', labelZh: '银色', labelEn: 'Silver', src: '/community-avatars/avatar-silver.webp', accent: '#d1d5db' },
+  { key: 'blue', labelZh: '蓝色少年', labelEn: 'Blue Youth', src: '/community-avatars/avatar-human-blue.jpg', accent: '#38bdf8' },
+  { key: 'purple', labelZh: '紫色女士', labelEn: 'Purple Woman', src: '/community-avatars/avatar-human-purple.jpg', accent: '#a855f7' },
+  { key: 'green', labelZh: '绿色运动', labelEn: 'Green Athlete', src: '/community-avatars/avatar-human-green.jpg', accent: '#84cc16' },
+  { key: 'silver', labelZh: '粉色画家', labelEn: 'Pink Artist', src: '/community-avatars/avatar-human-pink.jpg', accent: '#ec4899' },
+  { key: 'cyan', labelZh: '青色程序员', labelEn: 'Cyan Coder', src: '/community-avatars/avatar-human-cyan.jpg', accent: '#22d3ee' },
+  { key: 'gold', labelZh: '金色青年', labelEn: 'Gold Youth', src: '/community-avatars/avatar-human-gold.jpg', accent: '#f6b54b' },
+  { key: 'wolf', labelZh: '蓝狼', labelEn: 'Blue Wolf', src: '/community-avatars/avatar-animal-wolf.jpg', accent: '#38bdf8' },
+  { key: 'fox', labelZh: '赤狐', labelEn: 'Red Fox', src: '/community-avatars/avatar-animal-fox.jpg', accent: '#f97316' },
+  { key: 'tiger', labelZh: '紫虎', labelEn: 'Purple Tiger', src: '/community-avatars/avatar-animal-tiger.jpg', accent: '#a855f7' },
+  { key: 'cat', labelZh: '粉猫', labelEn: 'Pink Cat', src: '/community-avatars/avatar-animal-cat.jpg', accent: '#ec4899' },
+  { key: 'eagle', labelZh: '金鹰', labelEn: 'Gold Eagle', src: '/community-avatars/avatar-animal-eagle.jpg', accent: '#eab308' },
+  { key: 'panda', labelZh: '熊猫', labelEn: 'Panda', src: '/community-avatars/avatar-animal-panda.jpg', accent: '#84cc16' },
+  { key: 'cyber-cyan', labelZh: '青色夜行者', labelEn: 'Cyan Hood', src: '/community-avatars/avatar-cyber-cyan.jpg', accent: '#22d3ee' },
+  { key: 'cyber-magenta', labelZh: '紫色夜行者', labelEn: 'Magenta Hood', src: '/community-avatars/avatar-cyber-magenta.jpg', accent: '#d946ef' },
+  { key: 'cyber-void', labelZh: '虚空夜行者', labelEn: 'Void Hood', src: '/community-avatars/avatar-cyber-void.jpg', accent: '#34d399' },
+  { key: 'cyber-red', labelZh: '赤色夜行者', labelEn: 'Red Hood', src: '/community-avatars/avatar-cyber-red.jpg', accent: '#ef4444' },
+  { key: 'cyber-visor', labelZh: '青色面甲', labelEn: 'Cyan Visor', src: '/community-avatars/avatar-cyber-visor.jpg', accent: '#06b6d4' },
+  { key: 'cyber-crystal', labelZh: '紫晶夜行者', labelEn: 'Crystal Hood', src: '/community-avatars/avatar-cyber-crystal.jpg', accent: '#8b5cf6' },
 ];
 
 export const DEFAULT_COMMUNITY_AVATAR_KEY = 'gold';

@@ -491,14 +491,14 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
       top10AverageReturnPct: 0.1836,
     },
     leaders: [
-      { rank: 1, nickname: 'Alpha陈', avatarKey: 'gold', returnPct: 0.2863, outperformancePct: 0.2821, holdingSymbols: ['AAPL', 'GOOGL', 'META', 'NVDA'] },
-      { rank: 2, nickname: 'ValueLee', avatarKey: 'blue', returnPct: 0.2417, outperformancePct: 0.2375, holdingSymbols: ['AAPL', 'AMD', 'AMZN', 'AVGO', 'GOOGL', 'META', 'MSFT', 'NFLX', 'NVDA', 'QQQ', 'TSLA', 'TSM'] },
-      { rank: 3, nickname: 'QuantM', avatarKey: 'purple', returnPct: 0.2109, outperformancePct: 0.2067, holdingSymbols: ['AMD', 'PLTR', 'QQQ'] },
-      { rank: 4, nickname: '牛牛哥', avatarKey: 'green', returnPct: 0.1964, outperformancePct: 0.1922, holdingSymbols: ['BABA', 'JD', 'PDD'] },
-      { rank: 5, nickname: 'HangzhouQ', avatarKey: 'cyan', returnPct: 0.1788, outperformancePct: 0.1746, holdingSymbols: ['HOOD', 'IBIT', 'MSTR', 'TSLA'] },
-      { rank: 6, nickname: 'TT_Invest', avatarKey: 'silver', returnPct: -0.0312, outperformancePct: -0.0354, holdingSymbols: [] },
+      { rank: 1, nickname: 'Alpha陈', avatarKey: 'wolf', returnPct: 0.2863, outperformancePct: 0.2821, holdingSymbols: ['AAPL', 'GOOGL', 'META', 'NVDA'] },
+      { rank: 2, nickname: 'ValueLee', avatarKey: 'fox', returnPct: 0.2417, outperformancePct: 0.2375, holdingSymbols: ['AAPL', 'AMD', 'AMZN', 'AVGO', 'GOOGL', 'META', 'MSFT', 'NFLX', 'NVDA', 'QQQ', 'TSLA', 'TSM'] },
+      { rank: 3, nickname: 'QuantM', avatarKey: 'tiger', returnPct: 0.2109, outperformancePct: 0.2067, holdingSymbols: ['AMD', 'PLTR', 'QQQ'] },
+      { rank: 4, nickname: '牛牛哥', avatarKey: 'cat', returnPct: 0.1964, outperformancePct: 0.1922, holdingSymbols: ['BABA', 'JD', 'PDD'] },
+      { rank: 5, nickname: 'HangzhouQ', avatarKey: 'eagle', returnPct: 0.1788, outperformancePct: 0.1746, holdingSymbols: ['HOOD', 'IBIT', 'MSTR', 'TSLA'] },
+      { rank: 6, nickname: 'TT_Invest', avatarKey: 'panda', returnPct: -0.0312, outperformancePct: -0.0354, holdingSymbols: [] },
     ],
-    self: { rank: 18, nickname: '波段玩家1836', avatarKey: 'gold', returnPct: 0.1286, outperformancePct: 0.1244, holdingSymbols: ['META', 'MSFT', 'NVDA', 'QQQ', 'TSLA'] },
+    self: { rank: 18, nickname: '波段玩家1836', avatarKey: 'cyber-cyan', returnPct: 0.1286, outperformancePct: 0.1244, holdingSymbols: ['META', 'MSFT', 'NVDA', 'QQQ', 'TSLA'] },
     trend: {
       self: [
         { date: '2026-07-01', value: 0 },
