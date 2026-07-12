@@ -16,6 +16,7 @@ const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', 
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const waveTrackerPrototypeSource = readFileSync(new URL('../src/dev/WaveTrackerPrototype.jsx', import.meta.url), 'utf8');
+const settingsRedesignPrototypeSource = readFileSync(new URL('../src/dev/SettingsRedesignPrototype.jsx', import.meta.url), 'utf8');
 const waveTrackerPageSource = readFileSync(new URL('../src/pages/WaveTrackerPage.jsx', import.meta.url), 'utf8');
 const communityCompetitionPageSource = readFileSync(new URL('../src/pages/CommunityCompetitionPage.jsx', import.meta.url), 'utf8');
 const communityCompetitionApiSource = readFileSync(new URL('../src/lib/communityCompetitionApi.js', import.meta.url), 'utf8');
@@ -374,7 +375,7 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(settingsTabSource.includes('db.upsertCommunityProfile({'));
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
   assert.ok(settingsTabSource.includes('border border-transparent bg-[#070a0f]'), 'main community avatar preview should not add a white CSS border');
-  assert.ok(settingsTabSource.includes("'border-transparent opacity-70'"), 'inactive community avatar options should not add a white CSS border');
+  assert.ok(settingsTabSource.includes("'border-transparent opacity-65'"), 'inactive community avatar options should not add a white CSS border');
   assert.ok(settingsTabSource.includes('scale-[1.1] object-cover'), 'community avatars should crop the asset edge to avoid light outer pixels');
   assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
   assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => ({'), 'local visual preview should mock community profile reads');
@@ -407,7 +408,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(appSource.includes('<ConfirmModal'), 'app should render the shared confirmation modal component');
   assert.ok(appSource.includes('normalizeConfirmModalOptions(opts)'), 'app should keep normalizing confirmation options before display');
   assert.ok(tradesTabSource.includes('import { BookOpen, Calculator, CalendarDays, ChevronRight'), 'trade modal should use lucide date and chevron icons');
-  assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should use lucide search and buy/sell trend icons');
+  assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should keep search, color settings, and buy/sell trend icons');
   assert.ok(tradeModalBlock.includes("tt('trades.stockTicker'"), 'first row should be stock ticker');
   assert.ok(tradeModalBlock.includes("tt('trades.priceShares'"), 'second row should be price and shares');
   assert.ok(tradeModalBlock.includes("tt('trades.date'"), 'third row should be date');
@@ -447,8 +448,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.307/g) || []).length, 3, 'all three visible settings version surfaces should stay synchronized');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.307', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.308'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.308', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1194,8 +1195,6 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok((appSource.match(/requestResumeReconnect\(\);/g) || []).length >= 3, 'stale BTC, index, and stock sockets should actively reconnect instead of only marking stale');
   assert.ok((appSource.match(/realtimeResumeReconnectHandlersRef\.current\.add\(registeredResumeReconnect\)/g) || []).length === 3, 'BTC, index, and stock sockets should all register forced resume reconnect handlers');
   assert.ok(appSource.includes("window.addEventListener('online', handleResumeReconnect)"), 'realtime sockets should reconnect when the device comes back online');
-  assert.ok(settingsTabSource.includes("'auto-ios-resume': 'iOS 回到前台'"), 'settings diagnostics should label iOS foreground resume triggers');
-  assert.ok(settingsTabSource.includes("'auto-ios-touch-resume': 'iOS 触摸恢复'"), 'settings diagnostics should label iOS touch fallback triggers');
   assert.ok(appSource.includes('const fresh = requestOptions.fresh === true;'), 'quote fetch helper should support fresh no-cache requests');
   assert.ok(appSource.includes("headers['Cache-Control'] = 'no-cache';"), 'fresh quote requests should ask intermediaries not to reuse cached responses');
   assert.ok(appSource.includes('params.set(\'_ts\', String(Date.now()))'), 'fresh quote requests should append a cache-busting timestamp');
@@ -1216,9 +1215,9 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("const QUOTE_ERROR_VISIBLE_TABS = ['home', 'trades'];"), 'quote refresh errors should only surface on quote-consuming tabs');
   assert.ok(appSource.includes('const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab)'), 'target/asset/settings tabs should not inherit quote refresh toasts');
   assert.ok(appSource.includes("t(language, 'home.market.fetchFailed', '行情拉取失败')"), 'bottom toast should identify quote refresh failures specifically');
-  assert.ok(settingsTabSource.includes('行情诊断日志'), 'settings should expose quote diagnostic logs');
-  assert.ok(settingsTabSource.includes('quoteDiagnosticLogs'), 'settings diagnostics should read quote diagnostic log entries');
-  assert.ok(settingsTabSource.includes('clearQuoteDiagnosticLogs'), 'settings diagnostics should allow clearing local quote logs');
+  assert.equal(settingsTabSource.includes('行情诊断日志'), false, 'settings should no longer expose the quote diagnostic panel');
+  assert.equal(settingsTabSource.includes('quoteDiagnosticLogs'), false, 'settings presentation should not receive quote diagnostic entries');
+  assert.equal(settingsTabSource.includes('clearQuoteDiagnosticLogs'), false, 'settings presentation should not expose a diagnostic clear action');
   assert.ok(appSource.includes('/api/indices-realtime'), 'home indices should connect to the server-side indices realtime relay');
   assert.ok(appSource.includes('INDICES_REALTIME_PROTOCOL'), 'indices realtime relay should use an explicit WebSocket subprotocol');
   assert.ok(appSource.includes('applyIndexTickToMarketCards'), 'index realtime ticks should update existing market cards');
@@ -1406,7 +1405,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(appSource.includes("function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete })"), 'Review log modal should accept the current language');
   assert.ok(appSource.includes("function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, currency, rate })"), 'Review yearly actual modal should accept the current language');
   assert.ok(homeTabSource.includes('overflow-x-auto px-3 [scrollbar-width:none]') && homeTabSource.includes('data-home-market-table="single-grid"'), 'home quote metrics should keep their horizontal scroll contained inside the single-grid table');
-  assert.ok(settingsTabSource.includes("setLanguage?.(item.id)"), 'Settings should expose a language switch');
+  assert.ok(settingsTabSource.includes("setLanguage?.(option.id)"), 'Settings should expose a language switch');
   assert.ok(settingsTabSource.includes("settings.languageDesc"), 'Settings should state that user-written logs and notes are not translated');
   assert.ok(devVisualPreviewSource.includes("new URLSearchParams(window.location.search).get('lang')"), 'local visual preview should support direct English home checks');
   assert.ok(devVisualPreviewSource.includes("t(language, 'review.actualDataTitle'"), 'local visual preview should support direct English review checks');
@@ -1613,6 +1612,39 @@ test('wave tracker v2 prototype stays development-only and preserves tool bounda
   }
 });
 
+test('settings redesign phase-one prototype stays development-only and keeps requested entries', () => {
+  assert.ok(devVisualPreviewSource.includes("lazy(() => import('./dev/SettingsRedesignPrototype.jsx'))"), 'settings prototype should load through the local preview shell');
+  assert.ok(devVisualPreviewSource.includes("preview === 'settings-redesign-prototype'"), 'settings prototype should require its explicit local-only preview query');
+  assert.ok(authGateSource.includes('import.meta.env.DEV && (!isSupabaseConfigured || isDevVisualPreviewRequested())'), 'settings prototype must remain behind the DEV-only auth gate');
+  assert.equal(appSource.includes('SettingsRedesignPrototype'), false, 'production App must not import the settings prototype');
+  assert.equal(settingsTabSource.includes('SettingsRedesignPrototype'), false, 'production settings page must not import the prototype');
+
+  assert.ok(settingsRedesignPrototypeSource.includes('data-settings-redesign-prototype="phase-1"'), 'prototype should expose a stable visual-smoke marker');
+  assert.ok(settingsRedesignPrototypeSource.includes("label: '显示设置'"), 'prototype should move the market color entry into settings');
+  assert.ok(settingsRedesignPrototypeSource.includes("label: '邀请码管理'"), 'prototype should retain invite management as a collapsed entry');
+  assert.ok(settingsRedesignPrototypeSource.includes('更新日志'), 'prototype should retain the changelog entry');
+  assert.ok(settingsRedesignPrototypeSource.includes('切换账户') && settingsRedesignPrototypeSource.includes('退出登录'), 'prototype should keep the paired account actions');
+  assert.equal(settingsRedesignPrototypeSource.includes('行情报错'), false, 'prototype should remove the visible quote diagnostics entry');
+});
+
+test('production settings redesign connects existing features without account-memory or ledger changes', () => {
+  assert.ok(settingsTabSource.includes('data-settings-redesign="phase-1-production"'), 'production settings should use the approved redesign shell');
+  assert.ok(settingsTabSource.includes('mx-5 border-t border-white/[0.06] pb-5 pt-4'), 'expanded settings should avoid a second rounded card');
+  assert.ok(settingsTabSource.includes("id: 'language'") && settingsTabSource.includes("id: 'display'") && settingsTabSource.includes("id: 'account'") && settingsTabSource.includes("id: 'community'"), 'core settings should be clickable accordion rows');
+  assert.ok(settingsTabSource.includes("id: 'invite'") && settingsTabSource.includes('isInviteAdmin'), 'invite management should remain admin-only inside the accordion');
+  assert.ok(settingsTabSource.includes('MARKET_COLOR_MODES.RED_UP_GREEN_DOWN') && settingsTabSource.includes('setMarketColorMode?.(option.id)'), 'display settings should control the existing global market color mode');
+  assert.ok(appSource.includes('marketColorMode,') && appSource.includes('setMarketColorMode,'), 'settings context should receive the existing market color state and setter');
+  assert.ok(tradesTabSource.includes('Settings2') && tradesTabSource.includes('setMarketColorMode(option.id)'), 'trade positions should retain their existing market color menu');
+  assert.ok(settingsTabSource.includes('setMarketColorMode?.(option.id)') && tradesTabSource.includes('setMarketColorMode(option.id)'), 'settings and trades should control the same market color state');
+  assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)') && settingsTabSource.includes('db.upsertCommunityProfile({'), 'community identity should keep the real database path');
+  assert.ok(settingsTabSource.includes("fetch('/api/invite-codes'"), 'invite accordion should keep the authenticated invite API');
+  assert.ok(settingsTabSource.includes('supabase.auth.updateUser({ password: newPwd })'), 'account accordion should keep the real password update path');
+  assert.ok(settingsTabSource.includes("onConfirm: async () => { await onLogout(); }"), 'switch-account and logout actions should use the existing safe sign-out path');
+  assert.equal(settingsTabSource.includes('localStorage.setItem'), false, 'phase one should not introduce remembered-account storage');
+  assert.ok(settingsChangelogSource.includes('设置页折叠式重设计'), 'settings changelog should describe the production redesign');
+  assert.ok(settingsChangelogSource.includes('账户记忆留待独立缓存隔离完成后再接入'), 'release notes should state the account-memory boundary');
+});
+
 test('production V2 wave tracker is an independent real-data page with isolated mutations', () => {
   assert.ok(appSource.includes("const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'))"), 'V2 page should lazy-load outside TradesTab');
   assert.ok(appSource.includes("setActivePage('wave-tracker')") && appSource.includes("activePage === 'wave-tracker'"), 'App should route V2 through the standalone page state');
@@ -1753,7 +1785,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.307/g) || []).length, 3, 'settings version surfaces should document the current asset owner color release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.308'"), 'settings version source should document the current redesign release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2069,7 +2101,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.equal((settingsTabSource.match(/v10\.7\.9\.307/g) || []).length, 3, 'settings version surfaces should remain synchronized at the current local version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.308'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

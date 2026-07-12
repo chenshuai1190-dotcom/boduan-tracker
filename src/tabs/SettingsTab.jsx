@@ -1,29 +1,88 @@
 import React from 'react';
 import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Copy,
+  Globe2,
+  Languages,
+  Loader2,
+  LogOut,
+  Monitor,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Ticket,
+  Users,
+  X,
+} from 'lucide-react';
+import {
   COMMUNITY_AVATAR_OPTIONS,
   getCommunityAvatarOption,
   validateCommunityNickname,
 } from '../lib/communityProfile.js';
 import { normalizeLanguage, t } from '../lib/i18n.js';
+import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
+
+const SETTINGS_VERSION = 'v10.7.9.308';
+
+function DetailShell({ children }) {
+  return (
+    <div className="mx-5 border-t border-white/[0.06] pb-5 pt-4">
+      {children}
+    </div>
+  );
+}
+
+function SettingsRow({ badge, badgeClass = '', expanded, icon: Icon, label, onClick, rowRef, value, valueClass = 'text-white/42' }) {
+  return (
+    <button
+      ref={rowRef}
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[73px] w-full min-w-0 items-center gap-3.5 px-5 text-left outline-none transition active:bg-white/[0.025] focus-visible:bg-white/[0.025]"
+    >
+      <Icon className="h-[20px] w-[20px] shrink-0 stroke-[1.8] text-white/55" />
+      <span className="min-w-0 flex-1 text-[15px] font-medium tracking-[0.01em] text-white/[0.88]">{label}</span>
+      {value && <span className={`max-w-[108px] truncate text-[12px] ${valueClass}`}>{value}</span>}
+      {badge && (
+        <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-medium ${badgeClass}`}>
+          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-current align-[1px]" />
+          {badge}
+        </span>
+      )}
+      {expanded
+        ? <ChevronDown className="h-4 w-4 shrink-0 text-white/36" />
+        : <ChevronRight className="h-4 w-4 shrink-0 text-white/36" />}
+    </button>
+  );
+}
+
+function StatusMessage({ message, className = '' }) {
+  if (!message) return null;
+  const tone = message.type === 'error'
+    ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
+    : message.type === 'info'
+      ? 'border-[#f6a524]/25 bg-[#f6a524]/10 text-[#ffd18a]'
+      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200';
+  return <div className={`rounded-xl border px-3 py-2 text-[11px] leading-5 ${tone} ${className}`}>{message.text}</div>;
+}
 
 function SettingsTab({ ctx }) {
   const {
     changelogExpanded,
-    ChevronDown,
-    ChevronUp,
-    clearQuoteDiagnosticLogs,
     communityProfileFocusRequest = 0,
     db,
-    Loader2,
-    LogOut,
     language = 'zh',
+    marketColorMode = MARKET_COLOR_MODES.GREEN_UP_RED_DOWN,
     newPwd,
     onLogout,
     pwdLoading,
     pwdMsg,
-    quoteDiagnosticLogs = [],
     setChangelogExpanded,
     setLanguage,
+    setMarketColorMode,
     setNewPwd,
     setPwdLoading,
     setPwdMsg,
@@ -32,81 +91,22 @@ function SettingsTab({ ctx }) {
     showConfirm,
     supabase,
     user,
-    X,
   } = ctx;
   const currentLanguage = normalizeLanguage(language);
-
-  const formatDiagnosticTime = (value) => {
-    if (!value) return '--';
-    try {
-      return new Date(value).toLocaleString(currentLanguage === 'en' ? 'en-US' : 'zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return '--';
-    }
-  };
-  const triggerLabel = (trigger) => {
-    const labels = currentLanguage === 'en'
-      ? {
-        'auto-start': 'Auto start',
-        'auto-start-cloud': 'Startup snapshot',
-        'auto-interval': 'Auto polling',
-        'auto-visible': 'Foreground',
-        'auto-focus': 'Window focus',
-        'auto-pageshow': 'Page restore',
-        'auto-tab': 'Tab switch',
-        'auto-realtime-open': 'Live connected',
-        'auto-ios-resume': 'iOS app resume',
-        'auto-ios-resume-cloud': 'iOS resume snapshot',
-        'auto-ios-touch-resume': 'iOS touch resume',
-        'auto-ios-online': 'iOS online',
-        'manual-button': 'Manual refresh',
-        'manual-pull-refresh': 'Pull refresh',
-      }
-      : {
-        'auto-start': '自动启动',
-        'auto-start-cloud': '启动快照',
-        'auto-interval': '自动轮询',
-        'auto-visible': '回到前台',
-        'auto-focus': '窗口聚焦',
-        'auto-pageshow': '页面恢复',
-        'auto-tab': '切换页面',
-        'auto-realtime-open': '实时连接',
-        'auto-ios-resume': 'iOS 回到前台',
-        'auto-ios-resume-cloud': 'iOS 恢复快照',
-        'auto-ios-touch-resume': 'iOS 触摸恢复',
-        'auto-ios-online': 'iOS 网络恢复',
-        'manual-button': '手动刷新',
-        'manual-pull-refresh': '下拉刷新',
-      };
-    return labels[trigger] || trigger || (currentLanguage === 'en' ? 'Unknown trigger' : '未知触发');
-  };
-  const rootLabel = (root) => ({
-    'browser-network': '浏览器网络',
-    'auth': '登录鉴权',
-    'request-params': '请求参数',
-    'rate-limit': '频率限制',
-    'server-config': '服务端配置',
-    'provider-partial': '第三方局部',
-    'quote-api': '行情接口',
-  }[root] || root || '未知根因');
-  const visibleQuoteLogs = Array.isArray(quoteDiagnosticLogs) ? quoteDiagnosticLogs.slice(0, 8) : [];
-
+  const normalizedColorMode = normalizeMarketColorMode(marketColorMode);
+  const [expandedSection, setExpandedSection] = React.useState('');
   const [changelog, setChangelog] = React.useState(null);
   const [changelogLoadError, setChangelogLoadError] = React.useState(false);
   const [inviteCodes, setInviteCodes] = React.useState([]);
   const [inviteLoading, setInviteLoading] = React.useState(false);
+  const [inviteLoaded, setInviteLoaded] = React.useState(false);
   const [inviteMessage, setInviteMessage] = React.useState(null);
   const [communityProfile, setCommunityProfile] = React.useState(null);
   const [communityDraft, setCommunityDraft] = React.useState({ nickname: '', avatarKey: 'gold' });
   const [communityLoading, setCommunityLoading] = React.useState(false);
   const [communitySaving, setCommunitySaving] = React.useState(false);
   const [communityMessage, setCommunityMessage] = React.useState(null);
-  const communityProfileSectionRef = React.useRef(null);
+  const communityProfileRowRef = React.useRef(null);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
   const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
@@ -115,11 +115,11 @@ function SettingsTab({ ctx }) {
     communityProfile
     && (
       !communityProfile.profileCompletedAt
-      ||
-      communityNicknameValidation.nickname !== communityProfile.nickname
+      || communityNicknameValidation.nickname !== communityProfile.nickname
       || selectedCommunityAvatar.key !== communityProfile.avatarKey
     ),
   );
+  const communityDisplayName = communityProfile?.nickname || communityNicknameValidation.nickname || t(language, 'settings.communityProfile', '社区资料');
 
   const fetchInviteApi = React.useCallback(async (options = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -141,7 +141,7 @@ function SettingsTab({ ctx }) {
   }, [language, supabase]);
 
   const loadInviteCodes = React.useCallback(async () => {
-    if (!isInviteAdmin) return;
+    if (!isInviteAdmin || inviteLoading) return;
     setInviteLoading(true);
     setInviteMessage(null);
     try {
@@ -150,20 +150,19 @@ function SettingsTab({ ctx }) {
     } catch (error) {
       setInviteMessage({ type: 'error', text: error.message || t(language, 'settings.inviteLoadFailed', '邀请码加载失败') });
     } finally {
+      setInviteLoaded(true);
       setInviteLoading(false);
     }
-  }, [fetchInviteApi, isInviteAdmin, language]);
+  }, [fetchInviteApi, inviteLoading, isInviteAdmin, language]);
 
   const generateInviteCode = async () => {
     if (!isInviteAdmin || inviteLoading) return;
     setInviteLoading(true);
     setInviteMessage(null);
     try {
-      const body = await fetchInviteApi({
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
+      const body = await fetchInviteApi({ method: 'POST', body: JSON.stringify({}) });
       setInviteCodes(Array.isArray(body.invites) ? body.invites : []);
+      setInviteLoaded(true);
       setInviteMessage({
         type: 'success',
         text: t(language, 'settings.inviteGenerated', '邀请码已生成: {{code}}', { code: body.invite?.code || '--' }),
@@ -188,23 +187,21 @@ function SettingsTab({ ctx }) {
         console.warn('[Settings] 更新日志加载失败:', error?.message || error);
         if (!cancelled) setChangelogLoadError(true);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   React.useEffect(() => {
-    if (isInviteAdmin) loadInviteCodes();
-  }, [isInviteAdmin, loadInviteCodes]);
+    if (expandedSection === 'invite' && isInviteAdmin && !inviteLoaded && !inviteLoading) {
+      loadInviteCodes();
+    }
+  }, [expandedSection, inviteLoaded, inviteLoading, isInviteAdmin, loadInviteCodes]);
 
   React.useEffect(() => {
     let cancelled = false;
     if (!user?.id || !db?.fetchCommunityProfile) {
       setCommunityProfile(null);
       setCommunityDraft({ nickname: '', avatarKey: 'gold' });
-      return () => {
-        cancelled = true;
-      };
+      return () => { cancelled = true; };
     }
 
     setCommunityLoading(true);
@@ -213,40 +210,32 @@ function SettingsTab({ ctx }) {
       .then((profile) => {
         if (cancelled) return;
         setCommunityProfile(profile);
-        setCommunityDraft({
-          nickname: profile?.nickname || '',
-          avatarKey: profile?.avatarKey || 'gold',
-        });
+        setCommunityDraft({ nickname: profile?.nickname || '', avatarKey: profile?.avatarKey || 'gold' });
       })
       .catch((error) => {
         console.warn('[Settings] 社区资料加载失败:', error?.message || error);
         if (!cancelled) {
           setCommunityProfile(null);
-          setCommunityMessage({
-            type: 'error',
-            text: error?.message || t(language, 'settings.communityLoadFailed', '社区资料加载失败'),
-          });
+          setCommunityMessage({ type: 'error', text: error?.message || t(language, 'settings.communityLoadFailed', '社区资料加载失败') });
         }
       })
       .finally(() => {
         if (!cancelled) setCommunityLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [db, language, user?.id]);
 
   React.useEffect(() => {
-    if (!communityProfileFocusRequest) return;
+    if (!communityProfileFocusRequest) return undefined;
+    setExpandedSection('community');
     setCommunityMessage({
       type: 'info',
       text: t(language, 'settings.communityRequiredForCompetition', '参加收益比赛前，请选择社区昵称和默认头像并保存。'),
     });
-    const frame = window.requestAnimationFrame(() => {
-      communityProfileSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-    });
-    return () => window.cancelAnimationFrame(frame);
+    const timer = window.setTimeout(() => {
+      communityProfileRowRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    }, 80);
+    return () => window.clearTimeout(timer);
   }, [communityProfileFocusRequest, language]);
 
   const saveCommunityProfile = async () => {
@@ -256,7 +245,6 @@ function SettingsTab({ ctx }) {
       setCommunityMessage({ type: 'error', text: t(language, 'settings.communityNicknameInvalid', '昵称需为 2-16 个字符') });
       return;
     }
-
     setCommunitySaving(true);
     setCommunityMessage(null);
     try {
@@ -268,544 +256,469 @@ function SettingsTab({ ctx }) {
       setCommunityDraft({ nickname: next.nickname, avatarKey: next.avatarKey });
       setCommunityMessage({ type: 'success', text: t(language, 'settings.communitySaved', '社区资料已保存') });
     } catch (error) {
-      setCommunityMessage({
-        type: 'error',
-        text: error?.message || t(language, 'settings.communitySaveFailed', '社区资料保存失败'),
-      });
+      setCommunityMessage({ type: 'error', text: error?.message || t(language, 'settings.communitySaveFailed', '社区资料保存失败') });
     } finally {
       setCommunitySaving(false);
     }
+  };
+
+  const toggleSection = (id) => {
+    setExpandedSection((current) => current === id ? '' : id);
+    if (id !== 'community') setCommunityMessage(null);
+    if (id !== 'invite') setInviteMessage(null);
+  };
+
+  const requestLogout = (mode) => {
+    const switching = mode === 'switch';
+    showConfirm({
+      title: switching
+        ? t(language, 'settings.switchAccountTitle', '切换账户?')
+        : t(language, 'settings.logoutTitle', '退出登录?'),
+      desc: switching
+        ? t(language, 'settings.switchAccountDesc', '将退出当前账户并返回登录页，请重新输入要登录的账户。')
+        : t(language, 'settings.logoutDesc', '下次进入需要重新登录'),
+      icon: switching ? 'switch' : 'logout',
+      confirmText: switching
+        ? t(language, 'settings.switchAccountConfirm', '继续切换')
+        : t(language, 'settings.logout', '退出登录'),
+      confirmStyle: switching ? 'primary' : 'danger',
+      onConfirm: async () => { await onLogout(); },
+    });
   };
 
   const visibleChangelog = Array.isArray(changelog)
     ? (changelogExpanded ? changelog : changelog.slice(0, 5))
     : [];
 
+  const renderExpandedPanel = (id) => {
+    if (id === 'language') {
+      const options = [
+        { id: 'zh', label: t(language, 'settings.languageZh', '简体中文') },
+        { id: 'en', label: t(language, 'settings.languageEn', 'English') },
+      ];
+      return (
+        <DetailShell>
+          <p className="mb-3 text-[11px] leading-5 text-white/35">
+            {t(language, 'settings.languageDesc', '切换系统界面文案，不翻译你自己写的日志和备注。')}
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {options.map((option) => {
+              const active = currentLanguage === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setLanguage?.(option.id)}
+                  className={`flex min-h-[46px] items-center justify-between rounded-xl border px-3.5 text-[13px] outline-none transition active:scale-[0.99] ${active ? 'border-[#f2a83a]/40 bg-[#f2a83a]/[0.07] text-[#f5ba62]' : 'border-white/[0.08] bg-white/[0.025] text-white/50'}`}
+                >
+                  {option.label} {active && <Check className="h-4 w-4" />}
+                </button>
+              );
+            })}
+          </div>
+        </DetailShell>
+      );
+    }
+
+    if (id === 'display') {
+      const options = [
+        { id: MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, label: t(language, 'settings.redUpGreenDown', '红涨绿跌'), up: '#ff4b1f', down: '#2bd39a' },
+        { id: MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, label: t(language, 'settings.greenUpRedDown', '绿涨红跌'), up: '#2bd39a', down: '#ff4b1f' },
+      ];
+      return (
+        <DetailShell>
+          <p className="mb-3 text-[11px] leading-5 text-white/35">
+            {t(language, 'settings.displayDesc', '统一首页、交易和详情页中的市场涨跌颜色。')}
+          </p>
+          <div className="space-y-2">
+            {options.map((option) => {
+              const active = normalizedColorMode === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setMarketColorMode?.(option.id)}
+                  className={`flex min-h-[48px] w-full items-center rounded-xl border px-3.5 text-[13px] outline-none ${active ? 'border-[#f2a83a]/35 bg-[#f2a83a]/[0.06] text-white/80' : 'border-white/[0.07] bg-white/[0.02] text-white/48'}`}
+                >
+                  <span className="mr-3 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.up }} />
+                  <span className="flex-1 text-left">{option.label}</span>
+                  <span className="mr-2 text-[11px]" style={{ color: option.up }}>+8.8%</span>
+                  <span className="text-[11px]" style={{ color: option.down }}>-3.2%</span>
+                  {active && <Check className="ml-3 h-4 w-4 text-[#f2b65d]" />}
+                </button>
+              );
+            })}
+          </div>
+        </DetailShell>
+      );
+    }
+
+    if (id === 'account') {
+      return (
+        <DetailShell>
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[13px] text-white/75">{user?.email || '--'}</p>
+              <p className="mt-1 text-[10px] text-white/30">{t(language, 'settings.accountHealthy', '当前账户 · 登录状态正常')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowChangePassword(true)}
+              className="shrink-0 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2 text-[11px] text-white/55 active:bg-white/[0.05]"
+            >
+              {t(language, 'settings.changePassword', '修改密码')}
+            </button>
+          </div>
+        </DetailShell>
+      );
+    }
+
+    if (id === 'community') {
+      return (
+        <DetailShell>
+          <label className="block text-[11px] text-white/38" htmlFor="community-nickname-input">
+            {t(language, 'settings.communityNickname', '社区昵称')}
+          </label>
+          <input
+            id="community-nickname-input"
+            type="text"
+            value={communityDraft.nickname}
+            onChange={(event) => {
+              setCommunityDraft((current) => ({ ...current, nickname: event.target.value }));
+              setCommunityMessage(null);
+            }}
+            maxLength={24}
+            placeholder={t(language, 'settings.communityNicknamePlaceholder', '请输入 2-16 个字符')}
+            disabled={communityLoading || communitySaving}
+            className="mt-2 block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/[0.09] bg-[#080b11] px-3.5 text-[14px] font-normal text-white/85 outline-none placeholder:text-white/20 focus:border-[#f2a83a]/35 disabled:opacity-60"
+          />
+          <p className={`mt-2 text-[10px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/30' : 'text-rose-300'}`}>
+            {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}
+          </p>
+          <div className="mb-2.5 mt-4 flex items-center justify-between">
+            <p className="text-[11px] text-white/38">{t(language, 'settings.communityAvatar', '默认头像')}</p>
+            {communityLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/35" />}
+          </div>
+          <div className="grid grid-cols-6 gap-2">
+            {COMMUNITY_AVATAR_OPTIONS.map((avatar) => {
+              const active = selectedCommunityAvatar.key === avatar.key;
+              return (
+                <button
+                  key={avatar.key}
+                  type="button"
+                  onClick={() => {
+                    setCommunityDraft((current) => ({ ...current, avatarKey: avatar.key }));
+                    setCommunityMessage(null);
+                  }}
+                  disabled={communityLoading || communitySaving}
+                  aria-label={currentLanguage === 'en' ? avatar.labelEn : avatar.labelZh}
+                  className={`relative aspect-square min-w-0 overflow-hidden rounded-full border bg-[#070a0f] transition active:scale-95 disabled:opacity-60 ${active ? 'border-[#f6b54b] shadow-[0_0_12px_rgba(246,181,75,0.22)]' : 'border-transparent opacity-65'}`}
+                >
+                  <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+                  {active && <span className="absolute inset-x-[32%] bottom-0 h-0.5 rounded-full bg-[#f6b54b]" />}
+                </button>
+              );
+            })}
+          </div>
+          <StatusMessage message={communityMessage} className="mt-3" />
+          <button
+            type="button"
+            onClick={saveCommunityProfile}
+            disabled={communityLoading || communitySaving || !communityNicknameValidation.valid || !communityDirty}
+            className="mt-4 flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl border border-[#f2a83a]/25 bg-[#f2a83a]/[0.04] text-[13px] font-medium text-[#f2b65d] active:scale-[0.99] disabled:border-white/[0.07] disabled:bg-white/[0.02] disabled:text-white/25"
+          >
+            {communitySaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {communitySaving
+              ? t(language, 'settings.communitySaving', '保存中...')
+              : t(language, 'settings.communitySave', '保存社区资料')}
+          </button>
+        </DetailShell>
+      );
+    }
+
+    if (id === 'invite' && isInviteAdmin) {
+      return (
+        <DetailShell>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[12px] text-white/70">{t(language, 'settings.inviteAdminOnly', '管理员专属')}</p>
+              <p className="mt-1 text-[10px] text-white/30">{t(language, 'settings.inviteDesc', '生成并管理新用户邀请码')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={generateInviteCode}
+              disabled={inviteLoading}
+              className="flex min-h-[38px] shrink-0 items-center gap-1.5 rounded-xl border border-[#f2a83a]/25 px-3 text-[11px] text-[#f2b65d] active:scale-95 disabled:opacity-50"
+            >
+              {inviteLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              {t(language, 'settings.inviteGenerate', '生成')}
+            </button>
+          </div>
+          <StatusMessage message={inviteMessage} className="mb-3" />
+          <div className="space-y-2">
+            {inviteCodes.length === 0 ? (
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 text-[12px] text-white/38">
+                {inviteLoading ? t(language, 'settings.inviteLoading', '加载中...') : t(language, 'settings.inviteEmpty', '还没有邀请码')}
+              </div>
+            ) : inviteCodes.slice(0, 8).map((invite) => {
+              const used = invite.status === 'used' || Boolean(invite.usedAt);
+              return (
+                <button
+                  key={invite.id || invite.code}
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard?.writeText(invite.code);
+                      setInviteMessage({ type: 'success', text: t(language, 'settings.inviteCopied', '邀请码已复制') });
+                    } catch {
+                      setInviteMessage({ type: 'success', text: invite.code });
+                    }
+                  }}
+                  className="flex w-full min-w-0 items-center rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 text-left"
+                >
+                  <span className="min-w-0 flex-1 truncate font-mono text-[12px] tracking-[0.08em] text-white/70">{invite.code}</span>
+                  <span className={`mr-2 rounded-full px-2 py-1 text-[9px] ${used ? 'bg-white/[0.05] text-white/30' : 'bg-[#2cce91]/10 text-[#49daa7]'}`}>
+                    {used ? t(language, 'settings.inviteUsed', '已使用') : t(language, 'settings.inviteActive', '可用')}
+                  </span>
+                  <Copy className="h-3.5 w-3.5 text-white/30" />
+                </button>
+              );
+            })}
+          </div>
+        </DetailShell>
+      );
+    }
+
+    return null;
+  };
+
+  const settingsRows = [
+    {
+      id: 'language',
+      icon: Languages,
+      label: t(language, 'settings.languageSettings', '语言设置'),
+      value: currentLanguage === 'en' ? 'English' : '简体中文',
+      valueClass: 'text-[#f4b44f]',
+    },
+    {
+      id: 'display',
+      icon: Monitor,
+      label: t(language, 'settings.displaySettings', '显示设置'),
+      value: normalizedColorMode === MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
+        ? t(language, 'settings.redUpGreenDown', '红涨绿跌')
+        : t(language, 'settings.greenUpRedDown', '绿涨红跌'),
+    },
+    {
+      id: 'account',
+      icon: ShieldCheck,
+      label: t(language, 'settings.account', '账户设置'),
+      badge: t(language, 'settings.loggedIn', '已登录'),
+      badgeClass: 'border-[#2cce91]/20 bg-[#2cce91]/10 text-[#49daa7]',
+    },
+    {
+      id: 'community',
+      icon: Users,
+      label: t(language, 'settings.communityProfile', '社区资料'),
+      value: communityLoading ? t(language, 'settings.loading', '加载中') : communityDisplayName,
+      rowRef: communityProfileRowRef,
+    },
+    ...(isInviteAdmin ? [{
+      id: 'invite',
+      icon: Ticket,
+      label: t(language, 'settings.inviteTitle', '邀请码管理'),
+      badge: t(language, 'settings.admin', '管理员'),
+      badgeClass: 'border-[#f2a83a]/20 bg-[#f2a83a]/10 text-[#f2b65d]',
+    }] : []),
+  ];
+
   return (
     <>
+      <div className="mx-auto w-full max-w-[430px] text-white" data-settings-redesign="phase-1-production">
+        <h1 className="px-1 text-[22px] font-semibold tracking-[0.02em] text-white/[0.94]">
+          {t(language, 'settings.title', '设置')}
+        </h1>
 
-          <div className="space-y-4 text-white">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">Quote</div>
-                  <h1 className="mt-1 text-[22px] font-black tracking-normal text-white">{t(language, 'settings.title', '设置')}</h1>
-                </div>
-                <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-bold text-[#f6a524]">
-                  v10.7.9.307
-                </span>
-              </div>
-            </div>
+        <button
+          type="button"
+          onClick={() => toggleSection('community')}
+          className="mt-5 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+        >
+          <span className="h-[66px] w-[66px] overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
+            <img src={selectedCommunityAvatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+          </span>
+          <span className="mt-3 max-w-full truncate text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">
+            {communityLoading ? t(language, 'settings.loading', '加载中...') : communityDisplayName}
+          </span>
+          <span className="mt-2 text-center text-[10px] text-white/40">
+            {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}
+          </span>
+        </button>
 
-            {/* 语言 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-black text-white">{t(language, 'settings.language', '语言')}</h2>
-                  <div className="mt-1 text-[12px] leading-5 text-white/40">
-                    {t(language, 'settings.languageDesc', '切换系统界面文案, 不翻译你自己写的日志和备注。')}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full border border-[#f6a524]/20 bg-[#f6a524]/10 px-2.5 py-1 text-[10px] font-black uppercase text-[#f6a524]">
-                  {currentLanguage === 'en' ? 'EN' : '中文'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'zh', label: t(language, 'settings.languageZh', '简体中文') },
-                  { id: 'en', label: t(language, 'settings.languageEn', 'English') },
-                ].map((item) => {
-                  const active = currentLanguage === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setLanguage?.(item.id)}
-                      className={`flex h-11 items-center justify-center rounded-xl border text-[13px] font-bold transition active:scale-[0.99] ${
-                        active
-                          ? 'border-[#f6a524]/70 bg-[#f6a524]/15 text-[#ffd18a]'
-                          : 'border-white/10 bg-black/20 text-white/55'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#0c1016] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+          {settingsRows.map((row, index) => (
+            <React.Fragment key={row.id}>
+              {index > 0 && <div className="mx-5 h-px bg-white/[0.065]" />}
+              <SettingsRow
+                {...row}
+                expanded={expandedSection === row.id}
+                onClick={() => toggleSection(row.id)}
+              />
+              {expandedSection === row.id && renderExpandedPanel(row.id)}
+            </React.Fragment>
+          ))}
 
-            {/* 账户设置 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-black text-white">{t(language, 'settings.account', '账户设置')}</h2>
-                <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-black text-emerald-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
-                  {t(language, 'settings.loggedIn', '已登录')}
-                </span>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Email</div>
-                <div className="mt-1 break-all text-sm font-semibold text-white/85">
-                  {user?.email || '--'}
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-1 gap-2">
-                <button
-                  onClick={() => setShowChangePassword(true)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.07] py-2.5 text-sm font-bold text-white active:scale-95 transition"
-                >
-                  {t(language, 'settings.changePassword', '修改密码')}
-                </button>
-                <button
-                  onClick={() => {
-                    showConfirm({
-                      title: t(language, 'settings.logoutTitle', '退出登录?'),
-                      desc: t(language, 'settings.logoutDesc', '下次进入需要重新登录'),
-                      icon: '🔓',
-                      confirmText: t(language, 'settings.logout', '退出登录'),
-                      onConfirm: async () => {
-                        await onLogout();
-                      },
-                    });
-                  }}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-400/10 py-2.5 text-sm font-bold text-rose-300 active:scale-95 transition"
-                >
-                  <LogOut className="w-4 h-4" /> {t(language, 'settings.logout', '退出登录')}
-                </button>
-              </div>
-            </div>
+          <div className="mx-5 h-px bg-white/[0.065]" />
+          <div className="grid grid-cols-2 gap-3 px-4 py-4">
+            <button
+              type="button"
+              onClick={() => requestLogout('switch')}
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] border border-white/[0.09] bg-white/[0.025] text-[13px] text-white/65 active:bg-white/[0.05]"
+            >
+              <RefreshCw className="h-4 w-4" /> {t(language, 'settings.switchAccount', '切换账户')}
+            </button>
+            <button
+              type="button"
+              onClick={() => requestLogout('logout')}
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] border border-[#e04d5e]/20 bg-[#8f1f2c]/20 text-[13px] text-[#f08391] active:bg-[#8f1f2c]/28"
+            >
+              <LogOut className="h-4 w-4" /> {t(language, 'settings.logout', '退出登录')}
+            </button>
+          </div>
+        </section>
 
-            {/* 社区资料 */}
-            <div ref={communityProfileSectionRef} className="scroll-mt-24 rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-black text-white">{t(language, 'settings.communityProfile', '社区资料')}</h2>
-                  <div className="mt-1 text-[12px] leading-5 text-white/40">
-                    {t(language, 'settings.communityProfileDesc', '昵称和头像会用于后续社区比赛排行榜展示,不会展示邮箱。')}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full border border-[#f6a524]/20 bg-[#f6a524]/10 px-2.5 py-1 text-[10px] font-black text-[#f6a524]">
-                  {t(language, 'settings.communityPublic', '公开资料')}
-                </span>
-              </div>
+        <section className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.075] bg-[#0b0f15]">
+          <button
+            type="button"
+            onClick={() => toggleSection('changelog')}
+            className="flex min-h-[62px] w-full items-center gap-3 px-5 text-left"
+          >
+            <Globe2 className="h-[18px] w-[18px] text-white/42" />
+            <span className="flex-1 text-[13px] text-white/68">{t(language, 'settings.changelog', '更新日志')}</span>
+            <span className="text-[10px] text-white/28">{SETTINGS_VERSION}</span>
+            {expandedSection === 'changelog'
+              ? <ChevronDown className="h-4 w-4 text-white/30" />
+              : <ChevronRight className="h-4 w-4 text-white/30" />}
+          </button>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="flex items-center gap-4">
-                  <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_28px_rgba(246,181,75,0.12)]">
-                    <img
-                      src={selectedCommunityAvatar.src}
-                      alt=""
-                      className="h-full w-full scale-[1.1] object-cover"
-                      draggable={false}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <label className="mb-1.5 block text-[11px] font-bold text-white/42">
-                      {t(language, 'settings.communityNickname', '社区昵称')}
-                    </label>
-                    <input
-                      type="text"
-                      value={communityDraft.nickname}
-                      onChange={(event) => {
-                        setCommunityDraft((current) => ({ ...current, nickname: event.target.value }));
-                        setCommunityMessage(null);
-                      }}
-                      maxLength={24}
-                      placeholder={t(language, 'settings.communityNicknamePlaceholder', '请输入 2-16 个字符')}
-                      disabled={communityLoading || communitySaving}
-                      className="h-11 w-full rounded-xl border border-white/10 bg-[#080b11] px-3 text-[14px] font-semibold text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]/70 disabled:opacity-60"
-                    />
-                    <div className={`mt-1.5 text-[10px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/32' : 'text-rose-300'}`}>
-                      {t(language, 'settings.communityNicknameRule', '2-16 个字符,用于排行榜公开展示')}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-[11px] font-bold text-white/42">{t(language, 'settings.communityAvatar', '默认头像')}</div>
-                    {communityLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/35" />}
-                  </div>
-                  <div className="grid grid-cols-6 gap-2">
-                    {COMMUNITY_AVATAR_OPTIONS.map((avatar) => {
-                      const active = selectedCommunityAvatar.key === avatar.key;
-                      return (
-                        <button
-                          key={avatar.key}
-                          type="button"
-                          onClick={() => {
-                            setCommunityDraft((current) => ({ ...current, avatarKey: avatar.key }));
-                            setCommunityMessage(null);
-                          }}
-                          disabled={communityLoading || communitySaving}
-                          aria-label={currentLanguage === 'en' ? avatar.labelEn : avatar.labelZh}
-                          className={`relative aspect-square rounded-full border bg-[#080b11] p-0.5 transition active:scale-95 disabled:opacity-60 ${
-                            active
-                              ? 'border-[#f6a524] shadow-[0_0_18px_rgba(246,181,75,0.22)]'
-                              : 'border-transparent opacity-70'
-                          }`}
-                        >
-                          <span className="block h-full w-full overflow-hidden rounded-full bg-[#080b11]">
-                            <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
-                          </span>
-                          {active && (
-                            <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#f6a524]" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {communityMessage && (
-                  <div className={`mt-3 rounded-xl border px-3 py-2 text-[12px] ${
-                    communityMessage.type === 'error'
-                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
-                      : communityMessage.type === 'info'
-                        ? 'border-[#f6a524]/25 bg-[#f6a524]/10 text-[#ffd18a]'
-                        : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
-                  }`}>
-                    {communityMessage.text}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={saveCommunityProfile}
-                  disabled={communityLoading || communitySaving || !communityNicknameValidation.valid || !communityDirty}
-                  className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#f6a524]/25 bg-[#f6a524]/14 text-[13px] font-black text-[#ffd18a] transition active:scale-95 disabled:border-white/10 disabled:bg-white/[0.05] disabled:text-white/30"
-                >
-                  {communitySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {communitySaving
-                    ? t(language, 'settings.communitySaving', '保存中...')
-                    : t(language, 'settings.communitySave', '保存社区资料')}
-                </button>
-              </div>
-            </div>
-
-            {isInviteAdmin && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-black text-white">{t(language, 'settings.inviteTitle', '邀请码管理')}</h2>
-                    <div className="mt-1 text-[12px] leading-5 text-white/40">
-                      {t(language, 'settings.inviteDesc', '没有邀请码的新用户无法注册。')}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={generateInviteCode}
-                    disabled={inviteLoading}
-                    className="flex h-9 shrink-0 items-center justify-center rounded-xl border border-[#f6a524]/25 bg-[#f6a524]/14 px-3 text-[12px] font-bold text-[#ffd18a] active:scale-95 disabled:opacity-50"
-                  >
-                    {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t(language, 'settings.inviteGenerate', '生成')}
-                  </button>
-                </div>
-
-                {inviteMessage && (
-                  <div className={`mb-3 rounded-xl border px-3 py-2 text-[12px] ${
-                    inviteMessage.type === 'error'
-                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
-                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
-                  }`}>
-                    {inviteMessage.text}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {inviteCodes.length === 0 ? (
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/45">
-                      {inviteLoading ? t(language, 'settings.inviteLoading', '加载中...') : t(language, 'settings.inviteEmpty', '还没有邀请码')}
-                    </div>
-                  ) : inviteCodes.slice(0, 8).map((invite) => {
-                    const used = invite.status === 'used' || Boolean(invite.usedAt);
-                    return (
-                      <div key={invite.id || invite.code} className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard?.writeText(invite.code);
-                                setInviteMessage({ type: 'success', text: t(language, 'settings.inviteCopied', '邀请码已复制') });
-                              } catch {
-                                setInviteMessage({ type: 'success', text: invite.code });
-                              }
-                            }}
-                            className="min-w-0 truncate text-left text-[14px] font-semibold uppercase tracking-[0.08em] text-white"
-                          >
-                            {invite.code}
-                          </button>
-                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                            used
-                              ? 'border-white/10 bg-white/[0.06] text-white/45'
-                              : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
-                          }`}>
-                            {used ? t(language, 'settings.inviteUsed', '已使用') : t(language, 'settings.inviteActive', '可用')}
-                          </span>
-                        </div>
-                        <div className="mt-1.5 text-[11px] leading-4 text-white/35">
-                          {used && invite.usedByEmail
-                            ? t(language, 'settings.inviteUsedBy', '已被 {{email}} 使用', { email: invite.usedByEmail })
-                            : t(language, 'settings.inviteTapToCopy', '点击邀请码复制')}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 修改密码 Modal */}
-            {showChangePassword && (
-              <div
-                className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
-                onClick={(e) => { if (e.target === e.currentTarget) { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); } }}
-              >
-                <div className="w-full max-w-md rounded-t-3xl border border-white/10 bg-[#0b0f16] p-5 shadow-2xl sm:rounded-3xl">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-base font-black text-white">修改密码</h3>
-                    <button
-                      onClick={() => { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-white/70"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <label className="mb-1 block text-xs font-bold text-white/50">新密码 (至少 6 位)</label>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPwd}
-                    onChange={e => setNewPwd(e.target.value)}
-                    placeholder="至少 6 位"
-                    className="mb-3 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]"
-                  />
-
-                  {pwdMsg && (
-                    <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${
-                      pwdMsg.type === 'error'
-                        ? 'border-rose-400/30 bg-rose-400/10 text-rose-200'
-                        : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
-                    }`}>
-                      {pwdMsg.text}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={async () => {
-                      if (!newPwd || newPwd.length < 6) {
-                        setPwdMsg({ type: 'error', text: '密码至少 6 位' });
-                        return;
-                      }
-                      setPwdLoading(true);
-                      setPwdMsg(null);
-                      try {
-                        const { error } = await supabase.auth.updateUser({ password: newPwd });
-                        if (error) {
-                          setPwdMsg({ type: 'error', text: error.message });
-                        } else {
-                          setPwdMsg({ type: 'success', text: '✓ 密码已更新, 下次登录用新密码' });
-                          setNewPwd('');
-                          setTimeout(() => {
-                            setShowChangePassword(false);
-                            setPwdMsg(null);
-                          }, 2000);
-                        }
-                      } catch (e) {
-                        setPwdMsg({ type: 'error', text: e.message || '更新失败' });
-                      } finally {
-                        setPwdLoading(false);
-                      }
-                    }}
-                    disabled={pwdLoading}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f6a524] py-3 font-black text-[#05070b] active:scale-95 transition disabled:opacity-50"
-                  >
-                    {pwdLoading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" />保存中...</>
-                    ) : '保存新密码'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 行情诊断日志 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-black text-white">{t(language, 'settings.diagnostics', '行情诊断日志')}</h2>
-                  <div className="mt-1 text-[11px] font-medium text-white/35">
-                    {t(language, 'settings.recentCount', '最近 {{count}} 条', { count: quoteDiagnosticLogs.length || 0 })}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearQuoteDiagnosticLogs}
-                  disabled={quoteDiagnosticLogs.length === 0}
-                  className="rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-[11px] font-bold text-white/60 active:scale-95 disabled:opacity-35"
-                >
-                  {t(language, 'settings.clear', '清空')}
-                </button>
-              </div>
-
-              {visibleQuoteLogs.length === 0 ? (
-                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/45">
-                  {t(language, 'settings.noQuoteErrors', '暂无行情错误')}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {visibleQuoteLogs.map((log) => (
-                    <div key={log.id} className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                              log.mode === 'manual-visible'
-                                ? 'border border-rose-300/25 bg-rose-300/10 text-rose-200'
-                                : 'border border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-                            }`}>
-                              {log.mode === 'manual-visible' ? '已提示' : '静默'}
-                            </span>
-                            <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/55">
-                              {triggerLabel(log.trigger)}
-                            </span>
-                            {log.count > 1 && (
-                              <span className="rounded-full border border-[#f6a524]/20 bg-[#f6a524]/10 px-2 py-0.5 text-[10px] font-black text-[#f6a524]">
-                                x{log.count}
-                              </span>
-                            )}
-                          </div>
-                          <div className="mt-1.5 text-sm font-semibold text-white/85">
-                            {rootLabel(log.root)} · {log.provider || '未知来源'}
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-right text-[10px] tabular-nums text-white/35" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                          {formatDiagnosticTime(log.lastAt || log.at)}
-                        </div>
-                      </div>
-                      <div className="break-words text-[12px] leading-relaxed text-white/60">
-                        {log.message || '--'}
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-white/35">
-                        <div className="truncate">范围: {log.symbols || '--'}</div>
-                        <div className="text-right tabular-nums">HTTP: {log.status || '--'} · {log.durationMs || 0}ms</div>
-                      </div>
-                      {Array.isArray(log.providerErrors) && log.providerErrors.length > 0 && (
-                        <div className="mt-2 space-y-1 border-t border-white/10 pt-2">
-                          {log.providerErrors.slice(0, 3).map((item, idx) => (
-                            <div key={`${item.symbol}_${idx}`} className="text-[10px] leading-relaxed text-white/40">
-                              {item.symbol} · {item.provider}: {item.message}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 📜 更新日志 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-black text-lg text-white">
-                  {t(language, 'settings.changelog', '更新日志')}
-                </h2>
-                <span className="text-[11px] font-bold tabular-nums text-white/40" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                  v10.7.9.307
-                </span>
-              </div>
-
+          {expandedSection === 'changelog' && (
+            <div className="border-t border-white/[0.06] px-5 pb-5 pt-4">
               {changelogLoadError ? (
-                <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-3 text-[12px] text-rose-200">
-                  {t(language, 'settings.changelogLoadFailed', '更新日志加载失败,请稍后重试')}
-                </div>
+                <StatusMessage message={{ type: 'error', text: t(language, 'settings.changelogLoadFailed', '更新日志加载失败，请稍后重试') }} />
               ) : !Array.isArray(changelog) ? (
-                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-[12px] text-white/45">
-                  {t(language, 'settings.changelogLoading', '更新日志加载中...')}
+                <div className="flex items-center justify-center gap-2 py-5 text-[12px] text-white/38">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t(language, 'settings.changelogLoading', '更新日志加载中...')}
                 </div>
               ) : (
                 <div>
-                  {visibleChangelog.map((log, idx, arr) => (
-                    <div
-                      key={log.ver}
-                      className={`py-3 ${idx !== arr.length - 1 ? 'border-b border-white/10' : ''} ${idx === 0 ? 'pt-0' : ''}`}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span
-                          className="px-2 py-0.5 rounded text-[11px] font-black tabular-nums"
-                          style={{
-                            fontFamily: 'ui-monospace, monospace',
-                            background: log.latest
-                              ? 'rgba(52, 211, 153, 0.16)'
-                              : 'rgba(246, 165, 36, 0.12)',
-                            border: log.latest
-                              ? '1px solid rgba(52, 211, 153, 0.24)'
-                              : '1px solid rgba(246, 165, 36, 0.18)',
-                            color: log.latest ? '#86efac' : '#f6a524',
-                          }}
-                        >
+                  {visibleChangelog.map((log, index, rows) => (
+                    <div key={log.ver} className={`py-3 ${index !== rows.length - 1 ? 'border-b border-white/[0.07]' : ''} ${index === 0 ? 'pt-0' : ''}`}>
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className={`rounded border px-2 py-0.5 font-mono text-[10px] ${log.latest ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-[#f6a524]/20 bg-[#f6a524]/10 text-[#f6a524]'}`}>
                           {log.ver}
                         </span>
-                        <span className="text-[10px] text-white/35 tabular-nums" style={{ fontFamily: 'ui-monospace, monospace' }}>
-                          {log.date}
-                        </span>
-                        {log.latest && (
-                          <span className="ml-auto rounded border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-emerald-300">
-                            {t(language, 'settings.latest', '最新')}
-                          </span>
-                        )}
+                        <span className="font-mono text-[9px] text-white/30">{log.date}</span>
                       </div>
-                      <ul className="pl-1 space-y-0.5">
-                        {log.items.map((item, i) => (
-                          <li key={i} className="relative pl-3.5 text-[12px] text-white/65">
-                            <span className="absolute left-1 font-bold text-[#f6a524]">·</span>
-                            {item}
+                      <ul className="space-y-0.5">
+                        {log.items.map((item, itemIndex) => (
+                          <li key={itemIndex} className="relative pl-3 text-[11px] leading-5 text-white/52">
+                            <span className="absolute left-0 text-[#f6a524]">·</span>{item}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ))}
-
                   {changelog.length > 5 && (
                     <button
+                      type="button"
                       onClick={() => setChangelogExpanded(!changelogExpanded)}
-                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.07] py-2.5 text-xs font-bold text-[#f6a524] active:scale-95 transition"
+                      className="mt-2 flex min-h-[42px] w-full items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.025] text-[11px] text-[#f2b65d]"
                     >
-                      {changelogExpanded ? (
-                        <>
-                          <ChevronUp className="w-3.5 h-3.5" />
-                          {t(language, 'settings.collapseHistory', '收起 (隐藏 {{count}} 条历史)', { count: changelog.length - 5 })}
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-3.5 h-3.5" />
-                          {t(language, 'settings.viewFullHistory', '查看完整历史 (还有 {{rest}} 条 · 共 {{total}} 个版本)', { rest: changelog.length - 5, total: changelog.length })}
-                        </>
-                      )}
+                      {changelogExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      {changelogExpanded
+                        ? t(language, 'settings.collapseHistory', '收起历史版本')
+                        : t(language, 'settings.viewFullHistory', '查看完整历史（共 {{total}} 个版本）', { total: changelog.length })}
                     </button>
                   )}
+                  <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[9px] text-white/24">
+                    <span>{t(language, 'settings.dataSource', '数据源')}</span>
+                    <span>EODHD Core + Yahoo Charts</span>
+                  </div>
                 </div>
               )}
             </div>
+          )}
+        </section>
 
-            {/* 关于 */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <h2 className="mb-3 text-lg font-black text-white">{t(language, 'settings.about', '关于 Quote')}</h2>
-              <div className="space-y-2 text-sm text-white/60">
-                <div className="flex items-center justify-between gap-3">
-                  <span>{t(language, 'settings.version', '版本')}</span>
-                  <span className="font-semibold tabular-nums text-white/85">v10.7.9.307</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>{t(language, 'settings.dataSource', '数据源')}</span>
-                  <span className="font-semibold text-white/85">EODHD Core + Yahoo Charts</span>
-                </div>
-              </div>
+        <p className="mt-4 text-center text-[9px] tracking-[0.06em] text-white/18">Quote · {SETTINGS_VERSION}</p>
+      </div>
+
+      {showChangePassword && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm sm:items-center"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowChangePassword(false);
+              setNewPwd('');
+              setPwdMsg(null);
+            }
+          }}
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="w-full max-w-md rounded-[22px] border border-white/10 bg-[#0b0f16] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.5)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[15px] font-medium text-white">{t(language, 'settings.changePassword', '修改密码')}</h3>
+              <button
+                type="button"
+                aria-label={t(language, 'settings.closePassword', '关闭修改密码')}
+                onClick={() => { setShowChangePassword(false); setNewPwd(''); setPwdMsg(null); }}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/45"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
+            <label className="mb-1.5 block text-[11px] text-white/42">{t(language, 'settings.newPassword', '新密码（至少 6 位）')}</label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={newPwd}
+              onChange={(event) => setNewPwd(event.target.value)}
+              placeholder={t(language, 'settings.passwordPlaceholder', '至少 6 位')}
+              className="mb-3 block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-black/30 px-3.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]/50"
+            />
+            {pwdMsg && <StatusMessage message={pwdMsg} className="mb-3" />}
+            <button
+              type="button"
+              onClick={async () => {
+                if (!newPwd || newPwd.length < 6) {
+                  setPwdMsg({ type: 'error', text: t(language, 'settings.passwordTooShort', '密码至少 6 位') });
+                  return;
+                }
+                setPwdLoading(true);
+                setPwdMsg(null);
+                try {
+                  const { error } = await supabase.auth.updateUser({ password: newPwd });
+                  if (error) {
+                    setPwdMsg({ type: 'error', text: error.message });
+                  } else {
+                    setPwdMsg({ type: 'success', text: t(language, 'settings.passwordUpdated', '密码已更新，下次登录请使用新密码') });
+                    setNewPwd('');
+                    window.setTimeout(() => { setShowChangePassword(false); setPwdMsg(null); }, 1800);
+                  }
+                } catch (error) {
+                  setPwdMsg({ type: 'error', text: error.message || t(language, 'settings.passwordUpdateFailed', '更新失败') });
+                } finally {
+                  setPwdLoading(false);
+                }
+              }}
+              disabled={pwdLoading}
+              className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl border border-[#f2a83a]/25 bg-[#f2a83a]/[0.08] text-[13px] font-medium text-[#f2b65d] active:scale-[0.99] disabled:opacity-50"
+            >
+              {pwdLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {pwdLoading ? t(language, 'settings.saving', '保存中...') : t(language, 'settings.saveNewPassword', '保存新密码')}
+            </button>
           </div>
-
+        </div>
+      )}
     </>
   );
 }

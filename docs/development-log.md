@@ -4,6 +4,42 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 设置页折叠式重设计正式接入
+
+- Deployment: not deployed;本轮按用户要求先完成本地实装与验证。
+- Background: 用户确认设置页第一阶段 HTML 原型及“展开区不再内套大框”的视觉,要求开始接入正式代码并本地测试。
+- Workflow tier: `runtime`。
+- Changes:
+  - 正式设置页改为社区身份大卡、五项折叠设置列表、双账户操作按钮和独立更新日志入口;展开内容直接位于主设置卡内,不再使用二次圆角套框。
+  - 社区头像/昵称继续读取并写入真实 `community_profiles`;缺资料参加收益比赛时会自动展开社区资料并滚动到对应入口。
+  - 语言切换、Supabase 修改密码、管理员邀请码读取/生成/复制、完整更新日志继续复用原有真实逻辑。
+  - 设置页新增“显示设置”市场红绿配色入口;交易持仓标题栏原有齿轮菜单按用户补充要求继续保留,两处共同使用 `marketColorMode` 全局状态、本地存储与用户设置云端同步,不改颜色计算。
+  - 设置页删除可见行情诊断日志面板,底层行情错误过滤、日志记录、错误 toast 和 `/api/quote` 鉴权保持不变。
+  - “切换账户”第一阶段使用现有安全退出路径返回登录页,不保存密码、不新增会话或全局缓存复用;账户记忆待用户级缓存隔离后独立实现。
+  - 改密弹窗关闭按钮补充辅助功能名称,语言/显示选项抑制浏览器默认蓝色焦点框,保留应用自身选中态。
+  - 根据正式页本地截图反馈,社区身份头卡保持原宽度和圆角,整体高度从 252px 缩小约 30% 至 176px,头像从 94px 缩至 66px,昵称、说明字号与间距同步压缩。
+  - 设置页和更新日志版本同步为 `v10.7.9.308`。
+- Key files: `src/tabs/SettingsTab.jsx`,`src/App.jsx`,`src/DevVisualPreview.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,最终生成 `SettingsTab-DHHSCjsY.js`、`TradesTab-BLHitRsx.js` 和 `settingsChangelog-Cy-fvut6.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;toolchain、docs consistency、`git diff --check` pass。390x844 正式 `SettingsTab` 本地交互复核:默认页、显示设置、账户改密、社区资料和更新日志均可展开,页面 `scrollWidth/clientWidth=390/390`;社区昵称与改密输入框均为 316px,六个头像完整;设置页切换“绿涨红跌”后交易页原有齿轮菜单立即显示同一选项激活;更新日志命中 v308/数据源,可见行情诊断面板不存在。头卡缩小 30% 后测得宽/高 358/176px、头像 66px,页面仍为 390/390;截图 `~/Desktop/boduan-previews/settings-production-v308-header-minus30-390x844.png`、`settings-production-v308-display-expanded-390x844.png`、`settings-production-v308-community-expanded-390x844.png`。
+- Boundaries: 不改登录认证协议、Supabase session 存储、数据库结构/RLS、社区资料表、邀请码 API、交易账本、收益快照、比赛快照、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
+- Rollback: 回退正式设置页、`v10.7.9.308` 更新日志、上下文/测试和本条日志即可;交易页原有配色入口不需回滚,无需数据库回滚。
+
+### 2026-07-12 - 设置页重设计第一阶段 HTML 原型
+
+- Deployment: not deployed;本轮仅用于本地视觉确认,不进入生产版本。
+- Background: 用户提供设置页新效果图,要求第一阶段先完成 HTML 视觉原型;保留邀请码管理和更新日志,在显示设置中增加市场红绿配色,所有功能采用点击展开形式,并为后续账户记忆切换预留入口。
+- Workflow tier: targeted local prototype。
+- Changes:
+  - 新增开发环境专用 `SettingsRedesignPrototype`,还原黑色移动端设置页、社区身份大卡、统一设置列表、双账户操作按钮和底部导航。
+  - 语言设置、显示设置、账户设置、社区资料、邀请码管理均做成单项折叠展开原型;展示默认头像选择、昵称编辑、红绿配色、管理员邀请码与更新日志的完整静态状态。
+  - 根据首轮截图反馈,五个展开区取消设置卡内的二次圆角套框,改为顶部细分隔线和与标题行一致的内容间距;输入框、头像选择和操作按钮继续保留自身边界。
+  - 原型移除可见行情报错入口;“切换账户”本阶段只呈现视觉,不接 Supabase 会话、账户记忆或缓存切换。
+  - 入口严格位于 `DevVisualPreview` 的 `settings-redesign-prototype` 查询参数下,生产 `App` 和正式 `SettingsTab` 均不导入该原型。
+- Key files: `src/dev/SettingsRedesignPrototype.jsx`,`src/DevVisualPreview.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 43/43 pass;`npm run build` pass且生产构建未包含开发原型 chunk;`git diff --check` pass。390x844 本地浏览器 smoke:默认身份卡、五个折叠入口、双账户按钮和固定底部导航正常;取消内层套框后昵称输入框宽 316px、六个头像完整位于卡内,页面 `scrollWidth/clientWidth=390/390`;截图 `~/Desktop/boduan-previews/settings-redesign-phase1-top-390x844.png` 与 `~/Desktop/boduan-previews/settings-redesign-phase1-community-no-inner-card-390x844.png`。
+- Boundaries: 不改正式设置页、交易页市场配色逻辑、社区资料数据库、邀请码 API、认证会话、缓存、RLS、行情 relay、交易账本或生产版本号。
+- Rollback: 删除开发原型、预览路由、测试断言和本条日志即可;无需数据库或生产回滚。
+
 ### 2026-07-12 - 资产人物卡配色统一
 
 - Commit: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`。

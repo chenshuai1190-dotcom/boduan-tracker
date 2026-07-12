@@ -35,6 +35,7 @@ const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
 const WaveTrackerPrototype = lazy(() => import('./dev/WaveTrackerPrototype.jsx'));
+const SettingsRedesignPrototype = lazy(() => import('./dev/SettingsRedesignPrototype.jsx'));
 
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
@@ -529,6 +530,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
+  const [marketColorMode, setMarketColorMode] = React.useState('redUpGreenDown');
   const pnlReportTooltipDate = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
     return new URLSearchParams(window.location.search).get('pnlReportTooltipDate') || '';
@@ -980,7 +982,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     language,
     Loader2,
     logoCache: {},
-    marketColorMode: 'redUpGreenDown',
+    marketColorMode,
     newStock,
     openPnlReport: () => setActiveTab('pnl-report'),
     closePnlReport: () => setActiveTab('home'),
@@ -1079,7 +1081,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     language,
     logoCache: {},
     lookupStatus: tradeLookupStatus,
-    marketColorMode: 'redUpGreenDown',
+    marketColorMode,
     newTrade,
     closeCommunityCompetition: () => setActiveTab('trades'),
     openCommunityProfileSettings: () => {
@@ -1103,7 +1105,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     setExpandedTrades,
     setExpandedWaves,
     setLookupStatus: setTradeLookupStatus,
-    setMarketColorMode: noop,
+    setMarketColorMode,
     setNewTrade,
     setPortfolioCurrencyMode: setTradeCurrencyMode,
     setShowAddTrade,
@@ -1147,7 +1149,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     investmentPlan,
     lastSubmitRef,
     LogModal: (props) => <DevModal title={props.onDelete ? t(language, 'review.editReview', '编辑复盘') : t(language, 'review.addReview', '写复盘')} onCancel={props.onCancel} />,
-    marketColorMode: 'redUpGreenDown',
+    marketColorMode,
     reviewLogs,
     setDisciplines,
     setEditingDisciplineId,
@@ -1182,21 +1184,17 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   const settingsCtx = {
     changelogExpanded,
-    ChevronDown,
-    ChevronUp,
-    clearQuoteDiagnosticLogs: noop,
     communityProfileFocusRequest,
     db,
     language,
-    Loader2,
-    LogOut,
+    marketColorMode,
     newPwd,
     onLogout: noop,
     pwdLoading,
     pwdMsg,
-    quoteDiagnosticLogs: [],
     setChangelogExpanded,
     setLanguage,
+    setMarketColorMode,
     setNewPwd,
     setPwdLoading,
     setPwdMsg,
@@ -1210,7 +1208,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       },
     },
     user: { id: 'dev-user', email: 'preview@example.com' },
-    X,
   };
 
   const nav = [
@@ -1287,6 +1284,14 @@ export default function DevVisualPreview() {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#05070b] py-12 text-center text-sm text-white/45">加载波段原型...</div>}>
         <WaveTrackerPrototype />
+      </Suspense>
+    );
+  }
+
+  if (preview === 'settings-redesign-prototype') {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-[#05070b] py-12 text-center text-sm text-white/45">加载设置原型...</div>}>
+        <SettingsRedesignPrototype />
       </Suspense>
     );
   }
