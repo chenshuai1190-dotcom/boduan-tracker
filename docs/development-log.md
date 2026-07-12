@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 注册必选社区昵称与头像
 
-- Deployment: completed;runtime commit `99c1883c9360261c334e2ab5a81ae7a89c9e2d62`,GitHub Actions run `29185593537` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CLPNWdw4bgKAdSDaqVHkLKqXuAJj` success,production alias 已更新,入口 `/assets/index-Mg_XwO77.js`。2026-07-12 已在生产 Supabase SQL Editor 执行独立权限迁移 `supabase/registration_community_profile_v315.sql`,页面返回 `Success. No rows returned`。
+- Deployment: completed;runtime commit `99c1883e69fe6808a7bd3d24847c6e375e392dd0`,GitHub Actions run `29185593537` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CLPNWdw4bgKAdSDaqVHkLKqXuAJj` success,production alias 已更新,入口 `/assets/index-Mg_XwO77.js`。2026-07-12 已在生产 Supabase SQL Editor 执行独立权限迁移 `supabase/registration_community_profile_v315.sql`,页面返回 `Success. No rows returned`。
 - Background: 用户要求把昵称和头像接入注册流程并设为必选,让新用户注册后已经具备完整社区身份,进入收益比赛时无需二次返回设置页补资料。
 - Workflow tier: `sensitive`。
 - Changes:
