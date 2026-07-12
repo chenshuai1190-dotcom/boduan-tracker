@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - 收益比赛收盘持仓公开与用户卡
 
-- Commit: pending。
-- Deployment: pending。
+- Commit: `a1c0e7b3922a80de1b542c010698d2663fd7d16a`。
+- Deployment: completed;GitHub Actions run `29176830040` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/HXVkbhd5FJcrwE51eCmjusQnK7qm` success,production alias 已更新,入口 `/assets/index-BcjncCZW.js`。
 - Background: 用户确认内测第一版需要在排行榜用户卡公开收盘持仓代码,不新增额外提示或开关;同时要求排行榜昵称列加宽、用户卡加宽、三角指向头像、使用效果图渐变边框并修复提示文字换行。
 - Workflow tier: `sensitive`。
 - Changes:
@@ -22,7 +22,7 @@
   - `README.md`、安全加固与架构审计文档同步更新公开边界:只允许同日账本哈希验证后的 ticker,数量/成本/金额/仓位/交易明细继续严格私有。
   - 设置页三个可见版本面和更新日志同步为 `v10.7.9.305`;“全部功能”中的旧 mock 描述同步修正为独立真实功能。
 - Key files: `server/communityCompetitionSnapshotModel.js`,`server/communityCompetitionModel.js`,`server/communityCompetition.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/lib/settingsChangelog.js`,`src/tabs/SettingsTab.jsx`,`src/tabs/TradesTab.jsx`,`tests/community-competition-*.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `npm run verify:workspace-state`、`verify:local-env`、`verify:toolchain` pass;competition snapshot/model/API/boundary 定向 63/63 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `CommunityCompetitionPage-gUxNmOBI.js`、`SettingsTab-saKZXADd.js` 和 `settingsChangelog-A-826bOi.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:rls:rest` 20/20 pass;docs consistency、`git diff --check` pass。390x844 本地复核:页面 `scrollWidth=390/clientWidth=390`,弹卡宽 320px、左右各 35px,箭头与头像中心同为 x=79,12 个 ticker 正常分三行,空仓显示“当前空仓”,console warning/error 0;截图 `~/Desktop/boduan-previews/community-competition-v305-holdings-popover-390x844.png`。Deployment/security smoke pending。
+- Validation: `npm run verify:workspace-state`、`verify:local-env`、`verify:toolchain` pass;competition snapshot/model/API/boundary 定向 63/63 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `CommunityCompetitionPage-gUxNmOBI.js`、`SettingsTab-saKZXADd.js` 和 `settingsChangelog-A-826bOi.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;`npm run verify:rls:rest` 20/20 pass;docs consistency、`git diff --check` pass。390x844 本地复核:页面 `scrollWidth=390/clientWidth=390`,弹卡宽 320px、左右各 35px,箭头与头像中心同为 x=79,12 个 ticker 正常分三行,空仓显示“当前空仓”,console warning/error 0;截图 `~/Desktop/boduan-previews/community-competition-v305-holdings-popover-390x844.png`。`npm run verify:deploy-status -- a1c0e7b` pass;生产未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;生产 `SettingsTab-saKZXADd.js`、`settingsChangelog-A-826bOi.js`、`CommunityCompetitionPage-gUxNmOBI.js` 分别命中 `v10.7.9.305`、版本标题、`收盘持仓代码`、`当前空仓` 和 `持仓暂不可用`,生产 chunks 不含 `DevVisualPreview`。
 - Boundaries: 不新增 SQL 或数据库字段;只由严格鉴权的比赛服务端读取正式 `stock_trades`,不写入或修改交易账本。持仓代码必须匹配既有不可覆盖比赛快照的 `ledger_hash`;不改收益率公式/快照、个人收益报表、波段、摊薄、资产、行情 relay、`/api/quote` 鉴权或独立 `/api/earnings-calendar`。
 - Rollback: 回退服务端持仓推导/DTO、排行榜用户卡、列宽/提示样式、`v10.7.9.305` 版本/更新日志、测试和本条文档即可;无需数据库回滚。
 
