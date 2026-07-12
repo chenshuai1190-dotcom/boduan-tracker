@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - 详细交接日志与快速发布门禁
 
-- Commit: `same docs-only handoff commit`。
-- Deployment: docs-only 交接刷新;推送后由 GitHub `main` 自动部署文档,不改变 `v10.7.9.323` 生产运行时或 `/assets/index-DN2-ymxd.js`。
+- Commit: `a54df762042000444668683bd1771efc72296885`。
+- Deployment: docs-only 交接刷新已完成。`npm run verify:deploy-status -- a54df76` pass;GitHub Actions run `29199119074` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Dp55pVfvjaKTQzw855Br2gC7Ybsd` success;生产运行时保持 `v10.7.9.323` / `/assets/index-DN2-ymxd.js`,quote、earnings 未登录保持 `401`。
 - Background: 用户要求给下一位同事写详细交接日志,明确哪些检查必须快速通过,并提供一段可整块复制的一键交接内容。
 - Workflow tier: `docs-only`。
 - Changes:
@@ -17,7 +17,7 @@
   - 明确只有业务逻辑/计算、持久化/数据库、保存删除提交同步、跨模块状态、API/provider、鉴权/RLS/安全、账本/收益/快照/换算、路由/PWA 生命周期或依赖/build/CI/环境配置才跑完整 runtime;敏感改动不能降级。
   - 重写最新可直接转发块,把仓库/生产基准、已完成工作、读取顺序、硬规则、快速门禁、完整门禁、iOS-only 验收、本地命令、模块边界和下一步优先级收进一段自包含 Markdown。
 - Key files: `docs/handoff.md`,`docs/development-log.md`。
-- Validation: 按 docs-only 执行 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;本轮不改源码、测试、依赖、配置、环境变量或生产 bundle,因此不跑 `npm test`、build、audit 或 iOS 视觉验收。推送后运行 `npm run verify:deploy-status -- <commit>` 收尾。
+- Validation: `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat` 和 deploy status 均 pass;本轮不改源码、测试、依赖、配置、环境变量或生产 bundle,因此按 docs-only 不跑 `npm test`、build、audit 或 iOS 视觉验收。
 - Boundaries: 不改设置页版本/更新日志、账户、交易、资产、目标、收益比赛、波段、数据库、RLS、鉴权、行情 relay、quote、earnings 或 Vercel 配置。
 - Rollback: 回退本条日志和交接文档即可;无运行时、数据库或环境回滚。
 

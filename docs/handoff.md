@@ -62,7 +62,7 @@
 - 当前生产运行时基准提交: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`。
 - 当前本地与生产设置页版本均为 `v10.7.9.323`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
-- 最近已验证 docs-only 部署: `npm run verify:deploy-status -- 5af7ba6` pass;GitHub Actions run `29198726448` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/54zRgRzn78ssxueVAr7qoLo5efwU`;production 入口保持 `/assets/index-DN2-ymxd.js`。
+- 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a54df76` pass;GitHub Actions run `29199119074` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Dp55pVfvjaKTQzw855Br2gC7Ybsd`;production 入口保持 `/assets/index-DN2-ymxd.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- d8ea6ef` pass;GitHub Actions run `29198603364` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2`;production alias 已更新,入口 `/assets/index-DN2-ymxd.js`。
 - 最近交接文档刷新部署: `0aa87dfe72b3690bedb4c5425016c699f607cb01` 已通过 GitHub Actions run `29161798255` 和 Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G9h6ueyaBhcPdNKUY4xTuPwEyzFL`;生产入口保持 `/assets/index-CD6hu3eq.js`,运行时代码仍为 `bf48e5a` / `v10.7.9.303`。
 - 线上关键验证: 未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;生产 marker 命中 `v10.7.9.305`、`收益比赛收盘持仓公开与用户卡`、`收盘持仓代码`、`当前空仓` 和 `持仓暂不可用`,且不含 `DevVisualPreview`。
@@ -787,7 +787,7 @@ GitHub `main` 是唯一代码源头。
 - 生产入口: `/assets/index-DN2-ymxd.js`
 - Runtime Actions: `29198603364` success
 - Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2` success
-- 最近 docs-only commit: `5af7ba6`；Actions `29198726448`、Vercel `54zRgRzn78ssxueVAr7qoLo5efwU` success
+- 最近 docs-only commit: `a54df762042000444668683bd1771efc72296885`；Actions `29199119074`、Vercel `Dp55pVfvjaKTQzw855Br2gC7Ybsd` success
 - 未登录 `/api/quote?symbols=VIX`: `401`
 - 未登录 `/api/earnings-calendar?symbols=NVDA`: `401`
 
