@@ -4,6 +4,24 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 开发流程增加 UI 快速通道
+
+- Commit: `same commit`。
+- Deployment: docs-only 流程更新;推送后由 Vercel 自动部署,不改当前 `v10.7.9.319` 生产运行时 bundle。
+- Background: 用户确认小型 UI 改动按定向验证、build、diff check 和部署状态验证快速上线的节奏更高效,要求取消“只要改 UI 就默认全量验证”的繁琐规则。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 验证分层从三档调整为 `ui-fast / runtime / docs-only / sensitive` 四档;`src/` 文件变化不再自动等同于全量 runtime。
+  - `ui-fast` 覆盖文字、颜色、图标、字号/字重、边框、间距、固定宽高、对齐与已确认原型等价接入;只跑相关定向测试、`npm run build`、`git diff --check`。
+  - UI-fast 不默认跑完整 `npm test`、frontend smoke、audit 或重复 toolchain/local-env;明确要求部署时可快速推送并用 `verify:deploy-status` 收尾。
+  - 截图改为只对复杂响应式布局、弹窗/输入、iOS 键盘、滚动定位、用户明确要求或高视觉风险改动强制;已确认原型等价接入不重复截图。
+  - 同一会话已 pass 的工具链/环境检查可复用;纯 UI 不读真实本地密钥环境。未确认 HTML/mock 不提前升版本,正式发布时再一次同步版本与更新日志。
+  - `runtime` 保留完整测试/build/frontend smoke/high audit;`sensitive` 继续在 runtime 基础上追加 RLS/API/security smoke,不允许降级。
+- Key files: `docs/development-process.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 按 docs-only 执行 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;本轮不改源码、依赖、构建配置或生产 bundle,故不跑 `npm test`、build、frontend smoke 或 audit。
+- Boundaries: 不改交易账本、目标计算、资产、收益快照、数据库、RLS、鉴权、行情 relay、API、环境变量或 Vercel 配置。
+- Rollback: 回退本条流程、交接和日志文档即可;无运行时或数据回滚。
+
 ### 2026-07-12 - 年度目标摘要增加百分比
 
 - Deployment: completed;runtime commit `320f0520b29f7a20d24322e299ce89d4cff1267b`,GitHub Actions run `29193491014` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CAf9PQWVdE19L7Kau2Wh1vUgKWzP` success,production alias 已更新,入口 `/assets/index-BgVJzVSl.js`。

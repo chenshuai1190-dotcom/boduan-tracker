@@ -54,7 +54,7 @@
 - 上一条补充: `v10.7.9.284` 自选添加股票校验已随 `v10.7.9.285` 同一 runtime commit 上线;添加自选股票前必须先通过现有已登录 `/api/quote` 校验美股代码存在且返回有效股票价格,非美股代码、特殊行情符号、接口报错或 EODHD 未返回有效股票价格时不写入自选。
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
-- 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、`/api/community-competition`、比赛 Cron、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
+- 最新流程补充: 开发验证改为四档风险流程。`ui-fast` 是纯文字/颜色/间距/字号/边框/已确认原型等价接入的快速通道,只跑相关定向测试、build 和 diff check,不默认跑全量 test/smoke/audit/环境检查;`runtime` 用于业务计算、状态、回调、数据读写和构建行为;`docs-only` 用于纯文档;`sensitive` 用于账本、数据库、RLS、鉴权、行情和安全边界。同一会话已 pass 的工具链/环境结果不重复跑;用户说先本地时不推送,明确说部署时 `ui-fast` 可直接用快速验证上线。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `320f0520b29f7a20d24322e299ce89d4cff1267b`。
 - 当前生产运行时基准提交: `320f0520b29f7a20d24322e299ce89d4cff1267b`。
 - 当前本地与生产设置页版本均为 `v10.7.9.319`。
@@ -88,7 +88,7 @@
 
 产品现在可用。当前重点是把行情、收益报表、个股详情和首页市场模块继续拆成清晰边界。`v10.7.9.249` 已把首页底部财报日历从旧 quote provider/NASDAQ calendar 混用逻辑中拆出,改为独立 EODHD serverless endpoint;`v10.7.9.250` 已把首页财报日历预览压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 已修复 EODHD trends 嵌套数组导致预计营收无法合并的问题;`v10.7.9.255` 已把已公布财报改为券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图;`v10.7.9.278` 已上线首页当前信号文字降重;`v10.7.9.279` 已上线首页股票文字继续降重;`v10.7.9.280` 已上线个股收益峰值呼吸点;`v10.7.9.281` 已上线收益报表对比浮层;`v10.7.9.282` 已上线收益报表浮层颜色和页面文案调整;`v10.7.9.283` 已上线个股详情持仓时间;`v10.7.9.284` 已上线自选添加股票校验;`v10.7.9.285` 已上线热门股票弹窗实时行情。中文默认显示、用户自写内容和核心交易/行情/数据库边界保持不变。
 
-本机已建立稳定的本地测试环境路径:`~/.config/boduan-tracker/local.env` 保存公开 Supabase/本地 quote 配置,`~/.config/boduan-tracker/eodhd.env` 保存 EODHD key,权限均为 `600`,不跟随每个 Codex 工作区。新会话先跑 `npm run verify:workspace-state` 和 `npm run verify:local-env`;当前工作区缺 `.env.local` 时跑 `npm run bootstrap:local-env` 生成;需要 Vercel link 时跑 `npm run bootstrap:vercel-link`。不要提交、打印或在文档/聊天中复制 key 值;只报告 present/missing。真实接口 smoke 命令和预期结构见 `docs/eodhd-local-testing.md`。
+本机已建立稳定的本地测试环境路径:`~/.config/boduan-tracker/local.env` 保存公开 Supabase/本地 quote 配置,`~/.config/boduan-tracker/eodhd.env` 保存 EODHD key,权限均为 `600`,不跟随每个 Codex 工作区。首次接手、新工作区、换机或环境异常时跑 `npm run verify:workspace-state`;只有需要真实登录、Supabase、EODHD 或 API smoke 时才跑 `npm run verify:local-env`。纯 UI 改动不重复检查本地密钥环境。缺 `.env.local` 且任务确实需要时再跑 `npm run bootstrap:local-env`;需要 Vercel link 时跑 `npm run bootstrap:vercel-link`。不提交、打印或复制 key 值;只报告 present/missing。
 
 ## 2. 先读这些文档
 
@@ -175,7 +175,7 @@ npm run verify:toolchain
 
 ## 6. 开发和部署流程
 
-开始前:
+首次接手、新工作区或环境异常时:
 
 ```bash
 PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"
@@ -187,20 +187,30 @@ npm run verify:toolchain
 npm ci
 ```
 
-每次改动先判定 workflow tier,再选择验证强度:
+每次改动先判定 workflow tier,再选择验证强度。纯 UI 不再归入全量 runtime:
 
-1. `runtime`: 修改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何会改变生产 bundle/serverless 行为的内容。必须跑:
+1. `ui-fast`: 纯文字、颜色、图标、字号/字重、边框、间距、固定宽高、对齐或已确认原型等价接入,且不改数据、状态、回调、业务计算、API、数据库、RLS、鉴权或账本。只需跑:
+
+   ```bash
+   <相关定向测试;没有时记录原因>
+   npm run build
+   git diff --check
+   ```
+
+   不默认跑全量 `npm test`、frontend smoke、audit 或重复环境检查。用户已确认原型时不重复出同一张图;用户说“先本地”时不推送,说“部署”时快速验证 pass 后直接上线并跑 `verify:deploy-status`。
+
+2. `runtime`: 业务计算、状态流转、回调、数据读写、路由、共享组件行为、API/PWA/依赖/构建配置改动。必须跑:
 
    ```bash
    npm run verify:toolchain
    npm test
    npm run build
    npm run verify:frontend-smoke
-   npm audit --audit-level=moderate
+   npm audit --audit-level=high
    git diff --check
    ```
 
-2. `docs-only`: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。可跳过 `npm test` / `npm run build` / `npm audit`,但必须跑:
+3. `docs-only`: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。可跳过 `npm test` / `npm run build` / `npm audit`,但必须跑:
 
    ```bash
    npm run verify:docs-consistency
@@ -211,7 +221,7 @@ npm ci
    `npm run verify:docs-consistency` 只检查当前状态区、最近日志条目、可转发交接块和设置页版本/更新日志,输出 PASS/FAIL 摘要。不要对整份长日志做无边界 `rg -n` 并输出大量历史命中。
    如果 docs-only 是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
 
-3. `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、`/api/community-competition`、行情 relay、交易主账本、收益快照、全账户/比赛 cron、付费行情 token、环境变量或安全边界。先完整执行 `runtime` 验证,再按影响面补充:
+4. `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、`/api/community-competition`、行情 relay、交易主账本、收益快照、全账户/比赛 cron、付费行情 token、环境变量或安全边界。先完整执行 `runtime` 验证,再按影响面补充:
 
    ```bash
    npm run verify:rls:rest
@@ -221,14 +231,14 @@ npm ci
    curl -i 'https://boduan-tracker.vercel.app/api/community-competition-daily-snapshot'
    ```
 
-   敏感改动不能降级到 `docs-only`;如果判断不确定,按 `sensitive` 处理。
+   敏感改动不能降级到 `ui-fast` 或 `docs-only`;如果判断不确定,按 `sensitive` 处理。
 
 默认收尾:
 
 1. 更新 `docs/development-log.md`。
 2. 在日志里写明 workflow tier、已跑验证和未跑全量验证的原因。
-3. 用户可见更新同步 `src/tabs/SettingsTab.jsx` 更新日志和版本。
-4. 提交并推送 GitHub `main`。
+3. 未确认原型不升版本;准备发布的用户可见更新才同步设置页更新日志和版本。
+4. UI 任务只在用户明确说部署/上线后提交并推送 GitHub `main`。
 5. 等 Vercel 自动部署成功。
 6. 按 workflow tier 做线上验证;默认先跑 `npm run verify:deploy-status -- <commit>`,docs-only 只需确认 Vercel success、生产入口未异常切换和必要 marker/API smoke。
 7. 把部署和线上验证写回 `docs/development-log.md` 或最终交接摘要。
@@ -701,17 +711,11 @@ git checkout main
 git pull --ff-only origin main
 git status --short --branch
 npm run verify:workspace-state
-npm run verify:local-env
 npm run verify:toolchain
 npm ci
-npm test
-npm run build
-npm audit --audit-level=moderate
-npm run verify:deploy-status -- "$(git rev-parse --short HEAD)"
-npm run verify:rls:rest
-curl -i 'https://boduan-tracker.vercel.app/api/quote?symbols=VIX'
-curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 ```
+
+上面只是首次环境与仓库同步,不是每次改动的全量验证清单。后续先按 `ui-fast / runtime / docs-only / sensitive` 判定风险再跑对应命令。`verify:local-env`、RLS 和 API smoke 只在任务确实需要时运行。
 
 确认:
 
@@ -822,17 +826,18 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 - 不要关闭 `/api/quote` 鉴权。
 - 不要把财报日历塞回 `/api/quote` 的 `CALENDAR:` 虚拟 symbol 链路;当前财报日历走独立 `/api/earnings-calendar`。
 - HTTPS push 缺凭证时报 `could not read Username` 时,不要误判为无权限;使用本机项目 SSH key `~/.ssh/boduan_tracker_github`。
-- 每轮先判定 workflow tier: `runtime` / `docs-only` / `sensitive`,再决定验证强度;不要把纯文档回填和高风险运行时代码改动混成同一套全量流程。
+- 每轮先判定 workflow tier: `ui-fast` / `runtime` / `docs-only` / `sensitive`,再决定验证强度;纯 UI 不再默认跑全量流程。
 
 本机工具链路径:
 `PATH="$HOME/.local/bin:$HOME/.local/opt/node-v22.23.1-darwin-arm64/bin:$PATH"`
 
 验证流程:
-- 首次接手、换机、工具链异常或部署前环境不确定时,先跑 `npm run verify:toolchain`,确认 `node/npm/gh/vercel/rg/jq/git/ssh/curl`、GitHub CLI、Vercel CLI 和项目 SSH key 可用。
+- 首次接手、换机、工具链异常或部署环境不确定时,先跑 `npm run verify:toolchain`;同一会话已 pass 后不为每个小 UI 改动重复跑。
 - 新 Codex 工作区先跑 `npm run verify:workspace-state`,它会检查 `.env.local`、`.vercel/`、`node_modules`、`dist`、本地 Vite 端口和 Git 工作区状态,并提示需要的 bootstrap 命令。
-- 需要本地登录、真实 Supabase 配置、真实 EODHD smoke 或新工作区恢复测试环境时,跑 `npm run verify:local-env`;若当前工作区 `.env.local` 缺失,跑 `npm run bootstrap:local-env` 从 `~/.config/boduan-tracker/local.env` 和 `~/.config/boduan-tracker/eodhd.env` 生成。
+- 需要本地登录、真实 Supabase、EODHD smoke 或 API 验证时才跑 `npm run verify:local-env`;纯 UI 不跑。若任务确实需要且 `.env.local` 缺失,再跑 `npm run bootstrap:local-env`。
 - 需要 Vercel env pull/link 时,跑 `npm run bootstrap:vercel-link`;`.vercel/` 是本地状态并被 Git 忽略。
-- `runtime`: 改 `src/`、`api/`、`tests/`、`public/`、依赖、构建配置、PWA 资源、用户可见 UI/文案或任何生产 bundle/serverless 行为,必须跑 `npm run verify:toolchain`、`npm test`、`npm run build`、`npm audit --audit-level=moderate`、`git diff --check`。
+- `ui-fast`: 纯文字/颜色/图标/字号/边框/间距/对齐/已确认原型等价接入,且不改数据、状态、回调、计算、API、数据库或安全边界;只跑相关定向测试、`npm run build`、`git diff --check`。部署不会自动要求补跑全量 test/smoke/audit。
+- `runtime`: 改业务计算、状态流转、回调、数据读写、路由、共享组件行为、API/PWA/依赖/构建配置,跑 `npm run verify:toolchain`、`npm test`、`npm run build`、frontend smoke、`npm audit --audit-level=high`、`git diff --check`。
 - `docs-only`: 只改 `docs/` 的交接、流程、日志或部署证据,且不改源码/依赖/测试/配置/环境变量/PWA/CI/Vercel 行为,可跳过 test/build/audit;必须跑 `npm run verify:docs-consistency`、`git diff --check`、`git diff --stat`;如果是部署证据回填,再跑 `npm run verify:deploy-status -- <commit>`。
 - `sensitive`: 涉及 auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量或安全边界,先完整执行 `runtime` 验证,再补 RLS/API/security smoke。
 - 推送后默认用 `npm run verify:deploy-status -- <commit>` 汇总 GitHub Actions、Vercel commit status、生产入口和未登录 quote/earnings 401。不要再手写长 `gh api` / `curl` 输出,也不要对整份 `docs/development-log.md` 做无边界 `rg -n`。
