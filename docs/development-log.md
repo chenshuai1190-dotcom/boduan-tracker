@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 已确认弹窗统一实装
 
-- Deployment: not deployed;当前仅完成本地代码、视觉和运行时验证,生产仍为 `v10.7.9.315` / runtime `99c1883e69fe6808a7bd3d24847c6e375e392dd0` / 入口 `/assets/index-Mg_XwO77.js`。
+- Deployment: completed;runtime commit `4302f0abbb78c74e85f09657aa0ace7d6c35b5f4`,GitHub Actions run `29188138401` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/EfhqACofs6jB8oUok8AgTqNaY8o1` success,production alias 已更新,入口 `/assets/index-7SGlsBBr.js`。
 - Background: 用户确认静态效果图后,要求先实装已出图的弹窗,保持各宽版现有宽度,普通操作使用中性色,红色只留给最终危险确认;同时要求输入框和日期框不能横向撑出,首次输入或 iOS 键盘弹出时弹窗不能跳到页面顶端。
 - Workflow tier: `runtime`。
 - Changes:
@@ -18,7 +18,7 @@
   - 管理员邀请码列表恢复显示已使用邀请码对应的 `usedByEmail`;入口仍只对指定管理员账号渲染。
   - 设置页与更新日志版本同步为 `v10.7.9.316`。
 - Key files: `src/components/ActionModalCard.jsx`,`src/tabs/TradesTab.jsx`,`src/tabs/AnalysisTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/tabs/ReviewTab.jsx`,`src/tabs/HomeTab.jsx`,`src/App.jsx`,`src/lib/settingsChangelog.js`,`src/dev/SettingsRedesignPrototype.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: 新增弹窗/边界定向测试 45/45、完整测试 253/253、production build、5/5 frontend smoke、high audit 0 vulnerabilities 均 pass。正式 `DevVisualPreview` 在 390x844 实测:交易弹窗 366px,资产新增/修改密码/北极星设置均 358px;各页面 `scrollWidth/clientWidth=390/390`,输入框和日期框均未越过弹窗内容边界。390x568 短视口聚焦股票代码输入框后,弹窗为 `x=12,y=24.5,w=366,h=519`,输入框仍在 `top=128.5,bottom=171.5`,未跳到页面顶端;控制台 error 0。截图: `/tmp/boduan-v316-trade-modal.png`,`/tmp/boduan-v316-trade-modal-short.png`,`/tmp/boduan-v316-asset-add-modal.png`,`/tmp/boduan-v316-password-modal.png`,`/tmp/boduan-v316-review-settings-modal.png`。
+- Validation: 新增弹窗/边界定向测试 45/45、完整测试 253/253、production build、5/5 frontend smoke、high audit 0 vulnerabilities、docs consistency、diff check 和 `npm run verify:deploy-status -- 4302f0a` 均 pass。正式 `DevVisualPreview` 在 390x844 实测:交易弹窗 366px,资产新增/修改密码/北极星设置均 358px;各页面 `scrollWidth/clientWidth=390/390`,输入框和日期框均未越过弹窗内容边界。390x568 短视口聚焦股票代码输入框后,弹窗为 `x=12,y=24.5,w=366,h=519`,输入框仍在 `top=128.5,bottom=171.5`,未跳到页面顶端;控制台 error 0。生产递归扫描 29 个 assets 命中 `v10.7.9.316`、`visualViewport`、`usedByEmail`、`修改密码`、`北极星设置`、更新日志标题、15 组弹窗说明和 iOS visual viewport marker;未登录 quote、earnings 均保持 `401`。截图: `/tmp/boduan-v316-trade-modal.png`,`/tmp/boduan-v316-trade-modal-short.png`,`/tmp/boduan-v316-asset-add-modal.png`,`/tmp/boduan-v316-password-modal.png`,`/tmp/boduan-v316-review-settings-modal.png`。
 - Boundaries: 未改 `stock_trades` 写入/修改/删除逻辑,未改资产账户或月度快照数据库方法,未改比赛收益与收盘快照、收益报表、个股详情、波段工具数据、Supabase SQL/RLS、鉴权、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
 - Rollback: 回退上述前端组件、测试、版本与文档即可;无 SQL、数据或环境变量回滚。
 
