@@ -6,7 +6,7 @@
 
 ### 2026-07-12 - 设置页头像直达社区资料弹窗正式接入
 
-- Deployment: pending;与 `v10.7.9.310` 六款新头像同批部署。
+- Deployment: completed;与六款新头像同批上线,runtime commit `94d6d870e366817809b22379166afb7117115d75`,GitHub Actions run `29180814130` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DnBY7bQZ4TCSpXZuHm612BVR8Y2d` success,production alias 已更新,入口 `/assets/index-M0RXABkA.js`。
 - Background: 用户确认 HTML 原型,要求把头部身份卡直达社区资料弹窗与六款新头像一起正式上线。
 - Workflow tier: `runtime`。
 - Changes:
@@ -15,7 +15,7 @@
   - 收益比赛的 `communityProfileFocusRequest` 改为打开同一个真实资料弹窗,不再展开页面下方并滚动。
   - 资料读取和保存继续使用现有 `db.fetchCommunityProfile` / `db.upsertCommunityProfile`,未改数据结构或验证规则。
 - Key files: `src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-Bp95zh-1.js`、`ActionModalCard-BcjmktvQ.js`、`settingsChangelog-ClQrlTF-.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。390x844 正式 `SettingsTab` 复核:下方重复社区行不存在,点击头卡打开 314px 弹窗,页面 `scrollWidth/clientWidth=390/390`;选择蓝色后保存按钮启用,取消后头卡恢复金色,再次选择蓝色并保存后弹窗关闭且头卡切为蓝色,确认真实 mock `upsertCommunityProfile` 路径生效。截图 `~/Desktop/boduan-previews/settings-v310-formal-community-modal-390x844.png`。部署验证 pending。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-Bp95zh-1.js`、`ActionModalCard-BcjmktvQ.js`、`settingsChangelog-ClQrlTF-.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。390x844 正式 `SettingsTab` 复核:下方重复社区行不存在,点击头卡打开 314px 弹窗,页面 `scrollWidth/clientWidth=390/390`;选择蓝色后保存按钮启用,取消后头卡恢复金色,再次选择蓝色并保存后弹窗关闭且头卡切为蓝色,确认真实 mock `upsertCommunityProfile` 路径生效。截图 `~/Desktop/boduan-previews/settings-v310-formal-community-modal-390x844.png`。`npm run verify:deploy-status -- 94d6d87` pass;生产设置 chunk 命中 v310/编辑与关闭社区资料/统一裁切/保存状态,未登录 quote、earnings 均为 `401`。
 - Boundaries: 不改 `community_profiles`、头像 key、昵称规则、RLS、比赛收益/快照、交易账本、行情或收益报表。
 - Rollback: 回退正式弹窗入口、v310 更新日志、测试和本条日志即可;六款头像资源可独立保留,无需数据库回滚。
 
@@ -35,7 +35,7 @@
 
 ### 2026-07-12 - 社区六款默认头像整套替换
 
-- Deployment: not deployed;本轮先完成本地视觉确认。
+- Deployment: completed;随 runtime `94d6d870e366817809b22379166afb7117115d75` 与正式资料弹窗同批上线。
 - Background: 用户提供新的 3×2 社区头像设计图,要求用其中蓝、金、紫、绿、青、银六个人物替换现有六款默认头像。
 - Workflow tier: `runtime`。
 - Changes:
