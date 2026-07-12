@@ -2062,7 +2062,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
             widthClassName="w-[calc(100vw-24px)] max-w-md"
             panelClassName="min-h-0"
-            contentClassName="touch-pan-y scroll-pb-24 [-webkit-overflow-scrolling:touch]"
+            scrollPanel
             actions={[
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },

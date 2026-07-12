@@ -4,6 +4,22 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - iOS Web App 交易弹窗单滚动链修正
+
+- Commit: `same v10.7.9.321 release commit`。
+- Deployment: 用户已确认部署为 `v10.7.9.321`;runtime 提交、Actions、Vercel target 和生产入口待回填。
+- Background: 用户在生产 iOS 主屏 Web App 复测确认键盘打开后日期仍被底部操作区遮挡。真机截图表明弹窗已跟随可视视口缩短,但表单内容依旧未被 iOS 稳定识别为可拖动区域。
+- Workflow tier: `ui-fast`。
+- Root cause correction: 问题不只是旧 `body touch-action: none`;共享弹窗仍采用“外层面板固定 + 中间内容区嵌套滚动 + 底部按钮固定”的三段式布局。iOS 主屏模式在键盘压缩 `visualViewport` 时对这个嵌套滚动链处理不稳定,因此上一版虽在桌面短视口可滚动,真机仍会把日期裁在操作区后。
+- Changes:
+  - 为共享 `ActionModalCard` 增加默认关闭的 `scrollPanel` 能力;启用后由整张弹窗面板承担唯一纵向滚动,内容区取消嵌套滚动。
+  - 仅新增/修改交易启用整卡滚动;标题、股票、价格/股数、日期和买入/卖出按钮进入同一滚动链,键盘打开后可直接拖动到日期及操作按钮。
+  - 其他资产、目标、设置、波段和确认弹窗继续使用原布局,不受影响。
+- Key files: `src/components/ActionModalCard.jsx`,`src/tabs/TradesTab.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`。
+- Validation: 交易/弹窗定向测试 46/46 pass、`npm run build` pass、`git diff --check` pass。浏览器控制技能在 390x460 短视口打开真实 `DevVisualPreview` 交易页:整卡 `clientHeight/scrollHeight=410/517`,`overflow-y=auto`,`touch-action=pan-y`,内容区 `overflow-y=visible` 不再形成嵌套滚动;在弹窗内拖动后 `scrollTop=0→107`,日期移动到 `273-318px`,买入/卖出按钮移动到 `373-419px`,均完整进入 460px 可见区。聚焦股数并输入 `500` 后滚动位置保持 107,页面 `scrollWidth/clientWidth=390/390`,无横向溢出。截图: `~/Desktop/boduan-previews/trade-ios-single-scroll-local.png`。这次只把本地短视口验证作为结构证据,不再把它冒充 iOS 真机结论;最终仍需部署后由用户在 iOS 主屏 Web App 复测。
+- Boundaries: 不改交易表单字段、验证、`confirmTradeSubmit`、`addTrade`、买入/卖出、`stock_trades`、持仓、收益快照、数据库、RLS、鉴权、API 或其他弹窗默认布局。
+- Rollback: 回退交易弹窗 `scrollPanel` opt-in、共享组件可选分支、测试和本条日志即可;无数据或环境回滚。
+
 ### 2026-07-12 - 新增交易 iOS 键盘遮挡修复
 
 - Commit: `28cecac96c5fa7ee95a3b33ea3c822817e33ad8e`。
