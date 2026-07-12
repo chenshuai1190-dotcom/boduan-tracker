@@ -10,13 +10,14 @@ import {
   Loader2,
   LogOut,
   Monitor,
+  Pencil,
   Plus,
   RefreshCw,
   ShieldCheck,
   Ticket,
-  Users,
   X,
 } from 'lucide-react';
+import ActionModalCard from '../components/ActionModalCard.jsx';
 import {
   COMMUNITY_AVATAR_OPTIONS,
   getCommunityAvatarOption,
@@ -25,10 +26,10 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.309';
+const SETTINGS_VERSION = 'v10.7.9.310';
 
-function communityAvatarImageClass(avatarKey) {
-  return avatarKey === 'blue' ? 'scale-[1.1]' : 'scale-[1.32]';
+function communityAvatarImageClass() {
+  return 'scale-[1.02]';
 }
 
 function DetailShell({ children }) {
@@ -110,7 +111,7 @@ function SettingsTab({ ctx }) {
   const [communityLoading, setCommunityLoading] = React.useState(Boolean(user?.id));
   const [communitySaving, setCommunitySaving] = React.useState(false);
   const [communityMessage, setCommunityMessage] = React.useState(null);
-  const communityProfileRowRef = React.useRef(null);
+  const [showCommunityProfile, setShowCommunityProfile] = React.useState(false);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
   const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
@@ -232,23 +233,20 @@ function SettingsTab({ ctx }) {
 
   React.useEffect(() => {
     if (!communityProfileFocusRequest) return undefined;
-    setExpandedSection('community');
+    setShowCommunityProfile(true);
     setCommunityMessage({
       type: 'info',
       text: t(language, 'settings.communityRequiredForCompetition', '参加收益比赛前，请选择社区昵称和默认头像并保存。'),
     });
-    const timer = window.setTimeout(() => {
-      communityProfileRowRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-    }, 80);
-    return () => window.clearTimeout(timer);
+    return undefined;
   }, [communityProfileFocusRequest, language]);
 
   const saveCommunityProfile = async () => {
-    if (communitySaving || !db?.upsertCommunityProfile) return;
+    if (communitySaving || !db?.upsertCommunityProfile) return false;
     const nicknameResult = validateCommunityNickname(communityDraft.nickname);
     if (!nicknameResult.valid) {
       setCommunityMessage({ type: 'error', text: t(language, 'settings.communityNicknameInvalid', '昵称需为 2-16 个字符') });
-      return;
+      return false;
     }
     setCommunitySaving(true);
     setCommunityMessage(null);
@@ -260,8 +258,10 @@ function SettingsTab({ ctx }) {
       setCommunityProfile(next);
       setCommunityDraft({ nickname: next.nickname, avatarKey: next.avatarKey });
       setCommunityMessage({ type: 'success', text: t(language, 'settings.communitySaved', '社区资料已保存') });
+      return true;
     } catch (error) {
       setCommunityMessage({ type: 'error', text: error?.message || t(language, 'settings.communitySaveFailed', '社区资料保存失败') });
+      return false;
     } finally {
       setCommunitySaving(false);
     }
@@ -269,8 +269,18 @@ function SettingsTab({ ctx }) {
 
   const toggleSection = (id) => {
     setExpandedSection((current) => current === id ? '' : id);
-    if (id !== 'community') setCommunityMessage(null);
     if (id !== 'invite') setInviteMessage(null);
+  };
+
+  const closeCommunityProfile = () => {
+    if (communitySaving) return;
+    setShowCommunityProfile(false);
+    setCommunityMessage(null);
+    if (communityProfile) {
+      setCommunityDraft({ nickname: communityProfile.nickname, avatarKey: communityProfile.avatarKey });
+    } else {
+      setCommunityDraft({ nickname: '', avatarKey: 'gold' });
+    }
   };
 
   const requestLogout = (mode) => {
@@ -380,7 +390,7 @@ function SettingsTab({ ctx }) {
 
     if (id === 'community') {
       return (
-        <DetailShell>
+        <>
           <label className="block text-[11px] text-white/38" htmlFor="community-nickname-input">
             {t(language, 'settings.communityNickname', '社区昵称')}
           </label>
@@ -426,18 +436,7 @@ function SettingsTab({ ctx }) {
             })}
           </div>
           <StatusMessage message={communityMessage} className="mt-3" />
-          <button
-            type="button"
-            onClick={saveCommunityProfile}
-            disabled={communityLoading || communitySaving || !communityNicknameValidation.valid || !communityDirty}
-            className="mt-4 flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl border border-[#f2a83a]/25 bg-[#f2a83a]/[0.04] text-[13px] font-medium text-[#f2b65d] active:scale-[0.99] disabled:border-white/[0.07] disabled:bg-white/[0.02] disabled:text-white/25"
-          >
-            {communitySaving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {communitySaving
-              ? t(language, 'settings.communitySaving', '保存中...')
-              : t(language, 'settings.communitySave', '保存社区资料')}
-          </button>
-        </DetailShell>
+        </>
       );
     }
 
@@ -520,13 +519,6 @@ function SettingsTab({ ctx }) {
       badge: t(language, 'settings.loggedIn', '已登录'),
       badgeClass: 'border-[#2cce91]/20 bg-[#2cce91]/10 text-[#49daa7]',
     },
-    {
-      id: 'community',
-      icon: Users,
-      label: t(language, 'settings.communityProfile', '社区资料'),
-      value: communityLoading ? t(language, 'settings.loading', '加载中') : communityDisplayName,
-      rowRef: communityProfileRowRef,
-    },
     ...(isInviteAdmin ? [{
       id: 'invite',
       icon: Ticket,
@@ -541,13 +533,24 @@ function SettingsTab({ ctx }) {
       <div className="mx-auto w-full max-w-[430px] text-white" data-settings-redesign="phase-1-production">
         <button
           type="button"
-          onClick={() => toggleSection('community')}
+          onClick={() => {
+            setCommunityMessage(null);
+            setShowCommunityProfile(true);
+          }}
+          aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
           className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
         >
-          <span className="flex h-[66px] w-[66px] items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
-            {communityHydrating
-              ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
-              : <img src={selectedCommunityAvatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(selectedCommunityAvatar.key)}`} draggable={false} />}
+          <span className="relative h-[66px] w-[66px]">
+            <span className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
+              {communityHydrating
+                ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
+                : <img src={selectedCommunityAvatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(selectedCommunityAvatar.key)}`} draggable={false} />}
+            </span>
+            {!communityHydrating && (
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-[21px] w-[21px] items-center justify-center rounded-full border border-white/[0.12] bg-[#11161f] text-[#f2b65d] shadow-[0_4px_10px_rgba(0,0,0,0.45)]">
+                <Pencil className="h-2.5 w-2.5" strokeWidth={1.8} />
+              </span>
+            )}
           </span>
           <span className="mt-3 max-w-full truncate text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">
             {communityHydrating ? t(language, 'settings.loading', '加载中...') : communityDisplayName}
@@ -654,6 +657,38 @@ function SettingsTab({ ctx }) {
 
         <p className="mt-4 text-center text-[9px] tracking-[0.06em] text-white/18">Quote · {SETTINGS_VERSION}</p>
       </div>
+
+      {showCommunityProfile && (
+        <ActionModalCard
+          title={t(language, 'settings.communityProfile', '社区资料')}
+          closeLabel={t(language, 'settings.closeCommunityProfile', '关闭社区资料')}
+          onClose={closeCommunityProfile}
+          actions={[
+            {
+              key: 'cancel',
+              label: t(language, 'common.cancel', '取消'),
+              onClick: closeCommunityProfile,
+              disabled: communitySaving,
+            },
+            {
+              key: 'save',
+              label: communitySaving
+                ? t(language, 'settings.communitySaving', '保存中...')
+                : t(language, 'common.save', '保存'),
+              disabled: communityLoading || communitySaving || !communityNicknameValidation.valid || !communityDirty,
+              onClick: async () => {
+                const saved = await saveCommunityProfile();
+                if (saved) {
+                  setShowCommunityProfile(false);
+                  setCommunityMessage(null);
+                }
+              },
+            },
+          ]}
+        >
+          {renderExpandedPanel('community')}
+        </ActionModalCard>
+      )}
 
       {showChangePassword && (
         <div

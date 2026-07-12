@@ -10,15 +10,16 @@ import {
   ListChecks,
   LogOut,
   Monitor,
+  Pencil,
   Plus,
   RefreshCw,
   Settings,
   ShieldCheck,
   Target,
   Ticket,
-  Users,
   Wallet,
 } from 'lucide-react';
+import ActionModalCard from '../components/ActionModalCard.jsx';
 import { COMMUNITY_AVATAR_OPTIONS } from '../lib/communityProfile.js';
 
 const SETTINGS_ROWS = [
@@ -43,13 +44,6 @@ const SETTINGS_ROWS = [
     badge: '已登录',
   },
   {
-    id: 'community',
-    icon: Users,
-    label: '社区资料',
-    value: '团团',
-    valueClass: 'text-white/45',
-  },
-  {
     id: 'invite',
     icon: Ticket,
     label: '邀请码管理',
@@ -71,8 +65,8 @@ const INVITE_CODES = [
   { code: 'QTE-MK33-ANNA', state: '已使用' },
 ];
 
-function communityAvatarImageClass(avatarKey) {
-  return avatarKey === 'blue' ? 'scale-[1.1]' : 'scale-[1.32]';
+function communityAvatarImageClass() {
+  return 'scale-[1.02]';
 }
 
 function DetailShell({ children }) {
@@ -175,17 +169,26 @@ function AccountPanel() {
   );
 }
 
-function CommunityPanel({ avatarKey, setAvatarKey }) {
+function CommunityProfileModal({ avatarKey, nickname, onClose, setAvatarKey, setNickname }) {
   return (
-    <DetailShell>
+    <ActionModalCard
+      title="社区资料"
+      closeLabel="关闭社区资料"
+      onClose={onClose}
+      actions={[
+        { key: 'cancel', label: '取消', onClick: onClose },
+        { key: 'save', label: '保存', onClick: onClose },
+      ]}
+    >
       <label className="block text-[11px] text-white/38" htmlFor="settings-prototype-nickname">社区昵称</label>
       <input
-        className="mt-2 h-12 w-full min-w-0 rounded-xl border border-white/[0.09] bg-[#080b11] px-3.5 text-[14px] text-white/85 outline-none placeholder:text-white/20 focus:border-[#f2a83a]/35"
-        defaultValue="团团"
+        className="mt-2 h-12 w-full min-w-0 rounded-xl border border-white/[0.09] bg-[#080b11] px-3.5 text-[14px] font-normal text-white/85 outline-none placeholder:text-white/20 focus:border-[#f2a83a]/35"
         id="settings-prototype-nickname"
         maxLength={16}
+        onChange={(event) => setNickname(event.target.value)}
+        value={nickname}
       />
-      <p className="mt-2 text-[10px] text-white/30">2-16 个字符，用于排行榜公开展示</p>
+      <p className="mt-2 text-[10px] leading-4 text-white/30">2-16 个字符，用于排行榜公开展示</p>
       <p className="mb-2.5 mt-4 text-[11px] text-white/38">默认头像</p>
       <div className="grid grid-cols-6 gap-2">
         {COMMUNITY_AVATAR_OPTIONS.map((avatar) => {
@@ -204,10 +207,7 @@ function CommunityPanel({ avatarKey, setAvatarKey }) {
           );
         })}
       </div>
-      <button className="mt-4 min-h-[46px] w-full rounded-xl border border-[#f2a83a]/25 bg-[#f2a83a]/[0.04] text-[13px] font-medium text-[#f2b65d]" type="button">
-        保存社区资料
-      </button>
-    </DetailShell>
+    </ActionModalCard>
   );
 }
 
@@ -236,11 +236,10 @@ function InvitePanel() {
   );
 }
 
-function ExpandedPanel({ id, avatarKey, setAvatarKey }) {
+function ExpandedPanel({ id }) {
   if (id === 'language') return <LanguagePanel />;
   if (id === 'display') return <DisplayPanel />;
   if (id === 'account') return <AccountPanel />;
-  if (id === 'community') return <CommunityPanel avatarKey={avatarKey} setAvatarKey={setAvatarKey} />;
   if (id === 'invite') return <InvitePanel />;
   return null;
 }
@@ -248,6 +247,8 @@ function ExpandedPanel({ id, avatarKey, setAvatarKey }) {
 export default function SettingsRedesignPrototype() {
   const [expanded, setExpanded] = useState('');
   const [avatarKey, setAvatarKey] = useState('blue');
+  const [nickname, setNickname] = useState('团团');
+  const [showCommunityProfile, setShowCommunityProfile] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const avatar = useMemo(
     () => COMMUNITY_AVATAR_OPTIONS.find((item) => item.key === avatarKey) || COMMUNITY_AVATAR_OPTIONS[1],
@@ -261,13 +262,18 @@ export default function SettingsRedesignPrototype() {
       <main className="mx-auto w-full max-w-[430px] px-4 pb-8 pt-[calc(26px+env(safe-area-inset-top))]">
         <button
           className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
-          onClick={() => toggle('community')}
+          onClick={() => setShowCommunityProfile(true)}
           type="button"
         >
-          <span className="h-[66px] w-[66px] overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
-            <img alt="社区头像" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} src={avatar.src} />
+          <span className="relative h-[66px] w-[66px]">
+            <span className="absolute inset-0 overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
+              <img alt="社区头像" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} src={avatar.src} />
+            </span>
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-[21px] w-[21px] items-center justify-center rounded-full border border-white/[0.12] bg-[#11161f] text-[#f2b65d] shadow-[0_4px_10px_rgba(0,0,0,0.45)]">
+              <Pencil className="h-2.5 w-2.5" strokeWidth={1.8} />
+            </span>
           </span>
-          <span className="mt-3 text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">团团</span>
+          <span className="mt-3 text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">{nickname}</span>
           <span className="mt-2 text-[10px] text-white/40">2-16 个字符，用于排行榜公开展示</span>
         </button>
 
@@ -276,7 +282,7 @@ export default function SettingsRedesignPrototype() {
             <React.Fragment key={row.id}>
               {index > 0 && <div className="mx-5 h-px bg-white/[0.065]" />}
               <SettingsRow expanded={expanded === row.id} onToggle={() => toggle(row.id)} row={row} />
-              {expanded === row.id && <ExpandedPanel avatarKey={avatarKey} id={row.id} setAvatarKey={setAvatarKey} />}
+              {expanded === row.id && <ExpandedPanel id={row.id} />}
             </React.Fragment>
           ))}
 
@@ -295,7 +301,7 @@ export default function SettingsRedesignPrototype() {
           <button className="flex min-h-[62px] w-full items-center gap-3 px-5 text-left" onClick={() => setShowLog((value) => !value)} type="button">
             <Globe2 className="h-[18px] w-[18px] text-white/42" />
             <span className="flex-1 text-[13px] text-white/68">更新日志</span>
-            <span className="text-[10px] text-white/28">v10.7.9.307</span>
+            <span className="text-[10px] text-white/28">v10.7.9.310</span>
             {showLog ? <ChevronDown className="h-4 w-4 text-white/30" /> : <ChevronRight className="h-4 w-4 text-white/30" />}
           </button>
           {showLog && (
@@ -323,6 +329,16 @@ export default function SettingsRedesignPrototype() {
           })}
         </div>
       </nav>
+
+      {showCommunityProfile && (
+        <CommunityProfileModal
+          avatarKey={avatarKey}
+          nickname={nickname}
+          onClose={() => setShowCommunityProfile(false)}
+          setAvatarKey={setAvatarKey}
+          setNickname={setNickname}
+        />
+      )}
     </div>
   );
 }

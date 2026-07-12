@@ -4,6 +4,50 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 设置页头像直达社区资料弹窗正式接入
+
+- Deployment: pending;与 `v10.7.9.310` 六款新头像同批部署。
+- Background: 用户确认 HTML 原型,要求把头部身份卡直达社区资料弹窗与六款新头像一起正式上线。
+- Workflow tier: `runtime`。
+- Changes:
+  - 正式设置页移除下方重复“社区资料”折叠行,头部身份卡整卡可点击并增加轻量头像编辑标记。
+  - 点击头卡使用共用 `ActionModalCard` 打开真实社区资料编辑器,昵称、六款头像、取消和保存均位于同一弹窗;取消会恢复已保存资料,保存成功后关闭弹窗并更新头卡。
+  - 收益比赛的 `communityProfileFocusRequest` 改为打开同一个真实资料弹窗,不再展开页面下方并滚动。
+  - 资料读取和保存继续使用现有 `db.fetchCommunityProfile` / `db.upsertCommunityProfile`,未改数据结构或验证规则。
+- Key files: `src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-Bp95zh-1.js`、`ActionModalCard-BcjmktvQ.js`、`settingsChangelog-ClQrlTF-.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。390x844 正式 `SettingsTab` 复核:下方重复社区行不存在,点击头卡打开 314px 弹窗,页面 `scrollWidth/clientWidth=390/390`;选择蓝色后保存按钮启用,取消后头卡恢复金色,再次选择蓝色并保存后弹窗关闭且头卡切为蓝色,确认真实 mock `upsertCommunityProfile` 路径生效。截图 `~/Desktop/boduan-previews/settings-v310-formal-community-modal-390x844.png`。部署验证 pending。
+- Boundaries: 不改 `community_profiles`、头像 key、昵称规则、RLS、比赛收益/快照、交易账本、行情或收益报表。
+- Rollback: 回退正式弹窗入口、v310 更新日志、测试和本条日志即可;六款头像资源可独立保留,无需数据库回滚。
+
+### 2026-07-12 - 设置页头像直达社区资料弹窗 HTML 原型
+
+- Deployment: not deployed;仅开发态 HTML 视觉原型,不进入正式设置页。
+- Background: 用户认为头部身份卡应直接打开社区资料修改界面,不应再到下方重复的“社区资料”折叠行修改,要求先看 HTML 效果。
+- Workflow tier: `runtime`。
+- Changes:
+  - 开发态设置原型移除列表中的重复“社区资料”行,头部身份卡整卡可点击,头像右下增加轻量编辑标记。
+  - 点击身份卡后使用现有 `ActionModalCard` 视觉打开社区资料弹窗,在同一张卡内展示昵称输入、六款新头像以及同色取消/保存按钮。
+  - 仅修改 `SettingsRedesignPrototype`;正式 `SettingsTab`、社区资料读写、比赛资料门槛和数据库均未接入此交互。
+- Key files: `src/dev/SettingsRedesignPrototype.jsx`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 390x844 开发态原型确认社区资料列表行已移除,头像编辑标记为圆形裁切,点击头卡可打开 314px 宽统一风格弹窗,昵称/六头像/取消/保存完整可见;截图 `~/Desktop/boduan-previews/settings-community-profile-entry-prototype-390x844.png`、`settings-community-profile-modal-prototype-390x844.png`。`node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm run build`、docs consistency、`git diff --check` pass;用户确认后已进入正式接入阶段。
+- Boundaries: 不改正式设置页、`community_profiles`、头像 key、昵称/头像保存、RLS、比赛、交易账本、行情或收益快照。
+- Rollback: 回退开发态原型、测试和本条日志即可;无需生产或数据库回滚。
+
+### 2026-07-12 - 社区六款默认头像整套替换
+
+- Deployment: not deployed;本轮先完成本地视觉确认。
+- Background: 用户提供新的 3×2 社区头像设计图,要求用其中蓝、金、紫、绿、青、银六个人物替换现有六款默认头像。
+- Workflow tier: `runtime`。
+- Changes:
+  - 使用 `imagegen` 位图编辑流程从用户提供的合成图中分别提取六款人物头像,统一转为 512×512 WebP 并覆盖现有 `avatar-blue/gold/purple/green/cyan/silver.webp` 资源。
+  - 保留 `gold`、`blue`、`purple`、`green`、`cyan`、`silver` 六个现有头像 key 与 URL,已保存用户会自动看到新素材,不需要重新选择或迁移资料。
+  - 新素材统一使用 `scale-[1.02]` 轻裁切,替代上一版针对旧素材的蓝色/非蓝色差异裁切。
+  - 设置页与更新日志版本同步为 `v10.7.9.310`。
+- Key files: `public/community-avatars/*.webp`,`src/tabs/SettingsTab.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-DFKxh1Uv.js`、`settingsChangelog-oaslj1Sv.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。六张 WebP 均为 512×512、单张 13-19KB。390x844 正式设置页本地复核:六张人物头像完整可见,金色与蓝色头卡切换正常,无棋盘格、白边或变形,页面 `scrollWidth/clientWidth=390/390`;截图 `~/Desktop/boduan-previews/settings-v310-new-avatar-header-390x844.png`、`settings-v310-six-new-avatars-390x844.png`、`settings-v310-blue-avatar-selected-390x844.png`。
+- Boundaries: 不改 `community_profiles` 表、头像 key、昵称/头像保存、RLS、比赛资料门槛、排行榜身份、交易账本、行情或收益快照。
+- Rollback: 回退六张头像资源、统一裁切、v310 更新日志、测试和本条文档即可;无需数据库回滚。
+
 ### 2026-07-12 - 设置页头像加载与边框优化
 
 - Deployment: completed;runtime commit `61c438d34cdf5f9e7a52e02532697ca1c79d518c`,GitHub Actions run `29179842191` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BbCFJTQLooZKwAiuCon4sfbJnrBp` success,production alias 已更新,入口 `/assets/index-CMYMd7fa.js`。

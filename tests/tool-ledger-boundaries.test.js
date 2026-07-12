@@ -376,7 +376,7 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
   assert.ok(settingsTabSource.includes('border border-transparent bg-[#070a0f]'), 'main community avatar preview should not add a white CSS border');
   assert.ok(settingsTabSource.includes("'border-transparent opacity-65'"), 'inactive community avatar options should not add a white CSS border');
-  assert.ok(settingsTabSource.includes("avatarKey === 'blue' ? 'scale-[1.1]' : 'scale-[1.32]'"), 'non-blue community avatars should crop heavy source borders more strongly than blue');
+  assert.ok(settingsTabSource.includes("return 'scale-[1.02]'"), 'the replacement community avatar set should use one consistent light crop');
   assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
   assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => {'), 'local visual preview should mock community profile reads');
   assert.ok(devVisualPreviewSource.includes("get('communityProfileDelay') === '1'"), 'local visual preview should expose a delayed profile path for hydration smoke');
@@ -449,8 +449,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.309'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.309', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.310'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.310', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1625,19 +1625,26 @@ test('settings redesign phase-one prototype stays development-only and keeps req
   assert.ok(settingsRedesignPrototypeSource.includes("label: '邀请码管理'"), 'prototype should retain invite management as a collapsed entry');
   assert.ok(settingsRedesignPrototypeSource.includes('更新日志'), 'prototype should retain the changelog entry');
   assert.ok(settingsRedesignPrototypeSource.includes('切换账户') && settingsRedesignPrototypeSource.includes('退出登录'), 'prototype should keep the paired account actions');
+  assert.ok(settingsRedesignPrototypeSource.includes('function CommunityProfileModal') && settingsRedesignPrototypeSource.includes('<ActionModalCard'), 'prototype should edit community identity in the shared action modal style');
+  assert.ok(settingsRedesignPrototypeSource.includes('onClick={() => setShowCommunityProfile(true)}'), 'prototype identity card should open community profile editing directly');
+  assert.equal(settingsRedesignPrototypeSource.includes("id: 'community'"), false, 'prototype should remove the duplicate community accordion row');
   assert.equal(settingsRedesignPrototypeSource.includes('行情报错'), false, 'prototype should remove the visible quote diagnostics entry');
 });
 
 test('production settings redesign connects existing features without account-memory or ledger changes', () => {
   assert.ok(settingsTabSource.includes('data-settings-redesign="phase-1-production"'), 'production settings should use the approved redesign shell');
   assert.ok(settingsTabSource.includes('mx-5 border-t border-white/[0.06] pb-5 pt-4'), 'expanded settings should avoid a second rounded card');
-  assert.ok(settingsTabSource.includes("id: 'language'") && settingsTabSource.includes("id: 'display'") && settingsTabSource.includes("id: 'account'") && settingsTabSource.includes("id: 'community'"), 'core settings should be clickable accordion rows');
+  assert.ok(settingsTabSource.includes("id: 'language'") && settingsTabSource.includes("id: 'display'") && settingsTabSource.includes("id: 'account'"), 'language display and account settings should remain clickable accordion rows');
+  assert.equal(settingsTabSource.includes("id: 'community'"), false, 'production settings should remove the duplicate community accordion row');
+  assert.ok(settingsTabSource.includes('setShowCommunityProfile(true)') && settingsTabSource.includes("renderExpandedPanel('community')"), 'the production identity card should open the real community profile editor directly');
+  assert.ok(settingsTabSource.includes('<ActionModalCard') && settingsTabSource.includes("title={t(language, 'settings.communityProfile', '社区资料')}"), 'the real community profile editor should use the shared action modal style');
   assert.ok(settingsTabSource.includes("id: 'invite'") && settingsTabSource.includes('isInviteAdmin'), 'invite management should remain admin-only inside the accordion');
   assert.ok(settingsTabSource.includes('MARKET_COLOR_MODES.RED_UP_GREEN_DOWN') && settingsTabSource.includes('setMarketColorMode?.(option.id)'), 'display settings should control the existing global market color mode');
   assert.ok(appSource.includes('marketColorMode,') && appSource.includes('setMarketColorMode,'), 'settings context should receive the existing market color state and setter');
   assert.ok(tradesTabSource.includes('Settings2') && tradesTabSource.includes('setMarketColorMode(option.id)'), 'trade positions should retain their existing market color menu');
   assert.ok(settingsTabSource.includes('setMarketColorMode?.(option.id)') && tradesTabSource.includes('setMarketColorMode(option.id)'), 'settings and trades should control the same market color state');
   assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)') && settingsTabSource.includes('db.upsertCommunityProfile({'), 'community identity should keep the real database path');
+  assert.ok(settingsTabSource.includes('if (!communityProfileFocusRequest) return undefined;') && settingsTabSource.includes('setShowCommunityProfile(true);'), 'competition profile-required routing should open the same real community modal');
   assert.ok(settingsTabSource.includes("fetch('/api/invite-codes'"), 'invite accordion should keep the authenticated invite API');
   assert.ok(settingsTabSource.includes('supabase.auth.updateUser({ password: newPwd })'), 'account accordion should keep the real password update path');
   assert.ok(settingsTabSource.includes("onConfirm: async () => { await onLogout(); }"), 'switch-account and logout actions should use the existing safe sign-out path');
@@ -1789,7 +1796,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.309'"), 'settings version source should document the current avatar polish release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.310'"), 'settings version source should document the current avatar replacement release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2105,7 +2112,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.309'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.310'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
