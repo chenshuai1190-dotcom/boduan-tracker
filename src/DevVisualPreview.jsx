@@ -746,16 +746,21 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fetchPnlReportRebuildState: async () => null,
     upsertPnlReportSnapshots: async ({ portfolioSnapshot }) => portfolioSnapshot,
     clearPnlReportRebuildState: async () => ({}),
-    fetchCommunityProfile: async () => ({
-      userId: 'dev-user',
-      nickname: '波段玩家1836',
-      avatarKey: 'gold',
-      profileCompletedAt: ['profile', 'profile_required'].includes(competitionPreviewState)
-        ? null
-        : '2026-07-11T00:00:00.000Z',
-      createdAt: '2026-07-11T00:00:00.000Z',
-      updatedAt: '2026-07-11T00:00:00.000Z',
-    }),
+    fetchCommunityProfile: async () => {
+      if (new URLSearchParams(window.location.search).get('communityProfileDelay') === '1') {
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+      }
+      return {
+        userId: 'dev-user',
+        nickname: '波段玩家1836',
+        avatarKey: 'gold',
+        profileCompletedAt: ['profile', 'profile_required'].includes(competitionPreviewState)
+          ? null
+          : '2026-07-11T00:00:00.000Z',
+        createdAt: '2026-07-11T00:00:00.000Z',
+        updatedAt: '2026-07-11T00:00:00.000Z',
+      };
+    },
     upsertCommunityProfile: async (profile) => ({
       userId: 'dev-user',
       nickname: profile.nickname || '波段玩家1836',

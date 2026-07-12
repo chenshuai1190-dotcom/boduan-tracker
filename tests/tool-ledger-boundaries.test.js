@@ -376,9 +376,10 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
   assert.ok(settingsTabSource.includes('border border-transparent bg-[#070a0f]'), 'main community avatar preview should not add a white CSS border');
   assert.ok(settingsTabSource.includes("'border-transparent opacity-65'"), 'inactive community avatar options should not add a white CSS border');
-  assert.ok(settingsTabSource.includes('scale-[1.1] object-cover'), 'community avatars should crop the asset edge to avoid light outer pixels');
+  assert.ok(settingsTabSource.includes("avatarKey === 'blue' ? 'scale-[1.1]' : 'scale-[1.32]'"), 'non-blue community avatars should crop heavy source borders more strongly than blue');
   assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
-  assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => ({'), 'local visual preview should mock community profile reads');
+  assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => {'), 'local visual preview should mock community profile reads');
+  assert.ok(devVisualPreviewSource.includes("get('communityProfileDelay') === '1'"), 'local visual preview should expose a delayed profile path for hydration smoke');
   assert.ok(devVisualPreviewSource.includes('upsertCommunityProfile: async (profile) => ({'), 'local visual preview should mock community profile writes');
   assert.ok(i18nSource.includes("'settings.communityProfile': '社区资料'"));
   assert.ok(i18nSource.includes("'settings.communityProfile': 'Community Profile'"));
@@ -448,8 +449,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.308'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.308', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.309'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.309', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1641,6 +1642,9 @@ test('production settings redesign connects existing features without account-me
   assert.ok(settingsTabSource.includes('supabase.auth.updateUser({ password: newPwd })'), 'account accordion should keep the real password update path');
   assert.ok(settingsTabSource.includes("onConfirm: async () => { await onLogout(); }"), 'switch-account and logout actions should use the existing safe sign-out path');
   assert.equal(settingsTabSource.includes('localStorage.setItem'), false, 'phase one should not introduce remembered-account storage');
+  assert.equal(settingsTabSource.includes('<h1'), false, 'settings should not repeat a page title above the community identity card');
+  assert.ok(settingsTabSource.includes('React.useState(Boolean(user?.id))') && settingsTabSource.includes('communityHydrating'), 'community identity should render a neutral hydration state before the real profile arrives');
+  assert.ok(settingsTabSource.includes("communityAvatarImageClass(selectedCommunityAvatar.key)"), 'the top identity avatar should use the per-avatar crop rule');
   assert.ok(settingsChangelogSource.includes('设置页折叠式重设计'), 'settings changelog should describe the production redesign');
   assert.ok(settingsChangelogSource.includes('账户记忆留待独立缓存隔离完成后再接入'), 'release notes should state the account-memory boundary');
 });
@@ -1785,7 +1789,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.308'"), 'settings version source should document the current redesign release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.309'"), 'settings version source should document the current avatar polish release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2101,7 +2105,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.308'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.309'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

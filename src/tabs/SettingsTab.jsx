@@ -25,7 +25,11 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.308';
+const SETTINGS_VERSION = 'v10.7.9.309';
+
+function communityAvatarImageClass(avatarKey) {
+  return avatarKey === 'blue' ? 'scale-[1.1]' : 'scale-[1.32]';
+}
 
 function DetailShell({ children }) {
   return (
@@ -103,13 +107,14 @@ function SettingsTab({ ctx }) {
   const [inviteMessage, setInviteMessage] = React.useState(null);
   const [communityProfile, setCommunityProfile] = React.useState(null);
   const [communityDraft, setCommunityDraft] = React.useState({ nickname: '', avatarKey: 'gold' });
-  const [communityLoading, setCommunityLoading] = React.useState(false);
+  const [communityLoading, setCommunityLoading] = React.useState(Boolean(user?.id));
   const [communitySaving, setCommunitySaving] = React.useState(false);
   const [communityMessage, setCommunityMessage] = React.useState(null);
   const communityProfileRowRef = React.useRef(null);
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
   const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
+  const communityHydrating = communityLoading && !communityProfile;
   const communityNicknameValidation = validateCommunityNickname(communityDraft.nickname);
   const communityDirty = Boolean(
     communityProfile
@@ -414,7 +419,7 @@ function SettingsTab({ ctx }) {
                   aria-label={currentLanguage === 'en' ? avatar.labelEn : avatar.labelZh}
                   className={`relative aspect-square min-w-0 overflow-hidden rounded-full border bg-[#070a0f] transition active:scale-95 disabled:opacity-60 ${active ? 'border-[#f6b54b] shadow-[0_0_12px_rgba(246,181,75,0.22)]' : 'border-transparent opacity-65'}`}
                 >
-                  <img src={avatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+                  <img src={avatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} draggable={false} />
                   {active && <span className="absolute inset-x-[32%] bottom-0 h-0.5 rounded-full bg-[#f6b54b]" />}
                 </button>
               );
@@ -534,20 +539,18 @@ function SettingsTab({ ctx }) {
   return (
     <>
       <div className="mx-auto w-full max-w-[430px] text-white" data-settings-redesign="phase-1-production">
-        <h1 className="px-1 text-[22px] font-semibold tracking-[0.02em] text-white/[0.94]">
-          {t(language, 'settings.title', '设置')}
-        </h1>
-
         <button
           type="button"
           onClick={() => toggleSection('community')}
-          className="mt-5 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
         >
-          <span className="h-[66px] w-[66px] overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
-            <img src={selectedCommunityAvatar.src} alt="" className="h-full w-full scale-[1.1] object-cover" draggable={false} />
+          <span className="flex h-[66px] w-[66px] items-center justify-center overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
+            {communityHydrating
+              ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
+              : <img src={selectedCommunityAvatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(selectedCommunityAvatar.key)}`} draggable={false} />}
           </span>
           <span className="mt-3 max-w-full truncate text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">
-            {communityLoading ? t(language, 'settings.loading', '加载中...') : communityDisplayName}
+            {communityHydrating ? t(language, 'settings.loading', '加载中...') : communityDisplayName}
           </span>
           <span className="mt-2 text-center text-[10px] text-white/40">
             {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}

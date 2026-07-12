@@ -4,6 +4,22 @@
 
 ## 2026-07-12 Asia/Shanghai
 
+### 2026-07-12 - 设置页头像加载与边框优化
+
+- Deployment: not deployed;本轮按用户要求先完成本地截图确认。
+- Background: 生产截图显示顶部“设置”标题重复,社区资料加载时先闪现金色默认头像再切换到用户头像,且除蓝色外其余默认头像的素材外圈显得过重。
+- Workflow tier: `runtime`。
+- Changes:
+  - 移除设置页顶部独立“设置”标题,社区身份卡上移成为首个内容模块;卡片宽度、高度和下方设置列表均不变。
+  - 社区资料状态在已有登录用户下默认进入 hydrating;真实资料返回前顶部头像显示中性加载占位,不再渲染 `gold` 草稿头像。
+  - 新增按头像 key 区分的裁切规则:蓝色保持 `scale-[1.1]`,金/紫/绿/青/银使用 `scale-[1.32]`,在不修改原始素材和头像 key 的前提下减弱粗外圈。
+  - `DevVisualPreview` 增加仅由 `communityProfileDelay=1` 触发的 700ms 社区资料读取延迟,用于稳定复核 hydrating 状态;不进入正式数据链路。
+  - 设置页与更新日志版本同步为 `v10.7.9.309`。
+- Key files: `src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`src/dev/SettingsRedesignPrototype.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 44/44 pass;`npm test` 242/242 pass;`npm run build` pass,生成 `SettingsTab-Du1eNMed.js`、`settingsChangelog-C_IlEGG2.js`;`npm run verify:frontend-smoke` 5/5 pass,五个主 tab console/runtime error 0;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency 与 `git diff --check` pass。390x844 正式设置页本地复核:顶部 `h1` 数量 0,`scrollWidth/clientWidth=390/390`;延迟资料读取时仅显示中性转圈/“加载中…”,未出现默认金色头像;蓝色保持原细边框,金色与紫色复核确认粗素材外圈已减弱。截图 `~/Desktop/boduan-previews/settings-v309-loading-neutral-390x844.png`、`settings-v309-blue-avatar-390x844.png`、`settings-v309-gold-avatar-390x844.png`、`settings-v309-nonblue-avatar-border-390x844.png`。
+- Boundaries: 不改 `community_profiles` 表、昵称/头像保存、头像 key、RLS、比赛资料门槛、邀请码、认证、交易账本、行情或收益快照。
+- Rollback: 回退标题/加载占位/裁切规则、v309 更新日志、测试和本条文档即可;无需数据库回滚。
+
 ### 2026-07-12 - 设置页折叠式重设计正式接入
 
 - Deployment: completed;runtime commit `256585c1c4cf0caf8726a86be61fd1ea9480ce99`,GitHub Actions run `29179082664` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/5uNuTVKCmjyuBLRkyk59tFj3rs4f` success,production alias 已更新,入口 `/assets/index-CcX_3A7Q.js`。

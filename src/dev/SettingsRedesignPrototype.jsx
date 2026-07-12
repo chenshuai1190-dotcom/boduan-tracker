@@ -71,6 +71,10 @@ const INVITE_CODES = [
   { code: 'QTE-MK33-ANNA', state: '已使用' },
 ];
 
+function communityAvatarImageClass(avatarKey) {
+  return avatarKey === 'blue' ? 'scale-[1.1]' : 'scale-[1.32]';
+}
+
 function DetailShell({ children }) {
   return (
     <div className="mx-5 border-t border-white/[0.06] pb-5 pt-4">
@@ -194,7 +198,7 @@ function CommunityPanel({ avatarKey, setAvatarKey }) {
               onClick={() => setAvatarKey(avatar.key)}
               type="button"
             >
-              <img alt="" className="h-full w-full scale-[1.1] object-cover" src={avatar.src} />
+              <img alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} src={avatar.src} />
               {selected && <span className="absolute inset-x-[32%] bottom-0 h-0.5 rounded-full bg-[#f6b54b]" />}
             </button>
           );
@@ -255,15 +259,13 @@ export default function SettingsRedesignPrototype() {
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-[#05070b] pb-[calc(78px+env(safe-area-inset-bottom))] text-white" data-settings-redesign-prototype="phase-1">
       <main className="mx-auto w-full max-w-[430px] px-4 pb-8 pt-[calc(26px+env(safe-area-inset-top))]">
-        <h1 className="px-1 text-[22px] font-semibold tracking-[0.02em] text-white/[0.94]">设置</h1>
-
         <button
-          className="mt-5 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
           onClick={() => toggle('community')}
           type="button"
         >
           <span className="h-[66px] w-[66px] overflow-hidden rounded-full border border-transparent bg-[#070a0f] shadow-[0_0_20px_rgba(36,90,202,0.16)]">
-            <img alt="社区头像" className="h-full w-full scale-[1.1] object-cover" src={avatar.src} />
+            <img alt="社区头像" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} src={avatar.src} />
           </span>
           <span className="mt-3 text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">团团</span>
           <span className="mt-2 text-[10px] text-white/40">2-16 个字符，用于排行榜公开展示</span>
