@@ -6,8 +6,8 @@
 
 ### 2026-07-12 - 资产人物卡配色统一
 
-- Commit: pending。
-- Deployment: pending;本轮先本地截图确认,未修改生产。
+- Commit: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`。
+- Deployment: completed;GitHub Actions run `29177426833` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GMuVHNQyMZbwRH1185LmJM2fB1JE` success,production alias 已更新,入口 `/assets/index-C28WSFlz.js`。
 - Background: 用户要求资产页“我/老婆”分组取消人物彩色外框,两组金额与进度条统一系统红,各小账户类型图标取消人物强调色并恢复中性默认色。
 - Workflow tier: `runtime`。
 - Changes:
@@ -16,7 +16,7 @@
   - 主账户列表、月度余额编辑列表和账户操作 Logo fallback 的账户类型图标统一使用 `text-white/[0.55]` 中性默认色;可用的账户图片 Logo 继续显示原图。
   - 设置页三个可见版本面和更新日志同步为 `v10.7.9.307`。
 - Key files: `src/tabs/AnalysisTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `AnalysisTab-BXR4pcEc.js`、`SettingsTab-DB5cWEyB.js` 和 `settingsChangelog-BMKfba7N.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;docs consistency、`git diff --check` pass。390x844 本地视觉/计算样式复核:“我/老婆”卡片宽度均保持 358px,两者边框均为 `rgba(255,255,255,0.11)`,金额/进度条均为系统红 `rgb(255,75,31)`,账户类型图标均为 `rgba(255,255,255,0.55)`,页面 `scrollWidth/clientWidth=390/390`,console warning/error 0;截图 `~/Desktop/boduan-previews/asset-owner-neutral-border-red-accent-v307-390x844.png`。未部署。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 42/42 pass;`npm test` 240/240 pass;`npm run build` pass,生成 `AnalysisTab-BXR4pcEc.js`、`SettingsTab-DB5cWEyB.js` 和 `settingsChangelog-BMKfba7N.js`;`npm run verify:frontend-smoke` 5/5 pass,console/runtime error 0;`npm audit --audit-level=moderate` 0 vulnerabilities;docs consistency、`git diff --check` pass。390x844 本地视觉/计算样式复核:“我/老婆”卡片宽度均保持 358px,两者边框均为 `rgba(255,255,255,0.11)`,金额/进度条均为系统红 `rgb(255,75,31)`,账户类型图标均为 `rgba(255,255,255,0.55)`,页面 `scrollWidth/clientWidth=390/390`,console warning/error 0;截图 `~/Desktop/boduan-previews/asset-owner-neutral-border-red-accent-v307-390x844.png`。`npm run verify:deploy-status -- 6db05e3` pass;生产 `AnalysisTab-BXR4pcEc.js` 命中中性边框/默认图标色,`SettingsTab-DB5cWEyB.js` 与 `settingsChangelog-BMKfba7N.js` 命中 `v10.7.9.307` / `资产人物卡配色统一`;未登录 quote、earnings 均为 `401`。
 - Boundaries: 只改资产页颜色样式;不改人物标题、卡片宽度/布局、账户展示过滤、余额/占比/汇率计算、账户增删改、月度快照、数据库、RLS、行情 relay、`/api/quote` 或独立 `/api/earnings-calendar`。
 - Rollback: 回退资产人物卡与账户图标颜色、`v10.7.9.307` 版本/更新日志、测试和本条文档即可;无需数据库回滚。
 

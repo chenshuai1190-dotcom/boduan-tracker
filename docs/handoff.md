@@ -6,11 +6,11 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 最新本地待部署版本: `v10.7.9.307` 资产人物卡配色统一;“我/老婆”卡片外框统一中性,两组金额/进度条统一系统红,小账户类型图标统一中性默认色。当前生产仍为 `v10.7.9.306`,production runtime `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
+- 最新已上线版本: `v10.7.9.307` 资产人物卡配色统一,production runtime `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`;“我/老婆”卡片外框统一中性,两组金额/进度条统一系统红,小账户类型图标统一中性默认色。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地设置页版本为 `v10.7.9.307`,当前生产为 `v10.7.9.306`;当前生产运行时基准提交为 `c6d474868b4aa90368b78290e71a0a15d1f263bd`,入口为 `/assets/index-BdrG4ob7.js`。
-- `v10.7.9.307` 本地验证:定向 42/42、完整测试 240/240、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff 均 pass;390x844 确认两张人物卡均为 358px/中性边框,金额与进度条同为系统红,账户类型图标同为中性默认色,页面 390/390。待用户确认部署。
+- 当前本地与生产设置页版本均为 `v10.7.9.307`;当前生产运行时基准提交为 `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`,入口为 `/assets/index-C28WSFlz.js`。
+- `v10.7.9.307` 验证:定向 42/42、完整测试 240/240、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff 均 pass;390x844 确认两张人物卡均为 358px/中性边框,金额与进度条同为系统红,账户类型图标同为中性默认色,页面 390/390。GitHub Actions run `29177426833` 与 Vercel target `GMuVHNQyMZbwRH1185LmJM2fB1JE` success;生产 marker 和 quote/earnings `401` 已验证。
 - `v10.7.9.306` 验证:定向 42/42、完整测试 240/240、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff 均 pass;390x844 复核确认旧双列表固定错开 5px,新单 grid 只有一套分隔行,卡片仍为 358px、页面 390/390、名称列横滑后仍固定。GitHub Actions run `29177139868` 与 Vercel target `7n18YeG4g6329NyX3qwZmqDF7uDu` success;生产 marker 和 quote/earnings `401` 已验证。
 - `v10.7.9.305` 验证:定向 63/63、完整测试 240/240、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、匿名 RLS 20/20、docs/diff 均 pass;390x844 确认 320px 用户卡、头像箭头锚点、12 ticker 换行、空仓文案与横向零溢出。GitHub Actions run `29176830040` 和 Vercel target `HXVkbhd5FJcrwE51eCmjusQnK7qm` success;未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`。
 - `v10.7.9.304` 验证:定向 42/42、完整测试 239/239、build、5/5 frontend smoke、moderate audit 0 vulnerabilities、docs/diff 均 pass;390x844 对照确认收益比赛与波段记录标题计算样式完全一致。GitHub Actions run `29162215875` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GLo8GFDrxfEwbWznX5adZXyEHDht` success;未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`。
@@ -40,12 +40,12 @@
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
 - 最新流程补充: 开发验证正式改为三档流程并补齐标准工具脚本。首次接手、换机、工具链异常或部署前环境不确定时先跑 `npm run verify:toolchain`;`runtime` 跑工具链、完整测试/构建、`npm run verify:frontend-smoke`、audit/diff check;`docs-only` 跑 `npm run verify:docs-consistency`、diff check、diff stat,部署证据回填再跑 `npm run verify:deploy-status -- <commit>`;`sensitive` 在 runtime 基础上追加 `/api/quote`、`/api/earnings-calendar`、`/api/community-competition`、比赛 Cron、RLS/API/安全 smoke。下一任不要把纯文档回填和高风险运行时代码改动混成同一套全量流程,也不要用无边界 `rg -n` 扫整份长日志。前端 smoke 会用本地 Chrome/Chromium 打开开发预览的首页、交易、资产、目标和设置 5 个主 tab,检查 `#root` 非空和白屏级 console/runtime 错误;如 Chrome 不在常见路径,设置 `CHROME_PATH`。
-- 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
-- 当前生产运行时基准提交: `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
-- 当前本地设置页版本: `v10.7.9.307`;当前生产为 `v10.7.9.306`。
+- 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`。
+- 当前生产运行时基准提交: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`。
+- 当前本地与生产设置页版本: `v10.7.9.307`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a48c4ad` pass;GitHub Actions run `29142090108` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`;production 入口保持 `/assets/index-DlHnRYc2.js`。
-- 最新运行时部署: `npm run verify:deploy-status -- c6d4748` pass;GitHub Actions run `29177139868` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7n18YeG4g6329NyX3qwZmqDF7uDu`;production alias 已更新,入口 `/assets/index-BdrG4ob7.js`。
+- 最新运行时部署: `npm run verify:deploy-status -- 6db05e3` pass;GitHub Actions run `29177426833` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GMuVHNQyMZbwRH1185LmJM2fB1JE`;production alias 已更新,入口 `/assets/index-C28WSFlz.js`。
 - 最近交接文档刷新部署: `0aa87dfe72b3690bedb4c5425016c699f607cb01` 已通过 GitHub Actions run `29161798255` 和 Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G9h6ueyaBhcPdNKUY4xTuPwEyzFL`;生产入口保持 `/assets/index-CD6hu3eq.js`,运行时代码仍为 `bf48e5a` / `v10.7.9.303`。
 - 线上关键验证: 未登录 competition GET/POST、比赛 Cron、quote、earnings 均为 `401`;生产 marker 命中 `v10.7.9.305`、`收益比赛收盘持仓公开与用户卡`、`收盘持仓代码`、`当前空仓` 和 `持仓暂不可用`,且不含 `DevVisualPreview`。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图;`v10.7.9.278` 已上线首页当前信号文字降重;`v10.7.9.279` 已上线首页股票文字继续降重;`v10.7.9.280` 已上线个股收益峰值呼吸点;`v10.7.9.281` 已上线收益报表对比浮层;`v10.7.9.282` 已上线收益报表浮层颜色和页面文案调整;`v10.7.9.283` 已上线个股详情持仓时间;`v10.7.9.284` 已上线自选添加股票校验;`v10.7.9.285` 已上线热门股票弹窗实时行情。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
@@ -55,13 +55,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地设置页版本为 `v10.7.9.307`,当前生产为 `v10.7.9.306`;本地仅调整资产人物卡和小账户图标配色。生产 SQL、匿名 REST 20/20、应用部署与线上鉴权证据已完成;SQL/admin metadata 结果仍因 Dashboard 翻译插件崩溃未能稳定读取。
-- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
-- 当前生产运行时基准提交: `c6d474868b4aa90368b78290e71a0a15d1f263bd`。
-- 最近应用代码提交: `c6d474868b4aa90368b78290e71a0a15d1f263bd` 包含 `v10.7.9.306` 首页自选分隔线对齐;`a1c0e7b3922a80de1b542c010698d2663fd7d16a` 包含 `v10.7.9.305` 收盘持仓用户卡;`9c856370337c1945336eed9ba3fa5dab6a39e379` 包含 `v10.7.9.304` 标题统一;`bf48e5accd79c55e40e1d578e5618dd1eced0ad8` 包含 `v10.7.9.303` 真实收益比赛与 Hobby 12-function rewrite。
+- 当前本地与生产设置页版本均为 `v10.7.9.307`;资产人物卡和小账户图标配色已统一,布局与计算不变。生产 SQL、匿名 REST 20/20、应用部署与线上鉴权证据已完成;SQL/admin metadata 结果仍因 Dashboard 翻译插件崩溃未能稳定读取。
+- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新运行时代码提交为 `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`。
+- 当前生产运行时基准提交: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`。
+- 最近应用代码提交: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4` 包含 `v10.7.9.307` 资产人物卡配色统一;`c6d474868b4aa90368b78290e71a0a15d1f263bd` 包含 `v10.7.9.306` 首页自选分隔线对齐;`a1c0e7b3922a80de1b542c010698d2663fd7d16a` 包含 `v10.7.9.305` 收盘持仓用户卡;`9c856370337c1945336eed9ba3fa5dab6a39e379` 包含 `v10.7.9.304` 标题统一。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
 - 当前生产设置页版本: `v10.7.9.306`。
-- Vercel 最新部署: `v10.7.9.306` runtime commit `c6d474868b4aa90368b78290e71a0a15d1f263bd` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7n18YeG4g6329NyX3qwZmqDF7uDu`,production 入口 `/assets/index-BdrG4ob7.js`,首页 chunk `/assets/HomeTab-BWgfe4TS.js`。
+- Vercel 最新部署: `v10.7.9.307` runtime commit `6db05e3e9bf243d548e1f90a22a7d952b2d365f4` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GMuVHNQyMZbwRH1185LmJM2fB1JE`,production 入口 `/assets/index-C28WSFlz.js`,资产 chunk `/assets/AnalysisTab-BXR4pcEc.js`。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
 - 最新补充部署记录: `v10.7.9.303` runtime code commit `bf48e5accd79c55e40e1d578e5618dd1eced0ad8` pushed via project SSH key;GitHub Actions `CI` run `29161655826` success;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6DCsp5jvNsubXhoKnZFybTM8gpf6`;production alias updated,入口 `/assets/index-CD6hu3eq.js`。首个 `a363e64` deployment `gn2MbDpda3pGTLvrZuT4QXyCT1qc` 仅因 Hobby 13 functions 超过 12 上限失败且未切换生产;`bf48e5a` 通过 rewrite 保留独立 Cron URL 与鉴权边界。上一条 v301 runtime 为 `4bfab846ab6d7b87ea9ce41af26e80aeeed3b6ad`;更早部署历史见 `docs/development-log.md`。
@@ -720,14 +720,14 @@ curl -i 'https://boduan-tracker.vercel.app/api/earnings-calendar?symbols=NVDA'
 生产地址: https://boduan-tracker.vercel.app
 
 当前 GitHub main: 以本交接文件所在最新提交为准,checkout 后执行 `git log -1 --oneline`;当前运行时代码提交为 `9c856370337c1945336eed9ba3fa5dab6a39e379`
-当前前台可见运行时基准提交: `c6d474868b4aa90368b78290e71a0a15d1f263bd`
-设置页版本: `v10.7.9.307`（本地待部署;当前生产为 `v10.7.9.306`）
+当前前台可见运行时基准提交: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4`
+设置页版本: `v10.7.9.307`
 最近已验证 docs-only 部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/FJ1nENUFJLJV9g57GNDmFMhma8xh`
-最新运行时部署: `c6d474868b4aa90368b78290e71a0a15d1f263bd` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7n18YeG4g6329NyX3qwZmqDF7uDu`,Actions run `29177139868`
-最新生产入口: `/assets/index-BdrG4ob7.js`
+最新运行时部署: `6db05e3e9bf243d548e1f90a22a7d952b2d365f4` success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GMuVHNQyMZbwRH1185LmJM2fB1JE`,Actions run `29177426833`
+最新生产入口: `/assets/index-C28WSFlz.js`
 
 最新已上线:
-- 待部署 `v10.7.9.307`:资产“我/老婆”卡片取消人物彩色边框,金额/进度条统一系统红,账户类型图标统一中性默认色;布局和计算不变
+- `v10.7.9.307` 已上线:资产“我/老婆”卡片取消人物彩色边框,金额/进度条统一系统红,账户类型图标统一中性默认色;布局和计算不变
 - `v10.7.9.306` 已上线:首页自选/持仓表格改为单一股票行 grid,修复名称侧与行情侧分隔线错位;首页卡片和各列宽度不变
 - `v10.7.9.305` 已上线:排行榜用户卡公开经同日 `ledger_hash` 验证的收盘持仓代码,只返回 ticker,不返回股数、成本、金额、仓位或交易明细;不新增 SQL
 - `v10.7.9.304` 收益比赛标题样式统一:收益比赛与波段记录标题统一为 18px 常规字重、相同字距和亮度;只改标题视觉,比赛数据与安全边界不变
