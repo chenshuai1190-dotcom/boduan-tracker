@@ -821,6 +821,12 @@ export default function ReviewTab({ ctx }) {
             const diff = hasActual ? yearItem.actualGain - yearItem.planTarget : null;
             const isOverTarget = diff !== null && diff >= 0;
             const targetGap = hasActual ? yearItem.planTarget - yearItem.actualGain : null;
+            const actualTargetPct = hasActual && yearItem.planTarget > 0
+              ? (yearItem.actualGain / yearItem.planTarget) * 100
+              : null;
+            const targetGapPct = targetGap !== null && yearItem.planTarget > 0
+              ? (Math.abs(targetGap) / yearItem.planTarget) * 100
+              : null;
             const yearProgressPct = isCurrent && hasActual && yearItem.planTarget > 0
               ? clamp((yearItem.actualGain / yearItem.planTarget) * 100, 0, 150)
               : 0;
@@ -841,7 +847,7 @@ export default function ReviewTab({ ctx }) {
                   onClick={() => setYearAction(yearItem)}
                   className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
-                  <div className="grid grid-cols-[minmax(0,1fr)_124px] items-start gap-2.5">
+                  <div className="grid grid-cols-[minmax(0,1fr)_160px] items-start gap-2.5">
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <div className="text-[22px] font-semibold leading-none text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
@@ -860,18 +866,21 @@ export default function ReviewTab({ ctx }) {
                       </div>
                     </div>
                     <div className="w-full shrink-0 space-y-1 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2.5 text-[11px] leading-[1.45]">
-                      <div className="whitespace-nowrap text-white/62">
-                        {tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.planTarget)}</span>
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 whitespace-nowrap text-white/62">
+                        <span>{tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.planTarget)}</span></span>
+                        <span className="text-right text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>100%</span>
                       </div>
-                      <div className={`whitespace-nowrap tabular-nums ${hasActual ? 'text-[#ff4b1f]' : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {tt('review.achieved', '实现')} {hasActual ? money(yearItem.actualGain) : tt('review.pending', '待填写')}
+                      <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2 whitespace-nowrap tabular-nums ${hasActual ? 'text-[#ff4b1f]' : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
+                        <span>{tt('review.achieved', '实现')} {hasActual ? money(yearItem.actualGain) : tt('review.pending', '待填写')}</span>
+                        <span className="text-right">{actualTargetPct === null ? '--' : `${actualTargetPct.toFixed(1)}%`}</span>
                       </div>
-                      <div className={`whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'}`} style={{ fontFamily: NUMBER_FONT }}>
-                        {targetGap === null
-                          ? tt('review.pending', '待填写')
-                          : targetGap < 0
-                            ? tt('review.exceededAmount', '超额 {{amount}}', { amount: money(Math.abs(targetGap)) })
-                            : tt('review.behindAmount', '落后 {{amount}}', { amount: money(Math.abs(targetGap)) })}
+                      <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2 whitespace-nowrap tabular-nums ${targetGap === null ? 'text-white/35' : targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'}`} style={{ fontFamily: NUMBER_FONT }}>
+                        <span>{targetGap === null
+                            ? tt('review.pending', '待填写')
+                            : targetGap < 0
+                              ? tt('review.exceededAmount', '超额 {{amount}}', { amount: money(Math.abs(targetGap)) })
+                              : tt('review.behindAmount', '落后 {{amount}}', { amount: money(Math.abs(targetGap)) })}</span>
+                        <span className="text-right">{targetGapPct === null ? '--' : `${targetGapPct.toFixed(1)}%`}</span>
                       </div>
                     </div>
                   </div>

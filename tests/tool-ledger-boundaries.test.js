@@ -471,8 +471,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.318'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.318', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.319'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.319', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(communityCompetitionPageSource.includes('truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]'), 'competition title should match the wave tracker title typography');
   assert.ok(settingsChangelogSource.includes('社区头像白边修正'), 'settings changelog should describe the community avatar border fix');
   assert.ok(settingsChangelogSource.includes('设置页社区资料上线'), 'settings changelog should describe the community profile release');
@@ -1839,7 +1839,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.318'"), 'settings version source should document the current wave forecast release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.319'"), 'settings version source should document the current annual summary percentage release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2003,7 +2003,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("tt('review.achieved', '实现')"), 'current year summary should show the achieved amount');
   assert.ok(reviewTabSource.includes("hasActual ? 'text-[#ff4b1f]' : 'text-white/35'"), 'achieved amount should use the standard system red');
   assert.ok(reviewTabSource.includes("targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'"), 'lag should use system green while an exceeded target uses system red');
-  assert.ok(reviewTabSource.includes('grid grid-cols-[minmax(0,1fr)_124px] items-start gap-2.5'), 'three-row annual summary should align with the current-year status row');
+  assert.ok(reviewTabSource.includes('grid grid-cols-[minmax(0,1fr)_160px] items-start gap-2.5'), 'three-row annual summary should widen to fit the percentage column without changing the card width');
+  assert.ok(reviewTabSource.includes('(yearItem.actualGain / yearItem.planTarget) * 100'), 'achieved percentage should use the current annual actual divided by the annual plan');
+  assert.ok(reviewTabSource.includes('(Math.abs(targetGap) / yearItem.planTarget) * 100'), 'behind or exceeded percentage should use the absolute annual gap divided by the annual plan');
+  assert.ok(reviewTabSource.includes('>100%</span>'), 'annual target summary should keep the target baseline fixed at 100 percent');
+  assert.equal(reviewTabSource.includes('annualSummaryPercentPreview'), false, 'annual summary percentages should be production behavior rather than a dev-only preview gate');
   assert.ok(reviewTabSource.includes('space-y-1 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2.5'), 'three-row annual summary should gain compact vertical space');
   assert.ok(reviewTabSource.includes("isOverTarget ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'"), 'current-year reached and behind badges should share the red/green result hierarchy');
   assert.ok(reviewTabSource.includes("text-[#ff4b1f] tabular-nums\" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%"), 'overall completion percentage should use system red');
@@ -2155,7 +2159,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.318'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.319'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
