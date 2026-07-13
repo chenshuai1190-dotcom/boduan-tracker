@@ -1,18 +1,20 @@
 # boduan-tracker 产品交接文档
 
-更新时间: 2026-07-12 Asia/Shanghai
+更新时间: 2026-07-13 Asia/Shanghai
 
 这份文档给下一位接手 `boduan-tracker` 的工程师或 AI 代理使用。先按这里同步状态,再看开发日志和代码。
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 当前本地与生产版本: `v10.7.9.323`;设置页使用的 77 个系统文案键已完整覆盖中英文,社区昵称和邮箱等用户内容保持原文。
-- 最新已上线版本为 `v10.7.9.323`,production runtime `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`,入口 `/assets/index-DN2-ymxd.js`。
+- 当前本地版本: `v10.7.9.324`;生产仍为 `v10.7.9.323`,等待本轮年度路径文案部署。
+- `v10.7.9.324` 仅把当前年度和预测年度路径中的“终点”改为“年底目标”,英文同步为 `Year-End Target`;年初起点、当前值、目标金额和计算逻辑不变。
+- 最新已上线版本仍为 `v10.7.9.323`,production runtime `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`,入口 `/assets/index-DN2-ymxd.js`。
 - `v10.7.9.316` 只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 设置页版本: `v10.7.9.323`。生产运行时基准提交为 `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`,入口 `/assets/index-DN2-ymxd.js`。
+- 设置页版本: `v10.7.9.324`。生产暂时仍运行 `v10.7.9.323` / `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`,入口 `/assets/index-DN2-ymxd.js`。
+- `v10.7.9.324` 本地验证:目标页定向测试 46/46、build、docs consistency、diff check 和 iOS 26.5 iPhone 17 Pro Simulator 均 pass;部署证据待回填。
 - `v10.7.9.323` 验证:设置/弹窗定向 46/46、build、docs consistency、diff check、iOS 26.5 Simulator 英文设置页和 `verify:deploy-status -- d8ea6ef` 均 pass;Actions `29198603364` 与 Vercel `6M39R6ojEAwcenGshecCRPHVKcw2` success,quote、earnings 未登录保持 `401`。按 UI-fast 未跑完整测试或 audit。
 - `v10.7.9.322` 验证:完整测试 255/255、build、high audit 0 vulnerabilities、docs/diff、iOS 26.5 Simulator 系统键盘和 `verify:deploy-status -- a61fc55` 均 pass;Actions `29197665639` 与 Vercel `CQBi1sr3EMRztDk7g8QYKF1FgbiT` success。4 个关键生产文件与本地 SHA-256 一致,quote、earnings 未登录保持 `401`;按新准则未运行桌面/内置浏览器视觉测试。
 - `v10.7.9.320` 验证:资产/交易弹窗定向 46/46、build、docs consistency、diff check 和 `verify:deploy-status -- 28cecac` 均 pass;Actions `29195304295` 与 Vercel `G2HNApMpsV9nmGzBAsPnwmaG5gTB` success。生产入口、Analysis、Trades、Settings 与更新日志 5 个关键文件均与本地 SHA-256 一致,线上命中 v320/更新标题 marker,quote、earnings 未登录保持 `401`。按 `ui-fast` 规则未跑完整测试、5 页 smoke 或 audit。
@@ -60,7 +62,7 @@
 - 最新流程补充: 开发验证仍按 `ui-fast/runtime/docs-only/sensitive` 四档风险流程执行。纯视觉及只改变界面呈现的轻量交互(展开/收起、页签、弹窗开关、焦点、滚动、键盘可见性和展示状态)走 UI-fast,不默认跑完整测试;业务逻辑/计算、持久化、保存删除等业务交互、跨模块状态、API、鉴权/RLS、安全、账本/收益/快照/换算、路由/PWA 生命周期和依赖/构建/CI/环境配置才走完整 runtime。所有前端视觉、交互、键盘、滚动、安全区和 PWA 验收必须使用本机 Xcode iOS Simulator;禁止桌面浏览器、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 作为视觉通过证据。自动化测试、build、docs 和安全检查继续作为代码门禁。
 - 当前 GitHub `main`: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最近已上线运行时代码提交为 `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`。
 - 当前生产运行时基准提交: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`。
-- 当前本地与生产设置页版本均为 `v10.7.9.323`。
+- 当前本地设置页版本为 `v10.7.9.324`;生产仍为 `v10.7.9.323`,等待本轮部署。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 最近已验证 docs-only 部署: `npm run verify:deploy-status -- a54df76` pass;GitHub Actions run `29199119074` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Dp55pVfvjaKTQzw855Br2gC7Ybsd`;production 入口保持 `/assets/index-DN2-ymxd.js`。
 - 最新运行时部署: `npm run verify:deploy-status -- d8ea6ef` pass;GitHub Actions run `29198603364` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2`;production alias 已更新,入口 `/assets/index-DN2-ymxd.js`。
@@ -73,7 +75,7 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地与生产设置页版本均为 `v10.7.9.323`。v323 补齐新版设置页英文词典;v322 统一保证共享弹窗当前输入及下方上下文可见。
+- 当前本地设置页版本为 `v10.7.9.324`,生产仍为 `v10.7.9.323`。v324 更新年度路径终点文案;v323 补齐新版设置页英文词典。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;最新生产运行时代码提交为 `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`。
 - 当前生产运行时基准提交: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`。
 - 最近应用代码提交: `320f0520b29f7a20d24322e299ce89d4cff1267b` 包含 `v10.7.9.319` 年度目标摘要百分比;`3e384856646901c0f6884ec87e4b95d60f24c0fe` 包含 `v10.7.9.318` 波段预测、峰值修复和 v317 清理;`4302f0abbb78c74e85f09657aa0ace7d6c35b5f4` 包含 `v10.7.9.316` 已确认弹窗统一。
@@ -783,7 +785,7 @@ GitHub `main` 是唯一代码源头。
 
 当前生产基准:
 - 运行时代码: `d8ea6ef5f292116c2e3ad0a6e6e6ac1f6d602376`
-- 设置页版本: `v10.7.9.323`
+- 设置页版本: `v10.7.9.324`（准备部署;当前生产仍为 `v10.7.9.323`）
 - 生产入口: `/assets/index-DN2-ymxd.js`
 - Runtime Actions: `29198603364` success
 - Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6M39R6ojEAwcenGshecCRPHVKcw2` success
@@ -792,6 +794,7 @@ GitHub `main` 是唯一代码源头。
 - 未登录 `/api/earnings-calendar?symbols=NVDA`: `401`
 
 最近完成:
+- `v10.7.9.324`: 当前年度和预测年度资产路径中的“终点”改为“年底目标”,英文同步为 `Year-End Target`;目标金额、年度计划、复利和进度计算不变。当前准备部署,生产证据待回填。
 - `v10.7.9.323`: 设置页 77 个 `settings.*` 系统文案键中英文完整覆盖;Language、Display、Account、Admin、Switch Account、密码和确认流程不再回退中文。社区昵称、邮箱和用户自写内容保持原文。设置/弹窗定向 46/46、build、iOS 26.5 Simulator、docs/diff 和部署检查全部通过。
 - `v10.7.9.322`: `ActionModalCard` 在 iOS 键盘缩短视口后自动把当前输入滚到安全可见区;新增交易股数/日期和修改账户余额/保存按钮已用 iPhone 17 Pro Simulator 系统键盘验证。共享宽度、字段、验证、保存回调、数据库和安全边界不变。
 - 收益比赛是真实独立功能:用户必须保存社区资料并自愿参赛,榜单严格使用不可覆盖的权威收盘快照;只读正式 `stock_trades`,只写独立比赛表。不得伪造实时收益或改写个人收益快照。

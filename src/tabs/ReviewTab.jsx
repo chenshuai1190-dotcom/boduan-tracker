@@ -897,7 +897,7 @@ export default function ReviewTab({ ctx }) {
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-right">
-                      <div className="text-[11px] text-white/40">{tt('review.yearEnd', '终点')}</div>
+                      <div className="text-[11px] text-white/40">{tt('review.yearEnd', '年底目标')}</div>
                       <div className="mt-1 text-[12px] font-normal text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
                     </div>
                   </div>
@@ -943,7 +943,7 @@ export default function ReviewTab({ ctx }) {
                   </div>
                   <div className="px-4 text-white/25">→</div>
                   <div className="text-right">
-                    <div className="text-[11px] text-white/38">{tt('review.yearEnd', '终点')}</div>
+                    <div className="text-[11px] text-white/38">{tt('review.yearEnd', '年底目标')}</div>
                     <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                   </div>
                 </div>

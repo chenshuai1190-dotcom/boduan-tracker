@@ -479,8 +479,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.323'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.323', date: '2026-07-12', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.324'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.324', date: '2026-07-13', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes("itemsEn: [") && settingsTabSource.includes("currentLanguage === 'en' && Array.isArray(log.itemsEn)"), 'latest settings changelog should render its English release notes in English mode');
   assert.ok(i18nSource.includes("'settings.languageZh': 'Simplified Chinese'"), 'English settings should translate the Simplified Chinese language option');
   assert.ok(i18nSource.includes("'settings.displaySettings': 'Display'") && i18nSource.includes("'settings.redUpGreenDown': 'Red Up · Green Down'"), 'English settings should translate display and market-color controls');
@@ -1852,7 +1852,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.323'"), 'settings version source should include the completed English settings translation');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.324'"), 'settings version source should advance with the year-end target label release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2030,9 +2030,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(i18nSource.includes("'review.achieved': 'Achieved'"), 'English annual summary should include the achieved label');
   assert.equal(reviewTabSource.includes("{money(currentYearTarget)}</span>\n                      </div>\n                      <div className={`mt-0.5"), false, 'current year summary target should not show the year-end total balance');
   assert.equal((reviewTabSource.match(/tt\('review\.yearStart', '年初起点'\)/g) || []).length, 2, 'current and projected annual cards should label the opening balance as year start');
-  assert.equal((reviewTabSource.match(/tt\('review\.yearEnd', '终点'\)/g) || []).length, 2, 'current and projected annual cards should label the ending balance as year end');
+  assert.equal((reviewTabSource.match(/tt\('review\.yearEnd', '年底目标'\)/g) || []).length, 2, 'current and projected annual cards should label the ending balance as the year-end target');
   assert.ok(i18nSource.includes("'review.yearStart': 'Year Start'"), 'English annual cards should include the year-start label');
-  assert.ok(i18nSource.includes("'review.yearEnd': 'Year End'"), 'English annual cards should include the year-end label');
+  assert.ok(i18nSource.includes("'review.yearEnd': 'Year-End Target'"), 'English annual cards should include the year-end target label');
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
   assert.ok(reviewTabSource.includes('mb-4 flex min-h-10 items-center justify-between gap-4'), 'discipline section title row should align with the add button');
@@ -2172,7 +2172,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.323'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.324'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

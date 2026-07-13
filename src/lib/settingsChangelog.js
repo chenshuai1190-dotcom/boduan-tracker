@@ -1,6 +1,19 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.323', date: '2026-07-12', latest: true,
+    ver: 'v10.7.9.324', date: '2026-07-13', latest: true,
+    items: [
+      '🎯 年度路径“年底目标”文案',
+      '  - 当前年度和预测年度路径里的“终点”统一改为“年底目标”,更准确表达该金额含义',
+      '  - 年初起点、当前值、年末目标金额、年度计划、复利和进度计算保持不变',
+    ],
+    itemsEn: [
+      '🎯 Year-end target label for annual paths',
+      '  - Renamed the ending label on current and projected annual paths to Year-End Target for clearer meaning',
+      '  - Year-start, current value, target amount, annual plan, compounding, and progress calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.323', date: '2026-07-12',
     items: [
       '🌐 设置页英文翻译补全',
       '  - 补齐语言、显示、账户、邀请码、账户切换、修改密码和确认流程的英文文案',

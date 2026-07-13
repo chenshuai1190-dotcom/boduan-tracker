@@ -2,6 +2,23 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-13 Asia/Shanghai
+
+### 2026-07-13 - 年度路径终点文案改为年底目标
+
+- Commit: `same commit`。
+- Background: 用户要求把目标页年度路径“年初起点 → 当前 → 终点”中的“终点”改为“年底目标”。
+- Workflow tier: `ui-fast`。
+- Changes:
+  - 当前年度和预测年度路径共用的 `review.yearEnd` 中文文案从“终点”改为“年底目标”,英文同步为 `Year-End Target`。
+  - 只调整系统显示文案;年初起点、当前值、年末目标金额、年度计划、复利和进度计算保持不变。
+  - 准备正式发布时同步设置页版本和中英文更新日志到 `v10.7.9.324`。
+- Key files: `src/lib/i18n.js`,`src/tabs/ReviewTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 目标页定向测试 46/46 pass、`npm run build` pass、`npm run verify:docs-consistency` pass、`git diff --check` pass。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 打开 `?devPreview=1&tab=review`:2026 当前年度与 2027 预测年度均显示“年底目标”,标签完整且没有挤压金额或年度路径布局;截图保存到 `~/Desktop/boduan-previews/goals-year-end-target-v324-local.png`。英文 `Year-End Target` 已由 i18n 定向断言和 production build 覆盖。本轮不涉及输入或主屏 PWA 特有行为,无需系统软件键盘或添加主屏复测。按 `ui-fast` 不运行完整 `npm test`、audit 或旧 `verify:frontend-smoke`。
+- Deployment: `v10.7.9.324` 准备发布;runtime commit、GitHub Actions、Vercel target、生产入口和线上 marker 待部署后回填。
+- Boundaries: 不改目标金额、年度计划、复利、交易账本、收益快照、数据库、RLS、鉴权、行情或 API。
+- Rollback: 恢复 `review.yearEnd` 中英文文案、两处 fallback、对应定向断言、设置页版本/更新日志、交接和本条日志即可;无数据或环境回滚。
+
 ## 2026-07-12 Asia/Shanghai
 
 ### 2026-07-12 - 详细交接日志与快速发布门禁
