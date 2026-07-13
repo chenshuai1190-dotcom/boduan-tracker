@@ -4,6 +4,22 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 主动投资价值结果行紧凑化
+
+- Commit: `same commit`。
+- Background: 用户确认把主动投资价值分享卡中每个标的后方的收益金额和收益率改为同一排,避免卡片显得过高,并要求部署。
+- Workflow tier: `ui-fast`。
+- Changes:
+  - NVDA/当前标的与 QQQ 两行的收益金额、收益率改为同一基线横向展示,保留原字号、颜色、数字格式和右对齐层级。
+  - 跑赢/跑输金额与收益率差同步改为一排;极窄屏或异常长本地化内容允许安全换行,避免横向溢出。
+  - 分享卡内部结果区和外层卡片随内容自然缩短;设置页版本和中英文更新日志同步到 `v10.7.9.331`。
+  - 新增静态边界断言锁定三组同行布局、窄屏兜底和旧纵向堆叠删除。
+- Key files: `src/components/StockReturnComparisonCard.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 定向测试 51/51、production build、docs consistency 和 diff check 均 pass;本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 使用 CNY/中文、CNY/English 和对比损失样例验收,三组金额/收益率均正常同行且结果卡 `clientWidth=scrollWidth=334px`,分享卡高度由约 `447px` 降至 `381px`。截图为 `~/Desktop/boduan-previews/stock-active-value-compact-rows-local.png`。本轮无输入或 PWA 生命周期改动,无需系统键盘或主屏复测;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
+- Deployment: 用户已确认部署;本提交通过 UI-fast 门禁后使用项目 SSH key 推送 GitHub `main`,再等待 Actions/Vercel production success 并核验生产产物与未登录 API `401` 边界。
+- Boundaries: 只改分享预览布局、设置页版本/更新日志、静态护栏和文档;收益金额、收益率、收益率差、普通收盘价、同期现金流、主卡、图表、交易账本、收益快照、API、provider、数据库、RLS、鉴权和环境变量不变。
+- Rollback: 回退三组同行布局、v331 版本/更新日志、测试和文档即可恢复 v330 纵向展示;无需数据或环境回滚。
+
 ### 2026-07-14 - v10.7.9.330 部署证据回填
 
 - Commit: `same commit`。

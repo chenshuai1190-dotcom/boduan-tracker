@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.330', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.331', date: '2026-07-14', latest: true,
+    items: [
+      '📏 主动投资价值结果行紧凑化',
+      '  - 当前标的和 QQQ 的收益金额与收益率改为同一行展示,减少纵向占用',
+      '  - 跑赢金额与收益率差同步横向排列,窄屏保留安全换行兜底',
+      '  - 中英文和人民币金额在 iPhone 17 Pro 上均无卡片内横向溢出',
+      '  - 收益计算、普通收盘价口径、同期现金流、API、账本和鉴权不变',
+    ],
+    itemsEn: [
+      '📏 Compact Active Investment Value result rows',
+      '  - The current stock and QQQ now show return amounts and return rates on one row to reduce vertical space',
+      '  - The excess amount and return-rate gap also align horizontally with a safe narrow-screen wrap fallback',
+      '  - English, Chinese, and CNY amounts remain free of card-level horizontal overflow on iPhone 17 Pro',
+      '  - Return calculations, ordinary-close methodology, matched cash flows, APIs, the ledger, and authentication are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.330', date: '2026-07-14',
     items: [
       '🧾 主动投资价值分享卡信息精简',
       '  - 删除标题下方的 QQQ 同期投资假设提示,保留真实对比结果',

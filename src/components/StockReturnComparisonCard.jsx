@@ -352,26 +352,28 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
         </div>
         <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
           <div className="text-[11px] text-white/[0.38]">{t(language, 'stockDetail.comparison.yourResult', '你的结果')}</div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="text-[17px] font-semibold text-white/[0.82]">{symbol}</span>
-            <span className="flex min-w-0 flex-col items-end gap-1">
+          <div className="mt-2 flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate text-[17px] font-semibold text-white/[0.82]">{symbol}</span>
+            <span className="flex shrink-0 items-baseline justify-end gap-2 whitespace-nowrap">
               <span className={`text-[21px] font-semibold tabular-nums ${valueClass(comparison.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(stockAmount, displayCurrency)}</span>
               <span className={`text-[12px] font-medium tabular-nums ${valueClass(comparison.stockPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(comparison.stockPnlPct)}</span>
             </span>
           </div>
-          <div className="mt-4 flex items-end justify-between gap-3 border-t border-white/[0.06] pt-4">
+          <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-white/[0.06] pt-4">
             <span className="text-[15px] text-white/[0.68]">QQQ</span>
-            <span className="flex min-w-0 flex-col items-end gap-1">
+            <span className="flex shrink-0 items-baseline justify-end gap-2 whitespace-nowrap">
               <span className={`text-[19px] font-semibold tabular-nums ${valueClass(comparison.benchmarkPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(benchmarkAmount, displayCurrency)}</span>
               <span className={`text-[12px] font-medium tabular-nums ${valueClass(comparison.benchmarkPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(comparison.benchmarkPnlPct)}</span>
             </span>
           </div>
           <div className="mt-4 border-t border-white/[0.06] pt-4">
             <div className="text-[11px] text-white/[0.38]">{action}</div>
-            <div className={`mt-2 text-[24px] font-semibold tabular-nums ${valueClass(comparison.excessPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(excessAmount, displayCurrency)}</div>
-            <div className={`mt-1 text-[12px] font-medium tabular-nums ${valueClass(comparison.excessPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              <span className="mr-1 text-white/[0.34]">{t(language, 'stockDetail.comparison.rateGap', '收益率差')}</span>
-              {signedPct(comparison.excessPnlPct)}
+            <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <div className={`whitespace-nowrap text-[24px] font-semibold tabular-nums ${valueClass(comparison.excessPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(excessAmount, displayCurrency)}</div>
+              <div className={`shrink-0 whitespace-nowrap text-[12px] font-medium tabular-nums ${valueClass(comparison.excessPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                <span className="mr-1 text-white/[0.34]">{t(language, 'stockDetail.comparison.rateGap', '收益率差')}</span>
+                {signedPct(comparison.excessPnlPct)}
+              </div>
             </div>
           </div>
         </div>

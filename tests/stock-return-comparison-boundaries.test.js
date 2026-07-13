@@ -99,6 +99,9 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.match(i18nSource, /'stockDetail\.comparison\.previewBasisShort': '等额加仓 · 同持仓比例减仓 · 本地只读视觉样例'/);
   assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': 'Equal-value adds · same-ratio trims'/);
   assert.doesNotMatch(i18nSource, /stockDetail\.comparison\.(samePeriodQqq|copyText|copied)'\s*:/);
+  assert.equal((sharePreviewSource.match(/shrink-0 items-baseline justify-end gap-2 whitespace-nowrap/g) || []).length, 2, 'stock and QQQ amounts should share one non-wrapping baseline with their return rates');
+  assert.match(sharePreviewSource, /mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1/, 'excess amount and rate gap should share one compact row with a narrow-screen wrap fallback');
+  assert.doesNotMatch(sharePreviewSource, /flex-col items-end gap-1/, 'share result rows should not stack amount and return rate vertically');
   assert.doesNotMatch(comparisonCardSource, /mock|fixture|sampleData/i);
   assert.match(previewSource, /mockStockComparisonLossPnlByDate/);
   assert.match(previewSource, /mockStockComparisonNvdaRawRows/);
