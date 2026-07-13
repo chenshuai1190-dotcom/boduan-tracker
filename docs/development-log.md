@@ -4,6 +4,22 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.330 部署证据回填
+
+- Commit: `same commit`。
+- Background: `v10.7.9.330` 主动投资价值分享卡精简已通过 UI-fast 门禁并部署到 production,需要把最终运行时、流水线、入口、产物一致性和未登录安全边界写回 GitHub `main`。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 当前生产 runtime 更新为 `b9b213cd70a1689948abe060f818fb178d18ab97`,设置页版本为 `v10.7.9.330`,入口为 `/assets/index-7-QkVfBC.js`。
+  - 记录 GitHub Actions run `29290092289` 与 Vercel target `ApuefMFcjKxa37HrUPVmeACc5J6S` success。
+  - 更新交接当前状态、首次接手基准和最新可转发块,删除 v330 待发布表述。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- b9b213cd70a1689948abe060f818fb178d18ab97` pass;production entry、App、StockDetail、Settings、settingsChangelog 和 i18n 六个关键产物与本地 production build 字节一致。`StockDetailPage-C6NgAWBp.js` SHA-256 双侧均为 `a080263485aaaadc987d1982ffd2e04ae253f02cdfbcae23daf36fbbfff8fbfb`;生产命中 v330、新短说明与更新标题,长提示、复制文案和 `navigator.clipboard` 不存在;主卡完整普通收盘价方法说明继续保留。未登录 quote、market-movers、earnings 和 pnl-benchmark 均为 `401`。本轮为 docs-only,不重复运行 runtime 的定向测试、build 或 iOS Simulator 验收。
+- Deployment: runtime GitHub Actions `29290092289` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/ApuefMFcjKxa37HrUPVmeACc5J6S` success,production alias 已更新,入口 `/assets/index-7-QkVfBC.js`;本 docs-only 提交推送后再确认自身 Actions/Vercel success 且生产入口未异常切换。
+- Production verification: 设置页与更新日志命中 `v10.7.9.330`;分享预览删除项和保留项符合本机 Simulator 结果;未登录 quote、market-movers、earnings 和 pnl-benchmark 均为 `401`。
+- Boundaries: 本提交只回填部署证据,不改运行时代码、收益计算、API、交易账本、收益快照、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本条和交接当前状态只会移除发布证据;不回退已验证的 v330 运行时代码。
+
 ### 2026-07-14 - 主动投资价值分享卡信息精简
 
 - Commit: `same commit`。
@@ -16,7 +32,7 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.330`,并新增静态边界断言防止删除文案和复制逻辑回归。
 - Key files: `src/components/StockReturnComparisonCard.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: 定向测试 51/51、production build、docs consistency 和 diff check 均 pass;本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 实测标题、NVDA/QQQ 结果、收益率差、简短日期说明和关闭按钮保留,长提示、普通收盘价尾注、复制按钮均不存在,分享卡外框仍为 `1px rgba(255,255,255,0.10)`。截图保存为 `~/Desktop/boduan-previews/stock-active-value-clean-v330.png`。本轮无输入和 PWA 生命周期改动,不需要系统键盘或主屏 PWA 复测;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
-- Deployment: 用户已确认快速上线;本提交验证通过后使用项目 SSH key 推送 GitHub `main`,再等待 Actions/Vercel production success 并核验生产产物与未登录 API `401` 边界。
+- Deployment: completed;runtime commit `b9b213cd70a1689948abe060f818fb178d18ab97`,GitHub Actions run `29290092289` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/ApuefMFcjKxa37HrUPVmeACc5J6S` success,production alias 已更新,入口 `/assets/index-7-QkVfBC.js`。
 - Boundaries: 只改分享预览 UI、系统文案、版本记录、静态护栏和文档;收益对比计算、普通收盘价真实口径、同期现金流、主卡完整方法说明、交易账本、收益快照、API、provider、数据库、RLS、鉴权和环境变量不变。
 - Rollback: 回退本条分享卡文案/复制按钮删除、i18n、`v10.7.9.330` 版本/更新日志、测试和文档即可恢复 v329 展示;无需数据或环境回滚。
 
