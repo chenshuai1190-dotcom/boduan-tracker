@@ -4,6 +4,22 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.329 部署证据回填
+
+- Commit: `same commit`。
+- Background: `v10.7.9.329` 收益图表触摸/浮层修复已通过 UI-fast 门禁并部署到 production,需要把最终运行时、流水线、入口、产物一致性和未登录安全边界写回 GitHub `main`。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 当前生产 runtime 更新为 `a2fdbb0d711732dfa118b42a8017e022bd050144`,设置页版本为 `v10.7.9.329`,入口为 `/assets/index-Dm-Bbncn.js`。
+  - 记录 GitHub Actions run `29288973165` 与 Vercel target `hTdA9vSVDXU3NT6x8uMo8qLVNFQM` success。
+  - 更新交接当前状态、首次接手基准和最新可转发块,删除 v329 待发布表述。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- a2fdbb0d711732dfa118b42a8017e022bd050144` pass;production `StockDetailPage-6dqyn9n0.js` 与本地 production build 字节一致,SHA-256 均为 `4dfa96ba9351f9c86263619f68f8374af859fb3450195e6852c7bd32bdde1c51`;生产命中两张图的 data marker、`v10.7.9.329` 和中英文更新标题。`npm run verify:docs-consistency`、`git diff --check` 和 `git diff --stat` pass。本轮为 docs-only,不重复运行 runtime 的定向测试、build 或 iOS Simulator 验收。
+- Deployment: runtime GitHub Actions `29288973165` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/hTdA9vSVDXU3NT6x8uMo8qLVNFQM` success,production alias 已更新,入口 `/assets/index-Dm-Bbncn.js`;本 docs-only 提交推送后再确认自身 Actions/Vercel success 且生产入口未异常切换。
+- Production verification: 设置页与更新日志命中 `v10.7.9.329`;个股详情 chunk 命中连续触摸与收益对比 marker;未登录 quote 与 earnings 均为 `401`。
+- Boundaries: 本提交只回填部署证据,不改运行时代码、收益计算、API、交易账本、收益快照、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本条和交接当前状态即可;不回退已验证的 v329 运行时代码。
+
 ### 2026-07-14 - 收益图表连续触摸与浮层关闭修复
 
 - Commit: `same commit`。
@@ -17,8 +33,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.329`。
 - Key files: `src/pages/StockDetailPage.jsx`,`src/components/StockReturnComparisonCard.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/stock-return-comparison-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: 收益对比/账本边界定向测试 51/51 pass;`npm run build` pass;`npm run verify:docs-consistency` pass;`git diff --check` pass。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 用 NVDA 验收:上下两张图连续指针序列中日期与金额同步;收益对比浮层图内保持、点外立即关闭、12 秒自动关闭且可再打开;分享大卡外边实测为 `1px rgba(255,255,255,0.10)`。截图为 `~/Desktop/boduan-previews/stock-comparison-touch-sync-fixed-final.png` 和 `stock-active-value-standard-gray-border.png`。本轮无文字输入或主屏 PWA 特有行为,无需系统软件键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit 或旧 `verify:frontend-smoke`。
-- Deployment: 待提交并通过项目 SSH key 推送 GitHub `main`,随后等待 GitHub Actions 与 Vercel production success。
-- Production verification: 待验证生产 `v10.7.9.329`、图表指针/浮层/标准灰边 marker、入口与未登录 quote/earnings `401`。
+- Deployment: completed;GitHub Actions run `29288973165` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/hTdA9vSVDXU3NT6x8uMo8qLVNFQM` success,production alias 已更新,入口 `/assets/index-Dm-Bbncn.js`。
+- Production verification: 生产设置页/更新日志命中 `v10.7.9.329` 与中英文更新标题;`StockDetailPage-6dqyn9n0.js` 与本地 build 字节一致且命中两张图 marker;未登录 quote/earnings 均为 `401`。
 - Boundaries: 不改收益计算、个股/QQQ 普通收盘价、同期现金流、交易账本、收益快照、API/provider、数据库、RLS、鉴权、环境变量或生产数据。
 - Rollback: 回退两张图的指针生命周期/日期节点、收益对比点外与超时关闭、分享卡灰边、v329 版本/更新日志和本条文档即可;无数据、SQL、RLS 或环境回滚。
 
