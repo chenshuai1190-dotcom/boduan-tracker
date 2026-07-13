@@ -4,9 +4,25 @@
 
 ## 2026-07-14 Asia/Shanghai
 
-### 2026-07-14 - 个股收益与 QQQ 同期现金流对比
+### 2026-07-14 - v10.7.9.327 部署证据回填
 
 - Commit: `same commit`。
+- Background: `v10.7.9.326` 真实美股收盘涨跌榜和 `v10.7.9.327` 个股收益与 QQQ 同期现金流对比已通过 sensitive 门禁并部署到 production,需要把最终运行时、流水线、入口和未登录安全边界写回唯一代码源头。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 当前生产 runtime 更新为 `55e02c8faa8fdac7b57b44335b6edb5d153494a2`,设置页版本为 `v10.7.9.327`,入口为 `/assets/index-DW_Jo82w.js`。
+  - 记录 GitHub Actions run `29269405728` 与 Vercel target `526DFjY3SKDmd9md2rpx9Cjoq9Ns` success。
+  - 更新交接当前状态、首次接手基准和最新可转发块,删除 v326/v327 待发布表述。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- 55e02c8faa8fdac7b57b44335b6edb5d153494a2` pass;生产入口、Settings、StockDetail、Home、i18n 和更新日志 chunks 命中 `v10.7.9.327`、“收益对比”/`First buy`、“涨幅榜”/“跌幅榜”及中英文更新标题;运行时 chunks 不含 `devMarketMoversFixture` / `stockReturnBenchmarkRows` 标识。未登录 quote、market-movers、earnings、pnl-benchmark 四条 API 均返回 `401`。
+- Deployment: runtime GitHub Actions `29269405728` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/526DFjY3SKDmd9md2rpx9Cjoq9Ns` success,production alias 已更新,入口 `/assets/index-DW_Jo82w.js`;本 docs-only 提交推送后再确认自身 Actions/Vercel success 且生产入口未异常切换。
+- Production verification: `SettingsTab-DpMW-boE.js` 命中 `v10.7.9.327`,`StockDetailPage-CuSoiDTP.js` 命中“收益对比”,`HomeTab-RVzG_gIx.js` 命中“涨幅榜”/“跌幅榜”,`i18n-CvwWM-GG.js` 命中 `First buy`,`settingsChangelog-hc9z3NJB.js` 命中 v327 中英文更新标题;未登录 `/api/quote?symbols=VIX`、`/api/quote?view=market-movers`、`/api/earnings-calendar?symbols=NVDA`、`/api/pnl-benchmark?symbol=QQQ&from=2026-06-01&to=2026-07-10` 均为 `401`。
+- Boundaries: 本提交只回填部署证据,不改运行时代码、API、交易账本、个人收益快照、比赛、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本条和交接当前状态即可;不回退已验证的 v327 运行时代码。
+
+### 2026-07-14 - 个股收益与 QQQ 同期现金流对比
+
+- Commit: `55e02c8faa8fdac7b57b44335b6edb5d153494a2`。
 - Background: 用户要求在个股详情收益走势下增加真实收益对比,并确认基准不能从自然年起点或伪造样例开始;必须从当前持仓轮次首笔买入与所选周期中较晚者开始,后续买入/卖出双方使用一致现金流规则,图表明确标注首笔买入日期。
 - Workflow tier: `sensitive`。本轮涉及正式交易/收益快照读取、收益计算、已登录 `/api/pnl-benchmark` provider 数据和全历史分页读取,不可按 `ui-fast` 发布。
 - Changes:
@@ -22,7 +38,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.327`;同一生产部署还包含独立提交的 `v10.7.9.326` 真实美股收盘涨跌榜与已添加股票减号修复。
 - Key files: `api/pnl-benchmark.js`,`src/components/StockReturnComparisonCard.jsx`,`src/lib/stockReturnComparison.js`,`src/lib/stockDetailViewModel.js`,`src/lib/pnlReportDb.js`,`src/pages/StockDetailPage.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/pnl-benchmark-api.test.js`,`tests/pnl-report-symbol-history-db.test.js`,`tests/stock-detail-view-model.test.js`,`tests/stock-return-comparison.test.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: `npm run verify:toolchain` pass;收盘榜/收益对比/API/分页/账本边界定向测试 94/94 pass,包含 80/侧硬上限与失败退避;完整 `npm test` 295/295 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:docs-consistency`、`git diff --check` pass;`npm run verify:rls:rest` 20/20 pass,匿名 `stock_trades` / `pnl_report_symbol_snapshots` 均为 `200` 且 `visibleRows=0`;顶层 Vercel functions 仍为 Hobby 上限内 12 个。真实 server-only QQQ EOD 探针返回 2026-06-01 至 2026-07-10 共 28 条,`rawClose` 28/28 为正数,no-store 生效且响应不含 key。production build 不包含 `devMarketMoversFixture` / `stockReturnBenchmarkRows` 等本地财务 fixture 标识,只保留共享组件中的只读预览文案。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 使用 NVDA 验收收益对比主卡、首笔买入/对比起点标注、方法弹窗、分享预览、加仓/减仓成本流和纵向滚动;本轮无文字输入或主屏 PWA 特有行为,无需系统键盘或添加主屏。
-- Deployment: `v10.7.9.327` 待本轮 sensitive 门禁完成后推送 GitHub `main`;由 Vercel production 自动部署,成功后另行回填 runtime SHA、Actions、Vercel target、生产入口和未登录 API 结果。
+- Deployment: completed;GitHub Actions run `29269405728` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/526DFjY3SKDmd9md2rpx9Cjoq9Ns` success,production alias 已更新,入口 `/assets/index-DW_Jo82w.js`。
+- Production verification: 生产 Settings/StockDetail/Home/i18n/更新日志 chunks 命中 `v10.7.9.327`、收益对比、首笔买入、涨幅榜/跌幅榜及中英文更新标题,且不含本地财务 fixture 标识;未登录 quote、market-movers、earnings、pnl-benchmark 均为 `401`。真实 30/30 榜单和 QQQ `rawClose` 证据来自发布前同代码、server-only provider 探针;本轮未伪称已完成生产登录态人工数据检查。
 - Boundaries: 只读正式 `stock_trades` 与 `pnl_report_symbol_snapshots`,不写或修复交易账本/收益快照;不改持仓交易录入/编辑/删除、收益报表生成、比赛、波段、资产、目标、财报、realtime relay、数据库 schema、RLS 或现有 quote symbol 响应。
 - Known risk: 正式个股快照沿用现有快照生成链路的收盘口径,QQQ 比较明确使用 provider 普通收盘价;公司行动附近两边历史价格口径可能出现不可比偏差。个人快照仍由 owner 按现有产品模型写入,不是比赛级锁定证据。当前选择在 UI/文档披露并保持原始事实,没有用调整价、估算值或不可篡改声明静默包装历史。
 - Rollback: 回退收益对比组件/纯函数、StockDetail 接入、QQQ raw-close 字段、全历史分页、v327 版本/更新日志和本条文档即可;无数据、SQL、RLS、环境或账本回滚。v326 收盘榜为独立提交,可单独保留或回退。
@@ -31,7 +48,7 @@
 
 ### 2026-07-13 - 自选添加弹窗真实美股收盘涨跌榜
 
-- Commit: `same commit`。
+- Commit: `4e56573afaf06680ed22bbbf90ea081e9b559479`。
 - Background: 用户发现已添加自选的股票仍显示加号,并确认将原静态“美股”标签升级为范围严格限定的真实收盘涨幅榜/跌幅榜,各取前 30。
 - Workflow tier: `sensitive`。本轮修改 `/api/quote`、EODHD provider 路由和已登录数据加载,不可按 `ui-fast` 发布。
 - Changes:
@@ -44,7 +61,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.326`。
 - Key files: `api/quote.js`,`server/quote/marketMovers.js`,`src/App.jsx`,`src/tabs/HomeTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/market-movers.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: 定向 market-movers/边界测试 55/55 pass,完整 `npm test` 264/264 pass,`npm run build` pass,`npm audit --omit=dev` 为 0 vulnerabilities,`git diff --check` pass;修正上市目录口径后重跑真实服务端探针:返回 `2026-07-10`同日 30/30,符号、排序和三个目标场所均 pass,已退市/转 OTC 的 `MSPR` / `BLMZF` 以及其他非普通股为 0;冷启约 3.4 秒。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 验收三个页签、日期/范围、加减号状态、涨跌色和榜单滚动;本轮无输入和主屏 PWA 特有行为,无需系统键盘或添加主屏。发布前将再跑 toolchain、high audit、docs consistency 和 API/security 边界门禁。
-- Deployment: `v10.7.9.326` 待本轮 sensitive 门禁完成后推送 GitHub `main`;由 Vercel production 自动部署,成功后另行回填 runtime SHA、Actions、Vercel target 和生产入口。
+- Deployment: completed;独立代码提交 `4e56573afaf06680ed22bbbf90ea081e9b559479` 随 v327 runtime `55e02c8faa8fdac7b57b44335b6edb5d153494a2` 上线,GitHub Actions run `29269405728` 与 Vercel target `526DFjY3SKDmd9md2rpx9Cjoq9Ns` success,生产入口 `/assets/index-DW_Jo82w.js`。
+- Production verification: Home/i18n/更新日志生产 chunks 命中涨幅榜、跌幅榜和 v326 更新内容,运行时不含 `devMarketMoversFixture`;未登录 market-movers 返回 `401`。发布前真实 server-only 探针确认严格范围内同日涨/跌各 30 只;本轮未伪称已完成生产登录态人工榜单检查。
 - Boundaries: 不改自选保存/删除、正式 `stock_trades`、持仓/收益/快照、资产、目标、波段、比赛、财报、数据库、RLS、realtime relay 或现有 quote symbol 响应;不新增环境变量、依赖、SQL 或顶层 Vercel function。
 - Rollback: 回退新 market-movers view/module、前端三页签/加载链路、减号图标、v326 版本/更新日志和本条文档即可;无数据、SQL、RLS 或环境回滚。
 
