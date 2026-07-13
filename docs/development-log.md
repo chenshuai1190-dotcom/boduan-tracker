@@ -4,9 +4,24 @@
 
 ## 2026-07-13 Asia/Shanghai
 
-### 2026-07-13 - 年度路径终点文案改为年底目标
+### 2026-07-13 - v10.7.9.324 部署证据回填
 
 - Commit: `same commit`。
+- Background: `v10.7.9.324` 运行时代码已通过 GitHub Actions、Vercel 和生产 marker 验证,需要把最终生产基准回填到开发日志与交接文档。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 将当前生产 runtime、入口、Actions、Vercel target 和设置页版本更新为 `56626e549320e6ddeffdd7a246b230593a32a1e1` / `/assets/index-D1ISegxD.js` / `v10.7.9.324`。
+  - 记录目标页、i18n、设置页和更新日志四个生产 chunk 的“年底目标”、`Year-End Target`、版本与更新标题 marker。
+  - 更新最新可转发交接块,删除“准备部署/待回填”状态。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- 56626e5` pass、`npm run verify:docs-consistency` pass、`git diff --check` pass、`git diff --stat` 已核对。本轮只回填文档证据,不重复运行 test、build、audit 或 iOS 视觉验收;沿用同轮 runtime 已通过的 46/46、build 和 iPhone 17 Pro Simulator 结果。
+- Deployment: runtime Actions `29216076019` success,Vercel `UN6uYu3a8KUaivPwpq4KjXJjJqPk` success,生产入口 `/assets/index-D1ISegxD.js`;本 docs-only 提交推送后再确认自身 Vercel status 和生产入口未异常切换。
+- Production verification: 未登录 quote、earnings 均为 `401`;生产 marker 命中“年底目标”、`Year-End Target`、`v10.7.9.324` 和新版中英文更新标题。
+- Rollback: 回退本条证据和交接当前状态即可;不回退已验证的 `v10.7.9.324` 运行时代码。
+
+### 2026-07-13 - 年度路径终点文案改为年底目标
+
+- Commit: `56626e549320e6ddeffdd7a246b230593a32a1e1`。
 - Background: 用户要求把目标页年度路径“年初起点 → 当前 → 终点”中的“终点”改为“年底目标”。
 - Workflow tier: `ui-fast`。
 - Changes:
@@ -15,7 +30,8 @@
   - 准备正式发布时同步设置页版本和中英文更新日志到 `v10.7.9.324`。
 - Key files: `src/lib/i18n.js`,`src/tabs/ReviewTab.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: 目标页定向测试 46/46 pass、`npm run build` pass、`npm run verify:docs-consistency` pass、`git diff --check` pass。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 打开 `?devPreview=1&tab=review`:2026 当前年度与 2027 预测年度均显示“年底目标”,标签完整且没有挤压金额或年度路径布局;截图保存到 `~/Desktop/boduan-previews/goals-year-end-target-v324-local.png`。英文 `Year-End Target` 已由 i18n 定向断言和 production build 覆盖。本轮不涉及输入或主屏 PWA 特有行为,无需系统软件键盘或添加主屏复测。按 `ui-fast` 不运行完整 `npm test`、audit 或旧 `verify:frontend-smoke`。
-- Deployment: `v10.7.9.324` 准备发布;runtime commit、GitHub Actions、Vercel target、生产入口和线上 marker 待部署后回填。
+- Deployment: `v10.7.9.324` 已上线。`npm run verify:deploy-status -- 56626e5` pass;GitHub Actions run `29216076019` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/UN6uYu3a8KUaivPwpq4KjXJjJqPk` success,生产入口 `/assets/index-D1ISegxD.js`。
+- Production verification: 生产 `ReviewTab-BZ87YV_y.js` 命中两处“年底目标”,`i18n-BzKJs7kv.js` 命中“年底目标”与 `Year-End Target`,`SettingsTab-BSYhRBm2.js` 命中 `v10.7.9.324`,`settingsChangelog-B_IZTQEi.js` 命中新版中英文更新标题;未登录 quote、earnings 均保持 `401`。
 - Boundaries: 不改目标金额、年度计划、复利、交易账本、收益快照、数据库、RLS、鉴权、行情或 API。
 - Rollback: 恢复 `review.yearEnd` 中英文文案、两处 fallback、对应定向断言、设置页版本/更新日志、交接和本条日志即可;无数据或环境回滚。
 
