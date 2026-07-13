@@ -768,7 +768,7 @@ export default function EarningsCalendar({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [modalOpen, setModalOpen] = React.useState(false);
-  const [modalView, setModalView] = React.useState('calendar');
+  const [modalView, setModalView] = React.useState('list');
   const [selectedDate, setSelectedDate] = React.useState(todayDateKey());
   const modalOpenRef = React.useRef(false);
   const userSelectedDateRef = React.useRef(false);
@@ -888,7 +888,7 @@ export default function EarningsCalendar({
     onPromotionChange(shouldPromote);
   }, [loading, onPromotionChange, shouldPromote]);
 
-  const openModal = (view = 'calendar', date = null) => {
+  const openModal = (view = 'list', date = null) => {
     if (date) {
       userSelectedDateRef.current = true;
       setSelectedDate(date);
@@ -935,7 +935,7 @@ export default function EarningsCalendar({
               <button
                 key={event.id}
                 type="button"
-                onClick={() => openModal('calendar', event.reportDate)}
+                onClick={() => openModal('list', event.reportDate)}
                 className={`flex min-w-0 flex-col items-center justify-center rounded-xl px-1 py-1.5 active:scale-[0.98] ${
                   index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''
                 }`}

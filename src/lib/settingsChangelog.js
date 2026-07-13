@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.324', date: '2026-07-13', latest: true,
+    ver: 'v10.7.9.325', date: '2026-07-13', latest: true,
+    items: [
+      '📋 财报弹窗默认列表视图',
+      '  - 从首页财报公司卡片点开时默认进入列表视图,更快浏览全部近期财报',
+      '  - 日历视图页签和首页右侧日历按钮继续保留,可随时切换查看具体日期',
+      '  - 只调整弹窗默认页签,不改财报数据、筛选、详情、API、缓存或鉴权',
+    ],
+    itemsEn: [
+      '📋 Earnings modal defaults to List View',
+      '  - Opening a company from the home earnings card now starts in List View for faster browsing',
+      '  - Calendar View and the calendar shortcut remain available for date-based review',
+      '  - This only changes the default tab; earnings data, filtering, details, API, cache, and authentication are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.324', date: '2026-07-13',
     items: [
       '🎯 年度路径“年底目标”文案',
       '  - 当前年度和预测年度路径里的“终点”统一改为“年底目标”,更准确表达该金额含义',

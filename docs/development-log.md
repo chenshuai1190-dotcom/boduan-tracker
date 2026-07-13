@@ -4,6 +4,22 @@
 
 ## 2026-07-13 Asia/Shanghai
 
+### 2026-07-13 - 财报弹窗默认改为列表视图
+
+- Commit: `same commit`。
+- Background: 用户要求首页财报点开后默认从日历视图改为列表视图,并快速上线。
+- Workflow tier: `ui-fast`。
+- Changes:
+  - 财报弹窗组件初始页签和默认打开模式改为 `list`。
+  - 首页财报公司卡片点击后直接进入列表视图;“全部”继续进入列表视图,右侧明确的日历按钮仍进入日历视图。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.325`。
+- Key files: `src/tabs/EarningsCalendar.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 定向边界测试 46/46 pass、`npm run build` pass、`npm run verify:docs-consistency` pass、`git diff --check` pass。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 打开 `?devPreview=1&tab=home&earningsScenario=dense` 只读 fixture:点击 NVDA 财报卡默认高亮“列表视图”并完整显示 5 条财报;切换“日历视图”正常,关闭后再次点公司卡和点“全部”均回到列表,右侧明确的日历按钮仍进入日历并保留 07/14 选中日期。截图保存到 `~/Desktop/boduan-previews/earnings-list-default-v325-modal.png` 和 `earnings-list-default-v325-calendar-shortcut.png`。本轮无输入或主屏 PWA 特有行为,无需系统键盘或添加主屏复测;按 `ui-fast` 不运行完整测试、audit 或旧 `verify:frontend-smoke`。
+- Deployment: 待提交并通过项目 SSH key 推送 GitHub `main`,随后等待 GitHub Actions 与 Vercel production success。
+- Production verification: 待验证生产 `v10.7.9.325`、列表默认 marker、入口和未登录 quote/earnings `401`。
+- Boundaries: 不改财报数据、可见事件过滤、详情、请求缓存、`/api/earnings-calendar`、数据库、RLS、鉴权、行情 relay、交易账本或收益快照。
+- Rollback: 将财报弹窗初始/默认模式和公司卡片入口恢复为日历视图,回退 v325 版本/更新日志、断言和本条文档即可;无数据或环境回滚。
+
 ### 2026-07-13 - v10.7.9.324 部署证据回填
 
 - Commit: `same commit`。
