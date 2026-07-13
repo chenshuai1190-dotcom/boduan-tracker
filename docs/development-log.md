@@ -2,6 +2,31 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-14 Asia/Shanghai
+
+### 2026-07-14 - 个股收益与 QQQ 同期现金流对比
+
+- Commit: `same commit`。
+- Background: 用户要求在个股详情收益走势下增加真实收益对比,并确认基准不能从自然年起点或伪造样例开始;必须从当前持仓轮次首笔买入与所选周期中较晚者开始,后续买入/卖出双方使用一致现金流规则,图表明确标注首笔买入日期。
+- Workflow tier: `sensitive`。本轮涉及正式交易/收益快照读取、收益计算、已登录 `/api/pnl-benchmark` provider 数据和全历史分页读取,不可按 `ui-fast` 发布。
+- Changes:
+  - 个股详情收益走势下新增独立 `StockReturnComparisonCard`,与顶部本年、近 1 月、近 6 月、近 1 年、全部周期同步,展示我的收益、同期 QQQ、超额收益、双曲线、方法说明和只读分享预览。
+  - 当前持仓轮次在全部清仓后重新买入时重置。请求起点取本轮首笔买入日与所选周期起点中较晚者,实际 d0 取该日或之后首个同时存在股票正式收盘快照与 QQQ 普通收盘价的共同日期;双方用 d0 同一市值本金归零,不把 6 月建仓错误对齐到 1 月 1 日。
+  - 后续买入按真实成交股数×成交价给 QQQ 等额增加本金;卖出按卖出前股票持仓比例同步卖出 QQQ。双方使用移动加权平均成本,已实现盈亏继续摊薄剩余有效成本;非正有效成本保留真实美元盈亏但不伪造收益率。
+  - 同日交易按 `date` / `created_at` / 原始顺序稳定回放;每个正式股票收盘快照都与回放股数核对。缺交易日 QQQ 普通收盘价、缺最终共同收盘、账本/快照股数不一致或数据非法时整张对比卡 fail unavailable,不回退 realtime、估算、调整收益或 mock。
+  - `/api/pnl-benchmark` 继续复用 Supabase Bearer 鉴权、server-only `EODHD_API_KEY` 和 no-store 响应;兼容原 `close` / `adjustedClose` 字段并新增严格清洗的 `rawClose`,个股对比明确只消费 QQQ 普通收盘价,缺 `rawClose` 时不以 `adjustedClose` 替代。
+  - 个股快照历史在请求 `all` 时改为每页 500 条分页读完,避免当前持仓轮次超过旧 370 条上限时截断;查询继续按当前 `user_id` 和 symbol 限定,不新增写入、SQL、RLS、环境变量、依赖或顶层 Vercel function。
+  - 真实性披露收紧:个人 `pnl_report_symbol_snapshots` 虽 owner-scoped,但沿用现有 authenticated owner 可写模型;卡片方法说明、中英文更新日志和文档明确这是个人账本分析,不是收益比赛的不可覆盖快照或审计证明。没有把个人快照误称 locked/不可篡改。
+  - 合并安全审查同时加固 v326 收盘榜:每次请求每侧最多发起 80 个 EODHD HomeCategory 复核,最坏共 160 个;达到上限仍不足 30 只即 fail closed。provider/目录失败后启用 2 分钟实例内负缓存,避免失败重试风暴;原 25 秒总预算、60 分钟成功缓存、24 小时分类缓存和 30/30 真实范围不变。
+  - 图表左侧小字在 d0 等于本轮首笔买入时显示“首笔买入 MM/DD”;若所选周期更晚则显示“对比起点 MM/DD”,卡片下方同时披露首笔买入与实际对比起点。金额/百分比继续跟随系统红涨绿跌或绿涨红跌设置,黄线/灰线只区分我的收益与 QQQ,不表达涨跌方向。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.327`;同一生产部署还包含独立提交的 `v10.7.9.326` 真实美股收盘涨跌榜与已添加股票减号修复。
+- Key files: `api/pnl-benchmark.js`,`src/components/StockReturnComparisonCard.jsx`,`src/lib/stockReturnComparison.js`,`src/lib/stockDetailViewModel.js`,`src/lib/pnlReportDb.js`,`src/pages/StockDetailPage.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/pnl-benchmark-api.test.js`,`tests/pnl-report-symbol-history-db.test.js`,`tests/stock-detail-view-model.test.js`,`tests/stock-return-comparison.test.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:toolchain` pass;收盘榜/收益对比/API/分页/账本边界定向测试 94/94 pass,包含 80/侧硬上限与失败退避;完整 `npm test` 295/295 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:docs-consistency`、`git diff --check` pass;`npm run verify:rls:rest` 20/20 pass,匿名 `stock_trades` / `pnl_report_symbol_snapshots` 均为 `200` 且 `visibleRows=0`;顶层 Vercel functions 仍为 Hobby 上限内 12 个。真实 server-only QQQ EOD 探针返回 2026-06-01 至 2026-07-10 共 28 条,`rawClose` 28/28 为正数,no-store 生效且响应不含 key。production build 不包含 `devMarketMoversFixture` / `stockReturnBenchmarkRows` 等本地财务 fixture 标识,只保留共享组件中的只读预览文案。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 使用 NVDA 验收收益对比主卡、首笔买入/对比起点标注、方法弹窗、分享预览、加仓/减仓成本流和纵向滚动;本轮无文字输入或主屏 PWA 特有行为,无需系统键盘或添加主屏。
+- Deployment: `v10.7.9.327` 待本轮 sensitive 门禁完成后推送 GitHub `main`;由 Vercel production 自动部署,成功后另行回填 runtime SHA、Actions、Vercel target、生产入口和未登录 API 结果。
+- Boundaries: 只读正式 `stock_trades` 与 `pnl_report_symbol_snapshots`,不写或修复交易账本/收益快照;不改持仓交易录入/编辑/删除、收益报表生成、比赛、波段、资产、目标、财报、realtime relay、数据库 schema、RLS 或现有 quote symbol 响应。
+- Known risk: 正式个股快照沿用现有快照生成链路的收盘口径,QQQ 比较明确使用 provider 普通收盘价;公司行动附近两边历史价格口径可能出现不可比偏差。个人快照仍由 owner 按现有产品模型写入,不是比赛级锁定证据。当前选择在 UI/文档披露并保持原始事实,没有用调整价、估算值或不可篡改声明静默包装历史。
+- Rollback: 回退收益对比组件/纯函数、StockDetail 接入、QQQ raw-close 字段、全历史分页、v327 版本/更新日志和本条文档即可;无数据、SQL、RLS、环境或账本回滚。v326 收盘榜为独立提交,可单独保留或回退。
+
 ## 2026-07-13 Asia/Shanghai
 
 ### 2026-07-13 - 自选添加弹窗真实美股收盘涨跌榜

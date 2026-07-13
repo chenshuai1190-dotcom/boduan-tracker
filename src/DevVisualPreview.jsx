@@ -263,14 +263,22 @@ const mockPnlPortfolioSnapshots = [
 ];
 
 const mockPnlBenchmarkRows = [
-  { date: '2026-01-02', close: 500.00 },
-  { date: '2026-02-03', close: 512.40 },
-  { date: '2026-03-11', close: 519.80 },
-  { date: '2026-04-21', close: 522.00 },
-  { date: '2026-04-22', close: 530.56 },
-  { date: '2026-05-12', close: 556.30 },
-  { date: '2026-06-04', close: 573.80 },
-  { date: '2026-07-08', close: 591.25 },
+  { date: '2026-01-02', close: 462.00, rawClose: 462.00 },
+  { date: '2026-02-03', close: 472.40, rawClose: 472.40 },
+  { date: '2026-03-11', close: 486.80, rawClose: 486.80 },
+  { date: '2026-04-06', close: 500.00, rawClose: 500.00 },
+  { date: '2026-04-20', close: 504.50, rawClose: 504.50 },
+  { date: '2026-05-06', close: 518.20, rawClose: 518.20 },
+  { date: '2026-05-20', close: 526.80, rawClose: 526.80 },
+  { date: '2026-06-04', close: 535.60, rawClose: 535.60 },
+  { date: '2026-06-18', close: 542.10, rawClose: 542.10 },
+  { date: '2026-06-30', close: 548.40, rawClose: 548.40 },
+  { date: '2026-07-01', close: 550.60, rawClose: 550.60 },
+  { date: '2026-07-02', close: 552.10, rawClose: 552.10 },
+  { date: '2026-07-03', close: 551.20, rawClose: 551.20 },
+  { date: '2026-07-06', close: 557.40, rawClose: 557.40 },
+  { date: '2026-07-07', close: 560.80, rawClose: 560.80 },
+  { date: '2026-07-08', close: 565.50, rawClose: 565.50 },
 ];
 
 const mockPnlSymbolSnapshots = [
@@ -284,6 +292,33 @@ const mockPnlStockTrades = [
   { id: 'dev_trade_2', symbol: 'NVDA', name: 'NVIDIA', side: 'sell', trade_date: '2026-07-02', date: '2026-07-02', price: 190, shares: 20 },
   { id: 'dev_trade_3', symbol: 'MSFT', name: '微软', side: 'buy', trade_date: '2026-04-10', date: '2026-04-10', price: 410, shares: 80 },
   { id: 'dev_trade_4', symbol: 'AAPL', name: '苹果', side: 'buy', trade_date: '2026-05-01', date: '2026-05-01', price: 220, shares: 60 },
+];
+
+const mockStockComparisonCostFlowTrades = [
+  { id: 'dev_cost_flow_1', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-06-01', date: '2026-06-01', price: 100, shares: 10 },
+  { id: 'dev_cost_flow_2', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-06-10', date: '2026-06-10', price: 120, shares: 10 },
+  { id: 'dev_cost_flow_3', symbol: 'NVDA', name: 'NVIDIA', side: 'sell', trade_date: '2026-06-19', date: '2026-06-19', price: 150, shares: 5 },
+];
+
+const mockStockComparisonCostFlowSnapshots = [
+  { snapshotDate: '2026-07-08', symbol: 'NVDA', name: 'NVIDIA', heldShares: 15, avgCostUsd: 110, currentPriceUsd: 150, marketValueUsd: 2250, realizedPnlUsd: 200, unrealizedPnlUsd: 600, cumulativePnlUsd: 800, totalBuyCostUsd: 2200, remainingCostUsd: 1650 },
+  { snapshotDate: '2026-06-30', symbol: 'NVDA', name: 'NVIDIA', heldShares: 15, avgCostUsd: 110, currentPriceUsd: 145, marketValueUsd: 2175, realizedPnlUsd: 200, unrealizedPnlUsd: 525, cumulativePnlUsd: 725, totalBuyCostUsd: 2200, remainingCostUsd: 1650 },
+  { snapshotDate: '2026-06-19', symbol: 'NVDA', name: 'NVIDIA', heldShares: 15, avgCostUsd: 110, currentPriceUsd: 140, marketValueUsd: 2100, realizedPnlUsd: 200, unrealizedPnlUsd: 450, cumulativePnlUsd: 650, totalBuyCostUsd: 2200, remainingCostUsd: 1650 },
+  { snapshotDate: '2026-06-15', symbol: 'NVDA', name: 'NVIDIA', heldShares: 20, avgCostUsd: 110, currentPriceUsd: 130, marketValueUsd: 2600, realizedPnlUsd: 0, unrealizedPnlUsd: 400, cumulativePnlUsd: 400, totalBuyCostUsd: 2200, remainingCostUsd: 2200 },
+  { snapshotDate: '2026-06-10', symbol: 'NVDA', name: 'NVIDIA', heldShares: 20, avgCostUsd: 110, currentPriceUsd: 122, marketValueUsd: 2440, realizedPnlUsd: 0, unrealizedPnlUsd: 240, cumulativePnlUsd: 240, totalBuyCostUsd: 2200, remainingCostUsd: 2200 },
+  { snapshotDate: '2026-06-05', symbol: 'NVDA', name: 'NVIDIA', heldShares: 10, avgCostUsd: 100, currentPriceUsd: 108, marketValueUsd: 1080, realizedPnlUsd: 0, unrealizedPnlUsd: 80, cumulativePnlUsd: 80, totalBuyCostUsd: 1000, remainingCostUsd: 1000 },
+  { snapshotDate: '2026-06-01', symbol: 'NVDA', name: 'NVIDIA', heldShares: 10, avgCostUsd: 100, currentPriceUsd: 102, marketValueUsd: 1020, realizedPnlUsd: 0, unrealizedPnlUsd: 20, cumulativePnlUsd: 20, totalBuyCostUsd: 1000, remainingCostUsd: 1000 },
+];
+
+const mockStockComparisonCostFlowQqqRows = [
+  { date: '2026-01-02', close: 460, rawClose: 460 },
+  { date: '2026-06-01', close: 500, rawClose: 500 },
+  { date: '2026-06-05', close: 510, rawClose: 510 },
+  { date: '2026-06-10', close: 520, rawClose: 520 },
+  { date: '2026-06-15', close: 530, rawClose: 530 },
+  { date: '2026-06-19', close: 540, rawClose: 540 },
+  { date: '2026-06-30', close: 550, rawClose: 550 },
+  { date: '2026-07-08', close: 560, rawClose: 560 },
 ];
 
 const mockTodayStockTrade = {
@@ -313,6 +348,38 @@ const mockPnlSymbolSnapshotHistory = [
   { snapshotDate: '2026-04-20', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 119.2, marketValueUsd: 11920, realizedPnlUsd: 0, unrealizedPnlUsd: -80, cumulativePnlUsd: -80, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
   { snapshotDate: '2026-04-05', symbol: 'NVDA', name: 'NVIDIA', heldShares: 100, avgCostUsd: 120, currentPriceUsd: 120, marketValueUsd: 12000, realizedPnlUsd: 0, unrealizedPnlUsd: 0, cumulativePnlUsd: 0, totalBuyCostUsd: 12000, remainingCostUsd: 12000 },
 ];
+
+const mockStockComparisonLossPnlByDate = {
+  '2026-04-05': 0,
+  '2026-04-20': -200,
+  '2026-05-06': -400,
+  '2026-05-20': -700,
+  '2026-06-04': -800,
+  '2026-06-18': -1000,
+  '2026-06-30': -1200,
+  '2026-07-01': -1500,
+  '2026-07-02': -1700,
+  '2026-07-03': -1800,
+  '2026-07-06': -2000,
+  '2026-07-07': -2200,
+  '2026-07-08': -2400,
+};
+
+const mockStockComparisonLossQqqCloseByDate = {
+  '2026-04-06': 500,
+  '2026-04-20': 498,
+  '2026-05-06': 495,
+  '2026-05-20': 492,
+  '2026-06-04': 488,
+  '2026-06-18': 485,
+  '2026-06-30': 482,
+  '2026-07-01': 481,
+  '2026-07-02': 480,
+  '2026-07-03': 479,
+  '2026-07-06': 477,
+  '2026-07-07': 476,
+  '2026-07-08': 475,
+};
 
 const mockActivePositions = [
   { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },
@@ -603,6 +670,23 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('earningsScenario');
   const stockDetailPeakPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';
+  const stockDetailCurrencyPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailCurrency') === 'CNY'
+    ? 'CNY'
+    : 'USD';
+  const stockReturnComparisonSharePreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailShare') === '1';
+  const stockReturnComparisonMethodPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailMethod') === '1';
+  const stockDetailFocusComparison = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailFocus') === 'comparison';
+  const stockReturnComparisonLossPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailComparison') === 'loss';
+  const stockReturnComparisonCostFlowPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailComparison') === 'cost-flow';
+  const stockDetailInitialRange = typeof window === 'undefined'
+    ? 'all'
+    : new URLSearchParams(window.location.search).get('stockDetailRange') || 'all';
   const competitionPreviewState = typeof window === 'undefined'
     ? 'ready'
     : new URLSearchParams(window.location.search).get('competitionState') || 'ready';
@@ -620,6 +704,27 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     join: async () => buildCommunityCompetitionPreview('waiting_snapshot'),
   }), [competitionPreviewState]);
+  React.useEffect(() => {
+    if (activeTab !== 'stock-detail' || !stockDetailFocusComparison) return undefined;
+    let cancelled = false;
+    let timer = 0;
+    let attempts = 0;
+    const focusComparison = () => {
+      if (cancelled) return;
+      const element = document.getElementById('stock-return-comparison');
+      if (element) {
+        element.scrollIntoView({ block: 'start' });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 20) timer = window.setTimeout(focusComparison, 100);
+    };
+    timer = window.setTimeout(focusComparison, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [activeTab, stockDetailFocusComparison]);
   const previewMarketIndices = React.useMemo(() => {
     if (indicesPreviewMode === 'placeholder') return [];
     if (indicesPreviewMode === 'rest-empty') return mockRestMarketIndices;
@@ -627,6 +732,24 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     return mockMarketIndices;
   }, [indicesPreviewMode]);
   const stockDetailSnapshotHistory = React.useMemo(() => {
+    if (stockReturnComparisonCostFlowPreview) return mockStockComparisonCostFlowSnapshots;
+    if (stockReturnComparisonLossPreview) {
+      return mockPnlSymbolSnapshotHistory.map((row) => {
+        if (row.symbol !== 'NVDA' || !Object.hasOwn(mockStockComparisonLossPnlByDate, row.snapshotDate)) return row;
+        const cumulativePnlUsd = mockStockComparisonLossPnlByDate[row.snapshotDate];
+        const remainingCostUsd = Number(row.remainingCostUsd || 0);
+        const heldShares = Number(row.heldShares || 0);
+        const marketValueUsd = Math.max(0, remainingCostUsd + cumulativePnlUsd);
+        return {
+          ...row,
+          currentPriceUsd: heldShares > 0 ? marketValueUsd / heldShares : row.currentPriceUsd,
+          marketValueUsd,
+          realizedPnlUsd: 0,
+          unrealizedPnlUsd: cumulativePnlUsd,
+          cumulativePnlUsd,
+        };
+      });
+    }
     if (!stockDetailPeakPreview) return mockPnlSymbolSnapshotHistory;
     return mockPnlSymbolSnapshotHistory.map((row) => {
       if (row.symbol !== 'NVDA') return row;
@@ -657,7 +780,18 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         cumulativePnlUsd: 5672,
       };
     });
-  }, [stockDetailPeakPreview]);
+  }, [stockDetailPeakPreview, stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  const stockReturnBenchmarkRows = React.useMemo(() => {
+    if (stockReturnComparisonCostFlowPreview) return mockStockComparisonCostFlowQqqRows;
+    if (!stockReturnComparisonLossPreview) return mockPnlBenchmarkRows;
+    return mockPnlBenchmarkRows.map((row) => {
+      const lossClose = mockStockComparisonLossQqqCloseByDate[row.date];
+      return lossClose == null ? row : { ...row, close: lossClose, rawClose: lossClose };
+    });
+  }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  const stockDetailTrades = stockReturnComparisonCostFlowPreview
+    ? [...mockPnlStockTrades.filter((trade) => trade.symbol !== 'NVDA'), ...mockStockComparisonCostFlowTrades]
+    : mockPnlStockTrades;
   const previewActivePositions = freshnessPreviewMode === 'locked'
     ? mockLockedActivePositions
     : mockActivePositions;
@@ -993,7 +1127,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     earningsCalendarEvents: previewEarningsCalendarEvents,
     fetchMarketMovers: async () => devMarketMoversFixture,
-    fetchPnlBenchmarkRows: async ({ from, to }) => mockPnlBenchmarkRows
+    fetchPnlBenchmarkRows: async ({ from, to }) => stockReturnBenchmarkRows
       .filter((row) => (!from || row.date >= from) && (!to || row.date <= to)),
     fetchPopularStockQuotes: async (symbols = []) => ({
       success: true,
@@ -1034,7 +1168,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     openStockDetail: () => setActiveTab('stock-detail'),
     closeStockDetail: () => setActiveTab('trades'),
     pnlReportTooltipDate,
-    portfolioCurrencyMode: 'USD',
+    portfolioCurrencyMode: stockDetailCurrencyPreview,
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
     reorderWatchlist: async (next) => {
@@ -1048,7 +1182,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     setShowAddStock,
     showAddStock,
     stockDetailSymbol: 'NVDA',
-    stockTrades: mockPnlStockTrades,
+    stockDetailInitialRange,
+    stockReturnComparisonMethodPreview,
+    stockReturnComparisonSharePreview,
+    stockReturnComparisonVisualPreview: true,
+    stockTrades: stockDetailTrades,
     stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
     supabase: {
       auth: {

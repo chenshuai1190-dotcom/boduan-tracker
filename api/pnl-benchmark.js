@@ -17,18 +17,24 @@ function normalizeDateParam(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
 }
 
+function sanitizeClose(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function parseEodRows(rows) {
   return (Array.isArray(rows) ? rows : [])
     .map((row) => {
       const date = String(row?.date || '').slice(0, 10);
-      const adjustedClose = Number(row?.adjusted_close);
-      const rawClose = Number(row?.close);
-      const close = Number.isFinite(adjustedClose) && adjustedClose > 0 ? adjustedClose : rawClose;
-      if (!date || !Number.isFinite(close) || close <= 0) return null;
+      const adjustedClose = sanitizeClose(row?.adjusted_close);
+      const rawClose = sanitizeClose(row?.close);
+      const close = adjustedClose ?? rawClose;
+      if (!date || close === null) return null;
       return {
         date,
         close,
-        adjustedClose: Number.isFinite(adjustedClose) && adjustedClose > 0 ? adjustedClose : null,
+        rawClose,
+        adjustedClose,
       };
     })
     .filter(Boolean)

@@ -11,6 +11,8 @@ const MARKET_MOVERS_TTL_MS = 60 * 60 * 1000;
 const SYMBOL_UNIVERSE_TTL_MS = 24 * 60 * 60 * 1000;
 const HOME_CATEGORY_TTL_MS = 24 * 60 * 60 * 1000;
 const HOME_CATEGORY_BATCH_SIZE = 10;
+const MAX_HOME_CATEGORY_CALLS_PER_SIDE = 80;
+const MARKET_MOVERS_FAILURE_TTL_MS = 2 * 60 * 1000;
 const NASDAQ_TRADER_MIN_NASDAQ_ROWS = 1000;
 const NASDAQ_TRADER_MIN_NYSE_ROWS = 1000;
 const NASDAQ_TRADER_MIN_NYSE_AMERICAN_ROWS = 100;
@@ -88,6 +90,7 @@ let symbolUniverseCache = null;
 let symbolUniverseInFlight = null;
 let marketMoversCache = null;
 let marketMoversInFlight = null;
+let marketMoversFailureCache = null;
 let homeCategoryCache = new Map();
 let homeCategoryInFlight = new Map();
 
@@ -485,6 +488,7 @@ async function fetchMoverSide({
   deadlineAt,
 }) {
   const acceptedBySymbol = new Map();
+  let homeCategoryCallCount = 0;
 
   for (let page = 0; page < MAX_SCREENER_PAGES; page += 1) {
     const [rawRows, universe, targetDate] = await Promise.all([
@@ -512,8 +516,14 @@ async function fetchMoverSide({
         pageSymbols.add(normalized.symbol);
       }
     }
+    const remainingHomeCategoryCalls = Math.max(
+      0,
+      MAX_HOME_CATEGORY_CALLS_PER_SIDE - homeCategoryCallCount,
+    );
+    const candidatesToVerify = pageCandidates.slice(0, remainingHomeCategoryCalls);
+    homeCategoryCallCount += candidatesToVerify.length;
     const verifiedCandidates = await verifyCommonEquityCandidates({
-      candidates: pageCandidates,
+      candidates: candidatesToVerify,
       eodhdKey,
       fetchImpl,
       now,
@@ -522,6 +532,7 @@ async function fetchMoverSide({
     for (const candidate of verifiedCandidates) acceptedBySymbol.set(candidate.symbol, candidate);
 
     if (acceptedBySymbol.size >= MARKET_MOVERS_LIMIT) break;
+    if (homeCategoryCallCount >= MAX_HOME_CATEGORY_CALLS_PER_SIDE) break;
     if (rawRows.length < SCREENER_PAGE_SIZE) break;
   }
 
@@ -550,6 +561,9 @@ export async function fetchMarketMovers({
   if (marketMoversCache && marketMoversCache.expiresAt > now) {
     return marketMoversCache.value;
   }
+  if (marketMoversFailureCache?.expiresAt > now) {
+    throw new Error('美股收盘榜暂处于失败退避期');
+  }
   if (marketMoversInFlight) return marketMoversInFlight;
 
   marketMoversInFlight = (async () => {
@@ -573,11 +587,15 @@ export async function fetchMarketMovers({
       losers: losers.rows,
     };
     marketMoversCache = { value, expiresAt: now + MARKET_MOVERS_TTL_MS };
+    marketMoversFailureCache = null;
     return value;
   })();
 
   try {
     return await marketMoversInFlight;
+  } catch (error) {
+    marketMoversFailureCache = { expiresAt: now + MARKET_MOVERS_FAILURE_TTL_MS };
+    throw error;
   } finally {
     marketMoversInFlight = null;
   }
@@ -588,6 +606,7 @@ export function resetMarketMoversCacheForTests() {
   symbolUniverseInFlight = null;
   marketMoversCache = null;
   marketMoversInFlight = null;
+  marketMoversFailureCache = null;
   homeCategoryCache = new Map();
   homeCategoryInFlight = new Map();
 }
@@ -599,6 +618,8 @@ export const MARKET_MOVERS_CONFIG = Object.freeze({
   symbolUniverseTtlMs: SYMBOL_UNIVERSE_TTL_MS,
   homeCategoryTtlMs: HOME_CATEGORY_TTL_MS,
   homeCategoryBatchSize: HOME_CATEGORY_BATCH_SIZE,
+  maxHomeCategoryCallsPerSide: MAX_HOME_CATEGORY_CALLS_PER_SIDE,
+  failureTtlMs: MARKET_MOVERS_FAILURE_TTL_MS,
   directoryMinimumRows: Object.freeze({
     nasdaq: NASDAQ_TRADER_MIN_NASDAQ_ROWS,
     nyse: NASDAQ_TRADER_MIN_NYSE_ROWS,

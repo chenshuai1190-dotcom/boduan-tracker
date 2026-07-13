@@ -5,6 +5,17 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function finiteNumberOrNull(value) {
+  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function nearlyEqual(actual, expected, minimumTolerance = 0.000001) {
+  const tolerance = Math.max(minimumTolerance, Math.abs(expected) * 0.000001);
+  return Math.abs(actual - expected) <= tolerance;
+}
+
 function normalizeDate(value) {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = value ? new Date(value) : new Date();
@@ -173,26 +184,104 @@ function buildTradeStats(records, startDate, endDate, range) {
 
 function buildCurrentHoldingPeriod(symbolTrades, endDate, heldShares) {
   if (toNumber(heldShares) <= 0.000001) {
-    return { holdingStartDate: null, holdingDays: null };
+    return { holdingStartDate: null, holdingDays: null, startIndex: null };
   }
   let shares = 0;
   let holdingStartDate = null;
-  symbolTrades.forEach((trade) => {
+  let startIndex = null;
+  symbolTrades.forEach((trade, index) => {
     if (trade.date > endDate) return;
     if (trade.side === 'sell') {
       shares = Math.max(0, shares - trade.shares);
       if (shares <= 0.000001) {
         shares = 0;
         holdingStartDate = null;
+        startIndex = null;
       }
       return;
     }
-    if (shares <= 0.000001) holdingStartDate = trade.date;
+    if (shares <= 0.000001) {
+      holdingStartDate = trade.date;
+      startIndex = index;
+    }
     shares += trade.shares;
   });
   return {
     holdingStartDate,
     holdingDays: holdingStartDate ? inclusiveCalendarDays(holdingStartDate, endDate) : null,
+    startIndex,
+  };
+}
+
+function buildComparisonLedgerPoint(cycleTrades, snapshot) {
+  const snapshotDate = dateKeyOrNull(snapshot?.snapshotDate);
+  if (!snapshotDate) return null;
+
+  let heldShares = 0;
+  let remainingCostUsd = 0;
+  let activeRealizedPnlUsd = 0;
+
+  cycleTrades.forEach((trade) => {
+    if (trade.date > snapshotDate) return;
+    if (trade.side === 'sell') {
+      if (heldShares <= 0.000001) return;
+      const closedShares = Math.min(trade.shares, heldShares);
+      const avgCostUsd = remainingCostUsd / heldShares;
+      const closeCostUsd = closedShares * avgCostUsd;
+      const closeProceedsUsd = closedShares * trade.price;
+      remainingCostUsd = Math.max(0, remainingCostUsd - closeCostUsd);
+      activeRealizedPnlUsd += closeProceedsUsd - closeCostUsd;
+      heldShares = Math.max(0, heldShares - closedShares);
+      if (heldShares <= 0.000001) {
+        heldShares = 0;
+        remainingCostUsd = 0;
+        activeRealizedPnlUsd = 0;
+      }
+      return;
+    }
+
+    // Match the formal holdings and personal-snapshot accounting boundary: fees
+    // remain excluded until those two existing production paths are unified.
+    heldShares += trade.shares;
+    remainingCostUsd += trade.shares * trade.price;
+  });
+
+  if (heldShares <= 0.000001) return null;
+  const snapshotHeldShares = finiteNumberOrNull(snapshot?.heldShares);
+  const snapshotMarketValueUsd = finiteNumberOrNull(snapshot?.marketValueUsd);
+  const snapshotPriceUsd = toNumber(snapshot?.currentPriceUsd) > 0
+    ? toNumber(snapshot.currentPriceUsd)
+    : (toNumber(snapshot?.marketValueUsd) > 0 ? toNumber(snapshot.marketValueUsd) / heldShares : 0);
+  if (!(snapshotPriceUsd > 0)) return null;
+
+  const marketValueUsd = heldShares * snapshotPriceUsd;
+  const integrityReason = snapshotHeldShares !== null && !nearlyEqual(heldShares, snapshotHeldShares)
+    ? 'stock_trade_snapshot_mismatch'
+    : snapshotMarketValueUsd !== null && !nearlyEqual(marketValueUsd, snapshotMarketValueUsd, 0.01)
+      ? 'stock_snapshot_market_value_mismatch'
+      : null;
+  const avgCostUsd = remainingCostUsd / heldShares;
+  const effectiveRemainingCostUsd = remainingCostUsd - activeRealizedPnlUsd;
+  const returnCostBasisUsd = effectiveRemainingCostUsd > 0
+    ? effectiveRemainingCostUsd
+    : null;
+  const effectiveCostUsd = effectiveRemainingCostUsd / heldShares;
+  const holdingPnlUsd = activeRealizedPnlUsd + (marketValueUsd - remainingCostUsd);
+
+  return {
+    date: snapshotDate,
+    heldShares: snapshotHeldShares ?? heldShares,
+    closePriceUsd: snapshotPriceUsd,
+    marketValueUsd: snapshotMarketValueUsd ?? marketValueUsd,
+    integrityReason,
+    avgCostUsd,
+    remainingCostUsd,
+    activeRealizedPnlUsd,
+    effectiveCostUsd,
+    effectiveRemainingCostUsd,
+    returnCostBasisUsd,
+    holdingPnlUsd,
+    holdingPnlPct: returnCostBasisUsd > 0 ? holdingPnlUsd / returnCostBasisUsd : null,
   };
 }
 
@@ -205,24 +294,26 @@ function periodSnapshotPnl(row, baseline, range, startsInsideRange) {
   return null;
 }
 
-function periodReturnPct(periodPnlUsd, latest, baseline, range, startsInsideRange) {
-  if (periodPnlUsd == null) return null;
+function periodReturnBasis(latest, baseline, range, startsInsideRange) {
   if (range === 'all' || startsInsideRange) {
-    const basis = Math.max(toNumber(latest?.totalBuyCostUsd), toNumber(latest?.remainingCostUsd), 1);
-    return periodPnlUsd / basis;
+    return Math.max(toNumber(latest?.totalBuyCostUsd), toNumber(latest?.remainingCostUsd), 1);
   }
-  const basis = Math.max(toNumber(baseline?.marketValueUsd), toNumber(baseline?.remainingCostUsd), toNumber(latest?.remainingCostUsd), 1);
-  return periodPnlUsd / basis;
+  return Math.max(
+    toNumber(baseline?.marketValueUsd),
+    toNumber(baseline?.remainingCostUsd),
+    toNumber(latest?.remainingCostUsd),
+    1,
+  );
+}
+
+function periodReturnPct(periodPnlUsd, basis) {
+  if (periodPnlUsd == null || !(toNumber(basis) > 0)) return null;
+  return periodPnlUsd / toNumber(basis);
 }
 
 function snapshotReturnPct(snapshot, pnlUsd, baseline, range, startsInsideRange) {
   if (pnlUsd == null) return null;
-  if (range === 'all' || startsInsideRange) {
-    const basis = Math.max(toNumber(snapshot?.totalBuyCostUsd), toNumber(snapshot?.remainingCostUsd), 1);
-    return pnlUsd / basis;
-  }
-  const basis = Math.max(toNumber(baseline?.marketValueUsd), toNumber(baseline?.remainingCostUsd), toNumber(snapshot?.remainingCostUsd), 1);
-  return pnlUsd / basis;
+  return pnlUsd / periodReturnBasis(snapshot, baseline, range, startsInsideRange);
 }
 
 function buildTrendStats(points) {
@@ -300,7 +391,10 @@ export function buildStockDetailViewModel({
     : sortedSnapshots.filter((snapshot) => String(snapshot.snapshotDate) < startDate).at(-1) || null;
   const startsInsideRange = Boolean(firstTradeDate && firstTradeDate >= startDate);
   const periodPnlUsd = periodSnapshotPnl(periodLatest, baseline, range, startsInsideRange);
-  const periodPnlPct = periodReturnPct(periodPnlUsd, periodLatest, baseline, range, startsInsideRange);
+  const periodBasisUsd = periodPnlUsd == null
+    ? null
+    : periodReturnBasis(periodLatest, baseline, range, startsInsideRange);
+  const periodPnlPct = periodReturnPct(periodPnlUsd, periodBasisUsd);
   const stats = buildTradeStats(records, startDate, endDate, range);
   const tradeRecords = records
     .filter((record) => record.date <= endDate && (range === 'all' || record.date >= startDate))
@@ -335,6 +429,23 @@ export function buildStockDetailViewModel({
     .filter((record) => record.markerDate);
   const trendStats = buildTrendStats(trend);
   const holdingPeriod = buildCurrentHoldingPeriod(trades, endDate, latest?.heldShares);
+  const cycleTrades = holdingPeriod.startIndex == null
+    ? []
+    : trades.slice(holdingPeriod.startIndex).filter((trade) => trade.date <= endDate);
+  const comparisonLedgerPoints = holdingPeriod.holdingStartDate
+    ? sortedSnapshots
+      .filter((snapshot) => String(snapshot.snapshotDate) >= holdingPeriod.holdingStartDate && String(snapshot.snapshotDate) <= endDate)
+      .map((snapshot) => buildComparisonLedgerPoint(cycleTrades, snapshot))
+      .filter(Boolean)
+    : [];
+  const comparisonIntegrityReason = comparisonLedgerPoints.find((point) => point.integrityReason)?.integrityReason || null;
+  const comparisonTrend = comparisonIntegrityReason ? [] : comparisonLedgerPoints;
+  const comparisonRequestedStartDate = holdingPeriod.holdingStartDate
+    ? (range === 'all'
+      ? holdingPeriod.holdingStartDate
+      : [holdingPeriod.holdingStartDate, startDate].sort().at(-1))
+    : null;
+  const comparisonEndDate = comparisonIntegrityReason ? null : comparisonTrend.at(-1)?.date || null;
 
   const latestName = latest?.name || trades.find((trade) => trade.name)?.name || normalizedSymbol;
   return {
@@ -348,6 +459,24 @@ export function buildStockDetailViewModel({
     endDate: displayDate(endDate),
     periodPnlUsd,
     periodPnlPct,
+    periodBasisUsd,
+    benchmarkBaselineDate: comparisonRequestedStartDate,
+    benchmarkBaselineMode: 'on_or_after',
+    benchmarkEndDate: comparisonEndDate,
+    benchmarkQueryStartDate: comparisonRequestedStartDate,
+    benchmarkQueryEndDate: comparisonEndDate,
+    comparisonPositionStartDate: holdingPeriod.holdingStartDate,
+    comparisonIntegrityReason,
+    comparisonTrend,
+    comparisonTrades: cycleTrades.map((trade) => ({
+      id: trade.id,
+      date: trade.date,
+      side: trade.side,
+      price: trade.price,
+      shares: trade.shares,
+      createdAt: trade.createdAt,
+      orderIndex: trade.orderIndex,
+    })),
     realizedPnlUsd: toNumber(latest?.realizedPnlUsd),
     unrealizedPnlUsd: toNumber(latest?.unrealizedPnlUsd),
     heldShares: toNumber(latest?.heldShares),

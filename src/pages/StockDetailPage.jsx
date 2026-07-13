@@ -3,6 +3,8 @@ import { ArrowLeft, Info } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
 import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
+import { buildStockReturnComparison } from '../lib/stockReturnComparison.js';
+import StockReturnComparisonCard from '../components/StockReturnComparisonCard.jsx';
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -12,6 +14,24 @@ const DETAIL_VALUE_CLASS = 'text-white/[0.86]';
 const DETAIL_HEADING_CLASS = 'text-white/[0.72]';
 const DETAIL_MUTED_VALUE_CLASS = 'text-white/[0.86]';
 const CHART_TOOLTIP_HOLD_MS = 12000;
+const BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
+const benchmarkRowsCache = new Map();
+
+function readCachedBenchmarkRows(key) {
+  const cached = benchmarkRowsCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    benchmarkRowsCache.delete(key);
+    return null;
+  }
+  return cached.rows;
+}
+
+function cacheBenchmarkRows(key, rows) {
+  benchmarkRowsCache.set(key, {
+    rows,
+    expiresAt: Date.now() + BENCHMARK_CACHE_TTL_MS,
+  });
+}
 
 function toNumber(value) {
   const n = Number(value);
@@ -459,19 +479,32 @@ export default function StockDetailPage({ ctx = {} }) {
     closeStockDetail,
     db,
     displayStockName,
+    fetchPnlBenchmarkRows,
     language = 'zh',
     marketColorMode,
     portfolioCurrencyMode,
     stockDetailSymbol,
+    stockDetailInitialRange = 'all',
+    stockReturnComparisonMethodPreview = false,
+    stockReturnComparisonSharePreview = false,
+    stockReturnComparisonVisualPreview = false,
     stockTrades,
+    supabase,
     usdRate,
     investmentSummary,
     user,
   } = ctx;
-  const [range, setRange] = React.useState('all');
+  const [range, setRange] = React.useState(() => (
+    ['ytd', '1m', '6m', '1y', 'all'].includes(stockDetailInitialRange)
+      ? stockDetailInitialRange
+      : 'all'
+  ));
   const [snapshots, setSnapshots] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [benchmarkRows, setBenchmarkRows] = React.useState([]);
+  const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
+  const [benchmarkError, setBenchmarkError] = React.useState('');
   const displayCurrency = portfolioCurrencyMode === 'USD' ? 'USD' : 'CNY';
   const displayRate = displayCurrency === 'CNY' ? (toNumber(usdRate) || toNumber(investmentSummary?.usdRate) || USD_CNY_FALLBACK) : 1;
   const symbol = String(stockDetailSymbol || '').trim().toUpperCase();
@@ -486,7 +519,7 @@ export default function StockDetailPage({ ctx = {} }) {
       setLoading(true);
       setError('');
       try {
-        const rows = await db.fetchPnlReportSymbolSnapshotHistory(symbol, 370);
+        const rows = await db.fetchPnlReportSymbolSnapshotHistory(symbol, null);
         if (!cancelled) setSnapshots(rows);
       } catch (err) {
         if (!cancelled) {
@@ -509,6 +542,74 @@ export default function StockDetailPage({ ctx = {} }) {
     symbolSnapshots: snapshots,
     range,
   }), [range, snapshots, stockTrades, symbol]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    async function loadBenchmarkRows() {
+      const from = view.benchmarkQueryStartDate;
+      const to = view.benchmarkQueryEndDate;
+      if (!view.hasData || !from || !to) {
+        setBenchmarkRows([]);
+        setBenchmarkError('');
+        setBenchmarkLoading(false);
+        return;
+      }
+
+      const cacheKey = `QQQ:${from}:${to}`;
+      const cached = readCachedBenchmarkRows(cacheKey);
+      if (cached) {
+        setBenchmarkRows(cached);
+        setBenchmarkError('');
+        setBenchmarkLoading(false);
+        return;
+      }
+
+      setBenchmarkLoading(true);
+      setBenchmarkError('');
+      setBenchmarkRows([]);
+      try {
+        let rows;
+        if (typeof fetchPnlBenchmarkRows === 'function') {
+          rows = await fetchPnlBenchmarkRows({ symbol: 'QQQ', from, to, signal: controller.signal });
+        } else {
+          if (!supabase?.auth?.getSession) throw new Error('benchmark_auth_unavailable');
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (!token) throw new Error('benchmark_auth_required');
+          const response = await fetch(`/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+            cache: 'no-store',
+            signal: controller.signal,
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const body = await response.json().catch(() => null);
+          if (!response.ok || body?.success === false) throw new Error('benchmark_request_failed');
+          rows = body?.rows;
+        }
+        if (!Array.isArray(rows) || rows.length === 0) throw new Error('benchmark_rows_missing');
+        cacheBenchmarkRows(cacheKey, rows);
+        if (!cancelled) setBenchmarkRows(rows);
+      } catch (benchmarkLoadError) {
+        if (cancelled || benchmarkLoadError?.name === 'AbortError') return;
+        setBenchmarkRows([]);
+        setBenchmarkError(benchmarkLoadError?.message || 'benchmark_request_failed');
+      } finally {
+        if (!cancelled) setBenchmarkLoading(false);
+      }
+    }
+
+    loadBenchmarkRows();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [fetchPnlBenchmarkRows, supabase, user?.id, view.benchmarkQueryEndDate, view.benchmarkQueryStartDate, view.hasData]);
+
+  const comparison = React.useMemo(
+    () => buildStockReturnComparison(view, benchmarkRows),
+    [benchmarkRows, view],
+  );
 
   const displayName = typeof displayStockName === 'function'
     ? displayStockName(view.symbol, view.name, language)
@@ -623,6 +724,20 @@ export default function StockDetailPage({ ctx = {} }) {
           trendStats={view.trendStats}
         />
       </section>
+
+      <StockReturnComparisonCard
+        comparison={comparison}
+        loading={benchmarkLoading || loading}
+        error={benchmarkError}
+        symbol={view.symbol}
+        language={language}
+        marketColorMode={marketColorMode}
+        displayCurrency={displayCurrency}
+        displayRate={displayRate}
+        initialMethodOpen={stockReturnComparisonMethodPreview}
+        initialShareOpen={stockReturnComparisonSharePreview}
+        visualPreview={stockReturnComparisonVisualPreview}
+      />
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>

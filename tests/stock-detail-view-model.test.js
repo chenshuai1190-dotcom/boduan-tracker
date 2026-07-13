@@ -48,6 +48,19 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
   assert.equal(detail.hasData, true);
   assert.equal(detail.periodPnlUsd, 204);
   assert.equal(Number(detail.periodPnlPct.toFixed(3)), 0.204);
+  assert.equal(detail.periodBasisUsd, 1000);
+  assert.equal(detail.benchmarkBaselineDate, '2026-07-04');
+  assert.equal(detail.benchmarkBaselineMode, 'on_or_after');
+  assert.equal(detail.benchmarkEndDate, '2026-07-08');
+  assert.equal(detail.benchmarkQueryStartDate, '2026-07-04');
+  assert.equal(detail.benchmarkQueryEndDate, '2026-07-08');
+  assert.equal(detail.comparisonPositionStartDate, '2026-07-04');
+  assert.equal(detail.comparisonTrend.length, 2);
+  assert.equal(detail.comparisonTrend[0].holdingPnlUsd, 100);
+  assert.equal(detail.comparisonTrend[1].avgCostUsd, 100);
+  assert.equal(detail.comparisonTrend[1].activeRealizedPnlUsd, 60);
+  assert.equal(detail.comparisonTrend[1].effectiveCostUsd, 92.5);
+  assert.equal(detail.comparisonTrend[1].holdingPnlUsd, 204);
   assert.equal(detail.realizedPnlUsd, 60);
   assert.equal(detail.unrealizedPnlUsd, 144);
   assert.equal(detail.heldShares, 8);
@@ -154,6 +167,10 @@ test('uses baseline snapshot for older holdings in selected ranges', () => {
   assert.equal(detail.startDate, '2026/01/01');
   assert.equal(detail.periodPnlUsd, 450);
   assert.equal(Number(detail.periodPnlPct.toFixed(3)), 0.375);
+  assert.equal(detail.periodBasisUsd, 1200);
+  assert.equal(detail.benchmarkBaselineDate, '2026-01-01');
+  assert.equal(detail.benchmarkBaselineMode, 'on_or_after');
+  assert.equal(detail.benchmarkEndDate, '2026-07-08');
 });
 
 test('keeps closed positions visible from symbol snapshots and trade ledger', () => {
@@ -224,4 +241,107 @@ test('stock detail holding period resets after a full close and rebuy', () => {
 
   assert.equal(detail.holdingStartDate, '2026-07-01');
   assert.equal(detail.holdingDays, 9);
+  assert.equal(detail.comparisonPositionStartDate, '2026-07-01');
+  assert.deepEqual(detail.comparisonTrades.map((trade) => trade.date), ['2026-07-01', '2026-07-04']);
+  assert.equal(detail.comparisonTrend[0].activeRealizedPnlUsd, 0);
+  assert.equal(Number(detail.comparisonTrend[0].avgCostUsd.toFixed(6)), 151.428571);
+  assert.equal(detail.comparisonTrend[0].holdingPnlUsd, 200);
+});
+
+test('comparison ledger uses moving-average buys and diluted cost after a partial sell', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: '1', trade_date: '2026-06-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+      { id: '2', trade_date: '2026-06-10', symbol: 'NVDA', side: 'buy', shares: 10, price: 120 },
+      { id: '3', trade_date: '2026-06-19', symbol: 'NVDA', side: 'sell', shares: 5, price: 150 },
+    ],
+    symbolSnapshots: [
+      { snapshotDate: '2026-06-01', symbol: 'NVDA', heldShares: 10, currentPriceUsd: 100, marketValueUsd: 1000 },
+      { snapshotDate: '2026-06-10', symbol: 'NVDA', heldShares: 20, currentPriceUsd: 120, marketValueUsd: 2400 },
+      { snapshotDate: '2026-06-19', symbol: 'NVDA', heldShares: 15, currentPriceUsd: 140, marketValueUsd: 2100 },
+    ],
+    range: 'all',
+    now: new Date('2026-06-19T22:00:00.000Z'),
+  });
+
+  const latestPoint = detail.comparisonTrend.at(-1);
+  assert.equal(detail.benchmarkBaselineDate, '2026-06-01');
+  assert.equal(detail.benchmarkBaselineMode, 'on_or_after');
+  assert.equal(latestPoint.heldShares, 15);
+  assert.equal(latestPoint.avgCostUsd, 110);
+  assert.equal(latestPoint.remainingCostUsd, 1650);
+  assert.equal(latestPoint.activeRealizedPnlUsd, 200);
+  assert.equal(latestPoint.effectiveRemainingCostUsd, 1450);
+  assert.equal(Number(latestPoint.effectiveCostUsd.toFixed(6)), 96.666667);
+  assert.equal(latestPoint.holdingPnlUsd, 650);
+  assert.equal(latestPoint.returnCostBasisUsd, 1450);
+});
+
+test('comparison fails closed when the formal trade replay disagrees with a personal snapshot', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: '1', trade_date: '2026-06-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+      { id: '2', trade_date: '2026-06-10', symbol: 'NVDA', side: 'buy', shares: 10, price: 120 },
+    ],
+    symbolSnapshots: [
+      { snapshotDate: '2026-06-01', symbol: 'NVDA', heldShares: 10, currentPriceUsd: 100, marketValueUsd: 1000 },
+      { snapshotDate: '2026-06-10', symbol: 'NVDA', heldShares: 19, currentPriceUsd: 120, marketValueUsd: 2280 },
+    ],
+    range: 'all',
+    now: new Date('2026-06-10T22:00:00.000Z'),
+  });
+
+  assert.equal(detail.comparisonIntegrityReason, 'stock_trade_snapshot_mismatch');
+  assert.deepEqual(detail.comparisonTrend, []);
+  assert.equal(detail.benchmarkQueryEndDate, null);
+});
+
+test('comparison preserves canonical created-at order for same-day buys and sells', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: 'sell', trade_date: '2026-06-10', created_at: '2026-06-10T15:00:00Z', symbol: 'NVDA', side: 'sell', shares: 5, price: 300 },
+      { id: 'base', trade_date: '2026-06-01', created_at: '2026-06-01T15:00:00Z', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+      { id: 'buy', trade_date: '2026-06-10', created_at: '2026-06-10T14:00:00Z', symbol: 'NVDA', side: 'buy', shares: 10, price: 200 },
+    ],
+    symbolSnapshots: [
+      { snapshotDate: '2026-06-01', symbol: 'NVDA', heldShares: 10, currentPriceUsd: 100, marketValueUsd: 1000 },
+      { snapshotDate: '2026-06-10', symbol: 'NVDA', heldShares: 15, currentPriceUsd: 300, marketValueUsd: 4500 },
+    ],
+    range: 'all',
+    now: new Date('2026-06-10T22:00:00.000Z'),
+  });
+
+  assert.deepEqual(detail.comparisonTrades.map((trade) => trade.id), ['base', 'buy', 'sell']);
+  assert.deepEqual(detail.comparisonTrades.map((trade) => trade.createdAt), [
+    '2026-06-01T15:00:00Z',
+    '2026-06-10T14:00:00Z',
+    '2026-06-10T15:00:00Z',
+  ]);
+  assert.equal(detail.comparisonTrend.at(-1).avgCostUsd, 150);
+  assert.equal(detail.comparisonTrend.at(-1).activeRealizedPnlUsd, 750);
+});
+
+test('comparison keeps dollar P&L but no percentage basis after sale profit fully dilutes cost', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: '1', trade_date: '2026-06-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+      { id: '2', trade_date: '2026-06-10', symbol: 'NVDA', side: 'sell', shares: 9, price: 300 },
+    ],
+    symbolSnapshots: [
+      { snapshotDate: '2026-06-01', symbol: 'NVDA', heldShares: 10, currentPriceUsd: 100, marketValueUsd: 1000 },
+      { snapshotDate: '2026-06-10', symbol: 'NVDA', heldShares: 1, currentPriceUsd: 300, marketValueUsd: 300 },
+    ],
+    range: 'all',
+    now: new Date('2026-06-10T22:00:00.000Z'),
+  });
+
+  const latestPoint = detail.comparisonTrend.at(-1);
+  assert.equal(latestPoint.holdingPnlUsd, 2000);
+  assert.equal(latestPoint.effectiveRemainingCostUsd, -1700);
+  assert.equal(latestPoint.returnCostBasisUsd, null);
+  assert.equal(latestPoint.holdingPnlPct, null);
 });

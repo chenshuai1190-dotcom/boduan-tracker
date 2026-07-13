@@ -91,6 +91,8 @@ const mapPnlReportSymbolSnapshot = (snapshot) => ({
   updatedAt: snapshot.updated_at || null,
 });
 
+const PNL_REPORT_SYMBOL_HISTORY_PAGE_SIZE = 500;
+
 export const mapPnlReportRebuildState = (state) => state ? ({
   userId: state.user_id,
   dirtyFromDate: state.dirty_from_date || null,
@@ -180,22 +182,44 @@ export const fetchPnlReportSymbolSnapshots = async (snapshotDate, preUser = null
   return (data || []).map(mapPnlReportSymbolSnapshot);
 };
 
-export const fetchPnlReportSymbolSnapshotHistory = async (symbol, limit = 370, preUser = null) => {
-  const user = preUser || (await supabase.auth.getUser()).data.user;
+export const fetchPnlReportSymbolSnapshotHistory = async (symbol, limit = 370, preUser = null, client = supabase) => {
+  const user = preUser || (await client.auth.getUser()).data.user;
   if (!user) return [];
 
   const normalizedSymbol = String(symbol || '').trim().toUpperCase();
   if (!normalizedSymbol) return [];
 
-  const { data, error } = await supabase
+  const buildQuery = () => client
     .from('pnl_report_symbol_snapshots')
     .select('*')
     .eq('user_id', user.id)
     .eq('symbol', normalizedSymbol)
-    .order('snapshot_date', { ascending: false })
-    .limit(Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 370);
-  if (error) throw error;
-  return (data || []).map(mapPnlReportSymbolSnapshot);
+    .order('snapshot_date', { ascending: false });
+
+  const fetchAll = limit == null || (typeof limit === 'string' && limit.trim().toLowerCase() === 'all');
+  if (!fetchAll) {
+    const numericLimit = Number(limit);
+    const resolvedLimit = Number.isFinite(numericLimit) && numericLimit > 0
+      ? Math.floor(numericLimit)
+      : 370;
+    const { data, error } = await buildQuery().limit(resolvedLimit);
+    if (error) throw error;
+    return (data || []).map(mapPnlReportSymbolSnapshot);
+  }
+
+  const snapshots = [];
+  for (let offset = 0; ; offset += PNL_REPORT_SYMBOL_HISTORY_PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(
+      offset,
+      offset + PNL_REPORT_SYMBOL_HISTORY_PAGE_SIZE - 1,
+    );
+    if (error) throw error;
+
+    const page = Array.isArray(data) ? data : [];
+    snapshots.push(...page);
+    if (page.length < PNL_REPORT_SYMBOL_HISTORY_PAGE_SIZE) break;
+  }
+  return snapshots.map(mapPnlReportSymbolSnapshot);
 };
 
 export const fetchPnlReportRebuildState = async (preUser = null) => {

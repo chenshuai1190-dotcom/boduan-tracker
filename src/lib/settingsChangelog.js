@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.326', date: '2026-07-13', latest: true,
+    ver: 'v10.7.9.327', date: '2026-07-14', latest: true,
+    items: [
+      '📈 个股收益对比与 QQQ 基准',
+      '  - 个股收益走势下新增收益对比,跟随本年、近 1 月、近 6 月、近 1 年和全部周期',
+      '  - 起点取本轮首笔买入与所选周期中较晚者当日或之后,现有个人收益快照与 QQQ 普通收盘价都有数据的首个共同日期,双方从零开始',
+      '  - 后续买入按实际成交额给 QQQ 等额加仓,卖出按卖出前持仓比例同步减仓;双方使用移动均价和已实现盈亏摊薄成本',
+      '  - 只读正式交易和个股收盘快照,QQQ 通过已登录服务端接口读取普通收盘价;数据缺失或不一致时显示不可用,生产无 mock',
+    ],
+    itemsEn: [
+      '📈 Stock return comparison against QQQ',
+      '  - Added Return Comparison below the stock return chart for YTD, 1M, 6M, 1Y, and All ranges',
+      '  - The baseline is the first common existing personal stock snapshot and ordinary QQQ close on or after the later of the current position cycle start and selected range start; both sides begin at zero',
+      '  - Later buys add the same executed dollar value to QQQ, while sells trim QQQ by the same pre-sale holding ratio; both sides use moving-average and realized-P&L-diluted cost',
+      '  - The feature only reads the formal ledger and stock close snapshots; QQQ ordinary closes come through the authenticated server API, and missing or inconsistent data fails unavailable with no production mock',
+    ],
+  },
+  {
+    ver: 'v10.7.9.326', date: '2026-07-13',
     items: [
       '📊 真实美股收盘涨跌榜',
       '  - 添加自选股弹窗新增涨幅榜和跌幅榜,展示最新收盘日各 30 只普通股',

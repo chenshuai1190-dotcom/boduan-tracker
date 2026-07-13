@@ -183,6 +183,10 @@ function buildProviderFixture() {
     if (url.pathname.endsWith('/eod/SPY.US')) {
       return jsonResponse([{ date: '2026-07-09' }, { date: '2026-07-10' }]);
     }
+    if (url.pathname.includes('/fundamentals/')) {
+      const symbol = url.pathname.split('/').at(-1).replace(/\.US$/i, '');
+      return jsonResponse(symbol === 'G005' ? 'CEF' : 'Common Stock');
+    }
     if (url.pathname.endsWith('/screener')) {
       const descending = url.searchParams.get('sort') === 'refund_1d_p.desc';
       const invalid = descending
@@ -467,6 +471,7 @@ test('market movers returns two real-provider close rankings with the agreed sha
     'SCCC',
     'TEST-PA',
   ].includes(row.symbol)), false);
+  assert.equal(result.gainers.some(row => row.symbol === 'G005'), false, 'HomeCategory CEF rows must fail the final common-equity check');
   assert.equal(result.gainers.some(row => ['OLDG', 'WRNG'].includes(row.symbol)), false);
   assert.equal(result.losers.some(row => ['OLDL', 'WRNG'].includes(row.symbol)), false);
   assert.ok(result.gainers.every((row, index, rows) => index === 0 || rows[index - 1].changePercent >= row.changePercent));
@@ -514,6 +519,9 @@ test('market movers paginates past stale and non-listed screener rows to fill bo
     }
     if (url.pathname.endsWith('/eod/SPY.US')) {
       return jsonResponse([{ date: '2026-07-10' }]);
+    }
+    if (url.pathname.includes('/fundamentals/')) {
+      return jsonResponse('Common Stock');
     }
     if (url.pathname.endsWith('/screener')) {
       const descending = url.searchParams.get('sort') === 'refund_1d_p.desc';
@@ -576,6 +584,9 @@ test('market movers anchors to SPY latest close instead of stopping on thirty el
     if (url.pathname.endsWith('/eod/SPY.US')) {
       return jsonResponse([{ date: '2026-07-10' }]);
     }
+    if (url.pathname.includes('/fundamentals/')) {
+      return jsonResponse('Common Stock');
+    }
     if (url.pathname.endsWith('/screener')) {
       const descending = url.searchParams.get('sort') === 'refund_1d_p.desc';
       const offset = Number(url.searchParams.get('offset'));
@@ -610,6 +621,8 @@ test('market movers TTL and in-flight merge prevent duplicate provider work', as
   assert.equal(MARKET_MOVERS_CONFIG.requestBudgetMs, 25 * 1000);
   assert.equal(MARKET_MOVERS_CONFIG.marketMoversTtlMs, 60 * 60 * 1000);
   assert.equal(MARKET_MOVERS_CONFIG.symbolUniverseTtlMs, 24 * 60 * 60 * 1000);
+  assert.equal(MARKET_MOVERS_CONFIG.maxHomeCategoryCallsPerSide, 80);
+  assert.equal(MARKET_MOVERS_CONFIG.failureTtlMs, 2 * 60 * 1000);
   assert.deepEqual(MARKET_MOVERS_CONFIG.directoryMinimumRows, {
     nasdaq: 1000,
     nyse: 1000,
@@ -626,7 +639,8 @@ test('market movers TTL and in-flight merge prevent duplicate provider work', as
 
   assert.equal(first, concurrent);
   assert.equal(first, cached);
-  assert.equal(calls.length, 8);
+  const firstHomeCategoryCalls = calls.filter(url => url.pathname.includes('/fundamentals/')).length;
+  assert.ok(firstHomeCategoryCalls > 0, 'the first request should verify final candidates with EODHD HomeCategory');
 
   await fetchMarketMovers({
     eodhdKey: 'server-secret',
@@ -637,6 +651,88 @@ test('market movers TTL and in-flight merge prevent duplicate provider work', as
   assert.equal(calls.filter(url => url.hostname === 'www.nasdaqtrader.com').length, 2);
   assert.equal(calls.filter(url => url.pathname.endsWith('/eod/SPY.US')).length, 2);
   assert.equal(calls.filter(url => url.pathname.endsWith('/screener')).length, 4);
+  assert.equal(
+    calls.filter(url => url.pathname.includes('/fundamentals/')).length,
+    firstHomeCategoryCalls,
+    'HomeCategory results should stay cached while the one-hour mover ranking refreshes'
+  );
+});
+
+test('market movers hard-caps HomeCategory verification per side', async () => {
+  resetMarketMoversCacheForTests();
+  const gainers = Array.from({ length: 100 }, (_, index) => moverRow(
+    `HG${String(index + 1).padStart(3, '0')}`,
+    300 - index,
+  ));
+  const losers = Array.from({ length: 100 }, (_, index) => moverRow(
+    `HL${String(index + 1).padStart(3, '0')}`,
+    -300 + index,
+  ));
+  const eodhdRows = [
+    ...gainers.map(row => symbolRow(row.code)),
+    ...losers.map(row => symbolRow(row.code, { Exchange: 'NYSE' })),
+  ];
+  const calls = [];
+  const fetchImpl = async (input) => {
+    const url = input instanceof URL ? input : new URL(String(input));
+    calls.push(url);
+    if (url.pathname.includes('/exchange-symbol-list/')) {
+      const exchange = url.pathname.split('/').at(-1);
+      return jsonResponse(eodhdRows.filter(row => row.Exchange === exchange));
+    }
+    if (url.pathname.endsWith('/nasdaqlisted.txt')) {
+      return textResponse(nasdaqListedText(gainers.map(row => ({ symbol: row.code }))));
+    }
+    if (url.pathname.endsWith('/otherlisted.txt')) {
+      return textResponse(otherListedText(losers.map(row => ({ symbol: row.code, exchange: 'N' }))));
+    }
+    if (url.pathname.endsWith('/eod/SPY.US')) return jsonResponse([{ date: '2026-07-10' }]);
+    if (url.pathname.endsWith('/screener')) {
+      return jsonResponse({
+        data: url.searchParams.get('sort') === 'refund_1d_p.desc' ? gainers : losers,
+      });
+    }
+    if (url.pathname.includes('/fundamentals/')) return jsonResponse('CEF');
+    throw new Error(`unexpected provider path ${url.pathname}`);
+  };
+
+  await assert.rejects(
+    fetchMarketMovers({ eodhdKey: 'server-secret', fetchImpl }),
+    /没有返回足够的.*普通股/,
+  );
+  assert.equal(
+    calls.filter(url => url.pathname.includes('/fundamentals/')).length,
+    MARKET_MOVERS_CONFIG.maxHomeCategoryCallsPerSide * 2,
+  );
+  assert.equal(calls.filter(url => url.pathname.endsWith('/screener')).length, 2);
+});
+
+test('market movers failure backoff prevents immediate provider retry storms', async () => {
+  resetMarketMoversCacheForTests();
+  const now = Date.parse('2026-07-13T08:00:00.000Z');
+  let providerCalls = 0;
+  const fetchImpl = async () => {
+    providerCalls += 1;
+    throw new Error('provider unavailable');
+  };
+
+  await assert.rejects(fetchMarketMovers({ eodhdKey: 'server-secret', fetchImpl, now }), /请求失败/);
+  const callsAfterFailure = providerCalls;
+  await assert.rejects(
+    fetchMarketMovers({ eodhdKey: 'server-secret', fetchImpl, now: now + 1 }),
+    /失败退避期/,
+  );
+  assert.equal(providerCalls, callsAfterFailure);
+
+  await assert.rejects(
+    fetchMarketMovers({
+      eodhdKey: 'server-secret',
+      fetchImpl,
+      now: now + MARKET_MOVERS_CONFIG.failureTtlMs + 1,
+    }),
+    /请求失败/,
+  );
+  assert.ok(providerCalls > callsAfterFailure);
 });
 
 test('market movers fail closed when the current official listing directory is unavailable', async () => {

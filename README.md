@@ -7,7 +7,7 @@ Personal finance PWA for wave-trade tracking, asset review, and market signals.
 - React 18 + Vite
 - Tailwind CSS
 - Supabase Auth + Postgres
-- Vercel Serverless Functions at `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, `api/earnings-calendar.js`, `api/pnl-report-daily-snapshot.js`, and `api/community-competition.js`. The separate public Cron path `/api/community-competition-daily-snapshot` rewrites into the community function's cron-only branch so the Hobby deployment stays within its 12-function limit.
+- Vercel Serverless Functions include `api/quote.js`, `api/btc-realtime.js`, `api/indices-realtime.js`, `api/stocks-realtime.js`, `api/earnings-calendar.js`, `api/pnl-benchmark.js`, `api/pnl-report-daily-snapshot.js`, and `api/community-competition.js`. The separate public Cron path `/api/community-competition-daily-snapshot` rewrites into the community function's cron-only branch so the Hobby deployment stays within its 12-function limit.
 - Authenticated stock streaming covers watchlist, main ledger positions, wave records, and cost-basis tool quote rows.
 - EODHD, Yahoo Finance, CNN FGI, and EODHD earnings calendar data
 
@@ -35,7 +35,11 @@ Details: `docs/eodhd-local-testing.md`.
 
 ### Authenticated U.S. close movers
 
-`GET /api/quote?view=market-movers` reuses the normal Supabase bearer-token boundary and the server-only `EODHD_API_KEY`. It returns the latest authoritative close date plus 30 gainers and 30 losers from a strict NASDAQ / NYSE / NYSE American common-stock universe. The universe intersects EODHD `Type=Common Stock` classification with the current official Nasdaq Trader `nasdaqlisted.txt` / `otherlisted.txt` directories; class symbols are canonicalized before matching. ETFs, funds, preferred shares, warrants, rights, units, OTC/ARCA/BATS rows, stale-date rows, and non-stock suffixes are excluded. A directory/provider failure fails closed with a sanitized unavailable response; production has no EODHD-only, demo-ranking, or mock-data fallback.
+`GET /api/quote?view=market-movers` reuses the normal Supabase bearer-token boundary and the server-only `EODHD_API_KEY`. It returns the latest authoritative close date plus 30 gainers and 30 losers from a strict NASDAQ / NYSE / NYSE American common-stock universe. The universe intersects EODHD `Type=Common Stock` classification with the current official Nasdaq Trader `nasdaqlisted.txt` / `otherlisted.txt` directories; class symbols are canonicalized before matching. ETFs, funds, preferred shares, warrants, rights, units, OTC/ARCA/BATS rows, stale-date rows, and non-stock suffixes are excluded. A cold request verifies at most 80 EODHD HomeCategory candidates per side, keeps the existing 25-second deadline, and applies a two-minute in-instance failure backoff. A directory/provider failure fails closed with a sanitized unavailable response; production has no EODHD-only, demo-ranking, or mock-data fallback.
+
+### Authenticated stock return comparison
+
+The stock detail page compares the current position cycle with QQQ by reading the user's formal `stock_trades`, completed-close `pnl_report_symbol_snapshots`, and authenticated `GET /api/pnl-benchmark` ordinary QQQ closes. The baseline is the first common existing personal stock snapshot and QQQ close on or after the later of the current cycle's first buy and the selected range start, with both sides reset to zero from the same starting capital. Later buys add the same executed dollar value to QQQ; sells trim QQQ by the same pre-sale holding ratio. Both ledgers use moving-average cost and realized-P&L dilution. Missing closes or trade/snapshot mismatches fail unavailable, and production has no synthetic return or mock fallback. The owner-scoped personal P&L snapshots remain user-writable under the existing product model, so this view is personal-ledger analysis rather than immutable competition or audit evidence.
 
 ## Development Workflow
 

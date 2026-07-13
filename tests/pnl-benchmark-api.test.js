@@ -89,6 +89,9 @@ test('pnl benchmark handler returns sanitized EODHD daily rows', async () => {
       status: 200,
       json: async () => [
         { date: '2026-01-02', close: 500, adjusted_close: 501 },
+        { date: '2026-02-02', close: 510, adjusted_close: 0 },
+        { date: '2026-03-02', close: 'invalid', adjusted_close: 515 },
+        { date: '2026-04-02', close: -1, adjusted_close: null },
         { date: '2026-07-08', close: 550, adjusted_close: 552 },
       ],
     };
@@ -105,8 +108,25 @@ test('pnl benchmark handler returns sanitized EODHD daily rows', async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
   assert.equal(res.body.symbol, 'QQQ');
-  assert.equal(res.body.rows.length, 2);
-  assert.deepEqual(res.body.rows[0], { date: '2026-01-02', close: 501, adjustedClose: 501 });
+  assert.equal(res.body.rows.length, 4);
+  assert.deepEqual(res.body.rows[0], {
+    date: '2026-01-02',
+    close: 501,
+    rawClose: 500,
+    adjustedClose: 501,
+  });
+  assert.deepEqual(res.body.rows[1], {
+    date: '2026-02-02',
+    close: 510,
+    rawClose: 510,
+    adjustedClose: null,
+  });
+  assert.deepEqual(res.body.rows[2], {
+    date: '2026-03-02',
+    close: 515,
+    rawClose: null,
+    adjustedClose: 515,
+  });
   assert.match(requestedUrl, /\/api\/eod\/QQQ\.US/);
   assert.match(requestedUrl, /from=2026-01-01/);
   assert.match(requestedUrl, /to=2026-07-08/);
