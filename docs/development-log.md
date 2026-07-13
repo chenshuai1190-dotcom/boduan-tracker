@@ -4,6 +4,22 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.331 部署证据回填
+
+- Commit: `same commit`。
+- Background: `v10.7.9.331` 主动投资价值结果行紧凑化已通过 UI-fast 门禁并部署到 production,需要把最终运行时、流水线、入口、产物一致性和未登录安全边界写回 GitHub `main`。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 当前生产 runtime 更新为 `ba3397265b8a074a59886b4ec9ca03349525f826`,设置页版本为 `v10.7.9.331`,入口为 `/assets/index-DrckgGpM.js`。
+  - 记录 GitHub Actions run `29291434809` 与 Vercel target `JALybbWGhb25un79Ahjasob9tRCR` success。
+  - 更新交接当前状态、首次接手基准和最新可转发块,删除 v331 待发布表述。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- ba3397265b8a074a59886b4ec9ca03349525f826` pass;production entry、App、StockDetail、Settings、settingsChangelog 和 i18n 六个关键产物与本地 production build 字节一致。`StockDetailPage-B8umOXf4.js` SHA-256 双侧均为 `103b13ed825be12db8d74ab6af746293d9040d99cb63696981f4ad3cf5256916`;生产命中标的/QQQ 同行 marker 2 次、超额结果同行 marker 1 次,旧纵向 marker 0 次,复制文案/剪贴板逻辑仍不存在,灰色外框保留。未登录 quote、market-movers、earnings 和 pnl-benchmark 均为 `401`。本轮为 docs-only,不重复运行 runtime 的定向测试、build 或 iOS Simulator 验收。
+- Deployment: runtime GitHub Actions `29291434809` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JALybbWGhb25un79Ahjasob9tRCR` success,production alias 已更新,入口 `/assets/index-DrckgGpM.js`;本 docs-only 提交推送后再确认自身 Actions/Vercel success 且生产入口未异常切换。
+- Production verification: 设置页与更新日志命中 `v10.7.9.331`;生产同行布局、旧纵排删除、灰边和安全边界均符合本机 Simulator 与静态门禁结果。
+- Boundaries: 本提交只回填部署证据,不改运行时代码、收益计算、API、交易账本、收益快照、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本条和交接当前状态只会移除发布证据;不回退已验证的 v331 运行时代码。
+
 ### 2026-07-14 - 主动投资价值结果行紧凑化
 
 - Commit: `same commit`。
@@ -16,7 +32,7 @@
   - 新增静态边界断言锁定三组同行布局、窄屏兜底和旧纵向堆叠删除。
 - Key files: `src/components/StockReturnComparisonCard.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: 定向测试 51/51、production build、docs consistency 和 diff check 均 pass;本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 使用 CNY/中文、CNY/English 和对比损失样例验收,三组金额/收益率均正常同行且结果卡 `clientWidth=scrollWidth=334px`,分享卡高度由约 `447px` 降至 `381px`。截图为 `~/Desktop/boduan-previews/stock-active-value-compact-rows-local.png`。本轮无输入或 PWA 生命周期改动,无需系统键盘或主屏复测;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
-- Deployment: 用户已确认部署;本提交通过 UI-fast 门禁后使用项目 SSH key 推送 GitHub `main`,再等待 Actions/Vercel production success 并核验生产产物与未登录 API `401` 边界。
+- Deployment: completed;runtime commit `ba3397265b8a074a59886b4ec9ca03349525f826`,GitHub Actions run `29291434809` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/JALybbWGhb25un79Ahjasob9tRCR` success,production alias 已更新,入口 `/assets/index-DrckgGpM.js`。
 - Boundaries: 只改分享预览布局、设置页版本/更新日志、静态护栏和文档;收益金额、收益率、收益率差、普通收盘价、同期现金流、主卡、图表、交易账本、收益快照、API、provider、数据库、RLS、鉴权和环境变量不变。
 - Rollback: 回退三组同行布局、v331 版本/更新日志、测试和文档即可恢复 v330 纵向展示;无需数据或环境回滚。
 
