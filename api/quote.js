@@ -1,6 +1,7 @@
 import { requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
 import { sendError } from '../server/quote/errors.js';
 import { fetchQuoteForSymbol } from '../server/quote/providerHandlers.js';
+import { fetchMarketMovers } from '../server/quote/marketMovers.js';
 import { createQuoteResponse } from '../server/quote/response.js';
 import { parseSymbolsParam } from '../server/quote/symbols.js';
 
@@ -24,11 +25,27 @@ export default async function handler(req, res) {
   const auth = await requireQuoteAuth(req, res);
   if (!auth.ok) return;
 
-  const { symbols } = req.query;
+  const { symbols, view } = req.query;
+  const marketMoversRequested = (Array.isArray(view) ? view[0] : view) === 'market-movers';
+  if (view !== undefined && !marketMoversRequested) {
+    return sendError(res, 400, '不支持的 view 参数');
+  }
+
+  const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  if (marketMoversRequested) {
+    if (!eodhdKey) {
+      return sendError(res, 500, 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY');
+    }
+    try {
+      return res.status(200).json(await fetchMarketMovers({ eodhdKey }));
+    } catch {
+      return sendError(res, 502, '美股收盘榜暂不可用');
+    }
+  }
+
   const parsed = parseSymbolsParam(symbols);
   if (parsed.error) return sendError(res, 400, parsed.error);
 
-  const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
   if (!eodhdKey) {
     return sendError(res, 500, 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY');
   }

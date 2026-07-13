@@ -1221,6 +1221,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const pwaLastAppShellCheckAtRef = useRef(0);
   const pwaAppShellReloadQueuedRef = useRef(false);
   const iosPwaRealtimeSnapshotBurstRef = useRef(() => false);
+  const marketMoversCacheRef = useRef(null);
+  const marketMoversRequestRef = useRef(null);
 
   const buildPwaResumeRequest = (trigger = 'auto-ios-resume', options = {}) => ({
     trigger: trigger || 'auto-ios-resume',
@@ -1283,6 +1285,57 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       ));
     return { success: true, data };
   }, [fetchQuote]);
+
+  const fetchMarketMovers = useCallback(async (options = {}) => {
+    const fresh = options?.fresh === true;
+    const cached = marketMoversCacheRef.current;
+    if (!fresh && cached?.expiresAt > Date.now()) return cached.payload;
+    if (!fresh && marketMoversRequestRef.current) return marketMoversRequestRef.current;
+
+    const request = (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('未登录或登录已过期');
+
+      const params = new URLSearchParams({ view: 'market-movers' });
+      if (fresh) params.set('_ts', String(Date.now()));
+      const response = await fetch(`/api/quote?${params.toString()}`, {
+        cache: 'no-store',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Cache-Control': fresh ? 'no-cache' : 'max-age=0',
+          ...(fresh ? { Pragma: 'no-cache' } : {}),
+        },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || `美股收盘榜加载失败: ${response.status}`);
+      }
+
+      const dataDate = /^\d{4}-\d{2}-\d{2}$/.test(String(result.dataDate || '').slice(0, 10))
+        ? String(result.dataDate).slice(0, 10)
+        : '';
+      if (!dataDate) throw new Error('美股收盘榜缺少有效数据日期');
+      const expiresAt = Date.now() + 15 * 60 * 1000;
+      const payload = {
+        success: true,
+        source: result.source || '',
+        dataDate,
+        fetchedAt: result.fetchedAt || null,
+        expiresAt: new Date(expiresAt).toISOString(),
+        gainers: Array.isArray(result.gainers) ? result.gainers.slice(0, 30) : [],
+        losers: Array.isArray(result.losers) ? result.losers.slice(0, 30) : [],
+      };
+      marketMoversCacheRef.current = { payload, expiresAt };
+      return payload;
+    })();
+
+    marketMoversRequestRef.current = request;
+    try {
+      return await request;
+    } finally {
+      if (marketMoversRequestRef.current === request) marketMoversRequestRef.current = null;
+    }
+  }, []);
 
   const fetchRealtimeSnapshot = useCallback(async (endpoint, options = {}) => {
     const requestOptions = (options && typeof options === 'object') ? options : {};
@@ -4470,6 +4523,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     fetching,
     fetchRealtimePrices: () => fetchRealtimePrices(null, { trigger: 'manual-button', notifyOnError: true }),
     fetchPopularStockQuotes,
+    fetchMarketMovers,
     fgi,
     fgiDataDate,
     fgiLabel,

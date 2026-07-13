@@ -12,6 +12,7 @@ Date: 2026-07-03 Asia/Shanghai
 - GitHub Actions 构建和 `npm audit`
 - `/api/quote` 默认要求 Supabase access token
 - EODHD token 放在服务端 `EODHD_API_KEY`
+- 美股收盘涨跌榜通过已登录 `/api/quote?view=market-movers` 和独立 `server/quote/marketMovers.js` 获取真实 EODHD 收盘数据,并与 Nasdaq Trader 当前上市目录交集验证;官方目录/provider 异常时 fail closed,生产无 EODHD-only 或 mock 榜单兜底
 - BTC、三大指数和用户股票实时推送已走服务端 WebSocket relay,浏览器只连接已登录的 `/api/btc-realtime` / `/api/indices-realtime` / `/api/stocks-realtime`;用户股票范围包括自选、正式持仓、波段记录和摊薄工具 quote rows
 - Supabase RLS SQL 已纳入仓库
 - 登录前/登录后 bundle 已拆分
@@ -64,7 +65,7 @@ Do not treat "latest dependency version" as the same thing as "safe architecture
 
 3. **Split and harden `/api/quote.js`**
    - The endpoint now handles auth, validation, dispatch, and response envelope only.
-   - Status: provider routing, timeout fetch, auth/CORS, symbol parsing, response envelope, response-shape tests, and full provider implementation files now have explicit module boundaries.
+   - Status: provider routing, timeout fetch, auth/CORS, symbol parsing, response envelope, response-shape tests, and full provider implementation files now have explicit module boundaries. The close-movers path is isolated in `server/quote/marketMovers.js`; it intersects EODHD common-stock classification with current Nasdaq Trader directories, canonicalizes class symbols, bounds/cache-merges calls, returns same-date 30/30 close rows, and fails closed with sanitized auth/API-tested errors.
    - Continue splitting the large EODHD provider module and add error-path coverage before broker-grade or professional data features.
 
 4. **Add automated checks before business expansion**
@@ -102,6 +103,7 @@ Goal: make the current app safer to change without altering product behavior.
   - symbol validation rejects invalid input
   - delete guards scope by `user_id`
 - [x] Add quote response-shape tests for VIX, FGI, INDICES, ANALYST, and normal stock symbols; earnings calendar now has a dedicated EODHD endpoint test.
+- [x] Add authenticated EODHD close-mover tests for 30/30 sorting/signs, same-date enforcement, venue/instrument filtering, caching/in-flight coalescing, timeout budgeting, and sanitized provider failures.
 - Add tests for key portfolio calculations.
 - [~] Verify Supabase RLS live: the production anonymous REST probe passes 20/20 across the currently checked user-owned tables, including anonymous `401` for `community_profiles`, `community_competition_members`, and `community_competition_snapshots`; `swing_waves` metadata passed 13/13 checks, and its two-real-user authenticated-role/JWT-claim CRUD isolation smoke passed 14/14. Complete the competition metadata read and a two-user owner/cross-user isolation smoke for `community_profiles` when a stable admin channel is available.
 - [x] Add the independent V2 wave ledger: production schema/RLS execution, metadata audit, two-user isolation gate, real standalone page, page-scoped CRUD, pure view model, active-only quote subscription, REST baseline preheat, ledger-first realtime priority, and production deployment are complete in `v10.7.9.297`.

@@ -4,6 +4,25 @@
 
 ## 2026-07-13 Asia/Shanghai
 
+### 2026-07-13 - 自选添加弹窗真实美股收盘涨跌榜
+
+- Commit: `same commit`。
+- Background: 用户发现已添加自选的股票仍显示加号,并确认将原静态“美股”标签升级为范围严格限定的真实收盘涨幅榜/跌幅榜,各取前 30。
+- Workflow tier: `sensitive`。本轮修改 `/api/quote`、EODHD provider 路由和已登录数据加载,不可按 `ui-fast` 发布。
+- Changes:
+  - 已在自选中的候选股按钮由加号改为减号,继续保持 disabled,不变更添加/删除回调。
+  - 添加自选股弹窗保留“热门”,新增“涨幅榜”和“跌幅榜”;只在弹窗打开且切到榜单时请求,显示权威收盘日和精确市场范围。
+  - 新增已登录 `GET /api/quote?view=market-movers`:EODHD Screener 提供真实涨跌/收盘数据,EODHD exchange symbol list 提供 `Type=Common Stock` 分类,再与当前 Nasdaq Trader `nasdaqlisted.txt` / `otherlisted.txt` 上市目录交集;返回同一最新交易日的涨/跌各 30 只。
+  - 普通股范围严格限定 NASDAQ / NYSE / NYSE American,并对 `BRK.B` / `BRK-B` 类别股代码做规范化交集;排除 OTC、ARCA、BATS、ETF、基金、票据、优先股、权证、权利、单位以及过期/特殊代码;保留合法普通 ADR 和公司名含 `Preferred` 的真普通股。
+  - 前端榜单缓存 15 分钟,服务端榜单缓存 60 分钟、symbol universe 缓存 24 小时;服务端总请求预算 25 秒、单 provider 上限 10 秒,并合并同时请求。
+  - 生产代码无榜单 mock/估算兜底;EODHD 或任一 Nasdaq Trader 官方目录异常都 fail closed,只返回脱敏 `502` 不可用。`DevVisualPreview` 只保留明确 `source: 'dev-visual-preview'` 的 Simulator 本地只读 fixture,不进入生产 bundle。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.326`。
+- Key files: `api/quote.js`,`server/quote/marketMovers.js`,`src/App.jsx`,`src/tabs/HomeTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/market-movers.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 定向 market-movers/边界测试 55/55 pass,完整 `npm test` 264/264 pass,`npm run build` pass,`npm audit --omit=dev` 为 0 vulnerabilities,`git diff --check` pass;修正上市目录口径后重跑真实服务端探针:返回 `2026-07-10`同日 30/30,符号、排序和三个目标场所均 pass,已退市/转 OTC 的 `MSPR` / `BLMZF` 以及其他非普通股为 0;冷启约 3.4 秒。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 验收三个页签、日期/范围、加减号状态、涨跌色和榜单滚动;本轮无输入和主屏 PWA 特有行为,无需系统键盘或添加主屏。发布前将再跑 toolchain、high audit、docs consistency 和 API/security 边界门禁。
+- Deployment: `v10.7.9.326` 待本轮 sensitive 门禁完成后推送 GitHub `main`;由 Vercel production 自动部署,成功后另行回填 runtime SHA、Actions、Vercel target 和生产入口。
+- Boundaries: 不改自选保存/删除、正式 `stock_trades`、持仓/收益/快照、资产、目标、波段、比赛、财报、数据库、RLS、realtime relay 或现有 quote symbol 响应;不新增环境变量、依赖、SQL 或顶层 Vercel function。
+- Rollback: 回退新 market-movers view/module、前端三页签/加载链路、减号图标、v326 版本/更新日志和本条文档即可;无数据、SQL、RLS 或环境回滚。
+
 ### 2026-07-13 - v10.7.9.325 部署证据回填
 
 - Commit: `same commit`。

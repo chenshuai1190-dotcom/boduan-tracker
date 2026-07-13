@@ -33,6 +33,10 @@ npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-0
 
 Details: `docs/eodhd-local-testing.md`.
 
+### Authenticated U.S. close movers
+
+`GET /api/quote?view=market-movers` reuses the normal Supabase bearer-token boundary and the server-only `EODHD_API_KEY`. It returns the latest authoritative close date plus 30 gainers and 30 losers from a strict NASDAQ / NYSE / NYSE American common-stock universe. The universe intersects EODHD `Type=Common Stock` classification with the current official Nasdaq Trader `nasdaqlisted.txt` / `otherlisted.txt` directories; class symbols are canonicalized before matching. ETFs, funds, preferred shares, warrants, rights, units, OTC/ARCA/BATS rows, stale-date rows, and non-stock suffixes are excluded. A directory/provider failure fails closed with a sanitized unavailable response; production has no EODHD-only, demo-ranking, or mock-data fallback.
+
 ## Development Workflow
 
 Before making or handing off any change, read:

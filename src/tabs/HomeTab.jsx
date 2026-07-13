@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Flame, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, Flame, Minus, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
@@ -74,6 +74,21 @@ function fmtOptionalMarketPct(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '--';
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
+function formatMarketMoversDate(value, language = 'zh') {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '';
+  const [, year, month, day] = match;
+  if (isEnglishLanguage(language)) {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: Number(year) === new Date().getFullYear() ? undefined : 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${year}-${month}-${day}T00:00:00Z`));
+  }
+  return `${month}/${day}`;
 }
 
 function drawdownFromHigh(price, high) {
@@ -475,6 +490,7 @@ export default function HomeTab({ ctx }) {
     fetchRealtimePrices,
     fetching,
     fetchPopularStockQuotes,
+    fetchMarketMovers,
     fgi,
     fgiDataDate,
     fgiMonth,
@@ -516,6 +532,11 @@ export default function HomeTab({ ctx }) {
   const [addStockNotice, setAddStockNotice] = React.useState(null);
   const [popularQuoteRows, setPopularQuoteRows] = React.useState([]);
   const [popularQuoteStatus, setPopularQuoteStatus] = React.useState('idle');
+  const [stockDiscoveryTab, setStockDiscoveryTab] = React.useState('trending');
+  const [marketMovers, setMarketMovers] = React.useState({ gainers: [], losers: [], dataDate: '' });
+  const [marketMoversStatus, setMarketMoversStatus] = React.useState('idle');
+  const marketMoversRequestIdRef = React.useRef(0);
+  const marketMoversLoadedAtRef = React.useRef(0);
   const [promoteEarningsCalendar, setPromoteEarningsCalendar] = React.useState(false);
   const [showEditWatchlist, setShowEditWatchlist] = React.useState(false);
   const [editWatchlistSearch, setEditWatchlistSearch] = React.useState('');
@@ -639,14 +660,47 @@ export default function HomeTab({ ctx }) {
     }
     return a.rank - b.rank;
   }), [normalizedSearch, popularQuoteBySymbol, quoteBySymbol]);
-  const filteredPopularStocks = React.useMemo(() => popularStocksWithQuotes.filter((item) => {
+  const marketMoverRows = React.useMemo(() => {
+    const rows = stockDiscoveryTab === 'losers' ? marketMovers.losers : marketMovers.gainers;
+    return (Array.isArray(rows) ? rows : []).map((row, index) => {
+      const symbol = String(row?.symbol || row?.ticker || row?.code || '').trim().toUpperCase();
+      const name = String(row?.name || row?.company || row?.companyName || symbol).trim();
+      return {
+        ...row,
+        symbol,
+        name,
+        company: String(row?.company || row?.companyName || name).trim(),
+        quote: {
+          ...row,
+          symbol,
+          price: row?.price ?? row?.close,
+          changePercent: row?.changePercent ?? row?.change_p,
+        },
+        rank: index,
+      };
+    }).filter((row) => row.symbol && Number(row.quote?.price) > 0);
+  }, [marketMovers.gainers, marketMovers.losers, stockDiscoveryTab]);
+  const isMarketMoversTab = stockDiscoveryTab === 'gainers' || stockDiscoveryTab === 'losers';
+  const discoveryStocks = isMarketMoversTab ? marketMoverRows : popularStocksWithQuotes;
+  const filteredDiscoveryStocks = React.useMemo(() => discoveryStocks.filter((item) => {
     if (!normalizedSearch) return true;
     const haystack = `${item.symbol} ${item.name} ${item.company}`.toUpperCase();
     return haystack.includes(normalizedSearch);
-  }), [normalizedSearch, popularStocksWithQuotes]);
+  }), [discoveryStocks, normalizedSearch]);
+  const moverSymbolSet = React.useMemo(
+    () => new Set(marketMoverRows.map((item) => item.symbol)),
+    [marketMoverRows],
+  );
+  const activeListContainsSearch = stockDiscoveryTab === 'trending'
+    ? POPULAR_US_STOCK_SYMBOLS.has(normalizedSearch)
+    : moverSymbolSet.has(normalizedSearch);
   const canAddCustomStock = /^[A-Z0-9.-]{1,12}$/.test(normalizedSearch)
-    && !POPULAR_US_STOCK_SYMBOLS.has(normalizedSearch)
+    && !activeListContainsSearch
     && !watchlistSymbols.has(normalizedSearch);
+  const marketMoversDate = formatMarketMoversDate(
+    marketMovers.dataDate || marketMoverRows.find((row) => row?.dataDate)?.dataDate,
+    language,
+  );
   const isAddingStock = Boolean(addingStockSymbol);
   const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
   const showPnlColumn = tableTab === 'positions';
@@ -699,10 +753,49 @@ export default function HomeTab({ ctx }) {
     };
   }, [showAddStock, isWatchlistTab, fetchPopularStockQuotes]);
 
+  const loadMarketMovers = React.useCallback(async ({ fresh = false } = {}) => {
+    if (typeof fetchMarketMovers !== 'function') {
+      setMarketMoversStatus('error');
+      return;
+    }
+    const requestId = marketMoversRequestIdRef.current + 1;
+    marketMoversRequestIdRef.current = requestId;
+    setMarketMoversStatus('loading');
+    try {
+      const result = await fetchMarketMovers({ fresh });
+      if (marketMoversRequestIdRef.current !== requestId) return;
+      const gainers = Array.isArray(result?.gainers) ? result.gainers : [];
+      const losers = Array.isArray(result?.losers) ? result.losers : [];
+      const dataDate = String(result?.dataDate || '').slice(0, 10);
+      if (gainers.length === 0 || losers.length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(dataDate)) {
+        throw new Error('invalid market movers');
+      }
+      setMarketMovers({
+        gainers,
+        losers,
+        dataDate,
+      });
+      marketMoversLoadedAtRef.current = Date.now();
+      setMarketMoversStatus('success');
+    } catch (error) {
+      if (marketMoversRequestIdRef.current !== requestId) return;
+      console.warn('[美股收盘榜] 加载失败:', error?.message || error);
+      setMarketMoversStatus('error');
+    }
+  }, [fetchMarketMovers]);
+
+  React.useEffect(() => {
+    if (!showAddStock || !isWatchlistTab || !isMarketMoversTab || marketMoversStatus === 'loading' || marketMoversStatus === 'error') return;
+    const stale = Date.now() - marketMoversLoadedAtRef.current >= 15 * 60 * 1000;
+    if (marketMoversStatus === 'success' && !stale) return;
+    loadMarketMovers();
+  }, [showAddStock, isWatchlistTab, isMarketMoversTab, stockDiscoveryTab, marketMoversStatus, loadMarketMovers]);
+
   const closeAddStockSheet = () => {
     if (isAddingStock) return;
     setShowAddStock(false);
     setStockSearch('');
+    setStockDiscoveryTab('trending');
     resetNewStock();
   };
   const closeEditWatchlist = () => {
@@ -1207,41 +1300,94 @@ export default function HomeTab({ ctx }) {
             </label>
 
             <div className="mt-3 flex shrink-0 gap-2">
-              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-[#f6b54b]/60 bg-[#f6b54b]/10 px-3 text-[12px] font-normal text-[#f6b54b]">
-                <Flame className="h-3.5 w-3.5" />
-                {t(language, 'home.trending', '热门')}
-              </span>
-              <span className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-[12px] font-normal text-white/70">
-                {t(language, 'home.usStocks', '美股')}
-              </span>
+              <button
+                type="button"
+                onClick={() => setStockDiscoveryTab('trending')}
+                className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[12px] font-normal active:scale-[0.98] ${stockDiscoveryTab === 'trending' ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.05] text-white/55'}`}
+              >
+                <Flame className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{t(language, 'home.trending', '热门')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockDiscoveryTab('gainers')}
+                className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[12px] font-normal active:scale-[0.98] ${stockDiscoveryTab === 'gainers' ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.05] text-white/55'}`}
+              >
+                <ArrowUp className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{t(language, 'home.marketGainers', '涨幅榜')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockDiscoveryTab('losers')}
+                className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[12px] font-normal active:scale-[0.98] ${stockDiscoveryTab === 'losers' ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.05] text-white/55'}`}
+              >
+                <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{t(language, 'home.marketLosers', '跌幅榜')}</span>
+              </button>
             </div>
 
-            <div className="mt-4 flex shrink-0 items-center gap-2 text-[12px] font-normal text-white/55">
-              <span>{normalizedSearch ? t(language, 'home.searchResults', '搜索结果') : t(language, 'home.popularStocks', '热门股票')}</span>
-              {!normalizedSearch && popularQuoteStatus === 'loading' && Loader2 ? (
+            <div className="mt-4 flex shrink-0 items-start gap-2 text-[12px] font-normal text-white/55">
+              <span className="shrink-0 leading-4">
+                {normalizedSearch
+                  ? t(language, 'home.searchResults', '搜索结果')
+                  : stockDiscoveryTab === 'gainers'
+                    ? t(language, 'home.marketGainers', '涨幅榜')
+                    : stockDiscoveryTab === 'losers'
+                      ? t(language, 'home.marketLosers', '跌幅榜')
+                      : t(language, 'home.popularStocks', '热门股票')}
+              </span>
+              {!normalizedSearch && stockDiscoveryTab === 'trending' && popularQuoteStatus === 'loading' && Loader2 ? (
                 <Loader2 className="h-3 w-3 animate-spin text-white/35" aria-hidden="true" />
+              ) : null}
+              {!normalizedSearch && isMarketMoversTab && marketMoversStatus === 'loading' && Loader2 ? (
+                <Loader2 className="h-3 w-3 animate-spin text-white/35" aria-hidden="true" />
+              ) : null}
+              {!normalizedSearch && isMarketMoversTab && marketMoversStatus === 'success' && marketMoversDate ? (
+                <span className="ml-auto flex min-w-0 max-w-[260px] flex-col items-end text-right text-[10px] leading-[13px] text-white/35">
+                  <span className="whitespace-nowrap">{t(language, 'home.marketMoversAsOfClose', '截至 {{date}} 收盘', { date: marketMoversDate })}</span>
+                  <span className="max-w-full truncate whitespace-nowrap">{t(language, 'home.marketMoversUniverse', 'NASDAQ / NYSE / NYSE American 普通股')}</span>
+                </span>
               ) : null}
             </div>
 
             <div className="mt-2 min-h-[160px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
-              {filteredPopularStocks.length === 0 && !canAddCustomStock ? (
+              {isMarketMoversTab && !normalizedSearch && marketMoversStatus === 'loading' ? (
+                <div className="flex min-h-[160px] items-center justify-center gap-2 px-4 text-[13px] text-white/35">
+                  {Loader2 ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                  <span>{t(language, 'home.marketMoversLoading', '榜单加载中...')}</span>
+                </div>
+              ) : isMarketMoversTab && !normalizedSearch && (
+                marketMoversStatus === 'error'
+                || (marketMoversStatus === 'success' && filteredDiscoveryStocks.length === 0)
+              ) ? (
+                <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 px-4 text-center">
+                  <span className="text-[13px] text-white/35">{t(language, 'home.marketMoversUnavailable', '榜单暂不可用')}</span>
+                  <button
+                    type="button"
+                    onClick={() => loadMarketMovers({ fresh: true })}
+                    className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[12px] text-white/65 active:scale-95"
+                  >
+                    {t(language, 'home.marketMoversRetry', '重试')}
+                  </button>
+                </div>
+              ) : filteredDiscoveryStocks.length === 0 && !canAddCustomStock ? (
                 <div className="px-4 py-8 text-center text-[13px] text-white/35">{t(language, 'home.noMatches', '没有匹配结果')}</div>
               ) : (
                 <>
-                  {filteredPopularStocks.map((item) => {
+                  {filteredDiscoveryStocks.map((item) => {
                     const symbol = item.symbol;
                     const quote = item.quote || quoteBySymbol.get(symbol);
                     const quotePrice = quote?.price || quote?.currentPrice;
                     const isAdded = watchlistSymbols.has(symbol);
                     const color = marketColor(quote?.changePercent, marketColorMode);
-                    const logoUrls = logoUrlCandidates(symbol, logoCache?.[symbol]?.url);
+                    const logoUrls = logoUrlCandidates(symbol, item?.logo, quote?.logo, logoCache?.[symbol]?.url);
                     return (
-                      <div key={symbol} className="flex min-h-[61px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
+                      <div key={`${stockDiscoveryTab}-${symbol}`} className="flex min-h-[61px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
                         <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline gap-1.5">
                             <span className="text-[14px] font-normal text-white">{symbol}</span>
-                            <span className="truncate text-[12px] font-normal text-white/55">{englishMode ? item.symbol : item.name}</span>
+                            <span className="truncate text-[12px] font-normal text-white/55">{englishMode ? (isMarketMoversTab ? item.name : item.symbol) : item.name}</span>
                           </div>
                           <div className="mt-0.5 truncate text-[11px] text-white/35">{item.company}</div>
                         </div>
@@ -1250,7 +1396,7 @@ export default function HomeTab({ ctx }) {
                             {quotePrice ? fmtMoney(quotePrice, 2) : '--'}
                           </div>
                           <div className="mt-0.5 text-[12px] font-semibold tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
-                            {quote?.changePercent !== undefined ? fmtMarketPct(quote.changePercent) : '--'}
+                            {hasFiniteMarketValue(quote?.changePercent) ? fmtMarketPct(quote.changePercent) : '--'}
                           </div>
                         </div>
                         <button
@@ -1266,6 +1412,8 @@ export default function HomeTab({ ctx }) {
                         >
                           {addingStockSymbol === symbol && Loader2 ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : isAdded ? (
+                            <Minus className="h-4 w-4" />
                           ) : (
                             <Plus className="h-4 w-4" />
                           )}

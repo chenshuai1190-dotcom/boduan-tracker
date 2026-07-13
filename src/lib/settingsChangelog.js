@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.325', date: '2026-07-13', latest: true,
+    ver: 'v10.7.9.326', date: '2026-07-13', latest: true,
+    items: [
+      '📊 真实美股收盘涨跌榜',
+      '  - 添加自选股弹窗新增涨幅榜和跌幅榜,展示最新收盘日各 30 只普通股',
+      '  - 榜单严格限定 NASDAQ、NYSE 和 NYSE American,排除 ETF、基金、优先股、权证、权利和单位',
+      '  - 涨跌和收盘数据来自 EODHD,并与 Nasdaq Trader 当前上市目录交集验证;不使用演示数据或生产 mock 兜底',
+      '  - 已在自选中的股票用减号表示已添加,保持不可重复点击',
+    ],
+    itemsEn: [
+      '📊 Real U.S. close movers',
+      '  - Added Top Gainers and Top Losers to Add Watchlist Stock, with 30 common stocks per side for the latest close',
+      '  - The universe is strictly limited to NASDAQ, NYSE, and NYSE American and excludes ETFs, funds, preferreds, warrants, rights, and units',
+      '  - EODHD close data is intersected with the current Nasdaq Trader listings; production has no demo ranking or mock fallback',
+      '  - Stocks already in the watchlist now show a minus icon and remain protected from duplicate taps',
+    ],
+  },
+  {
+    ver: 'v10.7.9.325', date: '2026-07-13',
     items: [
       '📋 财报弹窗默认列表视图',
       '  - 从首页财报公司卡片点开时默认进入列表视图,更快浏览全部近期财报',

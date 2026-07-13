@@ -479,8 +479,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.325'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.325', date: '2026-07-13', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.326'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.326', date: '2026-07-13', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('真实美股收盘涨跌榜'), 'settings changelog should describe the real close mover release');
+  assert.ok(settingsChangelogSource.includes('不使用演示数据或生产 mock 兜底'), 'settings changelog should preserve the no-fake-data boundary');
   assert.ok(settingsChangelogSource.includes("itemsEn: [") && settingsTabSource.includes("currentLanguage === 'en' && Array.isArray(log.itemsEn)"), 'latest settings changelog should render its English release notes in English mode');
   assert.ok(i18nSource.includes("'settings.languageZh': 'Simplified Chinese'"), 'English settings should translate the Simplified Chinese language option');
   assert.ok(i18nSource.includes("'settings.displaySettings': 'Display'") && i18nSource.includes("'settings.redUpGreenDown': 'Red Up · Green Down'"), 'English settings should translate display and market-color controls');
@@ -1038,7 +1040,7 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(homeTabSource.includes(`<h3 className="text-[17px] font-normal text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>`), 'edit watchlist title should not be bold');
   assert.ok(homeTabSource.includes('bg-transparent text-sm font-normal text-white'), 'watchlist search fields should use normal weight');
   assert.ok(homeTabSource.includes('text-[12px] font-normal text-[#f6b54b]'), 'popular filter chip should not be bold');
-  assert.ok(homeTabSource.includes('mt-4 flex shrink-0 items-center gap-2 text-[12px] font-normal text-white/55'), 'popular stocks section title should not be bold');
+  assert.ok(homeTabSource.includes('mt-4 flex shrink-0 items-start gap-2 text-[12px] font-normal text-white/55'), 'popular stocks section title should not be bold');
   assert.ok(homeTabSource.includes('<span className="text-[14px] font-normal text-white">{symbol}</span>'), 'watchlist ticker codes should not be bold');
   assert.ok(homeTabSource.includes('<span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>'), 'custom ticker code should not be bold');
   assert.ok(homeTabSource.includes('mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b]'), 'add custom stock button should not be bold');
@@ -1054,10 +1056,35 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(popularStocksSource.includes("symbol: 'PANW'"), 'popular stock candidates should cover more than the old eight fixed rows');
   assert.ok(homeTabSource.includes("if (!showAddStock || !isWatchlistTab || typeof fetchPopularStockQuotes !== 'function') return undefined;"), 'popular quote loading must be gated by the add-stock modal being open');
   assert.ok(homeTabSource.includes('fetchPopularStockQuotes(POPULAR_US_STOCKS.map((item) => item.symbol))'), 'popular quote loading should only request the modal candidate pool');
+  assert.ok(homeTabSource.includes(') : isAdded ? (\n                            <Minus className="h-4 w-4" />'), 'already-added popular stocks should show a minus icon instead of a plus icon');
+  assert.ok(homeTabSource.includes('disabled={isAdded || isAddingStock}'), 'the already-added minus icon should remain non-interactive');
   assert.ok(appSource.includes("t(language, 'home.stockNotFound', '未找到这个美股代码,暂不能添加')"), 'unknown or non-US tickers should be rejected with a user-facing message');
   assert.ok(appSource.includes("!fresh || fresh.error || !(Number(fresh.price) > 0) || fresh.priceSource !== 'EODHD-v2'"), 'watchlist add should reject non-stock quote rows and rows without a valid positive price');
   assert.equal(appSource.includes('console.warn(`[添加自选 ${symbol}] 行情预拉取失败:`, e.message);\n    }\n    const price = parseFloat(draft.price) || fresh?.price || 0;'), false, 'watchlist add should not continue after quote validation failure');
   assert.ok(i18nSource.includes("'home.stockNotFound': 'This U.S. stock ticker was not found and cannot be added.'"), 'English mode should have a stock validation error message');
+});
+
+test('add-watchlist discovery exposes real close-only market mover lists', () => {
+  assert.ok(appSource.includes("new URLSearchParams({ view: 'market-movers' })"), 'market movers should load through the authenticated quote endpoint view');
+  assert.ok(appSource.includes('Authorization: `Bearer ${session.access_token}`'), 'market movers should keep the existing auth boundary');
+  assert.ok(appSource.includes('const expiresAt = Date.now() + 15 * 60 * 1000;'), 'market mover results should expire during long-lived PWA sessions');
+  assert.ok(appSource.includes('gainers: Array.isArray(result.gainers) ? result.gainers.slice(0, 30) : []'), 'gainer results should be capped at thirty rows');
+  assert.ok(appSource.includes('losers: Array.isArray(result.losers) ? result.losers.slice(0, 30) : []'), 'loser results should be capped at thirty rows');
+  assert.ok(homeTabSource.includes("setStockDiscoveryTab('gainers')"), 'add-watchlist discovery should expose the gainers tab');
+  assert.ok(homeTabSource.includes("setStockDiscoveryTab('losers')"), 'add-watchlist discovery should expose the losers tab');
+  assert.ok(homeTabSource.includes('const discoveryStocks = isMarketMoversTab ? marketMoverRows : popularStocksWithQuotes;'), 'the existing popular list should stay separate from market movers');
+  assert.ok(homeTabSource.includes("marketMoversStatus === 'loading'"), 'market movers should expose an explicit loading state');
+  assert.ok(homeTabSource.includes("marketMoversStatus === 'error'"), 'market movers should expose an unavailable state');
+  assert.ok(homeTabSource.includes("loadMarketMovers({ fresh: true })"), 'the unavailable state should provide an explicit fresh retry');
+  assert.ok(homeTabSource.includes("t(language, 'home.marketMoversAsOfClose'"), 'market movers should show their authoritative close date');
+  assert.ok(homeTabSource.includes("t(language, 'home.marketMoversUniverse'"), 'market movers should disclose the ordinary-stock universe');
+  assert.ok(i18nSource.includes("'home.marketMoversUniverse': 'NASDAQ / NYSE / NYSE American 普通股'"), 'Chinese mode should disclose the exact common-stock venue scope');
+  assert.ok(i18nSource.includes("'home.marketMoversUniverse': 'NASDAQ / NYSE / NYSE American common stocks'"), 'English mode should disclose the exact common-stock venue scope');
+  assert.ok(homeTabSource.includes('englishMode ? (isMarketMoversTab ? item.name : item.symbol) : item.name'), 'English mover rows should show the company name without changing the popular-list subtitle');
+  assert.ok(i18nSource.includes("'home.marketGainers': 'Top Gainers'"), 'English mode should translate the gainers tab');
+  assert.ok(i18nSource.includes("'home.marketMoversUnavailable': 'Market movers unavailable'"), 'English mode should translate the unavailable state');
+  assert.ok(devVisualPreviewSource.includes("source: 'dev-visual-preview'"), 'local iOS visual QA may use an explicitly preview-only, real-shaped fixture');
+  assert.equal(homeTabSource.includes("source: 'dev-visual-preview'"), false, 'production home code must not embed preview mover rows');
 });
 
 test('settings data maintenance reset entry and runtime reset code stay removed', () => {
@@ -1423,7 +1450,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(homeTabSource.includes("const englishMode = isEnglishLanguage(language);"), 'Home tab should have an explicit English-mode branch for user-data-safe display');
   assert.ok(homeTabSource.includes('max-w-[430px] overflow-x-hidden'), 'Home tab should prevent English table text from creating page-level horizontal scroll');
   assert.ok(homeTabSource.includes('row.name || quote?.name, language'), 'home table rows should pass language into stock display names');
-  assert.ok(homeTabSource.includes("englishMode ? item.symbol : item.name"), 'popular stock subtitle should use ticker abbreviations in English mode');
+  assert.ok(homeTabSource.includes('englishMode ? (isMarketMoversTab ? item.name : item.symbol) : item.name'), 'popular stock subtitle should keep ticker abbreviations in English mode while mover rows show company names');
   assert.ok(tradesTabSource.includes("import { isEnglishLanguage, t } from '../lib/i18n.js';"), 'Trades tab should use the i18n helper');
   assert.ok(tradesTabSource.includes("const englishMode = isEnglishLanguage(language);"), 'Trades tab should keep user-authored notes in their original language');
   assert.ok(tradesTabSource.includes("displayStockName(symbol, name, language)"), 'Trades tab should pass language into stock display names');
@@ -1857,7 +1884,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.325'"), 'settings version source should advance with the earnings list-default release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.326'"), 'settings version source should advance with the authenticated market-movers release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2177,7 +2204,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.325'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.326'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

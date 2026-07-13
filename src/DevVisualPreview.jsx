@@ -135,6 +135,29 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
+const devMarketMoversFixture = {
+  success: true,
+  source: 'dev-visual-preview',
+  dataDate: '2026-07-10',
+  fetchedAt: '2026-07-11T01:00:00.000Z',
+  gainers: [
+    { symbol: 'PLTR', name: 'Palantir', company: 'Palantir Technologies Inc', price: 142.37, changePercent: 12.84, changeAmount: 16.20, exchange: 'NYSE', currency: 'USD', volume: 82741120, marketCap: 338000000000, dataDate: '2026-07-10' },
+    { symbol: 'HOOD', name: 'Robinhood', company: 'Robinhood Markets Inc', price: 108.66, changePercent: 10.73, changeAmount: 10.53, exchange: 'NASDAQ', currency: 'USD', volume: 48290100, marketCap: 96000000000, dataDate: '2026-07-10' },
+    { symbol: 'COIN', name: 'Coinbase', company: 'Coinbase Global Inc', price: 394.91, changePercent: 8.45, changeAmount: 30.77, exchange: 'NASDAQ', currency: 'USD', volume: 22199400, marketCap: 101000000000, dataDate: '2026-07-10' },
+    { symbol: 'MU', name: 'Micron', company: 'Micron Technology Inc', price: 132.14, changePercent: 7.18, changeAmount: 8.85, exchange: 'NASDAQ', currency: 'USD', volume: 34700600, marketCap: 148000000000, dataDate: '2026-07-10' },
+    { symbol: 'AVGO', name: 'Broadcom', company: 'Broadcom Inc', price: 286.44, changePercent: 5.72, changeAmount: 15.50, exchange: 'NASDAQ', currency: 'USD', volume: 23610400, marketCap: 1340000000000, dataDate: '2026-07-10' },
+    { symbol: 'ORCL', name: 'Oracle', company: 'Oracle Corp', price: 241.08, changePercent: 4.96, changeAmount: 11.39, exchange: 'NYSE', currency: 'USD', volume: 18402000, marketCap: 675000000000, dataDate: '2026-07-10' },
+  ],
+  losers: [
+    { symbol: 'SNOW', name: 'Snowflake', company: 'Snowflake Inc', price: 196.42, changePercent: -9.84, changeAmount: -21.44, exchange: 'NYSE', currency: 'USD', volume: 14910200, marketCap: 66000000000, dataDate: '2026-07-10' },
+    { symbol: 'MDB', name: 'MongoDB', company: 'MongoDB Inc', price: 221.36, changePercent: -8.31, changeAmount: -20.05, exchange: 'NASDAQ', currency: 'USD', volume: 5012400, marketCap: 18000000000, dataDate: '2026-07-10' },
+    { symbol: 'CRWD', name: 'CrowdStrike', company: 'CrowdStrike Holdings Inc', price: 463.19, changePercent: -7.26, changeAmount: -36.27, exchange: 'NASDAQ', currency: 'USD', volume: 8320400, marketCap: 115000000000, dataDate: '2026-07-10' },
+    { symbol: 'LULU', name: 'Lululemon', company: 'Lululemon Athletica Inc', price: 274.83, changePercent: -6.72, changeAmount: -19.80, exchange: 'NASDAQ', currency: 'USD', volume: 4580100, marketCap: 33000000000, dataDate: '2026-07-10' },
+    { symbol: 'NKE', name: 'Nike', company: 'NIKE Inc', price: 71.54, changePercent: -5.47, changeAmount: -4.14, exchange: 'NYSE', currency: 'USD', volume: 29200400, marketCap: 106000000000, dataDate: '2026-07-10' },
+    { symbol: 'UPS', name: 'UPS', company: 'United Parcel Service Inc', price: 97.26, changePercent: -4.31, changeAmount: -4.38, exchange: 'NYSE', currency: 'USD', volume: 6290100, marketCap: 83000000000, dataDate: '2026-07-10' },
+  ],
+};
+
 const mockEarningsCalendarEvents = [
   { symbol: 'TSM', name: 'TSMC', reportDate: '2026-04-15', fiscalDate: '2026-03-31', session: 'pre', epsEstimate: 3.22, epsActual: 3.49, surprisePercent: 8.3851, epsPreviousYear: 2.12, epsActualYoyPercent: 64.6226, epsEstimateYoyPercent: 58.63, revenueEstimate: 1122225819900, revenueEstimateUsd: 34877729360, revenueActual: 1134100000000, revenueActualUsd: 35246861014, revenuePreviousYear: 838900000000, revenuePreviousYearUsd: 26083500000, revenueEstimateYoyPercent: 33.72, revenueActualYoyPercent: 35.1323, revenueSurprisePercent: 1.0584, marketReactionPercent: -3.1325, currency: 'TWD', impact: 'high' },
   { symbol: 'MSFT', name: 'Microsoft', reportDate: '2026-04-29', fiscalDate: '2026-03-31', session: 'post', epsEstimate: 4.09, epsActual: 4.27, surprisePercent: 4.401, epsPreviousYear: 3.46, epsActualYoyPercent: 23.4104, epsEstimateYoyPercent: 17.29, revenueEstimate: 81426143480, revenueEstimateUsd: 81426143480, revenueActual: 82886000000, revenueActualUsd: 82886000000, revenuePreviousYear: 70066000000, revenuePreviousYearUsd: 70066000000, revenueEstimateYoyPercent: 16.21, revenueActualYoyPercent: 18.297, revenueSurprisePercent: 1.7929, marketReactionPercent: -3.9297, currency: 'USD', impact: 'medium' },
@@ -969,8 +992,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       return name || normalizedSymbol;
     },
     earningsCalendarEvents: previewEarningsCalendarEvents,
+    fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ from, to }) => mockPnlBenchmarkRows
       .filter((row) => (!from || row.date >= from) && (!to || row.date <= to)),
+    fetchPopularStockQuotes: async (symbols = []) => ({
+      success: true,
+      data: mockHomeWatchlist.filter((row) => symbols.includes(row.symbol)),
+    }),
     fetchRealtimePrices: async () => {},
     fetching: false,
     fgi: 32,
