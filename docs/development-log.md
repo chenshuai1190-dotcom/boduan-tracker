@@ -4,9 +4,24 @@
 
 ## 2026-07-13 Asia/Shanghai
 
-### 2026-07-13 - 财报弹窗默认改为列表视图
+### 2026-07-13 - v10.7.9.325 部署证据回填
 
 - Commit: `same commit`。
+- Background: `v10.7.9.325` 运行时代码已通过 GitHub Actions、Vercel production 和生产产物一致性验证,需要把最终生产基准回填到开发日志与交接文档。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 当前生产 runtime、入口、Actions、Vercel target 和设置页版本更新为 `05a0b9198d386ef1cafd95d28ad7c0083a271be0` / `/assets/index-BXaiQwsS.js` / `29225315430` / `8Pz4D2XZAKYHGLN84vXHB2UK49Db` / `v10.7.9.325`。
+  - 记录生产 HomeTab、SettingsTab、更新日志和入口产物与本地 build SHA-256 完全一致,并命中财报双视图、v325 和新版中英文更新标题 marker。
+  - 更新最新可转发交接块,删除 v325 待发布状态。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- 05a0b91` pass、`npm run verify:docs-consistency` pass、`git diff --check` pass、生产四个关键 JS 产物 SHA-256 一致。本轮只回填文档证据,不重复运行 test、build、audit 或 iOS 验收;沿用同轮 runtime 已通过的 46/46、build 和 iPhone 17 Pro Simulator 结果。
+- Deployment: runtime Actions `29225315430` success,Vercel `8Pz4D2XZAKYHGLN84vXHB2UK49Db` success,生产入口 `/assets/index-BXaiQwsS.js`;本 docs-only 提交推送后再确认自身 Vercel status 和生产入口未异常切换。
+- Production verification: 生产 HomeTab 同时保留“列表视图”和“日历视图”,SettingsTab/更新日志命中 `v10.7.9.325` 和“财报弹窗默认列表视图”;未登录 quote、earnings 均为 `401`。
+- Rollback: 回退本条证据和交接当前状态即可;不回退已验证的 v325 运行时代码。
+
+### 2026-07-13 - 财报弹窗默认改为列表视图
+
+- Commit: `05a0b9198d386ef1cafd95d28ad7c0083a271be0`。
 - Background: 用户要求首页财报点开后默认从日历视图改为列表视图,并快速上线。
 - Workflow tier: `ui-fast`。
 - Changes:
@@ -15,8 +30,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.325`。
 - Key files: `src/tabs/EarningsCalendar.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: 定向边界测试 46/46 pass、`npm run build` pass、`npm run verify:docs-consistency` pass、`git diff --check` pass。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 打开 `?devPreview=1&tab=home&earningsScenario=dense` 只读 fixture:点击 NVDA 财报卡默认高亮“列表视图”并完整显示 5 条财报;切换“日历视图”正常,关闭后再次点公司卡和点“全部”均回到列表,右侧明确的日历按钮仍进入日历并保留 07/14 选中日期。截图保存到 `~/Desktop/boduan-previews/earnings-list-default-v325-modal.png` 和 `earnings-list-default-v325-calendar-shortcut.png`。本轮无输入或主屏 PWA 特有行为,无需系统键盘或添加主屏复测;按 `ui-fast` 不运行完整测试、audit 或旧 `verify:frontend-smoke`。
-- Deployment: 待提交并通过项目 SSH key 推送 GitHub `main`,随后等待 GitHub Actions 与 Vercel production success。
-- Production verification: 待验证生产 `v10.7.9.325`、列表默认 marker、入口和未登录 quote/earnings `401`。
+- Deployment: `v10.7.9.325` 已上线。`npm run verify:deploy-status -- 05a0b91` pass;GitHub Actions run `29225315430` success,Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/8Pz4D2XZAKYHGLN84vXHB2UK49Db` success,生产入口 `/assets/index-BXaiQwsS.js`。
+- Production verification: 生产入口、HomeTab、SettingsTab 和更新日志 4 个 JS 产物与本地 build SHA-256 一致;HomeTab 保留“列表视图”和“日历视图”,SettingsTab/更新日志命中 `v10.7.9.325`、“财报弹窗默认列表视图”和英文更新标题;未登录 quote、earnings 均保持 `401`。
 - Boundaries: 不改财报数据、可见事件过滤、详情、请求缓存、`/api/earnings-calendar`、数据库、RLS、鉴权、行情 relay、交易账本或收益快照。
 - Rollback: 将财报弹窗初始/默认模式和公司卡片入口恢复为日历视图,回退 v325 版本/更新日志、断言和本条文档即可;无数据或环境回滚。
 
