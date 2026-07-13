@@ -45,6 +45,8 @@ function unavailable(reason, detail = {}) {
     periodBasisUsd: null,
     stockPnlUsd: null,
     stockPnlPct: null,
+    stockBaselineRawClose: null,
+    stockSnapshotRawClose: null,
     benchmarkBaselineRawClose: null,
     benchmarkSnapshotRawClose: null,
     benchmarkBasisUsd: null,
@@ -57,12 +59,12 @@ function unavailable(reason, detail = {}) {
   };
 }
 
-function normalizeBenchmarkRows(rows) {
+function normalizeRawCloseRows(rows) {
   const byDate = new Map();
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const date = dateKeyOrNull(row?.date);
-    // The formal stock snapshots use close-price return. Keep QQQ on the
-    // provider's unadjusted close too; adjusted/dividend data must not leak in.
+    // Comparison prices are deliberately unadjusted on both sides. Never fall
+    // back to adjustedClose/close because that would silently mix return bases.
     const rawClose = positiveNumberOrNull(row?.rawClose ?? row?.raw_close);
     if (!date) return;
     byDate.set(date, { date, rawClose });
@@ -75,21 +77,10 @@ function normalizeStockTrend(trend) {
   (Array.isArray(trend) ? trend : []).forEach((point) => {
     const date = dateKeyOrNull(point?.date);
     const heldShares = nonNegativeNumberOrNull(point?.heldShares);
-    const closePriceUsd = positiveNumberOrNull(point?.closePriceUsd ?? point?.currentPriceUsd);
-    const suppliedMarketValue = nonNegativeNumberOrNull(point?.marketValueUsd);
     if (!date || heldShares === null) return;
-    const marketValueUsd = closePriceUsd !== null
-      ? heldShares * closePriceUsd
-      : suppliedMarketValue;
-    const resolvedClose = closePriceUsd ?? (
-      heldShares > EPSILON && marketValueUsd !== null ? marketValueUsd / heldShares : null
-    );
-    if (marketValueUsd === null || (heldShares > EPSILON && resolvedClose === null)) return;
     byDate.set(date, {
       date,
       heldShares,
-      closePriceUsd: resolvedClose,
-      marketValueUsd,
     });
   });
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -194,13 +185,15 @@ function sharesMatch(actual, expected) {
 /**
  * Build a cash-flow-matched comparison against QQQ.
  *
- * The first exact stock/QQQ close on or after the requested date becomes d0.
+ * The first exact unadjusted stock/QQQ close on or after the requested date
+ * becomes d0. Personal snapshots contribute only dates and held-share
+ * integrity; all market values come from provider rawClose rows.
  * Both ledgers are initialized with the stock's d0 market value, so both lines
  * start at zero. Later stock buys invest the same dollars in QQQ; later sells
  * liquidate the same pre-sale holding ratio from QQQ. Prices are never filled,
  * interpolated, or substituted.
  */
-export function buildStockReturnComparison(stockDetail, qqqRows) {
+export function buildStockReturnComparison(stockDetail, qqqRows, stockRawRows) {
   if (!stockDetail || typeof stockDetail !== 'object') {
     return unavailable('missing_stock_detail');
   }
@@ -233,7 +226,15 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
   const stockTrend = normalizeStockTrend(stockDetail.comparisonTrend);
   if (stockTrend.length === 0) return unavailable('missing_stock_comparison_trend', detail);
 
-  const benchmarkRows = normalizeBenchmarkRows(qqqRows);
+  const stockRows = normalizeRawCloseRows(stockRawRows);
+  if (stockRows.length === 0 || stockRows.every((row) => row.rawClose === null)) {
+    return unavailable('missing_stock_raw_closes', detail);
+  }
+  const stockRawByDate = new Map(stockRows
+    .filter((row) => row.rawClose !== null)
+    .map((row) => [row.date, row.rawClose]));
+
+  const benchmarkRows = normalizeRawCloseRows(qqqRows);
   if (benchmarkRows.length === 0 || benchmarkRows.every((row) => row.rawClose === null)) {
     return unavailable('missing_benchmark_raw_closes', detail);
   }
@@ -243,14 +244,21 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
 
   const snapshotStock = stockTrend.find((point) => point.date === snapshotDate) || null;
   if (!snapshotStock) return unavailable('missing_exact_stock_snapshot', detail);
-  const snapshotRawClose = benchmarkByDate.get(snapshotDate) ?? null;
-  if (snapshotRawClose === null) return unavailable('missing_exact_benchmark_snapshot', detail);
+  const stockSnapshotRawClose = stockRawByDate.get(snapshotDate) ?? null;
+  if (stockSnapshotRawClose === null) {
+    return unavailable('missing_exact_stock_raw_snapshot', detail);
+  }
+  const benchmarkSnapshotRawClose = benchmarkByDate.get(snapshotDate) ?? null;
+  if (benchmarkSnapshotRawClose === null) {
+    return unavailable('missing_exact_benchmark_snapshot', detail);
+  }
 
   const baselineStock = stockTrend.find((point) => (
     (baselineMode === EXACT_BASELINE_MODE
       ? point.date === effectiveRequestedDate
       : point.date >= effectiveRequestedDate)
     && point.date <= snapshotDate
+    && stockRawByDate.has(point.date)
     && benchmarkByDate.has(point.date)
   )) || null;
   if (!baselineStock) {
@@ -261,17 +269,21 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
       detail,
     );
   }
-  if (!(baselineStock.heldShares > EPSILON) || !(baselineStock.marketValueUsd > EPSILON)) {
+  if (!(baselineStock.heldShares > EPSILON)) {
     return unavailable('missing_positive_baseline_position', {
       ...detail,
       baselineDate: baselineStock.date,
     });
   }
 
-  const baselineRawClose = benchmarkByDate.get(baselineStock.date);
-  const initialPrincipalUsd = baselineStock.marketValueUsd;
+  const stockBaselineRawClose = stockRawByDate.get(baselineStock.date);
+  const benchmarkBaselineRawClose = benchmarkByDate.get(baselineStock.date);
+  const initialPrincipalUsd = baselineStock.heldShares * stockBaselineRawClose;
   const stockLedger = createLedger(baselineStock.heldShares, initialPrincipalUsd);
-  const benchmarkLedger = createLedger(initialPrincipalUsd / baselineRawClose, initialPrincipalUsd);
+  const benchmarkLedger = createLedger(
+    initialPrincipalUsd / benchmarkBaselineRawClose,
+    initialPrincipalUsd,
+  );
   const trades = normalizeTrades(stockDetail.comparisonTrades)
     .filter((trade) => trade.date > baselineStock.date && trade.date <= snapshotDate);
 
@@ -287,6 +299,7 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
   const commonPoints = stockTrend.filter((point) => (
     point.date >= baselineStock.date
     && point.date <= snapshotDate
+    && stockRawByDate.has(point.date)
     && benchmarkByDate.has(point.date)
   ));
   const trend = [];
@@ -306,9 +319,8 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
       });
     }
 
-    const stockMarketValueUsd = point.closePriceUsd !== null
-      ? stockLedger.shares * point.closePriceUsd
-      : point.marketValueUsd;
+    const stockRawClose = stockRawByDate.get(point.date);
+    const stockMarketValueUsd = stockLedger.shares * stockRawClose;
     const benchmarkRawClose = benchmarkByDate.get(point.date);
     const benchmarkMarketValueUsd = benchmarkLedger.shares * benchmarkRawClose;
     const stock = ledgerMetrics(stockLedger, stockMarketValueUsd);
@@ -323,6 +335,7 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
       stockRealizedPnlUsd: stock.realizedPnlUsd,
       stockHeldShares: stock.heldShares,
       stockMarketValueUsd: stock.marketValueUsd,
+      stockRawClose,
       benchmarkRawClose,
       benchmarkPnlUsd: benchmark.pnlUsd,
       benchmarkPnlPct: benchmark.pnlPct,
@@ -361,8 +374,10 @@ export function buildStockReturnComparison(stockDetail, qqqRows) {
     periodBasisUsd: latest.stockBasisUsd,
     stockPnlUsd: latest.stockPnlUsd,
     stockPnlPct: latest.stockPnlPct,
-    benchmarkBaselineRawClose: baselineRawClose,
-    benchmarkSnapshotRawClose: snapshotRawClose,
+    stockBaselineRawClose,
+    stockSnapshotRawClose,
+    benchmarkBaselineRawClose,
+    benchmarkSnapshotRawClose,
     benchmarkBasisUsd: latest.benchmarkBasisUsd,
     benchmarkPnlUsd: latest.benchmarkPnlUsd,
     benchmarkPnlPct: latest.benchmarkPnlPct,

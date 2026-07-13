@@ -479,9 +479,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.327'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.327', date: '2026-07-14', latest: true"), 'latest changelog entry should match the visible settings version');
-  assert.ok(settingsChangelogSource.includes('个股收益对比与 QQQ 基准'), 'settings changelog should describe the stock return comparison release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.328'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.328', date: '2026-07-14', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('收益对比统一普通收盘价与收益率'), 'settings changelog should describe the raw-close return comparison release');
+  assert.ok(settingsChangelogSource.includes('超额金额与收益率差分开标注') && settingsChangelogSource.includes('率差使用百分号紧凑显示'), 'settings changelog should describe the compact percent-marked rate-gap wording');
+  assert.ok(settingsChangelogSource.includes('图表触摸小浮层的个股与 QQQ 行只保留收益金额') && settingsChangelogSource.includes('主动投资价值分享卡仅取消最外层白色描边'), 'settings changelog should distinguish the compact tooltip from the borderless full share card');
   assert.ok(settingsChangelogSource.includes('生产无 mock'), 'settings changelog should preserve the no-fake-return boundary');
   assert.ok(settingsChangelogSource.includes('真实美股收盘涨跌榜'), 'settings changelog should describe the real close mover release');
   assert.ok(settingsChangelogSource.includes('不使用演示数据或生产 mock 兜底'), 'settings changelog should preserve the no-fake-data boundary');
@@ -1886,7 +1888,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.327'"), 'settings version source should advance with the stock return comparison release');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.328'"), 'settings version source should advance with the raw-close return comparison release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2206,7 +2208,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.327'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.328'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

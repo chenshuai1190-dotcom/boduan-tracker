@@ -13,7 +13,7 @@ Date: 2026-07-03 Asia/Shanghai
 - `/api/quote` 默认要求 Supabase access token
 - EODHD token 放在服务端 `EODHD_API_KEY`
 - 美股收盘涨跌榜通过已登录 `/api/quote?view=market-movers` 和独立 `server/quote/marketMovers.js` 获取真实 EODHD 收盘数据,并与 Nasdaq Trader 当前上市目录交集验证;官方目录/provider 异常时 fail closed,生产无 EODHD-only 或 mock 榜单兜底
-- 个股收益对比只读当前用户正式 `stock_trades` 和 owner-scoped `pnl_report_symbol_snapshots`,QQQ 普通收盘价只经已登录 `/api/pnl-benchmark` 从服务端读取;双方按首个现有个人快照/QQQ 共同日期、等额加仓和同比例减仓计算,缺数据或账本/快照不一致时 fail closed,不写账本/快照且生产无 mock 收益。个人收益快照沿用现有 owner-writable 模型,因此该视图是个人账本分析,不是比赛级不可覆盖证明
+- 个股收益对比只读当前用户正式 `stock_trades` 和 owner-scoped `pnl_report_symbol_snapshots`,个股与 QQQ 的 `rawClose` 普通收盘价均经已登录 `/api/pnl-benchmark` 从服务端读取;个人快照只核验日期和持仓股数,双方按首个三方共同日期、等额加仓和同比例减仓计算,缺数据或账本/快照不一致时 fail closed,不写账本/快照且生产无 mock 收益。个人收益快照沿用现有 owner-writable 模型,因此该视图是个人账本分析,不是比赛级不可覆盖证明
 - BTC、三大指数和用户股票实时推送已走服务端 WebSocket relay,浏览器只连接已登录的 `/api/btc-realtime` / `/api/indices-realtime` / `/api/stocks-realtime`;用户股票范围包括自选、正式持仓、波段记录和摊薄工具 quote rows
 - Supabase RLS SQL 已纳入仓库
 - 登录前/登录后 bundle 已拆分

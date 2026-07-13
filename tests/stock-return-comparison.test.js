@@ -43,8 +43,19 @@ function qqqRows(overrides = []) {
   ];
 }
 
+function stockRawRows(overrides = []) {
+  return [
+    { date: '2026-01-02', rawClose: 75 },
+    { date: '2026-06-01', rawClose: 100, adjustedClose: 900, close: 900 },
+    { date: '2026-06-10', rawClose: 130, adjustedClose: 901, close: 901 },
+    { date: '2026-06-19', rawClose: 140, adjustedClose: 902, close: 902 },
+    { date: '2026-06-30', rawClose: 150, adjustedClose: 903, close: 903 },
+    ...overrides,
+  ];
+}
+
 test('starts both ledgers at zero on the first common formal snapshot date', () => {
-  const result = buildStockReturnComparison(stockDetail(), qqqRows());
+  const result = buildStockReturnComparison(stockDetail(), qqqRows(), stockRawRows());
 
   assert.equal(result.available, true);
   assert.equal(result.positionStartDate, '2026-06-01');
@@ -52,6 +63,9 @@ test('starts both ledgers at zero on the first common formal snapshot date', () 
   assert.equal(result.baselineDate, '2026-06-01');
   assert.equal(result.snapshotDate, '2026-06-30');
   assert.equal(result.initialPrincipalUsd, 1_000);
+  assert.equal(result.stockBaselineRawClose, 100);
+  assert.equal(result.stockSnapshotRawClose, 150);
+  assert.equal(result.trend[0].stockRawClose, 100);
   assert.equal(result.trend[0].stockPnlUsd, 0);
   assert.equal(result.trend[0].benchmarkPnlUsd, 0);
   assert.equal(result.trend[0].excessPnlUsd, 0);
@@ -60,7 +74,7 @@ test('starts both ledgers at zero on the first common formal snapshot date', () 
 });
 
 test('a later buy uses moving average cost and invests the same dollars in QQQ', () => {
-  const result = buildStockReturnComparison(stockDetail(), qqqRows());
+  const result = buildStockReturnComparison(stockDetail(), qqqRows(), stockRawRows());
   const afterBuy = result.trend.find((point) => point.date === '2026-06-10');
 
   assert.equal(afterBuy.stockHeldShares, 20);
@@ -74,7 +88,7 @@ test('a later buy uses moving average cost and invests the same dollars in QQQ',
 });
 
 test('a partial sell mirrors the pre-sale holding ratio and uses diluted cost on both sides', () => {
-  const result = buildStockReturnComparison(stockDetail(), qqqRows());
+  const result = buildStockReturnComparison(stockDetail(), qqqRows(), stockRawRows());
   const afterSell = result.trend.find((point) => point.date === '2026-06-19');
 
   // Stock: average cost 110, sell 5 at 150 => realized +200. The remaining
@@ -97,7 +111,7 @@ test('a partial sell mirrors the pre-sale holding ratio and uses diluted cost on
 });
 
 test('final amounts and percentages remain cash-flow matched after add and trim', () => {
-  const result = buildStockReturnComparison(stockDetail(), qqqRows());
+  const result = buildStockReturnComparison(stockDetail(), qqqRows(), stockRawRows());
 
   assert.equal(result.stockPnlUsd, 800);
   assert.equal(result.periodBasisUsd, 1_450);
@@ -109,11 +123,69 @@ test('final amounts and percentages remain cash-flow matched after add and trim'
   assertClose(result.excessPnlPct, (800 / 1_450) - (502.5 / 1_567.5));
 });
 
+test('keeps excess dollars and return-rate gap as separate honest measures after trims', () => {
+  const result = buildStockReturnComparison(stockDetail({
+    benchmarkBaselineDate: '2026-06-01',
+    benchmarkEndDate: '2026-06-10',
+    comparisonPositionStartDate: '2026-06-01',
+    comparisonTrades: [
+      { id: 'base', date: '2026-06-01', side: 'buy', shares: 1, price: 100, orderIndex: 0 },
+      { id: 'trim', date: '2026-06-05', side: 'sell', shares: 0.5, price: 1, orderIndex: 1 },
+    ],
+    comparisonTrend: [
+      { date: '2026-06-01', heldShares: 1 },
+      { date: '2026-06-05', heldShares: 0.5 },
+      { date: '2026-06-10', heldShares: 0.5 },
+    ],
+  }), [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-05', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 200 },
+  ], [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-05', rawClose: 1 },
+    { date: '2026-06-10', rawClose: 320 },
+  ]);
+
+  assert.equal(result.available, true);
+  assertClose(result.stockPnlUsd, 60.5);
+  assertClose(result.stockPnlPct, 60.5 / 99.5);
+  assertClose(result.benchmarkPnlUsd, 50);
+  assertClose(result.benchmarkPnlPct, 1);
+  assertClose(result.excessPnlUsd, 10.5);
+  assertClose(result.excessPnlPct, (60.5 / 99.5) - 1);
+  assert.ok(result.excessPnlUsd > 0 && result.excessPnlPct < 0);
+});
+
+test('personal adjusted snapshot prices never affect the raw/raw comparison', () => {
+  const detailWithConflictingSnapshotPrices = stockDetail({
+    comparisonTrend: stockDetail().comparisonTrend.map((point, index) => ({
+      ...point,
+      closePriceUsd: 900 + index,
+      currentPriceUsd: 800 + index,
+      marketValueUsd: 900_000 + index,
+    })),
+  });
+  const result = buildStockReturnComparison(
+    detailWithConflictingSnapshotPrices,
+    qqqRows(),
+    stockRawRows(),
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.initialPrincipalUsd, 1_000);
+  assert.equal(result.stockBaselineRawClose, 100);
+  assert.equal(result.stockSnapshotRawClose, 150);
+  assert.equal(result.trend.find((point) => point.date === '2026-06-10').stockRawClose, 130);
+  assert.equal(result.stockPnlUsd, 800);
+  assertClose(result.stockPnlPct, 800 / 1_450);
+});
+
 test('never starts QQQ before the current position even when the selected range starts earlier', () => {
   const result = buildStockReturnComparison(stockDetail({
     comparisonPositionStartDate: '2026-06-01',
     benchmarkBaselineDate: '2026-01-01',
-  }), qqqRows());
+  }), qqqRows(), stockRawRows());
 
   assert.equal(result.available, true);
   assert.equal(result.requestedBaselineDate, '2026-01-01');
@@ -139,6 +211,9 @@ test('moves a weekend inception to the first exact stock and QQQ close without c
   }), [
     { date: '2026-06-01', rawClose: 100 },
     { date: '2026-06-10', rawClose: 105 },
+  ], [
+    { date: '2026-06-01', rawClose: 150 },
+    { date: '2026-06-10', rawClose: 165 },
   ]);
 
   assert.equal(result.available, true);
@@ -155,7 +230,7 @@ test('exact baseline mode never advances to a later close', () => {
     comparisonPositionStartDate: '2026-05-31',
     benchmarkBaselineDate: '2026-05-31',
     benchmarkBaselineMode: 'exact',
-  }), qqqRows());
+  }), qqqRows(), stockRawRows());
 
   assert.equal(result.available, false);
   assert.equal(result.reason, 'missing_exact_common_baseline');
@@ -167,7 +242,7 @@ test('uses rawClose only and requires exact QQQ closes for later cash flows', ()
     { date: '2026-06-10', rawClose: 110 },
     { date: '2026-06-19', rawClose: 121 },
     { date: '2026-06-30', rawClose: 132 },
-  ]);
+  ], stockRawRows());
   assert.equal(adjustedOnlyBaseline.available, true);
   assert.equal(adjustedOnlyBaseline.baselineDate, '2026-06-10');
   assert.equal(adjustedOnlyBaseline.benchmarkBaselineRawClose, 110);
@@ -176,7 +251,7 @@ test('uses rawClose only and requires exact QQQ closes for later cash flows', ()
     { date: '2026-06-01', rawClose: 100 },
     { date: '2026-06-19', rawClose: 121 },
     { date: '2026-06-30', rawClose: 132 },
-  ]);
+  ], stockRawRows());
   assert.equal(missingBuyDate.available, false);
   assert.equal(missingBuyDate.reason, 'missing_exact_benchmark_trade_close');
 });
@@ -184,12 +259,25 @@ test('uses rawClose only and requires exact QQQ closes for later cash flows', ()
 test('requires the exact common end date and never fills a nearby close', () => {
   const missingStockEnd = buildStockReturnComparison(stockDetail({
     comparisonTrend: stockDetail().comparisonTrend.slice(0, -1),
-  }), qqqRows());
+  }), qqqRows(), stockRawRows());
   assert.equal(missingStockEnd.available, false);
   assert.equal(missingStockEnd.reason, 'missing_exact_stock_snapshot');
 
-  const missingQqqEnd = buildStockReturnComparison(stockDetail(), qqqRows()
-    .filter((row) => row.date !== '2026-06-30'));
+  const missingStockRawEnd = buildStockReturnComparison(
+    stockDetail(),
+    qqqRows(),
+    stockRawRows()
+      .filter((row) => row.date !== '2026-06-30')
+      .concat({ date: '2026-06-30', adjustedClose: 150, close: 150 }),
+  );
+  assert.equal(missingStockRawEnd.available, false);
+  assert.equal(missingStockRawEnd.reason, 'missing_exact_stock_raw_snapshot');
+
+  const missingQqqEnd = buildStockReturnComparison(
+    stockDetail(),
+    qqqRows().filter((row) => row.date !== '2026-06-30'),
+    stockRawRows(),
+  );
   assert.equal(missingQqqEnd.available, false);
   assert.equal(missingQqqEnd.reason, 'missing_exact_benchmark_snapshot');
 });
@@ -208,6 +296,9 @@ test('keeps dollar P&L but returns null percentages when realized profit exhaust
   }), [
     { date: '2026-06-01', rawClose: 100 },
     { date: '2026-06-10', rawClose: 100 },
+  ], [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 300 },
   ]);
 
   assert.equal(result.available, true);
@@ -231,6 +322,9 @@ test('full liquidation clamps both ledgers to zero shares without division artif
   }), [
     { date: '2026-06-01', rawClose: 100 },
     { date: '2026-06-10', rawClose: 110 },
+  ], [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 300 },
   ]);
 
   assert.equal(result.available, true);
@@ -247,7 +341,7 @@ test('fails closed when formal trades and personal snapshot holdings disagree', 
     comparisonTrend: stockDetail().comparisonTrend.map((point) => (
       point.date === '2026-06-30' ? { ...point, heldShares: 14 } : point
     )),
-  }), qqqRows());
+  }), qqqRows(), stockRawRows());
 
   assert.equal(result.available, false);
   assert.equal(result.reason, 'stock_trade_snapshot_mismatch');
@@ -268,6 +362,9 @@ test('honors created-at order for same-day add and trim cash flows', () => {
   }), [
     { date: '2026-06-01', rawClose: 100 },
     { date: '2026-06-10', rawClose: 110 },
+  ], [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 300 },
   ]);
 
   assert.equal(result.available, true);
@@ -298,6 +395,10 @@ test('full close and rebuy integration starts a fresh comparison cycle', () => {
     { date: '2026-07-01', rawClose: 100 },
     { date: '2026-07-04', rawClose: 105 },
     { date: '2026-07-08', rawClose: 110 },
+  ], [
+    { date: '2026-07-01', rawClose: 150 },
+    { date: '2026-07-04', rawClose: 160 },
+    { date: '2026-07-08', rawClose: 170 },
   ]);
 
   assert.equal(view.comparisonPositionStartDate, '2026-07-01');
@@ -319,10 +420,14 @@ test('returns explicit reasons for missing comparison inputs', () => {
   ];
 
   cases.forEach(([detail, reason]) => {
-    const result = buildStockReturnComparison(detail, qqqRows());
+    const result = buildStockReturnComparison(detail, qqqRows(), stockRawRows());
     assert.equal(result.available, false);
     assert.equal(result.reason, reason);
   });
+
+  const missingStockRaw = buildStockReturnComparison(stockDetail(), qqqRows(), []);
+  assert.equal(missingStockRaw.available, false);
+  assert.equal(missingStockRaw.reason, 'missing_stock_raw_closes');
 });
 
 test('exposes the benchmark identity and supported baseline modes', () => {

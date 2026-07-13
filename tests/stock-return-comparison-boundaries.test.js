@@ -4,14 +4,30 @@ import { readFileSync } from 'node:fs';
 
 const stockDetailPageSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const comparisonCardSource = readFileSync(new URL('../src/components/StockReturnComparisonCard.jsx', import.meta.url), 'utf8');
+const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const benchmarkApiSource = readFileSync(new URL('../api/pnl-benchmark.js', import.meta.url), 'utf8');
 const previewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+const shareVisualStart = comparisonCardSource.indexOf('<div className="mt-5 rounded-2xl');
+const shareVisualEnd = comparisonCardSource.indexOf('<div className="mt-3 text-[11px]', shareVisualStart);
+const shareVisualSource = comparisonCardSource.slice(shareVisualStart, shareVisualEnd);
+const tooltipVisualStart = comparisonCardSource.indexOf('<div className="pointer-events-none absolute');
+const tooltipVisualEnd = comparisonCardSource.indexOf('function SharePreview', tooltipVisualStart);
+const tooltipVisualSource = comparisonCardSource.slice(tooltipVisualStart, tooltipVisualEnd);
 
-test('stock comparison remains read-only and uses the existing authenticated benchmark boundary', () => {
+test('stock comparison remains read-only and loads both raw-close sides through the authenticated market-data boundary', () => {
   assert.match(stockDetailPageSource, /fetchPnlReportSymbolSnapshotHistory\(symbol, null\)/);
-  assert.match(stockDetailPageSource, /\/api\/pnl-benchmark\?symbol=QQQ/);
+  assert.match(stockDetailPageSource, /requestedSymbols = \[\.\.\.new Set\(\[symbol, 'QQQ'\]\)\]/);
+  assert.match(stockDetailPageSource, /Promise\.all\(missingSymbols\.map/);
+  assert.match(stockDetailPageSource, /\/api\/pnl-benchmark\?symbol=\$\{encodeURIComponent\(requestedSymbol\)\}/);
   assert.match(stockDetailPageSource, /Authorization: `Bearer \$\{token\}`/);
-  assert.match(stockDetailPageSource, /buildStockReturnComparison\(view, benchmarkRows\)/);
+  assert.equal(
+    (stockDetailPageSource.match(/supabase\.auth\.getSession\(\)/g) || []).length,
+    1,
+    'both symbol requests must reuse one authenticated session lookup',
+  );
+  assert.match(stockDetailPageSource, /`\$\{requestedSymbol\}:\$\{from\}:\$\{to\}`/);
+  assert.match(stockDetailPageSource, /buildStockReturnComparison\([\s\S]*comparisonMarketRows\.qqqRows[\s\S]*comparisonMarketRows\.stockRawRows/);
+  assert.match(stockDetailPageSource, /setComparisonMarketRows\(\{ key: '', qqqRows: \[\], stockRawRows: \[\] \}\)/);
   assert.doesNotMatch(stockDetailPageSource, /stock_trades[^\n]*(insert|update|delete|upsert)/i);
   assert.match(benchmarkApiSource, /requireQuoteAuth/);
   assert.match(benchmarkApiSource, /rawClose/);
@@ -22,8 +38,35 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.match(comparisonCardSource, /marketHexColor/);
   assert.match(comparisonCardSource, /MINE_LINE_COLOR/);
   assert.match(comparisonCardSource, /BENCHMARK_LINE_COLOR/);
+  assert.match(comparisonCardSource, /stockDetail\.comparison\.rateGap/);
+  assert.match(comparisonCardSource, /stockDetail\.comparison\.rateGapShort/);
+  assert.match(comparisonCardSource, /pctLabel=\{t\(language, 'stockDetail\.comparison\.rateGapShort'/);
+  assert.match(comparisonCardSource, /signedPct\(comparison\.excessPnlPct\)/);
+  assert.doesNotMatch(comparisonCardSource, /个百分点|\}pp/);
+  assert.match(comparisonCardSource, /rounded-\[24px\] bg-\[#0d1118\]/);
+  assert.doesNotMatch(comparisonCardSource, /rounded-\[24px\] border border-white\/12/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.rateGap': '收益率差'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.rateGap': 'Return-rate Gap'/);
+  assert.match(i18nSource, /收益率差 = 我的收益率 − QQQ 收益率/);
+  assert.match(i18nSource, /Return-rate gap = my return rate − QQQ return rate/);
+  assert.ok(shareVisualStart > -1 && shareVisualEnd > shareVisualStart, 'share-card visual source should be detectable');
+  assert.match(shareVisualSource, /compactSignedCurrency\(stockAmount/);
+  assert.match(shareVisualSource, /compactSignedCurrency\(benchmarkAmount/);
+  assert.match(shareVisualSource, /signedPct\(comparison\.excessPnlPct\)/);
+  assert.match(shareVisualSource, /signedPct\(comparison\.stockPnlPct\)/);
+  assert.match(shareVisualSource, /signedPct\(comparison\.benchmarkPnlPct\)/);
+  assert.ok(tooltipVisualStart > -1 && tooltipVisualEnd > tooltipVisualStart, 'chart-tooltip visual source should be detectable');
+  assert.match(tooltipVisualSource, /signedCurrency\(selected\.stockPnlUsd/);
+  assert.match(tooltipVisualSource, /signedCurrency\(selected\.benchmarkPnlUsd/);
+  assert.match(tooltipVisualSource, /signedPct\(selected\.excessPnlPct\)/);
+  assert.doesNotMatch(tooltipVisualSource, /signedPct\(selected\.(stockPnlPct|benchmarkPnlPct)\)/);
+  assert.match(comparisonCardSource, /收益金额跑赢 QQQ/);
   assert.doesNotMatch(comparisonCardSource, /mock|fixture|sampleData/i);
   assert.match(previewSource, /mockStockComparisonLossPnlByDate/);
+  assert.match(previewSource, /mockStockComparisonNvdaRawRows/);
+  assert.match(previewSource, /stockReturnRawRowsBySymbol/);
+  assert.match(previewSource, /symbol: requestedSymbol = 'QQQ'/);
+  assert.match(previewSource, /stockDetailTooltip/);
   assert.match(previewSource, /stockDetailComparison/);
 });
 

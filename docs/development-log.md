@@ -4,6 +4,25 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 个股/QQQ 普通收盘价统一与收益率表达
+
+- Commit: local sensitive change pending;未提交、未推送、未部署。
+- Background: 复核 NVDA 收益对比时发现 v327 个股侧使用个人收益快照价格,QQQ 侧使用 provider `rawClose`,公司行动附近可产生不可比的混合口径。用户同意改为双方普通收盘价,并希望收益对比卡增强百分比表达。
+- Workflow tier: `sensitive`。本轮修改已登录 provider 数据请求、收益计算和个人账本/快照读取边界,不可按 `ui-fast` 发布。
+- Changes:
+  - `StockDetailPage` 通过同一次 Supabase session 查找并行请求当前个股和 QQQ 的已登录 `/api/pnl-benchmark` 数据,按 `symbol + from + to` 缓存 15 分钟;QQQ 详情页去重为一次请求,任一标的失败都原子化清空整组数据。
+  - 个股与 QQQ 的起点本金、曲线估值和终点均严格消费 provider `rawClose`;不回退 `adjustedClose` / `close`。个人 `pnl_report_symbol_snapshots` 只贡献日期和持仓股数一致性核验,不再参与价格估值。
+  - 起点仍是“当前持仓轮次首笔买入”与所选周期中较晚者当日或之后,同时存在个人快照、个股普通收盘价和 QQQ 普通收盘价的首个共同日;后续等额加仓、同比例减仓、移动均价和实现盈亏摊薄成本规则不变。
+  - 主卡继续以金额为主、收益率为辅;图表触摸浮层、分享视觉卡和复制文字同步补齐个股/QQQ 收益率。减仓后双方摊薄基数可能不同,因此“超额金额”与“收益率差”明确分开标注;主卡紧凑显示“率差 +X.XX%”,其余表面显示“收益率差 +X.XX%”,信息口径明确为我的收益率减 QQQ 收益率,不写成容易误解的“领先 QQQ X%”。
+  - 图表触摸小浮层移除个股与 QQQ 金额旁的各自收益率,只保留两笔金额、超额金额和最终收益率差,降低小卡信息密度。主动投资价值分享卡继续显示完整收益率,仅取消最外层白色描边;内部数据卡弱边框、圆角层级和深色背景不变。
+  - `DevVisualPreview` 只保留按 symbol 分开的本地只读 fixture,且刻意设置 `close != rawClose` 以覆盖口径;生产路径没有 mock、实时价、估算价或调整价兜底。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.328`。
+- Key files: `src/pages/StockDetailPage.jsx`,`src/lib/stockReturnComparison.js`,`src/components/StockReturnComparisonCard.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/pnl-benchmark-api.test.js`,`tests/stock-return-comparison.test.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:toolchain` pass;收益对比/API/视图模型/账本边界定向测试 81/81 pass;完整 `npm test` 298/298 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:docs-consistency`、`git diff --check` pass;`npm run verify:rls:rest` 20/20 pass,匿名 `stock_trades` / `pnl_report_symbol_snapshots` 均为 `200` 且 `visibleRows=0`;顶层 Vercel functions 仍为 Hobby 上限内 12 个,production build 无本地 fixture 标识。真实 server-only EODHD 探针确认 2026-01-01 至 2026-07-10 的 NVDA / QQQ 均为 130 个有效 `rawClose`,首个共同日 01-02,末日 07-10;一次性买入价格对比为 NVDA `+11.7077%`、QQQ `+18.3308%`,按“NVDA 收益率 − QQQ 收益率”得到收益率差 `-6.6231%`。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 只读 `DevVisualPreview` 验收主卡、低密度图表小浮层和无外层白框分享卡;金额/收益率/超额金额/率差百分比均无截断,小浮层个股/QQQ 行只保留金额,分享卡完整收益率仍在;截图为 `~/Desktop/boduan-previews/stock-return-percent-v328-main.png`、`stock-return-percent-v328-tooltip-clean.png`、`stock-return-percent-v328-share-borderless.png`;本轮无输入或主屏 PWA 特有行为,无需系统软件键盘或添加主屏复测。
+- Deployment: not requested;本地候选版本尚未提交、推送或部署,生产仍为 `v10.7.9.327` / `55e02c8faa8fdac7b57b44335b6edb5d153494a2` / `/assets/index-DW_Jo82w.js`。
+- Boundaries: 只读正式 `stock_trades`、owner-scoped 个人收益快照和已登录 server-only EODHD 普通收盘数据;不写/修复交易账本或快照,不改 API 鉴权、RLS、数据库、环境变量、比赛、波段、资产、目标、财报或 realtime relay。
+- Rollback: 回退双 symbol 请求/缓存、纯函数第三个 raw rows 参数、收益率差百分比展示、分享卡外层描边、v328 版本/更新日志和本条文档即可;无 SQL、RLS、环境、生产数据或账本回滚。
+
 ### 2026-07-14 - v10.7.9.327 部署证据回填
 
 - Commit: `same commit`。

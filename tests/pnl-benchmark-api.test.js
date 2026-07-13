@@ -73,7 +73,7 @@ test('pnl benchmark handler validates date range after auth is disabled', async 
   assert.match(res.body.error, /from/);
 });
 
-test('pnl benchmark handler returns sanitized EODHD daily rows', async () => {
+test('pnl benchmark handler returns sanitized raw-close rows for any valid single U.S. symbol', async () => {
   const env = {
     authRequired: process.env.QUOTE_API_AUTH_REQUIRED,
     eodhdKey: process.env.EODHD_API_KEY,
@@ -99,7 +99,9 @@ test('pnl benchmark handler returns sanitized EODHD daily rows', async () => {
   const res = createResponse();
 
   try {
-    await handler(createRequest(), res);
+    await handler(createRequest({
+      query: { symbol: 'NVDA', from: '2026-01-01', to: '2026-07-08' },
+    }), res);
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);
@@ -107,7 +109,7 @@ test('pnl benchmark handler returns sanitized EODHD daily rows', async () => {
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
-  assert.equal(res.body.symbol, 'QQQ');
+  assert.equal(res.body.symbol, 'NVDA');
   assert.equal(res.body.rows.length, 4);
   assert.deepEqual(res.body.rows[0], {
     date: '2026-01-02',
@@ -127,7 +129,7 @@ test('pnl benchmark handler returns sanitized EODHD daily rows', async () => {
     rawClose: null,
     adjustedClose: 515,
   });
-  assert.match(requestedUrl, /\/api\/eod\/QQQ\.US/);
+  assert.match(requestedUrl, /\/api\/eod\/NVDA\.US/);
   assert.match(requestedUrl, /from=2026-01-01/);
   assert.match(requestedUrl, /to=2026-07-08/);
   assert.doesNotMatch(JSON.stringify(res.body), /test-eodhd-key/);

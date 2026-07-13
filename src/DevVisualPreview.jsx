@@ -281,6 +281,26 @@ const mockPnlBenchmarkRows = [
   { date: '2026-07-08', close: 565.50, rawClose: 565.50 },
 ];
 
+// DevVisualPreview stays fully local, but keeps the two market-data channels
+// separate so the stock comparison exercises the same raw/raw contract as the
+// production page. `close` intentionally differs on a few rows: the comparison
+// must consume `rawClose`, never the adjusted-compatible display value.
+const mockStockComparisonNvdaRawRows = [
+  { date: '2026-04-05', close: 120.00, rawClose: 120.12, adjustedClose: 120.00 },
+  { date: '2026-04-20', close: 119.20, rawClose: 119.35, adjustedClose: 119.20 },
+  { date: '2026-05-06', close: 132.60, rawClose: 132.82, adjustedClose: 132.60 },
+  { date: '2026-05-20', close: 151.30, rawClose: 151.51, adjustedClose: 151.30 },
+  { date: '2026-06-04', close: 168.20, rawClose: 168.44, adjustedClose: 168.20 },
+  { date: '2026-06-18', close: 148.40, rawClose: 148.61, adjustedClose: 148.40 },
+  { date: '2026-06-30', close: 171.80, rawClose: 172.03, adjustedClose: 171.80 },
+  { date: '2026-07-01', close: 176.40, rawClose: 176.63, adjustedClose: 176.40 },
+  { date: '2026-07-02', close: 180.60, rawClose: 180.84, adjustedClose: 180.60 },
+  { date: '2026-07-03', close: 184.20, rawClose: 184.43, adjustedClose: 184.20 },
+  { date: '2026-07-06', close: 188.10, rawClose: 188.34, adjustedClose: 188.10 },
+  { date: '2026-07-07', close: 192.30, rawClose: 192.55, adjustedClose: 192.30 },
+  { date: '2026-07-08', close: 196.50, rawClose: 196.73, adjustedClose: 196.50 },
+];
+
 const mockPnlSymbolSnapshots = [
   { symbol: 'NVDA', name: 'NVIDIA', cumulativePnlUsd: 48000, dailyPnlUsd: 2100 },
   { symbol: 'MSFT', name: '微软', cumulativePnlUsd: 31400, dailyPnlUsd: -900 },
@@ -319,6 +339,16 @@ const mockStockComparisonCostFlowQqqRows = [
   { date: '2026-06-19', close: 540, rawClose: 540 },
   { date: '2026-06-30', close: 550, rawClose: 550 },
   { date: '2026-07-08', close: 560, rawClose: 560 },
+];
+
+const mockStockComparisonCostFlowNvdaRawRows = [
+  { date: '2026-06-01', close: 102, rawClose: 101.75, adjustedClose: 102 },
+  { date: '2026-06-05', close: 108, rawClose: 107.72, adjustedClose: 108 },
+  { date: '2026-06-10', close: 122, rawClose: 121.66, adjustedClose: 122 },
+  { date: '2026-06-15', close: 130, rawClose: 129.63, adjustedClose: 130 },
+  { date: '2026-06-19', close: 140, rawClose: 139.59, adjustedClose: 140 },
+  { date: '2026-06-30', close: 145, rawClose: 144.57, adjustedClose: 145 },
+  { date: '2026-07-08', close: 150, rawClose: 149.55, adjustedClose: 150 },
 ];
 
 const mockTodayStockTrade = {
@@ -380,6 +410,22 @@ const mockStockComparisonLossQqqCloseByDate = {
   '2026-07-07': 476,
   '2026-07-08': 475,
 };
+
+const mockStockComparisonLossNvdaRawRows = [
+  { date: '2026-04-05', close: 96, rawClose: 96 },
+  { date: '2026-04-20', close: 94, rawClose: 94 },
+  { date: '2026-05-06', close: 92, rawClose: 92 },
+  { date: '2026-05-20', close: 89, rawClose: 89 },
+  { date: '2026-06-04', close: 88, rawClose: 88 },
+  { date: '2026-06-18', close: 86, rawClose: 86 },
+  { date: '2026-06-30', close: 84, rawClose: 84 },
+  { date: '2026-07-01', close: 81, rawClose: 81 },
+  { date: '2026-07-02', close: 98.75, rawClose: 98.75 },
+  { date: '2026-07-03', close: 97.50, rawClose: 97.50 },
+  { date: '2026-07-06', close: 95, rawClose: 95 },
+  { date: '2026-07-07', close: 92.50, rawClose: 92.50 },
+  { date: '2026-07-08', close: 90, rawClose: 90 },
+];
 
 const mockActivePositions = [
   { symbol: 'NVDA', name: 'NVIDIA', currentPrice: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, totalPnl: 48000, totalPnlPct: 0.28 },
@@ -678,6 +724,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('stockDetailShare') === '1';
   const stockReturnComparisonMethodPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailMethod') === '1';
+  const stockReturnComparisonTooltipPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailTooltip') === '1';
   const stockDetailFocusComparison = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailFocus') === 'comparison';
   const stockReturnComparisonLossPreview = typeof window !== 'undefined'
@@ -789,6 +837,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       return lossClose == null ? row : { ...row, close: lossClose, rawClose: lossClose };
     });
   }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  const stockReturnStockRawRows = React.useMemo(() => {
+    if (stockReturnComparisonCostFlowPreview) return mockStockComparisonCostFlowNvdaRawRows;
+    if (stockReturnComparisonLossPreview) return mockStockComparisonLossNvdaRawRows;
+    return mockStockComparisonNvdaRawRows;
+  }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  const stockReturnRawRowsBySymbol = React.useMemo(() => ({
+    QQQ: stockReturnBenchmarkRows,
+    NVDA: stockReturnStockRawRows,
+  }), [stockReturnBenchmarkRows, stockReturnStockRawRows]);
   const stockDetailTrades = stockReturnComparisonCostFlowPreview
     ? [...mockPnlStockTrades.filter((trade) => trade.symbol !== 'NVDA'), ...mockStockComparisonCostFlowTrades]
     : mockPnlStockTrades;
@@ -1127,8 +1184,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     earningsCalendarEvents: previewEarningsCalendarEvents,
     fetchMarketMovers: async () => devMarketMoversFixture,
-    fetchPnlBenchmarkRows: async ({ from, to }) => stockReturnBenchmarkRows
-      .filter((row) => (!from || row.date >= from) && (!to || row.date <= to)),
+    fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
+      const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];
+      return rows
+        .filter((row) => (!from || row.date >= from) && (!to || row.date <= to))
+        .map((row) => ({ ...row }));
+    },
     fetchPopularStockQuotes: async (symbols = []) => ({
       success: true,
       data: mockHomeWatchlist.filter((row) => symbols.includes(row.symbol)),
@@ -1185,6 +1246,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     stockDetailInitialRange,
     stockReturnComparisonMethodPreview,
     stockReturnComparisonSharePreview,
+    stockReturnComparisonTooltipPreview,
     stockReturnComparisonVisualPreview: true,
     stockTrades: stockDetailTrades,
     stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,

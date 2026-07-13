@@ -248,31 +248,19 @@ function buildComparisonLedgerPoint(cycleTrades, snapshot) {
 
   if (heldShares <= 0.000001) return null;
   const snapshotHeldShares = finiteNumberOrNull(snapshot?.heldShares);
-  const snapshotMarketValueUsd = finiteNumberOrNull(snapshot?.marketValueUsd);
-  const snapshotPriceUsd = toNumber(snapshot?.currentPriceUsd) > 0
-    ? toNumber(snapshot.currentPriceUsd)
-    : (toNumber(snapshot?.marketValueUsd) > 0 ? toNumber(snapshot.marketValueUsd) / heldShares : 0);
-  if (!(snapshotPriceUsd > 0)) return null;
-
-  const marketValueUsd = heldShares * snapshotPriceUsd;
   const integrityReason = snapshotHeldShares !== null && !nearlyEqual(heldShares, snapshotHeldShares)
     ? 'stock_trade_snapshot_mismatch'
-    : snapshotMarketValueUsd !== null && !nearlyEqual(marketValueUsd, snapshotMarketValueUsd, 0.01)
-      ? 'stock_snapshot_market_value_mismatch'
-      : null;
+    : null;
   const avgCostUsd = remainingCostUsd / heldShares;
   const effectiveRemainingCostUsd = remainingCostUsd - activeRealizedPnlUsd;
   const returnCostBasisUsd = effectiveRemainingCostUsd > 0
     ? effectiveRemainingCostUsd
     : null;
   const effectiveCostUsd = effectiveRemainingCostUsd / heldShares;
-  const holdingPnlUsd = activeRealizedPnlUsd + (marketValueUsd - remainingCostUsd);
 
   return {
     date: snapshotDate,
     heldShares: snapshotHeldShares ?? heldShares,
-    closePriceUsd: snapshotPriceUsd,
-    marketValueUsd: snapshotMarketValueUsd ?? marketValueUsd,
     integrityReason,
     avgCostUsd,
     remainingCostUsd,
@@ -280,8 +268,6 @@ function buildComparisonLedgerPoint(cycleTrades, snapshot) {
     effectiveCostUsd,
     effectiveRemainingCostUsd,
     returnCostBasisUsd,
-    holdingPnlUsd,
-    holdingPnlPct: returnCostBasisUsd > 0 ? holdingPnlUsd / returnCostBasisUsd : null,
   };
 }
 

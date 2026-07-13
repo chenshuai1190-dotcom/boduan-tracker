@@ -15,19 +15,19 @@ const DETAIL_HEADING_CLASS = 'text-white/[0.72]';
 const DETAIL_MUTED_VALUE_CLASS = 'text-white/[0.86]';
 const CHART_TOOLTIP_HOLD_MS = 12000;
 const BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
-const benchmarkRowsCache = new Map();
+const comparisonRawRowsCache = new Map();
 
-function readCachedBenchmarkRows(key) {
-  const cached = benchmarkRowsCache.get(key);
+function readCachedComparisonRawRows(key) {
+  const cached = comparisonRawRowsCache.get(key);
   if (!cached || cached.expiresAt <= Date.now()) {
-    benchmarkRowsCache.delete(key);
+    comparisonRawRowsCache.delete(key);
     return null;
   }
   return cached.rows;
 }
 
-function cacheBenchmarkRows(key, rows) {
-  benchmarkRowsCache.set(key, {
+function cacheComparisonRawRows(key, rows) {
+  comparisonRawRowsCache.set(key, {
     rows,
     expiresAt: Date.now() + BENCHMARK_CACHE_TTL_MS,
   });
@@ -487,6 +487,7 @@ export default function StockDetailPage({ ctx = {} }) {
     stockDetailInitialRange = 'all',
     stockReturnComparisonMethodPreview = false,
     stockReturnComparisonSharePreview = false,
+    stockReturnComparisonTooltipPreview = false,
     stockReturnComparisonVisualPreview = false,
     stockTrades,
     supabase,
@@ -502,7 +503,11 @@ export default function StockDetailPage({ ctx = {} }) {
   const [snapshots, setSnapshots] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [benchmarkRows, setBenchmarkRows] = React.useState([]);
+  const [comparisonMarketRows, setComparisonMarketRows] = React.useState({
+    key: '',
+    qqqRows: [],
+    stockRawRows: [],
+  });
   const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
   const [benchmarkError, setBenchmarkError] = React.useState('');
   const displayCurrency = portfolioCurrencyMode === 'USD' ? 'USD' : 'CNY';
@@ -547,68 +552,114 @@ export default function StockDetailPage({ ctx = {} }) {
     let cancelled = false;
     const controller = new AbortController();
 
-    async function loadBenchmarkRows() {
+    async function loadComparisonMarketRows() {
       const from = view.benchmarkQueryStartDate;
       const to = view.benchmarkQueryEndDate;
-      if (!view.hasData || !from || !to) {
-        setBenchmarkRows([]);
+      if (!view.hasData || !symbol || !from || !to) {
+        setComparisonMarketRows({ key: '', qqqRows: [], stockRawRows: [] });
         setBenchmarkError('');
         setBenchmarkLoading(false);
         return;
       }
 
-      const cacheKey = `QQQ:${from}:${to}`;
-      const cached = readCachedBenchmarkRows(cacheKey);
-      if (cached) {
-        setBenchmarkRows(cached);
-        setBenchmarkError('');
-        setBenchmarkLoading(false);
-        return;
-      }
+      const comparisonKey = `${symbol}:${from}:${to}`;
+      const requestedSymbols = [...new Set([symbol, 'QQQ'])];
+      const rowsBySymbol = new Map();
+      const missingSymbols = [];
+      requestedSymbols.forEach((requestedSymbol) => {
+        const cacheKey = `${requestedSymbol}:${from}:${to}`;
+        const cachedRows = readCachedComparisonRawRows(cacheKey);
+        if (cachedRows) rowsBySymbol.set(requestedSymbol, cachedRows);
+        else missingSymbols.push(requestedSymbol);
+      });
 
       setBenchmarkLoading(true);
       setBenchmarkError('');
-      setBenchmarkRows([]);
+      setComparisonMarketRows({ key: '', qqqRows: [], stockRawRows: [] });
       try {
-        let rows;
-        if (typeof fetchPnlBenchmarkRows === 'function') {
-          rows = await fetchPnlBenchmarkRows({ symbol: 'QQQ', from, to, signal: controller.signal });
-        } else {
+        let token = '';
+        if (missingSymbols.length > 0 && typeof fetchPnlBenchmarkRows !== 'function') {
           if (!supabase?.auth?.getSession) throw new Error('benchmark_auth_unavailable');
           const { data: { session } } = await supabase.auth.getSession();
-          const token = session?.access_token;
+          token = session?.access_token;
           if (!token) throw new Error('benchmark_auth_required');
-          const response = await fetch(`/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
-            cache: 'no-store',
-            signal: controller.signal,
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const body = await response.json().catch(() => null);
-          if (!response.ok || body?.success === false) throw new Error('benchmark_request_failed');
-          rows = body?.rows;
         }
-        if (!Array.isArray(rows) || rows.length === 0) throw new Error('benchmark_rows_missing');
-        cacheBenchmarkRows(cacheKey, rows);
-        if (!cancelled) setBenchmarkRows(rows);
+
+        const fetchedEntries = await Promise.all(missingSymbols.map(async (requestedSymbol) => {
+          let rows;
+          if (typeof fetchPnlBenchmarkRows === 'function') {
+            rows = await fetchPnlBenchmarkRows({
+              symbol: requestedSymbol,
+              from,
+              to,
+              signal: controller.signal,
+            });
+          } else {
+            const response = await fetch(`/api/pnl-benchmark?symbol=${encodeURIComponent(requestedSymbol)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+              cache: 'no-store',
+              signal: controller.signal,
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const body = await response.json().catch(() => null);
+            if (!response.ok || body?.success === false) throw new Error('benchmark_request_failed');
+            rows = body?.rows;
+          }
+          if (!Array.isArray(rows) || rows.length === 0) {
+            throw new Error('benchmark_rows_missing');
+          }
+          return [requestedSymbol, rows];
+        }));
+
+        // Only publish or cache the pair after every required symbol succeeds.
+        // This keeps a partial provider response from mixing with the other side.
+        fetchedEntries.forEach(([requestedSymbol, rows]) => {
+          rowsBySymbol.set(requestedSymbol, rows);
+        });
+        const qqqRows = rowsBySymbol.get('QQQ');
+        const stockRawRows = rowsBySymbol.get(symbol);
+        if (!Array.isArray(qqqRows) || qqqRows.length === 0
+          || !Array.isArray(stockRawRows) || stockRawRows.length === 0) {
+          throw new Error('benchmark_rows_missing');
+        }
+        fetchedEntries.forEach(([requestedSymbol, rows]) => {
+          cacheComparisonRawRows(`${requestedSymbol}:${from}:${to}`, rows);
+        });
+        if (!cancelled) {
+          setComparisonMarketRows({ key: comparisonKey, qqqRows, stockRawRows });
+        }
       } catch (benchmarkLoadError) {
         if (cancelled || benchmarkLoadError?.name === 'AbortError') return;
-        setBenchmarkRows([]);
+        setComparisonMarketRows({ key: '', qqqRows: [], stockRawRows: [] });
         setBenchmarkError(benchmarkLoadError?.message || 'benchmark_request_failed');
       } finally {
         if (!cancelled) setBenchmarkLoading(false);
       }
     }
 
-    loadBenchmarkRows();
+    loadComparisonMarketRows();
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [fetchPnlBenchmarkRows, supabase, user?.id, view.benchmarkQueryEndDate, view.benchmarkQueryStartDate, view.hasData]);
+  }, [fetchPnlBenchmarkRows, supabase, symbol, user?.id, view.benchmarkQueryEndDate, view.benchmarkQueryStartDate, view.hasData]);
+
+  const expectedComparisonMarketKey = view.hasData
+    && symbol
+    && view.benchmarkQueryStartDate
+    && view.benchmarkQueryEndDate
+    ? `${symbol}:${view.benchmarkQueryStartDate}:${view.benchmarkQueryEndDate}`
+    : '';
+  const comparisonRowsReady = Boolean(
+    expectedComparisonMarketKey && comparisonMarketRows.key === expectedComparisonMarketKey,
+  );
 
   const comparison = React.useMemo(
-    () => buildStockReturnComparison(view, benchmarkRows),
-    [benchmarkRows, view],
+    () => buildStockReturnComparison(
+      view,
+      comparisonRowsReady ? comparisonMarketRows.qqqRows : [],
+      comparisonRowsReady ? comparisonMarketRows.stockRawRows : [],
+    ),
+    [comparisonMarketRows, comparisonRowsReady, view],
   );
 
   const displayName = typeof displayStockName === 'function'
@@ -727,7 +778,7 @@ export default function StockDetailPage({ ctx = {} }) {
 
       <StockReturnComparisonCard
         comparison={comparison}
-        loading={benchmarkLoading || loading}
+        loading={benchmarkLoading || loading || Boolean(expectedComparisonMarketKey && !comparisonRowsReady && !benchmarkError)}
         error={benchmarkError}
         symbol={view.symbol}
         language={language}
@@ -736,6 +787,7 @@ export default function StockDetailPage({ ctx = {} }) {
         displayRate={displayRate}
         initialMethodOpen={stockReturnComparisonMethodPreview}
         initialShareOpen={stockReturnComparisonSharePreview}
+        initialTooltipOpen={stockReturnComparisonTooltipPreview}
         visualPreview={stockReturnComparisonVisualPreview}
       />
 

@@ -1,6 +1,25 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.327', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.328', date: '2026-07-14', latest: true,
+    items: [
+      '📊 收益对比统一普通收盘价与收益率',
+      '  - 个股与 QQQ 均通过已登录服务端接口读取 EODHD 普通收盘价,不再混用个人快照价格与 QQQ 普通收盘价',
+      '  - 个人收益快照只用于日期和持仓股数一致性核验;任一标的缺少必要普通收盘价时整卡不可用',
+      '  - 主卡保留金额主展示和收益率辅助展示;超额金额与收益率差分开标注,率差使用百分号紧凑显示,口径明确为我的收益率减 QQQ 收益率',
+      '  - 图表触摸小浮层的个股与 QQQ 行只保留收益金额,最终收益率差继续显示;主动投资价值分享卡仅取消最外层白色描边',
+      '  - 只读正式交易与个人快照,不写交易账本或快照,生产无 mock 或估算收益兜底',
+    ],
+    itemsEn: [
+      '📊 Raw-close return comparison with clearer rates',
+      '  - Both the stock and QQQ now read EODHD ordinary closes through the authenticated server API instead of mixing personal snapshot prices with ordinary QQQ closes',
+      '  - Personal P&L snapshots only verify dates and held-share integrity; the entire card is unavailable when either symbol lacks a required ordinary close',
+      '  - Amounts remain primary with rates secondary; excess dollars stay separate from a compact percent-marked rate gap, explicitly defined as my return rate minus the QQQ return rate',
+      '  - The chart touch tooltip keeps only P&L amounts on the stock and QQQ rows while retaining the final rate gap; the Active Investment Value share card only removes its outer white outline',
+      '  - The feature only reads the formal ledger and personal snapshots, never writes either one, and has no production mock or estimated-return fallback',
+    ],
+  },
+  {
+    ver: 'v10.7.9.327', date: '2026-07-14',
     items: [
       '📈 个股收益对比与 QQQ 基准',
       '  - 个股收益走势下新增收益对比,跟随本年、近 1 月、近 6 月、近 1 年和全部周期',
