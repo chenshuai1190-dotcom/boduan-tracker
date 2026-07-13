@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.329', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.330', date: '2026-07-14', latest: true,
+    items: [
+      '🧾 主动投资价值分享卡信息精简',
+      '  - 删除标题下方的 QQQ 同期投资假设提示,保留真实对比结果',
+      '  - 日期说明仅保留等额加仓和同持仓比例减仓,取消重复的普通收盘价尾注',
+      '  - 移除“复制对比文字”按钮和剪贴板操作,预览卡继续可打开和关闭',
+      '  - 收益计算、真实普通收盘价口径、同期现金流、API、账本和鉴权不变',
+    ],
+    itemsEn: [
+      '🧾 Active Investment Value card cleanup',
+      '  - Removed the same-period QQQ investment assumption under the title while preserving the real comparison results',
+      '  - The date note now keeps only equal-value adds and same-ratio trims without the repeated ordinary-close suffix',
+      '  - Removed the Copy Comparison button and clipboard action while keeping the preview available and dismissible',
+      '  - Return calculations, real ordinary-close methodology, matched cash flows, APIs, the ledger, and authentication are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.329', date: '2026-07-14',
     items: [
       '📈 收益图表触摸与浮层体验修复',
       '  - 收益走势和收益对比在 iOS 连续滑动时,日期、十字线与金额保持同步',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Copy, Info, X } from 'lucide-react';
+import { Copy, Info, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
 
@@ -333,7 +333,6 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
 }
 
 function SharePreview({ comparison, symbol, displayCurrency, displayRate, language, marketColorMode, onClose, visualPreview = false }) {
-  const [copied, setCopied] = React.useState(false);
   const stockAmount = Number(comparison.stockPnlUsd) * displayRate;
   const benchmarkAmount = Number(comparison.benchmarkPnlUsd) * displayRate;
   const excessAmount = Number(comparison.excessPnlUsd) * displayRate;
@@ -343,26 +342,6 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
     : excess > 0
       ? t(language, 'stockDetail.comparison.outperform', '收益金额跑赢 QQQ')
       : t(language, 'stockDetail.comparison.underperform', '收益金额跑输 QQQ');
-  const copyText = [
-    t(language, 'stockDetail.comparison.activeValue', '主动投资价值'),
-    t(language, 'stockDetail.comparison.samePeriodQqq', '如果同期以相同起始本金、等额加仓并按相同持仓比例减仓 QQQ'),
-    `${symbol} ${signedCurrency(stockAmount, displayCurrency)} (${signedPct(comparison.stockPnlPct)})`,
-    `QQQ ${signedCurrency(benchmarkAmount, displayCurrency)} (${signedPct(comparison.benchmarkPnlPct)})`,
-    `${action} ${signedCurrency(excessAmount, displayCurrency)}`,
-    `${t(language, 'stockDetail.comparison.rateGap', '收益率差')} ${signedPct(comparison.excessPnlPct)}`,
-    `${comparison.baselineDate} - ${comparison.snapshotDate}`,
-  ].join('\n');
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(copyText);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/72 px-3 pb-[calc(env(safe-area-inset-bottom)+92px)] pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={t(language, 'stockDetail.comparison.sharePreview', '收益对比分享预览')}>
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')} />
@@ -371,7 +350,6 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
           <h3 className="text-[18px] font-semibold text-white/[0.88]">{t(language, 'stockDetail.comparison.activeValue', '主动投资价值')}</h3>
           <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/[0.52]" aria-label={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')}><X className="h-4 w-4" /></button>
         </div>
-        <div className="mt-2 text-[13px] text-white/[0.46]">{t(language, 'stockDetail.comparison.samePeriodQqq', '如果同期以相同起始本金、等额加仓并按相同持仓比例减仓 QQQ')}</div>
         <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
           <div className="text-[11px] text-white/[0.38]">{t(language, 'stockDetail.comparison.yourResult', '你的结果')}</div>
           <div className="mt-2 flex items-end justify-between gap-3">
@@ -399,13 +377,9 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
         </div>
         <div className="mt-3 text-[11px] leading-4 text-white/[0.30]">
           {String(comparison.baselineDate).replaceAll('-', '/')} - {String(comparison.snapshotDate).replaceAll('-', '/')} · {visualPreview
-            ? t(language, 'stockDetail.comparison.previewBasisShort', '本地只读视觉样例')
-            : t(language, 'stockDetail.comparison.closeBasisShort', '相同收益本金 · 个股/QQQ 普通收盘价')}
+            ? t(language, 'stockDetail.comparison.previewBasisShort', '等额加仓 · 同持仓比例减仓 · 本地只读视觉样例')
+            : t(language, 'stockDetail.comparison.closeBasisShort', '等额加仓 · 同持仓比例减仓')}
         </div>
-        <button type="button" onClick={copy} className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#f6b54b] text-[14px] font-semibold text-[#281b09] transition active:scale-[0.98]">
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied ? t(language, 'stockDetail.comparison.copied', '已复制') : t(language, 'stockDetail.comparison.copyText', '复制对比文字')}
-        </button>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 当前本地待发布设置页版本: `v10.7.9.330`;production 仍为 `v10.7.9.329`。v330 精简“主动投资价值”分享卡:删除标题下方同期 QQQ 假设提示,日期说明移除“个股/QQQ 普通收盘价”尾注,并删除复制对比文字按钮及剪贴板逻辑;真实收益结果、百分比、灰色外边框、关闭逻辑与主卡完整方法口径不变。
 - 当前生产已上线 `v10.7.9.329`。个股详情收益走势/收益对比在 iOS 连续滑动时保持日期、十字线和金额同步;收益对比小浮层点图外立即关闭、12 秒自动关闭并可再打开;主动投资价值分享大卡恢复系统标准 10% 灰色外边框。不改收益计算、普通收盘价、现金流、API、账本或鉴权。
 - `v10.7.9.328` 统一个股和 QQQ 普通收盘价口径,个人快照只核验日期/持仓股数;主卡将超额金额与收益率差分开,任一侧缺少必要普通收盘价时整卡不可用,不写账本/快照且生产无 mock 或估算兜底。
 - `v10.7.9.327` 新增个股详情真实收益对比基础；同一 production runtime 继续包含独立提交的 `v10.7.9.326` 真实美股收盘涨/跌幅榜与已添加股票减号修复。
@@ -16,7 +17,8 @@
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 本地与生产设置页版本均为 `v10.7.9.329`;生产运行时基准为 `a2fdbb0d711732dfa118b42a8017e022bd050144`,入口 `/assets/index-Dm-Bbncn.js`。
+- 当前本地设置页版本为 `v10.7.9.330`,production 设置页版本为 `v10.7.9.329`;生产运行时基准仍为 `a2fdbb0d711732dfa118b42a8017e022bd050144`,入口 `/assets/index-Dm-Bbncn.js`。
+- `v10.7.9.330` 本地验证:定向边界测试 51/51、build、docs consistency、diff check 和 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 均 pass;长提示、普通收盘价尾注与复制按钮均不存在,标题、真实结果、收益率差、关闭按钮和 `1px rgba(255,255,255,0.10)` 灰边保留。仅精简分享卡展示和复制入口,按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
 - `v10.7.9.329` 验证:定向边界测试 51/51、build、docs consistency、diff check 和 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 均 pass;两张图连续滑动日期/金额同步,收益对比浮层点外立即关闭、12 秒自动关闭并可再打开,分享大卡标准灰边实测为 `1px rgba(255,255,255,0.10)`。GitHub Actions `29288973165` 与 Vercel `hTdA9vSVDXU3NT6x8uMo8qLVNFQM` success,生产个股详情 chunk 与本地 build 字节一致,未登录 quote/earnings 均为 `401`;按 `ui-fast` 未运行完整测试、audit 或旧 frontend smoke。
 - `v10.7.9.328` sensitive 验证:toolchain、完整测试 298/298、build、high audit 0 vulnerabilities、docs/diff、匿名 RLS 20/20 和 12-function 上限均 pass。真实 server-only NVDA/QQQ EOD 探针各返回 130 个有效 `rawClose`;本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 已验收主卡、低密度图表小浮层和无外层白框分享卡。生产关键 chunks 与本地 production build 字节一致,命中 v328/收益率差/双侧普通收盘价 marker,四条未登录 API 均为 `401`。
 - `v10.7.9.327` sensitive 验证:toolchain、收盘榜/收益对比/API/分页/边界定向 94/94、完整测试 295/295、build、high audit 0 vulnerabilities、docs/diff、匿名 RLS 20/20 和 12-function 上限均 pass;真实 server-only QQQ EOD 探针返回 28/28 条有效 `rawClose`,no-store 生效且不泄露 key。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 只读 `DevVisualPreview` 使用 NVDA 验收主卡、首笔买入/对比起点小字、方法弹窗、分享预览、后续加仓/减仓成本流与纵向滚动。生产 Actions/Vercel success,四条未登录 API 均为 `401`,新版 chunks marker 完整且无本地 fixture 标识。个股侧沿用现有正式收盘快照口径,QQQ 侧明确使用普通收盘价;公司行动附近可能存在口径差异,当前不做调整价估算或伪造补偿。
@@ -83,12 +85,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地和生产设置页版本均为 `v10.7.9.329`。v329 修复收益图表连续滑动、浮层关闭与分享卡灰边;v328 统一个股/QQQ 普通收盘价口径,补齐收益率差百分比展示。
+- 当前本地设置页版本为 `v10.7.9.330`,production 设置页版本仍为 `v10.7.9.329`。v330 精简主动投资价值分享卡提示和复制入口;v329 修复收益图表连续滑动、浮层关闭与分享卡灰边;v328 统一个股/QQQ 普通收盘价口径,补齐收益率差百分比展示。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;当前已验证生产运行时代码提交为 `a2fdbb0d711732dfa118b42a8017e022bd050144`。
 - 当前生产运行时基准提交: `a2fdbb0d711732dfa118b42a8017e022bd050144`。
 - 最近应用代码提交: `a2fdbb0d711732dfa118b42a8017e022bd050144` 包含 `v10.7.9.329` 收益图表连续触摸/浮层关闭修复;其前一提交 `5ec2c43d4bfe166b2b475fdf294f4cd3c1eb2399` 包含 `v10.7.9.328` 普通收盘价统一与收益率表达。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前本地/生产设置页版本: `v10.7.9.329`。
+- 当前本地设置页版本: `v10.7.9.330`;production 设置页版本仍为 `v10.7.9.329`。
 - Vercel 最新部署: `v10.7.9.329` runtime commit `a2fdbb0d711732dfa118b42a8017e022bd050144` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/hTdA9vSVDXU3NT6x8uMo8qLVNFQM`,production 入口 `/assets/index-Dm-Bbncn.js`,v329 marker、个股详情 chunk 字节一致性与未登录 API 边界已验证。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
@@ -737,7 +739,7 @@ npm run verify:toolchain          # 首次接手、换机、工具链异常或 r
 接手基准必须确认:
 
 - `git status --short --branch` 干净,`main` 与 `origin/main` 同步。
-- 本地和生产设置页版本均为 `v10.7.9.329`。
+- 本地设置页版本为 `v10.7.9.330`;production 仍为 `v10.7.9.329`。
 - 当前已验证生产运行时为 `a2fdbb0d711732dfa118b42a8017e022bd050144`,入口 `/assets/index-Dm-Bbncn.js`;接手后以最新部署证据为准。
 - `/api/quote?symbols=VIX`、`/api/quote?view=market-movers`、`/api/earnings-calendar?symbols=NVDA` 与 `/api/pnl-benchmark?symbol=QQQ&from=2026-06-01&to=2026-07-10` 未登录均返回 `401`。
 - Supabase Auth URL Configuration 仍指向生产域名,Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
@@ -793,7 +795,7 @@ GitHub `main` 是唯一代码源头。
 
 当前生产基准:
 - 运行时代码: `a2fdbb0d711732dfa118b42a8017e022bd050144`
-- 设置页版本: `v10.7.9.329`
+- 设置页版本: `v10.7.9.330`（本地待发布;当前 production 仍为 v10.7.9.329）
 - 生产入口: `/assets/index-Dm-Bbncn.js`
 - Runtime Actions: `29288973165` success
 - Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/hTdA9vSVDXU3NT6x8uMo8qLVNFQM` success
@@ -804,6 +806,7 @@ GitHub `main` 是唯一代码源头。
 - 未登录 `/api/pnl-benchmark?symbol=QQQ&from=2026-06-01&to=2026-07-10`: `401`
 
 最近完成:
+- `v10.7.9.330`（待推送部署）: 主动投资价值分享卡删除标题下方同期 QQQ 假设提示,日期说明移除“个股/QQQ 普通收盘价”尾注,并删除复制对比文字按钮及剪贴板逻辑。真实收益结果、百分比、系统标准灰边、关闭逻辑、主卡完整方法口径、计算、API、账本与鉴权不变。
 - `v10.7.9.329`: 个股详情的收益走势与收益对比图在 iOS 连续滑动时保持日期、十字线和金额同步;收益对比小浮层点图外立即关闭、12 秒自动关闭并可再打开;主动投资价值分享大卡恢复系统标准灰边。不改收益计算、收盘价、现金流、API、账本或鉴权;已通过 UI-fast 门禁并上线。
 - `v10.7.9.328`: 收益对比的个股和 QQQ 现在都经已登录 `/api/pnl-benchmark` 读取 EODHD 普通收盘价,个人收益快照只核验日期和持仓股数;任一侧缺数据时整卡 fail unavailable,不混用调整价/快照价。主卡保留金额+收益率并将超额金额与“率差 +X.XX%”分开;图表触摸小浮层隐藏个股/QQQ 各自百分比,保留超额金额与最终收益率差;分享卡继续显示完整收益率且仅取消最外层白色描边。已通过 sensitive 门禁并上线。
 - `v10.7.9.327`: 个股详情新增真实“收益对比”,跟随本年/近 1 月/近 6 月/近 1 年/全部。起点是当前持仓轮次首笔买入与所选周期中较晚者当日或之后,现有个人收益快照与 QQQ 普通收盘价都有数据的首个共同日期;后续买入给 QQQ 等额资金,卖出按卖前持仓比例同步减仓,双方使用移动均价和实现盈亏摊薄成本。只读正式交易和个人收益快照,数据缺失/不一致时不可用,生产无 mock。个人快照沿用 owner-writable 模型,所以这是个人账本分析而非比赛级不可覆盖证明;个股侧沿用既有快照价格口径,QQQ 侧使用普通收盘价,公司行动附近可能存在口径差异,不做估算补偿。

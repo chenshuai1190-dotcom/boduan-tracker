@@ -4,6 +4,22 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 主动投资价值分享卡信息精简
+
+- Commit: `same commit`。
+- Background: 用户要求精简个股详情的“主动投资价值”分享卡:删除标题下方同期 QQQ 假设提示,删除日期说明末尾重复的“个股/QQQ 普通收盘价”,并取消复制对比文字功能后快速上线。
+- Workflow tier: `ui-fast`。
+- Changes:
+  - 删除分享卡标题下方“如果同期以相同起始本金、等额加仓并按相同持仓比例减仓 QQQ”提示,结果、百分比、灰色外边框、关闭逻辑和打开入口不变。
+  - 分享卡日期说明只保留日期、等额加仓和同持仓比例减仓;本地只读视觉样例继续明确标注为本地样例。
+  - 删除“复制对比文字/已复制”按钮、剪贴板写入和组件内复制状态,不影响主收益对比卡完整的方法口径说明。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.330`,并新增静态边界断言防止删除文案和复制逻辑回归。
+- Key files: `src/components/StockReturnComparisonCard.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/stock-return-comparison-boundaries.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 定向测试 51/51、production build、docs consistency 和 diff check 均 pass;本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 实测标题、NVDA/QQQ 结果、收益率差、简短日期说明和关闭按钮保留,长提示、普通收盘价尾注、复制按钮均不存在,分享卡外框仍为 `1px rgba(255,255,255,0.10)`。截图保存为 `~/Desktop/boduan-previews/stock-active-value-clean-v330.png`。本轮无输入和 PWA 生命周期改动,不需要系统键盘或主屏 PWA 复测;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
+- Deployment: 用户已确认快速上线;本提交验证通过后使用项目 SSH key 推送 GitHub `main`,再等待 Actions/Vercel production success 并核验生产产物与未登录 API `401` 边界。
+- Boundaries: 只改分享预览 UI、系统文案、版本记录、静态护栏和文档;收益对比计算、普通收盘价真实口径、同期现金流、主卡完整方法说明、交易账本、收益快照、API、provider、数据库、RLS、鉴权和环境变量不变。
+- Rollback: 回退本条分享卡文案/复制按钮删除、i18n、`v10.7.9.330` 版本/更新日志、测试和文档即可恢复 v329 展示;无需数据或环境回滚。
+
 ### 2026-07-14 - v10.7.9.329 部署证据回填
 
 - Commit: `same commit`。

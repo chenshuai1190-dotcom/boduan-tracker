@@ -13,6 +13,9 @@ const shareVisualSource = comparisonCardSource.slice(shareVisualStart, shareVisu
 const tooltipVisualStart = comparisonCardSource.indexOf('<div className="pointer-events-none absolute');
 const tooltipVisualEnd = comparisonCardSource.indexOf('function SharePreview', tooltipVisualStart);
 const tooltipVisualSource = comparisonCardSource.slice(tooltipVisualStart, tooltipVisualEnd);
+const sharePreviewStart = comparisonCardSource.indexOf('function SharePreview');
+const sharePreviewEnd = comparisonCardSource.indexOf('export default function StockReturnComparisonCard', sharePreviewStart);
+const sharePreviewSource = comparisonCardSource.slice(sharePreviewStart, sharePreviewEnd);
 
 test('stock comparison remains read-only and loads both raw-close sides through the authenticated market-data boundary', () => {
   assert.match(stockDetailPageSource, /fetchPnlReportSymbolSnapshotHistory\(symbol, null\)/);
@@ -89,6 +92,13 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.match(tooltipVisualSource, /signedPct\(selected\.excessPnlPct\)/);
   assert.doesNotMatch(tooltipVisualSource, /signedPct\(selected\.(stockPnlPct|benchmarkPnlPct)\)/);
   assert.match(comparisonCardSource, /收益金额跑赢 QQQ/);
+  assert.ok(sharePreviewStart > -1 && sharePreviewEnd > sharePreviewStart, 'share preview source should be detectable');
+  assert.doesNotMatch(sharePreviewSource, /navigator\.clipboard|copyText|setCopied|samePeriodQqq/);
+  assert.doesNotMatch(sharePreviewSource, /复制对比文字|Copy comparison/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': '等额加仓 · 同持仓比例减仓'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.previewBasisShort': '等额加仓 · 同持仓比例减仓 · 本地只读视觉样例'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': 'Equal-value adds · same-ratio trims'/);
+  assert.doesNotMatch(i18nSource, /stockDetail\.comparison\.(samePeriodQqq|copyText|copied)'\s*:/);
   assert.doesNotMatch(comparisonCardSource, /mock|fixture|sampleData/i);
   assert.match(previewSource, /mockStockComparisonLossPnlByDate/);
   assert.match(previewSource, /mockStockComparisonNvdaRawRows/);
