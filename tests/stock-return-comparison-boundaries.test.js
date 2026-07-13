@@ -33,6 +33,34 @@ test('stock comparison remains read-only and loads both raw-close sides through 
   assert.match(benchmarkApiSource, /rawClose/);
 });
 
+test('stock detail and comparison charts keep continuous pointer tracking independent from async tooltip state', () => {
+  assert.match(stockDetailPageSource, /data-stock-detail-pnl-chart="true"/);
+  assert.match(stockDetailPageSource, /activePointerIdRef\.current = event\.pointerId/);
+  assert.match(stockDetailPageSource, /setPointerCapture\?\.\(event\.pointerId\)/);
+  assert.match(stockDetailPageSource, /if \(activePointerIdRef\.current !== event\.pointerId\) return;[\s\S]*updateSelectedPoint\(event\)/);
+  assert.match(stockDetailPageSource, /onPointerUp=\{finishPointerTracking\}/);
+  assert.match(stockDetailPageSource, /onPointerCancel=\{finishPointerTracking\}/);
+  assert.match(stockDetailPageSource, /onLostPointerCapture=\{finishPointerTracking\}/);
+  assert.match(stockDetailPageSource, /key=\{`stock-detail-tooltip-date-\$\{selectedPoint\.date\}`\}/);
+  assert.match(stockDetailPageSource, /data-stock-detail-tooltip-date=\{selectedPoint\.date\}/);
+  assert.match(stockDetailPageSource, /current\?\.type === 'point' && current\.index === nextIndex/);
+  assert.match(stockDetailPageSource, /\}, \[hasSelection\]\);/);
+
+  assert.match(comparisonCardSource, /data-stock-return-comparison-chart="true"/);
+  assert.match(comparisonCardSource, /activePointerIdRef\.current = event\.pointerId/);
+  assert.match(comparisonCardSource, /setPointerCapture\?\.\(event\.pointerId\)/);
+  assert.match(comparisonCardSource, /if \(activePointerIdRef\.current !== event\.pointerId\) return;[\s\S]*selectNearest\(event\)/);
+  assert.match(comparisonCardSource, /onPointerUp=\{finishPointerTracking\}/);
+  assert.match(comparisonCardSource, /onPointerCancel=\{finishPointerTracking\}/);
+  assert.match(comparisonCardSource, /onLostPointerCapture=\{finishPointerTracking\}/);
+  assert.match(comparisonCardSource, /key=\{`stock-return-comparison-tooltip-date-\$\{selected\.date\}`\}/);
+  assert.match(comparisonCardSource, /data-stock-return-comparison-tooltip-date=\{selected\.date\}/);
+  assert.match(comparisonCardSource, /ref=\{chartRootRef\} className="relative mt-4"/);
+  assert.match(comparisonCardSource, /document\.addEventListener\('pointerdown', closeOnOutsidePointer, true\)/);
+  assert.match(comparisonCardSource, /document\.removeEventListener\('pointerdown', closeOnOutsidePointer, true\)/);
+  assert.match(comparisonCardSource, /window\.setTimeout\(\(\) => setSelectedIndex\(null\), CHART_TOOLTIP_HOLD_MS\)/);
+});
+
 test('comparison UI uses system market colors and does not embed production financial fixtures', () => {
   assert.match(comparisonCardSource, /marketTextClass/);
   assert.match(comparisonCardSource, /marketHexColor/);
@@ -43,7 +71,7 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.match(comparisonCardSource, /pctLabel=\{t\(language, 'stockDetail\.comparison\.rateGapShort'/);
   assert.match(comparisonCardSource, /signedPct\(comparison\.excessPnlPct\)/);
   assert.doesNotMatch(comparisonCardSource, /个百分点|\}pp/);
-  assert.match(comparisonCardSource, /rounded-\[24px\] bg-\[#0d1118\]/);
+  assert.match(comparisonCardSource, /rounded-\[24px\] border border-white\/10 bg-\[#0d1118\]/);
   assert.doesNotMatch(comparisonCardSource, /rounded-\[24px\] border border-white\/12/);
   assert.match(i18nSource, /'stockDetail\.comparison\.rateGap': '收益率差'/);
   assert.match(i18nSource, /'stockDetail\.comparison\.rateGap': 'Return-rate Gap'/);

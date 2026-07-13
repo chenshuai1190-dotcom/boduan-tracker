@@ -6,6 +6,7 @@ import { t } from '../lib/i18n.js';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const MINE_LINE_COLOR = '#f6b54b';
 const BENCHMARK_LINE_COLOR = '#9aa4b2';
+const CHART_TOOLTIP_HOLD_MS = 12000;
 
 function finite(value) {
   if (value === null || value === undefined || value === '' || typeof value === 'boolean') return false;
@@ -163,7 +164,11 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
   const [selectedIndex, setSelectedIndex] = React.useState(() => (
     initialTooltipOpen && chart.rows.length > 0 ? Math.floor(chart.rows.length / 2) : null
   ));
+  const chartRootRef = React.useRef(null);
+  const hideTimerRef = React.useRef(null);
+  const activePointerIdRef = React.useRef(null);
   const selected = selectedIndex == null ? null : chart.rows[selectedIndex] || null;
+  const hasSelection = selectedIndex != null;
   const firstDate = chart.rows[0]?.date || comparison?.baselineDate;
   const lastDate = chart.rows.at(-1)?.date || comparison?.snapshotDate;
   const isPositionStart = comparison?.positionStartDate === comparison?.baselineDate;
@@ -182,7 +187,29 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
 
   React.useEffect(() => {
     setSelectedIndex(initialTooltipOpen && chart.rows.length > 0 ? Math.floor(chart.rows.length / 2) : null);
+    window.clearTimeout(hideTimerRef.current);
   }, [chart.rows.length, comparison?.baselineDate, comparison?.snapshotDate, initialTooltipOpen]);
+
+  React.useEffect(() => {
+    return () => window.clearTimeout(hideTimerRef.current);
+  }, []);
+
+  React.useEffect(() => {
+    if (!hasSelection) return undefined;
+    const closeOnOutsidePointer = (event) => {
+      if (!chartRootRef.current?.contains(event.target)) {
+        window.clearTimeout(hideTimerRef.current);
+        setSelectedIndex(null);
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+  }, [hasSelection]);
+
+  const keepSelectedPointVisible = React.useCallback(() => {
+    window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(() => setSelectedIndex(null), CHART_TOOLTIP_HOLD_MS);
+  }, []);
 
   const selectNearest = React.useCallback((event) => {
     if (chart.rows.length === 0) return;
@@ -198,7 +225,28 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
       }
     });
     setSelectedIndex(index);
-  }, [chart.rows]);
+    keepSelectedPointVisible();
+  }, [chart.rows, keepSelectedPointVisible]);
+
+  const handlePointerDown = React.useCallback((event) => {
+    if (event.isPrimary === false) return;
+    activePointerIdRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    selectNearest(event);
+  }, [selectNearest]);
+
+  const handlePointerMove = React.useCallback((event) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    selectNearest(event);
+  }, [selectNearest]);
+
+  const finishPointerTracking = React.useCallback((event) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    activePointerIdRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  }, []);
 
   if (!chart.minePath || !chart.benchmarkPath) {
     return (
@@ -209,17 +257,19 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
   }
 
   return (
-    <div className="relative mt-4">
+    <div ref={chartRootRef} className="relative mt-4">
       <div className="mb-2 flex items-center gap-5 text-[11px] text-white/[0.42]">
         <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: MINE_LINE_COLOR }} />{t(language, 'stockDetail.comparison.mineLine', '我的收益线')}</span>
         <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: BENCHMARK_LINE_COLOR }} />{t(language, 'stockDetail.comparison.qqqLine', '基准：QQQ')}</span>
       </div>
       <div
         className="relative h-[190px] select-none"
-        onPointerDown={selectNearest}
-        onPointerMove={(event) => {
-          if (selectedIndex != null) selectNearest(event);
-        }}
+        data-stock-return-comparison-chart="true"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishPointerTracking}
+        onPointerCancel={finishPointerTracking}
+        onLostPointerCapture={finishPointerTracking}
         style={{ touchAction: 'pan-y' }}
       >
         <svg viewBox="0 0 320 176" className="h-full w-full overflow-visible">
@@ -258,7 +308,13 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
         </svg>
         {selected && (
           <div className="pointer-events-none absolute left-1/2 top-1 z-10 w-[252px] -translate-x-1/2 rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 shadow-xl backdrop-blur">
-            <div className="text-[11px] text-white/[0.68]">{String(selected.date).replaceAll('-', '/')}</div>
+            <div
+              key={`stock-return-comparison-tooltip-date-${selected.date}`}
+              className="text-[11px] tabular-nums text-white/[0.68]"
+              data-stock-return-comparison-tooltip-date={selected.date}
+            >
+              {String(selected.date).replaceAll('-', '/')}
+            </div>
             <div className="mt-1.5 grid grid-cols-[64px_1fr] gap-x-2 gap-y-1 text-[11px]">
               <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.mine', '我的收益')}</span>
               <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.stockPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.stockPnlUsd, displayCurrency)}</span>
@@ -310,7 +366,7 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/72 px-3 pb-[calc(env(safe-area-inset-bottom)+92px)] pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={t(language, 'stockDetail.comparison.sharePreview', '收益对比分享预览')}>
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')} />
-      <div className="relative max-h-[calc(100dvh-env(safe-area-inset-top)-116px)] w-full max-w-[410px] overflow-y-auto rounded-[24px] bg-[#0d1118] p-5 shadow-2xl">
+      <div className="relative max-h-[calc(100dvh-env(safe-area-inset-top)-116px)] w-full max-w-[410px] overflow-y-auto rounded-[24px] border border-white/10 bg-[#0d1118] p-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="text-[18px] font-semibold text-white/[0.88]">{t(language, 'stockDetail.comparison.activeValue', '主动投资价值')}</h3>
           <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/[0.52]" aria-label={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')}><X className="h-4 w-4" /></button>

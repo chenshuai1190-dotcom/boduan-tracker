@@ -4,6 +4,24 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 收益图表连续触摸与浮层关闭修复
+
+- Commit: `same commit`。
+- Background: 用户反馈个股详情页收益走势浮层在 iOS 连续滑动时日期会停留在旧点,收益对比有同类风险;收益对比小浮层还缺少点外和超时关闭,主动投资价值分享卡缺少系统标准灰色外边框。
+- Workflow tier: `ui-fast`。
+- Changes:
+  - 两张图统一使用同步 `activePointerIdRef`、pointer capture 和 `pointerup` / `pointercancel` / `lostpointercapture` 清理,连续拖动不再依赖异步 React 浮层状态。
+  - 日期节点按当前日期重新挂载并使用等宽数字,避免 iOS WebKit 在模糊复合层中复用旧日期文本。
+  - 收益对比小浮层与上方收益走势统一:点图外立即关闭,每次选点后 12 秒自动关闭,组件卸载、区间切换和点外关闭时清理计时器。
+  - 主动投资价值分享大卡恢复 `border-white/10` 标准灰边,内部数据卡继续使用更弱的 8% 边框。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.329`。
+- Key files: `src/pages/StockDetailPage.jsx`,`src/components/StockReturnComparisonCard.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/stock-return-comparison-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 收益对比/账本边界定向测试 51/51 pass;`npm run build` pass;`npm run verify:docs-consistency` pass;`git diff --check` pass。已在本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 用 NVDA 验收:上下两张图连续指针序列中日期与金额同步;收益对比浮层图内保持、点外立即关闭、12 秒自动关闭且可再打开;分享大卡外边实测为 `1px rgba(255,255,255,0.10)`。截图为 `~/Desktop/boduan-previews/stock-comparison-touch-sync-fixed-final.png` 和 `stock-active-value-standard-gray-border.png`。本轮无文字输入或主屏 PWA 特有行为,无需系统软件键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit 或旧 `verify:frontend-smoke`。
+- Deployment: 待提交并通过项目 SSH key 推送 GitHub `main`,随后等待 GitHub Actions 与 Vercel production success。
+- Production verification: 待验证生产 `v10.7.9.329`、图表指针/浮层/标准灰边 marker、入口与未登录 quote/earnings `401`。
+- Boundaries: 不改收益计算、个股/QQQ 普通收盘价、同期现金流、交易账本、收益快照、API/provider、数据库、RLS、鉴权、环境变量或生产数据。
+- Rollback: 回退两张图的指针生命周期/日期节点、收益对比点外与超时关闭、分享卡灰边、v329 版本/更新日志和本条文档即可;无数据、SQL、RLS 或环境回滚。
+
 ### 2026-07-14 - v10.7.9.328 部署证据回填
 
 - Commit: `same commit`。

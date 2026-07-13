@@ -215,6 +215,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   const [selection, setSelection] = React.useState(null);
   const chartRootRef = React.useRef(null);
   const hideTimerRef = React.useRef(null);
+  const activePointerIdRef = React.useRef(null);
   const startMs = parseDateMs(startDate);
   const endMs = parseDateMs(endDate);
   const middleDate = startMs != null && endMs != null
@@ -224,6 +225,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   const middle = formatAxisDate(middleDate);
   const last = formatAxisDate(endDate);
   const selectedPoint = selection?.type === 'point' ? chart.points[selection.index] || null : null;
+  const hasSelection = selection != null;
   const selectedPointColor = selectedPoint ? marketHexColor(selectedPoint.value, marketColorMode) : color;
   const selectedPointLeft = selectedPoint
     ? `clamp(8px, calc(${(selectedPoint.x / 320) * 100}% - 103px), calc(100% - 214px))`
@@ -264,7 +266,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   }, []);
 
   React.useEffect(() => {
-    if (selection == null) return undefined;
+    if (!hasSelection) return undefined;
     const closeOnOutsidePointer = (event) => {
       if (!chartRootRef.current?.contains(event.target)) {
         window.clearTimeout(hideTimerRef.current);
@@ -273,7 +275,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
     };
     document.addEventListener('pointerdown', closeOnOutsidePointer, true);
     return () => document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
-  }, [selection]);
+  }, [hasSelection]);
 
   const keepSelectedPointVisible = React.useCallback(() => {
     window.clearTimeout(hideTimerRef.current);
@@ -296,25 +298,44 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
         nextIndex = index;
       }
     });
-    setSelection({ type: 'point', index: nextIndex });
+    setSelection((current) => (
+      current?.type === 'point' && current.index === nextIndex
+        ? current
+        : { type: 'point', index: nextIndex }
+    ));
     keepSelectedPointVisible();
   }, [chart.points, keepSelectedPointVisible]);
 
   const handlePointerDown = React.useCallback((event) => {
+    if (event.isPrimary === false) return;
+    activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     updateSelectedPoint(event);
   }, [updateSelectedPoint]);
 
   const handlePointerMove = React.useCallback((event) => {
-    if (selection?.type === 'point') updateSelectedPoint(event);
-  }, [selection, updateSelectedPoint]);
+    if (activePointerIdRef.current !== event.pointerId) return;
+    updateSelectedPoint(event);
+  }, [updateSelectedPoint]);
+
+  const finishPointerTracking = React.useCallback((event) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    activePointerIdRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  }, []);
 
   return (
     <div ref={chartRootRef} className="relative">
       <div
         className="relative mt-2 h-[218px] select-none"
+        data-stock-detail-pnl-chart="true"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={finishPointerTracking}
+        onPointerCancel={finishPointerTracking}
+        onLostPointerCapture={finishPointerTracking}
         style={{ touchAction: 'pan-y' }}
       >
         {!chart.path && (
@@ -424,7 +445,13 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
               top: selectedPointTop,
             }}
           >
-            <div className="whitespace-nowrap text-[11px] leading-4 text-white/[0.72]">{displayDate(selectedPoint.date)}</div>
+            <div
+              key={`stock-detail-tooltip-date-${selectedPoint.date}`}
+              className="whitespace-nowrap text-[11px] leading-4 tabular-nums text-white/[0.72]"
+              data-stock-detail-tooltip-date={selectedPoint.date}
+            >
+              {displayDate(selectedPoint.date)}
+            </div>
             <div className="mt-1 grid grid-cols-[58px_1fr] gap-x-2 gap-y-1 text-[11px] leading-4">
               <span className="text-white/[0.42]">{t(language, 'stockDetail.totalPnl', '累计盈亏')}</span>
               <span className="whitespace-nowrap text-right font-semibold tabular-nums" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>{signedCurrency(selectedPoint.value, currencyMode, 2)}</span>

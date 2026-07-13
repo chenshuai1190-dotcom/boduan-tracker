@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.328', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.329', date: '2026-07-14', latest: true,
+    items: [
+      '📈 收益图表触摸与浮层体验修复',
+      '  - 收益走势和收益对比在 iOS 连续滑动时,日期、十字线与金额保持同步',
+      '  - 收益对比小浮层点击图外立即关闭,12 秒无操作后自动关闭,关闭后可再次点开',
+      '  - 主动投资价值分享卡恢复系统标准灰色外边框,内部数据卡层级不变',
+      '  - 不改收益计算、普通收盘价、同期现金流、API、交易账本或鉴权',
+    ],
+    itemsEn: [
+      '📈 Return-chart touch and tooltip fixes',
+      '  - Dates, crosshairs, and amounts now stay synchronized during continuous iOS drags on both the P&L and Return Comparison charts',
+      '  - The Return Comparison tooltip closes immediately when tapping outside, auto-closes after 12 seconds of inactivity, and can be opened again',
+      '  - The Active Investment Value share card restores the standard system gray outer border while preserving its inner data-card hierarchy',
+      '  - Return calculations, ordinary closes, matched cash flows, APIs, the trading ledger, and authentication are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.328', date: '2026-07-14',
     items: [
       '📊 收益对比统一普通收盘价与收益率',
       '  - 个股与 QQQ 均通过已登录服务端接口读取 EODHD 普通收盘价,不再混用个人快照价格与 QQQ 普通收盘价',
