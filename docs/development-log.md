@@ -4,9 +4,24 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.333 部署证据回填
+
+- Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。
+- Background: v333 日期小字对齐已经通过 UI-fast 门禁并部署到 production,需要把实际 runtime、Actions、Vercel、入口、产物一致性和未授权边界写回 GitHub `main`。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 记录 runtime commit `d20f1cee3d258879cd53ff527e5c22fad44364a5`、GitHub Actions run `29343732396` success 和 Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2z1TnYVgF6YsgrKfFHG661UCp1gT` success;生产入口更新为 `/assets/index-DGqlXhYc.js`,设置页版本更新为 `v10.7.9.333`。
+  - 生产入口、CSS、App、比赛页面、设置页和设置更新日志 6 个关键产物与本地 production build 的 SHA-256 逐项一致;生产命中日期行/日期文字两项对齐 marker、v333 和中英文更新标题。
+  - 未登录 quote VIX、earnings NVDA 和 competition day GET 均为 `401`;没有登录生产账户或执行生产写操作。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- d20f1ce` pass;GitHub/Vercel 均为 success,production alias 已切换。关键产物 hash、marker 和 3 条未授权边界通过;本 docs-only 变更的 `npm run verify:docs-consistency`、`git diff --check` 和 `git diff --stat` pass,不重复运行已完成的 UI-fast 测试、build 或 Simulator 验收。
+- Deployment: runtime 已完成;本条 docs-only 证据提交推送后再验证其自身 Actions/Vercel,不改变生产运行时逻辑。
+- Boundaries: 只回填真实发布证据,不改 UI、日期、缓存、API、账本、快照、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本 docs-only 条目只移除证据记录;恢复 v332 对齐位置需要单独回退 runtime `d20f1ce`。
+
 ### 2026-07-14 - v10.7.9.333 收益比赛更新时间对齐
 
-- Commit: `same commit`。
+- Commit: `d20f1cee3d258879cd53ff527e5c22fad44364a5`。
 - Background: 用户要求把收益比赛头卡中的灰色“数据更新MM.DD”小字左边缘与上方“跑赢 QQQ”标签对齐,先在本机 iOS Simulator 截图确认后快速部署。
 - Workflow tier: `ui-fast`。本轮只调整现有只读日期文案的网格位置,不改变日期来源、缓存、请求、比赛收益、API、PWA 生命周期或任何持久化行为。
 - Changes:
@@ -15,7 +30,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.333`,新增静态断言锁定外层网格复用和第三列起点。
 - Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: 定向边界测试 47/47 pass;`npm run build` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认“数据更新07.10”左边缘与“跑赢 QQQ”同列;截图 `~/Desktop/boduan-previews/community-competition-update-date-aligned-v333-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
-- Deployment: pending user-authorized fast release。
+- Deployment: completed;runtime commit `d20f1cee3d258879cd53ff527e5c22fad44364a5`,GitHub Actions run `29343732396` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2z1TnYVgF6YsgrKfFHG661UCp1gT` success,production alias 已更新,入口 `/assets/index-DGqlXhYc.js`。
+- Production verification: 入口、CSS、App、比赛页面、设置页和更新日志 6 个关键产物与本地 build SHA-256 一致;生产命中日期行/日期文字对齐 marker、v333 和更新标题。未登录 quote、earnings 和 competition GET 均为 `401`。
 - Boundaries: `formatCompactDate(data?.asOfDate)`、动态真实日期、按账户/周期缓存、美东刷新窗口、服务端比赛 API/Cron、正式 `stock_trades`、比赛表、Supabase/RLS、provider 和生产数据均不变;生产无 mock 或估算收益。
 - Rollback: 回退日期行共享网格、v333 版本/更新日志、静态断言和本条文档即可恢复 v332 右对齐位置;无需数据、SQL、RLS 或环境回滚。
 
