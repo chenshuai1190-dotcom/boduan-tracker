@@ -4,9 +4,24 @@
 
 ## 2026-07-15 Asia/Shanghai
 
+### 2026-07-15 - v10.7.9.338 部署证据回填
+
+- Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。
+- Background: v338 收益比赛本人信息行与昵称显示优化已经通过 UI-fast 门禁并部署到 production,需要把实际 runtime、Actions、Vercel、入口、产物一致性和未授权边界写回 GitHub `main`。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 记录 runtime commit `cb6b37976e7f61720cd9a36fb03a92b20849f9ca`、GitHub Actions run `29363624252` success 和 Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/TXaUDZ2GJGnujvcr21fmNM2wtrji` success;生产入口更新为 `/assets/index-XyyH23zs.js`,设置页版本为 `v10.7.9.338`。
+  - 生产入口、CSS、App、比赛页、设置页、设置更新日志和 i18n 共 7 个关键产物与本地 production build 的 SHA-256 逐项一致。
+  - 未登录 quote VIX 与 earnings NVDA 均为 `401`;没有登录生产账户或执行生产写操作。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- cb6b379` pass;GitHub/Vercel 均为 success,production alias 已切换。7 个关键产物 hash 和 2 条未授权边界通过;本 docs-only 变更的 `npm run verify:docs-consistency`、`git diff --check` 和 `git diff --stat` pass,不重复运行已完成的 UI-fast 测试、build 或 Simulator 验收。
+- Deployment: runtime 已完成;本条 docs-only 证据提交推送后再验证其自身 Actions/Vercel,不改变生产运行时逻辑。
+- Boundaries: 只回填真实发布证据,不改 UI、昵称、比赛缓存/API、排名、收益、快照、交易账本、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本 docs-only 条目只移除证据记录;恢复 v337 本人信息行样式需要单独回退 runtime `cb6b379`。
+
 ### 2026-07-15 - v10.7.9.338 收益比赛本人信息行与昵称显示优化
 
-- Commit: `same commit`（UI-fast 发布候选）。
+- Commit: `cb6b37976e7f61720cd9a36fb03a92b20849f9ca`。
 - Background: 用户确认收益比赛头卡应让“最后更新”与头像下本人昵称处于同一水平行,昵称颜色应与下方排行榜普通用户名一致;随后发现目标昵称因 72px 固定安全宽度和 `truncate` 显示省略号,要求快速上线完整效果。
 - Workflow tier: `ui-fast`。本轮只调整本人昵称所在网格行、字号/行高/颜色、头像居中的安全宽度和更新时间垂直对齐;不改变昵称原文、真实 `asOfDate`、头像/昵称来源、比赛缓存、请求、排名、收益、快照、交易账本、API、数据库、鉴权、RLS、provider 或任何持久化行为。
 - Changes:
@@ -16,8 +31,8 @@
   - 设置页版本与中英文更新日志同步到 `v10.7.9.338`,静态断言锁定同行布局、字体颜色和 80px 安全宽度。
 - Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: `node --test tests/tool-ledger-boundaries.test.js` 47/47 pass;`npm run build`、`npm run verify:docs-consistency` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认“波段玩家1836”完整显示、昵称与“最后更新”同行、右侧指标无挤压,截图 `~/Desktop/boduan-previews/community-competition-nickname-full-width80-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
-- Deployment: pending;门禁通过后使用项目 SSH key 推送 GitHub `main`,再运行 `npm run verify:deploy-status -- <commit>` 等待 Actions/Vercel success。
-- Production verification: pending;不得在实际部署成功前预填 commit、Actions、Vercel 或生产入口。
+- Deployment: completed;runtime commit `cb6b37976e7f61720cd9a36fb03a92b20849f9ca`,GitHub Actions run `29363624252` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/TXaUDZ2GJGnujvcr21fmNM2wtrji` success,production alias 已更新,入口 `/assets/index-XyyH23zs.js`。
+- Production verification: 入口、CSS、App、比赛页、设置页、更新日志和 i18n 共 7 个关键产物与本地 build SHA-256 一致;未登录 quote 与 earnings 均为 `401`。
 - Boundaries: 比赛仍只读服务端权威快照和正式 `stock_trades`,只写独立比赛表;客户端不生成、修正或伪造收益。社区资料、头像、昵称原文、缓存、请求、排名、收益、API/Cron、数据库、RLS 和生产数据全部不变。
 - Rollback: 回退本人昵称/更新时间共同行、昵称字号/颜色/宽度、v338 版本/更新日志、静态断言与文档即可恢复 v337;无需数据、SQL、RLS 或环境回滚。
 
