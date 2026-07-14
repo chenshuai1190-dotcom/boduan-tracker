@@ -4,6 +4,23 @@
 
 ## 2026-07-15 Asia/Shanghai
 
+### 2026-07-15 - v10.7.9.337 收益比赛本人昵称与头卡紧凑化
+
+- Commit: `same commit`（UI-fast 发布候选）。
+- Background: 用户参考目标效果发现收益比赛“我的排名”卡中头像下方本人昵称偏小偏淡,随后要求把“最后更新”文字略微上移并降低头卡高度,先经本机 iOS Simulator 确认后快速部署查看生产效果。
+- Workflow tier: `ui-fast`。本轮只调整本人昵称字号/字重/对比度、更新时间垂直间距和头卡底部内边距;不改变真实 `asOfDate`、头像/昵称来源、比赛缓存、请求、排名、收益、快照、交易账本、API、数据库、鉴权、RLS、provider 或任何持久化行为。
+- Changes:
+  - 头像下本人昵称由 `10.5px` 放大为 `15px`,使用 semibold 和 90% 白色;保留 72px 安全宽度及截断,不影响排行榜昵称。
+  - “最后更新”行由 `mt-2` 改为 `mt-0`,上移约 8px;头卡底部由 12px 收紧为 8px,相对上一张本地效果卡片整体降低约 12px。
+  - 头像、排名、三项收益指标、更新时间动态日期来源和排行榜结构保持不变;静态断言锁定新字体层级、更新时间位置和头卡底部留白。
+  - 设置页版本与中英文更新日志同步到 `v10.7.9.337`。
+- Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 47/47 pass;`npm run build` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已用短昵称“团团”和长昵称边界确认字体层级、截断、更新时间上移和头卡收紧均安全,截图 `~/Desktop/boduan-previews/community-competition-nickname-update-compact-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
+- Deployment: pending;门禁通过后使用项目 SSH key 推送 GitHub `main`,再运行 `npm run verify:deploy-status -- <commit>` 等待 Actions/Vercel success。
+- Production verification: pending;不得在实际部署成功前预填 commit、Actions、Vercel 或生产入口。
+- Boundaries: 比赛仍只读服务端权威快照和正式 `stock_trades`,只写独立比赛表;客户端不生成、修正或伪造收益。社区资料、头像、昵称、缓存、请求、排名、收益、API/Cron、数据库、RLS 和生产数据全部不变。
+- Rollback: 回退昵称、更新时间行和头卡 padding 三处 class、v337 版本/更新日志、静态断言与文档即可恢复 v336;无需数据、SQL、RLS 或环境回滚。
+
 ### 2026-07-15 - v10.7.9.336 部署证据回填
 
 - Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。

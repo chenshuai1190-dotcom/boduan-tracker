@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.336', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.337', date: '2026-07-15', latest: true,
+    items: [
+      '🏆 收益比赛本人昵称与头卡紧凑化',
+      '  - 头像下方本人昵称放大为更清晰的半粗体高对比文字',
+      '  - “最后更新”上移并收紧头卡底部留白,整体高度更加紧凑',
+      '  - 头像、排名、三项收益指标和排行榜昵称位置保持不变',
+      '  - 比赛缓存、请求、排名、收益、快照、交易账本和服务端逻辑保持不变',
+    ],
+    itemsEn: [
+      '🏆 Refined signed-in identity hierarchy in Competition',
+      '  - The nickname below the avatar is now larger, semibold, and higher contrast',
+      '  - Last updated moves upward while the header card bottom spacing becomes more compact',
+      '  - Avatar, rank, three return metrics, and leaderboard nicknames keep their positions',
+      '  - Competition caching, requests, ranking, returns, snapshots, the trade ledger, and server logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.336', date: '2026-07-15',
     items: [
       '📐 持仓市值长金额完整显示',
       '  - 名称/代码列缩小 8px,市值/数量列同步增加 8px',
