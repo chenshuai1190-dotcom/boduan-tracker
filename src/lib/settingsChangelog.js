@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.337', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.338', date: '2026-07-15', latest: true,
+    items: [
+      '🏆 收益比赛本人信息行优化',
+      '  - 本人昵称与“最后更新”调整到同一水平行,头卡更加紧凑',
+      '  - 昵称缩小为 12px 并使用排行榜普通用户名同款灰白色',
+      '  - 头像居中的安全宽度由 72px 增至 80px,目标昵称可完整显示',
+      '  - 比赛缓存、请求、排名、收益、快照、交易账本和服务端逻辑保持不变',
+    ],
+    itemsEn: [
+      '🏆 Refined the signed-in identity row in Competition',
+      '  - The nickname and Last updated now share one horizontal row for a tighter header card',
+      '  - The nickname uses a compact 12px size and the same muted color as standard leaderboard names',
+      '  - Its avatar-centered safe width grows from 72px to 80px so the target nickname displays in full',
+      '  - Competition caching, requests, ranking, returns, snapshots, the trade ledger, and server logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.337', date: '2026-07-15',
     items: [
       '🏆 收益比赛本人昵称与头卡紧凑化',
       '  - 头像下方本人昵称放大为更清晰的半粗体高对比文字',

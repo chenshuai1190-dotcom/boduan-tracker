@@ -307,7 +307,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(competitionHeroMetricsIndex > competitionSelfAvatarIndex, 'the return metrics should move to the right of the signed-in user avatar');
   assert.ok(communityCompetitionPageSource.includes('const selfAvatar = self?.avatarKey ? getCommunityAvatarOption(self.avatarKey) : null;'), 'the self card must only render an authoritative profile avatar');
   assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname') && communityCompetitionPageSource.includes("{self?.nickname || '--'}"), 'the self card should show the authoritative community nickname below the avatar');
-  assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname className="-ml-2 mt-1.5 w-[72px] truncate text-center text-[15px] font-semibold leading-5 text-white/[0.9]'), 'the self nickname should use the stronger reference typography while keeping its safe width and spacing');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname className="-ml-3 w-[80px] truncate text-center text-[12px] font-semibold leading-4 text-white/[0.72]'), 'the self nickname should use the requested compact size and leaderboard color with the wider avatar-centered safe width');
   assert.ok(communityCompetitionPageSource.includes('<div className="space-y-3 pt-3">'), 'competition cards should not add a second inner horizontal inset');
   assert.ok(communityCompetitionPageSource.includes("<div className={`px-4 ${contentDimmed"), 'competition cards should use the same 16px horizontal gutter as home cards');
   assert.ok(communityCompetitionPageSource.includes('max-w-[462px]'), 'the competition shell should leave room for two 16px gutters around the same 430px maximum card width as home');
@@ -327,8 +327,8 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes("tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。')"), 'ready and waiting states should disclose the snapshot source and lack of broker verification');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.snapshotAsOf', '最后更新 {{date}}'") && communityCompetitionPageSource.includes('formatCompactDate(data?.asOfDate)'), 'snapshot update copy should use the compact month-day format without a year and keep a space before the date');
   assert.ok(communityCompetitionPageSource.includes('overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 pb-2 pt-3'), 'the self card should reduce only its bottom padding while preserving the top spacing');
-  assert.ok(communityCompetitionPageSource.includes('data-competition-update-row className="mt-0 grid grid-cols-[56px_minmax(0,1fr)] gap-x-4"'), 'the update row should move upward while reusing the avatar and metrics column template');
-  assert.ok(communityCompetitionPageSource.includes('data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left'), 'the update label should begin at the same third-column inset as Beat QQQ');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-update-row className="mt-1.5 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4"'), 'the nickname and update label should share one horizontally aligned row');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] leading-5'), 'the update label should keep its third-column position while aligning vertically with the nickname');
   assert.ok(i18nSource.includes("'competition.nasdaq100': 'QQQ benchmark'"), 'English benchmark copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.outperformNasdaq': 'Beat QQQ'"), 'English outperformance copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.dataDisclosure': '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'"), 'Chinese disclosure should remain translated centrally');
@@ -522,8 +522,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.337'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.337', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.338'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.338', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('收益比赛本人信息行优化'), 'settings changelog should describe the signed-in competition identity-row refinement');
   assert.ok(settingsChangelogSource.includes('收益比赛本人昵称与头卡紧凑化'), 'settings changelog should describe the signed-in competition identity refinement');
   assert.ok(settingsChangelogSource.includes('持仓市值长金额完整显示'), 'settings changelog should describe the long position market-value display fix');
   assert.ok(settingsChangelogSource.includes('收益比赛头卡与页面宽度优化'), 'settings changelog should describe the competition header and width refinement');
@@ -2267,7 +2268,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.337'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.338'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

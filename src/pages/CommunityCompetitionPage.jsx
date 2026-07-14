@@ -391,9 +391,6 @@ function CompetitionContent({ data, period, language, tt }) {
             <div data-competition-self-avatar className="h-14 w-14 overflow-hidden rounded-full border border-white/[0.1] bg-[#070a0f] shadow-[0_8px_20px_rgba(0,0,0,0.34)]">
               {selfAvatar ? <img src={selfAvatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} /> : null}
             </div>
-            <div data-competition-self-nickname className="-ml-2 mt-1.5 w-[72px] truncate text-center text-[15px] font-semibold leading-5 text-white/[0.9]">
-              {self?.nickname || '--'}
-            </div>
           </div>
           <div data-competition-hero-metrics className="mt-2 grid min-w-0 grid-cols-3 divide-x divide-white/[0.08]">
             <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
@@ -401,9 +398,12 @@ function CompetitionContent({ data, period, language, tt }) {
             <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
           </div>
         </div>
-        <div data-competition-update-row className="mt-0 grid grid-cols-[56px_minmax(0,1fr)] gap-x-4">
+        <div data-competition-update-row className="mt-1.5 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4">
+          <div data-competition-self-nickname className="-ml-3 w-[80px] truncate text-center text-[12px] font-semibold leading-4 text-white/[0.72]">
+            {self?.nickname || '--'}
+          </div>
           <div className="col-start-2 grid min-w-0 grid-cols-3">
-            <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] text-[#7f858e]">
+            <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] leading-5 text-[#7f858e]">
               {ready ? tt('competition.snapshotAsOf', '最后更新 {{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
             </div>
           </div>
