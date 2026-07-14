@@ -4,6 +4,23 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.332 收益比赛快照缓存与头部布局优化
+
+- Commit: `same commit`。
+- Background: 收益比赛的权威收盘快照在同一交易日内基本不变,每次进入页面或回到前台都重新请求既浪费读取,也会重复展示加载态。用户同时确认删除头部无数据区域,在原“我的排名”位置下展示本人头像,把本日收益率、QQQ 基准和跑赢 QQQ 右移,并将快照说明精简为按真实日期生成的灰色“数据更新MM.DD”。
+- Workflow tier: `sensitive`。本轮不改服务端收益计算或数据库,但改变已登录比赛快照的客户端持久化、请求时机和 PWA 回前台刷新行为,按收益快照敏感门禁发布。
+- Changes:
+  - 新增按登录账户与 `day/week/month/year` 周期隔离的本地缓存,只持久化服务端 `ready` 和 `waiting_snapshot` 权威状态;损坏、旧版本或周期不匹配条目直接忽略,旧日期结果不能覆盖新快照。
+  - 使用 `America/New_York` 权威时区决定读取窗口:普通进入优先同步展示缓存,美东交易日 17:10 后最多发起一次主读取,延迟时 19:10 仅追加一次有界重试,周末跳过并等待下一工作日。加入后的等待状态必须跨过 eligible close,不会在同日晚间误读;回前台和 `pageshow` 只重新计算本地决策,不盲目访问 API。
+  - 请求按账户/周期/缓存代次去重;切换榜单周期时旧响应不能覆盖新页签,清缓存会使旧并发响应失效。加入比赛或修改社区昵称/头像后清除本人所有周期缓存,避免旧身份或旧参与状态残留;后台读取失败保留最后一份已验证快照。
+  - 头部保留原“我的排名 + #排名”位置,本人头像移到其下方,三项收益指标排在头像右侧;删除头部空白走势图。快照说明按真实 `asOfDate` 动态格式化为灰色“数据更新MM.DD” / `Updated MM.DD`,不写死示例日期。
+  - `DevVisualPreview` 明确禁用持久化缓存并使用固定本地用户,继续只在 iOS Simulator 中提供只读 mock 验收,不连接或写入生产数据。
+- Key files: `src/lib/communityCompetitionCache.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/lib/settingsChangelog.js`,`tests/community-competition-cache.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: `npm run verify:toolchain` pass;定向缓存/边界测试 57/57 pass;完整 `npm test` 372/372 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:rls:rest` 通过 21 tables + 2 anonymous RPC denials;`npm run verify:docs-consistency` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认头像/指标布局和动态日期:mock `asOfDate=2026-07-10` 显示“数据更新07.10”,证明未写死用户示例 `07.14`;缓存禁用后 join 状态仍能独立打开。旧 `verify:frontend-smoke` 不作为视觉证据。
+- Deployment: pending user-authorized release。
+- Boundaries: 只缓存已登录 API 返回的本人可见比赛响应,按 user id 隔离且登出/换账户不会共享;不缓存 token、邮箱、交易明细、金额或服务端私密字段,不改 `/api/community-competition`、比赛 Cron、正式 `stock_trades`、比赛表、个人收益快照、Supabase/RLS、行情 provider 或任何生产数据。生产仍以服务端锁定收盘快照为唯一真实来源,客户端缓存不生成、不修正也不伪造收益。
+- Rollback: 回退本提交即可恢复每次进入直接读取和旧头部布局;本轮没有 SQL、RLS、环境变量或生产数据迁移,无需数据回滚。
+
 ### 2026-07-14 - 美东收盘后快照窗口与比赛安全重建基线
 
 - Commit: database source `0f52700761beab0d4488e067ca9e968aea9a9bc1`; runtime `8f23a471be3cd63b657bf1f7a807c438881a23ea`; production SQL and runtime deployment applied and verified.

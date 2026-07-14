@@ -1,5 +1,12 @@
 import React from 'react';
 import { ArrowLeft, Info, Loader2, RefreshCw, Trophy, X } from 'lucide-react';
+import {
+  clearCommunityCompetitionCache,
+  getCommunityCompetitionRefreshDecision,
+  readCommunityCompetitionCache,
+  requestCommunityCompetitionRefresh,
+  writeCommunityCompetitionCache,
+} from '../lib/communityCompetitionCache.js';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { communityCompetitionApi } from '../lib/communityCompetitionApi.js';
 import { t } from '../lib/i18n.js';
@@ -49,6 +56,12 @@ function formatDate(value, language = 'zh') {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function formatCompactDate(value) {
+  const parts = String(value || '').slice(0, 10).split('-');
+  if (parts.length !== 3 || !/^\d{2}$/.test(parts[1]) || !/^\d{2}$/.test(parts[2])) return '--';
+  return `${parts[1]}.${parts[2]}`;
 }
 
 function keepTogether(value) {
@@ -337,6 +350,7 @@ function CompetitionContent({ data, period, language, tt }) {
   const stats = ready ? (data.stats || {}) : {};
   const leaders = ready && Array.isArray(data.leaders) ? data.leaders : [];
   const self = ready ? data.self : null;
+  const selfAvatar = self?.avatarKey ? getCommunityAvatarOption(self.avatarKey) : null;
   const selfLeaderIndex = self
     ? leaders.findIndex((row) => Number(row?.rank) === Number(self.rank) && row?.nickname === self.nickname)
     : -1;
@@ -368,24 +382,22 @@ function CompetitionContent({ data, period, language, tt }) {
   return (
     <div className="space-y-3 px-0.5 pt-3">
       <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-        <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(104px,0.75fr)] gap-2">
-          <div className="min-w-0">
-            <div className="flex items-end gap-3">
-              <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
-              <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
-            </div>
-            <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08]">
-              <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
-              <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
-              <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
-            </div>
+        <div className="flex items-end gap-3">
+          <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
+          <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
+        </div>
+        <div className="mt-3 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4">
+          <div data-competition-self-avatar className="h-14 w-14 overflow-hidden rounded-full border border-white/[0.1] bg-[#070a0f] shadow-[0_8px_20px_rgba(0,0,0,0.34)]">
+            {selfAvatar ? <img src={selfAvatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} /> : null}
           </div>
-          <div className="self-end">
-            <TrendChart self={trend.self} benchmark={trend.benchmark} />
+          <div data-competition-hero-metrics className="grid min-w-0 grid-cols-3 divide-x divide-white/[0.08]">
+            <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
+            <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
+            <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
           </div>
         </div>
-        <div className="mt-2 whitespace-nowrap text-right text-[9.5px] text-white/24">
-          {ready ? tt('competition.snapshotAsOf', '收盘快照更新至 {{date}}', { date: formatDate(data?.asOfDate, language) }) : '--'}
+        <div className="mt-2 whitespace-nowrap text-right text-[10px] text-[#7f858e]">
+          {ready ? tt('competition.snapshotAsOf', '数据更新{{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
         </div>
       </section>
 
@@ -447,36 +459,114 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const {
     closeCommunityCompetition,
     communityCompetitionClient = communityCompetitionApi,
+    disableCommunityCompetitionCache = false,
     language = 'zh',
     openCommunityProfileSettings,
     supabase,
+    user,
   } = ctx;
   const tt = React.useCallback((key, fallback, vars) => t(language, key, fallback, vars), [language]);
   const [period, setPeriod] = React.useState('day');
-  const [view, setView] = React.useState({ state: 'loading', data: null, error: '' });
+  const userId = String(user?.id || '').trim();
+  const cacheEnabled = Boolean(userId) && !disableCommunityCompetitionCache;
+  const [view, setView] = React.useState(() => {
+    const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period: 'day' }) : null;
+    return cached
+      ? { state: cached.data.state, data: cached.data, error: '' }
+      : { state: 'loading', data: null, error: '' };
+  });
+  const [refreshTick, setRefreshTick] = React.useState(0);
   const [joining, setJoining] = React.useState(false);
   const [joinError, setJoinError] = React.useState('');
   const joiningRef = React.useRef(false);
+  const mountedRef = React.useRef(true);
+  const activeViewKey = `${userId}:${period}`;
+  const activeViewKeyRef = React.useRef(activeViewKey);
+  const settledViewKeyRef = React.useRef('');
+  activeViewKeyRef.current = activeViewKey;
   const profileRedirectedRef = React.useRef(false);
 
-  const load = React.useCallback(async (signal) => {
-    setView({ state: 'loading', data: null, error: '' });
-    setJoinError('');
-    try {
-      const data = await communityCompetitionClient.fetch({ supabase, period, signal });
-      if (signal?.aborted) return;
-      setView({ state: data.state, data, error: '' });
-    } catch (error) {
-      if (signal?.aborted || error?.name === 'AbortError') return;
-      setView({ state: 'error', data: null, error: error?.message || tt('competition.loadFailed', '收益比赛读取失败') });
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const load = React.useCallback(async ({ showLoading = false } = {}) => {
+    const requestViewKey = `${userId}:${period}`;
+    const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
+    if (mountedRef.current && showLoading && !cached) {
+      setView({ state: 'loading', data: null, error: '' });
     }
-  }, [communityCompetitionClient, period, supabase, tt]);
+    if (mountedRef.current) setJoinError('');
+    try {
+      const result = cacheEnabled
+        ? await requestCommunityCompetitionRefresh({
+          userId,
+          period,
+          fetcher: () => communityCompetitionClient.fetch({ supabase, period }),
+        })
+        : { data: await communityCompetitionClient.fetch({ supabase, period }), entry: null };
+      if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
+        settledViewKeyRef.current = requestViewKey;
+        setView({ state: result.data.state, data: result.data, error: '' });
+      }
+      return result;
+    } catch (error) {
+      const fallback = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
+      if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
+        settledViewKeyRef.current = requestViewKey;
+        setView(fallback
+          ? { state: fallback.data.state, data: fallback.data, error: '' }
+          : { state: 'error', data: null, error: error?.message || tt('competition.loadFailed', '收益比赛读取失败') });
+      }
+      return null;
+    } finally {
+      if (
+        mountedRef.current
+        && activeViewKeyRef.current === requestViewKey
+        && cacheEnabled
+        && readCommunityCompetitionCache({ userId, period })
+      ) {
+        setRefreshTick((current) => current + 1);
+      }
+    }
+  }, [cacheEnabled, communityCompetitionClient, period, supabase, tt, userId]);
 
   React.useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+    let timerId = 0;
+    const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
+    if (cached) {
+      settledViewKeyRef.current = activeViewKey;
+      setView({ state: cached.data.state, data: cached.data, error: '' });
+    }
+    const decision = getCommunityCompetitionRefreshDecision({ entry: cached });
+    if ((!cached && settledViewKeyRef.current !== activeViewKey) || (cached && decision.shouldRefresh)) {
+      load({ showLoading: !cached });
+    } else if (cached && Number.isFinite(decision.nextCheckAt)) {
+      const delay = Math.min(2_147_000_000, Math.max(1_000, decision.nextCheckAt - Date.now()));
+      timerId = window.setTimeout(() => setRefreshTick((current) => current + 1), delay);
+    }
+    return () => {
+      if (timerId) window.clearTimeout(timerId);
+    };
+  }, [activeViewKey, cacheEnabled, load, period, refreshTick, userId]);
+
+  React.useEffect(() => {
+    const recheck = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        setRefreshTick((current) => current + 1);
+      }
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') recheck();
+    };
+    window.addEventListener('pageshow', recheck);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('pageshow', recheck);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (view.state !== 'profile_required' || profileRedirectedRef.current) return;
@@ -491,7 +581,12 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     setJoinError('');
     try {
       const data = await communityCompetitionClient.join({ supabase });
-      setView({ state: data.state, data, error: '' });
+      if (cacheEnabled) clearCommunityCompetitionCache(userId);
+      const normalizedData = { ...data, period };
+      if (cacheEnabled) writeCommunityCompetitionCache({ userId, period, data: normalizedData });
+      settledViewKeyRef.current = `${userId}:${period}`;
+      setView({ state: normalizedData.state, data: normalizedData, error: '' });
+      if (cacheEnabled) setRefreshTick((current) => current + 1);
     } catch (error) {
       if (error?.state === 'profile_required') {
         setView({ state: 'profile_required', data: null, error: '' });
@@ -524,7 +619,21 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
           </div>
           <div className="grid h-11 w-[164px] grid-cols-4 rounded-full bg-white/[0.055] p-1">
             {PERIODS.map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setPeriod(id)} disabled={view.state === 'loading' || joining} className={`rounded-full text-[11px] transition disabled:opacity-50 ${period === id ? 'bg-[#ffb13d] text-[#2a1905] shadow-[0_8px_18px_rgba(246,181,75,0.2)]' : 'text-white/[0.42]'}`}>
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  const nextViewKey = `${userId}:${id}`;
+                  const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period: id }) : null;
+                  activeViewKeyRef.current = nextViewKey;
+                  setPeriod(id);
+                  setView(cached
+                    ? { state: cached.data.state, data: cached.data, error: '' }
+                    : { state: 'loading', data: null, error: '' });
+                }}
+                disabled={view.state === 'loading' || joining}
+                className={`rounded-full text-[11px] transition disabled:opacity-50 ${period === id ? 'bg-[#ffb13d] text-[#2a1905] shadow-[0_8px_18px_rgba(246,181,75,0.2)]' : 'text-white/[0.42]'}`}
+              >
                 {tt(`competition.period.${id}`, label)}
               </button>
             ))}
@@ -552,7 +661,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         ) : null}
         {view.state === 'ready' ? <CompetitionContent data={view.data} period={period} language={language} tt={tt} /> : null}
         {view.state === 'error' ? (
-          <StatusCard icon="!" title={tt('competition.loadFailed', '收益比赛读取失败')} desc={view.error || tt('competition.tryAgainLater', '请稍后重试。')} actionLabel={tt('competition.retry', '重新读取')} onAction={() => load()} />
+          <StatusCard icon="!" title={tt('competition.loadFailed', '收益比赛读取失败')} desc={view.error || tt('competition.tryAgainLater', '请稍后重试。')} actionLabel={tt('competition.retry', '重新读取')} onAction={() => load({ showLoading: true })} />
         ) : null}
       </div>
 

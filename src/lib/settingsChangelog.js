@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.331', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.332', date: '2026-07-14', latest: true,
+    items: [
+      '🏆 收益比赛读取与头部信息优化',
+      '  - 已生成的比赛快照按账户和榜单周期安全缓存,普通进入不再重复读取',
+      '  - 仅在美东收盘后检查新快照,延迟时最多追加一次有界重试,下次有效收盘再强制检查',
+      '  - 我的头像移到排名下方,本日收益率、QQQ 基准和跑赢 QQQ 向右紧凑排列',
+      '  - 更新时间按实际快照日期动态显示为“数据更新MM.DD”,不写死日期、不展示估算数据',
+    ],
+    itemsEn: [
+      '🏆 Competition snapshot reads and header refinement',
+      '  - Completed competition snapshots are cached safely per account and ranking period to avoid repeated reads on normal entry',
+      '  - New snapshots are checked only after the New York close window, with one bounded late retry before the next eligible close',
+      '  - The signed-in avatar now sits below the rank while daily return, QQQ benchmark, and QQQ outperformance align compactly to its right',
+      '  - The update label uses the actual snapshot date in MM.DD format with no hard-coded date or estimated result',
+    ],
+  },
+  {
+    ver: 'v10.7.9.331', date: '2026-07-14',
     items: [
       '📏 主动投资价值结果行紧凑化',
       '  - 当前标的和 QQQ 的收益金额与收益率改为同一行展示,减少纵向占用',
