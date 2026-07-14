@@ -521,8 +521,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.335'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.335', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.336'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.336', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('持仓市值长金额完整显示'), 'settings changelog should describe the long position market-value display fix');
   assert.ok(settingsChangelogSource.includes('收益比赛头卡与页面宽度优化'), 'settings changelog should describe the competition header and width refinement');
   assert.ok(settingsChangelogSource.includes('最后更新 MM.DD') && settingsChangelogSource.includes('430px 最大内容宽度'), 'settings changelog should document the compact dynamic update label and home-aligned card width');
   assert.ok(settingsChangelogSource.includes('收益比赛更新时间对齐'), 'settings changelog should describe the aligned competition update label');
@@ -690,7 +691,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.equal(earningsCalendarSource.includes('view === \'calendar\' ? (\n          <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">'), false, 'earnings calendar view should not scroll the month grid together with the event list');
   assert.ok(tradesTabSource.includes('data-trade-positions-table="v230-single-grid"'), 'trade positions table should document that it uses v230 widths in a single grid');
   assert.ok(tradesTabSource.includes('min-w-[604px]'), 'trade positions table should include the v230 columns plus one grid gap set in a single scroll surface');
-  assert.ok(tradesTabSource.includes('grid-cols-[100px_80px_76px_118px_144px_66px]'), 'trade positions table should restore the v230 column widths without a two-pane split');
+  assert.ok(tradesTabSource.includes('grid-cols-[92px_88px_76px_118px_144px_66px]'), 'trade positions table should give eight pixels from the name column to market value without changing total width');
   assert.ok(tradesTabSource.includes('overflow-hidden text-right active:bg-white/[0.03]'), 'trade positions table should still clip long holding P&L values in their own column');
   assert.ok(tradesTabSource.includes('openPositionScenario(position, displayCurrentPrice)'), 'trade positions price cost cell should still open the position scenario calculator');
   assert.equal(tradesTabSource.includes('grid grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)]'), false, 'trade positions table should not keep the v230 two-pane layout because it creates visual row breaks');
@@ -1944,7 +1945,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.335'"), 'settings version source should advance with the asset and competition card color alignment');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.335', date: '2026-07-15'"), 'settings changelog should retain the asset and competition card color alignment release');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2264,7 +2265,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.335'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.336'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.335', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.336', date: '2026-07-15', latest: true,
+    items: [
+      '📐 持仓市值长金额完整显示',
+      '  - 名称/代码列缩小 8px,市值/数量列同步增加 8px',
+      '  - 表格总宽和其余四列保持不变,千万级人民币市值不再显示省略号',
+      '  - 开发预览加入超过 1000 万人民币的 NVDA 市值边界样例',
+      '  - 金额计算、汇率、持仓数据、交易账本和接口保持不变',
+    ],
+    itemsEn: [
+      '📐 Full display for long position market values',
+      '  - Shifted 8px from Name/Ticker to Market Value/Quantity',
+      '  - Total table width and the other four columns are unchanged, so eight-digit CNY values no longer truncate',
+      '  - The development preview now covers an NVDA market value above CNY 10 million',
+      '  - Amount calculations, FX, position data, the trade ledger, and APIs are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.335', date: '2026-07-15',
     items: [
       '⬛ 资产页与收益比赛卡片黑色统一',
       '  - 资产页走势图和账户分组卡统一为首页标准黑色与灰色边框',

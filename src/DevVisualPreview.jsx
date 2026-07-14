@@ -442,7 +442,7 @@ const mockTradeActivePositions = [
     avgCost: 179.78,
     effectiveCost: 179.78,
     high: 220,
-    marketValue: 1430415,
+    marketValue: 1481000,
     holdingPnl: 171955,
     holdingPnlPct: 0.13664,
     todayPnl: 10713.71,

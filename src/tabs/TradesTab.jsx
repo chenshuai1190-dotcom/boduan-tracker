@@ -1135,7 +1135,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               ) : (
                 <div className="overflow-x-auto border-t border-white/[0.06] [scrollbar-width:none]" data-trade-positions-table="v230-single-grid">
                   <div className="min-w-[604px]">
-                    <div className="grid grid-cols-[100px_80px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
+                    <div className="grid grid-cols-[92px_88px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
                       <span className="sticky left-0 z-20 bg-[#0b0f14] pr-1.5 text-left">{tt('trades.nameTicker', '名称/代码')}</span>
                       <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
                       <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
@@ -1165,7 +1165,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         return (
                           <div
                             key={position.symbol}
-                            className="grid min-h-[60px] w-full grid-cols-[100px_80px_76px_118px_144px_66px] items-center gap-1 py-3 text-left"
+                            className="grid min-h-[60px] w-full grid-cols-[92px_88px_76px_118px_144px_66px] items-center gap-1 py-3 text-left"
                           >
                             <button
                               type="button"

@@ -4,6 +4,22 @@
 
 ## 2026-07-15 Asia/Shanghai
 
+### 2026-07-15 - v10.7.9.336 持仓市值长金额完整显示
+
+- Commit: `same commit`（UI-fast 发布候选）。
+- Background: 用户发现交易页持仓表在人民币市值超过 1000 万时显示省略号,要求略微缩窄“名称/代码”列并把空间让给“市值/数量”列,先在本机 iOS Simulator 验证后快速部署。
+- Workflow tier: `ui-fast`。本轮只调整持仓表两列的展示宽度和只读开发预览边界数据;不改变金额格式化、汇率、持仓计算、交易账本、API、数据库、鉴权、RLS、provider 或任何持久化行为。
+- Changes:
+  - 表头和所有持仓行的“名称/代码”列由 `100px` 缩为 `92px`,“市值/数量”列由 `80px` 增为 `88px`;表格总宽仍为 `604px`,其余四列和横向滚动范围不变。
+  - 开发预览把 NVDA 市值提高到人民币换算后 `10,026,370.00`,覆盖千万级金额边界;生产数据和金额计算没有 mock 兜底或改写。
+  - 设置页版本与中英文更新日志同步到 `v10.7.9.336`,静态断言锁定新列宽和总宽不变。
+- Key files: `src/tabs/TradesTab.jsx`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: `node --test tests/tool-ledger-boundaries.test.js` 47/47 pass;`npm run build` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认 `10,026,370.00` 无省略号且“英伟达 / NVDA”完整显示,截图 `~/Desktop/boduan-previews/trade-position-market-value-width-over-10m-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
+- Deployment: pending;门禁通过后使用项目 SSH key 推送 GitHub `main`,再运行 `npm run verify:deploy-status -- <commit>` 等待 Actions/Vercel success。
+- Production verification: pending;不得在实际部署成功前预填 commit、Actions、Vercel 或生产入口。
+- Boundaries: 正式 `stock_trades`、持仓数量/成本/市值/盈亏计算、USD/CNY 汇率、行情请求、收益快照、比赛、数据库、RLS 和生产数据全部不变。
+- Rollback: 回退两列宽度、v336 版本/更新日志、开发预览边界样例、静态断言与文档即可恢复 v335;无需数据、SQL、RLS 或环境回滚。
+
 ### 2026-07-15 - v10.7.9.335 部署证据回填
 
 - Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。
