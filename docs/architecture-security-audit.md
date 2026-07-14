@@ -15,6 +15,7 @@ Date: 2026-07-03 Asia/Shanghai
 - 美股收盘涨跌榜通过已登录 `/api/quote?view=market-movers` 和独立 `server/quote/marketMovers.js` 获取真实 EODHD 收盘数据,并与 Nasdaq Trader 当前上市目录交集验证;官方目录/provider 异常时 fail closed,生产无 EODHD-only 或 mock 榜单兜底
 - 个股收益对比只读当前用户正式 `stock_trades` 和 owner-scoped `pnl_report_symbol_snapshots`,个股与 QQQ 的 `rawClose` 普通收盘价均经已登录 `/api/pnl-benchmark` 从服务端读取;个人快照只核验日期和持仓股数,双方按首个三方共同日期、等额加仓和同比例减仓计算,缺数据或账本/快照不一致时 fail closed,不写账本/快照且生产无 mock 收益。个人收益快照沿用现有 owner-writable 模型,因此该视图是个人账本分析,不是比赛级不可覆盖证明
 - 自动个人/比赛收盘任务对 EODHD symbol 做最多三次有界重试,可恢复缺口和没有目标日 SPY 行的保守休市判断返回 503,不退回旧日期,并在 Hobby UTC 00/01/02/03 设置独立主/重试触发。个人按最近 31 个日历日的 SPY 真交易日补既有账户缺口,无完成标记用户只写目标日;portfolio 标记先删后最后写,让非原子的 symbol/portfolio 部分失败可被下次识别。比赛读取最早待处理锚点到目标日的完整 SPY 日历,每次最多 5 个交易日/250 member-days 分批,空仓不造行、首买加速,加入基准与首个真实收盘之间的交易权威拒绝,ranking 恢复验证最早/最新 locked hash。retry aliases 仍由同一 `CRON_SECRET` 保护,两条链路都不改 `stock_trades`,不新增浏览器数据面、账本写入口或 mock 收益。
+- 生产恢复证据(2026-07-14):runtime commit `9e1c840e0b336a0352b79f691b7ce3a3b252ff98` 的 GitHub Actions run `29313005445` success,Vercel deployment `DSGn5mQnzs2o1x6ohQWD6DGrMy2Y` Ready。`2026-07-13` 个人为 12 users / 12 portfolio rows 与 54 symbol rows / 18 symbols;比赛为 8 users / 8 locked rows,active 9、eligible 9、initialized 8、invalid 0。另 1 名因 `eligible_ledger_hash_mismatch` 继续权威拒绝;未改正式 `stock_trades`、未覆盖锁定行、未造收益。
 - BTC、三大指数和用户股票实时推送已走服务端 WebSocket relay,浏览器只连接已登录的 `/api/btc-realtime` / `/api/indices-realtime` / `/api/stocks-realtime`;用户股票范围包括自选、正式持仓、波段记录和摊薄工具 quote rows
 - Supabase RLS SQL 已纳入仓库
 - 登录前/登录后 bundle 已拆分

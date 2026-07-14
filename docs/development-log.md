@@ -4,9 +4,24 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 收盘快照修复部署与生产补跑证据回填
+
+- Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。
+- Background: 收盘快照可靠性修复已完成 runtime 部署和生产补跑,需要把 GitHub Actions、Vercel、Cron 配置与生产数据库聚合回读写回唯一代码源。运行时代码与本次 docs-only 证据提交必须分开标识,不得用尚未生成的 docs-only SHA 或流水线编号代替 runtime 证据。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 记录 runtime commit `9e1c840e0b336a0352b79f691b7ce3a3b252ff98`、GitHub Actions run `29313005445` success 和 Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DSGn5mQnzs2o1x6ohQWD6DGrMy2Y` Ready;设置页仍为 `v10.7.9.331`,backend-only 修复未改变生产入口 `/assets/index-DrckgGpM.js`。
+  - 确认生产 Cron 已使用四个独立 Hobby 小时窗口:`/api/pnl-report-daily-snapshot` UTC 00、`/api/community-competition-daily-snapshot` UTC 01、个人 retry UTC 02、比赛 retry UTC 03;两个 retry URL 仍 rewrite 到原受 `CRON_SECRET` 保护的函数。
+  - 记录 `2026-07-13` 个人补跑结果:12 个 users / 12 条 portfolio rows,另有 54 条 symbol rows / 18 个 symbols。记录比赛补跑结果:8 个 users / 8 条 locked rows;成员聚合为 active 9、eligible 9、initialized 8,snapshot invalid 0。另 1 名因 `eligible_ledger_hash_mismatch` 继续权威拒绝。
+- Key files: `README.md`,`docs/development-log.md`,`docs/handoff.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`。
+- Validation: runtime sensitive 门禁为定向 116/116、完整 `npm test` 323/323、build、audit high 0、RLS REST 20/20、toolchain/workspace/docs consistency/diff check 均 pass;部署状态与上述生产数据库聚合已回读。本 docs-only 变更的 `npm run verify:docs-consistency` 和 `git diff --check` pass,不重复运行 runtime 测试或前端 iOS 验收。
+- Deployment: runtime 已完成;本条是后续 docs-only 证据提交,不改变运行时代码。其提交 SHA、Actions 和 Vercel 结果须以实际提交/推送结果为准,本文不预填。
+- Boundaries: 仅回填真实聚合证据,不记录 user id、交易明细、持仓数量、金额或 secret;不改运行时代码、Supabase schema/RLS/grant、正式 `stock_trades` 或任何生产快照。
+- Rollback: 回退本 docs-only 条目只会移除证据记录,不会回退 runtime 修复或删除已生成的权威快照。
+
 ### 2026-07-14 - 收盘快照失败重试与比赛连续补漏
 
-- Commit: `same commit`。
+- Commit: `9e1c840e0b336a0352b79f691b7ce3a3b252ff98`。
 - Background: 生产收益报表最新快照停在 `2026-07-10`,个人 `2026-07-13` 为 0 行,比赛快照表也仍为 0 行。只读诊断确认 `2026-07-13` 的 18 个相关标的现已具备 EODHD 权威收盘价;旧实现对行情缺失只记 skipped 且仍返回 HTTP 200,Vercel Hobby 又不会重试失败 Cron,所以瞬时缺行情可以被误判为成功并永久漏日。历史 Runtime Logs 已超过保留期,因此不能把某一个具体历史分支写成已证实根因。
 - Workflow tier: `sensitive`。
 - Changes:
@@ -17,11 +32,11 @@
   - 已加入但尚无任何交易的成员不写空仓快照、不形成失败且不阻塞其他成员;检测到加入后的第一笔交易时把起点加速到首笔交易日。若正式交易日落在加入基准与首个真实 SPY 收盘之间,首快照权威拒绝 `trade_before_first_snapshot`,不会把周末/休市日交易错误当成期初持仓。若首张快照已插入但 ranking PATCH 曾失败,恢复流程必须同时复核最早和最新锁定快照的正式账本 hash,验证通过后才用最早锁定日恢复排名起点;任一端不一致继续权威拒绝。
   - Vercel Hobby 主任务和独立重试任务错开到 UTC `00/01/02/03` 四个小时窗口,均映射到同一个已完成美股交易日;retry path 只 rewrite 到原受 `CRON_SECRET` 保护的函数,不增加 serverless function,不放宽鉴权。
   - 目标日恰逢美股休市且 SPY 没有该日行时保持保守 `503`,绝不退回更早日期冒充目标日成功;后续真实交易日由跨日补漏补回。
-  - 当前生产修复将在 runtime 部署后通过 Vercel 内建 Cron 手动触发,由平台注入 `CRON_SECRET`;先补个人,核对落库,再补比赛。只允许正式 `stock_trades` 与 EODHD 权威收盘生成结果,那名 `eligible_ledger_hash_mismatch` 成员继续拒绝,绝不改账本或 hash。
+  - 生产修复已在 runtime 部署后通过 Vercel 内建 Cron 依次触发个人与比赛路径,并以生产数据库聚合回读验收。只允许正式 `stock_trades` 与 EODHD 权威收盘生成结果,那名 `eligible_ledger_hash_mismatch` 成员继续拒绝,绝不改账本或 hash。
 - Key files: `server/pnlReportDailySnapshot.js`,`api/pnl-report-daily-snapshot.js`,`server/communityCompetitionDailySnapshot.js`,`api/community-competition.js`,`vercel.json`,`tests/pnl-report-daily-snapshot-api.test.js`,`tests/community-competition-daily-snapshot-api.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
-- Validation: 定向个人/比赛收盘快照测试 116/116 pass;完整 `npm test` 323/323 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:rls:rest` 20/20 PASS;`npm run verify:toolchain`、`npm run verify:workspace-state`、`npm run verify:docs-consistency` 和 `git diff --check` 均 pass。生产部署、Cron 触发和数据库聚合回读仍 pending。本轮没有前端视觉或输入改动,不需要 iOS Simulator、系统键盘或主屏 PWA 验收。
-- Deployment: pending。
-- Production repair: pending;补跑前基线为个人最新 `2026-07-10`、个人 `2026-07-13` 0 行、比赛总计 0 行。预期个人 `2026-07-13` 为 12 个账户;比赛 `2026-07-13` 为 8 名合规成员,另 1 名继续权威拒绝。最终以生产数据库聚合回读为准,不能只看 CLI exit 0。
+- Validation: 定向个人/比赛收盘快照测试 116/116 pass;完整 `npm test` 323/323 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:rls:rest` 20/20 PASS;`npm run verify:toolchain`、`npm run verify:workspace-state`、`npm run verify:docs-consistency` 和 `git diff --check` 均 pass。生产部署、两条 Cron 手动补跑和数据库聚合回读均完成。本轮没有前端视觉或输入改动,不需要 iOS Simulator、系统键盘或主屏 PWA 验收。
+- Deployment: completed;runtime commit `9e1c840e0b336a0352b79f691b7ce3a3b252ff98`,GitHub Actions run `29313005445` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/DSGn5mQnzs2o1x6ohQWD6DGrMy2Y` Ready。
+- Production repair: completed;`2026-07-13` 个人为 12 users / 12 portfolio rows 和 54 symbol rows / 18 symbols;比赛为 8 users / 8 locked rows,active 9、eligible 9、initialized 8、invalid 0。另 1 名因 `eligible_ledger_hash_mismatch` 继续权威拒绝;最终结果来自生产数据库聚合回读,不以 CLI exit 0 代替落库证据。
 - Boundaries: 不改 Supabase schema/RLS/grant,不改正式 `stock_trades`,个人只写既有 P&L 快照表;比赛只读正式账本且只写独立比赛表/首次排名元数据。响应不包含 user id、交易明细、持仓数量、金额或任何 secret;空仓不造快照,生产无 mock、实时价或估算收益兜底。
 - Rollback: 回退本提交会恢复旧单次 EODHD 请求、同小时 Cron 和 skipped=200 行为,但不会删除已用正式账本生成的快照。比赛锁定行不可更新/删除;如回滚代码也必须保留已经生成的权威行。
 
