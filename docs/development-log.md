@@ -4,9 +4,24 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.332 部署证据回填
+
+- Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。
+- Background: `v10.7.9.332` 收益比赛快照缓存和头部布局已经通过 sensitive 门禁并完成生产部署,需要把实际 runtime SHA、Actions、Vercel、生产入口、关键产物一致性和未授权边界写回 GitHub `main`,不能把先前 pending 状态留作当前基准。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 记录 runtime commit `a25fa5da4fd0660cc40f1b985a9a9ebfcaa8ac98`、GitHub Actions run `29328899303` success 和 Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CBvtNhxugcuSD8HGyqEr7mt4469i` success;生产入口更新为 `/assets/index-Ciad_13W.js`,设置页版本更新为 `v10.7.9.332`。
+  - 生产入口、App、比赛页面、缓存、i18n、设置页和设置更新日志 7 个关键 JS 与本地 production build 的 SHA-256 逐项一致;生产命中 `America/New_York`、头像/三指标布局、中文“数据更新”、English `Updated`、`v10.7.9.332` 和双语更新标题。
+  - 复测未登录比赛 GET/POST、比赛快照 Cron、个人快照 Cron、quote VIX 和 earnings NVDA 均为 `401`;没有登录生产账户、没有触发参赛/资料保存或快照写入。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- a25fa5d` pass;GitHub/Vercel 均为 success,production alias 已切换。关键产物 hash、marker 和 6 条未授权边界均通过;本 docs-only 变更的 `npm run verify:docs-consistency`、`git diff --check` 和 `git diff --stat` pass,不重复运行已完成的 runtime 测试、build、audit、RLS 或 iOS Simulator 验收。
+- Deployment: runtime 已完成;本条 docs-only 证据提交推送后再验证其自身 Actions/Vercel,不改变生产业务逻辑。
+- Boundaries: 仅回填真实部署证据,不改缓存代码、比赛 API/Cron、正式交易账本、比赛表、个人收益快照、Supabase/RLS、provider、环境变量或生产数据。
+- Rollback: 回退本 docs-only 条目只会移除证据记录,不会回退已验证的 v332 runtime;需要恢复旧行为时必须单独回退 runtime `a25fa5d`。
+
 ### 2026-07-14 - v10.7.9.332 收益比赛快照缓存与头部布局优化
 
-- Commit: `same commit`。
+- Commit: `a25fa5da4fd0660cc40f1b985a9a9ebfcaa8ac98`。
 - Background: 收益比赛的权威收盘快照在同一交易日内基本不变,每次进入页面或回到前台都重新请求既浪费读取,也会重复展示加载态。用户同时确认删除头部无数据区域,在原“我的排名”位置下展示本人头像,把本日收益率、QQQ 基准和跑赢 QQQ 右移,并将快照说明精简为按真实日期生成的灰色“数据更新MM.DD”。
 - Workflow tier: `sensitive`。本轮不改服务端收益计算或数据库,但改变已登录比赛快照的客户端持久化、请求时机和 PWA 回前台刷新行为,按收益快照敏感门禁发布。
 - Changes:
@@ -17,7 +32,8 @@
   - `DevVisualPreview` 明确禁用持久化缓存并使用固定本地用户,继续只在 iOS Simulator 中提供只读 mock 验收,不连接或写入生产数据。
 - Key files: `src/lib/communityCompetitionCache.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/DevVisualPreview.jsx`,`src/lib/i18n.js`,`src/lib/settingsChangelog.js`,`tests/community-competition-cache.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
 - Validation: `npm run verify:toolchain` pass;定向缓存/边界测试 57/57 pass;完整 `npm test` 372/372 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:rls:rest` 通过 21 tables + 2 anonymous RPC denials;`npm run verify:docs-consistency` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认头像/指标布局和动态日期:mock `asOfDate=2026-07-10` 显示“数据更新07.10”,证明未写死用户示例 `07.14`;缓存禁用后 join 状态仍能独立打开。旧 `verify:frontend-smoke` 不作为视觉证据。
-- Deployment: pending user-authorized release。
+- Deployment: completed;runtime commit `a25fa5da4fd0660cc40f1b985a9a9ebfcaa8ac98`,GitHub Actions run `29328899303` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/CBvtNhxugcuSD8HGyqEr7mt4469i` success,production alias 已更新,入口 `/assets/index-Ciad_13W.js`。
+- Production verification: 入口、App、比赛页面、缓存、i18n、设置页和更新日志 7 个关键产物与本地 build SHA-256 一致;生产命中 v332、`America/New_York`、本人头像/右侧三指标和动态中英文日期 marker。未登录比赛 GET/POST、比赛快照 Cron、个人快照 Cron、quote 与 earnings 均为 `401`;没有执行生产写操作。
 - Boundaries: 只缓存已登录 API 返回的本人可见比赛响应,按 user id 隔离且登出/换账户不会共享;不缓存 token、邮箱、交易明细、金额或服务端私密字段,不改 `/api/community-competition`、比赛 Cron、正式 `stock_trades`、比赛表、个人收益快照、Supabase/RLS、行情 provider 或任何生产数据。生产仍以服务端锁定收盘快照为唯一真实来源,客户端缓存不生成、不修正也不伪造收益。
 - Rollback: 回退本提交即可恢复每次进入直接读取和旧头部布局;本轮没有 SQL、RLS、环境变量或生产数据迁移,无需数据回滚。
 
