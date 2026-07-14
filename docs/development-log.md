@@ -4,6 +4,21 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - v10.7.9.333 收益比赛更新时间对齐
+
+- Commit: `same commit`。
+- Background: 用户要求把收益比赛头卡中的灰色“数据更新MM.DD”小字左边缘与上方“跑赢 QQQ”标签对齐,先在本机 iOS Simulator 截图确认后快速部署。
+- Workflow tier: `ui-fast`。本轮只调整现有只读日期文案的网格位置,不改变日期来源、缓存、请求、比赛收益、API、PWA 生命周期或任何持久化行为。
+- Changes:
+  - 日期行复用头像/三项收益指标的外层 `56px + gap + metrics` 网格,再复用右侧三等分指标网格。
+  - “数据更新MM.DD”放入第三列并使用与“跑赢 QQQ”相同的左内边距,通过共享布局精确对齐,不写固定像素偏移。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.333`,新增静态断言锁定外层网格复用和第三列起点。
+- Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 定向边界测试 47/47 pass;`npm run build` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认“数据更新07.10”左边缘与“跑赢 QQQ”同列;截图 `~/Desktop/boduan-previews/community-competition-update-date-aligned-v333-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
+- Deployment: pending user-authorized fast release。
+- Boundaries: `formatCompactDate(data?.asOfDate)`、动态真实日期、按账户/周期缓存、美东刷新窗口、服务端比赛 API/Cron、正式 `stock_trades`、比赛表、Supabase/RLS、provider 和生产数据均不变;生产无 mock 或估算收益。
+- Rollback: 回退日期行共享网格、v333 版本/更新日志、静态断言和本条文档即可恢复 v332 右对齐位置;无需数据、SQL、RLS 或环境回滚。
+
 ### 2026-07-14 - v10.7.9.332 部署证据回填
 
 - Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。

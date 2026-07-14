@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.332', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.333', date: '2026-07-14', latest: true,
+    items: [
+      '📐 收益比赛更新时间对齐',
+      '  - “数据更新MM.DD”左边缘与上方“跑赢 QQQ”标签统一对齐',
+      '  - 日期行复用头像与三项收益指标的同一网格,不依赖固定像素偏移',
+      '  - 实际快照日期、缓存读取、比赛收益和服务端数据逻辑保持不变',
+    ],
+    itemsEn: [
+      '📐 Competition update-label alignment',
+      '  - The Updated MM.DD label now starts on the same left edge as Beat QQQ above it',
+      '  - The date row reuses the avatar and three-metric grid instead of a fixed pixel offset',
+      '  - The actual snapshot date, cache reads, competition returns, and server data logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.332', date: '2026-07-14',
     items: [
       '🏆 收益比赛读取与头部信息优化',
       '  - 已生成的比赛快照按账户和榜单周期安全缓存,普通进入不再重复读取',

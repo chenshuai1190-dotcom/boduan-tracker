@@ -396,8 +396,12 @@ function CompetitionContent({ data, period, language, tt }) {
             <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
           </div>
         </div>
-        <div className="mt-2 whitespace-nowrap text-right text-[10px] text-[#7f858e]">
-          {ready ? tt('competition.snapshotAsOf', '数据更新{{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
+        <div data-competition-update-row className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-x-4">
+          <div className="col-start-2 grid min-w-0 grid-cols-3">
+            <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] text-[#7f858e]">
+              {ready ? tt('competition.snapshotAsOf', '数据更新{{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
+            </div>
+          </div>
         </div>
       </section>
 
