@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.334', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.335', date: '2026-07-15', latest: true,
+    items: [
+      '⬛ 资产页与收益比赛卡片黑色统一',
+      '  - 资产页走势图和账户分组卡统一为首页标准黑色与灰色边框',
+      '  - 收益比赛的排名头卡、统计卡、排行榜、基准卡和状态卡同步统一',
+      '  - 保留本人排行高亮、头像资料卡和参赛弹窗等有意义的状态色',
+      '  - 资产数据、比赛缓存、请求、排名、收益、交易账本和服务端逻辑保持不变',
+    ],
+    itemsEn: [
+      '⬛ Unified black cards across Assets and Competition',
+      '  - Asset trend and account-group cards now match the standard Home black and neutral border',
+      '  - Competition rank header, statistics, leaderboard, benchmark, and status cards use the same shell',
+      '  - Meaningful state colors remain intact for the signed-in row, profile popover, and join sheet',
+      '  - Asset data, competition caching, requests, ranking, returns, the trade ledger, and server logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.334', date: '2026-07-14',
     items: [
       '🏆 收益比赛头卡与页面宽度优化',
       '  - 更新时间精简为“最后更新 MM.DD”,日期继续读取服务端真实快照日期',

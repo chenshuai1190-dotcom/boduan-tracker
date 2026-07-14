@@ -25,8 +25,8 @@ const ASSET_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", 
 const ASSET_GOLD = '#f6c56f';
 const ASSET_PINK = marketHexColor(-1);
 const ASSET_GREEN = '#50d0a2';
-const ASSET_CARD = '#0d131c';
-const ASSET_BORDER = 'rgba(255,255,255,0.11)';
+const ASSET_CARD = '#0b0f14';
+const ASSET_BORDER = 'rgba(255,255,255,0.10)';
 
 const ACCOUNT_TYPE_OPTIONS = [
   { type: '银行', Icon: Landmark },

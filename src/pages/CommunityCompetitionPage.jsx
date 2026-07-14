@@ -329,7 +329,7 @@ function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
 
 function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = false }) {
   return (
-    <section className="mt-8 rounded-[20px] border border-white/[0.075] bg-[#0b1017]/98 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+    <section className="mt-8 rounded-[20px] border border-white/10 bg-[#0b0f14] px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
       <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
       <p className="mx-auto mt-3 max-w-[286px] text-[13px] leading-[1.8] text-white/42 [text-wrap:pretty]">{protectHintText(desc)}</p>
@@ -381,7 +381,7 @@ function CompetitionContent({ data, period, language, tt }) {
 
   return (
     <div className="space-y-3 pt-3">
-      <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+      <section className="overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-end gap-3">
           <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
           <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
@@ -410,14 +410,14 @@ function CompetitionContent({ data, period, language, tt }) {
         </div>
       </section>
 
-      <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/[0.07] bg-[#0c1118]/95 px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+      <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/10 bg-[#0b0f14] px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <StatCard label={tt('competition.participants', '参赛人数')} value={formatInteger(stats.participants, language)} />
         <StatCard label={tt('competition.beatNasdaq', '跑赢 QQQ')} value={formatPercent(stats.beatRatePct, 0)} color={valueColor(stats.beatRatePct)} />
         <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={formatPercent(stats.profitableRatePct, 0)} color={valueColor(stats.profitableRatePct)} />
         <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
       </section>
 
-      <section className="relative overflow-visible rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+      <section className="relative overflow-visible rounded-[17px] border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="grid grid-cols-[minmax(0,1fr)_68px_72px] items-center gap-1.5 px-3.5 py-3">
           <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
             {tt('competition.rankingTitle', '收益率排行榜')}
@@ -438,7 +438,7 @@ function CompetitionContent({ data, period, language, tt }) {
         {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} /> : null}
       </section>
 
-      <section className="rounded-[17px] border border-white/[0.075] bg-[#0b1017]/98 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+      <section className="rounded-[17px] border border-white/10 bg-[#0b0f14] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[14px] text-white/[0.88]">
             {baselineTitle}

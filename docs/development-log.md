@@ -2,6 +2,25 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-15 Asia/Shanghai
+
+### 2026-07-15 - v10.7.9.335 资产页与收益比赛卡片黑色统一
+
+- Commit: `same commit`（UI-fast 发布候选）。
+- Background: 用户发现资产页头卡颜色正常,但下方走势图/账户卡发青;随后确认收益比赛主卡也有同类问题。代码检查证明这些卡片使用蓝通道更高的 `#0d131c`、`#0b1017`、`#0c1118` 或蓝灰渐变,部分还带透明度叠加页面背景,与首页标准黑色 `#0b0f14` 不一致。
+- Workflow tier: `ui-fast`。本轮只调整卡片背景、边框透明度和内高光;不改变资产数据、比赛缓存、请求时机、排名、收益计算、交易账本、API、数据库、鉴权、RLS、provider 或任何持久化行为。
+- Changes:
+  - 资产页 `12 个月走势` 与我/老婆账户分组卡统一为首页不透明 `#0b0f14` 和 10% 灰色边框;图表选中圆点底色自然跟随卡片。
+  - 收益比赛的状态卡、我的排名头卡、四项统计卡、排行榜和 QQQ 基准卡统一为相同黑色/灰边;移除主卡原有蓝灰渐变与半透明偏青底色。
+  - 本人排行暖棕高亮、头像资料弹卡、参赛弹窗和涨跌/重点颜色继续保留,没有抹平有业务含义的状态色。
+  - 设置页版本与中英文更新日志同步到 `v10.7.9.335`,静态断言锁定两页标准黑色和旧偏青主卡样式移除。
+- Key files: `src/tabs/AnalysisTab.jsx`,`src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 资产/比赛定向边界测试 3/3 pass;`npm run build` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认资产页头卡、走势图、账户分组卡以及比赛五类主卡使用一致的中性黑色,截图 `~/Desktop/boduan-previews/assets-family-cards-black-local.png`、`~/Desktop/boduan-previews/community-competition-cards-black-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
+- Deployment: pending;门禁通过后使用项目 SSH key 推送 GitHub `main`,再运行 `npm run verify:deploy-status -- <commit>` 等待 Actions/Vercel success。
+- Production verification: pending;不得在实际部署成功前预填 commit、Actions、Vercel 或生产入口。
+- Boundaries: 比赛仍只读服务端权威快照和正式 `stock_trades`,只写独立比赛表;客户端不生成、修正或伪造收益。资产账户、月度快照、汇率、比赛表/API/Cron、Supabase/RLS 和生产数据全部不变。
+- Rollback: 回退本条两页卡片颜色、v335 版本/更新日志、静态断言与文档即可恢复 v334;无需数据、SQL、RLS 或环境回滚。
+
 ## 2026-07-14 Asia/Shanghai
 
 ### 2026-07-14 - v10.7.9.334 部署证据回填

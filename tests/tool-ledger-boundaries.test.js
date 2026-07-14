@@ -311,6 +311,10 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes('<div className="space-y-3 pt-3">'), 'competition cards should not add a second inner horizontal inset');
   assert.ok(communityCompetitionPageSource.includes("<div className={`px-4 ${contentDimmed"), 'competition cards should use the same 16px horizontal gutter as home cards');
   assert.ok(communityCompetitionPageSource.includes('max-w-[462px]'), 'the competition shell should leave room for two 16px gutters around the same 430px maximum card width as home');
+  assert.ok((communityCompetitionPageSource.match(/border-white\/10 bg-\[#0b0f14\]/g) || []).length >= 5, 'competition primary cards should use the same neutral black shell as home cards');
+  assert.equal(communityCompetitionPageSource.includes('bg-[#0b1017]/98'), false, 'competition primary cards should not retain the old blue-tinted background');
+  assert.equal(communityCompetitionPageSource.includes('bg-[#0c1118]/95'), false, 'competition statistics should not retain the old blue-tinted background');
+  assert.equal(communityCompetitionPageSource.includes('bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))]'), false, 'competition rank header should not retain the old blue-gray gradient');
   assert.equal(communityCompetitionPageSource.includes('<TrendChart self={trend.self} benchmark={trend.benchmark} />'), false, 'the empty hero trend region should stay removed');
   assert.ok(communityCompetitionPageSource.includes('<TrendChart benchmark={trend.benchmark} compact />'), 'the lower QQQ benchmark trend should remain intact');
   assert.ok(communityCompetitionPageSource.includes('normalizeTrendPoints'), 'charts should be derived from API trend points');
@@ -517,8 +521,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.334'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.334', date: '2026-07-14', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.335'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.335', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('收益比赛头卡与页面宽度优化'), 'settings changelog should describe the competition header and width refinement');
   assert.ok(settingsChangelogSource.includes('最后更新 MM.DD') && settingsChangelogSource.includes('430px 最大内容宽度'), 'settings changelog should document the compact dynamic update label and home-aligned card width');
   assert.ok(settingsChangelogSource.includes('收益比赛更新时间对齐'), 'settings changelog should describe the aligned competition update label');
@@ -1636,7 +1640,9 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.ok(analysisTabSource.includes('const ASSET_PINK = marketHexColor(-1);'), 'asset page red accent should reuse the system market-red token');
   assert.equal(analysisTabSource.includes("const ASSET_PINK = '#f56f98';"), false, 'asset page should not keep the old mismatched pink accent');
   assert.ok(analysisTabSource.includes('ASSET_PINK'), 'asset page should keep the system red accent for positive values, owner totals, and progress bars');
-  assert.ok(analysisTabSource.includes('style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}'), 'owner asset cards should use the standard neutral border instead of owner colors');
+  assert.ok(analysisTabSource.includes("const ASSET_CARD = '#0b0f14';"), 'asset page lower cards should use the same neutral black as the home cards');
+  assert.ok(analysisTabSource.includes("const ASSET_BORDER = 'rgba(255,255,255,0.10)';"), 'asset page lower cards should use the same neutral border opacity as the home cards');
+  assert.ok((analysisTabSource.match(/style=\{\{ background: ASSET_CARD, borderColor: ASSET_BORDER \}\}/g) || []).length >= 2, 'asset trend and owner cards should both use the standard neutral shell');
   assert.ok(analysisTabSource.includes('style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}'), 'both owner totals should use the system red token');
   assert.ok(analysisTabSource.includes('background: ASSET_PINK'), 'both owner progress bars should use the system red token');
   assert.ok((analysisTabSource.match(/bg-black\/\[0\.18\] text-white\/\[0\.55\]/g) || []).length >= 2, 'account type icons should use the same neutral default color in the asset list and monthly editor');
@@ -1938,7 +1944,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.334'"), 'settings version source should advance with the competition header and width refinement');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.335'"), 'settings version source should advance with the asset and competition card color alignment');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2258,7 +2264,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.334'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.335'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
