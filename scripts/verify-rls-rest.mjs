@@ -2,6 +2,7 @@ const APP_URL = 'https://boduan-tracker.vercel.app';
 const USER_TABLES = [
   'trades',
   'stock_trades',
+  'stock_trade_ledger_revisions',
   'swing_waves',
   'community_profiles',
   'community_competition_members',
@@ -20,6 +21,29 @@ const USER_TABLES = [
   'review_logs',
   'yearly_actuals',
   'cost_basis_trades',
+];
+const SERVICE_ONLY_RPCS = [
+  {
+    name: 'join_community_competition_member',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_expected_ledger_revision: 0,
+      p_eligible_after_snapshot_date: '2000-01-01',
+      p_eligible_ledger_hash: '0'.repeat(64),
+    },
+  },
+  {
+    name: 'rebaseline_community_competition_member',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_expected_eligible_after_snapshot_date: '2000-01-01',
+      p_expected_eligible_ledger_hash: null,
+      p_expected_eligible_ledger_revision: 0,
+      p_expected_current_ledger_revision: 0,
+      p_new_eligible_after_snapshot_date: '2000-01-02',
+      p_new_eligible_ledger_hash: '0'.repeat(64),
+    },
+  },
 ];
 
 function unique(values) {
@@ -82,19 +106,43 @@ async function probeAnonymousSelect({ supabaseUrl, anonKey }, table) {
   };
 }
 
+async function probeAnonymousRpc({ supabaseUrl, anonKey }, { name, body }) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return {
+    rpc: name,
+    status: res.status,
+    ok: res.status === 401 || res.status === 403,
+  };
+}
+
 const config = await loadProductionSupabaseConfig();
 const results = [];
 for (const table of USER_TABLES) {
   results.push(await probeAnonymousSelect(config, table));
 }
+const rpcResults = [];
+for (const rpc of SERVICE_ONLY_RPCS) {
+  rpcResults.push(await probeAnonymousRpc(config, rpc));
+}
 
-const failed = results.filter(result => !result.ok);
+const failed = [...results, ...rpcResults].filter(result => !result.ok);
 console.log(JSON.stringify({
   projectRef: config.projectRef,
   appUrl: APP_URL,
   checkedTables: USER_TABLES.length,
   sourceChunks: config.chunks,
   results,
+  checkedRpcs: SERVICE_ONLY_RPCS.length,
+  rpcResults,
   summary: failed.length === 0
     ? 'PASS: anonymous role cannot see user-owned rows via REST probes'
     : 'FAIL: at least one user-owned table exposed rows or returned an unexpected response',

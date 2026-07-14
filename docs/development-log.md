@@ -4,6 +4,27 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 美东收盘后快照窗口与比赛安全重建基线
+
+- Commit: database source `same commit`; production SQL and runtime remain pending in this source-first step.
+- Background: 自动快照应以美东交易日和权威收盘数据为准,不能由用户手机时区决定。上一轮生产补跑还发现 1 名已加入但尚无正式比赛快照/排名的成员因加入后历史账本变化持续触发 `eligible_ledger_hash_mismatch`;需要在不改交易、不伪造收益、不放宽已锁定比赛规则的前提下,给尚未真正开始排名的成员一条真实、可审计的恢复路径。
+- Workflow tier: `sensitive`。本轮修改个人/比赛收益快照 Cron、正式交易账本、Supabase RPC/trigger/RLS 和全账户定时任务,不得降级。
+- Changes:
+  - 无显式日期的 scheduled run 统一使用 `America/New_York`:美东工作日 17:00 前安全 defer,17:00 后才选择当天。个人和比赛各在 UTC 21/22/23 运行三条冗余 Cron。显式日期严格拒绝空值、非法日历、未来日期和美东当天 17:00 前请求;合法显式修复还必须在任何业务数据库读取/写入前取得 SPY 精确目标日收盘,周末、休市日或行情未齐绝不写空仓 0 收益快照。比赛显式路径永不 rebaseline。
+  - 新增数据库私有 `stock_trade_ledger_revisions`:正式 `stock_trades` 每次 INSERT/UPDATE/DELETE 都经 trigger 原子递增用户级 revision 并写数据库 `clock_timestamp()`;INSERT/UPDATE 的 `created_at/updated_at` 也由数据库强制生成,owner 不可转移。迁移在 seed 与 trigger 安装之间持有 `SHARE ROW EXCLUSIVE` writer lock,不留下并发漏记窗口。
+  - 新增 `service_role`-only 原子 join RPC 和 forward-only rebaseline RPC。join、rebaseline、membership insert guard 与 snapshot insert guard 统一按“ledger revision row -> membership row”锁定并 compare-and-set;快照携带计算时 revision,INSERT 时再次核对当前 revision 与 eligibility 日期。旧 runtime 在 SQL/runtime 切换窗口内若省略 membership revision,有正式交易的加入会以 `40001` 安全失败,空账本 revision 0 仍可加入;旧 snapshot writer 省略 revision 时同样 fail closed,不做会掩盖竞态的 NULL 自动填充。函数固定 `search_path`;PUBLIC、anon、authenticated 无执行权限;revision 表强制 RLS,service role 只有只读 REST 权限,写入只能经受控 trigger/RPC。
+  - D1 只适用于 active、全表 0 snapshots、两个 ranking 字段均为空的成员。eligible hash 不一致、迁移前零快照状态、加入后历史交易、删除痕迹、无法证明的 revision 变化和收盘后修改都不得补算旧收益。只有 revision delta 可证明为“当前目标日、基线后创建、16:00 ET 前写入且从未 UPDATE”的纯 INSERT 才可正常进入当日首快照;用户当日正常新增股票不受影响。
+  - D1 必须校验完整正式非空 USD 账本、不超卖、SPY 和所有相关个股精确 D1 EOD,并用 provider raw high/low 校验当日成交价。通过后只把 eligible date/hash/revision 向前移动,不写 snapshot/ranking/收益。账本不变后的 D2 才能写首张快照;再次变化就继续等待。已有 snapshot/ranking 永不 rebaseline,历史不可信时继续 fail closed。
+  - malformed row 不过滤、不自动修正;生产无 mock、实时价、估算收益或旧收盘兜底。设置页继续 `v10.7.9.331`;纯后端发布不需要 iOS Simulator 视觉/键盘/PWA 证据。
+- Key files: database source commit contains `supabase/stock_trades.sql`,`supabase/community_competition.sql`,`supabase/rls.sql`,`supabase/community_competition_rebaseline_20260714.sql`,`scripts/verify-rls-rest.mjs`,`tests/community-profiles.test.js`,`docs/development-log.md`. Runtime/API/Cron/tests and remaining release docs are intentionally pending for the post-SQL runtime commit.
+- Validation:
+  - Local candidate: `npm run verify:toolchain` pass;定向敏感测试 100/100 pass;完整 `npm test` 362/362 pass;`npm run build` pass;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency、语法检查和 `git diff --check` pass。
+  - New scenarios: D1 不可信历史只 rebaseline;D2 未变化才写首快照;当日纯 INSERT 正常直通;周一交易周四修改、删旧交易再当日新增、盘前 UPDATE、15:59 INSERT 后 16:30 UPDATE、迁移前零快照和显式 legacy 历史日期全部 fail closed 或前移基线。个人/比赛显式周六均 503 且业务数据库零访问;永久 provider 4xx 为非重试 500。
+  - Production prerequisite: 生产尚未执行 `supabase/community_competition_rebaseline_20260714.sql`。迁移使用 5 秒 `lock_timeout`,writer lock 只覆盖 revision seed 与两个 `stock_trades` trigger 安装的短事务;超时必须停止并重试,不能无界阻塞交易写入。执行后必须回读 function owner/`SECURITY DEFINER`/fixed `search_path`、四个 trigger、grant/RLS、旧 overload 删除和锁顺序,再运行更新后的 `npm run verify:rls:rest` 验证 21 张表和 2 个 service-only RPC。真实 PostgreSQL 双事务只读锁竞争 smoke 也尚待生产完成。
+- Deployment: pending。先把本数据库源代码提交到 GitHub `main`,再在无 scheduled snapshot 写入的维护窗口应用生产 SQL,随后立即推送 runtime;切换期间旧 snapshot writer 只会 fail closed,不得触发人工 Cron。当前生产 runtime 仍为 `9e1c840e0b336a0352b79f691b7ce3a3b252ff98`。
+- Production verification: pending。部署后验证未登录 quote、earnings、competition API/Cron 均为 401。D1/D2 只能等真实收盘观察,不得预填;`2026-07-13` 的历史补跑只是上一 runtime 基线。
+- Rollback: SQL gate 未通过立即停止 runtime 发布。SQL 应用后可回退 runtime/Cron,但保留更严格的数据库时间、revision trigger、insert guard 和 RPC 权限;任何已成功前移的 eligibility 不得人工倒退,锁定快照继续不可更新或删除。
+
 ### 2026-07-14 - 收盘快照修复部署与生产补跑证据回填
 
 - Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。

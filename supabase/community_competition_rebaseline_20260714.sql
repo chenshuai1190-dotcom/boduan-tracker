@@ -1,54 +1,143 @@
--- Privacy-safe storage for the voluntary community return competition.
--- Membership is written only by authenticated server endpoints using service_role.
--- Competition snapshots contain percentages plus a one-way ledger integrity hash only;
--- no assets, P&L amounts, holdings, symbols, trades, email addresses, or portfolio fields.
+-- Forward-only repair for members whose ledger changed before their first
+-- official competition snapshot. Apply before the runtime deployment.
 
 begin;
 
-alter table public.community_profiles
-add column if not exists profile_completed_at timestamptz;
+-- Fail instead of building an unbounded queue behind an active ledger writer.
+set local lock_timeout = '5s';
 
-create table if not exists public.community_competition_members (
+create table if not exists public.stock_trade_ledger_revisions (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  status text not null default 'active',
-  joined_at timestamptz not null default now(),
-  eligible_after_snapshot_date date not null,
-  eligible_ledger_hash text,
-  eligible_ledger_revision bigint not null default 0,
-  ranking_start_snapshot_date date,
-  ranking_baseline_return_pct numeric(18, 10),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
+  revision bigint not null default 0,
+  last_mutated_at timestamptz,
 
-  constraint community_competition_members_status_check
-    check (status in ('active', 'withdrawn')),
-  constraint community_competition_members_eligible_ledger_hash_check
-    check (eligible_ledger_hash is null or eligible_ledger_hash ~ '^[0-9a-f]{64}$'),
-  constraint community_competition_members_eligible_ledger_revision_check
-    check (eligible_ledger_revision >= 0),
-  constraint community_competition_members_ranking_baseline_pair_check
-    check (
-      (
-        ranking_start_snapshot_date is null
-        and ranking_baseline_return_pct is null
-      )
-      or
-      (
-        ranking_start_snapshot_date is not null
-        and ranking_baseline_return_pct is not null
-        and ranking_start_snapshot_date > eligible_after_snapshot_date
-      )
-    )
+  constraint stock_trade_ledger_revisions_revision_check
+    check (revision >= 0)
 );
 
--- Incremental migration: this file may be rerun after the initial competition rollout.
-alter table public.community_competition_members
-add column if not exists eligible_ledger_hash text;
+alter table public.stock_trade_ledger_revisions enable row level security;
+alter table public.stock_trade_ledger_revisions force row level security;
+
+revoke all privileges on table public.stock_trade_ledger_revisions
+from public, anon, authenticated, service_role;
+
+grant select
+on table public.stock_trade_ledger_revisions
+to service_role;
+
+-- Prevent an INSERT/UPDATE/DELETE from landing between the initial revision
+-- seed and trigger installation. The lock is released immediately after both
+-- stock_trades triggers are installed; SELECT remains available throughout.
+lock table public.stock_trades in share row exclusive mode;
+
+insert into public.stock_trade_ledger_revisions (
+  user_id,
+  revision,
+  last_mutated_at
+)
+select
+  user_id,
+  1,
+  clock_timestamp()
+from (
+  select distinct user_id
+  from public.stock_trades
+) as existing_ledgers
+on conflict (user_id) do nothing;
+
+create or replace function public.enforce_stock_trade_server_timestamps()
+returns trigger
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+declare
+  server_now timestamptz := clock_timestamp();
+begin
+  if tg_op = 'INSERT' then
+    new.created_at = server_now;
+    new.updated_at = server_now;
+    return new;
+  end if;
+
+  if new.user_id is distinct from old.user_id then
+    raise exception 'stock trade owner is immutable'
+      using errcode = '23514';
+  end if;
+
+  new.created_at = old.created_at;
+  new.updated_at = server_now;
+  return new;
+end;
+$$;
+
+revoke execute on function public.enforce_stock_trade_server_timestamps()
+from public, anon, authenticated;
+
+drop trigger if exists stock_trades_enforce_server_timestamps
+on public.stock_trades;
+
+create trigger stock_trades_enforce_server_timestamps
+before insert or update on public.stock_trades
+for each row
+execute function public.enforce_stock_trade_server_timestamps();
+
+create or replace function public.bump_stock_trade_ledger_revision()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  affected_user_id uuid := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
+begin
+  if not exists (
+    select 1
+    from auth.users
+    where id = affected_user_id
+  ) then
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
+    return new;
+  end if;
+
+  insert into public.stock_trade_ledger_revisions (
+    user_id,
+    revision,
+    last_mutated_at
+  )
+  values (affected_user_id, 1, clock_timestamp())
+  on conflict (user_id) do update
+  set revision = public.stock_trade_ledger_revisions.revision + 1,
+      last_mutated_at = excluded.last_mutated_at;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.bump_stock_trade_ledger_revision()
+from public, anon, authenticated;
+
+drop trigger if exists stock_trades_bump_ledger_revision
+on public.stock_trades;
+
+create trigger stock_trades_bump_ledger_revision
+after insert or update or delete on public.stock_trades
+for each row
+execute function public.bump_stock_trade_ledger_revision();
+
+commit;
+
+-- The remaining idempotent schema/RPC work must not hold the ledger writer lock.
+begin;
 
 alter table public.community_competition_members
 add column if not exists eligible_ledger_revision bigint;
 
--- Every member, including an empty-ledger member, owns a lockable revision row.
 insert into public.stock_trade_ledger_revisions (
   user_id,
   revision,
@@ -69,13 +158,6 @@ alter column eligible_ledger_revision set default 0;
 
 alter table public.community_competition_members
 alter column eligible_ledger_revision set not null;
-
-alter table public.community_competition_members
-drop constraint if exists community_competition_members_eligible_ledger_hash_check;
-
-alter table public.community_competition_members
-add constraint community_competition_members_eligible_ledger_hash_check
-check (eligible_ledger_hash is null or eligible_ledger_hash ~ '^[0-9a-f]{64}$');
 
 alter table public.community_competition_members
 drop constraint if exists community_competition_members_eligible_ledger_revision_check;
@@ -130,37 +212,6 @@ for each row
 execute function public.guard_community_competition_member_insert();
 
 
-create index if not exists community_competition_members_status_joined_idx
-on public.community_competition_members (status, joined_at);
-
-create table if not exists public.community_competition_snapshots (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  snapshot_date date not null,
-  daily_return_pct numeric(18, 10),
-  cumulative_return_pct numeric(18, 10) not null,
-  locked_at timestamptz not null,
-  ledger_hash text not null,
-  ledger_revision bigint not null,
-  source_version text not null default 'community_competition_snapshot_v1',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-
-  constraint community_competition_snapshots_daily_return_check
-    check (daily_return_pct is null or daily_return_pct >= -1),
-  constraint community_competition_snapshots_cumulative_return_check
-    check (cumulative_return_pct >= -1),
-  constraint community_competition_snapshots_ledger_hash_check
-    check (ledger_hash ~ '^[0-9a-f]{64}$'),
-  constraint community_competition_snapshots_ledger_revision_check
-    check (ledger_revision >= 0),
-  constraint community_competition_snapshots_source_version_check
-    check (source_version = 'community_competition_snapshot_v1'),
-  unique (user_id, snapshot_date)
-);
-
--- Historical snapshots predate the authoritative revision sequence. Zero is a
--- truthful legacy sentinel; all new inserts must CAS the user's current row.
 alter table public.community_competition_snapshots
 add column if not exists ledger_revision bigint;
 
@@ -178,15 +229,6 @@ alter table public.community_competition_snapshots
 add constraint community_competition_snapshots_ledger_revision_check
 check (ledger_revision >= 0);
 
-create index if not exists community_competition_snapshots_date_user_idx
-on public.community_competition_snapshots (snapshot_date desc, user_id);
-
-create index if not exists community_competition_snapshots_user_date_idx
-on public.community_competition_snapshots (user_id, snapshot_date desc);
-
--- Serialize a first competition snapshot against an eligibility rebaseline.
--- The row lock makes the two operations mutually exclusive; the date check
--- prevents a stale worker from inserting a snapshot on the newly rebased day.
 create or replace function public.guard_community_competition_snapshot_insert()
 returns trigger
 language plpgsql
@@ -197,9 +239,6 @@ declare
   current_ledger_revision bigint;
   member_eligible_after date;
 begin
-  -- All competition writers lock the revision row before the member row. A
-  -- concurrent stock_trades mutation must commit before this CAS or wait until
-  -- after the immutable snapshot has been accepted.
   select revision
   into current_ledger_revision
   from public.stock_trade_ledger_revisions
@@ -248,9 +287,6 @@ before insert on public.community_competition_snapshots
 for each row
 execute function public.guard_community_competition_snapshot_insert();
 
--- Join/rejoin is a compare-and-set operation over the exact ledger revision
--- that the server hashed. The definer may create the otherwise service-read-
--- only zero row for a new user; callers never receive ledger contents.
 create or replace function public.join_community_competition_member(
   p_user_id uuid,
   p_expected_ledger_revision bigint,
@@ -278,11 +314,7 @@ begin
   then
     return 'invalid_ledger_state';
   end if;
-  if not exists (
-    select 1
-    from auth.users
-    where id = p_user_id
-  ) then
+  if not exists (select 1 from auth.users where id = p_user_id) then
     return 'invalid_input';
   end if;
   if not exists (
@@ -296,22 +328,16 @@ begin
     return 'profile_required';
   end if;
 
-  insert into public.stock_trade_ledger_revisions (
-    user_id,
-    revision,
-    last_mutated_at
-  )
+  insert into public.stock_trade_ledger_revisions (user_id, revision, last_mutated_at)
   values (p_user_id, 0, null)
   on conflict (user_id) do nothing;
 
-  select revision
-  into current_ledger_revision
+  select revision into current_ledger_revision
   from public.stock_trade_ledger_revisions
   where user_id = p_user_id
   for update;
 
-  select *
-  into member_row
+  select * into member_row
   from public.community_competition_members
   where user_id = p_user_id
   for update;
@@ -327,37 +353,21 @@ begin
     member_row.ranking_start_snapshot_date is not null
     or member_row.ranking_baseline_return_pct is not null
     or exists (
-      select 1
-      from public.community_competition_snapshots
-      where user_id = p_user_id
+      select 1 from public.community_competition_snapshots where user_id = p_user_id
     )
   ) then
     return 'member_conflict';
   end if;
 
   insert into public.community_competition_members (
-    user_id,
-    status,
-    joined_at,
-    eligible_after_snapshot_date,
-    eligible_ledger_hash,
-    eligible_ledger_revision,
-    ranking_start_snapshot_date,
-    ranking_baseline_return_pct,
-    created_at,
-    updated_at
-  )
-  values (
-    p_user_id,
-    'active',
-    clock_timestamp(),
-    p_eligible_after_snapshot_date,
-    p_eligible_ledger_hash,
-    current_ledger_revision,
-    null,
-    null,
-    clock_timestamp(),
-    clock_timestamp()
+    user_id, status, joined_at, eligible_after_snapshot_date,
+    eligible_ledger_hash, eligible_ledger_revision,
+    ranking_start_snapshot_date, ranking_baseline_return_pct,
+    created_at, updated_at
+  ) values (
+    p_user_id, 'active', clock_timestamp(), p_eligible_after_snapshot_date,
+    p_eligible_ledger_hash, current_ledger_revision,
+    null, null, clock_timestamp(), clock_timestamp()
   )
   on conflict (user_id) do update
   set status = 'active',
@@ -383,9 +393,6 @@ grant execute on function public.join_community_competition_member(
 )
 to service_role;
 
--- A member may receive a new forward-only eligibility baseline only before any
--- official competition snapshot exists. Expected values provide compare-and-set
--- protection for overlapping Cron retries. The function exposes no ledger data.
 drop function if exists public.rebaseline_community_competition_member(
   uuid, date, text, date, text
 );
@@ -491,72 +498,6 @@ from public, anon, authenticated;
 grant execute on function public.rebaseline_community_competition_member(
   uuid, date, text, bigint, bigint, date, text
 )
-to service_role;
-
-create or replace function public.touch_community_competition_updated_at()
-returns trigger
-language plpgsql
-security invoker
-set search_path = pg_catalog, public
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-revoke execute on function public.touch_community_competition_updated_at()
-from public, anon, authenticated;
-
-drop trigger if exists community_competition_members_touch_updated_at
-on public.community_competition_members;
-
-create trigger community_competition_members_touch_updated_at
-before update on public.community_competition_members
-for each row
-execute function public.touch_community_competition_updated_at();
-
-drop trigger if exists community_competition_snapshots_touch_updated_at
-on public.community_competition_snapshots;
-
-create trigger community_competition_snapshots_touch_updated_at
-before update on public.community_competition_snapshots
-for each row
-execute function public.touch_community_competition_updated_at();
-
-alter table public.community_competition_members enable row level security;
-alter table public.community_competition_members force row level security;
-alter table public.community_competition_snapshots enable row level security;
-alter table public.community_competition_snapshots force row level security;
-
-drop policy if exists "users can read own community competition membership"
-on public.community_competition_members;
-
-create policy "users can read own community competition membership"
-on public.community_competition_members
-for select
-to authenticated
-using (auth.uid() = user_id);
-
-revoke all privileges on table public.community_competition_members
-from public, anon, authenticated;
-
-grant select
-on table public.community_competition_members
-to authenticated;
-
-grant select, insert, update, delete
-on table public.community_competition_members
-to service_role;
-
-revoke all privileges on table public.community_competition_snapshots
-from public, anon, authenticated;
-
-revoke all privileges on table public.community_competition_snapshots
-from service_role;
-
-grant select, insert
-on table public.community_competition_snapshots
 to service_role;
 
 notify pgrst, 'reload schema';
