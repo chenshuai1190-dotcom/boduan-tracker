@@ -3,16 +3,32 @@
     {
       "source": "/api/community-competition-daily-snapshot",
       "destination": "/api/community-competition?operation=daily-snapshot"
+    },
+    {
+      "source": "/api/pnl-report-daily-snapshot-retry",
+      "destination": "/api/pnl-report-daily-snapshot"
+    },
+    {
+      "source": "/api/community-competition-daily-snapshot-retry",
+      "destination": "/api/community-competition?operation=daily-snapshot"
     }
   ],
   "crons": [
     {
       "path": "/api/pnl-report-daily-snapshot",
-      "schedule": "30 22 * * 1-5"
+      "schedule": "0 0 * * 2-6"
     },
     {
       "path": "/api/community-competition-daily-snapshot",
-      "schedule": "45 22 * * 1-5"
+      "schedule": "0 1 * * 2-6"
+    },
+    {
+      "path": "/api/pnl-report-daily-snapshot-retry",
+      "schedule": "0 2 * * 2-6"
+    },
+    {
+      "path": "/api/community-competition-daily-snapshot-retry",
+      "schedule": "0 3 * * 2-6"
     }
   ]
 }

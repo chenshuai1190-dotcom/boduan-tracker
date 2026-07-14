@@ -1,5 +1,6 @@
 import {
   authorizePnlReportDailySnapshot,
+  hasExplicitDailySnapshotTargetDate,
   resolveDailySnapshotTargetDate,
   runPnlReportDailySnapshot,
 } from '../server/pnlReportDailySnapshot.js';
@@ -20,9 +21,24 @@ export default async function handler(req, res) {
 
   try {
     const targetDate = resolveDailySnapshotTargetDate(req);
-    const result = await runPnlReportDailySnapshot({ targetDate });
-    return res.status(result.failedUsers > 0 ? 500 : 200).json(result);
+    const result = await runPnlReportDailySnapshot({
+      targetDate,
+      catchUp: !hasExplicitDailySnapshotTargetDate(req),
+    });
+    if (!result.complete) {
+      if (result.retryable) {
+        res.setHeader('Retry-After', '300');
+        return res.status(503).json(result);
+      }
+      return res.status(500).json(result);
+    }
+    return res.status(200).json(result);
   } catch (error) {
-    return sendError(res, error?.status || 500, error?.message || '收益报表自动快照失败');
+    if (error?.retryable) {
+      res.setHeader('Retry-After', '300');
+      return sendError(res, 503, '收益报表自动快照暂时失败，请稍后重试');
+    }
+    // Never echo REST/provider response bodies or infrastructure details.
+    return sendError(res, 500, '收益报表自动快照失败');
   }
 }

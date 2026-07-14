@@ -6,6 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 当前 `main` 正在发布收盘快照可靠性修复,设置页可见版本仍为 `v10.7.9.331`:个人/比赛 EODHD 按 symbol 最多重试 3 次,行情未齐不再以 HTTP 200 假成功;四个 Hobby Cron 主/重试窗口错开到 UTC 00/01/02/03。个人 scheduled run 先校验 SPY 目标日,再补最近 31 个日历日内的真交易日缺口;无完成标记的新用户只写目标日,portfolio 完成标记先删、symbol 成功后最后写回以便部分失败自愈。比赛读取待处理锚点至目标日的完整 SPY 日历,每次最多 5 个交易日/250 member-days 分批续跑;空仓无交易不写快照且不阻塞,首买会加速起点,ranking 恢复先校验最早/最新锁定 hash。休市目标日保守返回 503,账本/hash 拒绝不会被重试成假数据。runtime 部署和生产补跑证据待回填。
 - 当前生产已上线 `v10.7.9.331`。主动投资价值分享卡的当前标的、QQQ 和跑赢/跑输结果三组“金额 + 收益率”统一为同行展示,极窄屏保留安全换行;金额、收益率、颜色、计算和数据边界不变。
 - 当前生产已上线 `v10.7.9.330`。主动投资价值分享卡删除标题下方同期 QQQ 假设提示,日期说明移除“个股/QQQ 普通收盘价”尾注,并删除复制对比文字按钮及剪贴板逻辑;真实收益结果、百分比、灰色外边框、关闭逻辑与主卡完整方法口径不变。
 - 当前生产已上线 `v10.7.9.329`。个股详情收益走势/收益对比在 iOS 连续滑动时保持日期、十字线和金额同步;收益对比小浮层点图外立即关闭、12 秒自动关闭并可再打开;主动投资价值分享大卡恢复系统标准 10% 灰色外边框。不改收益计算、普通收盘价、现金流、API、账本或鉴权。
@@ -17,9 +18,11 @@
 - `v10.7.9.316` 只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
+- 自动快照硬规则: provider/network 或目标日 SPY/持仓收盘未齐必须在有界重试后返回 503,包括休市目标日,不可回退旧日期或用 skipped+200 隐藏;个人只在最近 31 个日历日窗口补已有账户缺口,无完成标记用户只计划目标日,且 portfolio 完成标记必须先删后最后写以暴露部分失败。比赛按完整 SPY 日历有界分批,空仓无交易不造行,首买后才启动;加入基准与首个真实收盘之间的交易必须权威拒绝,不得伪装成期初持仓;ranking 元数据恢复必须复核最早和最新锁定 hash。两条链路都不改正式 `stock_trades`、不造收益;比赛重跑只读已锁定行且绝不覆盖。Vercel retry aliases 仍使用同一 `CRON_SECRET`,不得创建公开 backfill 或导出 secret。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
 - 当前本地和生产设置页版本均为 `v10.7.9.331`;生产运行时基准为 `ba3397265b8a074a59886b4ec9ca03349525f826`,入口 `/assets/index-DrckgGpM.js`。
 - `v10.7.9.331` 验证:定向测试 51/51、build、docs consistency 和 diff check 均 pass;Xcode iOS 26.5 `iPhone 17 Pro` Simulator 使用中文/CNY、English/CNY 和损失样例均无结果卡横向溢出,三组数字正常同行,分享卡高度由约 `447px` 降至 `381px`。GitHub Actions `29291434809` 与 Vercel `JALybbWGhb25un79Ahjasob9tRCR` success,生产六个关键产物与本地 build 字节一致,4 个未登录 API 均为 `401`;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
+- 本次收盘快照可靠性修复本地验证:定向 116/116、完整 `npm test` 323/323、build、audit high 0、RLS REST 20/20、toolchain/workspace/docs consistency/diff check 均 pass。它不含前端改动,因此没有也不需要新增 iOS Simulator 视觉/系统键盘/PWA 证据;部署和生产补跑仍 pending,不得把本地通过写成生产完成。
 - `v10.7.9.330` 验证:定向边界测试 51/51、build、docs consistency、diff check 和 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 均 pass;长提示、普通收盘价尾注与复制按钮均不存在,标题、真实结果、收益率差、关闭按钮和 `1px rgba(255,255,255,0.10)` 灰边保留。GitHub Actions `29290092289` 与 Vercel `ApuefMFcjKxa37HrUPVmeACc5J6S` success,生产六个关键产物与本地 build 字节一致,未登录 quote/earnings 均为 `401`;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
 - `v10.7.9.329` 验证:定向边界测试 51/51、build、docs consistency、diff check 和 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 均 pass;两张图连续滑动日期/金额同步,收益对比浮层点外立即关闭、12 秒自动关闭并可再打开,分享大卡标准灰边实测为 `1px rgba(255,255,255,0.10)`。GitHub Actions `29288973165` 与 Vercel `hTdA9vSVDXU3NT6x8uMo8qLVNFQM` success,生产个股详情 chunk 与本地 build 字节一致,未登录 quote/earnings 均为 `401`;按 `ui-fast` 未运行完整测试、audit 或旧 frontend smoke。
 - `v10.7.9.328` sensitive 验证:toolchain、完整测试 298/298、build、high audit 0 vulnerabilities、docs/diff、匿名 RLS 20/20 和 12-function 上限均 pass。真实 server-only NVDA/QQQ EOD 探针各返回 130 个有效 `rawClose`;本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 已验收主卡、低密度图表小浮层和无外层白框分享卡。生产关键 chunks 与本地 production build 字节一致,命中 v328/收益率差/双侧普通收盘价 marker,四条未登录 API 均为 `401`。

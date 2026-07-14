@@ -4,6 +4,27 @@
 
 ## 2026-07-14 Asia/Shanghai
 
+### 2026-07-14 - 收盘快照失败重试与比赛连续补漏
+
+- Commit: `same commit`。
+- Background: 生产收益报表最新快照停在 `2026-07-10`,个人 `2026-07-13` 为 0 行,比赛快照表也仍为 0 行。只读诊断确认 `2026-07-13` 的 18 个相关标的现已具备 EODHD 权威收盘价;旧实现对行情缺失只记 skipped 且仍返回 HTTP 200,Vercel Hobby 又不会重试失败 Cron,所以瞬时缺行情可以被误判为成功并永久漏日。历史 Runtime Logs 已超过保留期,因此不能把某一个具体历史分支写成已证实根因。
+- Workflow tier: `sensitive`。
+- Changes:
+  - 个人与比赛 EODHD 收盘读取改为每 symbol 独立、最多 3 次有界重试;网络、超时、408、429、5xx 和 HTTP 200 但目标日收盘尚未出现均可重试,普通不可恢复 4xx 不循环请求。
+  - 个人 scheduled run 先要求 SPY 响应包含推算目标日,再使用最近 31 个日历日内的 SPY 真交易日,按账户最近 `pnl_report_snapshots` 完成标记逐日补漏;完全没有完成标记的新用户只计划当前目标日,不伪造历史。单个账户某日失败后不会越过该日,其他账户仍继续。
+  - 个人快照使用与正式快照模型一致的交易顺序/超卖钳制判断哪些持仓必须有目标日收盘;已清仓标的仍尽量读取真实价格,但单个历史/退市标的失败不会阻断仍可生成的账户。写入时先删除该 user/date 的 portfolio 完成标记,再替换 symbol rows,全部成功后最后写回 portfolio 标记;即使两张表不是原子事务,下次 scheduled run 也能识别并自愈部分写入。任一应写账户未完成时 `complete=false`;可恢复缺口返回 `503 + Retry-After`,不可恢复 provider/写入错误返回 500,不再把 0 写入当 200 成功。
+  - 比赛把 `missing_close`、`snapshot_gap`、`trade_between_snapshots` 与账本哈希/价格/超卖等权威拒绝分开。定时任务读取从最早待处理锚点到目标日的完整 SPY EOD 真交易日序列,以每名成员的加入基准日或最近锁定快照旧到新补漏;单次最多处理 5 个交易日或 250 个 member-days,达到边界即保留游标供后续主/重试任务续跑。某成员缺失日未完成时不得越过,锁定行仍只插入不覆盖。
+  - 已加入但尚无任何交易的成员不写空仓快照、不形成失败且不阻塞其他成员;检测到加入后的第一笔交易时把起点加速到首笔交易日。若正式交易日落在加入基准与首个真实 SPY 收盘之间,首快照权威拒绝 `trade_before_first_snapshot`,不会把周末/休市日交易错误当成期初持仓。若首张快照已插入但 ranking PATCH 曾失败,恢复流程必须同时复核最早和最新锁定快照的正式账本 hash,验证通过后才用最早锁定日恢复排名起点;任一端不一致继续权威拒绝。
+  - Vercel Hobby 主任务和独立重试任务错开到 UTC `00/01/02/03` 四个小时窗口,均映射到同一个已完成美股交易日;retry path 只 rewrite 到原受 `CRON_SECRET` 保护的函数,不增加 serverless function,不放宽鉴权。
+  - 目标日恰逢美股休市且 SPY 没有该日行时保持保守 `503`,绝不退回更早日期冒充目标日成功;后续真实交易日由跨日补漏补回。
+  - 当前生产修复将在 runtime 部署后通过 Vercel 内建 Cron 手动触发,由平台注入 `CRON_SECRET`;先补个人,核对落库,再补比赛。只允许正式 `stock_trades` 与 EODHD 权威收盘生成结果,那名 `eligible_ledger_hash_mismatch` 成员继续拒绝,绝不改账本或 hash。
+- Key files: `server/pnlReportDailySnapshot.js`,`api/pnl-report-daily-snapshot.js`,`server/communityCompetitionDailySnapshot.js`,`api/community-competition.js`,`vercel.json`,`tests/pnl-report-daily-snapshot-api.test.js`,`tests/community-competition-daily-snapshot-api.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/handoff.md`,`docs/development-log.md`。
+- Validation: 定向个人/比赛收盘快照测试 116/116 pass;完整 `npm test` 323/323 pass;`npm run build` pass;`npm audit --audit-level=high` 为 0 vulnerabilities;`npm run verify:rls:rest` 20/20 PASS;`npm run verify:toolchain`、`npm run verify:workspace-state`、`npm run verify:docs-consistency` 和 `git diff --check` 均 pass。生产部署、Cron 触发和数据库聚合回读仍 pending。本轮没有前端视觉或输入改动,不需要 iOS Simulator、系统键盘或主屏 PWA 验收。
+- Deployment: pending。
+- Production repair: pending;补跑前基线为个人最新 `2026-07-10`、个人 `2026-07-13` 0 行、比赛总计 0 行。预期个人 `2026-07-13` 为 12 个账户;比赛 `2026-07-13` 为 8 名合规成员,另 1 名继续权威拒绝。最终以生产数据库聚合回读为准,不能只看 CLI exit 0。
+- Boundaries: 不改 Supabase schema/RLS/grant,不改正式 `stock_trades`,个人只写既有 P&L 快照表;比赛只读正式账本且只写独立比赛表/首次排名元数据。响应不包含 user id、交易明细、持仓数量、金额或任何 secret;空仓不造快照,生产无 mock、实时价或估算收益兜底。
+- Rollback: 回退本提交会恢复旧单次 EODHD 请求、同小时 Cron 和 skipped=200 行为,但不会删除已用正式账本生成的快照。比赛锁定行不可更新/删除;如回滚代码也必须保留已经生成的权威行。
+
 ### 2026-07-14 - v10.7.9.331 部署证据回填
 
 - Commit: `same commit`。

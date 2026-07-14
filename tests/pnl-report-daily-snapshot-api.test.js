@@ -98,6 +98,7 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   const calls = [];
   const writes = {
     portfolios: [],
+    markerDeletes: [],
     symbols: [],
     deletes: [],
   };
@@ -168,6 +169,10 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
         { date: '2026-07-08', close: 220, adjusted_close: 220 },
       ]);
     }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
+      writes.markerDeletes.push(href);
+      return jsonResponse(null);
+    }
     if (href.includes('/rest/v1/pnl_report_snapshots')) {
       writes.portfolios.push(JSON.parse(options.body));
       return jsonResponse(null);
@@ -196,11 +201,15 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.retryable, false);
+  assert.equal(res.body.failedSymbolsCount, 0);
   assert.equal(res.body.targetDate, '2026-07-08');
   assert.equal(res.body.attemptedUsers, 2);
   assert.equal(res.body.writtenUsers, 2);
   assert.equal(res.body.symbolsCount, 2);
   assert.equal(writes.portfolios.length, 2);
+  assert.equal(writes.markerDeletes.length, 2);
   assert.equal(writes.symbols.length, 2);
   assert.equal(writes.deletes.length, 2);
   const portfolioRows = writes.portfolios.flat().sort((a, b) => a.user_id.localeCompare(b.user_id));
@@ -217,10 +226,811 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   assert.ok(calls.some((call) => call.href.includes('api_token=eodhd-secret')), 'EODHD key should only be used in outbound provider request');
 });
 
-test('vercel keeps the all-account daily P&L snapshot cron unchanged', () => {
+test('daily P&L snapshot retries a transient symbol failure and keeps sold-out symbol closes optional', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let nvdaAttempts = 0;
+  let aaplAttempts = 0;
+  let tslaAttempts = 0;
+  let portfolioWrites = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'open-1', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+        { id: 'closed-1', user_id: 'user-a', symbol: 'AAPL', name: 'Apple', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 1, fee: 0, currency: 'USD' },
+        { id: 'closed-2', user_id: 'user-a', symbol: 'AAPL', name: 'Apple', side: 'sell', trade_date: '2026-07-02', price: 110, shares: 1, fee: 0, currency: 'USD' },
+        { id: 'ordered-1', user_id: 'user-a', symbol: 'TSLA', name: 'Tesla', side: 'sell', trade_date: '2026-07-03', price: 200, shares: 2, fee: 0, currency: 'USD', created_at: '2026-07-03T09:00:00Z' },
+        { id: 'ordered-2', user_id: 'user-a', symbol: 'TSLA', name: 'Tesla', side: 'buy', trade_date: '2026-07-03', price: 190, shares: 1, fee: 0, currency: 'USD', created_at: '2026-07-03T10:00:00Z' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      nvdaAttempts += 1;
+      if (nvdaAttempts === 1) return jsonResponse({ error: 'temporary' }, 503);
+      return jsonResponse([
+        { date: '2026-07-07', close: 119, adjusted_close: 119 },
+        { date: '2026-07-08', close: 120, adjusted_close: 120 },
+      ]);
+    }
+    if (href.includes('/api/eod/AAPL.US')) {
+      aaplAttempts += 1;
+      return jsonResponse([
+        { date: '2026-07-07', close: 111, adjusted_close: 111 },
+        { date: '2026-07-08', close: 112, adjusted_close: 112 },
+      ]);
+    }
+    if (href.includes('/api/eod/TSLA.US')) {
+      tslaAttempts += 1;
+      return jsonResponse([
+        { date: '2026-07-07', close: 198, adjusted_close: 198 },
+        { date: '2026-07-08', close: 201, adjusted_close: 201 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites += 1;
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(nvdaAttempts, 2);
+  assert.equal(aaplAttempts, 1, 'sold-out symbols should retain a real close when the provider has one');
+  assert.equal(tslaAttempts, 1, 'the close requirement must follow the snapshot model trade ordering and oversell clamp');
+  assert.equal(portfolioWrites, 1);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.retryable, false);
+  assert.equal(res.body.symbolsCount, 3);
+  assert.equal(res.body.failedSymbolsCount, 0);
+});
+
+test('daily P&L snapshot retries a stale 200 payload until the target close appears', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let eodAttempts = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-1', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      eodAttempts += 1;
+      if (eodAttempts === 1) {
+        return jsonResponse([{ date: '2026-07-07', close: 119, adjusted_close: 119 }]);
+      }
+      return jsonResponse([
+        { date: '2026-07-07', close: 119, adjusted_close: 119 },
+        { date: '2026-07-08', close: 120, adjusted_close: 120 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(eodAttempts, 2);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.retryable, false);
+  assert.equal(res.body.failedSymbolsCount, 0);
+});
+
+test('daily P&L snapshot isolates symbols and reports exhausted target-close gaps as retryable incomplete work', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const eodAttempts = { NVDA: 0, MSFT: 0 };
+  const writtenUsers = [];
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+        { id: 'trade-b', user_id: 'user-b', symbol: 'MSFT', name: 'Microsoft', side: 'buy', trade_date: '2026-07-01', price: 200, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      eodAttempts.NVDA += 1;
+      return jsonResponse([{ date: '2026-07-07', close: 119, adjusted_close: 119 }]);
+    }
+    if (href.includes('/api/eod/MSFT.US')) {
+      eodAttempts.MSFT += 1;
+      return jsonResponse([
+        { date: '2026-07-07', close: 219, adjusted_close: 219 },
+        { date: '2026-07-08', close: 220, adjusted_close: 220 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      writtenUsers.push(JSON.parse(options.body)[0].user_id);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.deepEqual(eodAttempts, { NVDA: 3, MSFT: 1 });
+  assert.deepEqual(writtenUsers, ['user-b']);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.equal(res.body.success, false);
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.equal(res.body.failedSymbolsCount, 1);
+  assert.deepEqual(res.body.failedSymbols, [{
+    symbol: 'NVDA',
+    retryable: true,
+    status: null,
+    reason: 'missing_target_close',
+    attempts: 3,
+  }]);
+  assert.equal(res.body.writtenUsers, 1);
+  assert.equal(res.body.skippedUsers, 1);
+  assert.equal(res.body.skippedReasons.missing_close, 1);
+});
+
+test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let eodAttempts = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-1', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      eodAttempts += 1;
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(eodAttempts, 1);
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.success, false);
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, false);
+  assert.equal(res.body.failedSymbolsCount, 1);
+  assert.equal(res.body.failedSymbols[0].status, 404);
+  assert.equal(res.body.failedSymbols[0].attempts, 1);
+});
+
+test('scheduled no-date P&L snapshot catches an existing user up from 7/10 through the SPY 7/13 and 7/14 closes', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const OriginalDate = globalThis.Date;
+  const originalFetch = globalThis.fetch;
+  const fixedNow = '2026-07-15T00:30:00.000Z';
+  const portfolioWrites = [];
+  let latestSnapshotReads = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  globalThis.Date = class FixedDate extends OriginalDate {
+    constructor(...args) {
+      super(...(args.length > 0 ? args : [fixedNow]));
+    }
+
+    static now() {
+      return OriginalDate.parse(fixedNow);
+    }
+  };
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+        { id: 'trade-b', user_id: 'user-b', symbol: 'MSFT', name: 'Microsoft', side: 'buy', trade_date: '2026-07-01', price: 200, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      latestSnapshotReads += 1;
+      if (href.includes('user_id=eq.user-a')) return jsonResponse([{ snapshot_date: '2026-07-10' }]);
+      if (href.includes('user_id=eq.user-b')) return jsonResponse([]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
+      return jsonResponse(null);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 620, adjusted_close: 620 },
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { date: '2026-07-14', close: 624, adjusted_close: 624 },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 120, adjusted_close: 120 },
+        { date: '2026-07-13', close: 121, adjusted_close: 121 },
+        { date: '2026-07-14', close: 123, adjusted_close: 123 },
+      ]);
+    }
+    if (href.includes('/api/eod/MSFT.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 220, adjusted_close: 220 },
+        { date: '2026-07-13', close: 221, adjusted_close: 221 },
+        { date: '2026-07-14', close: 223, adjusted_close: 223 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res);
+  } finally {
+    globalThis.Date = OriginalDate;
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.catchUp, true);
+  assert.equal(res.body.targetDate, '2026-07-14');
+  assert.equal(res.body.plannedSnapshots, 3);
+  assert.equal(res.body.writtenSnapshots, 3);
+  assert.equal(res.body.writtenUsers, 2);
+  assert.equal(latestSnapshotReads, 2);
+  assert.deepEqual(
+    portfolioWrites.map((row) => `${row.user_id}:${row.snapshot_date}`),
+    ['user-a:2026-07-13', 'user-a:2026-07-14', 'user-b:2026-07-14']
+  );
+  assert.doesNotMatch(JSON.stringify(res.body), /user-a|user-b/);
+});
+
+test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 500', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let spyAttempts = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      spyAttempts += 1;
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(spyAttempts, 1);
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.headers['retry-after'], undefined);
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, false);
+  assert.deepEqual(res.body.failedSymbols, [{
+    symbol: 'SPY',
+    retryable: false,
+    status: 404,
+    reason: 'http_404',
+    attempts: 1,
+  }]);
+  assert.doesNotMatch(JSON.stringify(res.body), /user-a/);
+});
+
+test('scheduled catch-up blocks a failed user from later dates while other users continue', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const OriginalDate = globalThis.Date;
+  const originalFetch = globalThis.fetch;
+  const fixedNow = '2026-07-15T00:30:00.000Z';
+  const portfolioWrites = [];
+  let nvdaAttempts = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  globalThis.Date = class FixedDate extends OriginalDate {
+    constructor(...args) {
+      super(...(args.length > 0 ? args : [fixedNow]));
+    }
+
+    static now() {
+      return OriginalDate.parse(fixedNow);
+    }
+  };
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+        { id: 'trade-b', user_id: 'user-b', symbol: 'MSFT', name: 'Microsoft', side: 'buy', trade_date: '2026-07-01', price: 200, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      return jsonResponse([{ snapshot_date: '2026-07-10' }]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
+      return jsonResponse(null);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 620, adjusted_close: 620 },
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { date: '2026-07-14', close: 624, adjusted_close: 624 },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      nvdaAttempts += 1;
+      return jsonResponse([
+        { date: '2026-07-10', close: 120, adjusted_close: 120 },
+        { date: '2026-07-14', close: 123, adjusted_close: 123 },
+      ]);
+    }
+    if (href.includes('/api/eod/MSFT.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 220, adjusted_close: 220 },
+        { date: '2026-07-13', close: 221, adjusted_close: 221 },
+        { date: '2026-07-14', close: 223, adjusted_close: 223 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res);
+  } finally {
+    globalThis.Date = OriginalDate;
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.equal(nvdaAttempts, 3);
+  assert.equal(res.body.plannedSnapshots, 4);
+  assert.equal(res.body.attemptedSnapshots, 3);
+  assert.equal(res.body.writtenSnapshots, 2);
+  assert.equal(res.body.skippedSnapshots, 1);
+  assert.equal(res.body.deferredSnapshots, 1);
+  assert.deepEqual(
+    portfolioWrites.map((row) => `${row.user_id}:${row.snapshot_date}`),
+    ['user-b:2026-07-13', 'user-b:2026-07-14']
+  );
+  assert.doesNotMatch(JSON.stringify(res.body), /user-a|user-b/);
+});
+
+test('scheduled catch-up retries a stale SPY 200 payload and never falls back to an older target', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const OriginalDate = globalThis.Date;
+  const originalFetch = globalThis.fetch;
+  const fixedNow = '2026-07-15T00:30:00.000Z';
+  let spyAttempts = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  globalThis.Date = class FixedDate extends OriginalDate {
+    constructor(...args) {
+      super(...(args.length > 0 ? args : [fixedNow]));
+    }
+
+    static now() {
+      return OriginalDate.parse(fixedNow);
+    }
+  };
+
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      spyAttempts += 1;
+      return jsonResponse([
+        { date: '2026-07-10', close: 620, adjusted_close: 620 },
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+      ]);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res);
+  } finally {
+    globalThis.Date = OriginalDate;
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(spyAttempts, 3);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.equal(res.body.targetDate, '2026-07-14');
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.deepEqual(res.body.failedSymbols, [{
+    symbol: 'SPY',
+    retryable: true,
+    status: null,
+    reason: 'missing_target_close',
+    attempts: 3,
+  }]);
+});
+
+test('a transient symbol write removes an existing completion marker and the next scheduled run repairs it', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const OriginalDate = globalThis.Date;
+  const originalFetch = globalThis.fetch;
+  const fixedNow = '2026-07-09T00:30:00.000Z';
+  const markers = new Set(['2026-07-07', '2026-07-08']);
+  const events = [];
+  let failNextSymbolInsert = true;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  globalThis.Date = class FixedDate extends OriginalDate {
+    constructor(...args) {
+      super(...(args.length > 0 ? args : [fixedNow]));
+    }
+
+    static now() {
+      return OriginalDate.parse(fixedNow);
+    }
+  };
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-07', close: 618, adjusted_close: 618 },
+        { date: '2026-07-08', close: 620, adjusted_close: 620 },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-07', close: 119, adjusted_close: 119 },
+        { date: '2026-07-08', close: 120, adjusted_close: 120 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
+      events.push('marker-delete');
+      markers.delete('2026-07-08');
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      events.push('marker-write');
+      const row = JSON.parse(options.body)[0];
+      markers.add(row.snapshot_date);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) {
+      const latest = [...markers].sort().at(-1);
+      return jsonResponse(latest ? [{ snapshot_date: latest }] : []);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
+      events.push('symbol-delete');
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) {
+      if (failNextSymbolInsert) {
+        failNextSymbolInsert = false;
+        events.push('symbol-write-fail');
+        return jsonResponse({ message: 'temporary database detail must stay private' }, 503);
+      }
+      events.push('symbol-write');
+      return jsonResponse(null);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const first = createResponse();
+  const second = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), first);
+    assert.equal(first.statusCode, 503);
+    assert.equal(first.headers['retry-after'], '300');
+    assert.equal(first.body.retryable, true);
+    assert.equal(first.body.failedReasons.snapshot_write_http_503, 1);
+    assert.deepEqual(events, ['marker-delete', 'symbol-delete', 'symbol-write-fail']);
+    assert.deepEqual([...markers].sort(), ['2026-07-07']);
+    assert.doesNotMatch(JSON.stringify(first.body), /temporary database detail/);
+
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), second);
+  } finally {
+    globalThis.Date = OriginalDate;
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(second.statusCode, 200);
+  assert.equal(second.body.complete, true);
+  assert.equal(second.body.plannedSnapshots, 1);
+  assert.equal(second.body.writtenSnapshots, 1);
+  assert.deepEqual(events.slice(3), ['marker-delete', 'symbol-delete', 'symbol-write', 'marker-write']);
+  assert.deepEqual([...markers].sort(), ['2026-07-07', '2026-07-08']);
+});
+
+test('a transient Supabase read returns a sanitized 503 while a permanent write 4xx remains 500', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  const readFailure = createResponse();
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse({ message: 'private database topology' }, 503);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), readFailure);
+
+    assert.equal(readFailure.statusCode, 503);
+    assert.equal(readFailure.headers['retry-after'], '300');
+    assert.match(readFailure.body.error, /暂时失败/);
+    assert.doesNotMatch(JSON.stringify(readFailure.body), /private database topology/);
+
+    globalThis.fetch = async (url, options = {}) => {
+      const href = String(url);
+      if (href.includes('/rest/v1/stock_trades')) {
+        return jsonResponse([
+          { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+        ]);
+      }
+      if (href.includes('/api/eod/NVDA.US')) {
+        return jsonResponse([
+          { date: '2026-07-07', close: 119, adjusted_close: 119 },
+          { date: '2026-07-08', close: 120, adjusted_close: 120 },
+        ]);
+      }
+      if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+      if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
+        return jsonResponse({ message: 'bad request' }, 400);
+      }
+      throw new Error(`unexpected fetch: ${href}`);
+    };
+    const permanentFailure = createResponse();
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), permanentFailure);
+    assert.equal(permanentFailure.statusCode, 500);
+    assert.equal(permanentFailure.headers['retry-after'], undefined);
+    assert.equal(permanentFailure.body.complete, false);
+    assert.equal(permanentFailure.body.retryable, false);
+    assert.equal(permanentFailure.body.failedReasons.snapshot_write_http_400, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('vercel schedules the all-account daily P&L snapshot and its retry in separate UTC hours', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.deepEqual(
     vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot'),
-    { path: '/api/pnl-report-daily-snapshot', schedule: '30 22 * * 1-5' }
+    { path: '/api/pnl-report-daily-snapshot', schedule: '0 0 * * 2-6' }
   );
+  assert.deepEqual(
+    vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot-retry'),
+    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 2 * * 2-6' }
+  );
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/pnl-report-daily-snapshot-retry'
+    && rewrite.destination === '/api/pnl-report-daily-snapshot'
+  )));
 });

@@ -7,6 +7,7 @@ import {
   authorizeCommunityCompetitionDailySnapshot,
   resolveCommunityCompetitionSnapshotDate,
   runCommunityCompetitionDailySnapshot,
+  runCommunityCompetitionScheduledCatchUp,
 } from '../server/communityCompetitionDailySnapshot.js';
 
 function firstQueryValue(value) {
@@ -61,7 +62,14 @@ async function handleDailySnapshot(req, res) {
 
   try {
     const targetDate = resolveCommunityCompetitionSnapshotDate(req);
-    const result = await runCommunityCompetitionDailySnapshot({ targetDate });
+    const requestedDate = firstQueryValue(req.query?.date);
+    const result = requestedDate
+      ? await runCommunityCompetitionDailySnapshot({ targetDate })
+      : await runCommunityCompetitionScheduledCatchUp({ targetDate });
+    if (result.retryableIncomplete) {
+      res.setHeader('Retry-After', '300');
+      return res.status(503).json(result);
+    }
     return res.status(result.failedMembers > 0 ? 500 : 200).json(result);
   } catch (error) {
     return sendError(res, error?.status || 500, error?.message || '收益比赛自动快照失败');
