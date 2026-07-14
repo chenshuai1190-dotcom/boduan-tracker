@@ -13,6 +13,7 @@
   - 记录 runtime commit `cb6b37976e7f61720cd9a36fb03a92b20849f9ca`、GitHub Actions run `29363624252` success 和 Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/TXaUDZ2GJGnujvcr21fmNM2wtrji` success;生产入口更新为 `/assets/index-XyyH23zs.js`,设置页版本为 `v10.7.9.338`。
   - 生产入口、CSS、App、比赛页、设置页、设置更新日志和 i18n 共 7 个关键产物与本地 production build 的 SHA-256 逐项一致。
   - 未登录 quote VIX 与 earnings NVDA 均为 `401`;没有登录生产账户或执行生产写操作。
+  - 清理产品概览中 v314/v313 的旧“当前设置页”表述,并把已完成的比赛 runtime 部署优先事项改为仅等待真实 scheduled D1/D2 收盘观察。
 - Key files: `docs/development-log.md`,`docs/handoff.md`。
 - Validation: `npm run verify:deploy-status -- cb6b379` pass;GitHub/Vercel 均为 success,production alias 已切换。7 个关键产物 hash 和 2 条未授权边界通过;本 docs-only 变更的 `npm run verify:docs-consistency`、`git diff --check` 和 `git diff --stat` pass,不重复运行已完成的 UI-fast 测试、build 或 Simulator 验收。
 - Deployment: runtime 已完成;本条 docs-only 证据提交推送后再验证其自身 Actions/Vercel,不改变生产运行时逻辑。
