@@ -4,9 +4,24 @@
 
 ## 2026-07-15 Asia/Shanghai
 
+### 2026-07-15 - v10.7.9.335 部署证据回填
+
+- Commit: `same commit`（docs-only 证据提交；运行时代码提交见下方）。
+- Background: v335 资产页与比赛页主卡颜色统一已经通过 UI-fast 门禁并部署到 production,需要把实际 runtime、Actions、Vercel、入口、产物一致性和未授权边界写回 GitHub `main`。
+- Workflow tier: `docs-only`。
+- Changes:
+  - 记录 runtime commit `154daab23ea2712b1bd0717e2bc7696a62799b86`、GitHub Actions run `29350707864` success 和 Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2gih2yMfRhxKsFeGjK1cWewSnBCn` success;生产入口更新为 `/assets/index-Bm6EmNTo.js`,设置页版本为 `v10.7.9.335`。
+  - 生产入口、CSS、App、资产页、比赛页、设置页和设置更新日志共 7 个关键产物与本地 production build 的 SHA-256 逐项一致。
+  - 未登录 quote VIX、earnings NVDA 与 competition day GET 均为 `401`;没有登录生产账户或执行生产写操作。
+- Key files: `docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:deploy-status -- 154daab` pass;GitHub/Vercel 均为 success,production alias 已切换。7 个关键产物 hash 和 3 条未授权边界通过;本 docs-only 变更的 `npm run verify:docs-consistency`、`git diff --check` 和 `git diff --stat` pass,不重复运行已完成的 UI-fast 测试、build 或 Simulator 验收。
+- Deployment: runtime 已完成;本条 docs-only 证据提交推送后再验证其自身 Actions/Vercel,不改变生产运行时逻辑。
+- Boundaries: 只回填真实发布证据,不改 UI、资产数据、比赛缓存/API、账本、快照、数据库、RLS、provider、环境变量或生产数据。
+- Rollback: 回退本 docs-only 条目只移除证据记录;恢复 v334 卡片颜色需要单独回退 runtime `154daab`。
+
 ### 2026-07-15 - v10.7.9.335 资产页与收益比赛卡片黑色统一
 
-- Commit: `same commit`（UI-fast 发布候选）。
+- Commit: `154daab23ea2712b1bd0717e2bc7696a62799b86`。
 - Background: 用户发现资产页头卡颜色正常,但下方走势图/账户卡发青;随后确认收益比赛主卡也有同类问题。代码检查证明这些卡片使用蓝通道更高的 `#0d131c`、`#0b1017`、`#0c1118` 或蓝灰渐变,部分还带透明度叠加页面背景,与首页标准黑色 `#0b0f14` 不一致。
 - Workflow tier: `ui-fast`。本轮只调整卡片背景、边框透明度和内高光;不改变资产数据、比赛缓存、请求时机、排名、收益计算、交易账本、API、数据库、鉴权、RLS、provider 或任何持久化行为。
 - Changes:
@@ -16,8 +31,8 @@
   - 设置页版本与中英文更新日志同步到 `v10.7.9.335`,静态断言锁定两页标准黑色和旧偏青主卡样式移除。
 - Key files: `src/tabs/AnalysisTab.jsx`,`src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: 资产/比赛定向边界测试 3/3 pass;`npm run build` 和 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator Safari 只读 `DevVisualPreview` 已确认资产页头卡、走势图、账户分组卡以及比赛五类主卡使用一致的中性黑色,截图 `~/Desktop/boduan-previews/assets-family-cards-black-local.png`、`~/Desktop/boduan-previews/community-competition-cards-black-local.png`。本轮无输入、键盘或主屏 PWA 特有行为,不需要系统键盘或添加主屏复测;按 `ui-fast` 不运行完整 `npm test`、audit、RLS 或旧 `verify:frontend-smoke`。
-- Deployment: pending;门禁通过后使用项目 SSH key 推送 GitHub `main`,再运行 `npm run verify:deploy-status -- <commit>` 等待 Actions/Vercel success。
-- Production verification: pending;不得在实际部署成功前预填 commit、Actions、Vercel 或生产入口。
+- Deployment: completed;runtime commit `154daab23ea2712b1bd0717e2bc7696a62799b86`,GitHub Actions run `29350707864` success,Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2gih2yMfRhxKsFeGjK1cWewSnBCn` success,production alias 已更新,入口 `/assets/index-Bm6EmNTo.js`。
+- Production verification: 入口、CSS、App、资产页、比赛页、设置页和更新日志共 7 个关键产物与本地 build SHA-256 一致;未登录 quote、earnings 和 competition GET 均为 `401`。
 - Boundaries: 比赛仍只读服务端权威快照和正式 `stock_trades`,只写独立比赛表;客户端不生成、修正或伪造收益。资产账户、月度快照、汇率、比赛表/API/Cron、Supabase/RLS 和生产数据全部不变。
 - Rollback: 回退本条两页卡片颜色、v335 版本/更新日志、静态断言与文档即可恢复 v334;无需数据、SQL、RLS 或环境回滚。
 
