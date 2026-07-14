@@ -278,6 +278,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(appSource.includes('<CommunityCompetitionPage ctx={tabCtx} />'), 'app should render community competition through the trade context');
   assert.ok(appSource.includes('openCommunityCompetition'), 'app should expose an opener for the trade-page utility');
   assert.ok(appSource.includes('closeCommunityCompetition'), 'app should expose a closer for the trade-page utility');
+  assert.ok(appSource.includes("${isCommunityCompetitionPage ? 'px-0' : 'px-4'}"), 'the standalone competition page should not inherit the home shell padding a second time');
   assert.ok(tradesTabSource.includes("id: 'competition'") && tradesTabSource.includes("tt('competition.toolEntry', '社区比赛')"), 'trade-page tool grid should expose the community competition entry');
   assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone page');
   assert.ok(tradesTabSource.includes("id: 'all'") && tradesTabSource.includes("tt('trades.allTools', '全部功能')"), 'trade-page tool grid should expose all tools');
@@ -305,6 +306,11 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(competitionSelfAvatarIndex > competitionRankHeaderIndex, 'the signed-in user avatar should render below the original rank row');
   assert.ok(competitionHeroMetricsIndex > competitionSelfAvatarIndex, 'the return metrics should move to the right of the signed-in user avatar');
   assert.ok(communityCompetitionPageSource.includes('const selfAvatar = self?.avatarKey ? getCommunityAvatarOption(self.avatarKey) : null;'), 'the self card must only render an authoritative profile avatar');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname') && communityCompetitionPageSource.includes("{self?.nickname || '--'}"), 'the self card should show the authoritative community nickname below the avatar');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname className="-ml-2 mt-1.5 w-[72px] truncate text-center text-[10.5px]'), 'the self nickname should be slightly larger and keep breathing room below the avatar');
+  assert.ok(communityCompetitionPageSource.includes('<div className="space-y-3 pt-3">'), 'competition cards should not add a second inner horizontal inset');
+  assert.ok(communityCompetitionPageSource.includes("<div className={`px-4 ${contentDimmed"), 'competition cards should use the same 16px horizontal gutter as home cards');
+  assert.ok(communityCompetitionPageSource.includes('max-w-[462px]'), 'the competition shell should leave room for two 16px gutters around the same 430px maximum card width as home');
   assert.equal(communityCompetitionPageSource.includes('<TrendChart self={trend.self} benchmark={trend.benchmark} />'), false, 'the empty hero trend region should stay removed');
   assert.ok(communityCompetitionPageSource.includes('<TrendChart benchmark={trend.benchmark} compact />'), 'the lower QQQ benchmark trend should remain intact');
   assert.ok(communityCompetitionPageSource.includes('normalizeTrendPoints'), 'charts should be derived from API trend points');
@@ -315,13 +321,13 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.equal(communityCompetitionPageSource.includes("'纳斯达克100'"), false, 'competition UI must not mislabel QQQ as the Nasdaq 100 index');
   assert.equal(communityCompetitionPageSource.includes("'跑赢纳指'"), false, 'competition UI must not claim direct Nasdaq index comparison');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。')"), 'ready and waiting states should disclose the snapshot source and lack of broker verification');
-  assert.ok(communityCompetitionPageSource.includes("tt('competition.snapshotAsOf', '数据更新{{date}}'") && communityCompetitionPageSource.includes('formatCompactDate(data?.asOfDate)'), 'snapshot update copy should use the compact month-day format without a year');
+  assert.ok(communityCompetitionPageSource.includes("tt('competition.snapshotAsOf', '最后更新 {{date}}'") && communityCompetitionPageSource.includes('formatCompactDate(data?.asOfDate)'), 'snapshot update copy should use the compact month-day format without a year and keep a space before the date');
   assert.ok(communityCompetitionPageSource.includes('data-competition-update-row className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-x-4"'), 'the update row should reuse the avatar and metrics column template');
   assert.ok(communityCompetitionPageSource.includes('data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left'), 'the update label should begin at the same third-column inset as Beat QQQ');
   assert.ok(i18nSource.includes("'competition.nasdaq100': 'QQQ benchmark'"), 'English benchmark copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.outperformNasdaq': 'Beat QQQ'"), 'English outperformance copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.dataDisclosure': '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'"), 'Chinese disclosure should remain translated centrally');
-  assert.ok(i18nSource.includes("'competition.snapshotAsOf': '数据更新{{date}}'") && i18nSource.includes("'competition.snapshotAsOf': 'Updated {{date}}'"), 'compact snapshot update copy should remain bilingual');
+  assert.ok(i18nSource.includes("'competition.snapshotAsOf': '最后更新 {{date}}'") && i18nSource.includes("'competition.snapshotAsOf': 'Last updated {{date}}'"), 'compact snapshot update copy should remain bilingual');
   assert.ok(communityCompetitionPageSource.includes("'border-[#2a313b]/90'"), 'rank 4+ avatars should use a muted dark border instead of white');
   assert.equal(communityCompetitionPageSource.includes("'border-white/12'"), false, 'rank 4+ avatars must not render a white avatar border');
   assert.equal(/\bsupabase\s*\.\s*from\s*\(/.test(communityCompetitionPageSource), false, 'competition UI must not read cross-user rows from the browser Supabase client');
@@ -511,8 +517,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.333'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.333', date: '2026-07-14', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.334'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.334', date: '2026-07-14', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('收益比赛头卡与页面宽度优化'), 'settings changelog should describe the competition header and width refinement');
+  assert.ok(settingsChangelogSource.includes('最后更新 MM.DD') && settingsChangelogSource.includes('430px 最大内容宽度'), 'settings changelog should document the compact dynamic update label and home-aligned card width');
   assert.ok(settingsChangelogSource.includes('收益比赛更新时间对齐'), 'settings changelog should describe the aligned competition update label');
   assert.ok(settingsChangelogSource.includes('收益比赛读取与头部信息优化'), 'settings changelog should describe the competition cache and header release');
   assert.ok(settingsChangelogSource.includes('实际快照日期动态显示'), 'settings changelog should document the authoritative dynamic snapshot date');
@@ -1930,7 +1938,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
   assert.ok(reviewTabSource.includes("{ key: 'CNY', label: 'CNY' }"), 'review currency switch should show CNY instead of RMB');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.333'"), 'settings version source should advance with the competition update-label alignment');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.334'"), 'settings version source should advance with the competition header and width refinement');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
@@ -2250,7 +2258,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.333'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.334'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

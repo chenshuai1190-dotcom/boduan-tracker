@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.333', date: '2026-07-14', latest: true,
+    ver: 'v10.7.9.334', date: '2026-07-14', latest: true,
+    items: [
+      '🏆 收益比赛头卡与页面宽度优化',
+      '  - 更新时间精简为“最后更新 MM.DD”,日期继续读取服务端真实快照日期',
+      '  - 我的社区昵称显示在头像下方,字号和间距更清晰',
+      '  - 比赛卡片与首页统一 16px 左右边距和 430px 最大内容宽度',
+      '  - 缓存、请求、排名、比赛收益、交易账本和服务端数据逻辑保持不变',
+    ],
+    itemsEn: [
+      '🏆 Competition header and page-width refinement',
+      '  - The update label is shortened to “Last updated MM.DD” while continuing to use the real server snapshot date',
+      '  - The signed-in community nickname now appears below the avatar with clearer size and spacing',
+      '  - Competition cards now match Home with 16px side gutters and the same 430px maximum content width',
+      '  - Caching, requests, ranking, competition returns, the trade ledger, and server data logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.333', date: '2026-07-14',
     items: [
       '📐 收益比赛更新时间对齐',
       '  - “数据更新MM.DD”左边缘与上方“跑赢 QQQ”标签统一对齐',

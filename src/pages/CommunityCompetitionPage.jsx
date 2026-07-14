@@ -329,7 +329,7 @@ function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
 
 function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = false }) {
   return (
-    <section className="mx-0.5 mt-8 rounded-[20px] border border-white/[0.075] bg-[#0b1017]/98 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+    <section className="mt-8 rounded-[20px] border border-white/[0.075] bg-[#0b1017]/98 px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
       <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
       <p className="mx-auto mt-3 max-w-[286px] text-[13px] leading-[1.8] text-white/42 [text-wrap:pretty]">{protectHintText(desc)}</p>
@@ -380,17 +380,22 @@ function CompetitionContent({ data, period, language, tt }) {
   ) * 1.18;
 
   return (
-    <div className="space-y-3 px-0.5 pt-3">
+    <div className="space-y-3 pt-3">
       <section className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
         <div className="flex items-end gap-3">
           <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
           <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
         </div>
-        <div className="mt-3 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4">
-          <div data-competition-self-avatar className="h-14 w-14 overflow-hidden rounded-full border border-white/[0.1] bg-[#070a0f] shadow-[0_8px_20px_rgba(0,0,0,0.34)]">
-            {selfAvatar ? <img src={selfAvatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} /> : null}
+        <div className="mt-3 grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4">
+          <div data-competition-self-profile className="min-w-0">
+            <div data-competition-self-avatar className="h-14 w-14 overflow-hidden rounded-full border border-white/[0.1] bg-[#070a0f] shadow-[0_8px_20px_rgba(0,0,0,0.34)]">
+              {selfAvatar ? <img src={selfAvatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} /> : null}
+            </div>
+            <div data-competition-self-nickname className="-ml-2 mt-1.5 w-[72px] truncate text-center text-[10.5px] leading-3 text-white/[0.5]">
+              {self?.nickname || '--'}
+            </div>
           </div>
-          <div data-competition-hero-metrics className="grid min-w-0 grid-cols-3 divide-x divide-white/[0.08]">
+          <div data-competition-hero-metrics className="mt-2 grid min-w-0 grid-cols-3 divide-x divide-white/[0.08]">
             <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
             <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
             <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
@@ -399,7 +404,7 @@ function CompetitionContent({ data, period, language, tt }) {
         <div data-competition-update-row className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-x-4">
           <div className="col-start-2 grid min-w-0 grid-cols-3">
             <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] text-[#7f858e]">
-              {ready ? tt('competition.snapshotAsOf', '数据更新{{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
+              {ready ? tt('competition.snapshotAsOf', '最后更新 {{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
             </div>
           </div>
         </div>
@@ -611,7 +616,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const contentDimmed = view.state === 'join_required';
 
   return (
-    <main className="relative mx-auto min-h-screen w-full max-w-[430px] overflow-x-hidden bg-[radial-gradient(circle_at_50%_-12%,rgba(24,45,70,0.18),transparent_42%),#05070b] pb-[calc(env(safe-area-inset-bottom)+92px)] text-white" style={{ fontFamily: PAGE_FONT }}>
+    <main className="relative mx-auto min-h-screen w-full max-w-[462px] overflow-x-hidden bg-[radial-gradient(circle_at_50%_-12%,rgba(24,45,70,0.18),transparent_42%),#05070b] pb-[calc(env(safe-area-inset-bottom)+92px)] text-white" style={{ fontFamily: PAGE_FONT }}>
       <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={closeCommunityCompetition} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] active:scale-95" aria-label={tt('competition.back', '返回')}>
@@ -645,7 +650,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         </div>
       </header>
 
-      <div className={`px-3 ${contentDimmed ? 'pointer-events-none select-none blur-[0.5px] brightness-[0.62]' : ''}`}>
+      <div className={`px-4 ${contentDimmed ? 'pointer-events-none select-none blur-[0.5px] brightness-[0.62]' : ''}`}>
         {view.state === 'loading' ? (
           <StatusCard icon={<Loader2 className="h-7 w-7 animate-spin text-[#f6b54b]" />} title={tt('competition.loading', '正在读取真实收盘快照')} desc={tt('competition.loadingDesc', '正在验证社区资料、参赛状态和已锁定的收盘收益快照。')} />
         ) : null}
