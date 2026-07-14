@@ -9,6 +9,7 @@ import {
   latestCompletedUsTradingDate,
   normalizeReportDate,
   PNL_REPORT_SNAPSHOT_VERSION,
+  resolveScheduledUsSnapshotDate,
 } from '../src/lib/pnlReportSnapshots.js';
 
 test('builds independent portfolio and symbol snapshots from stock trades', () => {
@@ -355,4 +356,12 @@ test('normalizes report dates and stays separate from the live trading summary p
   const source = readFileSync(new URL('../src/lib/pnlReportSnapshots.js', import.meta.url), 'utf8');
   assert.equal(source.includes('deriveInvestmentSummary'), false);
   assert.equal(source.includes('derivePositionsFromTrades'), false);
+});
+
+test('opens scheduled snapshot dates only after 17:00 America/New_York across DST', () => {
+  assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-07-08T20:59:00Z')), null);
+  assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-07-08T21:00:00Z')), '2026-07-08');
+  assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-01-14T21:59:00Z')), null);
+  assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-01-14T22:00:00Z')), '2026-01-14');
+  assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-07-11T12:00:00Z')), '2026-07-10');
 });

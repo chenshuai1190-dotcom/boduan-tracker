@@ -6,7 +6,7 @@ import {
 } from '../server/pnlReportDailySnapshot.js';
 import { sendError } from '../server/quote/errors.js';
 
-export default async function handler(req, res) {
+export async function handlePnlReportDailySnapshot(req, res, { now = new Date() } = {}) {
   res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -20,10 +20,24 @@ export default async function handler(req, res) {
   if (!auth.ok) return sendError(res, auth.status, auth.error);
 
   try {
-    const targetDate = resolveDailySnapshotTargetDate(req);
+    const explicitDate = hasExplicitDailySnapshotTargetDate(req);
+    const targetDate = resolveDailySnapshotTargetDate(req, now);
+    if (!targetDate && !explicitDate) {
+      return res.status(200).json({
+        success: true,
+        complete: true,
+        retryable: false,
+        deferred: true,
+        reason: 'before_new_york_snapshot_window',
+        timeZone: 'America/New_York',
+        notBefore: '17:00',
+        targetDate: null,
+      });
+    }
     const result = await runPnlReportDailySnapshot({
       targetDate,
-      catchUp: !hasExplicitDailySnapshotTargetDate(req),
+      now,
+      catchUp: !explicitDate,
     });
     if (!result.complete) {
       if (result.retryable) {
@@ -38,7 +52,12 @@ export default async function handler(req, res) {
       res.setHeader('Retry-After', '300');
       return sendError(res, 503, '收益报表自动快照暂时失败，请稍后重试');
     }
+    if (error?.status === 400) return sendError(res, 400, '目标日期不合法');
     // Never echo REST/provider response bodies or infrastructure details.
     return sendError(res, 500, '收益报表自动快照失败');
   }
+}
+
+export default async function handler(req, res) {
+  return handlePnlReportDailySnapshot(req, res);
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import handler from '../api/pnl-report-daily-snapshot.js';
+import handler, { handlePnlReportDailySnapshot } from '../api/pnl-report-daily-snapshot.js';
 
 function createResponse() {
   return {
@@ -48,6 +48,18 @@ function jsonResponse(body, status = 200) {
   };
 }
 
+function withExactSpyClose(fetchImpl, onSpy = () => {}) {
+  return async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      onSpy(href);
+      const targetDate = new URL(href).searchParams.get('to');
+      return jsonResponse([{ date: targetDate, close: 600, adjusted_close: 600 }]);
+    }
+    return fetchImpl(url, options);
+  };
+}
+
 function restoreEnv(snapshot) {
   for (const [key, value] of Object.entries(snapshot)) {
     if (value === undefined) delete process.env[key];
@@ -85,6 +97,277 @@ test('daily P&L snapshot cron endpoint rejects invalid bearer secret', async () 
   assert.match(res.body.error, /未授权/);
 });
 
+test('scheduled P&L snapshot defers before 17:00 New York without provider or database access', async () => {
+  const env = { CRON_SECRET: process.env.CRON_SECRET };
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('fetch must not be called before the snapshot window');
+  };
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-08T20:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.deferred, true);
+  assert.equal(res.body.reason, 'before_new_york_snapshot_window');
+  assert.equal(res.body.notBefore, '17:00');
+  assert.equal(fetchCalls, 0);
+});
+
+test('present but empty, blank, or invalid explicit P&L dates fail closed without provider access', async () => {
+  const env = { CRON_SECRET: process.env.CRON_SECRET };
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('fetch must not be called for an invalid date');
+  };
+
+  try {
+    for (const date of ['', '   ', undefined, 'not-a-date', '2026-02-31']) {
+      const res = createResponse();
+      await handlePnlReportDailySnapshot(createRequest({
+        headers: { authorization: 'Bearer cron-secret' },
+        query: { date },
+      }), res, { now: new Date('2026-07-08T22:30:00Z') });
+      assert.equal(res.statusCode, 400);
+      assert.match(res.body.error, /目标日期不合法/);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(fetchCalls, 0);
+});
+
+test('explicit same-day P&L date cannot bypass 17:00 New York across DST', async () => {
+  const env = { CRON_SECRET: process.env.CRON_SECRET };
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('fetch must not be called before the same-day snapshot window');
+  };
+
+  try {
+    for (const { date, now } of [
+      { date: '2026-07-08', now: new Date('2026-07-08T20:30:00Z') },
+      { date: '2026-01-14', now: new Date('2026-01-14T21:30:00Z') },
+    ]) {
+      const res = createResponse();
+      await handlePnlReportDailySnapshot(createRequest({
+        headers: { authorization: 'Bearer cron-secret' },
+        query: { date },
+      }), res, { now });
+      assert.equal(res.statusCode, 400);
+      assert.match(res.body.error, /目标日期不合法/);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(fetchCalls, 0);
+});
+
+test('explicit same-day P&L date opens at 17:00 New York across DST', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  let spyCalls = 0;
+  const requestOrder = [];
+  globalThis.fetch = withExactSpyClose(async (url) => {
+    fetchCalls += 1;
+    if (String(url).includes('/rest/v1/stock_trades')) {
+      requestOrder.push('stock_trades');
+      return jsonResponse([]);
+    }
+    throw new Error(`unexpected fetch: ${url}`);
+  }, () => {
+    spyCalls += 1;
+    requestOrder.push('SPY');
+  });
+
+  try {
+    for (const { date, now } of [
+      { date: '2026-07-08', now: new Date('2026-07-08T21:00:00Z') },
+      { date: '2026-01-14', now: new Date('2026-01-14T22:00:00Z') },
+    ]) {
+      const res = createResponse();
+      await handlePnlReportDailySnapshot(createRequest({
+        headers: { authorization: 'Bearer cron-secret' },
+        query: { date },
+      }), res, { now });
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.targetDate, date);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(fetchCalls, 2);
+  assert.equal(spyCalls, 2);
+  assert.deepEqual(requestOrder, ['SPY', 'stock_trades', 'SPY', 'stock_trades']);
+});
+
+test('explicit future P&L date fails closed without provider access', async () => {
+  const env = { CRON_SECRET: process.env.CRON_SECRET };
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('fetch must not be called for a future snapshot date');
+  };
+  const res = createResponse();
+
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-09' },
+    }), res, { now: new Date('2026-07-08T22:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /目标日期不合法/);
+  assert.equal(fetchCalls, 0);
+});
+
+test('valid historical explicit P&L date bypasses the 17:00 gate for CRON_SECRET repair', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  let spyCalls = 0;
+  globalThis.fetch = withExactSpyClose(async (url) => {
+    fetchCalls += 1;
+    if (String(url).includes('/rest/v1/stock_trades')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${url}`);
+  }, () => { spyCalls += 1; });
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-07' },
+    }), res, { now: new Date('2026-07-08T20:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.targetDate, '2026-07-07');
+  assert.equal(res.body.deferred, undefined);
+  assert.equal(fetchCalls, 1);
+  assert.equal(spyCalls, 1);
+});
+
+test('explicit Saturday date returns retryable 503 before reading a sold-out user ledger', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  let spyAttempts = 0;
+  let supabaseCalls = 0;
+  const soldOutTrades = [
+    { id: 'buy', user_id: 'sold-out-user', symbol: 'NVDA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, currency: 'USD' },
+    { id: 'sell', user_id: 'sold-out-user', symbol: 'NVDA', side: 'sell', trade_date: '2026-07-10', price: 120, shares: 2, currency: 'USD' },
+  ];
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      spyAttempts += 1;
+      return jsonResponse([{ date: '2026-07-10', close: 600, adjusted_close: 600 }]);
+    }
+    if (href.includes('supabase.test')) {
+      supabaseCalls += 1;
+      if (href.includes('/rest/v1/stock_trades')) return jsonResponse(soldOutTrades);
+      return jsonResponse(null);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-11' },
+    }), res, { now: new Date('2026-07-11T21:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.equal(res.body.writtenSnapshots, 0);
+  assert.deepEqual(res.body.failedSymbols, [{
+    symbol: 'SPY',
+    retryable: true,
+    status: null,
+    reason: 'missing_target_close',
+    attempts: 3,
+  }]);
+  assert.equal(spyAttempts, 3);
+  assert.equal(supabaseCalls, 0);
+});
+
 test('daily P&L snapshot cron builds all-user close snapshots from stock_trades and EODHD', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
@@ -109,7 +392,7 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
     const href = String(url);
     calls.push({ href, options });
     if (href.includes('/rest/v1/stock_trades')) {
@@ -186,7 +469,7 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
       return jsonResponse(null);
     }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -247,7 +530,7 @@ test('daily P&L snapshot retries a transient symbol failure and keeps sold-out s
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -287,7 +570,7 @@ test('daily P&L snapshot retries a transient symbol failure and keeps sold-out s
     if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
     if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -329,7 +612,7 @@ test('daily P&L snapshot retries a stale 200 payload until the target close appe
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = withExactSpyClose(async (url) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -349,7 +632,7 @@ test('daily P&L snapshot retries a stale 200 payload until the target close appe
     if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
     if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -388,7 +671,7 @@ test('daily P&L snapshot isolates symbols and reports exhausted target-close gap
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -414,7 +697,7 @@ test('daily P&L snapshot isolates symbols and reports exhausted target-close gap
     if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
     if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -465,7 +748,7 @@ test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () 
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = withExactSpyClose(async (url) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -477,7 +760,7 @@ test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () 
       return jsonResponse({ error: 'not found' }, 404);
     }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -577,10 +860,10 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
 
   const res = createResponse();
   try {
-    await handler(createRequest({
+    await handlePnlReportDailySnapshot(createRequest({
       headers: { authorization: 'Bearer cron-secret' },
       query: {},
-    }), res);
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
   } finally {
     globalThis.Date = OriginalDate;
     globalThis.fetch = originalFetch;
@@ -636,10 +919,10 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
 
   const res = createResponse();
   try {
-    await handler(createRequest({
+    await handlePnlReportDailySnapshot(createRequest({
       headers: { authorization: 'Bearer cron-secret' },
       query: {},
-    }), res);
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);
@@ -966,13 +1249,13 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
   const readFailure = createResponse();
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = withExactSpyClose(async (url) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse({ message: 'private database topology' }, 503);
     }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
   try {
     await handler(createRequest({
       headers: { authorization: 'Bearer cron-secret' },
@@ -984,7 +1267,7 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
     assert.match(readFailure.body.error, /暂时失败/);
     assert.doesNotMatch(JSON.stringify(readFailure.body), /private database topology/);
 
-    globalThis.fetch = async (url, options = {}) => {
+    globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
       const href = String(url);
       if (href.includes('/rest/v1/stock_trades')) {
         return jsonResponse([
@@ -1002,7 +1285,7 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
         return jsonResponse({ message: 'bad request' }, 400);
       }
       throw new Error(`unexpected fetch: ${href}`);
-    };
+    });
     const permanentFailure = createResponse();
     await handler(createRequest({
       headers: { authorization: 'Bearer cron-secret' },
@@ -1019,18 +1302,26 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
   }
 });
 
-test('vercel schedules the all-account daily P&L snapshot and its retry in separate UTC hours', () => {
+test('vercel schedules all-account P&L across DST-safe close-plus-one-hour windows', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.deepEqual(
     vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot'),
-    { path: '/api/pnl-report-daily-snapshot', schedule: '0 0 * * 2-6' }
+    { path: '/api/pnl-report-daily-snapshot', schedule: '0 21 * * 1-5' }
   );
   assert.deepEqual(
     vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot-retry'),
-    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 2 * * 2-6' }
+    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 22 * * 1-5' }
+  );
+  assert.deepEqual(
+    vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot-late-retry'),
+    { path: '/api/pnl-report-daily-snapshot-late-retry', schedule: '0 23 * * 1-5' }
   );
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/pnl-report-daily-snapshot-retry'
+    && rewrite.destination === '/api/pnl-report-daily-snapshot'
+  )));
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/pnl-report-daily-snapshot-late-retry'
     && rewrite.destination === '/api/pnl-report-daily-snapshot'
   )));
 });

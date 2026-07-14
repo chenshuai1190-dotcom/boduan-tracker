@@ -13,6 +13,14 @@ import {
 
 const PAGE_SIZE = 1000;
 const BENCHMARK_LOOKBACK_DAYS = 14;
+const JOIN_LEDGER_CAS_ATTEMPTS = 2;
+
+function normalizeLedgerRevision(value) {
+  const raw = String(value ?? '').trim();
+  if (!/^\d+$/.test(raw)) return null;
+  const revision = Number(raw);
+  return Number.isSafeInteger(revision) && revision >= 0 ? revision : null;
+}
 
 function shiftDate(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00Z`);
@@ -107,6 +115,7 @@ async function fetchMembership(userId) {
     'joined_at',
     'eligible_after_snapshot_date',
     'eligible_ledger_hash',
+    'eligible_ledger_revision',
     'ranking_start_snapshot_date',
     'ranking_baseline_return_pct',
   ].join(','));
@@ -114,6 +123,45 @@ async function fetchMembership(userId) {
   url.searchParams.set('limit', '1');
   const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
   return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+async function fetchLedgerState(userId) {
+  const url = new URL('/rest/v1/stock_trade_ledger_revisions', 'https://placeholder.local');
+  url.searchParams.set('select', 'user_id,revision,last_mutated_at');
+  url.searchParams.set('user_id', `eq.${userId}`);
+  url.searchParams.set('limit', '1');
+  const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
+  const row = Array.isArray(rows) ? rows[0] || null : null;
+  const revision = normalizeLedgerRevision(row?.revision);
+  const lastMutatedAt = row?.last_mutated_at == null ? null : String(row.last_mutated_at);
+  if (
+    !row
+    || String(row.user_id || '') !== String(userId)
+    || revision == null
+    || (revision > 0 && (!lastMutatedAt || !Number.isFinite(Date.parse(lastMutatedAt))))
+  ) {
+    return null;
+  }
+  return { revision, lastMutatedAt };
+}
+
+async function joinMembershipAtomic({
+  userId,
+  expectedLedgerRevision,
+  eligibleAfterSnapshotDate,
+  eligibleLedgerHash,
+}) {
+  const body = await supabaseAdminFetch('/rest/v1/rpc/join_community_competition_member', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_expected_ledger_revision: expectedLedgerRevision,
+      p_eligible_after_snapshot_date: eligibleAfterSnapshotDate,
+      p_eligible_ledger_hash: eligibleLedgerHash,
+    }),
+  });
+  if (typeof body === 'string') return body;
+  return String(body?.outcome || body?.result || 'invalid_response');
 }
 
 async function fetchEligibleLedgerTrades(userId, throughDate) {
@@ -320,6 +368,18 @@ export async function joinCommunityCompetition({ userId, now = new Date() } = {}
 
   const current = await fetchMembership(userId);
   if (current?.status === 'active') {
+    const eligibleLedgerRevision = normalizeLedgerRevision(current.eligible_ledger_revision);
+    const ledgerState = await fetchLedgerState(userId);
+    if (
+      eligibleLedgerRevision == null
+      || !ledgerState
+      || ledgerState.revision < eligibleLedgerRevision
+    ) {
+      const error = new Error('收益比赛账本状态暂不可用，请稍后重试');
+      error.status = 503;
+      error.state = 'ledger_state_unavailable';
+      throw error;
+    }
     return {
       success: true,
       state: 'waiting_snapshot',
@@ -328,40 +388,75 @@ export async function joinCommunityCompetition({ userId, now = new Date() } = {}
     };
   }
 
-  const joinedAt = (now instanceof Date ? now : new Date(now)).toISOString();
   const eligibleAfterSnapshotDate = latestCompletedUsTradingDate(now);
-  const eligibleLedger = await fetchEligibleLedgerTrades(userId, eligibleAfterSnapshotDate);
-  let eligibleLedgerHash;
-  try {
-    eligibleLedgerHash = computeCompetitionLedgerHash(eligibleLedger, eligibleAfterSnapshotDate);
-  } catch (error) {
-    if (error instanceof CompetitionSnapshotValidationError) {
-      error.status = 409;
-      error.state = 'ledger_invalid';
+  for (let attempt = 1; attempt <= JOIN_LEDGER_CAS_ATTEMPTS; attempt += 1) {
+    // Read the authoritative revision first, then the formal ledger. The RPC
+    // locks the same revision row and rejects any mutation that occurred between
+    // these reads and the member upsert.
+    const ledgerState = await fetchLedgerState(userId);
+    const eligibleLedger = await fetchEligibleLedgerTrades(userId, eligibleAfterSnapshotDate);
+    // A brand-new no-trade user legitimately has no revision row yet. The join
+    // RPC creates revision 0 under lock. Any concurrent INSERT creates/increments
+    // the row first and makes the expected-zero CAS return stale_ledger.
+    if (!ledgerState && eligibleLedger.length > 0) {
+      const error = new Error('收益比赛账本状态暂不可用，请稍后重试');
+      error.status = 503;
+      error.state = 'ledger_state_unavailable';
+      throw error;
     }
+    const expectedLedgerRevision = ledgerState?.revision ?? 0;
+    let eligibleLedgerHash;
+    try {
+      eligibleLedgerHash = computeCompetitionLedgerHash(
+        eligibleLedger,
+        eligibleAfterSnapshotDate
+      );
+    } catch (error) {
+      if (error instanceof CompetitionSnapshotValidationError) {
+        error.status = 409;
+        error.state = 'ledger_invalid';
+      }
+      throw error;
+    }
+    const outcome = await joinMembershipAtomic({
+      userId,
+      expectedLedgerRevision,
+      eligibleAfterSnapshotDate,
+      eligibleLedgerHash,
+    });
+    if (outcome === 'stale_ledger' && attempt < JOIN_LEDGER_CAS_ATTEMPTS) continue;
+    if (outcome === 'joined' || outcome === 'already_active') {
+      const joined = await fetchMembership(userId);
+      if (!joined || joined.status !== 'active') {
+        const error = new Error('收益比赛加入状态确认失败，请稍后重试');
+        error.status = 503;
+        error.state = 'join_state_unavailable';
+        throw error;
+      }
+      return {
+        success: true,
+        state: 'waiting_snapshot',
+        joinedAt: joined.joined_at || null,
+        eligibleAfterSnapshotDate: joined.eligible_after_snapshot_date
+          || eligibleAfterSnapshotDate,
+      };
+    }
+    if (outcome === 'stale_ledger') {
+      const error = new Error('交易记录刚刚发生变化，请重试加入收益比赛');
+      error.status = 409;
+      error.state = 'ledger_changed';
+      throw error;
+    }
+    const error = new Error('收益比赛账本状态无效，暂时无法加入');
+    error.status = outcome === 'invalid_ledger_state' ? 409 : 503;
+    error.state = outcome === 'invalid_ledger_state'
+      ? 'ledger_invalid'
+      : 'join_state_unavailable';
     throw error;
   }
-  const url = new URL('/rest/v1/community_competition_members', 'https://placeholder.local');
-  url.searchParams.set('on_conflict', 'user_id');
-  const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`, {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({
-      user_id: userId,
-      status: 'active',
-      joined_at: joinedAt,
-      eligible_after_snapshot_date: eligibleAfterSnapshotDate,
-      eligible_ledger_hash: eligibleLedgerHash,
-      ranking_start_snapshot_date: null,
-      ranking_baseline_return_pct: null,
-      updated_at: joinedAt,
-    }),
-  });
-  const joined = Array.isArray(rows) ? rows[0] || null : rows;
-  return {
-    success: true,
-    state: 'waiting_snapshot',
-    joinedAt: joined?.joined_at || joinedAt,
-    eligibleAfterSnapshotDate: joined?.eligible_after_snapshot_date || eligibleAfterSnapshotDate,
-  };
+
+  const error = new Error('交易记录刚刚发生变化，请重试加入收益比赛');
+  error.status = 409;
+  error.state = 'ledger_changed';
+  throw error;
 }

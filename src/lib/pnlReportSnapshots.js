@@ -71,6 +71,15 @@ function getNewYorkDateParts(now = new Date()) {
   }
 }
 
+export function currentNewYorkDate(now = new Date()) {
+  return getNewYorkDateParts(now).dateKey;
+}
+
+export function isNewYorkSnapshotWindowOpen(now = new Date()) {
+  const parts = getNewYorkDateParts(now);
+  return Boolean(parts.weekday) && parts.minutes >= 17 * 60;
+}
+
 function shiftDate(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return normalizeReportDate();
@@ -97,6 +106,14 @@ export function latestCompletedUsTradingDate(now = new Date()) {
   if (parts.weekday === 'Sat') return previousBusinessDate(parts.dateKey);
   if (parts.weekday === 'Sun') return previousBusinessDate(parts.dateKey);
   return parts.minutes >= 16 * 60 ? parts.dateKey : previousBusinessDate(parts.dateKey);
+}
+
+export function resolveScheduledUsSnapshotDate(now = new Date()) {
+  const parts = getNewYorkDateParts(now);
+  if (parts.weekday === 'Sat') return previousBusinessDate(parts.dateKey);
+  if (parts.weekday === 'Sun') return previousBusinessDate(parts.dateKey);
+  if (!isNewYorkSnapshotWindowOpen(now)) return null;
+  return parts.dateKey;
 }
 
 function latestDateKey(values = []) {

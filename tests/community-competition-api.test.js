@@ -129,6 +129,7 @@ test('competition join is idempotent by authenticated user and ignores body user
   configureEnv();
   const originalFetch = globalThis.fetch;
   let insertedMember = null;
+  let joined = false;
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'authenticated-user' });
@@ -140,11 +141,26 @@ test('competition join is idempotent by authenticated user and ignores body user
         profile_completed_at: '2026-07-08T01:00:00Z',
       }]);
     }
-    if (href.includes('/rest/v1/community_competition_members') && options.method === 'POST') {
+    if (href.includes('/rest/v1/rpc/join_community_competition_member')) {
       insertedMember = JSON.parse(options.body);
-      return jsonResponse([insertedMember]);
+      joined = true;
+      return jsonResponse('joined');
     }
-    if (href.includes('/rest/v1/community_competition_members')) return jsonResponse([]);
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse(joined ? [{
+        user_id: 'authenticated-user',
+        status: 'active',
+        joined_at: '2026-07-14T10:00:00Z',
+        eligible_after_snapshot_date: insertedMember.p_eligible_after_snapshot_date,
+        eligible_ledger_hash: insertedMember.p_eligible_ledger_hash,
+        eligible_ledger_revision: 0,
+        ranking_start_snapshot_date: null,
+        ranking_baseline_return_pct: null,
+      }] : []);
+    }
+    if (href.includes('/rest/v1/stock_trade_ledger_revisions')) {
+      return jsonResponse([]);
+    }
     if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
     throw new Error(`unexpected fetch: ${href}`);
   };
@@ -162,12 +178,113 @@ test('competition join is idempotent by authenticated user and ignores body user
   }
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.state, 'waiting_snapshot');
-  assert.equal(insertedMember.user_id, 'authenticated-user');
-  assert.notEqual(insertedMember.user_id, 'attacker-selected-user');
-  assert.equal(insertedMember.status, 'active');
-  assert.match(insertedMember.eligible_ledger_hash, /^[a-f0-9]{64}$/);
-  assert.equal(insertedMember.ranking_start_snapshot_date, null);
+  assert.equal(insertedMember.p_user_id, 'authenticated-user');
+  assert.notEqual(insertedMember.p_user_id, 'attacker-selected-user');
+  assert.equal(insertedMember.p_expected_ledger_revision, 0);
+  assert.match(insertedMember.p_eligible_ledger_hash, /^[a-f0-9]{64}$/);
   assert.match(res.body.eligibleAfterSnapshotDate, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('competition join retries once when an update/delete advances the ledger revision', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  let revisionReads = 0;
+  let rpcCalls = 0;
+  let joined = false;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'race-user' });
+    if (href.includes('/rest/v1/community_profiles')) {
+      return jsonResponse([{
+        user_id: 'race-user', nickname: 'Race', avatar_key: 'avatar-blue',
+        profile_completed_at: '2026-07-01T00:00:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse(joined ? [{
+        user_id: 'race-user', status: 'active', joined_at: '2026-07-14T10:00:00Z',
+        eligible_after_snapshot_date: '2026-07-13', eligible_ledger_hash: 'a'.repeat(64),
+        eligible_ledger_revision: 2, ranking_start_snapshot_date: null,
+        ranking_baseline_return_pct: null,
+      }] : []);
+    }
+    if (href.includes('/rest/v1/stock_trade_ledger_revisions')) {
+      revisionReads += 1;
+      return jsonResponse([{
+        user_id: 'race-user',
+        revision: revisionReads === 1 ? 1 : 2,
+        last_mutated_at: '2026-07-13T19:00:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
+    if (href.includes('/rest/v1/rpc/join_community_competition_member')) {
+      rpcCalls += 1;
+      const body = JSON.parse(options.body);
+      if (body.p_expected_ledger_revision === 1) return jsonResponse('stale_ledger');
+      assert.equal(body.p_expected_ledger_revision, 2);
+      joined = true;
+      return jsonResponse('joined');
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'POST',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      body: {},
+      query: {},
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 200);
+  assert.equal(revisionReads, 2);
+  assert.equal(rpcCalls, 2);
+});
+
+test('an active no-trade member fails closed when its authoritative revision row is missing', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  let rpcCalled = false;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'missing-state-user' });
+    if (href.includes('/rest/v1/community_profiles')) {
+      return jsonResponse([{
+        user_id: 'missing-state-user', nickname: 'No State', avatar_key: 'avatar-blue',
+        profile_completed_at: '2026-07-01T00:00:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse([{
+        user_id: 'missing-state-user', status: 'active', joined_at: '2026-07-01T00:00:00Z',
+        eligible_after_snapshot_date: '2026-07-01', eligible_ledger_hash: 'a'.repeat(64),
+        eligible_ledger_revision: 0, ranking_start_snapshot_date: null,
+        ranking_baseline_return_pct: null,
+      }]);
+    }
+    if (href.includes('/rest/v1/stock_trade_ledger_revisions')) return jsonResponse([]);
+    if (href.includes('/rpc/join_community_competition_member')) rpcCalled = true;
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'POST',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      body: {}, query: {},
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.state, 'ledger_state_unavailable');
+  assert.equal(rpcCalled, false);
 });
 
 test('ready leaderboard is same-date, close-snapshot based, benchmarked by real QQQ EOD, and privacy-safe', async () => {

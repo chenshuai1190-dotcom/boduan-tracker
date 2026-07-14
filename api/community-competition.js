@@ -5,6 +5,7 @@ import {
 } from '../server/communityCompetition.js';
 import {
   authorizeCommunityCompetitionDailySnapshot,
+  hasExplicitCommunityCompetitionSnapshotDate,
   resolveCommunityCompetitionSnapshotDate,
   runCommunityCompetitionDailySnapshot,
   runCommunityCompetitionScheduledCatchUp,
@@ -47,7 +48,11 @@ async function requireCompetitionAuth(req, res) {
   return auth.user;
 }
 
-async function handleDailySnapshot(req, res) {
+export async function handleCommunityCompetitionDailySnapshot(
+  req,
+  res,
+  { now = new Date() } = {}
+) {
   res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -61,11 +66,28 @@ async function handleDailySnapshot(req, res) {
   if (!auth.ok) return sendError(res, auth.status, auth.error);
 
   try {
-    const targetDate = resolveCommunityCompetitionSnapshotDate(req);
-    const requestedDate = firstQueryValue(req.query?.date);
-    const result = requestedDate
-      ? await runCommunityCompetitionDailySnapshot({ targetDate })
-      : await runCommunityCompetitionScheduledCatchUp({ targetDate });
+    const explicitDate = hasExplicitCommunityCompetitionSnapshotDate(req);
+    const targetDate = resolveCommunityCompetitionSnapshotDate(req, now);
+    if (!targetDate && !explicitDate) {
+      return res.status(200).json({
+        success: true,
+        mode: 'scheduled_deferred',
+        deferred: true,
+        reason: 'before_new_york_snapshot_window',
+        timeZone: 'America/New_York',
+        notBefore: '17:00',
+        targetDate: null,
+        retryableIncomplete: false,
+        failedMembers: 0,
+      });
+    }
+    const result = explicitDate
+      ? await runCommunityCompetitionDailySnapshot({
+          targetDate,
+          now,
+          requireTargetCloseConfirmation: true,
+        })
+      : await runCommunityCompetitionScheduledCatchUp({ targetDate, now });
     if (result.retryableIncomplete) {
       res.setHeader('Retry-After', '300');
       return res.status(503).json(result);
@@ -78,7 +100,7 @@ async function handleDailySnapshot(req, res) {
 
 export default async function handler(req, res) {
   if (firstQueryValue(req.query?.operation) === 'daily-snapshot') {
-    return handleDailySnapshot(req, res);
+    return handleCommunityCompetitionDailySnapshot(req, res);
   }
 
   setCommunityCompetitionCorsHeaders(req, res);

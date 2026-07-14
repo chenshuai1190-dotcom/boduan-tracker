@@ -6,7 +6,7 @@
 
 ### 2026-07-14 - 美东收盘后快照窗口与比赛安全重建基线
 
-- Commit: database source `same commit`; production SQL and runtime remain pending in this source-first step.
+- Commit: database source `0f52700761beab0d4488e067ca9e968aea9a9bc1`; production SQL applied and verified; runtime commit remains pending in this step.
 - Background: 自动快照应以美东交易日和权威收盘数据为准,不能由用户手机时区决定。上一轮生产补跑还发现 1 名已加入但尚无正式比赛快照/排名的成员因加入后历史账本变化持续触发 `eligible_ledger_hash_mismatch`;需要在不改交易、不伪造收益、不放宽已锁定比赛规则的前提下,给尚未真正开始排名的成员一条真实、可审计的恢复路径。
 - Workflow tier: `sensitive`。本轮修改个人/比赛收益快照 Cron、正式交易账本、Supabase RPC/trigger/RLS 和全账户定时任务,不得降级。
 - Changes:
@@ -20,9 +20,10 @@
 - Validation:
   - Local candidate: `npm run verify:toolchain` pass;定向敏感测试 100/100 pass;完整 `npm test` 362/362 pass;`npm run build` pass;`npm audit --audit-level=high` 0 vulnerabilities;docs consistency、语法检查和 `git diff --check` pass。
   - New scenarios: D1 不可信历史只 rebaseline;D2 未变化才写首快照;当日纯 INSERT 正常直通;周一交易周四修改、删旧交易再当日新增、盘前 UPDATE、15:59 INSERT 后 16:30 UPDATE、迁移前零快照和显式 legacy 历史日期全部 fail closed 或前移基线。个人/比赛显式周六均 503 且业务数据库零访问;永久 provider 4xx 为非重试 500。
-  - Production prerequisite: 生产尚未执行 `supabase/community_competition_rebaseline_20260714.sql`。迁移使用 5 秒 `lock_timeout`,writer lock 只覆盖 revision seed 与两个 `stock_trades` trigger 安装的短事务;超时必须停止并重试,不能无界阻塞交易写入。执行后必须回读 function owner/`SECURITY DEFINER`/fixed `search_path`、四个 trigger、grant/RLS、旧 overload 删除和锁顺序,再运行更新后的 `npm run verify:rls:rest` 验证 21 张表和 2 个 service-only RPC。真实 PostgreSQL 双事务只读锁竞争 smoke 也尚待生产完成。
-- Deployment: pending。先把本数据库源代码提交到 GitHub `main`,再在无 scheduled snapshot 写入的维护窗口应用生产 SQL,随后立即推送 runtime;切换期间旧 snapshot writer 只会 fail closed,不得触发人工 Cron。当前生产 runtime 仍为 `9e1c840e0b336a0352b79f691b7ce3a3b252ff98`。
-- Production verification: pending。部署后验证未登录 quote、earnings、competition API/Cron 均为 401。D1/D2 只能等真实收盘观察,不得预填;`2026-07-13` 的历史补跑只是上一 runtime 基线。
+  - Production database: source commit `0f52700761beab0d4488e067ca9e968aea9a9bc1` passed GitHub Actions run `29320513471` and Vercel target `72A9KA9cLzwG4t3rfZVkndz7YRoF`;the exact committed migration SHA-256 was `29c9ac90e8ad4d19cc01199b0990ca0d37e1d9f45e31b147ec7c1f6b6ea879ea` and production SQL returned `Success. No rows returned`。Metadata readback confirmed the revision table/columns, force-RLS, service read-only grant, four enabled triggers, postgres owners, required SECURITY DEFINER/invoker flags, fixed search paths, new RPC signatures/grants, and old five-argument overload removal. `npm run verify:rls:rest` passed 21 tables + 2 anonymous RPC denials.
+  - Production concurrency: two independent postgres sessions selected the same active member internally without returning its id, locked revision row then membership row, and rolled both transactions back. Session A held the ordered locks for 6 seconds;session B was dispatched 502 ms later, waited, and both returned `true` without business writes. The migration's 5-second fail-fast writer-lock transaction had already completed successfully.
+- Deployment: database source and production SQL complete;runtime pending。SQL was applied at about 05:00 America/New_York, outside every scheduled snapshot window, and no manual Cron was triggered. Until runtime switches, an old snapshot writer lacking revision only fails closed. Current production runtime remains `9e1c840e0b336a0352b79f691b7ce3a3b252ff98`。
+- Production verification: database/RLS/concurrency gates complete;runtime deployment and unauthenticated API verification pending。D1/D2 can only be observed after real closes and must not be prefilled;the `2026-07-13` repair is only the previous-runtime baseline.
 - Rollback: SQL gate 未通过立即停止 runtime 发布。SQL 应用后可回退 runtime/Cron,但保留更严格的数据库时间、revision trigger、insert guard 和 RPC 权限;任何已成功前移的 eligibility 不得人工倒退,锁定快照继续不可更新或删除。
 
 ### 2026-07-14 - 收盘快照修复部署与生产补跑证据回填

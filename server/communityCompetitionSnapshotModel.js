@@ -36,7 +36,7 @@ function normalizeTrade(row) {
   const price = finiteNumber(row?.price, '交易价格');
   const shares = finiteNumber(row?.shares, '交易数量');
   const fee = finiteNumber(row?.fee ?? 0, '交易费用');
-  const currency = String(row?.currency || 'USD').trim().toUpperCase();
+  const currency = String(row?.currency ?? 'USD').trim().toUpperCase();
   if (!symbol || !tradeDate || !side || price <= 0 || shares <= 0 || fee < 0) {
     fail('invalid_trade', '交易账本包含无效记录');
   }
@@ -198,6 +198,53 @@ function positionValue(positions, closeForSymbol, missingMessage) {
   });
   if (!Number.isFinite(value)) fail('non_finite', '持仓市值不是有效数字');
   return value;
+}
+
+export function validateCompetitionTargetDateLedger({
+  stockTrades = [],
+  historicalClosesBySymbol = {},
+  targetDate,
+} = {}) {
+  const date = normalizeDate(targetDate);
+  if (!date) fail('invalid_date', '比赛账本校验日期不合法');
+
+  const trades = normalizeTrades(stockTrades, date);
+  const closeMap = normalizeCloseMap(historicalClosesBySymbol);
+  const positions = new Map();
+  const startPositions = new Map();
+  const targetTrades = [];
+  const targetSymbols = new Set();
+
+  trades.forEach((trade) => {
+    if (trade.tradeDate < date) {
+      addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+      return;
+    }
+    targetTrades.push(trade);
+    targetSymbols.add(trade.symbol);
+  });
+
+  positions.forEach((shares, symbol) => startPositions.set(symbol, shares));
+  targetTrades.forEach((trade) => {
+    const targetClose = exactClose(closeMap.get(trade.symbol) || [], date);
+    validateTargetTrade(trade, targetClose);
+    addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+  });
+
+  const requiredSymbols = new Set(targetSymbols);
+  startPositions.forEach((shares, symbol) => {
+    if (shares > EPSILON) requiredSymbols.add(symbol);
+  });
+  positions.forEach((shares, symbol) => {
+    if (shares > EPSILON) requiredSymbols.add(symbol);
+  });
+  requiredSymbols.forEach((symbol) => {
+    if (!exactClose(closeMap.get(symbol) || [], date)) {
+      fail('missing_close', `${symbol} 缺少重设基线目标日的权威收盘行情`);
+    }
+  });
+
+  return [...requiredSymbols].sort((a, b) => a.localeCompare(b, 'en-US'));
 }
 
 export function buildCompetitionCashFlowSnapshot({

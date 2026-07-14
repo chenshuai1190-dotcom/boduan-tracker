@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import communityCompetitionHandler from '../api/community-competition.js';
+import communityCompetitionHandler, {
+  handleCommunityCompetitionDailySnapshot,
+} from '../api/community-competition.js';
 import { runCommunityCompetitionScheduledCatchUp } from '../server/communityCompetitionDailySnapshot.js';
 import { computeCompetitionLedgerHash } from '../server/communityCompetitionSnapshotModel.js';
 
@@ -42,6 +44,78 @@ function jsonResponse(body, status = 200) {
     text: async () => (body == null ? '' : JSON.stringify(body)),
   };
 }
+
+// Keep the older scenario fixtures focused on their original behavior while
+// supplying the new service-only revision columns. Security-specific missing,
+// stale, and racing revision cases use explicit mocks in dedicated tests.
+const REVISION_FIXTURE_WRAPPER = Symbol('competition-revision-fixture-wrapper');
+
+function userIdsFromLedgerStateRequest(href) {
+  const search = new URL(href).searchParams;
+  const filter = search.get('user_id') || '';
+  if (filter.startsWith('eq.')) return [filter.slice(3)];
+  if (filter.startsWith('in.(') && filter.endsWith(')')) {
+    return filter.slice(4, -1).split(',').filter(Boolean);
+  }
+  return [];
+}
+
+function withCompetitionRevisionFixtures(fetchImpl) {
+  if (fetchImpl?.[REVISION_FIXTURE_WRAPPER]) return fetchImpl;
+  const wrapped = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trade_ledger_revisions')) {
+      return jsonResponse(userIdsFromLedgerStateRequest(href).map((userId) => ({
+        user_id: userId, revision: 1, last_mutated_at: '2026-01-01T12:00:00Z',
+      })));
+    }
+    let response;
+    try {
+      response = await fetchImpl(url, options);
+    } catch (error) {
+      // Existing explicit-date fixtures predate the exact-session calendar
+      // preflight. Keep them focused on their original behavior while making
+      // the preflight visible to any fixture that intentionally handles SPY.
+      if (
+        href.includes('/api/eod/SPY.US')
+        && /unexpected fetch/i.test(String(error?.message || error))
+      ) {
+        const targetDate = new URL(href).searchParams.get('to');
+        return jsonResponse([{ date: targetDate, adjusted_close: 600 }]);
+      }
+      throw error;
+    }
+    if (!response?.ok || options.method === 'PATCH') return response;
+    const isMemberRead = href.includes('/rest/v1/community_competition_members')
+      && !options.method;
+    const isSnapshotReadOrWrite = href.includes('/rest/v1/community_competition_snapshots');
+    if (!isMemberRead && !isSnapshotReadOrWrite) return response;
+    const body = await response.json().catch(() => null);
+    if (!Array.isArray(body)) return jsonResponse(body, response.status);
+    return jsonResponse(body.map((row) => ({
+      ...row,
+      ...(isMemberRead && row?.eligible_ledger_revision == null
+        ? { eligible_ledger_revision: 1 }
+        : {}),
+      ...(isSnapshotReadOrWrite && row?.ledger_revision == null
+        ? { ledger_revision: 1 }
+        : {}),
+    })), response.status);
+  };
+  Object.defineProperty(wrapped, REVISION_FIXTURE_WRAPPER, { value: true });
+  return wrapped;
+}
+
+let controlledFetch = withCompetitionRevisionFixtures(globalThis.fetch);
+Object.defineProperty(globalThis, 'fetch', {
+  configurable: true,
+  get() {
+    return controlledFetch;
+  },
+  set(fetchImpl) {
+    controlledFetch = withCompetitionRevisionFixtures(fetchImpl);
+  },
+});
 
 function snapshotEnv(keys) {
   return Object.fromEntries(keys.map((key) => [key, process.env[key]]));
@@ -93,6 +167,222 @@ test('competition snapshot cron rejects an invalid bearer secret', async () => {
   assert.match(res.body.error, /未授权/);
 });
 
+test('scheduled competition snapshot defers before 17:00 New York without provider or database access', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('fetch must not be called before the snapshot window');
+  };
+  const res = createResponse();
+  try {
+    await handleCommunityCompetitionDailySnapshot({
+      method: 'GET',
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }, res, { now: new Date('2026-01-14T21:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.mode, 'scheduled_deferred');
+  assert.equal(res.body.deferred, true);
+  assert.equal(res.body.reason, 'before_new_york_snapshot_window');
+  assert.equal(fetchCalls, 0);
+});
+
+test('explicit competition dates fail closed for blank, undefined, impossible, future, and pre-window today', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('fetch must not be called for an invalid date');
+  };
+
+  try {
+    for (const { query, now } of [
+      { query: { date: '' }, now: new Date('2026-01-14T21:30:00Z') },
+      { query: { date: '   ' }, now: new Date('2026-01-14T23:30:00Z') },
+      { query: { date: undefined }, now: new Date('2026-01-14T23:30:00Z') },
+      { query: { date: '2026-02-31' }, now: new Date('2026-03-01T23:30:00Z') },
+      { query: { date: '2026-01-15' }, now: new Date('2026-01-14T23:30:00Z') },
+      { query: { date: '2026-01-14' }, now: new Date('2026-01-14T21:30:00Z') },
+    ]) {
+      const res = createResponse();
+      await handleCommunityCompetitionDailySnapshot({
+        method: 'GET',
+        headers: { authorization: 'Bearer cron-secret' },
+        query,
+      }, res, { now });
+      assert.equal(res.statusCode, 400);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(fetchCalls, 0);
+});
+
+test('valid explicit competition snapshot date bypasses the scheduled 17:00 gate', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async (url) => {
+    fetchCalls += 1;
+    if (String(url).includes('/rest/v1/community_competition_members')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${url}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handleCommunityCompetitionDailySnapshot({
+      method: 'GET',
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-01-13' },
+    }, res, { now: new Date('2026-01-14T21:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.targetDate, '2026-01-13');
+  assert.notEqual(res.body.mode, 'scheduled_deferred');
+  assert.equal(fetchCalls, 2);
+});
+
+test('explicit New York today is accepted after 17:00 and never enters rebaseline catch-up', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    calls.push(href);
+    if (href.includes('/rest/v1/community_competition_members')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handleCommunityCompetitionDailySnapshot({
+      method: 'GET',
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-01-14' },
+    }, res, { now: new Date('2026-01-14T22:30:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.targetDate, '2026-01-14');
+  assert.equal(res.body.rebaselinedMembers, 0);
+  assert.equal(calls.some((href) => href.includes('/rpc/rebaseline_')), false);
+});
+
+test('explicit Saturday snapshot fails closed before any competition database access when SPY has no exact-session close', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  let providerCalls = 0;
+  let competitionDatabaseCalls = 0;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      providerCalls += 1;
+      return jsonResponse([{ date: '2026-07-10', adjusted_close: 620 }]);
+    }
+    if (href.includes('/rest/v1/') || href.includes('/rpc/')) {
+      competitionDatabaseCalls += 1;
+      // This ranked member is deliberately unreachable: the exact-session
+      // SPY gate must run before reading members or writing snapshots.
+      if (href.includes('/rest/v1/community_competition_members')) {
+        return jsonResponse([{ user_id: 'empty-ranked-user', status: 'active' }]);
+      }
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handleCommunityCompetitionDailySnapshot({
+      method: 'GET',
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-11' },
+    }, res, { now: new Date('2026-07-12T23:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.equal(res.body.retryableIncomplete, true);
+  assert.equal(res.body.writtenSnapshots, 0);
+  assert.equal(res.body.retryableIncompleteReasons.explicit_target_close_missing, 1);
+  assert.equal(providerCalls, 3);
+  assert.equal(competitionDatabaseCalls, 0);
+});
+
+test('explicit snapshot treats a permanent SPY preflight 4xx as a non-retryable operational failure', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  let providerCalls = 0;
+  let competitionDatabaseCalls = 0;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      providerCalls += 1;
+      return jsonResponse({ error: 'forbidden' }, 403);
+    }
+    if (href.includes('/rest/v1/') || href.includes('/rpc/')) {
+      competitionDatabaseCalls += 1;
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handleCommunityCompetitionDailySnapshot({
+      method: 'GET',
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-10' },
+    }, res, { now: new Date('2026-07-12T23:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.headers['retry-after'], undefined);
+  assert.equal(res.body.retryableIncomplete, false);
+  assert.equal(res.body.writtenSnapshots, 0);
+  assert.equal(res.body.failedMembers, 1);
+  assert.equal(res.body.failedReasons.explicit_target_close_nonretryable_failure, 1);
+  assert.equal(providerCalls, 1);
+  assert.equal(competitionDatabaseCalls, 0);
+});
+
 test('competition cron without an explicit date uses the scheduled catch-up runner', async () => {
   const env = snapshotEnv(ENV_KEYS);
   process.env.CRON_SECRET = 'cron-secret';
@@ -109,11 +399,11 @@ test('competition cron without an explicit date uses the scheduled catch-up runn
 
   const res = createResponse();
   try {
-    await handler({
+    await handleCommunityCompetitionDailySnapshot({
       method: 'GET',
       headers: { authorization: 'Bearer cron-secret' },
       query: {},
-    }, res);
+    }, res, { now: new Date('2026-07-14T22:00:00Z') });
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);
@@ -955,6 +1245,7 @@ test('an empty member can remain idle beyond one batch and start on a later sche
   };
   const member = {
     user_id: 'cross-batch-user', status: 'active', joined_at: '2026-01-01T10:00:00Z',
+    updated_at: '2026-01-01T13:00:00Z',
     eligible_after_snapshot_date: '2026-01-02',
     eligible_ledger_hash: computeCompetitionLedgerHash([], '2026-01-02'),
     ranking_start_snapshot_date: null,
@@ -1061,6 +1352,7 @@ test('an old empty member never pins the calendar window for a newer active memb
   const members = [
     {
       user_id: 'old-empty-user', status: 'active', joined_at: '2026-01-01T10:00:00Z',
+      updated_at: '2026-01-01T13:00:00Z',
       eligible_after_snapshot_date: '2026-01-02',
       eligible_ledger_hash: computeCompetitionLedgerHash([], '2026-01-02'),
       ranking_start_snapshot_date: null, ranking_baseline_return_pct: null,
@@ -1350,6 +1642,9 @@ test('competition cron skips a member when locked historical ledger hash changes
 
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([{ date: '2026-07-08', adjusted_close: 600 }]);
+    }
     if (href.includes('/rest/v1/community_competition_members')) {
       return jsonResponse([{
         user_id: 'user-a', status: 'active', joined_at: '2026-07-01T10:00:00Z',
@@ -1490,6 +1785,9 @@ test('competition cron rejects any eligible-date ledger edit before the first sn
 
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([{ date: '2026-07-08', adjusted_close: 600 }]);
+    }
     if (href.includes('/rest/v1/community_competition_members')) {
       return jsonResponse([{
         user_id: 'user-a', status: 'active', joined_at: '2026-07-08T12:00:00Z',
@@ -1538,6 +1836,9 @@ test('competition cron rejects a weekend trade before the first real trading-day
 
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([{ date: '2026-07-13', adjusted_close: 600 }]);
+    }
     if (href.includes('/rest/v1/community_competition_members') && !options.method) {
       return jsonResponse([{
         user_id: 'weekend-buy-user', status: 'active', joined_at: '2026-07-10T20:00:00Z',
@@ -1585,7 +1886,7 @@ test('competition cron rejects a weekend trade before the first real trading-day
   assert.equal(providerWriteOrInitializationCalled, false);
 });
 
-test('Vercel keeps P&L and competition snapshot jobs independent with separate retry hours', () => {
+test('Vercel keeps P&L and competition jobs independent across DST-safe close-plus-one-hour windows', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/community-competition-daily-snapshot'
@@ -1595,10 +1896,20 @@ test('Vercel keeps P&L and competition snapshot jobs independent with separate r
     rewrite.source === '/api/community-competition-daily-snapshot-retry'
     && rewrite.destination === '/api/community-competition?operation=daily-snapshot'
   )));
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/pnl-report-daily-snapshot-late-retry'
+    && rewrite.destination === '/api/pnl-report-daily-snapshot'
+  )));
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/community-competition-daily-snapshot-late-retry'
+    && rewrite.destination === '/api/community-competition?operation=daily-snapshot'
+  )));
   assert.deepEqual(vercelConfig.crons, [
-    { path: '/api/pnl-report-daily-snapshot', schedule: '0 0 * * 2-6' },
-    { path: '/api/community-competition-daily-snapshot', schedule: '0 1 * * 2-6' },
-    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 2 * * 2-6' },
-    { path: '/api/community-competition-daily-snapshot-retry', schedule: '0 3 * * 2-6' },
+    { path: '/api/pnl-report-daily-snapshot', schedule: '0 21 * * 1-5' },
+    { path: '/api/community-competition-daily-snapshot', schedule: '0 21 * * 1-5' },
+    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 22 * * 1-5' },
+    { path: '/api/community-competition-daily-snapshot-retry', schedule: '0 22 * * 1-5' },
+    { path: '/api/pnl-report-daily-snapshot-late-retry', schedule: '0 23 * * 1-5' },
+    { path: '/api/community-competition-daily-snapshot-late-retry', schedule: '0 23 * * 1-5' },
   ]);
 });
