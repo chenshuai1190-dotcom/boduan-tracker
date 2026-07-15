@@ -404,7 +404,8 @@ function AnalysisTab({ ctx }) {
   const editingAccount = accountById.get(editingAccountId);
 
   const currentVisibleAccounts = (items) =>
-    items.filter(acc => balanceAtMonthCNY(acc.id, currentMonth) !== 0);
+    items.filter(acc => balanceAtMonthCNY(acc.id, currentMonth) !== 0)
+      .sort((left, right) => balanceAtMonthCNY(right.id, currentMonth) - balanceAtMonthCNY(left.id, currentMonth));
 
   const accountBalanceText = (account) => {
     if (!account) return '--';

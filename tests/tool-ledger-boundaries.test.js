@@ -541,8 +541,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.342'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.342', date: '2026-07-16', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.343'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.343', date: '2026-07-16', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('账户走势口径与金额排序修正') && settingsChangelogSource.includes('累计增长从窗口内首个真实月份起算'), 'settings changelog should document the real first-snapshot growth basis');
+  assert.ok(settingsChangelogSource.includes('当前余额折算人民币后从高到低排列') && settingsChangelogSource.includes('不写回数据库排序'), 'settings changelog should document display-only CNY-equivalent account ordering');
   assert.ok(settingsChangelogSource.includes('单个账户真实资产走势') && settingsChangelogSource.includes('不补零、不插值或沿用旧余额'), 'settings changelog should document the exact-account real snapshot trend and no-fabrication rule');
   assert.ok(settingsChangelogSource.includes('收益比赛显示真实更新时间'), 'settings changelog should document the authoritative competition update minute');
   assert.ok(settingsChangelogSource.includes('收益比赛本人信息行优化'), 'settings changelog should describe the signed-in competition identity-row refinement');
@@ -1918,6 +1920,7 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.ok(analysisTabSource.includes('请选择账户类型'), 'add/edit account should require the user to choose a type');
   assert.ok(analysisTabSource.includes('const currentVisibleAccounts = (items) =>'), 'asset owner lists need a current-month visibility filter');
   assert.ok(analysisTabSource.includes('items.filter(acc => balanceAtMonthCNY(acc.id, currentMonth) !== 0)'), 'only zero current-month accounts should be hidden from owner lists');
+  assert.ok(analysisTabSource.includes('.sort((left, right) => balanceAtMonthCNY(right.id, currentMonth) - balanceAtMonthCNY(left.id, currentMonth))'), 'each owner group should default to descending current CNY-equivalent balance');
   assert.ok(analysisTabSource.includes('visibleOwnerAccs.length'), 'owner account counts should reflect only visible current-month accounts');
   assert.ok(analysisTabSource.includes('setAccountActionId(acc.id)'), 'clicking an account row should open the action modal');
   assert.ok(analysisTabSource.includes('账户操作'), 'asset account action modal should be present');
@@ -1941,6 +1944,17 @@ test('exact account trend stays read-only while the amount keeps edit and delete
   assert.ok(accountAssetTrendModalSource.includes('!border-0 !bg-transparent !p-0 !shadow-none'), 'the trend content should not add the rejected inner frame');
   assert.ok(accountAssetTrendModalSource.includes('h-[76px]') && accountAssetTrendModalSource.includes('h-[128px]'), 'the tooltip band must stay separate from the shorter bar plot');
   assert.ok(accountAssetTrendModalSource.includes("touchAction: 'pan-y'") && accountAssetTrendModalSource.includes('setPointerCapture'), 'the twelve-month bars should support continuous iOS pointer selection without blocking vertical scroll');
+  assert.ok(accountAssetTrendModalSource.includes('const [selectedMonth, setSelectedMonth] = React.useState(null);'), 'the month comparison tooltip should stay closed when the account trend first opens');
+  assert.equal(accountAssetTrendModalSource.includes('|| dataSlots[dataSlots.length - 1]'), false, 'an empty selection must not fall back to the latest month tooltip');
+  assert.ok(accountAssetTrendModalSource.includes("document.addEventListener('pointerdown', closeOnOutsidePointer, true)") && accountAssetTrendModalSource.includes('chartRootRef.current?.contains(event.target)'), 'the month comparison tooltip should close when tapping outside its chart region');
+  const outsideDismissBlock = accountAssetTrendModalSource.slice(
+    accountAssetTrendModalSource.indexOf('const closeOnOutsidePointer'),
+    accountAssetTrendModalSource.indexOf("document.addEventListener('pointerdown', closeOnOutsidePointer, true)"),
+  );
+  assert.ok(outsideDismissBlock.includes('setSelectedMonth(null);'), 'outside taps should dismiss only the selected month tooltip');
+  assert.equal(outsideDismissBlock.includes('onClose'), false, 'outside tooltip dismissal must not close the account trend modal');
+  assert.ok(accountAssetTrendModalSource.includes("analysis.accountTrendGrowthSince', '自 {{month}} 累计增长'") && accountAssetTrendModalSource.includes('trend?.startSnapshot?.month'), 'short histories should disclose their first real snapshot as the cumulative growth baseline');
+  assert.ok(i18nSource.includes("'analysis.accountTrendZeroStart': '起点为 0'") && i18nSource.includes("'analysis.accountTrendZeroStart': 'Started From 0'"), 'a real zero baseline should stay explicit instead of showing a fake percentage or an empty value');
   assert.equal(accountAssetTrendModalSource.includes('db.'), false, 'the account trend modal must remain read-only');
   assert.equal(accountAssetTrendModalSource.includes('usdRate') || accountAssetTrendModalSource.includes('hkdRate'), false, 'native account history must not be converted with current FX rates');
   assert.ok(i18nSource.includes("'analysis.accountTrendSource': '数据来自该账户每月余额快照'"), 'the Chinese source note should describe real account snapshots');
@@ -2329,7 +2343,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.342'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.343'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

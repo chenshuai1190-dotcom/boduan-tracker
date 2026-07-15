@@ -67,19 +67,19 @@ export default function AccountAssetTrendModal({
   trend,
 }) {
   const activePointerIdRef = React.useRef(null);
+  const chartRootRef = React.useRef(null);
   const dataSlots = React.useMemo(
     () => (trend?.slots || []).filter(slot => slot.hasData),
     [trend?.slots],
   );
-  const initialMonth = trend?.endSnapshot?.month || dataSlots[dataSlots.length - 1]?.month || null;
-  const [selectedMonth, setSelectedMonth] = React.useState(initialMonth);
+  const [selectedMonth, setSelectedMonth] = React.useState(null);
 
   React.useEffect(() => {
-    setSelectedMonth(initialMonth);
-  }, [account?.id, initialMonth]);
+    activePointerIdRef.current = null;
+    setSelectedMonth(null);
+  }, [account?.id]);
 
   const selectedSlot = (trend?.slots || []).find(slot => slot.month === selectedMonth && slot.hasData)
-    || dataSlots[dataSlots.length - 1]
     || null;
   const currency = account?.currency || 'CNY';
   const maxBalance = Number.isFinite(trend?.maxPoint?.balance) ? trend.maxPoint.balance : 0;
@@ -125,6 +125,16 @@ export default function AccountAssetTrendModal({
     }
   }, []);
 
+  React.useEffect(() => {
+    if (!selectedMonth) return undefined;
+    const closeOnOutsidePointer = (event) => {
+      if (chartRootRef.current?.contains(event.target)) return;
+      setSelectedMonth(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+  }, [selectedMonth]);
+
   const selectedChangeText = React.useMemo(() => {
     if (!selectedSlot) return t(language, 'analysis.accountTrendNoData', '暂无该账户的月度快照');
     if (!selectedSlot.hasPreviousMonth) {
@@ -136,6 +146,17 @@ export default function AccountAssetTrendModal({
       percent: formatPercent(selectedSlot.changePct),
     });
   }, [currency, language, selectedSlot]);
+
+  const growthLabel = trend?.startSnapshot?.month && trend.startSnapshot.month !== trend.startMonth
+    ? t(language, 'analysis.accountTrendGrowthSince', '自 {{month}} 累计增长', {
+      month: formatMonth(trend.startSnapshot.month, language),
+    })
+    : t(language, 'analysis.twelveMonthGrowth', '12 个月累计增长');
+  const cumulativeGrowthText = Number.isFinite(trend?.cumulativeGrowthPct)
+    ? formatPercent(trend.cumulativeGrowthPct)
+    : trend?.startSnapshot && trend?.endSnapshot && trend.startSnapshot.balance === 0
+      ? t(language, 'analysis.accountTrendZeroStart', '起点为 0')
+      : '--';
 
   const title = t(language, 'analysis.accountTrendTitle', '{{name}}资产走势', {
     name: accountName || account?.name || '--',
@@ -178,7 +199,7 @@ export default function AccountAssetTrendModal({
             {formatAmount(trend?.endSnapshot?.balance, currency)}
           </div>
           <div className="mt-[7px] text-[11.5px] text-white/[0.40]">
-            {t(language, 'analysis.twelveMonthGrowth', '12 个月累计增长')}
+            {growthLabel}
             <span
               className="ml-[7px] text-[12px] font-medium tabular-nums"
               style={{
@@ -188,12 +209,12 @@ export default function AccountAssetTrendModal({
                 fontFamily: NUMBER_FONT,
               }}
             >
-              {formatPercent(trend?.cumulativeGrowthPct)}
+              {cumulativeGrowthText}
             </span>
           </div>
         </div>
 
-        <div className="mt-5 border-0 bg-transparent p-0">
+        <div ref={chartRootRef} className="mt-5 border-0 bg-transparent p-0">
           <div className="relative h-[76px]">
             <div className="absolute left-[39px] top-[7px] text-[9.5px] text-white/[0.30]">
               {t(language, 'analysis.accountTrendUnit', '单位：{{currency}}', { currency })}

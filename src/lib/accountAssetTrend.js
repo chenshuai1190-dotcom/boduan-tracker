@@ -44,6 +44,7 @@ function snapshotPoint(month, balance) {
  * Missing snapshots remain missing. Conflicting duplicate rows invalidate that
  * month instead of choosing an arbitrary value. The exact end month is the only
  * month eligible to become `latest`; this model never falls back to an older row.
+ * Cumulative growth starts at the first real snapshot inside the requested window.
  */
 export function buildAccountAssetTrend({
   accountId,
@@ -120,13 +121,14 @@ export function buildAccountAssetTrend({
   });
 
   const startMonth = months[0] || null;
-  const startBalance = startMonth && balancesByMonth.has(startMonth)
-    ? balancesByMonth.get(startMonth)
-    : null;
   const endBalance = normalizedEndMonth && balancesByMonth.has(normalizedEndMonth)
     ? balancesByMonth.get(normalizedEndMonth)
     : null;
-  const startSnapshot = startBalance === null ? null : snapshotPoint(startMonth, startBalance);
+  const dataPoints = slots
+    .filter((slot) => slot.hasData)
+    .map((slot) => snapshotPoint(slot.month, slot.balance));
+  const firstDataPoint = dataPoints[0] || null;
+  const startSnapshot = firstDataPoint ? { ...firstDataPoint } : null;
   const endSnapshot = endBalance === null ? null : snapshotPoint(normalizedEndMonth, endBalance);
   const cumulativeChangeAmount = startSnapshot && endSnapshot
     ? endSnapshot.balance - startSnapshot.balance
@@ -135,9 +137,6 @@ export function buildAccountAssetTrend({
     ? ((endSnapshot.balance - startSnapshot.balance) / startSnapshot.balance) * 100
     : null;
 
-  const dataPoints = slots
-    .filter((slot) => slot.hasData)
-    .map((slot) => snapshotPoint(slot.month, slot.balance));
   const minPoint = dataPoints.reduce(
     (minimum, point) => (!minimum || point.balance < minimum.balance ? point : minimum),
     null,

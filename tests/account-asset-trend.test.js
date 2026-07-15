@@ -78,7 +78,7 @@ test('a real zero prior balance supports an amount change but not a percentage',
   assert.equal(result.slots[1].changePct, null);
 });
 
-test('window growth requires exact start and end snapshots and a positive starting balance', () => {
+test('window growth starts at the first real snapshot and still requires the exact end snapshot', () => {
   const complete = buildAccountAssetTrend({
     accountId: 'bank-1',
     endMonth: '2026-12',
@@ -101,9 +101,21 @@ test('window growth requires exact start and end snapshots and a positive starti
       '2026-12': 125,
     }),
   });
-  assert.equal(missingStart.startSnapshot, null);
-  assert.equal(missingStart.cumulativeChangeAmount, null);
-  assert.equal(missingStart.cumulativeGrowthPct, null);
+  assert.equal(missingStart.startMonth, '2026-01');
+  assert.deepEqual(missingStart.startSnapshot, { month: '2026-02', balance: 100 });
+  assert.equal(missingStart.cumulativeChangeAmount, 25);
+  assert.equal(missingStart.cumulativeGrowthPct, 25);
+
+  const onlyEnd = buildAccountAssetTrend({
+    accountId: 'bank-1',
+    endMonth: '2026-12',
+    snapshots: monthlyRows('bank-1', {
+      '2026-12': 125,
+    }),
+  });
+  assert.deepEqual(onlyEnd.startSnapshot, { month: '2026-12', balance: 125 });
+  assert.equal(onlyEnd.cumulativeChangeAmount, 0);
+  assert.equal(onlyEnd.cumulativeGrowthPct, 0);
 
   const zeroStart = buildAccountAssetTrend({
     accountId: 'bank-1',
@@ -115,6 +127,19 @@ test('window growth requires exact start and end snapshots and a positive starti
   });
   assert.equal(zeroStart.cumulativeChangeAmount, 125);
   assert.equal(zeroStart.cumulativeGrowthPct, null);
+
+  const missingEnd = buildAccountAssetTrend({
+    accountId: 'bank-1',
+    endMonth: '2026-12',
+    snapshots: monthlyRows('bank-1', {
+      '2026-02': 100,
+      '2026-11': 125,
+    }),
+  });
+  assert.deepEqual(missingEnd.startSnapshot, { month: '2026-02', balance: 100 });
+  assert.equal(missingEnd.endSnapshot, null);
+  assert.equal(missingEnd.cumulativeChangeAmount, null);
+  assert.equal(missingEnd.cumulativeGrowthPct, null);
 });
 
 test('latest is tied to the exact end month and does not fall back to an older snapshot', () => {

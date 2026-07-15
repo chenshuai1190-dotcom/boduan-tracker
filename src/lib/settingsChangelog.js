@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.342', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.343', date: '2026-07-16', latest: true,
+    items: [
+      '📊 账户走势口径与金额排序修正',
+      '  - 账户走势初次打开不再默认显示月份浮层,点击柱图后才显示,点击图表外只关闭小浮层',
+      '  - 近 12 个月缺少早期快照时,累计增长从窗口内首个真实月份起算;缺月继续留空,不补零或插值',
+      '  - 只有一个真实月份时累计增长为 0.0%;真实零起点明确显示“起点为 0”,不伪造百分比',
+      '  - 每位家庭成员的账户按当前余额折算人民币后从高到低排列,USD/HKD 复用现有每日汇率,不写回数据库排序',
+    ],
+    itemsEn: [
+      '📊 Account trend basis and value ordering fixes',
+      '  - Account trends now open without a month tooltip; tapping a bar shows it, while tapping outside the chart dismisses only the small tooltip',
+      '  - When early snapshots are missing, growth over the last twelve months starts at the first real month inside the window; missing months remain empty without zero-filling or interpolation',
+      '  - One real month produces 0.0% growth, while a real zero starting balance is labeled “Started From 0” instead of inventing a percentage',
+      '  - Each family member’s accounts are ordered by current CNY-equivalent balance, using the existing daily rates for USD and HKD without writing a new database order',
+    ],
+  },
+  {
+    ver: 'v10.7.9.342', date: '2026-07-16',
     items: [
       '📊 单个账户真实资产走势',
       '  - 点击账户名称可查看该精确账户近 12 个月的真实月度余额柱状图,同名账户不会合并',
