@@ -104,8 +104,10 @@ export function classifyEarningsResult(event) {
   const explicit = normalizeEarningsResult(event?.earningsResult || event?.resultStatus);
   if (explicit) return explicit;
 
-  const epsSurprise = numericOrNull(event?.surprisePercent ?? event?.epsSurprisePercent ?? event?.percent);
-  const revenueSurprise = numericOrNull(event?.revenueSurprisePercent);
+  const epsSurprise = numericOrNull(event?.surprisePercent ?? event?.epsSurprisePercent ?? event?.percent)
+    ?? calculateSurprisePercent(event?.epsActual ?? event?.actual, event?.epsEstimate ?? event?.estimate);
+  const revenueSurprise = numericOrNull(event?.revenueSurprisePercent)
+    ?? calculateSurprisePercent(event?.revenueActualUsd, event?.revenueEstimateUsd);
   const signals = [epsSurprise, revenueSurprise]
     .filter((value) => value !== null)
     .map((value) => {
@@ -114,7 +116,7 @@ export function classifyEarningsResult(event) {
       return 'neutral';
     });
 
-  if (!signals.length) return 'meet';
+  if (!signals.length) return null;
   const hasPositive = signals.includes('positive');
   const hasNegative = signals.includes('negative');
   const hasNeutral = signals.includes('neutral');
@@ -126,7 +128,8 @@ export function classifyEarningsResult(event) {
 }
 
 export function earningsResultText(result, language = 'zh') {
-  const normalized = normalizeEarningsResult(result) || 'meet';
+  const normalized = normalizeEarningsResult(result);
+  if (!normalized) return language === 'en' ? 'Insufficient data' : '数据不足';
   if (language === 'en') {
     if (normalized === 'beat') return 'Beat';
     if (normalized === 'miss') return 'Miss';
@@ -313,4 +316,11 @@ function numericOrNull(value) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(String(value).replace(/[$,%\s,]/g, ''));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function calculateSurprisePercent(actualValue, estimateValue) {
+  const actual = numericOrNull(actualValue);
+  const estimate = numericOrNull(estimateValue);
+  if (actual === null || estimate === null || estimate === 0) return null;
+  return ((actual - estimate) / Math.abs(estimate)) * 100;
 }

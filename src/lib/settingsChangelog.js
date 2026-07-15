@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.340', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.341', date: '2026-07-15', latest: true,
+    items: [
+      '📊 财报盘前实时与正式收盘反应',
+      '  - ASML 使用 EODHD 真实结果:实际 EPS 7.58、预期 7.98;实际营收尚未返回时继续显示 --',
+      '  - 盘前反应复用现有已登录 WebSocket 实时价与前一交易日普通收盘价,正式收盘后切换并锁定普通 close 反应',
+      '  - EUR 营收按真实外汇数据换算 USD,EPS 同比统一使用同一财报口径',
+      '  - unknown 时段不猜测;收盘后自动补读,全流程不使用 mock、预期值或估算值冒充真实结果',
+    ],
+    itemsEn: [
+      '📊 Live pre-market and official close earnings reactions',
+      '  - ASML uses real EODHD results: actual EPS 7.58 versus estimate 7.98; actual revenue remains -- while the provider has not returned it',
+      '  - The pre-market reaction reuses the existing authenticated WebSocket quote against the previous ordinary close, then switches to and locks the official ordinary-close reaction',
+      '  - EUR revenue is converted to USD with real FX data, while EPS year-over-year comparisons use one consistent earnings basis',
+      '  - Unknown sessions are never guessed; the calendar automatically rechecks after the close and never substitutes mock, estimate, or inferred results',
+    ],
+  },
+  {
+    ver: 'v10.7.9.340', date: '2026-07-15',
     items: [
       '📅 财报已公布数据自动刷新',
       '  - 财报日历按美东发布时段判断待刷新股票,不受手机时区影响',

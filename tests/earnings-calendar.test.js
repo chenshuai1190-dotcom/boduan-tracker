@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import handler, { parseEarningsRequest, previousCalendarQuarterRange } from '../api/earnings-calendar.js';
+import handler, { calculateEarningsMarketReaction, parseEarningsRequest, previousCalendarQuarterRange } from '../api/earnings-calendar.js';
 import {
   buildCalendarMonth,
   buildEarningsSymbols,
@@ -77,6 +77,36 @@ test('earnings calendar request validates symbols and date range', () => {
   assert.match(parseEarningsRequest({ symbols: 'NV DA' }).error, /股票代码不合法/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-09-01', to: '2026-07-01' }).error, /from 不能晚于 to/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-01-01', to: '2026-05-01' }).error, /查询区间不能超过/);
+});
+
+test('earnings market reaction uses ordinary close and refuses to guess an unknown report session', () => {
+  const rows = [
+    { date: '2026-07-14', close: 100, adjusted_close: 50 },
+    { date: '2026-07-15', close: 105, adjusted_close: 60 },
+    { date: '2026-07-16', close: 110, adjusted_close: 70 },
+  ];
+
+  assert.deepEqual(calculateEarningsMarketReaction({
+    rows,
+    reportDate: '2026-07-15',
+    session: 'pre',
+  }), {
+    baseDate: '2026-07-14',
+    targetDate: '2026-07-15',
+    percent: 5,
+    session: 'pre',
+  });
+  assert.equal(calculateEarningsMarketReaction({
+    rows,
+    reportDate: '2026-07-15',
+    session: 'unknown',
+  }), null);
+});
+
+test('earnings result derives a real EPS or USD revenue surprise when the provider omits its percent', () => {
+  assert.equal(classifyEarningsResult({ epsActual: 7.58, epsEstimate: 7.98 }), 'miss');
+  assert.equal(classifyEarningsResult({ revenueActualUsd: 107.9, revenueEstimateUsd: 104.2 }), 'beat');
+  assert.equal(classifyEarningsResult({ epsActual: 7.58, epsEstimate: null }), null);
 });
 
 test('earnings model builds deduped symbols and grouped calendar days', () => {
@@ -454,7 +484,8 @@ test('earnings calendar API enriches published events with actual revenue and ma
     assert.equal(Math.round(event.revenueActualYoyPercent * 100) / 100, 85.23);
     assert.equal(Math.round(event.revenueEstimateYoyPercent * 100) / 100, 79.56);
     assert.equal(Math.round(event.epsActualYoyPercent * 100) / 100, 130.86);
-    assert.equal(Math.round(event.epsEstimateYoyPercent * 100) / 100, 118.98);
+    assert.equal(event.epsEstimate, 1.77);
+    assert.equal(Math.round(event.epsEstimateYoyPercent * 100) / 100, 118.52);
     assert.equal(event.marketReactionPercent, 5);
     assert.equal(event.marketReactionBaseDate, '2026-05-20');
     assert.equal(event.marketReactionTargetDate, '2026-05-21');
@@ -531,6 +562,99 @@ test('earnings calendar API converts non-USD revenue estimates to USD', async ()
     assert.equal(res.body.events[0].revenueFxSource, 'USDTWD.FOREX');
     assert.ok(requestedUrls.some((url) => url.includes('/api/real-time/USDTWD.FOREX')));
     assert.ok(requestedUrls.every((url) => !url.includes('api.nasdaq.com')));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
+    else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+    if (originalKey === undefined) delete process.env.EODHD_API_KEY;
+    else process.env.EODHD_API_KEY = originalKey;
+  }
+});
+
+test('earnings calendar API converts EUR revenue and derives EPS estimate growth from displayed values', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
+  const originalKey = process.env.EODHD_API_KEY;
+  const requestedUrls = [];
+
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(String(url));
+    const parsed = new URL(url);
+    if (parsed.pathname === '/api/calendar/earnings') {
+      return jsonResponse({
+        earnings: [
+          {
+            code: 'ASML.US',
+            report_date: '2026-07-15',
+            date: '2026-06-30',
+            before_after_market: 'BeforeMarket',
+            currency: 'EUR',
+            estimate: '7.98',
+          },
+          {
+            code: 'MSFT.US',
+            report_date: '2026-07-16',
+            date: '2026-06-30',
+            before_after_market: 'AfterMarket',
+            currency: 'USD',
+            estimate: '2.93',
+          },
+        ],
+      });
+    }
+    if (parsed.pathname === '/api/calendar/trends') {
+      return jsonResponse({
+        trends: [
+          [
+            {
+              code: 'ASML.US',
+              date: '2026-06-30',
+              period: '0q',
+              earningsEstimateAvg: '6.8775',
+              earningsEstimateGrowth: '0.1657',
+              earningsEstimateYearAgoEps: '5.90',
+              revenueEstimateAvg: '8867000000',
+              currency: 'EUR',
+            },
+          ],
+          [
+            {
+              code: 'MSFT.US',
+              date: '2026-06-30',
+              period: '0q',
+              earningsEstimateGrowth: '0.12',
+            },
+          ],
+        ],
+      });
+    }
+    if (parsed.pathname === '/api/real-time/USDEUR.FOREX') {
+      return jsonResponse({ code: 'USDEUR.FOREX', close: 0.86 });
+    }
+    throw new Error(`unexpected url ${url}`);
+  };
+  process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+  process.env.EODHD_API_KEY = 'test-eodhd-key';
+
+  try {
+    const res = createResponse();
+    await handler(createRequest({ symbols: 'asml,msft', from: '2026-07-01', to: '2026-09-29' }), res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.events.length, 2);
+    const asml = res.body.events.find((event) => event.symbol === 'ASML');
+    const msft = res.body.events.find((event) => event.symbol === 'MSFT');
+    assert.equal(asml.currency, 'EUR');
+    assert.equal(asml.revenueEstimate, 8867000000);
+    assert.equal(Math.round(asml.revenueEstimateUsd), 10310465116);
+    assert.equal(asml.revenueFxRate, 0.86);
+    assert.equal(asml.revenueFxSource, 'USDEUR.FOREX');
+    assert.equal(asml.epsEstimate, 7.98);
+    assert.equal(asml.epsPreviousYear, 5.9);
+    assert.equal(Math.round(asml.epsEstimateYoyPercent * 100) / 100, 35.25);
+    assert.equal(msft.epsEstimateYoyPercent, null);
+    assert.ok(requestedUrls.some((url) => url.includes('/api/real-time/USDEUR.FOREX')));
   } finally {
     globalThis.fetch = originalFetch;
     if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;

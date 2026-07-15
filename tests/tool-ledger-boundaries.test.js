@@ -25,6 +25,7 @@ const communityCompetitionResumeSource = readFileSync(new URL('../src/lib/commun
 const swingWavesViewModelSource = readFileSync(new URL('../src/lib/swingWavesViewModel.js', import.meta.url), 'utf8');
 const earningsCalendarSource = readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
 const earningsCalendarRefreshSource = readFileSync(new URL('../src/lib/earningsCalendarRefresh.js', import.meta.url), 'utf8');
+const earningsReactionDisplaySource = readFileSync(new URL('../src/lib/earningsReactionDisplay.js', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const loginSource = readFileSync(new URL('../src/Login.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
@@ -539,8 +540,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.340'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.340', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.341'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.341', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('收益比赛显示真实更新时间'), 'settings changelog should document the authoritative competition update minute');
   assert.ok(settingsChangelogSource.includes('收益比赛本人信息行优化'), 'settings changelog should describe the signed-in competition identity-row refinement');
   assert.ok(settingsChangelogSource.includes('收益比赛本人昵称与头卡紧凑化'), 'settings changelog should describe the signed-in competition identity refinement');
@@ -710,6 +711,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarRefreshSource.includes("params.set('refreshBucket'"), 'due earnings refreshes should bypass stale browser responses with a bounded five-minute bucket');
   assert.ok(earningsCalendarRefreshSource.includes("cache: 'no-store'"), 'due earnings refreshes should explicitly bypass browser HTTP cache');
   assert.ok(earningsCalendarSource.includes('requestDueEarningsRefresh({'), 'earnings calendar should refresh only the due earnings batch');
+  assert.ok(earningsCalendarSource.includes('EARNINGS_LIVE_REACTION_TICK_MS = 30 * 1000'), 'live premarket earnings reactions should have a bounded clock for quote expiry and the market-open cutoff');
+  assert.ok(earningsCalendarSource.includes('if (!needsLiveReactionClock) return undefined;'), 'the live reaction clock should run only while a matching published premarket result is visible');
   assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: false"), 'due earnings refreshes should not repeatedly load previous-quarter history');
   assert.ok(earningsCalendarSource.includes('shouldRefresh: () => refreshEligibilityRef.current()'), 'earnings refresh eligibility should be recalculated at each lifecycle signal instead of frozen at render time');
   assert.ok(earningsCalendarSource.includes('if (cancelled) return;\n        const token = data?.session?.access_token;'), 'a cancelled calendar load must not overwrite the active user and symbol cache key');
@@ -720,7 +723,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('mergeEarningsRefreshEvents'), 'partial earnings refreshes should merge into the full calendar instead of replacing it');
   assert.ok(earningsCalendarSource.includes('Background refreshes keep the last real calendar'), 'background earnings failures should retain the last real calendar');
   assert.ok(devVisualPreviewSource.includes("get('earningsResumeSmoke') === '1'"), 'the local iOS PWA earnings resume smoke should use an explicit development-only query');
-  assert.ok(devVisualPreviewSource.includes('earningsCalendarRequest: earningsResumeSmoke ? earningsCalendarRequest : null'), 'the local earnings resume smoke must inject fixtures instead of calling the real API');
+  assert.ok(devVisualPreviewSource.includes('earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null'), 'local earnings resume and live-reaction smokes must inject fixtures instead of calling the real API');
   assert.ok(earningsCalendarSource.includes('userSelectedDateRef'), 'earnings calendar should track dates selected manually in the modal');
   assert.ok(earningsCalendarSource.includes('if (modalOpenRef.current && userSelectedDateRef.current && current) return current;'), 'earnings calendar should not reset a manually selected date after event refresh');
   assert.ok(earningsCalendarSource.includes('setSelectedDate={setUserSelectedDate}'), 'earnings calendar modal date clicks should mark the selection as user-controlled');
@@ -800,6 +803,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(settingsChangelogSource.includes('首页财报日历独立重构'), 'settings changelog should describe the earnings calendar refactor');
   assert.ok(homeTabSource.includes("import EarningsCalendar from './EarningsCalendar.jsx'"), 'home page should render the independent earnings calendar module');
   assert.ok(homeTabSource.includes('<EarningsCalendar'), 'home page should place the earnings calendar at the bottom of the main content');
+  assert.ok(homeTabSource.includes('quoteRows={quoteRows}'), 'earnings calendar should reuse the existing home realtime quote rows without a new provider request');
+  assert.ok(earningsCalendarSource.includes('resolveEarningsReactionDisplay'), 'published earnings rows and detail should share one reaction display resolver');
+  assert.ok(earningsReactionDisplaySource.includes("source === 'EODHD_WS'") && earningsReactionDisplaySource.includes("source === 'EODHD_WS_QUOTE'"), 'live premarket earnings reaction should accept only the existing WebSocket relay sources');
+  assert.equal(earningsReactionDisplaySource.includes('/api/quote'), false, 'earnings reaction display should not add a quote API request or merge endpoint boundaries');
   assert.ok(earningsCalendarRefreshSource.includes('/api/earnings-calendar'), 'earnings calendar should use the dedicated API instead of the quote API');
   assert.ok(earningsCalendarApiSource.includes('requireQuoteAuth'), 'earnings calendar API should require logged-in auth');
   assert.ok(earningsCalendarApiSource.includes('process.env.EODHD_API_KEY'), 'earnings calendar API should keep the EODHD token on the server');
@@ -2305,7 +2312,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.340'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.341'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

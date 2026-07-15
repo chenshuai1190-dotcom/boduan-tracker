@@ -12,6 +12,7 @@ import {
   isEarningsVisible,
   monthLabel,
   normalizeEarningsEvents,
+  normalizeEarningsSession,
   shouldPromoteEarningsCalendar,
   shortDateLabel,
   todayDateKey,
@@ -24,12 +25,14 @@ import {
   preservePublishedEarningsEvents,
   requestDueEarningsRefresh,
 } from '../lib/earningsCalendarRefresh.js';
+import { resolveEarningsReactionDisplay } from '../lib/earningsReactionDisplay.js';
 import { t } from '../lib/i18n.js';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS = 15 * 60 * 1000;
 const EARNINGS_CALENDAR_CLIENT_CACHE_LIMIT = 12;
+const EARNINGS_LIVE_REACTION_TICK_MS = 30 * 1000;
 const earningsCalendarClientCache = new Map();
 
 function earningsCalendarClientCacheKey({ userId, symbols, from, to, includePreviousPublished }) {
@@ -228,6 +231,13 @@ function EarningsResultMarker({ event, result: explicitResult }) {
       </span>
     );
   }
+  if (!result) {
+    return (
+      <span className={`${dimension} inline-flex shrink-0 items-center justify-center`} aria-hidden="true">
+        <span className="h-2 w-2 rounded-full bg-white/25" />
+      </span>
+    );
+  }
   if (result === 'beat') {
     return (
       <span className={`${dimension} inline-flex shrink-0 items-center justify-center rounded-full bg-[#f6b54b] text-[#111315] shadow-[0_0_10px_rgba(246,181,75,0.35)]`} aria-hidden="true">
@@ -321,15 +331,26 @@ function revenueValue(event, key) {
   return event.revenueEstimateUsd ?? (event.currency === 'USD' ? event.revenueEstimate : null);
 }
 
-function reactionLabel(event, language) {
-  if (event.session === 'pre') return t(language, 'earningsCalendar.preReaction', '盘前反应');
-  if (event.session === 'post') return t(language, 'earningsCalendar.postReaction', '盘后反应');
-  return t(language, 'earningsCalendar.marketReaction', '市场反应');
+function reactionLabel(reaction, language) {
+  if (reaction?.mode === 'live-pre') return t(language, 'earningsCalendar.preLive', '盘前实时');
+  return t(language, 'earningsCalendar.closeReaction', '收盘反应');
 }
 
-function metricResultFromSurprise(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 'meet';
+function reactionStatusText(reaction, language) {
+  if (reaction?.mode === 'live-pre') return t(language, 'earningsCalendar.realtimeQuote', 'WebSocket 实时行情');
+  if (reaction?.locked) return t(language, 'earningsCalendar.officialCloseLocked', '正式收盘锁定');
+  return t(language, 'earningsCalendar.awaitingOfficialClose', '等待收盘数据');
+}
+
+function metricResultFromSurprise(value, actualValue = null, estimateValue = null) {
+  const explicit = value === null || value === undefined || value === '' ? null : Number(value);
+  const actual = actualValue === null || actualValue === undefined || actualValue === '' ? null : Number(actualValue);
+  const estimate = estimateValue === null || estimateValue === undefined || estimateValue === '' ? null : Number(estimateValue);
+  const calculated = Number.isFinite(actual) && Number.isFinite(estimate) && estimate !== 0
+    ? ((actual - estimate) / Math.abs(estimate)) * 100
+    : null;
+  const n = Number.isFinite(explicit) ? explicit : calculated;
+  if (!Number.isFinite(n)) return null;
   if (n > 1) return 'beat';
   if (n < -1) return 'miss';
   return 'meet';
@@ -349,7 +370,7 @@ function buildPublishedFinancialRows(event, language) {
     rows.push({
       key: 'revenue',
       label: t(language, 'earningsCalendar.revenueMetric', '营业收入'),
-      result: metricResultFromSurprise(event.revenueSurprisePercent),
+      result: metricResultFromSurprise(event.revenueSurprisePercent, revenueActual, revenueEstimate),
       actual: formatRevenueUsd(revenueActual, language, { compact: true }),
       actualYoy: event.revenueActualYoyPercent,
       estimate: formatRevenueUsd(revenueEstimate, language, { compact: true }),
@@ -360,7 +381,7 @@ function buildPublishedFinancialRows(event, language) {
     rows.push({
       key: 'eps',
       label: t(language, 'earningsCalendar.epsMetric', '每股收益'),
-      result: metricResultFromSurprise(event.surprisePercent),
+      result: metricResultFromSurprise(event.surprisePercent, event.epsActual, event.epsEstimate),
       actual: formatNumber(event.epsActual),
       actualYoy: event.epsActualYoyPercent,
       estimate: formatNumber(event.epsEstimate),
@@ -382,8 +403,41 @@ function financialOverviewText(event, name, language) {
   return `概览: ${company} 的${parts.join('; ')}, ${earningsResultText(event.earningsResult || classifyEarningsResult(event), language)}。`;
 }
 
+function availableResultText(event, result, language) {
+  const rows = buildPublishedFinancialRows(event, language);
+  if (rows.length !== 1) return earningsResultText(result, language);
+  const prefix = rows[0].key === 'eps'
+    ? 'EPS'
+    : t(language, 'earningsCalendar.revenue', '营收');
+  return language === 'en'
+    ? `${prefix} ${earningsResultText(result, language)}`
+    : `${prefix}${earningsResultText(result, language)}`;
+}
+
 function resultConclusion(event, language) {
   const result = event.earningsResult || classifyEarningsResult(event);
+  const rows = buildPublishedFinancialRows(event, language);
+  if (!rows.length) {
+    return language === 'en'
+      ? 'Reported actuals are not complete enough for a full comparison yet.'
+      : '真实公布值尚不完整,暂不做完整比较。';
+  }
+  if (!result) {
+    return language === 'en'
+      ? 'The available reported values are not complete enough for a reliable expectation comparison.'
+      : '现有真实公布值不足以可靠判断是否达到预期。';
+  }
+  if (rows.length === 1) {
+    const metric = rows[0].key === 'eps' ? 'EPS' : (language === 'en' ? 'Revenue' : '营收');
+    if (language === 'en') {
+      if (result === 'beat') return `${metric} was above expectations. The other reported metric is still unavailable.`;
+      if (result === 'miss') return `${metric} was below expectations. The other reported metric is still unavailable.`;
+      return `${metric} was close to expectations. The other reported metric is still unavailable.`;
+    }
+    if (result === 'beat') return `${metric}高于预期,另一项真实公布值尚未同步。`;
+    if (result === 'miss') return `${metric}低于预期,另一项真实公布值尚未同步。`;
+    return `${metric}接近预期,另一项真实公布值尚未同步。`;
+  }
   if (language === 'en') {
     if (result === 'beat') return 'EPS and revenue were above expectations. Short-term sentiment improved.';
     if (result === 'miss') return 'EPS and revenue were below expectations. Market pressure may continue.';
@@ -437,11 +491,14 @@ function PublishedFinancialComparison({ event, language }) {
   );
 }
 
-function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, language }) {
+function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, language, resultMarker = null }) {
   return (
     <div className="min-w-0 text-left">
       <div className="text-[10px] leading-none text-white/35">{label}</div>
-      <div className="mt-1.5 truncate text-[12px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{actual}</div>
+      <div className="mt-1.5 flex min-w-0 items-center gap-1">
+        <span className="truncate text-[12px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{actual}</span>
+        {resultMarker}
+      </div>
       <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(actualPercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(actualPercent)}</div>
       <div className="mt-1.5 truncate text-[10px] leading-none text-white/30 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{t(language, 'earningsCalendar.forecastShort', '预期')} {estimate}</div>
       <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(estimatePercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(estimatePercent)}</div>
@@ -449,11 +506,27 @@ function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, 
   );
 }
 
-function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displayStockName, language, onOpenDetail }) {
+function PublishedEarningsEventRow({
+  event,
+  quote,
+  now,
+  stockFreshnessStartedAt,
+  logoCache,
+  cacheStockLogo,
+  displayStockName,
+  language,
+  onOpenDetail,
+}) {
   const name = eventDisplayName(event, displayStockName, language);
   const cachedLogoUrl = logoCache?.[event.symbol]?.url;
   const result = event.earningsResult || classifyEarningsResult(event);
-  const reaction = event.marketReactionPercent;
+  const epsMetricResult = metricResultFromSurprise(event.surprisePercent, event.epsActual, event.epsEstimate);
+  const reaction = resolveEarningsReactionDisplay({
+    event,
+    quote,
+    now,
+    freshnessStartedAt: stockFreshnessStartedAt,
+  });
   return (
     <button
       type="button"
@@ -470,7 +543,7 @@ function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displaySt
           <PublishedBadge language={language} />
         </div>
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${earningsResultTone(result)}`}>
-          {earningsResultText(result, language)}
+          {availableResultText(event, result, language)}
         </span>
       </div>
       <div className="grid grid-cols-[minmax(72px,1fr)_52px_76px_48px] items-start gap-2">
@@ -488,6 +561,7 @@ function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displaySt
           estimate={formatNumber(event.epsEstimate)}
           estimatePercent={event.epsEstimateYoyPercent}
           language={language}
+          resultMarker={epsMetricResult ? <EarningsResultMarker result={epsMetricResult} /> : null}
         />
         <MetricStack
           label={t(language, 'earningsCalendar.revenueActual', '实际营收')}
@@ -498,11 +572,8 @@ function PublishedEarningsEventRow({ event, logoCache, cacheStockLogo, displaySt
           language={language}
         />
         <div className="min-w-0 text-right">
-          <div className="text-[10px] leading-none text-white/35">{reactionLabel(event, language)}</div>
-          <div className={`mt-1.5 text-[12px] leading-none tabular-nums ${signedPercentClass(reaction)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction)}</div>
-          <div className="mt-3 flex justify-end">
-            <EarningsResultMarker event={event} />
-          </div>
+          <div className="text-[10px] leading-none text-white/35">{reactionLabel(reaction, language)}</div>
+          <div className={`mt-1.5 text-[12px] leading-none tabular-nums ${signedPercentClass(reaction.percent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
         </div>
       </div>
     </button>
@@ -550,10 +621,26 @@ function EarningsEventRow(props) {
   return <UpcomingEarningsEventRow {...props} />;
 }
 
-function PublishedEarningsDetail({ event, logoCache, cacheStockLogo, displayStockName, language, onClose }) {
+function PublishedEarningsDetail({
+  event,
+  quote,
+  now,
+  stockFreshnessStartedAt,
+  logoCache,
+  cacheStockLogo,
+  displayStockName,
+  language,
+  onClose,
+}) {
   const name = eventDisplayName(event, displayStockName, language);
   const cachedLogoUrl = logoCache?.[event.symbol]?.url;
   const result = event.earningsResult || classifyEarningsResult(event);
+  const reaction = resolveEarningsReactionDisplay({
+    event,
+    quote,
+    now,
+    freshnessStartedAt: stockFreshnessStartedAt,
+  });
   return (
     <div className="fixed inset-0 z-[170] flex items-center justify-center bg-black/60 px-4 backdrop-blur-[2px]" onClick={(clickEvent) => { if (clickEvent.target === clickEvent.currentTarget) onClose(); }}>
       <div className="w-full max-w-[382px] rounded-[18px] border border-white/10 bg-[#0c1117] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.72)]">
@@ -583,12 +670,12 @@ function PublishedEarningsDetail({ event, logoCache, cacheStockLogo, displayStoc
         <PublishedFinancialComparison event={event} language={language} />
         <div className="mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-3">
           <div>
-            <div className="text-[10px] text-white/35">{reactionLabel(event, language)}</div>
-            <div className="mt-1 text-[10px] text-white/30">{t(language, 'earningsCalendar.closeReaction', '收盘反应')}</div>
+            <div className="text-[10px] text-white/35">{reactionLabel(reaction, language)}</div>
+            <div className="mt-1 text-[10px] text-white/30">{reactionStatusText(reaction, language)}</div>
           </div>
           <div className="text-right">
-            <div className={`text-[15px] leading-none tabular-nums ${signedPercentClass(event.marketReactionPercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(event.marketReactionPercent)}</div>
-            <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] ${earningsResultTone(result)}`}>{earningsResultText(result, language)}</span>
+            <div className={`text-[15px] leading-none tabular-nums ${signedPercentClass(reaction.percent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
+            <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] ${earningsResultTone(result)}`}>{availableResultText(event, result, language)}</span>
           </div>
         </div>
         <div className="mt-4">
@@ -604,6 +691,9 @@ function EarningsModal({
   open,
   onClose,
   events,
+  quoteBySymbol,
+  now,
+  stockFreshnessStartedAt,
   selectedDate,
   setSelectedDate,
   view,
@@ -725,7 +815,18 @@ function EarningsModal({
                     {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : t(language, 'earningsCalendar.noEventsOnDate', '当天没有关注股票财报')}
                   </div>
                 ) : selectedEvents.map((event) => (
-                  <EarningsEventRow key={event.id} event={event} logoCache={logoCache} cacheStockLogo={cacheStockLogo} displayStockName={displayStockName} language={language} onOpenDetail={setDetailEvent} />
+                  <EarningsEventRow
+                    key={event.id}
+                    event={event}
+                    quote={quoteBySymbol?.get(event.symbol) || null}
+                    now={now}
+                    stockFreshnessStartedAt={stockFreshnessStartedAt}
+                    logoCache={logoCache}
+                    cacheStockLogo={cacheStockLogo}
+                    displayStockName={displayStockName}
+                    language={language}
+                    onOpenDetail={setDetailEvent}
+                  />
                 ))}
               </div>
             </div>
@@ -738,7 +839,18 @@ function EarningsModal({
                   {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : t(language, 'earningsCalendar.noEvents', '暂无关注股票财报')}
                 </div>
               ) : listEvents.map((event) => (
-                <EarningsEventRow key={event.id} event={event} logoCache={logoCache} cacheStockLogo={cacheStockLogo} displayStockName={displayStockName} language={language} onOpenDetail={setDetailEvent} />
+                <EarningsEventRow
+                  key={event.id}
+                  event={event}
+                  quote={quoteBySymbol?.get(event.symbol) || null}
+                  now={now}
+                  stockFreshnessStartedAt={stockFreshnessStartedAt}
+                  logoCache={logoCache}
+                  cacheStockLogo={cacheStockLogo}
+                  displayStockName={displayStockName}
+                  language={language}
+                  onOpenDetail={setDetailEvent}
+                />
               ))}
             </div>
           </div>
@@ -751,6 +863,9 @@ function EarningsModal({
       {detailEvent ? (
         <PublishedEarningsDetail
           event={detailEvent}
+          quote={quoteBySymbol?.get(detailEvent.symbol) || null}
+          now={now}
+          stockFreshnessStartedAt={stockFreshnessStartedAt}
           logoCache={logoCache}
           cacheStockLogo={cacheStockLogo}
           displayStockName={displayStockName}
@@ -765,6 +880,8 @@ function EarningsModal({
 export default function EarningsCalendar({
   watchlist = [],
   positions = [],
+  quoteRows = [],
+  stockFreshnessStartedAt = 0,
   logoCache,
   cacheStockLogo,
   displayStockName,
@@ -777,12 +894,18 @@ export default function EarningsCalendar({
   placementClassName = '',
 }) {
   const symbols = React.useMemo(() => buildEarningsSymbols({ watchlist, positions }), [watchlist, positions]);
+  const quoteBySymbol = React.useMemo(() => new Map(
+    (Array.isArray(quoteRows) ? quoteRows : [])
+      .map((quote) => [String(quote?.symbol || '').trim().toUpperCase(), quote])
+      .filter(([symbol]) => symbol),
+  ), [quoteRows]);
   const [events, setEvents] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalView, setModalView] = React.useState('list');
   const [selectedDate, setSelectedDate] = React.useState(todayDateKey());
+  const [, forceLiveReactionClockRender] = React.useState(0);
   const modalOpenRef = React.useRef(false);
   const userSelectedDateRef = React.useRef(false);
   const eventsRef = React.useRef([]);
@@ -805,6 +928,23 @@ export default function EarningsCalendar({
     modalOpenRef.current = modalOpen;
     if (!modalOpen) userSelectedDateRef.current = false;
   }, [modalOpen]);
+
+  const needsLiveReactionClock = React.useMemo(() => modalOpen && events.some((event) => {
+    if (!isEarningsPublished(event) || normalizeEarningsSession(event?.session) !== 'pre') return false;
+    const officialReaction = event?.marketReactionPercent;
+    return officialReaction === null
+      || officialReaction === undefined
+      || String(officialReaction).trim() === ''
+      || !Number.isFinite(Number(officialReaction));
+  }), [events, modalOpen]);
+
+  React.useEffect(() => {
+    if (!needsLiveReactionClock) return undefined;
+    const timerId = globalThis.setInterval(() => {
+      forceLiveReactionClockRender((current) => current + 1);
+    }, EARNINGS_LIVE_REACTION_TICK_MS);
+    return () => globalThis.clearInterval(timerId);
+  }, [needsLiveReactionClock]);
 
   const setDefaultSelectedDate = React.useCallback((normalized) => {
     const today = todayDateKey();
@@ -1006,6 +1146,7 @@ export default function EarningsCalendar({
 
   return (
     <section
+      id="earnings-calendar"
       className={`mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${placementClassName}`}
       data-home-earnings-placement={shouldPromote ? 'promoted' : 'default'}
       style={{ fontFamily: FONT }}
@@ -1070,6 +1211,9 @@ export default function EarningsCalendar({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         events={events}
+        quoteBySymbol={quoteBySymbol}
+        now={now}
+        stockFreshnessStartedAt={stockFreshnessStartedAt}
         selectedDate={selectedDate}
         setSelectedDate={setUserSelectedDate}
         view={modalView}

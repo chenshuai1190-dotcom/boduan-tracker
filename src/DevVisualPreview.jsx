@@ -717,16 +717,22 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('earningsScenario');
   const earningsResumeSmoke = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('earningsResumeSmoke') === '1';
-  const earningsResumeClockRef = React.useRef(Date.parse('2026-07-15T12:01:00.000Z'));
+  const earningsLiveSmoke = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('earningsLiveSmoke') === '1';
+  const earningsAutoOpen = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('earningsAutoOpen') === '1';
+  const earningsResumeClockRef = React.useRef(Date.parse(earningsLiveSmoke
+    ? '2026-07-15T12:07:00.000Z'
+    : '2026-07-15T12:01:00.000Z'));
   const earningsResumeHiddenRef = React.useRef(false);
   const earningsResumeUserIdRef = React.useRef(`dev-earnings-resume-${Math.random().toString(36).slice(2)}`);
   const earningsCalendarNow = React.useCallback(
-    () => earningsResumeSmoke ? earningsResumeClockRef.current : Date.now(),
-    [earningsResumeSmoke],
+    () => earningsResumeSmoke || earningsLiveSmoke ? earningsResumeClockRef.current : Date.now(),
+    [earningsLiveSmoke, earningsResumeSmoke],
   );
   const earningsCalendarRequest = React.useCallback(async ({ symbols = [], forceRefresh = false }) => {
-    if (!earningsResumeSmoke) return [];
-    const published = forceRefresh && earningsResumeHiddenRef.current;
+    if (!earningsResumeSmoke && !earningsLiveSmoke) return [];
+    const published = earningsLiveSmoke || (forceRefresh && earningsResumeHiddenRef.current);
     const events = [{
       code: 'ASML.US',
       symbol: 'ASML',
@@ -736,16 +742,22 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       before_after_market: 'BeforeMarket',
       currency: 'EUR',
       estimate: 7.98,
-      actual: published ? 7.59 : null,
-      difference: published ? -0.39 : null,
-      percent: published ? -4.89 : null,
-      revenueEstimateUsd: 10_420_000_000,
-      revenueActualUsd: published ? 10_790_000_000 : null,
+      actual: published ? 7.58 : null,
+      difference: published ? -0.4 : null,
+      percent: published ? -5.0125 : null,
+      epsPreviousYear: 5.9,
+      epsActualYoyPercent: published ? 28.474576271186436 : null,
+      epsEstimateYoyPercent: 35.25423728813559,
+      revenueEstimateUsd: 10_148_260_308.571428,
+      revenueActualUsd: null,
+      revenueSurprisePercent: null,
+      revenueEstimateYoyPercent: 15.45,
+      revenueActualYoyPercent: null,
       earningsPublished: published,
     }];
     const requested = new Set(symbols.map((symbol) => String(symbol || '').trim().toUpperCase()));
     return events.filter((event) => requested.has(event.symbol));
-  }, [earningsResumeSmoke]);
+  }, [earningsLiveSmoke, earningsResumeSmoke]);
   React.useEffect(() => {
     if (!earningsResumeSmoke) return undefined;
     const markResumeReady = () => {
@@ -762,6 +774,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       document.removeEventListener('visibilitychange', markWhenHidden);
     };
   }, [earningsResumeSmoke]);
+  React.useEffect(() => {
+    if (!earningsLiveSmoke || !earningsAutoOpen) return undefined;
+    const timer = window.setTimeout(() => {
+      document.querySelector('#earnings-calendar button')?.click();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [earningsAutoOpen, earningsLiveSmoke]);
   const stockDetailPeakPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';
   const stockDetailCurrencyPreview = typeof window !== 'undefined'
@@ -930,7 +949,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     ? mockLockedActivePositions
     : mockActivePositions;
   const previewEarningsCalendarEvents = React.useMemo(() => {
-    if (earningsResumeSmoke) return null;
+    if (earningsResumeSmoke || earningsLiveSmoke) return null;
     if (!['dense', 'sparse'].includes(earningsScenario)) return mockEarningsCalendarEvents;
     const simulatedEvents = [
       ['NVDA', 'NVIDIA', 1, 'high'],
@@ -949,10 +968,28 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       impact,
     }));
     return earningsScenario === 'dense' ? simulatedEvents : simulatedEvents.slice(0, 2);
-  }, [earningsResumeSmoke, earningsScenario]);
+  }, [earningsLiveSmoke, earningsResumeSmoke, earningsScenario]);
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => (
-    earningsResumeSmoke
-      ? [{ symbol: 'ASML', name: '阿斯麦', price: 1456.8, changePercent: 0.4, high: 1515.2, ytdChangePercent: 22.6, intraday: mockMarketIntraday.red }, ...mockHomeWatchlist]
+    earningsResumeSmoke || earningsLiveSmoke
+      ? [{
+        symbol: 'ASML',
+        name: '阿斯麦',
+        price: 1825.9492,
+        previousClose: 1775.64,
+        dailyBaselineClose: 1775.64,
+        changePercent: 2.8333,
+        dailyPnlChangePercent: 2.8333,
+        high: 1826.6655,
+        ytdChangePercent: 22.6,
+        intraday: mockMarketIntraday.red,
+        realtime: true,
+        realtimeStatus: 'live',
+        realtimeAt: Date.parse('2026-07-15T12:07:00.000Z'),
+        clientReceivedAt: Date.parse('2026-07-15T12:07:00.000Z'),
+        marketStatus: 'quote',
+        priceType: 'quote-midpoint',
+        source: 'EODHD_WS_QUOTE',
+      }, ...mockHomeWatchlist]
       : ['dense', 'sparse'].includes(earningsScenario)
       ? [...mockHomeWatchlist, { symbol: 'META', name: 'Meta', price: 607.66, changePercent: 0.75, high: 740.91, ytdChangePercent: 12.3, intraday: mockMarketIntraday.red }]
       : mockHomeWatchlist
@@ -1264,7 +1301,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     earningsCalendarEvents: previewEarningsCalendarEvents,
     earningsCalendarNow,
-    earningsCalendarRequest: earningsResumeSmoke ? earningsCalendarRequest : null,
+    earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null,
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
       const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];

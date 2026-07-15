@@ -15,6 +15,7 @@ export const EARNINGS_CALENDAR_MAX_VISIBLE_POLLS = 12;
 const NEW_YORK_TIME_ZONE = 'America/New_York';
 const UNKNOWN_SESSION_REFRESH_MINUTE = 6 * 60;
 const POST_SESSION_REFRESH_MINUTE = 16 * 60;
+const MARKET_CLOSE_REFRESH_MINUTE = 16 * 60;
 const refreshRequestsByKey = new Map();
 const refreshAttemptsByBatch = new Map();
 
@@ -43,6 +44,31 @@ function addUtcDays(value, days) {
   return result.toISOString().slice(0, 10);
 }
 
+function isWeekend(value) {
+  const key = dateKey(value);
+  if (!key) return false;
+  const day = new Date(`${key}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+function nextPossibleWeekday(value, { includeCurrent = false } = {}) {
+  let result = dateKey(value);
+  if (!result) return '';
+  if (!includeCurrent) result = addUtcDays(result, 1);
+  while (isWeekend(result)) result = addUtcDays(result, 1);
+  return result;
+}
+
+function addPossibleWeekdays(value, days) {
+  let result = dateKey(value);
+  let remaining = Math.max(0, Math.trunc(Number(days) || 0));
+  while (result && remaining > 0) {
+    result = addUtcDays(result, 1);
+    if (!isWeekend(result)) remaining -= 1;
+  }
+  return result;
+}
+
 export function getNewYorkEarningsClock(now = Date.now) {
   const parts = Object.fromEntries(
     newYorkDateTimeFormatter
@@ -68,6 +94,28 @@ function isDueOnReportDate(event, clock) {
   return true;
 }
 
+function hasMarketReaction(event) {
+  const value = event?.marketReactionPercent;
+  return value !== null
+    && value !== undefined
+    && String(value).trim() !== ''
+    && Number.isFinite(Number(value));
+}
+
+function getMarketReactionCloseDate(event, reportDate) {
+  const session = normalizeEarningsSession(event?.session ?? event?.before_after_market ?? event?.beforeAfterMarket);
+  if (session === 'post') return nextPossibleWeekday(reportDate);
+  return nextPossibleWeekday(reportDate, { includeCurrent: true });
+}
+
+function isMarketReactionRefreshDue(event, reportDate, clock) {
+  if (hasMarketReaction(event)) return false;
+  const closeDate = getMarketReactionCloseDate(event, reportDate);
+  if (!closeDate || clock.date < closeDate) return false;
+  if (clock.date === closeDate && clock.minuteOfDay < MARKET_CLOSE_REFRESH_MINUTE) return false;
+  return clock.date <= addPossibleWeekdays(closeDate, EARNINGS_PUBLISHED_RETENTION_DAYS);
+}
+
 export function getEarningsRefreshCandidates(events = [], now = Date.now) {
   const clock = getNewYorkEarningsClock(now);
   const oldestDate = addUtcDays(clock.date, -EARNINGS_PUBLISHED_RETENTION_DAYS);
@@ -75,11 +123,16 @@ export function getEarningsRefreshCandidates(events = [], now = Date.now) {
   const seen = new Set();
 
   for (const event of Array.isArray(events) ? events : []) {
-    if (!event || isEarningsPublished(event)) continue;
+    if (!event) continue;
     const reportDate = dateKey(event.reportDate || event.report_date || event.date);
     const symbol = normalizeEarningsSymbol(event.symbol || event.code || event.ticker);
-    if (!reportDate || !symbol || reportDate < oldestDate || reportDate > clock.date) continue;
-    if (reportDate === clock.date && !isDueOnReportDate(event, clock)) continue;
+    if (!reportDate || !symbol || reportDate > clock.date) continue;
+    if (isEarningsPublished(event)) {
+      if (!isMarketReactionRefreshDue(event, reportDate, clock)) continue;
+    } else {
+      if (reportDate < oldestDate) continue;
+      if (reportDate === clock.date && !isDueOnReportDate(event, clock)) continue;
+    }
     const key = `${symbol}|${reportDate}`;
     if (seen.has(key)) continue;
     seen.add(key);

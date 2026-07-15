@@ -1254,6 +1254,8 @@ export default function HomeTab({ ctx }) {
       <EarningsCalendar
         watchlist={displayWatchlist}
         positions={positions}
+        quoteRows={quoteRows}
+        stockFreshnessStartedAt={stockFreshnessStartedAt}
         logoCache={logoCache}
         cacheStockLogo={cacheStockLogo}
         displayStockName={stockDisplayName}

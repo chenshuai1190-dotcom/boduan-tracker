@@ -16,6 +16,7 @@ const MAX_RANGE_DAYS = 90;
 const INCLUDE_PREVIOUS_PUBLISHED_PARAM = 'includePreviousPublished';
 const USD_FOREX_SYMBOL_BY_CURRENCY = {
   CNY: 'USDCNY.FOREX',
+  EUR: 'USDEUR.FOREX',
   HKD: 'USDHKD.FOREX',
   JPY: 'USDJPY.FOREX',
   KRW: 'USDKRW.FOREX',
@@ -263,7 +264,7 @@ export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
     const revenueEstimateYoyPercent = parseNumber(event.revenueEstimateYoyPercent) ?? percentageChange(revenueEstimateUsd, revenuePreviousYearUsd);
     const epsPreviousYear = parseNumber(event.epsPreviousYear);
     const epsActualYoyPercent = percentageChange(event.epsActual, epsPreviousYear);
-    const epsEstimateYoyPercent = parseNumber(event.epsEstimateYoyPercent) ?? percentageChange(event.epsEstimate, epsPreviousYear);
+    const epsEstimateYoyPercent = percentageChange(event.epsEstimate, epsPreviousYear);
     const output = {
       ...event,
       currency,
@@ -399,15 +400,14 @@ export function calculateEarningsMarketReaction({ rows, reportDate, session }) {
     .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)));
   const targetDate = dateKey(reportDate);
   if (!sorted.length || !targetDate) return null;
+  const normalizedSession = normalizeEarningsSession(session);
+  if (normalizedSession === 'unknown') return null;
 
   let base = null;
   let target = null;
-  if (session === 'post') {
+  if (normalizedSession === 'post') {
     base = sorted.find((row) => dateKey(row.date) === targetDate) || lastRowBefore(sorted, targetDate);
     target = firstRowAfter(sorted, dateKey(base?.date || targetDate));
-  } else if (session === 'pre') {
-    target = firstRowOnOrAfter(sorted, targetDate);
-    base = lastRowBefore(sorted, dateKey(target?.date || targetDate));
   } else {
     target = firstRowOnOrAfter(sorted, targetDate);
     base = lastRowBefore(sorted, dateKey(target?.date || targetDate));
@@ -420,7 +420,7 @@ export function calculateEarningsMarketReaction({ rows, reportDate, session }) {
     baseDate: dateKey(base.date),
     targetDate: dateKey(target.date),
     percent: ((targetClose - baseClose) / baseClose) * 100,
-    session,
+    session: normalizedSession,
   };
 }
 
@@ -581,7 +581,7 @@ function lastRowBefore(rows, targetDate) {
 }
 
 function closePrice(row) {
-  return parseNumber(row?.adjusted_close ?? row?.close);
+  return parseNumber(row?.close ?? row?.adjusted_close);
 }
 
 function daysBetween(a, b) {

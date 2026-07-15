@@ -155,6 +155,47 @@ test('earnings refresh never treats time or estimates as published and stops onl
   assert.deepEqual(candidates.map((event) => event.symbol), ['ASML', 'NVDA']);
 });
 
+test('published pre-market earnings wait for the report-day close before filling a missing market reaction', () => {
+  const events = [
+    { symbol: 'ASML', reportDate: '2026-07-15', session: 'pre', epsActual: 7.58, marketReactionPercent: null },
+    { symbol: 'READY', reportDate: '2026-07-15', session: 'pre', epsActual: 1, marketReactionPercent: 0 },
+  ];
+
+  assert.deepEqual(
+    getEarningsRefreshCandidates(events, Date.parse('2026-07-15T19:59:59Z')).map((event) => event.symbol),
+    [],
+  );
+  assert.deepEqual(
+    getEarningsRefreshCandidates(events, Date.parse('2026-07-15T20:00:00Z')).map((event) => event.symbol),
+    ['ASML'],
+  );
+});
+
+test('published post-market earnings wait for the next possible trading-day close and skip the weekend', () => {
+  const events = [
+    { symbol: 'NFLX', reportDate: '2026-07-17', session: 'post', epsActual: 1.25, marketReactionPercent: null },
+  ];
+
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-17T20:00:00Z')).length, 0);
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-18T20:00:00Z')).length, 0);
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-19T20:00:00Z')).length, 0);
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-20T19:59:59Z')).length, 0);
+  assert.deepEqual(
+    getEarningsRefreshCandidates(events, Date.parse('2026-07-20T20:00:00Z')).map((event) => event.symbol),
+    ['NFLX'],
+  );
+});
+
+test('a missing published reaction keeps a short weekday retry window for delayed holiday EOD data', () => {
+  const events = [
+    { symbol: 'MSFT', reportDate: '2026-07-16', session: 'post', epsActual: 2, marketReactionPercent: null },
+  ];
+
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-20T20:00:00Z')).length, 1);
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-21T20:00:00Z')).length, 1);
+  assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-22T20:00:00Z')).length, 0);
+});
+
 test('partial refresh merges ASML actuals without dropping other calendar events or rolling back published data', () => {
   const current = [
     { symbol: 'ASML', reportDate: '2026-07-15', session: 'pre', epsEstimate: 7.98, epsActual: null },
