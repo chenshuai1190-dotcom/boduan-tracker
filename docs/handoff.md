@@ -6,8 +6,8 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
-- 本轮待部署 `v10.7.9.340`：财报日历按 `America/New_York` 发布窗口只重读已到期且缺少真实 actual 的股票，五分钟限频并在 iOS 主屏 PWA 恢复、聚焦或恢复联网时重新检查。只有 EODHD 真实 EPS/营收 actual 才标记已公布，时间、预期、官网数字和 mock 绝不代替；ASML 目前 EODHD 仍为 `actual=null`。完整 393/393 测试、build、toolchain、audit high、RLS REST 和 diff 已通过；本机锁屏导致要求的 Xcode iOS Simulator 主屏 PWA 实测仍 pending，不得用桌面浏览器代替。
-- 当前生产已上线 `v10.7.9.339`：收益比赛 ready API 新增权威 `snapshotUpdatedAt`，取 `asOfDate` 当日所有合法 `locked_at` 的最晚值并 ISO 标准化；头卡固定按 `America/New_York` 显示“更新 MM.DD HH:mm”。缓存版本由 1 升为 2，旧纯日期缓存会立即失效并真实重读；无手机当前时间或 mock 兜底。iOS 主屏 PWA 恢复可见时会重新执行当前账户/周期的本地收盘窗口判定，到期才自动读取新快照；只修恢复刷新，小号参赛资格与 D1/D2 未改。runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3`、Actions `29395152514`、Vercel `F1rynuez82PaqaquAtxwvfAxDjpV`、7 个关键生产产物、未登录 401 和 iPhone 17 Pro 主屏 PWA 恢复 smoke 均已验证。
+- 当前生产已上线 `v10.7.9.340`：财报日历按 `America/New_York` 发布窗口只重读已到期且缺少真实 actual 的股票，五分钟限频并在 iOS 主屏 PWA 恢复、聚焦或恢复联网时重新检查。只有 EODHD 真实 EPS/营收 actual 才标记已公布，时间、预期、官网数字和 mock 绝不代替；ASML 最后直接探针仍为 `actual=null`。runtime `863fbf059c9fa20799865ebbd49a358ab073d23b`、Actions `29405821570`、Vercel `6bQGtGVpQMQD1AorHXhGAEfAC8zr`、入口 `/assets/index-DWtNyKll.js`、5 个关键生产产物与本地 build 一致、新版 marker 和未登录 401 均已验证。本机锁屏导致要求的 Xcode iOS Simulator 主屏 PWA 实测仍 pending，不得用桌面浏览器代替。
+- 上一生产版本 `v10.7.9.339`：收益比赛 ready API 新增权威 `snapshotUpdatedAt`，头卡固定按美东显示真实锁定时间，iOS 主屏 PWA 恢复时会重新判定比赛快照窗口；其 runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3`、Actions `29395152514` 和 Vercel `F1rynuez82PaqaquAtxwvfAxDjpV` 已验证。
 - 上一生产版本 `v10.7.9.338`:收益比赛本人昵称与“最后更新”改为同一水平行;昵称缩为 12px 并使用排行榜普通用户名同款灰白色,头像居中的安全宽度由 72px 增至 80px。iPhone 17 Pro Simulator 已确认“波段玩家1836”完整显示且右侧指标无挤压,47/47 定向测试、build、runtime `cb6b37976e7f61720cd9a36fb03a92b20849f9ca`、Actions `29363624252`、Vercel `TXaUDZ2GJGnujvcr21fmNM2wtrji` 和 7 个关键生产产物均已验证。
 - 上一生产版本 `v10.7.9.337` 放大比赛本人昵称并收紧头卡底部留白;其 runtime `f3b354f06914ffede57b08c18d81bb95aa1815a7`、Actions `29362348502` 与 Vercel `EcTkB5yWLNTDZ1qvoSiiyHnsXpZe` 已验证。
 - 上一生产版本 `v10.7.9.336` 把交易页持仓表的 8px 从“名称/代码”列让给“市值/数量”列,表格总宽和其余四列不变,千万级人民币市值可完整显示。
@@ -24,13 +24,13 @@
 - `v10.7.9.327` 新增个股详情真实收益对比基础；同一 production runtime 继续包含独立提交的 `v10.7.9.326` 真实美股收盘涨/跌幅榜与已添加股票减号修复。
 - `v10.7.9.327` 的收益对比跟随本年、近 1 月、近 6 月、近 1 年和全部周期。当前持仓轮次在清仓后重新买入时重置;起点取本轮首笔买入与周期起点中较晚者当日或之后,现有个人收益快照与 QQQ 普通收盘价都有数据的首个共同日期,双方归零。后续买入给 QQQ 等额资金,卖出按卖前持仓比例同步减仓,双方使用移动均价和已实现盈亏摊薄成本;缺数据或账本/快照不一致时不可用,生产无 mock/估算兜底。个人收益快照仍是 owner-scoped 且沿用现有用户可写模型,因此这是个人账本分析,不是比赛级不可覆盖证明。
 - `v10.7.9.326` 使用已登录 `/api/quote?view=market-movers` 和服务端 EODHD 真收盘数据,再与 Nasdaq Trader 当前上市目录交集验证,涨/跌各返回 30 只;范围严格限定 NASDAQ / NYSE / NYSE American 普通股,单次每侧最多复核 80 个 HomeCategory 候选并有 2 分钟实例内失败退避,官方目录异常时 fail closed,生产无 EODHD-only 或 mock 榜单兜底。
-- 当前已验证 production runtime 为 `0c979d522b79bea7e3c090fa737a07d38d76ace3`,入口 `/assets/index-DtGGmaQO.js`;GitHub Actions run `29395152514` success,Vercel target `F1rynuez82PaqaquAtxwvfAxDjpV` success。
+- 当前已验证 production runtime 为 `863fbf059c9fa20799865ebbd49a358ab073d23b`,入口 `/assets/index-DWtNyKll.js`;GitHub Actions run `29405821570` success,Vercel target `6bQGtGVpQMQD1AorHXhGAEfAC8zr` success。
 - `v10.7.9.316` 只实装已确认效果图的 15 组弹窗,保留各自宽度与业务回调,增加输入/日期宽度和 iOS 键盘稳定保护,恢复管理员邀请码使用邮箱显示。
 - `v10.7.9.315` 把邀请注册改为两步:账户/邀请码校验后必须输入 2-16 字符昵称并明确选择 18 款头像之一。服务端先创建完整 `community_profiles` 再消费邀请码,失败回滚新 Auth 用户;不会自动加入收益比赛。
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition` 和独立公开比赛 Cron 路径保持不变;比赛只读正式 `stock_trades`,只写比赛表,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单公开昵称、头像、排名、收益率和经账本哈希验证的收盘持仓代码,仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - 自动快照硬规则:无显式日期的工作日调用必须以美东时间为准且 17:00 前不访问 provider/数据库;UTC 21/22/23 只是冗余触发,所有 retry/late-retry 都 rewrite 到同一 `CRON_SECRET` 保护函数。合法显式日期可做受保护人工修复但比赛显式路径绝不 rebaseline;非法、未来或美东当日 17:00 前日期直接 400,周末、休市日或 SPY 目标日精确收盘未齐在任何业务数据库访问前失败。provider/network 或目标日持仓收盘未齐必须在有界重试后返回 503,不可回退旧日期或用 skipped+200 隐藏。个人只在最近 31 个日历日窗口补已有账户缺口,无完成标记用户只计划目标日,portfolio 标记先删后最后写。比赛按完整 SPY 日历有界分批,空仓不造行、锁定行不覆盖;加入与首快照以权威 ledger revision CAS 为准。仅当前目标日、数据库时间证明为 16:00 ET 前纯 INSERT 的新增交易可直达当日快照;其余未排名账本变化走 D1 forward-only rebaseline,只移动 eligible date/hash/revision,D2 才可能产生首张真实快照。完整账本、USD、交易顺序、不超卖、EOD close 和 raw high/low 校验不得弱化;两条链路都不改正式 `stock_trades`,生产无 mock、实时价、估算收益或旧收盘兜底。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地发布候选设置页版本为 `v10.7.9.340`，生产仍为 `v10.7.9.339`;当前已验证生产运行时基准为 `0c979d522b79bea7e3c090fa737a07d38d76ace3`,入口 `/assets/index-DtGGmaQO.js`。
+- 当前本地与生产设置页版本均为 `v10.7.9.340`;当前已验证生产运行时基准为 `863fbf059c9fa20799865ebbd49a358ab073d23b`,入口 `/assets/index-DWtNyKll.js`。
 - `v10.7.9.331` 验证:定向测试 51/51、build、docs consistency 和 diff check 均 pass;Xcode iOS 26.5 `iPhone 17 Pro` Simulator 使用中文/CNY、English/CNY 和损失样例均无结果卡横向溢出,三组数字正常同行,分享卡高度由约 `447px` 降至 `381px`。GitHub Actions `29291434809` 与 Vercel `JALybbWGhb25un79Ahjasob9tRCR` success,生产六个关键产物与本地 build 字节一致,4 个未登录 API 均为 `401`;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
 - 本次收盘快照可靠性修复验证:本地定向 116/116、完整 `npm test` 323/323、build、audit high 0、RLS REST 20/20、toolchain/workspace/docs consistency/diff check 均 pass;runtime Actions `29313005445` success,Vercel `DSGn5mQnzs2o1x6ohQWD6DGrMy2Y` Ready,Cron 补跑和生产聚合回读均完成。它不含前端改动,因此没有也不需要新增 iOS Simulator 视觉/系统键盘/PWA 证据。
 - ET gate/rebaseline/revision CAS 的最终 blocker 修复与 sensitive 门禁已通过:定向敏感测试 100/100、完整 `npm test` 362/362、build、audit high 0、toolchain、docs consistency、diff check,以及显式 SPY 边界、D1/D2、纯 INSERT、历史修改/删除、缺精确个股 D1 EOD、旧 close、late trade、price-out-of-range、空/非 USD 和 malformed 场景全部 pass。生产 SQL、21 tables + 2 RPCs RLS gate、metadata、真实数据库并发 smoke 和 runtime deployment 已完成;真实收盘 D1/D2 观察仍 pending。本轮无前端改动,不需要 iOS Simulator 视觉/系统键盘/PWA 证据。
@@ -86,14 +86,14 @@
 - 上一轮已上线补充: `v10.7.9.283` 个股详情持仓时间已上线,production runtime commit `d0b63f8f8b3c622b9c84b63b9964a307d442efc3`;本轮在个股详情累计盈亏卡新增“持仓天数”和“首次建仓”,按当前这一轮持仓的首次买入日到最新收盘快照日 inclusive 计算,清仓后重新买入会重新计时。
 - 上一轮已上线补充: `v10.7.9.282` 收益报表浮层颜色和页面文案调整已上线,production runtime commit `8674e9212cde3303d0551de2a40079fa2df61c47`;本轮修复收益报表“收益率走势”对比浮层里“我的”当日/累计收益率固定显示红色的问题,现在和“纳斯达克”行一样跟随系统涨跌颜色设置;收益报表标题下方副标题改为 `Quote Data testing`;页面底部“生成收盘快照”入口暂时隐藏,但底层生成逻辑保留方便后续测试。
 - 最新流程补充: 开发验证仍按 `ui-fast/runtime/docs-only/sensitive` 四档风险流程执行。纯视觉及只改变界面呈现的轻量交互(展开/收起、页签、弹窗开关、焦点、滚动、键盘可见性和展示状态)走 UI-fast,不默认跑完整测试;业务逻辑/计算、持久化、保存删除等业务交互、跨模块状态、API、鉴权/RLS、安全、账本/收益/快照/换算、路由/PWA 生命周期和依赖/构建/CI/环境配置才走完整 runtime。所有前端视觉、交互、键盘、滚动、安全区和 PWA 验收必须使用本机 Xcode iOS Simulator;禁止桌面浏览器、Codex 内置浏览器、响应式视口和 `verify:frontend-smoke` 作为视觉通过证据。自动化测试、build、docs 和安全检查继续作为代码门禁。
-- 当前 GitHub `main`: 数据库源提交为 `0f52700761beab0d4488e067ca9e968aea9a9bc1`;最新已上线运行时代码提交为 `0c979d522b79bea7e3c090fa737a07d38d76ace3`。v339、v338、v337、v336、v335、v334、v333、v332 和此前 ET gate/rebaseline 的生产 SQL/runtime 均已部署并通过门禁。
-- 当前生产运行时基准提交: `0c979d522b79bea7e3c090fa737a07d38d76ace3`。
-- 当前本地发布候选为 `v10.7.9.340`，生产仍为 `v10.7.9.339`。
+- 当前 GitHub `main`: 数据库源提交为 `0f52700761beab0d4488e067ca9e968aea9a9bc1`;最新已上线运行时代码提交为 `863fbf059c9fa20799865ebbd49a358ab073d23b`。v340、v339、v338、v337、v336、v335、v334、v333、v332 和此前 ET gate/rebaseline 的生产 SQL/runtime 均已部署并通过门禁。
+- 当前生产运行时基准提交: `863fbf059c9fa20799865ebbd49a358ab073d23b`。
+- 当前本地与生产设置页版本均为 `v10.7.9.340`。
 - 当前生产地址: `https://boduan-tracker.vercel.app`。
 - 历史 docs-only 部署记录: `npm run verify:deploy-status -- a54df76` pass;GitHub Actions run `29199119074` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Dp55pVfvjaKTQzw855Br2gC7Ybsd`;当时 production 入口为 `/assets/index-DN2-ymxd.js`。
-- 最新运行时部署: `npm run verify:deploy-status -- 0c979d5` pass;GitHub Actions run `29395152514` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/F1rynuez82PaqaquAtxwvfAxDjpV`;production alias 已更新,入口 `/assets/index-DtGGmaQO.js`。
+- 最新运行时部署: `npm run verify:deploy-status -- 863fbf0` pass;GitHub Actions run `29405821570` success,Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6bQGtGVpQMQD1AorHXhGAEfAC8zr`;production alias 已更新,入口 `/assets/index-DWtNyKll.js`。
 - 最近交接文档刷新部署: `0aa87dfe72b3690bedb4c5425016c699f607cb01` 已通过 GitHub Actions run `29161798255` 和 Vercel target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/G9h6ueyaBhcPdNKUY4xTuPwEyzFL`;生产入口保持 `/assets/index-CD6hu3eq.js`,运行时代码仍为 `bf48e5a` / `v10.7.9.303`。
-- 线上关键验证: 当前生产未登录 quote、market-movers、earnings、pnl-benchmark、competition GET/POST、competition snapshot GET 和 P&L snapshot GET 均为 `401`;生产入口为 `/assets/index-DtGGmaQO.js`,v339 的入口、App、比赛页、比赛缓存、设置页、设置更新日志和 i18n 共 7 个关键产物与本地 production build SHA-256 一致。`2026-07-13` 的上一 runtime 历史快照聚合为个人 12 users / 12 portfolio rows、54 symbol rows / 18 symbols;比赛 8 users / 8 locked rows,active 9、eligible 9、initialized 8、invalid 0,另 1 名尚未排名成员 `eligible_ledger_hash_mismatch`。新 revision/CAS SQL、metadata、RLS、并发 smoke 和 ET-gated runtime 已有生产证据;真实 D1/D2 尚待收盘观察。
+- 线上关键验证: 当前生产未登录 quote、market-movers、earnings、pnl-benchmark、competition GET/POST、competition snapshot GET 和 P&L snapshot GET 均为 `401`;生产入口为 `/assets/index-DWtNyKll.js`,v340 的入口、App、HomeTab、SettingsTab 和 settings changelog 共 5 个关键产物与本地 production build SHA-256 一致，并命中美东刷新、refresh bucket 和 v340 marker，无开发 fixture。`2026-07-13` 的上一 runtime 历史快照聚合为个人 12 users / 12 portfolio rows、54 symbol rows / 18 symbols;比赛 8 users / 8 locked rows,active 9、eligible 9、initialized 8、invalid 0,另 1 名尚未排名成员 `eligible_ledger_hash_mismatch`。新 revision/CAS SQL、metadata、RLS、并发 smoke 和 ET-gated runtime 已有生产证据;真实 D1/D2 尚待收盘观察。
 - 当前产品焦点: 英文模式已分阶段覆盖设置页、底部导航、首页、交易页、资产页和目标页。`v10.7.9.176` 起股票涨跌幅按现价和昨收重算;`v10.7.9.177` 到 `v10.7.9.207` 主要处理股票 realtime、iOS 主屏 snapshot、BTC/指数拆分和卡位稳定;`v10.7.9.208` 到 `v10.7.9.211` 主要处理三大指数去 Yahoo 图源、固定卡位和分时曲线锁定;`v10.7.9.212` 到 `v10.7.9.228` 建立收益报表独立页、真实快照读取、手动收盘快照回填、收益日历和周期统计;`v10.7.9.229` 起新增全账户自动收盘快照;`v10.7.9.230` 到 `v10.7.9.248` 主要处理只读个股收益详情页、收益线交互、持仓周期卖出收益口径、历史脏 ticker 修复和个股风险指标;`v10.7.9.249` 起首页底部财报日历改为独立 EODHD endpoint,并删除旧 NASDAQ calendar/`CALENDAR:` 混用链路;`v10.7.9.250` 起首页财报日历视觉压缩为固定一行并同步标题/日期层级;`v10.7.9.251` 起财报预计营收正确兼容 EODHD trends 嵌套数组;`v10.7.9.255` 起已公布财报使用券商式同比对比口径;`v10.7.9.256-259` 已上线列表视图收紧、上一财季回看、请求缓存和首页细节降重;`v10.7.9.260-268` 已上线财报日期选择修复、持仓收益试算和价格位置条修复;`v10.7.9.269` 已上线交易页持仓表格行对齐;`v10.7.9.270` 已上线财报列表过滤和持仓列距微调;`v10.7.9.271` 已上线持仓当日盈亏列距优化;`v10.7.9.272` 已上线持仓列距再平衡;`v10.7.9.273` 已上线持仓列宽恢复 v230 口径;`v10.7.9.274` 已上线财报日历弹窗固定高度和选中日期列表独立滚动;`v10.7.9.275` 已上线首页当前信号和 VIX 数值装饰圆点降噪;`v10.7.9.276` 已上线启动黑色背景兜底;`v10.7.9.277` 已上线 iOS 主屏启动黑底图;`v10.7.9.278` 已上线首页当前信号文字降重;`v10.7.9.279` 已上线首页股票文字继续降重;`v10.7.9.280` 已上线个股收益峰值呼吸点;`v10.7.9.281` 已上线收益报表对比浮层;`v10.7.9.282` 已上线收益报表浮层颜色和页面文案调整;`v10.7.9.283` 已上线个股详情持仓时间;`v10.7.9.284` 已上线自选添加股票校验;`v10.7.9.285` 已上线热门股票弹窗实时行情。用户自写内容、中文显示、主交易账本、摊薄工具、行情鉴权和 `/api/quote` 鉴权保持不变。
 - 下一位同事第一步: 按第 13 节命令同步 `main`,确认工作区干净,再读第 14 节可转发交接块。
 
@@ -101,13 +101,13 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地发布候选设置页版本为 `v10.7.9.340`，生产仍为 `v10.7.9.339`。v340 新增财报真实 actual 的美东到期局部刷新和 iOS PWA 恢复检查；v339 把比赛权威快照更新时间固定按美东显示到分钟，强制旧纯日期缓存失效重读，并修复 iOS 主屏 PWA 恢复后不自动检查到期快照；v338 优化比赛本人信息同行与昵称完整显示。
-- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;当前已验证生产运行时代码提交为 `0c979d522b79bea7e3c090fa737a07d38d76ace3`。
-- 当前生产运行时基准提交: `0c979d522b79bea7e3c090fa737a07d38d76ace3`。
-- 最近已部署应用代码提交: `0c979d522b79bea7e3c090fa737a07d38d76ace3` 包含 v339 比赛权威更新时间与 PWA 恢复刷新;上一 runtime `cb6b37976e7f61720cd9a36fb03a92b20849f9ca` 包含 v338 比赛本人信息同行与昵称完整显示;更早 runtime `f3b354f06914ffede57b08c18d81bb95aa1815a7` 包含 v337 比赛本人昵称和头卡紧凑化。
+- 当前本地与生产设置页版本均为 `v10.7.9.340`。v340 新增财报真实 actual 的美东到期局部刷新和 iOS PWA 恢复检查；v339 把比赛权威快照更新时间固定按美东显示到分钟，强制旧纯日期缓存失效重读，并修复 iOS 主屏 PWA 恢复后不自动检查到期快照；v338 优化比赛本人信息同行与昵称完整显示。
+- 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;当前已验证生产运行时代码提交为 `863fbf059c9fa20799865ebbd49a358ab073d23b`。
+- 当前生产运行时基准提交: `863fbf059c9fa20799865ebbd49a358ab073d23b`。
+- 最近已部署应用代码提交: `863fbf059c9fa20799865ebbd49a358ab073d23b` 包含 v340 财报真实 actual 的美东到期局部刷新和 iOS PWA 恢复检查;上一 runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3` 包含 v339 比赛权威更新时间与 PWA 恢复刷新。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前本地发布候选设置页版本: `v10.7.9.340`；生产仍为 `v10.7.9.339`。
-- Vercel 最新部署: runtime commit `0c979d522b79bea7e3c090fa737a07d38d76ace3` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/F1rynuez82PaqaquAtxwvfAxDjpV`,production 入口 `/assets/index-DtGGmaQO.js`;GitHub Actions run `29395152514` success。7 个关键产物与本地 build SHA-256 一致,quote/earnings/community competition 未授权边界均为 `401`。
+- 当前本地与生产设置页版本: `v10.7.9.340`。
+- Vercel 最新部署: runtime commit `863fbf059c9fa20799865ebbd49a358ab073d23b` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6bQGtGVpQMQD1AorHXhGAEfAC8zr`,production 入口 `/assets/index-DWtNyKll.js`;GitHub Actions run `29405821570` success。5 个关键产物与本地 build SHA-256 一致,quote/earnings 未授权边界均为 `401`。
 - Sensitive 发布顺序已完成:数据库源提交、生产 `supabase/community_competition_rebaseline_20260714.sql`、revision 表/权威时间/四个 triggers、两个 CAS RPC、grants、数据库并发、21 tables + 2 RPCs RLS gate、runtime Actions/Vercel 和未登录 401 均有真实证据。仅 scheduled D1 聚合与后续 D2 必须等真实收盘观察,不得预填。
 - 最近交接文档刷新部署: `a48c4ad64ea2870ff989f6313b13fbb3a3873170` 已通过 GitHub Actions run `29142090108` 和 Vercel 部署验证;本文件所在更新只回填交接证据,不改生产运行时。
 - Vercel 部署记录: `v10.7.9.178` runtime code commit `2a4b2c15cf9e3a1e875d9c64c74adabd224f9c6b`;GitHub Actions `CI` run `28801658061` success;first Vercel statuses for `2a4b2c1` / `9c917d3` hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `7e84d3508297e54a7f24b161def867375a617bc0` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/2fh9MaHR7jc5N8ymasTcvZwWE5Cq`。`v10.7.9.179` runtime code commit `a2a93fe1dca6bb304986bb15f28538bb0fcba3dc`;first Vercel statuses for `a2a93fe` / `411f18d` hit `Deployment rate limited — retry in 24 hours`;SSH deployment retry commit `297fb19adfd76caacaa74cee1b42cbcac3280631` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BWGowMjDe8uDDhWhwKab6oPPWD7Z`;production alias `https://boduan-tracker.vercel.app` updated;active runtime assets and marker verified。`v10.7.9.180` runtime code commit `b178c7b1cfcf056d846ee4e2162e33ace430779f` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Epr2ayQrSEvicPoXWtCJFUsLqYv7`;production alias updated;active runtime assets and marker verified。`v10.7.9.181` runtime code commit `469edfbfc7b37e4a2166b000bcf1ab8c080baa5f` pushed via project SSH key;first Vercel status hit `Deployment rate limited — retry in 24 hours`;deployment retry commit `f80213406655a176a2181252ed1cf48934bf2631` also hit the same rate limit。`v10.7.9.182` runtime code commit `abcb44245160d01b75b260dec3b3abc7fd9ac5b5` pushed via project SSH key;Vercel status success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/J9WkYdJUMRsvXEe4VpUqigMKP6HU`;production alias updated;active runtime assets and marker verified,并包含 `v10.7.9.181` 的输入框去白框改动。`v10.7.9.183` runtime code commit `98031831c1286d8960fdd7fb85f5ee20bf3ea499` pushed via project SSH key;first Vercel status returned `failure`: `Deployment rate limited — retry in 24 hours.`;deployment retry/status commit `3df9376d8fc74371663e0b74f7163af6a9e7cd90` 也返回同样 failure;final deployment/docs commit `6997b27a7a17f10cc0be57f27b7f9c2c4348cdaf` succeeded,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GxexnfqpDEgPd5zcnKMTGsZHp51g`,production alias and markers verified。
@@ -756,8 +756,8 @@ npm run verify:toolchain          # 首次接手、换机、工具链异常或 r
 接手基准必须确认:
 
 - `git status --short --branch` 干净,`main` 与 `origin/main` 同步。
-- 本地发布候选设置页版本为 `v10.7.9.340`，生产仍为 `v10.7.9.339`；以最新提交和部署证据为准。
-- 当前已验证生产运行时为 `0c979d522b79bea7e3c090fa737a07d38d76ace3`,入口 `/assets/index-DtGGmaQO.js`;接手后以最新部署证据为准。
+- 本地与生产设置页版本均为 `v10.7.9.340`；以最新提交和部署证据为准。
+- 当前已验证生产运行时为 `863fbf059c9fa20799865ebbd49a358ab073d23b`,入口 `/assets/index-DWtNyKll.js`;接手后以最新部署证据为准。
 - `/api/quote?symbols=VIX`、`/api/quote?view=market-movers`、`/api/earnings-calendar?symbols=NVDA` 与 `/api/pnl-benchmark?symbol=QQQ&from=2026-06-01&to=2026-07-10` 未登录均返回 `401`。
 - Supabase Auth URL Configuration 仍指向生产域名,Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
 - GitHub push 必须使用 `~/.ssh/boduan_tracker_github`;不要改成 HTTPS token 流程。
@@ -811,11 +811,11 @@ git diff --stat
 GitHub `main` 是唯一代码源头。
 
 当前生产基准:
-- 运行时代码: `0c979d522b79bea7e3c090fa737a07d38d76ace3`
-- 设置页版本: `v10.7.9.340`（runtime 部署中；生产证据待回填）
-- 生产入口: `/assets/index-DtGGmaQO.js`
-- Runtime Actions: `29395152514` success
-- Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/F1rynuez82PaqaquAtxwvfAxDjpV` success
+- 运行时代码: `863fbf059c9fa20799865ebbd49a358ab073d23b`
+- 设置页版本: `v10.7.9.340`
+- 生产入口: `/assets/index-DWtNyKll.js`
+- Runtime Actions: `29405821570` success
+- Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6bQGtGVpQMQD1AorHXhGAEfAC8zr` success
 - 最新 docs evidence: 本文件所在提交（已回填 v339 runtime、Actions、Vercel、生产入口、产物一致性和未授权边界；接手后以 `git log -1` 核验）
 - 未登录 `/api/quote?symbols=VIX`: `401`
 - 未登录 `/api/quote?view=market-movers`: `401`
@@ -834,7 +834,7 @@ GitHub `main` 是唯一代码源头。
 - 发布顺序已完成到 runtime:SQL 源提交、生产应用/回读、数据库并发 smoke、21 tables + 2 RPCs RLS gate、runtime Actions/Vercel 和未登录 401 均已验证。scheduled D1 聚合和后续 D2 只能等真实收盘;当前仍 pending,不要虚构。
 
 最近完成:
-- `v10.7.9.340`:财报日历按美东发布窗口只重读已到期且缺少真实 actual 的股票，五分钟限频并在 iOS 主屏 PWA 恢复/聚焦/恢复联网时重新检查。局部响应不丢其他日历，真实 actual 不被 null 回退，失败保留最近真实数据；时间、预期、官网数字和 mock 绝不伪造已公布。完整 393/393 测试、build、toolchain、audit high、RLS REST 和 diff 已通过；本机锁屏导致 Xcode iOS Simulator 主屏 PWA 实测仍 pending，不得用桌面证据代替。
+- `v10.7.9.340`:财报日历按美东发布窗口只重读已到期且缺少真实 actual 的股票，五分钟限频并在 iOS 主屏 PWA 恢复/聚焦/恢复联网时重新检查。局部响应不丢其他日历，真实 actual 不被 null 回退，失败保留最近真实数据；时间、预期、官网数字和 mock 绝不伪造已公布。完整 393/393 测试、build、toolchain、audit high、RLS REST 和 diff 已通过；runtime `863fbf059c9fa20799865ebbd49a358ab073d23b`、Actions `29405821570`、Vercel `6bQGtGVpQMQD1AorHXhGAEfAC8zr`、入口 `/assets/index-DWtNyKll.js`、5 个关键产物一致性、新版 marker 和未登录 401 均已通过并上线。本机锁屏导致 Xcode iOS Simulator 主屏 PWA 实测仍 pending，不得用桌面证据代替。
 - `v10.7.9.339`:收益比赛 ready API 新增 `snapshotUpdatedAt`，从 `asOfDate` 当日所有合法快照的 `locked_at` 取最晚值并标准化为 ISO；头卡固定按 `America/New_York` 显示“更新 MM.DD HH:mm”。缓存版本由 1 升为 2，旧纯日期缓存立即失效并真实重读；不使用手机当前时间或 mock 兜底。iOS 主屏 PWA 从后台恢复时重新执行当前账户/周期的本地收盘窗口判定，到期才自动读取新快照。定向测试 67/67、完整测试 382/382、build、audit high 0、docs consistency、diff check、iPhone 17 Pro 主屏 PWA 恢复 smoke、Actions/Vercel、7 个生产产物一致性和未授权边界均已通过并上线；小号参赛资格、D1/D2、排名、收益、账本、RLS 和数据库不变。
 - `v10.7.9.338`:收益比赛本人昵称与“最后更新”改为同一水平行;昵称由 15px 缩为 12px,颜色与排行榜普通用户名一致,头像居中的安全宽度由 72px 增至 80px。“波段玩家1836”已在 iPhone 17 Pro Simulator 完整显示且右侧指标无挤压;更长昵称继续安全省略。47/47 定向测试、build、Actions/Vercel、7 个生产产物一致性和未授权边界均通过;比赛数据、缓存、请求、排名、收益、快照、交易账本、API 和安全边界不变。
 - `v10.7.9.337`:收益比赛“我的排名”卡把头像下本人昵称由 10.5px 放大为 15px 半粗体高对比文字,“最后更新”相对放大昵称后的初版稿上移约 8px,卡片底部留白收紧 4px,相对上一张本地效果卡片整体降低约 12px。iPhone 17 Pro Simulator、47/47 定向测试、build、Actions/Vercel、7 个生产产物一致性和未授权边界均通过;头像、排名、三项收益指标、真实日期、缓存、请求、排名、收益、快照、交易账本、API 和安全边界不变。

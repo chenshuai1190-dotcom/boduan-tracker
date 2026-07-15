@@ -6,7 +6,7 @@
 
 ### 2026-07-15 - v10.7.9.340 财报真实已公布自动刷新
 
-- Commit: `same commit`（runtime 发布提交；实际 hash 和部署证据待上线后回填）。
+- Commit: runtime `863fbf059c9fa20799865ebbd49a358ab073d23b`；本条部署证据由后续 docs-only 提交回填。
 - Background: ASML 已在官方公布 Q2 2026 财报，但 EODHD earnings calendar 截至 `2026-07-15T09:16:57.813Z` 仍返回 `estimate=7.98` 且 `actual=null`。原客户端全量日历有 15 分钟内存缓存和 HTTP stale 窗口，iOS 主屏 PWA 恢复后不会针对已到期但缺少 actual 的股票主动重读。用户要求只同步真实接口数据，不用官网、预期或 mock 伪造“已公布”。
 - Workflow tier: `sensitive`。本轮改变已登录 `/api/earnings-calendar` 的请求时机、局部请求范围与 PWA 恢复生命周期；不修改服务端 endpoint、EODHD token、鉴权、RLS、数据库、交易账本或生产数据。
 - Changes:
@@ -18,8 +18,8 @@
   - `DevVisualPreview` 只在显式 `earningsResumeSmoke=1` 时注入本地 ASML 两阶段 fixture，生产构建不包含该开关或数据；设置页版本和中英文更新日志同步到 `v10.7.9.340`。
 - Key files: `src/lib/earningsCalendarRefresh.js`,`src/tabs/EarningsCalendar.jsx`,`src/tabs/HomeTab.jsx`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/earnings-calendar-refresh.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: 定向财报/PWA/边界测试 58/58 pass，完整 `npm test` 393/393 pass，`npm run build`、`npm run verify:toolchain`、`npm audit --audit-level=high`、`npm run verify:rls:rest` 与 `git diff --check` pass；本地生产包未命中 `earningsResumeSmoke` / `dev-earnings-resume` 标记。本机当前锁屏且自动解锁失败，因此要求的 Xcode iOS Simulator 主屏 PWA 实测尚未完成；没有用桌面 Chrome、内置浏览器或响应式视口代替。
-- Deployment: pending；用户已明确要求部署，待 runtime commit 推送 `main` 后等待 GitHub Actions、Vercel 和 production alias 成功再回填。
-- Production verification: pending；部署后必须验证生产入口、`v10.7.9.340` marker，以及未登录 quote / earnings 的 `401` 边界。
+- Deployment: completed；runtime `863fbf059c9fa20799865ebbd49a358ab073d23b` 已通过项目 SSH key 推送 GitHub `main`，GitHub Actions run `29405821570` success，Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/6bQGtGVpQMQD1AorHXhGAEfAC8zr` success，production alias 已切换，入口 `/assets/index-DWtNyKll.js`。
+- Production verification: `npm run verify:deploy-status -- 863fbf0` pass；未登录 quote VIX 和 earnings NVDA 均为 `401`。生产入口、App、HomeTab、SettingsTab 和 settings changelog 共 5 个关键产物与本地 production build SHA-256 逐项一致；生产 HomeTab 命中 `America/New_York`、`refreshBucket` 和 `/api/earnings-calendar`，设置/更新日志命中 `v10.7.9.340`，且不包含 `earningsResumeSmoke` / `dev-earnings-resume`。
 - Boundaries: 本轮只优化财报日历对真实 EODHD actual 的到期重读和 PWA 恢复；不改 `api/earnings-calendar.js` 响应形状、真实已公布判定、EODHD key/费用、quote/realtime、Supabase、RLS、交易、波段、摊薄成本、收益快照、比赛或任何生产数据。ASML 在 EODHD `actual=null` 时仍必须显示未公布，直到 provider 返回真实 actual。
 - Rollback: 回退财报刷新 helper、`EarningsCalendar` 局部合并/PWA 绑定、`HomeTab` 本地注入参数、DevVisualPreview smoke、v340 版本/更新日志及对应测试即可恢复 v339；无需数据、SQL、RLS、环境变量或账本回滚。
 
