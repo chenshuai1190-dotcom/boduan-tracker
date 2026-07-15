@@ -16,6 +16,8 @@ import {
   WalletCards,
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
+import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
@@ -141,6 +143,7 @@ function AnalysisTab({ ctx }) {
 
   const [assetMessage, setAssetMessage] = React.useState(null);
   const [accountActionId, setAccountActionId] = React.useState(null);
+  const [accountTrendId, setAccountTrendId] = React.useState(null);
   const [editingAccountId, setEditingAccountId] = React.useState(null);
   const [accountEditDraft, setAccountEditDraft] = React.useState(null);
 
@@ -310,6 +313,10 @@ function AnalysisTab({ ctx }) {
     setAccountActionId(null);
   };
 
+  const closeAccountTrend = () => {
+    setAccountTrendId(null);
+  };
+
   const closeAccountEdit = () => {
     setAssetMessage(null);
     setEditingAccountId(null);
@@ -383,6 +390,16 @@ function AnalysisTab({ ctx }) {
     : 0;
   const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
   const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
+  const selectedTrendAccount = accountById.get(accountTrendId);
+  const selectedAccountTrend = React.useMemo(() => (
+    selectedTrendAccount
+      ? buildAccountAssetTrend({
+        accountId: selectedTrendAccount.id,
+        snapshots,
+        endMonth: currentMonth,
+      })
+      : null
+  ), [currentMonth, selectedTrendAccount, snapshots]);
   const selectedActionAccount = accountById.get(accountActionId);
   const editingAccount = accountById.get(editingAccountId);
 
@@ -815,33 +832,51 @@ function AnalysisTab({ ctx }) {
               {visibleOwnerAccs.map(acc => {
                 const bal = getBalance(acc.id, currentMonth);
                 const balCNY = toCNY(bal, acc.currency);
+                const displayName = accountNameLabel(acc.name);
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={acc.id}
-                    onClick={() => {
-                      setAssetMessage(null);
-                      setAccountActionId(acc.id);
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-left transition"
+                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.035]"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
-                      <AccountTypeIcon type={acc.type} className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
-                      <div className="truncate text-[13px] text-white/[0.88]">{accountNameLabel(acc.name)}</div>
-                      <div className="mt-1 text-[11px] text-white/[0.42]">{accountTypeLabel(acc.type)}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
-                        {acc.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(acc.currency)}${fmt(bal, 0)}`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssetMessage(null);
+                        setAccountTrendId(acc.id);
+                      }}
+                      className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-white/[0.025]"
+                      aria-label={tt('analysis.viewAccountTrend', '查看{{name}}资产走势', { name: displayName })}
+                      data-open-account-trend={acc.id}
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
+                        <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                       </div>
-                      {acc.currency !== 'CNY' && (
-                        <div className="mt-1 text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmtWan(balCNY)}万</div>
-                      )}
-                    </div>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-white/35" strokeWidth={1.8} />
-                  </button>
+                      <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
+                        <div className="truncate text-[13px] text-white/[0.88]">{displayName}</div>
+                        <div className="mt-1 text-[11px] text-white/[0.42]">{accountTypeLabel(acc.type)}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssetMessage(null);
+                        setAccountActionId(acc.id);
+                      }}
+                      className="flex shrink-0 items-center gap-2 px-2.5 py-2.5 text-right transition active:bg-white/[0.025]"
+                      aria-label={tt('analysis.openAccountActionsFor', '打开{{name}}修改和删除', { name: displayName })}
+                      data-open-account-actions={acc.id}
+                    >
+                      <span className="shrink-0">
+                        <span className="block whitespace-nowrap text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                          {acc.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(acc.currency)}${fmt(bal, 0)}`}
+                        </span>
+                        {acc.currency !== 'CNY' && (
+                          <span className="mt-1 block whitespace-nowrap text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmtWan(balCNY)}万</span>
+                        )}
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-white/35" strokeWidth={1.8} />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -964,6 +999,17 @@ function AnalysisTab({ ctx }) {
 
             </div>
         </ActionModalCard>
+      )}
+
+      {selectedTrendAccount && selectedAccountTrend && (
+        <AccountAssetTrendModal
+          account={selectedTrendAccount}
+          accountName={accountNameLabel(selectedTrendAccount.name)}
+          accountType={accountTypeLabel(selectedTrendAccount.type)}
+          language={language}
+          trend={selectedAccountTrend}
+          onClose={closeAccountTrend}
+        />
       )}
 
       {selectedActionAccount && (

@@ -5,6 +5,7 @@ import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
+const accountAssetTrendModalSource = readFileSync(new URL('../src/components/AccountAssetTrendModal.jsx', import.meta.url), 'utf8');
 const stockLogoSource = readFileSync(new URL('../src/components/StockLogo.jsx', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
 const confirmModalSource = readFileSync(new URL('../src/components/ConfirmModal.jsx', import.meta.url), 'utf8');
@@ -540,8 +541,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.341'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.341', date: '2026-07-15', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.342'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.342', date: '2026-07-16', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('单个账户真实资产走势') && settingsChangelogSource.includes('不补零、不插值或沿用旧余额'), 'settings changelog should document the exact-account real snapshot trend and no-fabrication rule');
   assert.ok(settingsChangelogSource.includes('收益比赛显示真实更新时间'), 'settings changelog should document the authoritative competition update minute');
   assert.ok(settingsChangelogSource.includes('收益比赛本人信息行优化'), 'settings changelog should describe the signed-in competition identity-row refinement');
   assert.ok(settingsChangelogSource.includes('收益比赛本人昵称与头卡紧凑化'), 'settings changelog should describe the signed-in competition identity refinement');
@@ -1931,6 +1933,21 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
 });
 
+test('exact account trend stays read-only while the amount keeps edit and delete actions', () => {
+  assert.ok(analysisTabSource.includes('data-open-account-trend={acc.id}') && analysisTabSource.includes('setAccountTrendId(acc.id)'), 'the account identity area should open only that exact account trend');
+  assert.ok(analysisTabSource.includes('data-open-account-actions={acc.id}') && analysisTabSource.includes('setAccountActionId(acc.id)'), 'the amount area should retain the existing account action flow');
+  assert.ok(analysisTabSource.includes('buildAccountAssetTrend({') && analysisTabSource.includes('accountId: selectedTrendAccount.id'), 'trend calculations should be scoped by exact account id');
+  assert.ok(accountAssetTrendModalSource.includes("import ActionModalCard from './ActionModalCard.jsx'"), 'the trend should reuse the shared iOS-safe modal shell');
+  assert.ok(accountAssetTrendModalSource.includes('!border-0 !bg-transparent !p-0 !shadow-none'), 'the trend content should not add the rejected inner frame');
+  assert.ok(accountAssetTrendModalSource.includes('h-[76px]') && accountAssetTrendModalSource.includes('h-[128px]'), 'the tooltip band must stay separate from the shorter bar plot');
+  assert.ok(accountAssetTrendModalSource.includes("touchAction: 'pan-y'") && accountAssetTrendModalSource.includes('setPointerCapture'), 'the twelve-month bars should support continuous iOS pointer selection without blocking vertical scroll');
+  assert.equal(accountAssetTrendModalSource.includes('db.'), false, 'the account trend modal must remain read-only');
+  assert.equal(accountAssetTrendModalSource.includes('usdRate') || accountAssetTrendModalSource.includes('hkdRate'), false, 'native account history must not be converted with current FX rates');
+  assert.ok(i18nSource.includes("'analysis.accountTrendSource': '数据来自该账户每月余额快照'"), 'the Chinese source note should describe real account snapshots');
+  assert.ok(i18nSource.includes("'analysis.accountTrendSource': 'Data comes from this account’s monthly balance snapshots'"), 'the English source note should be complete');
+  assert.ok(devVisualPreviewSource.includes("get('accountTrend')") && devVisualPreviewSource.includes("acc.id === 'dev_me_bank_hkd'"), 'the approved deterministic trend should stay inside DEV-only visual preview data');
+});
+
 test('primary asset totals split decimal suffixes consistently', () => {
   assert.ok(amountDisplaySource.includes('splitCurrencyAmount'), 'shared amount helper should split integer and decimal parts');
   assert.ok(amountDisplaySource.includes("if (currency === 'CNY') return '¥'"), 'shared amount helper should preserve CNY prefix');
@@ -2312,7 +2329,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.341'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.342'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

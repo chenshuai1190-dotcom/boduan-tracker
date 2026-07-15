@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.341', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.342', date: '2026-07-16', latest: true,
+    items: [
+      '📊 单个账户真实资产走势',
+      '  - 点击账户名称可查看该精确账户近 12 个月的真实月度余额柱状图,同名账户不会合并',
+      '  - 金额、环比、最低和最高资产均使用账户原币;缺月不补零、不插值或沿用旧余额',
+      '  - 右侧金额继续打开原有修改与删除,账户和月度余额写入逻辑保持不变',
+      '  - 柱图提示与图形分区显示,支持连续滑动选月并保持移动端安全间距',
+    ],
+    itemsEn: [
+      '📊 Real asset trend for each account',
+      '  - Tap an account name to view twelve months of real monthly balances for that exact account; accounts with the same name are never merged',
+      '  - Amounts, month-over-month changes, lows, and highs stay in the account currency; missing months are never filled, interpolated, or carried forward',
+      '  - The amount still opens the existing edit and delete actions, while account and monthly-balance writes remain unchanged',
+      '  - The tooltip and bars use separate regions, with continuous month selection and mobile-safe spacing',
+    ],
+  },
+  {
+    ver: 'v10.7.9.341', date: '2026-07-15',
     items: [
       '📊 财报盘前实时与正式收盘反应',
       '  - ASML 使用 EODHD 真实结果:实际 EPS 7.58、预期 7.98;实际营收尚未返回时继续显示 --',

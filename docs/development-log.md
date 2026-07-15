@@ -2,6 +2,28 @@
 
 本文件记录 `boduan-tracker` 的每次可维护更新。任何代码、配置、部署、安全或文档改动,都必须在同一个提交中追加日志。
 
+## 2026-07-16 Asia/Shanghai
+
+### 2026-07-16 - v10.7.9.342 账户级真实月度资产走势
+
+- Commit: `same commit`（runtime 提交；部署证据由后续 docs-only 提交回填）。
+- Background: 用户要求资产页点击具体账户名称时，只查看该精确账户的近 12 个月资产走势；点击右侧金额仍保持原有修改/删除入口。已确认的移动端设计要求包括固定高度深色弹层、独立的柱图提示区、原币金额、较上月金额/百分比、最低/最高资产，以及不使用演示数据填补生产缺口。
+- Workflow tier: `runtime`。弹窗本身只读，但新增账户隔离、12 个月累计增长、自然月环比和极值计算；不改变账户/快照写入、数据库、RLS、API、汇率、交易账本或生产数据。
+- Changes:
+  - 资产账户行拆成两个同级点击区：左侧图标/名称/类型打开该 `accountId` 的资产走势，右侧原币金额、人民币约值与箭头继续打开现有“账户操作”修改/删除弹窗；不使用嵌套按钮，也不改变零余额账户隐藏规则。
+  - 新增账户趋势纯模型，固定生成截至当前月份的 12 个自然月槽位。只读取精确账户的 `balance_snapshots` 原币余额；缺月保持缺失，不补零、不插值、不沿用前值，也不混入同名或同类型的其他账户。
+  - 显式零余额仍是真实快照并参与最低值；“较上月”只在紧邻自然月也有真实快照时计算，前月为零时只显示金额差而不生成无穷百分比；“12 个月累计增长”只在窗口首月和末月都有真实快照且首月大于零时计算。
+  - 冲突重复月、非法月份、字符串/负数/非有限余额均 fail closed，不任意挑选一条冒充真实数据；顶部余额只显示精确末月快照，不用较早月份回填。
+  - 新增底部对齐的账户走势弹层并复用共享 `ActionModalCard` 的 iOS visual viewport 行为。柱图提示占用独立 76px 区域，128px 柱图区不被浮层覆盖；Y 轴标签固定单行，最低/最高资产卡片与柱图保持独立间距，内容区取消多余内边框。
+  - 柱图区支持 pointer capture 连续滑动选择且保留 `pan-y` 垂直滚动；涨用系统红、跌用系统绿。中英文系统文案完整，账户昵称/名称继续使用现有显示映射，不改用户原文。
+  - `DevVisualPreview` 仅在显式 `accountTrend=dev_me_bank_hkd` 时自动打开只读本地样例，样例数据只存在 DEV 预览，不进入生产组件或真实计算路径。
+  - 设置页版本与中英文更新日志同步到 `v10.7.9.342`。
+- Key files: `src/components/AccountAssetTrendModal.jsx`,`src/components/ActionModalCard.jsx`,`src/lib/accountAssetTrend.js`,`src/tabs/AnalysisTab.jsx`,`src/lib/i18n.js`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/account-asset-trend.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: `npm run verify:toolchain` pass；账户趋势定向计算测试 6/6 pass，账户交互/共享弹窗边界定向测试合计 54/54 pass，完整 `npm test` 410/410 pass；`npm run build` pass，`npm audit --audit-level=high` 为 0 vulnerabilities，`git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 已确认账户双点击区、固定弹层、独立提示区、`19.5万` 单行、柱图/极值间距和底部收口；截图为 `~/Desktop/boduan-previews/account-asset-row-code-iphone17pro.png` 与 `~/Desktop/boduan-previews/account-asset-trend-code-iphone17pro.png`。本轮无输入和 PWA 特有生命周期，不需要系统软件键盘或主屏安装复测；未使用桌面 Chrome、内置浏览器、响应式视口或 `verify:frontend-smoke` 作为视觉证据。
+- Deployment: pending；本地设置页版本和更新日志已为 `v10.7.9.342`，GitHub `main` 与 production 在 runtime 提交推送前仍保持 `v10.7.9.341` 基准。
+- Boundaries: 只读既有用户级 `accounts` 与 `balance_snapshots`；不新增接口、表、SQL、持久化写入、FX 换算或生产 mock，不修改 `db.updateAccount`、`db.upsertSnapshot`、`db.deleteAccount`、Supabase/RLS、鉴权、交易账本、收益快照、比赛或任何生产数据。
+- Rollback: 回退账户行双点击区、账户趋势组件/纯模型、共享弹窗可选布局参数、双语文案、DEV-only 预览与对应测试/日志即可；无需 SQL、RLS、环境变量、账本或数据回滚。
+
 ## 2026-07-15 Asia/Shanghai
 
 ### 2026-07-15 - v10.7.9.341 财报真实盘前与正式收盘反应

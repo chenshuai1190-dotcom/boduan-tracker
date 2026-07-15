@@ -589,6 +589,7 @@ function DevModal({ title, onCancel }) {
 function makeSnapshots(accounts) {
   const currentMonth = localMonthKey();
   const monthFactors = [0.34, 0.40, 0.47, 0.45, 0.52, 0.53, 0.59, 0.66, 0.70, 0.96, 0.94, 1.04, 1];
+  const wingLungTrendPreview = [219500, 224800, 221600, 228300, 231200, 235900, 238400, 241600, 246900, 250400, 248018, 260436];
   const months = monthFactors.map((_, idx) => shiftMonth(currentMonth, idx - 12));
 
   return months.flatMap((month, idx) =>
@@ -596,7 +597,9 @@ function makeSnapshots(accounts) {
       id: `dev_snapshot_${acc.id}_${month}`,
       accountId: acc.id,
       month,
-      balance: Math.round(Number(acc.balance || 0) * monthFactors[idx] * 100) / 100,
+      balance: acc.id === 'dev_me_bank_hkd'
+        ? (idx === 0 ? 215000 : wingLungTrendPreview[idx - 1])
+        : Math.round(Number(acc.balance || 0) * monthFactors[idx] * 100) / 100,
     }))
   );
 }
@@ -802,6 +805,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const stockDetailInitialRange = typeof window === 'undefined'
     ? 'all'
     : new URLSearchParams(window.location.search).get('stockDetailRange') || 'all';
+  const accountTrendPreviewId = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('accountTrend') || '';
   const competitionPreviewState = typeof window === 'undefined'
     ? 'ready'
     : new URLSearchParams(window.location.search).get('competitionState') || 'ready';
@@ -814,6 +820,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     () => competitionResumeSmoke ? competitionResumeClockRef.current : Date.now(),
     [competitionResumeSmoke],
   );
+  React.useEffect(() => {
+    if (activeTab !== 'analysis' || !baseAccounts.some(account => account.id === accountTrendPreviewId)) return undefined;
+    const timer = window.setTimeout(() => {
+      const trigger = [...document.querySelectorAll('[data-open-account-trend]')]
+        .find(element => element.dataset.openAccountTrend === accountTrendPreviewId);
+      trigger?.click();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [accountTrendPreviewId, activeTab]);
   const communityCompetitionClient = React.useMemo(() => ({
     fetch: async ({ period }) => {
       const requestedState = {

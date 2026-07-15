@@ -13,6 +13,11 @@ export default function ActionModalCard({
   widthClassName = 'w-[calc(100vw-76px)] max-w-[360px]',
   panelClassName = '',
   contentClassName = '',
+  overlayClassName = '',
+  overlayStyle,
+  panelStyle,
+  showGrabber = false,
+  titleClassName = '',
 }) {
   const actionColumns = actionGridClassName || (actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
@@ -85,7 +90,7 @@ export default function ActionModalCard({
 
   return (
     <div
-      className="fixed left-0 right-0 top-0 z-[100] flex h-[100dvh] items-center justify-center overflow-y-auto bg-black/[0.62] px-0 py-6 backdrop-blur-[10px]"
+      className={`fixed left-0 right-0 top-0 z-[100] flex h-[100dvh] items-center justify-center overflow-y-auto bg-black/[0.62] px-0 py-6 backdrop-blur-[10px] ${overlayClassName}`}
       onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
       style={{
         paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
@@ -94,6 +99,7 @@ export default function ActionModalCard({
           top: visualViewportFrame.top,
           height: visualViewportFrame.height,
         } : {}),
+        ...overlayStyle,
       }}
     >
       <div
@@ -102,18 +108,25 @@ export default function ActionModalCard({
         aria-modal="true"
         aria-label={title}
         className={`min-h-[232px] ${widthClassName} rounded-[27px] flex max-h-full min-w-0 flex-col overflow-hidden border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)] ${panelClassName}`}
+        style={panelStyle}
         onClick={(event) => event.stopPropagation()}
         onFocusCapture={(event) => {
           focusedControlRef.current = event.target;
           window.requestAnimationFrame(() => keepFocusedControlVisible(event.target));
         }}
       >
+        {showGrabber && (
+          <div
+            className="mx-auto mb-[11px] h-[5px] w-[46px] shrink-0 rounded-full bg-white/[0.38]"
+            aria-hidden="true"
+          />
+        )}
         <div className="flex shrink-0 items-center justify-between px-0.5 pb-4">
-          <h2 className="text-[17px] font-normal leading-[30px] tracking-normal text-white/[0.87]">{title}</h2>
+          <h2 className={`min-w-0 truncate text-[17px] font-normal leading-[30px] tracking-normal text-white/[0.87] ${titleClassName}`}>{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-[31px] w-[31px] items-center justify-center rounded-full border border-white/10 bg-black/[0.28] text-white/[0.67] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] active:scale-90"
+            className="flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/[0.28] text-white/[0.67] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] active:scale-90"
             aria-label={closeLabel}
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.7} />
