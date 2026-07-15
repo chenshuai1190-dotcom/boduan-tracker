@@ -4,9 +4,9 @@
 
 ## 2026-07-15 Asia/Shanghai
 
-### 2026-07-15 - v10.7.9.339 收益比赛真实更新时间与 PWA 恢复刷新（发布候选）
+### 2026-07-15 - v10.7.9.339 收益比赛真实更新时间与 PWA 恢复刷新
 
-- Commit: `same commit`（runtime 发布提交；部署证据将在生产验证后回填）。
+- Commit: runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3`；本条部署证据由后续 docs-only 提交回填。
 - Background: 收益比赛头卡此前只显示服务端 `asOfDate` 的月日，用户要求把“最后更新”改为包含月、日和分钟的真实快照更新时间，同时不能使用手机当前时间或演示数据冒充快照时间。
 - Workflow tier: `runtime`。本轮扩展比赛 ready API 返回值并升级客户端缓存结构，属于 API/共享状态变更；不改变比赛排名、收益计算、账本、数据库、RLS 或快照生成规则。
 - Changes:
@@ -18,10 +18,10 @@
   - 设置页版本与中英文更新日志同步到 `v10.7.9.339`，测试覆盖最晚合法锁定时间、ISO 标准化、旧缓存失效、无时间兜底和双语显示。
 - Key files: `server/communityCompetition.js`,`src/lib/communityCompetitionCache.js`,`src/lib/communityCompetitionResume.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`src/DevVisualPreview.jsx`,`tests/community-competition-api.test.js`,`tests/community-competition-cache.test.js`,`tests/community-competition-resume.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: PWA 恢复/缓存/边界定向测试 67/67 pass，完整 `npm test` 382/382 pass，`npm run build`、`npm audit --audit-level=high`、`npm run verify:docs-consistency` 与 `git diff --check` pass。本机 Xcode iOS 26.5 `iPhone 17 Pro` Simulator 真实添加主屏 PWA 已通过恢复 smoke：首次显示“更新 07.10 17:18”，回到主屏再进入后无需手动刷新自动变为“更新 07.13 17:11”；无输入与系统键盘场景。
-- Deployment: pending；当前 production 仍为 `v10.7.9.338` / runtime `cb6b37976e7f61720cd9a36fb03a92b20849f9ca`，入口 `/assets/index-XyyH23zs.js`。
-- Production verification: pending；当前保留 v338 的 GitHub Actions run `29363624252` success 和 Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/TXaUDZ2GJGnujvcr21fmNM2wtrji` success 作为生产基准，不把本地候选写成线上事实。
+- Deployment: completed；runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3` 已通过项目 SSH key 推送 GitHub `main`，GitHub Actions run `29395152514` success，Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/F1rynuez82PaqaquAtxwvfAxDjpV` success，production alias 已切换，入口 `/assets/index-DtGGmaQO.js`。
+- Production verification: `npm run verify:deploy-status -- 0c979d5` pass；未登录 quote VIX、earnings NVDA 和 community competition day 均为 `401`。生产入口、App、比赛页、比赛缓存、设置页、设置更新日志和 i18n 共 7 个关键 JS 产物与本地 production build SHA-256 逐项一致。
 - Boundaries: 本轮只修第一个 iOS PWA 恢复刷新问题；小号参赛资格、D1/D2、排名、收益率、QQQ 基准、权威快照生成、正式 `stock_trades`、交易账本、数据库表/函数、RLS、鉴权、provider、Cron 和生产数据全部不变；客户端仍不生成、修正或伪造收益。
-- Rollback: 回退 `snapshotUpdatedAt` API 字段、缓存 v2 校验、固定美东格式化、v339 版本/更新日志及对应测试即可恢复 v338；无需数据、SQL 或 RLS 回滚。
+- Rollback: 回退 runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3` 中的 `snapshotUpdatedAt` API 字段、缓存 v2 校验、固定美东格式化、PWA 恢复监听、v339 版本/更新日志及对应测试即可恢复 v338；无需数据、SQL 或 RLS 回滚。
 
 ### 2026-07-15 - v10.7.9.338 部署证据回填
 
