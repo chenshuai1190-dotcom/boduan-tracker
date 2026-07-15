@@ -6,7 +6,7 @@
 
 ### 2026-07-15 - v10.7.9.341 财报真实盘前与正式收盘反应
 
-- Commit: 待本次发布提交生成；推送前不预填 runtime commit、Actions、Vercel 或生产入口。
+- Commit: runtime `ae9eb03e725d4a3407eca020b7832e94edd972c4`；本条部署证据由后续 docs-only 提交回填。
 - Background: EODHD 对 ASML 的直接实测已返回实际 EPS `7.58`、预期 EPS `7.98`，但实际营收仍为 `null`；同时现有 EODHD WebSocket 已有真实盘前行情。旧界面把 EPS 结果方向标记放在“盘前反应”列，且正式收盘前没有真实反应值，容易让用户把 EPS 不及预期误解为盘前下跌。用户明确要求所有财报数据保持真实，不用 mock、官网数字、预期值或推算值填补 provider 缺口。
 - Workflow tier: `sensitive`。本轮修改 `/api/earnings-calendar` 的 EUR 换算和同比口径，并把现有登录态 WebSocket 行情接入财报展示；不增加第三方请求，不放宽鉴权，不修改数据库、RLS、交易账本、收益快照或生产数据。
 - Changes:
@@ -18,8 +18,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.341`；生产路径不使用 mock、预期值或估算值冒充 actual、营收或价格反应。
 - Key files: `api/earnings-calendar.js`,`src/lib/earningsReactionDisplay.js`,`src/lib/earningsCalendarRefresh.js`,`src/lib/earningsCalendarModel.js`,`src/tabs/EarningsCalendar.jsx`,`src/tabs/HomeTab.jsx`,`src/lib/i18n.js`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/earnings-calendar.test.js`,`tests/earnings-calendar-refresh.test.js`,`tests/earnings-reaction-display.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: 完整 `npm test` 403/403 pass，`npm run build`、`npm run verify:toolchain`、`npm audit --audit-level=high`、`npm run verify:rls:rest` 与 `git diff --check` pass；EODHD 直接探针确认 ASML actual EPS `7.58`、estimate `7.98`、actual revenue `null`。本机 Xcode iOS `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 已截图确认实际 EPS 结果标记、真实盘前 `+2.8%` 与营收缺失态布局；该预览不连接或写入生产数据。
-- Deployment: pending。待发布提交推送 GitHub `main` 后再记录真实 runtime commit、Actions、Vercel target 和生产入口。
-- Production verification: pending。推送后必须验证部署状态、生产 alias/marker、关键产物一致性及未登录 quote/earnings `401`，未取得证据前不得写成已上线。
+- Deployment: completed；runtime `ae9eb03e725d4a3407eca020b7832e94edd972c4` 已通过项目 SSH key 推送 GitHub `main`，GitHub Actions run `29417637784` success，Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BmcXTYQaBfw7oZq5oSovXjqfXQ1W` success，production alias 已切换，入口 `/assets/index-DAkXD4bD.js`。
+- Production verification: `npm run verify:deploy-status -- ae9eb03` pass；未登录 quote VIX 和 earnings NVDA 均为 `401`。生产入口、App、HomeTab、SettingsTab、settings changelog、i18n 和 stockRealtime 共 7 个关键产物与本地 production build SHA-256 逐项一致；生产命中 `v10.7.9.341`、“盘前实时”、等待收盘状态和 `EODHD_WS_QUOTE` marker，且不包含 `earningsLiveSmoke`、`earningsAutoOpen`、`dev-earnings-resume` 或本地 ASML fixture 数值。
 - Boundaries: 只读现有财报 API 和登录态行情 relay；不引入新的生产 mock/估算兜底，不用预期值冒充 actual，不修改 `stock_trades`、`swing_waves`、`cost_basis_trades`、比赛表、个人收益快照、Supabase、RLS、环境变量或任何生产数据。
 - Rollback: 回退财报 EUR/同比处理、盘前/正式反应 resolver、收盘补读、财报展示接线、v341 版本/更新日志及对应测试即可恢复 v340；无需 SQL、RLS、环境变量、账本或数据回滚。
 
