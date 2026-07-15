@@ -487,6 +487,8 @@ export default function HomeTab({ ctx }) {
     deleteWatchlistItem,
     displayStockName,
     earningsCalendarEvents,
+    earningsCalendarNow,
+    earningsCalendarRequest,
     fetchRealtimePrices,
     fetching,
     fetchPopularStockQuotes,
@@ -1258,6 +1260,8 @@ export default function HomeTab({ ctx }) {
         language={language}
         supabase={supabase}
         eventsOverride={earningsCalendarEvents}
+        requestEventsOverride={earningsCalendarRequest}
+        now={earningsCalendarNow || Date.now}
         onPromotionChange={setPromoteEarningsCalendar}
         placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}
       />

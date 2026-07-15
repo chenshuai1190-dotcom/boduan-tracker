@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.339', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.340', date: '2026-07-15', latest: true,
+    items: [
+      '📅 财报已公布数据自动刷新',
+      '  - 财报日历按美东发布时段判断待刷新股票,不受手机时区影响',
+      '  - iOS 主屏 PWA 恢复、重新聚焦或恢复联网后,会自动检查到期财报',
+      '  - 只请求已到期且缺少真实结果的股票,五分钟限频并保留现有日历',
+      '  - 仅真实 EPS 或营收 actual 可标记已公布;时间、预期和演示数据绝不代替',
+    ],
+    itemsEn: [
+      '📅 Automatic refresh for published earnings data',
+      '  - Earnings Calendar identifies due symbols by New York release windows, independent of the phone time zone',
+      '  - The iOS Home Screen PWA automatically checks due earnings after resume, focus, or reconnect',
+      '  - Only due symbols still missing real results are requested, with a five-minute limit while the existing calendar remains visible',
+      '  - Only real EPS or revenue actuals can mark an event published; timing, estimates, and demo data never substitute',
+    ],
+  },
+  {
+    ver: 'v10.7.9.339', date: '2026-07-15',
     items: [
       '🕒 收益比赛显示真实更新时间',
       '  - “最后更新 MM.DD”改为更紧凑的“更新 MM.DD HH:mm”',

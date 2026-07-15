@@ -16,6 +16,14 @@ import {
   shortDateLabel,
   todayDateKey,
 } from '../lib/earningsCalendarModel.js';
+import {
+  bindEarningsCalendarRefresh,
+  fetchEarningsCalendarEvents,
+  getEarningsRefreshCandidates,
+  mergeEarningsRefreshEvents,
+  preservePublishedEarningsEvents,
+  requestDueEarningsRefresh,
+} from '../lib/earningsCalendarRefresh.js';
 import { t } from '../lib/i18n.js';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -42,11 +50,14 @@ function readEarningsCalendarClientCache(cacheKey) {
   return null;
 }
 
-function writeEarningsCalendarClientCache(cacheKey, events) {
+function writeEarningsCalendarClientCache(cacheKey, events, { preserveExpiry = false } = {}) {
+  const current = earningsCalendarClientCache.get(cacheKey);
   earningsCalendarClientCache.delete(cacheKey);
   earningsCalendarClientCache.set(cacheKey, {
     events: Array.isArray(events) ? events : [],
-    expiresAt: Date.now() + EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS,
+    expiresAt: preserveExpiry && Number.isFinite(Number(current?.expiresAt))
+      ? Number(current.expiresAt)
+      : Date.now() + EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS,
   });
   while (earningsCalendarClientCache.size > EARNINGS_CALENDAR_CLIENT_CACHE_LIMIT) {
     const firstKey = earningsCalendarClientCache.keys().next().value;
@@ -760,6 +771,8 @@ export default function EarningsCalendar({
   language = 'zh',
   supabase,
   eventsOverride = null,
+  requestEventsOverride = null,
+  now = Date.now,
   onPromotionChange,
   placementClassName = '',
 }) {
@@ -772,6 +785,21 @@ export default function EarningsCalendar({
   const [selectedDate, setSelectedDate] = React.useState(todayDateKey());
   const modalOpenRef = React.useRef(false);
   const userSelectedDateRef = React.useRef(false);
+  const eventsRef = React.useRef([]);
+  const activeCacheKeyRef = React.useRef('');
+  const refreshReadyRef = React.useRef(false);
+  const refreshBindingRef = React.useRef(null);
+  const refreshEligibilityRef = React.useRef(() => false);
+  const forceRefreshHandlerRef = React.useRef(null);
+  const checkedCacheKeysRef = React.useRef(new Set());
+  const mountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     modalOpenRef.current = modalOpen;
@@ -793,10 +821,25 @@ export default function EarningsCalendar({
     setSelectedDate(date || todayDateKey());
   }, []);
 
+  const commitEvents = React.useCallback((incoming, { cacheKey = '', merge = false, preserveCacheExpiry = false } = {}) => {
+    const next = merge
+      ? mergeEarningsRefreshEvents(eventsRef.current, incoming)
+      : preservePublishedEarningsEvents(eventsRef.current, incoming);
+    eventsRef.current = next;
+    refreshReadyRef.current = Boolean(cacheKey || activeCacheKeyRef.current);
+    setEvents(next);
+    if (cacheKey) writeEarningsCalendarClientCache(cacheKey, next, { preserveExpiry: preserveCacheExpiry });
+    setDefaultSelectedDate(next);
+    return next;
+  }, [setDefaultSelectedDate]);
+
   React.useEffect(() => {
     let cancelled = false;
     if (Array.isArray(eventsOverride)) {
       const normalized = normalizeEarningsEvents(eventsOverride, { watchlist, positions });
+      eventsRef.current = normalized;
+      activeCacheKeyRef.current = '';
+      refreshReadyRef.current = false;
       setEvents(normalized);
       setError('');
       setLoading(false);
@@ -805,6 +848,9 @@ export default function EarningsCalendar({
     }
 
     if (!symbols.length || !supabase?.auth?.getSession) {
+      eventsRef.current = [];
+      activeCacheKeyRef.current = '';
+      refreshReadyRef.current = false;
       setEvents([]);
       setError('');
       setLoading(false);
@@ -818,12 +864,15 @@ export default function EarningsCalendar({
     const fromKey = from.toISOString().slice(0, 10);
     const toKey = to.toISOString().slice(0, 10);
     const includePreviousPublished = true;
+    activeCacheKeyRef.current = '';
+    refreshReadyRef.current = false;
 
     (async () => {
       setLoading(true);
       setError('');
       try {
         const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
         const token = data?.session?.access_token;
         if (!token) throw new Error(t(language, 'earningsCalendar.authRequired', '请先登录后查看财报日历'));
         const cacheKey = earningsCalendarClientCacheKey({
@@ -833,34 +882,39 @@ export default function EarningsCalendar({
           to: toKey,
           includePreviousPublished,
         });
+        activeCacheKeyRef.current = cacheKey;
         const cachedEvents = readEarningsCalendarClientCache(cacheKey);
         if (cachedEvents) {
           if (cancelled) return;
           const normalized = normalizeEarningsEvents(cachedEvents, { watchlist, positions });
-          setEvents(normalized);
-          setDefaultSelectedDate(normalized);
+          commitEvents(normalized);
+          if (!checkedCacheKeysRef.current.has(cacheKey)) {
+            checkedCacheKeysRef.current.add(cacheKey);
+            refreshBindingRef.current?.request('cached-events');
+          }
           return;
         }
-        const params = new URLSearchParams({
-          symbols: symbols.join(','),
-          from: fromKey,
-          to: toKey,
-          includePreviousPublished: includePreviousPublished ? '1' : '0',
-        });
         const rawEvents = await getOrStartEarningsCalendarRequest(cacheKey, async () => {
-          const response = await fetch(`/api/earnings-calendar?${params.toString()}`, {
-            headers: { Authorization: `Bearer ${token}` },
+          const requestEvents = typeof requestEventsOverride === 'function'
+            ? requestEventsOverride
+            : fetchEarningsCalendarEvents;
+          return requestEvents({
+            token,
+            symbols,
+            from: fromKey,
+            to: toKey,
+            includePreviousPublished,
+            forceRefresh: false,
           });
-          const body = await response.json().catch(() => null);
-          if (!response.ok || body?.success === false) throw new Error(body?.error || response.statusText || 'request failed');
-          return body?.events || [];
         });
         if (cancelled) return;
         const normalized = normalizeEarningsEvents(rawEvents, { watchlist, positions });
-        setEvents(normalized);
-        setDefaultSelectedDate(normalized);
+        checkedCacheKeysRef.current.add(cacheKey);
+        commitEvents(normalized, { cacheKey });
       } catch (fetchError) {
         if (!cancelled) {
+          eventsRef.current = [];
+          refreshReadyRef.current = false;
           setEvents([]);
           setError(fetchError?.message || t(language, 'earningsCalendar.loadFailed', '财报日历读取失败'));
         }
@@ -870,7 +924,56 @@ export default function EarningsCalendar({
     })();
 
     return () => { cancelled = true; };
-  }, [symbols.join(','), supabase, language, watchlist, positions, eventsOverride, setDefaultSelectedDate]);
+  }, [symbols.join(','), supabase, language, watchlist, positions, eventsOverride, requestEventsOverride, commitEvents, setDefaultSelectedDate]);
+
+  const forceRefreshDueEarnings = React.useCallback(async () => {
+    if (Array.isArray(eventsOverride) || !activeCacheKeyRef.current || !supabase?.auth?.getSession) return;
+    const requestedCacheKey = activeCacheKeyRef.current;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!token || activeCacheKeyRef.current !== requestedCacheKey) return;
+      const requestEvents = typeof requestEventsOverride === 'function'
+        ? requestEventsOverride
+        : fetchEarningsCalendarEvents;
+      const result = await requestDueEarningsRefresh({
+        baseCacheKey: requestedCacheKey,
+        events: eventsRef.current,
+        token,
+        now,
+        requestFn: requestEvents,
+      });
+      if (!mountedRef.current || !result.requested || activeCacheKeyRef.current !== requestedCacheKey) return;
+      const normalized = normalizeEarningsEvents(result.events, { watchlist, positions });
+      commitEvents(normalized, {
+        cacheKey: requestedCacheKey,
+        merge: true,
+        preserveCacheExpiry: true,
+      });
+    } catch {
+      // Background refreshes keep the last real calendar instead of replacing it with an error state.
+    }
+  }, [commitEvents, eventsOverride, now, positions, requestEventsOverride, supabase, watchlist]);
+
+  forceRefreshHandlerRef.current = forceRefreshDueEarnings;
+  refreshEligibilityRef.current = () => !Array.isArray(eventsOverride)
+    && refreshReadyRef.current
+    && Boolean(activeCacheKeyRef.current)
+    && getEarningsRefreshCandidates(eventsRef.current, now).length > 0;
+
+  React.useEffect(() => {
+    const binding = bindEarningsCalendarRefresh({
+      shouldRefresh: () => refreshEligibilityRef.current(),
+      onVisibleRefresh: (trigger) => forceRefreshHandlerRef.current?.(trigger),
+      now,
+    });
+    refreshBindingRef.current = binding;
+    if (refreshEligibilityRef.current()) binding.request('initial-due');
+    return () => {
+      if (refreshBindingRef.current === binding) refreshBindingRef.current = null;
+      binding.cleanup();
+    };
+  }, [now]);
 
   const displayEvents = React.useMemo(() => {
     const today = todayDateKey();
@@ -898,6 +1001,7 @@ export default function EarningsCalendar({
     }
     setModalView(view);
     setModalOpen(true);
+    refreshBindingRef.current?.request('modal-open');
   };
 
   return (

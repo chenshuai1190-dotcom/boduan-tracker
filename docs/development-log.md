@@ -4,6 +4,25 @@
 
 ## 2026-07-15 Asia/Shanghai
 
+### 2026-07-15 - v10.7.9.340 财报真实已公布自动刷新
+
+- Commit: `same commit`（runtime 发布提交；实际 hash 和部署证据待上线后回填）。
+- Background: ASML 已在官方公布 Q2 2026 财报，但 EODHD earnings calendar 截至 `2026-07-15T09:16:57.813Z` 仍返回 `estimate=7.98` 且 `actual=null`。原客户端全量日历有 15 分钟内存缓存和 HTTP stale 窗口，iOS 主屏 PWA 恢复后不会针对已到期但缺少 actual 的股票主动重读。用户要求只同步真实接口数据，不用官网、预期或 mock 伪造“已公布”。
+- Workflow tier: `sensitive`。本轮改变已登录 `/api/earnings-calendar` 的请求时机、局部请求范围与 PWA 恢复生命周期；不修改服务端 endpoint、EODHD token、鉴权、RLS、数据库、交易账本或生产数据。
+- Changes:
+  - 新增美东 DST 安全时钟和到期判定：盘前从报告日 `00:00 ET`、盘后从 `16:00 ET`、未知时段从 `06:00 ET` 进入检查；只保留当日和现有已公布回看保留窗口内的未公布事件。
+  - 强制刷新只携带到期 symbol 和最窄日期区间，不重复读取上一财季；使用 `cache: no-store`、五分钟 refresh bucket、跨桶最小五分钟限频和共享 in-flight 去重。
+  - 局部响应按 symbol + report date 合并，不丢弃其他日历事件；真实 actual 不会被后续 null 回退，失败继续显示最近真实日历，也不续长原全量缓存 TTL。
+  - 只有 `earningsPublished=true`、真实 `epsActual` 或真实 `revenueActual` 才停止轮询，数值 `0` 也是合法 actual；不按时间、分析师预期或前端 fixture 推断已公布。
+  - iOS PWA 侦听 `visibilitychange`、`pageshow`、`focus` 和 `online`；页面可见时每五分钟最多检查 12 次，恢复事件仍可在之后重新检查，普通触摸/点击不触发额外接口读取。
+  - `DevVisualPreview` 只在显式 `earningsResumeSmoke=1` 时注入本地 ASML 两阶段 fixture，生产构建不包含该开关或数据；设置页版本和中英文更新日志同步到 `v10.7.9.340`。
+- Key files: `src/lib/earningsCalendarRefresh.js`,`src/tabs/EarningsCalendar.jsx`,`src/tabs/HomeTab.jsx`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/earnings-calendar-refresh.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 定向财报/PWA/边界测试 58/58 pass，完整 `npm test` 393/393 pass，`npm run build`、`npm run verify:toolchain`、`npm audit --audit-level=high`、`npm run verify:rls:rest` 与 `git diff --check` pass；本地生产包未命中 `earningsResumeSmoke` / `dev-earnings-resume` 标记。本机当前锁屏且自动解锁失败，因此要求的 Xcode iOS Simulator 主屏 PWA 实测尚未完成；没有用桌面 Chrome、内置浏览器或响应式视口代替。
+- Deployment: pending；用户已明确要求部署，待 runtime commit 推送 `main` 后等待 GitHub Actions、Vercel 和 production alias 成功再回填。
+- Production verification: pending；部署后必须验证生产入口、`v10.7.9.340` marker，以及未登录 quote / earnings 的 `401` 边界。
+- Boundaries: 本轮只优化财报日历对真实 EODHD actual 的到期重读和 PWA 恢复；不改 `api/earnings-calendar.js` 响应形状、真实已公布判定、EODHD key/费用、quote/realtime、Supabase、RLS、交易、波段、摊薄成本、收益快照、比赛或任何生产数据。ASML 在 EODHD `actual=null` 时仍必须显示未公布，直到 provider 返回真实 actual。
+- Rollback: 回退财报刷新 helper、`EarningsCalendar` 局部合并/PWA 绑定、`HomeTab` 本地注入参数、DevVisualPreview smoke、v340 版本/更新日志及对应测试即可恢复 v339；无需数据、SQL、RLS、环境变量或账本回滚。
+
 ### 2026-07-15 - v10.7.9.339 收益比赛真实更新时间与 PWA 恢复刷新
 
 - Commit: runtime `0c979d522b79bea7e3c090fa737a07d38d76ace3`；本条部署证据由后续 docs-only 提交回填。

@@ -715,6 +715,53 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const earningsScenario = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('earningsScenario');
+  const earningsResumeSmoke = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('earningsResumeSmoke') === '1';
+  const earningsResumeClockRef = React.useRef(Date.parse('2026-07-15T12:01:00.000Z'));
+  const earningsResumeHiddenRef = React.useRef(false);
+  const earningsResumeUserIdRef = React.useRef(`dev-earnings-resume-${Math.random().toString(36).slice(2)}`);
+  const earningsCalendarNow = React.useCallback(
+    () => earningsResumeSmoke ? earningsResumeClockRef.current : Date.now(),
+    [earningsResumeSmoke],
+  );
+  const earningsCalendarRequest = React.useCallback(async ({ symbols = [], forceRefresh = false }) => {
+    if (!earningsResumeSmoke) return [];
+    const published = forceRefresh && earningsResumeHiddenRef.current;
+    const events = [{
+      code: 'ASML.US',
+      symbol: 'ASML',
+      name: '阿斯麦',
+      report_date: '2026-07-15',
+      date: '2026-06-30',
+      before_after_market: 'BeforeMarket',
+      currency: 'EUR',
+      estimate: 7.98,
+      actual: published ? 7.59 : null,
+      difference: published ? -0.39 : null,
+      percent: published ? -4.89 : null,
+      revenueEstimateUsd: 10_420_000_000,
+      revenueActualUsd: published ? 10_790_000_000 : null,
+      earningsPublished: published,
+    }];
+    const requested = new Set(symbols.map((symbol) => String(symbol || '').trim().toUpperCase()));
+    return events.filter((event) => requested.has(event.symbol));
+  }, [earningsResumeSmoke]);
+  React.useEffect(() => {
+    if (!earningsResumeSmoke) return undefined;
+    const markResumeReady = () => {
+      earningsResumeHiddenRef.current = true;
+      earningsResumeClockRef.current = Date.parse('2026-07-15T12:07:00.000Z');
+    };
+    const markWhenHidden = () => {
+      if (document.hidden) markResumeReady();
+    };
+    window.addEventListener('pagehide', markResumeReady);
+    document.addEventListener('visibilitychange', markWhenHidden);
+    return () => {
+      window.removeEventListener('pagehide', markResumeReady);
+      document.removeEventListener('visibilitychange', markWhenHidden);
+    };
+  }, [earningsResumeSmoke]);
   const stockDetailPeakPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';
   const stockDetailCurrencyPreview = typeof window !== 'undefined'
@@ -883,6 +930,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     ? mockLockedActivePositions
     : mockActivePositions;
   const previewEarningsCalendarEvents = React.useMemo(() => {
+    if (earningsResumeSmoke) return null;
     if (!['dense', 'sparse'].includes(earningsScenario)) return mockEarningsCalendarEvents;
     const simulatedEvents = [
       ['NVDA', 'NVIDIA', 1, 'high'],
@@ -901,9 +949,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       impact,
     }));
     return earningsScenario === 'dense' ? simulatedEvents : simulatedEvents.slice(0, 2);
-  }, [earningsScenario]);
+  }, [earningsResumeSmoke, earningsScenario]);
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => (
-    ['dense', 'sparse'].includes(earningsScenario)
+    earningsResumeSmoke
+      ? [{ symbol: 'ASML', name: '阿斯麦', price: 1456.8, changePercent: 0.4, high: 1515.2, ytdChangePercent: 22.6, intraday: mockMarketIntraday.red }, ...mockHomeWatchlist]
+      : ['dense', 'sparse'].includes(earningsScenario)
       ? [...mockHomeWatchlist, { symbol: 'META', name: 'Meta', price: 607.66, changePercent: 0.75, high: 740.91, ytdChangePercent: 12.3, intraday: mockMarketIntraday.red }]
       : mockHomeWatchlist
   ));
@@ -1213,6 +1263,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       return name || normalizedSymbol;
     },
     earningsCalendarEvents: previewEarningsCalendarEvents,
+    earningsCalendarNow,
+    earningsCalendarRequest: earningsResumeSmoke ? earningsCalendarRequest : null,
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
       const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];
@@ -1282,7 +1334,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
     supabase: {
       auth: {
-        getSession: async () => ({ data: { session: { access_token: 'dev-visual-preview-token' } } }),
+        getSession: async () => ({ data: { session: { access_token: 'dev-visual-preview-token', user: { id: earningsResumeSmoke ? earningsResumeUserIdRef.current : 'dev-user' } } } }),
       },
     },
     usdRate: USD_RATE,
