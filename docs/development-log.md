@@ -6,7 +6,7 @@
 
 ### 2026-07-16 - v10.7.9.343 账户走势口径与账户金额排序修正
 
-- Commit: runtime `same commit`；部署证据将在生产成功后由后续 docs-only 提交回填。
+- Commit: runtime `e30b1773159548bb9806fbd4e694f5f987ff804f`；本条部署证据由后续 docs-only 提交回填。
 - Background: 用户反馈单账户近 12 个月走势在窗口早期缺少快照时把累计增长显示为 `--`，要求从第一个真实月份开始计算；同时要求“我的账户”按当前余额折算人民币后从高到低展示。上一轮还确认月份对比小浮层初次打开不应默认出现，点击图表外应只关闭小浮层。
 - Workflow tier: `runtime`。本轮修改账户累计增长的计算起点与账户展示排序；不修改账户/快照写入、数据库顺序、汇率来源、API、RLS、鉴权、交易账本、收益快照或生产数据。
 - Changes:
@@ -17,8 +17,8 @@
   - 设置页版本和中英文更新日志同步到 `v10.7.9.343`。
 - Key files: `src/components/AccountAssetTrendModal.jsx`,`src/lib/accountAssetTrend.js`,`src/tabs/AnalysisTab.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/account-asset-trend.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
 - Validation: 账户趋势/资产边界定向测试 54/54 pass，完整 `npm test` 410/410 pass；`npm run verify:toolchain`、`npm run build`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:docs-consistency` 和 `git diff --check` 均 pass。Xcode iOS 26.5 `iPhone 17 Pro` Simulator 只读预览已确认账户走势初次打开不显示月份浮层，以及稀疏月份显示“自首个真实月份累计增长”；截图保存为 `~/Desktop/boduan-previews/v343-account-trend-default-hidden-iphone17pro.png` 与 `~/Desktop/boduan-previews/v343-account-trend-first-real-month-iphone17pro.png`。本机锁定导致图表外真实触摸关闭尚未复测，不使用桌面浏览器证据替代。
-- Deployment: pending；用户已明确要求部署，门禁通过后使用项目 SSH key 推送 GitHub `main` 并等待 Vercel production success。
-- Production verification: pending；部署后运行 `npm run verify:deploy-status -- <runtime-commit>`，回填 Actions、Vercel、生产入口、版本/功能 marker、开发 fixture 缺席和未登录 quote/earnings `401`。
+- Deployment: completed；runtime `e30b1773159548bb9806fbd4e694f5f987ff804f` 已通过项目 SSH key 推送 GitHub `main`，GitHub Actions run `29442304541` success，Vercel `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/AS2TjUyLbX9YSgtKjSWjQA2zcxsk` success，production alias 已切换，入口 `/assets/index-Lpb4oLJK.js`，CSS `/assets/index-DTG3hddA.css`。
+- Production verification: `npm run verify:deploy-status -- e30b177` pass；未登录 quote VIX 和 earnings NVDA 均为 `401`。生产 `index.html`、入口、CSS、App、AnalysisTab、SettingsTab、settings changelog 与 i18n 共 8 个关键产物均和本地最终 production build 逐字节一致。生产命中 `v10.7.9.343`、中英文 v343 更新标题、“自 {{month}} 累计增长 / Started From 0”和账户趋势 DOM marker，且不包含 `DevVisualPreview`、`dev_me_bank_hkd`、`accountTrendPreviewId` 或 `wingLungTrendPreview`。
 - Boundaries: 只读取既有用户级 `accounts`、`balance_snapshots` 和现有每日 FX；不新增接口、表、SQL、持久化写入或生产 mock，不修改账户修改/删除入口、`db.updateAccount`、`db.upsertSnapshot`、Supabase/RLS、鉴权、交易账本、收益快照或比赛数据。
 - Rollback: 回退账户趋势起点/浮层状态、账户展示排序、v343 双语更新日志与对应测试/文档即可恢复 v342；无需 SQL、RLS、环境变量、账户数据或账本回滚。
 
