@@ -1,6 +1,25 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.338', date: '2026-07-15', latest: true,
+    ver: 'v10.7.9.339', date: '2026-07-15', latest: true,
+    items: [
+      '🕒 收益比赛显示真实更新时间',
+      '  - “最后更新 MM.DD”改为更紧凑的“更新 MM.DD HH:mm”',
+      '  - 分钟取自当日已锁定比赛快照中最晚的真实 locked_at,不使用手机当前时间',
+      '  - 时间固定按美东时区显示,不受客户手机时区影响',
+      '  - 比赛缓存升级一次以立即读取真实分钟;排名、收益和交易账本保持不变',
+      '  - iOS 主屏 PWA 从后台恢复时会重新检查收盘窗口,到期后自动读取新快照',
+    ],
+    itemsEn: [
+      '🕒 Real Competition update timestamp',
+      '  - Last updated MM.DD becomes the more compact Updated MM.DD HH:mm',
+      '  - Minutes come from the latest real locked_at among that day’s locked Competition snapshots, never the phone clock',
+      '  - The timestamp is fixed to New York time and does not depend on the customer device time zone',
+      '  - Competition cache advances once to load the real minute immediately; ranking, returns, and the trade ledger are unchanged',
+      '  - The iOS Home Screen PWA rechecks the close window on resume and automatically reads a new snapshot when due',
+    ],
+  },
+  {
+    ver: 'v10.7.9.338', date: '2026-07-15',
     items: [
       '🏆 收益比赛本人信息行优化',
       '  - 本人昵称与“最后更新”调整到同一水平行,头卡更加紧凑',

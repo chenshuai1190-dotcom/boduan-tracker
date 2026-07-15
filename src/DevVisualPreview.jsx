@@ -617,6 +617,7 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
     state: 'ready',
     period,
     asOfDate: '2026-07-10',
+    snapshotUpdatedAt: '2026-07-10T21:18:00.000Z',
     calculationStartDate: period === 'day' ? '2026-07-10' : '2026-07-01',
     benchmarkReturnPct: 0.0042,
     stats: {
@@ -738,6 +739,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const competitionPreviewState = typeof window === 'undefined'
     ? 'ready'
     : new URLSearchParams(window.location.search).get('competitionState') || 'ready';
+  const competitionResumeSmoke = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('competitionResumeSmoke') === '1';
+  const competitionResumeClockRef = React.useRef(Date.parse('2026-07-13T20:00:00.000Z'));
+  const competitionResumeFetchCountRef = React.useRef(0);
+  const competitionResumeUserIdRef = React.useRef(`dev-resume-smoke-${Math.random().toString(36).slice(2)}`);
+  const communityCompetitionNow = React.useCallback(
+    () => competitionResumeSmoke ? competitionResumeClockRef.current : Date.now(),
+    [competitionResumeSmoke],
+  );
   const communityCompetitionClient = React.useMemo(() => ({
     fetch: async ({ period }) => {
       const requestedState = {
@@ -745,13 +755,33 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         join: 'join_required',
         waiting: 'waiting_snapshot',
       }[competitionPreviewState] || competitionPreviewState;
-      return buildCommunityCompetitionPreview(
+      const preview = buildCommunityCompetitionPreview(
         ['profile_required', 'join_required', 'waiting_snapshot', 'ready'].includes(requestedState) ? requestedState : 'ready',
         period,
       );
+      if (!competitionResumeSmoke || preview.state !== 'ready') return preview;
+      competitionResumeFetchCountRef.current += 1;
+      return competitionResumeFetchCountRef.current > 1
+        ? { ...preview, asOfDate: '2026-07-13', snapshotUpdatedAt: '2026-07-13T21:11:00.000Z' }
+        : preview;
     },
     join: async () => buildCommunityCompetitionPreview('waiting_snapshot'),
-  }), [competitionPreviewState]);
+  }), [competitionPreviewState, competitionResumeSmoke]);
+  React.useEffect(() => {
+    if (!competitionResumeSmoke) return undefined;
+    const advancePastClose = () => {
+      competitionResumeClockRef.current = Date.parse('2026-07-13T21:11:00.000Z');
+    };
+    const advanceWhenHidden = () => {
+      if (document.hidden) advancePastClose();
+    };
+    window.addEventListener('pagehide', advancePastClose);
+    document.addEventListener('visibilitychange', advanceWhenHidden);
+    return () => {
+      window.removeEventListener('pagehide', advancePastClose);
+      document.removeEventListener('visibilitychange', advanceWhenHidden);
+    };
+  }, [competitionResumeSmoke]);
   React.useEffect(() => {
     if (activeTab !== 'stock-detail' || !stockDetailFocusComparison) return undefined;
     let cancelled = false;
@@ -1300,9 +1330,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     costBasisActiveSymbol,
     costBasisData,
     communityCompetitionClient,
+    communityCompetitionNow,
     db,
     deleteStockTradeRecord: async () => {},
-    disableCommunityCompetitionCache: true,
+    disableCommunityCompetitionCache: !competitionResumeSmoke,
     editingNoteId,
     expandedTrades,
     expandedWaves,
@@ -1372,7 +1403,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     tradeSubmitting: false,
     trades: mockWaveTrades,
     usdRate: USD_RATE,
-    user: { id: 'dev-user', email: 'preview@example.com' },
+    user: {
+      id: competitionResumeSmoke ? competitionResumeUserIdRef.current : 'dev-user',
+      email: 'preview@example.com',
+    },
     watchlist: tradeQuoteRows,
     waveNotes,
     wavesByStock: mockWavesByStock,

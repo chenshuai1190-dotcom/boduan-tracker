@@ -4,7 +4,7 @@ import {
   writeUserScopedJson,
 } from './userScopedStorage.js';
 
-export const COMMUNITY_COMPETITION_CACHE_VERSION = 1;
+export const COMMUNITY_COMPETITION_CACHE_VERSION = 2;
 // The server snapshot gate opens at 17:00 New York time. Read ten minutes later
 // so the first cron can lock rows; the only retry follows the final daily cron.
 export const COMMUNITY_COMPETITION_PRIMARY_REFRESH_MINUTES = 17 * 60 + 10;
@@ -35,6 +35,10 @@ function normalizeNowMs(now = Date.now()) {
 
 function isDateKey(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function isTimestamp(value) {
+  return typeof value === 'string' && value.trim() !== '' && Number.isFinite(Date.parse(value));
 }
 
 function shiftDate(dateKey, days) {
@@ -186,7 +190,7 @@ function normalizeData(data, period) {
   const state = String(data?.state || '');
   if (!normalizedPeriod || !VALID_STATES.has(state)) return null;
   if (data?.period && normalizePeriod(data.period) !== normalizedPeriod) return null;
-  if (state === 'ready' && !isDateKey(data?.asOfDate)) return null;
+  if (state === 'ready' && (!isDateKey(data?.asOfDate) || !isTimestamp(data?.snapshotUpdatedAt))) return null;
   return { ...data, period: normalizedPeriod };
 }
 
@@ -271,6 +275,17 @@ function recordCommunityCompetitionAttempt({ userId, period, marker } = {}) {
   const next = { ...current, refresh: mergeAttemptMeta(current.refresh, marker) };
   writeUserScopedJson(cacheBaseKey(period), normalizeUserId(userId), next);
   return next;
+}
+
+export function shouldRecordCommunityCompetitionRefreshFailure(error) {
+  const code = String(error?.code || '').trim().toUpperCase();
+  const name = String(error?.name || '').trim();
+  const status = Number(error?.status);
+  if (code === 'AUTH_REQUIRED' || code === 'COMPETITION_CACHE_INVALIDATED') return false;
+  if (name === 'AbortError') return false;
+  if (status === 401 || status === 403) return false;
+  if (error instanceof TypeError && !Number.isFinite(status)) return false;
+  return true;
 }
 
 export function writeCommunityCompetitionCache({ userId, period, data, now = Date.now(), marker = null } = {}) {
@@ -412,7 +427,10 @@ export function requestCommunityCompetitionRefresh({ userId, period, now = Date.
       return { data: entry?.data || normalizedData, entry };
     })
     .catch((error) => {
-      if ((userCacheGenerations.get(normalizedUserId) || 0) === generation) {
+      if (
+        (userCacheGenerations.get(normalizedUserId) || 0) === generation
+        && shouldRecordCommunityCompetitionRefreshFailure(error)
+      ) {
         recordCommunityCompetitionAttempt({ userId: normalizedUserId, period: normalizedPeriod, marker });
       }
       throw error;

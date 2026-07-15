@@ -29,6 +29,17 @@ function shiftDate(dateKey, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function latestSnapshotUpdatedAt(snapshots = [], asOfDate) {
+  let latestTimestamp = null;
+  snapshots.forEach((snapshot) => {
+    if (String(snapshot?.snapshot_date || '').slice(0, 10) !== asOfDate) return;
+    const timestamp = Date.parse(String(snapshot?.locked_at || ''));
+    if (!Number.isFinite(timestamp)) return;
+    if (latestTimestamp == null || timestamp > latestTimestamp) latestTimestamp = timestamp;
+  });
+  return latestTimestamp == null ? null : new Date(latestTimestamp).toISOString();
+}
+
 function getSupabaseAdminConfig() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -345,6 +356,7 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     state: 'ready',
     period: normalizedPeriod,
     asOfDate,
+    snapshotUpdatedAt: latestSnapshotUpdatedAt(data.snapshots, asOfDate),
     calculationStartDate: leaderboard.selfCalculationStartDate,
     benchmarkReturnPct: leaderboard.selfBenchmarkReturnPct,
     stats: leaderboard.stats,

@@ -5,8 +5,10 @@ import {
   getCommunityCompetitionRefreshDecision,
   readCommunityCompetitionCache,
   requestCommunityCompetitionRefresh,
+  shouldRecordCommunityCompetitionRefreshFailure,
   writeCommunityCompetitionCache,
 } from '../lib/communityCompetitionCache.js';
+import { bindCommunityCompetitionResume } from '../lib/communityCompetitionResume.js';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { communityCompetitionApi } from '../lib/communityCompetitionApi.js';
 import { t } from '../lib/i18n.js';
@@ -17,6 +19,7 @@ const PROFIT = '#ff5b50';
 const LOSS = '#36c49a';
 const NEUTRAL = 'rgba(255,255,255,0.58)';
 const GOLD = '#f6b54b';
+const TRANSIENT_RESUME_RETRY_COOLDOWN_MS = 60_000;
 
 const PERIODS = [
   ['day', '日榜'],
@@ -58,10 +61,27 @@ function formatDate(value, language = 'zh') {
   });
 }
 
-function formatCompactDate(value) {
-  const parts = String(value || '').slice(0, 10).split('-');
-  if (parts.length !== 3 || !/^\d{2}$/.test(parts[1]) || !/^\d{2}$/.test(parts[2])) return '--';
-  return `${parts[1]}.${parts[2]}`;
+function formatCompactSnapshotTime(value) {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime())) return '--';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date);
+    const part = (type) => parts.find((item) => item.type === type)?.value || '';
+    const month = part('month');
+    const day = part('day');
+    const hour = part('hour');
+    const minute = part('minute');
+    return month && day && hour && minute ? `${month}.${day} ${hour}:${minute}` : '--';
+  } catch {
+    return '--';
+  }
 }
 
 function keepTogether(value) {
@@ -404,7 +424,7 @@ function CompetitionContent({ data, period, language, tt }) {
           </div>
           <div className="col-start-2 grid min-w-0 grid-cols-3">
             <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] leading-5 text-[#7f858e]">
-              {ready ? tt('competition.snapshotAsOf', '最后更新 {{date}}', { date: formatCompactDate(data?.asOfDate) }) : '--'}
+              {ready ? tt('competition.snapshotAsOf', '更新 {{dateTime}}', { dateTime: formatCompactSnapshotTime(data?.snapshotUpdatedAt) }) : '--'}
             </div>
           </div>
         </div>
@@ -468,6 +488,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const {
     closeCommunityCompetition,
     communityCompetitionClient = communityCompetitionApi,
+    communityCompetitionNow = Date.now,
     disableCommunityCompetitionCache = false,
     language = 'zh',
     openCommunityProfileSettings,
@@ -492,6 +513,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const activeViewKey = `${userId}:${period}`;
   const activeViewKeyRef = React.useRef(activeViewKey);
   const settledViewKeyRef = React.useRef('');
+  const failedRetryNotBeforeRef = React.useRef(new Map());
   activeViewKeyRef.current = activeViewKey;
   const profileRedirectedRef = React.useRef(false);
 
@@ -500,8 +522,15 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const load = React.useCallback(async ({ showLoading = false } = {}) => {
+  const load = React.useCallback(async ({ showLoading = false, bypassFailureCooldown = false } = {}) => {
     const requestViewKey = `${userId}:${period}`;
+    const now = communityCompetitionNow();
+    const blockedUntil = Number(failedRetryNotBeforeRef.current.get(requestViewKey)) || 0;
+    if (!bypassFailureCooldown && blockedUntil > now) return null;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return null;
+    }
+    failedRetryNotBeforeRef.current.delete(requestViewKey);
     const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
     if (mountedRef.current && showLoading && !cached) {
       setView({ state: 'loading', data: null, error: '' });
@@ -512,15 +541,26 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         ? await requestCommunityCompetitionRefresh({
           userId,
           period,
+          now,
           fetcher: () => communityCompetitionClient.fetch({ supabase, period }),
         })
         : { data: await communityCompetitionClient.fetch({ supabase, period }), entry: null };
       if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
         settledViewKeyRef.current = requestViewKey;
+        failedRetryNotBeforeRef.current.delete(requestViewKey);
         setView({ state: result.data.state, data: result.data, error: '' });
       }
       return result;
     } catch (error) {
+      if (
+        error?.code !== 'COMPETITION_CACHE_INVALIDATED'
+        && !shouldRecordCommunityCompetitionRefreshFailure(error)
+      ) {
+        failedRetryNotBeforeRef.current.set(
+          requestViewKey,
+          communityCompetitionNow() + TRANSIENT_RESUME_RETRY_COOLDOWN_MS,
+        );
+      }
       const fallback = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
       if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
         settledViewKeyRef.current = requestViewKey;
@@ -534,12 +574,15 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         mountedRef.current
         && activeViewKeyRef.current === requestViewKey
         && cacheEnabled
-        && readCommunityCompetitionCache({ userId, period })
+        && (
+          readCommunityCompetitionCache({ userId, period })
+          || failedRetryNotBeforeRef.current.has(requestViewKey)
+        )
       ) {
         setRefreshTick((current) => current + 1);
       }
     }
-  }, [cacheEnabled, communityCompetitionClient, period, supabase, tt, userId]);
+  }, [cacheEnabled, communityCompetitionClient, communityCompetitionNow, period, supabase, tt, userId]);
 
   React.useEffect(() => {
     let timerId = 0;
@@ -548,34 +591,61 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
       settledViewKeyRef.current = activeViewKey;
       setView({ state: cached.data.state, data: cached.data, error: '' });
     }
-    const decision = getCommunityCompetitionRefreshDecision({ entry: cached });
-    if ((!cached && settledViewKeyRef.current !== activeViewKey) || (cached && decision.shouldRefresh)) {
-      load({ showLoading: !cached });
+    const now = communityCompetitionNow();
+    const decision = getCommunityCompetitionRefreshDecision({ entry: cached, now });
+    const retryNotBefore = Number(failedRetryNotBeforeRef.current.get(activeViewKey)) || 0;
+    const missingCacheNeedsLoad = !cached && (
+      settledViewKeyRef.current !== activeViewKey
+      || Number.isFinite(retryNotBefore) && retryNotBefore > 0
+    );
+    if (missingCacheNeedsLoad || (cached && decision.shouldRefresh)) {
+      if (retryNotBefore > now) {
+        const delay = Math.min(2_147_000_000, Math.max(1_000, retryNotBefore - now));
+        timerId = window.setTimeout(() => setRefreshTick((current) => current + 1), delay);
+      } else {
+        failedRetryNotBeforeRef.current.delete(activeViewKey);
+        load({ showLoading: !cached });
+      }
     } else if (cached && Number.isFinite(decision.nextCheckAt)) {
-      const delay = Math.min(2_147_000_000, Math.max(1_000, decision.nextCheckAt - Date.now()));
+      const delay = Math.min(2_147_000_000, Math.max(1_000, decision.nextCheckAt - now));
       timerId = window.setTimeout(() => setRefreshTick((current) => current + 1), delay);
     }
     return () => {
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [activeViewKey, cacheEnabled, load, period, refreshTick, userId]);
+  }, [activeViewKey, cacheEnabled, communityCompetitionNow, load, period, refreshTick, userId]);
 
-  React.useEffect(() => {
-    const recheck = () => {
-      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+  const recheckActiveCompetition = React.useCallback((trigger = '') => {
+    if (!cacheEnabled) return;
+    const currentViewKey = `${userId}:${period}`;
+    if (trigger === 'online') failedRetryNotBeforeRef.current.delete(currentViewKey);
+    const now = communityCompetitionNow();
+    const retryNotBefore = Number(failedRetryNotBeforeRef.current.get(currentViewKey)) || 0;
+    const cached = readCommunityCompetitionCache({ userId, period });
+    if (!cached) {
+      if (
+        settledViewKeyRef.current !== currentViewKey
+        || trigger === 'online'
+        || (retryNotBefore > 0 && retryNotBefore <= now)
+      ) {
+        if (retryNotBefore > 0 && retryNotBefore <= now) {
+          failedRetryNotBeforeRef.current.delete(currentViewKey);
+        }
         setRefreshTick((current) => current + 1);
       }
-    };
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') recheck();
-    };
-    window.addEventListener('pageshow', recheck);
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      window.removeEventListener('pageshow', recheck);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
+      return;
+    }
+    const decision = getCommunityCompetitionRefreshDecision({ entry: cached, now });
+    if (
+      decision.shouldRefresh
+      && (trigger === 'online' || retryNotBefore <= now)
+    ) setRefreshTick((current) => current + 1);
+  }, [cacheEnabled, communityCompetitionNow, period, userId]);
+
+  React.useEffect(() => bindCommunityCompetitionResume({
+    onVisibleRecheck: recheckActiveCompetition,
+    now: communityCompetitionNow,
+  }), [communityCompetitionNow, recheckActiveCompetition]);
 
   React.useEffect(() => {
     if (view.state !== 'profile_required' || profileRedirectedRef.current) return;
@@ -670,7 +740,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         ) : null}
         {view.state === 'ready' ? <CompetitionContent data={view.data} period={period} language={language} tt={tt} /> : null}
         {view.state === 'error' ? (
-          <StatusCard icon="!" title={tt('competition.loadFailed', '收益比赛读取失败')} desc={view.error || tt('competition.tryAgainLater', '请稍后重试。')} actionLabel={tt('competition.retry', '重新读取')} onAction={() => load({ showLoading: true })} />
+          <StatusCard icon="!" title={tt('competition.loadFailed', '收益比赛读取失败')} desc={view.error || tt('competition.tryAgainLater', '请稍后重试。')} actionLabel={tt('competition.retry', '重新读取')} onAction={() => load({ showLoading: true, bypassFailureCooldown: true })} />
         ) : null}
       </div>
 

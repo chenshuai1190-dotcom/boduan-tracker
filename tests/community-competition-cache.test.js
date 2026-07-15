@@ -9,6 +9,7 @@ import {
   readCommunityCompetitionCache,
   requestCommunityCompetitionRefresh,
   resolveCommunityCompetitionRefreshWindow,
+  shouldRecordCommunityCompetitionRefreshFailure,
   writeCommunityCompetitionCache,
 } from '../src/lib/communityCompetitionCache.js';
 import { userScopedStorageKey } from '../src/lib/userScopedStorage.js';
@@ -40,6 +41,7 @@ const ready = (period = 'day', asOfDate = '2026-07-13') => ({
   state: 'ready',
   period,
   asOfDate,
+  snapshotUpdatedAt: `${asOfDate}T21:18:00.000Z`,
   leaders: [],
   self: { rank: 1, avatarKey: 'cyber-cyan' },
 });
@@ -88,6 +90,13 @@ test('damaged, old-version, and mismatched-period entries are ignored', () => {
     savedAt: Date.now(),
     data: ready('week'),
   }));
+  assert.equal(readCommunityCompetitionCache({ userId: 'user-a', period: 'day' }), null);
+});
+
+test('ready cache entries require the authoritative snapshot lock timestamp', () => {
+  const data = ready('day');
+  delete data.snapshotUpdatedAt;
+  assert.equal(writeCommunityCompetitionCache({ userId: 'user-a', period: 'day', data }), null);
   assert.equal(readCommunityCompetitionCache({ userId: 'user-a', period: 'day' }), null);
 });
 
@@ -199,6 +208,69 @@ test('failed refreshes preserve the last snapshot and count toward the daily lim
   const cached = readCommunityCompetitionCache({ userId: 'user-a', period: 'day' });
   assert.equal(cached.data.asOfDate, '2026-07-13');
   assert.equal(cached.refresh.attempts, 1);
+});
+
+test('offline, authentication, and aborted resume failures do not consume a snapshot read', async () => {
+  const staleAt = new Date('2026-07-14T14:00:00Z');
+  const refreshAt = new Date('2026-07-14T21:10:00Z');
+  const initial = writeCommunityCompetitionCache({
+    userId: 'user-a', period: 'day', data: ready('day', '2026-07-13'), now: staleAt,
+  });
+
+  const failures = [
+    new TypeError('Load failed'),
+    Object.assign(new Error('AUTH_REQUIRED'), { code: 'AUTH_REQUIRED' }),
+    Object.assign(new Error('aborted'), { name: 'AbortError' }),
+    Object.assign(new Error('unauthorized'), { status: 401 }),
+  ];
+  for (const failure of failures) {
+    await assert.rejects(requestCommunityCompetitionRefresh({
+      userId: 'user-a', period: 'day', now: refreshAt,
+      fetcher: async () => { throw failure; },
+    }));
+    assert.deepEqual(
+      readCommunityCompetitionCache({ userId: 'user-a', period: 'day' }).refresh,
+      initial.refresh,
+    );
+  }
+  assert.equal(getCommunityCompetitionRefreshDecision({
+    entry: readCommunityCompetitionCache({ userId: 'user-a', period: 'day' }),
+    now: refreshAt,
+  }).reason, 'new_refresh_window');
+  assert.equal(shouldRecordCommunityCompetitionRefreshFailure(new Error('server failed')), true);
+  assert.equal(shouldRecordCommunityCompetitionRefreshFailure(new TypeError('Load failed')), false);
+});
+
+test('a resume event burst shares one failed read and never advances another period', async () => {
+  const staleAt = new Date('2026-07-14T14:00:00Z');
+  const refreshAt = new Date('2026-07-14T21:10:00Z');
+  writeCommunityCompetitionCache({
+    userId: 'user-a', period: 'day', data: ready('day', '2026-07-13'), now: staleAt,
+  });
+  writeCommunityCompetitionCache({
+    userId: 'user-a', period: 'week', data: ready('week', '2026-07-13'), now: staleAt,
+  });
+  const weekBefore = readCommunityCompetitionCache({ userId: 'user-a', period: 'week' });
+
+  let calls = 0;
+  const fetcher = async () => {
+    calls += 1;
+    throw new Error('network down');
+  };
+  const requests = Array.from({ length: 5 }, () => requestCommunityCompetitionRefresh({
+    userId: 'user-a', period: 'day', now: refreshAt, fetcher,
+  }));
+  const results = await Promise.allSettled(requests);
+
+  assert.equal(results.every((result) => result.status === 'rejected'), true);
+  assert.equal(calls, 1);
+  const day = readCommunityCompetitionCache({ userId: 'user-a', period: 'day' });
+  const week = readCommunityCompetitionCache({ userId: 'user-a', period: 'week' });
+  assert.equal(day.data.asOfDate, '2026-07-13');
+  assert.equal(day.refresh.attempts, 1);
+  assert.equal(getCommunityCompetitionRefreshDecision({ entry: day, now: refreshAt }).reason, 'retry_wait');
+  assert.equal(week.data.asOfDate, '2026-07-13');
+  assert.deepEqual(week.refresh, weekBefore.refresh);
 });
 
 test('older ready responses cannot replace a newer authoritative snapshot', async () => {

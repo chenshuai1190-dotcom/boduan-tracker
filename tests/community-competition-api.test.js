@@ -343,8 +343,9 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
         return jsonResponse([{ snapshot_date: '2026-07-08' }]);
       }
       return jsonResponse([
+        { user_id: 'stale-user', snapshot_date: '2026-07-07', daily_return_pct: 0.01, cumulative_return_pct: 0.1, locked_at: '2026-07-09T23:59:59Z', ledger_hash: 'f'.repeat(64) },
         { user_id: 'user-a', snapshot_date: '2026-07-08', daily_return_pct: 0.02, cumulative_return_pct: 0.12, locked_at: '2026-07-08T22:45:00Z', ledger_hash: computeCompetitionLedgerHash(userATrades, '2026-07-08') },
-        { user_id: 'user-b', snapshot_date: '2026-07-08', daily_return_pct: 0.04, cumulative_return_pct: 0.24, locked_at: '2026-07-08T22:45:00Z', ledger_hash: computeCompetitionLedgerHash(userBTrades, '2026-07-08') },
+        { user_id: 'user-b', snapshot_date: '2026-07-08', daily_return_pct: 0.04, cumulative_return_pct: 0.24, locked_at: '2026-07-08T19:02:03-04:00', ledger_hash: computeCompetitionLedgerHash(userBTrades, '2026-07-08') },
       ]);
     }
     if (href.includes('/rest/v1/stock_trades')) {
@@ -369,6 +370,7 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.state, 'ready');
   assert.equal(res.body.asOfDate, '2026-07-08');
+  assert.equal(res.body.snapshotUpdatedAt, '2026-07-08T23:02:03.000Z');
   assert.ok(Math.abs(res.body.benchmarkReturnPct - 0.01) < 1e-12);
   assert.equal(res.body.self.nickname, 'Alpha');
   assert.equal(res.body.self.rank, 2);
