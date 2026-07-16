@@ -6,12 +6,12 @@
 
 ### 2026-07-16 - v10.7.9.348 旧真实比赛快照发布标记恢复
 
-- Commit: 当前仅为本地 source 改动，尚未提交或部署；生产仍为 runtime `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee` / `v10.7.9.347` / `/assets/index-Mh7XkBTy.js`。
+- Commit: runtime/source `3c85f64c0dcb26afd4b6b776f1a4039a7b0fb961`；设置页与生产 runtime 已发布为 `v10.7.9.348` / `/assets/index-F9V1p33F.js`。
 - Background: `v10.7.9.346` 将完整批次发布 marker 设为榜单读取的持久边界，但首次上线时没有为已存在的真实锁定快照建立初始 marker。因此快照数据仍在，API 却只看到空 marker 并返回 `waiting_snapshot`，客户端随后显示“等待下一次真实收盘快照”。这是 marker 升级兼容迁移遗漏，不是历史收益或快照被删除。
 - Workflow tier: `sensitive`。本轮新增一次性生产数据库发布标记 bootstrap；不改比赛收益公式、排名、用户交易、快照内容、API 字段或 PWA 缓存策略。
 - Production read-only evidence:
   - 已只读确认 `community_competition_snapshots` 保留 23 条真实锁定行：`2026-07-13` 为 8 条，`2026-07-14` 为 7 条，`2026-07-15` 为 8 条（包含 1 名新加入成员）。
-  - 9 名 active 成员都有 `ranking_start_snapshot_date`；`snapshot_publication_markers` 当前为 0 行。按完整批次规则，预计可发布的最新完整真实日期是 `2026-07-13`；`2026-07-14` 和 `2026-07-15` 仍是不完整批次，不得冒充完整榜单。
+  - 9 名 active 成员都有 `ranking_start_snapshot_date`；bootstrap 执行前 `snapshot_publication_markers` 为 0 行。按完整批次规则，可发布的最新完整真实日期是 `2026-07-13`；`2026-07-14` 和 `2026-07-15` 仍是不完整批次，不得冒充完整榜单。
 - Changes:
   - 新增 `supabase/snapshot_publication_marker_bootstrap_20260716.sql`。它只在 competition marker 表为空时运行，并将 profiles、members、snapshots 和 marker 边界置于同一受限 transaction/lock 中，避免与正常 scheduler 并发发布。
   - 候选日期严格限定在 `2026-07-16` 之前，从最新日期向前选择 exact complete locked batch。每位应参赛成员必须有完整社区资料、active 会员资格、已越过资格日、有效 ranking baseline、当日锁定快照、严格 64 位十六进制 ledger hash 和非负 revision；当日也不得有意外成员行。
@@ -19,8 +19,8 @@
   - `2026-07-14` / `2026-07-15` 的快照缺口仍交由正式美东 17:00 后 scheduler 按原有有界、fail-closed 规则追赶；bootstrap 不把部分批次标成已完成。
   - 设置页版本和中英文更新日志同步到 `v10.7.9.348`。
 - Key files: `supabase/snapshot_publication_marker_bootstrap_20260716.sql`,`tests/snapshot-publication-marker.test.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/development-log.md`,`docs/handoff.md`。
-- Validation: marker/账本边界定向测试 `54/54`、完整 `npm test` `465/465`、production build、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、workspace state、docs consistency 和 diff check 均通过。精确 committed SQL 的生产执行、marker/快照不变回读、RLS REST 与线上恢复证据仍待完成，本条不预告这些生产项 pass。
-- Deployment: pending。生产尚未应用该 bootstrap SQL，GitHub `main`、Actions、Vercel 和生产设置页仍以 `v10.7.9.347` 证据为准。必须先提交可审计的数据库源，再执行完全相同的生产 SQL，确认 marker 指向完整真实批次且 23 条快照没有变化，最后才完成 runtime/docs 发布和线上验证。
+- Validation: marker/账本边界定向测试 `54/54`、完整 `npm test` `465/465`、production build、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、workspace state、docs consistency 和 diff check 均通过。生产执行前确认编辑器中的 SQL 与 committed source SHA-256 `b53314d864dd568d5525814de681be9e3d758edf2dc1da8654f85ed5080de806` 一致；执行后快照仍为 23 行，`2026-07-13/14/15` 仍为 `8/7/8`，摘要仍为 `4e144e79415dd4f423bcfd76b8fe500b`。marker 由 0 行变为 1 行，日期 `2026-07-13`、版本 `verified_bootstrap_20260716`；完整性回读为 8 expected / 8 complete / 0 missing / 1 later-start。`npm run verify:rls:rest` 通过 22 tables + 2 RPCs，未登录 quote、earnings、competition status/day 和 close scheduler 均为 `401`。生产 `index.html` 与全部 31 个 assets SHA-256 一致，0 mismatch。Mac 锁屏且生产 Chrome 会话未登录，因此未声称 Xcode iOS Simulator 主屏 PWA 或登录后视觉验收通过。
+- Deployment: success。GitHub Actions run `29485031717` success；Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/GY67KEdgpYvq4D3ukssZdFWPKHmL` success；生产入口 `/assets/index-F9V1p33F.js`，设置页 `v10.7.9.348` 和中英文更新日志均已在生产产物中确认。
 - Boundaries: 这是发布元数据恢复，不是收益数据补造。比赛仍只读正式 `stock_trades`，只写独立比赛表；历史锁定快照绝不覆盖，生产无 mock、实时价、估算收益或旧收盘价兜底。
 - Rollback: bootstrap 只能在生产验证前以 transaction 失败回滚；一旦已发布经验证的完整历史日，不得为“回滚”而盲目删除 marker 或快照。若 runtime 需回退，只回退 v348 版本/文案与静态测试，保留真实发布事实。
 
