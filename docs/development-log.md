@@ -6,7 +6,7 @@
 
 ### 2026-07-16 - v10.7.9.349 收益比赛 PWA 等待缓存唤醒修复
 
-- Commit: 当前为本地待提交 runtime；生产仍为 `3c85f64c0dcb26afd4b6b776f1a4039a7b0fb961` / `v10.7.9.348` / `/assets/index-F9V1p33F.js`。
+- Commit: runtime/source `9709638b7501964b9c006488cb94d438ee40945a`；设置页与生产 runtime 已发布为 `v10.7.9.349` / `/assets/index-DnXeydcq.js`。
 - Background: marker bootstrap 后端已经成功发布真实完整 `2026-07-13` 比赛批次，但用户的 iOS 主屏 PWA 仍显示“等待下一次真实收盘快照”。同一截图时段的生产日志有行情等 PWA 请求，却没有任何 `/api/community-competition` 请求，证明画面来自本地旧 waiting cache，而不是本次后端回包。
 - Workflow tier: `runtime`。本轮只修复已登录比赛页本地缓存的恢复判断并增加回归测试；不修改比赛收益/QQQ 公式、排名、参赛资格、快照生成、交易账本、marker、数据库、RLS、API 鉴权或 provider。
 - Production read-only evidence:
@@ -19,8 +19,8 @@
   - 新加入且尚未越过资格收盘的成员继续 `waiting_for_eligible_close`；新窗口仍先走原有一次完整读取，状态检查每分钟有界，完整榜读取上限、跨标签页单调提交和错误冷却均保持不变。
   - 新增 8 个旧 cohort + 1 个 later-start 的 production-shaped marker 恢复用例，以及完整读取次数耗尽后仍启动轻量检查的 PWA 缓存用例；设置页和双语更新日志同步到 `v10.7.9.349`。
 - Key files: `src/lib/communityCompetitionCache.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/community-competition-cache.test.js`,`tests/community-competition-api.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/development-log.md`,`docs/handoff.md`。
-- Validation: 比赛 scheduler/API/缓存/PWA resume/marker/模型与工具边界专项 `178/178` pass；完整 `npm test` `467/467` pass；production build、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:workspace-state`、`npm run verify:docs-consistency`、`npm run verify:rls:rest`（22 tables + 2 RPCs）和 `git diff --check` 均通过。用户截图已经是 iOS 主屏 PWA 的故障复现证据；本机仍处于锁屏状态，修复后的 Xcode Simulator 主屏 PWA 视觉验收不得用桌面或内置浏览器替代，当前明确 pending。部署与线上鉴权/产物核验待本条 runtime 完成后回填。
-- Deployment: pending。
+- Validation: 比赛 scheduler/API/缓存/PWA resume/marker/模型与工具边界专项 `178/178` pass；完整 `npm test` `467/467` pass；production build、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:workspace-state`、`npm run verify:docs-consistency`、`npm run verify:rls:rest`（22 tables + 2 RPCs）和 `git diff --check` 均通过。生产 `index.html` 与本地 build 完全一致，`dist` 全部 73 个文件逐一 SHA-256 比对为 0 mismatch；线上 Settings/changelog/cache chunks 命中 `v10.7.9.349`、cache v5 与 `status_poll_uninitialized`。未登录 quote、market-movers、earnings、pnl-benchmark、competition day/status、两个独立 snapshot endpoint 和三个统一 scheduler 均为 `401`。用户截图已经是 iOS 主屏 PWA 的故障复现证据；本机仍处于锁屏状态，修复后的 Xcode Simulator 主屏 PWA 视觉验收不得用桌面或内置浏览器替代，当前明确 pending。
+- Deployment: success。GitHub Actions run `29490534414` success；Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXzTNc6GRu6XJqYisgv7YwYcQpWG` success；生产入口 `/assets/index-DnXeydcq.js`，设置页 `v10.7.9.349`、双语日志和 cache v5 均已在生产产物中确认。
 - Boundaries: 客户端不生成、修正或缓存估算收益；完整榜仍只接受服务端发布 marker 和真实锁定快照。v5 只改变何时发起轻量状态检查及淘汰旧客户端缓存，不写任何生产数据。
 - Rollback: 回退 cache v5、`status_poll_uninitialized` 分支、v349 双语日志和对应测试即可恢复 v348；无 SQL、RLS、marker、快照、收益或交易数据需要回滚。
 
