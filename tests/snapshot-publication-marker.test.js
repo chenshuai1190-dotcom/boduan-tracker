@@ -157,3 +157,33 @@ test('marker SQL is FORCE RLS and service-role only', () => {
     assert.doesNotMatch(sql, /grant\s+select[^;]+snapshot_publication_markers[^;]+to authenticated/is);
   });
 });
+
+test('marker bootstrap publishes only the latest exact complete locked historical batch', () => {
+  const bootstrap = readFileSync(
+    new URL('../supabase/snapshot_publication_marker_bootstrap_20260716.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(bootstrap, /lock table public\.snapshot_publication_markers in share row exclusive mode/i);
+  assert.match(bootstrap, /lock table public\.community_profiles in share mode/i);
+  assert.match(bootstrap, /lock table public\.community_competition_members in share mode/i);
+  assert.match(bootstrap, /lock table public\.community_competition_snapshots in share mode/i);
+  assert.match(bootstrap, /snapshot\.snapshot_date < date '2026-07-16'/i);
+  assert.match(bootstrap, /where member\.status = 'active'/i);
+  assert.match(bootstrap, /profile\.profile_completed_at is not null/i);
+  assert.match(bootstrap, /btrim\(profile\.nickname\) <> ''/i);
+  assert.match(bootstrap, /btrim\(profile\.avatar_key\) <> ''/i);
+  assert.match(bootstrap, /member\.eligible_after_snapshot_date < candidate\.snapshot_date/i);
+  assert.match(bootstrap, /member\.ranking_start_snapshot_date <= candidate\.snapshot_date/i);
+  assert.match(bootstrap, /member\.ranking_baseline_return_pct is not null/i);
+  assert.match(bootstrap, /snapshot\.locked_at is not null/i);
+  assert.match(bootstrap, /snapshot\.ledger_hash ~ '\^\[0-9a-f\]\{64\}\$'/i);
+  assert.match(bootstrap, /snapshot\.ledger_revision >= 0/i);
+  assert.match(bootstrap, /not exists[\s\S]+not exists[\s\S]+not exists/i);
+  assert.match(bootstrap, /if exists[\s\S]+snapshot_publication_markers[\s\S]+return;/i);
+  assert.match(bootstrap, /max\(complete_dates\.snapshot_date\)/i);
+  assert.match(bootstrap, /if complete_snapshot_date is null then[\s\S]+raise exception/i);
+  assert.match(bootstrap, /on conflict \(channel, snapshot_date\) do nothing/i);
+  assert.doesNotMatch(bootstrap, /insert into public\.community_competition_snapshots/i);
+  assert.doesNotMatch(bootstrap, /update public\.community_competition_snapshots/i);
+  assert.doesNotMatch(bootstrap, /delete from public\.community_competition_snapshots/i);
+});

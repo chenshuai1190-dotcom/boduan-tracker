@@ -6,6 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 待发布设置页版本: `v10.7.9.348`。`v10.7.9.346` 首次上线 marker 时未为已存真实锁定快照建立初始发布标记，导致 23 条快照仍在但 API 因 marker 为空返回 `waiting_snapshot`。生产只读确认 `07-13 / 07-14 / 07-15` 分别有 `8 / 7 / 8` 条锁定行，9 名 active 成员均有 ranking start，marker 为 0 行。新增 `supabase/snapshot_publication_marker_bootstrap_20260716.sql`：仅在 marker 为空时、仅查找 2026-07-16 之前最新 exact complete locked batch，严格要求资料/资格/ranking baseline/64-hex hash/revision 完整；无完整批次异常回滚，绝不新建、改写、删除或补造快照/收益/交易。按当前聚合完整候选预计为 `2026-07-13`；`07-14` / `07-15` 缺口仍由正式美东 17:00 后 scheduler 追赶。完整本地门禁已通过，但 source commit、生产 SQL、生产回读与部署仍 pending；生产仍为 v347，不得写成已恢复。
 - 当前生产版本 `v10.7.9.347`：修复收益比赛第 9 个模拟账户被 raw high/low 门槛拒绝及榜单按绝对收益率而非跑赢 QQQ 幅度排序的问题。内部比赛接受正式账本正数成交价，不再用 provider 日内区间拒绝；精确 EOD、同一纽约日且 16:00 前写入、USD、不超卖、revision/hash/CAS 等安全规则保留。每位用户保留自然周期内自己的真实累计起点，QQQ 从该用户同日起算，榜单按“本人收益率 - 本人同期 QQQ 收益率”降序；新用户首份有效收盘后立即参加，但不重置旧用户日期或累计收益。排行榜标题已精简为“跑赢 QQQ”，参赛人数显示完整报名总数。runtime `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`、Actions `29482122875`、Vercel `7uyffcqEZQA4yh8cKkT69DsL1ZwJ`、入口 `/assets/index-Mh7XkBTy.js` 已验证。
 - 同一生产 runtime 包含 `v10.7.9.346`：UTC `21/22/23` 三个自动入口统一 rewrite 到同一受 `CRON_SECRET` 保护的收盘 scheduler，同一调用只解析一次美东目标日并并行启动个人收益报表与收益比赛两个独立 runner。比赛整批完成后才写 service-only 脱敏 marker；可见旧榜每分钟最多读取一次轻量状态，只有 publication 推进才读取当前周期完整榜。四周期共享最新 publication metadata，榜单提交和资料清缓存以 Web Lock、持久 generation 与单调 marker 防跨标签页回退；QQQ/完整榜暂不可用时保留旧榜并冷却重试。数据库源 `0bc0ef2`、生产 migration、metadata/grant 回读和匿名 `22 tables + 2 RPCs` 门禁均已通过。
 - 同一生产 runtime 包含 `v10.7.9.345`：个人账户某月余额保存为 `0` 或空白等同删除该月记录，不再写入零快照；历史零行按不存在处理，账户走势从剩余第一个正数月份重新起算，最低/最高资产和累计增长同步重算。删除严格限定当前登录用户、精确账户和精确月份，并同步清理离线缓存；未触碰余额时不会误删。当前月份改按设备本地年月生成，避免月初 UTC 时差把删除或补录作用到上个月。
@@ -37,7 +38,7 @@
 - 独立边界: `community_competition_members`、`community_competition_snapshots`、`/api/community-competition`、收益模型和人工修复路径仍与个人 P&L 独立;只是无显式日期的自动触发改由统一 scheduler 同时启动。比赛只读正式 `stock_trades`,只写比赛表和不含用户数据的 service-only 完成 marker,不改任何交易账本、个人收益报表快照、行情 relay、quote 或财报日历逻辑。榜单仍不含 user id、邮箱、股数、成本、金额、仓位比例或交易明细。
 - 自动快照硬规则:无显式日期的工作日调用必须以美东时间为准且 17:00 前不访问 provider/数据库;UTC 21/22/23 三个路径统一 rewrite 到同一 `CRON_SECRET` 保护 scheduler,同一调用只解析一次目标日并并行启动两个独立 runner。合法显式日期只能走原受保护人工修复路径,比赛显式路径绝不 rebaseline;非法、未来或美东当日 17:00 前日期直接 400,周末、休市日或 SPY 目标日精确收盘未齐在任何业务数据库访问前失败。provider/network 或目标日持仓收盘未齐必须在有界重试后返回 503,不可回退旧日期或用 skipped+200 隐藏。个人只在最近 31 个日历日窗口补已有账户缺口,比赛按完整 SPY 日历有界分批;仅完整比赛批次可写发布 marker,部分行或 batch-limited 结果不得提前暴露新榜单。加入与首快照仍以权威 ledger revision CAS 为准;仅当前目标日、数据库时间证明为 16:00 ET 前纯 INSERT 的新增交易可直达当日快照,其余未排名账本变化走 D1 forward-only rebaseline,D2 才可能产生首张真实快照。完整账本、USD、正数成交价、交易顺序、不超卖与精确正数 EOD close 不得弱化；内部比赛不再用 provider raw high/low 作为成交价准入门槛。两条链路都不改正式 `stock_trades`,生产无 mock、实时价、估算收益或旧收盘兜底。
 - `v10.7.9.302` 社区头像白边修正 commit `797fab626136719e5448692e1536f2a533d28b19` 已随 v303 上线。设置页社区资料头像取消额外白色 CSS 边框,头像图在圆形容器内轻微放大裁切;只改设置页展示样式。
-- 当前本地与生产设置页版本均为 `v10.7.9.347`；当前已验证生产运行时基准为 `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`,入口 `/assets/index-Mh7XkBTy.js`。
+- 当前本地设置页版本为 `v10.7.9.348`（source/生产待发布）；生产设置页仍为 `v10.7.9.347`，当前已验证生产运行时基准为 `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`,入口 `/assets/index-Mh7XkBTy.js`。
 - `v10.7.9.331` 验证:定向测试 51/51、build、docs consistency 和 diff check 均 pass;Xcode iOS 26.5 `iPhone 17 Pro` Simulator 使用中文/CNY、English/CNY 和损失样例均无结果卡横向溢出,三组数字正常同行,分享卡高度由约 `447px` 降至 `381px`。GitHub Actions `29291434809` 与 Vercel `JALybbWGhb25un79Ahjasob9tRCR` success,生产六个关键产物与本地 build 字节一致,4 个未登录 API 均为 `401`;按 `ui-fast` 不运行完整测试、audit 或旧 frontend smoke。
 - 本次收盘快照可靠性修复验证:本地定向 116/116、完整 `npm test` 323/323、build、audit high 0、RLS REST 20/20、toolchain/workspace/docs consistency/diff check 均 pass;runtime Actions `29313005445` success,Vercel `DSGn5mQnzs2o1x6ohQWD6DGrMy2Y` Ready,Cron 补跑和生产聚合回读均完成。它不含前端改动,因此没有也不需要新增 iOS Simulator 视觉/系统键盘/PWA 证据。
 - ET gate/rebaseline/revision CAS 的最终 blocker 修复与 sensitive 门禁已通过:定向敏感测试 100/100、完整 `npm test` 362/362、build、audit high 0、toolchain、docs consistency、diff check,以及显式 SPY 边界、D1/D2、纯 INSERT、历史修改/删除、缺精确个股 D1 EOD、旧 close、late trade、price-out-of-range、空/非 USD 和 malformed 场景全部 pass。生产 SQL、21 tables + 2 RPCs RLS gate、metadata、真实数据库并发 smoke 和 runtime deployment 已完成;真实收盘 D1/D2 观察仍 pending。本轮无前端改动,不需要 iOS Simulator 视觉/系统键盘/PWA 证据。
@@ -108,12 +109,12 @@
 
 - 仓库: `chenshuai1190-dotcom/boduan-tracker`
 - 生产地址: `https://boduan-tracker.vercel.app`
-- 当前本地与生产设置页版本均为 `v10.7.9.347`。v347 修正比赛正式成交价准入与个人同期 QQQ 超额收益排序并精简标题为“跑赢 QQQ”，同时发布 v346 的统一调度和 marker/PWA 刷新、v345 的账户零值删除语义和 v344 的真实财报修正。
+- 当前本地设置页版本为 `v10.7.9.348`，source commit 与生产发布待完成；当前生产设置页仍为 `v10.7.9.347`。v348 只恢复旧真实完整批次的 publication marker，不生成或改写快照；v347 的比赛正式成交价准入、个人同期 QQQ 超额收益排序和“跑赢 QQQ”标题仍是线上基准。
 - 当前 GitHub source 基准提交: 以本文件所在最新交接证据提交为准,接手后执行 `git log -1 --oneline`;当前已验证生产运行时代码提交为 `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`。
 - 当前生产运行时基准提交: `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`。
 - 最近已部署应用代码提交: `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee` 包含 v344-v347；上一 runtime `e30b1773159548bb9806fbd4e694f5f987ff804f` 包含 v343 账户走势真实起点、浮层状态和账户人民币等值排序。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前设置页版本: `v10.7.9.347`（本地与生产一致）。
+- 当前本地设置页版本: `v10.7.9.348`（source/生产待发布）；生产设置页版本仍为 `v10.7.9.347`。
 - Vercel 最新部署: runtime commit `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7uyffcqEZQA4yh8cKkT69DsL1ZwJ`,production 入口 `/assets/index-Mh7XkBTy.js`;GitHub Actions run `29482122875` success。`index.html` 与全部 33 个 production assets 均和本地最终 build 字节一致，未授权 API/Cron 边界均为 `401`。
 - Sensitive 发布顺序已完成:数据库源提交、生产 `supabase/community_competition_rebaseline_20260714.sql`、revision 表/权威时间/四个 triggers、两个 CAS RPC、grants、数据库并发、21 tables + 2 RPCs RLS gate、runtime Actions/Vercel 和未登录 401 均有真实证据。仅 scheduled D1 聚合与后续 D2 必须等真实收盘观察,不得预填。
 - v346/v347 sensitive 发布已完成：源提交 `0bc0ef2`、生产 marker migration、SQL metadata/grant 回读、真实 `22 tables + 2 RPCs` 门禁、runtime `1b07a7d`、Actions/Vercel、未授权 API/Cron 边界及 33 个生产产物一致性均通过；当前完整 `464/464`、build、toolchain、audit high、docs consistency 与 diff check 通过。Mac 锁屏导致 Simulator 系统键盘与主屏 PWA 最终验收仍 pending，未用桌面证据替代。
@@ -764,8 +765,8 @@ npm run verify:toolchain          # 首次接手、换机、工具链异常或 r
 接手基准必须确认:
 
 - `git status --short --branch` 干净,`main` 与 `origin/main` 同步。
-- 本地设置页版本为 `v10.7.9.347`（待提交/待部署），生产设置页版本仍为 `v10.7.9.343`；以后续真实提交和部署证据为准。
-- 当前已验证生产运行时为 `e30b1773159548bb9806fbd4e694f5f987ff804f`,入口 `/assets/index-Lpb4oLJK.js`;接手后以最新部署证据为准。
+- 本地设置页版本为 `v10.7.9.348`（source/生产待发布），生产设置页版本仍为 `v10.7.9.347`；以后续真实提交和部署证据为准。
+- 当前已验证生产运行时为 `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`,入口 `/assets/index-Mh7XkBTy.js`;接手后以最新部署证据为准。
 - `/api/quote?symbols=VIX`、`/api/quote?view=market-movers`、`/api/earnings-calendar?symbols=NVDA` 与 `/api/pnl-benchmark?symbol=QQQ&from=2026-06-01&to=2026-07-10` 未登录均返回 `401`。
 - Supabase Auth URL Configuration 仍指向生产域名,Reset password 模板仍使用 `{{ .ConfirmationURL }}`。
 - GitHub push 必须使用 `~/.ssh/boduan_tracker_github`;不要改成 HTTPS token 流程。
@@ -818,9 +819,17 @@ git diff --stat
 生产地址: https://boduan-tracker.vercel.app
 GitHub `main` 是唯一代码源头。
 
+当前待发布 source:
+- 设置页版本: `v10.7.9.348`
+- 修复目标: 为 marker 上线前已存的真实完整锁定比赛批次建立一次性发布标记，恢复被空 marker 误隐藏的榜单。
+- 数据库源: `supabase/snapshot_publication_marker_bootstrap_20260716.sql`（当前 source commit/生产执行均 pending）
+- 生产只读基准: 快照共 23 行，`2026-07-13 / 07-14 / 07-15` 分别为 `8 / 7 / 8`，marker 为 0 行；预计最新完整批次为 `2026-07-13`。
+- 安全边界: 仅在 marker 为空时、仅查找 2026-07-16 之前 exact complete locked batch；必须有完整资料/资格/ranking baseline/64-hex hash/revision，无完整日则异常回滚。绝不生成、改写、删除或补造 snapshot/收益/交易；`07-14` / `07-15` 缺口仍由正式美东 17:00 后 scheduler 追赶。
+- 当前状态: 本地门禁已通过；生产 SQL、marker/快照不变回读、GitHub Actions/Vercel 和线上恢复均 pending，不得预告已上线。
+
 当前生产基准:
 - 运行时代码: `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`
-- 设置页版本: `v10.7.9.347`
+- 生产设置页版本: `v10.7.9.347`
 - 生产入口: `/assets/index-Mh7XkBTy.js`
 - Runtime Actions: `29482122875` success
 - Runtime Vercel: `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7uyffcqEZQA4yh8cKkT69DsL1ZwJ` success
@@ -841,6 +850,11 @@ GitHub `main` 是唯一代码源头。
 - 比赛只有完整批次结束后才写 `snapshot_publication_markers`。marker 仅含 channel、snapshot date、不透明 version 和 database-authored completed time，不含用户、排名、收益、交易或持仓数据；表启用 FORCE RLS，仅 service role 可读写，不加入 Supabase Realtime publication。已登录 `snapshot-status` 只返回脱敏状态；状态时间与最新 publication 使用独立 user-scoped metadata，四周期共享检查。完整榜、authoritative waiting 与明确清缓存通过 Web Lock 单调提交，旧标签页不能回滚新 marker。
 - 当前比赛核心专项 `108/108`、完整 `npm test` `464/464`、build、toolchain、audit high、docs consistency 和 diff check 已通过。生产 marker SQL metadata/grant、匿名 `22 tables + 2 RPCs`、runtime Actions/Vercel、33 个产物一致性与生产未授权边界均已通过；iOS 主屏 PWA 因 Mac 锁屏仍 pending，未用桌面证据替代。
 - sensitive 发布顺序已完成数据库源提交 → 生产 marker migration/metadata/`22 tables + 2 RPCs` 门禁 → v347 runtime/线上验证。显式历史补跑尚未执行，不得写成已修复生产缺口。
+
+待发布 `v10.7.9.348`:
+- marker 升级前的真实锁定快照没有被删除；空 marker 是 API 返回 waiting 的直接原因。
+- bootstrap 只会发布最新 exact complete locked batch，且只写一条不含用户或财务数据的 marker。它不修复、补造或改写任何 snapshot，不改 ranking/收益公式/交易账本。
+- 必须按 database-first 顺序执行：先提交并验证精确 SQL 源，再应用生产 SQL，回读 marker 与 23 条快照不变，最后完成 runtime/docs 部署与线上验证。
 
 最新已部署 sensitive 变更:
 - `v10.7.9.332` 已上线按账户/周期隔离的比赛权威快照缓存和新头部布局;客户端不生成、不修正也不伪造收益,动态日期只读取服务端 `asOfDate`。上一条 backend-only 发布时设置页版本为 `v10.7.9.331`,其 ET gate/rebaseline 安全规则继续有效。

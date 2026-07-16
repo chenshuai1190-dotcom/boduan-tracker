@@ -4,6 +4,26 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.348 旧真实比赛快照发布标记恢复
+
+- Commit: 当前仅为本地 source 改动，尚未提交或部署；生产仍为 runtime `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee` / `v10.7.9.347` / `/assets/index-Mh7XkBTy.js`。
+- Background: `v10.7.9.346` 将完整批次发布 marker 设为榜单读取的持久边界，但首次上线时没有为已存在的真实锁定快照建立初始 marker。因此快照数据仍在，API 却只看到空 marker 并返回 `waiting_snapshot`，客户端随后显示“等待下一次真实收盘快照”。这是 marker 升级兼容迁移遗漏，不是历史收益或快照被删除。
+- Workflow tier: `sensitive`。本轮新增一次性生产数据库发布标记 bootstrap；不改比赛收益公式、排名、用户交易、快照内容、API 字段或 PWA 缓存策略。
+- Production read-only evidence:
+  - 已只读确认 `community_competition_snapshots` 保留 23 条真实锁定行：`2026-07-13` 为 8 条，`2026-07-14` 为 7 条，`2026-07-15` 为 8 条（包含 1 名新加入成员）。
+  - 9 名 active 成员都有 `ranking_start_snapshot_date`；`snapshot_publication_markers` 当前为 0 行。按完整批次规则，预计可发布的最新完整真实日期是 `2026-07-13`；`2026-07-14` 和 `2026-07-15` 仍是不完整批次，不得冒充完整榜单。
+- Changes:
+  - 新增 `supabase/snapshot_publication_marker_bootstrap_20260716.sql`。它只在 competition marker 表为空时运行，并将 profiles、members、snapshots 和 marker 边界置于同一受限 transaction/lock 中，避免与正常 scheduler 并发发布。
+  - 候选日期严格限定在 `2026-07-16` 之前，从最新日期向前选择 exact complete locked batch。每位应参赛成员必须有完整社区资料、active 会员资格、已越过资格日、有效 ranking baseline、当日锁定快照、严格 64 位十六进制 ledger hash 和非负 revision；当日也不得有意外成员行。
+  - 找不到完整候选日时抛异常并回滚；marker 已存在时幂等退出。只允许插入一条不含用户或收益数据的 publication marker，不得新建、修改、删除或回填任何 competition snapshot、收益、交易或 ranking 行。
+  - `2026-07-14` / `2026-07-15` 的快照缺口仍交由正式美东 17:00 后 scheduler 按原有有界、fail-closed 规则追赶；bootstrap 不把部分批次标成已完成。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.348`。
+- Key files: `supabase/snapshot_publication_marker_bootstrap_20260716.sql`,`tests/snapshot-publication-marker.test.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: marker/账本边界定向测试 `54/54`、完整 `npm test` `465/465`、production build、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、workspace state、docs consistency 和 diff check 均通过。精确 committed SQL 的生产执行、marker/快照不变回读、RLS REST 与线上恢复证据仍待完成，本条不预告这些生产项 pass。
+- Deployment: pending。生产尚未应用该 bootstrap SQL，GitHub `main`、Actions、Vercel 和生产设置页仍以 `v10.7.9.347` 证据为准。必须先提交可审计的数据库源，再执行完全相同的生产 SQL，确认 marker 指向完整真实批次且 23 条快照没有变化，最后才完成 runtime/docs 发布和线上验证。
+- Boundaries: 这是发布元数据恢复，不是收益数据补造。比赛仍只读正式 `stock_trades`，只写独立比赛表；历史锁定快照绝不覆盖，生产无 mock、实时价、估算收益或旧收盘价兜底。
+- Rollback: bootstrap 只能在生产验证前以 transaction 失败回滚；一旦已发布经验证的完整历史日，不得为“回滚”而盲目删除 marker 或快照。若 runtime 需回退，只回退 v348 版本/文案与静态测试，保留真实发布事实。
+
 ### 2026-07-16 - v10.7.9.347 部署证据回填
 
 - Commit: `same commit`（docs-only 证据提交；运行时代码提交为 `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`，数据库源提交为 `0bc0ef2cf423e9f4ac91daafc9cf8c68ba3c7d16`）。

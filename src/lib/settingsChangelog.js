@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.347', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.348', date: '2026-07-16', latest: true,
+    items: [
+      '🏆 收益比赛历史真实榜单恢复',
+      '  - 修复发布标记升级后旧真实快照仍在数据库、但榜单被错误显示为等待下一次收盘的问题',
+      '  - 只恢复已经逐账户完整锁定的最近历史批次;缺少任一应参赛账户时严格拒绝发布',
+      '  - 不生成、不补写也不修改任何收益快照;07/14、07/15 的缺口继续由正式收盘任务补齐',
+    ],
+    itemsEn: [
+      '🏆 Restore the real historical competition board',
+      '  - Fixes the upgrade state where real historical snapshots remained in the database but the board incorrectly showed that it was waiting for the next close',
+      '  - Only the latest historical batch locked for every expected member can be restored; any missing expected member fails closed',
+      '  - No return snapshot is generated, backfilled, or modified; gaps for July 14 and July 15 remain assigned to the formal close job',
+    ],
+  },
+  {
+    ver: 'v10.7.9.347', date: '2026-07-16',
     items: [
       '🏆 收益比赛超额收益排行与内部成交规则修正',
       '  - 每位用户保留本人自然周期内的真实累计收益和固定参赛起点,不会因新用户加入而修改日期或清空累计收益',
