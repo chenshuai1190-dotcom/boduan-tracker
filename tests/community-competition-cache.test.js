@@ -426,6 +426,55 @@ test('a newly joined waiting member does not loop on its ineligible publication'
   assert.equal(statusDue.reason, 'status_poll_due');
 });
 
+test('an eligible waiting PWA starts lightweight status polling after full-read attempts are exhausted', () => {
+  const waitingData = {
+    success: true,
+    state: 'waiting_snapshot',
+    period: 'day',
+    eligibleAfterSnapshotDate: '2026-07-10',
+    rankingStartSnapshotDate: '2026-07-13',
+    publishedSnapshotDate: null,
+    snapshotVersion: null,
+    snapshotUpdatedAt: null,
+  };
+  writeCommunityCompetitionCache({
+    userId: 'eligible-user',
+    period: 'day',
+    data: waitingData,
+    now: new Date('2026-07-15T23:00:00Z'),
+  });
+  writeCommunityCompetitionCache({
+    userId: 'eligible-user',
+    period: 'day',
+    data: waitingData,
+    now: new Date('2026-07-15T23:01:00Z'),
+  });
+
+  const exhausted = readCommunityCompetitionCache({ userId: 'eligible-user', period: 'day' });
+  assert.equal(exhausted.refresh.attempts, 2);
+  assert.equal(exhausted.statusCheck, null);
+  const wake = getCommunityCompetitionRefreshDecision({
+    entry: exhausted,
+    now: new Date('2026-07-15T23:02:00Z'),
+  });
+  assert.deepEqual(wake, {
+    shouldRefresh: true,
+    reason: 'status_poll_uninitialized',
+    nextCheckAt: new Date('2026-07-15T23:02:00Z').getTime(),
+    targetDate: '2026-07-15',
+  });
+
+  recordCommunityCompetitionStatusCheck({
+    userId: 'eligible-user',
+    period: 'day',
+    now: new Date('2026-07-15T23:02:00Z'),
+  });
+  assert.equal(getCommunityCompetitionRefreshDecision({
+    entry: readCommunityCompetitionCache({ userId: 'eligible-user', period: 'day' }),
+    now: new Date('2026-07-15T23:02:30Z'),
+  }).reason, 'status_poll_wait');
+});
+
 test('cache commits are monotonic across ready and waiting states', async () => {
   const generation = getCommunityCompetitionCacheGeneration('user-a');
   const repaired = {

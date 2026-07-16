@@ -4,6 +4,26 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.349 收益比赛 PWA 等待缓存唤醒修复
+
+- Commit: 当前为本地待提交 runtime；生产仍为 `3c85f64c0dcb26afd4b6b776f1a4039a7b0fb961` / `v10.7.9.348` / `/assets/index-F9V1p33F.js`。
+- Background: marker bootstrap 后端已经成功发布真实完整 `2026-07-13` 比赛批次，但用户的 iOS 主屏 PWA 仍显示“等待下一次真实收盘快照”。同一截图时段的生产日志有行情等 PWA 请求，却没有任何 `/api/community-competition` 请求，证明画面来自本地旧 waiting cache，而不是本次后端回包。
+- Workflow tier: `runtime`。本轮只修复已登录比赛页本地缓存的恢复判断并增加回归测试；不修改比赛收益/QQQ 公式、排名、参赛资格、快照生成、交易账本、marker、数据库、RLS、API 鉴权或 provider。
+- Production read-only evidence:
+  - `2026-07-13` marker cohort 为 8 active / 8 完整资料 / 8 locked snapshot / 8 daily return / 8 cumulative return / 8 valid ledger rows；另 1 名 `2026-07-15` 起算成员按规则仍等待自己的首个有效批次。
+  - marker 为 `2026-07-13` / `verified_bootstrap_20260716`；QQQ `2026-07-10` 与 `2026-07-13` 都有真实 EOD close。生产形态 API 回归证明 marker 从空变为上述值后，旧 cohort 日榜返回 `ready`，不是服务端数据缺失。
+  - 用户截图对应时段有其他 PWA 网络活动但 competition GET/status 为 0 次。旧 waiting cache 已在 marker 后补前耗尽两次完整读取，且没有当前窗口 `statusCheck`；旧判断因此命中 `attempt_limit` 并休眠到下一纽约收盘窗口。
+- Changes:
+  - 比赛缓存升级为 v5，淘汰可能卡住的 v4 waiting cache，使已安装 PWA 激活新包后重新建立权威状态。
+  - 仅当用户已越过资格/排名起点、当前 target 的两次完整读取都已耗尽、且尚未建立当前 target 的轻量状态检查时，返回 `status_poll_uninitialized`。页面随后只读取已登录 `snapshot-status`；marker 日期或不透明版本推进后才读取一次完整榜单。
+  - 新加入且尚未越过资格收盘的成员继续 `waiting_for_eligible_close`；新窗口仍先走原有一次完整读取，状态检查每分钟有界，完整榜读取上限、跨标签页单调提交和错误冷却均保持不变。
+  - 新增 8 个旧 cohort + 1 个 later-start 的 production-shaped marker 恢复用例，以及完整读取次数耗尽后仍启动轻量检查的 PWA 缓存用例；设置页和双语更新日志同步到 `v10.7.9.349`。
+- Key files: `src/lib/communityCompetitionCache.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/community-competition-cache.test.js`,`tests/community-competition-api.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 比赛 scheduler/API/缓存/PWA resume/marker/模型与工具边界专项 `178/178` pass；完整 `npm test` `467/467` pass；production build、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:workspace-state`、`npm run verify:docs-consistency`、`npm run verify:rls:rest`（22 tables + 2 RPCs）和 `git diff --check` 均通过。用户截图已经是 iOS 主屏 PWA 的故障复现证据；本机仍处于锁屏状态，修复后的 Xcode Simulator 主屏 PWA 视觉验收不得用桌面或内置浏览器替代，当前明确 pending。部署与线上鉴权/产物核验待本条 runtime 完成后回填。
+- Deployment: pending。
+- Boundaries: 客户端不生成、修正或缓存估算收益；完整榜仍只接受服务端发布 marker 和真实锁定快照。v5 只改变何时发起轻量状态检查及淘汰旧客户端缓存，不写任何生产数据。
+- Rollback: 回退 cache v5、`status_poll_uninitialized` 分支、v349 双语日志和对应测试即可恢复 v348；无 SQL、RLS、marker、快照、收益或交易数据需要回滚。
+
 ### 2026-07-16 - v10.7.9.348 旧真实比赛快照发布标记恢复
 
 - Commit: runtime/source `3c85f64c0dcb26afd4b6b776f1a4039a7b0fb961`；设置页与生产 runtime 已发布为 `v10.7.9.348` / `/assets/index-F9V1p33F.js`。

@@ -4,7 +4,7 @@ import {
   writeUserScopedJson,
 } from './userScopedStorage.js';
 
-export const COMMUNITY_COMPETITION_CACHE_VERSION = 4;
+export const COMMUNITY_COMPETITION_CACHE_VERSION = 5;
 // The server snapshot gate opens at 17:00 New York time. Read ten minutes later
 // so the first cron can lock rows; the only full-read retry follows the final
 // daily cron. While a visible page is stale, only the four-field completion
@@ -18,7 +18,7 @@ const REFRESH_META_KEY_PREFIX = 'bottomline_community_competition_refresh_v1';
 const STATUS_CHECK_META_KEY = 'bottomline_community_competition_status_check_v1';
 const PUBLICATION_META_KEY = 'bottomline_community_competition_publication_v1';
 const INVALIDATION_META_KEY = 'bottomline_community_competition_invalidation_v1';
-const CACHE_WRITE_LOCK = 'bottomline-community-competition-cache-v4';
+const CACHE_WRITE_LOCK = 'bottomline-community-competition-cache-v5';
 const PERIODS = new Set(['day', 'week', 'month', 'year']);
 const VALID_STATES = new Set(['profile_required', 'join_required', 'waiting_snapshot', 'ready']);
 const CACHEABLE_STATES = new Set(['waiting_snapshot', 'ready']);
@@ -761,6 +761,24 @@ export function getCommunityCompetitionRefreshDecision({ entry, now = Date.now()
     };
   }
   const statusCheck = normalized.statusCheck;
+  // A waiting entry can exhaust its two full-read attempts before a durable
+  // marker is published. It must still start the lightweight status poll;
+  // otherwise a marker written later leaves a visible PWA asleep until the
+  // next New York close window. Eligibility/ranking gates above continue to
+  // prevent an ineligible member from triggering a full leaderboard read.
+  if (
+    normalized.data.state === 'waiting_snapshot'
+    && normalized.refresh?.targetDate === window.targetDate
+    && normalized.refresh.attempts >= MAX_REFRESH_ATTEMPTS
+    && (!statusCheck || statusCheck.targetDate !== window.targetDate)
+  ) {
+    return {
+      shouldRefresh: true,
+      reason: 'status_poll_uninitialized',
+      nextCheckAt: nowMs,
+      targetDate: window.targetDate,
+    };
+  }
   if (statusCheck?.targetDate === window.targetDate) {
     const nextStatusCheckAt = statusCheck.lastCheckedAt + COMMUNITY_COMPETITION_STATUS_POLL_MS;
     if (nowMs < nextStatusCheckAt) {

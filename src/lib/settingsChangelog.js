@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.348', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.349', date: '2026-07-16', latest: true,
+    items: [
+      '🏆 收益比赛 PWA 等待状态恢复',
+      '  - 修复真实完整快照已经发布后，iOS 主屏 PWA 仍停留在“等待下一次真实收盘快照”的问题',
+      '  - 已耗尽完整榜单读取次数的合资格等待页会继续每分钟检查轻量发布状态，发现日期或版本推进后才读取完整榜单',
+      '  - 比赛缓存升级到 v5 并淘汰已卡住的旧缓存；不修改收益、排名、快照、交易、参赛资格或发布标记',
+    ],
+    itemsEn: [
+      '🏆 Competition PWA waiting-state recovery',
+      '  - Fixes an iOS Home Screen PWA that could remain on “Waiting for the next real close snapshot” after a complete real snapshot was already published',
+      '  - An eligible waiting page that has exhausted full leaderboard reads continues minute-bounded lightweight publication checks and fetches the full board only after the date or version advances',
+      '  - Competition cache v5 discards the stuck legacy cache without changing returns, rankings, snapshots, trades, eligibility, or publication markers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.348', date: '2026-07-16',
     items: [
       '🏆 收益比赛历史真实榜单恢复',
       '  - 修复发布标记升级后旧真实快照仍在数据库、但榜单被错误显示为等待下一次收盘的问题',

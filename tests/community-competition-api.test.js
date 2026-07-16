@@ -315,6 +315,94 @@ test('an active no-trade member fails closed when its authoritative revision row
   assert.equal(rpcCalled, false);
 });
 
+test('an existing production-shaped cohort becomes ready after the bootstrap marker appears', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  let markerPublished = false;
+  const profiles = Array.from({ length: 9 }, (_, index) => ({
+    user_id: `member-${index}`,
+    nickname: `Member ${index}`,
+    avatar_key: 'avatar-blue',
+    profile_completed_at: '2026-07-01T00:00:00Z',
+  }));
+  const members = Array.from({ length: 9 }, (_, index) => ({
+    user_id: `member-${index}`,
+    status: 'active',
+    joined_at: index < 8 ? '2026-07-10T10:00:00Z' : '2026-07-14T10:00:00Z',
+    eligible_after_snapshot_date: index < 8 ? '2026-07-10' : '2026-07-14',
+    ranking_start_snapshot_date: index < 8 ? '2026-07-13' : '2026-07-15',
+    ranking_baseline_return_pct: 0,
+  }));
+  const emptyLedgerHash = computeCompetitionLedgerHash([], '2026-07-13');
+  const snapshots = Array.from({ length: 8 }, (_, index) => ({
+    user_id: `member-${index}`,
+    snapshot_date: '2026-07-13',
+    daily_return_pct: (index + 1) / 1000,
+    cumulative_return_pct: (index + 1) / 1000,
+    locked_at: '2026-07-13T22:45:00Z',
+    ledger_hash: emptyLedgerHash,
+  }));
+
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'member-0' });
+    if (href.includes('/api/eod/QQQ.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', adjusted_close: 725.51 },
+        { date: '2026-07-13', adjusted_close: 711.74 },
+      ]);
+    }
+    if (href.includes('/rest/v1/community_profiles')) {
+      return jsonResponse(href.includes('user_id=eq.member-0') ? [profiles[0]] : profiles);
+    }
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse(href.includes('user_id=eq.member-0') ? [members[0]] : members);
+    }
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      return jsonResponse(markerPublished ? [{
+        channel: 'competition',
+        snapshot_date: '2026-07-13',
+        version: 'verified_bootstrap_20260716',
+        completed_at: '2026-07-16T08:53:59.961312Z',
+      }] : []);
+    }
+    if (href.includes('/rest/v1/community_competition_snapshots')) return jsonResponse(snapshots);
+    if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  try {
+    const before = createResponse();
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { period: 'day' },
+    }, before);
+    assert.equal(before.statusCode, 200);
+    assert.equal(before.body.state, 'waiting_snapshot');
+    assert.equal(before.body.publishedSnapshotDate, null);
+
+    markerPublished = true;
+    const after = createResponse();
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { period: 'day' },
+    }, after);
+    assert.equal(after.statusCode, 200);
+    assert.equal(after.body.state, 'ready');
+    assert.equal(after.body.asOfDate, '2026-07-13');
+    assert.equal(after.body.snapshotVersion, 'verified_bootstrap_20260716');
+    assert.equal(after.body.stats.participants, 9);
+    assert.equal(after.body.leaders.length, 8);
+    assert.equal(after.body.self.nickname, 'Member 0');
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
 test('ready leaderboard is bounded by the completed publication marker, benchmarked by real QQQ EOD, and privacy-safe', async () => {
   const env = snapshotEnv(ENV_KEYS);
   configureEnv();
