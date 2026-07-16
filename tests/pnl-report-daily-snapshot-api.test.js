@@ -1302,20 +1302,17 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
   }
 });
 
-test('vercel schedules all-account P&L across DST-safe close-plus-one-hour windows', () => {
+test('vercel schedules all-account P&L through the unified close scheduler', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(
-    vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot'),
-    { path: '/api/pnl-report-daily-snapshot', schedule: '0 21 * * 1-5' }
-  );
-  assert.deepEqual(
-    vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot-retry'),
-    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 22 * * 1-5' }
-  );
-  assert.deepEqual(
-    vercelConfig.crons.find((cron) => cron.path === '/api/pnl-report-daily-snapshot-late-retry'),
-    { path: '/api/pnl-report-daily-snapshot-late-retry', schedule: '0 23 * * 1-5' }
-  );
+  assert.deepEqual(vercelConfig.crons, [
+    { path: '/api/close-snapshot-schedule', schedule: '0 21 * * 1-5' },
+    { path: '/api/close-snapshot-schedule-retry', schedule: '0 22 * * 1-5' },
+    { path: '/api/close-snapshot-schedule-late-retry', schedule: '0 23 * * 1-5' },
+  ]);
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/close-snapshot-schedule'
+    && rewrite.destination === '/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule'
+  )));
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/pnl-report-daily-snapshot-retry'
     && rewrite.destination === '/api/pnl-report-daily-snapshot'

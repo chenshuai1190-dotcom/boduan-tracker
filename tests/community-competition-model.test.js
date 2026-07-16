@@ -141,43 +141,46 @@ test('leaderboard ranks only completed profiles and exposes only public holding 
   assert.doesNotMatch(serialized, /user-a|user-b|user-c|example\.com|market_value|shares|price|amount|trade|_usd/i);
 });
 
-test('each entrant and beat-rate stat use QQQ from that entrant own calculation start', () => {
-  const result = buildCompetitionLeaderboard({
+test('annual leaderboard preserves personal starts and ranks by personal-period QQQ outperformance', () => {
+  const input = {
     members: [
-      { user_id: 'user-a', status: 'active', ranking_start_snapshot_date: '2026-07-07', ranking_baseline_return_pct: 0.1 },
-      { user_id: 'user-b', status: 'active', ranking_start_snapshot_date: '2026-07-08', ranking_baseline_return_pct: 0.2 },
+      { user_id: 'veteran', status: 'active', ranking_start_snapshot_date: '2026-07-13', ranking_baseline_return_pct: 0 },
+      { user_id: 'newcomer', status: 'active', ranking_start_snapshot_date: '2026-07-15', ranking_baseline_return_pct: 0 },
     ],
     profiles: [
-      { user_id: 'user-a', nickname: 'Alpha', avatar_key: 'avatar-gold', profile_completed_at: '2026-07-01T00:00:00Z' },
-      { user_id: 'user-b', nickname: 'Beta', avatar_key: 'avatar-blue', profile_completed_at: '2026-07-01T00:00:00Z' },
+      { user_id: 'veteran', nickname: 'Veteran', avatar_key: 'avatar-gold', profile_completed_at: '2026-07-01T00:00:00Z' },
+      { user_id: 'newcomer', nickname: 'Newcomer', avatar_key: 'avatar-blue', profile_completed_at: '2026-07-15T00:00:00Z' },
     ],
     snapshots: [
-      { user_id: 'user-a', snapshot_date: '2026-07-07', daily_return_pct: 0.01, cumulative_return_pct: 0.11, locked_at: '2026-07-07T22:45:00Z' },
-      { user_id: 'user-a', snapshot_date: '2026-07-09', daily_return_pct: 0.02, cumulative_return_pct: 0.13, locked_at: '2026-07-09T22:45:00Z' },
-      { user_id: 'user-b', snapshot_date: '2026-07-08', daily_return_pct: 0.02, cumulative_return_pct: 0.22, locked_at: '2026-07-08T22:45:00Z' },
-      { user_id: 'user-b', snapshot_date: '2026-07-09', daily_return_pct: 0.02, cumulative_return_pct: 0.24, locked_at: '2026-07-09T22:45:00Z' },
+      { user_id: 'veteran', snapshot_date: '2026-07-13', daily_return_pct: 0.005, cumulative_return_pct: 0.005, locked_at: '2026-07-13T22:00:00Z' },
+      { user_id: 'veteran', snapshot_date: '2026-07-15', daily_return_pct: 0.005, cumulative_return_pct: 0.01, locked_at: '2026-07-15T22:00:00Z' },
+      { user_id: 'newcomer', snapshot_date: '2026-07-15', daily_return_pct: 0.015, cumulative_return_pct: 0.015, locked_at: '2026-07-15T22:00:00Z' },
     ],
+    period: 'year',
+    asOfDate: '2026-07-15',
     benchmarkRows: [
-      { date: '2026-07-06', close: 100 },
-      { date: '2026-07-07', close: 110 },
-      { date: '2026-07-08', close: 115 },
-      { date: '2026-07-09', close: 121 },
+      { date: '2026-07-10', close: 100 },
+      { date: '2026-07-13', close: 98 },
+      { date: '2026-07-15', close: 99 },
     ],
-    period: 'week',
-    asOfDate: '2026-07-09',
-    selfUserId: 'user-b',
-  });
+  };
+  const newcomerView = buildCompetitionLeaderboard({ ...input, selfUserId: 'newcomer' });
+  const veteranView = buildCompetitionLeaderboard({ ...input, selfUserId: 'veteran' });
 
-  const alpha = result.leaders.find((row) => row.nickname === 'Alpha');
-  const beta = result.leaders.find((row) => row.nickname === 'Beta');
-  assert.ok(Math.abs(alpha.outperformancePct - ((1.13 / 1.1 - 1) - 0.21)) < 1e-12);
-  assert.ok(Math.abs(beta.outperformancePct - ((1.24 / 1.2 - 1) - 0.1)) < 1e-12);
-  assert.ok(Math.abs(result.selfBenchmarkReturnPct - 0.1) < 1e-12);
-  assert.equal(result.selfCalculationStartDate, '2026-07-08');
-  assert.equal(result.stats.beatRatePct, 0);
+  assert.deepEqual(newcomerView.leaders.map((row) => row.nickname), ['Veteran', 'Newcomer']);
+  assert.ok(newcomerView.leaders[0].returnPct < newcomerView.leaders[1].returnPct, 'absolute return must not decide the ranking');
+  assert.ok(Math.abs(newcomerView.leaders[0].outperformancePct - 0.02) < 1e-12);
+  assert.ok(Math.abs(newcomerView.leaders[1].outperformancePct - (0.015 - (99 / 98 - 1))) < 1e-12);
+  assert.equal(newcomerView.self.rank, 2);
+  assert.equal(newcomerView.selfCalculationStartDate, '2026-07-15');
+  assert.ok(Math.abs(newcomerView.selfBenchmarkReturnPct - (99 / 98 - 1)) < 1e-12);
+  assert.equal(veteranView.selfCalculationStartDate, '2026-07-13');
+  assert.ok(Math.abs(veteranView.selfBenchmarkReturnPct - (99 / 100 - 1)) < 1e-12);
+  assert.equal(newcomerView.selfCalculationAvailable, true);
+  assert.equal(newcomerView.stats.participants, 2);
 });
 
-test('equal returns use standard competition ranks with the next place skipped', () => {
+test('equal QQQ outperformance uses standard competition ranks with the next place skipped', () => {
   const members = ['user-a', 'user-b', 'user-c'].map((userId) => ({
     user_id: userId,
     status: 'active',
@@ -212,6 +215,10 @@ test('equal returns use standard competition ranks with the next place skipped',
     snapshots,
     period: 'day',
     asOfDate: '2026-07-08',
+    benchmarkRows: [
+      { date: '2026-07-07', close: 100 },
+      { date: '2026-07-08', close: 101 },
+    ],
     selfUserId: 'user-b',
   });
 

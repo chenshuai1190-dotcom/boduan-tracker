@@ -157,7 +157,7 @@ test('snapshot rejects non-USD ledger rows instead of mixing currencies', () => 
   }));
 });
 
-test('target-date records must be created before New York close and inside daily high-low', () => {
+test('target-date records require a same-day pre-close write and an exact positive close', () => {
   expectCode('late_trade', () => buildCompetitionCashFlowSnapshot({
     targetDate: TARGET_DATE,
     stockTrades: [buy({ date: TARGET_DATE, price: 110, createdAt: '2026-07-08T20:00:01Z' })],
@@ -168,11 +168,18 @@ test('target-date records must be created before New York close and inside daily
     stockTrades: [buy({ date: TARGET_DATE, price: 110, createdAt: '2026-07-07T19:00:00Z' })],
     historicalClosesBySymbol: CLOSES,
   }));
-  expectCode('price_out_of_range', () => buildCompetitionCashFlowSnapshot({
+  expectCode('missing_close', () => buildCompetitionCashFlowSnapshot({
+    targetDate: TARGET_DATE,
+    stockTrades: [buy({ date: TARGET_DATE, price: 110, createdAt: '2026-07-08T19:00:00Z' })],
+    historicalClosesBySymbol: { NVDA: [{ date: '2026-07-07', close: 100 }] },
+  }));
+
+  const outsideRawRange = buildCompetitionCashFlowSnapshot({
     targetDate: TARGET_DATE,
     stockTrades: [buy({ date: TARGET_DATE, price: 120, createdAt: '2026-07-08T19:00:00Z' })],
     historicalClosesBySymbol: CLOSES,
-  }));
+  });
+  assert.ok(Math.abs(outsideRawRange.dailyReturnPct - ((110 - 120) / 120)) < 1e-12);
 });
 
 test('ledger hash is canonical and changes when locked economic history changes', () => {

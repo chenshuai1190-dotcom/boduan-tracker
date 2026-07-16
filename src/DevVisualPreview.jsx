@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
+import { localMonthKey, shiftMonthKey } from './lib/calendarMonth.js';
 import { normalizeLanguage, t } from './lib/i18n.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -40,10 +41,6 @@ const SettingsRedesignPrototype = lazy(() => import('./dev/SettingsRedesignProto
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
 
-function localMonthKey(date = new Date()) {
-  return date.toISOString().slice(0, 7);
-}
-
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -52,9 +49,7 @@ function localDateKey(date = new Date()) {
 }
 
 function shiftMonth(monthKey, offset) {
-  const d = new Date(`${monthKey}-15`);
-  d.setMonth(d.getMonth() + offset);
-  return localMonthKey(d);
+  return shiftMonthKey(monthKey, offset);
 }
 
 function shiftedDateKey(offset, date = new Date()) {
@@ -586,7 +581,7 @@ function DevModal({ title, onCancel }) {
   );
 }
 
-function makeSnapshots(accounts) {
+function makeSnapshots(accounts, { zeroHistoryAccountId = '' } = {}) {
   const currentMonth = localMonthKey();
   const monthFactors = [0.34, 0.40, 0.47, 0.45, 0.52, 0.53, 0.59, 0.66, 0.70, 0.96, 0.94, 1.04, 1];
   const wingLungTrendPreview = [219500, 224800, 221600, 228300, 231200, 235900, 238400, 241600, 246900, 250400, 248018, 260436];
@@ -597,7 +592,9 @@ function makeSnapshots(accounts) {
       id: `dev_snapshot_${acc.id}_${month}`,
       accountId: acc.id,
       month,
-      balance: acc.id === 'dev_me_bank_hkd'
+      balance: acc.id === zeroHistoryAccountId
+        ? ([0, 0, 0, 0, 0, 0, 0, 0, 0, 490000, 488000, 485000, 80001][idx] ?? 0)
+        : acc.id === 'dev_me_bank_hkd'
         ? (idx === 0 ? 215000 : wingLungTrendPreview[idx - 1])
         : Math.round(Number(acc.balance || 0) * monthFactors[idx] * 100) / 100,
     }))
@@ -620,6 +617,7 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
     state: 'ready',
     period,
     asOfDate: '2026-07-10',
+    snapshotVersion: 'preview_snapshot_20260710',
     snapshotUpdatedAt: '2026-07-10T21:18:00.000Z',
     calculationStartDate: period === 'day' ? '2026-07-10' : '2026-07-01',
     benchmarkReturnPct: 0.0042,
@@ -744,13 +742,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       date: '2026-06-30',
       before_after_market: 'BeforeMarket',
       currency: 'EUR',
-      estimate: 7.98,
+      estimate: 6.8954,
       actual: published ? 7.58 : null,
-      difference: published ? -0.4 : null,
-      percent: published ? -5.0125 : null,
+      difference: published ? 0.6846 : null,
+      percent: published ? 9.928358035791971 : null,
       epsPreviousYear: 5.9,
       epsActualYoyPercent: published ? 28.474576271186436 : null,
-      epsEstimateYoyPercent: 35.25423728813559,
+      epsEstimateYoyPercent: 16.871186440677967,
       revenueEstimateUsd: 10_148_260_308.571428,
       revenueActualUsd: null,
       revenueSurprisePercent: null,
@@ -808,6 +806,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const accountTrendPreviewId = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('accountTrend') || '';
+  const accountTrendZeroHistoryPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('accountTrendZeroHistory') === '1';
   const competitionPreviewState = typeof window === 'undefined'
     ? 'ready'
     : new URLSearchParams(window.location.search).get('competitionState') || 'ready';
@@ -843,7 +843,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       if (!competitionResumeSmoke || preview.state !== 'ready') return preview;
       competitionResumeFetchCountRef.current += 1;
       return competitionResumeFetchCountRef.current > 1
-        ? { ...preview, asOfDate: '2026-07-13', snapshotUpdatedAt: '2026-07-13T21:11:00.000Z' }
+        ? {
+          ...preview,
+          asOfDate: '2026-07-13',
+          snapshotVersion: 'preview_snapshot_20260713',
+          snapshotUpdatedAt: '2026-07-13T21:11:00.000Z',
+        }
         : preview;
     },
     join: async () => buildCommunityCompetitionPreview('waiting_snapshot'),
@@ -1021,7 +1026,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     shares: '0',
   });
   const [accounts, setAccounts] = React.useState(() => baseAccounts);
-  const [snapshots, setSnapshots] = React.useState(() => makeSnapshots(baseAccounts));
+  const [snapshots, setSnapshots] = React.useState(() => makeSnapshots(baseAccounts, {
+    zeroHistoryAccountId: accountTrendZeroHistoryPreview ? 'dev_me_bank_cny' : '',
+  }));
   const [showAddAccount, setShowAddAccount] = React.useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = React.useState(false);
   const [showMonthsDetail, setShowMonthsDetail] = React.useState(false);
@@ -1075,6 +1082,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       id,
     }),
     upsertSnapshot: async () => ({}),
+    deleteSnapshot: async () => ({}),
     deleteAccount: async () => ({}),
     upsertInvestmentPlan: async () => ({}),
     upsertYearlyActual: async () => ({}),

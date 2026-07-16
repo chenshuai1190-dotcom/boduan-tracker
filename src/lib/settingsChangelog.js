@@ -1,6 +1,76 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.343', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.347', date: '2026-07-16', latest: true,
+    items: [
+      '🏆 收益比赛超额收益排行与内部成交规则修正',
+      '  - 每位用户保留本人自然周期内的真实累计收益和固定参赛起点,不会因新用户加入而修改日期或清空累计收益',
+      '  - QQQ 从该用户本人同一计算起点开始计算;榜单按“本人收益率 - 本人同期 QQQ 收益率”的超额收益从高到低排列',
+      '  - 新用户首份有效收盘后即可进入日/周/月/年榜;参赛人数显示已报名总人数,比例统计只计算真实数据完整的用户',
+      '  - 内部比赛接受正式账本记录的正数成交价,不再用 provider raw high/low 拒绝;真实目标日收盘与其他账本安全规则不变',
+    ],
+    itemsEn: [
+      '🏆 QQQ-outperformance ranking and internal execution-rule fixes',
+      '  - Every member keeps the real cumulative return within the selected calendar period and their fixed personal competition start; a newcomer never resets another member’s date or return',
+      '  - QQQ is calculated from that same member-specific start, and rankings sort by member return minus the member’s same-period QQQ return',
+      '  - A newcomer enters the day, week, month, and year boards after the first valid close; participant count shows all enrolled members while rate statistics use only complete real data',
+      '  - The internal competition accepts positive execution prices from the formal ledger without provider raw high/low rejection; exact target closes and all other ledger safeguards remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.346', date: '2026-07-16',
+    items: [
+      '🏆 收盘快照同步与比赛按需刷新',
+      '  - 个人收益报表和收益比赛改由同一受保护收盘调度同时启动,避免独立定时任务产生较长时间差',
+      '  - 比赛整批完成后才发布不含用户数据的完成标记,部分写入不会提前显示为新榜单',
+      '  - 可见旧榜每分钟最多读取一次轻量状态;日期或版本推进时才读取完整榜单,多标签页不会回退旧版本',
+      '  - 两套快照表、D1/D2、账本哈希、revision CAS 和无模拟收益规则保持不变',
+    ],
+    itemsEn: [
+      '🏆 Synchronized close snapshots and on-demand competition refresh',
+      '  - Personal P&L and competition jobs now start from one protected close scheduler, avoiding long delays between independent cron invocations',
+      '  - A privacy-safe completion marker is published only after the full competition batch completes, so partial writes never expose a new leaderboard',
+      '  - Visible stale rankings check lightweight status at most once per minute and fetch the full leaderboard only on a publication advance, without cross-tab rollback',
+      '  - Separate snapshot tables, D1/D2, ledger hashes, revision CAS, and the no-synthetic-return rule remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.345', date: '2026-07-16',
+    items: [
+      '📊 账户零余额记录与走势口径修正',
+      '  - 月度余额填 0 或清空后保存,等同删除该账户该月份的个人记录,不再保存零值快照',
+      '  - 历史零值按不存在处理,走势从剩余第一个正数月份重新起算,最低/最高资产和累计增长同步重算',
+      '  - 删除只限定当前登录用户、精确账户和精确月份,并同步清理离线缓存,不影响其他账户或月份',
+      '  - 只修改账户资料而未触碰余额时不会误删;批量补录也只处理用户实际改动的输入',
+      '  - 当前月份按设备本地年月生成,避免月初因 UTC 时差把删除或补录作用到上个月',
+    ],
+    itemsEn: [
+      '📊 Zero-balance record and account-trend fixes',
+      '  - Saving a monthly balance as 0 or blank now deletes that personal account-month record instead of persisting a zero snapshot',
+      '  - Legacy zero rows are treated as absent; the trend restarts from the first remaining positive month and recalculates lows, highs, and cumulative growth',
+      '  - Deletion is scoped to the signed-in user, exact account, and exact month, and also clears the matching offline cache without touching other records',
+      '  - Editing account details without touching the balance cannot delete it; bulk entry likewise processes only inputs the user actually changed',
+      '  - The current month now follows the device calendar month, preventing UTC offsets at month boundaries from targeting the previous month',
+    ],
+  },
+  {
+    ver: 'v10.7.9.344', date: '2026-07-16',
+    items: [
+      '📊 财报一致预期与延迟补数修正',
+      '  - 同一精确财季的 0q Trends EPS 一致预期优先,Calendar 仅作回退,并按最终预期重算超预期幅度',
+      '  - EPS 明确标注报告币种,营收继续按真实汇率换算为 USD,不再混用币种标签',
+      '  - 已公布但真实营收 actual 缺失时,报告日起两天内有界补拉,保留五分钟节流和 PWA 恢复检查',
+      '  - 局部回包的 null 不覆盖已有真实 actual;生产不使用 mock 或网页数字补结果',
+    ],
+    itemsEn: [
+      '📊 Earnings consensus and delayed-result refresh fixes',
+      '  - Exact-fiscal-quarter 0q Trends EPS consensus now takes priority, with Calendar only as fallback and surprise recomputed from the final estimate',
+      '  - EPS is labeled in the report currency, while revenue remains converted to USD with real FX data so the two units are explicit',
+      '  - Published reports still missing real revenue actuals are rechecked within two days of the report date, retaining five-minute throttling and PWA resume checks',
+      '  - Partial null responses never overwrite an existing real actual; production uses neither mock data nor figures copied from web pages to fill results',
+    ],
+  },
+  {
+    ver: 'v10.7.9.343', date: '2026-07-16',
     items: [
       '📊 账户走势口径与金额排序修正',
       '  - 账户走势初次打开不再默认显示月份浮层,点击柱图后才显示,点击图表外只关闭小浮层',

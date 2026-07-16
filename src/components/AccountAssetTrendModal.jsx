@@ -154,9 +154,7 @@ export default function AccountAssetTrendModal({
     : t(language, 'analysis.twelveMonthGrowth', '12 个月累计增长');
   const cumulativeGrowthText = Number.isFinite(trend?.cumulativeGrowthPct)
     ? formatPercent(trend.cumulativeGrowthPct)
-    : trend?.startSnapshot && trend?.endSnapshot && trend.startSnapshot.balance === 0
-      ? t(language, 'analysis.accountTrendZeroStart', '起点为 0')
-      : '--';
+    : '--';
 
   const title = t(language, 'analysis.accountTrendTitle', '{{name}}资产走势', {
     name: accountName || account?.name || '--',

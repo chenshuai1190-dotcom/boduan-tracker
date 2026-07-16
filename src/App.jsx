@@ -10,6 +10,7 @@ import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, should
 import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
+import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
@@ -1125,7 +1126,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [newPwd, setNewPwd] = useState('');
   const [pwdMsg, setPwdMsg] = useState(null);  // { type: 'error'|'success', text: '...' }
   const [pwdLoading, setPwdLoading] = useState(false);
-  const [fillMonth, setFillMonth] = useState(() => new Date().toISOString().slice(0, 7)); // 填快照 Modal 里当前选择的月份
+  const [fillMonth, setFillMonth] = useState(() => localMonthKey()); // 填快照 Modal 里当前选择的本地月份
   const [showMonthsDetail, setShowMonthsDetail] = useState(false); // 12 个月资产走势 Modal
   const [chartSelectedMonthIdx, setChartSelectedMonthIdx] = useState(null); // v40 fix46: 12月走势点圆点
 

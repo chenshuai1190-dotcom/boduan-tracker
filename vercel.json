@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/api/close-snapshot-schedule",
+      "destination": "/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule"
+    },
+    {
+      "source": "/api/close-snapshot-schedule-retry",
+      "destination": "/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule"
+    },
+    {
+      "source": "/api/close-snapshot-schedule-late-retry",
+      "destination": "/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule"
+    },
+    {
       "source": "/api/community-competition-daily-snapshot",
       "destination": "/api/community-competition?operation=daily-snapshot"
     },
@@ -23,27 +35,15 @@
   ],
   "crons": [
     {
-      "path": "/api/pnl-report-daily-snapshot",
+      "path": "/api/close-snapshot-schedule",
       "schedule": "0 21 * * 1-5"
     },
     {
-      "path": "/api/community-competition-daily-snapshot",
-      "schedule": "0 21 * * 1-5"
-    },
-    {
-      "path": "/api/pnl-report-daily-snapshot-retry",
+      "path": "/api/close-snapshot-schedule-retry",
       "schedule": "0 22 * * 1-5"
     },
     {
-      "path": "/api/community-competition-daily-snapshot-retry",
-      "schedule": "0 22 * * 1-5"
-    },
-    {
-      "path": "/api/pnl-report-daily-snapshot-late-retry",
-      "schedule": "0 23 * * 1-5"
-    },
-    {
-      "path": "/api/community-competition-daily-snapshot-late-retry",
+      "path": "/api/close-snapshot-schedule-late-retry",
       "schedule": "0 23 * * 1-5"
     }
   ]

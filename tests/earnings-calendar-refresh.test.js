@@ -147,9 +147,9 @@ test('earnings refresh never treats time or estimates as published and stops onl
     { symbol: 'NVDA', reportDate: '2026-07-13', session: 'post' },
     { symbol: 'OLD', reportDate: '2026-07-12', session: 'pre' },
     { symbol: 'FUTURE', reportDate: '2026-07-16', session: 'pre' },
-    { symbol: 'ZEROEPS', reportDate: '2026-07-15', session: 'pre', epsActual: 0 },
+    { symbol: 'ZEROEPS', reportDate: '2026-07-15', session: 'pre', epsActual: 0, revenueActualUsd: 1 },
     { symbol: 'ZEROREV', reportDate: '2026-07-15', session: 'pre', revenueActualUsd: 0 },
-    { symbol: 'FLAGGED', reportDate: '2026-07-15', session: 'pre', earningsPublished: true },
+    { symbol: 'FLAGGED', reportDate: '2026-07-15', session: 'pre', earningsPublished: true, revenueActualUsd: 1 },
   ], now);
 
   assert.deepEqual(candidates.map((event) => event.symbol), ['ASML', 'NVDA']);
@@ -157,8 +157,8 @@ test('earnings refresh never treats time or estimates as published and stops onl
 
 test('published pre-market earnings wait for the report-day close before filling a missing market reaction', () => {
   const events = [
-    { symbol: 'ASML', reportDate: '2026-07-15', session: 'pre', epsActual: 7.58, marketReactionPercent: null },
-    { symbol: 'READY', reportDate: '2026-07-15', session: 'pre', epsActual: 1, marketReactionPercent: 0 },
+    { symbol: 'ASML', reportDate: '2026-07-15', session: 'pre', epsActual: 7.58, revenueActualUsd: 1, marketReactionPercent: null },
+    { symbol: 'READY', reportDate: '2026-07-15', session: 'pre', epsActual: 1, revenueActualUsd: 1, marketReactionPercent: 0 },
   ];
 
   assert.deepEqual(
@@ -173,7 +173,7 @@ test('published pre-market earnings wait for the report-day close before filling
 
 test('published post-market earnings wait for the next possible trading-day close and skip the weekend', () => {
   const events = [
-    { symbol: 'NFLX', reportDate: '2026-07-17', session: 'post', epsActual: 1.25, marketReactionPercent: null },
+    { symbol: 'NFLX', reportDate: '2026-07-17', session: 'post', epsActual: 1.25, revenueActualUsd: 1, marketReactionPercent: null },
   ];
 
   assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-17T20:00:00Z')).length, 0);
@@ -188,12 +188,46 @@ test('published post-market earnings wait for the next possible trading-day clos
 
 test('a missing published reaction keeps a short weekday retry window for delayed holiday EOD data', () => {
   const events = [
-    { symbol: 'MSFT', reportDate: '2026-07-16', session: 'post', epsActual: 2, marketReactionPercent: null },
+    { symbol: 'MSFT', reportDate: '2026-07-16', session: 'post', epsActual: 2, revenueActualUsd: 1, marketReactionPercent: null },
   ];
 
   assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-20T20:00:00Z')).length, 1);
   assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-21T20:00:00Z')).length, 1);
   assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-22T20:00:00Z')).length, 0);
+});
+
+test('published ASML keeps refreshing for delayed actual revenue within retention and stops after it arrives', () => {
+  const epsOnly = {
+    symbol: 'ASML',
+    reportDate: '2026-07-15',
+    session: 'pre',
+    epsActual: 7.59,
+    revenueActual: null,
+    revenueActualUsd: null,
+    marketReactionPercent: 2.2,
+  };
+
+  assert.deepEqual(
+    getEarningsRefreshCandidates([epsOnly], Date.parse('2026-07-15T12:00:00Z')).map((event) => event.symbol),
+    ['ASML'],
+  );
+  assert.equal(getEarningsRefreshCandidates([epsOnly], Date.parse('2026-07-17T12:00:00Z')).length, 1);
+  assert.equal(getEarningsRefreshCandidates([epsOnly], Date.parse('2026-07-18T12:00:00Z')).length, 0);
+
+  const stillDelayed = mergeEarningsRefreshEvents([epsOnly], [{
+    ...epsOnly,
+    revenueActual: null,
+    revenueActualUsd: null,
+  }]);
+  assert.equal(getEarningsRefreshCandidates(stillDelayed, Date.parse('2026-07-16T12:00:00Z')).length, 1);
+
+  const complete = mergeEarningsRefreshEvents(stillDelayed, [{
+    ...epsOnly,
+    revenueActual: 9_326_000_000,
+    revenueActualUsd: 10_182_000_000,
+    revenueActualSource: 'eodhd-fundamentals-income-statement',
+  }]);
+  assert.equal(getEarningsRefreshCandidates(complete, Date.parse('2026-07-16T12:00:00Z')).length, 0);
 });
 
 test('partial refresh merges ASML actuals without dropping other calendar events or rolling back published data', () => {
@@ -206,6 +240,8 @@ test('partial refresh merges ASML actuals without dropping other calendar events
   ]);
   assert.equal(merged.length, 2);
   assert.equal(merged[0].epsActual, 7.59);
+  assert.equal(merged[0].epsActualYoyPercent, null);
+  assert.equal(merged[0].revenueSurprisePercent, null);
   assert.equal(merged[1].symbol, 'NVDA');
   assert.deepEqual(mergeEarningsRefreshEvents(merged, []), merged);
 
@@ -214,6 +250,96 @@ test('partial refresh merges ASML actuals without dropping other calendar events
     current[1],
   ]);
   assert.equal(preserved[0].epsActual, 7.59);
+});
+
+test('partial-null refreshes preserve real actual fields and zero while still accepting estimate updates', () => {
+  const current = [{
+    symbol: 'ASML',
+    reportDate: '2026-07-15',
+    session: 'pre',
+    epsEstimate: 7.98,
+    epsActual: 7.59,
+    epsDifference: -0.39,
+    surprisePercent: -4.8872180451,
+    epsPreviousYear: 2.5,
+    epsActualYoyPercent: 203.6,
+    epsEstimateYoyPercent: 219.2,
+    epsActualSource: 'eodhd-calendar',
+    revenueEstimateUsd: 10_180_000_000,
+    revenueActual: 9_326_000_000,
+    revenueActualUsd: 10_182_000_000,
+    revenueActualOriginalCurrency: 'EUR',
+    revenueActualFxRate: 0.916,
+    revenueActualFxSource: 'EODHD',
+    revenueActualSource: 'eodhd-fundamentals-income-statement',
+    revenuePreviousYear: 6_243_000_000,
+    revenuePreviousYearUsd: 6_810_000_000,
+    revenuePreviousYearSource: 'eodhd-fundamentals-income-statement',
+    revenueSurprisePercent: 0.0196463654,
+    revenueActualYoyPercent: 49.5154185022,
+    revenueEstimateYoyPercent: 49.4860499266,
+    marketReactionPercent: 0,
+    marketReactionBaseDate: '2026-07-14',
+    marketReactionTargetDate: '2026-07-15',
+    marketReactionSession: 'pre',
+    earningsPublished: true,
+    publishedUntil: '2026-07-17',
+    earningsResult: 'beat',
+  }];
+  const partialNull = [{
+    symbol: 'ASML',
+    reportDate: '2026-07-15',
+    session: 'pre',
+    epsEstimate: 6.9,
+    epsActual: null,
+    epsActualSource: null,
+    revenueEstimateUsd: 10_250_000_000,
+    revenueActual: null,
+    revenueActualUsd: undefined,
+    revenueActualOriginalCurrency: null,
+    revenueActualFxRate: null,
+    revenueActualFxSource: null,
+    revenueActualSource: null,
+    revenuePreviousYear: null,
+    revenuePreviousYearUsd: null,
+    revenuePreviousYearSource: null,
+    marketReactionPercent: null,
+    marketReactionBaseDate: '',
+    marketReactionTargetDate: null,
+    marketReactionSession: null,
+    earningsPublished: false,
+    publishedUntil: null,
+    earningsResult: null,
+  }];
+
+  for (const output of [
+    mergeEarningsRefreshEvents(current, partialNull)[0],
+    preservePublishedEarningsEvents(current, partialNull)[0],
+  ]) {
+    assert.equal(output.epsEstimate, 6.9);
+    assert.equal(output.revenueEstimateUsd, 10_250_000_000);
+    assert.equal(output.epsActual, 7.59);
+    assert.ok(Math.abs(output.epsDifference - 0.69) < 1e-10);
+    assert.ok(Math.abs(output.surprisePercent - 10) < 1e-10);
+    assert.ok(Math.abs(output.epsActualYoyPercent - 203.6) < 1e-10);
+    assert.ok(Math.abs(output.epsEstimateYoyPercent - 176) < 1e-10);
+    assert.equal(output.epsActualSource, 'eodhd-calendar');
+    assert.equal(output.revenueActual, 9_326_000_000);
+    assert.equal(output.revenueActualUsd, 10_182_000_000);
+    assert.equal(output.revenueActualOriginalCurrency, 'EUR');
+    assert.equal(output.revenueActualFxRate, 0.916);
+    assert.equal(output.revenueActualFxSource, 'EODHD');
+    assert.equal(output.revenuePreviousYearUsd, 6_810_000_000);
+    assert.ok(Math.abs(output.revenueSurprisePercent - ((10_182_000_000 - 10_250_000_000) / 10_250_000_000) * 100) < 1e-10);
+    assert.ok(Math.abs(output.revenueActualYoyPercent - ((10_182_000_000 - 6_810_000_000) / 6_810_000_000) * 100) < 1e-10);
+    assert.ok(Math.abs(output.revenueEstimateYoyPercent - ((10_250_000_000 - 6_810_000_000) / 6_810_000_000) * 100) < 1e-10);
+    assert.equal(output.marketReactionPercent, 0);
+    assert.equal(output.marketReactionBaseDate, '2026-07-14');
+    assert.equal(output.marketReactionTargetDate, '2026-07-15');
+    assert.equal(output.earningsPublished, true);
+    assert.equal(output.publishedUntil, '2026-07-17');
+    assert.equal(output.earningsResult, 'mixed');
+  }
 });
 
 test('forced earnings request bypasses browser cache and carries a five-minute refresh bucket', async () => {

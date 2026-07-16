@@ -7,7 +7,7 @@ function monthlyRows(accountId, values) {
   return Object.entries(values).map(([month, balance]) => ({ accountId, month, balance }));
 }
 
-test('trend isolates the exact account and never fills missing snapshots with another account or zero', () => {
+test('trend isolates the exact account and treats a zero balance as a removed snapshot', () => {
   const result = buildAccountAssetTrend({
     accountId: 'bank-hk-1',
     endMonth: '2026-04',
@@ -30,11 +30,12 @@ test('trend isolates the exact account and never fills missing snapshots with an
   assert.deepEqual(result.slots.map(({ month, balance, hasData }) => ({ month, balance, hasData })), [
     { month: '2026-01', balance: 100, hasData: true },
     { month: '2026-02', balance: null, hasData: false },
-    { month: '2026-03', balance: 0, hasData: true },
+    { month: '2026-03', balance: null, hasData: false },
     { month: '2026-04', balance: 130, hasData: true },
   ]);
-  assert.deepEqual(result.minPoint, { month: '2026-03', balance: 0 });
+  assert.deepEqual(result.minPoint, { month: '2026-01', balance: 100 });
   assert.deepEqual(result.maxPoint, { month: '2026-04', balance: 130 });
+  assert.equal(result.invalidCount, 0);
 });
 
 test('month-over-month comparison requires the exact immediately preceding calendar snapshot', () => {
@@ -61,21 +62,25 @@ test('month-over-month comparison requires the exact immediately preceding calen
   assert.equal(result.slots[2].changePct, null);
 });
 
-test('a real zero prior balance supports an amount change but not a percentage', () => {
+test('a zero month is absent and cannot become the previous month for comparison', () => {
   const result = buildAccountAssetTrend({
     accountId: 'bank-1',
-    endMonth: '2026-02',
-    monthCount: 2,
+    endMonth: '2026-03',
+    monthCount: 3,
     snapshots: monthlyRows('bank-1', {
-      '2026-01': 0,
-      '2026-02': 50,
+      '2026-01': 100,
+      '2026-02': 0,
+      '2026-03': 120,
     }),
   });
 
-  assert.equal(result.slots[1].hasPreviousMonth, true);
-  assert.equal(result.slots[1].previousBalance, 0);
-  assert.equal(result.slots[1].changeAmount, 50);
-  assert.equal(result.slots[1].changePct, null);
+  assert.equal(result.slots[1].hasData, false);
+  assert.equal(result.slots[1].balance, null);
+  assert.equal(result.slots[2].hasPreviousMonth, false);
+  assert.equal(result.slots[2].previousBalance, null);
+  assert.equal(result.slots[2].changeAmount, null);
+  assert.equal(result.slots[2].changePct, null);
+  assert.equal(result.invalidCount, 0);
 });
 
 test('window growth starts at the first real snapshot and still requires the exact end snapshot', () => {
@@ -125,8 +130,10 @@ test('window growth starts at the first real snapshot and still requires the exa
       '2026-12': 125,
     }),
   });
-  assert.equal(zeroStart.cumulativeChangeAmount, 125);
-  assert.equal(zeroStart.cumulativeGrowthPct, null);
+  assert.deepEqual(zeroStart.startSnapshot, { month: '2026-12', balance: 125 });
+  assert.deepEqual(zeroStart.minPoint, { month: '2026-12', balance: 125 });
+  assert.equal(zeroStart.cumulativeChangeAmount, 0);
+  assert.equal(zeroStart.cumulativeGrowthPct, 0);
 
   const missingEnd = buildAccountAssetTrend({
     accountId: 'bank-1',
@@ -140,6 +147,72 @@ test('window growth starts at the first real snapshot and still requires the exa
   assert.equal(missingEnd.endSnapshot, null);
   assert.equal(missingEnd.cumulativeChangeAmount, null);
   assert.equal(missingEnd.cumulativeGrowthPct, null);
+});
+
+test('deleted leading snapshots restart growth and extrema at the first remaining balance', () => {
+  const result = buildAccountAssetTrend({
+    accountId: 'cmb-cny',
+    endMonth: '2026-07',
+    monthCount: 12,
+    snapshots: monthlyRows('cmb-cny', {
+      '2025-08': 0,
+      '2025-09': 0,
+      '2025-10': 0,
+      '2025-11': 0,
+      '2025-12': 0,
+      '2026-01': 0,
+      '2026-02': 0,
+      '2026-03': 0,
+      '2026-04': 490000,
+      '2026-07': 80001,
+    }),
+  });
+
+  assert.deepEqual(result.startSnapshot, { month: '2026-04', balance: 490000 });
+  assert.deepEqual(result.endSnapshot, { month: '2026-07', balance: 80001 });
+  assert.deepEqual(result.minPoint, { month: '2026-07', balance: 80001 });
+  assert.deepEqual(result.maxPoint, { month: '2026-04', balance: 490000 });
+  assert.equal(result.cumulativeChangeAmount, -409999);
+  assert.ok(Math.abs(result.cumulativeGrowthPct - (-409999 / 490000) * 100) < 1e-10);
+  assert.equal(result.invalidCount, 0);
+});
+
+test('all-zero history is indistinguishable from no account snapshot history', () => {
+  const result = buildAccountAssetTrend({
+    accountId: 'bank-1',
+    endMonth: '2026-07',
+    monthCount: 3,
+    snapshots: monthlyRows('bank-1', {
+      '2026-05': 0,
+      '2026-06': 0,
+      '2026-07': 0,
+    }),
+  });
+
+  assert.equal(result.startSnapshot, null);
+  assert.equal(result.endSnapshot, null);
+  assert.equal(result.latest, null);
+  assert.equal(result.minPoint, null);
+  assert.equal(result.maxPoint, null);
+  assert.equal(result.cumulativeChangeAmount, null);
+  assert.equal(result.cumulativeGrowthPct, null);
+});
+
+test('legacy zero rows are ignored when a positive duplicate exists in either order', () => {
+  for (const snapshots of [
+    monthlyRows('bank-1', { '2026-07': 0 }).concat(monthlyRows('bank-1', { '2026-07': 125 })),
+    monthlyRows('bank-1', { '2026-07': 125 }).concat(monthlyRows('bank-1', { '2026-07': 0 })),
+  ]) {
+    const result = buildAccountAssetTrend({
+      accountId: 'bank-1',
+      endMonth: '2026-07',
+      monthCount: 1,
+      snapshots,
+    });
+    assert.deepEqual(result.startSnapshot, { month: '2026-07', balance: 125 });
+    assert.deepEqual(result.endSnapshot, { month: '2026-07', balance: 125 });
+    assert.equal(result.invalidCount, 0);
+  }
 });
 
 test('latest is tied to the exact end month and does not fall back to an older snapshot', () => {

@@ -10,6 +10,10 @@ import {
   competitionPeriodStartDate,
   normalizeCompetitionPeriod,
 } from './communityCompetitionModel.js';
+import {
+  COMPETITION_SNAPSHOT_CHANNEL,
+  getLatestCommunityCompetitionSnapshotMarker,
+} from './snapshotPublicationMarker.js';
 
 const PAGE_SIZE = 1000;
 const BENCHMARK_LOOKBACK_DAYS = 14;
@@ -27,17 +31,6 @@ function shiftDate(dateKey, days) {
   if (Number.isNaN(date.getTime())) return dateKey;
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function latestSnapshotUpdatedAt(snapshots = [], asOfDate) {
-  let latestTimestamp = null;
-  snapshots.forEach((snapshot) => {
-    if (String(snapshot?.snapshot_date || '').slice(0, 10) !== asOfDate) return;
-    const timestamp = Date.parse(String(snapshot?.locked_at || ''));
-    if (!Number.isFinite(timestamp)) return;
-    if (latestTimestamp == null || timestamp > latestTimestamp) latestTimestamp = timestamp;
-  });
-  return latestTimestamp == null ? null : new Date(latestTimestamp).toISOString();
 }
 
 function getSupabaseAdminConfig() {
@@ -194,17 +187,6 @@ async function fetchEligibleLedgerTrades(userId, throughDate) {
   return fetchPaged(`${url.pathname}${url.search}`);
 }
 
-async function fetchLatestSnapshotDate(now = new Date()) {
-  const url = new URL('/rest/v1/community_competition_snapshots', 'https://placeholder.local');
-  url.searchParams.set('select', 'snapshot_date');
-  url.searchParams.set('snapshot_date', `lte.${latestCompletedUsTradingDate(now)}`);
-  url.searchParams.set('locked_at', 'not.is.null');
-  url.searchParams.set('order', 'snapshot_date.desc');
-  url.searchParams.set('limit', '1');
-  const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
-  return String(Array.isArray(rows) ? rows[0]?.snapshot_date || '' : '').slice(0, 10) || null;
-}
-
 async function fetchLeaderboardData({ fromDate, asOfDate }) {
   const memberUrl = new URL('/rest/v1/community_competition_members', 'https://placeholder.local');
   memberUrl.searchParams.set('select', [
@@ -283,18 +265,35 @@ async function fetchBenchmarkRows({ from, to }) {
   const key = String(process.env.EODHD_API_KEY || '')
     .trim()
     .replace(/[\s\u200B-\u200D\uFEFF]/g, '');
-  if (!key) return [];
+  if (!key) {
+    const error = new Error('收益比赛基准行情未配置');
+    error.status = 500;
+    error.retryable = false;
+    throw error;
+  }
   const url = `https://eodhd.com/api/eod/QQQ.US?api_token=${encodeURIComponent(key)}&from=${from}&to=${to}&period=d&fmt=json`;
   try {
     const response = await fetchWithTimeout(url, {}, {
       provider: 'eodhd-community-competition-benchmark',
       timeoutMs: QUOTE_TIMEOUTS.eodhd,
     });
-    if (!response.ok) return [];
+    if (!response.ok) {
+      const error = new Error('收益比赛基准行情暂不可用');
+      error.status = response.status;
+      error.retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+      throw error;
+    }
     const body = await response.json().catch(() => null);
-    return Array.isArray(body) ? body : [];
-  } catch {
-    return [];
+    if (!Array.isArray(body)) {
+      const error = new Error('收益比赛基准行情回包不完整');
+      error.status = 503;
+      error.retryable = true;
+      throw error;
+    }
+    return body;
+  } catch (error) {
+    if (typeof error?.retryable !== 'boolean') error.retryable = true;
+    throw error;
   }
 }
 
@@ -315,28 +314,33 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     return { success: true, state: 'join_required', period: normalizedPeriod };
   }
 
+  const publication = await getLatestCommunityCompetitionSnapshotMarker({ now });
   const waiting = {
     success: true,
     state: 'waiting_snapshot',
     period: normalizedPeriod,
     joinedAt: membership.joined_at || null,
+    eligibleAfterSnapshotDate: membership.eligible_after_snapshot_date || null,
     rankingStartSnapshotDate: membership.ranking_start_snapshot_date || null,
+    publishedSnapshotDate: publication?.snapshotDate || null,
+    snapshotVersion: publication?.version || null,
+    snapshotUpdatedAt: publication?.completedAt || null,
   };
   if (!membership.ranking_start_snapshot_date) return waiting;
 
-  const asOfDate = await fetchLatestSnapshotDate(now);
+  // A member row is not a publication signal: the batch may still be writing
+  // other users. Only the durable server completion marker can expose a date.
+  const asOfDate = publication?.snapshotDate || null;
   if (!asOfDate || String(membership.ranking_start_snapshot_date) > asOfDate) return waiting;
   const periodStartDate = competitionPeriodStartDate(normalizedPeriod, asOfDate);
   const fetchFromDate = shiftDate(periodStartDate, -BENCHMARK_LOOKBACK_DAYS);
   const data = await fetchLeaderboardData({ fromDate: fetchFromDate, asOfDate });
-  const preliminary = buildCompetitionLeaderboard({
-    ...data,
-    period: normalizedPeriod,
-    asOfDate,
-    benchmarkRows: [],
-    selfUserId: userId,
-  });
-  if (!preliminary.self) return waiting;
+  const hasCurrentSelfSnapshot = data.snapshots.some((snapshot) => (
+    String(snapshot?.user_id || '') === String(userId)
+    && String(snapshot?.snapshot_date || '').slice(0, 10) === asOfDate
+    && snapshot?.locked_at
+  ));
+  if (!hasCurrentSelfSnapshot) return waiting;
 
   const [benchmarkRows, holdingSymbolsByUser] = await Promise.all([
     fetchBenchmarkRows({ from: fetchFromDate, to: asOfDate }),
@@ -350,13 +354,21 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     holdingSymbolsByUser,
     selfUserId: userId,
   });
+  if (!leaderboard.selfCalculationAvailable) return waiting;
+  if (!leaderboard.benchmarkComplete || !leaderboard.self) {
+    const error = new Error('收益比赛基准收盘数据尚未完整');
+    error.status = 503;
+    error.retryable = true;
+    throw error;
+  }
 
   return {
     success: true,
     state: 'ready',
     period: normalizedPeriod,
     asOfDate,
-    snapshotUpdatedAt: latestSnapshotUpdatedAt(data.snapshots, asOfDate),
+    snapshotVersion: publication.version,
+    snapshotUpdatedAt: publication.completedAt,
     calculationStartDate: leaderboard.selfCalculationStartDate,
     benchmarkReturnPct: leaderboard.selfBenchmarkReturnPct,
     stats: leaderboard.stats,
@@ -366,6 +378,18 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
       self: leaderboard.selfTrend,
       benchmark: leaderboard.selfBenchmarkTrend,
     },
+  };
+}
+
+export async function getCommunityCompetitionSnapshotStatus({ now = new Date() } = {}) {
+  const publication = await getLatestCommunityCompetitionSnapshotMarker({ now });
+  return {
+    success: true,
+    state: 'snapshot_status',
+    channel: COMPETITION_SNAPSHOT_CHANNEL,
+    snapshotDate: publication?.snapshotDate || null,
+    version: publication?.version || null,
+    completedAt: publication?.completedAt || null,
   };
 }
 

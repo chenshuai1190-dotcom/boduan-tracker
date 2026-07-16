@@ -2,11 +2,16 @@ import React from 'react';
 import { ArrowLeft, Info, Loader2, RefreshCw, Trophy, X } from 'lucide-react';
 import {
   clearCommunityCompetitionCache,
+  commitCommunityCompetitionCache,
+  getCommunityCompetitionCacheGeneration,
   getCommunityCompetitionRefreshDecision,
+  getCommunityCompetitionSnapshotStatusDecision,
+  invalidateCommunityCompetitionRequests,
   readCommunityCompetitionCache,
+  recordCommunityCompetitionObservedPublication,
+  recordCommunityCompetitionStatusCheck,
   requestCommunityCompetitionRefresh,
   shouldRecordCommunityCompetitionRefreshFailure,
-  writeCommunityCompetitionCache,
 } from '../lib/communityCompetitionCache.js';
 import { bindCommunityCompetitionResume } from '../lib/communityCompetitionResume.js';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
@@ -27,6 +32,24 @@ const PERIODS = [
   ['month', '月榜'],
   ['year', '年榜'],
 ];
+
+function snapshotPublicationFromCompetitionState(data) {
+  if (data?.state === 'ready') {
+    return {
+      snapshotDate: data.asOfDate,
+      version: data.snapshotVersion,
+      completedAt: data.snapshotUpdatedAt,
+    };
+  }
+  if (data?.state === 'waiting_snapshot') {
+    return {
+      snapshotDate: data.publishedSnapshotDate,
+      version: data.snapshotVersion,
+      completedAt: data.snapshotUpdatedAt,
+    };
+  }
+  return null;
+}
 
 function isFiniteValue(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
@@ -94,6 +117,11 @@ function protectHintText(value) {
     (text, phrase) => text.replaceAll(phrase, keepTogether(phrase)),
     value,
   );
+}
+
+function isRetryableCompetitionHttpFailure(error) {
+  const status = Number(error?.status);
+  return status === 408 || status === 429 || (status >= 500 && status <= 599);
 }
 
 function MetricBlock({ label, value, color = NEUTRAL }) {
@@ -440,7 +468,7 @@ function CompetitionContent({ data, period, language, tt }) {
       <section className="relative overflow-visible rounded-[17px] border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="grid grid-cols-[minmax(0,1fr)_68px_72px] items-center gap-1.5 px-3.5 py-3">
           <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
-            {tt('competition.rankingTitle', '收益率排行榜')}
+            {tt('competition.rankingTitle', '跑赢 QQQ')}
             <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
           </div>
           <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.returnRate', '收益率')}</div>
@@ -513,7 +541,10 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const activeViewKey = `${userId}:${period}`;
   const activeViewKeyRef = React.useRef(activeViewKey);
   const settledViewKeyRef = React.useRef('');
+  const renderedCacheRef = React.useRef({ viewKey: '', savedAt: 0 });
   const failedRetryNotBeforeRef = React.useRef(new Map());
+  const statusCheckRef = React.useRef(null);
+  const publicationRefreshRef = React.useRef(new Map());
   activeViewKeyRef.current = activeViewKey;
   const profileRedirectedRef = React.useRef(false);
 
@@ -522,7 +553,13 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const load = React.useCallback(async ({ showLoading = false, bypassFailureCooldown = false } = {}) => {
+  const load = React.useCallback(async ({
+    showLoading = false,
+    bypassFailureCooldown = false,
+    commitExpectedPublication = false,
+    expectedPublication = null,
+    propagateError = false,
+  } = {}) => {
     const requestViewKey = `${userId}:${period}`;
     const now = communityCompetitionNow();
     const blockedUntil = Number(failedRetryNotBeforeRef.current.get(requestViewKey)) || 0;
@@ -532,42 +569,108 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     }
     failedRetryNotBeforeRef.current.delete(requestViewKey);
     const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
+    const cacheGeneration = cacheEnabled
+      ? getCommunityCompetitionCacheGeneration(userId)
+      : '';
     if (mountedRef.current && showLoading && !cached) {
       setView({ state: 'loading', data: null, error: '' });
     }
     if (mountedRef.current) setJoinError('');
     try {
-      const result = cacheEnabled
-        ? await requestCommunityCompetitionRefresh({
+      let result;
+      if (cacheEnabled && commitExpectedPublication) {
+        const data = await communityCompetitionClient.fetch({ supabase, period });
+        const responsePublication = snapshotPublicationFromCompetitionState(data);
+        if (
+          expectedPublication
+          && (
+            responsePublication?.snapshotDate !== expectedPublication.snapshotDate
+            || responsePublication?.version !== expectedPublication.version
+          )
+        ) {
+          const error = new Error('COMPETITION_PUBLICATION_MISMATCH');
+          error.code = 'COMPETITION_PUBLICATION_MISMATCH';
+          throw error;
+        }
+        result = { data, entry: null };
+      } else {
+        result = cacheEnabled
+          ? await requestCommunityCompetitionRefresh({
+            userId,
+            period,
+            now,
+            fetcher: () => communityCompetitionClient.fetch({ supabase, period }),
+          })
+          : { data: await communityCompetitionClient.fetch({ supabase, period }), entry: null };
+      }
+      if (
+        cacheEnabled
+        && commitExpectedPublication
+        && activeViewKeyRef.current === requestViewKey
+      ) {
+        const committed = await commitCommunityCompetitionCache({
           userId,
           period,
-          now,
-          fetcher: () => communityCompetitionClient.fetch({ supabase, period }),
-        })
-        : { data: await communityCompetitionClient.fetch({ supabase, period }), entry: null };
+          data: result.data,
+          now: communityCompetitionNow(),
+          expectedGeneration: cacheGeneration,
+        });
+        if (!committed.entry) {
+          const error = new Error('COMPETITION_CACHE_SUPERSEDED');
+          error.code = committed.reason === 'invalidated'
+            ? 'COMPETITION_CACHE_INVALIDATED'
+            : 'COMPETITION_CACHE_SUPERSEDED';
+          throw error;
+        }
+        result = {
+          data: committed.entry.data,
+          entry: committed.entry,
+          accepted: committed.accepted,
+        };
+      }
       if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
         settledViewKeyRef.current = requestViewKey;
         failedRetryNotBeforeRef.current.delete(requestViewKey);
+        const renderedCache = cacheEnabled
+          ? readCommunityCompetitionCache({ userId, period })
+          : null;
+        renderedCacheRef.current = {
+          viewKey: requestViewKey,
+          savedAt: Number(renderedCache?.savedAt) || 0,
+        };
         setView({ state: result.data.state, data: result.data, error: '' });
       }
       return result;
     } catch (error) {
+      const fallback = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
       if (
-        error?.code !== 'COMPETITION_CACHE_INVALIDATED'
-        && !shouldRecordCommunityCompetitionRefreshFailure(error)
+        (
+          commitExpectedPublication
+          && error?.code !== 'COMPETITION_CACHE_INVALIDATED'
+          && error?.code !== 'COMPETITION_CACHE_SUPERSEDED'
+        )
+        || (
+          error?.code !== 'COMPETITION_CACHE_INVALIDATED'
+          && !shouldRecordCommunityCompetitionRefreshFailure(error)
+        )
+        || (!fallback && isRetryableCompetitionHttpFailure(error))
       ) {
         failedRetryNotBeforeRef.current.set(
           requestViewKey,
           communityCompetitionNow() + TRANSIENT_RESUME_RETRY_COOLDOWN_MS,
         );
       }
-      const fallback = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
       if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
         settledViewKeyRef.current = requestViewKey;
+        renderedCacheRef.current = {
+          viewKey: requestViewKey,
+          savedAt: Number(fallback?.savedAt) || 0,
+        };
         setView(fallback
           ? { state: fallback.data.state, data: fallback.data, error: '' }
           : { state: 'error', data: null, error: error?.message || tt('competition.loadFailed', '收益比赛读取失败') });
       }
+      if (propagateError) throw error;
       return null;
     } finally {
       if (
@@ -584,12 +687,116 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     }
   }, [cacheEnabled, communityCompetitionClient, communityCompetitionNow, period, supabase, tt, userId]);
 
+  const checkSnapshotStatus = React.useCallback(async () => {
+    if (!cacheEnabled) return null;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return null;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+    const requestViewKey = `${userId}:${period}`;
+    const cached = readCommunityCompetitionCache({ userId, period });
+    if (!cached) return load({ showLoading: true });
+    if (typeof communityCompetitionClient.snapshotStatus !== 'function') {
+      return load({ showLoading: false });
+    }
+
+    const checkedAt = communityCompetitionNow();
+    recordCommunityCompetitionStatusCheck({ userId, period, now: checkedAt });
+    let statusRequest = statusCheckRef.current;
+    if (!statusRequest) {
+      statusRequest = Promise.resolve()
+        .then(() => communityCompetitionClient.snapshotStatus({ supabase }))
+        .finally(() => {
+          if (statusCheckRef.current === statusRequest) statusCheckRef.current = null;
+        });
+      statusCheckRef.current = statusRequest;
+    }
+    return statusRequest
+      .then(async (status) => {
+        if (!mountedRef.current || activeViewKeyRef.current !== requestViewKey) return null;
+        const observedPublication = await recordCommunityCompetitionObservedPublication({
+          userId,
+          publication: {
+            snapshotDate: status?.snapshotDate,
+            version: status?.version,
+            completedAt: status?.completedAt,
+          },
+        });
+        const currentCache = readCommunityCompetitionCache({ userId, period }) || cached;
+        const latestStatus = observedPublication
+          ? {
+            ...status,
+            snapshotDate: observedPublication.snapshotDate,
+            version: observedPublication.version,
+            completedAt: observedPublication.completedAt,
+          }
+          : status;
+        const decision = getCommunityCompetitionSnapshotStatusDecision({
+          entry: currentCache,
+          status: latestStatus,
+        });
+        if (!decision.shouldRefresh) {
+          failedRetryNotBeforeRef.current.delete(requestViewKey);
+          setRefreshTick((current) => current + 1);
+          return decision;
+        }
+        const publicationKey = `${requestViewKey}:${decision.snapshotDate}:${decision.version}`;
+        let publicationRefresh = publicationRefreshRef.current.get(publicationKey);
+        if (!publicationRefresh) {
+          publicationRefresh = Promise.resolve().then(async () => {
+            invalidateCommunityCompetitionRequests(userId);
+            settledViewKeyRef.current = '';
+            failedRetryNotBeforeRef.current.delete(requestViewKey);
+            return load({
+              showLoading: false,
+              bypassFailureCooldown: true,
+              commitExpectedPublication: true,
+              expectedPublication: {
+                snapshotDate: decision.snapshotDate,
+                version: decision.version,
+              },
+              propagateError: true,
+            });
+          }).finally(() => {
+            if (publicationRefreshRef.current.get(publicationKey) === publicationRefresh) {
+              publicationRefreshRef.current.delete(publicationKey);
+            }
+          });
+          publicationRefreshRef.current.set(publicationKey, publicationRefresh);
+        }
+        await publicationRefresh;
+        return decision;
+      })
+      .catch((error) => {
+        if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
+          failedRetryNotBeforeRef.current.set(
+            requestViewKey,
+            communityCompetitionNow() + TRANSIENT_RESUME_RETRY_COOLDOWN_MS,
+          );
+          setRefreshTick((current) => current + 1);
+        }
+        return null;
+      });
+  }, [
+    cacheEnabled,
+    communityCompetitionClient,
+    communityCompetitionNow,
+    load,
+    period,
+    supabase,
+    userId,
+  ]);
+
   React.useEffect(() => {
     let timerId = 0;
     const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
     if (cached) {
       settledViewKeyRef.current = activeViewKey;
+      renderedCacheRef.current = {
+        viewKey: activeViewKey,
+        savedAt: Number(cached.savedAt) || 0,
+      };
       setView({ state: cached.data.state, data: cached.data, error: '' });
+    } else if (renderedCacheRef.current.viewKey !== activeViewKey) {
+      renderedCacheRef.current = { viewKey: activeViewKey, savedAt: 0 };
     }
     const now = communityCompetitionNow();
     const decision = getCommunityCompetitionRefreshDecision({ entry: cached, now });
@@ -604,7 +811,8 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         timerId = window.setTimeout(() => setRefreshTick((current) => current + 1), delay);
       } else {
         failedRetryNotBeforeRef.current.delete(activeViewKey);
-        load({ showLoading: !cached });
+        if (cached) checkSnapshotStatus();
+        else load({ showLoading: true });
       }
     } else if (cached && Number.isFinite(decision.nextCheckAt)) {
       const delay = Math.min(2_147_000_000, Math.max(1_000, decision.nextCheckAt - now));
@@ -613,7 +821,16 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     return () => {
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [activeViewKey, cacheEnabled, communityCompetitionNow, load, period, refreshTick, userId]);
+  }, [
+    activeViewKey,
+    cacheEnabled,
+    checkSnapshotStatus,
+    communityCompetitionNow,
+    load,
+    period,
+    refreshTick,
+    userId,
+  ]);
 
   const recheckActiveCompetition = React.useCallback((trigger = '') => {
     if (!cacheEnabled) return;
@@ -624,6 +841,15 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     const cached = readCommunityCompetitionCache({ userId, period });
     if (!cached) {
       if (
+        renderedCacheRef.current.viewKey === currentViewKey
+        && renderedCacheRef.current.savedAt > 0
+      ) {
+        renderedCacheRef.current = { viewKey: currentViewKey, savedAt: 0 };
+        settledViewKeyRef.current = '';
+        setRefreshTick((current) => current + 1);
+        return;
+      }
+      if (
         settledViewKeyRef.current !== currentViewKey
         || trigger === 'online'
         || (retryNotBefore > 0 && retryNotBefore <= now)
@@ -633,6 +859,19 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         }
         setRefreshTick((current) => current + 1);
       }
+      return;
+    }
+    if (
+      renderedCacheRef.current.viewKey !== currentViewKey
+      || renderedCacheRef.current.savedAt !== Number(cached.savedAt)
+    ) {
+      renderedCacheRef.current = {
+        viewKey: currentViewKey,
+        savedAt: Number(cached.savedAt) || 0,
+      };
+      settledViewKeyRef.current = currentViewKey;
+      setView({ state: cached.data.state, data: cached.data, error: '' });
+      setRefreshTick((current) => current + 1);
       return;
     }
     const decision = getCommunityCompetitionRefreshDecision({ entry: cached, now });
@@ -660,10 +899,25 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     setJoinError('');
     try {
       const data = await communityCompetitionClient.join({ supabase });
-      if (cacheEnabled) clearCommunityCompetitionCache(userId);
+      if (cacheEnabled) await clearCommunityCompetitionCache(userId);
       const normalizedData = { ...data, period };
-      if (cacheEnabled) writeCommunityCompetitionCache({ userId, period, data: normalizedData });
+      if (cacheEnabled) {
+        await commitCommunityCompetitionCache({
+          userId,
+          period,
+          data: normalizedData,
+          allowUnpublishedWaiting: true,
+          expectedGeneration: getCommunityCompetitionCacheGeneration(userId),
+        });
+      }
       settledViewKeyRef.current = `${userId}:${period}`;
+      const renderedCache = cacheEnabled
+        ? readCommunityCompetitionCache({ userId, period })
+        : null;
+      renderedCacheRef.current = {
+        viewKey: `${userId}:${period}`,
+        savedAt: Number(renderedCache?.savedAt) || 0,
+      };
       setView({ state: normalizedData.state, data: normalizedData, error: '' });
       if (cacheEnabled) setRefreshTick((current) => current + 1);
     } catch (error) {

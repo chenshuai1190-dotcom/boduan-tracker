@@ -29,7 +29,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.343';
+const SETTINGS_VERSION = 'v10.7.9.347';
 
 function communityAvatarImageClass() {
   return 'scale-[1.15]';
@@ -264,7 +264,7 @@ function SettingsTab({ ctx }) {
         nickname: nicknameResult.nickname,
         avatarKey: selectedCommunityAvatar.key,
       }, user);
-      clearCommunityCompetitionCache(user?.id);
+      await clearCommunityCompetitionCache(user?.id);
       setCommunityProfile(next);
       setCommunityDraft({ nickname: next.nickname, avatarKey: next.avatarKey });
       setCommunityMessage({ type: 'success', text: t(language, 'settings.communitySaved', '社区资料已保存') });

@@ -93,6 +93,34 @@ test('competition API always requires a bearer token even when quote auth bypass
   assert.equal(res.headers['access-control-allow-methods'], 'GET, POST, OPTIONS');
 });
 
+test('competition API preserves invalid leaderboard periods as a client error', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    calls.push(href);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'user-a' });
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { period: 'quarter' },
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body, { success: false, error: '榜单周期不合法' });
+  assert.equal(res.headers['retry-after'], undefined);
+  assert.equal(calls.length, 1);
+});
+
 test('competition API returns profile_required before exposing membership or ranking data', async () => {
   const env = snapshotEnv(ENV_KEYS);
   configureEnv();
@@ -287,7 +315,7 @@ test('an active no-trade member fails closed when its authoritative revision row
   assert.equal(rpcCalled, false);
 });
 
-test('ready leaderboard is same-date, close-snapshot based, benchmarked by real QQQ EOD, and privacy-safe', async () => {
+test('ready leaderboard is bounded by the completed publication marker, benchmarked by real QQQ EOD, and privacy-safe', async () => {
   const env = snapshotEnv(ENV_KEYS);
   configureEnv();
   const originalFetch = globalThis.fetch;
@@ -337,11 +365,18 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
         { user_id: 'user-b', status: 'active', ranking_start_snapshot_date: '2026-07-08', ranking_baseline_return_pct: 0.2 },
       ]);
     }
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      assert.match(href, /channel=eq\.competition/);
+      return jsonResponse([{
+        channel: 'competition',
+        snapshot_date: '2026-07-08',
+        version: 'snapshot_20260708_v1',
+        completed_at: '2026-07-08T23:05:00.000Z',
+      }]);
+    }
     if (href.includes('/rest/v1/community_competition_snapshots')) {
-      if (href.includes('select=snapshot_date')) {
-        assert.match(href, /snapshot_date=lte\.\d{4}-\d{2}-\d{2}/);
-        return jsonResponse([{ snapshot_date: '2026-07-08' }]);
-      }
+      assert.match(href, /snapshot_date=lte\.2026-07-08/);
+      assert.doesNotMatch(href, /snapshot_date=lte\.2026-07-09/);
       return jsonResponse([
         { user_id: 'stale-user', snapshot_date: '2026-07-07', daily_return_pct: 0.01, cumulative_return_pct: 0.1, locked_at: '2026-07-09T23:59:59Z', ledger_hash: 'f'.repeat(64) },
         { user_id: 'user-a', snapshot_date: '2026-07-08', daily_return_pct: 0.02, cumulative_return_pct: 0.12, locked_at: '2026-07-08T22:45:00Z', ledger_hash: computeCompetitionLedgerHash(userATrades, '2026-07-08') },
@@ -370,7 +405,8 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.state, 'ready');
   assert.equal(res.body.asOfDate, '2026-07-08');
-  assert.equal(res.body.snapshotUpdatedAt, '2026-07-08T23:02:03.000Z');
+  assert.equal(res.body.snapshotVersion, 'snapshot_20260708_v1');
+  assert.equal(res.body.snapshotUpdatedAt, '2026-07-08T23:05:00.000Z');
   assert.ok(Math.abs(res.body.benchmarkReturnPct - 0.01) < 1e-12);
   assert.equal(res.body.self.nickname, 'Alpha');
   assert.equal(res.body.self.rank, 2);
@@ -380,4 +416,254 @@ test('ready leaderboard is same-date, close-snapshot based, benchmarked by real 
   assert.deepEqual(res.body.trend.self, [{ date: '2026-07-08', value: 0.02 }]);
   const serialized = JSON.stringify(res.body);
   assert.doesNotMatch(serialized, /user-a|user-b|private@example\.com|service-role-secret|eodhd-secret|position|shares|price|amount|trade|_usd/i);
+});
+
+test('a mid-period newcomer enters the annual leaderboard without resetting personal starts and ranks by QQQ outperformance', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const emptyLedgerHash = computeCompetitionLedgerHash([], '2026-07-15');
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'newcomer' });
+    if (href.includes('/api/eod/QQQ.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', adjusted_close: 100 },
+        { date: '2026-07-13', adjusted_close: 98 },
+        { date: '2026-07-15', adjusted_close: 99 },
+      ]);
+    }
+    if (href.includes('/rest/v1/community_profiles')) {
+      if (href.includes('user_id=eq.newcomer')) {
+        return jsonResponse([{
+          user_id: 'newcomer', nickname: 'Newcomer', avatar_key: 'avatar-blue',
+          profile_completed_at: '2026-07-15T00:00:00Z',
+        }]);
+      }
+      return jsonResponse([
+        { user_id: 'veteran', nickname: 'Veteran', avatar_key: 'avatar-gold', profile_completed_at: '2026-07-01T00:00:00Z' },
+        { user_id: 'newcomer', nickname: 'Newcomer', avatar_key: 'avatar-blue', profile_completed_at: '2026-07-15T00:00:00Z' },
+      ]);
+    }
+    if (href.includes('/rest/v1/community_competition_members')) {
+      if (href.includes('user_id=eq.newcomer')) {
+        return jsonResponse([{
+          user_id: 'newcomer', status: 'active', joined_at: '2026-07-15T10:00:00Z',
+          eligible_after_snapshot_date: '2026-07-14', ranking_start_snapshot_date: '2026-07-15',
+          ranking_baseline_return_pct: 0,
+        }]);
+      }
+      return jsonResponse([
+        { user_id: 'veteran', status: 'active', ranking_start_snapshot_date: '2026-07-13', ranking_baseline_return_pct: 0 },
+        { user_id: 'newcomer', status: 'active', ranking_start_snapshot_date: '2026-07-15', ranking_baseline_return_pct: 0 },
+      ]);
+    }
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      return jsonResponse([{
+        channel: 'competition', snapshot_date: '2026-07-15',
+        version: 'snapshot_20260715_v2', completed_at: '2026-07-15T23:05:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_snapshots')) {
+      return jsonResponse([
+        { user_id: 'veteran', snapshot_date: '2026-07-13', daily_return_pct: 0.005, cumulative_return_pct: 0.005, locked_at: '2026-07-13T22:45:00Z', ledger_hash: emptyLedgerHash },
+        { user_id: 'veteran', snapshot_date: '2026-07-15', daily_return_pct: 0.005, cumulative_return_pct: 0.01, locked_at: '2026-07-15T22:45:00Z', ledger_hash: emptyLedgerHash },
+        { user_id: 'newcomer', snapshot_date: '2026-07-15', daily_return_pct: 0.015, cumulative_return_pct: 0.015, locked_at: '2026-07-15T22:45:00Z', ledger_hash: emptyLedgerHash },
+      ]);
+    }
+    if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { period: 'year' },
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.state, 'ready');
+  assert.equal(res.body.calculationStartDate, '2026-07-15');
+  assert.ok(Math.abs(res.body.benchmarkReturnPct - (99 / 98 - 1)) < 1e-12);
+  assert.deepEqual(res.body.leaders.map((row) => row.nickname), ['Veteran', 'Newcomer']);
+  assert.ok(res.body.leaders[0].returnPct < res.body.leaders[1].returnPct, 'absolute return must not decide the ranking');
+  assert.ok(Math.abs(res.body.leaders[0].outperformancePct - 0.02) < 1e-12);
+  assert.ok(Math.abs(res.body.leaders[1].outperformancePct - (0.015 - (99 / 98 - 1))) < 1e-12);
+  assert.equal(res.body.stats.participants, 2);
+  assert.equal(res.body.self.rank, 2);
+  assert.equal(res.body.trend.self[0].date, '2026-07-15');
+  assert.ok(Math.abs(res.body.trend.self[0].value - 0.015) < 1e-12);
+  assert.deepEqual(res.body.trend.benchmark.map((point) => point.date), ['2026-07-15']);
+  assert.doesNotMatch(JSON.stringify(res.body), /user_id|newcomer@|service-role|eodhd-secret/i);
+});
+
+test('a completed marker never makes an incomplete QQQ benchmark cacheable as ready', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'user-a' });
+    if (href.includes('/rest/v1/community_profiles')) {
+      return jsonResponse([{
+        user_id: 'user-a', nickname: 'Alpha', avatar_key: 'avatar-gold',
+        profile_completed_at: '2026-07-01T00:00:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse([{
+        user_id: 'user-a', status: 'active', joined_at: '2026-07-01T00:00:00Z',
+        eligible_after_snapshot_date: '2026-07-01',
+        ranking_start_snapshot_date: '2026-07-08', ranking_baseline_return_pct: 0,
+      }]);
+    }
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      return jsonResponse([{
+        channel: 'competition', snapshot_date: '2026-07-08',
+        version: 'snapshot_20260708_v1', completed_at: '2026-07-08T23:05:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_snapshots')) {
+      return jsonResponse([{
+        user_id: 'user-a', snapshot_date: '2026-07-08', daily_return_pct: 0.02,
+        cumulative_return_pct: 0.02, locked_at: '2026-07-08T22:45:00Z',
+        ledger_hash: 'a'.repeat(64),
+      }]);
+    }
+    if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
+    if (href.includes('/api/eod/QQQ.US')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { period: 'day' },
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.error, '收益比赛读取暂不可用');
+  assert.equal(res.body.state, undefined);
+});
+
+test('snapshot-status requires normal bearer auth and exposes only the completion marker', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'user-a', email: 'private@example.com' });
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      assert.equal(options.headers.Authorization, 'Bearer service-role-secret');
+      return jsonResponse([{
+        channel: 'competition',
+        snapshot_date: '2026-07-15',
+        version: 'snapshot_20260715_v1',
+        completed_at: '2026-07-15T22:04:05Z',
+      }]);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { operation: 'snapshot-status' },
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    success: true,
+    state: 'snapshot_status',
+    channel: 'competition',
+    snapshotDate: '2026-07-15',
+    version: 'snapshot_20260715_v1',
+    completedAt: '2026-07-15T22:04:05.000Z',
+  });
+  assert.doesNotMatch(JSON.stringify(res.body), /user-a|private@example\.com/);
+});
+
+test('snapshot-status sanitizes private database errors', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'user-a' });
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      return jsonResponse({ message: 'private schema and service-role detail' }, 503);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { operation: 'snapshot-status' },
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '60');
+  assert.equal(res.body.error, '收益比赛快照状态暂不可用');
+  assert.doesNotMatch(JSON.stringify(res.body), /private schema|service-role/i);
+});
+
+test('leaderboard reads also sanitize publication-marker database errors', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'user-a' });
+    if (href.includes('/rest/v1/community_profiles')) {
+      return jsonResponse([{
+        user_id: 'user-a', nickname: 'Alpha', avatar_key: 'avatar-gold',
+        profile_completed_at: '2026-07-01T00:00:00Z',
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse([{
+        user_id: 'user-a', status: 'active', joined_at: '2026-07-01T00:00:00Z',
+        eligible_after_snapshot_date: '2026-07-01',
+        ranking_start_snapshot_date: '2026-07-02',
+      }]);
+    }
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      return jsonResponse({ message: 'private marker schema detail' }, 503);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+  const res = createResponse();
+  try {
+    await handler({
+      method: 'GET',
+      headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+      query: { period: 'day' },
+    }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '60');
+  assert.equal(res.body.error, '收益比赛读取暂不可用');
+  assert.doesNotMatch(JSON.stringify(res.body), /private marker|schema detail/i);
 });

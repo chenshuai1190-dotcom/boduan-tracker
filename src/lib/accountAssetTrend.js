@@ -30,8 +30,8 @@ function normalizeMonthCount(value) {
 }
 
 function finiteBalance(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
-  return value === 0 ? 0 : value;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 function snapshotPoint(month, balance) {
@@ -73,8 +73,19 @@ export function buildAccountAssetTrend({
       if (!row || row.accountId !== accountId) return;
 
       const month = parseMonthKey(row.month) ? row.month : null;
+      if (!month) {
+        invalidCount += 1;
+        return;
+      }
+
+      // A zero balance is equivalent to no monthly record. Ignore legacy zero
+      // rows so a valid positive row can still win if corrupted duplicates exist.
+      if (row.balance === 0) {
+        return;
+      }
+
       const balance = finiteBalance(row.balance);
-      if (!month || balance === null) {
+      if (balance === null) {
         invalidCount += 1;
         return;
       }

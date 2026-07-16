@@ -4,6 +4,85 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.347 收益比赛超额收益排行与内部成交规则修正
+
+- Commit: database-first 源提交 `0bc0ef2cf423e9f4ac91daafc9cf8c68ba3c7d16` 已进入 GitHub `main` 并通过 Actions `29481632002` / Vercel；当前 runtime/frontend 改动待提交，生产 runtime 仍为 `e30b1773159548bb9806fbd4e694f5f987ff804f` / `v10.7.9.343`。同一工作区的 `v10.7.9.344`、`v10.7.9.345` 与 `v10.7.9.346` 未发布 runtime 改动完整保留。
+- Background: 生产只读核查确认第 9 个模拟账户没有被 8 人上限截断，而是 2026-07-14 的正式 SPY 成交价比 provider raw low 低 `0.13 USD`，旧区间门槛拒绝 D1，随后形成快照缺口。另一个独立公式问题是榜单按个人绝对收益率排序，没有把每位用户本人同一累计区间的 QQQ 收益扣除，因此新旧用户起点不同的时候不能正确反映谁真正跑赢了 QQQ。
+- Workflow tier: `sensitive`。本轮修改独立比赛快照账本校验、排行榜个人收益/同期 QQQ 公式、API 脱敏响应和 PWA 缓存版本；不修改正式 `stock_trades`、Supabase 表/RLS、个人收益报表、行情/财报 API 或生产数据。
+- Changes:
+  - 内部比赛不再用 provider raw high/low 判断正式账本成交价是否可接受；正数成交价仍来自正式 `stock_trades`。目标日必须有精确正数 EOD close，目标日交易仍须由数据库时间证明为同一纽约日期且不晚于 16:00 ET，USD、字段、顺序、不超卖、revision、hash、CAS、连续快照和 insert-only 边界全部保留。
+  - 日榜继续使用当日锁定收益。周/月/年榜为每位用户分别取自然周期起点与本人固定 `ranking_start_snapshot_date` 中较晚者；旧用户的真实累计区间不会因新用户加入而缩短或重置。
+  - QQQ 为每位用户从其本人同一个 `calculationStartDate` 起算；`rankingPct = returnPct - benchmarkReturnPct`，榜单按该超额收益降序排列，再以个人收益和昵称作稳定同分顺序。
+  - 新用户首份有效收盘完成后即可进入周/月/年榜，不等待下一年；其排名使用自己的真实累计收益减自己的同期 QQQ，不改任何旧用户日期、快照或累计收益。
+  - “参赛人数”显示 active 且社区资料完整的报名总数；跑赢、赚钱和平均收益只使用个人收益与本人同期 QQQ 都完整的真实排名集合。
+  - 完整榜 API 返回当前登录用户自己的 `calculationStartDate`、同期 QQQ 和趋势；缺 QQQ 数据仍 fail closed。PWA 比赛缓存升为 v4，淘汰旧的绝对收益率排序缓存。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.347`，v346/v345/v344 历史条目保留。
+- Key files: `server/communityCompetitionSnapshotModel.js`,`server/communityCompetitionModel.js`,`server/communityCompetition.js`,`src/lib/communityCompetitionCache.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/community-competition-snapshot-model.test.js`,`tests/community-competition-rebaseline.test.js`,`tests/community-competition-model.test.js`,`tests/community-competition-api.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 比赛核心专项 `108/108` pass；完整测试 `464/464` pass；production build、toolchain、`npm audit --audit-level=high`（0 vulnerabilities）、docs consistency 和 `git diff --check` 均通过。新增反例覆盖旧用户绝对收益较低但跑赢同期 QQQ 更多时仍排在新人前面、两人的个人起点保持不同、新用户首份真实收盘后立即进入年榜、正式成交价超出 raw high/low 仍可走正常/D1 路径、非法榜单周期保持 400、但缺精确 EOD 或盘后/跨日写入仍拒绝。生产 marker metadata/grant 回读和匿名 `22 tables + 2 RPCs` 门禁已通过；iOS 主屏 PWA 因 Mac 锁屏无法自动操作，仍明确 pending，未以桌面证据替代。
+- Deployment: database-first 阶段已完成：源提交 `0bc0ef2`、精确 migration SHA-256 `3ee9dd11a4081a4dbc4d0523b738b93d3b3c371f035b81f0e089e1ee1b0786e9`、生产 SQL、结构/权限回读和 22-table + 2-RPC 门禁均通过。runtime/frontend 仍未提交、未部署，生产缺失账户的 2026-07-14、2026-07-15 显式幂等补跑必须等待 v347 runtime 正确发布后，再按日期顺序执行和核验；现有 8 人锁定快照绝不覆盖。
+- Boundaries: 取消的只有内部比赛成交价相对 provider raw high/low 的区间门槛，不是取消真实收盘、正式账本、不可伪造收益或防篡改规则。个人同期 QQQ 超额收益排序只影响排行榜读取公式，不回写历史收益、不生成加入前收益、不改个人账本。
+- Rollback: 回退超额收益排序模型/API、cache v4、raw high/low 取消、v347 设置日志和测试即可恢复 v346；无新增 SQL 或生产数据迁移。若已完成显式补跑，新增锁定快照保持 insert-only 历史事实，不得删除或覆盖来伪造旧榜。
+
+### 2026-07-16 - v10.7.9.346 统一收盘调度与比赛按状态刷新
+
+- Commit: database-first 源提交 `0bc0ef2cf423e9f4ac91daafc9cf8c68ba3c7d16` 已进入 GitHub `main`；runtime/frontend 待提交，生产 runtime 仍为 `e30b1773159548bb9806fbd4e694f5f987ff804f` / `v10.7.9.343`。同一工作区的 `v10.7.9.344` 与 `v10.7.9.345` 历史条目和未发布代码保留。
+- Background: 生产日志证明个人收益报表与收益比赛由两组 Vercel Hobby Cron 独立触发时，同一收盘日可出现数十分钟执行时间差；iOS 主屏 PWA 即使已有旧榜单缓存，也只能等固定窗口或手动刷新才知道新快照已完成。本轮目标是同步服务端触发时机，再用不含用户资料的轻量完成状态决定是否读取完整榜单。
+- Workflow tier: `sensitive`。本轮修改 Vercel Cron、个人/比赛快照 API、service-role 数据库完成标记、RLS 检查与已登录 PWA 缓存/恢复判断；不改收益公式、参赛资格、正式交易账本、D1/D2 或 revision CAS 安全规则。
+- Changes:
+  - Vercel 只保留 UTC `21/22/23` 三个 `/api/close-snapshot-schedule*` Cron，它们全部 rewrite 到现有 `api/pnl-report-daily-snapshot.js?operation=close-snapshot-schedule` serverless function，不增加 Hobby function 数量。同一调用只解析一次美东目标日，并行启动个人与比赛 runner；两套快照表、补漏范围、成功/失败结果仍彼此独立。
+  - 原 `/api/pnl-report-daily-snapshot` 和 `/api/community-competition-daily-snapshot` 及其 rewrite 继续保留为受 `CRON_SECRET` 保护的显式人工修复边界，不再作为两组独立自动 Cron。统一调度遇到可恢复的任务或发布失败仍返回 `503`，不用 `200` 掩盖未完成。
+  - 新增 `snapshot_publication_markers`，每行只包含 `channel`、`snapshot_date`、不透明 `version` 和 `completed_at`，不含 user id、邮箱、收益、持仓或交易数据。该表强制 RLS，PUBLIC / anon / authenticated 无表权限，仅 `service_role` 可 select/insert/update；数据库 trigger 强制以 `clock_timestamp()` 写完成时间，服务端保留微秒精度，用于同日修复发布的单调排序。
+  - 只有比赛整批真实收盘快照完成后才写完成标记；部分用户行、批次限额、失败或标记写入异常均不得提前宣布新榜单。这是持久完成标记，不是 Supabase Realtime publication 或浏览器直读表。
+  - 已登录 `/api/community-competition?operation=snapshot-status` 只返回上述四项非用户字段；完整榜单 API 也以该 marker 作为整批发布边界，不再因某个成员先写快照就暴露未完整日期。
+  - 比赛客户端缓存版本升为 v3，`ready` 与带 marker 的 `waiting_snapshot` 都绑定完整 publication。页面先同步展示本人/周期旧缓存；仅当页面可见、旧榜仍待更新时每分钟最多读取一次轻量已登录状态，且一次检查由日/周/月/年共享。发现新 publication 后只读取当前周期的完整榜，不批量删除其他周期。
+  - 最新已观察 publication 与状态检查时间使用独立 user-scoped metadata，不以 read-modify-write 改写榜单；完整榜提交、社区资料清缓存与加入后的缓存重建通过同一 Web Lock 串行，并用持久 invalidation token 与日期/数据库完成时间/不透明版本做单调保护。旧标签页的 ready 或 waiting 回包不得覆盖新 publication；严格更新 publication 返回的 authoritative waiting 可安全撤销已失效排名。
+  - QQQ 基准缺失、marker/数据库暂不可用或完整榜读取失败均返回脱敏可恢复错误；客户端保留上一份完整榜并进入 60 秒冷却，首次无缓存的 `408/429/5xx` 也会定时恢复，不把 `--` 比较缓存成 ready，也不形成 PWA 紧循环。新加入用户的旧 publication 只有自身已越过资格日才能触发完整榜读取，假日或新 marker 尚未完成时仍遵守轻量状态冷却。
+  - 前台心跳同时比较当前画面与该用户/周期的本地真实榜单缓存；另一 PWA 标签页已提交更新 publication 时，当前标签页直接重绘缓存而不增加接口读取，另一标签页显式清缓存时则按原有一次加载路径恢复。
+  - 正式 `stock_trades`、`stock_trade_ledger_revisions`、join/rebaseline RPC、revision row → membership row 锁序、D1 forward-only 和 D2 下一真实收盘规则均未改变；两条链路继续不使用 mock、实时价、估算收益或旧收盘兜底。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.346`；`v10.7.9.345` 与 `v10.7.9.344` 条目完整保留。
+- Key files: `vercel.json`,`api/pnl-report-daily-snapshot.js`,`api/community-competition.js`,`server/closeSnapshotScheduler.js`,`server/snapshotPublicationMarker.js`,`server/communityCompetition.js`,`src/lib/communityCompetitionApi.js`,`src/lib/communityCompetitionCache.js`,`src/pages/CommunityCompetitionPage.jsx`,`supabase/snapshot_publication_markers_20260716.sql`,`supabase/community_competition.sql`,`supabase/rls.sql`,`scripts/verify-rls-rest.mjs`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/close-snapshot-scheduler.test.js`,`tests/snapshot-publication-marker.test.js`,`tests/community-competition-status-client.test.js`,`tests/community-competition-api.test.js`,`tests/community-competition-cache.test.js`,`tests/community-competition-daily-snapshot-api.test.js`,`tests/pnl-report-daily-snapshot-api.test.js`,`tests/tool-ledger-boundaries.test.js`,`README.md`,`docs/security-hardening.md`,`docs/architecture-security-audit.md`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 统一调度、完成标记、已登录状态、缓存判断和 Cron/API 定向测试 `101/101` pass；合并 v347 后完整 `npm test` `464/464` pass。覆盖同日修复 marker 微秒排序、两标签页同时接收同一 publication、旧 ready/waiting 回包、严格更新 waiting 撤销失效排名、新加入用户尚未越过 eligible close、假日轻量轮询冷却、首次无缓存暂时失败自动恢复、跨标签页画面同步、同一比赛批次永久成员失败优先于可重试项，以及 marker 已推进但完整榜/QQQ 失败时保留旧缓存和 60 秒冷却等边界。`npm run build`、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:docs-consistency` 和 `git diff --check` pass。生产 migration 后 `npm run verify:rls:rest` 已真实通过 22 tables + 2 RPCs；iOS 主屏 PWA 恢复验收仍 pending，未用桌面证据替代。
+- Deployment: database-first 源提交 `0bc0ef2cf423e9f4ac91daafc9cf8c68ba3c7d16` 已通过 Actions `29481632002` 和 Vercel target `HhXcHig5n4WxvzBwyREkAP3ZvHZL`；精确 migration 已在生产成功执行，metadata/grant/RLS 回读和 `22 tables + 2 RPCs` 匿名门禁均通过。runtime Actions/Vercel、生产入口和已登录状态刷新验证仍 pending；当前生产仍是 `v10.7.9.343` / `e30b1773159548bb9806fbd4e694f5f987ff804f` / `/assets/index-Lpb4oLJK.js`。
+- Required release order: 数据库 source commit、生产 SQL、结构/权限回读和 `22 tables + 2 RPCs` 门禁已按顺序完成；下一步才允许推送会查询 marker 的 v346/v347 runtime/frontend。不得跳过 runtime 验证后直接补跑生产快照。
+- Boundaries: 统一的只是无显式日期自动调度的触发时机和目标日；个人/比赛快照仍各写独立表、各自 fail closed，客户端不生成、修正或伪造收益。不改 `/api/quote`、`/api/earnings-calendar`、行情 relay、正式交易写入、社区资料或参赛自愿性。
+- Rollback: 先回退 v346 runtime/Cron/状态缓存，恢复旧的独立调度后再考虑数据库回滚；`snapshot_publication_markers` 不含业务或用户数据，可作为无害空/历史表保留。绝不能在依赖它的 runtime 仍在线时先删表。
+
+### 2026-07-16 - v10.7.9.345 账户零余额删除与走势重算修正
+
+- Commit: 当前仅为本地未提交改动；GitHub `main` 和生产 runtime 仍为 `e30b1773159548bb9806fbd4e694f5f987ff804f` / `v10.7.9.343`。
+- Background: 用户删除个人账本中的旧余额或把某月余额改为 `0` 后，旧逻辑仍把数据库里的零值当成真实资产月份，导致账户走势显示“起点为 0”、最低资产为 0，并把已经删除的月份继续纳入累计增长。用户确认个人账本允许自由删除，`0` 与清空都代表该月记录不存在。
+- Workflow tier: `sensitive`。本轮改变 `balance_snapshots` 的保存/删除语义并新增精确删除路径；不改表结构、RLS policy、账户归属、交易账本、个人收益快照、比赛快照、行情或财报 API。
+- Changes:
+  - 单账户修改和批量月度补录中，用户实际触碰的余额输入若保存为 `0` 或空白，会执行幂等删除；未触碰的空白输入不会误删，只改账户名称/类型/币种也不会触发余额删除。
+  - 删除严格限定当前登录用户、精确 `account_id` 和精确 `month`；非法月份在鉴权和数据库访问前拒绝。底层 `upsertSnapshot` 也把零值收敛为删除，阻止其他调用方再次写入零快照。
+  - 历史零值按“记录不存在”忽略；账户走势从窗口内剩余第一个正数快照重新起算，当前月仍必须有真实正数快照，最低/最高资产、环比和累计增长全部按剩余数据重算。
+  - 删除/更新成功后同步修正用户级离线快照缓存，避免网络读取失败时旧余额重新出现；批量写入用 `Promise.allSettled` 按实际成功项更新本地状态，失败项保留重试提示。
+  - 账户编辑、新账户初始余额、月度补录和只读预览统一用设备本地年月生成当前月份，并用纯月份运算切换前后月；补录入口在点击时重读本地月份，账户编辑在打开时锁定精确月份，避免英国夏令时/亚洲时区的月初 UTC 错位，也避免 iOS PWA 跨月常驻后沿用旧月份。
+  - 删除前显示应用内确认，并明确提示走势会从剩余第一个有数据月份重新计算；中英文设置页更新日志同步到 `v10.7.9.345`。
+- Key files: `src/lib/accountSnapshotMutation.js`,`src/lib/accountAssetTrend.js`,`src/lib/calendarMonth.js`,`src/lib/db.js`,`src/tabs/AnalysisTab.jsx`,`src/components/AccountAssetTrendModal.jsx`,`src/lib/i18n.js`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/account-snapshot-mutation.test.js`,`tests/balance-snapshot-delete.test.js`,`tests/account-asset-trend.test.js`,`tests/calendar-month.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 账户趋势、零值删除、缓存变更、数据库删除边界、本地月份/PWA 跨月边界与工具边界定向测试 70/70 pass，完整 `npm test` 429/429 pass；`npm run build`、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:rls:rest`（21 tables + 2 RPCs）、`npm run verify:docs-consistency` 和 `git diff --check` 均 pass。月份边界测试在 `Europe/London` 和 `Asia/Shanghai` 时区子进程覆盖 UTC 月份与本地月份不一致的月初场景，并锁定两个弹窗入口必须在点击时重读本地月份。Xcode iOS 26.5 `iPhone 17 Pro` Simulator 的只读 `DevVisualPreview` 已复现历史零行 + 2026/04 首个正数 + 2026/07 当前值场景，画面确认 08-03 不显示零柱、累计增长显示“自 2026/04 -83.7%”、最低为 ¥80,001、最高为 ¥490,000；截图为 `~/Desktop/boduan-previews/v345-zero-history-iphone17pro.png`。Mac 锁屏使 Computer Use 自动解锁失败，无法使用 Simulator 系统软件键盘实际保存 `0/空白`，因此输入交互视觉验收仍明确 pending，未用桌面或内置浏览器替代。
+- Deployment: 未提交、未推送、未部署；生产仍是 `v10.7.9.343`，runtime `e30b1773159548bb9806fbd4e694f5f987ff804f`，入口 `/assets/index-Lpb4oLJK.js`。
+- Boundaries: 不批量猜测或改写用户历史生产数据；历史零行只在读取计算时忽略，用户明确保存 `0/空白` 时才删除精确本人账户月份。其他账户、月份、用户及正式交易/收益/比赛数据均不受影响。
+- Rollback: 回退月度快照 mutation helper、精确删除/缓存同步、零值过滤、输入提示、v345 双语更新日志与测试即可；无 SQL、RLS、环境变量或生产数据迁移需要回滚。
+
+### 2026-07-16 - v10.7.9.344 ASML 财报一致预期与延迟补数修正
+
+- Commit: 当前仅为本地未提交改动；GitHub `main` 和生产 runtime 仍为 `e30b1773159548bb9806fbd4e694f5f987ff804f` / `v10.7.9.343`。
+- Background: ASML 2026 Q2 日历回包给出 actual EPS `7.58` 与 Calendar estimate `7.98`，但同一精确财季的 Trends `0q` 一致预期更新。旧合并顺序因而把过时 Calendar estimate 标成不及预期；同时界面把 EPS 报告币种与换算后 USD 营收统一写成 USD，而已公布但 actual revenue 仍缺失的事件不会继续有界补拉。
+- Workflow tier: `sensitive`。修改独立 `/api/earnings-calendar` 的 provider 合并与客户端 PWA 恢复刷新判断；不改 `/api/quote`、鉴权/RLS、数据库、交易账本、个人收益快照或比赛快照。
+- Changes:
+  - 对与事件 fiscal date 完全相同的 Trends `0q` / `0` EPS consensus 优先取 `earningsEstimateAvg`；精确当季 Trends 缺失时才回退 Calendar estimate，且基于最终 actual/estimate 重算 difference、surprise 和 result，不使用 `+1q` 冒充当季。
+  - 财报详情明确分开 EPS 报告币种与营收 USD 口径；当局部刷新更正 session/report date 时，已打开详情会同步到最新真实事件。
+  - 已公布但 `revenueActual` / `revenueActualUsd` 均缺失的事件，在美东发布时间到期后、报告日起两个日历日内继续有界补拉；仍保留五分钟节流及 PWA 恢复/聚焦/联网检查。
+  - 局部 provider 回包的 `null` / `undefined` / 空值不覆盖已有真实 actual，显式数值 `0` 仍保留；合并后的派生比较按最终值重算，避免新 estimate 搭配旧 surprise。
+  - 实际营收仍缺失时继续显示 `--`；生产路径不使用 mock、预期值、网页转抄或推算值冒充真实 actual。
+  - 设置页版本和中英文更新日志同步到 `v10.7.9.344`。
+- Key files: `api/earnings-calendar.js`,`src/lib/earningsCalendarRefresh.js`,`src/tabs/EarningsCalendar.jsx`,`src/lib/i18n.js`,`src/DevVisualPreview.jsx`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/earnings-calendar.test.js`,`tests/earnings-calendar-refresh.test.js`,`tests/tool-ledger-boundaries.test.js`,`docs/development-log.md`,`docs/handoff.md`。
+- Validation: 财报定向与边界测试 77/77 pass，完整 `npm test` 413/413 pass，`npm run build`、`npm run verify:toolchain`、`npm audit --audit-level=high`（0 vulnerabilities）、`npm run verify:rls:rest`、`npm run verify:docs-consistency` 和 `git diff --check` 均 pass。真实 EODHD ASML 探针命中 actual EPS `7.58`、同财季 `0q` estimate `6.8954`、surprise `+9.928358%`、EPS `EUR`、USD 营收预期约 `10.18B`，actual revenue 仍为 `null` 且不补假值。本机当前锁屏使 Computer Use 自动解锁失败，因此没有把桌面或内置浏览器冒充 iOS Simulator 视觉证据；可见币种文案仍待本机解锁后完成 Simulator 只读验收。
+- Deployment: 未提交、未推送、未部署；生产仍是 `v10.7.9.343`，runtime `e30b1773159548bb9806fbd4e694f5f987ff804f`，入口 `/assets/index-Lpb4oLJK.js`。
+- Boundaries: 仍只有 EODHD 真实 actual 可标记公布；官方网页仅能用于人工对照，不进入代码、数据库或 UI 充值。保持 `/api/earnings-calendar` 独立、已登录边界、server-only `EODHD_API_KEY`、五分钟节流和无 mock 原则。
+- Rollback: 回退 Trends 当季优先级、延迟营收刷新/合并、币种标识、详情同步、v344 双语更新日志与测试即可恢复 v343；无 SQL、RLS、环境变量、生产数据或账本回滚。
+
 ### 2026-07-16 - v10.7.9.343 账户走势口径与账户金额排序修正
 
 - Commit: runtime `e30b1773159548bb9806fbd4e694f5f987ff804f`；本条部署证据由后续 docs-only 提交回填。

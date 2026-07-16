@@ -3,6 +3,7 @@
 import { supabase } from './supabase';
 import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
 import { earliestReportDate, markPnlReportDirtySafely } from './pnlReportDb';
+import { applyAccountSnapshotMutations } from './accountSnapshotMutation.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols';
 import { userScopedStorageKey } from './userScopedStorage.js';
 
@@ -644,18 +645,69 @@ export const fetchSnapshots = async (preUser = null) => {
 
 // 插入或更新一个月的快照(同月已有则覆盖)
 export const upsertSnapshot = async (accountId, month, balance) => {
+  if (!accountId || typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new Error('快照参数无效');
+  }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
+  const normalizedBalance = Number(balance);
+  if (!Number.isFinite(normalizedBalance) || normalizedBalance < 0) throw new Error('余额无效');
+
+  if (normalizedBalance === 0) {
+    const { error } = await supabase
+      .from('balance_snapshots')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('month', month)
+      .eq('user_id', user.id);
+    if (error) throw error;
+    const cached = cacheGet(user.id, 'snapshots');
+    if (Array.isArray(cached)) {
+      cacheSet(user.id, 'snapshots', applyAccountSnapshotMutations(cached, {
+        deletions: [{ accountId, month }],
+      }));
+    }
+    return;
+  }
+
   const { error } = await supabase
     .from('balance_snapshots')
     .upsert({
       user_id: user.id,
       account_id: accountId,
       month: month,
-      balance: balance,
+      balance: normalizedBalance,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'account_id,month' });
   if (error) throw error;
+  const cached = cacheGet(user.id, 'snapshots');
+  if (Array.isArray(cached)) {
+    cacheSet(user.id, 'snapshots', applyAccountSnapshotMutations(cached, {
+      upserts: [{ accountId, month, balance: normalizedBalance }],
+    }));
+  }
+};
+
+export const deleteSnapshot = async (accountId, month) => {
+  if (!accountId || typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new Error('快照参数无效');
+  }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { error } = await supabase
+    .from('balance_snapshots')
+    .delete()
+    .eq('account_id', accountId)
+    .eq('month', month)
+    .eq('user_id', user.id);
+  if (error) throw error;
+  const cached = cacheGet(user.id, 'snapshots');
+  if (Array.isArray(cached)) {
+    cacheSet(user.id, 'snapshots', applyAccountSnapshotMutations(cached, {
+      deletions: [{ accountId, month }],
+    }));
+  }
 };
 
 // ============ INVESTMENT_PLAN (复利计划, 每人 1 条) ============

@@ -174,11 +174,8 @@ function validateTargetTrade(trade, closeRow) {
   if (!created || created.dateKey !== trade.tradeDate || created.seconds > 16 * 3600) {
     fail('late_trade', `${trade.symbol} 当日交易必须在纽约时间收盘前写入`);
   }
-  if (!closeRow || closeRow.high == null || closeRow.low == null) {
-    fail('missing_close', `${trade.symbol} 缺少目标日完整收盘行情`);
-  }
-  if (trade.price < closeRow.low - EPSILON || trade.price > closeRow.high + EPSILON) {
-    fail('price_out_of_range', `${trade.symbol} 交易价格超出目标日最高最低价范围`);
+  if (!closeRow || !(closeRow.close > 0)) {
+    fail('missing_close', `${trade.symbol} 缺少目标日权威收盘价`);
   }
 }
 

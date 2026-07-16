@@ -331,6 +331,16 @@ function revenueValue(event, key) {
   return event.revenueEstimateUsd ?? (event.currency === 'USD' ? event.revenueEstimate : null);
 }
 
+function earningsCurrencySummary(event, language) {
+  const epsCurrency = String(event?.currency || 'USD').trim().toUpperCase() || 'USD';
+  return t(
+    language,
+    'earningsCalendar.metricCurrencies',
+    language === 'en' ? 'EPS: {{epsCurrency}} · Revenue: USD' : 'EPS：{{epsCurrency}} · 营收：USD',
+    { epsCurrency },
+  );
+}
+
 function reactionLabel(reaction, language) {
   if (reaction?.mode === 'live-pre') return t(language, 'earningsCalendar.preLive', '盘前实时');
   return t(language, 'earningsCalendar.closeReaction', '收盘反应');
@@ -662,7 +672,7 @@ function PublishedEarningsDetail({
         </div>
         <div className="mt-4 border-t border-white/[0.06] pt-3">
           <div className="flex items-center justify-between gap-3 text-[10px] text-white/35">
-            <span>{t(language, 'earningsCalendar.currencyUsd', '币种: USD')}</span>
+            <span>{earningsCurrencySummary(event, language)}</span>
             <span>{t(language, 'earningsCalendar.fiscalDate', '财报期')} {event.fiscalDate || event.reportDate}</span>
           </div>
           <div className="mt-2 text-[12px] leading-5 text-white/60">{financialOverviewText(event, name, language)}</div>
@@ -731,6 +741,15 @@ function EarningsModal({
   React.useEffect(() => {
     if (!open) setDetailEvent(null);
   }, [open]);
+
+  React.useEffect(() => {
+    setDetailEvent((current) => {
+      if (!current) return current;
+      const updated = events.find((event) => event.id === current.id)
+        || events.find((event) => event.symbol === current.symbol && event.reportDate === current.reportDate);
+      return updated || current;
+    });
+  }, [events]);
 
   if (!open) return null;
 

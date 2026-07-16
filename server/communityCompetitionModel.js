@@ -206,12 +206,12 @@ function average(values) {
 }
 
 function assignCompetitionRanks(entries) {
-  let previousReturnPct = null;
+  let previousRankingPct = null;
   let currentRank = 0;
   return entries.map((entry, index) => {
-    if (index === 0 || Math.abs(entry.returnPct - previousReturnPct) > 1e-12) {
+    if (index === 0 || Math.abs(entry.rankingPct - previousRankingPct) > 1e-12) {
       currentRank = index + 1;
-      previousReturnPct = entry.returnPct;
+      previousRankingPct = entry.rankingPct;
     }
     return { ...entry, rank: currentRank };
   });
@@ -239,13 +239,18 @@ export function buildCompetitionLeaderboard({
   const profileRows = (Array.isArray(profiles) ? profiles : []).map(normalizeProfile).filter(Boolean);
   const profileByUser = new Map(profileRows.map((profile) => [profile.userId, profile]));
   const snapshotRows = sortSnapshots(snapshots);
+  const activeProfileUserIds = new Set(
+    memberRows
+      .filter((member) => member.status === 'active' && profileByUser.has(member.userId))
+      .map((member) => member.userId)
+  );
   const snapshotsByUser = new Map();
   snapshotRows.forEach((snapshot) => {
     if (!snapshotsByUser.has(snapshot.userId)) snapshotsByUser.set(snapshot.userId, []);
     snapshotsByUser.get(snapshot.userId).push(snapshot);
   });
 
-  const rankedEntries = memberRows
+  const calculatedEntries = memberRows
     .filter((member) => member.status === 'active')
     .map((member) => {
       const profile = profileByUser.get(member.userId);
@@ -271,14 +276,22 @@ export function buildCompetitionLeaderboard({
         outperformancePct: benchmark.returnPct == null
           ? null
           : calculation.returnPct - benchmark.returnPct,
+        rankingPct: benchmark.returnPct == null
+          ? null
+          : calculation.returnPct - benchmark.returnPct,
         calculationStartDate: calculation.calculationStartDate,
         holdingSymbols: publicHoldingSymbols(holdingSymbolsByUser, member.userId),
         trend: calculation.trend,
         benchmarkTrend: benchmark.trend,
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => b.returnPct - a.returnPct || a.nickname.localeCompare(b.nickname, 'zh-CN'));
+    .filter(Boolean);
+  const benchmarkComplete = calculatedEntries.length > 0 && calculatedEntries.every((entry) => (
+    entry.benchmarkReturnPct != null && entry.benchmarkTrend.length > 0
+  ));
+  const rankedEntries = calculatedEntries
+    .filter((entry) => entry.rankingPct != null)
+    .sort((a, b) => b.rankingPct - a.rankingPct || b.returnPct - a.returnPct || a.nickname.localeCompare(b.nickname, 'zh-CN'));
   const ranked = assignCompetitionRanks(rankedEntries);
 
   const sanitize = (entry) => entry ? {
@@ -290,13 +303,14 @@ export function buildCompetitionLeaderboard({
     holdingSymbols: entry.holdingSymbols,
   } : null;
   const selfEntry = ranked.find((entry) => entry.internalUserId === selfUserId) || null;
+  const selfCalculatedEntry = calculatedEntries.find((entry) => entry.internalUserId === selfUserId) || null;
   const returns = ranked.map((entry) => entry.returnPct);
   const top10Returns = returns.slice(0, 10);
-  const benchmarkComparable = ranked.filter((entry) => entry.benchmarkReturnPct != null);
+  const benchmarkComparable = ranked;
 
   return {
     stats: {
-      participants: ranked.length,
+      participants: activeProfileUserIds.size,
       beatRatePct: benchmarkComparable.length === 0
         ? null
         : benchmarkComparable.filter((entry) => entry.returnPct > entry.benchmarkReturnPct).length
@@ -309,6 +323,8 @@ export function buildCompetitionLeaderboard({
     },
     leaders: ranked.slice(0, Math.max(1, Number(leadersLimit) || 10)).map(sanitize),
     self: sanitize(selfEntry),
+    selfCalculationAvailable: Boolean(selfCalculatedEntry),
+    benchmarkComplete,
     selfCalculationStartDate: selfEntry?.calculationStartDate || null,
     selfTrend: selfEntry?.trend || [],
     selfBenchmarkReturnPct: selfEntry?.benchmarkReturnPct ?? null,

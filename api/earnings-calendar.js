@@ -215,6 +215,15 @@ export function mergeEarningsTrendData(events, trends) {
     const symbol = normalizeEarningsSymbol(event.code || event.symbol);
     const candidates = trendsBySymbol.get(symbol) || [];
     const trend = findNearestTrend(event, candidates);
+    const currentQuarterTrend = findExactCurrentQuarterEarningsTrend(event, candidates);
+    const calendarEpsEstimate = parseNumber(event.estimate ?? event.epsEstimate);
+    const trendEpsEstimate = parseNumber(currentQuarterTrend?.earningsEstimateAvg);
+    const epsEstimate = trendEpsEstimate ?? calendarEpsEstimate;
+    const epsActual = parseNumber(event.actual ?? event.epsActual);
+    const epsDifference = calculateEpsDifference(epsActual, epsEstimate)
+      ?? parseNumber(event.difference ?? event.epsDifference);
+    const surprisePercent = calculateEpsSurprisePercent(epsActual, epsEstimate)
+      ?? parseNumber(event.percent ?? event.surprisePercent);
     return {
       ...event,
       symbol,
@@ -222,10 +231,10 @@ export function mergeEarningsTrendData(events, trends) {
       reportDate: dateKey(event.report_date || event.reportDate || event.date),
       fiscalDate: dateKey(event.date || event.fiscalDate || event.report_date || event.reportDate),
       session: normalizeEarningsSession(event.before_after_market || event.beforeAfterMarket || event.time || event.session),
-      epsEstimate: parseNumber(event.estimate ?? event.epsEstimate ?? trend?.earningsEstimateAvg),
-      epsActual: parseNumber(event.actual ?? event.epsActual),
-      epsDifference: parseNumber(event.difference ?? event.epsDifference),
-      surprisePercent: parseNumber(event.percent ?? event.surprisePercent),
+      epsEstimate,
+      epsActual,
+      epsDifference,
+      surprisePercent,
       epsPreviousYear: parseNumber(event.epsPreviousYear ?? trend?.earningsEstimateYearAgoEps),
       epsEstimateYoyPercent: parseGrowthPercent(event.epsEstimateYoyPercent ?? trend?.earningsEstimateGrowth),
       revenueEstimate: parseNumber(event.revenueEstimate ?? trend?.revenueEstimateAvg),
@@ -467,6 +476,31 @@ function findNearestTrend(event, candidates) {
     const bDiff = Math.abs(daysBetween(eventDate, dateKey(b.report_date || b.reportDate || b.date || b.period)));
     return aDiff - bDiff || trendPeriodRank(a.period) - trendPeriodRank(b.period);
   })[0];
+}
+
+function findExactCurrentQuarterEarningsTrend(event, candidates) {
+  const fiscalDate = dateKey(event.date || event.fiscalDate);
+  if (!fiscalDate) return null;
+  return candidates.find((candidate) => {
+    const period = String(candidate?.period || '').trim().toLowerCase();
+    if (period !== '0q' && period !== '0') return false;
+    const candidateDate = dateKey(candidate.date || candidate.fiscalDate || candidate.report_date || candidate.reportDate);
+    return candidateDate === fiscalDate && parseNumber(candidate.earningsEstimateAvg) !== null;
+  }) || null;
+}
+
+function calculateEpsDifference(actual, estimate) {
+  const actualValue = parseNumber(actual);
+  const estimateValue = parseNumber(estimate);
+  if (actualValue === null || estimateValue === null) return null;
+  return actualValue - estimateValue;
+}
+
+function calculateEpsSurprisePercent(actual, estimate) {
+  const actualValue = parseNumber(actual);
+  const estimateValue = parseNumber(estimate);
+  if (actualValue === null || estimateValue === null || estimateValue === 0) return null;
+  return ((actualValue - estimateValue) / Math.abs(estimateValue)) * 100;
 }
 
 function parseNumber(value) {

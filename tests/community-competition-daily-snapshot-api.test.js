@@ -62,8 +62,18 @@ function userIdsFromLedgerStateRequest(href) {
 
 function withCompetitionRevisionFixtures(fetchImpl) {
   if (fetchImpl?.[REVISION_FIXTURE_WRAPPER]) return fetchImpl;
+  let publicationMarker = null;
   const wrapped = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/rest/v1/snapshot_publication_markers')) {
+      if (!options.method) return jsonResponse(publicationMarker ? [publicationMarker] : []);
+      const next = JSON.parse(options.body);
+      if (!publicationMarker || String(options.headers?.Prefer || '').includes('merge-duplicates')) {
+        publicationMarker = next;
+        return jsonResponse([publicationMarker], 201);
+      }
+      return jsonResponse([], 201);
+    }
     if (href.includes('/rest/v1/stock_trade_ledger_revisions')) {
       return jsonResponse(userIdsFromLedgerStateRequest(href).map((userId) => ({
         user_id: userId, revision: 1, last_mutated_at: '2026-01-01T12:00:00Z',
@@ -238,6 +248,7 @@ test('valid explicit competition snapshot date bypasses the scheduled 17:00 gate
   process.env.EODHD_API_KEY = 'eodhd-secret';
   const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
+  let publication = null;
   globalThis.fetch = async (url) => {
     fetchCalls += 1;
     if (String(url).includes('/rest/v1/community_competition_members')) return jsonResponse([]);
@@ -250,7 +261,10 @@ test('valid explicit competition snapshot date bypasses the scheduled 17:00 gate
       method: 'GET',
       headers: { authorization: 'Bearer cron-secret' },
       query: { date: '2026-01-13' },
-    }, res, { now: new Date('2026-01-14T21:30:00Z') });
+    }, res, {
+      now: new Date('2026-01-14T21:30:00Z'),
+      publishSnapshotMarker: async (input) => { publication = input; },
+    });
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);
@@ -260,6 +274,43 @@ test('valid explicit competition snapshot date bypasses the scheduled 17:00 gate
   assert.equal(res.body.targetDate, '2026-01-13');
   assert.notEqual(res.body.mode, 'scheduled_deferred');
   assert.equal(fetchCalls, 2);
+  assert.deepEqual(publication, { snapshotDate: '2026-01-13', republish: false });
+});
+
+test('completed legacy snapshot fails closed with a sanitized retry when marker publication is transient', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/rest/v1/community_competition_members')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${url}`);
+  };
+  const res = createResponse();
+  try {
+    await handleCommunityCompetitionDailySnapshot({
+      method: 'GET',
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-01-13' },
+    }, res, {
+      now: new Date('2026-01-14T21:30:00Z'),
+      publishSnapshotMarker: async () => {
+        const error = new Error('internal schema detail must stay private');
+        error.status = 503;
+        error.retryable = true;
+        throw error;
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.match(res.body.error, /完成标记暂未写入/);
+  assert.doesNotMatch(JSON.stringify(res.body), /schema detail/i);
 });
 
 test('explicit New York today is accepted after 17:00 and never enters rebaseline catch-up', async () => {
@@ -413,6 +464,46 @@ test('competition cron without an explicit date uses the scheduled catch-up runn
   assert.equal(res.body.mode, 'scheduled_catch_up');
   assert.equal(res.body.success, true);
   assert.deepEqual(res.body.processedDates, []);
+});
+
+test('scheduled catch-up classifies transient initial ledger reads as retryable incomplete', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/community_competition_members')) {
+      return jsonResponse([{
+        user_id: 'retry-user', status: 'active', joined_at: '2026-07-07T10:00:00Z',
+        eligible_after_snapshot_date: '2026-07-07',
+        eligible_ledger_hash: 'a'.repeat(64),
+        ranking_start_snapshot_date: null,
+        ranking_baseline_return_pct: null,
+      }]);
+    }
+    if (href.includes('/rest/v1/community_competition_snapshots')) return jsonResponse([]);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse({ message: 'temporary storage outage' }, 503);
+    }
+    throw new Error(`unexpected fetch: ${href} ${options.method || 'GET'}`);
+  };
+  let result;
+  try {
+    result = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: '2026-07-08',
+      now: new Date('2026-07-08T23:00:00Z'),
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(result.success, false);
+  assert.equal(result.retryableIncomplete, true);
+  assert.equal(result.retryableIncompleteMembers, 1);
+  assert.equal(result.retryableIncompleteReasons.initial_search_trade_read_failed, 1);
+  assert.equal(result.failedMembers, 0);
+  assert.equal(result.failedReasons.initial_search_trade_read_failed, undefined);
 });
 
 test('competition cron reads active members and stock ledger but writes only independent competition tables', async () => {
@@ -1032,9 +1123,12 @@ test('scheduled catch-up repairs ranking metadata from the earliest locked snaps
     restoreEnv(env);
   }
 
-  assert.equal(firstResponse.statusCode, 500);
+  assert.equal(firstResponse.statusCode, 503);
   assert.equal(firstResponse.body.writtenSnapshots, 1);
-  assert.equal(firstResponse.body.failedMembers, 1);
+  assert.equal(firstResponse.body.failedMembers, 0);
+  assert.equal(firstResponse.body.retryableIncomplete, true);
+  assert.equal(firstResponse.body.retryableIncompleteMembers, 1);
+  assert.equal(firstResponse.body.retryableIncompleteReasons.snapshot_storage_temporarily_unavailable, 1);
   assert.equal(snapshots.length, 1, 'recovery must never overwrite or duplicate the locked row');
   assert.equal(recovered.success, true);
   assert.equal(recovered.initializedMembers, 1);
@@ -1886,7 +1980,7 @@ test('competition cron rejects a weekend trade before the first real trading-day
   assert.equal(providerWriteOrInitializationCalled, false);
 });
 
-test('Vercel keeps P&L and competition jobs independent across DST-safe close-plus-one-hour windows', () => {
+test('Vercel keeps P&L and competition storage logic independent behind one close scheduler', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/community-competition-daily-snapshot'
@@ -1905,11 +1999,8 @@ test('Vercel keeps P&L and competition jobs independent across DST-safe close-pl
     && rewrite.destination === '/api/community-competition?operation=daily-snapshot'
   )));
   assert.deepEqual(vercelConfig.crons, [
-    { path: '/api/pnl-report-daily-snapshot', schedule: '0 21 * * 1-5' },
-    { path: '/api/community-competition-daily-snapshot', schedule: '0 21 * * 1-5' },
-    { path: '/api/pnl-report-daily-snapshot-retry', schedule: '0 22 * * 1-5' },
-    { path: '/api/community-competition-daily-snapshot-retry', schedule: '0 22 * * 1-5' },
-    { path: '/api/pnl-report-daily-snapshot-late-retry', schedule: '0 23 * * 1-5' },
-    { path: '/api/community-competition-daily-snapshot-late-retry', schedule: '0 23 * * 1-5' },
+    { path: '/api/close-snapshot-schedule', schedule: '0 21 * * 1-5' },
+    { path: '/api/close-snapshot-schedule-retry', schedule: '0 22 * * 1-5' },
+    { path: '/api/close-snapshot-schedule-late-retry', schedule: '0 23 * * 1-5' },
   ]);
 });

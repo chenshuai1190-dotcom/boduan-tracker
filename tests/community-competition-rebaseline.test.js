@@ -923,7 +923,7 @@ test('a forged pre-close created_at cannot hide an authoritative post-close muta
   assert.equal(harness.state.snapshotWrites.length, 0);
 });
 
-test('a target-day trade outside the authoritative daily range cannot be hidden by a rebaseline', async () => {
+test('a target-day price outside raw high-low may rebaseline for the internal competition', async () => {
   const originalTrade = makeTrade();
   const outOfRangeTrade = {
     ...makeTrade({ price: 999999, shares: 1 }),
@@ -943,12 +943,17 @@ test('a target-day trade outside the authoritative daily range cannot be hidden 
   }));
 
   assert.equal(result.success, true);
-  assert.equal(result.rebaselinedMembers, 0);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.deferredReasons.rebaseline_waiting_next_close, 1);
   assert.equal(result.writtenSnapshots, 0);
-  assert.equal(result.authoritativeRejectionReasons.price_out_of_range, 1);
-  assert.equal(harness.state.rpcBodies.length, 0);
+  assert.equal(result.authoritativeRejectionReasons.price_out_of_range, undefined);
+  assert.equal(harness.state.rpcBodies.length, 1);
   assert.equal(harness.state.snapshotWrites.length, 0);
-  assert.equal(harness.state.member.eligible_after_snapshot_date, ELIGIBLE_DATE);
+  assert.equal(harness.state.member.eligible_after_snapshot_date, D1);
+  assert.equal(
+    harness.state.member.eligible_ledger_hash,
+    computeCompetitionLedgerHash([originalTrade, outOfRangeTrade], D1),
+  );
 });
 
 test('an empty formal-ledger currency is rejected instead of defaulting to USD during rebaseline', async () => {

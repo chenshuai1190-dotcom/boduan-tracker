@@ -1,4 +1,5 @@
 import {
+  classifyEarningsResult,
   dateKey,
   EARNINGS_PUBLISHED_RETENTION_DAYS,
   isEarningsPublished,
@@ -102,6 +103,22 @@ function hasMarketReaction(event) {
     && Number.isFinite(Number(value));
 }
 
+function hasActualRevenue(event) {
+  return [event?.revenueActualUsd, event?.revenueActual].some((value) => (
+    value !== null
+    && value !== undefined
+    && String(value).trim() !== ''
+    && Number.isFinite(Number(value))
+  ));
+}
+
+function isPublishedRevenueRefreshDue(event, reportDate, clock) {
+  if (hasActualRevenue(event)) return false;
+  if (clock.date > addUtcDays(reportDate, EARNINGS_PUBLISHED_RETENTION_DAYS)) return false;
+  if (clock.date === reportDate && !isDueOnReportDate(event, clock)) return false;
+  return true;
+}
+
 function getMarketReactionCloseDate(event, reportDate) {
   const session = normalizeEarningsSession(event?.session ?? event?.before_after_market ?? event?.beforeAfterMarket);
   if (session === 'post') return nextPossibleWeekday(reportDate);
@@ -128,7 +145,9 @@ export function getEarningsRefreshCandidates(events = [], now = Date.now) {
     const symbol = normalizeEarningsSymbol(event.symbol || event.code || event.ticker);
     if (!reportDate || !symbol || reportDate > clock.date) continue;
     if (isEarningsPublished(event)) {
-      if (!isMarketReactionRefreshDue(event, reportDate, clock)) continue;
+      const needsRevenue = isPublishedRevenueRefreshDue(event, reportDate, clock);
+      const needsMarketReaction = isMarketReactionRefreshDue(event, reportDate, clock);
+      if (!needsRevenue && !needsMarketReaction) continue;
     } else {
       if (reportDate < oldestDate) continue;
       if (reportDate === clock.date && !isDueOnReportDate(event, clock)) continue;
@@ -172,6 +191,84 @@ function earningsEventKey(event) {
   return symbol && reportDate ? `${symbol}|${reportDate}` : '';
 }
 
+function isMissingActualFieldValue(value) {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+}
+
+function isActualResultField(key) {
+  return (key.startsWith('epsActual') && key !== 'epsActualYoyPercent')
+    || (key.startsWith('revenueActual') && !/(Yoy|Surprise)/i.test(key))
+    || key.startsWith('revenuePreviousYear')
+    || key.startsWith('marketReaction');
+}
+
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(String(value).replace(/[$,%\s,]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function calculateDifference(actualValue, estimateValue) {
+  const actual = numericOrNull(actualValue);
+  const estimate = numericOrNull(estimateValue);
+  return actual === null || estimate === null ? null : actual - estimate;
+}
+
+function calculateSurprisePercent(actualValue, estimateValue) {
+  const actual = numericOrNull(actualValue);
+  const estimate = numericOrNull(estimateValue);
+  if (actual === null || estimate === null || estimate === 0) return null;
+  return ((actual - estimate) / Math.abs(estimate)) * 100;
+}
+
+function calculateYearOverYearPercent(currentValue, previousValue) {
+  const current = numericOrNull(currentValue);
+  const previous = numericOrNull(previousValue);
+  if (current === null || !(previous > 0)) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+function recalculateEarningsDerivedFields(event) {
+  const recalculated = {
+    ...event,
+    epsDifference: calculateDifference(event?.epsActual, event?.epsEstimate),
+    surprisePercent: calculateSurprisePercent(event?.epsActual, event?.epsEstimate),
+    epsActualYoyPercent: calculateYearOverYearPercent(event?.epsActual, event?.epsPreviousYear),
+    epsEstimateYoyPercent: calculateYearOverYearPercent(event?.epsEstimate, event?.epsPreviousYear),
+    revenueSurprisePercent: calculateSurprisePercent(event?.revenueActualUsd, event?.revenueEstimateUsd),
+    revenueActualYoyPercent: calculateYearOverYearPercent(event?.revenueActualUsd, event?.revenuePreviousYearUsd),
+    revenueEstimateYoyPercent: calculateYearOverYearPercent(event?.revenueEstimateUsd, event?.revenuePreviousYearUsd),
+  };
+  recalculated.earningsResult = classifyEarningsResult({
+    ...recalculated,
+    earningsResult: null,
+    resultStatus: null,
+    epsSurprisePercent: null,
+    percent: null,
+    actual: null,
+    estimate: null,
+  });
+  return recalculated;
+}
+
+function mergeEarningsEventPreservingActuals(current, incoming) {
+  const merged = { ...current, ...incoming };
+  for (const [key, currentValue] of Object.entries(current || {})) {
+    if (!isActualResultField(key) || isMissingActualFieldValue(currentValue)) continue;
+    if (isMissingActualFieldValue(incoming?.[key])) merged[key] = currentValue;
+  }
+  if (isEarningsPublished(current)) {
+    merged.earningsPublished = true;
+    if (isMissingActualFieldValue(incoming?.publishedUntil) && !isMissingActualFieldValue(current?.publishedUntil)) {
+      merged.publishedUntil = current.publishedUntil;
+    }
+    if (isMissingActualFieldValue(incoming?.earningsResult) && !isMissingActualFieldValue(current?.earningsResult)) {
+      merged.earningsResult = current.earningsResult;
+    }
+  }
+  return recalculateEarningsDerivedFields(merged);
+}
+
 export function mergeEarningsRefreshEvents(currentEvents = [], refreshedEvents = []) {
   const result = Array.isArray(currentEvents) ? currentEvents.map((event) => ({ ...event })) : [];
   const indexes = new Map();
@@ -190,8 +287,7 @@ export function mergeEarningsRefreshEvents(currentEvents = [], refreshedEvents =
       continue;
     }
     const current = result[index];
-    if (isEarningsPublished(current) && !isEarningsPublished(refreshed)) continue;
-    result[index] = { ...current, ...refreshed };
+    result[index] = mergeEarningsEventPreservingActuals(current, refreshed);
   }
   return result;
 }
@@ -204,8 +300,7 @@ export function preservePublishedEarningsEvents(currentEvents = [], incomingEven
   );
   return (Array.isArray(incomingEvents) ? incomingEvents : []).map((incoming) => {
     const current = currentByKey.get(earningsEventKey(incoming));
-    if (current && isEarningsPublished(current) && !isEarningsPublished(incoming)) return current;
-    return current ? { ...current, ...incoming } : incoming;
+    return current ? mergeEarningsEventPreservingActuals(current, incoming) : incoming;
   });
 }
 

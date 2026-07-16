@@ -1,6 +1,7 @@
 import { configuredOrigins, authenticateAccessToken } from '../server/quote/auth.js';
 import {
   getCommunityCompetitionState,
+  getCommunityCompetitionSnapshotStatus,
   joinCommunityCompetition,
 } from '../server/communityCompetition.js';
 import {
@@ -10,6 +11,7 @@ import {
   runCommunityCompetitionDailySnapshot,
   runCommunityCompetitionScheduledCatchUp,
 } from '../server/communityCompetitionDailySnapshot.js';
+import { publishCommunityCompetitionSnapshotMarker } from '../server/snapshotPublicationMarker.js';
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -34,6 +36,12 @@ function sendError(res, status, error, state = undefined) {
   return res.status(status).json(body);
 }
 
+function isRetryablePublicationError(error) {
+  if (typeof error?.retryable === 'boolean') return error.retryable;
+  const status = Number(error?.status) || 0;
+  return status === 0 || status === 408 || status === 429 || status >= 500;
+}
+
 async function requireCompetitionAuth(req, res) {
   const authHeader = String(req.headers.authorization || '');
   if (!authHeader.startsWith('Bearer ')) {
@@ -51,7 +59,7 @@ async function requireCompetitionAuth(req, res) {
 export async function handleCommunityCompetitionDailySnapshot(
   req,
   res,
-  { now = new Date() } = {}
+  { now = new Date(), publishSnapshotMarker = publishCommunityCompetitionSnapshotMarker } = {}
 ) {
   res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -92,8 +100,28 @@ export async function handleCommunityCompetitionDailySnapshot(
       res.setHeader('Retry-After', '300');
       return res.status(503).json(result);
     }
+    if (result.success && Number(result.failedMembers || 0) === 0 && !result.batchLimited) {
+      try {
+        await publishSnapshotMarker({
+          snapshotDate: targetDate,
+          republish: Number(result.writtenSnapshots || 0) > 0
+            || Number(result.initializedMembers || 0) > 0
+            || Number(result.rebaselinedMembers || 0) > 0,
+        });
+      } catch (error) {
+        if (isRetryablePublicationError(error)) {
+          res.setHeader('Retry-After', '300');
+          return sendError(res, 503, '收益比赛快照已生成，完成标记暂未写入，请重试');
+        }
+        return sendError(res, 500, '收益比赛快照完成标记写入失败');
+      }
+    }
     return res.status(result.failedMembers > 0 ? 500 : 200).json(result);
   } catch (error) {
+    if (isRetryablePublicationError(error)) {
+      res.setHeader('Retry-After', '300');
+      return sendError(res, 503, '收益比赛自动快照暂时失败，请稍后重试');
+    }
     return sendError(res, error?.status || 500, error?.message || '收益比赛自动快照失败');
   }
 }
@@ -114,15 +142,41 @@ export default async function handler(req, res) {
   if (!user) return;
 
   try {
+    if (firstQueryValue(req.query?.operation) === 'snapshot-status') {
+      if (req.method !== 'GET') {
+        res.setHeader('Allow', 'GET, OPTIONS');
+        return sendError(res, 405, 'Method Not Allowed');
+      }
+      try {
+        const result = await getCommunityCompetitionSnapshotStatus();
+        return res.status(200).json(result);
+      } catch (error) {
+        const status = isRetryablePublicationError(error) ? 503 : 500;
+        if (status === 503) res.setHeader('Retry-After', '60');
+        return sendError(res, status, '收益比赛快照状态暂不可用');
+      }
+    }
     if (req.method === 'POST') {
       const result = await joinCommunityCompetition({ userId: user.id });
       return res.status(200).json(result);
     }
-    const result = await getCommunityCompetitionState({
-      userId: user.id,
-      period: req.query?.period || 'day',
-    });
-    return res.status(200).json(result);
+    try {
+      const result = await getCommunityCompetitionState({
+        userId: user.id,
+        period: req.query?.period || 'day',
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      const status = Number(error?.status) === 400
+        ? 400
+        : isRetryablePublicationError(error) ? 503 : 500;
+      if (status === 503) res.setHeader('Retry-After', '60');
+      return sendError(
+        res,
+        status,
+        status === 400 ? (error?.message || '收益比赛请求参数不合法') : '收益比赛读取暂不可用'
+      );
+    }
   } catch (error) {
     return sendError(
       res,

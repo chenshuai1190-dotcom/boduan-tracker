@@ -168,24 +168,35 @@ async function parseJsonSafe(response) {
 async function supabaseAdminFetch(path, options = {}) {
   const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
   const url = new URL(path, `${supabaseUrl}/`);
-  const response = await fetchWithTimeout(url, {
-    ...options,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  }, {
-    provider: 'supabase-community-competition-snapshot',
-    timeoutMs: QUOTE_TIMEOUTS.default,
-  });
+  let response;
+  try {
+    response = await fetchWithTimeout(url, {
+      ...options,
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    }, {
+      provider: 'supabase-community-competition-snapshot',
+      timeoutMs: QUOTE_TIMEOUTS.default,
+    });
+  } catch (error) {
+    if (typeof error?.retryable !== 'boolean') error.retryable = true;
+    if (!error.code) error.code = 'snapshot_storage_temporarily_unavailable';
+    throw error;
+  }
   const body = await parseJsonSafe(response);
   if (!response.ok) {
     const error = new Error(
       body?.message || body?.error_description || body?.error || `Supabase REST ${response.status}`
     );
     error.status = response.status;
+    error.retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+    error.code = error.retryable
+      ? 'snapshot_storage_temporarily_unavailable'
+      : 'snapshot_storage_failure';
     throw error;
   }
   return body;
@@ -745,8 +756,17 @@ export async function runCommunityCompetitionDailySnapshot({
   };
   const fail = (error, userId) => {
     if (userId) blockedUserIds.add(String(userId));
+    if (error?.retryable === true) {
+      const reason = 'snapshot_storage_temporarily_unavailable';
+      result.retryableIncomplete = true;
+      result.retryableIncompleteMembers += 1;
+      result.retryableIncompleteReasons[reason] = (
+        result.retryableIncompleteReasons[reason] || 0
+      ) + 1;
+      return;
+    }
     result.failedMembers += 1;
-    const reason = String(error?.message || 'unknown_error').slice(0, 120);
+    const reason = String(error?.code || error?.message || 'unknown_error').slice(0, 120);
     result.failedReasons[reason] = (result.failedReasons[reason] || 0) + 1;
   };
   const candidates = [];
@@ -1002,6 +1022,15 @@ export async function runCommunityCompetitionScheduledCatchUp({
       result.retryableIncompleteReasons[key] || 0
     ) + count;
   };
+  const recordOperationalFailure = (error, reason, count = 1) => {
+    if (error?.retryable === true) {
+      markIncomplete(reason, count);
+      result.retryableIncompleteMembers += count;
+      return;
+    }
+    result.failedMembers += count;
+    result.failedReasons[reason] = (result.failedReasons[reason] || 0) + count;
+  };
   const initialSearchBlockedUserIds = new Set();
   const initialSearchDeferredUserIds = new Set();
   const initialSearchRebaselineCandidates = [];
@@ -1030,12 +1059,15 @@ export async function runCommunityCompetitionScheduledCatchUp({
       const initialSearchTrades = await fetchStockTradesForUsers(initialSearchUserIds);
       tradesByUser = new Map([...initialSearchUserIds].map((userId) => [userId, []]));
       initialSearchTrades.forEach((trade) => tradesByUser.get(trade.user_id)?.push(trade));
-    } catch {
+    } catch (error) {
       initialSearchMembers.forEach((member) => {
         initialSearchBlockedUserIds.add(String(member.user_id));
       });
-      result.failedMembers += initialSearchMembers.length;
-      result.failedReasons.initial_search_trade_read_failed = initialSearchMembers.length;
+      recordOperationalFailure(
+        error,
+        'initial_search_trade_read_failed',
+        initialSearchMembers.length,
+      );
     }
     for (const member of initialSearchMembers) {
       const userId = String(member.user_id);
@@ -1269,10 +1301,7 @@ export async function runCommunityCompetitionScheduledCatchUp({
             }
             continue;
           }
-          result.failedMembers += 1;
-          result.failedReasons.rebaseline_rpc_failed = (
-            result.failedReasons.rebaseline_rpc_failed || 0
-          ) + 1;
+          recordOperationalFailure(error, 'rebaseline_rpc_failed');
         }
       }
     }
@@ -1306,12 +1335,15 @@ export async function runCommunityCompetitionScheduledCatchUp({
         [...recoveryUserIds].map((userId) => [userId, []])
       );
       recoveryTrades.forEach((trade) => recoveryTradesByUser.get(trade.user_id)?.push(trade));
-    } catch {
+    } catch (error) {
       rankingRecoveryMembers.forEach((member) => {
         rankingRecoveryBlockedUserIds.add(String(member.user_id));
       });
-      result.failedMembers += rankingRecoveryMembers.length;
-      result.failedReasons.ranking_initialization_recovery_failed = rankingRecoveryMembers.length;
+      recordOperationalFailure(
+        error,
+        'ranking_initialization_recovery_failed',
+        rankingRecoveryMembers.length,
+      );
     }
     for (const member of rankingRecoveryMembers) {
       const userId = String(member.user_id);
@@ -1358,12 +1390,9 @@ export async function runCommunityCompetitionScheduledCatchUp({
           member.ranking_start_snapshot_date = earliest.snapshot_date;
           member.ranking_baseline_return_pct = 0;
         }
-      } catch {
+      } catch (error) {
         rankingRecoveryBlockedUserIds.add(userId);
-        result.failedMembers += 1;
-        result.failedReasons.ranking_initialization_recovery_failed = (
-          result.failedReasons.ranking_initialization_recovery_failed || 0
-        ) + 1;
+        recordOperationalFailure(error, 'ranking_initialization_recovery_failed');
       }
     }
   }

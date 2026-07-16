@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import handler, { calculateEarningsMarketReaction, parseEarningsRequest, previousCalendarQuarterRange } from '../api/earnings-calendar.js';
+import handler, { calculateEarningsMarketReaction, mergeEarningsTrendData, parseEarningsRequest, previousCalendarQuarterRange } from '../api/earnings-calendar.js';
 import {
   buildCalendarMonth,
   buildEarningsSymbols,
@@ -107,6 +107,39 @@ test('earnings result derives a real EPS or USD revenue surprise when the provid
   assert.equal(classifyEarningsResult({ epsActual: 7.58, epsEstimate: 7.98 }), 'miss');
   assert.equal(classifyEarningsResult({ revenueActualUsd: 107.9, revenueEstimateUsd: 104.2 }), 'beat');
   assert.equal(classifyEarningsResult({ epsActual: 7.58, epsEstimate: null }), null);
+});
+
+test('published ASML uses the exact 0q Trends EPS consensus and recomputes its surprise', () => {
+  const [event] = mergeEarningsTrendData([
+    {
+      code: 'ASML.US',
+      report_date: '2026-07-15',
+      date: '2026-06-30',
+      currency: 'EUR',
+      actual: '7.58',
+      estimate: '7.98',
+      difference: '-0.40',
+      percent: '-5.0125',
+    },
+  ], [
+    {
+      code: 'ASML.US',
+      date: '2026-06-30',
+      period: '+1q',
+      earningsEstimateAvg: '8.42',
+    },
+    {
+      code: 'ASML.US',
+      date: '2026-06-30',
+      period: '0q',
+      earningsEstimateAvg: '6.8954',
+    },
+  ]);
+
+  assert.equal(event.epsActual, 7.58);
+  assert.equal(event.epsEstimate, 6.8954);
+  assert.ok(Math.abs(event.epsDifference - 0.6846) < 1e-12);
+  assert.ok(Math.abs(event.surprisePercent - 9.928358035791971) < 1e-12);
 });
 
 test('earnings model builds deduped symbols and grouped calendar days', () => {
@@ -484,8 +517,8 @@ test('earnings calendar API enriches published events with actual revenue and ma
     assert.equal(Math.round(event.revenueActualYoyPercent * 100) / 100, 85.23);
     assert.equal(Math.round(event.revenueEstimateYoyPercent * 100) / 100, 79.56);
     assert.equal(Math.round(event.epsActualYoyPercent * 100) / 100, 130.86);
-    assert.equal(event.epsEstimate, 1.77);
-    assert.equal(Math.round(event.epsEstimateYoyPercent * 100) / 100, 118.52);
+    assert.equal(event.epsEstimate, 1.7738);
+    assert.equal(Math.round(event.epsEstimateYoyPercent * 100) / 100, 118.99);
     assert.equal(event.marketReactionPercent, 5);
     assert.equal(event.marketReactionBaseDate, '2026-05-20');
     assert.equal(event.marketReactionTargetDate, '2026-05-21');
@@ -650,9 +683,10 @@ test('earnings calendar API converts EUR revenue and derives EPS estimate growth
     assert.equal(Math.round(asml.revenueEstimateUsd), 10310465116);
     assert.equal(asml.revenueFxRate, 0.86);
     assert.equal(asml.revenueFxSource, 'USDEUR.FOREX');
-    assert.equal(asml.epsEstimate, 7.98);
+    assert.equal(asml.epsEstimate, 6.8775);
     assert.equal(asml.epsPreviousYear, 5.9);
-    assert.equal(Math.round(asml.epsEstimateYoyPercent * 100) / 100, 35.25);
+    assert.equal(Math.round(asml.epsEstimateYoyPercent * 100) / 100, 16.57);
+    assert.equal(msft.epsEstimate, 2.93);
     assert.equal(msft.epsEstimateYoyPercent, null);
     assert.ok(requestedUrls.some((url) => url.includes('/api/real-time/USDEUR.FOREX')));
   } finally {

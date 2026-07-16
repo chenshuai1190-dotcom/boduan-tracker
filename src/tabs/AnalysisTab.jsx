@@ -18,7 +18,9 @@ import {
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
 import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
+import { applyAccountSnapshotMutations, buildAccountSnapshotMutations } from '../lib/accountSnapshotMutation.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { localMonthKey, shiftMonthKey } from '../lib/calendarMonth.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 
@@ -59,14 +61,8 @@ function numberValue(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function localMonthKey(date = new Date()) {
-  return date.toISOString().slice(0, 7);
-}
-
 function shiftMonth(monthKey, offset) {
-  const d = new Date(`${monthKey}-15`);
-  d.setMonth(d.getMonth() + offset);
-  return localMonthKey(d);
+  return shiftMonthKey(monthKey, offset);
 }
 
 function AccountTypeIcon({ type, className = 'h-5 w-5' }) {
@@ -189,6 +185,46 @@ function AnalysisTab({ ctx }) {
   const getBalance = React.useCallback((accId, month) => (
     balanceByAccountMonth.get(accId)?.get(month) ?? 0
   ), [balanceByAccountMonth]);
+
+  const getSnapshotBalance = React.useCallback((accId, month) => {
+    const monthMap = balanceByAccountMonth.get(accId);
+    return monthMap?.has(month) ? monthMap.get(month) : null;
+  }, [balanceByAccountMonth]);
+
+  const applySnapshotMutationsLocally = React.useCallback(({ upserts = [], deletions = [] }) => {
+    setSnapshots((currentSnapshots) => applyAccountSnapshotMutations(currentSnapshots, { upserts, deletions }));
+  }, [setSnapshots]);
+
+  const persistSnapshotMutations = React.useCallback(async ({ upserts = [], deletions = [] }) => {
+    const tasks = [
+      ...upserts.map((mutation) => ({
+        type: 'upsert',
+        mutation,
+        run: () => db.upsertSnapshot(mutation.accountId, mutation.month, mutation.balance),
+      })),
+      ...deletions.map((mutation) => ({
+        type: 'delete',
+        mutation,
+        run: () => db.deleteSnapshot(mutation.accountId, mutation.month),
+      })),
+    ];
+    const results = await Promise.allSettled(tasks.map(({ run }) => run()));
+    const succeeded = { upserts: [], deletions: [] };
+    const failures = [];
+    results.forEach((result, index) => {
+      const task = tasks[index];
+      if (result.status === 'fulfilled') {
+        if (task.type === 'upsert') succeeded.upserts.push(task.mutation);
+        else succeeded.deletions.push(task.mutation);
+      } else {
+        failures.push(result.reason);
+      }
+    });
+    applySnapshotMutationsLocally(succeeded);
+    if (failures.length > 0) {
+      throw failures[0] instanceof Error ? failures[0] : new Error(String(failures[0] || 'Snapshot mutation failed'));
+    }
+  }, [applySnapshotMutationsLocally, db]);
 
   const toCNY = React.useCallback((balance, currency) => {
     const value = numberValue(balance);
@@ -325,6 +361,8 @@ function AnalysisTab({ ctx }) {
 
   const openAccountEdit = (account) => {
     if (!account) return;
+    const editMonth = localMonthKey();
+    const exactBalance = getSnapshotBalance(account.id, editMonth);
     setAssetMessage(null);
     setAccountActionId(null);
     setEditingAccountId(account.id);
@@ -334,7 +372,9 @@ function AnalysisTab({ ctx }) {
       name: account.name || '',
       currency: account.currency || 'CNY',
       icon: account.icon || account.type || '',
-      balance: String(getBalance(account.id, currentMonth) || ''),
+      balance: Number(exactBalance) > 0 ? String(exactBalance) : '',
+      balanceTouched: false,
+      month: editMonth,
     });
   };
 
@@ -456,46 +496,55 @@ function AnalysisTab({ ctx }) {
       setAssetMessage({ type: 'error', text: tt('analysis.duplicateAccount', '该账户已存在') });
       return;
     }
-    const balanceValue = parseFloat(accountEditDraft.balance);
-    if (accountEditDraft.balance !== '' && (!Number.isFinite(balanceValue) || balanceValue < 0)) {
+    const snapshotMonth = accountEditDraft.month || localMonthKey();
+    const snapshotMutations = accountEditDraft.balanceTouched
+      ? buildAccountSnapshotMutations({
+        draft: { [editingAccount.id]: accountEditDraft.balance },
+        snapshots,
+        month: snapshotMonth,
+      })
+      : { upserts: [], deletions: [], invalid: [] };
+    if (snapshotMutations.invalid.length > 0) {
       setAssetMessage({ type: 'error', text: tt('analysis.validBalance', '请填写有效余额') });
       return;
     }
 
-    try {
-      const updated = await db.updateAccount(editingAccount.id, {
-        owner: accountEditDraft.owner,
-        type: accountEditDraft.type,
-        name: accountName,
-        currency: accountEditDraft.currency,
-        icon: accountEditDraft.type,
-        sortOrder: editingAccount.sortOrder || 0,
-      });
-      setAccounts(accounts.map(acc => (acc.id === editingAccount.id ? updated : acc)));
-      if (accountEditDraft.balance !== '') {
-        await db.upsertSnapshot(editingAccount.id, currentMonth, balanceValue);
-        const nextSnapshots = [...snapshots];
-        const idx = nextSnapshots.findIndex(s => s.accountId === editingAccount.id && s.month === currentMonth);
-        if (idx >= 0) {
-          nextSnapshots[idx] = { ...nextSnapshots[idx], balance: balanceValue };
-        } else {
-          nextSnapshots.push({
-            id: `new_${Date.now()}_${editingAccount.id}`,
-            accountId: editingAccount.id,
-            month: currentMonth,
-            balance: balanceValue,
-          });
-        }
-        setSnapshots(nextSnapshots);
+    const persistAccountEdit = async () => {
+      try {
+        const updated = await db.updateAccount(editingAccount.id, {
+          owner: accountEditDraft.owner,
+          type: accountEditDraft.type,
+          name: accountName,
+          currency: accountEditDraft.currency,
+          icon: accountEditDraft.type,
+          sortOrder: editingAccount.sortOrder || 0,
+        });
+        setAccounts((currentAccounts) => currentAccounts.map(acc => (acc.id === editingAccount.id ? updated : acc)));
+        await persistSnapshotMutations(snapshotMutations);
+        closeAccountEdit();
+      } catch (e) {
+        console.error('[修改账户] 失败:', e);
+        setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
       }
-      closeAccountEdit();
-    } catch (e) {
-      console.error('[修改账户] 失败:', e);
-      setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
+    };
+
+    if (snapshotMutations.deletions.length > 0) {
+      showConfirm({
+        title: tt('analysis.deleteSnapshotTitle', '删除月度余额记录?'),
+        desc: tt('analysis.deleteSnapshotDesc', '填 0 或清空代表该月记录不存在。删除后，资产走势会从剩余的第一个有数据月份重新计算。'),
+        info: `${accountNameLabel(accountName)} · ${snapshotMonth}`,
+        confirmText: tt('analysis.deleteSnapshotConfirm', '删除并保存'),
+        icon: '🗑',
+        onConfirm: persistAccountEdit,
+      });
+      return;
     }
+
+    await persistAccountEdit();
   };
 
   const saveNewAccount = async () => {
+    const snapshotMonth = localMonthKey();
     const accountName = newAccount.name.trim();
     if (!newAccount.type) {
       setAssetMessage({ type: 'error', text: tt('analysis.chooseAccountType', '请选择账户类型') });
@@ -509,6 +558,12 @@ function AnalysisTab({ ctx }) {
       setAssetMessage({ type: 'error', text: tt('analysis.duplicateAccount', '该账户已存在') });
       return;
     }
+    const initialBalanceText = String(newAccount.balance ?? '').trim();
+    const initialBalance = initialBalanceText === '' ? 0 : Number(initialBalanceText);
+    if (!Number.isFinite(initialBalance) || initialBalance < 0) {
+      setAssetMessage({ type: 'error', text: tt('analysis.validBalance', '请填写有效余额') });
+      return;
+    }
     try {
       const saved = await db.insertAccount({
         owner: newAccount.owner,
@@ -518,16 +573,12 @@ function AnalysisTab({ ctx }) {
         icon: newAccount.type,
         sortOrder: accounts.length,
       });
-      setAccounts([...accounts, saved]);
-      if (newAccount.balance && parseFloat(newAccount.balance) > 0) {
-        const val = parseFloat(newAccount.balance);
-        await db.upsertSnapshot(saved.id, currentMonth, val);
-        setSnapshots([...snapshots, {
-          id: `new_${Date.now()}`,
-          accountId: saved.id,
-          month: currentMonth,
-          balance: val,
-        }]);
+      setAccounts((currentAccounts) => [...currentAccounts, saved]);
+      if (initialBalance > 0) {
+        await db.upsertSnapshot(saved.id, snapshotMonth, initialBalance);
+        setSnapshots((currentSnapshots) => applyAccountSnapshotMutations(currentSnapshots, {
+          upserts: [{ accountId: saved.id, month: snapshotMonth, balance: initialBalance }],
+        }));
       }
       setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' });
       closeAddAccount();
@@ -538,35 +589,47 @@ function AnalysisTab({ ctx }) {
   };
 
   const saveFillSnapshot = async () => {
-    const validEntries = Object.entries(snapshotDraft)
-      .map(([accId, valStr]) => ({ accId, val: parseFloat(valStr) }))
-      .filter(({ val }) => !isNaN(val) && val >= 0);
-    if (validEntries.length === 0) {
+    const snapshotMutations = buildAccountSnapshotMutations({
+      draft: snapshotDraft,
+      snapshots,
+      month: fillMonth,
+    });
+    if (snapshotMutations.invalid.length > 0) {
+      setAssetMessage({ type: 'error', text: tt('analysis.validBalance', '请填写有效余额') });
+      return;
+    }
+    if (snapshotMutations.upserts.length === 0 && snapshotMutations.deletions.length === 0) {
       closeFillSnapshot();
       return;
     }
-    try {
-      await Promise.all(validEntries.map(({ accId, val }) => db.upsertSnapshot(accId, fillMonth, val)));
-      const newSnapshots = [...snapshots];
-      validEntries.forEach(({ accId, val }) => {
-        const idx = newSnapshots.findIndex(s => s.accountId === accId && s.month === fillMonth);
-        if (idx >= 0) {
-          newSnapshots[idx] = { ...newSnapshots[idx], balance: val };
-        } else {
-          newSnapshots.push({
-            id: `new_${Date.now()}_${accId}`,
-            accountId: accId,
-            month: fillMonth,
-            balance: val,
-          });
-        }
+
+    const persistFillSnapshot = async () => {
+      try {
+        await persistSnapshotMutations(snapshotMutations);
+        closeFillSnapshot();
+      } catch (e) {
+        console.error('[保存快照] 失败:', e);
+        setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
+      }
+    };
+
+    if (snapshotMutations.deletions.length > 0) {
+      const deletedNames = snapshotMutations.deletions
+        .map(({ accountId }) => accountNameLabel(accountById.get(accountId)?.name))
+        .filter(Boolean)
+        .join('、');
+      showConfirm({
+        title: tt('analysis.deleteSnapshotTitle', '删除月度余额记录?'),
+        desc: tt('analysis.deleteSnapshotDesc', '填 0 或清空代表该月记录不存在。删除后，资产走势会从剩余的第一个有数据月份重新计算。'),
+        info: `${fillMonth} · ${deletedNames || tt('analysis.monthlyBalance', '月度余额')}`,
+        confirmText: tt('analysis.deleteSnapshotConfirm', '删除并保存'),
+        icon: '🗑',
+        onConfirm: persistFillSnapshot,
       });
-      setSnapshots(newSnapshots);
-      closeFillSnapshot();
-    } catch (e) {
-      console.error('[保存快照] 失败:', e);
-      setAssetMessage({ type: 'error', text: `${tt('analysis.saveFailed', '保存失败')}: ${e.message || tt('analysis.unknownError', '未知错误')}` });
+      return;
     }
+
+    await persistFillSnapshot();
   };
 
   return (
@@ -770,7 +833,7 @@ function AnalysisTab({ ctx }) {
         <button
           onClick={() => {
             setAssetMessage(null);
-            setFillMonth(currentMonth);
+            setFillMonth(localMonthKey());
             setShowFillSnapshot(true);
           }}
           disabled={accounts.length === 0}
@@ -1148,11 +1211,18 @@ function AnalysisTab({ ctx }) {
                     inputMode="decimal"
                     step="0.01"
                     value={accountEditDraft.balance}
-                    onChange={(e) => setAccountEditDraft({ ...accountEditDraft, balance: e.target.value })}
+                    onChange={(e) => setAccountEditDraft((currentDraft) => ({
+                      ...currentDraft,
+                      balance: e.target.value,
+                      balanceTouched: true,
+                    }))}
                     placeholder="0"
                     className={`${inputClassName} tabular-nums`}
                     style={{ colorScheme: 'dark', fontFamily: ASSET_NUMBER_FONT }}
                   />
+                  <div className="mt-2 text-[11px] leading-4 text-white/[0.38]">
+                    {tt('analysis.zeroDeletesSnapshot', '填 0 或清空后保存，将删除该月记录')}
+                  </div>
                 </div>
 
                 {assetMessage && (
@@ -1179,7 +1249,7 @@ function AnalysisTab({ ctx }) {
               label: tt('analysis.fillOrEditMonthlyBalance', '补录/修改月度余额'),
               onClick: () => {
                 setShowMonthsDetail(false);
-                setFillMonth(currentMonth);
+                setFillMonth(localMonthKey());
                 setShowFillSnapshot(true);
               },
             },
@@ -1268,7 +1338,8 @@ function AnalysisTab({ ctx }) {
                   ? (snapshotTab === '我' ? myAccs : wifeAccs)
                   : accounts;
                 const curSum = currentAccs.reduce((sum, acc) => {
-                  const v = parseFloat(snapshotDraft[acc.id] ?? getBalance(acc.id, fillMonth) ?? 0) || 0;
+                  const exactBalance = getSnapshotBalance(acc.id, fillMonth);
+                  const v = parseFloat(snapshotDraft[acc.id] ?? exactBalance ?? 0) || 0;
                   return sum + toCNY(v, acc.currency);
                 }, 0);
 
@@ -1305,8 +1376,8 @@ function AnalysisTab({ ctx }) {
 
                     <div className="mt-3 space-y-2">
                       {currentAccs.map(acc => {
-                        const currentBal = getBalance(acc.id, fillMonth);
-                        const draftVal = snapshotDraft[acc.id] ?? (currentBal || '');
+                        const currentBal = getSnapshotBalance(acc.id, fillMonth);
+                        const draftVal = snapshotDraft[acc.id] ?? (Number(currentBal) > 0 ? currentBal : '');
                         return (
                           <div key={acc.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
@@ -1321,7 +1392,10 @@ function AnalysisTab({ ctx }) {
                               inputMode="decimal"
                               step="0.01"
                               value={draftVal}
-                              onChange={(e) => setSnapshotDraft({ ...snapshotDraft, [acc.id]: e.target.value })}
+                              onChange={(e) => setSnapshotDraft((currentDraft) => ({
+                                ...currentDraft,
+                                [acc.id]: e.target.value,
+                              }))}
                               placeholder="0"
                               className="w-[116px] min-w-0 max-w-full box-border rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-right text-[13px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]"
                               style={{ colorScheme: 'dark', fontFamily: ASSET_NUMBER_FONT }}
@@ -1329,6 +1403,9 @@ function AnalysisTab({ ctx }) {
                           </div>
                         );
                       })}
+                    </div>
+                    <div className="mt-2 px-1 text-[11px] leading-4 text-white/[0.38]">
+                      {tt('analysis.zeroDeletesSnapshot', '填 0 或清空后保存，将删除该月记录')}
                     </div>
                   </div>
                 );
