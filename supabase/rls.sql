@@ -466,6 +466,48 @@ on public.community_competition_snapshots (snapshot_date desc, user_id);
 create index if not exists community_competition_snapshots_user_date_idx
 on public.community_competition_snapshots (user_id, snapshot_date desc);
 
+-- Server-only completion marker. It is deliberately separate from the
+-- per-user rows: the first written member row must never publish a partial
+-- leaderboard. No user identifiers or portfolio data are stored here.
+create table if not exists public.snapshot_publication_markers (
+  channel text not null,
+  snapshot_date date not null,
+  version text not null,
+  completed_at timestamptz not null,
+
+  constraint snapshot_publication_markers_pkey
+    primary key (channel, snapshot_date),
+  constraint snapshot_publication_markers_channel_check
+    check (channel = 'competition'),
+  constraint snapshot_publication_markers_version_check
+    check (version ~ '^[A-Za-z0-9_-]{16,128}$')
+);
+
+create index if not exists snapshot_publication_markers_latest_idx
+on public.snapshot_publication_markers (channel, snapshot_date desc);
+
+create or replace function public.set_snapshot_publication_marker_completed_at()
+returns trigger
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+begin
+  new.completed_at := clock_timestamp();
+  return new;
+end;
+$$;
+
+revoke all on function public.set_snapshot_publication_marker_completed_at()
+from public, anon, authenticated, service_role;
+
+drop trigger if exists set_snapshot_publication_marker_completed_at
+on public.snapshot_publication_markers;
+
+create trigger set_snapshot_publication_marker_completed_at
+before insert or update on public.snapshot_publication_markers
+for each row execute function public.set_snapshot_publication_marker_completed_at();
+
 -- Serialize a first competition snapshot against an eligibility rebaseline.
 -- The row lock makes the two operations mutually exclusive; the date check
 -- prevents a stale worker from inserting a snapshot on the newly rebased day.
@@ -951,6 +993,8 @@ alter table public.community_competition_members enable row level security;
 alter table public.community_competition_members force row level security;
 alter table public.community_competition_snapshots enable row level security;
 alter table public.community_competition_snapshots force row level security;
+alter table public.snapshot_publication_markers enable row level security;
+alter table public.snapshot_publication_markers force row level security;
 alter table public.invite_codes enable row level security;
 alter table public.pnl_report_snapshots enable row level security;
 alter table public.pnl_report_symbol_snapshots enable row level security;
@@ -1055,6 +1099,13 @@ from service_role;
 
 grant select, insert
 on table public.community_competition_snapshots
+to service_role;
+
+revoke all privileges on table public.snapshot_publication_markers
+from public, anon, authenticated, service_role;
+
+grant select, insert, update
+on table public.snapshot_publication_markers
 to service_role;
 
 notify pgrst, 'reload schema';

@@ -529,6 +529,45 @@ alter table public.community_competition_members force row level security;
 alter table public.community_competition_snapshots enable row level security;
 alter table public.community_competition_snapshots force row level security;
 
+create table if not exists public.snapshot_publication_markers (
+  channel text not null,
+  snapshot_date date not null,
+  version text not null,
+  completed_at timestamptz not null,
+  constraint snapshot_publication_markers_pkey primary key (channel, snapshot_date),
+  constraint snapshot_publication_markers_channel_check check (channel = 'competition'),
+  constraint snapshot_publication_markers_version_check
+    check (version ~ '^[A-Za-z0-9_-]{16,128}$')
+);
+
+create index if not exists snapshot_publication_markers_latest_idx
+on public.snapshot_publication_markers (channel, snapshot_date desc);
+
+create or replace function public.set_snapshot_publication_marker_completed_at()
+returns trigger
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+begin
+  new.completed_at := clock_timestamp();
+  return new;
+end;
+$$;
+
+revoke all on function public.set_snapshot_publication_marker_completed_at()
+from public, anon, authenticated, service_role;
+
+drop trigger if exists set_snapshot_publication_marker_completed_at
+on public.snapshot_publication_markers;
+
+create trigger set_snapshot_publication_marker_completed_at
+before insert or update on public.snapshot_publication_markers
+for each row execute function public.set_snapshot_publication_marker_completed_at();
+
+alter table public.snapshot_publication_markers enable row level security;
+alter table public.snapshot_publication_markers force row level security;
+
 drop policy if exists "users can read own community competition membership"
 on public.community_competition_members;
 
@@ -557,6 +596,13 @@ from service_role;
 
 grant select, insert
 on table public.community_competition_snapshots
+to service_role;
+
+revoke all privileges on table public.snapshot_publication_markers
+from public, anon, authenticated, service_role;
+
+grant select, insert, update
+on table public.snapshot_publication_markers
 to service_role;
 
 notify pgrst, 'reload schema';

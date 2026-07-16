@@ -399,7 +399,7 @@ test('competition eligibility rebaseline is forward-only, zero-snapshot, and ser
     );
     assert.doesNotMatch(
       sql,
-      /create trigger community_competition_members_guard_insert[\s\S]*?before insert or update/,
+      /create trigger community_competition_members_guard_insert\s+before insert or update on public\.community_competition_members/,
     );
 
     const insertGuard = sql.match(

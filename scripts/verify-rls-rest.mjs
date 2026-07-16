@@ -21,6 +21,9 @@ const USER_TABLES = [
   'review_logs',
   'yearly_actuals',
   'cost_basis_trades',
+].map(table => ({ table, select: 'user_id' }));
+const SERVICE_ONLY_TABLES = [
+  { table: 'snapshot_publication_markers', select: 'channel' },
 ];
 const SERVICE_ONLY_RPCS = [
   {
@@ -82,8 +85,8 @@ async function loadProductionSupabaseConfig() {
   };
 }
 
-async function probeAnonymousSelect({ supabaseUrl, anonKey }, table) {
-  const url = `${supabaseUrl}/rest/v1/${table}?select=user_id&limit=1`;
+async function probeAnonymousSelect({ supabaseUrl, anonKey }, { table, select }) {
+  const url = `${supabaseUrl}/rest/v1/${table}?select=${encodeURIComponent(select)}&limit=1`;
   const res = await fetch(url, {
     headers: {
       apikey: anonKey,
@@ -126,7 +129,7 @@ async function probeAnonymousRpc({ supabaseUrl, anonKey }, { name, body }) {
 
 const config = await loadProductionSupabaseConfig();
 const results = [];
-for (const table of USER_TABLES) {
+for (const table of [...USER_TABLES, ...SERVICE_ONLY_TABLES]) {
   results.push(await probeAnonymousSelect(config, table));
 }
 const rpcResults = [];
@@ -138,7 +141,7 @@ const failed = [...results, ...rpcResults].filter(result => !result.ok);
 console.log(JSON.stringify({
   projectRef: config.projectRef,
   appUrl: APP_URL,
-  checkedTables: USER_TABLES.length,
+  checkedTables: USER_TABLES.length + SERVICE_ONLY_TABLES.length,
   sourceChunks: config.chunks,
   results,
   checkedRpcs: SERVICE_ONLY_RPCS.length,
