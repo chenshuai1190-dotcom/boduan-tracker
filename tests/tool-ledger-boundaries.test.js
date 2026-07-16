@@ -334,7 +334,9 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.equal(communityCompetitionPageSource.includes("'跑赢纳指'"), false, 'competition UI must not claim direct Nasdaq index comparison');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。')"), 'ready and waiting states should disclose the snapshot source and lack of broker verification');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.dataAsOfClose', '数据截至 {{date}} 收盘'") && communityCompetitionPageSource.includes('formatCompactSnapshotDate(data?.asOfDate)'), 'competition should label the actual market-data date instead of the later publication-marker time');
-  assert.ok(communityCompetitionPageSource.includes("tt('competition.periodMetric.dayAsOf', '{{date}} 收益率'") && communityCompetitionPageSource.includes("period === 'day' && ready"), 'the day metric should include its actual snapshot date instead of claiming to be the current day');
+  assert.ok(communityCompetitionPageSource.includes('tt(`competition.periodMetric.${period}`'), 'the competition hero and popover should use the standard period return label without adding a date');
+  assert.equal(communityCompetitionPageSource.includes("tt('competition.periodMetric.dayAsOf'"), false, 'the day return label should not include the snapshot date');
+  assert.ok(communityCompetitionPageSource.includes("tt('competition.rankingTitle', '收益率排行榜')"), 'the leaderboard title should remain the user-approved return ranking label');
   assert.equal(communityCompetitionPageSource.includes('formatCompactSnapshotTime(data?.snapshotUpdatedAt)'), false, 'the UI must not present the publication-marker time as the leaderboard data time');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.participantsRanked', '参赛/上榜')") && communityCompetitionPageSource.includes('rankedParticipants < joinedParticipants'), 'a later-start cohort should show joined/ranked coverage instead of a joined count beside fewer rows');
   assert.ok(communityCompetitionPageSource.includes('overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 pb-2 pt-3'), 'the self card should reduce only its bottom padding while preserving the top spacing');
@@ -568,8 +570,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.351'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.351', date: '2026-07-16', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.352'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.352', date: '2026-07-16', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('收益比赛受保护补漏入口') && settingsChangelogSource.includes('最近一个已完成收盘日') && settingsChangelogSource.includes('不接受任意日期'), 'settings changelog should document the protected latest-completed recovery path');
   assert.ok(settingsChangelogSource.includes('收益比赛日榜完整补齐与真实日期修复') && settingsChangelogSource.includes('补成完整批次后立即发布') && settingsChangelogSource.includes('绝不会冒充完整榜单'), 'settings changelog should document exact catch-up, publication proof, and truthful daily dates');
   assert.ok(settingsChangelogSource.includes('收益比赛 PWA 等待状态恢复') && settingsChangelogSource.includes('比赛缓存升级到 v5') && settingsChangelogSource.includes('不修改收益、排名、快照、交易、参赛资格或发布标记'), 'settings changelog should retain the bounded waiting-cache recovery and unchanged authoritative data');
@@ -2391,7 +2393,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.351'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.352'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

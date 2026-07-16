@@ -396,9 +396,7 @@ function CompetitionContent({ data, period, language, tt }) {
   const participantCoverageIncomplete = Number.isFinite(joinedParticipants)
     && Number.isFinite(rankedParticipants)
     && rankedParticipants < joinedParticipants;
-  const periodMetricLabel = period === 'day' && ready
-    ? tt('competition.periodMetric.dayAsOf', '{{date}} 收益率', { date: snapshotDateLabel })
-    : tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
+  const periodMetricLabel = tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
   const baselineTitle = tt(`competition.baseline.${period}`, '收益基准');
   React.useEffect(() => setSelection(null), [period]);
   React.useEffect(() => {
@@ -470,7 +468,7 @@ function CompetitionContent({ data, period, language, tt }) {
       <section className="relative overflow-visible rounded-[17px] border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="grid grid-cols-[minmax(0,1fr)_68px_72px] items-center gap-1.5 px-3.5 py-3">
           <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
-            {tt('competition.rankingTitle', '跑赢 QQQ')}
+            {tt('competition.rankingTitle', '收益率排行榜')}
             <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
           </div>
           <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.returnRate', '收益率')}</div>

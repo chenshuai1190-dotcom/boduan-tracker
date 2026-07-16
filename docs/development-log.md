@@ -4,6 +4,17 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.352 收益比赛展示标题恢复
+
+- Commit: `same commit`（UI-fast runtime，部署证据待本提交推送后回填）。
+- Background: 用户明确要求顶部收益率卡片不附加日期，榜单左侧标题恢复“收益率排行榜”；其余 UI 和计算逻辑不得顺手调整。
+- Workflow tier: `ui-fast`。本轮只修改收益比赛两处可见标签和对应中英文文案，不修改榜单排序、个人收益率、QQQ 基准、跑赢 QQQ 数值、快照日期、缓存、API、数据库或交易账本。
+- Changes: 日榜顶部指标恢复“本日收益率”，周/月/年继续使用原有周期收益率标题；真实数据日期仍在卡片右下“数据截至 MM.DD 收盘”独立显示。榜单左侧标题恢复“收益率排行榜”，右侧“收益率 / 跑赢 QQQ”两列保持原样。
+- Key files: `src/pages/CommunityCompetitionPage.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js`,`tests/tool-ledger-boundaries.test.js`。
+- Validation: 比赛 UI/边界定向测试 `48/48` pass；`npm run build`、`npm run verify:docs-consistency` 和 `git diff --check` pass。生产构建命中“本日收益率 / 收益率排行榜 / Daily Return / Return Ranking”，页面不再调用日期化 `dayAsOf` 标签。纯文案展示修复按 UI-fast 不运行完整 `npm test`、audit 或旧 frontend smoke；单纯文字改动不新增桌面视觉证据。
+- Deployment: pending；用户已明确要求快速上线，验证通过后使用项目 SSH key 推送 GitHub `main` 并运行 `npm run verify:deploy-status -- <commit>`。
+- Rollback: 回退本提交即可恢复 v351 的日期化日榜标签和“跑赢 QQQ”榜单标题；无生产数据或快照需要回滚。
+
 ### 2026-07-16 - v10.7.9.351 收益比赛受保护即时补漏入口
 
 - Commit: runtime/source `69a882bb851ff6f627c8c6ed6d0a0e729c4feced`；设置页与生产 runtime 已发布为 `v10.7.9.351` / `/assets/index-DK7xUcq9.js`。

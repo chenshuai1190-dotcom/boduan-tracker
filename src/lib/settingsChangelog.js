@@ -1,6 +1,19 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.351', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.352', date: '2026-07-16', latest: true,
+    items: [
+      '🏆 收益比赛标题恢复',
+      '  - 顶部卡片恢复“本日收益率”，不再把快照日期加入收益率标题',
+      '  - 榜单左侧标题恢复“收益率排行榜”；收益率、QQQ 基准、跑赢 QQQ 三列和实际排序规则保持不变',
+    ],
+    itemsEn: [
+      '🏆 Competition labels restored',
+      '  - The top card again shows “Daily Return” without adding the snapshot date to the metric label',
+      '  - The left leaderboard title is restored to “Return Ranking”; the return, QQQ benchmark, Beat QQQ columns, and ranking calculation remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.351', date: '2026-07-16',
     items: [
       '🏆 收益比赛受保护补漏入口',
       '  - 晚间重试任务支持在美东 17:00 前手动修复最近一个已完成收盘日，不必让系统漏快照拖到下一次自动窗口',
