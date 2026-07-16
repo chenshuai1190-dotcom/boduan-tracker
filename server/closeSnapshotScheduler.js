@@ -8,6 +8,11 @@ import {
   resolveDailySnapshotTargetDate,
   runPnlReportDailySnapshot,
 } from './pnlReportDailySnapshot.js';
+import { latestCompletedUsTradingDate } from '../src/lib/pnlReportSnapshots.js';
+
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function nonNegativeInteger(value) {
   const number = Number(value);
@@ -103,6 +108,17 @@ export function resolveCloseSnapshotSchedule(req, now = new Date()) {
     const error = new Error('统一收盘快照目标日期不一致');
     error.status = 500;
     throw error;
+  }
+
+  // The late-retry Cron is also the service-only operational recovery path.
+  // A manual Vercel invocation before 17:00 ET may repair only the latest
+  // already-completed US session; it still cannot select an arbitrary date.
+  // Normal scheduled runs remain unchanged, and every write stays idempotent.
+  const recoverLatestCompleted = firstQueryValue(
+    req?.query?.recoverLatestCompleted
+  ) === '1';
+  if (!pnlTargetDate && recoverLatestCompleted) {
+    return { targetDate: latestCompletedUsTradingDate(now) };
   }
 
   return {

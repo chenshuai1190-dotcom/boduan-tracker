@@ -1314,6 +1314,10 @@ test('vercel schedules all-account P&L through the unified close scheduler', () 
     && rewrite.destination === '/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule'
   )));
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/close-snapshot-schedule-late-retry'
+    && rewrite.destination === '/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule&recoverLatestCompleted=1'
+  )));
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/pnl-report-daily-snapshot-retry'
     && rewrite.destination === '/api/pnl-report-daily-snapshot'
   )));

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.350', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.351', date: '2026-07-16', latest: true,
+    items: [
+      '🏆 收益比赛受保护补漏入口',
+      '  - 晚间重试任务支持在美东 17:00 前手动修复最近一个已完成收盘日，不必让系统漏快照拖到下一次自动窗口',
+      '  - 补漏只能选择最近已完成的真实美股交易日，不接受任意日期；仍按交易日顺序补齐且重复执行不重复写',
+      '  - 继续使用原有 Cron 密钥、真实正式账本与 EOD 收盘，不开放公共修复接口，也不生成估算收益',
+    ],
+    itemsEn: [
+      '🏆 Protected competition catch-up entry',
+      '  - The late-retry job can manually repair the latest completed close before 17:00 ET instead of leaving a system gap until the next automatic window',
+      '  - Recovery is limited to the latest completed real US session, never an arbitrary date, and remains ordered and idempotent',
+      '  - The existing Cron secret, formal ledger, and real EOD close remain authoritative; no public repair endpoint or estimated return is introduced',
+    ],
+  },
+  {
+    ver: 'v10.7.9.350', date: '2026-07-16',
     items: [
       '🏆 收益比赛日榜完整补齐与真实日期修复',
       '  - 自动从上一份锁定快照顺序补齐缺失收盘日，补成完整批次后立即发布，不让用户承担系统漏快照',

@@ -2108,6 +2108,10 @@ test('Vercel keeps P&L and competition storage logic independent behind one clos
     rewrite.source === '/api/community-competition-daily-snapshot-late-retry'
     && rewrite.destination === '/api/community-competition?operation=daily-snapshot'
   )));
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/close-snapshot-schedule-late-retry'
+    && rewrite.destination === '/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule&recoverLatestCompleted=1'
+  )));
   assert.deepEqual(vercelConfig.crons, [
     { path: '/api/close-snapshot-schedule', schedule: '0 21 * * 1-5' },
     { path: '/api/close-snapshot-schedule-retry', schedule: '0 22 * * 1-5' },

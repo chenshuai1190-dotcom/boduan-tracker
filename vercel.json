@@ -10,7 +10,7 @@
     },
     {
       "source": "/api/close-snapshot-schedule-late-retry",
-      "destination": "/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule"
+      "destination": "/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule&recoverLatestCompleted=1"
     },
     {
       "source": "/api/community-competition-daily-snapshot",

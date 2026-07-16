@@ -4,6 +4,17 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.351 收益比赛受保护即时补漏入口
+
+- Commit: runtime/source 待提交；设置页版本更新为 `v10.7.9.351`。
+- Background: v350 已通过 Actions/Vercel，但当前仍在美东 17:00 前，三个普通统一 Cron 此时按安全规则只返回 deferred，无法立即修复已确认的 07/14、07/15 系统缺口；Vercel Sensitive `CRON_SECRET` 不应被读取、导出或旋转。
+- Workflow tier: `sensitive`。只扩展原有 late-retry Cron 的受保护运维能力；不开放公共 endpoint，不接受任意日期，不修改收益/QQQ 公式、交易账本、快照内容、schema/RLS 或 provider。
+- Changes: `/api/close-snapshot-schedule-late-retry` rewrite 注入固定 `recoverLatestCompleted=1`。只有该标记且正常 resolver 因未到 17:00 返回空目标时，统一 scheduler 才选择 `latestCompletedUsTradingDate(now)`；当前场景即 2026-07-15。之后仍由正式 scheduled catch-up 从最后锁定快照按真实 SPY 交易日顺序补齐 07/14、07/15，逐日 insert-only 且幂等，最后由 v350 exact cohort gate 决定是否发布。普通主/首次重试路径、美东 17:00 后行为和自动 UTC `21/22/23` 日程不变。
+- Validation: 新增 resolver 与 Vercel rewrite 回归；完整门禁和生产补跑证据待本轮部署后回填。
+- Deployment: pending。runtime 上线后从 Vercel 最新 Production Summary 手动 Run late-retry Cron；只在聚合回读确认 07/14 `8/8`、07/15 `9/9` 和 marker 前移后声明完成。
+- Boundaries: 该入口继续由 Vercel Cron 自动携带的 `Authorization: Bearer $CRON_SECRET` 保护；本地不读取密钥。补漏只选择最近已完成真实收盘日，不能指定未来、当天未收盘或任意历史日期，不伪造收益。
+- Rollback: 可回退 late-retry rewrite 与 resolver 标记；已由正式账本和真实 EOD 生成的 insert-only 快照与已验证 marker 不得删除或覆盖。
+
 ### 2026-07-16 - v10.7.9.350 收益比赛缺失快照顺序补齐与日榜真实日期修复
 
 - Commit: runtime/source 待提交；设置页版本更新为 `v10.7.9.350`。

@@ -41,6 +41,20 @@ test('unified resolver gives both jobs one New York close target and stays sched
     resolveCloseSnapshotSchedule({ query: {} }, new Date('2026-07-08T20:30:00Z')),
     { targetDate: null },
   );
+  assert.deepEqual(
+    resolveCloseSnapshotSchedule(
+      { query: { recoverLatestCompleted: '1' } },
+      new Date('2026-07-08T10:30:00Z'),
+    ),
+    { targetDate: '2026-07-07' },
+  );
+  assert.deepEqual(
+    resolveCloseSnapshotSchedule(
+      { query: { recoverLatestCompleted: '0' } },
+      new Date('2026-07-08T10:30:00Z'),
+    ),
+    { targetDate: null },
+  );
   assert.throws(
     () => resolveCloseSnapshotSchedule(
       { query: { date: '2026-07-07' } },
