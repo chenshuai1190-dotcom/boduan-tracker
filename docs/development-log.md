@@ -4,6 +4,21 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.347 部署证据回填
+
+- Commit: `same commit`（docs-only 证据提交；运行时代码提交为 `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`，数据库源提交为 `0bc0ef2cf423e9f4ac91daafc9cf8c68ba3c7d16`）。
+- Background: v344-v347 合并 runtime 已按 database-first 顺序完成生产发布，需要把最终 Actions、Vercel、生产入口、产物一致性、未授权边界和仍未执行的历史补跑写回 GitHub `main`。
+- Workflow tier: `docs-only`。本条只记录已经完成的真实发布证据，不修改 UI、比赛公式、快照、账本、API/Cron、数据库、RLS、provider、环境变量或生产数据。
+- Changes:
+  - 记录 runtime `1b07a7d89fda726e93a10ba78dbdf90913ddd7ee`、GitHub Actions run `29482122875` success、Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/7uyffcqEZQA4yh8cKkT69DsL1ZwJ` success、设置页 `v10.7.9.347` 和生产入口 `/assets/index-Mh7XkBTy.js`。
+  - 生产 `index.html` 与全部 33 个 assets 和本地最终 production build 逐字节一致；比赛页/i18n 命中“跑赢 QQQ”与 `Beat QQQ`，旧“收益率排行榜”及“跑赢 QQQ 排行”均不存在。
+  - 未登录 quote、market-movers、earnings、pnl-benchmark、competition GET/POST、competition snapshot/status、P&L snapshot 和三个统一 scheduler 路径全部为 `401`；生产数据库 marker migration、metadata/grant 回读和匿名 `22 tables + 2 RPCs` 门禁已通过。
+  - 2026-07-14、2026-07-15 的显式比赛补跑未执行：Vercel sensitive `CRON_SECRET` 不可下载，本轮没有发出补跑请求、没有写入或覆盖比赛数据。下一次美东 17:00 后的统一 scheduler 应按现有有界补漏逻辑继续追赶；若要求立即显式修复，必须由 secret 持有者提供值或另行授权轮换，不能增加绕过端点或削弱鉴权。
+- Validation: 比赛核心专项 `108/108`、完整 `npm test` `464/464`、`npm run verify:toolchain`、production build、`npm audit --audit-level=high`（0 vulnerabilities）、docs consistency、diff check、生产 33/33 产物一致性和未授权边界均通过。Mac 锁屏导致 Simulator 系统键盘与主屏 PWA 最终验收仍 pending，未以桌面 Chrome、内置浏览器、响应式视口或 frontend smoke 代替。
+- Deployment: runtime/database 均已完成并由上述证据验证；本条为 docs-only 回填，不改变线上运行时代码。标题“跑赢 QQQ”已在生产产物生效。
+- Boundaries: 比赛继续只读正式 `stock_trades`，只写独立比赛表和不含用户数据的 service-only marker；客户端不生成、修正或伪造收益。本条未触发任何生产快照或用户数据写入。
+- Rollback: 回退本 docs-only 条目只移除证据记录，不影响 v347 运行时代码、生产 SQL、比赛数据或鉴权边界。
+
 ### 2026-07-16 - v10.7.9.347 收益比赛超额收益排行与内部成交规则修正
 
 - Commit: database-first 源提交 `0bc0ef2cf423e9f4ac91daafc9cf8c68ba3c7d16` 已进入 GitHub `main` 并通过 Actions `29481632002` / Vercel；当前 runtime/frontend 改动待提交，生产 runtime 仍为 `e30b1773159548bb9806fbd4e694f5f987ff804f` / `v10.7.9.343`。同一工作区的 `v10.7.9.344`、`v10.7.9.345` 与 `v10.7.9.346` 未发布 runtime 改动完整保留。
