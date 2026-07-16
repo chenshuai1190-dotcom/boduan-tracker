@@ -6,18 +6,18 @@
 
 ### 2026-07-16 - v10.7.9.351 收益比赛受保护即时补漏入口
 
-- Commit: runtime/source 待提交；设置页版本更新为 `v10.7.9.351`。
+- Commit: runtime/source `69a882bb851ff6f627c8c6ed6d0a0e729c4feced`；设置页与生产 runtime 已发布为 `v10.7.9.351` / `/assets/index-DK7xUcq9.js`。
 - Background: v350 已通过 Actions/Vercel，但当前仍在美东 17:00 前，三个普通统一 Cron 此时按安全规则只返回 deferred，无法立即修复已确认的 07/14、07/15 系统缺口；Vercel Sensitive `CRON_SECRET` 不应被读取、导出或旋转。
 - Workflow tier: `sensitive`。只扩展原有 late-retry Cron 的受保护运维能力；不开放公共 endpoint，不接受任意日期，不修改收益/QQQ 公式、交易账本、快照内容、schema/RLS 或 provider。
 - Changes: `/api/close-snapshot-schedule-late-retry` rewrite 注入固定 `recoverLatestCompleted=1`。只有该标记且正常 resolver 因未到 17:00 返回空目标时，统一 scheduler 才选择 `latestCompletedUsTradingDate(now)`；当前场景即 2026-07-15。之后仍由正式 scheduled catch-up 从最后锁定快照按真实 SPY 交易日顺序补齐 07/14、07/15，逐日 insert-only 且幂等，最后由 v350 exact cohort gate 决定是否发布。普通主/首次重试路径、美东 17:00 后行为和自动 UTC `21/22/23` 日程不变。
-- Validation: 新增 resolver 与 Vercel rewrite 回归；完整门禁和生产补跑证据待本轮部署后回填。
-- Deployment: pending。runtime 上线后从 Vercel 最新 Production Summary 手动 Run late-retry Cron；只在聚合回读确认 07/14 `8/8`、07/15 `9/9` 和 marker 前移后声明完成。
+- Validation: 调度/比赛/P&L/marker 定向测试 `75/75` pass；完整 `npm test` `473/473`、production build、toolchain、workspace state、audit high（0 vulnerabilities）、docs consistency 和 diff check pass。v350 的匿名 RLS `22 tables + 2 RPCs` 门禁继续有效，本轮无 schema/RLS 变更。生产 Settings/changelog 命中 `v10.7.9.351`，比赛页面 chunk 命中真实日期 UI；未登录 quote、earnings、competition day/status、主/late-retry Cron 均为 `401`。
+- Deployment: success。GitHub Actions run `29493223459` success；Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/F5yRg7aV7PC6vbHe2XM3K7HWNiUc` success；生产入口 `/assets/index-DK7xUcq9.js`。从 Vercel Cron Jobs 手动 Run `/api/close-snapshot-schedule-late-retry` 返回 `200`；生产聚合回读确认 07/14 为 expected `8` / complete `8` / missing `0`，07/15 为 `9` / `9` / `0`，最新 competition marker 为 `2026-07-15`，完成时间 `2026-07-16 11:09:39.173936+00`。07/14 不单独保留历史 marker 是单通道最新 marker 设计，真实 8/8 快照仍完整存在；07/15 marker 已发布。
 - Boundaries: 该入口继续由 Vercel Cron 自动携带的 `Authorization: Bearer $CRON_SECRET` 保护；本地不读取密钥。补漏只选择最近已完成真实收盘日，不能指定未来、当天未收盘或任意历史日期，不伪造收益。
 - Rollback: 可回退 late-retry rewrite 与 resolver 标记；已由正式账本和真实 EOD 生成的 insert-only 快照与已验证 marker 不得删除或覆盖。
 
 ### 2026-07-16 - v10.7.9.350 收益比赛缺失快照顺序补齐与日榜真实日期修复
 
-- Commit: runtime/source 待提交；设置页版本更新为 `v10.7.9.350`。
+- Commit: runtime/source `d6011a2cdb7443a2bf7680b261faa73fb196047f`；设置页版本发布为 `v10.7.9.350`，随后由 v351 受保护即时补漏入口继承。
 - Background: 生产只读聚合确认 publication marker 仍停在完整的 `2026-07-13`，而 `2026-07-14` 为 `7/8`、`2026-07-15` 为 `8/9`，缺少的是同一名已排名成员。收益报表截图的 `07/15 +1.31%` 与比赛页 `-1.92%` 并非同一天公式冲突：比赛页实际仍展示 `07/13 -1.92%`，却把 `07/16 04:53` marker 补写时间标成更新日期。旧生产 runtime 的 raw high/low 门槛曾拒绝 07/14 正式交易，07/15 又因 07/14 断档无法跨越；v347 已移除错误门槛，但历史补跑尚未执行。
 - Workflow tier: `sensitive`。本轮修改比赛目标日完整发布证明、自动补漏回归和日榜日期语义；不修改收益/QQQ 公式、正式 `stock_trades`、锁定快照内容、数据库 schema/RLS、行情或财报接口。
 - Changes:
@@ -26,8 +26,8 @@
   - API 明确区分 `asOfDate` 与 `publicationCompletedAt`；旧 `snapshotUpdatedAt` 仅为缓存兼容。日榜显示 `MM.DD 收益率`，底部显示 `数据截至 MM.DD 收盘`，不再把 marker 动作时间冒充收益日期。
   - stats 新增 `joinedParticipants` / `rankedParticipants`，旧 `participants` 保留兼容；两者不同时统计卡显示“参赛/上榜 9/8”，相同时恢复紧凑“参赛人数 9”，避免报名人数旁只出现更少榜单行却没有解释。不暴露用户 ID、邮箱、持仓数量、成本、金额或交易明细。
 - Key files: `server/snapshotPublicationMarker.js`,`server/communityCompetition.js`,`server/communityCompetitionModel.js`,`server/closeSnapshotScheduler.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js` 及比赛专项测试。
-- Validation: 定向比赛/调度/marker/API/模型/边界测试 `121/121` pass；完整 `npm test` `473/473`、production build、toolchain、audit high（0 vulnerabilities）、docs consistency、workspace state、匿名 RLS `22 tables + 2 RPCs` 和 diff check 均 pass。部署、生产受控补跑与 `8/8`、`9/9`、marker 前移核验待完成。iOS 主屏 PWA 最终视觉验收仍必须使用本机 Xcode Simulator，不能用桌面或内置浏览器替代。
-- Deployment: pending。发布后必须从受 `CRON_SECRET` 保护的统一 scheduler 立即执行一次受控补跑，并只在生产回读确认完整批次后记录成功。
+- Validation: 定向比赛/调度/marker/API/模型/边界测试 `121/121` pass；完整 `npm test` `473/473`、production build、toolchain、audit high（0 vulnerabilities）、docs consistency、workspace state、匿名 RLS `22 tables + 2 RPCs` 和 diff check 均 pass。生产补跑与 `8/8`、`9/9`、marker 前移随后由 v351 完成。iOS 主屏 PWA 最终视觉验收仍必须使用本机 Xcode Simulator，不能用桌面或内置浏览器替代。
+- Deployment: success。GitHub Actions run `29492878251` success；Vercel deployment `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/Hs5xoQTPd67ksRsME8hVBokmefZ3` success；当时入口 `/assets/index-D9jwZaTM.js`。该 runtime 先上线完整批次 gate 与真实日期 UI；实际历史补跑由紧随其后的 v351 late-retry 受保护入口执行并验证。
 - Boundaries: gate 不是让残缺榜永久停住；它只防止补齐过程中把部分批次发布。系统必须继续自动补齐，用户不为系统漏快照承担后果。任何无法生成的行都保持可见重试，不用收益报表、实时价、估算或人工数字填充。
 - Rollback: 可回退 v350 runtime/UI/docs；已经由正式账本和真实 EOD 生成的 insert-only 快照及已验证 marker 是历史事实，不得删除或覆盖。
 
