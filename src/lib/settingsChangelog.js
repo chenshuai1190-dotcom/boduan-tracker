@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.349', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.350', date: '2026-07-16', latest: true,
+    items: [
+      '🏆 收益比赛日榜完整补齐与真实日期修复',
+      '  - 自动从上一份锁定快照顺序补齐缺失收盘日，补成完整批次后立即发布，不让用户承担系统漏快照',
+      '  - 发布前按真实参赛队列逐人核对目标日锁定快照；7/8 或 8/9 只会重试，绝不会冒充完整榜单',
+      '  - 日榜指标和底部说明改为实际快照日期，不再把稍后的发布动作时间显示成当天收益日期',
+    ],
+    itemsEn: [
+      '🏆 Complete competition catch-up and truthful daily dates',
+      '  - Missing close days are repaired in order from the last locked snapshot and published immediately after the batch becomes complete',
+      '  - Publication verifies every ranked member against the exact target-date locked batch; 7/8 or 8/9 retries instead of appearing complete',
+      '  - Daily metrics and the footer now show the actual snapshot date rather than presenting the later publication action as the return date',
+    ],
+  },
+  {
+    ver: 'v10.7.9.349', date: '2026-07-16',
     items: [
       '🏆 收益比赛 PWA 等待状态恢复',
       '  - 修复真实完整快照已经发布后，iOS 主屏 PWA 仍停留在“等待下一次真实收盘快照”的问题',

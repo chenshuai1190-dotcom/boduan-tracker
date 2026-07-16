@@ -831,6 +831,112 @@ test('scheduled competition catch-up follows real EOD trading dates from each lo
   assert.ok(Math.abs(july14.cumulative_return_pct - 0.21) < 1e-12);
 });
 
+test('established member catch-up accepts a target-day buy below raw low and repairs two dates idempotently', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  const originalFetch = globalThis.fetch;
+  const establishedTrade = {
+    id: 'established-1', user_id: 'established-user', symbol: 'NVDA', side: 'buy',
+    trade_date: '2026-07-10', price: 160, shares: 10, fee: 0, currency: 'USD',
+    created_at: '2026-07-10T14:00:00Z', updated_at: '2026-07-10T14:00:00Z',
+  };
+  const targetDayTrade = {
+    id: 'target-day-1', user_id: 'established-user', symbol: 'SPY', side: 'buy',
+    trade_date: '2026-07-14', price: 619.87, shares: 1, fee: 0, currency: 'USD',
+    created_at: '2026-07-14T14:00:00Z', updated_at: '2026-07-14T14:00:00Z',
+  };
+  const trades = [establishedTrade, targetDayTrade];
+  const snapshots = [{
+    user_id: 'established-user', snapshot_date: '2026-07-13', daily_return_pct: 0,
+    cumulative_return_pct: 0, locked_at: '2026-07-13T22:45:00Z',
+    source_version: 'community_competition_snapshot_v1',
+    ledger_hash: computeCompetitionLedgerHash(trades, '2026-07-13'),
+  }];
+  const insertedDates = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/community_competition_members')) {
+      assert.equal(options.method, undefined);
+      return jsonResponse([{
+        user_id: 'established-user', status: 'active', joined_at: '2026-07-10T10:00:00Z',
+        eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
+        ranking_start_snapshot_date: '2026-07-13', ranking_baseline_return_pct: 0,
+      }]);
+    }
+    if (href.includes('/rest/v1/stock_trades')) return jsonResponse(trades);
+    if (href.includes('/rest/v1/community_competition_snapshots') && options.method === 'POST') {
+      const row = JSON.parse(options.body)[0];
+      snapshots.push(row);
+      insertedDates.push(row.snapshot_date);
+      return jsonResponse([row]);
+    }
+    if (href.includes('/rest/v1/community_competition_snapshots')) {
+      const dateFilter = new URL(href).searchParams.get('snapshot_date') || '';
+      const boundary = dateFilter.replace(/^(?:lt|lte)\./, '');
+      const inclusive = dateFilter.startsWith('lte.');
+      return jsonResponse(snapshots
+        .filter((row) => (
+          inclusive ? row.snapshot_date <= boundary : row.snapshot_date < boundary
+        ))
+        .sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date)));
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', adjusted_close: 620, high: 621, low: 610 },
+        // The formal trade is deliberately 0.13 below this provider raw low.
+        { date: '2026-07-14', adjusted_close: 625, high: 630, low: 620 },
+        { date: '2026-07-15', adjusted_close: 630, high: 633, low: 624 },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', adjusted_close: 170, high: 172, low: 168 },
+        { date: '2026-07-14', adjusted_close: 172, high: 174, low: 169 },
+        { date: '2026-07-15', adjusted_close: 174, high: 176, low: 171 },
+      ]);
+    }
+    throw new Error(`unexpected fetch: ${href} ${options.method || 'GET'}`);
+  };
+
+  let repaired;
+  let repeated;
+  try {
+    repaired = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: '2026-07-15',
+      now: new Date('2026-07-15T23:00:00Z'),
+    });
+    repeated = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: '2026-07-15',
+      now: new Date('2026-07-15T23:05:00Z'),
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(repaired.success, true);
+  assert.equal(repaired.retryableIncomplete, false);
+  assert.equal(repaired.authoritativeRejectedMembers, 0);
+  assert.equal(repaired.skippedMembers, 0);
+  assert.equal(repaired.authoritativeRejectionReasons.price_out_of_range, undefined);
+  assert.deepEqual(repaired.processedDates, ['2026-07-14', '2026-07-15']);
+  assert.equal(repaired.writtenSnapshots, 2);
+  assert.deepEqual(insertedDates, ['2026-07-14', '2026-07-15']);
+  assert.deepEqual(
+    snapshots.map((row) => row.snapshot_date).sort(),
+    ['2026-07-13', '2026-07-14', '2026-07-15'],
+  );
+
+  assert.equal(repeated.success, true);
+  assert.equal(repeated.retryableIncomplete, false);
+  assert.deepEqual(repeated.processedDates, []);
+  assert.equal(repeated.writtenSnapshots, 0);
+  assert.equal(snapshots.length, 3, 'a repeated catch-up must not duplicate locked rows');
+});
+
 test('scheduled catch-up advances an old anchor in bounded batches and resumes next run', async () => {
   const env = snapshotEnv(ENV_KEYS);
   process.env.SUPABASE_URL = 'https://supabase.test';
@@ -1723,7 +1829,7 @@ test('competition cron never overwrites a locked user/date snapshot and initiali
   assert.equal(memberPatch.ranking_baseline_return_pct, 0, 'first snapshot baseline must start before the first locked close');
 });
 
-test('competition cron skips a member when locked historical ledger hash changes', async () => {
+test('competition cron refuses publication when a ranked member has no exact row after ledger rejection', async () => {
   const env = snapshotEnv(ENV_KEYS);
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
@@ -1746,6 +1852,14 @@ test('competition cron skips a member when locked historical ledger hash changes
         ranking_baseline_return_pct: 0,
       }]);
     }
+    if (href.includes('/rest/v1/community_profiles')) {
+      return jsonResponse([{
+        user_id: 'user-a',
+        nickname: 'member-a',
+        avatar_key: 'avatar-a',
+        profile_completed_at: '2026-07-01T10:00:00Z',
+      }]);
+    }
     if (href.includes('/rest/v1/stock_trades')) return jsonResponse([currentTrade]);
     if (href.includes('/rest/v1/community_competition_snapshots') && href.includes('snapshot_date=lt.')) {
       return jsonResponse([{
@@ -1753,6 +1867,7 @@ test('competition cron skips a member when locked historical ledger hash changes
         locked_at: '2026-07-07T22:45:00Z', ledger_hash: priorHash,
       }]);
     }
+    if (href.includes('/rest/v1/community_competition_snapshots')) return jsonResponse([]);
     providerOrWriteCalled = true;
     throw new Error(`unexpected fetch: ${href} ${options.method || 'GET'}`);
   };
@@ -1764,14 +1879,9 @@ test('competition cron skips a member when locked historical ledger hash changes
     globalThis.fetch = originalFetch;
     restoreEnv(env);
   }
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.success, true);
-  assert.equal(res.body.retryableIncomplete, false);
-  assert.equal(res.body.writtenSnapshots, 0);
-  assert.equal(res.body.skippedMembers, 1);
-  assert.equal(res.body.authoritativeRejectedMembers, 1);
-  assert.equal(res.body.skippedReasons.prior_ledger_hash_mismatch, 1);
-  assert.equal(res.body.authoritativeRejectionReasons.prior_ledger_hash_mismatch, 1);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.match(res.body.error, /完成标记暂未写入/);
   assert.equal(providerOrWriteCalled, false);
 });
 

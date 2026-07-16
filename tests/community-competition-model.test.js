@@ -133,6 +133,8 @@ test('leaderboard ranks only completed profiles and exposes only public holding 
   assert.equal(result.self.returnPct, 0.02);
   assert.ok(Math.abs(result.self.outperformancePct - 0.01) < 1e-12);
   assert.equal(result.stats.participants, 2);
+  assert.equal(result.stats.joinedParticipants, 2);
+  assert.equal(result.stats.rankedParticipants, 2);
   assert.equal(result.stats.beatRatePct, 1);
   assert.equal(result.stats.profitableRatePct, 1);
   assert.deepEqual(result.self.holdingSymbols, ['MSFT', 'NVDA']);

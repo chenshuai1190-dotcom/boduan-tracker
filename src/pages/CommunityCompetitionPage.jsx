@@ -38,14 +38,14 @@ function snapshotPublicationFromCompetitionState(data) {
     return {
       snapshotDate: data.asOfDate,
       version: data.snapshotVersion,
-      completedAt: data.snapshotUpdatedAt,
+      completedAt: data.publicationCompletedAt || data.snapshotUpdatedAt,
     };
   }
   if (data?.state === 'waiting_snapshot') {
     return {
       snapshotDate: data.publishedSnapshotDate,
       version: data.snapshotVersion,
-      completedAt: data.snapshotUpdatedAt,
+      completedAt: data.publicationCompletedAt || data.snapshotUpdatedAt,
     };
   }
   return null;
@@ -84,27 +84,10 @@ function formatDate(value, language = 'zh') {
   });
 }
 
-function formatCompactSnapshotTime(value) {
-  const date = new Date(value || '');
-  if (Number.isNaN(date.getTime())) return '--';
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(date);
-    const part = (type) => parts.find((item) => item.type === type)?.value || '';
-    const month = part('month');
-    const day = part('day');
-    const hour = part('hour');
-    const minute = part('minute');
-    return month && day && hour && minute ? `${month}.${day} ${hour}:${minute}` : '--';
-  } catch {
-    return '--';
-  }
+function formatCompactSnapshotDate(value) {
+  const parts = String(value || '').slice(0, 10).split('-');
+  if (parts.length !== 3 || !/^\d{4}$/.test(parts[0]) || !/^\d{2}$/.test(parts[1]) || !/^\d{2}$/.test(parts[2])) return '--';
+  return `${parts[1]}.${parts[2]}`;
 }
 
 function keepTogether(value) {
@@ -403,7 +386,19 @@ function CompetitionContent({ data, period, language, tt }) {
     ? leaders.findIndex((row) => Number(row?.rank) === Number(self.rank) && row?.nickname === self.nickname)
     : -1;
   const trend = ready ? (data.trend || {}) : {};
-  const periodMetricLabel = tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
+  const snapshotDateLabel = formatCompactSnapshotDate(data?.asOfDate);
+  const joinedParticipants = isFiniteValue(stats.joinedParticipants)
+    ? Number(stats.joinedParticipants)
+    : Number(stats.participants);
+  const rankedParticipants = isFiniteValue(stats.rankedParticipants)
+    ? Number(stats.rankedParticipants)
+    : joinedParticipants;
+  const participantCoverageIncomplete = Number.isFinite(joinedParticipants)
+    && Number.isFinite(rankedParticipants)
+    && rankedParticipants < joinedParticipants;
+  const periodMetricLabel = period === 'day' && ready
+    ? tt('competition.periodMetric.dayAsOf', '{{date}} 收益率', { date: snapshotDateLabel })
+    : tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
   const baselineTitle = tt(`competition.baseline.${period}`, '收益基准');
   React.useEffect(() => setSelection(null), [period]);
   React.useEffect(() => {
@@ -452,14 +447,21 @@ function CompetitionContent({ data, period, language, tt }) {
           </div>
           <div className="col-start-2 grid min-w-0 grid-cols-3">
             <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] leading-5 text-[#7f858e]">
-              {ready ? tt('competition.snapshotAsOf', '更新 {{dateTime}}', { dateTime: formatCompactSnapshotTime(data?.snapshotUpdatedAt) }) : '--'}
+              {ready ? tt('competition.dataAsOfClose', '数据截至 {{date}} 收盘', { date: snapshotDateLabel }) : '--'}
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/10 bg-[#0b0f14] px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <StatCard label={tt('competition.participants', '参赛人数')} value={formatInteger(stats.participants, language)} />
+        <StatCard
+          label={participantCoverageIncomplete
+            ? tt('competition.participantsRanked', '参赛/上榜')
+            : tt('competition.participants', '参赛人数')}
+          value={participantCoverageIncomplete
+            ? `${formatInteger(joinedParticipants, language)}/${formatInteger(rankedParticipants, language)}`
+            : formatInteger(joinedParticipants, language)}
+        />
         <StatCard label={tt('competition.beatNasdaq', '跑赢 QQQ')} value={formatPercent(stats.beatRatePct, 0)} color={valueColor(stats.beatRatePct)} />
         <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={formatPercent(stats.profitableRatePct, 0)} color={valueColor(stats.profitableRatePct)} />
         <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />

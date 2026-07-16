@@ -45,6 +45,9 @@ function summarizeCompetitionResult(result, fallbackTargetDate) {
   // so the protected endpoint does not advertise an endless retry as sufficient.
   const retryable = failedMembers === 0
     && Boolean(result?.retryableIncomplete || result?.batchLimited);
+  // Deferred members can be legitimate not-yet-ranked cohorts. The durable
+  // publisher performs the exact target-date cohort proof; only that database
+  // truth may reject an otherwise operationally successful run as incomplete.
   const complete = Boolean(result?.success) && failedMembers === 0 && !retryable;
   return {
     success: complete,

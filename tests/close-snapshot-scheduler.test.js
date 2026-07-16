@@ -298,6 +298,29 @@ test('publisher is skipped for incomplete competition and a transient publish fa
   assert.equal(publishFailure.permanentFailure, false);
 });
 
+test('legitimate deferred non-ranked cohorts leave exact publication proof to the publisher', async () => {
+  let publicationCalls = 0;
+  const result = await runCloseSnapshotSchedule({
+    targetDate: '2026-07-15',
+    runPnl: async () => ({ success: true, complete: true }),
+    runCompetitionCatchUp: async () => ({
+      success: true,
+      targetDate: '2026-07-15',
+      activeMembers: 10,
+      writtenSnapshots: 9,
+      deferredMembers: 1,
+      skippedMembers: 0,
+      retryableIncomplete: false,
+      batchLimited: false,
+      failedMembers: 0,
+    }),
+    publishCompetitionSnapshot: async () => { publicationCalls += 1; },
+  });
+  assert.equal(publicationCalls, 1);
+  assert.equal(result.complete, true);
+  assert.equal(result.jobs.competition.completionPublished, true);
+});
+
 test('unified response never echoes runner errors, user ids, provider bodies, or secrets', async () => {
   const result = await runCloseSnapshotSchedule({
     targetDate: '2026-07-08',

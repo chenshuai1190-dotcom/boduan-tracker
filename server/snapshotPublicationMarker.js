@@ -4,6 +4,8 @@ import { latestCompletedUsTradingDate } from '../src/lib/pnlReportSnapshots.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from './quote/http.js';
 
 export const COMPETITION_SNAPSHOT_CHANNEL = 'competition';
+const SNAPSHOT_SOURCE_VERSION = 'community_competition_snapshot_v1';
+const REST_PAGE_SIZE = 1000;
 
 function normalizeDate(value) {
   const date = String(value || '').slice(0, 10);
@@ -77,6 +79,176 @@ async function markerAdminFetch(path, options = {}) {
   return body;
 }
 
+async function fetchAllRows(path) {
+  const rows = [];
+  for (let offset = 0; ; offset += REST_PAGE_SIZE) {
+    const body = await markerAdminFetch(path, {
+      headers: { Range: `${offset}-${offset + REST_PAGE_SIZE - 1}` },
+    });
+    const page = Array.isArray(body) ? body : [];
+    rows.push(...page);
+    if (page.length < REST_PAGE_SIZE) return rows;
+  }
+}
+
+function finiteReturn(value) {
+  if (value == null || String(value).trim() === '') return false;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= -1;
+}
+
+function completeProfile(row) {
+  return Boolean(
+    row?.user_id
+    && Number.isFinite(Date.parse(String(row?.profile_completed_at || '')))
+    && String(row?.nickname || '').trim()
+    && String(row?.avatar_key || '').trim()
+  );
+}
+
+function expectedMember(row, completedProfileIds, snapshotDate) {
+  const userId = String(row?.user_id || '');
+  const eligibleAfter = normalizeDate(row?.eligible_after_snapshot_date);
+  const rankingStart = normalizeDate(row?.ranking_start_snapshot_date);
+  return Boolean(
+    userId
+    && completedProfileIds.has(userId)
+    && eligibleAfter
+    && eligibleAfter < snapshotDate
+    && rankingStart
+    && rankingStart <= snapshotDate
+    && finiteReturn(row?.ranking_baseline_return_pct)
+  );
+}
+
+function rankedBySnapshotDate(row, snapshotDate) {
+  const eligibleAfter = normalizeDate(row?.eligible_after_snapshot_date);
+  const rankingStart = normalizeDate(row?.ranking_start_snapshot_date);
+  return Boolean(
+    row?.user_id
+    && eligibleAfter
+    && eligibleAfter < snapshotDate
+    && rankingStart
+    && rankingStart <= snapshotDate
+    && finiteReturn(row?.ranking_baseline_return_pct)
+  );
+}
+
+function completeSnapshot(row, snapshotDate, checkedAtTime) {
+  const lockedAtTime = Date.parse(String(row?.locked_at || ''));
+  return Boolean(
+    row?.user_id
+    && normalizeDate(row?.snapshot_date) === snapshotDate
+    && finiteReturn(row?.daily_return_pct)
+    && finiteReturn(row?.cumulative_return_pct)
+    && Number.isFinite(lockedAtTime)
+    && lockedAtTime <= checkedAtTime
+    && String(row?.source_version || '') === SNAPSHOT_SOURCE_VERSION
+    && /^[a-f0-9]{64}$/.test(String(row?.ledger_hash || ''))
+    && /^\d+$/.test(String(row?.ledger_revision ?? ''))
+  );
+}
+
+function incompleteBatchError({ expectedMembers, completeSnapshots }) {
+  const error = new Error('收益比赛目标日快照批次不完整');
+  error.status = 503;
+  error.retryable = true;
+  error.code = 'competition_snapshot_batch_incomplete';
+  // Counts are operationally useful and contain no member identity or ledger data.
+  error.expectedMembers = expectedMembers;
+  error.completeSnapshots = completeSnapshots;
+  return error;
+}
+
+export async function verifyCommunityCompetitionSnapshotBatch({
+  snapshotDate,
+  checkedAt = new Date(),
+} = {}) {
+  const safeSnapshotDate = normalizeDate(snapshotDate);
+  const checkedAtTime = checkedAt instanceof Date
+    ? checkedAt.getTime()
+    : Date.parse(String(checkedAt || ''));
+  if (!safeSnapshotDate || !Number.isFinite(checkedAtTime)) {
+    const error = new Error('快照发布完整性核对参数不合法');
+    error.status = 400;
+    throw error;
+  }
+
+  const memberUrl = new URL('/rest/v1/community_competition_members', 'https://placeholder.local');
+  memberUrl.searchParams.set('select', [
+    'user_id',
+    'eligible_after_snapshot_date',
+    'ranking_start_snapshot_date',
+    'ranking_baseline_return_pct',
+  ].join(','));
+  memberUrl.searchParams.set('status', 'eq.active');
+  memberUrl.searchParams.set('ranking_start_snapshot_date', `lte.${safeSnapshotDate}`);
+  memberUrl.searchParams.set('order', 'user_id.asc');
+
+  const profileUrl = new URL('/rest/v1/community_profiles', 'https://placeholder.local');
+  profileUrl.searchParams.set('select', 'user_id,profile_completed_at,nickname,avatar_key');
+  profileUrl.searchParams.set('profile_completed_at', 'not.is.null');
+  profileUrl.searchParams.set('order', 'user_id.asc');
+
+  const snapshotUrl = new URL('/rest/v1/community_competition_snapshots', 'https://placeholder.local');
+  snapshotUrl.searchParams.set('select', [
+    'user_id',
+    'snapshot_date',
+    'daily_return_pct',
+    'cumulative_return_pct',
+    'locked_at',
+    'source_version',
+    'ledger_hash',
+    'ledger_revision',
+  ].join(','));
+  snapshotUrl.searchParams.set('snapshot_date', `eq.${safeSnapshotDate}`);
+  snapshotUrl.searchParams.set('order', 'user_id.asc');
+
+  const members = await fetchAllRows(`${memberUrl.pathname}${memberUrl.search}`);
+  const rankedMembers = members.filter((row) => rankedBySnapshotDate(row, safeSnapshotDate));
+  if (rankedMembers.length === 0) {
+    return {
+      complete: true,
+      snapshotDate: safeSnapshotDate,
+      expectedMembers: 0,
+      completeSnapshots: 0,
+    };
+  }
+  const profiles = await fetchAllRows(`${profileUrl.pathname}${profileUrl.search}`);
+  const completedProfileIds = new Set(
+    profiles.filter(completeProfile).map((row) => String(row.user_id))
+  );
+  const expectedUserIds = new Set(rankedMembers.filter((row) => (
+    expectedMember(row, completedProfileIds, safeSnapshotDate)
+  )).map((row) => String(row.user_id)));
+  if (expectedUserIds.size === 0) {
+    return {
+      complete: true,
+      snapshotDate: safeSnapshotDate,
+      expectedMembers: 0,
+      completeSnapshots: 0,
+    };
+  }
+  const snapshots = await fetchAllRows(`${snapshotUrl.pathname}${snapshotUrl.search}`);
+  const completeUserIds = new Set(snapshots.filter((row) => (
+    expectedUserIds.has(String(row?.user_id || ''))
+    && completeSnapshot(row, safeSnapshotDate, checkedAtTime)
+  )).map((row) => String(row.user_id)));
+
+  if (completeUserIds.size !== expectedUserIds.size) {
+    throw incompleteBatchError({
+      expectedMembers: expectedUserIds.size,
+      completeSnapshots: completeUserIds.size,
+    });
+  }
+  return {
+    complete: true,
+    snapshotDate: safeSnapshotDate,
+    expectedMembers: expectedUserIds.size,
+    completeSnapshots: completeUserIds.size,
+  };
+}
+
 function normalizeMarker(row) {
   const channel = String(row?.channel || '').trim();
   const snapshotDate = normalizeDate(row?.snapshot_date);
@@ -127,6 +299,10 @@ export async function publishCommunityCompetitionSnapshotMarker({
   }
 
   const existing = await fetchMarker({ snapshotDate: safeSnapshotDate });
+  // Even a same-date no-op must prove the durable row still represents a
+  // complete exact cohort. This prevents a marker created by an older runtime
+  // or a concurrent partial run from bypassing the publication gate forever.
+  await verifyCommunityCompetitionSnapshotBatch({ snapshotDate: safeSnapshotDate });
   if (existing && !republish) {
     return { ...existing, published: false };
   }

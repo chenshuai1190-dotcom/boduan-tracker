@@ -324,6 +324,9 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     rankingStartSnapshotDate: membership.ranking_start_snapshot_date || null,
     publishedSnapshotDate: publication?.snapshotDate || null,
     snapshotVersion: publication?.version || null,
+    publicationCompletedAt: publication?.completedAt || null,
+    // Backward-compatible cache field. This is the publication marker time,
+    // not the trading date represented by the leaderboard.
     snapshotUpdatedAt: publication?.completedAt || null,
   };
   if (!membership.ranking_start_snapshot_date) return waiting;
@@ -368,6 +371,9 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     period: normalizedPeriod,
     asOfDate,
     snapshotVersion: publication.version,
+    publicationCompletedAt: publication.completedAt,
+    // Backward-compatible cache field. Consumers must use asOfDate when
+    // describing the leaderboard's market-data date.
     snapshotUpdatedAt: publication.completedAt,
     calculationStartDate: leaderboard.selfCalculationStartDate,
     benchmarkReturnPct: leaderboard.selfBenchmarkReturnPct,

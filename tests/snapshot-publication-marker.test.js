@@ -35,16 +35,54 @@ function configureEnv() {
   delete process.env.SUPABASE_SERVICE_KEY;
 }
 
+function completedBatch(snapshotDate, memberCount) {
+  const members = Array.from({ length: memberCount }, (_, index) => ({
+    user_id: `user-${index + 1}`,
+    eligible_after_snapshot_date: '2026-07-10',
+    ranking_start_snapshot_date: index === memberCount - 1 && memberCount === 9
+      ? '2026-07-15'
+      : '2026-07-13',
+    ranking_baseline_return_pct: 0,
+  }));
+  const profiles = members.map((member, index) => ({
+    user_id: member.user_id,
+    profile_completed_at: '2026-07-10T12:00:00Z',
+    nickname: `member-${index + 1}`,
+    avatar_key: `avatar-${index + 1}`,
+  }));
+  const snapshots = members.map((member) => ({
+    user_id: member.user_id,
+    snapshot_date: snapshotDate,
+    daily_return_pct: 0.01,
+    cumulative_return_pct: 0.02,
+    locked_at: `${snapshotDate}T22:00:00Z`,
+    source_version: 'community_competition_snapshot_v1',
+    ledger_hash: 'a'.repeat(64),
+    ledger_revision: 1,
+  }));
+  return { members, profiles, snapshots };
+}
+
+function batchRowsForUrl(href, batch) {
+  if (href.includes('/rest/v1/community_competition_members')) return batch.members;
+  if (href.includes('/rest/v1/community_profiles')) return batch.profiles;
+  if (href.includes('/rest/v1/community_competition_snapshots')) return batch.snapshots;
+  return null;
+}
+
 test('publisher creates a service-only marker and keeps same-date no-op versions stable', async () => {
   const env = snapshotEnv();
   configureEnv();
   const originalFetch = globalThis.fetch;
   const calls = [];
   let durable = null;
+  const batch = completedBatch('2026-07-15', 2);
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
     calls.push({ href, options });
     assert.equal(options.headers.Authorization, 'Bearer service-role-secret');
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
     if (!options.method) return response(durable ? [durable] : []);
     assert.equal(options.method, 'POST');
     assert.match(options.headers.Prefer, /resolution=ignore-duplicates/);
@@ -82,8 +120,11 @@ test('material repair rotates the opaque version and latest reads use a bounded 
     version: 'existing_snapshot_version',
     completed_at: '2026-07-15T22:00:00Z',
   };
+  const batch = completedBatch('2026-07-15', 2);
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
     if (!options.method) {
       if (!href.includes('snapshot_date=eq.')) assert.match(href, /snapshot_date=lte\.2026-07-15/);
       return response([durable]);
@@ -100,6 +141,171 @@ test('material repair rotates the opaque version and latest reads use a bounded 
     assert.notEqual(repaired.version, 'existing_snapshot_version');
     const latest = await getLatestCommunityCompetitionSnapshotMarker({ throughDate: '2026-07-15' });
     assert.equal(latest.version, repaired.version);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('2026-07-14 marker retries at 7 of 8 and publishes only after the exact batch reaches 8 of 8', async () => {
+  const env = snapshotEnv();
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const batch = completedBatch('2026-07-14', 8);
+  const missingSnapshot = batch.snapshots.at(-1);
+  batch.snapshots = batch.snapshots.slice(0, 7);
+  let durable = null;
+  let publicationCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
+    if (!options.method) return response(durable ? [durable] : []);
+    publicationCalls += 1;
+    durable = JSON.parse(options.body);
+    return response([durable], 201);
+  };
+  try {
+    await assert.rejects(
+      publishCommunityCompetitionSnapshotMarker({
+        snapshotDate: '2026-07-14',
+      }),
+      (error) => (
+        error.code === 'competition_snapshot_batch_incomplete'
+        && error.status === 503
+        && error.retryable === true
+        && error.expectedMembers === 8
+        && error.completeSnapshots === 7
+      ),
+    );
+    assert.equal(publicationCalls, 0);
+
+    batch.snapshots.push(missingSnapshot);
+    const published = await publishCommunityCompetitionSnapshotMarker({
+      snapshotDate: '2026-07-14',
+    });
+    assert.equal(published.published, true);
+    assert.equal(publicationCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('marker treats a null ranked return as an incomplete exact snapshot', async () => {
+  const env = snapshotEnv();
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const batch = completedBatch('2026-07-14', 2);
+  batch.snapshots[1].daily_return_pct = null;
+  let publicationCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
+    if (!options.method) return response([]);
+    publicationCalls += 1;
+    return response([], 201);
+  };
+  try {
+    await assert.rejects(
+      publishCommunityCompetitionSnapshotMarker({ snapshotDate: '2026-07-14' }),
+      (error) => (
+        error.code === 'competition_snapshot_batch_incomplete'
+        && error.expectedMembers === 2
+        && error.completeSnapshots === 1
+      ),
+    );
+    assert.equal(publicationCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('an existing same-date marker cannot bypass an incomplete exact batch', async () => {
+  const env = snapshotEnv();
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const batch = completedBatch('2026-07-14', 8);
+  const missingSnapshot = batch.snapshots.pop();
+  const durable = {
+    channel: 'competition',
+    snapshot_date: '2026-07-14',
+    version: 'legacy_partial_marker',
+    completed_at: '2026-07-14T23:00:00Z',
+  };
+  let publicationCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
+    if (!options.method) return response([durable]);
+    publicationCalls += 1;
+    return response([], 201);
+  };
+  try {
+    await assert.rejects(
+      publishCommunityCompetitionSnapshotMarker({ snapshotDate: '2026-07-14' }),
+      (error) => (
+        error.code === 'competition_snapshot_batch_incomplete'
+        && error.expectedMembers === 8
+        && error.completeSnapshots === 7
+      ),
+    );
+    assert.equal(publicationCalls, 0);
+
+    batch.snapshots.push(missingSnapshot);
+    const verifiedNoOp = await publishCommunityCompetitionSnapshotMarker({
+      snapshotDate: '2026-07-14',
+    });
+    assert.equal(verifiedNoOp.published, false);
+    assert.equal(verifiedNoOp.version, durable.version);
+    assert.equal(publicationCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('2026-07-15 marker excludes later cohorts, retries at 8 of 9, and publishes at 9 of 9', async () => {
+  const env = snapshotEnv();
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const batch = completedBatch('2026-07-15', 10);
+  batch.members.at(-1).ranking_start_snapshot_date = '2026-07-16';
+  const ninthExpectedSnapshot = batch.snapshots[8];
+  batch.snapshots = batch.snapshots.slice(0, 8);
+  let durable = null;
+  let publicationCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
+    if (!options.method) return response(durable ? [durable] : []);
+    publicationCalls += 1;
+    durable = JSON.parse(options.body);
+    return response([durable], 201);
+  };
+  try {
+    await assert.rejects(
+      publishCommunityCompetitionSnapshotMarker({
+        snapshotDate: '2026-07-15',
+      }),
+      (error) => (
+        error.code === 'competition_snapshot_batch_incomplete'
+        && error.expectedMembers === 9
+        && error.completeSnapshots === 8
+      ),
+    );
+    assert.equal(publicationCalls, 0);
+
+    batch.snapshots.push(ninthExpectedSnapshot);
+    const published = await publishCommunityCompetitionSnapshotMarker({
+      snapshotDate: '2026-07-15',
+    });
+    assert.equal(published.published, true);
+    assert.equal(publicationCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);

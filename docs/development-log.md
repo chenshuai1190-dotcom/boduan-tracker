@@ -4,6 +4,22 @@
 
 ## 2026-07-16 Asia/Shanghai
 
+### 2026-07-16 - v10.7.9.350 收益比赛缺失快照顺序补齐与日榜真实日期修复
+
+- Commit: runtime/source 待提交；设置页版本更新为 `v10.7.9.350`。
+- Background: 生产只读聚合确认 publication marker 仍停在完整的 `2026-07-13`，而 `2026-07-14` 为 `7/8`、`2026-07-15` 为 `8/9`，缺少的是同一名已排名成员。收益报表截图的 `07/15 +1.31%` 与比赛页 `-1.92%` 并非同一天公式冲突：比赛页实际仍展示 `07/13 -1.92%`，却把 `07/16 04:53` marker 补写时间标成更新日期。旧生产 runtime 的 raw high/low 门槛曾拒绝 07/14 正式交易，07/15 又因 07/14 断档无法跨越；v347 已移除错误门槛，但历史补跑尚未执行。
+- Workflow tier: `sensitive`。本轮修改比赛目标日完整发布证明、自动补漏回归和日榜日期语义；不修改收益/QQQ 公式、正式 `stock_trades`、锁定快照内容、数据库 schema/RLS、行情或财报接口。
+- Changes:
+  - 保留 scheduled catch-up 的顺序修复：从成员最后锁定日按 SPY 真实交易日推进。新增生产形态回归，覆盖 07/13 anchor、07/14 收盘前正式买入价格低旧 raw low `0.13`、随后一次补齐 07/14 和 07/15，再次运行不重复写。
+  - marker 写入前重新读取真实 active + 完整社区资料 + 已开始排名的目标日 cohort，并逐人要求 exact target snapshot、有效 daily/cumulative return、lock time、source version、64 位 ledger hash 和非负 revision。`7/8`、`8/9` 返回脱敏、可重试 `503`；补到 `8/8`、`9/9` 后立即发布。later-start 或合法未开始排名成员不阻塞历史日。
+  - API 明确区分 `asOfDate` 与 `publicationCompletedAt`；旧 `snapshotUpdatedAt` 仅为缓存兼容。日榜显示 `MM.DD 收益率`，底部显示 `数据截至 MM.DD 收盘`，不再把 marker 动作时间冒充收益日期。
+  - stats 新增 `joinedParticipants` / `rankedParticipants`，旧 `participants` 保留兼容；两者不同时统计卡显示“参赛/上榜 9/8”，相同时恢复紧凑“参赛人数 9”，避免报名人数旁只出现更少榜单行却没有解释。不暴露用户 ID、邮箱、持仓数量、成本、金额或交易明细。
+- Key files: `server/snapshotPublicationMarker.js`,`server/communityCompetition.js`,`server/communityCompetitionModel.js`,`server/closeSnapshotScheduler.js`,`src/pages/CommunityCompetitionPage.jsx`,`src/lib/i18n.js`,`src/tabs/SettingsTab.jsx`,`src/lib/settingsChangelog.js` 及比赛专项测试。
+- Validation: 定向比赛/调度/marker/API/模型/边界测试 `121/121` pass；完整 `npm test` `473/473`、production build、toolchain、audit high（0 vulnerabilities）、docs consistency、workspace state、匿名 RLS `22 tables + 2 RPCs` 和 diff check 均 pass。部署、生产受控补跑与 `8/8`、`9/9`、marker 前移核验待完成。iOS 主屏 PWA 最终视觉验收仍必须使用本机 Xcode Simulator，不能用桌面或内置浏览器替代。
+- Deployment: pending。发布后必须从受 `CRON_SECRET` 保护的统一 scheduler 立即执行一次受控补跑，并只在生产回读确认完整批次后记录成功。
+- Boundaries: gate 不是让残缺榜永久停住；它只防止补齐过程中把部分批次发布。系统必须继续自动补齐，用户不为系统漏快照承担后果。任何无法生成的行都保持可见重试，不用收益报表、实时价、估算或人工数字填充。
+- Rollback: 可回退 v350 runtime/UI/docs；已经由正式账本和真实 EOD 生成的 insert-only 快照及已验证 marker 是历史事实，不得删除或覆盖。
+
 ### 2026-07-16 - v10.7.9.349 收益比赛 PWA 等待缓存唤醒修复
 
 - Commit: runtime/source `9709638b7501964b9c006488cb94d438ee40945a`；设置页与生产 runtime 已发布为 `v10.7.9.349` / `/assets/index-DnXeydcq.js`。

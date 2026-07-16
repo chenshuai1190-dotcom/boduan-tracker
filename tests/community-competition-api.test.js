@@ -394,6 +394,10 @@ test('an existing production-shaped cohort becomes ready after the bootstrap mar
     assert.equal(after.body.state, 'ready');
     assert.equal(after.body.asOfDate, '2026-07-13');
     assert.equal(after.body.snapshotVersion, 'verified_bootstrap_20260716');
+    assert.equal(after.body.publicationCompletedAt, '2026-07-16T08:53:59.961312Z');
+    assert.equal(after.body.snapshotUpdatedAt, after.body.publicationCompletedAt);
+    assert.equal(after.body.stats.joinedParticipants, 9);
+    assert.equal(after.body.stats.rankedParticipants, 8);
     assert.equal(after.body.stats.participants, 9);
     assert.equal(after.body.leaders.length, 8);
     assert.equal(after.body.self.nickname, 'Member 0');
@@ -494,6 +498,7 @@ test('ready leaderboard is bounded by the completed publication marker, benchmar
   assert.equal(res.body.state, 'ready');
   assert.equal(res.body.asOfDate, '2026-07-08');
   assert.equal(res.body.snapshotVersion, 'snapshot_20260708_v1');
+  assert.equal(res.body.publicationCompletedAt, '2026-07-08T23:05:00.000Z');
   assert.equal(res.body.snapshotUpdatedAt, '2026-07-08T23:05:00.000Z');
   assert.ok(Math.abs(res.body.benchmarkReturnPct - 0.01) < 1e-12);
   assert.equal(res.body.self.nickname, 'Alpha');

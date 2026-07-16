@@ -6,6 +6,7 @@
 
 ## 0. 给下一位同事的直接接手摘要
 
+- 当前开发版本 `v10.7.9.350`：已确认比赛日榜页面把完整 marker 的 `2026-07-13` 收益和 `2026-07-16` 发布动作时间混在一起，造成“旧数据像当天数据”的错误。v350 日榜直接显示真实 `asOfDate`；marker 写入前按 active/完整资料/已排名 cohort 核对 exact target locked snapshots，部分 `7/8`、`8/9` 只进入脱敏 retry，补齐到 `8/8`、`9/9` 后立即发布。报名人数与本期上榜人数不同时明确显示“参赛/上榜 9/8”。生产形态测试已证明旧 raw-low 故障成员可从 07/13 顺序补齐 07/14、07/15 且幂等。部署后必须立即触发受保护 scheduler 并回读完整批次，不能只上线 gate 而不补数据。
 - 当前生产版本 `v10.7.9.349`。生产快照、marker、QQQ EOD 和榜单 API 均已证明完整；用户 iOS 主屏 PWA 的现场日志却在同一时段出现其他行情请求而完全没有 competition 请求。根因是旧 waiting cache 在 marker 后补前已耗尽当前窗口两次完整读取，且没有初始化轻量状态检查，随后命中 `attempt_limit` 休眠到下一纽约收盘窗口。cache v5 淘汰旧缓存，并仅让已满足资格、已耗尽完整读取且尚无当前 target 状态检查的等待页启动每分钟有界 `snapshot-status`；marker 日期或版本推进后才读取一次完整榜。不改收益、QQQ 公式、排名、快照、交易、参赛资格、marker 或数据库。
 - 上一生产版本 `v10.7.9.348`。`v10.7.9.346` 首次上线 marker 时未为已存真实锁定快照建立初始发布标记，导致 23 条快照仍在但 API 因 marker 为空返回 `waiting_snapshot`。source `3c85f64c0dcb26afd4b6b776f1a4039a7b0fb961` 新增一次性 fail-closed bootstrap；精确 committed SQL SHA-256 `b53314d864dd568d5525814de681be9e3d758edf2dc1da8654f85ed5080de806` 已应用生产。postflight 确认 marker 为 `2026-07-13` / `verified_bootstrap_20260716`，完整性为 8 expected / 8 complete / 0 missing / 1 later-start；23 条快照、`8 / 7 / 8` 分布与摘要 `4e144e79415dd4f423bcfd76b8fe500b` 均未变化。`07-14` / `07-15` 不完整批次仍由正式美东 17:00 后 scheduler 追赶，未伪造或改写任何快照/收益/交易。
 - 同一生产版本继续包含 `v10.7.9.347`：修复收益比赛第 9 个模拟账户被 raw high/low 门槛拒绝及榜单按绝对收益率而非跑赢 QQQ 幅度排序的问题。内部比赛接受正式账本正数成交价，不再用 provider 日内区间拒绝；精确 EOD、同一纽约日且 16:00 前写入、USD、不超卖、revision/hash/CAS 等安全规则保留。每位用户保留自然周期内自己的真实累计起点，QQQ 从该用户同日起算，榜单按“本人收益率 - 本人同期 QQQ 收益率”降序；新用户首份有效收盘后立即参加，但不重置旧用户日期或累计收益。排行榜标题已精简为“跑赢 QQQ”，参赛人数显示完整报名总数。
@@ -115,7 +116,7 @@
 - 当前生产运行时基准提交: `9709638b7501964b9c006488cb94d438ee40945a`。
 - 最近已部署应用代码提交: `9709638b7501964b9c006488cb94d438ee40945a` 包含 v349 PWA cache v5 唤醒修复；上一 runtime `3c85f64c0dcb26afd4b6b776f1a4039a7b0fb961` 为 v348 bootstrap 与 v344-v347 runtime。
 - 最近文档/配置记录提交: 本文件所在最新提交;最近已验证交接刷新部署为 `a48c4ad64ea2870ff989f6313b13fbb3a3873170`,流程工具链运行提交为 `c47b6e0b78115ea0e004c8cc5b498a2505527fc4`。
-- 当前本地与生产设置页版本: `v10.7.9.349`。
+- 当前设置页版本: `v10.7.9.350`；生产仍为 v349，待本轮 sensitive 部署与补跑核验完成后更新生产证据。
 - Vercel 最新部署: runtime commit `9709638b7501964b9c006488cb94d438ee40945a` 已 success,target `https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BXzTNc6GRu6XJqYisgv7YwYcQpWG`,production 入口 `/assets/index-DnXeydcq.js`;GitHub Actions run `29490534414` success。`index.html` 与全部 73 个 production 文件均和本地最终 build SHA-256 一致，未授权 API/Cron 边界均为 `401`。
 - Sensitive 发布顺序已完成:数据库源提交、生产 `supabase/community_competition_rebaseline_20260714.sql`、revision 表/权威时间/四个 triggers、两个 CAS RPC、grants、数据库并发、21 tables + 2 RPCs RLS gate、runtime Actions/Vercel 和未登录 401 均有真实证据。仅 scheduled D1 聚合与后续 D2 必须等真实收盘观察,不得预填。
 - v346/v347 sensitive 发布已完成：源提交 `0bc0ef2`、生产 marker migration、SQL metadata/grant 回读、真实 `22 tables + 2 RPCs` 门禁、runtime `1b07a7d`、Actions/Vercel、未授权 API/Cron 边界及 33 个生产产物一致性均通过；当前完整 `464/464`、build、toolchain、audit high、docs consistency 与 diff check 通过。Mac 锁屏导致 Simulator 系统键盘与主屏 PWA 最终验收仍 pending，未用桌面证据替代。
@@ -820,7 +821,14 @@ git diff --stat
 生产地址: https://boduan-tracker.vercel.app
 GitHub `main` 是唯一代码源头。
 
-当前已发布修复:
+当前待发布修复:
+- 设置页版本: `v10.7.9.350`
+- 修复目标: 从最后真实锁定快照顺序补齐系统遗漏的 07/14、07/15，完整后立即发布；日榜始终显示自身真实快照日期。
+- 发布门槛: 目标日必须覆盖全部 active、资料完整且已开始排名的成员。`7/8` 或 `8/9` 返回可重试状态且不发布，补到 `8/8`、`9/9` 后 marker 才前进；later-start 未排名成员不误阻塞历史日。
+- 真实日期: 日榜指标显示 `MM.DD 收益率`，底部显示 `数据截至 MM.DD 收盘`；marker 的完成动作时间只保留为 API 审计/缓存字段，不再冒充收益日期。
+- 生产动作: runtime 上线后立即从受保护统一 scheduler 执行受控 catch-up，回读两日完整性和 marker；没有完整证据不得声称修复完成。
+
+上一版已发布修复:
 - 设置页版本: `v10.7.9.349`
 - 修复目标: 修复真实完整 marker 已发布、但 iOS 主屏 PWA 因旧 waiting cache 已耗尽完整读取次数而持续显示等待的问题。
 - 客户端修复: 比赛 cache 升级到 v5 并淘汰 v4。只有已越过资格/排名起点、当前 target 已耗尽两次完整读取且未初始化状态检查的 waiting 页才启动每分钟有界 `snapshot-status`;marker 日期或版本推进后才读取一次完整榜单。

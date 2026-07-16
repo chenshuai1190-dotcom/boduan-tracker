@@ -310,6 +310,10 @@ export function buildCompetitionLeaderboard({
 
   return {
     stats: {
+      joinedParticipants: activeProfileUserIds.size,
+      rankedParticipants: ranked.length,
+      // Backward-compatible alias for clients that still display the number
+      // of active members with completed community profiles.
       participants: activeProfileUserIds.size,
       beatRatePct: benchmarkComparable.length === 0
         ? null
