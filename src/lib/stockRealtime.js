@@ -202,11 +202,12 @@ function getRealtimeTimestampMs(tick = {}) {
   return Date.now();
 }
 
-function getUsEquityRealtimeSession(row, now) {
+export function getUsEquityRealtimeSession(row, now) {
   const status = String(row?.marketStatus || '').trim().toLowerCase();
   if (status.includes('post')) return 'post';
   if (status.includes('pre')) return 'pre';
   if (status.includes('open') || status.includes('regular')) return 'regular';
+  if (status.includes('closed')) return 'closed';
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/New_York',

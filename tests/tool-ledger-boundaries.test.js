@@ -570,8 +570,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.352'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.352', date: '2026-07-16', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.353'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.353', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('首页当前回撤面板升级') && settingsChangelogSource.includes('美东开盘 09:30:00') && settingsChangelogSource.includes('不用盘后成交冒充收盘回撤'), 'settings changelog should document the drawdown sheet and locked-close semantics');
   assert.ok(settingsChangelogSource.includes('收益比赛受保护补漏入口') && settingsChangelogSource.includes('最近一个已完成收盘日') && settingsChangelogSource.includes('不接受任意日期'), 'settings changelog should document the protected latest-completed recovery path');
   assert.ok(settingsChangelogSource.includes('收益比赛日榜完整补齐与真实日期修复') && settingsChangelogSource.includes('补成完整批次后立即发布') && settingsChangelogSource.includes('绝不会冒充完整榜单'), 'settings changelog should document exact catch-up, publication proof, and truthful daily dates');
   assert.ok(settingsChangelogSource.includes('收益比赛 PWA 等待状态恢复') && settingsChangelogSource.includes('比赛缓存升级到 v5') && settingsChangelogSource.includes('不修改收益、排名、快照、交易、参赛资格或发布标记'), 'settings changelog should retain the bounded waiting-cache recovery and unchanged authoritative data');
@@ -1725,7 +1726,7 @@ test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
   assert.ok(appSource.includes("TQQQ: 'TQQQ'"), 'TQQQ should display as the English code');
   assert.equal(appSource.includes("QQQ: '纳斯达克100'"), false, 'QQQ must not be remapped to the old Chinese display name');
   assert.equal(appSource.includes("TQQQ: '3倍纳指'"), false, 'TQQQ must not be remapped to the old Chinese display name');
-  assert.ok(appSource.includes("{ symbol: 'QQQ', name: 'QQQ' }"), 'QQQ benchmark option should also display in English');
+  assert.ok(appSource.includes("name: qqqSignalQuote?.name || 'QQQ'"), 'QQQ benchmark option should also display in English');
 });
 
 test('asset module redesign keeps database logic while removing legacy controls', () => {
@@ -2347,7 +2348,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('truncate text-base font-black text-white'), false, 'current signal status text should not return to bold pure white');
   assert.ok(homeTabSource.includes('text-[19px] font-normal leading-none tabular-nums'), 'current signal percentage should use normal weight');
   assert.equal(homeTabSource.includes('text-[19px] font-black leading-none tabular-nums'), false, 'current signal percentage should not return to bold');
-  assert.ok(homeTabSource.includes('<span className="block font-normal">{item.symbol}</span>'), 'benchmark menu symbol should use normal weight');
+  assert.ok(homeTabSource.includes('<span className="shrink-0 text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>'), 'benchmark menu symbol should use normal weight');
   assert.equal(homeTabSource.includes('<span className="block font-black">{item.symbol}</span>'), false, 'benchmark menu symbol should not return to bold');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}"), 'home watchlist tab label should match the muted current-signal status brightness');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}"), 'home holdings tab label should match the muted current-signal status brightness');
@@ -2393,7 +2394,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.352'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.353'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

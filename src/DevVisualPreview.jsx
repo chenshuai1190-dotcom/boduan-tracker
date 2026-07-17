@@ -130,6 +130,17 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
+const mockHomeSignalBenchmarks = [
+  { symbol: 'META', name: 'Meta', company: 'Meta', price: 92.7, week52High: 100 },
+  { symbol: 'AMZN', name: '亚马逊', company: 'Amazon', price: 94.2, week52High: 100 },
+  { symbol: 'NVDA', name: '英伟达', company: 'NVIDIA', price: 97.6, week52High: 100 },
+  { symbol: 'TSM', name: '台积电', company: 'Taiwan Semiconductor', price: 98.3, week52High: 100 },
+  { symbol: 'QQQ', name: '纳斯达克100 ETF', company: 'Invesco QQQ', price: 98.8, week52High: 100 },
+  { symbol: 'GOOGL', name: '谷歌A', company: 'Alphabet', price: 98.9, week52High: 100 },
+  { symbol: 'AAPL', name: '苹果', company: 'Apple', price: 99.7, week52High: 100 },
+  { symbol: 'MSFT', name: '微软', company: 'Microsoft', price: 99.2, week52High: 100 },
+];
+
 const devMarketMoversFixture = {
   success: true,
   source: 'dev-visual-preview',
@@ -722,6 +733,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('earningsLiveSmoke') === '1';
   const earningsAutoOpen = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('earningsAutoOpen') === '1';
+  const benchmarkSheetPreview = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('benchmarkSheet') || '';
   const earningsResumeClockRef = React.useRef(Date.parse(earningsLiveSmoke
     ? '2026-07-15T12:07:00.000Z'
     : '2026-07-15T12:01:00.000Z'));
@@ -1014,8 +1028,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       ? [...mockHomeWatchlist, { symbol: 'META', name: 'Meta', price: 607.66, changePercent: 0.75, high: 740.91, ytdChangePercent: 12.3, intraday: mockMarketIntraday.red }]
       : mockHomeWatchlist
   ));
-  const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(false);
-  const [benchmarkSymbol, setBenchmarkSymbol] = React.useState('QQQ');
+  const [benchmarkMenuOpen, setBenchmarkMenuOpen] = React.useState(() => ['live', 'locked'].includes(benchmarkSheetPreview));
+  const [benchmarkSymbol, setBenchmarkSymbol] = React.useState(() => benchmarkSheetPreview ? 'AAPL' : 'QQQ');
   const [showAddStock, setShowAddStock] = React.useState(false);
   const [newStock, setNewStock] = React.useState({
     symbol: '',
@@ -1278,6 +1292,25 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showConfirm: showPreviewConfirm,
   };
 
+  const homeSignalBenchmarkOptions = ['live', 'locked'].includes(benchmarkSheetPreview)
+    ? mockHomeSignalBenchmarks.map((row) => ({
+      ...row,
+      high: row.week52High,
+      dailyPnlPrice: row.price,
+      dailyPnlSession: benchmarkSheetPreview === 'live' ? 'regular' : 'closed',
+      dailyPnlLocked: benchmarkSheetPreview !== 'live',
+    }))
+    : [
+      { symbol: 'QQQ', name: 'QQQ', price: 714.22, high: 747.82, week52High: 747.82, dailyPnlPrice: 714.22, dailyPnlSession: 'closed', dailyPnlLocked: true },
+      { symbol: 'SPY', name: 'SPY', price: 612.84, high: 619.25, week52High: 619.25, dailyPnlPrice: 612.84, dailyPnlSession: 'closed', dailyPnlLocked: true },
+      { symbol: 'TQQQ', name: 'TQQQ', price: 87.21, high: 93.46, week52High: 93.46, dailyPnlPrice: 87.21, dailyPnlSession: 'closed', dailyPnlLocked: true },
+    ];
+  const homeSignalBenchmarkStock = homeSignalBenchmarkOptions.find((row) => row.symbol === benchmarkSymbol)
+    || homeSignalBenchmarkOptions[0];
+  const homeSignalBenchmarkDrawdown = homeSignalBenchmarkStock?.high > 0
+    ? (homeSignalBenchmarkStock.price - homeSignalBenchmarkStock.high) / homeSignalBenchmarkStock.high
+    : 0;
+
   const homeCtx = {
     addStock: async (stock) => {
       const symbol = String(stock?.symbol || '').trim().toUpperCase();
@@ -1294,15 +1327,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setHomeWatchlist((current) => [item, ...current.filter((row) => row.symbol !== symbol)]);
       return { success: true, item };
     },
-    benchmarkDrawdown: -0.045,
+    benchmarkDrawdown: homeSignalBenchmarkDrawdown,
     benchmarkMenuOpen,
-    benchmarkOptions: [
-      { symbol: 'QQQ', name: 'QQQ' },
-      { symbol: 'SPY', name: 'SPY' },
-      { symbol: 'TQQQ', name: 'TQQQ' },
-    ],
+    benchmarkOptions: homeSignalBenchmarkOptions,
     benchmarkStatus: { text: '等待中', desc: '回撤<5%, 空仓等待' },
-    benchmarkStock: { symbol: benchmarkSymbol, price: 714.22, high: 747.82 },
+    benchmarkStock: homeSignalBenchmarkStock,
     benchmarkSymbol,
     btcMarketCard: btcPreviewMode === 'placeholder' ? null : mockBtcMarketCard,
     btcRealtimeLastTick: btcPreviewMode === 'placeholder' ? null : Date.now(),

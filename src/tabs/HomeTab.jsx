@@ -1,7 +1,13 @@
 import React from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Flame, Minus, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, Flame, LockKeyhole, Minus, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
+import {
+  HOME_SIGNAL_ET_OPEN_TIME,
+  buildHomeSignalBenchmarkRows,
+  nextHomeSignalBenchmarkSortDirection,
+  sortHomeSignalBenchmarkRows,
+} from '../lib/homeSignalBenchmark.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
@@ -14,6 +20,7 @@ const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
 const BTC_STATUS_DISPLAY_GRACE_MS = 60_000;
 const HOME_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
+const POPULAR_US_STOCK_BY_SYMBOL = new Map(POPULAR_US_STOCKS.map((item) => [item.symbol, item]));
 const emptySummary = {
   activePositions: [],
   positions: [],
@@ -545,6 +552,7 @@ export default function HomeTab({ ctx }) {
   const [editActionKey, setEditActionKey] = React.useState(null);
   const [editNotice, setEditNotice] = React.useState(null);
   const [pendingDeleteSymbol, setPendingDeleteSymbol] = React.useState(null);
+  const [benchmarkSortDirection, setBenchmarkSortDirection] = React.useState(null);
   const [tableSorts, setTableSorts] = React.useState({
     watchlist: { key: null, direction: 'desc' },
     positions: { key: null, direction: 'desc' },
@@ -570,6 +578,16 @@ export default function HomeTab({ ctx }) {
   const stockDisplayName = typeof displayStockName === 'function'
     ? displayStockName
     : ((symbol, name) => String(name || symbol || '').trim());
+  const benchmarkRows = React.useMemo(
+    () => buildHomeSignalBenchmarkRows(benchmarkOptions, { selectedSymbol: benchmarkSymbol }),
+    [benchmarkOptions, benchmarkSymbol],
+  );
+  const visibleBenchmarkRows = React.useMemo(
+    () => sortHomeSignalBenchmarkRows(benchmarkRows, benchmarkSortDirection),
+    [benchmarkRows, benchmarkSortDirection],
+  );
+  const selectedBenchmarkRow = benchmarkRows.find((row) => row.selected) || null;
+  const benchmarkSheetMarketState = selectedBenchmarkRow?.marketState || 'locked';
   const positionsBySymbol = React.useMemo(() => new Map(positions.map((p) => [p.symbol, p])), [positions]);
   const displayWatchlist = homeWatchlist || watchlist || [];
   const vixDateLabel = dataDateLabel(vixDataDate);
@@ -727,13 +745,17 @@ export default function HomeTab({ ctx }) {
   };
 
   React.useEffect(() => {
-    if ((!showAddStock && !showEditWatchlist) || typeof document === 'undefined') return undefined;
+    if ((!showAddStock && !showEditWatchlist && !benchmarkMenuOpen) || typeof document === 'undefined') return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [showAddStock, showEditWatchlist]);
+  }, [showAddStock, showEditWatchlist, benchmarkMenuOpen]);
+
+  React.useEffect(() => {
+    if (!benchmarkMenuOpen) setBenchmarkSortDirection(null);
+  }, [benchmarkMenuOpen]);
 
   React.useEffect(() => {
     if (!showAddStock || !isWatchlistTab || typeof fetchPopularStockQuotes !== 'function') return undefined;
@@ -1038,7 +1060,8 @@ export default function HomeTab({ ctx }) {
           <div className="text-[12px] font-semibold text-white/70">{t(language, 'home.currentSignal', '当前信号')}</div>
           <button
             type="button"
-            onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
+            data-home-signal-trigger
+            onClick={() => setBenchmarkMenuOpen(true)}
             className="relative rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white/50 active:scale-95"
           >
             {t(language, 'home.strategyStatus', '策略状态')}
@@ -1053,53 +1076,141 @@ export default function HomeTab({ ctx }) {
             <div className="mt-1.5 text-[11px] text-white/50">{englishMode ? t(language, 'home.pullbackStayCash', '回撤<5%, 空仓等待') : (benchmarkStatus?.desc || '回撤<5%, 空仓等待')}</div>
             <div className="mt-2.5 truncate text-[11px] text-white/40">{t(language, 'home.waitHigherProbability', '耐心等待更高胜率机会')}</div>
           </div>
-          <div className="relative text-right">
-            <button
-              type="button"
-              onClick={() => setBenchmarkMenuOpen(!benchmarkMenuOpen)}
-              className={`text-[19px] font-normal leading-none tabular-nums ${pnlColor(benchmarkDrawdown, marketColorMode)}`}
+          <button
+            type="button"
+            data-home-signal-trigger
+            onClick={() => setBenchmarkMenuOpen(true)}
+            className="relative w-full text-right active:scale-[0.98]"
+          >
+            <span
+              className={`block text-[19px] font-normal leading-none tabular-nums ${pnlColor(benchmarkDrawdown, marketColorMode)}`}
               style={{ fontFamily: NUMBER_FONT }}
             >
               {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}
-            </button>
-            <div className="mt-1.5 text-[10px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} {t(language, 'home.pullback', '回撤')}</div>
-            {benchmarkMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setBenchmarkMenuOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#111820] text-left shadow-2xl">
-                  <div className="border-b border-white/10 px-3 py-2 text-[11px] font-bold text-white/40">{t(language, 'home.switchBenchmark', '切换基准')}</div>
-                  {(benchmarkOptions || []).map((item) => {
-                    const active = item.symbol === benchmarkSymbol;
-                    return (
-                      <button
-                        key={item.symbol}
-                        type="button"
-                        onClick={() => {
-                          setBenchmarkSymbol(item.symbol);
-                          setBenchmarkMenuOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between px-3 py-2.5 text-sm ${active ? 'bg-emerald-400/10 text-emerald-200' : 'text-white/70'}`}
-                      >
-                        <span>
-                          <span className="block font-normal">{item.symbol}</span>
-                          <span className="block truncate text-[11px] text-white/40">{item.name}</span>
-                        </span>
-                        {active && <CheckCircle2 className="h-4 w-4 text-emerald-300" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
+            </span>
+            <span className="mt-1.5 block text-[10px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} {t(language, 'home.pullback', '回撤')}</span>
+          </button>
         </div>
         {benchmarkStock && (
-          <div className="mt-2.5 flex justify-end whitespace-nowrap text-[10px] text-white/40 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+          <button
+            type="button"
+            data-home-signal-trigger
+            onClick={() => setBenchmarkMenuOpen(true)}
+            className="mt-2.5 flex w-full justify-end whitespace-nowrap text-[10px] text-white/40 tabular-nums active:text-white/55"
+            style={{ fontFamily: NUMBER_FONT }}
+          >
             ${fmtMoney(benchmarkStock.price, 2)} / {t(language, 'home.week52High', '52周高')} ${fmtMoney(benchmarkStock.high, 2)}
             <ChevronRight className="ml-1 inline h-3.5 w-3.5 align-[-2px] text-white/25" />
-          </div>
+          </button>
         )}
       </section>
+
+      {benchmarkMenuOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/65 backdrop-blur-[2px]"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setBenchmarkMenuOpen(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-signal-benchmark-title"
+            data-home-signal-sheet
+            className="flex max-h-[82dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[26px] border border-b-0 border-white/10 bg-[#0b0f14] px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-18px_55px_rgba(0,0,0,0.55)]"
+          >
+            <div className="relative border-b border-white/[0.07] pb-4 text-center">
+              <button
+                type="button"
+                aria-label={t(language, 'home.closeBenchmarkSheet', '关闭当前回撤')}
+                onClick={() => setBenchmarkMenuOpen(false)}
+                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/45 active:scale-95 active:bg-white/10"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 id="home-signal-benchmark-title" className="px-11 text-[17px] font-medium tracking-[0.01em] text-white/90">
+                {t(language, 'home.benchmarkSheetTitle', '当前回撤 · 距52周新高')}
+              </h2>
+              {benchmarkSheetMarketState === 'live' ? (
+                <div className="mt-2 text-[11px] leading-[17px] text-white/42">
+                  <div className="flex items-center justify-center gap-1.5 text-emerald-300/85">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.65)]" />
+                    <span>{t(language, 'home.realtime', '实时')}</span>
+                  </div>
+                  <div>{t(language, 'home.easternOpenTime', '美东开盘 {{time}}', { time: HOME_SIGNAL_ET_OPEN_TIME })}</div>
+                </div>
+              ) : (
+                <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-white/38">
+                  <LockKeyhole className="h-3 w-3" />
+                  <span>{t(language, 'home.pnlLocked', '收盘锁定')}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-1 pb-2 pt-3 text-[11px] text-white/36">
+              <span>{t(language, 'home.stock', '股票')}</span>
+              <button
+                type="button"
+                aria-label={t(language, 'home.sortDrawdown', '按回撤排序')}
+                onClick={() => setBenchmarkSortDirection((current) => nextHomeSignalBenchmarkSortDirection(current))}
+                className={`flex items-center gap-1 active:scale-95 ${benchmarkSortDirection ? 'text-[#f6b54b]' : 'text-white/36'}`}
+              >
+                <span>{t(language, 'home.pullback', '回撤')}</span>
+                <SortIcon active={Boolean(benchmarkSortDirection)} direction={benchmarkSortDirection} />
+              </button>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-white/[0.07] bg-white/[0.018]">
+              {visibleBenchmarkRows.map((row, index) => {
+                const directoryEntry = POPULAR_US_STOCK_BY_SYMBOL.get(row.symbol) || null;
+                const name = stockDisplayName(row.symbol, row.name || directoryEntry?.name || row.symbol, language);
+                const company = String(row.company || directoryEntry?.company || '').trim();
+                const cachedLogoUrl = logoCache?.[row.symbol]?.url;
+                const logoUrls = logoUrlCandidates(row.symbol, cachedLogoUrl, row.logoURL, row.logoUrl, row.logo);
+                const drawdownLabel = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
+                  ? '--'
+                  : `${(Number(row.drawdown) * 100).toFixed(1)}%`;
+                const drawdownClass = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
+                  ? 'text-white/28'
+                  : Number(row.drawdown) <= -0.05 ? 'text-rose-400' : 'text-emerald-400';
+                return (
+                  <button
+                    key={row.symbol}
+                    type="button"
+                    data-home-signal-option={row.symbol}
+                    onClick={() => {
+                      setBenchmarkSymbol(row.symbol);
+                      setBenchmarkMenuOpen(false);
+                    }}
+                    className={`relative flex min-h-[61px] w-full items-center gap-3 px-3 py-2 text-left active:bg-white/[0.055] ${index > 0 ? 'border-t border-white/[0.055]' : ''} ${row.selected ? 'bg-emerald-400/[0.095]' : ''}`}
+                  >
+                    {row.selected && <span className="absolute bottom-2 left-0 top-2 w-[2px] rounded-r-full bg-emerald-400/70" />}
+                    <StockLogo
+                      symbol={row.symbol}
+                      urls={logoUrls}
+                      onLogoLoad={cacheStockLogo}
+                      className="h-9 w-9 rounded-lg"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="shrink-0 text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>
+                        <span className="truncate text-[12px] text-white/52">{name}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-[10px] text-white/30">{company || name}</span>
+                    </span>
+                    <span className={`shrink-0 text-[15px] font-normal tabular-nums ${drawdownClass}`} style={{ fontFamily: NUMBER_FONT }}>
+                      {drawdownLabel}
+                    </span>
+                  </button>
+                );
+              })}
+              {visibleBenchmarkRows.length === 0 && (
+                <div className="px-4 py-10 text-center text-[12px] text-white/30">--</div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {marketCards.length > 0 && (
       <section className="mt-3 grid grid-cols-4 gap-2">

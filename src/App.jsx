@@ -7,7 +7,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { localMonthKey } from './lib/calendarMonth.js';
@@ -1018,6 +1018,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   });
   const [qqqHigh, setQqqHigh] = useState(640.47);
   const [qqqCurrent, setQqqCurrent] = useState(640.47);
+  const [qqqSignalQuote, setQqqSignalQuote] = useState(null);
 
   // 关注股票列表(可编辑价格)
   // high = 6个月滚动最高价,用于计算回撤预警
@@ -1404,6 +1405,33 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     if (key === 'QQQ') {
       setQqqCurrent(price);
       setQqqHigh((prev) => Math.max(prev || 0, price));
+      setQqqSignalQuote((current) => {
+        const marketStatus = String(tick?.marketStatus || current?.marketStatus || '').toLowerCase();
+        const dailyPnlSession = getUsEquityRealtimeSession({
+          ...current,
+          marketStatus,
+        }, tickAt);
+        const explicitlyLive = dailyPnlSession === 'pre' || dailyPnlSession === 'regular';
+        const explicitlyLocked = dailyPnlSession === 'post' || dailyPnlSession === 'closed';
+        const high = Math.max(Number(current?.high) || 0, Number(current?.week52High) || 0, price);
+        return {
+          ...current,
+          ...tick,
+          symbol: 'QQQ',
+          name: current?.name || 'QQQ',
+          price,
+          high,
+          week52High: high,
+          realtime: true,
+          realtimeStatus,
+          realtimeAt: tickAt,
+          clientReceivedAt,
+          dailyPnlSession,
+          dailyPnlPrice: explicitlyLive ? price : (Number(current?.dailyPnlPrice) || 0),
+          dailyPnlLocked: explicitlyLocked ? true : (explicitlyLive ? false : Boolean(current?.dailyPnlLocked)),
+          dailyPnlSource: explicitlyLive ? 'realtime-tick' : (current?.dailyPnlSource || 'locked-regular-close'),
+        };
+      });
     }
   }, []);
 
@@ -2012,13 +2040,17 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   // === 顶部市场状态卡用的"基准"计算(可切换关注列表中其他股票) ===
   // 在 watchlist 里找当前选中的基准股票
-  const benchmarkStock = (() => {
-    if (benchmarkSymbol === 'QQQ') {
-      // QQQ 用全局的 qqqCurrent / qqqHigh(数据来自核心参数)
-      return { symbol: 'QQQ', name: 'QQQ', price: qqqCurrent, high: qqqHigh };
-    }
-    return quoteRows.find(s => s.symbol === benchmarkSymbol);
-  })();
+  const qqqBenchmarkStock = {
+    ...(qqqSignalQuote || {}),
+    symbol: 'QQQ',
+    name: qqqSignalQuote?.name || 'QQQ',
+    price: qqqCurrent,
+    high: qqqHigh,
+    week52High: qqqHigh,
+  };
+  const benchmarkStock = benchmarkSymbol === 'QQQ'
+    ? qqqBenchmarkStock
+    : quoteRows.find(s => s.symbol === benchmarkSymbol);
   const benchmarkDrawdown = benchmarkStock && benchmarkStock.high > 0
     ? (benchmarkStock.price - benchmarkStock.high) / benchmarkStock.high
     : 0;
@@ -2033,8 +2065,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   // 可选作为基准的股票列表(关注列表 + QQQ,排除杠杆 ETF)
   const benchmarkOptions = [
-    { symbol: 'QQQ', name: 'QQQ' },
-    ...quoteRows.filter(s => !LEVERAGED_ETFS.includes(s.symbol) && s.symbol !== 'QQQ').map(s => ({ symbol: s.symbol, name: s.name })),
+    qqqBenchmarkStock,
+    ...quoteRows.filter(s => !LEVERAGED_ETFS.includes(s.symbol) && s.symbol !== 'QQQ'),
   ];
 
   // ============ 预警等级系统 ============
@@ -2847,6 +2879,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         // 之前 Math.max(prev, 当前价) 不读 API, 导致 high 被锁死在初始值 640.47, 回撤算不准
         // 不用 Math.max(prev) 粘滞: 避免某次脏数据把 high 永久顶死降不下来
         const qqqApiHigh = qqqData.week52High || qqqData.high || 0;
+        const qqqResolvedHigh = Math.max(qqqApiHigh || 0, qqqData.price);
+        setQqqSignalQuote({
+          ...qqqData,
+          symbol: 'QQQ',
+          name: qqqData.name || 'QQQ',
+          high: qqqResolvedHigh,
+          week52High: qqqResolvedHigh,
+        });
         if (qqqApiHigh > 0) {
           setQqqHigh(Math.max(qqqApiHigh, qqqData.price));
         } else {

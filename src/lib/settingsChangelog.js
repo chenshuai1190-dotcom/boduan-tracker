@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.352', date: '2026-07-16', latest: true,
+    ver: 'v10.7.9.353', date: '2026-07-18', latest: true,
+    items: [
+      '📡 首页当前回撤面板升级',
+      '  - 点击当前信号右侧回撤区域可打开股票回撤面板，默认保持原有股票顺序，并支持按回撤深浅切换排序',
+      '  - 面板统一显示“当前回撤 · 距52周新高”，股票样式沿用首页添加股票列表，并保留当前基准高亮',
+      '  - 盘中显示实时状态和美东开盘 09:30:00；收盘后锁定正式收盘价，不用盘后成交冒充收盘回撤',
+    ],
+    itemsEn: [
+      '📡 Home drawdown panel upgrade',
+      '  - The drawdown area in Current Signal now opens the stock panel, preserving the source order by default with optional drawdown sorting',
+      '  - The panel uses “Current Drawdown · From 52W High”, matches the Home add-stock list, and keeps the active benchmark highlighted',
+      '  - Live sessions show the 09:30:00 ET open time; closed sessions lock to the official close instead of treating after-hours trades as the close',
+    ],
+  },
+  {
+    ver: 'v10.7.9.352', date: '2026-07-16',
     items: [
       '🏆 收益比赛标题恢复',
       '  - 顶部卡片恢复“本日收益率”，不再把快照日期加入收益率标题',
