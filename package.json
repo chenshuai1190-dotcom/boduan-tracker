@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "audit": "npm audit",
+    "audit": "npm audit --audit-level=high",
     "test": "node --test \"tests/**/*.test.js\"",
     "smoke:eodhd-calendar": "node scripts/eodhd-calendar-smoke.mjs",
     "bootstrap:local-env": "node scripts/bootstrap-local-env.mjs",
@@ -19,7 +19,10 @@
     "verify:toolchain": "node scripts/verify-toolchain.mjs",
     "verify:deploy-status": "node scripts/verify-deploy-status.mjs",
     "verify:rls:rest": "node scripts/verify-rls-rest.mjs",
-    "check": "npm run test && npm run build && npm audit"
+    "check:docs": "npm run verify:docs-consistency && git diff HEAD --check",
+    "check:fast": "npm run build && git diff HEAD --check",
+    "check:full": "npm test && npm run build && git diff HEAD --check",
+    "check": "npm run check:full"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

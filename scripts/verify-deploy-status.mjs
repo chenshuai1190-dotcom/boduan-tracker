@@ -95,10 +95,11 @@ if (sha) {
     'gh run list',
   )
   if (Array.isArray(runs)) {
-    const runForSha = runs.find((run) => String(run.headSha || '').startsWith(sha))
-      || runs.find((run) => sha.startsWith(String(run.headSha || '')))
+    const ciRuns = runs.filter((run) => run.name === 'CI')
+    const runForSha = ciRuns.find((run) => String(run.headSha || '').startsWith(sha))
+      || ciRuns.find((run) => sha.startsWith(String(run.headSha || '')))
     if (!runForSha) {
-      fail(`no GitHub Actions run found for ${sha.slice(0, 12)} on main`)
+      fail(`no CI GitHub Actions run found for ${sha.slice(0, 12)} on main`)
     } else {
       summary.push(`actionsRun=${runForSha.databaseId} ${statusEmoji(runForSha.status, runForSha.conclusion)} ${runForSha.displayTitle || runForSha.name}`)
       summary.push(`actionsUrl=${runForSha.url}`)

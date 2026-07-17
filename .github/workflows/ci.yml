@@ -2,9 +2,13 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
 
 jobs:
   build:
@@ -30,4 +34,4 @@ jobs:
         run: npm run build
 
       - name: Audit
-        run: npm audit
+        run: npm run audit

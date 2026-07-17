@@ -1,0 +1,43 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - 'package.json'
+      - 'scripts/verify-docs-consistency.mjs'
+      - '.github/workflows/docs.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.md'
+      - 'package.json'
+      - 'scripts/verify-docs-consistency.mjs'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify core docs
+        run: node scripts/verify-docs-consistency.mjs
+
+      - name: Check changed Markdown whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            git diff --check "$BASE_SHA" "$GITHUB_SHA" -- '*.md'
+          else
+            git show --check --oneline "$GITHUB_SHA" -- '*.md'
+          fi

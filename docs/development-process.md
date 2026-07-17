@@ -1,217 +1,144 @@
-# Development Process
+# boduan-tracker 极简生产开发流程
 
-本文件是 `boduan-tracker` 的正式开发流程。交接给任何新工程师或 AI 代理时,必须先阅读并遵守本文。
+本文件是唯一流程来源。README 只放稳定边界，handoff 只放当前状态，不再复制流程。
 
-## Source of Truth
+## 基本原则
 
-- 代码唯一源头: GitHub 仓库 `chenshuai1190-dotcom/boduan-tracker`
-- 生产环境: Vercel `https://boduan-tracker.vercel.app`
-- 数据库: Supabase,结构和 RLS 以 `supabase/rls.sql` 及线上 Supabase 项目为准
-- 安全基线: `docs/security-hardening.md`
-- 更新记录: `docs/development-log.md`
-- 交接入口和当前状态快照: `docs/handoff.md`
+- GitHub `main` 是唯一代码源头；禁止直接修改 Vercel 或其他线上代码。
+- 只分 `FAST` 和 `FULL`。默认先判断是否触及高风险边界，不按文件数量或“看起来像前端”判断。
+- 同一会话已同步仓库、工具链正常时，不重复 fetch、workspace、toolchain、local-env 或线上巡检。
+- 小改动不强制建分支、开 PR、升版本、写 changelog 或更新 handoff。用户明确要求上线时，验证通过后可直接提交并推送 `main`。
+- 改动范围扩大时只补缺失门禁，不重复已经通过的检查。
 
-不要把 Vercel 控制台、腾讯云控制台、服务器临时文件或浏览器在线编辑当作代码源头。所有可维护的代码改动都必须回到 GitHub。
+## FAST：默认快速通道
 
-`docs/handoff.md` 是给下一位接手工程师或 AI 代理使用的产品交接入口,不是 `docs/development-log.md` 的替代品。它必须保持一眼可接手:当前生产状态、关键 commit、设置页版本、Vercel 部署、线上验证、读文档顺序、硬规则、产品规则、代码地图、主要风险和下一步优先级都应从这里快速同步。
+只要不命中下一节的 FULL 条件，就走 FAST。
 
-## Required Workflow
+### 可以直接快速上线
 
-1. **开始前同步仓库**
-   - 从 GitHub 当前 `main` 开始。
-   - 运行 `git status --short --branch`,确认工作树状态。
-   - 普通连续开发任务不重复跑工具链和环境检查。只在首次接手、换机、新工作区、工具链异常或部署环境不确定时运行 `npm run verify:workspace-state` 和 `npm run verify:toolchain`。同一会话中已 pass 后,后续小改动可直接复用结果。
-   - 只有任务需要真实登录、Supabase、EODHD 或生产 API smoke 时才运行 `npm run verify:local-env`;纯 UI/文字/布局不要为了流程完整而读取真实本地环境。如果 `.env.local` 缺失且任务确实需要,再运行 `npm run bootstrap:local-env`。只报告 key present/missing,不打印任何值。
-   - 只有需要 Vercel env pull/link 或部署 CLI 项目信息时,运行 `npm run bootstrap:vercel-link`;它只创建本地 `.vercel/` link 状态,不改变远端项目配置。
-   - 先读 `docs/handoff.md`,再阅读 `README.md`、本文件、`docs/development-log.md` 和与任务相关的代码。
+- 文档、注释、拼写、标点和排版。
+- 中英文系统文案、图标、颜色、字号、字重、边框、间距、宽高和对齐。
+- 组件内只影响呈现的展开/收起、页签、弹窗开关、焦点、按压态、动画、loading、空状态和错误状态。
+- 页面内非金融的过滤、排序、格式化、校验提示或 view-model 小修复。
+- 现有 owner-scoped CRUD 表单的展示、校验提示和提交反馈修复，前提是不改变 callback、payload、目标表、user scope 或保存/删除语义。
+- 行为不变的局部重构、性能优化和测试补充。
 
-2. **创建明确范围的分支**
-   - 常规格式: `codex/<short-task-name>`。
-   - 优先通过 PR 合并。
-   - 如果 GitHub 权限暂时无法开 PR,只有在用户明确授权后,才允许验证通过后快进 `main`。
+### FAST 最低验证
 
-3. **本地实现**
-   - 小步修改,避免顺手重构无关代码。
-   - 不提交真实 `.env`、API token、截图中的密钥或 Supabase service role key。
-   - 不提交 `.vercel/`;它只是本机 Vercel link 状态,已由 `.gitignore` 排除。
-   - 前端密钥只能使用公开 anon key;付费行情 token 必须只放在服务端环境变量 `EODHD_API_KEY`。
-   - 定时任务、全账户批处理、邀请码等服务端管理流只能读取服务端环境变量;`SUPABASE_SERVICE_ROLE_KEY` 和 `CRON_SECRET` 的真实值绝不能写入前端 `VITE_` 变量、日志、截图、测试夹具或仓库文件。
-   - 所有用户主动提交类操作(新增、保存、删除、同步、导入、导出等)必须在请求期间禁用重复提交,并在完成后给出明确成功或失败反馈;不能静默完成后让用户猜结果。
-   - 除非确实没有可维护替代方案,不要使用浏览器或系统原生交互控件承载核心体验,尤其不要使用 `alert`、`confirm`、`prompt`、浏览器原生表单校验弹窗或未定制的原生选择器。提示、确认、选择、编辑、筛选等产品交互默认用应用内自定义弹窗、抽屉、菜单、toast 或受控组件实现,并按当前深色设计系统适配移动端。
-   - 修改 UI 或功能时,凡是涉及用户可见系统文案,必须同步简体中文和 English 两套显示:更新 `src/lib/i18n.js` 的对应 key、组件里的 fallback 文案、空状态/按钮/弹窗/错误提示/设置页更新日志文案,并补充测试或 build marker 证明中英文都进包。只翻译系统文案,用户自己写的目标箴言、心得、复盘、备注、日志、账户名等内容必须保持原文。
-   - 交易页工具账本必须保持边界清晰:正式交易/当日订单/持仓只能写 `stock_trades`;波段记录只写旧账本 `trades`;摊薄成本只写 `cost_basis_trades`。如果复用弹窗或保存函数,必须用显式 scope 分流,并在提交确认文案里说明写入范围。波段记录和摊薄成本这类独立小工具提交前必须弹确认框并加提交锁,防止重复提交或串入主账本。
-   - 移动端弹层里的 `date`、`number`、`text` 等原生输入控件必须显式限制 `w-full max-w-full min-w-0 box-border`;日期框还应使用 `appearance-none`/`WebkitAppearance: 'none'` 或等效约束,避免 iOS/Safari 原生日期控件按自身最小宽度把底部抽屉撑出屏幕。涉及输入框布局时必须按 390px 左右移动端宽度核对不溢出。
-   - 添加/修改/删除/确认类弹窗打开后必须锁定背景页面滚动;移动端不能允许遮罩背后的页面跟随手势移动。优先使用记录 `scrollY` + `body { position: fixed; overflow: hidden; width: 100%; top: -scrollY }` 的方式,关闭弹窗后恢复原位置。表单类弹窗默认居中自适应,不要无故贴底。
-   - 视觉字重默认使用正常字重;除页面标题、重要模块标题和确有层级需要的标题外,普通文本、股票代码、数字、按钮、列表行和订单记录不要使用 `font-bold`、`font-semibold`、`font-black` 或等效加粗样式。
+纯 Markdown：
 
-4. **分层验证**
-   - 默认原则:验证强度与改动风险成比例。改到 `src/` 不等于必须全量验证;先看是否改变业务结果、持久化数据、跨模块状态、提交回调、计算、接口或安全边界。纯视觉和仅影响界面呈现的轻量交互不得默认升级为全量 runtime 流程。
-   - 前端视觉、交互、键盘、滚动、安全区和 PWA 验收统一使用本机 Xcode iOS Simulator。禁止使用桌面 Chrome、Codex 内置浏览器、浏览器响应式视口或缩短浏览器窗口作为视觉通过证据;`npm run verify:frontend-smoke` 也不得作为本地视觉验收。自动化测试与 build 只证明代码门禁,不能替代 iOS 验收。
-
-   - **A. UI-fast / 小型 UI 与展示交互（默认快速通道）**
-     - 适用范围:文字、颜色、图标、字号、字重、边框、间距、固定宽高、对齐、静态显示条件、已确认 HTML 原型的等价接入,以及只影响当前界面呈现的轻量交互。
-     - 轻量交互包括:展开/收起、页签切换、弹窗打开/关闭、焦点样式、按压态、局部滚动、键盘可见性、安全区适配,以及 loading/空状态/错误状态的纯展示调整。允许为这些呈现使用组件内临时状态,但不得写入持久化、全局状态或跨模块状态。
-     - 必须同时满足:不改变业务计算和判断规则,不改变保存/删除/提交/同步/导入/导出等业务回调语义,不改 API、数据库、数据源、持久化、路由结果、鉴权、RLS、行情、交易账本、收益快照、依赖、构建或 CI 配置。共享组件改动只有能证明不会改变其他模块业务行为时才能留在本档。
-     - 本地必跑:
-
-     ```bash
-     <与改动文件直接相关的定向测试;如无对应测试,在日志说明>
-     npm run build
-     git diff --check
-     ```
-
-     - 不默认运行 `npm test`、`npm run verify:frontend-smoke`、`npm audit` 或重复 `verify:toolchain/local-env`;UI-fast 日志必须写明为什么没有运行全量验证。
-     - 只有新建复杂响应式布局、弹窗/输入框、iOS 键盘、滚动/固定定位,或用户明确要求时才必须本地截图;截图必须来自 Xcode iOS Simulator。单纯改文字、颜色、边框、字号可用定向检查 + build 收尾。
-     - 用户已确认静态原型,正式接入与原型等价时,不重复制作同一张截图;只核对差异和构建即可。
-     - 用户说“先本地”、“先看效果”时停在本地,不提前推送。用户明确说“部署”、“上线”、“快速接入并部署”时,上述快速验证 pass 后可直接提交、推送和运行 `npm run verify:deploy-status -- <commit>`;不因要部署而自动补跑全量测试。
-
-   - **B. Runtime deploy / 常规运行时代码改动（实质业务与行为）**
-     - 适用范围:业务逻辑、计算和判断规则;保存/删除/提交/确认/同步/导入/导出等会改变业务结果的交互;数据库或其他持久化读写;全局、跨模块或可恢复状态;API/网络/provider;鉴权、安全和权限边界;交易账本、持仓、收益、快照和币种换算;路由结果、PWA 生命周期/回前台刷新/service worker;依赖、build、CI 或环境配置;以及会改变多个模块数据、状态或业务操作的共享组件行为。
-     - 判定规则:交互是否有动画、弹窗或点击不是分档依据;只改变“怎么显示”走 UI-fast,会改变“保存什么、计算什么、请求什么、下次看到什么或其他模块收到什么”就走 runtime。无法证明没有实质影响时按 runtime 处理。
-     - 必跑:
-
-     ```bash
-     npm run verify:toolchain
-     npm test
-     npm run build
-     npm audit --audit-level=high
-     git diff --check
-     ```
-
-     - 旧 `npm run verify:frontend-smoke` 使用 Chrome/Chromium,从本条准则起不再运行或引用为前端验收结果;保留脚本只为历史兼容,不得写入新发布的视觉通过证据。
-     - runtime 若包含用户可见前端行为,必须在上述代码门禁外补充本地 iOS Simulator 验收;纯服务端 runtime 不要求无关视觉截图。
-
-   - **C. Docs-only evidence / 纯文档和部署证据回填**
-     - 适用范围: 只修改 `docs/` 中的交接、流程、日志或部署证据,且不改变应用源码、依赖、测试、配置、环境变量、PWA 资源或 CI/Vercel 行为。
-     - 可跳过 `npm test`、`npm run build` 和 `npm audit`,因为运行时代码没有变化;日志里必须明确本轮是 docs-only,并引用最近一次 runtime deploy 已通过的测试/构建/audit 结果。
-     - 必跑:
-
-     ```bash
-     npm run verify:docs-consistency
-     git diff --check
-     git diff --stat
-     ```
-
-     - `npm run verify:docs-consistency` 只读取当前状态区、最近日志条目、可转发交接块和设置页版本/更新日志,输出 PASS/FAIL 摘要;不要对整份长日志做无边界 `rg -n` 后贴出大量历史命中。
-     - 如果本轮改动的文档面超出脚本覆盖范围,再补充少量 `sed -n` 定位抽查;仍不要打印长历史日志。
-     - 如果 docs-only 用来回填刚完成的生产部署,必须运行 `npm run verify:deploy-status -- <commit>`,验证对应 GitHub/Vercel status、生产入口和基础鉴权 smoke;额外任务 marker 仍只输出摘要,不要打印 minified bundle。
-
-   - **D. Sensitive change / 生产敏感改动**
-     - 适用范围: auth、RLS、Supabase 策略、`/api/quote`、`/api/earnings-calendar`、行情 relay、交易主账本、收益快照、全账户 cron、付费行情 token、环境变量、安全文档或任何可能影响跨用户数据边界的改动。
-     - 先完整执行 B 档验证,再按影响面补充:
-       - `/api/quote` 未登录必须返回 `401`。
-       - `/api/earnings-calendar` 未登录必须返回 `401`。
-       - RLS 外部暴露复核运行 `npm run verify:rls:rest`。
-       - 数据库/RLS 改动必须说明 Supabase SQL 执行状态。
-       - 安全边界改动必须有对应测试或线上 smoke 覆盖。
-     - 生产敏感改动不能降级到 UI-fast 或 docs-only;如果判断不确定,按 D 档处理。
-
-   - 涉及线上行为但不属于 C 档时,按任务补充目标验证。例如登录页和已登录页面 smoke check、生产 marker、Vite chunk 输出、首页 preload 状态等。
-   - 需要视觉验收时,按以下方式使用本地 iOS 环境并输出截图:
-     - 运行 `npm run dev -- --host 127.0.0.1`,通过 `xcrun simctl list devices available` 选择本机 iPhone Simulator,用 `xcrun simctl boot <UDID>`、`open -a Simulator` 和 `xcrun simctl openurl <UDID> '<本地任务 URL>'` 打开页面。
-     - 默认使用可用的 iPhone Pro 设备与已安装 iOS runtime;输入问题必须用 Simulator 系统软件键盘实际聚焦并输入,不能只压缩视口。主屏 PWA 特有问题必须在模拟器中添加到主屏后复测。
-     - `DevVisualPreview` 只允许作为 iOS Simulator 内的只读 mock 数据入口,不能在桌面浏览器或 Codex 内置浏览器中充当验收环境。
-     - 截图保存到本机固定预览目录 `~/Desktop/boduan-previews/`,文件名写清页面、目标和版本,方便用户在电脑上直接打开。
-     - 同时在聊天窗口用绝对路径 Markdown 图片转发截图,格式示例: `![交易页预览](/Users/chenshuaishuai/Desktop/boduan-previews/example.png)`。
-     - 如果 Codex 客户端或手机端未渲染本地图片,立即 `open` 桌面预览文件,并在回复中给出绝对路径;不能只描述“已截图”。
-     - 截图前确认画面里没有 token、`.env`、Supabase service role key、付费 API key 或其它敏感信息。
-
-5. **必须更新开发日志**
-   - 每次代码、配置、部署、安全或文档改动,都必须在同一个提交中更新 `docs/development-log.md`。
-   - 记录面按风险和发布状态定向同步, 不要每次 UI 改动扫全部文档: `UI-fast` 本地阶段只需日志记录;正式发布时再同步设置页版本/更新日志和必要的 `docs/handoff.md` 当前状态。`runtime` 检查开发日志、交接与可见版本;`sensitive` 再根据影响面检查 README、security hardening 和 architecture audit;`docs-only` 只定向检查当前状态、最近日志和可转发块。
-   - `docs/handoff.md` 在以下任一情况必须同步更新:当前 `main`/关键 commit/部署状态/线上验证变化,设置页版本变化,产品规则或用户可见流程变化,安全边界/环境变量/Supabase/Vercel 配置变化,代码地图或主要风险变化,下一步优先级或可转发交接话术变化。
-   - 只有准备发布的用户可见更新才必须同步设置页更新日志和版本号;开发态 HTML/mock/未确认原型不提前升版本。产品状态、部署状态、安全基线或交接规则变化,再同步对应文档。
-   - 日志必须包含:
-     - 日期和时区
-     - 背景/问题
-     - workflow tier: `ui-fast` / `runtime` / `docs-only` / `sensitive`
-     - 核心改动
-     - 关键文件
-     - 验证命令和结果
-     - commit hash;如果日志和改动在同一提交中,先写 `same commit`,最终交接消息必须给出实际 hash
-     - 部署状态
-     - 线上验证
-     - 回滚方式或后续风险
-
-6. **提交和推送**
-   - commit message 用动词开头,说明实际行为。
-   - 推送分支后优先开 PR。
-   - 合并或快进 `main` 前必须确认构建和必要验证通过。
-   - UI 工作以用户当前阶段指令为准:“先讨论/先 HTML/先本地/先截图”不推送;“部署/上线”才推进到 GitHub `main`。非 UI 实现若用户没有明确要求只做本地,按完整任务继续推进。
-   - 本仓库推送、部署重试、`fetch`、`ls-remote`、刷新 `origin/main` 等所有远端 Git 操作,默认都必须显式使用项目 SSH key 和 `git@github.com:chenshuai1190-dotcom/boduan-tracker.git`。不要用 HTTPS `origin` 作为省事路径;如果 `origin` 仍是 HTTPS,也不要直接运行 `git push origin main`。
-   - 如果 `git push origin main` 走 HTTPS 时报 `could not read Username for 'https://github.com': Device not configured`,不要误判为仓库无权限;本机该项目已有 SSH key `~/.ssh/boduan_tracker_github`,应使用:
-
-     ```bash
-     GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git push git@github.com:chenshuai1190-dotcom/boduan-tracker.git main
-     ```
-
-   - 如果远端检查、`ls-remote`、`fetch` 或 `status` 辅助命令出现 `Permission denied (publickey)`、`could not read Username`、`Device not configured` 或本地 `origin/main` 未刷新,先判定为“命令没有按本仓库 SSH 准则执行”,立即用同一个 `GIT_SSH_COMMAND` 和 `git@github.com:...` 重跑;不得把这类错误写成用户权限不足或部署阻塞。
-   - 推送后如本地 `origin/main` 仍未刷新,用同一个 SSH key fetch: `GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git fetch git@github.com:chenshuai1190-dotcom/boduan-tracker.git main:refs/remotes/origin/main`。
-
-7. **Vercel 自动部署**
-   - `main` 更新后由 Vercel 自动部署。
-   - 进入部署阶段后,这是默认收尾动作;不能停在“已推送但未部署”状态。UI 任务是否进入部署阶段,以用户当前的“先本地/部署”指令为准。
-   - 不在 Vercel 控制台直接改源码。
-   - 环境变量只在 Vercel/Supabase 后台配置,不写进仓库。
-   - 如果 Vercel 对运行时代码提交返回 `Deployment rate limited — retry in 24 hours` 或长时间没有创建 production deployment,不能停在“已推送但未上线”。应先把真实失败状态写入 `docs/development-log.md`,然后创建一个明确的部署重试提交,通过项目 SSH key 推送到 GitHub `main`,并继续轮询 Vercel 到 `success` 或再次确认真实阻塞。部署重试提交不要使用 `[skip ci]`,除非它只是成功上线后的纯文档证据记录。
-   - 如果用户明确要求“部署”“再次部署”或“走 ssh”,必须优先执行上面的 SSH 推送/重试流程,不得改用 HTTPS、不得把第一次 Vercel rate limit 当作最终完成状态。
-   - 如果 GitHub、CI、Vercel 或权限问题导致无法部署,必须在最终交接中明确说明阻塞原因和当前 commit。
-   - docs-only 提交触发 Vercel 后,只需确认 Vercel status 到 `success`、生产入口未异常切换、关键鉴权 smoke 仍符合预期;不需要因这次 docs-only 再重复 runtime 测试/构建/audit。
-   - 标准部署状态检查命令:
-
-     ```bash
-     npm run verify:deploy-status -- <commit>
-     ```
-
-     该脚本通过 `gh` 查询 GitHub Actions 和 Vercel commit status,再检查生产入口、未登录 `/api/quote?symbols=VIX` 和 `/api/earnings-calendar?symbols=NVDA` 是否仍返回 `401`。脚本只输出短摘要,不要再手写长 `curl` / `gh api` JSON 并粘贴大段结果。
-
-8. **生产验证和交接**
-   - 部署完成后验证生产 URL。
-   - 默认先跑 `npm run verify:deploy-status -- <commit>`,再按任务补充具体生产 marker。
-   - 把线上验证结果写入 `docs/development-log.md`。
-   - 最终交接必须说明:
-     - 本轮 workflow tier
-     - 当前 commit
-     - GitHub Actions 状态
-     - Vercel 生产状态
-     - 已跑过的验证
-     - 未解决风险和下一步建议
-
-## Stop Rules
-
-遇到以下情况必须暂停发布,先修正或让用户决策:
-
-- 当前 workflow tier 要求的 `npm run build` 失败
-- 已运行的定向测试或 `npm test` 失败
-- 已运行的 `npm audit` 出现生产依赖高风险漏洞
-- 发现真实 token、密钥或敏感 URL 被写入仓库
-- `/api/quote` 未登录不再返回 `401`
-- 线上行为和 GitHub `main` 不一致
-- 需要在 Vercel/腾讯云控制台手改代码才能生效
-- 数据库策略不确定,可能造成跨用户读写
-- docs-only 过程中发现源码、配置、依赖、测试或生产行为也被改动,必须升级到 runtime 或 sensitive 档并补跑对应验证
-
-## Log Template
-
-复制以下模板追加到 `docs/development-log.md`:
-
-```markdown
-### YYYY-MM-DD - <short title>
-
-- Commit: `<hash>` or `same commit`
-- Background:
-- Workflow tier: `ui-fast` / `runtime` / `docs-only` / `sensitive`
-- Changes:
-- Key files:
-- Validation:
-  - Runtime: `npm test` / `npm run build` / `npm run verify:frontend-smoke` / `npm audit --audit-level=high` / `git diff --check`
-  - UI-fast: `<targeted test or reason skipped>` / `npm run build` / `git diff --check`
-  - Tooling/deploy: `npm run verify:toolchain` / `npm run verify:deploy-status -- <commit>`
-  - Docs-only: `npm run verify:docs-consistency` / `git diff --check` / `git diff --stat`
-  - Sensitive: runtime checks plus affected API/RLS/security smoke
-  - Other checks:
-- Deployment:
-- Production verification:
-- Rollback:
-- Follow-up:
+```bash
+git status --short
+git diff HEAD --check
 ```
+
+改到三份权威文档的结构、设置页版本或 handoff 当前状态时再运行：
+
+```bash
+npm run check:docs
+```
+
+展示代码、组件局部逻辑或普通修复：
+
+```bash
+node --test tests/<直接相关测试>.test.js   # 有直接相关测试时运行
+npm run check:fast
+```
+
+FAST 本地明确不要求：全量 `npm test`、audit、toolchain、local-env、RLS、401、marker 回查、全库文档扫描或手工开发日志。代码推送后仍由 GitHub CI 统一跑一次全量测试、build 和 high-level audit，本地不重复。
+
+纯文案、颜色、图标和简单样式不要求 iOS Simulator。只有改动实际涉及布局尺寸、触摸、弹窗、输入、键盘、滚动、固定定位、安全区或 PWA 视觉行为时，才验收受影响页面；不要求无关页面和重复截图。
+
+### FAST 上线
+
+用户明确要求“上线/部署”后：
+
+1. 确认 diff 只包含目标改动。
+2. 提交并使用项目 SSH key 推送 `main`。
+3. 代码变更只运行一次 `npm run verify:deploy-status -- <commit>`。
+4. 纯 Markdown 不运行 deploy-status，也不等待 Vercel；GitHub Docs workflow 的轻量检查足够。
+
+FAST 不因“要上生产”自动升级 FULL。
+
+## FULL：必须完整验证
+
+出现以下任一项才进入 FULL：
+
+- Auth、session、token、CORS/origin、登录、注册、找回密码、邀请码或管理员能力。
+- RLS、`auth.uid()`、`user_id`、跨用户隔离、grant/revoke、policy、trigger、function、schema、migration 或生产数据修复。
+- 正式交易、波段/摊薄 scope、持仓、现金流、收益、排名、QQQ、汇率、快照、ledger revision/hash/CAS。
+- API contract、handler/runtime 语义、provider、服务端网络请求、行情 freshness/fallback、symbol normalization、realtime relay 或 secret 使用；API 文件里的纯注释仍可走 FAST。
+- 数据库读写、query shape、data source、导入/导出/恢复，以及保存/删除/提交/同步结果、持久化结构、跨模块共享状态、账户切换缓存或可恢复状态。
+- Cron、service role、目标交易日、publication marker、批处理、并发、幂等性或锁顺序。
+- 路由结果、PWA 生命周期、service worker、offline/cache version、resume/focus/pageshow/visibility 恢复逻辑。
+- 依赖、lockfile、Vite/build、GitHub Actions、Vercel 配置或环境变量。
+- 大范围共享组件/工具重构，无法通过定向测试证明影响封闭。
+
+### FULL 本地门禁
+
+开发过程中可按需先跑 `node --test tests/<受影响测试>.test.js` 快速定位；最终门禁只需：
+
+```bash
+npm run check:full
+```
+
+`check:full` 包含完整测试、production build 和 whitespace check。依赖未变化时，本地不重复 CI 的 audit；只有首次工作区、换机或工具异常时再运行 `npm run verify:toolchain`，只有任务确实需要真实环境时再运行 `npm run verify:local-env`。
+
+### FULL 按影响追加，不做无关检查
+
+| 实际影响 | 追加验证 |
+| --- | --- |
+| quote / earnings 鉴权或 handler | 对应未登录 `401` 与 endpoint 定向测试 |
+| RLS / schema / grant / user scope | `npm run verify:rls:rest`；必要时 metadata 与双用户隔离 |
+| 交易账本 / 收益 / 快照 / Cron / 比赛 | 对应定向测试、幂等性和部署后聚合只读回查 |
+| PWA lifecycle / cache / service worker | iOS 主屏 PWA 受影响路径 |
+| 依赖 / lockfile | 额外运行 `npm run audit`；无需 RLS/marker |
+| 纯服务端 FULL | 不做无关 Simulator 截图 |
+
+数据库 migration、backfill、删除、覆盖或生产写操作仍需要用户明确授权；必须先只读确认精确目标，执行后做聚合 postflight，并说明回滚。
+
+### FULL 上线
+
+1. 本地门禁与受影响专项检查通过。
+2. 提交并使用项目 SSH key 推送 GitHub `main`；大范围或难回滚改动再使用分支/PR，不把 PR 变成所有小改的仪式。
+3. 等待代码 CI 和 Vercel success。
+4. 运行一次 `npm run verify:deploy-status -- <commit>`，再补唯一必要的任务专项 smoke。
+
+## 文档与版本策略
+
+只维护三份权威文档，而且一次改动通常只更新其中一份：
+
+- `README.md`：仅当稳定架构、安全边界、环境或产品硬规则改变。
+- `docs/development-process.md`：仅当 FAST/FULL 或发布规则改变。
+- `docs/handoff.md`：仅在明确交接、当前生产基准/风险/下一步发生实质变化时。
+
+不再维护 `docs/development-log.md`、`docs/security-hardening.md` 或 `docs/architecture-security-audit.md`。历史由 Git、Actions/Vercel 和设置页 changelog 保存。
+
+以下情况不升设置页版本、不写应用内 changelog：纯文档、注释、内部重构、无用户感知的修复、单纯部署证据。只有值得用户看到的功能或行为发布才批量升版本并更新 `src/lib/settingsChangelog.js`；不要求每个微小提交都升版本。
+
+## Git 与部署
+
+首次开始或远端可能变化时：
+
+```bash
+GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" git fetch origin
+git checkout main
+git pull --ff-only origin main
+git status --short --branch
+```
+
+推送：
+
+```bash
+GIT_SSH_COMMAND="ssh -i ~/.ssh/boduan_tracker_github -o IdentitiesOnly=yes" \
+  git push git@github.com:chenshuai1190-dotcom/boduan-tracker.git main
+```
+
+不要改用 HTTPS token，也不要把 SSH 命令使用错误误报成仓库权限问题。
+
+## 立即停止或升级
+
+- FAST diff 出现 API、持久化、业务回调、金融计算、共享状态、安全或配置：立即升级 FULL。
+- 任何已运行的测试、build、audit、docs check 或专项 smoke 失败：停止上线。
+- 发现 secret、跨用户读写风险、生产与 GitHub 不一致、需要线上手改代码：停止并先修复。
+- 不确定是否会改变财务结果或用户数据边界：按 FULL 处理。
