@@ -95,6 +95,8 @@ if (failures.length === 0) {
   requireMarkers('development-process', processDoc, [
     '## FAST：默认快速通道',
     '## FULL：必须完整验证',
+    '静态 HTML',
+    '本机真实 Xcode iOS Simulator',
     'npm run check:docs',
     'npm run check:fast',
     'npm run check:full',

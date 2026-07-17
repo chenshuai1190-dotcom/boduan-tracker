@@ -47,7 +47,7 @@ npm run check:fast
 
 FAST 本地明确不要求：全量 `npm test`、audit、toolchain、local-env、RLS、401、marker 回查、全库文档扫描或手工开发日志。代码推送后仍由 GitHub CI 统一跑一次全量测试、build 和 high-level audit，本地不重复。
 
-纯文案、颜色、图标和简单样式不要求 iOS Simulator。只有改动实际涉及布局尺寸、触摸、弹窗、输入、键盘、滚动、固定定位、安全区或 PWA 视觉行为时，才验收受影响页面；不要求无关页面和重复截图。
+纯文案、颜色、图标和简单样式不要求制作截图。需要制作或交付静态 HTML、页面截图作为视觉确认时，必须通过 localhost 在本机真实 Xcode iOS Simulator 的 Safari 中打开并截图；桌面浏览器、Codex 内置浏览器、响应式视口以及手工伪造的 iOS 状态栏都不能作为截图证据。不要求无关页面和重复截图。
 
 ### FAST 上线
 
