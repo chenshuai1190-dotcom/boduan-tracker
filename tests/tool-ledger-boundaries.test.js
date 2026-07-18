@@ -570,8 +570,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.353'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.353', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.354'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.354', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('首页股票收盘价口径修正') && settingsChangelogSource.includes('不再展示盘后成交价') && settingsChangelogSource.includes('不会用盘后价伪装为收盘价'), 'settings changelog should document the official-close home display boundary');
   assert.ok(settingsChangelogSource.includes('首页当前回撤面板升级') && settingsChangelogSource.includes('美东开盘 09:30:00') && settingsChangelogSource.includes('不用盘后成交冒充收盘回撤'), 'settings changelog should document the drawdown sheet and locked-close semantics');
   assert.ok(settingsChangelogSource.includes('收益比赛受保护补漏入口') && settingsChangelogSource.includes('最近一个已完成收盘日') && settingsChangelogSource.includes('不接受任意日期'), 'settings changelog should document the protected latest-completed recovery path');
   assert.ok(settingsChangelogSource.includes('收益比赛日榜完整补齐与真实日期修复') && settingsChangelogSource.includes('补成完整批次后立即发布') && settingsChangelogSource.includes('绝不会冒充完整榜单'), 'settings changelog should document exact catch-up, publication proof, and truthful daily dates');
@@ -987,9 +988,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(appSource.includes("requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume', { resetFreshness: false })"), 'iOS PWA touch fallback should not restart the holding price freshness mask');
   assert.ok(appSource.includes("requestResumeRefresh('auto-ios-resume', { resetFreshness: true })"), 'iOS PWA visibility resume should still restart the holding price freshness mask');
   assert.ok(appSource.includes("iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })"), 'cloud-loaded iOS PWA burst should still restart the holding price freshness mask');
-  assert.ok(homeTabSource.includes("maskPrice: isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt)"), 'home holdings should mask only position prices without a fresh same-symbol tick');
-  assert.ok(homeTabSource.includes('lockedDisplayPrice: lockedCloseDisplayPrice(row)'), 'home holdings should expose the close-locked display fallback');
-  assert.ok(homeTabSource.includes("item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)"), 'home holdings should show locked close instead of -- only when daily pnl is close-locked');
+  assert.ok(homeTabSource.includes('const maskLivePrice = isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt);'), 'home holdings should mask only live position prices without a fresh same-symbol tick');
+  assert.ok(homeTabSource.includes('resolveHomeMarketDisplayMetrics(row, {'), 'home watchlist and holdings should share the close-locked display resolver');
+  assert.ok(homeTabSource.includes("hasFiniteMarketValue(item.price) && Number(item.price) > 0 ? fmtMoney(item.price, 2) : '--'"), 'home watchlist and holdings should render only the resolved official-close or live price');
   assert.ok(tradesTabSource.includes('const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);'), 'trade holdings should mask current price from same-symbol quote freshness');
   assert.ok(tradesTabSource.includes('const lockedCurrentPrice = lockedCloseDisplayPrice(position);'), 'trade holdings should calculate the close-locked display fallback');
   assert.ok(tradesTabSource.includes('const displayCurrentPrice = maskCurrentPrice ? (lockedCurrentPrice || 0) : toNumber(position.currentPrice);'), 'trade holdings should preserve the close-locked display fallback before rendering or simulating');
@@ -2394,7 +2395,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.353'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.354'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

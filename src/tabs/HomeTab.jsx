@@ -8,6 +8,7 @@ import {
   nextHomeSignalBenchmarkSortDirection,
   sortHomeSignalBenchmarkRows,
 } from '../lib/homeSignalBenchmark.js';
+import { resolveHomeMarketDisplayMetrics } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
@@ -98,13 +99,6 @@ function formatMarketMoversDate(value, language = 'zh') {
   return `${month}/${day}`;
 }
 
-function drawdownFromHigh(price, high) {
-  const p = num(price);
-  const h = num(high);
-  if (p <= 0 || h <= 0) return null;
-  return (p - h) / h;
-}
-
 function fmtDrawdownPct(value) {
   if (value === null || value === undefined) return '--';
   const n = num(value) * 100;
@@ -153,11 +147,6 @@ function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
   const quoteSymbol = String(quoteRow?.symbol || '').trim().toUpperCase();
   if (!quoteRow || quoteSymbol !== normalizedSymbol) return true;
   return freshnessTimestamp(quoteRow) < startedAt;
-}
-
-function lockedCloseDisplayPrice(row) {
-  const price = num(row?.dailyPnlPrice);
-  return row?.dailyPnlLocked && price > 0 ? price : null;
 }
 
 function SortIcon({ active, direction }) {
@@ -866,16 +855,25 @@ export default function HomeTab({ ctx }) {
     const quote = quoteBySymbol.get(symbol) || row;
     const freshQuote = freshQuoteBySymbol.get(String(symbol || '').toUpperCase());
     const position = isPosition ? row : positionsBySymbol.get(symbol);
-    const price = isPosition ? row.currentPrice : row.price;
-    const changePct = isPosition ? row.changePercent : row.changePercent;
+    const rawPrice = isPosition ? row.currentPrice : row.price;
+    const rawChangePct = row.changePercent;
     const pnlValue = position ? (position.holdingPnl ?? position.totalPnl) : null;
     const pnlPct = position ? (position.holdingPnlPct ?? position.totalPnlPct) : null;
     const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
     const high = row.high || row.week52High || quote?.high || quote?.week52High;
-    const highDrawdown = drawdownFromHigh(price, high);
+    const maskLivePrice = isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt);
+    const marketDisplay = resolveHomeMarketDisplayMetrics(row, {
+      livePrice: rawPrice,
+      liveChangePercent: rawChangePct,
+      high,
+      maskLivePrice,
+    });
+    const price = marketDisplay.price;
+    const changePct = marketDisplay.changePercent;
+    const highDrawdown = marketDisplay.highDrawdown;
     const ytdRaw = quote?.ytdChangePercent ?? row.ytdChangePercent;
     const ytdChangePercent = Number.isFinite(Number(ytdRaw)) ? Number(ytdRaw) : null;
-    const color = marketColor(changePct, marketColorMode);
+    const color = changePct === null ? '#ffffff40' : marketColor(changePct, marketColorMode);
     const ytdColor = ytdChangePercent === null ? '#ffffff40' : marketColor(ytdChangePercent, marketColorMode);
     const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
     const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
@@ -887,8 +885,6 @@ export default function HomeTab({ ctx }) {
       symbol,
       quote,
       price,
-      maskPrice: isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt),
-      lockedDisplayPrice: lockedCloseDisplayPrice(row),
       changePct,
       pnlValue,
       pnlPct,
@@ -1309,8 +1305,8 @@ export default function HomeTab({ ctx }) {
                         <span className="block truncate text-[10px] leading-[12px] text-white/35">{item.displayName}</span>
                       </span>
                     </div>
-                    <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{item.maskPrice ? (item.lockedDisplayPrice ? fmtMoney(item.lockedDisplayPrice, 2) : '--') : fmtMoney(item.price, 2)}</span>
-                    <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtMarketPct(item.changePct)}</span>
+                    <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{hasFiniteMarketValue(item.price) && Number(item.price) > 0 ? fmtMoney(item.price, 2) : '--'}</span>
+                    <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtOptionalMarketPct(item.changePct)}</span>
                     <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                       {fmtDrawdownPct(item.highDrawdown)}
                     </span>

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.353', date: '2026-07-18', latest: true,
+    ver: 'v10.7.9.354', date: '2026-07-18', latest: true,
+    items: [
+      '📈 首页股票收盘价口径修正',
+      '  - 首页自选与持仓在盘后或休市时改为显示最近正式收盘价，不再展示盘后成交价',
+      '  - 涨跌幅和距52周高回撤同步使用同一收盘价口径；正常盘中继续显示实时行情',
+      '  - 正式收盘价缺失时显示“--”，不会用盘后价伪装为收盘价',
+    ],
+    itemsEn: [
+      '📈 Home stock close-price correction',
+      '  - Home watchlist and holdings now show the latest official close after hours or while the market is closed instead of an after-hours trade',
+      '  - Change and 52-week drawdown use that same close-price basis, while regular-session prices remain live',
+      '  - A missing official close is shown as “--” rather than substituting an after-hours price',
+    ],
+  },
+  {
+    ver: 'v10.7.9.353', date: '2026-07-18',
     items: [
       '📡 首页当前回撤面板升级',
       '  - 点击当前信号右侧回撤区域可打开股票回撤面板，默认保持原有股票顺序，并支持按回撤深浅切换排序',
