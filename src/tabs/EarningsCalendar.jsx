@@ -128,10 +128,10 @@ function formatSignedPercent(value, digits = 1) {
   return `${sign}${n.toFixed(digits)}%`;
 }
 
-function signedPercentClass(value) {
+function signedPercentClass(value, marketColorMode) {
   const n = Number(value);
   if (!Number.isFinite(n) || n === 0) return 'text-white/55';
-  return n > 0 ? 'text-[#ff6b55]' : 'text-emerald-400';
+  return marketTextClass(n, marketColorMode);
 }
 
 function logoUrls(symbol, cachedUrl) {
@@ -509,11 +509,11 @@ function PublishedFinancialComparison({ event, language, marketColorMode }) {
             </div>
             <div className="min-w-0 text-right">
               <div className="truncate text-[15px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.actual}</div>
-              <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.actualYoy)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(row.actualYoy)}</div>
+              <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.actualYoy, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(row.actualYoy)}</div>
             </div>
             <div className="min-w-0 text-right">
               <div className="truncate text-[15px] leading-none text-white/60 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.estimate}</div>
-              <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.estimateYoy)}`} style={{ fontFamily: NUMBER_FONT }}>{row.estimateUnavailable ? '—' : formatSignedPercent(row.estimateYoy)}</div>
+              <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.estimateYoy, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{row.estimateUnavailable ? '—' : formatSignedPercent(row.estimateYoy)}</div>
             </div>
           </div>
         );
@@ -522,7 +522,7 @@ function PublishedFinancialComparison({ event, language, marketColorMode }) {
   );
 }
 
-function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, language, resultMarker = null }) {
+function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, language, marketColorMode, resultMarker = null }) {
   return (
     <div className="min-w-0 text-left">
       <div className="text-[10px] leading-none text-white/35">{label}</div>
@@ -530,9 +530,9 @@ function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, 
         <span className="truncate text-[12px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{actual}</span>
         {resultMarker}
       </div>
-      <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(actualPercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(actualPercent)}</div>
+      <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(actualPercent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(actualPercent)}</div>
       <div className="mt-1.5 truncate text-[10px] leading-none text-white/30 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{t(language, 'earningsCalendar.forecastShort', '预期')} {estimate}</div>
-      <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(estimatePercent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(estimatePercent)}</div>
+      <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(estimatePercent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(estimatePercent)}</div>
     </div>
   );
 }
@@ -546,6 +546,7 @@ function PublishedEarningsEventRow({
   cacheStockLogo,
   displayStockName,
   language,
+  marketColorMode,
   onOpenDetail,
 }) {
   const name = eventDisplayName(event, displayStockName, language);
@@ -593,6 +594,7 @@ function PublishedEarningsEventRow({
           estimate={formatNumber(event.epsEstimate)}
           estimatePercent={event.epsEstimateYoyPercent}
           language={language}
+          marketColorMode={marketColorMode}
           resultMarker={epsMetricResult ? <EarningsResultMarker result={epsMetricResult} /> : null}
         />
         <MetricStack
@@ -602,10 +604,11 @@ function PublishedEarningsEventRow({
           estimate={formatRevenueUsd(revenueValue(event, 'estimate'), language, { compact: true })}
           estimatePercent={event.revenueEstimateYoyPercent}
           language={language}
+          marketColorMode={marketColorMode}
         />
         <div className="min-w-0 text-right">
           <div className="text-[10px] leading-none text-white/35">{reactionLabel(reaction, language)}</div>
-          <div className={`mt-1.5 text-[12px] leading-none tabular-nums ${signedPercentClass(reaction.percent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
+          <div className={`mt-1.5 text-[12px] leading-none tabular-nums ${signedPercentClass(reaction.percent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
         </div>
       </div>
     </button>
@@ -707,7 +710,7 @@ function PublishedEarningsDetail({
             <div className="mt-1 text-[10px] text-white/30">{reactionStatusText(reaction, language)}</div>
           </div>
           <div className="text-right">
-            <div className={`text-[15px] leading-none tabular-nums ${signedPercentClass(reaction.percent)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
+            <div className={`text-[15px] leading-none tabular-nums ${signedPercentClass(reaction.percent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
             <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] ${earningsResultTone(result)}`}>{availableResultText(event, result, language)}</span>
           </div>
         </div>
@@ -868,6 +871,7 @@ function EarningsModal({
                     cacheStockLogo={cacheStockLogo}
                     displayStockName={displayStockName}
                     language={language}
+                    marketColorMode={marketColorMode}
                     onOpenDetail={setDetailEvent}
                   />
                 ))}
@@ -892,6 +896,7 @@ function EarningsModal({
                   cacheStockLogo={cacheStockLogo}
                   displayStockName={displayStockName}
                   language={language}
+                  marketColorMode={marketColorMode}
                   onOpenDetail={setDetailEvent}
                 />
               ))}

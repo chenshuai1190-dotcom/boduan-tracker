@@ -849,6 +849,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes("import { marketTextClass } from '../lib/marketColorMode.js';"), 'earnings result labels should reuse the system market-color helper');
   assert.ok(earningsCalendarSource.includes("if (result === 'beat') return marketTextClass(1, marketColorMode);") && earningsCalendarSource.includes("if (result === 'miss') return marketTextClass(-1, marketColorMode);"), 'beat and miss labels should follow the configured up/down colors');
   assert.equal(earningsCalendarSource.includes("if (result === 'beat') return 'text-[#ff7b5a]'"), false, 'beat labels should not keep the off-system coral color');
+  assert.ok(earningsCalendarSource.includes('return marketTextClass(n, marketColorMode);'), 'earnings percentages should reuse the system market-color helper');
+  assert.equal(earningsCalendarSource.includes("return n > 0 ? 'text-[#ff6b55]' : 'text-emerald-400';"), false, 'earnings percentages should not keep the off-system coral/green pair');
+  assert.ok(earningsCalendarSource.includes('signedPercentClass(row.actualYoy, marketColorMode)') && earningsCalendarSource.includes('signedPercentClass(row.estimateYoy, marketColorMode)'), 'published financial actual and estimate YoY should follow system colors');
+  assert.ok(earningsCalendarSource.includes('signedPercentClass(actualPercent, marketColorMode)') && earningsCalendarSource.includes('signedPercentClass(estimatePercent, marketColorMode)'), 'earnings list actual and estimate YoY should follow system colors');
+  assert.ok(earningsCalendarSource.includes('signedPercentClass(reaction.percent, marketColorMode)'), 'earnings list and detail market reactions should follow system colors');
   assert.ok(homeTabSource.includes('marketColorMode={marketColorMode}'), 'home earnings detail should receive the active market-color mode');
   assert.ok(earningsCalendarSource.includes('actualYoy: event.ebitActualYoyPercent'), 'published earnings detail should render reported EBIT YoY comparison');
   assert.ok(earningsCalendarSource.includes("estimate: '—'"), 'published earnings detail should show an em dash when EBIT consensus is unavailable');
