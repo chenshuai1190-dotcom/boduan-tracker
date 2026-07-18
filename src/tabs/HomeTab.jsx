@@ -1192,10 +1192,7 @@ export default function HomeTab({ ctx }) {
                       className="h-9 w-9 rounded-lg"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="flex min-w-0 items-baseline gap-2">
-                        <span className="shrink-0 text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>
-                        <span className="truncate text-[12px] text-white/52">{name}</span>
-                      </span>
+                      <span className="block text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>
                       <span className="mt-0.5 block truncate text-[10px] text-white/30">{company || name}</span>
                     </span>
                     <span className={`shrink-0 text-[15px] font-normal tabular-nums ${drawdownClass}`} style={{ fontFamily: NUMBER_FONT }}>

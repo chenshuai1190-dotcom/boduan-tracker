@@ -2348,7 +2348,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('truncate text-base font-black text-white'), false, 'current signal status text should not return to bold pure white');
   assert.ok(homeTabSource.includes('text-[19px] font-normal leading-none tabular-nums'), 'current signal percentage should use normal weight');
   assert.equal(homeTabSource.includes('text-[19px] font-black leading-none tabular-nums'), false, 'current signal percentage should not return to bold');
-  assert.ok(homeTabSource.includes('<span className="shrink-0 text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>'), 'benchmark menu symbol should use normal weight');
+  assert.ok(homeTabSource.includes('<span className="block text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>'), 'benchmark menu symbol should use normal weight without a duplicated display name');
   assert.equal(homeTabSource.includes('<span className="block font-black">{item.symbol}</span>'), false, 'benchmark menu symbol should not return to bold');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}"), 'home watchlist tab label should match the muted current-signal status brightness');
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}"), 'home holdings tab label should match the muted current-signal status brightness');
