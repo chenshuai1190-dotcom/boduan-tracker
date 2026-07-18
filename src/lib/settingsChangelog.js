@@ -1,6 +1,19 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.355', date: '2026-07-18', latest: true,
+    ver: 'v10.7.9.356', date: '2026-07-18', latest: true,
+    items: [
+      '🏆 比赛榜单刷新状态提示',
+      '  - 旧榜单继续显示；确认存在新发布并读取完整榜单时，在“我的排名”卡片右上角显示“正在加载最新榜单…”',
+      '  - 请求结束后提示自动消失，不新增请求，也不改变收益、排名、快照或缓存刷新逻辑',
+    ],
+    itemsEn: [
+      '🏆 Competition leaderboard refresh status',
+      '  - The cached ranking stays visible while a compact notice appears in the My Rank card only when a newer publication requires the full leaderboard',
+      '  - The notice clears when the request settles without adding requests or changing return, ranking, snapshot, or cache-refresh logic',
+    ],
+  },
+  {
+    ver: 'v10.7.9.355', date: '2026-07-18',
     items: [
       '🏆 iOS 比赛榜单自动刷新修复',
       '  - iOS 主屏应用恢复前台时不再被可能失真的离线状态拦截，会按原有规则主动核对最新发布状态',

@@ -313,6 +313,8 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(competitionRankHeaderIndex >= 0, 'my rank label and rank number should stay together in the original top-left row');
   assert.ok(competitionSelfAvatarIndex > competitionRankHeaderIndex, 'the signed-in user avatar should render below the original rank row');
   assert.ok(competitionHeroMetricsIndex > competitionSelfAvatarIndex, 'the return metrics should move to the right of the signed-in user avatar');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-leaderboard-refresh') && communityCompetitionPageSource.includes('role="status"') && communityCompetitionPageSource.includes('aria-live="polite"'), 'a stale cached leaderboard should expose a compact accessible refresh notice in the self card');
+  assert.ok(communityCompetitionPageSource.includes("tt('competition.loadingLatestLeaderboard', '正在加载最新榜单…')"), 'the self-card refresh notice should identify that the latest full leaderboard is loading');
   assert.ok(communityCompetitionPageSource.includes('const selfAvatar = self?.avatarKey ? getCommunityAvatarOption(self.avatarKey) : null;'), 'the self card must only render an authoritative profile avatar');
   assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname') && communityCompetitionPageSource.includes("{self?.nickname || '--'}"), 'the self card should show the authoritative community nickname below the avatar');
   assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname className="-ml-3 w-[80px] truncate text-center text-[12px] font-semibold leading-4 text-white/[0.72]'), 'the self nickname should use the requested compact size and leaderboard color with the wider avatar-centered safe width');
@@ -346,6 +348,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(i18nSource.includes("'competition.outperformNasdaq': 'Beat QQQ'"), 'English outperformance copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.dataDisclosure': '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'"), 'Chinese disclosure should remain translated centrally');
   assert.ok(i18nSource.includes("'competition.dataAsOfClose': '数据截至 {{date}} 收盘'") && i18nSource.includes("'competition.dataAsOfClose': 'Data through {{date}} close'"), 'snapshot data-date copy should remain bilingual');
+  assert.ok(i18nSource.includes("'competition.loadingLatestLeaderboard': '正在加载最新榜单…'") && i18nSource.includes("'competition.loadingLatestLeaderboard': 'Loading latest ranking…'"), 'the cached-leaderboard refresh notice should remain bilingual');
   assert.ok(communityCompetitionServerSource.includes('publicationCompletedAt: publication.completedAt') && communityCompetitionServerSource.includes('snapshotUpdatedAt: publication.completedAt'), 'the API should expose marker completion as an explicit audit field while preserving its cache compatibility field');
   assert.ok(communityCompetitionPageSource.includes("'border-[#2a313b]/90'"), 'rank 4+ avatars should use a muted dark border instead of white');
   assert.equal(communityCompetitionPageSource.includes("'border-white/12'"), false, 'rank 4+ avatars must not render a white avatar border');
@@ -398,6 +401,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionCacheSource.includes('COMMUNITY_COMPETITION_CACHE_VERSION = 5') && communityCompetitionCacheSource.includes('getCommunityCompetitionSnapshotStatusDecision'), 'competition cache v5 should invalidate a waiting cache that predates marker bootstrap and compare the durable date and opaque version before a full refresh');
   assert.ok(communityCompetitionCacheSource.includes("reason: 'status_poll_uninitialized'") && communityCompetitionCacheSource.includes('bottomline-community-competition-cache-v5'), 'an eligible waiting PWA must start lightweight status polling even after full-read attempts are exhausted');
   assert.ok(communityCompetitionPageSource.includes('communityCompetitionClient.snapshotStatus({ supabase })') && communityCompetitionPageSource.includes('invalidateCommunityCompetitionRequests(userId);'), 'a status advance should invalidate stale in-flight requests before reading the full leaderboard');
+  assert.ok(communityCompetitionPageSource.includes('setRefreshingLeaderboardViewKey(requestViewKey)') && communityCompetitionPageSource.includes('leaderboardRefreshing={refreshingLeaderboardViewKey === activeViewKey}'), 'the refresh notice should appear only for the active period after a newer publication requires a full leaderboard read');
   assert.ok(communityCompetitionPageSource.includes('expectedPublication') && communityCompetitionPageSource.includes('responsePublication?.version !== expectedPublication.version'), 'a full leaderboard or authoritative waiting response must match the exact status marker before cache commit');
   assert.ok(communityCompetitionPageSource.includes('propagateError: true') && communityCompetitionPageSource.includes('if (propagateError) throw error;'), 'a failed marker-driven full read must reach the one-minute cooldown instead of looping immediately');
   assert.ok(communityCompetitionPageSource.includes("document.visibilityState === 'hidden'"), 'hidden PWA states must not poll snapshot status');
@@ -420,6 +424,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(devVisualPreviewSource.includes("user: { id: 'dev-user', email: 'preview@example.com' }"), 'local competition preview should use an isolated development cache identity');
   assert.ok(devVisualPreviewSource.includes('disableCommunityCompetitionCache: !competitionResumeSmoke'), 'local competition preview should disable ranking caches except for the explicit isolated PWA resume smoke');
   assert.ok(devVisualPreviewSource.includes("competitionResumeUserIdRef = React.useRef(`dev-resume-smoke-${Math.random()"), 'the PWA resume smoke cache must use a unique development-only identity');
+  assert.ok(devVisualPreviewSource.includes("state: 'snapshot_status'") && devVisualPreviewSource.includes('window.setTimeout(resolve, 3_000)'), 'the isolated PWA resume fixture should expose the marker-driven refresh notice long enough for real iOS Simulator screenshot QA');
   assert.ok(communityCompetitionPageSource.includes('w-[320px] max-w-[calc(100vw-20px)]'), 'static user card should be wide enough for multiple holding symbols without exceeding the viewport');
   assert.ok(communityCompetitionPageSource.includes('max-h-[112px] overflow-y-auto'), 'holding symbols should wrap and scroll inside the static card when numerous');
   assert.ok(communityCompetitionPageSource.includes('[text-wrap:balance]') && communityCompetitionPageSource.includes('[text-wrap:pretty]'), 'competition hint copy should use balanced or natural optimized wrapping according to the surface');
@@ -574,8 +579,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.355'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.355', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.356'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.356', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('比赛榜单刷新状态提示') && settingsChangelogSource.includes('正在加载最新榜单…'), 'settings changelog should document the compact stale-leaderboard refresh notice');
   assert.ok(settingsChangelogSource.includes('iOS 比赛榜单自动刷新修复'), 'settings changelog should document the isolated competition cache recovery');
   assert.ok(settingsChangelogSource.includes('首页股票收盘价口径修正') && settingsChangelogSource.includes('不再展示盘后成交价') && settingsChangelogSource.includes('不会用盘后价伪装为收盘价'), 'settings changelog should document the official-close home display boundary');
   assert.ok(settingsChangelogSource.includes('首页当前回撤面板升级') && settingsChangelogSource.includes('美东开盘 09:30:00') && settingsChangelogSource.includes('不用盘后成交冒充收盘回撤'), 'settings changelog should document the drawdown sheet and locked-close semantics');
@@ -2400,7 +2406,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.355'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.356'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

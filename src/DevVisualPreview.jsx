@@ -856,6 +856,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       );
       if (!competitionResumeSmoke || preview.state !== 'ready') return preview;
       competitionResumeFetchCountRef.current += 1;
+      if (competitionResumeFetchCountRef.current > 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3_000));
+      }
       return competitionResumeFetchCountRef.current > 1
         ? {
           ...preview,
@@ -865,6 +868,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         }
         : preview;
     },
+    snapshotStatus: async () => ({
+      success: true,
+      state: 'snapshot_status',
+      channel: 'competition',
+      snapshotDate: competitionResumeClockRef.current >= Date.parse('2026-07-13T21:11:00.000Z')
+        ? '2026-07-13'
+        : '2026-07-10',
+      version: competitionResumeClockRef.current >= Date.parse('2026-07-13T21:11:00.000Z')
+        ? 'preview_snapshot_20260713'
+        : 'preview_snapshot_20260710',
+      completedAt: competitionResumeClockRef.current >= Date.parse('2026-07-13T21:11:00.000Z')
+        ? '2026-07-13T21:11:00.000Z'
+        : '2026-07-10T21:18:00.000Z',
+    }),
     join: async () => buildCommunityCompetitionPreview('waiting_snapshot'),
   }), [competitionPreviewState, competitionResumeSmoke]);
   React.useEffect(() => {

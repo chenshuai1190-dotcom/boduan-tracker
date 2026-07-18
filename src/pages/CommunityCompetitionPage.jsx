@@ -375,7 +375,7 @@ function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = fal
   );
 }
 
-function CompetitionContent({ data, period, language, tt }) {
+function CompetitionContent({ data, period, language, tt, leaderboardRefreshing = false }) {
   const [selection, setSelection] = React.useState(null);
   const ready = data?.state === 'ready';
   const stats = ready ? (data.stats || {}) : {};
@@ -423,9 +423,22 @@ function CompetitionContent({ data, period, language, tt }) {
   return (
     <div className="space-y-3 pt-3">
       <section className="overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 pb-2 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-end gap-3">
-          <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
-          <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
+        <div className="flex min-h-8 items-start justify-between gap-3">
+          <div className="flex items-end gap-3">
+            <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
+            <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
+          </div>
+          {leaderboardRefreshing ? (
+            <div
+              data-competition-leaderboard-refresh
+              role="status"
+              aria-live="polite"
+              className="mt-0.5 flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#f6b54b]/[0.16] bg-[#f6b54b]/[0.07] px-2 text-[9.5px] text-[#d7b273]"
+            >
+              <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} />
+              <span>{tt('competition.loadingLatestLeaderboard', '正在加载最新榜单…')}</span>
+            </div>
+          ) : null}
         </div>
         <div className="mt-3 grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4">
           <div data-competition-self-profile className="min-w-0">
@@ -534,6 +547,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
       : { state: 'loading', data: null, error: '' };
   });
   const [refreshTick, setRefreshTick] = React.useState(0);
+  const [refreshingLeaderboardViewKey, setRefreshingLeaderboardViewKey] = React.useState('');
   const [joining, setJoining] = React.useState(false);
   const [joinError, setJoinError] = React.useState('');
   const joiningRef = React.useRef(false);
@@ -758,8 +772,17 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
           });
           publicationRefreshRef.current.set(publicationKey, publicationRefresh);
         }
-        await publicationRefresh;
-        return decision;
+        if (mountedRef.current) setRefreshingLeaderboardViewKey(requestViewKey);
+        try {
+          await publicationRefresh;
+          return decision;
+        } finally {
+          if (mountedRef.current) {
+            setRefreshingLeaderboardViewKey((current) => (
+              current === requestViewKey ? '' : current
+            ));
+          }
+        }
       })
       .catch((error) => {
         if (mountedRef.current && activeViewKeyRef.current === requestViewKey) {
@@ -988,7 +1011,15 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
             note={tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。')}
           />
         ) : null}
-        {view.state === 'ready' ? <CompetitionContent data={view.data} period={period} language={language} tt={tt} /> : null}
+        {view.state === 'ready' ? (
+          <CompetitionContent
+            data={view.data}
+            period={period}
+            language={language}
+            tt={tt}
+            leaderboardRefreshing={refreshingLeaderboardViewKey === activeViewKey}
+          />
+        ) : null}
         {view.state === 'error' ? (
           <StatusCard icon="!" title={tt('competition.loadFailed', '收益比赛读取失败')} desc={view.error || tt('competition.tryAgainLater', '请稍后重试。')} actionLabel={tt('competition.retry', '重新读取')} onAction={() => load({ showLoading: true, bypassFailureCooldown: true })} />
         ) : null}
