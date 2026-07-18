@@ -331,12 +331,16 @@ function revenueValue(event, key) {
   return event.revenueEstimateUsd ?? (event.currency === 'USD' ? event.revenueEstimate : null);
 }
 
+function ebitValue(event) {
+  return event.ebitActualUsd ?? (event.ebitActualOriginalCurrency === 'USD' ? event.ebitActual : null);
+}
+
 function earningsCurrencySummary(event, language) {
   const epsCurrency = String(event?.currency || 'USD').trim().toUpperCase() || 'USD';
   return t(
     language,
     'earningsCalendar.metricCurrencies',
-    language === 'en' ? 'EPS: {{epsCurrency}} · Revenue: USD' : 'EPS：{{epsCurrency}} · 营收：USD',
+    language === 'en' ? 'EPS: {{epsCurrency}} · Revenue/EBIT: USD' : 'EPS：{{epsCurrency}} · 营收/EBIT：USD',
     { epsCurrency },
   );
 }
@@ -380,6 +384,7 @@ function buildPublishedFinancialRows(event, language) {
     rows.push({
       key: 'revenue',
       label: t(language, 'earningsCalendar.revenueMetric', '营业收入'),
+      comparable: true,
       result: metricResultFromSurprise(event.revenueSurprisePercent, revenueActual, revenueEstimate),
       actual: formatRevenueUsd(revenueActual, language, { compact: true }),
       actualYoy: event.revenueActualYoyPercent,
@@ -387,10 +392,25 @@ function buildPublishedFinancialRows(event, language) {
       estimateYoy: event.revenueEstimateYoyPercent,
     });
   }
+  const ebitActual = ebitValue(event);
+  if (ebitActual !== null && ebitActual !== undefined) {
+    rows.push({
+      key: 'ebit',
+      label: t(language, 'earningsCalendar.ebitMetric', '息税前利润'),
+      comparable: false,
+      result: null,
+      actual: formatRevenueUsd(ebitActual, language, { compact: true }),
+      actualYoy: event.ebitActualYoyPercent,
+      estimate: '—',
+      estimateYoy: null,
+      estimateUnavailable: true,
+    });
+  }
   if (event.epsActual !== null && event.epsActual !== undefined && event.epsEstimate !== null && event.epsEstimate !== undefined) {
     rows.push({
       key: 'eps',
       label: t(language, 'earningsCalendar.epsMetric', '每股收益'),
+      comparable: true,
       result: metricResultFromSurprise(event.surprisePercent, event.epsActual, event.epsEstimate),
       actual: formatNumber(event.epsActual),
       actualYoy: event.epsActualYoyPercent,
@@ -414,7 +434,7 @@ function financialOverviewText(event, name, language) {
 }
 
 function availableResultText(event, result, language) {
-  const rows = buildPublishedFinancialRows(event, language);
+  const rows = buildPublishedFinancialRows(event, language).filter((row) => row.comparable);
   if (rows.length !== 1) return earningsResultText(result, language);
   const prefix = rows[0].key === 'eps'
     ? 'EPS'
@@ -426,7 +446,7 @@ function availableResultText(event, result, language) {
 
 function resultConclusion(event, language) {
   const result = event.earningsResult || classifyEarningsResult(event);
-  const rows = buildPublishedFinancialRows(event, language);
+  const rows = buildPublishedFinancialRows(event, language).filter((row) => row.comparable);
   if (!rows.length) {
     return language === 'en'
       ? 'Reported actuals are not complete enough for a full comparison yet.'
@@ -484,7 +504,7 @@ function PublishedFinancialComparison({ event, language }) {
           <div key={row.key} className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center px-3 py-3">
             <div className="min-w-0">
               <div className="truncate text-[12px] font-normal text-white/70">{row.label}</div>
-              <div className={`mt-1 text-[10px] ${metricResultTone(result)}`}>{earningsResultText(result, language)}</div>
+              {row.comparable && result ? <div className={`mt-1 text-[10px] ${metricResultTone(result)}`}>{earningsResultText(result, language)}</div> : null}
             </div>
             <div className="min-w-0 text-right">
               <div className="truncate text-[15px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.actual}</div>
@@ -492,7 +512,7 @@ function PublishedFinancialComparison({ event, language }) {
             </div>
             <div className="min-w-0 text-right">
               <div className="truncate text-[15px] leading-none text-white/60 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.estimate}</div>
-              <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.estimateYoy)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(row.estimateYoy)}</div>
+              <div className={`mt-1.5 text-[11px] leading-none tabular-nums ${signedPercentClass(row.estimateYoy)}`} style={{ fontFamily: NUMBER_FONT }}>{row.estimateUnavailable ? '—' : formatSignedPercent(row.estimateYoy)}</div>
             </div>
           </div>
         );
@@ -541,6 +561,7 @@ function PublishedEarningsEventRow({
     <button
       type="button"
       onClick={() => onOpenDetail?.(event)}
+      data-earnings-published-event={event.symbol}
       className="min-h-[118px] w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-3.5 py-4 text-left active:scale-[0.99]"
     >
       <div className="mb-3 flex items-center justify-between gap-2 text-[11px] text-white/50">

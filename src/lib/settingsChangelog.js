@@ -1,6 +1,19 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.356', date: '2026-07-18', latest: true,
+    ver: 'v10.7.9.357', date: '2026-07-19', latest: true,
+    items: [
+      '📊 财报息税前利润与首页双击回顶',
+      '  - 已发布财报增加“息税前利润”，展示公布值和同比；预测值和预测同比均显示“—”，不参与超预期或不及预期判断',
+      '  - 首页根页面连续双击底部“首页”按钮可平滑返回顶部；单击导航、页面数据和现有底栏布局保持不变',
+    ],
+    itemsEn: [
+      '📊 Earnings EBIT and Home double-tap scroll',
+      '  - Published earnings add reported EBIT and YoY; estimate value and estimate YoY are both shown as “—” and do not affect beat-or-miss classification',
+      '  - Double-tapping the active Home tab smoothly returns to the top while single-tap navigation, page data, and the existing bottom-nav layout stay unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.356', date: '2026-07-18',
     items: [
       '🏆 比赛榜单刷新状态提示',
       '  - 旧榜单继续显示；确认存在新发布并读取完整榜单时，在“我的排名”卡片右上角显示“正在加载最新榜单…”',

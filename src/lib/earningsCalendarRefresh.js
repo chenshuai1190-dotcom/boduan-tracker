@@ -199,6 +199,8 @@ function isActualResultField(key) {
   return (key.startsWith('epsActual') && key !== 'epsActualYoyPercent')
     || (key.startsWith('revenueActual') && !/(Yoy|Surprise)/i.test(key))
     || key.startsWith('revenuePreviousYear')
+    || (key.startsWith('ebitActual') && key !== 'ebitActualYoyPercent')
+    || key.startsWith('ebitPreviousYear')
     || key.startsWith('marketReaction');
 }
 
@@ -238,6 +240,7 @@ function recalculateEarningsDerivedFields(event) {
     revenueSurprisePercent: calculateSurprisePercent(event?.revenueActualUsd, event?.revenueEstimateUsd),
     revenueActualYoyPercent: calculateYearOverYearPercent(event?.revenueActualUsd, event?.revenuePreviousYearUsd),
     revenueEstimateYoyPercent: calculateYearOverYearPercent(event?.revenueEstimateUsd, event?.revenuePreviousYearUsd),
+    ebitActualYoyPercent: calculateYearOverYearPercent(event?.ebitActualUsd, event?.ebitPreviousYearUsd),
   };
   recalculated.earningsResult = classifyEarningsResult({
     ...recalculated,

@@ -270,6 +270,18 @@ test('legacy stock symbols are repaired before quote universe construction', () 
   assert.ok(appSource.includes('const sym = normalizeStrictSymbolKey(costBasisNewSymbol);'), 'cost-basis new symbol input should reject whitespace instead of repairing it');
 });
 
+test('active Home double tap scrolls the existing page without changing bottom-nav layout or data state', () => {
+  const bottomNavStart = appSource.indexOf('{/* 底部 5 tab 导航栏 */}');
+  const bottomNavEnd = appSource.indexOf('{/* 拉取错误提示(浮在导航栏上方) */}', bottomNavStart);
+  const bottomNavBlock = appSource.slice(bottomNavStart, bottomNavEnd);
+
+  assert.ok(appSource.includes("if (tabId === 'home' && activeTab === 'home' && activePage === null) return;"), 'only the active Home root should consume taps without navigating');
+  assert.ok(appSource.includes("window.scrollTo({ top: 0, behavior: 'smooth' });"), 'the completed Home double tap should smoothly scroll the real page root');
+  assert.ok(bottomNavBlock.includes('onClick={() => handleBottomTabClick(tab.id)}'), 'the existing bottom tabs should use the guarded tap handler');
+  assert.ok(bottomNavBlock.includes('className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${'), 'bottom-tab sizing and layout classes should remain unchanged');
+  assert.equal(bottomNavBlock.includes('onDoubleClick='), false, 'iOS touch handling should not depend on the unreliable dblclick event');
+});
+
 test('tool submissions require confirmation and duplicate-submit guards', () => {
   assert.ok(appSource.includes('confirmSubmittingRef'), 'global confirmation modal needs a submit guard');
   assert.ok(appSource.includes('costBasisSubmittingRef'), 'cost-basis submissions need a submit guard');
@@ -579,8 +591,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.356'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.356', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.357'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.357', date: '2026-07-19', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('财报息税前利润与首页双击回顶') && settingsChangelogSource.includes('不参与超预期或不及预期判断') && settingsChangelogSource.includes('现有底栏布局保持不变'), 'settings changelog should document both merged release boundaries');
   assert.ok(settingsChangelogSource.includes('比赛榜单刷新状态提示') && settingsChangelogSource.includes('正在加载最新榜单…'), 'settings changelog should document the compact stale-leaderboard refresh notice');
   assert.ok(settingsChangelogSource.includes('iOS 比赛榜单自动刷新修复'), 'settings changelog should document the isolated competition cache recovery');
   assert.ok(settingsChangelogSource.includes('首页股票收盘价口径修正') && settingsChangelogSource.includes('不再展示盘后成交价') && settingsChangelogSource.includes('不会用盘后价伪装为收盘价'), 'settings changelog should document the official-close home display boundary');
@@ -832,16 +845,27 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('function PublishedEarningsDetail'), 'earnings calendar should include published earnings detail modal');
   assert.ok(earningsCalendarSource.includes('function PublishedFinancialComparison'), 'published earnings detail should include a broker-style comparison table');
   assert.ok(earningsCalendarSource.includes('revenueActualYoyPercent'), 'published earnings detail should render reported revenue YoY comparison');
+  assert.ok(earningsCalendarSource.includes("key: 'ebit'"), 'published earnings detail should render an EBIT row');
+  assert.ok(earningsCalendarSource.includes('actualYoy: event.ebitActualYoyPercent'), 'published earnings detail should render reported EBIT YoY comparison');
+  assert.ok(earningsCalendarSource.includes("estimate: '—'"), 'published earnings detail should show an em dash when EBIT consensus is unavailable');
+  assert.ok(earningsCalendarSource.includes('estimateUnavailable: true'), 'published earnings detail should keep both unavailable EBIT forecast lines explicit');
+  assert.ok(earningsCalendarSource.includes('.filter((row) => row.comparable)'), 'EBIT should not change EPS and revenue expectation conclusions');
   assert.ok(earningsCalendarSource.includes('actualPercent={event.epsActualYoyPercent}'), 'published earnings list should use actual EPS YoY instead of surprise percent');
   assert.ok(earningsCalendarSource.includes('estimatePercent={event.revenueEstimateYoyPercent}'), 'published earnings list should use revenue estimate YoY instead of surprise percent');
   assert.ok(earningsCalendarApiSource.includes('trendPeriodRank'), 'earnings calendar API should prefer current-quarter trends over next-quarter trends');
   assert.ok(earningsCalendarApiSource.includes('epsActualYoyPercent'), 'earnings calendar API should expose EPS YoY comparison fields');
+  assert.ok(earningsCalendarApiSource.includes('const exactEbit = parseNumber(actualRow?.ebit)'), 'earnings calendar API should prefer exact quarterly EBIT');
+  assert.ok(earningsCalendarApiSource.includes("basis = exactEbit !== null ? 'ebit' : operatingIncome !== null ? 'operatingIncome' : null"), 'earnings calendar API should use the documented operating-income fallback only when exact EBIT is absent');
+  assert.ok(earningsCalendarApiSource.includes('ebitActualYoyPercent'), 'earnings calendar API should expose reported EBIT YoY comparison fields');
+  assert.ok(earningsCalendarRefreshSource.includes("key.startsWith('ebitActual')"), 'partial earnings refreshes should preserve real EBIT fields');
   assert.ok(earningsCalendarSource.includes('isEarningsVisible(event, today)'), 'earnings calendar should keep published events visible through the retention window');
   assert.ok(earningsCalendarSource.includes('formatRevenueUsd'), 'earnings calendar should render revenue estimates in USD display units');
   assert.ok(earningsCalendarSource.includes('earningsCurrencySummary(event, language)'), 'published earnings detail should label EPS and normalized USD revenue currencies separately');
   assert.ok(earningsCalendarSource.includes("String(event?.currency || 'USD').trim().toUpperCase()"), 'published earnings detail should derive the EPS currency from the event');
-  assert.ok(i18nSource.includes("'earningsCalendar.metricCurrencies': 'EPS：{{epsCurrency}} · 营收：USD'"), 'Chinese earnings detail should distinguish the EPS currency from USD revenue');
-  assert.ok(i18nSource.includes("'earningsCalendar.metricCurrencies': 'EPS: {{epsCurrency}} · Revenue: USD'"), 'English earnings detail should distinguish the EPS currency from USD revenue');
+  assert.ok(i18nSource.includes("'earningsCalendar.ebitMetric': '息税前利润'"), 'Chinese earnings detail should label EBIT precisely');
+  assert.ok(i18nSource.includes("'earningsCalendar.ebitMetric': 'EBIT'"), 'English earnings detail should label EBIT precisely');
+  assert.ok(i18nSource.includes("'earningsCalendar.metricCurrencies': 'EPS：{{epsCurrency}} · 营收/EBIT：USD'"), 'Chinese earnings detail should distinguish the EPS currency from normalized USD financial values');
+  assert.ok(i18nSource.includes("'earningsCalendar.metricCurrencies': 'EPS: {{epsCurrency}} · Revenue/EBIT: USD'"), 'English earnings detail should distinguish the EPS currency from normalized USD financial values');
   assert.equal(earningsCalendarSource.includes("'earningsCalendar.currencyUsd'"), false, 'published earnings detail should not retain the hardcoded all-USD currency label');
   assert.ok(earningsCalendarSource.includes('const updated = events.find((event) => event.id === current.id)'), 'an open earnings detail should follow refreshed data for the exact event key');
   assert.ok(earningsCalendarSource.includes('event.symbol === current.symbol && event.reportDate === current.reportDate'), 'an open earnings detail should survive provider session corrections by matching its stable business key');
@@ -2406,7 +2430,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.356'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.357'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

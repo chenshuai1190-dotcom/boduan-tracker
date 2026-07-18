@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import handler, { calculateEarningsMarketReaction, mergeEarningsTrendData, parseEarningsRequest, previousCalendarQuarterRange } from '../api/earnings-calendar.js';
+import handler, { calculateEarningsMarketReaction, mergeEarningsRevenueUsd, mergeEarningsTrendData, parseEarningsRequest, previousCalendarQuarterRange, resolveReportedEbit } from '../api/earnings-calendar.js';
 import {
   buildCalendarMonth,
   buildEarningsSymbols,
@@ -77,6 +77,20 @@ test('earnings calendar request validates symbols and date range', () => {
   assert.match(parseEarningsRequest({ symbols: 'NV DA' }).error, /股票代码不合法/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-09-01', to: '2026-07-01' }).error, /from 不能晚于 to/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-01-01', to: '2026-05-01' }).error, /查询区间不能超过/);
+});
+
+test('earnings calendar API rejects unauthenticated requests before provider access', async () => {
+  const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
+  process.env.QUOTE_API_AUTH_REQUIRED = 'true';
+  try {
+    const res = createResponse();
+    await handler(createRequest({ symbols: 'NFLX', from: '2026-07-16', to: '2026-07-18' }), res);
+    assert.equal(res.statusCode, 401);
+    assert.match(res.body.error, /未授权/);
+  } finally {
+    if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
+    else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+  }
 });
 
 test('earnings market reaction uses ordinary close and refuses to guess an unknown report session', () => {
@@ -177,6 +191,14 @@ test('earnings model keeps published reports visible for two days with result st
       revenueEstimateUsd: 284500000000,
       revenueActualUsd: 290100000000,
       revenueSurprisePercent: 2,
+      ebitActual: 75_000_000_000,
+      ebitActualUsd: 75_000_000_000,
+      ebitActualOriginalCurrency: 'USD',
+      ebitActualBasis: 'ebit',
+      ebitPreviousYear: 60_000_000_000,
+      ebitPreviousYearUsd: 60_000_000_000,
+      ebitPreviousYearBasis: 'ebit',
+      ebitActualYoyPercent: 25,
     },
     {
       code: 'TSM.US',
@@ -190,11 +212,79 @@ test('earnings model keeps published reports visible for two days with result st
   assert.equal(published.earningsPublished, true);
   assert.equal(published.publishedUntil, '2026-07-10');
   assert.equal(published.earningsResult, 'beat');
+  assert.equal(published.ebitActualUsd, 75_000_000_000);
+  assert.equal(published.ebitPreviousYearUsd, 60_000_000_000);
+  assert.equal(published.ebitActualYoyPercent, 25);
+  assert.equal(published.ebitActualBasis, 'ebit');
+  assert.equal(published.ebitPreviousYearBasis, 'ebit');
   assert.equal(classifyEarningsResult({ surprisePercent: 4.5, revenueSurprisePercent: -1.8 }), 'mixed');
   assert.equal(isEarningsVisible(published, '2026-07-10'), true);
   assert.equal(isEarningsVisible(published, '2026-07-11'), false);
   assert.equal(isEarningsVisible(unpublished, '2026-07-08'), true);
   assert.equal(isEarningsVisible(unpublished, '2026-07-09'), false);
+});
+
+test('earnings financial merge converts EBIT to USD without inventing a forecast', () => {
+  const [event, negativeBaseline] = mergeEarningsRevenueUsd([
+    {
+      symbol: 'ASML',
+      reportDate: '2026-07-15',
+      currency: 'EUR',
+      epsActual: 7.59,
+      ebitActual: 4_000_000_000,
+      ebitActualOriginalCurrency: 'EUR',
+      ebitPreviousYear: 2_000_000_000,
+      ebitPreviousYearOriginalCurrency: 'EUR',
+    },
+    {
+      symbol: 'LOSS',
+      reportDate: '2026-07-15',
+      currency: 'USD',
+      epsActual: -1,
+      ebitActual: 2_000_000,
+      ebitActualOriginalCurrency: 'USD',
+      ebitPreviousYear: -1_000_000,
+      ebitPreviousYearOriginalCurrency: 'USD',
+    },
+  ], new Map([
+    ['EUR', { localPerUsd: 0.8, source: 'USDEUR.FOREX' }],
+  ]));
+
+  assert.equal(event.ebitActualUsd, 5_000_000_000);
+  assert.equal(event.ebitPreviousYearUsd, 2_500_000_000);
+  assert.equal(event.ebitActualCurrency, 'USD');
+  assert.equal(event.ebitActualOriginalCurrency, 'EUR');
+  assert.equal(event.ebitActualFxRate, 0.8);
+  assert.equal(event.ebitActualFxSource, 'USDEUR.FOREX');
+  assert.equal(event.ebitActualYoyPercent, 100);
+  assert.equal(event.ebitEstimate, undefined);
+  assert.equal(negativeBaseline.ebitActualYoyPercent, null);
+});
+
+test('reported EBIT falls back to operating income and keeps the YoY basis consistent', () => {
+  assert.deepEqual(resolveReportedEbit({
+    ebit: null,
+    operatingIncome: '4192610000.00',
+  }, {
+    ebit: '3814324000.00',
+    operatingIncome: '3774694000.00',
+  }), {
+    actual: 4192610000,
+    previousYear: 3774694000,
+    basis: 'operatingIncome',
+  });
+
+  assert.deepEqual(resolveReportedEbit({
+    ebit: '25000000000.00',
+    operatingIncome: '26000000000.00',
+  }, {
+    ebit: '10000000000.00',
+    operatingIncome: '11000000000.00',
+  }), {
+    actual: 25000000000,
+    previousYear: 10000000000,
+    basis: 'ebit',
+  });
 });
 
 test('earnings calendar promotes only for five upcoming followed companies including a holding', () => {
@@ -477,12 +567,18 @@ test('earnings calendar API enriches published events with actual revenue and ma
           filing_date: '2026-05-20',
           currency_symbol: 'USD',
           totalRevenue: '81615000000.00',
+          ebit: '25000000000.00',
+          operatingIncome: '26000000000.00',
+          ebitda: '30000000000.00',
         },
         '2025-04-30': {
           date: '2025-04-30',
           filing_date: '2025-05-21',
           currency_symbol: 'USD',
           totalRevenue: '44062000000.00',
+          ebit: '10000000000.00',
+          operatingIncome: '11000000000.00',
+          ebitda: '14000000000.00',
         },
       });
     }
@@ -516,6 +612,17 @@ test('earnings calendar API enriches published events with actual revenue and ma
     assert.equal(Math.round(event.revenueSurprisePercent * 10) / 10, 3.2);
     assert.equal(Math.round(event.revenueActualYoyPercent * 100) / 100, 85.23);
     assert.equal(Math.round(event.revenueEstimateYoyPercent * 100) / 100, 79.56);
+    assert.equal(event.ebitActual, 25000000000);
+    assert.equal(event.ebitActualUsd, 25000000000);
+    assert.equal(event.ebitActualCurrency, 'USD');
+    assert.equal(event.ebitActualSource, 'eodhd-fundamentals-income-statement');
+    assert.equal(event.ebitActualBasis, 'ebit');
+    assert.equal(event.ebitPreviousYear, 10000000000);
+    assert.equal(event.ebitPreviousYearUsd, 10000000000);
+    assert.equal(event.ebitPreviousYearSource, 'eodhd-fundamentals-income-statement');
+    assert.equal(event.ebitPreviousYearBasis, 'ebit');
+    assert.equal(event.ebitActualYoyPercent, 150);
+    assert.equal(event.ebitEstimate, undefined);
     assert.equal(Math.round(event.epsActualYoyPercent * 100) / 100, 130.86);
     assert.equal(event.epsEstimate, 1.7738);
     assert.equal(Math.round(event.epsEstimateYoyPercent * 100) / 100, 118.99);

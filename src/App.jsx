@@ -14,6 +14,7 @@ import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
+import { resolveBottomTabTap } from './lib/bottomTabNavigation.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -4273,12 +4274,32 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
   const [activePage, setActivePage] = useState(null);
+  const lastHomeTabTapAtRef = useRef(0);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
   }, []);
+  const handleBottomTabClick = useCallback((tabId) => {
+    const tapAction = resolveBottomTabTap({
+      tabId,
+      activeTab,
+      activePage,
+      lastHomeTapAt: lastHomeTabTapAtRef.current,
+    });
+    lastHomeTabTapAtRef.current = tapAction.nextHomeTapAt;
+
+    if (tapAction.shouldScrollHomeToTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    if (tabId === 'home' && activeTab === 'home' && activePage === null) return;
+
+    setActiveTab(tabId);
+    setActivePage(null);
+    setStockDetailSymbol('');
+  }, [activePage, activeTab]);
   const [portfolioCurrencyMode, setPortfolioCurrencyModeState] = useState(() => readStoredPortfolioCurrency());
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
     setPortfolioCurrencyModeState(normalizePortfolioCurrency(nextCurrency));
@@ -5045,11 +5066,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setActivePage(null);
-                      setStockDetailSymbol('');
-                    }}
+                    onClick={() => handleBottomTabClick(tab.id)}
                     className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${
                       darkShell
                         ? (isActive ? 'text-[#f6a524]' : 'text-white/40')

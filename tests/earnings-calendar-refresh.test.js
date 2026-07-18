@@ -278,6 +278,22 @@ test('partial-null refreshes preserve real actual fields and zero while still ac
     revenueSurprisePercent: 0.0196463654,
     revenueActualYoyPercent: 49.5154185022,
     revenueEstimateYoyPercent: 49.4860499266,
+    ebitActual: 3_664_000_000,
+    ebitActualUsd: 4_000_000_000,
+    ebitActualCurrency: 'USD',
+    ebitActualOriginalCurrency: 'EUR',
+    ebitActualFxRate: 0.916,
+    ebitActualFxSource: 'EODHD',
+    ebitActualSource: 'eodhd-fundamentals-income-statement',
+    ebitActualBasis: 'operatingIncome',
+    ebitPreviousYear: 1_832_000_000,
+    ebitPreviousYearUsd: 2_000_000_000,
+    ebitPreviousYearCurrency: 'USD',
+    ebitPreviousYearOriginalCurrency: 'EUR',
+    ebitPreviousYearFxRate: 0.916,
+    ebitPreviousYearSource: 'eodhd-fundamentals-income-statement',
+    ebitPreviousYearBasis: 'operatingIncome',
+    ebitActualYoyPercent: 100,
     marketReactionPercent: 0,
     marketReactionBaseDate: '2026-07-14',
     marketReactionTargetDate: '2026-07-15',
@@ -303,6 +319,21 @@ test('partial-null refreshes preserve real actual fields and zero while still ac
     revenuePreviousYear: null,
     revenuePreviousYearUsd: null,
     revenuePreviousYearSource: null,
+    ebitActual: null,
+    ebitActualUsd: undefined,
+    ebitActualCurrency: null,
+    ebitActualOriginalCurrency: null,
+    ebitActualFxRate: null,
+    ebitActualFxSource: null,
+    ebitActualSource: null,
+    ebitActualBasis: null,
+    ebitPreviousYear: null,
+    ebitPreviousYearUsd: null,
+    ebitPreviousYearCurrency: null,
+    ebitPreviousYearOriginalCurrency: null,
+    ebitPreviousYearFxRate: null,
+    ebitPreviousYearSource: null,
+    ebitPreviousYearBasis: null,
     marketReactionPercent: null,
     marketReactionBaseDate: '',
     marketReactionTargetDate: null,
@@ -333,6 +364,19 @@ test('partial-null refreshes preserve real actual fields and zero while still ac
     assert.ok(Math.abs(output.revenueSurprisePercent - ((10_182_000_000 - 10_250_000_000) / 10_250_000_000) * 100) < 1e-10);
     assert.ok(Math.abs(output.revenueActualYoyPercent - ((10_182_000_000 - 6_810_000_000) / 6_810_000_000) * 100) < 1e-10);
     assert.ok(Math.abs(output.revenueEstimateYoyPercent - ((10_250_000_000 - 6_810_000_000) / 6_810_000_000) * 100) < 1e-10);
+    assert.equal(output.ebitActual, 3_664_000_000);
+    assert.equal(output.ebitActualUsd, 4_000_000_000);
+    assert.equal(output.ebitActualCurrency, 'USD');
+    assert.equal(output.ebitActualOriginalCurrency, 'EUR');
+    assert.equal(output.ebitActualFxRate, 0.916);
+    assert.equal(output.ebitActualFxSource, 'EODHD');
+    assert.equal(output.ebitActualSource, 'eodhd-fundamentals-income-statement');
+    assert.equal(output.ebitActualBasis, 'operatingIncome');
+    assert.equal(output.ebitPreviousYear, 1_832_000_000);
+    assert.equal(output.ebitPreviousYearUsd, 2_000_000_000);
+    assert.equal(output.ebitPreviousYearSource, 'eodhd-fundamentals-income-statement');
+    assert.equal(output.ebitPreviousYearBasis, 'operatingIncome');
+    assert.equal(output.ebitActualYoyPercent, 100);
     assert.equal(output.marketReactionPercent, 0);
     assert.equal(output.marketReactionBaseDate, '2026-07-14');
     assert.equal(output.marketReactionTargetDate, '2026-07-15');

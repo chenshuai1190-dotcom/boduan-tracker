@@ -752,7 +752,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       code: 'ASML.US',
       symbol: 'ASML',
       name: '阿斯麦',
-      report_date: '2026-07-15',
+      report_date: earningsLiveSmoke ? localDateKey() : '2026-07-15',
       date: '2026-06-30',
       before_after_market: 'BeforeMarket',
       currency: 'EUR',
@@ -764,10 +764,14 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       epsActualYoyPercent: published ? 28.474576271186436 : null,
       epsEstimateYoyPercent: 16.871186440677967,
       revenueEstimateUsd: 10_148_260_308.571428,
-      revenueActualUsd: null,
-      revenueSurprisePercent: null,
+      revenueActualUsd: earningsLiveSmoke && published ? 10_182_000_000 : null,
+      revenueSurprisePercent: earningsLiveSmoke && published ? 0.332474697043771 : null,
       revenueEstimateYoyPercent: 15.45,
-      revenueActualYoyPercent: null,
+      revenueActualYoyPercent: earningsLiveSmoke && published ? 16.78082191780822 : null,
+      ebitActualUsd: earningsLiveSmoke && published ? 4_192_610_000 : null,
+      ebitPreviousYearUsd: earningsLiveSmoke && published ? 3_774_694_000 : null,
+      ebitActualYoyPercent: earningsLiveSmoke && published ? 11.071519969565745 : null,
+      ebitActualBasis: earningsLiveSmoke && published ? 'operatingIncome' : null,
       earningsPublished: published,
     }];
     const requested = new Set(symbols.map((symbol) => String(symbol || '').trim().toUpperCase()));
@@ -791,10 +795,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   }, [earningsResumeSmoke]);
   React.useEffect(() => {
     if (!earningsLiveSmoke || !earningsAutoOpen) return undefined;
-    const timer = window.setTimeout(() => {
+    const modalTimer = window.setTimeout(() => {
       document.querySelector('#earnings-calendar button')?.click();
     }, 250);
-    return () => window.clearTimeout(timer);
+    const detailTimer = window.setTimeout(() => {
+      document.querySelector('[data-earnings-published-event]')?.click();
+    }, 650);
+    return () => {
+      window.clearTimeout(modalTimer);
+      window.clearTimeout(detailTimer);
+    };
   }, [earningsAutoOpen, earningsLiveSmoke]);
   const stockDetailPeakPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailPeak') === 'past';

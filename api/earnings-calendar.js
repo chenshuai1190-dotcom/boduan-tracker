@@ -55,6 +55,8 @@ export default async function handler(req, res) {
         event.revenueOriginalCurrency,
         event.revenueActualOriginalCurrency,
         event.revenuePreviousYearOriginalCurrency,
+        event.ebitActualOriginalCurrency,
+        event.ebitPreviousYearOriginalCurrency,
       ]),
       eodhdKey,
     });
@@ -266,11 +268,24 @@ export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
     const revenuePreviousYearUsd = revenuePreviousYear !== null && previousRevenueRate > 0
       ? (previousRevenueCurrency === 'USD' ? revenuePreviousYear : revenuePreviousYear / previousRevenueRate)
       : null;
+    const ebitActualCurrency = normalizeCurrency(event.ebitActualOriginalCurrency || event.ebitActualCurrency || actualCurrency || currency) || actualCurrency || currency;
+    const ebitActual = parseNumber(event.ebitActual);
+    const ebitActualRate = readFxRate(fxRates, ebitActualCurrency);
+    const ebitActualUsd = ebitActual !== null && ebitActualRate > 0
+      ? (ebitActualCurrency === 'USD' ? ebitActual : ebitActual / ebitActualRate)
+      : null;
+    const previousEbitCurrency = normalizeCurrency(event.ebitPreviousYearOriginalCurrency || event.ebitPreviousYearCurrency || ebitActualCurrency || actualCurrency || currency) || ebitActualCurrency || actualCurrency || currency;
+    const ebitPreviousYear = parseNumber(event.ebitPreviousYear);
+    const previousEbitRate = readFxRate(fxRates, previousEbitCurrency);
+    const ebitPreviousYearUsd = ebitPreviousYear !== null && previousEbitRate > 0
+      ? (previousEbitCurrency === 'USD' ? ebitPreviousYear : ebitPreviousYear / previousEbitRate)
+      : null;
     const revenueSurprisePercent = revenueEstimateUsd !== null && revenueEstimateUsd !== 0 && revenueActualUsd !== null
       ? ((revenueActualUsd - revenueEstimateUsd) / Math.abs(revenueEstimateUsd)) * 100
       : null;
     const revenueActualYoyPercent = percentageChange(revenueActualUsd, revenuePreviousYearUsd);
     const revenueEstimateYoyPercent = parseNumber(event.revenueEstimateYoyPercent) ?? percentageChange(revenueEstimateUsd, revenuePreviousYearUsd);
+    const ebitActualYoyPercent = percentageChange(ebitActualUsd, ebitPreviousYearUsd);
     const epsPreviousYear = parseNumber(event.epsPreviousYear);
     const epsActualYoyPercent = percentageChange(event.epsActual, epsPreviousYear);
     const epsEstimateYoyPercent = percentageChange(event.epsEstimate, epsPreviousYear);
@@ -297,6 +312,18 @@ export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
       revenueSurprisePercent,
       revenueActualYoyPercent,
       revenueEstimateYoyPercent,
+      ebitActual,
+      ebitActualUsd,
+      ebitActualCurrency: ebitActualUsd !== null ? 'USD' : null,
+      ebitActualOriginalCurrency: ebitActual !== null ? ebitActualCurrency : null,
+      ebitActualFxRate: ebitActual !== null ? ebitActualRate || null : null,
+      ebitActualFxSource: ebitActual !== null ? (ebitActualCurrency === 'USD' ? 'identity' : readFxSource(fxRates, ebitActualCurrency)) : null,
+      ebitPreviousYear,
+      ebitPreviousYearUsd,
+      ebitPreviousYearCurrency: ebitPreviousYearUsd !== null ? 'USD' : null,
+      ebitPreviousYearOriginalCurrency: ebitPreviousYear !== null ? previousEbitCurrency : null,
+      ebitPreviousYearFxRate: ebitPreviousYear !== null ? previousEbitRate || null : null,
+      ebitActualYoyPercent,
       epsPreviousYear,
       epsActualYoyPercent,
       epsEstimateYoyPercent,
@@ -326,6 +353,7 @@ export async function enrichPublishedEarningsData({ events, eodhdKey }) {
     const incomeRows = incomeRowsBySymbol.get(event.symbol) || [];
     const incomeRow = incomeRows.find((row) => dateKey(row.date) === event.fiscalDate) || null;
     const previousIncomeRow = incomeRows.find((row) => dateKey(row.date) === previousYearDate(event.fiscalDate)) || null;
+    const reportedEbit = resolveReportedEbit(incomeRow, previousIncomeRow);
     const eodRows = eodRowsBySymbol.get(event.symbol) || [];
     const reaction = calculateEarningsMarketReaction({
       rows: eodRows,
@@ -340,12 +368,32 @@ export async function enrichPublishedEarningsData({ events, eodhdKey }) {
       revenuePreviousYear: parseNumber(previousIncomeRow?.totalRevenue),
       revenuePreviousYearOriginalCurrency: normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency,
       revenuePreviousYearSource: previousIncomeRow ? 'eodhd-fundamentals-income-statement' : null,
+      ebitActual: reportedEbit.actual,
+      ebitActualOriginalCurrency: normalizeCurrency(incomeRow?.currency_symbol || incomeRow?.currency || event.currency) || event.currency,
+      ebitActualSource: reportedEbit.actual !== null ? 'eodhd-fundamentals-income-statement' : null,
+      ebitActualBasis: reportedEbit.basis,
+      ebitPreviousYear: reportedEbit.previousYear,
+      ebitPreviousYearOriginalCurrency: normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency,
+      ebitPreviousYearSource: reportedEbit.previousYear !== null ? 'eodhd-fundamentals-income-statement' : null,
+      ebitPreviousYearBasis: reportedEbit.previousYear !== null ? reportedEbit.basis : null,
       marketReactionPercent: reaction?.percent ?? null,
       marketReactionBaseDate: reaction?.baseDate ?? null,
       marketReactionTargetDate: reaction?.targetDate ?? null,
       marketReactionSession: reaction?.session ?? event.session ?? null,
     };
   });
+}
+
+export function resolveReportedEbit(actualRow, previousRow) {
+  const exactEbit = parseNumber(actualRow?.ebit);
+  const operatingIncome = parseNumber(actualRow?.operatingIncome);
+  const basis = exactEbit !== null ? 'ebit' : operatingIncome !== null ? 'operatingIncome' : null;
+  if (!basis) return { actual: null, previousYear: null, basis: null };
+  return {
+    actual: basis === 'ebit' ? exactEbit : operatingIncome,
+    previousYear: parseNumber(previousRow?.[basis]),
+    basis,
+  };
 }
 
 export async function fetchEodhdQuarterlyIncomeStatements({ symbols, eodhdKey }) {

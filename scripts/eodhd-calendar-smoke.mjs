@@ -51,6 +51,8 @@ try {
       event.revenueOriginalCurrency,
       event.revenueActualOriginalCurrency,
       event.revenuePreviousYearOriginalCurrency,
+      event.ebitActualOriginalCurrency,
+      event.ebitPreviousYearOriginalCurrency,
     ]),
     eodhdKey,
   });
@@ -59,6 +61,7 @@ try {
   const usdRevenueRows = normalized.filter((event) => event.revenueEstimateUsd !== null && event.revenueEstimateUsd !== undefined);
   const publishedRows = normalized.filter((event) => event.earningsPublished);
   const actualRevenueRows = normalized.filter((event) => event.revenueActualUsd !== null && event.revenueActualUsd !== undefined);
+  const actualEbitRows = normalized.filter((event) => event.ebitActualUsd !== null && event.ebitActualUsd !== undefined);
   const marketReactionRows = normalized.filter((event) => event.marketReactionPercent !== null && event.marketReactionPercent !== undefined);
   const rawTrendRows = flattenRows(Array.isArray(rawTrends?.trends) ? rawTrends.trends : rawTrends);
   const rawEarningsRows = Array.isArray(rawEarnings?.earnings) ? rawEarnings.earnings : Array.isArray(rawEarnings) ? rawEarnings : [];
@@ -84,6 +87,7 @@ try {
       usdRevenueMerged: usdRevenueRows.length,
       publishedMerged: publishedRows.length,
       actualRevenueMerged: actualRevenueRows.length,
+      actualEbitMerged: actualEbitRows.length,
       marketReactionMerged: marketReactionRows.length,
       rows: normalized.map((event) => ({
         symbol: event.symbol,
@@ -97,6 +101,10 @@ try {
         revenueActualUsd: event.revenueActualUsd,
         revenueActualYoyPercent: event.revenueActualYoyPercent,
         revenueSurprisePercent: event.revenueSurprisePercent,
+        ebitActualUsd: event.ebitActualUsd,
+        ebitPreviousYearUsd: event.ebitPreviousYearUsd,
+        ebitActualYoyPercent: event.ebitActualYoyPercent,
+        ebitActualBasis: event.ebitActualBasis,
         marketReactionPercent: event.marketReactionPercent,
         revenueFxRate: event.revenueFxRate,
         revenueFxSource: event.revenueFxSource,
