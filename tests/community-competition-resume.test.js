@@ -179,16 +179,17 @@ test('the delayed visibility retry evaluates the current period rather than the 
   cleanup();
 });
 
-test('offline resume signals wait for the online event before rechecking', () => {
+test('a stale offline hint never blocks iOS resume cache evaluation', () => {
   const harness = createHarness({ online: false });
   harness.windowTarget.dispatch('pageshow');
   harness.windowTarget.dispatch('focus');
   harness.windowTarget.dispatch('touchstart');
-  assert.deepEqual(harness.calls, []);
+  assert.deepEqual(harness.calls, ['pageshow']);
 
   harness.windowTarget.navigator.onLine = true;
+  harness.clock.advance(1200);
   harness.windowTarget.dispatch('online');
-  assert.deepEqual(harness.calls, ['online']);
+  assert.deepEqual(harness.calls, ['pageshow', 'online']);
   harness.cleanup();
 });
 

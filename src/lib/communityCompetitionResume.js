@@ -8,10 +8,6 @@ function isVisible(documentTarget) {
   return documentTarget?.visibilityState !== 'hidden';
 }
 
-function isOnline(windowTarget) {
-  return windowTarget?.navigator?.onLine !== false;
-}
-
 export function bindCommunityCompetitionResume({
   windowTarget = typeof window === 'undefined' ? null : window,
   documentTarget = typeof document === 'undefined' ? null : document,
@@ -78,7 +74,6 @@ export function bindCommunityCompetitionResume({
       return false;
     }
     stopVisibilityRetry();
-    if (!isOnline(windowTarget)) return false;
     const currentTime = Number(now());
     if (Number.isFinite(currentTime) && currentTime - lastRecheckAt < Math.max(0, dedupeMs)) return false;
     lastRecheckAt = Number.isFinite(currentTime) ? currentTime : Date.now();

@@ -400,7 +400,11 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes('communityCompetitionClient.snapshotStatus({ supabase })') && communityCompetitionPageSource.includes('invalidateCommunityCompetitionRequests(userId);'), 'a status advance should invalidate stale in-flight requests before reading the full leaderboard');
   assert.ok(communityCompetitionPageSource.includes('expectedPublication') && communityCompetitionPageSource.includes('responsePublication?.version !== expectedPublication.version'), 'a full leaderboard or authoritative waiting response must match the exact status marker before cache commit');
   assert.ok(communityCompetitionPageSource.includes('propagateError: true') && communityCompetitionPageSource.includes('if (propagateError) throw error;'), 'a failed marker-driven full read must reach the one-minute cooldown instead of looping immediately');
-  assert.ok(communityCompetitionPageSource.includes("document.visibilityState === 'hidden'") && communityCompetitionPageSource.includes('navigator.onLine === false'), 'hidden or offline PWA states must not poll snapshot status');
+  assert.ok(communityCompetitionPageSource.includes("document.visibilityState === 'hidden'"), 'hidden PWA states must not poll snapshot status');
+  assert.equal(communityCompetitionPageSource.includes('navigator.onLine === false'), false, 'a stale iOS navigator.onLine hint must not block a real competition request');
+  assert.equal(communityCompetitionResumeSource.includes('navigator?.onLine !== false'), false, 'resume events must reach the cache decision even when iOS reports a stale offline hint');
+  assert.ok(communityCompetitionApiSource.includes("cache: 'no-store'") && communityCompetitionApiSource.includes('__competition_read'), 'competition GETs must bypass the iOS WebKit response cache');
+  assert.ok(communityCompetitionApiSource.includes('COMPETITION_REQUEST_TIMEOUT') && communityCompetitionApiSource.includes('Promise.race(pending)'), 'a suspended iOS competition request must settle so in-flight deduplication can release it');
   assert.ok(communityCompetitionCacheSource.includes('STATUS_CHECK_META_KEY') && communityCompetitionCacheSource.includes('readStatusCheckMeta'), 'one user-global status timestamp should gate every period without rewriting leaderboard entries');
   assert.ok(communityCompetitionCacheSource.includes('PUBLICATION_META_KEY') && communityCompetitionCacheSource.includes("reason: 'observed_publication_advanced'"), 'every period should immediately notice a newer globally observed publication');
   assert.ok(communityCompetitionCacheSource.includes('navigator?.locks') && communityCompetitionCacheSource.includes('CACHE_WRITE_LOCK'), 'cross-tab cache commits should use a Web Lock before enforcing publication monotonicity');
@@ -570,8 +574,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.354'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.354', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.355'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.355', date: '2026-07-18', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('iOS 比赛榜单自动刷新修复'), 'settings changelog should document the isolated competition cache recovery');
   assert.ok(settingsChangelogSource.includes('首页股票收盘价口径修正') && settingsChangelogSource.includes('不再展示盘后成交价') && settingsChangelogSource.includes('不会用盘后价伪装为收盘价'), 'settings changelog should document the official-close home display boundary');
   assert.ok(settingsChangelogSource.includes('首页当前回撤面板升级') && settingsChangelogSource.includes('美东开盘 09:30:00') && settingsChangelogSource.includes('不用盘后成交冒充收盘回撤'), 'settings changelog should document the drawdown sheet and locked-close semantics');
   assert.ok(settingsChangelogSource.includes('收益比赛受保护补漏入口') && settingsChangelogSource.includes('最近一个已完成收盘日') && settingsChangelogSource.includes('不接受任意日期'), 'settings changelog should document the protected latest-completed recovery path');
@@ -2395,7 +2400,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.354'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.355'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

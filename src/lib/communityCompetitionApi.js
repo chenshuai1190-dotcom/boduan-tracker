@@ -1,4 +1,7 @@
 const COMMUNITY_COMPETITION_ENDPOINT = '/api/community-competition';
+export const COMMUNITY_COMPETITION_REQUEST_TIMEOUT_MS = 15_000;
+
+let readRequestNonce = 0;
 
 export const COMMUNITY_COMPETITION_STATES = new Set([
   'profile_required',
@@ -37,17 +40,93 @@ function isOpaqueVersion(value) {
   return /^[A-Za-z0-9_-]{16,128}$/.test(String(value || ''));
 }
 
+function appendReadRequestNonce(path) {
+  readRequestNonce = (readRequestNonce + 1) % Number.MAX_SAFE_INTEGER;
+  const separator = String(path).includes('?') ? '&' : '?';
+  return `${path}${separator}__competition_read=${Date.now().toString(36)}-${readRequestNonce.toString(36)}`;
+}
+
+function createCompetitionAbortError(code) {
+  const error = new Error(code);
+  error.name = 'AbortError';
+  error.code = code;
+  return error;
+}
+
 async function requestCommunityCompetition(supabase, path, options = {}, validateBody = null) {
-  const token = await getAccessToken(supabase);
-  const response = await fetch(path, {
-    ...options,
-    headers: {
+  const {
+    signal: externalSignal,
+    timeoutMs: requestedTimeoutMs,
+    ...fetchOptions
+  } = options;
+  const method = String(fetchOptions.method || 'GET').toUpperCase();
+  const isRead = method === 'GET';
+  const timeoutMs = Number.isFinite(Number(requestedTimeoutMs)) && Number(requestedTimeoutMs) > 0
+    ? Number(requestedTimeoutMs)
+    : 0;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const requestSignal = controller?.signal || externalSignal;
+  let timeoutId = null;
+  let removeExternalAbortListener = () => {};
+  let timedOut = false;
+
+  const operation = (async () => {
+    const token = await getAccessToken(supabase);
+    const headers = {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-  const body = await response.json().catch(() => null);
+      ...(fetchOptions.headers || {}),
+      ...(isRead ? {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      } : {}),
+    };
+    const response = await fetch(isRead ? appendReadRequestNonce(path) : path, {
+      ...fetchOptions,
+      ...(isRead ? { cache: 'no-store' } : {}),
+      headers,
+      ...(requestSignal ? { signal: requestSignal } : {}),
+    });
+    const body = await response.json().catch(() => null);
+    return { response, body };
+  })();
+
+  const pending = [operation];
+  if (timeoutMs > 0) {
+    pending.push(new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        reject(createCompetitionAbortError('COMPETITION_REQUEST_TIMEOUT'));
+        controller?.abort();
+      }, timeoutMs);
+    }));
+  }
+  if (externalSignal) {
+    pending.push(new Promise((_, reject) => {
+      const abort = () => {
+        controller?.abort();
+        reject(createCompetitionAbortError('COMPETITION_REQUEST_ABORTED'));
+      };
+      if (externalSignal.aborted) {
+        abort();
+        return;
+      }
+      externalSignal.addEventListener('abort', abort, { once: true });
+      removeExternalAbortListener = () => externalSignal.removeEventListener('abort', abort);
+    }));
+  }
+
+  let response;
+  let body;
+  try {
+    ({ response, body } = await Promise.race(pending));
+  } catch (error) {
+    if (timedOut) throw createCompetitionAbortError('COMPETITION_REQUEST_TIMEOUT');
+    throw error;
+  } finally {
+    if (timeoutId != null) clearTimeout(timeoutId);
+    removeExternalAbortListener();
+  }
   if (!response.ok || body?.success === false) {
     const error = new Error(readApiError(body, `HTTP_${response.status}`));
     error.status = response.status;
@@ -61,12 +140,16 @@ async function requestCommunityCompetition(supabase, path, options = {}, validat
   return body;
 }
 
-export function fetchCommunityCompetitionSnapshotStatus({ supabase, signal } = {}) {
+export function fetchCommunityCompetitionSnapshotStatus({
+  supabase,
+  signal,
+  timeoutMs = COMMUNITY_COMPETITION_REQUEST_TIMEOUT_MS,
+} = {}) {
   const params = new URLSearchParams({ operation: 'snapshot-status' });
   return requestCommunityCompetition(
     supabase,
     `${COMMUNITY_COMPETITION_ENDPOINT}?${params.toString()}`,
-    { method: 'GET', signal },
+    { method: 'GET', signal, timeoutMs },
     (body) => {
       if (body?.state !== 'snapshot_status' || body?.channel !== 'competition') return false;
       const allowedFields = new Set([
@@ -83,11 +166,17 @@ export function fetchCommunityCompetitionSnapshotStatus({ supabase, signal } = {
   );
 }
 
-export function fetchCommunityCompetition({ supabase, period = 'day', signal } = {}) {
+export function fetchCommunityCompetition({
+  supabase,
+  period = 'day',
+  signal,
+  timeoutMs = COMMUNITY_COMPETITION_REQUEST_TIMEOUT_MS,
+} = {}) {
   const params = new URLSearchParams({ period });
   return requestCommunityCompetition(supabase, `${COMMUNITY_COMPETITION_ENDPOINT}?${params.toString()}`, {
     method: 'GET',
     signal,
+    timeoutMs,
   });
 }
 

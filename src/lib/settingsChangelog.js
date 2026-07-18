@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.354', date: '2026-07-18', latest: true,
+    ver: 'v10.7.9.355', date: '2026-07-18', latest: true,
+    items: [
+      '🏆 iOS 比赛榜单自动刷新修复',
+      '  - iOS 主屏应用恢复前台时不再被可能失真的离线状态拦截，会按原有规则主动核对最新发布状态',
+      '  - 比赛状态与榜单读取强制绕过 WebKit 响应缓存；被系统挂起的请求会自动超时释放并重试，不再依赖手动刷新',
+      '  - 收益、排名、QQQ、参赛资格、快照生成和发布标记逻辑全部保持不变',
+    ],
+    itemsEn: [
+      '🏆 iOS competition auto-refresh fix',
+      '  - Returning to the iOS Home Screen app is no longer blocked by a potentially stale offline hint and rechecks publication through the existing rules',
+      '  - Competition status and leaderboard reads bypass the WebKit response cache, while suspended requests time out, release, and retry without a manual reload',
+      '  - Returns, ranking, QQQ, eligibility, snapshot generation, and publication-marker logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.354', date: '2026-07-18',
     items: [
       '📈 首页股票收盘价口径修正',
       '  - 首页自选与持仓在盘后或休市时改为显示最近正式收盘价，不再展示盘后成交价',

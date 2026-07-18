@@ -564,9 +564,6 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
     const now = communityCompetitionNow();
     const blockedUntil = Number(failedRetryNotBeforeRef.current.get(requestViewKey)) || 0;
     if (!bypassFailureCooldown && blockedUntil > now) return null;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      return null;
-    }
     failedRetryNotBeforeRef.current.delete(requestViewKey);
     const cached = cacheEnabled ? readCommunityCompetitionCache({ userId, period }) : null;
     const cacheGeneration = cacheEnabled
@@ -690,7 +687,6 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const checkSnapshotStatus = React.useCallback(async () => {
     if (!cacheEnabled) return null;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return null;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
     const requestViewKey = `${userId}:${period}`;
     const cached = readCommunityCompetitionCache({ userId, period });
     if (!cached) return load({ showLoading: true });
