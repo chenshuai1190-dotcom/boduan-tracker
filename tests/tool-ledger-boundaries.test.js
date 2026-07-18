@@ -846,6 +846,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('function PublishedFinancialComparison'), 'published earnings detail should include a broker-style comparison table');
   assert.ok(earningsCalendarSource.includes('revenueActualYoyPercent'), 'published earnings detail should render reported revenue YoY comparison');
   assert.ok(earningsCalendarSource.includes("key: 'ebit'"), 'published earnings detail should render an EBIT row');
+  assert.ok(earningsCalendarSource.includes("import { marketTextClass } from '../lib/marketColorMode.js';"), 'earnings result labels should reuse the system market-color helper');
+  assert.ok(earningsCalendarSource.includes("if (result === 'beat') return marketTextClass(1, marketColorMode);") && earningsCalendarSource.includes("if (result === 'miss') return marketTextClass(-1, marketColorMode);"), 'beat and miss labels should follow the configured up/down colors');
+  assert.equal(earningsCalendarSource.includes("if (result === 'beat') return 'text-[#ff7b5a]'"), false, 'beat labels should not keep the off-system coral color');
+  assert.ok(homeTabSource.includes('marketColorMode={marketColorMode}'), 'home earnings detail should receive the active market-color mode');
   assert.ok(earningsCalendarSource.includes('actualYoy: event.ebitActualYoyPercent'), 'published earnings detail should render reported EBIT YoY comparison');
   assert.ok(earningsCalendarSource.includes("estimate: '—'"), 'published earnings detail should show an em dash when EBIT consensus is unavailable');
   assert.ok(earningsCalendarSource.includes('estimateUnavailable: true'), 'published earnings detail should keep both unavailable EBIT forecast lines explicit');

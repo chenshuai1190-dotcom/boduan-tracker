@@ -1364,6 +1364,7 @@ export default function HomeTab({ ctx }) {
         cacheStockLogo={cacheStockLogo}
         displayStockName={stockDisplayName}
         language={language}
+        marketColorMode={marketColorMode}
         supabase={supabase}
         eventsOverride={earningsCalendarEvents}
         requestEventsOverride={earningsCalendarRequest}

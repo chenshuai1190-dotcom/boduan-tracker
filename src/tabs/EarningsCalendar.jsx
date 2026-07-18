@@ -27,6 +27,7 @@ import {
 } from '../lib/earningsCalendarRefresh.js';
 import { resolveEarningsReactionDisplay } from '../lib/earningsReactionDisplay.js';
 import { t } from '../lib/i18n.js';
+import { marketTextClass } from '../lib/marketColorMode.js';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -370,9 +371,9 @@ function metricResultFromSurprise(value, actualValue = null, estimateValue = nul
   return 'meet';
 }
 
-function metricResultTone(result) {
-  if (result === 'beat') return 'text-[#ff7b5a]';
-  if (result === 'miss') return 'text-emerald-400';
+function metricResultTone(result, marketColorMode) {
+  if (result === 'beat') return marketTextClass(1, marketColorMode);
+  if (result === 'miss') return marketTextClass(-1, marketColorMode);
   return 'text-white/40';
 }
 
@@ -488,7 +489,7 @@ function PublishedBadge({ language }) {
   );
 }
 
-function PublishedFinancialComparison({ event, language }) {
+function PublishedFinancialComparison({ event, language, marketColorMode }) {
   const rows = buildPublishedFinancialRows(event, language);
   if (!rows.length) return null;
   return (
@@ -504,7 +505,7 @@ function PublishedFinancialComparison({ event, language }) {
           <div key={row.key} className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center px-3 py-3">
             <div className="min-w-0">
               <div className="truncate text-[12px] font-normal text-white/70">{row.label}</div>
-              {row.comparable && result ? <div className={`mt-1 text-[10px] ${metricResultTone(result)}`}>{earningsResultText(result, language)}</div> : null}
+              {row.comparable && result ? <div className={`mt-1 text-[10px] ${metricResultTone(result, marketColorMode)}`}>{earningsResultText(result, language)}</div> : null}
             </div>
             <div className="min-w-0 text-right">
               <div className="truncate text-[15px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.actual}</div>
@@ -661,6 +662,7 @@ function PublishedEarningsDetail({
   cacheStockLogo,
   displayStockName,
   language,
+  marketColorMode,
   onClose,
 }) {
   const name = eventDisplayName(event, displayStockName, language);
@@ -698,7 +700,7 @@ function PublishedEarningsDetail({
           </div>
           <div className="mt-2 text-[12px] leading-5 text-white/60">{financialOverviewText(event, name, language)}</div>
         </div>
-        <PublishedFinancialComparison event={event} language={language} />
+        <PublishedFinancialComparison event={event} language={language} marketColorMode={marketColorMode} />
         <div className="mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-3">
           <div>
             <div className="text-[10px] text-white/35">{reactionLabel(reaction, language)}</div>
@@ -733,6 +735,7 @@ function EarningsModal({
   cacheStockLogo,
   displayStockName,
   language,
+  marketColorMode,
   loading,
 }) {
   const [visibleMonth, setVisibleMonth] = React.useState(() => (selectedDate || todayDateKey()).slice(0, 7));
@@ -910,6 +913,7 @@ function EarningsModal({
           cacheStockLogo={cacheStockLogo}
           displayStockName={displayStockName}
           language={language}
+          marketColorMode={marketColorMode}
           onClose={() => setDetailEvent(null)}
         />
       ) : null}
@@ -926,6 +930,7 @@ export default function EarningsCalendar({
   cacheStockLogo,
   displayStockName,
   language = 'zh',
+  marketColorMode,
   supabase,
   eventsOverride = null,
   requestEventsOverride = null,
@@ -1262,6 +1267,7 @@ export default function EarningsCalendar({
         cacheStockLogo={cacheStockLogo}
         displayStockName={displayStockName}
         language={language}
+        marketColorMode={marketColorMode}
         loading={loading}
       />
     </section>
