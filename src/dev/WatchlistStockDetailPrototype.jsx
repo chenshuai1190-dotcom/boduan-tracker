@@ -501,7 +501,7 @@ export default function WatchlistStockDetailPrototype() {
           <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-prototype-daily-metrics="borderless">
             <MetricCell label="距52周高点" value="-16.83%" detail="高点 479.00" color={MARKET_GREEN} />
             <MetricCell label="距MA200（日）" value="+13.63%" detail="日线 350.60" color={MARKET_RED} />
-            <MetricCell label="距EMA30（日）" value="-6.84%" detail="日线 427.60" color={MARKET_GREEN} />
+            <MetricCell label="相对QQQ（3个月）" value="+8.42%" detail="个股 +16.2% · QQQ +7.8%" color={MARKET_RED} />
           </div>
 
           <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">

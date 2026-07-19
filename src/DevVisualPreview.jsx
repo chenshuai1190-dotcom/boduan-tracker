@@ -190,6 +190,10 @@ function buildMockWatchlistWeeklyHistory() {
 }
 
 const mockWatchlistDetailHistory = buildMockWatchlistDetailHistory();
+const mockWatchlistQqqHistory = mockWatchlistDetailHistory.map((row, index) => ({
+  date: row.date,
+  adjustedClose: Number((430 + index * 0.34 + Math.sin(index / 13) * 4.5).toFixed(4)),
+}));
 
 const mockWatchlistStockDetailData = {
   source: 'EODHD_EOD',
@@ -197,6 +201,7 @@ const mockWatchlistStockDetailData = {
   currency: 'USD',
   asOfDate: '2026-07-17',
   history: mockWatchlistDetailHistory,
+  qqqHistory: mockWatchlistQqqHistory,
   weeklyHistory: buildMockWatchlistWeeklyHistory(),
   indicators: {
     week52High: 235.88,

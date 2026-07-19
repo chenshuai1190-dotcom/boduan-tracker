@@ -62,6 +62,8 @@ test('every watchlistDetail translation key has both Chinese and English entries
     'range.5y',
     'priceLegend',
     'ma200Daily',
+    'relativeQqq3m',
+    'relativeQqq3mDetail',
     'ma200Weekly',
     'weeklyCloseLocked',
     'weeklyInsufficient',

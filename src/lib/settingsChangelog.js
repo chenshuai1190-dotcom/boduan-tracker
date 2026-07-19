@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.362', date: '2026-07-19', latest: true,
+    ver: 'v10.7.9.363', date: '2026-07-20', latest: true,
+    items: [
+      '📊 个股相对 QQQ 三个月表现',
+      '  - 股票趋势页取消“距 EMA30（日）”，改为个股三个月涨跌幅减去 QQQ 三个月涨跌幅；副行同时显示个股与 QQQ 的各自表现',
+      '  - 双方严格使用相同的共同交易日起止点和复权收盘价；历史不足或 QQQ 暂不可用时显示“--”，不伪造结果',
+      '  - QQQ 读取保持登录鉴权、独立失败和 15 分钟会话缓存，不阻塞详情页，也不修改持仓、交易或比赛账本',
+    ],
+    itemsEn: [
+      '📊 Three-month stock performance versus QQQ',
+      '  - Stock Trend replaces “From EMA30 (Daily)” with the stock three-month return minus the QQQ three-month return, while the detail line shows both underlying returns',
+      '  - Both sides use identical common trading-date endpoints and adjusted closes; insufficient history or an unavailable QQQ response shows “--” instead of fabricating a result',
+      '  - The authenticated QQQ read fails independently and uses a 15-minute session cache, so it never blocks the detail page or changes positions, trades, or the competition ledger',
+    ],
+  },
+  {
+    ver: 'v10.7.9.362', date: '2026-07-19',
     items: [
       '📈 短周期真实 MA200 日线',
       '  - 1月、3月、6月和1年走势图使用真实复权日收盘价与蓝色 MA200（日）；5年继续使用真实周收盘价与金色 MA200（周）',

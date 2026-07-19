@@ -70,7 +70,8 @@ test('key indicators replace the dense grid with daily facts and one weekly tren
   assert.ok(prototypeSource.includes('data-prototype-daily-metrics="borderless"'));
   assert.ok(prototypeSource.includes('data-watchlist-weekly-ma-panel="true"'));
   assert.ok(prototypeSource.includes('距MA200（日）'));
-  assert.ok(prototypeSource.includes('距EMA30（日）'));
+  assert.ok(prototypeSource.includes('相对QQQ（3个月）'));
+  assert.ok(prototypeSource.includes('个股 +16.2% · QQQ +7.8%'));
   assert.ok(prototypeSource.includes('200周数据完整'));
   assert.equal(prototypeSource.includes('20日年化波动率'), false);
   assert.equal(prototypeSource.includes('中期高于MA200 · 短期低于EMA30'), false);

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
   filterStockDetailHistory,
   filterStockDetailWeeklyHistory,
@@ -18,6 +19,10 @@ import {
   transformStockDetailChartWindow,
   usdToDisplayCurrency,
 } from '../src/lib/watchlistStockDetail.js';
+
+function assertClose(actual, expected, epsilon = 1e-10) {
+  assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} should be close to ${expected}`);
+}
 
 test('stock detail history is normalized and ranges use the latest completed close', () => {
   const rows = normalizeStockDetailHistory([
@@ -52,6 +57,104 @@ test('daily history range keeps the real MA field and clamps end-of-month subtra
     { date: '2026-02-28', close: 101, ma200: null },
     { date: '2026-03-31', close: 110, ma200: 95 },
   ]);
+});
+
+test('three-month relative return aligns common dates and uses adjusted QQQ closes only', () => {
+  const result = deriveThreeMonthQqqRelativeReturn([
+    { date: '2026-07-31', close: 120 },
+    { date: '2026-04-30', close: 100 },
+    { date: 'invalid', close: 999 },
+  ], [
+    { date: '2026-07-31', close: 9_999, rawClose: 9_999, adjustedClose: 220 },
+    { date: '2026-04-30', close: 1, rawClose: 1, adjustedClose: 200 },
+  ]);
+
+  assert.deepEqual({
+    requestedStartDate: result.requestedStartDate,
+    startDate: result.startDate,
+    endDate: result.endDate,
+  }, {
+    requestedStartDate: '2026-04-30',
+    startDate: '2026-04-30',
+    endDate: '2026-07-31',
+  });
+  assertClose(result.stockReturnPercent, 20);
+  assertClose(result.qqqReturnPercent, 10);
+  assertClose(result.relativeReturnPercent, 10);
+});
+
+test('three-month relative return uses the latest and earliest eligible exact common trading dates', () => {
+  const result = deriveThreeMonthQqqRelativeReturn([
+    { date: '2026-04-15', close: 90 },
+    { date: '2026-04-16', close: 95 },
+    { date: '2026-04-17', close: 100 },
+    { date: '2026-07-16', close: 110 },
+  ], [
+    { date: '2026-04-15', adjustedClose: 190 },
+    { date: '2026-04-17', adjustedClose: 200 },
+    { date: '2026-07-16', adjustedClose: 210 },
+  ]);
+
+  assert.equal(result.requestedStartDate, '2026-04-16');
+  assert.equal(result.startDate, '2026-04-17');
+  assert.equal(result.endDate, '2026-07-16');
+  assertClose(result.stockReturnPercent, 10);
+  assertClose(result.qqqReturnPercent, 5);
+  assertClose(result.relativeReturnPercent, 5);
+});
+
+test('three-month relative return fails closed for short history or missing adjusted QQQ data', () => {
+  const shortStock = [
+    { date: '2026-05-01', close: 100 },
+    { date: '2026-07-31', close: 110 },
+  ];
+  const shortQqq = [
+    { date: '2026-05-01', adjustedClose: 200 },
+    { date: '2026-07-31', adjustedClose: 210 },
+  ];
+  assert.equal(deriveThreeMonthQqqRelativeReturn(shortStock, shortQqq), null);
+  assert.equal(deriveThreeMonthQqqRelativeReturn([
+    { date: '2026-04-30', close: 100 },
+    { date: '2026-07-31', close: 110 },
+  ], [
+    { date: '2026-04-30', close: 200, rawClose: 200, adjustedClose: null },
+    { date: '2026-07-31', close: 210, rawClose: 210, adjustedClose: 0 },
+  ]), null);
+
+  const equal = deriveThreeMonthQqqRelativeReturn([
+    { date: '2026-04-30', close: 100 },
+    { date: '2026-07-31', close: 110 },
+  ], [
+    { date: '2026-04-30', adjustedClose: 200 },
+    { date: '2026-07-31', adjustedClose: 220 },
+  ]);
+  assert.equal(equal.relativeReturnPercent, 0);
+  assert.equal(Object.is(equal.relativeReturnPercent, -0), false);
+});
+
+test('three-month relative return never presents a stale QQQ window as current', () => {
+  assert.equal(deriveThreeMonthQqqRelativeReturn([
+    { date: '2026-03-15', close: 90 },
+    { date: '2026-03-17', close: 100 },
+    { date: '2026-06-15', close: 110 },
+    { date: '2026-07-17', close: 120 },
+  ], [
+    { date: '2026-03-15', adjustedClose: 180 },
+    { date: '2026-03-17', adjustedClose: 200 },
+    { date: '2026-06-15', adjustedClose: 210 },
+  ]), null);
+});
+
+test('three-month relative return rejects a sparse window that starts too far after three months', () => {
+  assert.equal(deriveThreeMonthQqqRelativeReturn([
+    { date: '2026-04-29', close: 100 },
+    { date: '2026-06-30', close: 110 },
+    { date: '2026-07-31', close: 120 },
+  ], [
+    { date: '2026-04-29', adjustedClose: 200 },
+    { date: '2026-06-30', adjustedClose: 210 },
+    { date: '2026-07-31', adjustedClose: 220 },
+  ]), null);
 });
 
 test('weekly history preserves missing MA values, filters five years, and resolves the latest locked MA by date', () => {

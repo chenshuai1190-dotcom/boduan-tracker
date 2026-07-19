@@ -8,6 +8,8 @@ const RANGE_MONTHS = Object.freeze({
   '5y': 60,
 });
 
+const MAX_THREE_MONTH_START_LAG_DAYS = 7;
+
 function finiteNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -50,6 +52,17 @@ function subtractUtcMonthsClamped(date, months) {
   )).getUTCDate();
   target.setUTCDate(Math.min(date.getUTCDate(), lastDay));
   return target;
+}
+
+function normalizeAdjustedBenchmarkHistory(rows = []) {
+  const byDate = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const date = utcDateKey(row?.date);
+    const close = positiveNumber(row?.adjustedClose);
+    if (!date || close === null) continue;
+    byDate.set(date, { date, close });
+  }
+  return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
 }
 
 export function normalizeStockDetailHistory(rows = []) {
@@ -202,6 +215,54 @@ export function resolveStockDetailClose(history = []) {
     previousCloseUsd: previous?.close ?? null,
     changeUsd: change,
     changePercent,
+  };
+}
+
+export function deriveThreeMonthQqqRelativeReturn(stockHistory = [], qqqBenchmarkRows = []) {
+  const stockRows = normalizeStockDetailHistory(stockHistory);
+  const qqqRows = normalizeAdjustedBenchmarkHistory(qqqBenchmarkRows);
+  if (stockRows.length < 2 || qqqRows.length < 2) return null;
+
+  const stockByDate = new Map(stockRows.map((row) => [row.date, row.close]));
+  const qqqByDate = new Map(qqqRows.map((row) => [row.date, row.close]));
+  const commonDates = stockRows
+    .map((row) => row.date)
+    .filter((date) => qqqByDate.has(date));
+  if (commonDates.length < 2) return null;
+
+  const endDate = commonDates.at(-1);
+  if (endDate !== stockRows.at(-1).date) return null;
+  const requestedStartDate = subtractUtcMonthsClamped(
+    new Date(`${endDate}T00:00:00Z`),
+    3,
+  ).toISOString().slice(0, 10);
+  if (!commonDates.some((date) => date <= requestedStartDate)) return null;
+  const startDate = commonDates.find((date) => date >= requestedStartDate && date < endDate);
+  if (!startDate) return null;
+  const startLagDays = (
+    new Date(`${startDate}T00:00:00Z`).getTime()
+    - new Date(`${requestedStartDate}T00:00:00Z`).getTime()
+  ) / 86_400_000;
+  if (!Number.isFinite(startLagDays) || startLagDays > MAX_THREE_MONTH_START_LAG_DAYS) return null;
+
+  const stockStart = stockByDate.get(startDate);
+  const stockEnd = stockByDate.get(endDate);
+  const qqqStart = qqqByDate.get(startDate);
+  const qqqEnd = qqqByDate.get(endDate);
+  if (![stockStart, stockEnd, qqqStart, qqqEnd].every((value) => value > 0)) return null;
+
+  const stockReturnPercent = ((stockEnd / stockStart) - 1) * 100;
+  const qqqReturnPercent = ((qqqEnd / qqqStart) - 1) * 100;
+  const relativeReturnPercent = stockReturnPercent - qqqReturnPercent;
+  if (![stockReturnPercent, qqqReturnPercent, relativeReturnPercent].every(Number.isFinite)) return null;
+
+  return {
+    requestedStartDate,
+    startDate,
+    endDate,
+    stockReturnPercent: stockReturnPercent === 0 ? 0 : stockReturnPercent,
+    qqqReturnPercent: qqqReturnPercent === 0 ? 0 : qqqReturnPercent,
+    relativeReturnPercent: relativeReturnPercent === 0 ? 0 : relativeReturnPercent,
   };
 }
 

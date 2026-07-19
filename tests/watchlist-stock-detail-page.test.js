@@ -26,10 +26,21 @@ test('production watchlist detail reads one authenticated daily and weekly histo
   assert.ok(pageSource.includes('stockDetail?.weeklyHistory'));
   assert.ok(pageSource.includes('indicators?.week52High'));
   assert.ok(pageSource.includes('indicators?.ma200'));
-  assert.ok(pageSource.includes('indicators?.ema30'));
+  assert.equal(pageSource.includes('indicators?.ema30'), false, 'EMA30 should remain an API compatibility field, not a visible page metric');
   assert.ok(pageSource.includes('indicators?.ma200Weekly'));
   assert.ok(pageSource.includes('indicators?.ma200WeeklyStatus'));
   assert.equal(pageSource.includes('indicators?.volatility20AnnualizedPct'), false, 'volatility should no longer occupy the approved indicator surface');
+});
+
+test('production watchlist detail reads an optional authenticated QQQ benchmark without blocking the page', () => {
+  assert.ok(pageSource.includes('/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}'));
+  assert.ok(pageSource.includes("fetchRows({ symbol: 'QQQ', from, to })"));
+  assert.ok(pageSource.includes('QQQ_BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000'));
+  assert.ok(pageSource.includes('headers: { Authorization: `Bearer ${token}` }'));
+  assert.ok(pageSource.includes("cache: 'no-store'"));
+  assert.ok(pageSource.includes('const [nextDetail, nextEarnings] = await Promise.all([detailPromise, earningsPromise])'));
+  assert.ok(pageSource.includes('void qqqPromise.then((nextQqqHistory) => {'));
+  assert.ok(pageSource.includes("console.warn('[WatchlistStockDetail] QQQ benchmark unavailable:'"));
 });
 
 test('production watchlist detail only converts holding asset totals and keeps stock prices in their quote currency', () => {
@@ -56,10 +67,15 @@ test('technical indicators use a borderless daily row plus one detailed weekly M
   assert.ok(pageSource.includes('data-watchlist-daily-metrics="borderless"'));
   assert.ok(pageSource.includes('data-watchlist-weekly-ma-panel="true"'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.distanceMa200Daily', '距MA200（日）')"));
-  assert.ok(pageSource.includes("t(language, 'watchlistDetail.distanceEma30Daily', '距EMA30（日）')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股 {{stock}} · QQQ {{qqq}}'"));
+  assert.ok(pageSource.includes('deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory)'));
+  assert.equal(pageSource.includes('distanceEma30'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.longTermTrend', '芒格指标')"));
   assert.ok(i18nSource.includes("'watchlistDetail.longTermTrend': '芒格指标'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': '相对QQQ（3个月）'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': 'vs QQQ (3M)'"));
   assert.equal(pageSource.includes('grid-cols-2 divide-x divide-y'), false);
 });
 

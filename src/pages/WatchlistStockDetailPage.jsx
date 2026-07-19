@@ -16,6 +16,7 @@ import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/e
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import {
+  deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
   displayCurrencyRate,
   filterStockDetailHistory,
@@ -44,6 +45,50 @@ const MA200_WEEK_COLOR = '#f6b54b';
 const CHART_WIDTH = 352;
 const CHART_HEIGHT = 184;
 const RANGE_IDS = ['1m', '3m', '6m', '1y', '5y'];
+const QQQ_BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
+const qqqBenchmarkRowsCache = new Map();
+
+function loadCachedQqqBenchmarkRows(key, loader) {
+  const cached = qqqBenchmarkRowsCache.get(key);
+  if (cached?.rows && cached.expiresAt > Date.now()) return Promise.resolve(cached.rows);
+  if (cached?.promise) return cached.promise;
+  qqqBenchmarkRowsCache.delete(key);
+
+  const promise = Promise.resolve()
+    .then(loader)
+    .then((rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('benchmark rows unavailable');
+      qqqBenchmarkRowsCache.set(key, {
+        rows,
+        expiresAt: Date.now() + QQQ_BENCHMARK_CACHE_TTL_MS,
+      });
+      return rows;
+    })
+    .catch((error) => {
+      if (qqqBenchmarkRowsCache.get(key)?.promise === promise) qqqBenchmarkRowsCache.delete(key);
+      throw error;
+    });
+  qqqBenchmarkRowsCache.set(key, { promise, expiresAt: 0 });
+  return promise;
+}
+
+async function fetchQqqBenchmarkRows({ token, from, to, fetchRows }) {
+  if (typeof fetchRows === 'function') {
+    const rows = await fetchRows({ symbol: 'QQQ', from, to });
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('benchmark rows unavailable');
+    return rows;
+  }
+  const cacheKey = `QQQ:${from}:${to}`;
+  return loadCachedQqqBenchmarkRows(cacheKey, async () => {
+    const response = await fetch(`/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.success === false) throw new Error(body?.error || 'benchmark request failed');
+    return body?.rows;
+  });
+}
 
 function finiteNumber(value) {
   const number = Number(value);
@@ -782,6 +827,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     quoteRows = [],
     investmentSummary = {},
     stockTrades = [],
+    fetchPnlBenchmarkRows,
     displayStockName,
     logoCache = {},
     cacheStockLogo,
@@ -799,6 +845,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y',
   );
   const [stockDetail, setStockDetail] = React.useState(() => watchlistStockDetailDataOverride?.stockDetail || watchlistStockDetailDataOverride || null);
+  const [qqqHistory, setQqqHistory] = React.useState(() => watchlistStockDetailDataOverride?.qqqHistory || []);
   const [earningsEvents, setEarningsEvents] = React.useState(() => watchlistStockDetailEarningsOverride || []);
   const [loading, setLoading] = React.useState(!watchlistStockDetailDataOverride);
   const [loadError, setLoadError] = React.useState(false);
@@ -828,12 +875,14 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   React.useEffect(() => {
     if (watchlistStockDetailDataOverride) {
       setStockDetail(watchlistStockDetailDataOverride.stockDetail || watchlistStockDetailDataOverride);
+      setQqqHistory(watchlistStockDetailDataOverride.qqqHistory || []);
       setEarningsEvents(watchlistStockDetailEarningsOverride || []);
       setLoading(false);
       setLoadError(false);
       return undefined;
     }
     if (!symbol || !supabase?.auth?.getSession) {
+      setQqqHistory([]);
       setLoading(false);
       setLoadError(true);
       return undefined;
@@ -841,12 +890,24 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     let active = true;
     setLoading(true);
     setLoadError(false);
+    setQqqHistory([]);
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data?.session?.access_token;
         if (!token) throw new Error('missing session');
         const marketDate = getNewYorkEarningsClock(Date.now()).date;
+        const qqqPromise = symbol === 'QQQ'
+          ? null
+          : fetchQqqBenchmarkRows({
+            token,
+            from: addUtcDays(marketDate, -130),
+            to: marketDate,
+            fetchRows: fetchPnlBenchmarkRows,
+          }).catch((error) => {
+            console.warn('[WatchlistStockDetail] QQQ benchmark unavailable:', error?.message || error);
+            return [];
+          });
         const detailPromise = fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}&view=stock-detail`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',
@@ -868,6 +929,11 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         if (!active) return;
         setStockDetail(nextDetail);
         setEarningsEvents(nextEarnings);
+        if (qqqPromise) {
+          void qqqPromise.then((nextQqqHistory) => {
+            if (active) setQqqHistory(nextQqqHistory);
+          });
+        }
       } catch (error) {
         console.warn('[WatchlistStockDetail] load failed:', error?.message || error);
         if (active) setLoadError(true);
@@ -876,7 +942,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       }
     })();
     return () => { active = false; };
-  }, [reloadKey, supabase, symbol, watchlistStockDetailDataOverride, watchlistStockDetailEarningsOverride]);
+  }, [fetchPnlBenchmarkRows, reloadKey, supabase, symbol, watchlistStockDetailDataOverride, watchlistStockDetailEarningsOverride]);
 
   React.useEffect(() => {
     if (!watchlistStockDetailFocusSection) return undefined;
@@ -887,6 +953,15 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   }, [loading, watchlistStockDetailFocusSection]);
 
   const history = React.useMemo(() => normalizeStockDetailHistory(stockDetail?.history), [stockDetail?.history]);
+  const qqqComparisonHistory = React.useMemo(() => (
+    symbol === 'QQQ'
+      ? history.map((row) => ({ date: row.date, adjustedClose: row.close }))
+      : qqqHistory
+  ), [history, qqqHistory, symbol]);
+  const qqqRelativeReturn = React.useMemo(
+    () => deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory),
+    [history, qqqComparisonHistory],
+  );
   const weeklyHistory = React.useMemo(
     () => normalizeStockDetailWeeklyHistory(stockDetail?.weeklyHistory),
     [stockDetail?.weeklyHistory],
@@ -936,7 +1011,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const targetProgressPosition = targetProgressPositionPercent(targetProgress);
   const high52 = positiveNumber(indicators?.week52High);
   const ma200 = positiveNumber(indicators?.ma200);
-  const ema30 = positiveNumber(indicators?.ema30);
   const ma200Weekly = positiveNumber(indicators?.ma200Weekly);
   const ma200WeeklyDistance = finiteNumber(indicators?.ma200WeeklyDistancePct);
   const ma200WeeklyChange4Week = finiteNumber(indicators?.ma200WeeklyChange4WeekPct);
@@ -950,7 +1024,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const ma200WeeklyStatus = String(indicators?.ma200WeeklyStatus || 'unavailable');
   const distance52 = high52 && close.closeUsd ? ((close.closeUsd / high52) - 1) * 100 : null;
   const distanceMa200 = ma200 && close.closeUsd ? ((close.closeUsd / ma200) - 1) * 100 : null;
-  const distanceEma30 = ema30 && close.closeUsd ? ((close.closeUsd / ema30) - 1) * 100 : null;
   const marketDate = getNewYorkEarningsClock(Date.now()).date;
   const earnings = resolveEarningsEvents(earningsEvents, symbol, marketDate);
   const upcomingDate = dateKey(earnings.upcoming?.reportDate);
@@ -1070,7 +1143,17 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-watchlist-daily-metrics="borderless">
           <MetricCell label={t(language, 'watchlistDetail.distance52High', '距52周高点')} value={formatSignedPercent(distance52)} detail={t(language, 'watchlistDetail.highValue', '高点 {{price}}', { price: formatCurrency(high52, stockCurrency) })} color={marketHexColor(distance52 || 0, marketColorMode)} />
           <MetricCell label={t(language, 'watchlistDetail.distanceMa200Daily', '距MA200（日）')} value={formatSignedPercent(distanceMa200)} detail={t(language, 'watchlistDetail.ma200DailyValue', '日线 {{price}}', { price: formatCurrency(ma200, stockCurrency) })} color={marketHexColor(distanceMa200 || 0, marketColorMode)} />
-          <MetricCell label={t(language, 'watchlistDetail.distanceEma30Daily', '距EMA30（日）')} value={formatSignedPercent(distanceEma30)} detail={t(language, 'watchlistDetail.ema30DailyValue', '日线 {{price}}', { price: formatCurrency(ema30, stockCurrency) })} color={marketHexColor(distanceEma30 || 0, marketColorMode)} />
+          <MetricCell
+            label={t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')}
+            value={formatSignedPercent(qqqRelativeReturn?.relativeReturnPercent)}
+            detail={qqqRelativeReturn
+              ? t(language, 'watchlistDetail.relativeQqq3mDetail', '个股 {{stock}} · QQQ {{qqq}}', {
+                stock: formatSignedPercent(qqqRelativeReturn.stockReturnPercent, 1),
+                qqq: formatSignedPercent(qqqRelativeReturn.qqqReturnPercent, 1),
+              })
+              : '--'}
+            color={marketHexColor(qqqRelativeReturn?.relativeReturnPercent || 0, marketColorMode)}
+          />
         </div>
 
         <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
