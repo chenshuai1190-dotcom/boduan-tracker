@@ -294,6 +294,35 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     >
       <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价与{{maLabel}}走势', { range: range.toUpperCase(), maLabel })}>
         <defs>
+          <style>
+            {`
+              @keyframes watchlist-stock-price-breathe {
+                0%, 100% {
+                  opacity: 0.22;
+                  transform: scale(0.72);
+                }
+                50% {
+                  opacity: 0.06;
+                  transform: scale(1.42);
+                }
+              }
+
+              .watchlist-stock-price-breathe-ring {
+                animation: watchlist-stock-price-breathe 3.2s ease-in-out infinite;
+                transform-box: fill-box;
+                transform-origin: center;
+                will-change: opacity, transform;
+              }
+
+              @media (prefers-reduced-motion: reduce) {
+                .watchlist-stock-price-breathe-ring {
+                  animation: none !important;
+                  opacity: 0.16;
+                  transform: scale(1);
+                }
+              }
+            `}
+          </style>
           <linearGradient id="watchlist-stock-detail-area" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={PRICE_LINE_COLOR} stopOpacity="0.14" />
             <stop offset="100%" stopColor={PRICE_LINE_COLOR} stopOpacity="0" />
@@ -310,6 +339,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
         {chart.maPoints.length >= 2 ? <path data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'} data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined} d={chart.maPath} fill="none" stroke={maColor} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
         <path d={chart.pricePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={PRICE_LINE_COLOR} pointerEvents="none" />
         <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
         {selectedPoint ? (
           <g aria-hidden="true">

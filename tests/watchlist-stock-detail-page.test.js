@@ -112,6 +112,12 @@ test('production price chart uses real daily MA for short ranges and weekly MA o
   assert.ok(devPreviewSource.includes('ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null'));
   assert.ok(pageSource.includes('strokeWidth="0.95"'));
   assert.ok(pageSource.includes('strokeWidth="1.15"'));
+  assert.ok(pageSource.includes('@keyframes watchlist-stock-price-breathe'));
+  assert.ok(pageSource.includes('animation: watchlist-stock-price-breathe 3.2s ease-in-out infinite'));
+  assert.ok(pageSource.includes('@media (prefers-reduced-motion: reduce)'));
+  assert.ok(pageSource.includes('data-watchlist-endpoint-breathe-ring="true"'));
+  assert.ok(pageSource.includes('r="4.4" fill={PRICE_LINE_COLOR} pointerEvents="none"'));
+  assert.ok(pageSource.includes('r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65"'), 'the endpoint body should keep its existing size and styling');
   assert.equal(pageSource.includes('price-glow'), false);
   assert.equal(pageSource.includes('formatCurrency(last.close, currency)'), false, 'the chart endpoint should not repeat the latest stock price');
   assert.equal(pageSource.includes('chart.points'), false);
