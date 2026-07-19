@@ -131,15 +131,20 @@ test('production price chart uses real daily MA for short ranges and weekly MA o
   assert.ok(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
 });
 
-test('five-year chart pinches and pans an isolated weekly window without changing single-pointer behavior', () => {
+test('five-year chart pinches and supports single-finger horizontal panning without blocking vertical scroll', () => {
   assert.ok(pageSource.includes('const pinchEnabled = weeklyMa && rows.length > 26'));
   assert.ok(pageSource.includes('touchPointersRef = React.useRef(new Map())'));
+  assert.ok(pageSource.includes('singleTouchGestureRef = React.useRef(null)'));
   assert.ok(pageSource.includes('transformStockDetailChartWindow(gesture.startWindow'));
   assert.ok(pageSource.includes('minPointCount: 26'));
   assert.ok(pageSource.includes('currentCenterRatio: plotRatioForClientX(currentCenterX)'));
   assert.ok(pageSource.includes('window.requestAnimationFrame'));
   assert.ok(pageSource.includes('suppressSinglePointerRef.current'));
   assert.ok(pageSource.includes("style={{ touchAction: 'pan-y' }}"));
+  assert.ok(pageSource.includes('singleGesture.intent = stockDetailChartDragIntent(deltaX, deltaY)'));
+  assert.ok(pageSource.includes('singleGesture.startedZoomed'));
+  assert.ok(pageSource.includes('startCenterRatio: singleGesture.startCenterRatio'));
+  assert.ok(pageSource.includes('currentCenterRatio: plotRatioForClientX(event.clientX)'));
   assert.ok(pageSource.includes('data-watchlist-stock-chart-reset="true"'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.resetZoom', '重置')"));
   assert.ok(i18nSource.includes("'watchlistDetail.resetZoom': '重置'"));

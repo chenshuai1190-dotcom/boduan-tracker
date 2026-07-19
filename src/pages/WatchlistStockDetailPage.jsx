@@ -28,6 +28,7 @@ import {
   normalizeStockDetailWeeklyHistory,
   resolveStockDetailClose,
   sliceStockDetailChartWindow,
+  stockDetailChartDragIntent,
   targetProgressPercent,
   targetProgressPositionPercent,
   targetSpacePercent,
@@ -220,6 +221,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
   const chartRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
   const touchPointersRef = React.useRef(new Map());
+  const singleTouchGestureRef = React.useRef(null);
   const pinchGestureRef = React.useRef(null);
   const suppressSinglePointerRef = React.useRef(false);
   const chartWindowFrameRef = React.useRef(null);
@@ -261,6 +263,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     chartWindowRef.current = fullWindow;
     setChartWindow(fullWindow);
     touchPointersRef.current.clear();
+    singleTouchGestureRef.current = null;
     pinchGestureRef.current = null;
     suppressSinglePointerRef.current = false;
     activePointerIdRef.current = null;
@@ -380,6 +383,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
       startCenterRatio: plotRatioForClientX(startCenterX),
       startWindow: chartWindowRef.current,
     };
+    singleTouchGestureRef.current = null;
     suppressSinglePointerRef.current = true;
     activePointerIdRef.current = null;
     setSelectedIndex(null);
@@ -395,11 +399,22 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
       });
       if (touchPointersRef.current.size === 1 && !suppressSinglePointerRef.current) {
         activePointerIdRef.current = event.pointerId;
-        selectNearestPoint(event.clientX);
+        singleTouchGestureRef.current = {
+          pointerId: event.pointerId,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startCenterRatio: plotRatioForClientX(event.clientX),
+          startWindow: chartWindowRef.current,
+          startedZoomed: chartWindowZoomed,
+          intent: 'pending',
+        };
+        if (chartWindowZoomed) setSelectedIndex(null);
+        else selectNearestPoint(event.clientX);
       } else if (touchPointersRef.current.size === 2) {
         if (event.cancelable) event.preventDefault();
         startPinchGesture();
       } else {
+        singleTouchGestureRef.current = null;
         suppressSinglePointerRef.current = true;
         activePointerIdRef.current = null;
         setSelectedIndex(null);
@@ -439,15 +454,40 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         return;
       }
       if (suppressSinglePointerRef.current) return;
+      const singleGesture = singleTouchGestureRef.current;
+      if (singleGesture?.pointerId === event.pointerId && singleGesture.startedZoomed) {
+        const deltaX = event.clientX - singleGesture.startClientX;
+        const deltaY = event.clientY - singleGesture.startClientY;
+        if (singleGesture.intent === 'pending') {
+          singleGesture.intent = stockDetailChartDragIntent(deltaX, deltaY);
+        }
+        if (singleGesture.intent === 'horizontal') {
+          if (event.cancelable) event.preventDefault();
+          setSelectedIndex(null);
+          const nextWindow = transformStockDetailChartWindow(singleGesture.startWindow, {
+            pointCount: rows.length,
+            minPointCount: 26,
+            scale: 1,
+            startCenterRatio: singleGesture.startCenterRatio,
+            currentCenterRatio: plotRatioForClientX(event.clientX),
+          });
+          scheduleChartWindow(nextWindow);
+        }
+        return;
+      }
     }
     if (activePointerIdRef.current === event.pointerId) selectNearestPoint(event.clientX);
   };
 
   const finishPointer = (event, { cancelled = false, lostCapture = false } = {}) => {
     const managedTouch = event.pointerType === 'touch' && touchPointersRef.current.has(event.pointerId);
+    const singleGesture = singleTouchGestureRef.current?.pointerId === event.pointerId
+      ? singleTouchGestureRef.current
+      : null;
     if (managedTouch) {
       const wasPinching = suppressSinglePointerRef.current || Boolean(pinchGestureRef.current);
       touchPointersRef.current.delete(event.pointerId);
+      if (singleGesture) singleTouchGestureRef.current = null;
       if (pinchGestureRef.current?.pointerIds.includes(event.pointerId)) pinchGestureRef.current = null;
       if (!lostCapture && event.currentTarget.hasPointerCapture?.(event.pointerId)) {
         event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -456,6 +496,16 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
       if (wasPinching) {
         activePointerIdRef.current = null;
         return;
+      }
+      if (singleGesture?.startedZoomed) {
+        const movedDistance = Math.hypot(
+          event.clientX - singleGesture.startClientX,
+          event.clientY - singleGesture.startClientY,
+        );
+        if (cancelled || singleGesture.intent !== 'pending' || movedDistance >= 8) {
+          activePointerIdRef.current = null;
+          return;
+        }
       }
     }
     if (!cancelled && activePointerIdRef.current === event.pointerId) selectNearestPoint(event.clientX);

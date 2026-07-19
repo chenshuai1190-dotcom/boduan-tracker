@@ -11,6 +11,7 @@ import {
   normalizeStockDetailWeeklyHistory,
   resolveStockDetailClose,
   sliceStockDetailChartWindow,
+  stockDetailChartDragIntent,
   targetProgressPercent,
   targetProgressPositionPercent,
   targetSpacePercent,
@@ -113,6 +114,14 @@ test('five-year chart window pinches around its anchor, pans, clamps, and keeps 
   assert.equal(sliced.length, 131);
   assert.equal(sliced[0].index, 65);
   assert.equal(sliced.at(-1).index, 195);
+});
+
+test('stock chart distinguishes a tap, horizontal pan, and vertical page scroll', () => {
+  assert.equal(stockDetailChartDragIntent(4, 3), 'pending');
+  assert.equal(stockDetailChartDragIntent(14, 3), 'horizontal');
+  assert.equal(stockDetailChartDragIntent(-14, 3), 'horizontal');
+  assert.equal(stockDetailChartDragIntent(3, 14), 'vertical');
+  assert.equal(stockDetailChartDragIntent(12, 12), 'pending');
 });
 
 test('portfolio conversion is reserved for holding totals while target math stays canonical in USD', () => {

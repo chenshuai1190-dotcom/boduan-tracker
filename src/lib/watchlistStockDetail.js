@@ -169,6 +169,20 @@ export function transformStockDetailChartWindow(chartWindow, {
   return { start: nextStart, end: nextStart + nextCount - 1 };
 }
 
+export function stockDetailChartDragIntent(deltaX, deltaY, {
+  threshold = 8,
+  axisBias = 1.15,
+} = {}) {
+  const horizontalDistance = Math.abs(finiteNumber(deltaX) ?? 0);
+  const verticalDistance = Math.abs(finiteNumber(deltaY) ?? 0);
+  const thresholdValue = positiveNumber(threshold) ?? 8;
+  const axisBiasValue = Math.max(1, positiveNumber(axisBias) ?? 1.15);
+  if (Math.max(horizontalDistance, verticalDistance) < thresholdValue) return 'pending';
+  if (horizontalDistance > verticalDistance * axisBiasValue) return 'horizontal';
+  if (verticalDistance > horizontalDistance * axisBiasValue) return 'vertical';
+  return 'pending';
+}
+
 export function sliceStockDetailChartWindow(rows = [], chartWindow) {
   const sourceRows = Array.isArray(rows) ? rows : [];
   if (sourceRows.length === 0) return [];
