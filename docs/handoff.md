@@ -10,15 +10,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 生产运行时代码 | `0246bf0336b21fad40d7d37199ff55f292863401` |
-| 设置页版本 | `v10.7.9.361` |
-| 生产入口 | `/assets/index-IqK5bLo1.js` |
-| Runtime Actions | `29692007690` success |
-| Runtime Vercel | `3mhNMVPWUwhkXPYTPBJUo7HfiHrg` success |
+| 生产运行时代码 | `cee9db20bd9e3f6507a2f517c77b7be04f2ca454` |
+| 设置页版本 | `v10.7.9.362` |
+| 生产入口 | `/assets/index-Ckohgbqv.js` |
+| Runtime Actions | `29693930349` success |
+| Runtime Vercel | `BKetqXD4841fE3eWg7vTwAVJBgZg` success |
 
 已验证：
 
-- `npm run verify:deploy-status -- 0246bf0`：PASS。
+- `npm run verify:deploy-status -- cee9db2`：PASS。
 - 未登录 `/api/quote?symbols=VIX`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=stock-detail`：`401`。
 - 未登录 `/api/earnings-calendar?symbols=NVDA`：`401`。
@@ -28,13 +28,15 @@
 - 成本至目标进度保留真实有符号数值：现价低于平均成本时可显示负数，但视觉标记仍限制在 `0–100%`轨道内。
 - 公司 Logo 已与首页共用缓存和回退链；单一来源失败后会继续尝试 EODHD 大小写、FMP 和 Finnhub，成功后写入现有本地缓存。
 - 股票趋势默认展示五年真实周收盘，约 260 个数据点使用 `0.95px` 细绿线、无发光和弱填充；`1.15px` 金色 MA200 周线贯穿图表，点击可同时读取股价、周涨跌和当周已锁定均线。
+- 1月、3月、6月和1年走势图使用真实复权日收盘与蓝色 MA200（日）；日均线由完整历史预热后再裁剪可见区间，图例和 tooltip 随日/周周期切换，不新增 provider 请求。
 - 走势图右端不再重复显示最新股价气泡，只保留末端圆点；头部主股价与点击历史价格 tooltip 保持不变。
 - MA200 周线由按需获取的十年复权收盘预热计算，只推进已完成交易周；未收盘周不会改写锁定值，行情源失败与真实历史不足分别显示“暂不可用”和周数进度。普通首页行情仍保持原 380 天历史窗口。
 - 关键指标已取消 20 日波动率，改为无分割线的 52 周高点、MA200（日）、EMA30（日）与独立 MA200 周线详情，周线面板展示距均线、近四周变化、连续状态和锁定日期。
 - 生产 `watchlist.target_price_usd numeric(18,6)` 已 database-first 迁移；正数约束、RLS、原 5 条 policy、76 条既有数据和 0 条非空目标价均完成 postflight，未改变既有行。
-- 生产详情页分包 `/assets/WatchlistStockDetailPage-BityBpi9.js` 返回 `200`，包含 `weeklyHistory`、`ma200WeeklyStatus`、周线 SVG 与细线标记，且旧末端价格气泡填充标记已不存在；Settings/changelog 为 `v10.7.9.361`。
+- 生产详情页分包 `/assets/WatchlistStockDetailPage-CVihyriS.js` 返回 `200`，包含日/周 MA 线、蓝色 `#60a5fa`、动态 `price-daily-ma` 图例和历史 tooltip；Settings/changelog 为 `v10.7.9.362`。
 - 本机真实 Xcode iOS Simulator 已验证默认五年图、联动 tooltip 与周线指标面板；截图在忽略目录 `outputs/ios-simulator/watchlist-weekly-ma-production-v360-*.png`。
 - 本次末端标签精简的 Simulator 截图：`outputs/ios-simulator/watchlist-weekly-ma-no-end-price-v361.png`。
+- 本次日/周均线切换的真实 Simulator 截图：`outputs/ios-simulator/watchlist-real-daily-ma200-1m-v1.png`、`watchlist-real-daily-ma200-tooltip-1m-v1.png` 和 `watchlist-real-weekly-ma200-5y-v1.png`。
 
 ## 收益比赛当前状态
 
