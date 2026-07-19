@@ -4,6 +4,19 @@ import test from 'node:test';
 
 const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const devPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
+
+test('watchlist detail keeps the existing bottom tabs and uses the Chinese stock-trend title', () => {
+  assert.ok(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.title', '股票趋势')"));
+  assert.ok(i18nSource.includes("'watchlistDetail.title': '股票趋势'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.title': 'Stock Detail'"), 'English title should remain unchanged');
+  assert.ok(appSource.includes('{!isPnlReportPage && ('));
+  assert.equal(appSource.includes('!isPnlReportPage && !isWatchlistStockDetailPage'), false);
+  assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && ("));
+  assert.ok(devPreviewSource.includes("activeTab === 'watchlist-stock-detail' && tab.id === 'home'"));
+});
 
 test('production watchlist detail reads one authenticated close-history payload on demand', () => {
   assert.ok(pageSource.includes('/api/quote?symbols=${encodeURIComponent(symbol)}&view=stock-detail'));
@@ -37,6 +50,21 @@ test('production watchlist detail only converts holding asset totals and keeps s
 test('technical indicator heading does not repeat MA200 and EMA30 summary values', () => {
   assert.equal(pageSource.includes('metricSummary'), false);
   assert.ok(pageSource.includes("<SectionHeading title={t(language, 'watchlistDetail.technicalIndicators', '关键指标')} />"));
+});
+
+test('production detail shares the Home logo candidate chain and reads the persisted cache URL', () => {
+  assert.ok(pageSource.includes('const cachedLogoUrl = cachedLogoEntry?.url || cachedLogoEntry'));
+  assert.ok(pageSource.includes('rows.watchlistRow?.logoURL'));
+  assert.ok(pageSource.includes('rows.quoteRow?.logoURL'));
+  assert.ok(pageSource.includes('onLogoLoad={cacheStockLogo}'));
+});
+
+test('target card keeps whole-card editing without the scale animation', () => {
+  const targetButtonLine = pageSource.split('\n').find((line) => line.includes('data-watchlist-detail-section="target"')) || '';
+  assert.ok(targetButtonLine.includes('setShowTargetEditor(true)'));
+  assert.ok(targetButtonLine.includes('editTargetAria'));
+  assert.equal(targetButtonLine.includes('scale-'), false);
+  assert.ok(pageSource.includes('targetProgressPositionPercent(targetProgress)'));
 });
 
 test('production watchlist detail only mutates its isolated target and keeps holdings and trades read-only', () => {

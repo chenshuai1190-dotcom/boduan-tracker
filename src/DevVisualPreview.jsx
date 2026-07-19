@@ -1759,7 +1759,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen bg-[#05070b] text-white ${['pnl-report', 'watchlist-stock-detail'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      className={`min-h-screen bg-[#05070b] text-white ${activeTab === 'pnl-report' ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{ paddingTop: ['wave-tracker', 'community-competition', 'watchlist-stock-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
@@ -1792,13 +1792,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         onConfirm={submitPreviewConfirm}
       />
 
-      {!['pnl-report', 'watchlist-stock-detail'].includes(activeTab) && (
+      {activeTab !== 'pnl-report' && (
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-5">
             {nav.map(tab => {
               const Icon = tab.icon;
-              const isActive = tab.id === activeTab || (['wave-tracker', 'community-competition'].includes(activeTab) && tab.id === 'trades');
+              const isActive = tab.id === activeTab
+                || (activeTab === 'watchlist-stock-detail' && tab.id === 'home')
+                || (['stock-detail', 'wave-tracker', 'community-competition'].includes(activeTab) && tab.id === 'trades');
               return (
                 <button
                   key={tab.id}

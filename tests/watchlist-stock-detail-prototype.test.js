@@ -43,3 +43,11 @@ test('watchlist header gives the price chart a full-width row', () => {
   assert.equal(prototypeSource.includes('grid-cols-[103px_minmax(0,1fr)]'), false);
   assert.ok(prototypeSource.includes('className="h-[148px] w-full overflow-visible"'));
 });
+
+test('prototype target card keeps editing but has no whole-card scale animation', () => {
+  const targetButtonStart = prototypeSource.lastIndexOf('<button', prototypeSource.indexOf('data-prototype-section="target"'));
+  const targetButtonEnd = prototypeSource.indexOf('>', prototypeSource.indexOf('data-prototype-section="target"'));
+  const targetButton = prototypeSource.slice(targetButtonStart, targetButtonEnd);
+  assert.ok(targetButton.includes('setShowTargetEditor(true)'));
+  assert.equal(targetButton.includes('scale-'), false);
+});

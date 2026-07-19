@@ -7,6 +7,7 @@ const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8
 const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
 const accountAssetTrendModalSource = readFileSync(new URL('../src/components/AccountAssetTrendModal.jsx', import.meta.url), 'utf8');
 const stockLogoSource = readFileSync(new URL('../src/components/StockLogo.jsx', import.meta.url), 'utf8');
+const stockLogoCandidatesSource = readFileSync(new URL('../src/lib/stockLogo.js', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.url), 'utf8');
 const confirmModalSource = readFileSync(new URL('../src/components/ConfirmModal.jsx', import.meta.url), 'utf8');
 const confirmModalOptionsSource = readFileSync(new URL('../src/lib/confirmModal.js', import.meta.url), 'utf8');
@@ -591,8 +592,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.358'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.358', date: '2026-07-19', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.359'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.359', date: '2026-07-19', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('股票趋势详情修正') && settingsChangelogSource.includes('真实有符号数值') && settingsChangelogSource.includes('五栏底部导航') && settingsChangelogSource.includes('共用同一回退链和本地缓存'), 'settings changelog should document the signed progress, bottom navigation, and shared logo fallback');
   assert.ok(settingsChangelogSource.includes('自选股票详情与个人目标价') && settingsChangelogSource.includes('点击股票代码和名称区域') && settingsChangelogSource.includes('不修改持仓、交易或比赛账本') && settingsChangelogSource.includes('仅持仓市值与持仓盈亏跟随系统币种'), 'settings changelog should document the watchlist detail entry, isolation, and currency boundaries');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.357', date: '2026-07-19'") && settingsChangelogSource.includes('财报息税前利润与首页双击回顶') && settingsChangelogSource.includes('不参与超预期或不及预期判断') && settingsChangelogSource.includes('现有底栏布局保持不变'), 'settings changelog should retain both merged v357 release boundaries');
   assert.ok(settingsChangelogSource.includes('比赛榜单刷新状态提示') && settingsChangelogSource.includes('正在加载最新榜单…'), 'settings changelog should document the compact stale-leaderboard refresh notice');
@@ -1986,7 +1988,8 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(waveTrackerPageSource.includes("return parsed > 0 ? `$${formatNumber(parsed, 2)}` : '--'"), 'stock unit prices must remain canonical USD');
   assert.ok(waveTrackerPageSource.includes('dashboard.cumulativePnlUsd * displayRate'), 'only P&L amounts should follow the shared display currency');
   assert.ok(waveTrackerPageSource.includes("import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx'"));
-  assert.ok(stockLogoSource.includes('https://eodhd.com/img/logos/US/') && stockLogoSource.includes('static2.finnhub.io'), 'shared logo chain should keep EODHD, Finnhub, and ticker fallback');
+  assert.ok(stockLogoSource.includes("export { stockLogoCandidates } from '../lib/stockLogo.js'"), 'shared logo component should re-export the canonical candidate helper');
+  assert.ok(stockLogoCandidatesSource.includes('https://eodhd.com/img/logos/US/') && stockLogoCandidatesSource.includes('financialmodelingprep.com/image-stock/') && stockLogoCandidatesSource.includes('static2.finnhub.io'), 'shared logo chain should keep Home-compatible EODHD, FMP, Finnhub, and ticker fallbacks');
   assert.ok(waveTrackerPageSource.includes('syncSwingWaveQuoteRows') && waveTrackerPageSource.includes('fetchPopularStockQuotes'), 'wave-only symbols should get authenticated REST and existing relay coverage');
   assert.ok(waveTrackerPageSource.includes("rows.filter((wave) => wave?.status === 'active')"), 'only active waves may join the realtime quote universe');
   assert.ok(waveTrackerPageSource.includes('mergeSwingWaveQuoteRows(current, nextQuotes)') && waveTrackerPageSource.includes('quoteRequestRef.current'), 'partial or out-of-order REST quote responses must not erase newer wave quotes');
@@ -2440,7 +2443,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.358'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.359'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

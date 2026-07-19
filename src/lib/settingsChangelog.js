@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.358', date: '2026-07-19', latest: true,
+    ver: 'v10.7.9.359', date: '2026-07-19', latest: true,
+    items: [
+      '📈 股票趋势详情修正',
+      '  - 自选详情页标题改为“股票趋势”，并保留现有五栏底部导航，可直接返回首页或切换其他模块',
+      '  - 成本至目标进度改为显示真实有符号数值；现价低于平均成本时允许负数，但进度点始终限制在轨道内',
+      '  - 公司 Logo 与首页共用同一回退链和本地缓存，单个来源失败会继续尝试其他来源',
+      '  - 取消目标价整卡按压缩放，点击编辑和保存逻辑保持不变',
+    ],
+    itemsEn: [
+      '📈 Stock-trend detail corrections',
+      '  - The Chinese watchlist-detail title is now “股票趋势” and the page keeps the existing five-tab bottom navigation for direct module switching',
+      '  - Cost-to-target progress now shows the real signed value; prices below average cost can be negative while the visual marker stays inside the track',
+      '  - Company logos share the Home fallback chain and local cache, continuing to another provider when one source fails',
+      '  - The target-price card no longer scales on press, while editing and saving behavior remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.358', date: '2026-07-19',
     items: [
       '📈 自选股票详情与个人目标价',
       '  - 首页“自选”中点击股票代码和名称区域可进入独立详情页；价格、涨跌和回撤区域保持原有滚动与排序交互',

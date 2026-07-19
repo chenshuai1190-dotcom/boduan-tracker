@@ -25,6 +25,7 @@ import {
   normalizeStockDetailHistory,
   resolveStockDetailClose,
   targetProgressPercent,
+  targetProgressPositionPercent,
   targetSpacePercent,
   usdToDisplayCurrency,
 } from '../lib/watchlistStockDetail.js';
@@ -533,8 +534,18 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const displayName = typeof displayStockName === 'function'
     ? displayStockName(symbol, rows.watchlistRow?.name || rows.quoteRow?.name || symbol, language)
     : (rows.watchlistRow?.name || rows.quoteRow?.name || symbol);
-  const cachedLogo = logoCache instanceof Map ? logoCache.get(symbol) : logoCache?.[symbol];
-  const logoUrls = stockLogoCandidates(symbol, cachedLogo);
+  const cachedLogoEntry = logoCache instanceof Map ? logoCache.get(symbol) : logoCache?.[symbol];
+  const cachedLogoUrl = cachedLogoEntry?.url || cachedLogoEntry;
+  const logoUrls = stockLogoCandidates(
+    symbol,
+    cachedLogoUrl,
+    rows.watchlistRow?.logoURL,
+    rows.watchlistRow?.logoUrl,
+    rows.watchlistRow?.logo,
+    rows.quoteRow?.logoURL,
+    rows.quoteRow?.logoUrl,
+    rows.quoteRow?.logo,
+  );
   const closeDisplay = close.closeUsd;
   const changeDisplay = close.changeUsd;
   const closeColor = marketHexColor(close.changeUsd || 0, marketColorMode);
@@ -547,6 +558,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const targetDisplay = targetPriceUsd;
   const targetGap = targetSpacePercent(targetPriceUsd, close.closeUsd);
   const targetProgress = targetProgressPercent(targetPriceUsd, close.closeUsd, position.averageCostUsd);
+  const targetProgressPosition = targetProgressPositionPercent(targetProgress);
   const high52 = positiveNumber(indicators?.week52High);
   const ma200 = positiveNumber(indicators?.ma200);
   const ema30 = positiveNumber(indicators?.ema30);
@@ -585,13 +597,13 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   };
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white" data-watchlist-stock-detail-page="production" style={{ fontFamily: PAGE_FONT }}>
+    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+86px)] text-white" data-watchlist-stock-detail-page="production" style={{ fontFamily: PAGE_FONT }}>
       <header className="sticky top-0 z-30 -mx-4 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
         <div className="grid h-10 grid-cols-[40px_minmax(0,1fr)_40px] items-center">
           <button type="button" onClick={closeWatchlistStockDetail} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.045] text-white/[0.66] active:scale-95" aria-label={t(language, 'watchlistDetail.back', '返回首页')}>
             <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
           </button>
-          <h1 className="text-center text-[17px] font-normal tracking-[0.02em] text-white/[0.88]">{t(language, 'watchlistDetail.title', '股票详情')}</h1>
+          <h1 className="text-center text-[17px] font-normal tracking-[0.02em] text-white/[0.88]">{t(language, 'watchlistDetail.title', '股票趋势')}</h1>
           <div aria-hidden="true" />
         </div>
       </header>
@@ -684,7 +696,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         )}
       </section>
 
-      <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] active:scale-[0.995]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
+      <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
           <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[9px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
           <div className="flex items-center gap-1.5 text-[10px] text-white/[0.32]"><Pencil className="h-3 w-3" />{t(language, 'watchlistDetail.edit', '编辑')}<ChevronRight className="h-3.5 w-3.5" /></div>
@@ -695,7 +707,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             <div className="pb-1 text-right"><div className="text-[10px] text-white/[0.33]">{t(language, 'watchlistDetail.targetSpace', '距目标空间')}</div><div className="mt-1 text-[16px] tabular-nums" style={{ color: marketHexColor(targetGap || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(targetGap)}</div></div>
           </div>
           <div className="mt-5">
-            <div className="relative h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]"><span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]" style={{ left: `${targetProgress || 0}%`, opacity: targetProgress === null ? 0.35 : 1 }} /></div>
+            <div className="relative h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]"><span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]" style={{ left: `${targetProgressPosition}%`, opacity: targetProgress === null ? 0.35 : 1 }} /></div>
             <div className="mt-2 grid grid-cols-3 text-[9.5px] text-white/[0.29]">
               <span>{t(language, 'watchlistDetail.cost', '成本 {{price}}', { price: formatCurrency(position.averageCostUsd, stockCurrency) })}</span>
               <span className="text-center text-[#f6b54b]/75">{t(language, 'watchlistDetail.current', '当前 {{price}}', { price: formatCurrency(closeDisplay, stockCurrency) })}</span>

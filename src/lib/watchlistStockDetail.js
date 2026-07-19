@@ -88,7 +88,13 @@ export function targetProgressPercent(targetPriceUsd, currentPriceUsd, averageCo
   const current = positiveNumber(currentPriceUsd);
   const cost = positiveNumber(averageCostUsd);
   if (target === null || current === null || cost === null || target <= cost) return null;
-  return Math.max(0, Math.min(100, ((current - cost) / (target - cost)) * 100));
+  return ((current - cost) / (target - cost)) * 100;
+}
+
+export function targetProgressPositionPercent(progressPercent) {
+  const progress = finiteNumber(progressPercent);
+  if (progress === null) return 0;
+  return Math.max(0, Math.min(100, progress));
 }
 
 export function findWatchlistStockDetailRows({

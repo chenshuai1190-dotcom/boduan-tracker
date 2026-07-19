@@ -4835,7 +4835,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${isPnlReportPage || isWatchlistStockDetailPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${isPnlReportPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5087,7 +5087,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         )}
 
         {/* 底部 5 tab 导航栏 */}
-        {!isPnlReportPage && !isWatchlistStockDetailPage && (
+        {!isPnlReportPage && (
         <div
           className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${darkShell ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

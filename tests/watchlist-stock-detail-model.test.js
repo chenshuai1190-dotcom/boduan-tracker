@@ -7,6 +7,7 @@ import {
   normalizeStockDetailHistory,
   resolveStockDetailClose,
   targetProgressPercent,
+  targetProgressPositionPercent,
   targetSpacePercent,
   usdToDisplayCurrency,
 } from '../src/lib/watchlistStockDetail.js';
@@ -39,6 +40,20 @@ test('portfolio conversion is reserved for holding totals while target math stay
   assert.equal(usdToDisplayCurrency(2000, 'CNY', 7.2), 14400);
   assert.equal(targetSpacePercent(targetUsd, 200), 25);
   assert.equal(targetProgressPercent(targetUsd, 200, 150), 50);
+});
+
+test('cost-to-target progress keeps the real signed value while the visual marker stays bounded', () => {
+  const belowCost = targetProgressPercent(550, 393.82, 412.07);
+  assert.equal(belowCost, ((393.82 - 412.07) / (550 - 412.07)) * 100);
+  assert.equal(targetProgressPositionPercent(belowCost), 0);
+
+  const aboveTarget = targetProgressPercent(250, 300, 150);
+  assert.equal(aboveTarget, 150);
+  assert.equal(targetProgressPositionPercent(aboveTarget), 100);
+
+  assert.equal(targetProgressPercent(150, 200, 150), null);
+  assert.equal(targetProgressPercent(250, 200, null), null);
+  assert.equal(targetProgressPositionPercent(null), 0);
 });
 
 test('watchlist detail derives read-only holdings and formal trades by symbol', () => {

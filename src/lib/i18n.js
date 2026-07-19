@@ -326,7 +326,7 @@ const messages = {
     'stockDetail.comparison.closeBasisShort': '等额加仓 · 同持仓比例减仓',
     'stockDetail.comparison.previewBasisShort': '等额加仓 · 同持仓比例减仓 · 本地只读视觉样例',
 
-    'watchlistDetail.title': '股票详情',
+    'watchlistDetail.title': '股票趋势',
     'watchlistDetail.back': '返回首页',
     'watchlistDetail.openAria': '打开 {{symbol}} 股票详情',
     'watchlistDetail.usStock': '美股',

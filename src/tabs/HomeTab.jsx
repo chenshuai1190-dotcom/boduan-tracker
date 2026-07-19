@@ -13,6 +13,7 @@ import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
+import { stockLogoCandidates } from '../lib/stockLogo.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
@@ -170,27 +171,6 @@ function SortHeader({ label, sortKey, sortState, onSort }) {
       <SortIcon active={active} direction={sortState?.direction} />
     </button>
   );
-}
-
-function normalizeLogoUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return null;
-  if (raw.startsWith('/')) return `https://eodhd.com${raw}`;
-  if (/^https?:\/\//i.test(raw)) return raw;
-  return null;
-}
-
-function logoUrlCandidates(symbol, ...explicitUrls) {
-  const urls = explicitUrls.map(normalizeLogoUrl).filter(Boolean);
-  const raw = String(symbol || '').trim();
-  if (/^[A-Za-z0-9.-]+$/.test(raw)) {
-    const upper = raw.toUpperCase();
-    urls.push(`https://eodhd.com/img/logos/US/${upper}.png`);
-    urls.push(`https://eodhd.com/img/logos/US/${raw.toLowerCase()}.png`);
-    urls.push(`https://financialmodelingprep.com/image-stock/${upper}.png`);
-    urls.push(`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${upper}.png`);
-  }
-  return Array.from(new Set(urls));
 }
 
 function LogoPlaceholder({ symbol, className = '' }) {
@@ -877,7 +857,7 @@ export default function HomeTab({ ctx }) {
     const color = changePct === null ? '#ffffff40' : marketColor(changePct, marketColorMode);
     const ytdColor = ytdChangePercent === null ? '#ffffff40' : marketColor(ytdChangePercent, marketColorMode);
     const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
-    const logoUrls = logoUrlCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
+    const logoUrls = stockLogoCandidates(symbol, cachedLogoUrl, row.logoURL, row.logoUrl, quote?.logoURL, quote?.logoUrl);
     const displayName = stockDisplayName(symbol, row.name || quote?.name, language);
 
     return {
@@ -924,7 +904,7 @@ export default function HomeTab({ ctx }) {
       displayName: stockDisplayName(symbol, row?.name || quote?.name, language),
       price: quote?.price || row?.price,
       changePercent: quote?.changePercent ?? row?.changePercent,
-      logoUrls: logoUrlCandidates(symbol, cachedLogoUrl, row?.logoURL, row?.logoUrl, quote?.logoURL, quote?.logoUrl),
+      logoUrls: stockLogoCandidates(symbol, cachedLogoUrl, row?.logoURL, row?.logoUrl, quote?.logoURL, quote?.logoUrl),
     };
   }), [watchlist, quoteBySymbol, logoCache, language]);
   const filteredEditWatchlistRows = React.useMemo(() => editWatchlistRows.filter((row) => {
@@ -1163,7 +1143,7 @@ export default function HomeTab({ ctx }) {
                 const name = stockDisplayName(row.symbol, row.name || directoryEntry?.name || row.symbol, language);
                 const company = String(row.company || directoryEntry?.company || '').trim();
                 const cachedLogoUrl = logoCache?.[row.symbol]?.url;
-                const logoUrls = logoUrlCandidates(row.symbol, cachedLogoUrl, row.logoURL, row.logoUrl, row.logo);
+                const logoUrls = stockLogoCandidates(row.symbol, cachedLogoUrl, row.logoURL, row.logoUrl, row.logo);
                 const drawdownLabel = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
                   ? '--'
                   : `${(Number(row.drawdown) * 100).toFixed(1)}%`;
@@ -1507,7 +1487,7 @@ export default function HomeTab({ ctx }) {
                     const quotePrice = quote?.price || quote?.currentPrice;
                     const isAdded = watchlistSymbols.has(symbol);
                     const color = marketColor(quote?.changePercent, marketColorMode);
-                    const logoUrls = logoUrlCandidates(symbol, item?.logo, quote?.logo, logoCache?.[symbol]?.url);
+                    const logoUrls = stockLogoCandidates(symbol, item?.logo, quote?.logo, logoCache?.[symbol]?.url);
                     return (
                       <div key={`${stockDiscoveryTab}-${symbol}`} className="flex min-h-[61px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
                         <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />

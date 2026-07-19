@@ -76,8 +76,8 @@ function targetSpace(targetPrice) {
 
 function targetProgress(targetPrice) {
   const target = Number(targetPrice);
-  if (!(target > AVG_COST) || CURRENT_PRICE <= AVG_COST) return null;
-  return Math.max(0, Math.min(100, ((CURRENT_PRICE - AVG_COST) / (target - AVG_COST)) * 100));
+  if (!(target > AVG_COST)) return null;
+  return ((CURRENT_PRICE - AVG_COST) / (target - AVG_COST)) * 100;
 }
 
 function chartGeometry(values) {
@@ -354,6 +354,7 @@ export default function WatchlistStockDetailPrototype() {
   const [showTargetEditor, setShowTargetEditor] = React.useState(initialEditorOpen);
   const gap = targetSpace(targetPrice);
   const progress = targetProgress(targetPrice);
+  const progressPosition = Math.max(0, Math.min(100, progress ?? 0));
 
   React.useEffect(() => {
     const focusSection = previewParams.get('focusSection');
@@ -372,7 +373,7 @@ export default function WatchlistStockDetailPrototype() {
             <button type="button" onClick={() => window.history.back()} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.045] text-white/[0.66] active:scale-95" aria-label="返回">
               <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
-            <h1 className="text-center text-[17px] font-normal tracking-[0.02em] text-white/[0.88]">股票详情</h1>
+            <h1 className="text-center text-[17px] font-normal tracking-[0.02em] text-white/[0.88]">股票趋势</h1>
             <div aria-hidden="true" />
           </div>
         </header>
@@ -462,7 +463,7 @@ export default function WatchlistStockDetailPrototype() {
         <button
           type="button"
           onClick={() => setShowTargetEditor(true)}
-          className="mt-3 block w-full scroll-mt-20 overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] active:scale-[0.995]"
+          className="mt-3 block w-full scroll-mt-20 overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
           data-prototype-section="target"
           aria-label="编辑目标价"
         >
@@ -486,7 +487,7 @@ export default function WatchlistStockDetailPrototype() {
             </div>
             <div className="mt-5">
               <div className="relative h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]">
-                <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]" style={{ left: `${progress ?? 0}%` }} />
+                <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]" style={{ left: `${progressPosition}%` }} />
               </div>
               <div className="mt-2 grid grid-cols-3 text-[9.5px] text-white/[0.29]">
                 <span>成本 ${formatNumber(AVG_COST)}</span>

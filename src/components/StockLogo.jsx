@@ -1,22 +1,6 @@
 import React from 'react';
 
-function normalizeLogoUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw || !/^https?:\/\//i.test(raw)) return '';
-  return raw;
-}
-
-export function stockLogoCandidates(symbol, cachedUrl) {
-  const upper = String(symbol || '').trim().toUpperCase();
-  const urls = [];
-  const cached = normalizeLogoUrl(cachedUrl);
-  if (cached) urls.push(cached);
-  if (upper) {
-    urls.push(`https://eodhd.com/img/logos/US/${upper}.png`);
-    urls.push(`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${upper}.png`);
-  }
-  return [...new Set(urls)];
-}
+export { stockLogoCandidates } from '../lib/stockLogo.js';
 
 export default function StockLogo({ symbol, urls = [], onLogoLoad, className = '' }) {
   const [index, setIndex] = React.useState(0);
@@ -33,6 +17,9 @@ export default function StockLogo({ symbol, urls = [], onLogoLoad, className = '
     <img
       src={currentUrl}
       alt=""
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
       className={`bg-black/20 object-contain ${className}`}
       onLoad={(event) => onLogoLoad?.(normalizedSymbol, event.currentTarget.currentSrc || event.currentTarget.src)}
       onError={() => setIndex((current) => current + 1)}
