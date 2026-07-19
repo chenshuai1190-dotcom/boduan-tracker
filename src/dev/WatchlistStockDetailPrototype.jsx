@@ -507,7 +507,7 @@ export default function WatchlistStockDetailPrototype() {
           <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
             <div className="flex min-w-0 items-center gap-2">
               <h3 className="text-[13px] font-normal text-white/[0.76]">MA200（周）</h3>
-              <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">长期趋势</span>
+              <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">芒格指标</span>
               <span className="ml-auto text-[9px] text-white/[0.28]">周收盘锁定</span>
             </div>
 

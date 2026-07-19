@@ -6,12 +6,15 @@ import {
   filterStockDetailWeeklyHistory,
   findStockDetailWeeklyMaOnOrBefore,
   findWatchlistStockDetailRows,
+  fullStockDetailChartWindow,
   normalizeStockDetailHistory,
   normalizeStockDetailWeeklyHistory,
   resolveStockDetailClose,
+  sliceStockDetailChartWindow,
   targetProgressPercent,
   targetProgressPositionPercent,
   targetSpacePercent,
+  transformStockDetailChartWindow,
   usdToDisplayCurrency,
 } from '../src/lib/watchlistStockDetail.js';
 
@@ -65,6 +68,51 @@ test('weekly history preserves missing MA values, filters five years, and resolv
   assert.deepEqual(visible.map((row) => row.date), ['2026-07-10', '2026-07-15']);
   assert.deepEqual(findStockDetailWeeklyMaOnOrBefore(rows, '2026-07-15'), rows[1], 'tooltips must ignore any MA attached to an unfinished week');
   assert.equal(findStockDetailWeeklyMaOnOrBefore(rows, '2021-01-01'), null);
+});
+
+test('five-year chart window pinches around its anchor, pans, clamps, and keeps inclusive endpoints', () => {
+  const full = fullStockDetailChartWindow(261);
+  assert.deepEqual(full, { start: 0, end: 260 });
+
+  const centered = transformStockDetailChartWindow(full, { pointCount: 261, scale: 2 });
+  assert.deepEqual(centered, { start: 65, end: 195 });
+  assert.equal(centered.end - centered.start + 1, 131);
+  assert.deepEqual(
+    transformStockDetailChartWindow(full, { pointCount: 261, scale: 2, startCenterRatio: 0, currentCenterRatio: 0 }),
+    { start: 0, end: 130 },
+  );
+  assert.deepEqual(
+    transformStockDetailChartWindow(full, { pointCount: 261, scale: 2, startCenterRatio: 1, currentCenterRatio: 1 }),
+    { start: 130, end: 260 },
+  );
+
+  const pannedEarlier = transformStockDetailChartWindow(centered, {
+    pointCount: 261,
+    scale: 1,
+    startCenterRatio: 0.5,
+    currentCenterRatio: 0.75,
+  });
+  assert.deepEqual(pannedEarlier, { start: 33, end: 163 });
+  assert.deepEqual(
+    transformStockDetailChartWindow({ start: 0, end: 130 }, {
+      pointCount: 261,
+      scale: 1,
+      startCenterRatio: 0.5,
+      currentCenterRatio: 1,
+    }),
+    { start: 0, end: 130 },
+  );
+
+  const minimum = transformStockDetailChartWindow(full, { pointCount: 261, scale: 100 });
+  assert.equal(minimum.end - minimum.start + 1, 26);
+  assert.deepEqual(transformStockDetailChartWindow(full, { pointCount: 261, scale: 0 }), full);
+  assert.deepEqual(transformStockDetailChartWindow(full, { pointCount: 20, scale: 4 }), { start: 0, end: 19 });
+
+  const rows = Array.from({ length: 261 }, (_, index) => ({ index }));
+  const sliced = sliceStockDetailChartWindow(rows, centered);
+  assert.equal(sliced.length, 131);
+  assert.equal(sliced[0].index, 65);
+  assert.equal(sliced.at(-1).index, 195);
 });
 
 test('portfolio conversion is reserved for holding totals while target math stays canonical in USD', () => {

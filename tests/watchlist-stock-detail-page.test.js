@@ -58,6 +58,8 @@ test('technical indicators use a borderless daily row plus one detailed weekly M
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.distanceMa200Daily', '距MA200（日）')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.distanceEma30Daily', '距EMA30（日）')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.longTermTrend', '芒格指标')"));
+  assert.ok(i18nSource.includes("'watchlistDetail.longTermTrend': '芒格指标'"));
   assert.equal(pageSource.includes('grid-cols-2 divide-x divide-y'), false);
 });
 
@@ -127,4 +129,24 @@ test('production price chart uses real daily MA for short ranges and weekly MA o
   assert.equal(pageSource.includes('chart.points'), false);
   assert.ok(pageSource.includes('setSelectedIndex(nearestIndex)'));
   assert.ok(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
+});
+
+test('five-year chart pinches and pans an isolated weekly window without changing single-pointer behavior', () => {
+  assert.ok(pageSource.includes('const pinchEnabled = weeklyMa && rows.length > 26'));
+  assert.ok(pageSource.includes('touchPointersRef = React.useRef(new Map())'));
+  assert.ok(pageSource.includes('transformStockDetailChartWindow(gesture.startWindow'));
+  assert.ok(pageSource.includes('minPointCount: 26'));
+  assert.ok(pageSource.includes('currentCenterRatio: plotRatioForClientX(currentCenterX)'));
+  assert.ok(pageSource.includes('window.requestAnimationFrame'));
+  assert.ok(pageSource.includes('suppressSinglePointerRef.current'));
+  assert.ok(pageSource.includes("style={{ touchAction: 'pan-y' }}"));
+  assert.ok(pageSource.includes('data-watchlist-stock-chart-reset="true"'));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.resetZoom', '重置')"));
+  assert.ok(i18nSource.includes("'watchlistDetail.resetZoom': '重置'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.resetZoom': 'Reset'"));
+  assert.ok(pageSource.includes('rows.findIndex((row) => row?.date === selectedPoint.date)'));
+  assert.ok(pageSource.includes('const latestPointVisible = !weeklyMa || effectiveChartWindow.end === rows.length - 1'));
+  assert.ok(pageSource.includes('{latestPointVisible ? ('));
+  assert.ok(pageSource.includes('spanDays <= 370'));
+  assert.ok(pageSource.includes('weeklyMa ? sliceStockDetailChartWindow(rows, effectiveChartWindow) : rows'));
 });

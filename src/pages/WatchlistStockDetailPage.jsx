@@ -22,12 +22,16 @@ import {
   filterStockDetailWeeklyHistory,
   findStockDetailWeeklyMaOnOrBefore,
   findWatchlistStockDetailRows,
+  fullStockDetailChartWindow,
+  normalizeStockDetailChartWindow,
   normalizeStockDetailHistory,
   normalizeStockDetailWeeklyHistory,
   resolveStockDetailClose,
+  sliceStockDetailChartWindow,
   targetProgressPercent,
   targetProgressPositionPercent,
   targetSpacePercent,
+  transformStockDetailChartWindow,
   usdToDisplayCurrency,
 } from '../lib/watchlistStockDetail.js';
 
@@ -166,13 +170,45 @@ function chartGeometry(rows, movingAverageRows) {
 function chartDateLabels(points, language, range) {
   if (!points.length) return [];
   const ratios = range === '5y' ? [0, 0.2, 0.4, 0.6, 0.8, 1] : [0, 0.25, 0.5, 0.75, 1];
+  const firstTime = Date.parse(`${points[0]?.date}T00:00:00Z`);
+  const lastTime = Date.parse(`${points.at(-1)?.date}T00:00:00Z`);
+  const spanDays = Number.isFinite(firstTime) && Number.isFinite(lastTime)
+    ? Math.max(0, (lastTime - firstTime) / 86_400_000)
+    : 0;
+  const labelForPoint = (point) => {
+    if (range !== '5y' || spanDays <= 370) return formatDate(point?.date, language);
+    if (spanDays <= 1_100) {
+      const key = dateKey(point?.date);
+      if (!key) return '--';
+      if (language === 'en') {
+        return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+          .format(new Date(`${key}T00:00:00Z`));
+      }
+      return `${key.slice(0, 4)}/${Number(key.slice(5, 7))}`;
+    }
+    return point?.date?.slice(0, 4) || '--';
+  };
   const labels = [...new Set(ratios.map((ratio) => Math.round((points.length - 1) * ratio)))]
     .map((index) => ({
       index,
       point: points[index],
-      label: range === '5y' ? points[index]?.date?.slice(0, 4) : formatDate(points[index]?.date, language),
+      label: labelForPoint(points[index]),
     }));
   return labels.filter((item, index) => labels.findIndex((candidate) => candidate.label === item.label) === index);
+}
+
+function chartWindowLabel(points, language) {
+  if (!Array.isArray(points) || points.length === 0) return '';
+  const formatter = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'zh-CN', {
+    year: 'numeric',
+    month: language === 'en' ? 'short' : '2-digit',
+    timeZone: 'UTC',
+  });
+  const label = (point) => {
+    const key = dateKey(point?.date);
+    return key ? formatter.format(new Date(`${key}T00:00:00Z`)) : '--';
+  };
+  return `${label(points[0])}–${label(points.at(-1))}`;
 }
 
 function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, initialTooltipOpen = false }) {
@@ -181,28 +217,68 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')
     : t(language, 'watchlistDetail.ma200Daily', 'MA200（日）');
   const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR;
+  const chartRef = React.useRef(null);
+  const activePointerIdRef = React.useRef(null);
+  const touchPointersRef = React.useRef(new Map());
+  const pinchGestureRef = React.useRef(null);
+  const suppressSinglePointerRef = React.useRef(false);
+  const chartWindowFrameRef = React.useRef(null);
+  const pendingChartWindowRef = React.useRef(null);
+  const previousSeriesRef = React.useRef({ range, rows, weeklyRows, symbol });
+  const [selectedIndex, setSelectedIndex] = React.useState(() => (
+    initialTooltipOpen && rows.length > 1 ? Math.round((rows.length - 1) * 0.72) : null
+  ));
+  const [chartWindow, setChartWindow] = React.useState(() => fullStockDetailChartWindow(rows.length));
+  const effectiveChartWindow = React.useMemo(
+    () => normalizeStockDetailChartWindow(chartWindow, rows.length),
+    [chartWindow, rows.length],
+  );
+  const chartWindowRef = React.useRef(effectiveChartWindow);
+  const visibleRows = React.useMemo(
+    () => (weeklyMa ? sliceStockDetailChartWindow(rows, effectiveChartWindow) : rows),
+    [effectiveChartWindow, rows, weeklyMa],
+  );
   const movingAverageRows = React.useMemo(() => (
     weeklyMa
       ? weeklyRows.filter((row) => row?.completed === true && Number.isFinite(row?.ma200))
       : rows.filter((row) => Number.isFinite(row?.ma200))
   ), [rows, weeklyMa, weeklyRows]);
   const chart = React.useMemo(
-    () => chartGeometry(rows, movingAverageRows),
-    [movingAverageRows, rows],
+    () => chartGeometry(visibleRows, movingAverageRows),
+    [movingAverageRows, visibleRows],
   );
-  const chartRef = React.useRef(null);
-  const activePointerIdRef = React.useRef(null);
-  const previousSeriesRef = React.useRef({ range, rows, weeklyRows });
-  const [selectedIndex, setSelectedIndex] = React.useState(() => (
-    initialTooltipOpen && rows.length > 1 ? Math.round((rows.length - 1) * 0.72) : null
-  ));
+  const chartWindowZoomed = weeklyMa
+    && (effectiveChartWindow.start > 0 || effectiveChartWindow.end < rows.length - 1);
+  const pinchEnabled = weeklyMa && rows.length > 26;
+
+  const resetChartWindow = React.useCallback(() => {
+    if (chartWindowFrameRef.current !== null) {
+      window.cancelAnimationFrame(chartWindowFrameRef.current);
+      chartWindowFrameRef.current = null;
+    }
+    pendingChartWindowRef.current = null;
+    const fullWindow = fullStockDetailChartWindow(rows.length);
+    chartWindowRef.current = fullWindow;
+    setChartWindow(fullWindow);
+    touchPointersRef.current.clear();
+    pinchGestureRef.current = null;
+    suppressSinglePointerRef.current = false;
+    activePointerIdRef.current = null;
+    setSelectedIndex(null);
+  }, [rows.length]);
 
   React.useEffect(() => {
     const previous = previousSeriesRef.current;
-    previousSeriesRef.current = { range, rows, weeklyRows };
-    if (previous.range === range && previous.rows === rows && previous.weeklyRows === weeklyRows) return;
-    setSelectedIndex(null);
-  }, [range, rows, weeklyRows]);
+    previousSeriesRef.current = { range, rows, weeklyRows, symbol };
+    if (previous.range === range && previous.rows === rows && previous.weeklyRows === weeklyRows && previous.symbol === symbol) return;
+    resetChartWindow();
+  }, [range, resetChartWindow, rows, symbol, weeklyRows]);
+  React.useEffect(() => {
+    chartWindowRef.current = effectiveChartWindow;
+  }, [effectiveChartWindow]);
+  React.useEffect(() => () => {
+    if (chartWindowFrameRef.current !== null) window.cancelAnimationFrame(chartWindowFrameRef.current);
+  }, []);
   React.useEffect(() => {
     if (selectedIndex == null) return undefined;
     const timerId = window.setTimeout(() => setSelectedIndex(null), 12_000);
@@ -225,8 +301,12 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
   }
 
   const last = chart.pricePoints.at(-1);
+  const latestPointVisible = !weeklyMa || effectiveChartWindow.end === rows.length - 1;
   const selectedPoint = Number.isInteger(selectedIndex) ? chart.pricePoints[selectedIndex] || null : null;
-  const previousPoint = selectedIndex > 0 ? chart.pricePoints[selectedIndex - 1] : null;
+  const selectedFullIndex = selectedPoint
+    ? rows.findIndex((row) => row?.date === selectedPoint.date)
+    : -1;
+  const previousPoint = selectedFullIndex > 0 ? rows[selectedFullIndex - 1] : null;
   const selectedChange = selectedPoint && previousPoint ? selectedPoint.close - previousPoint.close : null;
   const selectedChangePct = selectedChange !== null && previousPoint?.close > 0
     ? (selectedChange / previousPoint.close) * 100
@@ -243,6 +323,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     ? chart.maPoints.find((point) => point.date === selectedMaRow.date) || null
     : null;
   const labels = chartDateLabels(chart.pricePoints, language, range);
+  const visibleWindowLabel = chartWindowLabel(chart.pricePoints, language);
 
   const selectNearestPoint = (clientX) => {
     const rect = chartRef.current?.getBoundingClientRect();
@@ -260,36 +341,155 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     setSelectedIndex(nearestIndex);
   };
 
+  const plotRatioForClientX = (clientX) => {
+    const rect = chartRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return 0.5;
+    const viewBoxX = ((clientX - rect.left) / rect.width) * CHART_WIDTH;
+    return Math.max(0, Math.min(1, (viewBoxX - chart.left) / chart.plotWidth));
+  };
+
+  const scheduleChartWindow = (nextWindow) => {
+    pendingChartWindowRef.current = nextWindow;
+    if (chartWindowFrameRef.current !== null) return;
+    chartWindowFrameRef.current = window.requestAnimationFrame(() => {
+      chartWindowFrameRef.current = null;
+      const pendingWindow = pendingChartWindowRef.current;
+      pendingChartWindowRef.current = null;
+      if (!pendingWindow) return;
+      chartWindowRef.current = pendingWindow;
+      setChartWindow((currentWindow) => (
+        currentWindow.start === pendingWindow.start && currentWindow.end === pendingWindow.end
+          ? currentWindow
+          : pendingWindow
+      ));
+    });
+  };
+
+  const startPinchGesture = () => {
+    const pointers = Array.from(touchPointersRef.current.values()).slice(0, 2);
+    if (pointers.length !== 2) return;
+    const startDistance = Math.hypot(
+      pointers[0].clientX - pointers[1].clientX,
+      pointers[0].clientY - pointers[1].clientY,
+    );
+    if (!(startDistance > 1)) return;
+    const startCenterX = (pointers[0].clientX + pointers[1].clientX) / 2;
+    pinchGestureRef.current = {
+      pointerIds: [pointers[0].pointerId, pointers[1].pointerId],
+      startDistance,
+      startCenterRatio: plotRatioForClientX(startCenterX),
+      startWindow: chartWindowRef.current,
+    };
+    suppressSinglePointerRef.current = true;
+    activePointerIdRef.current = null;
+    setSelectedIndex(null);
+  };
+
+  const handlePointerDown = (event) => {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    if (pinchEnabled && event.pointerType === 'touch') {
+      touchPointersRef.current.set(event.pointerId, {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+      if (touchPointersRef.current.size === 1 && !suppressSinglePointerRef.current) {
+        activePointerIdRef.current = event.pointerId;
+        selectNearestPoint(event.clientX);
+      } else if (touchPointersRef.current.size === 2) {
+        if (event.cancelable) event.preventDefault();
+        startPinchGesture();
+      } else {
+        suppressSinglePointerRef.current = true;
+        activePointerIdRef.current = null;
+        setSelectedIndex(null);
+      }
+      return;
+    }
+    activePointerIdRef.current = event.pointerId;
+    selectNearestPoint(event.clientX);
+  };
+
+  const handlePointerMove = (event) => {
+    if (pinchEnabled && event.pointerType === 'touch' && touchPointersRef.current.has(event.pointerId)) {
+      touchPointersRef.current.set(event.pointerId, {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+      const gesture = pinchGestureRef.current;
+      if (gesture) {
+        if (event.cancelable) event.preventDefault();
+        const first = touchPointersRef.current.get(gesture.pointerIds[0]);
+        const second = touchPointersRef.current.get(gesture.pointerIds[1]);
+        if (!first || !second) return;
+        const currentDistance = Math.hypot(
+          first.clientX - second.clientX,
+          first.clientY - second.clientY,
+        );
+        const currentCenterX = (first.clientX + second.clientX) / 2;
+        const nextWindow = transformStockDetailChartWindow(gesture.startWindow, {
+          pointCount: rows.length,
+          minPointCount: 26,
+          scale: currentDistance / gesture.startDistance,
+          startCenterRatio: gesture.startCenterRatio,
+          currentCenterRatio: plotRatioForClientX(currentCenterX),
+        });
+        scheduleChartWindow(nextWindow);
+        return;
+      }
+      if (suppressSinglePointerRef.current) return;
+    }
+    if (activePointerIdRef.current === event.pointerId) selectNearestPoint(event.clientX);
+  };
+
+  const finishPointer = (event, { cancelled = false, lostCapture = false } = {}) => {
+    const managedTouch = event.pointerType === 'touch' && touchPointersRef.current.has(event.pointerId);
+    if (managedTouch) {
+      const wasPinching = suppressSinglePointerRef.current || Boolean(pinchGestureRef.current);
+      touchPointersRef.current.delete(event.pointerId);
+      if (pinchGestureRef.current?.pointerIds.includes(event.pointerId)) pinchGestureRef.current = null;
+      if (!lostCapture && event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      }
+      if (touchPointersRef.current.size === 0) suppressSinglePointerRef.current = false;
+      if (wasPinching) {
+        activePointerIdRef.current = null;
+        return;
+      }
+    }
+    if (!cancelled && activePointerIdRef.current === event.pointerId) selectNearestPoint(event.clientX);
+    if (activePointerIdRef.current === event.pointerId) activePointerIdRef.current = null;
+    if (!lostCapture && event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  };
+
   return (
     <div
-      ref={chartRef}
-      role="button"
-      tabIndex={0}
-      data-watchlist-stock-price-chart="true"
-      aria-label={t(language, 'watchlistDetail.chartAria', '查看 {{symbol}} 股价走势', { symbol })}
-      className="relative min-w-0 cursor-crosshair rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-[#f6b54b]/45"
-      style={{ touchAction: 'pan-y' }}
-      onPointerDown={(event) => {
-        activePointerIdRef.current = event.pointerId;
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        selectNearestPoint(event.clientX);
-      }}
-      onPointerMove={(event) => {
-        if (activePointerIdRef.current === event.pointerId) selectNearestPoint(event.clientX);
-      }}
-      onPointerUp={(event) => {
-        if (activePointerIdRef.current !== event.pointerId) return;
-        selectNearestPoint(event.clientX);
-        activePointerIdRef.current = null;
-        event.currentTarget.releasePointerCapture?.(event.pointerId);
-      }}
-      onPointerCancel={() => { activePointerIdRef.current = null; }}
-      onKeyDown={(event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        setSelectedIndex(chart.pricePoints.length - 1);
-      }}
+      className="relative min-w-0"
+      data-watchlist-stock-chart-pinch={pinchEnabled ? 'enabled' : undefined}
+      data-watchlist-stock-chart-viewport={chartWindowZoomed ? 'zoomed' : 'full'}
     >
+      <div
+        ref={chartRef}
+        role="button"
+        tabIndex={0}
+        data-watchlist-stock-price-chart="true"
+        aria-label={t(language, 'watchlistDetail.chartAria', '查看 {{symbol}} 股价走势', { symbol })}
+        className="relative min-w-0 cursor-crosshair rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-[#f6b54b]/45"
+        style={{ touchAction: 'pan-y' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={(event) => finishPointer(event)}
+        onPointerCancel={(event) => finishPointer(event, { cancelled: true })}
+        onLostPointerCapture={(event) => finishPointer(event, { cancelled: true, lostCapture: true })}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          setSelectedIndex(chart.pricePoints.length - 1);
+        }}
+      >
       <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价与{{maLabel}}走势', { range: range.toUpperCase(), maLabel })}>
         <defs>
           <style>
@@ -337,8 +537,12 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
         {chart.maPoints.length >= 2 ? <path data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'} data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined} d={chart.maPath} fill="none" stroke={maColor} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
         <path d={chart.pricePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={PRICE_LINE_COLOR} pointerEvents="none" />
-        <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
+        {latestPointVisible ? (
+          <>
+            <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={PRICE_LINE_COLOR} pointerEvents="none" />
+            <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
+          </>
+        ) : null}
         {selectedPoint ? (
           <g aria-hidden="true">
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={CHART_HEIGHT - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
@@ -370,6 +574,24 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
               {selectedMaRow?.ma200 > 0 ? `${formatCurrency(selectedMaRow.ma200, currency)} · ${formatSignedPercent(selectedMaDistance)}` : '--'}
             </span>
           </div>
+        </div>
+      ) : null}
+      </div>
+      {chartWindowZoomed && !selectedPoint ? (
+        <div
+          data-watchlist-stock-chart-zoom-controls="true"
+          className="pointer-events-none absolute right-1.5 top-1.5 z-10 flex items-center overflow-hidden rounded-lg border border-white/[0.09] bg-[#090d13]/90 text-[8.5px] shadow-[0_5px_14px_rgba(0,0,0,0.32)] backdrop-blur"
+        >
+          <span className="px-2 py-1 text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{visibleWindowLabel}</span>
+          <button
+            type="button"
+            data-watchlist-stock-chart-reset="true"
+            className="pointer-events-auto border-l border-white/[0.08] px-2 py-1 text-[#ffd18a]/80 active:bg-white/[0.05]"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={resetChartWindow}
+          >
+            {t(language, 'watchlistDetail.resetZoom', '重置')}
+          </button>
         </div>
       ) : null}
     </div>
@@ -804,7 +1026,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
           <div className="flex min-w-0 items-center gap-2">
             <h3 className="text-[13px] font-normal text-white/[0.76]">{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</h3>
-            <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.longTermTrend', '长期趋势')}</span>
+            <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.longTermTrend', '芒格指标')}</span>
             {weeklyPanelReady ? <span className="ml-auto text-[9px] text-white/[0.28]">{t(language, 'watchlistDetail.weeklyCloseLocked', '周收盘锁定')}</span> : null}
           </div>
 

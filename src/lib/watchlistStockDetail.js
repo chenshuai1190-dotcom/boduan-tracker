@@ -18,6 +18,15 @@ function positiveNumber(value) {
   return number !== null && number > 0 ? number : null;
 }
 
+function clampNumber(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function normalizedPointCount(value) {
+  const count = finiteNumber(value);
+  return count === null ? 0 : Math.max(0, Math.trunc(count));
+}
+
 function utcDateKey(value) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!match) return '';
@@ -112,6 +121,59 @@ export function findStockDetailWeeklyMaOnOrBefore(rows = [], date) {
     if (row.date <= targetDate && row.completed && row.ma200 !== null) return row;
   }
   return null;
+}
+
+export function fullStockDetailChartWindow(pointCount) {
+  const count = normalizedPointCount(pointCount);
+  return { start: 0, end: count > 0 ? count - 1 : -1 };
+}
+
+export function normalizeStockDetailChartWindow(chartWindow, pointCount) {
+  const fullWindow = fullStockDetailChartWindow(pointCount);
+  if (fullWindow.end < 1) return fullWindow;
+  const rawStart = finiteNumber(chartWindow?.start);
+  const rawEnd = finiteNumber(chartWindow?.end);
+  if (rawStart === null || rawEnd === null) return fullWindow;
+  const start = clampNumber(Math.round(rawStart), 0, fullWindow.end - 1);
+  const end = clampNumber(Math.round(rawEnd), start + 1, fullWindow.end);
+  return { start, end };
+}
+
+export function transformStockDetailChartWindow(chartWindow, {
+  pointCount,
+  minPointCount = 26,
+  scale = 1,
+  startCenterRatio = 0.5,
+  currentCenterRatio = startCenterRatio,
+} = {}) {
+  const total = normalizedPointCount(pointCount);
+  const fullWindow = fullStockDetailChartWindow(total);
+  if (total < 2) return fullWindow;
+  const currentWindow = normalizeStockDetailChartWindow(chartWindow, total);
+  const currentCount = currentWindow.end - currentWindow.start + 1;
+  const requestedMinimum = normalizedPointCount(minPointCount);
+  const minimumCount = Math.min(total, Math.max(2, requestedMinimum || 26));
+  const numericScale = finiteNumber(scale);
+  const safeScale = numericScale !== null && numericScale > 0 ? numericScale : 1;
+  const nextCount = clampNumber(Math.round(currentCount / safeScale), minimumCount, total);
+  const startRatioValue = finiteNumber(startCenterRatio);
+  const currentRatioValue = finiteNumber(currentCenterRatio);
+  const startRatio = clampNumber(startRatioValue === null ? 0.5 : startRatioValue, 0, 1);
+  const currentRatio = clampNumber(currentRatioValue === null ? startRatio : currentRatioValue, 0, 1);
+  const anchorIndex = currentWindow.start + startRatio * (currentCount - 1);
+  const nextStart = clampNumber(
+    Math.round(anchorIndex - currentRatio * (nextCount - 1)),
+    0,
+    total - nextCount,
+  );
+  return { start: nextStart, end: nextStart + nextCount - 1 };
+}
+
+export function sliceStockDetailChartWindow(rows = [], chartWindow) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  if (sourceRows.length === 0) return [];
+  const normalizedWindow = normalizeStockDetailChartWindow(chartWindow, sourceRows.length);
+  return sourceRows.slice(normalizedWindow.start, normalizedWindow.end + 1);
 }
 
 export function resolveStockDetailClose(history = []) {
