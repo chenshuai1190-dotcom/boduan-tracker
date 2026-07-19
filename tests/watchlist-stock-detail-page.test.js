@@ -6,6 +6,7 @@ const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.j
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const devPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
+const fundamentalsCacheSource = readFileSync(new URL('../src/lib/stockFundamentals.js', import.meta.url), 'utf8');
 
 test('watchlist detail keeps the existing bottom tabs and uses the Chinese stock-trend title', () => {
   assert.ok(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'));
@@ -41,6 +42,28 @@ test('production watchlist detail reads an optional authenticated QQQ benchmark 
   assert.ok(pageSource.includes('const [nextDetail, nextEarnings] = await Promise.all([detailPromise, earningsPromise])'));
   assert.ok(pageSource.includes('void qqqPromise.then((nextQqqHistory) => {'));
   assert.ok(pageSource.includes("console.warn('[WatchlistStockDetail] QQQ benchmark unavailable:'"));
+});
+
+test('company fundamentals load independently, cache per user for six hours, and fail closed inside their own card', () => {
+  assert.ok(pageSource.includes('loadStockFundamentals({ userId, symbol, token })'));
+  assert.ok(pageSource.includes("setFundamentalsStatus('loading')"));
+  assert.ok(pageSource.includes("setFundamentalsStatus('unavailable')"));
+  assert.ok(pageSource.includes("console.warn('[WatchlistStockDetail] fundamentals unavailable:'"));
+  assert.ok(pageSource.includes('data-watchlist-company-fundamentals="true"'));
+  assert.ok(pageSource.includes('data-fundamentals-status={status}'));
+  assert.ok(pageSource.includes("return '—'"), 'missing fundamentals must use one em dash');
+  assert.ok(pageSource.includes('grid grid-cols-3 gap-x-3 gap-y-[18px]'));
+  assert.ok(pageSource.includes('text-[15px] font-normal tabular-nums'));
+  assert.ok(pageSource.includes('text-[6.5px]'));
+  assert.equal(pageSource.includes('fundamentalsPromise'), false, 'the chart/detail Promise must never await fundamentals');
+  assert.ok(pageSource.indexOf('<CompanyFundamentalsCard') < pageSource.indexOf("t(language, 'watchlistDetail.myPosition'"));
+  assert.ok(fundamentalsCacheSource.includes('6 * 60 * 60 * 1000'));
+  assert.ok(fundamentalsCacheSource.includes('`${normalizedUserId}:${normalized}`'));
+  assert.ok(fundamentalsCacheSource.includes('inFlightRequests'));
+  assert.ok(fundamentalsCacheSource.includes("cache: 'no-store'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.companyFundamentals': '公司基本信息'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.companyFundamentals': 'Company Fundamentals'"));
+  assert.ok(devPreviewSource.includes('marketCapitalization: 4_912_000_000_000'));
 });
 
 test('production watchlist detail only converts holding asset totals and keeps stock prices in their quote currency', () => {

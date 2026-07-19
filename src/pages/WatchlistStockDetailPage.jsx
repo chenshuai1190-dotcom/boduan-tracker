@@ -15,6 +15,7 @@ import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/ear
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
+import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import {
   deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
@@ -119,6 +120,29 @@ function formatSignedPercent(value, digits = 2) {
   const number = finiteNumber(value);
   if (number === null) return '--';
   return `${number >= 0 ? '+' : ''}${number.toFixed(digits)}%`;
+}
+
+function formatFundamentalPercent(value, { signed = false } = {}) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return `${signed && number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
+}
+
+function formatFundamentalRatio(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number.toFixed(1) : '—';
+}
+
+function formatMarketCapitalization(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return '—';
+  const unit = number >= 1e12 ? ['T', 1e12] : number >= 1e9 ? ['B', 1e9] : ['M', 1e6];
+  const scaled = number / unit[1];
+  const digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  return `$${scaled.toFixed(digits)}${unit[0]}`;
 }
 
 function formatCurrency(value, currency, digits = 2, { signed = false } = {}) {
@@ -720,6 +744,69 @@ function SectionHeading({ title, trailing }) {
   );
 }
 
+function FundamentalLabel({ children, suffix }) {
+  return (
+    <div className="min-h-4 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] text-white/[0.32]">
+      {children}
+      {suffix ? <span className="relative -top-[0.38em] ml-0.5 text-[6.5px] tracking-normal text-white/[0.22]">{suffix}</span> : null}
+    </div>
+  );
+}
+
+function FundamentalValue({ children, color = 'rgba(255,255,255,0.72)' }) {
+  return (
+    <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[15px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+      {children}
+    </div>
+  );
+}
+
+function CompanyFundamentalsCard({ data, status, language, marketColorMode }) {
+  const revenueGrowth = data?.revenueGrowthTtmPct ?? null;
+  const revenueColor = revenueGrowth === null
+    ? 'rgba(255,255,255,0.72)'
+    : marketHexColor(revenueGrowth, marketColorMode);
+  return (
+    <section
+      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
+      data-watchlist-company-fundamentals="true"
+      data-fundamentals-status={status}
+      aria-busy={status === 'loading'}
+      aria-live="polite"
+    >
+      <div className="px-4 pb-2 pt-4">
+        <h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.companyFundamentals', '公司基本信息')}</h2>
+      </div>
+      <div className="grid grid-cols-3 gap-x-3 gap-y-[18px] px-4 pb-[17px] pt-2 text-center">
+        <div className="min-w-0">
+          <FundamentalLabel>{t(language, 'watchlistDetail.marketCap', '市值')}</FundamentalLabel>
+          <FundamentalValue>{formatMarketCapitalization(data?.marketCapitalization)}</FundamentalValue>
+        </div>
+        <div className="min-w-0">
+          <FundamentalLabel suffix="TTM">{t(language, 'watchlistDetail.peRatio', '市盈率')}</FundamentalLabel>
+          <FundamentalValue>{formatFundamentalRatio(data?.peTtm)}</FundamentalValue>
+        </div>
+        <div className="min-w-0">
+          <FundamentalLabel suffix={t(language, 'watchlistDetail.forwardSuffix', '动')}>{t(language, 'watchlistDetail.peRatio', '市盈率')}</FundamentalLabel>
+          <FundamentalValue>{formatFundamentalRatio(data?.peForward)}</FundamentalValue>
+        </div>
+        <div className="min-w-0">
+          <FundamentalLabel suffix="TTM">{t(language, 'watchlistDetail.revenueGrowth', '营收增长')}</FundamentalLabel>
+          <FundamentalValue color={revenueColor}>{formatFundamentalPercent(revenueGrowth, { signed: true })}</FundamentalValue>
+        </div>
+        <div className="min-w-0">
+          <FundamentalLabel suffix="TTM">{t(language, 'watchlistDetail.netMargin', '净利润率')}</FundamentalLabel>
+          <FundamentalValue>{formatFundamentalPercent(data?.netMarginTtmPct)}</FundamentalValue>
+        </div>
+        <div className="min-w-0">
+          <FundamentalLabel>{t(language, 'watchlistDetail.freeCashFlowMargin', '自由现金流率')}</FundamentalLabel>
+          <FundamentalValue>{formatFundamentalPercent(data?.freeCashFlowMarginTtmPct)}</FundamentalValue>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function TargetEditor({
   language,
   symbol,
@@ -849,11 +936,22 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     watchlistStockDetailTargetEditorOpen = false,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
+  const hasFundamentalsOverride = Boolean(
+    watchlistStockDetailDataOverride
+    && Object.prototype.hasOwnProperty.call(watchlistStockDetailDataOverride, 'fundamentals'),
+  );
+  const initialFundamentals = hasFundamentalsOverride
+    ? watchlistStockDetailDataOverride.fundamentals
+    : null;
   const [range, setRange] = React.useState(
     RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y',
   );
   const [stockDetail, setStockDetail] = React.useState(() => watchlistStockDetailDataOverride?.stockDetail || watchlistStockDetailDataOverride || null);
   const [qqqHistory, setQqqHistory] = React.useState(() => watchlistStockDetailDataOverride?.qqqHistory || []);
+  const [fundamentals, setFundamentals] = React.useState(() => initialFundamentals || null);
+  const [fundamentalsStatus, setFundamentalsStatus] = React.useState(() => (
+    hasFundamentalsOverride ? (initialFundamentals ? 'ready' : 'unavailable') : 'loading'
+  ));
   const [earningsEvents, setEarningsEvents] = React.useState(() => watchlistStockDetailEarningsOverride || []);
   const [loading, setLoading] = React.useState(!watchlistStockDetailDataOverride);
   const [loadError, setLoadError] = React.useState(false);
@@ -951,6 +1049,41 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     })();
     return () => { active = false; };
   }, [fetchPnlBenchmarkRows, reloadKey, supabase, symbol, watchlistStockDetailDataOverride, watchlistStockDetailEarningsOverride]);
+
+  React.useEffect(() => {
+    if (hasFundamentalsOverride) {
+      setFundamentals(initialFundamentals || null);
+      setFundamentalsStatus(initialFundamentals ? 'ready' : 'unavailable');
+      return undefined;
+    }
+    if (!symbol || !supabase?.auth?.getSession) {
+      setFundamentals(null);
+      setFundamentalsStatus('unavailable');
+      return undefined;
+    }
+
+    let active = true;
+    setFundamentals(null);
+    setFundamentalsStatus('loading');
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        const userId = data?.session?.user?.id;
+        if (!token || !userId) throw new Error('missing session');
+        const nextFundamentals = await loadStockFundamentals({ userId, symbol, token });
+        if (!active) return;
+        setFundamentals(nextFundamentals);
+        setFundamentalsStatus('ready');
+      } catch (error) {
+        console.warn('[WatchlistStockDetail] fundamentals unavailable:', error?.message || error);
+        if (!active) return;
+        setFundamentals(null);
+        setFundamentalsStatus('unavailable');
+      }
+    })();
+    return () => { active = false; };
+  }, [hasFundamentalsOverride, initialFundamentals, supabase, symbol]);
 
   React.useEffect(() => {
     if (!watchlistStockDetailFocusSection) return undefined;
@@ -1216,6 +1349,13 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           )}
         </div>
       </section>
+
+      <CompanyFundamentalsCard
+        data={fundamentals}
+        status={fundamentalsStatus}
+        language={language}
+        marketColorMode={marketColorMode}
+      />
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
         <SectionHeading title={t(language, 'watchlistDetail.myPosition', '我的持仓')} trailing={t(language, 'watchlistDetail.updatedAtClose', '更新于 {{date}} 收盘', { date: formatDate(close.asOfDate, language) })} />

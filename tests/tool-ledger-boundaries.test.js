@@ -592,8 +592,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.364'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.364', date: '2026-07-20', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.365'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.365', date: '2026-07-20', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('股票趋势公司基本面') && settingsChangelogSource.includes('连续季度计算') && settingsChangelogSource.includes('按用户隔离的约 6 小时本地缓存'), 'settings changelog should document the new fundamentals, fail-closed quarter rules, and isolated cache');
   assert.ok(settingsChangelogSource.includes('首页返回位置记忆') && settingsChangelogSource.includes('通过页头返回或详情页底部“首页”返回时恢复原位') && settingsChangelogSource.includes('双击“首页”仍平滑回顶并清除旧记忆'), 'settings changelog should document both return paths and the preserved double-tap behavior');
   assert.ok(settingsChangelogSource.includes('个股相对 QQQ 三个月表现') && settingsChangelogSource.includes('相同的共同交易日起止点和复权收盘价') && settingsChangelogSource.includes('15 分钟会话缓存'), 'settings changelog should document the QQQ relative-return basis, fail-closed behavior, and bounded cache');
   assert.ok(settingsChangelogSource.includes('短周期真实 MA200 日线') && settingsChangelogSource.includes('完整历史预热再裁剪展示区间') && settingsChangelogSource.includes('首页普通行情仍保持原有短历史窗口'), 'settings changelog should document the daily/weekly chart split, warmup, and unchanged Home request boundary');
@@ -2448,7 +2449,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.364'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.365'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.364', date: '2026-07-20', latest: true,
+    ver: 'v10.7.9.365', date: '2026-07-20', latest: true,
+    items: [
+      '🏢 股票趋势公司基本面',
+      '  - 关键指标下新增市值、市盈率 TTM、动态市盈率、营收增长 TTM、净利润率 TTM 与自由现金流率六项真实基本面',
+      '  - TTM 增长与利润率严格使用连续季度计算；季度缺失、日期错位或字段不完整时显示“—”，不补造结果',
+      '  - 基本面使用独立鉴权请求和按用户隔离的约 6 小时本地缓存；临时失败不会拖住走势图、持仓或其他详情数据',
+    ],
+    itemsEn: [
+      '🏢 Company fundamentals in Stock Trend',
+      '  - Added six real fundamentals below Key Indicators: market cap, trailing P/E, forward P/E, TTM revenue growth, TTM net margin, and free-cash-flow margin',
+      '  - TTM growth and margins require complete consecutive quarters; missing fields or misaligned periods show “—” instead of a fabricated result',
+      '  - Fundamentals load through a separate authenticated request with an approximately six-hour per-user local cache, so temporary failures never block the chart, position, or other detail data',
+    ],
+  },
+  {
+    ver: 'v10.7.9.364', date: '2026-07-20',
     items: [
       '📍 首页返回位置记忆',
       '  - 从自选股票进入“股票趋势”前记录首页滚动位置；通过页头返回或详情页底部“首页”返回时恢复原位',
