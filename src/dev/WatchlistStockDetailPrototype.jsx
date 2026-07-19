@@ -278,10 +278,6 @@ function PriceChart({ range, initialTooltipOpen = false }) {
         <path data-watchlist-weekly-ma-line="true" d={chart.maPath} fill="none" stroke={MA200_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <path d={chart.pricePath} fill="none" stroke={MARKET_GREEN} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <circle cx={last.x} cy={last.y} r="2.2" fill={MARKET_GREEN} stroke="#d6fff0" strokeWidth="0.65" />
-        <g transform={`translate(${Math.max(chart.left, chart.width - 53)} ${Math.max(chart.top + 2, Math.min(chart.height - chart.bottom - 17, last.y - 17))})`} aria-hidden="true">
-          <rect width="50" height="15" rx="5" fill="#0e3a2b" stroke="rgba(34,197,94,0.3)" strokeWidth="0.6" />
-          <text x="25" y="10.8" textAnchor="middle" fill="#72e8a2" fontSize="8.5" style={{ fontFamily: NUMBER_FONT }}>${formatNumber(last.value)}</text>
-        </g>
         {selectedPoint ? (
           <g aria-hidden="true">
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={chart.height - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />

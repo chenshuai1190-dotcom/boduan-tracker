@@ -1,6 +1,17 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.360', date: '2026-07-19', latest: true,
+    ver: 'v10.7.9.361', date: '2026-07-19', latest: true,
+    items: [
+      '📈 走势图末端标签精简',
+      '  - 移除走势图右端重复的最新股价气泡；页面头部主股价、末端圆点和点击历史价格提示保持不变',
+    ],
+    itemsEn: [
+      '📈 Cleaner chart endpoint',
+      '  - Removed the repeated latest-price bubble at the right edge while keeping the header price, endpoint dot, and interactive historical-price tooltip unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.360', date: '2026-07-19',
     items: [
       '📈 五年股价与 MA200 周线',
       '  - 股票趋势默认展示五年真实周收盘走势，约 260 个数据点保留细节；股价线改为细绿线并取消发光，200 周均线使用细金线贯穿图表',

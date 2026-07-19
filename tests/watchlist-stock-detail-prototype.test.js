@@ -37,6 +37,7 @@ test('watchlist price chart opens a read-only close-price tooltip', () => {
   assert.ok(prototypeSource.includes('strokeWidth="0.95"'));
   assert.ok(prototypeSource.includes('strokeWidth="1.15"'));
   assert.equal(prototypeSource.includes('price-glow'), false);
+  assert.equal(prototypeSource.includes('formatNumber(last.value)'), false, 'the chart endpoint should not repeat the latest stock price');
   assert.ok(prototypeSource.includes('setSelectedIndex(Math.round'));
   assert.ok(prototypeSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
 });

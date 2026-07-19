@@ -106,6 +106,7 @@ test('production price chart uses dense five-year weekly points with thin price 
   assert.ok(pageSource.includes('strokeWidth="0.95"'));
   assert.ok(pageSource.includes('strokeWidth="1.15"'));
   assert.equal(pageSource.includes('price-glow'), false);
+  assert.equal(pageSource.includes('formatCurrency(last.close, currency)'), false, 'the chart endpoint should not repeat the latest stock price');
   assert.equal(pageSource.includes('chart.points'), false);
   assert.ok(pageSource.includes('setSelectedIndex(nearestIndex)'));
   assert.ok(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));

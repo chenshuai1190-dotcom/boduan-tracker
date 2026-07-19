@@ -295,10 +295,6 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         {chart.maPoints.length >= 2 ? <path data-watchlist-weekly-ma-line="true" d={chart.maPath} fill="none" stroke={MA200_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
         <path d={chart.pricePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
-        <g transform={`translate(${Math.max(chart.left, CHART_WIDTH - 55)} ${Math.max(chart.top + 2, Math.min(CHART_HEIGHT - chart.bottom - 17, last.y - 17))})`} aria-hidden="true">
-          <rect width="52" height="15" rx="5" fill="#0e3a2b" stroke="rgba(34,197,94,0.3)" strokeWidth="0.55" />
-          <text x="26" y="10.8" textAnchor="middle" fill="#72e8a2" fontSize="7.8" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(last.close, currency)}</text>
-        </g>
         {selectedPoint ? (
           <g aria-hidden="true">
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={CHART_HEIGHT - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
