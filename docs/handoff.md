@@ -10,15 +10,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 生产运行时代码 | `c751f91f9211fedc346333e96403764cdd6a1ef0` |
+| 生产运行时代码 | `b7ad4d261f406e29ef307c35c6ad2718000df9ad` |
 | 设置页版本 | `v10.7.9.362` |
-| 生产入口 | `/assets/index-CJCD7opD.js` |
-| Runtime Actions | `29695911667` success |
-| Runtime Vercel | `F1ouWMj6735w5E1YnrxoPv2Hf9zd` success |
+| 生产入口 | `/assets/index-CAQ3m8EC.js` |
+| Runtime Actions | `29696221666` success |
+| Runtime Vercel | `5NBio1UEzQ5p6fRTKc4b53CzcHvY` success |
 
 已验证：
 
-- `npm run verify:deploy-status -- c751f91`：PASS。
+- `npm run verify:deploy-status -- b7ad4d2`：PASS。
 - 未登录 `/api/quote?symbols=VIX`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=stock-detail`：`401`。
 - 未登录 `/api/earnings-calendar?symbols=NVDA`：`401`。
@@ -30,12 +30,12 @@
 - 公司 Logo 已与首页共用缓存和回退链；单一来源失败后会继续尝试 EODHD 大小写、FMP 和 Finnhub，成功后写入现有本地缓存。
 - 股票趋势默认展示五年真实周收盘，约 260 个数据点使用 `0.95px` 细绿线、无发光和弱填充；`1.15px` 金色 MA200 周线贯穿图表，点击可同时读取股价、周涨跌和当周已锁定均线。
 - 1月、3月、6月和1年走势图使用真实复权日收盘与蓝色 MA200（日）；日均线由完整历史预热后再裁剪可见区间，图例和 tooltip 随日/周周期切换，不新增 provider 请求。
-- 五年图已增加双指缩放与双指平移，可视窗口最小 26 周并按窗口重算坐标；单指 tooltip 与纵向页面滚动保持原逻辑，放大后显示日期范围和“重置”，离开最新日期时不伪装末端呼吸点。生产代码与自动回归已验证，真实 iOS 手势由用户上线后验收。
+- 五年图已增加双指缩放；放大后使用单指横向拖动平移，轻点显示 tooltip，纵向手势仍交给页面滚动。可视窗口最小 26 周并按窗口重算坐标，显示日期范围和“重置”，离开最新日期时不伪装末端呼吸点。
 - 走势图右端不再重复显示最新股价气泡；末端绿点增加与股票详情页同节奏的 `3.2s` 独立呼吸光环，原圆点大小、头部主股价和点击历史价格 tooltip 不变，并遵循系统 reduced-motion 设置。
 - MA200 周线由按需获取的十年复权收盘预热计算，只推进已完成交易周；未收盘周不会改写锁定值，行情源失败与真实历史不足分别显示“暂不可用”和周数进度。普通首页行情仍保持原 380 天历史窗口。
 - 关键指标已取消 20 日波动率，改为无分割线的 52 周高点、MA200（日）、EMA30（日）与独立 MA200 周线详情；MA200（周）旁标签为“芒格指标”，周线面板展示距均线、近四周变化、连续状态和锁定日期。
 - 生产 `watchlist.target_price_usd numeric(18,6)` 已 database-first 迁移；正数约束、RLS、原 5 条 policy、76 条既有数据和 0 条非空目标价均完成 postflight，未改变既有行。
-- 生产详情页分包 `/assets/WatchlistStockDetailPage-zPgHSyJR.js` 返回 `200`，包含 `pinch`、缩放控制、重置、26 周下限和“芒格指标”标记；目标价编辑、日/周 MA、呼吸动画与 reduced-motion 边界仍在，Settings/changelog 仍为 `v10.7.9.362`。
+- 生产详情页分包 `/assets/WatchlistStockDetailPage-MvR11-D6.js` 返回 `200`，包含单指横向/纵向判定、双指缩放、重置、26 周下限和“芒格指标”标记；目标价编辑、日/周 MA、呼吸动画与 reduced-motion 边界仍在，Settings/changelog 仍为 `v10.7.9.362`。
 - 本机真实 Xcode iOS Simulator 已验证默认五年图、联动 tooltip 与周线指标面板；截图在忽略目录 `outputs/ios-simulator/watchlist-weekly-ma-production-v360-*.png`。
 - 本次末端标签精简的 Simulator 截图：`outputs/ios-simulator/watchlist-weekly-ma-no-end-price-v361.png`。
 - 本次日/周均线切换的真实 Simulator 截图：`outputs/ios-simulator/watchlist-real-daily-ma200-1m-v1.png`、`watchlist-real-daily-ma200-tooltip-1m-v1.png` 和 `watchlist-real-weekly-ma200-5y-v1.png`。
