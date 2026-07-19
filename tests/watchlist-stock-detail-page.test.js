@@ -92,17 +92,24 @@ test('production watchlist detail only mutates its isolated target and keeps hol
   assert.ok(appSource.includes('await db.updateWatchlistTargetPrice(symbol, targetPriceUsd)'));
 });
 
-test('production price chart uses dense five-year weekly points with thin price and MA lines', () => {
+test('production price chart uses real daily MA for short ranges and weekly MA only for five years', () => {
   assert.ok(pageSource.includes('data-watchlist-stock-detail-header="full-width-chart"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-chart="true"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-tooltip="true"'));
-  assert.ok(pageSource.includes("React.useState('5y')"));
+  assert.ok(pageSource.includes("stockDetailInitialRange = '5y'"));
+  assert.ok(pageSource.includes("RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y'"));
   assert.ok(pageSource.includes('data-watchlist-stock-chart-ranges="five"'));
-  assert.ok(pageSource.includes('data-watchlist-stock-chart-legend="price-weekly-ma"'));
+  assert.ok(pageSource.includes("data-watchlist-stock-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}"));
   assert.ok(pageSource.includes("range === '5y'"));
   assert.ok(pageSource.includes('visibleWeeklyHistory.map(({ date, close })'));
   assert.ok(pageSource.includes('row?.completed === true && Number.isFinite(row?.ma200)'));
-  assert.ok(pageSource.includes('data-watchlist-weekly-ma-line="true"'));
+  assert.ok(pageSource.includes("const MA200_DAY_COLOR = '#60a5fa'"));
+  assert.ok(pageSource.includes("const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR"));
+  assert.ok(pageSource.includes("data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'}"));
+  assert.ok(pageSource.includes("data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined}"));
+  assert.ok(pageSource.includes("Number.isFinite(selectedPoint.ma200) ? selectedPoint : null"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')"));
+  assert.ok(devPreviewSource.includes('ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null'));
   assert.ok(pageSource.includes('strokeWidth="0.95"'));
   assert.ok(pageSource.includes('strokeWidth="1.15"'));
   assert.equal(pageSource.includes('price-glow'), false);

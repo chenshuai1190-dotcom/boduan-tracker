@@ -82,9 +82,9 @@ test('stock detail strictly keeps valid adjusted closes, sorts dates, deduplicat
   ], { asOfDate: '2026-07-17' });
 
   assert.deepEqual(detail.history, [
-    { date: '2026-07-14', close: 11 },
-    { date: '2026-07-15', close: 10 },
-    { date: '2026-07-16', close: 20 },
+    { date: '2026-07-14', close: 11, ma200: null },
+    { date: '2026-07-15', close: 10, ma200: null },
+    { date: '2026-07-16', close: 20, ma200: null },
   ]);
   assert.equal(detail.asOfDate, '2026-07-16');
   assert.equal(detail.indicators.week52High, 24);
@@ -119,10 +119,36 @@ test('stock detail calculates MA200, seeded EMA30, and 20-return sample annualiz
   const expectedVolatility = Math.sqrt(sampleVariance) * Math.sqrt(252) * 100;
 
   assert.equal(detail.history.length, 201);
+  assert.equal(detail.history[198].ma200, null);
+  assert.equal(detail.history[199].ma200, 100.5);
+  assert.equal(detail.history[200].ma200, 101.5);
   assert.equal(detail.indicators.week52High, 202);
   assert.equal(detail.indicators.ma200, 101.5);
   assert.equal(detail.indicators.ema30, 186.5);
   assert.ok(Math.abs(detail.indicators.volatility20AnnualizedPct - expectedVolatility) < 1e-12);
+});
+
+test('daily MA200 uses hidden ten-year warmup before the bounded history payload', () => {
+  const rows = Array.from({ length: 600 }, (_, index) => {
+    const close = index + 1;
+    return {
+      date: dateKeyFrom('2024-01-01', index),
+      close,
+      adjusted_close: close,
+      high: close + 1,
+    };
+  });
+  const detail = buildEodhdStockDetail(rows, { asOfDate: rows.at(-1).date });
+  const firstVisible = detail.history[0];
+  const sourceIndex = rows.findIndex((row) => row.date === firstVisible.date);
+  const expectedMa = rows
+    .slice(sourceIndex - 199, sourceIndex + 1)
+    .reduce((sum, row) => sum + row.adjusted_close, 0) / 200;
+
+  assert.ok(detail.history.length < rows.length, 'the response should keep its existing bounded daily payload');
+  assert.ok(sourceIndex >= 199, 'the hidden provider rows should be available as warmup');
+  assert.equal(firstVisible.ma200, expectedMa);
+  assert.equal(detail.history.at(-1).ma200, detail.indicators.ma200);
 });
 
 test('stock detail returns null for insufficient windows and preserves zero volatility', () => {
@@ -289,6 +315,7 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.equal(quote.stockDetail.currency, 'USD');
     assert.equal(quote.stockDetail.asOfDate, endDateKey);
     assert.equal(quote.stockDetail.history.length, 220);
+    assert.equal(quote.stockDetail.history.at(-1).ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ema30, 304.5);
     assert.equal(typeof quote.stockDetail.indicators.volatility20AnnualizedPct, 'number');

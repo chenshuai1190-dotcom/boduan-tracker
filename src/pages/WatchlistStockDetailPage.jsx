@@ -36,6 +36,7 @@ import {
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif';
 const PRICE_LINE_COLOR = '#22c55e';
+const MA200_DAY_COLOR = '#60a5fa';
 const MA200_WEEK_COLOR = '#f6b54b';
 const CHART_WIDTH = 352;
 const CHART_HEIGHT = 184;
@@ -120,7 +121,7 @@ function quarterLabel(event, language) {
   });
 }
 
-function chartGeometry(rows, weeklyRows) {
+function chartGeometry(rows, movingAverageRows) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const left = 30;
   const right = 10;
@@ -131,8 +132,8 @@ function chartGeometry(rows, weeklyRows) {
   const domainStart = Date.parse(`${rows[0].date}T00:00:00Z`);
   const domainEnd = Date.parse(`${rows.at(-1).date}T00:00:00Z`);
   const domainSpan = Math.max(86_400_000, domainEnd - domainStart);
-  const maRows = (Array.isArray(weeklyRows) ? weeklyRows : [])
-    .filter((row) => row?.completed === true && Number.isFinite(row?.ma200))
+  const maRows = (Array.isArray(movingAverageRows) ? movingAverageRows : [])
+    .filter((row) => Number.isFinite(row?.ma200))
     .filter((row) => row.date >= rows[0].date && row.date <= rows.at(-1).date);
   const values = [
     ...rows.map((row) => row.close),
@@ -177,7 +178,20 @@ function chartDateLabels(points, language, range) {
 }
 
 function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, initialTooltipOpen = false }) {
-  const chart = React.useMemo(() => chartGeometry(rows, weeklyRows), [rows, weeklyRows]);
+  const weeklyMa = range === '5y';
+  const maLabel = weeklyMa
+    ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')
+    : t(language, 'watchlistDetail.ma200Daily', 'MA200（日）');
+  const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR;
+  const movingAverageRows = React.useMemo(() => (
+    weeklyMa
+      ? weeklyRows.filter((row) => row?.completed === true && Number.isFinite(row?.ma200))
+      : rows.filter((row) => Number.isFinite(row?.ma200))
+  ), [rows, weeklyMa, weeklyRows]);
+  const chart = React.useMemo(
+    () => chartGeometry(rows, movingAverageRows),
+    [movingAverageRows, rows],
+  );
   const chartRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
   const previousSeriesRef = React.useRef({ range, rows, weeklyRows });
@@ -220,7 +234,9 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     ? (selectedChange / previousPoint.close) * 100
     : null;
   const selectedMaRow = selectedPoint
-    ? findStockDetailWeeklyMaOnOrBefore(weeklyLookupRows, selectedPoint.date)
+    ? (weeklyMa
+      ? findStockDetailWeeklyMaOnOrBefore(weeklyLookupRows, selectedPoint.date)
+      : (Number.isFinite(selectedPoint.ma200) ? selectedPoint : null))
     : null;
   const selectedMaDistance = selectedPoint && selectedMaRow?.ma200 > 0
     ? ((selectedPoint.close / selectedMaRow.ma200) - 1) * 100
@@ -276,7 +292,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         setSelectedIndex(chart.pricePoints.length - 1);
       }}
     >
-      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价与MA200周线走势', { range: range.toUpperCase() })}>
+      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价与{{maLabel}}走势', { range: range.toUpperCase(), maLabel })}>
         <defs>
           <linearGradient id="watchlist-stock-detail-area" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={PRICE_LINE_COLOR} stopOpacity="0.14" />
@@ -292,7 +308,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
           </g>
         ))}
         <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
-        {chart.maPoints.length >= 2 ? <path data-watchlist-weekly-ma-line="true" d={chart.maPath} fill="none" stroke={MA200_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
+        {chart.maPoints.length >= 2 ? <path data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'} data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined} d={chart.maPath} fill="none" stroke={maColor} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
         <path d={chart.pricePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
         {selectedPoint ? (
@@ -300,7 +316,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={CHART_HEIGHT - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill="#f6b54b" opacity="0.13" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#05070b" stroke="#ffd18a" strokeWidth="1.25" />
-            {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={MA200_WEEK_COLOR} strokeWidth="1.1" /> : null}
+            {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={maColor} strokeWidth="1.1" /> : null}
           </g>
         ) : null}
         {labels.map(({ index, point, label }) => (
@@ -321,8 +337,8 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px]">
-            <span className="text-white/[0.3]">{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</span>
-            <span className="whitespace-nowrap text-[#f6b54b] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+            <span className="text-white/[0.3]">{maLabel}</span>
+            <span className="whitespace-nowrap tabular-nums" style={{ color: maColor, fontFamily: NUMBER_FONT }}>
               {selectedMaRow?.ma200 > 0 ? `${formatCurrency(selectedMaRow.ma200, currency)} · ${formatSignedPercent(selectedMaDistance)}` : '--'}
             </span>
           </div>
@@ -474,11 +490,14 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     watchlistStockDetailDataOverride,
     watchlistStockDetailEarningsOverride,
     watchlistStockDetailChartTooltipOpen = false,
+    stockDetailInitialRange = '5y',
     watchlistStockDetailFocusSection = '',
     watchlistStockDetailTargetEditorOpen = false,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
-  const [range, setRange] = React.useState('5y');
+  const [range, setRange] = React.useState(
+    RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y',
+  );
   const [stockDetail, setStockDetail] = React.useState(() => watchlistStockDetailDataOverride?.stockDetail || watchlistStockDetailDataOverride || null);
   const [earningsEvents, setEarningsEvents] = React.useState(() => watchlistStockDetailEarningsOverride || []);
   const [loading, setLoading] = React.useState(!watchlistStockDetailDataOverride);
@@ -725,9 +744,9 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         <div className="mt-2 min-w-0">
           <PriceChart rows={visibleHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
         </div>
-        <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-watchlist-stock-chart-legend="price-weekly-ma">
+        <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-watchlist-stock-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}>
           <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#22c55e]" />{t(language, 'watchlistDetail.priceLegend', '股价')}</span>
-          <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#f6b54b]" />{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: range === '5y' ? MA200_WEEK_COLOR : MA200_DAY_COLOR }} />{range === '5y' ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）') : t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')}</span>
         </div>
       </section>
 

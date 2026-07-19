@@ -3,6 +3,7 @@ const EMA_30_ALPHA = 2 / 31;
 const TRADING_DAYS_PER_YEAR = 252;
 const FIFTY_TWO_WEEKS_IN_DAYS = 52 * 7;
 const DAILY_HISTORY_DAYS = 380;
+const DAILY_MA_WINDOW = 200;
 const WEEKLY_MA_WINDOW = 200;
 const WEEKLY_MA_TREND_WEEKS = 4;
 const WEEKLY_HISTORY_YEARS = 5;
@@ -204,6 +205,22 @@ function normalizeRows(rows, asOfDate) {
   return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
 }
 
+function buildDailyHistory(normalizedRows) {
+  let rollingSum = 0;
+  return normalizedRows.map((row, index) => {
+    rollingSum += row.close;
+    if (index >= DAILY_MA_WINDOW) rollingSum -= normalizedRows[index - DAILY_MA_WINDOW].close;
+    const ma200 = index >= DAILY_MA_WINDOW - 1
+      ? rollingSum / DAILY_MA_WINDOW
+      : null;
+    return {
+      date: row.date,
+      close: row.close,
+      ma200: Number.isFinite(ma200) ? ma200 : null,
+    };
+  });
+}
+
 export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
   const cutoffDate = validDateKey(asOfDate);
   if (!cutoffDate) {
@@ -225,7 +242,9 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
   }
 
   const normalizedRows = normalizeRows(rows, cutoffDate);
-  const allHistory = normalizedRows.map(({ date, close }) => ({ date, close }));
+  // Build the rolling daily MA from the full provider history before trimming
+  // the response window, so the first visible point still has a real warmup.
+  const allHistory = buildDailyHistory(normalizedRows);
   const latestDate = allHistory.at(-1)?.date || '';
   const dailyHistoryFrom = latestDate ? shiftDateKey(latestDate, -DAILY_HISTORY_DAYS) : '';
   const history = dailyHistoryFrom
@@ -241,7 +260,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
   const week52High = week52Rows.length > 0
     ? Math.max(...week52Rows.map((row) => row.adjustedHigh))
     : null;
-  const ma200 = closes.length >= 200 ? mean(closes.slice(-200)) : null;
+  const ma200 = allHistory.at(-1)?.ma200 ?? null;
   const weeklyDetail = buildWeeklyDetail(normalizedRows, cutoffDate);
 
   return {

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.361', date: '2026-07-19', latest: true,
+    ver: 'v10.7.9.362', date: '2026-07-19', latest: true,
+    items: [
+      '📈 短周期真实 MA200 日线',
+      '  - 1月、3月、6月和1年走势图使用真实复权日收盘价与蓝色 MA200（日）；5年继续使用真实周收盘价与金色 MA200（周）',
+      '  - 日均线先用完整历史预热再裁剪展示区间，避免1年图开头断线；图例和历史价格提示会随日线、周线周期同步切换',
+      '  - 不新增行情请求，首页普通行情仍保持原有短历史窗口，持仓、交易和比赛逻辑不变',
+    ],
+    itemsEn: [
+      '📈 Real daily MA200 for short ranges',
+      '  - The 1M, 3M, 6M, and 1Y charts use real adjusted daily closes with a blue daily MA200; 5Y keeps real weekly closes with the gold weekly MA200',
+      '  - The daily average is warmed from full history before the visible range is trimmed, preventing a false gap at the start of 1Y; legends and historical tooltips switch with the active daily or weekly range',
+      '  - No market-data request is added: ordinary Home quotes keep their existing short-history window and position, trade, and competition logic remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.361', date: '2026-07-19',
     items: [
       '📈 走势图末端标签精简',
       '  - 移除走势图右端重复的最新股价气泡；页面头部主股价、末端圆点和点击历史价格提示保持不变',

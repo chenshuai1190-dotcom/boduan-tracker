@@ -126,20 +126,30 @@ const mockSampledMarketIndices = mockRestMarketIndices.map((card) => ({
 const mockBtcMarketCard = mockIndices[3];
 
 function buildMockWatchlistDetailHistory() {
-  const rows = [];
-  const start = new Date('2025-07-17T00:00:00Z');
+  const allRows = [];
+  const start = new Date('2024-07-17T00:00:00Z');
+  const visibleFrom = '2025-07-17';
   const end = new Date('2026-07-17T00:00:00Z');
   let tradingIndex = 0;
   for (const cursor = new Date(start); cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const day = cursor.getUTCDay();
     if (day === 0 || day === 6) continue;
-    const close = 132 + tradingIndex * 0.3 + Math.sin(tradingIndex / 5.8) * 8 + Math.sin(tradingIndex / 17) * 6;
-    rows.push({ date: cursor.toISOString().slice(0, 10), close: Number(close.toFixed(4)) });
+    const close = 80 + tradingIndex * 0.24 + Math.sin(tradingIndex / 5.8) * 8 + Math.sin(tradingIndex / 17) * 6;
+    allRows.push({ date: cursor.toISOString().slice(0, 10), close: Number(close.toFixed(4)) });
     tradingIndex += 1;
   }
-  if (rows.length > 1) rows[rows.length - 2].close = 207.39;
-  if (rows.length > 0) rows[rows.length - 1].close = 202.81;
-  return rows;
+  if (allRows.length > 1) allRows[allRows.length - 2].close = 207.39;
+  if (allRows.length > 0) allRows[allRows.length - 1].close = 202.81;
+  let rollingSum = 0;
+  const rowsWithMa = allRows.map((row, index) => {
+    rollingSum += row.close;
+    if (index >= 200) rollingSum -= allRows[index - 200].close;
+    return {
+      ...row,
+      ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null,
+    };
+  });
+  return rowsWithMa.filter((row) => row.date >= visibleFrom);
 }
 
 function buildMockWatchlistWeeklyHistory() {
@@ -179,16 +189,18 @@ function buildMockWatchlistWeeklyHistory() {
   return rows;
 }
 
+const mockWatchlistDetailHistory = buildMockWatchlistDetailHistory();
+
 const mockWatchlistStockDetailData = {
   source: 'EODHD_EOD',
   priceBasis: 'adjusted_close',
   currency: 'USD',
   asOfDate: '2026-07-17',
-  history: buildMockWatchlistDetailHistory(),
+  history: mockWatchlistDetailHistory,
   weeklyHistory: buildMockWatchlistWeeklyHistory(),
   indicators: {
     week52High: 235.88,
-    ma200: 180.34,
+    ma200: mockWatchlistDetailHistory.at(-1)?.ma200 || 180.34,
     ema30: 209.58,
     volatility20AnnualizedPct: 23.4,
     ma200Weekly: 123.2,

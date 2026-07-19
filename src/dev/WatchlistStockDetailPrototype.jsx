@@ -22,35 +22,36 @@ const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pr
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif';
 const MARKET_RED = '#ff4b1f';
 const MARKET_GREEN = '#22c55e';
+const MA200_DAY_COLOR = '#60a5fa';
 const MA200_WEEK_COLOR = '#f6b54b';
-const CURRENT_PRICE = 202.81;
-const AVG_COST = 195.3;
+const CURRENT_PRICE = 398.37;
+const AVG_COST = 286.44;
 
 const RANGE_SERIES = {
   '1m': {
     labels: ['06/17', '06/25', '07/02', '07/10', '07/17'],
-    values: [181.2, 187.8, 197.6, 192.4, 202.8, 211.7, 208.9, 219.4, 225.1, 217.3, 231.8, 225.7, 212.1, 220.6, 216.4, 224.8, 218.6, 214.2, 202.81],
-    ma200Weekly: [117.8, 118.1, 118.4, 118.7, 119.0, 119.3, 119.6, 119.9, 120.2, 120.5, 120.8, 121.1, 121.4, 121.7, 122.0, 122.3, 122.6, 122.9, 123.2],
+    values: [435.2, 467.8, 470.1, 438.4, 443.7, 435.9, 431.6, 447.8, 479.0, 445.2, 437.8, 444.6, 450.3, 429.7, 436.6, 435.2, 431.8, 421.4, 416.2, 410.75, 398.37],
+    ma200: [344.8, 345.1, 345.4, 345.7, 346.0, 346.3, 346.7, 347.0, 347.3, 347.6, 347.9, 348.2, 348.5, 348.8, 349.1, 349.4, 349.7, 350.0, 350.2, 350.4, 350.6],
   },
   '3m': {
     labels: ['04/17', '05/09', '06/02', '06/25', '07/17'],
-    values: [146.4, 151.7, 158.6, 154.2, 163.8, 172.4, 169.1, 181.3, 188.6, 184.9, 196.4, 205.7, 198.8, 214.3, 209.7, 224.2, 217.1, 202.81],
-    ma200Weekly: [113.0, 113.6, 114.2, 114.8, 115.4, 116.0, 116.6, 117.2, 117.8, 118.4, 119.0, 119.6, 120.2, 120.8, 121.4, 122.0, 122.6, 123.2],
+    values: [330.4, 345.8, 360.1, 342.6, 372.4, 389.3, 375.8, 405.1, 392.4, 418.7, 447.3, 432.8, 460.5, 479.0, 445.2, 437.8, 430.6, 410.75, 398.37],
+    ma200: [309.8, 312.1, 314.4, 316.8, 319.2, 321.7, 324.1, 326.6, 329.0, 331.5, 334.0, 336.4, 338.9, 341.3, 343.7, 346.0, 348.0, 349.4, 350.6],
   },
   '6m': {
     labels: ['01/17', '03/03', '04/15', '06/02', '07/17'],
-    values: [138.2, 132.7, 146.1, 141.8, 153.4, 149.6, 160.8, 156.1, 169.7, 176.5, 171.4, 184.2, 193.8, 188.1, 207.5, 216.3, 202.81],
-    ma200Weekly: [105.0, 106.1, 107.2, 108.3, 109.4, 110.5, 111.6, 112.7, 113.8, 114.9, 116.0, 117.1, 118.2, 119.3, 120.4, 121.8, 123.2],
+    values: [286.2, 300.8, 294.1, 318.5, 309.6, 337.4, 326.8, 354.7, 346.1, 372.4, 389.3, 375.8, 405.1, 418.7, 447.3, 479.0, 398.37],
+    ma200: [271.4, 276.3, 281.2, 286.1, 291.0, 296.0, 300.9, 305.8, 310.8, 315.7, 320.7, 325.7, 330.7, 335.7, 340.7, 345.7, 350.6],
   },
   '1y': {
     labels: ['07/17', '10/17', '01/17', '04/17', '07/17'],
-    values: [116.4, 123.8, 119.1, 136.2, 131.7, 149.8, 142.4, 158.1, 151.6, 168.9, 162.3, 179.4, 171.2, 188.5, 181.7, 211.8, 202.81],
-    ma200Weekly: [91.5, 93.4, 95.3, 97.2, 99.1, 101.0, 102.9, 104.8, 106.7, 108.6, 110.5, 112.4, 114.3, 116.2, 118.1, 120.6, 123.2],
+    values: [188.4, 201.7, 195.2, 218.6, 210.1, 235.8, 226.4, 252.1, 243.8, 271.6, 286.2, 300.8, 294.1, 337.4, 354.7, 389.3, 398.37],
+    ma200: [207.4, 216.3, 225.2, 234.2, 243.1, 252.1, 261.1, 270.0, 279.0, 288.0, 297.0, 306.0, 315.0, 324.0, 333.0, 342.0, 350.6],
   },
   '5y': {
     labels: ['2021', '2022', '2023', '2024', '2025', '2026'],
-    values: [19.3, 23.8, 29.4, 34.1, 27.2, 20.4, 16.5, 12.2, 15.7, 20.6, 27.9, 39.8, 48.5, 43.9, 55.2, 88.6, 120.4, 114.3, 135.7, 121.8, 131.2, 149.6, 140.5, 156.8, 174.2, 160.7, 184.9, 210.3, 196.4, 202.81],
-    ma200Weekly: [9.6, 10.1, 10.7, 11.4, 12.1, 13.0, 14.2, 15.3, 16.1, 17.2, 18.5, 20.2, 22.4, 25.0, 28.2, 32.0, 36.7, 42.4, 49.1, 56.8, 64.9, 72.1, 79.4, 86.0, 92.5, 98.8, 105.2, 111.4, 117.6, 123.2],
+    values: [58.3, 66.7, 75.4, 89.1, 82.2, 70.4, 64.5, 72.2, 86.7, 104.6, 127.9, 151.8, 180.5, 169.9, 198.2, 238.0, 276.7, 262.4, 301.1, 284.8, 317.2, 344.6, 329.5, 362.8, 391.2, 374.7, 416.9, 448.3, 429.4, 398.37],
+    ma200: [49.6, 52.1, 54.7, 57.4, 60.1, 63.0, 66.2, 69.3, 72.1, 75.2, 78.5, 82.2, 86.4, 91.0, 96.2, 102.0, 108.7, 116.4, 124.1, 131.8, 139.9, 147.1, 154.4, 161.0, 167.5, 172.8, 177.2, 180.4, 182.0, 183.18],
   },
 };
 
@@ -110,7 +111,7 @@ function targetProgress(targetPrice) {
   return ((CURRENT_PRICE - AVG_COST) / (target - AVG_COST)) * 100;
 }
 
-function chartGeometry(values, ma200Weekly) {
+function chartGeometry(values, ma200) {
   const width = 352;
   const height = 184;
   const left = 30;
@@ -119,7 +120,7 @@ function chartGeometry(values, ma200Weekly) {
   const bottom = 25;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const combined = [...values, ...ma200Weekly].filter(Number.isFinite);
+  const combined = [...values, ...ma200].filter(Number.isFinite);
   const low = Math.min(...combined);
   const high = Math.max(...combined);
   const span = Math.max(1, high - low);
@@ -132,7 +133,7 @@ function chartGeometry(values, ma200Weekly) {
   }));
   const toPath = (points) => points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
   const pricePoints = toPoints(values);
-  const maPoints = toPoints(ma200Weekly);
+  const maPoints = toPoints(ma200);
   const pricePath = toPath(pricePoints);
   const maPath = toPath(maPoints);
   const areaPath = `${pricePath} L ${pricePoints.at(-1).x.toFixed(2)} ${(top + plotHeight).toFixed(2)} L ${pricePoints[0].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} Z`;
@@ -172,7 +173,10 @@ function chartPointDate(range, index, count) {
 
 function PriceChart({ range, initialTooltipOpen = false }) {
   const series = RANGE_SERIES[range] || RANGE_SERIES['5y'];
-  const chart = chartGeometry(series.values, series.ma200Weekly);
+  const weeklyMa = range === '5y';
+  const maLabel = weeklyMa ? 'MA200（周）' : 'MA200（日）';
+  const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR;
+  const chart = chartGeometry(series.values, series.ma200);
   const last = chart.pricePoints.at(-1);
   const chartRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
@@ -247,7 +251,7 @@ function PriceChart({ range, initialTooltipOpen = false }) {
       ref={chartRef}
       role="button"
       tabIndex={0}
-      aria-label="查看 NVDA 股价走势"
+      aria-label="查看 TSM 股价走势"
       data-watchlist-price-chart-trigger="true"
       className="relative min-w-0 cursor-crosshair rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-[#f6b54b]/45"
       style={{ touchAction: 'pan-y' }}
@@ -261,7 +265,7 @@ function PriceChart({ range, initialTooltipOpen = false }) {
         setSelectedIndex(series.values.length - 1);
       }}
     >
-      <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={`${RANGE_LABELS[range]}普通收盘价与MA200周线走势`}>
+      <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={`${RANGE_LABELS[range]}普通收盘价与${maLabel}走势`}>
         <defs>
           <linearGradient id="watchlist-stock-price-area" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={MARKET_GREEN} stopOpacity="0.14" />
@@ -275,7 +279,7 @@ function PriceChart({ range, initialTooltipOpen = false }) {
           </g>
         ))}
         <path d={chart.areaPath} fill="url(#watchlist-stock-price-area)" />
-        <path data-watchlist-weekly-ma-line="true" d={chart.maPath} fill="none" stroke={MA200_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'} data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined} d={chart.maPath} fill="none" stroke={maColor} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <path d={chart.pricePath} fill="none" stroke={MARKET_GREEN} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <circle cx={last.x} cy={last.y} r="2.2" fill={MARKET_GREEN} stroke="#d6fff0" strokeWidth="0.65" />
         {selectedPoint ? (
@@ -283,7 +287,7 @@ function PriceChart({ range, initialTooltipOpen = false }) {
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={chart.height - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill="#f6b54b" opacity="0.13" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#05070b" stroke="#ffd18a" strokeWidth="1.25" />
-            {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={MA200_WEEK_COLOR} strokeWidth="1.1" /> : null}
+            {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={maColor} strokeWidth="1.1" /> : null}
           </g>
         ) : null}
         {series.labels.map((label, index) => {
@@ -299,14 +303,14 @@ function PriceChart({ range, initialTooltipOpen = false }) {
           <div className="text-[9px] text-white/[0.42]">{chartPointDate(range, selectedIndex, series.values.length)} · 普通收盘</div>
           <div className="mt-1 text-[18px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>${formatNumber(selectedValue)}</div>
           <div className="mt-1 flex items-center justify-between gap-2 text-[9px]">
-            <span className="text-white/[0.3]">当日涨跌</span>
+            <span className="text-white/[0.3]">{weeklyMa ? '周涨跌' : '当日涨跌'}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: selectedColor, fontFamily: NUMBER_FONT }}>
               {selectedChange == null ? '--' : `${selectedChange >= 0 ? '+' : ''}${formatNumber(selectedChange)}  ${signedPct(selectedChangePct)}`}
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px]">
-            <span className="text-white/[0.3]">MA200（周）</span>
-            <span className="whitespace-nowrap text-[#f6b54b] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+            <span className="text-white/[0.3]">{maLabel}</span>
+            <span className="whitespace-nowrap tabular-nums" style={{ color: maColor, fontFamily: NUMBER_FONT }}>
               {Number.isFinite(selectedMaValue) ? `$${formatNumber(selectedMaValue)} · ${signedPct(selectedMaDistance)}` : '--'}
             </span>
           </div>
@@ -359,9 +363,9 @@ function TargetEditor({ targetPrice, onCancel, onSave }) {
       ]}
     >
       <div className="flex items-center gap-3 border-b border-white/[0.06] pb-3">
-        <StockLogo symbol="NVDA" urls={stockLogoCandidates('NVDA')} className="h-10 w-10 rounded-[10px]" />
+        <StockLogo symbol="TSM" urls={stockLogoCandidates('TSM')} className="h-10 w-10 rounded-[10px]" />
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] text-white/[0.78]">NVDA <span className="ml-1 text-[12px] text-white/[0.38]">英伟达</span></div>
+          <div className="text-[14px] text-white/[0.78]">TSM <span className="ml-1 text-[12px] text-white/[0.38]">台积电</span></div>
           <div className="mt-1 text-[10px] text-white/[0.29]">当前收盘价 ${formatNumber(CURRENT_PRICE)}</div>
         </div>
       </div>
@@ -408,8 +412,11 @@ export default function WatchlistStockDetailPrototype() {
   ), []);
   const initialEditorOpen = previewParams.get('targetEditor') === '1';
   const initialChartTooltipOpen = previewParams.get('chartTooltip') === '1';
-  const [range, setRange] = React.useState('5y');
-  const [targetPrice, setTargetPrice] = React.useState(250);
+  const requestedRange = previewParams.get('chartRange');
+  const [range, setRange] = React.useState(() => (
+    Object.hasOwn(RANGE_SERIES, requestedRange) ? requestedRange : '5y'
+  ));
+  const [targetPrice, setTargetPrice] = React.useState(500);
   const [showTargetEditor, setShowTargetEditor] = React.useState(initialEditorOpen);
   const gap = targetSpace(targetPrice);
   const progress = targetProgress(targetPrice);
@@ -439,11 +446,11 @@ export default function WatchlistStockDetailPrototype() {
 
         <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-prototype-header-chart="full-width">
           <div className="flex min-w-0 items-center gap-3">
-            <StockLogo symbol="NVDA" urls={stockLogoCandidates('NVDA')} className="h-11 w-11 rounded-[11px]" />
+            <StockLogo symbol="TSM" urls={stockLogoCandidates('TSM')} className="h-11 w-11 rounded-[11px]" />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-baseline gap-2">
-                <span className="text-[18px] font-normal text-white/[0.9]">NVDA</span>
-                <span className="truncate text-[13px] text-white/[0.45]">英伟达</span>
+                <span className="text-[18px] font-normal text-white/[0.9]">TSM</span>
+                <span className="truncate text-[13px] text-white/[0.45]">台积电</span>
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-[9.5px] text-white/[0.29]">
                 <span className="rounded-md bg-white/[0.045] px-1.5 py-0.5">美股</span>
@@ -456,8 +463,8 @@ export default function WatchlistStockDetailPrototype() {
           <div className="mt-4" data-prototype-price-summary="inline">
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
               <span className="text-[29px] font-normal leading-none tracking-[-0.02em] text-white/[0.92]">${formatNumber(CURRENT_PRICE)}</span>
-              <span className="text-[15px]" style={{ color: MARKET_GREEN }}>-2.21%</span>
-              <span className="text-[13px] opacity-75" style={{ color: MARKET_GREEN }}>(-4.58)</span>
+              <span className="text-[15px]" style={{ color: MARKET_GREEN }}>-2.77%</span>
+              <span className="text-[13px] opacity-75" style={{ color: MARKET_GREEN }}>(-11.37)</span>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[9.5px] text-white/[0.31]">
               <span>7/17 收盘</span><span aria-hidden="true">·</span><span>美东时间</span><span aria-hidden="true">·</span><span>USD</span>
@@ -481,9 +488,9 @@ export default function WatchlistStockDetailPrototype() {
             <PriceChart range={range} initialTooltipOpen={initialChartTooltipOpen} />
           </div>
 
-          <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-prototype-chart-legend="price-weekly-ma">
+          <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-prototype-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}>
             <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#22c55e]" />股价</span>
-            <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#f6b54b]" />MA200（周）</span>
+            <span className="inline-flex items-center gap-1.5"><i className={`h-0.5 w-4 rounded-full ${range === '5y' ? 'bg-[#f6b54b]' : 'bg-[#60a5fa]'}`} />{range === '5y' ? 'MA200（周）' : 'MA200（日）'}</span>
           </div>
         </section>
 
@@ -492,9 +499,9 @@ export default function WatchlistStockDetailPrototype() {
             <h2 className="text-[15px] font-normal text-white/[0.82]">关键指标</h2>
           </div>
           <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-prototype-daily-metrics="borderless">
-            <MetricCell label="距52周高点" value="-14.16%" detail="高点 235.88" color={MARKET_GREEN} />
-            <MetricCell label="距MA200（日）" value="+12.40%" detail="日线 180.34" color={MARKET_RED} />
-            <MetricCell label="距EMA30（日）" value="-3.25%" detail="日线 209.58" color={MARKET_GREEN} />
+            <MetricCell label="距52周高点" value="-16.83%" detail="高点 479.00" color={MARKET_GREEN} />
+            <MetricCell label="距MA200（日）" value="+13.63%" detail="日线 350.60" color={MARKET_RED} />
+            <MetricCell label="距EMA30（日）" value="-6.84%" detail="日线 427.60" color={MARKET_GREEN} />
           </div>
 
           <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
@@ -507,7 +514,7 @@ export default function WatchlistStockDetailPrototype() {
             <div className="mt-3 flex items-end justify-between gap-4">
               <div>
                 <div className="text-[9.5px] text-white/[0.32]">距200周均线</div>
-                <div className="mt-1 text-[22px] font-normal text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+64.62%</div>
+                <div className="mt-1 text-[22px] font-normal text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+117.47%</div>
               </div>
               <div className="pb-0.5 text-right">
                 <div className="text-[12px] text-[#ff4b1f]/90">长期趋势上方</div>
@@ -516,9 +523,9 @@ export default function WatchlistStockDetailPrototype() {
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
-              <div><div className="text-[8.5px] text-white/[0.27]">200周均线</div><div className="mt-1 text-[11.5px] text-white/[0.65] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$123.20</div></div>
-              <div className="text-center"><div className="text-[8.5px] text-white/[0.27]">近4周变化</div><div className="mt-1 text-[11.5px] text-[#ff4b1f]/85 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+4.76%</div></div>
-              <div className="text-right"><div className="text-[8.5px] text-white/[0.27]">连续状态</div><div className="mt-1 text-[11.5px] text-white/[0.65]">上方 86 周</div></div>
+              <div><div className="text-[8.5px] text-white/[0.27]">200周均线</div><div className="mt-1 text-[11.5px] text-white/[0.65] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$183.18</div></div>
+              <div className="text-center"><div className="text-[8.5px] text-white/[0.27]">近4周变化</div><div className="mt-1 text-[11.5px] text-[#ff4b1f]/85 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+3.95%</div></div>
+              <div className="text-right"><div className="text-[8.5px] text-white/[0.27]">连续状态</div><div className="mt-1 text-[11.5px] text-white/[0.65]">上方 142 周</div></div>
             </div>
 
             <div className="mt-3.5 text-[8.5px] text-white/[0.22]">更新至 7/17 周收盘 · 200周数据完整</div>

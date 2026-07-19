@@ -28,13 +28,32 @@ function utcDateKey(value) {
     : '';
 }
 
+function subtractUtcMonthsClamped(date, months) {
+  const target = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth() - months,
+    1,
+  ));
+  const lastDay = new Date(Date.UTC(
+    target.getUTCFullYear(),
+    target.getUTCMonth() + 1,
+    0,
+  )).getUTCDate();
+  target.setUTCDate(Math.min(date.getUTCDate(), lastDay));
+  return target;
+}
+
 export function normalizeStockDetailHistory(rows = []) {
   const byDate = new Map();
   for (const row of Array.isArray(rows) ? rows : []) {
     const date = utcDateKey(row?.date);
     const close = positiveNumber(row?.close);
     if (!date || close === null) continue;
-    byDate.set(date, { date, close });
+    byDate.set(date, {
+      date,
+      close,
+      ma200: positiveNumber(row?.ma200),
+    });
   }
   return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
 }
@@ -62,8 +81,10 @@ export function filterStockDetailHistory(rows = [], range = '1m') {
   const history = normalizeStockDetailHistory(rows);
   if (history.length === 0) return [];
   const months = RANGE_MONTHS[range] || RANGE_MONTHS['1m'];
-  const asOfDate = new Date(`${history.at(-1).date}T00:00:00Z`);
-  asOfDate.setUTCMonth(asOfDate.getUTCMonth() - months);
+  const asOfDate = subtractUtcMonthsClamped(
+    new Date(`${history.at(-1).date}T00:00:00Z`),
+    months,
+  );
   const from = asOfDate.toISOString().slice(0, 10);
   const filtered = history.filter((row) => row.date >= from);
   if (filtered.length >= 2) return filtered;
@@ -74,8 +95,10 @@ export function filterStockDetailWeeklyHistory(rows = [], range = '5y') {
   const history = normalizeStockDetailWeeklyHistory(rows);
   if (history.length === 0) return [];
   const months = RANGE_MONTHS[range] || RANGE_MONTHS['5y'];
-  const asOfDate = new Date(`${history.at(-1).date}T00:00:00Z`);
-  asOfDate.setUTCMonth(asOfDate.getUTCMonth() - months);
+  const asOfDate = subtractUtcMonthsClamped(
+    new Date(`${history.at(-1).date}T00:00:00Z`),
+    months,
+  );
   const from = asOfDate.toISOString().slice(0, 10);
   return history.filter((row) => row.date >= from);
 }

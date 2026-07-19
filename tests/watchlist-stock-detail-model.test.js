@@ -17,15 +17,15 @@ import {
 
 test('stock detail history is normalized and ranges use the latest completed close', () => {
   const rows = normalizeStockDetailHistory([
-    { date: '2026-07-17', close: 202 },
+    { date: '2026-07-17', close: 202, ma200: 180 },
     { date: 'bad', close: 999 },
-    { date: '2026-06-17', close: 180 },
-    { date: '2026-07-17', close: 203 },
+    { date: '2026-06-17', close: 180, ma200: null },
+    { date: '2026-07-17', close: 203, ma200: 181.5 },
     { date: '2026-07-16', close: 0 },
   ]);
   assert.deepEqual(rows, [
-    { date: '2026-06-17', close: 180 },
-    { date: '2026-07-17', close: 203 },
+    { date: '2026-06-17', close: 180, ma200: null },
+    { date: '2026-07-17', close: 203, ma200: 181.5 },
   ]);
   assert.equal(filterStockDetailHistory(rows, '1m').length, 2);
   assert.deepEqual(resolveStockDetailClose(rows), {
@@ -35,6 +35,19 @@ test('stock detail history is normalized and ranges use the latest completed clo
     changeUsd: 23,
     changePercent: (23 / 180) * 100,
   });
+});
+
+test('daily history range keeps the real MA field and clamps end-of-month subtraction', () => {
+  const visible = filterStockDetailHistory([
+    { date: '2026-02-27', close: 100, ma200: 90 },
+    { date: '2026-02-28', close: 101, ma200: null },
+    { date: '2026-03-31', close: 110, ma200: 95 },
+  ], '1m');
+
+  assert.deepEqual(visible, [
+    { date: '2026-02-28', close: 101, ma200: null },
+    { date: '2026-03-31', close: 110, ma200: 95 },
+  ]);
 });
 
 test('weekly history preserves missing MA values, filters five years, and resolves the latest locked MA by date', () => {

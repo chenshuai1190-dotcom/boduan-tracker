@@ -28,12 +28,13 @@ test('watchlist stock detail prototype stays local and keeps account data read-o
 test('watchlist price chart opens a read-only close-price tooltip', () => {
   assert.ok(prototypeSource.includes("previewParams.get('chartTooltip') === '1'"));
   assert.ok(prototypeSource.includes('data-watchlist-price-chart-trigger="true"'));
-  assert.ok(prototypeSource.includes('aria-label="查看 NVDA 股价走势"'));
+  assert.ok(prototypeSource.includes('aria-label="查看 TSM 股价走势"'));
   assert.ok(prototypeSource.includes('data-watchlist-price-chart-tooltip="true"'));
   assert.ok(prototypeSource.includes('· 普通收盘'));
   assert.ok(prototypeSource.includes('当日涨跌'));
-  assert.ok(prototypeSource.includes('MA200（周）'));
-  assert.ok(prototypeSource.includes('data-watchlist-weekly-ma-line="true"'));
+  assert.ok(prototypeSource.includes("const maLabel = weeklyMa ? 'MA200（周）' : 'MA200（日）'"));
+  assert.ok(prototypeSource.includes("data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'}"));
+  assert.ok(prototypeSource.includes("data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined}"));
   assert.ok(prototypeSource.includes('strokeWidth="0.95"'));
   assert.ok(prototypeSource.includes('strokeWidth="1.15"'));
   assert.equal(prototypeSource.includes('price-glow'), false);
@@ -49,9 +50,19 @@ test('watchlist header gives the price chart a full-width row', () => {
   assert.equal(prototypeSource.includes('grid-cols-[103px_minmax(0,1fr)]'), false);
   assert.ok(prototypeSource.includes('className="h-[184px] w-full overflow-visible"'));
   assert.ok(prototypeSource.includes('data-prototype-chart-ranges="five"'));
-  assert.ok(prototypeSource.includes("React.useState('5y')"));
+  assert.ok(prototypeSource.includes("previewParams.get('chartRange')"));
+  assert.ok(prototypeSource.includes("Object.hasOwn(RANGE_SERIES, requestedRange) ? requestedRange : '5y'"));
   assert.ok(prototypeSource.includes("'5y': '5年'"));
-  assert.ok(prototypeSource.includes('data-prototype-chart-legend="price-weekly-ma"'));
+  assert.ok(prototypeSource.includes("data-prototype-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}"));
+});
+
+test('short ranges use a blue daily MA200 while five years keeps the gold weekly MA200', () => {
+  assert.ok(prototypeSource.includes("const weeklyMa = range === '5y'"));
+  assert.ok(prototypeSource.includes("const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR"));
+  assert.ok(prototypeSource.includes("const MA200_DAY_COLOR = '#60a5fa'"));
+  assert.ok(prototypeSource.includes("const MA200_WEEK_COLOR = '#f6b54b'"));
+  assert.ok(prototypeSource.includes("{range === '5y' ? 'MA200（周）' : 'MA200（日）'}"));
+  assert.ok(prototypeSource.includes('ma200: [344.8, 345.1'), 'the one-month mock should show a real changing daily MA series instead of a repeated current value');
 });
 
 test('key indicators replace the dense grid with daily facts and one weekly trend panel', () => {
