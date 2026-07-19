@@ -10,15 +10,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 生产运行时代码 | `2d5fb28fd6a3905122b1a204e7299e7e5a2f616a` |
-| 设置页版本 | `v10.7.9.359` |
-| 生产入口 | `/assets/index-B6WyI3Ep.js` |
-| Runtime Actions | `29689370727` success |
-| Runtime Vercel | `6ooY9nKj2AqYL71SuWVJfv2yAcQH` success |
+| 生产运行时代码 | `78ab4fe199d6142ecdc309af67e5c7fffb8c7cf7` |
+| 设置页版本 | `v10.7.9.360` |
+| 生产入口 | `/assets/index-BsJKumpg.js` |
+| Runtime Actions | `29691640639` success |
+| Runtime Vercel | `8gAESJqXjyXeaLEHzVYcfxJi8sCy` success |
 
 已验证：
 
-- `npm run verify:deploy-status -- 2d5fb28`：PASS。
+- `npm run verify:deploy-status -- 78ab4fe`：PASS。
 - 未登录 `/api/quote?symbols=VIX`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=stock-detail`：`401`。
 - 未登录 `/api/earnings-calendar?symbols=NVDA`：`401`。
@@ -27,8 +27,12 @@
 - 详情页中文标题为“股票趋势”，保留五栏底部导航和安全留白；目标价整卡按压缩放已取消，点击编辑不变。
 - 成本至目标进度保留真实有符号数值：现价低于平均成本时可显示负数，但视觉标记仍限制在 `0–100%`轨道内。
 - 公司 Logo 已与首页共用缓存和回退链；单一来源失败后会继续尝试 EODHD 大小写、FMP 和 Finnhub，成功后写入现有本地缓存。
+- 股票趋势默认展示五年真实周收盘，约 260 个数据点使用 `0.95px` 细绿线、无发光和弱填充；`1.15px` 金色 MA200 周线贯穿图表，点击可同时读取股价、周涨跌和当周已锁定均线。
+- MA200 周线由按需获取的十年复权收盘预热计算，只推进已完成交易周；未收盘周不会改写锁定值，行情源失败与真实历史不足分别显示“暂不可用”和周数进度。普通首页行情仍保持原 380 天历史窗口。
+- 关键指标已取消 20 日波动率，改为无分割线的 52 周高点、MA200（日）、EMA30（日）与独立 MA200 周线详情，周线面板展示距均线、近四周变化、连续状态和锁定日期。
 - 生产 `watchlist.target_price_usd numeric(18,6)` 已 database-first 迁移；正数约束、RLS、原 5 条 policy、76 条既有数据和 0 条非空目标价均完成 postflight，未改变既有行。
-- 生产详情页分包 `/assets/WatchlistStockDetailPage-CManFOOy.js` 返回 `200`，包含“股票趋势”与“成本至目标进度”标记；Settings/changelog 为 `v10.7.9.359`。
+- 生产详情页分包 `/assets/WatchlistStockDetailPage-BDMxDx9l.js` 返回 `200`，包含 `weeklyHistory`、`ma200WeeklyStatus`、周线 SVG 与细线标记；Settings/changelog 为 `v10.7.9.360`。
+- 本机真实 Xcode iOS Simulator 已验证默认五年图、联动 tooltip 与周线指标面板；截图在忽略目录 `outputs/ios-simulator/watchlist-weekly-ma-production-v360-*.png`。
 
 ## 收益比赛当前状态
 
