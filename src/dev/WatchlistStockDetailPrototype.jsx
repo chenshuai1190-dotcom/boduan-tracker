@@ -330,6 +330,14 @@ function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)' }) 
   );
 }
 
+function IndicatorBadge({ children }) {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">
+      {children}
+    </span>
+  );
+}
+
 function SectionHeading({ title, trailing }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3.5">
@@ -500,14 +508,24 @@ export default function WatchlistStockDetailPrototype() {
           </div>
           <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-prototype-daily-metrics="borderless">
             <MetricCell label="距52周高点" value="-16.83%" detail="高点 479.00" color={MARKET_GREEN} />
-            <MetricCell label="距MA200（日）" value="+13.63%" detail="日线 350.60" color={MARKET_RED} />
+            <MetricCell
+              label={(
+                <span className="inline-flex max-w-full items-center justify-center gap-1" data-prototype-ma200-entry-indicator="true">
+                  <span>MA200</span>
+                  <IndicatorBadge>建仓指标</IndicatorBadge>
+                </span>
+              )}
+              value="+13.63%"
+              detail="日线 350.60"
+              color={MARKET_RED}
+            />
             <MetricCell label="相对QQQ（3个月）" value="+8.42%" detail="个股 +16.2% · QQQ +7.8%" color={MARKET_RED} />
           </div>
 
           <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
             <div className="flex min-w-0 items-center gap-2">
               <h3 className="text-[13px] font-normal text-white/[0.76]">MA200（周）</h3>
-              <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">芒格指标</span>
+              <IndicatorBadge>芒格指标</IndicatorBadge>
               <span className="ml-auto text-[9px] text-white/[0.28]">周收盘锁定</span>
             </div>
 

@@ -703,6 +703,14 @@ function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)' }) 
   );
 }
 
+function IndicatorBadge({ children }) {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">
+      {children}
+    </span>
+  );
+}
+
 function SectionHeading({ title, trailing }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3.5">
@@ -1142,7 +1150,17 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
         <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-watchlist-daily-metrics="borderless">
           <MetricCell label={t(language, 'watchlistDetail.distance52High', '距52周高点')} value={formatSignedPercent(distance52)} detail={t(language, 'watchlistDetail.highValue', '高点 {{price}}', { price: formatCurrency(high52, stockCurrency) })} color={marketHexColor(distance52 || 0, marketColorMode)} />
-          <MetricCell label={t(language, 'watchlistDetail.distanceMa200Daily', '距MA200（日）')} value={formatSignedPercent(distanceMa200)} detail={t(language, 'watchlistDetail.ma200DailyValue', '日线 {{price}}', { price: formatCurrency(ma200, stockCurrency) })} color={marketHexColor(distanceMa200 || 0, marketColorMode)} />
+          <MetricCell
+            label={(
+              <span className="inline-flex max-w-full items-center justify-center gap-1" data-watchlist-ma200-entry-indicator="true">
+                <span>{t(language, 'watchlistDetail.ma200Entry', 'MA200')}</span>
+                <IndicatorBadge>{t(language, 'watchlistDetail.entryIndicator', '建仓指标')}</IndicatorBadge>
+              </span>
+            )}
+            value={formatSignedPercent(distanceMa200)}
+            detail={t(language, 'watchlistDetail.ma200DailyValue', '日线 {{price}}', { price: formatCurrency(ma200, stockCurrency) })}
+            color={marketHexColor(distanceMa200 || 0, marketColorMode)}
+          />
           <MetricCell
             label={t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')}
             value={formatSignedPercent(qqqRelativeReturn?.relativeReturnPercent)}
@@ -1159,7 +1177,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
           <div className="flex min-w-0 items-center gap-2">
             <h3 className="text-[13px] font-normal text-white/[0.76]">{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</h3>
-            <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.longTermTrend', '芒格指标')}</span>
+            <IndicatorBadge>{t(language, 'watchlistDetail.longTermTrend', '芒格指标')}</IndicatorBadge>
             {weeklyPanelReady ? <span className="ml-auto text-[9px] text-white/[0.28]">{t(language, 'watchlistDetail.weeklyCloseLocked', '周收盘锁定')}</span> : null}
           </div>
 

@@ -69,7 +69,9 @@ test('key indicators replace the dense grid with daily facts and one weekly tren
   assert.ok(prototypeSource.includes('data-prototype-key-metrics="spacious"'));
   assert.ok(prototypeSource.includes('data-prototype-daily-metrics="borderless"'));
   assert.ok(prototypeSource.includes('data-watchlist-weekly-ma-panel="true"'));
-  assert.ok(prototypeSource.includes('距MA200（日）'));
+  assert.ok(prototypeSource.includes('data-prototype-ma200-entry-indicator="true"'));
+  assert.ok(prototypeSource.includes('<IndicatorBadge>建仓指标</IndicatorBadge>'));
+  assert.equal((prototypeSource.match(/<IndicatorBadge>/g) || []).length, 2, 'prototype entry and Munger labels should share one badge component');
   assert.ok(prototypeSource.includes('相对QQQ（3个月）'));
   assert.ok(prototypeSource.includes('个股 +16.2% · QQQ +7.8%'));
   assert.ok(prototypeSource.includes('200周数据完整'));
