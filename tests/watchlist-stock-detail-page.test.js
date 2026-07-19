@@ -68,17 +68,21 @@ test('production detail shares the Home logo candidate chain and reads the persi
   assert.ok(pageSource.includes('onLogoLoad={cacheStockLogo}'));
 });
 
-test('target card keeps whole-card editing without the scale animation', () => {
+test('target card keeps whole-card editing without redundant edit chrome or scale animation', () => {
   const targetButtonLine = pageSource.split('\n').find((line) => line.includes('data-watchlist-detail-section="target"')) || '';
   assert.ok(targetButtonLine.includes('setShowTargetEditor(true)'));
   assert.ok(targetButtonLine.includes('editTargetAria'));
   assert.equal(targetButtonLine.includes('scale-'), false);
+  assert.equal(pageSource.includes('<Pencil'), false);
+  assert.equal(pageSource.includes('<ChevronRight'), false);
+  assert.equal(pageSource.includes("t(language, 'watchlistDetail.edit', '编辑')"), false);
   assert.ok(pageSource.includes('targetProgressPositionPercent(targetProgress)'));
 });
 
 test('production watchlist detail only mutates its isolated target and keeps holdings and trades read-only', () => {
   assert.ok(pageSource.includes('saveWatchlistStockTarget(symbol, normalizedTarget)'));
-  assert.ok(pageSource.includes('formalLedgerReadOnly'));
+  assert.equal(pageSource.includes('autoRead'), false);
+  assert.equal(pageSource.includes('formalLedgerReadOnly'), false);
   assert.ok(pageSource.includes('targetBoundary'));
   for (const forbidden of [
     'insertStockTrade',

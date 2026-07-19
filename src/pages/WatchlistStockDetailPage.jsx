@@ -2,10 +2,8 @@ import React from 'react';
 import {
   ArrowLeft,
   CalendarDays,
-  ChevronRight,
   Clock3,
   Minus,
-  Pencil,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -876,7 +874,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
           <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[9px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
-          <div className="flex items-center gap-1.5 text-[10px] text-white/[0.32]"><Pencil className="h-3 w-3" />{t(language, 'watchlistDetail.edit', '编辑')}<ChevronRight className="h-3.5 w-3.5" /></div>
         </div>
         <div className="px-4 py-4">
           <div className="grid grid-cols-[1fr_auto] items-end gap-3">
@@ -896,7 +893,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       </button>
 
       <section data-watchlist-detail-section="events" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <SectionHeading title={t(language, 'watchlistDetail.keyEvents', '关键事件')} trailing={t(language, 'watchlistDetail.autoRead', '自动读取')} />
+        <SectionHeading title={t(language, 'watchlistDetail.keyEvents', '关键事件')} />
         <div className="grid grid-cols-3 divide-x divide-white/[0.06] px-1 py-4">
           <div className="px-3 text-center"><CalendarDays className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">{t(language, 'watchlistDetail.nextEarnings', '下次财报')}</div><div className="mt-1 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{upcomingDate ? formatDate(upcomingDate, language) : '--'}</div><div className="mt-0.5 text-[9px] text-white/[0.25]">{upcomingSession === 'pre' ? t(language, 'watchlistDetail.expectedPreMarket', '预计盘前') : upcomingSession === 'post' ? t(language, 'watchlistDetail.expectedPostMarket', '预计盘后') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
           <div className="px-3 text-center"><Clock3 className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">{t(language, 'watchlistDetail.earningsCountdown', '距离财报')}</div><div className="mt-1 text-[13px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{countdown === null ? '--' : t(language, 'watchlistDetail.days', '{{days}} 天', { days: countdown })}</div><div className="mt-0.5 text-[9px] text-white/[0.25]">{earnings.upcoming ? quarterLabel(earnings.upcoming, language) : t(language, 'watchlistDetail.noEarnings', '暂无财报日程')}</div></div>
@@ -905,7 +902,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       </section>
 
       <section data-watchlist-detail-section="trades" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <SectionHeading title={t(language, 'watchlistDetail.recentTrades', '最近交易记录')} trailing={t(language, 'watchlistDetail.formalLedgerReadOnly', '正式账本 · 只读')} />
+        <SectionHeading title={t(language, 'watchlistDetail.recentTrades', '最近交易记录')} />
         {rows.trades.length ? (
           <div className="divide-y divide-white/[0.055] px-4">
             {rows.trades.slice(0, 5).map((trade) => {
