@@ -1,4 +1,5 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
+import { buildEodhdStockDetail } from '../stockDetail.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
 const US_EQUITY_REGULAR_END_MINUTES = 16 * 60;
@@ -74,6 +75,17 @@ function isUsEquitySameDayAfterPostClose(now = Date.now()) {
   const parts = getUsEquityTimeParts(now);
   if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return false;
   return parts.minutes >= US_EQUITY_POSTMARKET_END_MINUTES;
+}
+
+function getLatestCompletedEodCutoffDate(now = Date.now()) {
+  const marketDate = getUsEquityMarketDate(now);
+  if (!marketDate) return '';
+  const quoteSession = getUsEquityQuoteSession(now);
+  if (quoteSession === 'post' || isUsEquitySameDayAfterPostClose(now)) return marketDate;
+  const previousDate = new Date(`${marketDate}T00:00:00Z`);
+  if (Number.isNaN(previousDate.getTime())) return '';
+  previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+  return previousDate.toISOString().slice(0, 10);
 }
 
 export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
@@ -571,10 +583,11 @@ export async function fetchAnalystQuote(symbol, { eodhdKey }) {
   }
 }
 
-export async function fetchStockQuote(symbol, { eodhdKey }) {
+export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = false }) {
   try {
     const now = Date.now();
     const marketDate = getUsEquityMarketDate(now);
+    const stockDetailCutoffDate = getLatestCompletedEodCutoffDate(now);
     const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
     const today = new Date();
     const oneYearAgo = new Date(today.getTime() - 380 * 24 * 60 * 60 * 1000);
@@ -665,10 +678,16 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
     let marketDateClose = null;
     let latestCompletedClose = null;
     let latestCompletedBaseline = null;
+    let stockDetail = includeStockDetail
+      ? buildEodhdStockDetail([], { asOfDate: stockDetailCutoffDate })
+      : null;
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
+          if (includeStockDetail) {
+            stockDetail = buildEodhdStockDetail(eodData, { asOfDate: stockDetailCutoffDate });
+          }
           dailyBaseline = findDailyBaselineCloseFromEodRows(eodData, marketDate);
           marketDateClose = findCloseForMarketDateFromEodRows(eodData, marketDate);
           latestCompletedClose = marketDateClose || dailyBaseline;
@@ -775,6 +794,7 @@ export async function fetchStockQuote(symbol, { eodhdKey }) {
       quoteSession: eodhdQuote.quoteSession,
       changeSource: eodhdQuote.changeSource,
       source: 'EODHD',
+      ...(includeStockDetail ? { stockDetail } : {}),
     };
   } catch (e) {
     return { symbol, error: e.message };

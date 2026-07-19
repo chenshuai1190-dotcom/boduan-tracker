@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.357', date: '2026-07-19', latest: true,
+    ver: 'v10.7.9.358', date: '2026-07-19', latest: true,
+    items: [
+      '📈 自选股票详情与个人目标价',
+      '  - 首页“自选”中点击股票代码和名称区域可进入独立详情页；价格、涨跌和回撤区域保持原有滚动与排序交互',
+      '  - 详情页使用真实复权收盘数据展示 1月、3月、6月、1年走势，以及距52周高点、MA200、EMA30 和 20日年化波动率',
+      '  - 持仓和正式交易记录自动读取且不可编辑；个人目标价独立保存在自选表，不修改持仓、交易或比赛账本',
+      '  - 股票报价、指标、目标价、平均成本和交易价格固定使用美元；仅持仓市值与持仓盈亏跟随系统币种，中英文同步切换',
+    ],
+    itemsEn: [
+      '📈 Watchlist stock detail and personal target price',
+      '  - Tap the symbol and company-name area in the Home watchlist to open the standalone detail page; price, change, and drawdown cells keep their existing scroll and sort behavior',
+      '  - The detail page uses real adjusted closes for 1M, 3M, 6M, and 1Y charts plus distance from the 52-week high, MA200, EMA30, and 20-day annualized volatility',
+      '  - Positions and formal trades are read-only; the personal target is isolated in the watchlist and never changes positions, trades, or the competition ledger',
+      '  - Stock quotes, indicators, targets, average cost, and trade prices stay in USD; only position market value and P&L follow the shared currency, with synchronized Chinese and English UI',
+    ],
+  },
+  {
+    ver: 'v10.7.9.357', date: '2026-07-19',
     items: [
       '📊 财报息税前利润与首页双击回顶',
       '  - 已发布财报增加“息税前利润”，展示公布值和同比；预测值和预测同比均显示“—”，不参与超预期或不及预期判断',

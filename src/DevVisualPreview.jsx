@@ -33,10 +33,12 @@ const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
+const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
 const WaveTrackerPrototype = lazy(() => import('./dev/WaveTrackerPrototype.jsx'));
 const SettingsRedesignPrototype = lazy(() => import('./dev/SettingsRedesignPrototype.jsx'));
+const WatchlistStockDetailPrototype = lazy(() => import('./dev/WatchlistStockDetailPrototype.jsx'));
 
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
@@ -122,6 +124,42 @@ const mockSampledMarketIndices = mockRestMarketIndices.map((card) => ({
   intraday: [card.previousClose, card.price],
 }));
 const mockBtcMarketCard = mockIndices[3];
+
+function buildMockWatchlistDetailHistory() {
+  const rows = [];
+  const start = new Date('2025-07-17T00:00:00Z');
+  const end = new Date('2026-07-17T00:00:00Z');
+  let tradingIndex = 0;
+  for (const cursor = new Date(start); cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    const day = cursor.getUTCDay();
+    if (day === 0 || day === 6) continue;
+    const close = 132 + tradingIndex * 0.3 + Math.sin(tradingIndex / 5.8) * 8 + Math.sin(tradingIndex / 17) * 6;
+    rows.push({ date: cursor.toISOString().slice(0, 10), close: Number(close.toFixed(4)) });
+    tradingIndex += 1;
+  }
+  if (rows.length > 1) rows[rows.length - 2].close = 207.39;
+  if (rows.length > 0) rows[rows.length - 1].close = 202.81;
+  return rows;
+}
+
+const mockWatchlistStockDetailData = {
+  source: 'EODHD_EOD',
+  priceBasis: 'adjusted_close',
+  currency: 'USD',
+  asOfDate: '2026-07-17',
+  history: buildMockWatchlistDetailHistory(),
+  indicators: {
+    week52High: 235.88,
+    ma200: 180.34,
+    ema30: 209.58,
+    volatility20AnnualizedPct: 23.4,
+  },
+};
+
+const mockWatchlistStockDetailEarnings = [
+  { symbol: 'NVDA', reportDate: '2026-08-28', fiscalDate: '2026-06-30', session: 'post', epsEstimate: 1.92 },
+  { symbol: 'NVDA', reportDate: '2026-05-20', fiscalDate: '2026-03-31', session: 'post', epsActual: 1.87, marketReactionPercent: 7.32, earningsPublished: true },
+];
 
 const mockHomeWatchlist = [
   { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },
@@ -672,7 +710,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = React.useState(0);
   const [language, setLanguage] = React.useState(() => {
@@ -711,6 +749,14 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [costBasisNewTrade, setCostBasisNewTrade] = React.useState({ type: 'buy', price: '', shares: '', date: new Date().toISOString().slice(0, 10) });
   const [showCostBasisAdd, setShowCostBasisAdd] = React.useState(false);
   const [showCostBasisTrade, setShowCostBasisTrade] = React.useState(false);
+  const [watchlistDetailTargetUsd, setWatchlistDetailTargetUsd] = React.useState(250);
+  const watchlistDetailTooltipPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockDetailTooltip') === '1';
+  const watchlistDetailFocusSection = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('stockDetailFocus') || '';
+  const watchlistDetailTargetEditorOpen = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('targetEditor') === '1';
   const [expandedTrades, setExpandedTrades] = React.useState({});
   const [expandedWaves, setExpandedWaves] = React.useState({});
   const [waveNotes, setWaveNotes] = React.useState({});
@@ -1460,6 +1506,40 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     watchlist: homeWatchlist,
   };
 
+  const watchlistDetailCtx = {
+    ...homeCtx,
+    watchlistStockDetailSymbol: 'NVDA',
+    closeWatchlistStockDetail: () => setActiveTab('home'),
+    watchlist: [{ symbol: 'NVDA', name: '英伟达', targetPriceUsd: watchlistDetailTargetUsd }],
+    homeWatchlist: [{ symbol: 'NVDA', name: '英伟达', price: 202.81 }],
+    quoteRows: [{ symbol: 'NVDA', name: '英伟达', price: 202.81 }],
+    investmentSummary: {
+      positions: [{
+        symbol: 'NVDA',
+        name: '英伟达',
+        heldShares: 500,
+        avgCost: 195.3,
+        remainingCost: 97650,
+      }],
+      totalAssetsUsd: 799724.76,
+      usdRate: USD_RATE,
+    },
+    stockTrades: [
+      { id: 'watch-detail-1', symbol: 'NVDA', side: 'buy', date: '2026-06-12', shares: 200, price: 198.45 },
+      { id: 'watch-detail-2', symbol: 'NVDA', side: 'buy', date: '2026-05-20', shares: 150, price: 191.2 },
+      { id: 'watch-detail-3', symbol: 'NVDA', side: 'sell', date: '2026-04-02', shares: 100, price: 178.66 },
+    ],
+    saveWatchlistStockTarget: async (_symbol, targetPriceUsd) => {
+      setWatchlistDetailTargetUsd(Number(targetPriceUsd));
+      return { success: true, targetPriceUsd: Number(targetPriceUsd) };
+    },
+    watchlistStockDetailDataOverride: mockWatchlistStockDetailData,
+    watchlistStockDetailEarningsOverride: mockWatchlistStockDetailEarnings,
+    watchlistStockDetailChartTooltipOpen: watchlistDetailTooltipPreview,
+    watchlistStockDetailFocusSection: watchlistDetailFocusSection,
+    watchlistStockDetailTargetEditorOpen: watchlistDetailTargetEditorOpen,
+  };
+
   const waveTrackerCtx = {
     ...homeCtx,
     closeWaveTracker: () => setActiveTab('trades'),
@@ -1679,14 +1759,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen bg-[#05070b] pb-24 text-white ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
-      style={{ paddingTop: ['wave-tracker', 'community-competition'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      className={`min-h-screen bg-[#05070b] text-white ${['pnl-report', 'watchlist-stock-detail'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      style={{ paddingTop: ['wave-tracker', 'community-competition', 'watchlist-stock-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
           : activeTab === 'stock-detail'
           ? <StockDetailPage ctx={homeCtx} />
+          : activeTab === 'watchlist-stock-detail'
+          ? <WatchlistStockDetailPage ctx={watchlistDetailCtx} />
           : activeTab === 'wave-tracker'
           ? <WaveTrackerPage ctx={waveTrackerCtx} />
           : activeTab === 'community-competition'
@@ -1710,7 +1792,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         onConfirm={submitPreviewConfirm}
       />
 
-      {activeTab !== 'pnl-report' && (
+      {!['pnl-report', 'watchlist-stock-detail'].includes(activeTab) && (
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-5">
@@ -1754,6 +1836,14 @@ export default function DevVisualPreview() {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#05070b] py-12 text-center text-sm text-white/45">加载设置原型...</div>}>
         <SettingsRedesignPrototype />
+      </Suspense>
+    );
+  }
+
+  if (preview === 'watchlist-stock-detail-prototype') {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-[#05070b] py-12 text-center text-sm text-white/45">加载自选股票详情原型...</div>}>
+        <WatchlistStockDetailPrototype />
       </Suspense>
     );
   }

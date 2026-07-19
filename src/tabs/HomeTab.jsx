@@ -506,6 +506,7 @@ export default function HomeTab({ ctx }) {
     marketIndices,
     newStock,
     openPnlReport,
+    openWatchlistStockDetail,
     portfolioCurrencyMode,
     quoteRows,
     RefreshCw,
@@ -1298,13 +1299,28 @@ export default function HomeTab({ ctx }) {
                     className="grid min-h-[54px] w-full items-center py-2 text-left"
                     style={{ gridTemplateColumns: homeTableGridTemplate }}
                   >
-                    <div className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0f14] pr-2">
-                      <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
-                        <span className="block truncate text-[10px] leading-[12px] text-white/35">{item.displayName}</span>
-                      </span>
-                    </div>
+                    {isWatchlistTab ? (
+                      <button
+                        type="button"
+                        onClick={() => openWatchlistStockDetail?.(item.symbol)}
+                        className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0f14] pr-2 text-left transition active:bg-white/[0.035]"
+                        aria-label={t(language, 'watchlistDetail.openAria', '打开 {{symbol}} 股票详情', { symbol: item.symbol })}
+                      >
+                        <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
+                          <span className="block truncate text-[10px] leading-[12px] text-white/35">{item.displayName}</span>
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0f14] pr-2">
+                        <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
+                          <span className="block truncate text-[10px] leading-[12px] text-white/35">{item.displayName}</span>
+                        </span>
+                      </div>
+                    )}
                     <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{hasFiniteMarketValue(item.price) && Number(item.price) > 0 ? fmtMoney(item.price, 2) : '--'}</span>
                     <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtOptionalMarketPct(item.changePct)}</span>
                     <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>

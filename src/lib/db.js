@@ -330,6 +330,7 @@ export const fetchWatchlist = async (preUser = null) => {
     high: Number(w.high),
     cost: Number(w.cost),
     shares: Number(w.shares),
+    targetPriceUsd: w.target_price_usd == null ? null : Number(w.target_price_usd),
   })).filter((item) => item.symbol);
   cacheSet(user.id, 'watchlist', list);
   return list;
@@ -356,6 +357,40 @@ export const upsertWatchlistItem = async (item) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,symbol' });
   if (error) throw error;
+};
+
+// 目标价只属于当前用户的自选计划。它不写正式交易账本，也不触发收益或比赛链路。
+export const updateWatchlistTargetPrice = async (symbolInput, targetPriceUsd) => {
+  const symbol = normalizeStrictUserStockSymbol(symbolInput);
+  if (!symbol) throw new Error('股票代码格式不正确');
+
+  const normalizedTargetPrice = typeof targetPriceUsd === 'number'
+    ? targetPriceUsd
+    : (typeof targetPriceUsd === 'string' && targetPriceUsd.trim() ? Number(targetPriceUsd) : NaN);
+  if (!Number.isFinite(normalizedTargetPrice) || normalizedTargetPrice <= 0) {
+    throw new Error('目标价必须是大于 0 的数字');
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const { data, error } = await supabase
+    .from('watchlist')
+    .update({
+      target_price_usd: normalizedTargetPrice,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', user.id)
+    .eq('symbol', symbol)
+    .select('symbol,target_price_usd')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('自选股票不存在或已被删除');
+
+  return {
+    symbol: normalizeUserStockSymbol(data.symbol),
+    targetPriceUsd: Number(data.target_price_usd),
+  };
 };
 
 // 精确删除单条 (不走"删光重插", 避免竞态和约束冲突)

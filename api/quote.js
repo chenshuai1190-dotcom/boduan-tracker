@@ -2,6 +2,7 @@ import { requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
 import { sendError } from '../server/quote/errors.js';
 import { fetchQuoteForSymbol } from '../server/quote/providerHandlers.js';
 import { fetchMarketMovers } from '../server/quote/marketMovers.js';
+import { providerForSymbol, QUOTE_PROVIDER } from '../server/quote/providers.js';
 import { createQuoteResponse } from '../server/quote/response.js';
 import { parseSymbolsParam } from '../server/quote/symbols.js';
 
@@ -26,8 +27,10 @@ export default async function handler(req, res) {
   if (!auth.ok) return;
 
   const { symbols, view } = req.query;
-  const marketMoversRequested = (Array.isArray(view) ? view[0] : view) === 'market-movers';
-  if (view !== undefined && !marketMoversRequested) {
+  const requestedView = Array.isArray(view) ? view[0] : view;
+  const marketMoversRequested = requestedView === 'market-movers';
+  const stockDetailRequested = requestedView === 'stock-detail';
+  if (view !== undefined && !marketMoversRequested && !stockDetailRequested) {
     return sendError(res, 400, '不支持的 view 参数');
   }
 
@@ -45,6 +48,12 @@ export default async function handler(req, res) {
 
   const parsed = parseSymbolsParam(symbols);
   if (parsed.error) return sendError(res, 400, parsed.error);
+  if (stockDetailRequested && (
+    parsed.symbolList.length !== 1
+    || providerForSymbol(parsed.symbolList[0]) !== QUOTE_PROVIDER.STOCK
+  )) {
+    return sendError(res, 400, 'stock-detail 仅支持单只普通美股');
+  }
 
   if (!eodhdKey) {
     return sendError(res, 500, 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY');
@@ -52,7 +61,10 @@ export default async function handler(req, res) {
 
   try {
     const results = await Promise.all(
-      parsed.symbolList.map(symbol => fetchQuoteForSymbol(symbol, { eodhdKey }))
+      parsed.symbolList.map(symbol => fetchQuoteForSymbol(symbol, {
+        eodhdKey,
+        includeStockDetail: stockDetailRequested,
+      }))
     );
 
     return res.status(200).json(createQuoteResponse(results));

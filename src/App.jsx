@@ -25,6 +25,7 @@ const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
+const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
@@ -2619,6 +2620,26 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
   };
 
+  const saveWatchlistStockTarget = async (symbolInput, targetPriceUsdInput) => {
+    const symbol = normalizeStrictSymbolKey(symbolInput);
+    const targetPriceUsd = Number(targetPriceUsdInput);
+    if (!symbol || !Number.isFinite(targetPriceUsd) || targetPriceUsd <= 0) {
+      return { success: false, error: '目标价无效' };
+    }
+    try {
+      await db.updateWatchlistTargetPrice(symbol, targetPriceUsd);
+      setWatchlist((current) => current.map((item) => (
+        normalizeSymbolKey(item?.symbol) === symbol
+          ? { ...item, targetPriceUsd }
+          : item
+      )));
+      return { success: true, targetPriceUsd };
+    } catch (e) {
+      console.error(`[自选目标价 ${symbol}] 云端失败:`, e);
+      return { success: false, error: e.message || '目标价保存失败' };
+    }
+  };
+
   const addStock = async (stockDraft = null) => {
     const draft = stockDraft && typeof stockDraft === 'object'
       ? { ...newStock, ...stockDraft }
@@ -4277,6 +4298,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const lastHomeTabTapAtRef = useRef(0);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
+  const [watchlistStockDetailSymbol, setWatchlistStockDetailSymbol] = useState('');
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
@@ -4299,6 +4321,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab(tabId);
     setActivePage(null);
     setStockDetailSymbol('');
+    setWatchlistStockDetailSymbol('');
   }, [activePage, activeTab]);
   const [portfolioCurrencyMode, setPortfolioCurrencyModeState] = useState(() => readStoredPortfolioCurrency());
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
@@ -4327,6 +4350,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const closeStockDetail = useCallback(() => {
     setActivePage(null);
     setStockDetailSymbol('');
+  }, []);
+  const openWatchlistStockDetail = useCallback((symbol) => {
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+    if (!normalizedSymbol) return;
+    setWatchlistStockDetailSymbol(normalizedSymbol);
+    setActivePage('watchlist-stock-detail');
+  }, []);
+  const closeWatchlistStockDetail = useCallback(() => {
+    setActivePage(null);
+    setWatchlistStockDetailSymbol('');
   }, []);
   const openWaveTracker = useCallback(() => {
     setActivePage('wave-tracker');
@@ -4441,9 +4474,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   const isPnlReportPage = activePage === 'pnl-report';
   const isStockDetailPage = activePage === 'stock-detail';
+  const isWatchlistStockDetailPage = activePage === 'watchlist-stock-detail';
   const isWaveTrackerPage = activePage === 'wave-tracker';
   const isCommunityCompetitionPage = activePage === 'community-competition';
-  const isStandalonePage = isPnlReportPage || isStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
+  const isStandalonePage = isPnlReportPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     accountManager,
@@ -4621,6 +4655,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     onLogout,
     openPnlReport,
     openStockDetail,
+    openWatchlistStockDetail,
     openWaveTracker,
     openCommunityCompetition,
     openCommunityProfileSettings,
@@ -4635,10 +4670,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     requestDeleteLegacyTrade,
     removeStock,
     reorderWatchlist,
+    saveWatchlistStockTarget,
     reviewLogs,
     clearQuoteDiagnosticLogs,
     closePnlReport,
     closeStockDetail,
+    closeWatchlistStockDetail,
     closeWaveTracker,
     closeCommunityCompetition,
     setAccountDeleteConfirmId,
@@ -4721,6 +4758,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     snapshotTab,
     stockTrades,
     stockDetailSymbol,
+    watchlistStockDetailSymbol,
     stockFreshnessStartedAt: warmStartedAt,
     syncSwingWaveQuoteRows,
     supabase,
@@ -4797,7 +4835,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${isPnlReportPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${isPnlReportPage || isWatchlistStockDetailPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -4915,6 +4953,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             ? <PnlReportPage ctx={tabCtx} />
             : isStockDetailPage
               ? <StockDetailPage ctx={tabCtx} />
+              : isWatchlistStockDetailPage
+                ? <WatchlistStockDetailPage ctx={tabCtx} />
               : isWaveTrackerPage
                 ? <WaveTrackerPage ctx={tabCtx} />
                 : isCommunityCompetitionPage
@@ -5047,7 +5087,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         )}
 
         {/* 底部 5 tab 导航栏 */}
-        {!isPnlReportPage && (
+        {!isPnlReportPage && !isWatchlistStockDetailPage && (
         <div
           className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${darkShell ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
