@@ -1,5 +1,24 @@
 export const HOME_TAB_DOUBLE_TAP_MS = 350;
 
+export function resolveNavigationScrollTarget({
+  activeTab,
+  activePage,
+  pendingHomeScrollTop = null,
+}) {
+  const numericScrollTop = Number(pendingHomeScrollTop);
+  const shouldRestoreHomeScroll = (
+    activeTab === 'home'
+    && activePage === null
+    && pendingHomeScrollTop !== null
+    && Number.isFinite(numericScrollTop)
+  );
+
+  return {
+    top: shouldRestoreHomeScroll ? Math.max(0, numericScrollTop) : 0,
+    shouldRestoreHomeScroll,
+  };
+}
+
 export function resolveBottomTabTap({
   tabId,
   activeTab,

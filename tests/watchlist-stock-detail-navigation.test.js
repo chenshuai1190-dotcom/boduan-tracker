@@ -32,6 +32,27 @@ test('Home only opens watchlist detail from the sticky identity cell', () => {
   assert.ok(tableRowIndex >= 0 && nextPriceCellIndex > triggerIndex, 'the trigger should stay inside the sticky name/logo cell, before scrolling quote metrics');
 });
 
+test('watchlist detail return restores the prior Home scroll without replacing double-tap-to-top', () => {
+  const openStart = appSource.indexOf('const openWatchlistStockDetail = useCallback');
+  const openEnd = appSource.indexOf('const closeWatchlistStockDetail = useCallback', openStart);
+  const openBlock = appSource.slice(openStart, openEnd);
+  const bottomReturnStart = appSource.indexOf('const returnsFromWatchlistDetailToHome = (');
+  const bottomReturnEnd = appSource.indexOf("if (tapAction.shouldScrollHomeToTop)", bottomReturnStart);
+  const bottomReturnBlock = appSource.slice(bottomReturnStart, bottomReturnEnd);
+
+  assert.ok(appSource.includes('const homeScrollTopBeforeWatchlistRef = useRef(null)'));
+  assert.ok(appSource.includes('const pendingHomeScrollTopRef = useRef(null)'));
+  assert.ok(openBlock.indexOf('if (!normalizedSymbol) return;') < openBlock.indexOf('homeScrollTopBeforeWatchlistRef.current = readRootScrollTop();'), 'an invalid symbol must not overwrite the remembered position');
+  assert.ok(appSource.includes('pendingHomeScrollTopRef.current = homeScrollTopBeforeWatchlistRef.current;'), 'the page-header back action should request one restoration');
+  assert.ok(bottomReturnBlock.includes("tabId === 'home'"));
+  assert.ok(bottomReturnBlock.includes("activeTab === 'home'"));
+  assert.ok(bottomReturnBlock.includes("activePage === 'watchlist-stock-detail'"), 'the bottom Home tab should recognize the same return path');
+  assert.ok(appSource.includes('resolveNavigationScrollTarget({'), 'navigation scrolling should resolve the pending Home position centrally');
+  assert.ok(appSource.includes('window.scrollTo(0, scrollTarget.top);'), 'the restored position should use the iOS-safe, non-animated numeric scroll call after the Home render');
+  assert.ok(appSource.includes('homeScrollTopBeforeWatchlistRef.current = 0;'), 'double-tap-to-top should replace any older remembered position');
+  assert.ok(appSource.includes("window.scrollTo({ top: 0, behavior: 'smooth' });"), 'the existing Home double-tap should remain a smooth explicit return to top');
+});
+
 test('watchlist target save only updates the matching watchlist row after DB success', () => {
   const start = appSource.indexOf('const saveWatchlistStockTarget = async');
   const end = appSource.indexOf('\n  const addStock = async', start);

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
@@ -14,7 +14,7 @@ import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
-import { resolveBottomTabTap } from './lib/bottomTabNavigation.js';
+import { resolveBottomTabTap, resolveNavigationScrollTarget } from './lib/bottomTabNavigation.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -78,6 +78,18 @@ const IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS = 2500;
 const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 800, 1600, 3000, 5000];
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
+
+function readRootScrollTop() {
+  if (typeof window === 'undefined') return 0;
+  const scrollTop = Number(
+    window.scrollY
+    || window.pageYOffset
+    || document.documentElement?.scrollTop
+    || document.body?.scrollTop
+    || 0,
+  );
+  return Number.isFinite(scrollTop) ? Math.max(0, scrollTop) : 0;
+}
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
 
 const TAB_COMPONENTS = {
@@ -4296,6 +4308,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [activeTab, setActiveTab] = useState('home');
   const [activePage, setActivePage] = useState(null);
   const lastHomeTabTapAtRef = useRef(0);
+  const homeScrollTopBeforeWatchlistRef = useRef(null);
+  const pendingHomeScrollTopRef = useRef(null);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [watchlistStockDetailSymbol, setWatchlistStockDetailSymbol] = useState('');
@@ -4312,7 +4326,18 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     });
     lastHomeTabTapAtRef.current = tapAction.nextHomeTapAt;
 
+    const returnsFromWatchlistDetailToHome = (
+      tabId === 'home'
+      && activeTab === 'home'
+      && activePage === 'watchlist-stock-detail'
+    );
+    pendingHomeScrollTopRef.current = returnsFromWatchlistDetailToHome
+      ? homeScrollTopBeforeWatchlistRef.current
+      : null;
+
     if (tapAction.shouldScrollHomeToTop) {
+      homeScrollTopBeforeWatchlistRef.current = 0;
+      pendingHomeScrollTopRef.current = null;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -4354,10 +4379,15 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const openWatchlistStockDetail = useCallback((symbol) => {
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
     if (!normalizedSymbol) return;
+    if (activeTab === 'home' && activePage === null) {
+      homeScrollTopBeforeWatchlistRef.current = readRootScrollTop();
+    }
+    pendingHomeScrollTopRef.current = null;
     setWatchlistStockDetailSymbol(normalizedSymbol);
     setActivePage('watchlist-stock-detail');
-  }, []);
+  }, [activePage, activeTab]);
   const closeWatchlistStockDetail = useCallback(() => {
+    pendingHomeScrollTopRef.current = homeScrollTopBeforeWatchlistRef.current;
     setActivePage(null);
     setWatchlistStockDetailSymbol('');
   }, []);
@@ -4400,9 +4430,15 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     } catch {}
   }, [portfolioCurrencyMode]);
 
-  // 切换 tab 时自动滚到页面顶部(像原生 App 一样)
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+  // 页面切换默认回顶；仅从自选详情返回首页时恢复进入前的位置。
+  useLayoutEffect(() => {
+    const scrollTarget = resolveNavigationScrollTarget({
+      activeTab,
+      activePage,
+      pendingHomeScrollTop: pendingHomeScrollTopRef.current,
+    });
+    pendingHomeScrollTopRef.current = null;
+    window.scrollTo(0, scrollTarget.top);
   }, [activeTab, activePage]);
 
   useEffect(() => {

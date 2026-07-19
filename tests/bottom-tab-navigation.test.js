@@ -1,7 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { HOME_TAB_DOUBLE_TAP_MS, resolveBottomTabTap } from '../src/lib/bottomTabNavigation.js';
+import {
+  HOME_TAB_DOUBLE_TAP_MS,
+  resolveBottomTabTap,
+  resolveNavigationScrollTarget,
+} from '../src/lib/bottomTabNavigation.js';
+
+test('navigation scroll restores a pending Home position only on the Home root', () => {
+  assert.deepEqual(resolveNavigationScrollTarget({
+    activeTab: 'home',
+    activePage: null,
+    pendingHomeScrollTop: 486.5,
+  }), {
+    top: 486.5,
+    shouldRestoreHomeScroll: true,
+  });
+
+  assert.deepEqual(resolveNavigationScrollTarget({
+    activeTab: 'home',
+    activePage: null,
+    pendingHomeScrollTop: 0,
+  }), {
+    top: 0,
+    shouldRestoreHomeScroll: true,
+  });
+
+  for (const navigation of [
+    { activeTab: 'home', activePage: 'watchlist-stock-detail' },
+    { activeTab: 'trades', activePage: null },
+  ]) {
+    assert.deepEqual(resolveNavigationScrollTarget({
+      ...navigation,
+      pendingHomeScrollTop: 486.5,
+    }), {
+      top: 0,
+      shouldRestoreHomeScroll: false,
+    });
+  }
+});
 
 test('active Home double tap scrolls only on the second tap inside the time window', () => {
   const firstTap = resolveBottomTabTap({

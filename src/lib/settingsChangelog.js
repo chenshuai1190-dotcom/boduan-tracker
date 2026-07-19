@@ -1,6 +1,19 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.363', date: '2026-07-20', latest: true,
+    ver: 'v10.7.9.364', date: '2026-07-20', latest: true,
+    items: [
+      '📍 首页返回位置记忆',
+      '  - 从自选股票进入“股票趋势”前记录首页滚动位置；通过页头返回或详情页底部“首页”返回时恢复原位',
+      '  - 位置只在当前会话的一次往返中使用；切换其他页面仍回顶，双击“首页”仍平滑回顶并清除旧记忆，页面布局和数据逻辑不变',
+    ],
+    itemsEn: [
+      '📍 Remember Home position on return',
+      '  - Home records its scroll position before opening Stock Trend and restores it when returning through either the header back button or the detail-page Home tab',
+      '  - The position is used only for the current in-memory round trip; other navigation still returns to the top, while the existing Home double tap still scrolls smoothly to the top and clears older memory without changing layout or data logic',
+    ],
+  },
+  {
+    ver: 'v10.7.9.363', date: '2026-07-20',
     items: [
       '📊 个股相对 QQQ 三个月表现',
       '  - 股票趋势页取消“距 EMA30（日）”，改为个股三个月涨跌幅减去 QQQ 三个月涨跌幅；副行同时显示个股与 QQQ 的各自表现',
