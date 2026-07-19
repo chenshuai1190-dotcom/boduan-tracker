@@ -592,8 +592,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.359'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.359', date: '2026-07-19', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.360'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.360', date: '2026-07-19', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('五年股价与 MA200 周线') && settingsChangelogSource.includes('约 260 个数据点') && settingsChangelogSource.includes('只使用已完成交易周锁定') && settingsChangelogSource.includes('行情源失败显示“暂不可用”'), 'settings changelog should document the dense thin chart, completed-week MA lock, and provider fail-closed boundary');
   assert.ok(settingsChangelogSource.includes('股票趋势详情修正') && settingsChangelogSource.includes('真实有符号数值') && settingsChangelogSource.includes('五栏底部导航') && settingsChangelogSource.includes('共用同一回退链和本地缓存'), 'settings changelog should document the signed progress, bottom navigation, and shared logo fallback');
   assert.ok(settingsChangelogSource.includes('自选股票详情与个人目标价') && settingsChangelogSource.includes('点击股票代码和名称区域') && settingsChangelogSource.includes('不修改持仓、交易或比赛账本') && settingsChangelogSource.includes('仅持仓市值与持仓盈亏跟随系统币种'), 'settings changelog should document the watchlist detail entry, isolation, and currency boundaries');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.357', date: '2026-07-19'") && settingsChangelogSource.includes('财报息税前利润与首页双击回顶') && settingsChangelogSource.includes('不参与超预期或不及预期判断') && settingsChangelogSource.includes('现有底栏布局保持不变'), 'settings changelog should retain both merged v357 release boundaries');
@@ -2443,7 +2444,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.359'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.360'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

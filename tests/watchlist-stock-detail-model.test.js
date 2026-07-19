@@ -3,8 +3,11 @@ import test from 'node:test';
 import {
   deriveCloseBasedPosition,
   filterStockDetailHistory,
+  filterStockDetailWeeklyHistory,
+  findStockDetailWeeklyMaOnOrBefore,
   findWatchlistStockDetailRows,
   normalizeStockDetailHistory,
+  normalizeStockDetailWeeklyHistory,
   resolveStockDetailClose,
   targetProgressPercent,
   targetProgressPositionPercent,
@@ -32,6 +35,23 @@ test('stock detail history is normalized and ranges use the latest completed clo
     changeUsd: 23,
     changePercent: (23 / 180) * 100,
   });
+});
+
+test('weekly history preserves missing MA values, filters five years, and resolves the latest locked MA by date', () => {
+  const rows = normalizeStockDetailWeeklyHistory([
+    { date: '2021-07-09', weekEndDate: '2021-07-09', close: 100, ma200: 80, completed: true },
+    { date: '2026-07-10', weekEndDate: '2026-07-10', close: 200, ma200: 150, completed: true },
+    { date: '2026-07-15', weekEndDate: '2026-07-17', close: 205, ma200: 999, completed: false },
+    { date: 'bad', close: 999, ma200: 999 },
+  ]);
+
+  assert.equal(rows.length, 3);
+  assert.equal(rows.at(-1).ma200, 999, 'normalization should preserve the provider payload for diagnostics');
+  assert.equal(rows.at(-1).completed, false);
+  const visible = filterStockDetailWeeklyHistory(rows, '5y');
+  assert.deepEqual(visible.map((row) => row.date), ['2026-07-10', '2026-07-15']);
+  assert.deepEqual(findStockDetailWeeklyMaOnOrBefore(rows, '2026-07-15'), rows[1], 'tooltips must ignore any MA attached to an unfinished week');
+  assert.equal(findStockDetailWeeklyMaOnOrBefore(rows, '2021-01-01'), null);
 });
 
 test('portfolio conversion is reserved for holding totals while target math stays canonical in USD', () => {

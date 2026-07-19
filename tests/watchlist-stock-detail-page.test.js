@@ -18,15 +18,18 @@ test('watchlist detail keeps the existing bottom tabs and uses the Chinese stock
   assert.ok(devPreviewSource.includes("activeTab === 'watchlist-stock-detail' && tab.id === 'home'"));
 });
 
-test('production watchlist detail reads one authenticated close-history payload on demand', () => {
+test('production watchlist detail reads one authenticated daily and weekly history payload on demand', () => {
   assert.ok(pageSource.includes('/api/quote?symbols=${encodeURIComponent(symbol)}&view=stock-detail'));
   assert.ok(pageSource.includes("Authorization: `Bearer ${token}`"));
   assert.ok(pageSource.includes("cache: 'no-store'"));
   assert.ok(pageSource.includes('stockDetail?.history'));
+  assert.ok(pageSource.includes('stockDetail?.weeklyHistory'));
   assert.ok(pageSource.includes('indicators?.week52High'));
   assert.ok(pageSource.includes('indicators?.ma200'));
   assert.ok(pageSource.includes('indicators?.ema30'));
-  assert.ok(pageSource.includes('indicators?.volatility20AnnualizedPct'));
+  assert.ok(pageSource.includes('indicators?.ma200Weekly'));
+  assert.ok(pageSource.includes('indicators?.ma200WeeklyStatus'));
+  assert.equal(pageSource.includes('indicators?.volatility20AnnualizedPct'), false, 'volatility should no longer occupy the approved indicator surface');
 });
 
 test('production watchlist detail only converts holding asset totals and keeps stock prices in their quote currency', () => {
@@ -47,9 +50,15 @@ test('production watchlist detail only converts holding asset totals and keeps s
   assert.ok(pageSource.includes("result?.success === false"), 'a failed DB result must not close the target editor optimistically');
 });
 
-test('technical indicator heading does not repeat MA200 and EMA30 summary values', () => {
+test('technical indicators use a borderless daily row plus one detailed weekly MA panel', () => {
   assert.equal(pageSource.includes('metricSummary'), false);
-  assert.ok(pageSource.includes("<SectionHeading title={t(language, 'watchlistDetail.technicalIndicators', '关键指标')} />"));
+  assert.ok(pageSource.includes('data-watchlist-key-metrics="spacious"'));
+  assert.ok(pageSource.includes('data-watchlist-daily-metrics="borderless"'));
+  assert.ok(pageSource.includes('data-watchlist-weekly-ma-panel="true"'));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.distanceMa200Daily', '距MA200（日）')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.distanceEma30Daily', '距EMA30（日）')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));
+  assert.equal(pageSource.includes('grid-cols-2 divide-x divide-y'), false);
 });
 
 test('production detail shares the Home logo candidate chain and reads the persisted cache URL', () => {
@@ -83,10 +92,21 @@ test('production watchlist detail only mutates its isolated target and keeps hol
   assert.ok(appSource.includes('await db.updateWatchlistTargetPrice(symbol, targetPriceUsd)'));
 });
 
-test('production price chart keeps the approved full-width tooltip interaction', () => {
+test('production price chart uses dense five-year weekly points with thin price and MA lines', () => {
   assert.ok(pageSource.includes('data-watchlist-stock-detail-header="full-width-chart"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-chart="true"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-tooltip="true"'));
-  assert.ok(pageSource.includes('setSelectedIndex(Math.round'));
+  assert.ok(pageSource.includes("React.useState('5y')"));
+  assert.ok(pageSource.includes('data-watchlist-stock-chart-ranges="five"'));
+  assert.ok(pageSource.includes('data-watchlist-stock-chart-legend="price-weekly-ma"'));
+  assert.ok(pageSource.includes("range === '5y'"));
+  assert.ok(pageSource.includes('visibleWeeklyHistory.map(({ date, close })'));
+  assert.ok(pageSource.includes('row?.completed === true && Number.isFinite(row?.ma200)'));
+  assert.ok(pageSource.includes('data-watchlist-weekly-ma-line="true"'));
+  assert.ok(pageSource.includes('strokeWidth="0.95"'));
+  assert.ok(pageSource.includes('strokeWidth="1.15"'));
+  assert.equal(pageSource.includes('price-glow'), false);
+  assert.equal(pageSource.includes('chart.points'), false);
+  assert.ok(pageSource.includes('setSelectedIndex(nearestIndex)'));
   assert.ok(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
 });

@@ -2,6 +2,10 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMA_30_ALPHA = 2 / 31;
 const TRADING_DAYS_PER_YEAR = 252;
 const FIFTY_TWO_WEEKS_IN_DAYS = 52 * 7;
+const DAILY_HISTORY_DAYS = 380;
+const WEEKLY_MA_WINDOW = 200;
+const WEEKLY_MA_TREND_WEEKS = 4;
+const WEEKLY_HISTORY_YEARS = 5;
 
 function positiveNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -26,6 +30,122 @@ function shiftDateKey(dateKey, days) {
 
 function mean(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function shiftYearKey(dateKey, years) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setUTCFullYear(date.getUTCFullYear() + years);
+  return date.toISOString().slice(0, 10);
+}
+
+function weekStartKey(dateKey) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+  return shiftDateKey(dateKey, -daysSinceMonday);
+}
+
+function weeklySide(close, movingAverage) {
+  if (!Number.isFinite(close) || !Number.isFinite(movingAverage)) return null;
+  if (close > movingAverage) return 'above';
+  if (close < movingAverage) return 'below';
+  return 'equal';
+}
+
+function emptyWeeklyIndicators() {
+  return {
+    ma200Weekly: null,
+    ma200WeeklyClose: null,
+    ma200WeeklyDistancePct: null,
+    ma200WeeklyChange4WeekPct: null,
+    ma200WeeklySide: null,
+    ma200WeeklyStreakWeeks: null,
+    ma200WeeklyAvailableWeeks: 0,
+    ma200WeeklyRequiredWeeks: WEEKLY_MA_WINDOW,
+    ma200WeeklyAsOfDate: '',
+    ma200WeeklyStatus: 'insufficient_data',
+  };
+}
+
+function buildWeeklyDetail(normalizedRows, cutoffDate) {
+  const byWeek = new Map();
+  for (const row of normalizedRows) {
+    const weekStartDate = weekStartKey(row.date);
+    if (!weekStartDate) continue;
+    byWeek.set(weekStartDate, {
+      weekStartDate,
+      weekEndDate: shiftDateKey(weekStartDate, 4),
+      date: row.date,
+      close: row.close,
+    });
+  }
+
+  const completedPoints = [];
+  const orderedWeeks = Array.from(byWeek.values())
+    .sort((left, right) => left.weekStartDate.localeCompare(right.weekStartDate));
+  const weeklyRows = orderedWeeks.map((row, index) => {
+    const hasLaterWeek = index < orderedWeeks.length - 1;
+    const completed = row.weekEndDate <= cutoffDate
+      && (row.date === row.weekEndDate || hasLaterWeek);
+    if (!completed) return { ...row, ma200: null, completed: false };
+    completedPoints.push(row);
+    const maWindow = completedPoints.slice(-WEEKLY_MA_WINDOW).map((point) => point.close);
+    const ma200 = maWindow.length === WEEKLY_MA_WINDOW ? mean(maWindow) : null;
+    return {
+      ...row,
+      ma200: Number.isFinite(ma200) ? ma200 : null,
+      completed: true,
+    };
+  });
+
+  const latestDate = weeklyRows.at(-1)?.date || '';
+  const visibleFrom = latestDate ? shiftYearKey(latestDate, -WEEKLY_HISTORY_YEARS) : '';
+  const weeklyHistory = visibleFrom
+    ? weeklyRows.filter((row) => row.date >= visibleFrom)
+    : [];
+  const completedWithMa = weeklyRows.filter((row) => row.completed && Number.isFinite(row.ma200));
+  const latest = completedWithMa.at(-1) || null;
+
+  if (!latest) {
+    return {
+      weeklyHistory,
+      indicators: {
+        ...emptyWeeklyIndicators(),
+        ma200WeeklyAvailableWeeks: completedPoints.length,
+        ma200WeeklyAsOfDate: completedPoints.at(-1)?.date || '',
+      },
+    };
+  }
+
+  const comparison = completedWithMa.at(-(WEEKLY_MA_TREND_WEEKS + 1)) || null;
+  const change4WeekPct = comparison?.ma200 > 0
+    ? ((latest.ma200 / comparison.ma200) - 1) * 100
+    : null;
+  const side = weeklySide(latest.close, latest.ma200);
+  let streakWeeks = 0;
+  for (let index = completedWithMa.length - 1; index >= 0; index -= 1) {
+    if (weeklySide(completedWithMa[index].close, completedWithMa[index].ma200) !== side) break;
+    streakWeeks += 1;
+  }
+
+  return {
+    weeklyHistory,
+    indicators: {
+      ma200Weekly: latest.ma200,
+      ma200WeeklyClose: latest.close,
+      ma200WeeklyDistancePct: latest.ma200 > 0
+        ? ((latest.close / latest.ma200) - 1) * 100
+        : null,
+      ma200WeeklyChange4WeekPct: Number.isFinite(change4WeekPct) ? change4WeekPct : null,
+      ma200WeeklySide: side,
+      ma200WeeklyStreakWeeks: streakWeeks,
+      ma200WeeklyAvailableWeeks: completedPoints.length,
+      ma200WeeklyRequiredWeeks: WEEKLY_MA_WINDOW,
+      ma200WeeklyAsOfDate: latest.date,
+      ma200WeeklyStatus: 'ready',
+    },
+  };
 }
 
 function calculateEma30(closes) {
@@ -93,19 +213,25 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
       currency: 'USD',
       asOfDate: '',
       history: [],
+      weeklyHistory: [],
       indicators: {
         week52High: null,
         ma200: null,
         ema30: null,
         volatility20AnnualizedPct: null,
+        ...emptyWeeklyIndicators(),
       },
     };
   }
 
   const normalizedRows = normalizeRows(rows, cutoffDate);
-  const history = normalizedRows.map(({ date, close }) => ({ date, close }));
+  const allHistory = normalizedRows.map(({ date, close }) => ({ date, close }));
+  const latestDate = allHistory.at(-1)?.date || '';
+  const dailyHistoryFrom = latestDate ? shiftDateKey(latestDate, -DAILY_HISTORY_DAYS) : '';
+  const history = dailyHistoryFrom
+    ? allHistory.filter((row) => row.date >= dailyHistoryFrom)
+    : [];
   const closes = history.map((row) => row.close);
-  const latestDate = history.at(-1)?.date || '';
   const week52Start = latestDate
     ? shiftDateKey(latestDate, -FIFTY_TWO_WEEKS_IN_DAYS)
     : '';
@@ -116,6 +242,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
     ? Math.max(...week52Rows.map((row) => row.adjustedHigh))
     : null;
   const ma200 = closes.length >= 200 ? mean(closes.slice(-200)) : null;
+  const weeklyDetail = buildWeeklyDetail(normalizedRows, cutoffDate);
 
   return {
     source: 'EODHD_EOD',
@@ -123,11 +250,13 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
     currency: 'USD',
     asOfDate: latestDate,
     history,
+    weeklyHistory: weeklyDetail.weeklyHistory,
     indicators: {
       week52High: Number.isFinite(week52High) ? week52High : null,
       ma200: Number.isFinite(ma200) ? ma200 : null,
       ema30: calculateEma30(closes),
       volatility20AnnualizedPct: calculateAnnualizedVolatility20(closes),
+      ...weeklyDetail.indicators,
     },
   };
 }

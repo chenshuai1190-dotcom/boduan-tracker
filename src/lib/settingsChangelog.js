@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.359', date: '2026-07-19', latest: true,
+    ver: 'v10.7.9.360', date: '2026-07-19', latest: true,
+    items: [
+      '📈 五年股价与 MA200 周线',
+      '  - 股票趋势默认展示五年真实周收盘走势，约 260 个数据点保留细节；股价线改为细绿线并取消发光，200 周均线使用细金线贯穿图表',
+      '  - 200 周均线由十年复权收盘数据预热计算，只使用已完成交易周锁定；本周未收盘不会提前改写均线',
+      '  - 关键指标取消 20 日波动率，改为无分割线的日线指标与独立 MA200 周线面板，增加距均线、近四周变化和连续状态',
+      '  - 行情源失败显示“暂不可用”，历史确实不足才显示周数进度；首页普通行情仍只读取原有短历史窗口',
+    ],
+    itemsEn: [
+      '📈 Five-year price chart with weekly MA200',
+      '  - Stock Trend now defaults to five years of real weekly closes with roughly 260 points; the price is a thin green line without glow and the 200-week average runs across the chart in thin gold',
+      '  - The 200-week average is warmed with ten years of adjusted closes and locks only completed trading weeks, so an unfinished week never advances it early',
+      '  - The 20-day volatility tile is replaced by a borderless daily-indicator row and a dedicated weekly-MA panel with distance, four-week change, and consecutive status',
+      '  - Provider failures show unavailable while genuinely short history shows its week count; ordinary Home quotes keep their existing short history window',
+    ],
+  },
+  {
+    ver: 'v10.7.9.359', date: '2026-07-19',
     items: [
       '📈 股票趋势详情修正',
       '  - 自选详情页标题改为“股票趋势”，并保留现有五栏底部导航，可直接返回首页或切换其他模块',

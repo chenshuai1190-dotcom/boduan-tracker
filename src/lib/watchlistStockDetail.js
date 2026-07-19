@@ -5,6 +5,7 @@ const RANGE_MONTHS = Object.freeze({
   '3m': 3,
   '6m': 6,
   '1y': 12,
+  '5y': 60,
 });
 
 function finiteNumber(value) {
@@ -38,6 +39,25 @@ export function normalizeStockDetailHistory(rows = []) {
   return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
 }
 
+export function normalizeStockDetailWeeklyHistory(rows = []) {
+  const byDate = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const date = utcDateKey(row?.date);
+    const weekEndDate = utcDateKey(row?.weekEndDate);
+    const close = positiveNumber(row?.close);
+    const ma200 = positiveNumber(row?.ma200);
+    if (!date || close === null) continue;
+    byDate.set(date, {
+      date,
+      weekEndDate: weekEndDate || date,
+      close,
+      ma200,
+      completed: row?.completed === true,
+    });
+  }
+  return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
+}
+
 export function filterStockDetailHistory(rows = [], range = '1m') {
   const history = normalizeStockDetailHistory(rows);
   if (history.length === 0) return [];
@@ -48,6 +68,27 @@ export function filterStockDetailHistory(rows = [], range = '1m') {
   const filtered = history.filter((row) => row.date >= from);
   if (filtered.length >= 2) return filtered;
   return history.slice(-Math.min(2, history.length));
+}
+
+export function filterStockDetailWeeklyHistory(rows = [], range = '5y') {
+  const history = normalizeStockDetailWeeklyHistory(rows);
+  if (history.length === 0) return [];
+  const months = RANGE_MONTHS[range] || RANGE_MONTHS['5y'];
+  const asOfDate = new Date(`${history.at(-1).date}T00:00:00Z`);
+  asOfDate.setUTCMonth(asOfDate.getUTCMonth() - months);
+  const from = asOfDate.toISOString().slice(0, 10);
+  return history.filter((row) => row.date >= from);
+}
+
+export function findStockDetailWeeklyMaOnOrBefore(rows = [], date) {
+  const targetDate = utcDateKey(date);
+  if (!targetDate) return null;
+  const history = normalizeStockDetailWeeklyHistory(rows);
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const row = history[index];
+    if (row.date <= targetDate && row.completed && row.ma200 !== null) return row;
+  }
+  return null;
 }
 
 export function resolveStockDetailClose(history = []) {

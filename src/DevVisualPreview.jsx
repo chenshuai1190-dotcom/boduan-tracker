@@ -142,17 +142,65 @@ function buildMockWatchlistDetailHistory() {
   return rows;
 }
 
+function buildMockWatchlistWeeklyHistory() {
+  const rows = [];
+  const start = new Date('2021-07-16T00:00:00Z');
+  const end = new Date('2026-07-17T00:00:00Z');
+  const totalWeeks = Math.round((end.getTime() - start.getTime()) / (7 * 86_400_000));
+  for (let index = 0; index <= totalWeeks; index += 1) {
+    const progress = index / totalWeeks;
+    let trend;
+    if (progress < 0.18) trend = 19 + (progress / 0.18) * 16;
+    else if (progress < 0.36) trend = 35 - ((progress - 0.18) / 0.18) * 23;
+    else if (progress < 0.55) trend = 12 + ((progress - 0.36) / 0.19) * 43;
+    else if (progress < 0.72) trend = 55 + ((progress - 0.55) / 0.17) * 75;
+    else if (progress < 0.86) trend = 130 + ((progress - 0.72) / 0.14) * 25;
+    else trend = 155 + ((progress - 0.86) / 0.14) * 48;
+    const volatility = (2.2 + progress * 7.5)
+      * (Math.sin(index * 0.83) * 0.62 + Math.sin(index * 2.17) * 0.25 + Math.sin(index * 0.19) * 0.55);
+    const close = Math.max(5, trend + volatility);
+    const ma200 = 9.5 + 113.7 * (progress ** 1.75) + Math.sin(index / 22) * 1.2;
+    const date = new Date(start);
+    date.setUTCDate(date.getUTCDate() + index * 7);
+    const dateKey = date.toISOString().slice(0, 10);
+    rows.push({
+      date: dateKey,
+      weekEndDate: dateKey,
+      close: Number(close.toFixed(4)),
+      ma200: Number(ma200.toFixed(4)),
+      completed: true,
+    });
+  }
+  if (rows.length > 1) rows[rows.length - 2].close = 207.39;
+  if (rows.length > 0) {
+    rows[rows.length - 1].close = 202.81;
+    rows[rows.length - 1].ma200 = 123.2;
+  }
+  return rows;
+}
+
 const mockWatchlistStockDetailData = {
   source: 'EODHD_EOD',
   priceBasis: 'adjusted_close',
   currency: 'USD',
   asOfDate: '2026-07-17',
   history: buildMockWatchlistDetailHistory(),
+  weeklyHistory: buildMockWatchlistWeeklyHistory(),
   indicators: {
     week52High: 235.88,
     ma200: 180.34,
     ema30: 209.58,
     volatility20AnnualizedPct: 23.4,
+    ma200Weekly: 123.2,
+    ma200WeeklyClose: 202.81,
+    ma200WeeklyDistancePct: ((202.81 / 123.2) - 1) * 100,
+    ma200WeeklyChange4WeekPct: 4.76,
+    ma200WeeklySide: 'above',
+    ma200WeeklyStreakWeeks: 86,
+    ma200WeeklyAvailableWeeks: 520,
+    ma200WeeklyRequiredWeeks: 200,
+    ma200WeeklyAsOfDate: '2026-07-17',
+    ma200WeeklyStatus: 'ready',
   },
 };
 

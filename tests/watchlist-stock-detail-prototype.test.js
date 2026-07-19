@@ -11,7 +11,7 @@ test('watchlist stock detail prototype stays local and keeps account data read-o
   assert.ok(devPreviewSource.includes("lazy(() => import('./dev/WatchlistStockDetailPrototype.jsx'))"));
   assert.ok(devPreviewSource.includes("preview === 'watchlist-stock-detail-prototype'"));
   assert.ok(prototypeSource.includes('data-watchlist-stock-detail-prototype="phase-1"'));
-  assert.ok(prototypeSource.includes('max-w-[430px] pb-[calc(env(safe-area-inset-bottom)+28px)]" data-prototype-width="home"'));
+  assert.ok(prototypeSource.includes('max-w-[430px] pb-[calc(env(safe-area-inset-bottom)+86px)]" data-prototype-width="home"'));
   assert.equal(prototypeSource.includes('max-w-[430px] px-3'), false, 'prototype modules should use the same visible width as Home cards');
   assert.ok(prototypeSource.includes("import ActionModalCard from '../components/ActionModalCard.jsx'"));
   assert.ok(prototypeSource.includes("import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx'"));
@@ -32,6 +32,11 @@ test('watchlist price chart opens a read-only close-price tooltip', () => {
   assert.ok(prototypeSource.includes('data-watchlist-price-chart-tooltip="true"'));
   assert.ok(prototypeSource.includes('· 普通收盘'));
   assert.ok(prototypeSource.includes('当日涨跌'));
+  assert.ok(prototypeSource.includes('MA200（周）'));
+  assert.ok(prototypeSource.includes('data-watchlist-weekly-ma-line="true"'));
+  assert.ok(prototypeSource.includes('strokeWidth="0.95"'));
+  assert.ok(prototypeSource.includes('strokeWidth="1.15"'));
+  assert.equal(prototypeSource.includes('price-glow'), false);
   assert.ok(prototypeSource.includes('setSelectedIndex(Math.round'));
   assert.ok(prototypeSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
 });
@@ -41,7 +46,29 @@ test('watchlist header gives the price chart a full-width row', () => {
   assert.ok(prototypeSource.includes('data-prototype-price-summary="inline"'));
   assert.ok(prototypeSource.includes('data-prototype-chart-row="full-width"'));
   assert.equal(prototypeSource.includes('grid-cols-[103px_minmax(0,1fr)]'), false);
-  assert.ok(prototypeSource.includes('className="h-[148px] w-full overflow-visible"'));
+  assert.ok(prototypeSource.includes('className="h-[184px] w-full overflow-visible"'));
+  assert.ok(prototypeSource.includes('data-prototype-chart-ranges="five"'));
+  assert.ok(prototypeSource.includes("React.useState('5y')"));
+  assert.ok(prototypeSource.includes("'5y': '5年'"));
+  assert.ok(prototypeSource.includes('data-prototype-chart-legend="price-weekly-ma"'));
+});
+
+test('key indicators replace the dense grid with daily facts and one weekly trend panel', () => {
+  assert.ok(prototypeSource.includes('data-prototype-key-metrics="spacious"'));
+  assert.ok(prototypeSource.includes('data-prototype-daily-metrics="borderless"'));
+  assert.ok(prototypeSource.includes('data-watchlist-weekly-ma-panel="true"'));
+  assert.ok(prototypeSource.includes('距MA200（日）'));
+  assert.ok(prototypeSource.includes('距EMA30（日）'));
+  assert.ok(prototypeSource.includes('200周数据完整'));
+  assert.equal(prototypeSource.includes('20日年化波动率'), false);
+  assert.equal(prototypeSource.includes('中期高于MA200 · 短期低于EMA30'), false);
+});
+
+test('prototype keeps the stock-detail bottom navigation', () => {
+  assert.ok(prototypeSource.includes('data-prototype-bottom-tabs="five"'));
+  for (const label of ['首页', '交易', '资产', '目标', '设置']) {
+    assert.ok(prototypeSource.includes(`label: '${label}'`));
+  }
 });
 
 test('prototype target card keeps editing but has no whole-card scale animation', () => {

@@ -4,12 +4,16 @@ import {
   CalendarDays,
   ChevronRight,
   Clock3,
-  Info,
+  Home,
+  ListChecks,
   Minus,
   Pencil,
   Plus,
+  Settings,
   ShieldCheck,
+  Target,
   TrendingUp,
+  Wallet,
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
@@ -18,7 +22,7 @@ const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pr
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif';
 const MARKET_RED = '#ff4b1f';
 const MARKET_GREEN = '#22c55e';
-const SOFT_GOLD = '#ffd18a';
+const MA200_WEEK_COLOR = '#f6b54b';
 const CURRENT_PRICE = 202.81;
 const AVG_COST = 195.3;
 
@@ -26,18 +30,27 @@ const RANGE_SERIES = {
   '1m': {
     labels: ['06/17', '06/25', '07/02', '07/10', '07/17'],
     values: [181.2, 187.8, 197.6, 192.4, 202.8, 211.7, 208.9, 219.4, 225.1, 217.3, 231.8, 225.7, 212.1, 220.6, 216.4, 224.8, 218.6, 214.2, 202.81],
+    ma200Weekly: [117.8, 118.1, 118.4, 118.7, 119.0, 119.3, 119.6, 119.9, 120.2, 120.5, 120.8, 121.1, 121.4, 121.7, 122.0, 122.3, 122.6, 122.9, 123.2],
   },
   '3m': {
     labels: ['04/17', '05/09', '06/02', '06/25', '07/17'],
     values: [146.4, 151.7, 158.6, 154.2, 163.8, 172.4, 169.1, 181.3, 188.6, 184.9, 196.4, 205.7, 198.8, 214.3, 209.7, 224.2, 217.1, 202.81],
+    ma200Weekly: [113.0, 113.6, 114.2, 114.8, 115.4, 116.0, 116.6, 117.2, 117.8, 118.4, 119.0, 119.6, 120.2, 120.8, 121.4, 122.0, 122.6, 123.2],
   },
   '6m': {
     labels: ['01/17', '03/03', '04/15', '06/02', '07/17'],
     values: [138.2, 132.7, 146.1, 141.8, 153.4, 149.6, 160.8, 156.1, 169.7, 176.5, 171.4, 184.2, 193.8, 188.1, 207.5, 216.3, 202.81],
+    ma200Weekly: [105.0, 106.1, 107.2, 108.3, 109.4, 110.5, 111.6, 112.7, 113.8, 114.9, 116.0, 117.1, 118.2, 119.3, 120.4, 121.8, 123.2],
   },
   '1y': {
     labels: ['07/17', '10/17', '01/17', '04/17', '07/17'],
     values: [116.4, 123.8, 119.1, 136.2, 131.7, 149.8, 142.4, 158.1, 151.6, 168.9, 162.3, 179.4, 171.2, 188.5, 181.7, 211.8, 202.81],
+    ma200Weekly: [91.5, 93.4, 95.3, 97.2, 99.1, 101.0, 102.9, 104.8, 106.7, 108.6, 110.5, 112.4, 114.3, 116.2, 118.1, 120.6, 123.2],
+  },
+  '5y': {
+    labels: ['2021', '2022', '2023', '2024', '2025', '2026'],
+    values: [19.3, 23.8, 29.4, 34.1, 27.2, 20.4, 16.5, 12.2, 15.7, 20.6, 27.9, 39.8, 48.5, 43.9, 55.2, 88.6, 120.4, 114.3, 135.7, 121.8, 131.2, 149.6, 140.5, 156.8, 174.2, 160.7, 184.9, 210.3, 196.4, 202.81],
+    ma200Weekly: [9.6, 10.1, 10.7, 11.4, 12.1, 13.0, 14.2, 15.3, 16.1, 17.2, 18.5, 20.2, 22.4, 25.0, 28.2, 32.0, 36.7, 42.4, 49.1, 56.8, 64.9, 72.1, 79.4, 86.0, 92.5, 98.8, 105.2, 111.4, 117.6, 123.2],
   },
 };
 
@@ -46,7 +59,24 @@ const RANGE_DATE_BOUNDS = {
   '3m': ['2026-04-17', '2026-07-17'],
   '6m': ['2026-01-17', '2026-07-17'],
   '1y': ['2025-07-17', '2026-07-17'],
+  '5y': ['2021-07-17', '2026-07-17'],
 };
+
+const RANGE_LABELS = {
+  '1m': '1月',
+  '3m': '3月',
+  '6m': '6月',
+  '1y': '1年',
+  '5y': '5年',
+};
+
+const NAV_ITEMS = [
+  { id: 'home', label: '首页', icon: Home },
+  { id: 'trades', label: '交易', icon: ListChecks },
+  { id: 'analysis', label: '资产', icon: Wallet },
+  { id: 'target', label: '目标', icon: Target },
+  { id: 'settings', label: '设置', icon: Settings },
+];
 
 const TRADES = [
   { id: 'trade-1', side: '买入', date: '2026/06/12', shares: 200, price: 198.45, amount: -39690 },
@@ -80,32 +110,52 @@ function targetProgress(targetPrice) {
   return ((CURRENT_PRICE - AVG_COST) / (target - AVG_COST)) * 100;
 }
 
-function chartGeometry(values) {
-  const width = 340;
-  const height = 148;
-  const left = 8;
-  const right = 40;
-  const top = 8;
-  const bottom = 24;
+function chartGeometry(values, ma200Weekly) {
+  const width = 352;
+  const height = 184;
+  const left = 30;
+  const right = 10;
+  const top = 10;
+  const bottom = 25;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const low = Math.min(...values);
-  const high = Math.max(...values);
+  const combined = [...values, ...ma200Weekly].filter(Number.isFinite);
+  const low = Math.min(...combined);
+  const high = Math.max(...combined);
   const span = Math.max(1, high - low);
-  const min = low - span * 0.12;
-  const max = high + span * 0.12;
-  const points = values.map((value, index) => ({
-    x: left + (index / Math.max(1, values.length - 1)) * plotWidth,
-    y: top + ((max - value) / (max - min)) * plotHeight,
+  const min = Math.max(0, low - span * 0.08);
+  const max = high + span * 0.08;
+  const toPoints = (series) => series.map((value, index) => ({
+    x: left + (index / Math.max(1, series.length - 1)) * plotWidth,
+    y: top + ((max - value) / Math.max(1, max - min)) * plotHeight,
     value,
   }));
-  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
-  const areaPath = `${linePath} L ${points.at(-1).x.toFixed(2)} ${(top + plotHeight).toFixed(2)} L ${points[0].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} Z`;
-  const priceLines = [0, 0.5, 1].map((ratio) => ({
+  const toPath = (points) => points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+  const pricePoints = toPoints(values);
+  const maPoints = toPoints(ma200Weekly);
+  const pricePath = toPath(pricePoints);
+  const maPath = toPath(maPoints);
+  const areaPath = `${pricePath} L ${pricePoints.at(-1).x.toFixed(2)} ${(top + plotHeight).toFixed(2)} L ${pricePoints[0].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} Z`;
+  const priceLines = [0, 0.33, 0.66, 1].map((ratio) => ({
     y: top + ratio * plotHeight,
     value: max - ratio * (max - min),
   }));
-  return { width, height, left, right, top, bottom, plotWidth, plotHeight, points, linePath, areaPath, priceLines };
+  return {
+    width,
+    height,
+    left,
+    right,
+    top,
+    bottom,
+    plotWidth,
+    plotHeight,
+    pricePoints,
+    maPoints,
+    pricePath,
+    maPath,
+    areaPath,
+    priceLines,
+  };
 }
 
 function chartPointDate(range, index, count) {
@@ -121,23 +171,28 @@ function chartPointDate(range, index, count) {
 }
 
 function PriceChart({ range, initialTooltipOpen = false }) {
-  const series = RANGE_SERIES[range] || RANGE_SERIES['1m'];
-  const chart = chartGeometry(series.values);
-  const last = chart.points.at(-1);
+  const series = RANGE_SERIES[range] || RANGE_SERIES['5y'];
+  const chart = chartGeometry(series.values, series.ma200Weekly);
+  const last = chart.pricePoints.at(-1);
   const chartRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
   const previousRangeRef = React.useRef(range);
   const [selectedIndex, setSelectedIndex] = React.useState(() => (
     initialTooltipOpen ? Math.round((series.values.length - 1) * 0.78) : null
   ));
-  const selectedPoint = Number.isInteger(selectedIndex) ? chart.points[selectedIndex] || null : null;
+  const selectedPoint = Number.isInteger(selectedIndex) ? chart.pricePoints[selectedIndex] || null : null;
+  const selectedMaPoint = Number.isInteger(selectedIndex) ? chart.maPoints[selectedIndex] || null : null;
   const selectedValue = selectedPoint?.value;
+  const selectedMaValue = selectedMaPoint?.value;
   const previousValue = selectedIndex > 0 ? series.values[selectedIndex - 1] : null;
   const selectedChange = Number.isFinite(selectedValue) && Number.isFinite(previousValue)
     ? selectedValue - previousValue
     : null;
   const selectedChangePct = selectedChange != null && previousValue > 0
     ? (selectedChange / previousValue) * 100
+    : null;
+  const selectedMaDistance = Number.isFinite(selectedValue) && Number.isFinite(selectedMaValue) && selectedMaValue > 0
+    ? ((selectedValue / selectedMaValue) - 1) * 100
     : null;
 
   React.useEffect(() => {
@@ -165,8 +220,8 @@ function PriceChart({ range, initialTooltipOpen = false }) {
     if (!rect || rect.width <= 0) return;
     const viewBoxX = ((clientX - rect.left) / rect.width) * chart.width;
     const ratio = Math.max(0, Math.min(1, (viewBoxX - chart.left) / chart.plotWidth));
-    setSelectedIndex(Math.round(ratio * Math.max(0, chart.points.length - 1)));
-  }, [chart.left, chart.plotWidth, chart.points.length, chart.width]);
+    setSelectedIndex(Math.round(ratio * Math.max(0, chart.pricePoints.length - 1)));
+  }, [chart.left, chart.plotWidth, chart.pricePoints.length, chart.width]);
 
   const handlePointerDown = (event) => {
     activePointerIdRef.current = event.pointerId;
@@ -206,31 +261,33 @@ function PriceChart({ range, initialTooltipOpen = false }) {
         setSelectedIndex(series.values.length - 1);
       }}
     >
-      <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-[148px] w-full overflow-visible" role="img" aria-label={`${range} 普通收盘价走势`}>
+      <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={`${RANGE_LABELS[range]}普通收盘价与MA200周线走势`}>
         <defs>
           <linearGradient id="watchlist-stock-price-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={MARKET_GREEN} stopOpacity="0.26" />
+            <stop offset="0%" stopColor={MARKET_GREEN} stopOpacity="0.14" />
             <stop offset="100%" stopColor={MARKET_GREEN} stopOpacity="0" />
           </linearGradient>
-          <filter id="watchlist-stock-price-glow" x="-20%" y="-35%" width="140%" height="170%">
-            <feGaussianBlur stdDeviation="1.4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
         </defs>
         {chart.priceLines.map((line) => (
           <g key={line.y}>
-            <line x1={chart.left} x2={chart.width - chart.right + 2} y1={line.y} y2={line.y} stroke="rgba(255,255,255,0.055)" strokeDasharray="2 4" />
-            <text x={chart.width - 1} y={line.y + 3} textAnchor="end" fill="rgba(255,255,255,0.28)" fontSize="8.5" style={{ fontFamily: NUMBER_FONT }}>{Math.round(line.value)}</text>
+            <line x1={chart.left} x2={chart.width - chart.right} y1={line.y} y2={line.y} stroke="rgba(255,255,255,0.052)" strokeDasharray="2 4" />
+            <text x={chart.left - 6} y={line.y + 3} textAnchor="end" fill="rgba(255,255,255,0.28)" fontSize="8.3" style={{ fontFamily: NUMBER_FONT }}>{Math.round(line.value)}</text>
           </g>
         ))}
         <path d={chart.areaPath} fill="url(#watchlist-stock-price-area)" />
-        <path d={chart.linePath} fill="none" stroke={MARKET_GREEN} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" filter="url(#watchlist-stock-price-glow)" />
-        <circle cx={last.x} cy={last.y} r="3" fill={MARKET_GREEN} stroke="#d6fff0" strokeWidth="0.7" />
+        <path data-watchlist-weekly-ma-line="true" d={chart.maPath} fill="none" stroke={MA200_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={chart.pricePath} fill="none" stroke={MARKET_GREEN} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle cx={last.x} cy={last.y} r="2.2" fill={MARKET_GREEN} stroke="#d6fff0" strokeWidth="0.65" />
+        <g transform={`translate(${Math.max(chart.left, chart.width - 53)} ${Math.max(chart.top + 2, Math.min(chart.height - chart.bottom - 17, last.y - 17))})`} aria-hidden="true">
+          <rect width="50" height="15" rx="5" fill="#0e3a2b" stroke="rgba(34,197,94,0.3)" strokeWidth="0.6" />
+          <text x="25" y="10.8" textAnchor="middle" fill="#72e8a2" fontSize="8.5" style={{ fontFamily: NUMBER_FONT }}>${formatNumber(last.value)}</text>
+        </g>
         {selectedPoint ? (
           <g aria-hidden="true">
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={chart.height - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill="#f6b54b" opacity="0.13" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#05070b" stroke="#ffd18a" strokeWidth="1.25" />
+            {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={MA200_WEEK_COLOR} strokeWidth="1.1" /> : null}
           </g>
         ) : null}
         {series.labels.map((label, index) => {
@@ -241,7 +298,7 @@ function PriceChart({ range, initialTooltipOpen = false }) {
       {selectedPoint ? (
         <div
           data-watchlist-price-chart-tooltip="true"
-          className={`pointer-events-none absolute top-2 w-[174px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > chart.width * 0.56 ? 'left-2' : 'right-2'}`}
+          className={`pointer-events-none absolute top-2 w-[184px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > chart.width * 0.56 ? 'left-8' : 'right-2'}`}
         >
           <div className="text-[9px] text-white/[0.42]">{chartPointDate(range, selectedIndex, series.values.length)} · 普通收盘</div>
           <div className="mt-1 text-[18px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>${formatNumber(selectedValue)}</div>
@@ -249,6 +306,12 @@ function PriceChart({ range, initialTooltipOpen = false }) {
             <span className="text-white/[0.3]">当日涨跌</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: selectedColor, fontFamily: NUMBER_FONT }}>
               {selectedChange == null ? '--' : `${selectedChange >= 0 ? '+' : ''}${formatNumber(selectedChange)}  ${signedPct(selectedChangePct)}`}
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px]">
+            <span className="text-white/[0.3]">MA200（周）</span>
+            <span className="whitespace-nowrap text-[#f6b54b] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              {Number.isFinite(selectedMaValue) ? `$${formatNumber(selectedMaValue)} · ${signedPct(selectedMaDistance)}` : '--'}
             </span>
           </div>
         </div>
@@ -259,10 +322,10 @@ function PriceChart({ range, initialTooltipOpen = false }) {
 
 function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)' }) {
   return (
-    <div className="min-w-0 px-3 py-3">
-      <div className="truncate text-[10.5px] text-white/[0.37]">{label}</div>
-      <div className="mt-1.5 truncate text-[17px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
-      <div className="mt-1 truncate text-[10px] text-white/[0.29]">{detail}</div>
+    <div className="min-w-0 text-center">
+      <div className="truncate text-[9.5px] text-white/[0.36]">{label}</div>
+      <div className="mt-1.5 truncate text-[15px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
+      <div className="mt-1 truncate text-[9px] text-white/[0.26]">{detail}</div>
     </div>
   );
 }
@@ -349,7 +412,7 @@ export default function WatchlistStockDetailPrototype() {
   ), []);
   const initialEditorOpen = previewParams.get('targetEditor') === '1';
   const initialChartTooltipOpen = previewParams.get('chartTooltip') === '1';
-  const [range, setRange] = React.useState('1m');
+  const [range, setRange] = React.useState('5y');
   const [targetPrice, setTargetPrice] = React.useState(250);
   const [showTargetEditor, setShowTargetEditor] = React.useState(initialEditorOpen);
   const gap = targetSpace(targetPrice);
@@ -367,7 +430,7 @@ export default function WatchlistStockDetailPrototype() {
 
   return (
     <div className="min-h-[100dvh] overflow-x-hidden bg-[#05070b] text-white" data-watchlist-stock-detail-prototype="phase-1" style={{ fontFamily: PAGE_FONT }}>
-      <main className="mx-auto min-h-[100dvh] w-full max-w-[430px] pb-[calc(env(safe-area-inset-bottom)+28px)]" data-prototype-width="home">
+      <main className="mx-auto min-h-[100dvh] w-full max-w-[430px] pb-[calc(env(safe-area-inset-bottom)+86px)]" data-prototype-width="home">
         <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#05070b]/92 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
           <div className="grid h-10 grid-cols-[40px_minmax(0,1fr)_40px] items-center">
             <button type="button" onClick={() => window.history.back()} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.045] text-white/[0.66] active:scale-95" aria-label="返回">
@@ -405,35 +468,64 @@ export default function WatchlistStockDetailPrototype() {
             </div>
           </div>
 
-          <div className="mt-3 min-w-0" data-prototype-chart-row="full-width">
-            <PriceChart range={range} initialTooltipOpen={initialChartTooltipOpen} />
-          </div>
-
-          <div className="mt-1 grid grid-cols-4 gap-1 border-t border-white/[0.06] pt-2">
+          <div className="mt-4 grid grid-cols-5 gap-1" data-prototype-chart-ranges="five">
             {Object.keys(RANGE_SERIES).map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => setRange(item)}
-                className={`h-7 rounded-lg px-1.5 text-[10px] transition active:scale-95 ${range === item ? 'bg-white/[0.08] text-white/[0.74]' : 'text-white/[0.3]'}`}
+                className={`h-8 rounded-lg px-1.5 text-[10.5px] transition active:scale-95 ${range === item ? 'border border-[#f6b54b]/20 bg-[#f6b54b]/[0.11] text-[#ffd18a]' : 'border border-transparent text-white/[0.34]'}`}
               >
-                {item === '1m' ? '1月' : item === '3m' ? '3月' : item === '6m' ? '6月' : '1年'}
+                {RANGE_LABELS[item]}
               </button>
             ))}
           </div>
+
+          <div className="mt-2 min-w-0" data-prototype-chart-row="full-width">
+            <PriceChart range={range} initialTooltipOpen={initialChartTooltipOpen} />
+          </div>
+
+          <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-prototype-chart-legend="price-weekly-ma">
+            <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#22c55e]" />股价</span>
+            <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#f6b54b]" />MA200（周）</span>
+          </div>
         </section>
 
-        <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-          <div className="flex min-w-0 items-center gap-2 border-b border-white/[0.06] px-4 py-3.5">
-            <h2 className="shrink-0 text-[15px] font-normal text-white/[0.82]">关键指标</h2>
-            <span className="min-w-0 truncate text-[11px] text-[#f6b54b]/80">中期高于MA200 · 短期低于EMA30</span>
-            <Info className="ml-auto h-3.5 w-3.5 shrink-0 text-white/[0.24]" />
+        <section className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-prototype-key-metrics="spacious" data-prototype-section="weekly-ma">
+          <div className="px-4 pb-2 pt-4">
+            <h2 className="text-[15px] font-normal text-white/[0.82]">关键指标</h2>
           </div>
-          <div className="grid grid-cols-2 divide-x divide-y divide-white/[0.06]">
+          <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-prototype-daily-metrics="borderless">
             <MetricCell label="距52周高点" value="-14.16%" detail="高点 235.88" color={MARKET_GREEN} />
-            <MetricCell label="距MA200" value="+12.40%" detail="MA200 180.34" color={MARKET_RED} />
-            <MetricCell label="距EMA30" value="-3.25%" detail="EMA30 209.58" color={MARKET_GREEN} />
-            <MetricCell label="20日年化波动率" value="23.4%" detail="基于普通收盘价" color={SOFT_GOLD} />
+            <MetricCell label="距MA200（日）" value="+12.40%" detail="日线 180.34" color={MARKET_RED} />
+            <MetricCell label="距EMA30（日）" value="-3.25%" detail="日线 209.58" color={MARKET_GREEN} />
+          </div>
+
+          <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="text-[13px] font-normal text-white/[0.76]">MA200（周）</h3>
+              <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">长期趋势</span>
+              <span className="ml-auto text-[9px] text-white/[0.28]">周收盘锁定</span>
+            </div>
+
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div>
+                <div className="text-[9.5px] text-white/[0.32]">距200周均线</div>
+                <div className="mt-1 text-[22px] font-normal text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+64.62%</div>
+              </div>
+              <div className="pb-0.5 text-right">
+                <div className="text-[12px] text-[#ff4b1f]/90">长期趋势上方</div>
+                <div className="mt-1 text-[9px] text-white/[0.27]">基于已完成交易周</div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-4">
+              <div><div className="text-[8.5px] text-white/[0.27]">200周均线</div><div className="mt-1 text-[11.5px] text-white/[0.65] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$123.20</div></div>
+              <div className="text-center"><div className="text-[8.5px] text-white/[0.27]">近4周变化</div><div className="mt-1 text-[11.5px] text-[#ff4b1f]/85 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+4.76%</div></div>
+              <div className="text-right"><div className="text-[8.5px] text-white/[0.27]">连续状态</div><div className="mt-1 text-[11.5px] text-white/[0.65]">上方 86 周</div></div>
+            </div>
+
+            <div className="mt-3.5 text-[8.5px] text-white/[0.22]">更新至 7/17 周收盘 · 200周数据完整</div>
           </div>
         </section>
 
@@ -526,6 +618,21 @@ export default function WatchlistStockDetailPrototype() {
 
         <p className="mt-4 text-center text-[9px] tracking-[0.06em] text-white/[0.16]">HTML 视觉原型 · 不连接真实账户</p>
       </main>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.09] bg-[#070a0f]/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} data-prototype-bottom-tabs="five">
+        <div className="mx-auto grid h-[58px] max-w-[430px] grid-cols-5">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = item.id === 'home';
+            return (
+              <button key={item.id} type="button" className={`flex flex-col items-center justify-center gap-1 ${active ? 'text-[#f6a524]' : 'text-white/[0.36]'}`}>
+                <Icon className={`h-[19px] w-[19px] ${active ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+                <span className="text-[9.5px]">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {showTargetEditor ? (
         <TargetEditor

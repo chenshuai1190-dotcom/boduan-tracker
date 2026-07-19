@@ -2,12 +2,25 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../api/quote.js';
+import { fetchStockQuote } from '../server/quote/providers/eodhd.js';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
 
 function dateKeyFrom(startDate, offsetDays) {
   const date = new Date(`${startDate}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + offsetDays);
   return date.toISOString().slice(0, 10);
+}
+
+function weeklyRows(count, { startDate = '2022-01-07', close = (index) => index + 1 } = {}) {
+  return Array.from({ length: count }, (_, index) => {
+    const value = close(index);
+    return {
+      date: dateKeyFrom(startDate, index * 7),
+      close: value,
+      adjusted_close: value,
+      high: value + 1,
+    };
+  });
 }
 
 function createResponse() {
@@ -78,6 +91,11 @@ test('stock detail strictly keeps valid adjusted closes, sorts dates, deduplicat
   assert.equal(detail.indicators.ma200, null);
   assert.equal(detail.indicators.ema30, null);
   assert.equal(detail.indicators.volatility20AnnualizedPct, null);
+  assert.equal(detail.indicators.ma200Weekly, null);
+  assert.equal(detail.indicators.ma200WeeklyAvailableWeeks, 0);
+  assert.equal(detail.indicators.ma200WeeklyStatus, 'insufficient_data');
+  assert.equal(detail.weeklyHistory.length, 1);
+  assert.equal(detail.weeklyHistory[0].completed, false);
 });
 
 test('stock detail calculates MA200, seeded EMA30, and 20-return sample annualized volatility', () => {
@@ -137,6 +155,52 @@ test('stock detail 52-week adjusted high includes exactly 364 days back and excl
   assert.equal(detail.indicators.week52High, 300);
 });
 
+test('stock detail builds a locked 200-week MA from real weekly closes and exposes factual trend fields', () => {
+  const rows = weeklyRows(204);
+  const asOfDate = rows.at(-1).date;
+  const detail = buildEodhdStockDetail(rows, { asOfDate });
+
+  assert.equal(detail.indicators.ma200Weekly, 104.5);
+  assert.equal(detail.indicators.ma200WeeklyClose, 204);
+  assert.equal(detail.indicators.ma200WeeklyDistancePct, ((204 / 104.5) - 1) * 100);
+  assert.equal(detail.indicators.ma200WeeklyChange4WeekPct, ((104.5 / 100.5) - 1) * 100);
+  assert.equal(detail.indicators.ma200WeeklySide, 'above');
+  assert.equal(detail.indicators.ma200WeeklyStreakWeeks, 5);
+  assert.equal(detail.indicators.ma200WeeklyAvailableWeeks, 204);
+  assert.equal(detail.indicators.ma200WeeklyRequiredWeeks, 200);
+  assert.equal(detail.indicators.ma200WeeklyAsOfDate, asOfDate);
+  assert.equal(detail.indicators.ma200WeeklyStatus, 'ready');
+  assert.equal(detail.weeklyHistory.at(-1).ma200, 104.5);
+  assert.equal(detail.weeklyHistory.at(-1).completed, true);
+});
+
+test('an in-progress trading week updates the green weekly close but never advances the locked MA200', () => {
+  const completedRows = weeklyRows(204);
+  const lastCompleted = completedRows.at(-1);
+  const inProgressDate = dateKeyFrom(lastCompleted.date, 5);
+  const detail = buildEodhdStockDetail([
+    ...completedRows,
+    { date: inProgressDate, close: 999, adjusted_close: 999, high: 1000 },
+  ], { asOfDate: inProgressDate });
+
+  assert.equal(detail.weeklyHistory.at(-1).date, inProgressDate);
+  assert.equal(detail.weeklyHistory.at(-1).close, 999);
+  assert.equal(detail.weeklyHistory.at(-1).ma200, null);
+  assert.equal(detail.weeklyHistory.at(-1).completed, false);
+  assert.equal(detail.indicators.ma200Weekly, 104.5);
+  assert.equal(detail.indicators.ma200WeeklyClose, 204);
+  assert.equal(detail.indicators.ma200WeeklyAsOfDate, lastCompleted.date);
+});
+
+test('five-year weekly output keeps hidden warmup data out of the payload while the MA line starts fully formed', () => {
+  const rows = weeklyRows(470, { startDate: '2017-07-07', close: (index) => 50 + index * 0.5 });
+  const detail = buildEodhdStockDetail(rows, { asOfDate: rows.at(-1).date });
+
+  assert.ok(detail.weeklyHistory.length >= 260 && detail.weeklyHistory.length <= 263);
+  assert.ok(detail.weeklyHistory.every((row) => Number.isFinite(row.ma200)));
+  assert.ok(detail.history.length < rows.length, 'daily payload should stay bounded even when the provider supplies ten years');
+});
+
 test('stock-detail view is opt-in, returns real EOD calculations, and does not expose the provider key', async () => {
   const originalFetch = globalThis.fetch;
   const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
@@ -157,6 +221,14 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
       low: close - 2,
     };
   });
+  const oldExtremeRow = {
+    date: '2018-01-05',
+    close: 10_000,
+    adjusted_close: 10_000,
+    high: 20_000,
+    low: 9_000,
+  };
+  const requestedEodFrom = [];
 
   process.env.QUOTE_API_AUTH_REQUIRED = 'false';
   process.env.EODHD_API_KEY = 'test-eodhd-key';
@@ -179,7 +251,11 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
         },
       });
     }
-    if (parsed.pathname.includes('/api/eod/')) return jsonResponse(eodRows);
+    if (parsed.pathname.includes('/api/eod/')) {
+      const requestedFrom = parsed.searchParams.get('from');
+      requestedEodFrom.push(requestedFrom);
+      return jsonResponse([oldExtremeRow, ...eodRows].filter((row) => row.date >= requestedFrom));
+    }
     if (parsed.hostname === 'query1.finance.yahoo.com') {
       return jsonResponse({
         chart: {
@@ -216,6 +292,12 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.equal(quote.stockDetail.indicators.ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ema30, 304.5);
     assert.equal(typeof quote.stockDetail.indicators.volatility20AnnualizedPct, 'number');
+    assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'insufficient_data');
+    assert.ok(Array.isArray(quote.stockDetail.weeklyHistory));
+    assert.equal(requestedEodFrom.length, 2);
+    assert.ok(requestedEodFrom[1] < requestedEodFrom[0], 'stock-detail must request the longer history window without slowing the default quote path');
+    assert.equal(Number(requestedEodFrom[1].slice(0, 4)), new Date().getUTCFullYear() - 10);
+    assert.equal(quote.week52High, 325, 'ten-year detail warmup must not leak into the ordinary quote high');
     assert.doesNotMatch(JSON.stringify(detailResponse.body), /test-eodhd-key/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -244,5 +326,48 @@ test('stock-detail view rejects multi-symbol and special-provider requests befor
     else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
     if (originalKey === undefined) delete process.env.EODHD_API_KEY;
     else process.env.EODHD_API_KEY = originalKey;
+  }
+});
+
+test('stock-detail provider keeps invalid EOD payloads unavailable instead of claiming short history', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname.includes('/api/us-quote-delayed')) {
+      return jsonResponse({
+        data: {
+          'MSFT.US': {
+            ethPrice: null,
+            lastTradePrice: '500',
+            previousClosePrice: '495',
+            high: '502',
+            low: '493',
+            open: '496',
+            timestamp: 1783000000,
+            change: '5',
+            changePercent: '1.01',
+          },
+        },
+      });
+    }
+    if (parsed.pathname.includes('/api/eod/')) {
+      return jsonResponse([
+        { date: 'invalid', close: 500, adjusted_close: 500, high: 501, low: 499 },
+        { date: '2026-07-17', close: 0, adjusted_close: 0, high: 0, low: 0 },
+      ]);
+    }
+    if (parsed.hostname === 'query1.finance.yahoo.com') {
+      return jsonResponse({ chart: { result: [] } });
+    }
+    throw new Error(`Unexpected provider URL: ${url}`);
+  };
+
+  try {
+    const quote = await fetchStockQuote('MSFT', { eodhdKey: 'test-eodhd-key', includeStockDetail: true });
+    assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'unavailable');
+    assert.deepEqual(quote.stockDetail.history, []);
+    assert.deepEqual(quote.stockDetail.weeklyHistory, []);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

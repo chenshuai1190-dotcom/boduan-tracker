@@ -5,6 +5,8 @@ const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
 const US_EQUITY_REGULAR_END_MINUTES = 16 * 60;
 const US_EQUITY_PREMARKET_START_MINUTES = 4 * 60;
 const US_EQUITY_POSTMARKET_END_MINUTES = 20 * 60;
+const DEFAULT_STOCK_HISTORY_DAYS = 380;
+const STOCK_DETAIL_HISTORY_YEARS = 10;
 
 function parseQuoteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -589,9 +591,17 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     const marketDate = getUsEquityMarketDate(now);
     const stockDetailCutoffDate = getLatestCompletedEodCutoffDate(now);
     const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
-    const today = new Date();
-    const oneYearAgo = new Date(today.getTime() - 380 * 24 * 60 * 60 * 1000);
-    const fromDate = oneYearAgo.toISOString().split('T')[0];
+    const today = new Date(now);
+    const historyStart = new Date(now);
+    const quoteHistoryStart = new Date(now);
+    quoteHistoryStart.setUTCDate(quoteHistoryStart.getUTCDate() - DEFAULT_STOCK_HISTORY_DAYS);
+    const quoteHistoryFromDate = quoteHistoryStart.toISOString().slice(0, 10);
+    if (includeStockDetail) {
+      historyStart.setUTCFullYear(historyStart.getUTCFullYear() - STOCK_DETAIL_HISTORY_YEARS);
+    } else {
+      historyStart.setTime(quoteHistoryStart.getTime());
+    }
+    const fromDate = historyStart.toISOString().slice(0, 10);
     const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
@@ -678,24 +688,36 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     let marketDateClose = null;
     let latestCompletedClose = null;
     let latestCompletedBaseline = null;
-    let stockDetail = includeStockDetail
-      ? buildEodhdStockDetail([], { asOfDate: stockDetailCutoffDate })
-      : null;
+    let stockDetail = null;
+    if (includeStockDetail) {
+      const unavailableDetail = buildEodhdStockDetail([], { asOfDate: stockDetailCutoffDate });
+      stockDetail = {
+        ...unavailableDetail,
+        indicators: {
+          ...unavailableDetail.indicators,
+          ma200WeeklyStatus: 'unavailable',
+        },
+      };
+    }
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
           if (includeStockDetail) {
-            stockDetail = buildEodhdStockDetail(eodData, { asOfDate: stockDetailCutoffDate });
+            const nextStockDetail = buildEodhdStockDetail(eodData, { asOfDate: stockDetailCutoffDate });
+            if (nextStockDetail.history.length > 0) stockDetail = nextStockDetail;
           }
-          dailyBaseline = findDailyBaselineCloseFromEodRows(eodData, marketDate);
-          marketDateClose = findCloseForMarketDateFromEodRows(eodData, marketDate);
+          const quoteEodData = includeStockDetail
+            ? eodData.filter((day) => String(day?.date || '') >= quoteHistoryFromDate)
+            : eodData;
+          dailyBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, marketDate);
+          marketDateClose = findCloseForMarketDateFromEodRows(quoteEodData, marketDate);
           latestCompletedClose = marketDateClose || dailyBaseline;
           if (latestCompletedClose?.date) {
-            latestCompletedBaseline = findDailyBaselineCloseFromEodRows(eodData, latestCompletedClose.date);
+            latestCompletedBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, latestCompletedClose.date);
           }
           const currentYearStart = `${today.getFullYear()}-01-01`;
-          const historyRows = eodData
+          const historyRows = quoteEodData
             .filter((day) => day && day.date)
             .sort((a, b) => String(a.date).localeCompare(String(b.date)));
           for (const day of historyRows) {

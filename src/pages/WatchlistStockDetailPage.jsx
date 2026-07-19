@@ -21,8 +21,11 @@ import {
   deriveCloseBasedPosition,
   displayCurrencyRate,
   filterStockDetailHistory,
+  filterStockDetailWeeklyHistory,
+  findStockDetailWeeklyMaOnOrBefore,
   findWatchlistStockDetailRows,
   normalizeStockDetailHistory,
+  normalizeStockDetailWeeklyHistory,
   resolveStockDetailClose,
   targetProgressPercent,
   targetProgressPositionPercent,
@@ -32,10 +35,11 @@ import {
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif';
-const SOFT_GOLD = '#ffd18a';
-const CHART_WIDTH = 340;
-const CHART_HEIGHT = 148;
-const RANGE_IDS = ['1m', '3m', '6m', '1y'];
+const PRICE_LINE_COLOR = '#22c55e';
+const MA200_WEEK_COLOR = '#f6b54b';
+const CHART_WIDTH = 352;
+const CHART_HEIGHT = 184;
+const RANGE_IDS = ['1m', '3m', '6m', '1y', '5y'];
 
 function finiteNumber(value) {
   const number = Number(value);
@@ -116,56 +120,77 @@ function quarterLabel(event, language) {
   });
 }
 
-function chartGeometry(rows) {
+function chartGeometry(rows, weeklyRows) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  const left = 8;
-  const right = 40;
-  const top = 8;
-  const bottom = 24;
+  const left = 30;
+  const right = 10;
+  const top = 10;
+  const bottom = 25;
   const plotWidth = CHART_WIDTH - left - right;
   const plotHeight = CHART_HEIGHT - top - bottom;
-  const values = rows.map((row) => row.close);
+  const domainStart = Date.parse(`${rows[0].date}T00:00:00Z`);
+  const domainEnd = Date.parse(`${rows.at(-1).date}T00:00:00Z`);
+  const domainSpan = Math.max(86_400_000, domainEnd - domainStart);
+  const maRows = (Array.isArray(weeklyRows) ? weeklyRows : [])
+    .filter((row) => row?.completed === true && Number.isFinite(row?.ma200))
+    .filter((row) => row.date >= rows[0].date && row.date <= rows.at(-1).date);
+  const values = [
+    ...rows.map((row) => row.close),
+    ...maRows.map((row) => row.ma200),
+  ];
   const low = Math.min(...values);
   const high = Math.max(...values);
   const span = Math.max(0.01, high - low);
-  const min = Math.max(0, low - span * 0.12);
-  const max = high + span * 0.12;
-  const points = rows.map((row, index) => ({
-    ...row,
-    x: left + (index / Math.max(1, rows.length - 1)) * plotWidth,
-    y: top + ((max - row.close) / Math.max(0.01, max - min)) * plotHeight,
-  }));
-  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+  const min = Math.max(0, low - span * 0.08);
+  const max = high + span * 0.08;
+  const xForDate = (date) => {
+    const time = Date.parse(`${date}T00:00:00Z`);
+    return left + ((time - domainStart) / domainSpan) * plotWidth;
+  };
+  const yForValue = (value) => top + ((max - value) / Math.max(0.01, max - min)) * plotHeight;
+  const pricePoints = rows.map((row) => ({ ...row, x: xForDate(row.date), y: yForValue(row.close) }));
+  const maPoints = maRows.map((row) => ({ ...row, x: xForDate(row.date), y: yForValue(row.ma200) }));
+  const pathFor = (points) => points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ');
+  const pricePath = pathFor(pricePoints, 'close');
+  const maPath = pathFor(maPoints, 'ma200');
   const floorY = top + plotHeight;
-  const areaPath = `${linePath} L ${points.at(-1).x.toFixed(2)} ${floorY.toFixed(2)} L ${points[0].x.toFixed(2)} ${floorY.toFixed(2)} Z`;
-  const priceLines = [0, 0.5, 1].map((ratio) => ({
+  const areaPath = `${pricePath} L ${pricePoints.at(-1).x.toFixed(2)} ${floorY.toFixed(2)} L ${pricePoints[0].x.toFixed(2)} ${floorY.toFixed(2)} Z`;
+  const priceLines = [0, 0.33, 0.66, 1].map((ratio) => ({
     y: top + ratio * plotHeight,
     value: max - ratio * (max - min),
   }));
-  return { left, right, top, bottom, plotWidth, plotHeight, points, linePath, areaPath, priceLines };
+  return { left, right, top, bottom, plotWidth, plotHeight, pricePoints, maPoints, pricePath, maPath, areaPath, priceLines };
 }
 
-function chartDateLabels(points, language) {
+function chartDateLabels(points, language, range) {
   if (!points.length) return [];
-  return [...new Set([0, 0.25, 0.5, 0.75, 1].map((ratio) => Math.round((points.length - 1) * ratio)))]
-    .map((index) => ({ index, point: points[index], label: formatDate(points[index]?.date, language) }));
+  const ratios = range === '5y' ? [0, 0.2, 0.4, 0.6, 0.8, 1] : [0, 0.25, 0.5, 0.75, 1];
+  const labels = [...new Set(ratios.map((ratio) => Math.round((points.length - 1) * ratio)))]
+    .map((index) => ({
+      index,
+      point: points[index],
+      label: range === '5y' ? points[index]?.date?.slice(0, 4) : formatDate(points[index]?.date, language),
+    }));
+  return labels.filter((item, index) => labels.findIndex((candidate) => candidate.label === item.label) === index);
 }
 
-function PriceChart({ rows, range, currency, language, marketColorMode, symbol, initialTooltipOpen = false }) {
-  const chart = React.useMemo(() => chartGeometry(rows), [rows]);
+function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, initialTooltipOpen = false }) {
+  const chart = React.useMemo(() => chartGeometry(rows, weeklyRows), [rows, weeklyRows]);
   const chartRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
-  const previousSeriesRef = React.useRef({ range, rows });
+  const previousSeriesRef = React.useRef({ range, rows, weeklyRows });
   const [selectedIndex, setSelectedIndex] = React.useState(() => (
     initialTooltipOpen && rows.length > 1 ? Math.round((rows.length - 1) * 0.72) : null
   ));
 
   React.useEffect(() => {
     const previous = previousSeriesRef.current;
-    previousSeriesRef.current = { range, rows };
-    if (previous.range === range && previous.rows === rows) return;
+    previousSeriesRef.current = { range, rows, weeklyRows };
+    if (previous.range === range && previous.rows === rows && previous.weeklyRows === weeklyRows) return;
     setSelectedIndex(null);
-  }, [range, rows]);
+  }, [range, rows, weeklyRows]);
   React.useEffect(() => {
     if (selectedIndex == null) return undefined;
     const timerId = window.setTimeout(() => setSelectedIndex(null), 12_000);
@@ -179,32 +204,46 @@ function PriceChart({ rows, range, currency, language, marketColorMode, symbol, 
     return () => document.removeEventListener('pointerdown', closeOutside);
   }, []);
 
-  if (!chart || chart.points.length < 2) {
+  if (!chart || chart.pricePoints.length < 2) {
     return (
-      <div className="flex h-[148px] items-center justify-center rounded-xl border border-white/[0.04] bg-black/[0.12] text-[11px] text-white/[0.3]">
+      <div className="flex h-[184px] items-center justify-center rounded-xl bg-black/[0.08] text-[11px] text-white/[0.3]">
         {t(language, 'watchlistDetail.noCloseHistory', '暂无足够的收盘数据')}
       </div>
     );
   }
 
-  const first = chart.points[0];
-  const last = chart.points.at(-1);
-  const periodChange = last.close - first.close;
-  const lineColor = marketHexColor(periodChange, marketColorMode);
-  const selectedPoint = Number.isInteger(selectedIndex) ? chart.points[selectedIndex] || null : null;
-  const previousPoint = selectedIndex > 0 ? chart.points[selectedIndex - 1] : null;
+  const last = chart.pricePoints.at(-1);
+  const selectedPoint = Number.isInteger(selectedIndex) ? chart.pricePoints[selectedIndex] || null : null;
+  const previousPoint = selectedIndex > 0 ? chart.pricePoints[selectedIndex - 1] : null;
   const selectedChange = selectedPoint && previousPoint ? selectedPoint.close - previousPoint.close : null;
   const selectedChangePct = selectedChange !== null && previousPoint?.close > 0
     ? (selectedChange / previousPoint.close) * 100
     : null;
-  const labels = chartDateLabels(chart.points, language);
+  const selectedMaRow = selectedPoint
+    ? findStockDetailWeeklyMaOnOrBefore(weeklyLookupRows, selectedPoint.date)
+    : null;
+  const selectedMaDistance = selectedPoint && selectedMaRow?.ma200 > 0
+    ? ((selectedPoint.close / selectedMaRow.ma200) - 1) * 100
+    : null;
+  const selectedMaPoint = selectedMaRow
+    ? chart.maPoints.find((point) => point.date === selectedMaRow.date) || null
+    : null;
+  const labels = chartDateLabels(chart.pricePoints, language, range);
 
   const selectNearestPoint = (clientX) => {
     const rect = chartRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0) return;
     const viewBoxX = ((clientX - rect.left) / rect.width) * CHART_WIDTH;
-    const ratio = Math.max(0, Math.min(1, (viewBoxX - chart.left) / chart.plotWidth));
-    setSelectedIndex(Math.round(ratio * Math.max(0, chart.points.length - 1)));
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    chart.pricePoints.forEach((point, index) => {
+      const distance = Math.abs(point.x - viewBoxX);
+      if (distance < nearestDistance) {
+        nearestIndex = index;
+        nearestDistance = distance;
+      }
+    });
+    setSelectedIndex(nearestIndex);
   };
 
   return (
@@ -234,53 +273,61 @@ function PriceChart({ rows, range, currency, language, marketColorMode, symbol, 
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        setSelectedIndex(chart.points.length - 1);
+        setSelectedIndex(chart.pricePoints.length - 1);
       }}
     >
-      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="h-[148px] w-full overflow-visible" role="img" aria-label={t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价走势', { range: range.toUpperCase() })}>
+      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="h-[184px] w-full overflow-visible" role="img" aria-label={t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价与MA200周线走势', { range: range.toUpperCase() })}>
         <defs>
           <linearGradient id="watchlist-stock-detail-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={lineColor} stopOpacity="0.26" />
-            <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
+            <stop offset="0%" stopColor={PRICE_LINE_COLOR} stopOpacity="0.14" />
+            <stop offset="100%" stopColor={PRICE_LINE_COLOR} stopOpacity="0" />
           </linearGradient>
-          <filter id="watchlist-stock-detail-glow" x="-20%" y="-35%" width="140%" height="170%">
-            <feGaussianBlur stdDeviation="1.4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
         </defs>
         {chart.priceLines.map((line) => (
           <g key={line.y}>
-            <line x1={chart.left} x2={CHART_WIDTH - chart.right + 2} y1={line.y} y2={line.y} stroke="rgba(255,255,255,0.055)" strokeDasharray="2 4" />
-            <text x={CHART_WIDTH - 1} y={line.y + 3} textAnchor="end" fill="rgba(255,255,255,0.28)" fontSize="8.5" style={{ fontFamily: NUMBER_FONT }}>
+            <line x1={chart.left} x2={CHART_WIDTH - chart.right} y1={line.y} y2={line.y} stroke="rgba(255,255,255,0.052)" strokeDasharray="2 4" />
+            <text x={chart.left - 6} y={line.y + 3} textAnchor="end" fill="rgba(255,255,255,0.28)" fontSize="8.3" style={{ fontFamily: NUMBER_FONT }}>
               {formatNumber(line.value, line.value >= 1000 ? 0 : 1)}
             </text>
           </g>
         ))}
         <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
-        <path d={chart.linePath} fill="none" stroke={lineColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" filter="url(#watchlist-stock-detail-glow)" />
-        <circle cx={last.x} cy={last.y} r="3" fill={lineColor} stroke="#f8fafc" strokeWidth="0.7" />
+        {chart.maPoints.length >= 2 ? <path data-watchlist-weekly-ma-line="true" d={chart.maPath} fill="none" stroke={MA200_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
+        <path d={chart.pricePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
+        <g transform={`translate(${Math.max(chart.left, CHART_WIDTH - 55)} ${Math.max(chart.top + 2, Math.min(CHART_HEIGHT - chart.bottom - 17, last.y - 17))})`} aria-hidden="true">
+          <rect width="52" height="15" rx="5" fill="#0e3a2b" stroke="rgba(34,197,94,0.3)" strokeWidth="0.55" />
+          <text x="26" y="10.8" textAnchor="middle" fill="#72e8a2" fontSize="7.8" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(last.close, currency)}</text>
+        </g>
         {selectedPoint ? (
           <g aria-hidden="true">
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={CHART_HEIGHT - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill="#f6b54b" opacity="0.13" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#05070b" stroke="#ffd18a" strokeWidth="1.25" />
+            {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={MA200_WEEK_COLOR} strokeWidth="1.1" /> : null}
           </g>
         ) : null}
         {labels.map(({ index, point, label }) => (
-          <text key={`${point.date}-${index}`} x={point.x} y={CHART_HEIGHT - 3} textAnchor={index === 0 ? 'start' : index === chart.points.length - 1 ? 'end' : 'middle'} fill="rgba(255,255,255,0.25)" fontSize="8.2" style={{ fontFamily: NUMBER_FONT }}>{label}</text>
+          <text key={`${point.date}-${index}`} x={point.x} y={CHART_HEIGHT - 3} textAnchor={index === 0 ? 'start' : index === chart.pricePoints.length - 1 ? 'end' : 'middle'} fill="rgba(255,255,255,0.25)" fontSize="8.2" style={{ fontFamily: NUMBER_FONT }}>{label}</text>
         ))}
       </svg>
       {selectedPoint ? (
         <div
           data-watchlist-stock-price-tooltip="true"
-          className={`pointer-events-none absolute top-2 w-[178px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > CHART_WIDTH * 0.56 ? 'left-2' : 'right-2'}`}
+          className={`pointer-events-none absolute top-2 w-[188px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > CHART_WIDTH * 0.56 ? 'left-8' : 'right-2'}`}
         >
           <div className="text-[9px] text-white/[0.42]">{formatDate(selectedPoint.date, language, { year: true })} · {t(language, 'watchlistDetail.chartClose', '收盘')}</div>
           <div className="mt-1 text-[18px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(selectedPoint.close, currency)}</div>
           <div className="mt-1 flex items-center justify-between gap-2 text-[9px]">
-            <span className="text-white/[0.3]">{t(language, 'watchlistDetail.dailyChange', '当日涨跌')}</span>
+            <span className="text-white/[0.3]">{range === '5y' ? t(language, 'watchlistDetail.weeklyChange', '周涨跌') : t(language, 'watchlistDetail.dailyChange', '当日涨跌')}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: marketHexColor(selectedChange || 0, marketColorMode), fontFamily: NUMBER_FONT }}>
               {selectedChange === null ? '--' : `${selectedChange >= 0 ? '+' : ''}${formatNumber(selectedChange)}  ${formatSignedPercent(selectedChangePct)}`}
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px]">
+            <span className="text-white/[0.3]">{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</span>
+            <span className="whitespace-nowrap text-[#f6b54b] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              {selectedMaRow?.ma200 > 0 ? `${formatCurrency(selectedMaRow.ma200, currency)} · ${formatSignedPercent(selectedMaDistance)}` : '--'}
             </span>
           </div>
         </div>
@@ -289,12 +336,12 @@ function PriceChart({ rows, range, currency, language, marketColorMode, symbol, 
   );
 }
 
-function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)', compact = false }) {
+function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)' }) {
   return (
-    <div className="min-w-0 overflow-hidden px-3 py-3">
-      <div className={compact ? 'min-h-[26px] overflow-hidden pr-1 text-[9.5px] leading-[13px] text-white/[0.37]' : 'overflow-hidden text-ellipsis whitespace-nowrap text-[10.5px] text-white/[0.37]'}>{label}</div>
-      <div className={`${compact ? 'mt-1 text-[16px]' : 'mt-1.5 text-[17px]'} overflow-hidden text-ellipsis whitespace-nowrap font-normal tabular-nums`} style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
-      <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-white/[0.29]">{detail}</div>
+    <div className="min-w-0 overflow-hidden text-center">
+      <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-white/[0.36]">{label}</div>
+      <div className="mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-[15px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
+      <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] text-white/[0.26]">{detail}</div>
     </div>
   );
 }
@@ -435,7 +482,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     watchlistStockDetailTargetEditorOpen = false,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
-  const [range, setRange] = React.useState('1m');
+  const [range, setRange] = React.useState('5y');
   const [stockDetail, setStockDetail] = React.useState(() => watchlistStockDetailDataOverride?.stockDetail || watchlistStockDetailDataOverride || null);
   const [earningsEvents, setEarningsEvents] = React.useState(() => watchlistStockDetailEarningsOverride || []);
   const [loading, setLoading] = React.useState(!watchlistStockDetailDataOverride);
@@ -525,7 +572,20 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   }, [loading, watchlistStockDetailFocusSection]);
 
   const history = React.useMemo(() => normalizeStockDetailHistory(stockDetail?.history), [stockDetail?.history]);
-  const visibleHistory = React.useMemo(() => filterStockDetailHistory(history, range), [history, range]);
+  const weeklyHistory = React.useMemo(
+    () => normalizeStockDetailWeeklyHistory(stockDetail?.weeklyHistory),
+    [stockDetail?.weeklyHistory],
+  );
+  const visibleDailyHistory = React.useMemo(() => filterStockDetailHistory(history, range), [history, range]);
+  const visibleWeeklyHistory = React.useMemo(
+    () => filterStockDetailWeeklyHistory(weeklyHistory, range),
+    [range, weeklyHistory],
+  );
+  const visibleHistory = React.useMemo(() => (
+    range === '5y'
+      ? visibleWeeklyHistory.map(({ date, close }) => ({ date, close }))
+      : visibleDailyHistory
+  ), [range, visibleDailyHistory, visibleWeeklyHistory]);
   const close = React.useMemo(() => resolveStockDetailClose(history), [history]);
   const indicators = stockDetail?.indicators || {};
   const portfolioCurrency = String(portfolioCurrencyMode || '').toUpperCase() === 'CNY' ? 'CNY' : 'USD';
@@ -562,11 +622,20 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const high52 = positiveNumber(indicators?.week52High);
   const ma200 = positiveNumber(indicators?.ma200);
   const ema30 = positiveNumber(indicators?.ema30);
-  const volatility = finiteNumber(indicators?.volatility20AnnualizedPct);
+  const ma200Weekly = positiveNumber(indicators?.ma200Weekly);
+  const ma200WeeklyDistance = finiteNumber(indicators?.ma200WeeklyDistancePct);
+  const ma200WeeklyChange4Week = finiteNumber(indicators?.ma200WeeklyChange4WeekPct);
+  const ma200WeeklySide = ['above', 'below', 'equal'].includes(indicators?.ma200WeeklySide)
+    ? indicators.ma200WeeklySide
+    : null;
+  const ma200WeeklyStreakWeeks = finiteNumber(indicators?.ma200WeeklyStreakWeeks);
+  const ma200WeeklyAvailableWeeks = Math.max(0, finiteNumber(indicators?.ma200WeeklyAvailableWeeks) || 0);
+  const ma200WeeklyRequiredWeeks = Math.max(1, finiteNumber(indicators?.ma200WeeklyRequiredWeeks) || 200);
+  const ma200WeeklyAsOfDate = dateKey(indicators?.ma200WeeklyAsOfDate);
+  const ma200WeeklyStatus = String(indicators?.ma200WeeklyStatus || 'unavailable');
   const distance52 = high52 && close.closeUsd ? ((close.closeUsd / high52) - 1) * 100 : null;
   const distanceMa200 = ma200 && close.closeUsd ? ((close.closeUsd / ma200) - 1) * 100 : null;
   const distanceEma30 = ema30 && close.closeUsd ? ((close.closeUsd / ema30) - 1) * 100 : null;
-  const englishMode = language === 'en';
   const marketDate = getNewYorkEarningsClock(Date.now()).date;
   const earnings = resolveEarningsEvents(earningsEvents, symbol, marketDate);
   const upcomingDate = dateKey(earnings.upcoming?.reportDate);
@@ -574,6 +643,22 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const upcomingSession = normalizeEarningsSession(earnings.upcoming?.session);
   const latestReaction = finiteNumber(earnings.latestPublished?.marketReactionPercent);
   const latestSession = normalizeEarningsSession(earnings.latestPublished?.session);
+  const weeklyPanelReady = !loading
+    && ma200WeeklyStatus === 'ready'
+    && ma200Weekly !== null
+    && ma200WeeklyDistance !== null;
+  const weeklySideLabel = ma200WeeklySide === 'above'
+    ? t(language, 'watchlistDetail.weeklyAbove', '长期趋势上方')
+    : ma200WeeklySide === 'below'
+      ? t(language, 'watchlistDetail.weeklyBelow', '长期趋势下方')
+      : t(language, 'watchlistDetail.weeklyEqual', '位于长期均线');
+  const weeklyStreakLabel = ma200WeeklyStreakWeeks === null || !ma200WeeklySide
+    ? '--'
+    : ma200WeeklySide === 'above'
+      ? t(language, 'watchlistDetail.weeklyAboveStreak', '上方 {{weeks}} 周', { weeks: Math.round(ma200WeeklyStreakWeeks) })
+      : ma200WeeklySide === 'below'
+        ? t(language, 'watchlistDetail.weeklyBelowStreak', '下方 {{weeks}} 周', { weeks: Math.round(ma200WeeklyStreakWeeks) })
+        : t(language, 'watchlistDetail.weeklyEqualStreak', '持平 {{weeks}} 周', { weeks: Math.round(ma200WeeklyStreakWeeks) });
 
   const saveTarget = async (targetUsd) => {
     if (!(targetUsd > 0) || typeof saveWatchlistStockTarget !== 'function') {
@@ -634,15 +719,19 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           </div>
         </div>
 
-        <div className="mt-3 min-w-0">
-          <PriceChart rows={visibleHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
-        </div>
-        <div className="mt-1 grid grid-cols-4 gap-1 border-t border-white/[0.06] pt-2">
+        <div className="mt-4 grid grid-cols-5 gap-1" data-watchlist-stock-chart-ranges="five">
           {RANGE_IDS.map((item) => (
-            <button key={item} type="button" onClick={() => setRange(item)} className={`h-7 rounded-lg px-1.5 text-[10px] transition active:scale-95 ${range === item ? 'bg-white/[0.08] text-white/[0.74]' : 'text-white/[0.3]'}`}>
+            <button key={item} type="button" onClick={() => setRange(item)} className={`h-8 rounded-lg border px-1.5 text-[10.5px] transition active:scale-95 ${range === item ? 'border-[#f6b54b]/20 bg-[#f6b54b]/[0.11] text-[#ffd18a]' : 'border-transparent text-white/[0.34]'}`}>
               {t(language, `watchlistDetail.range.${item}`, item.toUpperCase())}
             </button>
           ))}
+        </div>
+        <div className="mt-2 min-w-0">
+          <PriceChart rows={visibleHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
+        </div>
+        <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-watchlist-stock-chart-legend="price-weekly-ma">
+          <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#22c55e]" />{t(language, 'watchlistDetail.priceLegend', '股价')}</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#f6b54b]" />{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</span>
         </div>
       </section>
 
@@ -659,13 +748,56 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </button>
       ) : null}
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <SectionHeading title={t(language, 'watchlistDetail.technicalIndicators', '关键指标')} />
-        <div className="grid grid-cols-2 divide-x divide-y divide-white/[0.06]">
-          <MetricCell compact={englishMode} label={t(language, 'watchlistDetail.distance52High', '距52周高点')} value={formatSignedPercent(distance52)} detail={t(language, 'watchlistDetail.highValue', '高点 {{price}}', { price: formatCurrency(high52, stockCurrency) })} color={marketHexColor(distance52 || 0, marketColorMode)} />
-          <MetricCell compact={englishMode} label={t(language, 'watchlistDetail.distanceMa200', '距MA200')} value={formatSignedPercent(distanceMa200)} detail={t(language, 'watchlistDetail.ma200Value', 'MA200 {{price}}', { price: formatCurrency(ma200, stockCurrency) })} color={marketHexColor(distanceMa200 || 0, marketColorMode)} />
-          <MetricCell compact={englishMode} label={t(language, 'watchlistDetail.distanceEma30', '距EMA30')} value={formatSignedPercent(distanceEma30)} detail={t(language, 'watchlistDetail.ema30Value', 'EMA30 {{price}}', { price: formatCurrency(ema30, stockCurrency) })} color={marketHexColor(distanceEma30 || 0, marketColorMode)} />
-          <MetricCell compact={englishMode} label={t(language, 'watchlistDetail.volatility20d', '20日年化波动率')} value={volatility === null ? '--' : `${formatNumber(volatility, 1)}%`} detail={t(language, 'watchlistDetail.basedOnRegularClose', '基于收盘价')} color={SOFT_GOLD} />
+      <section data-watchlist-detail-section="weekly-ma" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-key-metrics="spacious">
+        <div className="px-4 pb-2 pt-4">
+          <h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.technicalIndicators', '关键指标')}</h2>
+        </div>
+        <div className="grid grid-cols-3 gap-3 px-4 pb-4 pt-2" data-watchlist-daily-metrics="borderless">
+          <MetricCell label={t(language, 'watchlistDetail.distance52High', '距52周高点')} value={formatSignedPercent(distance52)} detail={t(language, 'watchlistDetail.highValue', '高点 {{price}}', { price: formatCurrency(high52, stockCurrency) })} color={marketHexColor(distance52 || 0, marketColorMode)} />
+          <MetricCell label={t(language, 'watchlistDetail.distanceMa200Daily', '距MA200（日）')} value={formatSignedPercent(distanceMa200)} detail={t(language, 'watchlistDetail.ma200DailyValue', '日线 {{price}}', { price: formatCurrency(ma200, stockCurrency) })} color={marketHexColor(distanceMa200 || 0, marketColorMode)} />
+          <MetricCell label={t(language, 'watchlistDetail.distanceEma30Daily', '距EMA30（日）')} value={formatSignedPercent(distanceEma30)} detail={t(language, 'watchlistDetail.ema30DailyValue', '日线 {{price}}', { price: formatCurrency(ema30, stockCurrency) })} color={marketHexColor(distanceEma30 || 0, marketColorMode)} />
+        </div>
+
+        <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="text-[13px] font-normal text-white/[0.76]">{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</h3>
+            <span className="rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.longTermTrend', '长期趋势')}</span>
+            {weeklyPanelReady ? <span className="ml-auto text-[9px] text-white/[0.28]">{t(language, 'watchlistDetail.weeklyCloseLocked', '周收盘锁定')}</span> : null}
+          </div>
+
+          {loading ? (
+            <div className="py-7 text-center text-[10.5px] text-white/[0.32]">{t(language, 'watchlistDetail.weeklyLoading', '正在读取长期周线')}</div>
+          ) : weeklyPanelReady ? (
+            <>
+              <div className="mt-3 flex items-end justify-between gap-4">
+                <div>
+                  <div className="text-[9.5px] text-white/[0.32]">{t(language, 'watchlistDetail.distanceMa200Weekly', '距200周均线')}</div>
+                  <div className="mt-1 text-[22px] font-normal tabular-nums" style={{ color: marketHexColor(ma200WeeklyDistance || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(ma200WeeklyDistance)}</div>
+                </div>
+                <div className="pb-0.5 text-right">
+                  <div className="text-[12px]" style={{ color: marketHexColor(ma200WeeklyDistance || 0, marketColorMode) }}>{weeklySideLabel}</div>
+                  <div className="mt-1 text-[9px] text-white/[0.27]">{t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                <div><div className="text-[8.5px] text-white/[0.27]">{t(language, 'watchlistDetail.weeklyMaValueLabel', '200周均线')}</div><div className="mt-1 text-[11.5px] text-white/[0.65] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(ma200Weekly, stockCurrency)}</div></div>
+                <div className="text-center"><div className="text-[8.5px] text-white/[0.27]">{t(language, 'watchlistDetail.weeklyChange4', '近4周变化')}</div><div className="mt-1 text-[11.5px] tabular-nums" style={{ color: marketHexColor(ma200WeeklyChange4Week || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(ma200WeeklyChange4Week)}</div></div>
+                <div className="text-right"><div className="text-[8.5px] text-white/[0.27]">{t(language, 'watchlistDetail.consecutiveStatus', '连续状态')}</div><div className="mt-1 text-[11.5px] text-white/[0.65]">{weeklyStreakLabel}</div></div>
+              </div>
+
+              <div className="mt-3.5 text-[8.5px] text-white/[0.22]">{t(language, 'watchlistDetail.weeklyUpdatedComplete', '更新至 {{date}} 周收盘 · 200周数据完整', { date: formatDate(ma200WeeklyAsOfDate, language) })}</div>
+            </>
+          ) : (
+            <div className="py-7 text-center">
+              <div className="text-[11px] text-white/[0.48]">
+                {ma200WeeklyStatus === 'insufficient_data'
+                  ? t(language, 'watchlistDetail.weeklyInsufficient', '历史不足 · 已取得 {{available}}/{{required}} 周', { available: Math.min(ma200WeeklyAvailableWeeks, ma200WeeklyRequiredWeeks), required: ma200WeeklyRequiredWeeks })
+                  : t(language, 'watchlistDetail.weeklyUnavailable', '长期周线暂不可用')}
+              </div>
+              <div className="mt-1.5 text-[9px] text-white/[0.24]">{t(language, 'watchlistDetail.noSyntheticWeekly', '不会补造均线或趋势结论')}</div>
+            </div>
+          )}
         </div>
       </section>
 
