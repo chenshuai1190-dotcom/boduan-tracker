@@ -592,9 +592,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.366'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.366', date: '2026-07-20', latest: true"), 'latest changelog entry should match the visible settings version');
-  assert.ok(settingsChangelogSource.includes('股票趋势信息结构调整') && settingsChangelogSource.includes('撤下“基本信息”模块及其专用接口与本地缓存') && settingsChangelogSource.includes('关键事件紧随目标价'), 'settings changelog should document the fundamentals removal and approved module order');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.367'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.367', date: '2026-07-20', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('股票趋势基本信息恢复') && settingsChangelogSource.includes('模块标题由“公司基本信息”简化为“基本信息”') && settingsChangelogSource.includes('保留目标价、关键事件、我的持仓的新顺序'), 'settings changelog should document the restored fundamentals, shortened title, and preserved module order');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.366', date: '2026-07-20'") && settingsChangelogSource.includes('撤下“基本信息”模块及其专用接口与本地缓存'), 'settings changelog should preserve the shipped removal release as history');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.365', date: '2026-07-20'") && settingsChangelogSource.includes('股票趋势公司基本面'), 'settings changelog should preserve the prior shipped release as history');
   assert.ok(settingsChangelogSource.includes('首页返回位置记忆') && settingsChangelogSource.includes('通过页头返回或详情页底部“首页”返回时恢复原位') && settingsChangelogSource.includes('双击“首页”仍平滑回顶并清除旧记忆'), 'settings changelog should document both return paths and the preserved double-tap behavior');
   assert.ok(settingsChangelogSource.includes('个股相对 QQQ 三个月表现') && settingsChangelogSource.includes('相同的共同交易日起止点和复权收盘价') && settingsChangelogSource.includes('15 分钟会话缓存'), 'settings changelog should document the QQQ relative-return basis, fail-closed behavior, and bounded cache');
@@ -2450,7 +2451,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.366'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.367'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

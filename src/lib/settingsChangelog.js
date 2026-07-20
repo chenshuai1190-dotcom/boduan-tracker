@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.366', date: '2026-07-20', latest: true,
+    ver: 'v10.7.9.367', date: '2026-07-20', latest: true,
+    items: [
+      '🔄 股票趋势基本信息恢复',
+      '  - 在关键指标下方恢复六项公司基本面，模块标题由“公司基本信息”简化为“基本信息”',
+      '  - 恢复独立鉴权请求和按用户隔离的约 6 小时缓存；缺失或季度不完整仍显示“—”，失败不阻塞走势图',
+      '  - 保留目标价、关键事件、我的持仓的新顺序，以及 iOS 走势图横滑禁选修复',
+    ],
+    itemsEn: [
+      '🔄 Stock Trend fundamentals restored',
+      '  - Restored the six company fundamentals below Key Indicators, with the Chinese section title shortened to “基本信息”',
+      '  - Restored the separate authenticated request and approximately six-hour per-user cache; missing or incomplete quarters still show “—” without blocking the chart',
+      '  - Preserved the Target Price, Key Events, and My Position order together with the iOS chart selection guard',
+    ],
+  },
+  {
+    ver: 'v10.7.9.366', date: '2026-07-20',
     items: [
       '🧹 股票趋势信息结构调整',
       '  - 撤下“基本信息”模块及其专用接口与本地缓存，避免将不同数据源的远期市盈率误作同一动态口径',
