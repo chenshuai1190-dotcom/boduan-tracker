@@ -10,27 +10,27 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 生产运行时代码 | `2432d4c1d49ac808dbad3fcc9454742b90621828` |
-| 设置页版本 | `v10.7.9.366` |
-| 生产入口 | `/assets/index-BAssKqUC.js` |
-| Runtime Actions | `29750118592` success |
-| Runtime Vercel | `qrgnxNt8AtKT2NF5rbT4MfKr39ak` success |
+| 生产运行时代码 | `d3882f2b9f75d6d77834e495d8ebac9b08cf1ec0` |
+| 设置页版本 | `v10.7.9.367` |
+| 生产入口 | `/assets/index-D62qP1Mi.js` |
+| Runtime Actions | `29751196355` success |
+| Runtime Vercel | `FtEMLvrE6CYZxRCDBDmMtmmyX51U` success |
 
 已验证：
 
-- `npm run check:full`：`550 / 550` PASS，Vite production build PASS；`npm run check:docs`：PASS。
-- `npm run verify:deploy-status -- 2432d4c`：PASS。
+- `npm run check:full`：`560 / 560` PASS，Vite production build PASS；基本信息定向测试 `21 / 21` PASS；`npm run check:docs`：PASS。
+- `npm run verify:deploy-status -- d3882f2`：PASS。
 - 未登录 `/api/quote?symbols=VIX`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=stock-detail`：`401`。
-- 未登录 `/api/quote?symbols=NVDA&view=fundamentals`：`401`；登录后的该专用 view 已撤下并回到不支持参数边界。
+- 未登录 `/api/quote?symbols=NVDA&view=fundamentals`：`401`；登录后的单股专用 view 已恢复，只返回本页六项基本面数据。
 - 未登录 `/api/earnings-calendar?symbols=NVDA`：`401`。
 - 未登录 `/api/pnl-benchmark?symbol=QQQ&from=2026-04-20&to=2026-07-20`：`401`。
 - 首页“自选”中只有股票图标、代码和名称区域进入独立详情页；价格、涨跌、回撤、“持仓”页和排序区域不触发。
 - 首页进入“股票趋势”前会在内存中记录根页面滚动位置；通过详情页头返回或底部“首页”返回时只恢复一次。切换其他 Tab 仍回顶，原双击“首页”平滑回顶不变并会清除旧位置；不写 localStorage，不跨刷新或账户保存。
 - 详情页股票价格、技术指标、目标价、平均成本和交易记录固定为 USD；只有持仓市值和盈亏跟随系统 USD/CNY。目标价按 `user_id + symbol` 保存，不进入交易账本或比赛计算。
 - 详情页中文标题为“股票趋势”，保留五栏底部导航和安全留白；目标价整卡按压缩放已取消，右上角“编辑”文字、铅笔和箭头已隐藏，但点击整卡编辑不变。
-- 股票趋势页已撤下“基本信息”卡片、专用 `/api/quote?view=fundamentals` 分支和按用户隔离的六小时本地缓存；财报 EBIT、市场异动股票分类和分析师数据的独立 provider 能力未受影响。
-- 当前模块顺序为走势图、关键指标、目标价、关键事件、我的持仓、最近交易记录；持仓、交易和目标价编辑边界不变。
+- 股票趋势页已恢复“基本信息”卡片，中文标题固定为“基本信息”；六项数据通过独立鉴权请求加载，并按用户与股票隔离缓存约六小时。接口失败或季度数据不完整时只显示 `—`，不阻塞走势图。
+- 当前模块顺序为走势图、关键指标、基本信息、目标价、关键事件、我的持仓、最近交易记录；持仓、交易和目标价编辑边界不变。
 - “关键事件”不再显示“自动读取”，“最近交易记录”不再显示“正式账本 · 只读”；持仓和交易数据读取边界未变。
 - 成本至目标进度保留真实有符号数值：现价低于平均成本时可显示负数，但视觉标记仍限制在 `0–100%`轨道内。
 - 公司 Logo 已与首页共用缓存和回退链；单一来源失败后会继续尝试 EODHD 大小写、FMP 和 Finnhub，成功后写入现有本地缓存。
@@ -44,13 +44,13 @@
 - MA200 周线由按需获取的十年复权收盘预热计算，只推进已完成交易周；未收盘周不会改写锁定值，行情源失败与真实历史不足分别显示“暂不可用”和周数进度。普通首页行情仍保持原 380 天历史窗口。
 - 关键指标为无分割线的 52 周高点、MA200（日）、相对 QQQ（3个月）与独立 MA200 周线详情；MA200（周）旁标签为“芒格指标”，周线面板展示距均线、近四周变化、连续状态和锁定日期。
 - 生产 `watchlist.target_price_usd numeric(18,6)` 已 database-first 迁移；正数约束、RLS、原 5 条 policy、76 条既有数据和 0 条非空目标价均完成 postflight，未改变既有行。
-- 生产 App 分包 `/assets/App-DOU4-R_M.js` 包含首页位置恢复边界；详情页分包 `/assets/WatchlistStockDetailPage-DgxVRUkp.js` 包含 iOS 禁选、相对 QQQ 三个月指标、单指横向/纵向判定、双指缩放、重置、26 周下限和“芒格指标”标记，且不再包含基本信息卡运行时标记；Settings/changelog 为 `v10.7.9.366`。
+- 生产 App 分包 `/assets/App-DKcnydNU.js` 包含首页位置恢复边界；详情页分包 `/assets/WatchlistStockDetailPage-D7gjfnG1.js` 同时包含基本信息卡、`view=fundamentals`、iOS 禁选、相对 QQQ 三个月指标、单指横向/纵向判定、双指缩放、重置、26 周下限和“芒格指标”标记；Settings 分包 `/assets/SettingsTab-CxsB7n0Y.js` 为 `v10.7.9.367`。
 - 本机真实 Xcode iOS Simulator 已验证默认五年图、联动 tooltip 与周线指标面板；截图在忽略目录 `outputs/ios-simulator/watchlist-weekly-ma-production-v360-*.png`。
 - 本次末端标签精简的 Simulator 截图：`outputs/ios-simulator/watchlist-weekly-ma-no-end-price-v361.png`。
 - 本次日/周均线切换的真实 Simulator 截图：`outputs/ios-simulator/watchlist-real-daily-ma200-1m-v1.png`、`watchlist-real-daily-ma200-tooltip-1m-v1.png` 和 `watchlist-real-weekly-ma200-5y-v1.png`。
 - 本次末端圆点呼吸效果的真实 Simulator 双帧：`outputs/ios-simulator/watchlist-endpoint-breathe-frame-a.png`、`watchlist-endpoint-breathe-frame-b.png`。
 - 本次相对 QQQ 三个月指标的真实 Simulator 截图：`outputs/ios-simulator/watchlist-relative-qqq-3m-local.png`。
-- 本次基本信息撤下与 iOS 禁选样式的真实 Simulator 启动截图：`outputs/ios-simulator/watchlist-ios-selection-guard-v366.png`；Mac 锁屏阻止了自动横滑手势，最终交互由 iPhone 真机确认。
+- iOS 禁选样式的真实 Simulator 启动截图：`outputs/ios-simulator/watchlist-ios-selection-guard-v366.png`；本次恢复没有改动图表交互，线上详情分包仍包含同一防长按 callout 保护。
 
 ## 收益比赛当前状态
 
