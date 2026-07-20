@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.365', date: '2026-07-20', latest: true,
+    ver: 'v10.7.9.366', date: '2026-07-20', latest: true,
+    items: [
+      '🧹 股票趋势信息结构调整',
+      '  - 撤下“基本信息”模块及其专用接口与本地缓存，避免将不同数据源的远期市盈率误作同一动态口径',
+      '  - 目标价调整到我的持仓上方，关键事件紧随目标价；持仓、交易、走势图与目标价编辑逻辑保持不变',
+      '  - 修复 iOS 横滑走势图时误触发文字选择和复制菜单；点击提示、页面纵向滚动及五年缩放横移保持不变',
+    ],
+    itemsEn: [
+      '🧹 Stock Trend information layout cleanup',
+      '  - Removed the Fundamentals card, its dedicated endpoint, and local cache to avoid presenting unlike forward P/E sources as one dynamic metric',
+      '  - Moved Target Price above My Position with Key Events directly below it; positions, trades, chart, and target editing remain unchanged',
+      '  - Prevented iOS chart swipes from opening native text-selection and copy menus while preserving tooltips, vertical page scrolling, and five-year zooming and panning',
+    ],
+  },
+  {
+    ver: 'v10.7.9.365', date: '2026-07-20',
     items: [
       '🏢 股票趋势公司基本面',
       '  - 关键指标下新增市值、市盈率 TTM、动态市盈率、营收增长 TTM、净利润率 TTM 与自由现金流率六项真实基本面',

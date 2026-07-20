@@ -15,7 +15,6 @@ import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/ear
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
-import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import {
   deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
@@ -120,29 +119,6 @@ function formatSignedPercent(value, digits = 2) {
   const number = finiteNumber(value);
   if (number === null) return '--';
   return `${number >= 0 ? '+' : ''}${number.toFixed(digits)}%`;
-}
-
-function formatFundamentalPercent(value, { signed = false } = {}) {
-  if (value === null || value === undefined || value === '') return '—';
-  const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
-  return `${signed && number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
-}
-
-function formatFundamentalRatio(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number.toFixed(1) : '—';
-}
-
-function formatMarketCapitalization(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return '—';
-  const unit = number >= 1e12 ? ['T', 1e12] : number >= 1e9 ? ['B', 1e9] : ['M', 1e6];
-  const scaled = number / unit[1];
-  const digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
-  return `$${scaled.toFixed(digits)}${unit[0]}`;
 }
 
 function formatCurrency(value, currency, digits = 2, { signed = false } = {}) {
@@ -596,8 +572,13 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         tabIndex={0}
         data-watchlist-stock-price-chart="true"
         aria-label={t(language, 'watchlistDetail.chartAria', '查看 {{symbol}} 股价走势', { symbol })}
-        className="relative min-w-0 cursor-crosshair rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-[#f6b54b]/45"
-        style={{ touchAction: 'pan-y' }}
+        className="relative min-w-0 cursor-crosshair select-none rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-[#f6b54b]/45"
+        style={{
+          touchAction: 'pan-y',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={(event) => finishPointer(event)}
@@ -744,69 +725,6 @@ function SectionHeading({ title, trailing }) {
   );
 }
 
-function FundamentalLabel({ children, suffix }) {
-  return (
-    <div className="min-h-4 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] text-white/[0.32]">
-      {children}
-      {suffix ? <span className="relative -top-[0.38em] ml-0.5 text-[6.5px] tracking-normal text-white/[0.22]">{suffix}</span> : null}
-    </div>
-  );
-}
-
-function FundamentalValue({ children, color = 'rgba(255,255,255,0.72)' }) {
-  return (
-    <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[15px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
-      {children}
-    </div>
-  );
-}
-
-function CompanyFundamentalsCard({ data, status, language, marketColorMode }) {
-  const revenueGrowth = data?.revenueGrowthTtmPct ?? null;
-  const revenueColor = revenueGrowth === null
-    ? 'rgba(255,255,255,0.72)'
-    : marketHexColor(revenueGrowth, marketColorMode);
-  return (
-    <section
-      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
-      data-watchlist-company-fundamentals="true"
-      data-fundamentals-status={status}
-      aria-busy={status === 'loading'}
-      aria-live="polite"
-    >
-      <div className="px-4 pb-2 pt-4">
-        <h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.companyFundamentals', '公司基本信息')}</h2>
-      </div>
-      <div className="grid grid-cols-3 gap-x-3 gap-y-[18px] px-4 pb-[17px] pt-2 text-center">
-        <div className="min-w-0">
-          <FundamentalLabel>{t(language, 'watchlistDetail.marketCap', '市值')}</FundamentalLabel>
-          <FundamentalValue>{formatMarketCapitalization(data?.marketCapitalization)}</FundamentalValue>
-        </div>
-        <div className="min-w-0">
-          <FundamentalLabel suffix="TTM">{t(language, 'watchlistDetail.peRatio', '市盈率')}</FundamentalLabel>
-          <FundamentalValue>{formatFundamentalRatio(data?.peTtm)}</FundamentalValue>
-        </div>
-        <div className="min-w-0">
-          <FundamentalLabel suffix={t(language, 'watchlistDetail.forwardSuffix', '动')}>{t(language, 'watchlistDetail.peRatio', '市盈率')}</FundamentalLabel>
-          <FundamentalValue>{formatFundamentalRatio(data?.peForward)}</FundamentalValue>
-        </div>
-        <div className="min-w-0">
-          <FundamentalLabel suffix="TTM">{t(language, 'watchlistDetail.revenueGrowth', '营收增长')}</FundamentalLabel>
-          <FundamentalValue color={revenueColor}>{formatFundamentalPercent(revenueGrowth, { signed: true })}</FundamentalValue>
-        </div>
-        <div className="min-w-0">
-          <FundamentalLabel suffix="TTM">{t(language, 'watchlistDetail.netMargin', '净利润率')}</FundamentalLabel>
-          <FundamentalValue>{formatFundamentalPercent(data?.netMarginTtmPct)}</FundamentalValue>
-        </div>
-        <div className="min-w-0">
-          <FundamentalLabel>{t(language, 'watchlistDetail.freeCashFlowMargin', '自由现金流率')}</FundamentalLabel>
-          <FundamentalValue>{formatFundamentalPercent(data?.freeCashFlowMarginTtmPct)}</FundamentalValue>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function TargetEditor({
   language,
   symbol,
@@ -936,22 +854,11 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     watchlistStockDetailTargetEditorOpen = false,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
-  const hasFundamentalsOverride = Boolean(
-    watchlistStockDetailDataOverride
-    && Object.prototype.hasOwnProperty.call(watchlistStockDetailDataOverride, 'fundamentals'),
-  );
-  const initialFundamentals = hasFundamentalsOverride
-    ? watchlistStockDetailDataOverride.fundamentals
-    : null;
   const [range, setRange] = React.useState(
     RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y',
   );
   const [stockDetail, setStockDetail] = React.useState(() => watchlistStockDetailDataOverride?.stockDetail || watchlistStockDetailDataOverride || null);
   const [qqqHistory, setQqqHistory] = React.useState(() => watchlistStockDetailDataOverride?.qqqHistory || []);
-  const [fundamentals, setFundamentals] = React.useState(() => initialFundamentals || null);
-  const [fundamentalsStatus, setFundamentalsStatus] = React.useState(() => (
-    hasFundamentalsOverride ? (initialFundamentals ? 'ready' : 'unavailable') : 'loading'
-  ));
   const [earningsEvents, setEarningsEvents] = React.useState(() => watchlistStockDetailEarningsOverride || []);
   const [loading, setLoading] = React.useState(!watchlistStockDetailDataOverride);
   const [loadError, setLoadError] = React.useState(false);
@@ -1049,41 +956,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     })();
     return () => { active = false; };
   }, [fetchPnlBenchmarkRows, reloadKey, supabase, symbol, watchlistStockDetailDataOverride, watchlistStockDetailEarningsOverride]);
-
-  React.useEffect(() => {
-    if (hasFundamentalsOverride) {
-      setFundamentals(initialFundamentals || null);
-      setFundamentalsStatus(initialFundamentals ? 'ready' : 'unavailable');
-      return undefined;
-    }
-    if (!symbol || !supabase?.auth?.getSession) {
-      setFundamentals(null);
-      setFundamentalsStatus('unavailable');
-      return undefined;
-    }
-
-    let active = true;
-    setFundamentals(null);
-    setFundamentalsStatus('loading');
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data?.session?.access_token;
-        const userId = data?.session?.user?.id;
-        if (!token || !userId) throw new Error('missing session');
-        const nextFundamentals = await loadStockFundamentals({ userId, symbol, token });
-        if (!active) return;
-        setFundamentals(nextFundamentals);
-        setFundamentalsStatus('ready');
-      } catch (error) {
-        console.warn('[WatchlistStockDetail] fundamentals unavailable:', error?.message || error);
-        if (!active) return;
-        setFundamentals(null);
-        setFundamentalsStatus('unavailable');
-      }
-    })();
-    return () => { active = false; };
-  }, [hasFundamentalsOverride, initialFundamentals, supabase, symbol]);
 
   React.useEffect(() => {
     if (!watchlistStockDetailFocusSection) return undefined;
@@ -1350,40 +1222,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </section>
 
-      <CompanyFundamentalsCard
-        data={fundamentals}
-        status={fundamentalsStatus}
-        language={language}
-        marketColorMode={marketColorMode}
-      />
-
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <SectionHeading title={t(language, 'watchlistDetail.myPosition', '我的持仓')} trailing={t(language, 'watchlistDetail.updatedAtClose', '更新于 {{date}} 收盘', { date: formatDate(close.asOfDate, language) })} />
-        {position.held ? (
-          <div className="px-4 py-4">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <div className="text-[10.5px] text-white/[0.35]">{t(language, 'watchlistDetail.marketValue', '持仓市值（{{currency}}）', { currency: portfolioCurrency })}</div>
-                <div className="mt-1.5 text-[25px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatNumber(usdToDisplayCurrency(position.marketValueUsd, portfolioCurrency, portfolioRate), 2)}</div>
-              </div>
-              <div className="pb-0.5 text-right">
-                <div className="text-[10.5px] text-white/[0.35]">{t(language, 'watchlistDetail.currentPnl', '当前盈亏')}</div>
-                <div className="mt-1 text-[14px] tabular-nums" style={{ color: marketHexColor(position.pnlUsd || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatCurrency(usdToDisplayCurrency(position.pnlUsd, portfolioCurrency, portfolioRate), portfolioCurrency, 2, { signed: true })}</div>
-                <div className="mt-0.5 text-[10.5px] tabular-nums" style={{ color: marketHexColor(position.pnlPercent || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(position.pnlPercent)}</div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06] pt-3">
-              <div className="pr-3"><div className="text-[9.5px] text-white/[0.31]">{t(language, 'watchlistDetail.heldShares', '持仓数量')}</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatShares(position.shares)} {t(language, 'watchlistDetail.shares', '股')}</div></div>
-              <div className="px-3"><div className="text-[9.5px] text-white/[0.31]">{t(language, 'watchlistDetail.averageCost', '平均成本')}</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(position.averageCostUsd, stockCurrency)}</div></div>
-              <div className="pl-3"><div className="text-[9.5px] text-white/[0.31]">{t(language, 'watchlistDetail.allocation', '仓位占比')}</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{position.allocationPercent === null ? '--' : `${formatNumber(position.allocationPercent, 2)}%`}</div></div>
-            </div>
-            <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.055]"><div className="h-full rounded-full bg-[#f6b54b]/80" style={{ width: `${Math.max(0, Math.min(100, position.allocationPercent || 0))}%` }} /></div>
-          </div>
-        ) : (
-          <div className="px-4 py-5 text-center text-[11px] text-white/[0.32]">{t(language, 'watchlistDetail.noPosition', '当前没有持仓')}</div>
-        )}
-      </section>
-
       <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
           <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[9px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
@@ -1412,6 +1250,33 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           <div className="px-3 text-center"><Clock3 className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">{t(language, 'watchlistDetail.earningsCountdown', '距离财报')}</div><div className="mt-1 text-[13px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{countdown === null ? '--' : t(language, 'watchlistDetail.days', '{{days}} 天', { days: countdown })}</div><div className="mt-0.5 text-[9px] text-white/[0.25]">{earnings.upcoming ? quarterLabel(earnings.upcoming, language) : t(language, 'watchlistDetail.noEarnings', '暂无财报日程')}</div></div>
           <div className="px-3 text-center"><TrendingUp className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">{t(language, 'watchlistDetail.latestEarningsReaction', '最近财报反应')}</div><div className="mt-1 text-[13px] tabular-nums" style={{ color: marketHexColor(latestReaction || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(latestReaction)}</div><div className="mt-0.5 text-[9px] text-white/[0.25]">{latestSession === 'pre' ? t(language, 'watchlistDetail.preMarketMove', '盘前涨跌') : latestSession === 'post' ? t(language, 'watchlistDetail.postMarketMove', '盘后涨跌') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
         </div>
+      </section>
+
+      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+        <SectionHeading title={t(language, 'watchlistDetail.myPosition', '我的持仓')} trailing={t(language, 'watchlistDetail.updatedAtClose', '更新于 {{date}} 收盘', { date: formatDate(close.asOfDate, language) })} />
+        {position.held ? (
+          <div className="px-4 py-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <div className="text-[10.5px] text-white/[0.35]">{t(language, 'watchlistDetail.marketValue', '持仓市值（{{currency}}）', { currency: portfolioCurrency })}</div>
+                <div className="mt-1.5 text-[25px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatNumber(usdToDisplayCurrency(position.marketValueUsd, portfolioCurrency, portfolioRate), 2)}</div>
+              </div>
+              <div className="pb-0.5 text-right">
+                <div className="text-[10.5px] text-white/[0.35]">{t(language, 'watchlistDetail.currentPnl', '当前盈亏')}</div>
+                <div className="mt-1 text-[14px] tabular-nums" style={{ color: marketHexColor(position.pnlUsd || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatCurrency(usdToDisplayCurrency(position.pnlUsd, portfolioCurrency, portfolioRate), portfolioCurrency, 2, { signed: true })}</div>
+                <div className="mt-0.5 text-[10.5px] tabular-nums" style={{ color: marketHexColor(position.pnlPercent || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(position.pnlPercent)}</div>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06] pt-3">
+              <div className="pr-3"><div className="text-[9.5px] text-white/[0.31]">{t(language, 'watchlistDetail.heldShares', '持仓数量')}</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatShares(position.shares)} {t(language, 'watchlistDetail.shares', '股')}</div></div>
+              <div className="px-3"><div className="text-[9.5px] text-white/[0.31]">{t(language, 'watchlistDetail.averageCost', '平均成本')}</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(position.averageCostUsd, stockCurrency)}</div></div>
+              <div className="pl-3"><div className="text-[9.5px] text-white/[0.31]">{t(language, 'watchlistDetail.allocation', '仓位占比')}</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{position.allocationPercent === null ? '--' : `${formatNumber(position.allocationPercent, 2)}%`}</div></div>
+            </div>
+            <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.055]"><div className="h-full rounded-full bg-[#f6b54b]/80" style={{ width: `${Math.max(0, Math.min(100, position.allocationPercent || 0))}%` }} /></div>
+          </div>
+        ) : (
+          <div className="px-4 py-5 text-center text-[11px] text-white/[0.32]">{t(language, 'watchlistDetail.noPosition', '当前没有持仓')}</div>
+        )}
       </section>
 
       <section data-watchlist-detail-section="trades" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
