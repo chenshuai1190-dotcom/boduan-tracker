@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.367', date: '2026-07-20', latest: true,
+    ver: 'v10.7.9.368', date: '2026-07-22', latest: true,
+    items: [
+      '📐 首页净资产与融资情景测算',
+      '  - 首页资产卡改为净资产主值，并同时展示总资产、融资负债与实时杠杆倍数；币种切换只改变展示金额',
+      '  - 融资负债区域可打开双向情景测算：六个正负快捷值保持一排，连续滑杆下跌最低 -100%、上涨不设上限',
+      '  - 情景只作用于股票持仓，现金与融资负债保持不变；总资产、净资产和杠杆同步计算并跟随系统涨跌配色',
+      '  - 融资余额仅按当前用户保存，不进入正式交易、比赛排行榜或收益报表',
+    ],
+    itemsEn: [
+      '📐 Home net assets and margin scenarios',
+      '  - The Home asset card now leads with net assets while also showing total assets, margin debt, and live leverage; currency switching changes display amounts only',
+      '  - The margin debt area opens two-way scenario analysis with six signed presets in one row and a continuous control floored at -100% with no upside cap',
+      '  - Scenarios affect stock positions only while cash and margin debt stay fixed; total assets, net assets, and leverage update together using the selected market color mode',
+      '  - Margin balance remains private to the current user and stays out of formal trades, competition rankings, and P&L reports',
+    ],
+  },
+  {
+    ver: 'v10.7.9.367', date: '2026-07-20',
     items: [
       '🔄 股票趋势基本信息恢复',
       '  - 在关键指标下方恢复六项公司基本面，模块标题由“公司基本信息”简化为“基本信息”',

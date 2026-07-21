@@ -936,6 +936,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('stockDetailCurrency') === 'CNY'
     ? 'CNY'
     : 'USD';
+  const homeMarginPreview = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('homeMargin') || '';
+  const [homeCurrencyMode, setHomeCurrencyMode] = React.useState(stockDetailCurrencyPreview);
+  const [previewMarginDebtUsd, setPreviewMarginDebtUsd] = React.useState(3_000_000 / 7.215);
   const stockReturnComparisonSharePreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailShare') === '1';
   const stockReturnComparisonMethodPreview = typeof window !== 'undefined'
@@ -1525,14 +1530,17 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fgiWeek: 36,
     fgiYear: 42,
     fmtPct: null,
+    homeMarginPreview,
     homeWatchlist,
     indices: previewMarketIndices,
     marketIndices: previewMarketIndices,
     investmentSummary: {
       activePositions: previewActivePositions,
       positions: [],
+      positionsMarketValue: 3365931,
+      cashUsd: 0,
       totalAssetsUsd: 3365931,
-      totalAssetsCny: 24286383.55,
+      totalAssetsCny: 24285192.165,
       todayPnl: -1485.6,
       todayPnlPct: -0.0004,
       cumulativePnl: 118433.6,
@@ -1544,6 +1552,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     language,
     Loader2,
     logoCache: {},
+    marginStatus: { currentMargin: previewMarginDebtUsd, marginLimit: 0 },
+    marginStatusReady: true,
     marketColorMode,
     newStock,
     openPnlReport: () => setActiveTab('pnl-report'),
@@ -1551,17 +1561,22 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     openStockDetail: () => setActiveTab('stock-detail'),
     closeStockDetail: () => setActiveTab('trades'),
     pnlReportTooltipDate,
-    portfolioCurrencyMode: stockDetailCurrencyPreview,
+    portfolioCurrencyMode: homeCurrencyMode,
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
     RefreshCw,
     reorderWatchlist: async (next) => {
       setHomeWatchlist(next);
       return { success: true };
     },
+    saveMarginDebt: async (nextDebtUsd) => {
+      setPreviewMarginDebtUsd(Number(nextDebtUsd));
+      return { currentMargin: Number(nextDebtUsd), marginLimit: 0 };
+    },
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setLanguage,
     setNewStock,
+    setPortfolioCurrencyMode: setHomeCurrencyMode,
     setShowAddStock,
     showAddStock,
     stockDetailSymbol: 'NVDA',

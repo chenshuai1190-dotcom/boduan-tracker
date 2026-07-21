@@ -14,7 +14,9 @@ import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
 import { stockLogoCandidates } from '../lib/stockLogo.js';
+import { deriveHomeMarginOverview, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import HomeMarginRiskSheet from '../components/HomeMarginRiskSheet.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -71,6 +73,17 @@ function fmtSignedCurrency(value, currency = 'USD', digits = 2) {
 function fmtSignedPct(value, digits = 2) {
   const n = num(value) * 100;
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
+}
+
+function splitSignedCurrencyAmount(value, currency = 'USD', digits = 2) {
+  const numeric = Number(value);
+  const safeValue = Number.isFinite(numeric) ? numeric : 0;
+  const parts = splitCurrencyAmount(Math.abs(safeValue), currency, digits);
+  return safeValue < 0 ? { ...parts, main: `-${parts.main}` } : parts;
+}
+
+function fmtLeverage(value) {
+  return Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
 }
 
 function fmtMarketPct(value) {
@@ -476,12 +489,15 @@ export default function HomeTab({ ctx }) {
     fgiWeek,
     fgiYear,
     fmtPct,
+    homeMarginPreview = '',
     homeWatchlist,
     indices,
     investmentSummary,
     language = 'zh',
     Loader2,
     logoCache,
+    marginStatus,
+    marginStatusReady = true,
     marketColorMode,
     marketIndices,
     newStock,
@@ -491,6 +507,7 @@ export default function HomeTab({ ctx }) {
     quoteRows,
     RefreshCw,
     reorderWatchlist,
+    saveMarginDebt,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setNewStock,
@@ -522,6 +539,7 @@ export default function HomeTab({ ctx }) {
   const [editActionKey, setEditActionKey] = React.useState(null);
   const [editNotice, setEditNotice] = React.useState(null);
   const [pendingDeleteSymbol, setPendingDeleteSymbol] = React.useState(null);
+  const [showMarginRisk, setShowMarginRisk] = React.useState(() => ['risk', 'editor'].includes(homeMarginPreview));
   const [benchmarkSortDirection, setBenchmarkSortDirection] = React.useState(null);
   const [tableSorts, setTableSorts] = React.useState({
     watchlist: { key: null, direction: 'desc' },
@@ -592,7 +610,14 @@ export default function HomeTab({ ctx }) {
   const displayCurrencyLabel = isCnyMode ? 'CNY' : 'USD';
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
-  const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
+  const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
+  const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
+    totalAssetsUsd: summary.totalAssetsUsd,
+    marginDebtUsd,
+  }), [marginDebtUsd, summary.totalAssetsUsd]);
+  const displayNetAssets = marginOverview.netAssetsUsd * displayRate;
+  const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2);
+  const displayMarginDebt = marginOverview.marginDebtUsd * displayRate;
   const hasTodayPnl = summary.hasTodayPnl !== false;
   const displayTodayPnl = hasTodayPnl ? summary.todayPnl * displayRate : null;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
@@ -963,9 +988,9 @@ export default function HomeTab({ ctx }) {
         }
       `}</style>
 
-      <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-home-net-assets-card="true">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 text-[13px] font-normal text-white/70">{t(language, 'home.totalAssets', '总资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+          <div className="min-w-0 text-[13px] font-normal text-white/70">{t(language, 'home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
           <div className="ml-auto flex justify-end">
             <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
               {['USD', 'CNY'].map((mode) => (
@@ -992,12 +1017,22 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
 
-        <div className="mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-          <span>{displayAssetMoney.main}</span>
-          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
+        <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }} data-home-net-assets="true">
+          {marginStatusReady ? (
+            <>
+              <span>{displayAssetMoney.main}</span>
+              <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
+            </>
+          ) : (
+            <span className="text-white/30">--</span>
+          )}
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-[12px] text-white/42" data-home-total-assets="true">
+          <span>{t(language, 'home.totalAssets', '总资产')}</span>
+          <span className="truncate text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtCurrency(displayAssets, displayCurrency, 2)}</span>
         </div>
         <div
-          className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10"
+          className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10 border-t border-white/[0.07] pt-4"
         >
           <div className="min-w-0 pr-3">
             <div className="text-[12px] text-white/50">{t(language, 'home.todayPnl', '今日盈亏')}</div>
@@ -1023,12 +1058,24 @@ export default function HomeTab({ ctx }) {
               {fmtSignedPct(summary.cumulativePnlPct, 2)}
             </div>
           </button>
-          <div className="min-w-0 pl-3">
-            <div className="text-[12px] text-white/50">{t(language, 'home.positions', '持仓数量')}</div>
-            <div className={`mt-3 whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>
-              {t(language, 'home.holdingsTrades', '{{holdings}}只 · {{trades}}笔', { holdings: summary.holdingStockCount, trades: summary.sellTradeCount })}
+          <button
+            type="button"
+            disabled={!marginStatusReady}
+            onClick={() => setShowMarginRisk(true)}
+            className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+            data-home-margin-trigger="true"
+          >
+            <div className="flex items-center gap-0.5 text-[12px] text-white/50">
+              <span>{t(language, 'home.marginDebt', '融资负债')}</span>
+              <ChevronRight className="h-3 w-3 text-white/28" />
             </div>
-          </div>
+            <div className={`mt-2 truncate ${englishMode ? 'text-[11px]' : 'text-[12px]'} font-normal leading-tight text-white/90 tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
+              {marginStatusReady ? fmtCurrency(displayMarginDebt, displayCurrency, 2) : '--'}
+            </div>
+            <div className="mt-1 truncate text-[11px] text-white/42 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              {t(language, 'home.leverage', '杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
+            </div>
+          </button>
         </div>
       </section>
 
@@ -1727,6 +1774,22 @@ export default function HomeTab({ ctx }) {
             </div>
           </div>
         </div>
+      )}
+
+      {showMarginRisk && marginStatusReady && (
+        <HomeMarginRiskSheet
+          language={language}
+          currencyMode={displayCurrency}
+          usdRate={summary.usdRate}
+          totalAssetsUsd={summary.totalAssetsUsd}
+          positionsMarketValueUsd={summary.positionsMarketValue}
+          cashUsd={summary.cashUsd}
+          marginDebtUsd={marginOverview.marginDebtUsd}
+          marketColorMode={marketColorMode}
+          initialPanel={homeMarginPreview === 'editor' ? 'editor' : 'risk'}
+          onClose={() => setShowMarginRisk(false)}
+          onSaveDebtUsd={saveMarginDebt}
+        />
       )}
 
       {addStockNotice && (

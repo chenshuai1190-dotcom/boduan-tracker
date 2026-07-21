@@ -3,6 +3,7 @@ import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Tra
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
+import { normalizeMarginDebtUsd } from './lib/homeMarginRisk.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
@@ -1156,6 +1157,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     displayCurrency: 'USD',  // USD | CNY
   });
   const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 0 });
+  const [marginStatusReady, setMarginStatusReady] = useState(false);
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [yearlyActuals, setYearlyActuals] = useState([]); // [{year, actualGain, endBalance}]
@@ -1887,7 +1889,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     else console.warn(`${logLabel} ⚠️ snapshots 拉取失败, 保留本地`);
 
     if (cloudPlan) setInvestmentPlan(cloudPlan);
-    if (cloudMargin) setMarginStatus(cloudMargin);
+    if (cloudMargin !== null && cloudMargin !== undefined) {
+      setMarginStatus(cloudMargin);
+      setMarginStatusReady(true);
+    }
 
     if (cloudDisciplines !== null && cloudDisciplines !== undefined) setDisciplines(cloudDisciplines);
     else console.warn(`${logLabel} ⚠️ disciplines 拉取失败, 保留本地`);
@@ -2178,6 +2183,24 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     cashUsd: 0,
     usdRate,
   }), [localizedStockTrades, quoteRows, usdRate]);
+
+  const saveMarginDebt = useCallback(async (nextDebtUsd) => {
+    if (!marginStatusReady) throw new Error('融资余额仍在同步，请稍后重试');
+    const numericDebtUsd = Number(nextDebtUsd);
+    if (!Number.isFinite(numericDebtUsd) || numericDebtUsd < 0) {
+      throw new Error('融资余额必须是不小于 0 的有效金额');
+    }
+
+    const currentLimit = Number(marginStatus?.marginLimit);
+    const nextStatus = {
+      currentMargin: normalizeMarginDebtUsd(numericDebtUsd),
+      marginLimit: Number.isFinite(currentLimit) && currentLimit >= 0 ? currentLimit : 0,
+    };
+    const persistedStatus = await db.upsertMarginStatus(nextStatus);
+    const committedStatus = persistedStatus || nextStatus;
+    setMarginStatus(committedStatus);
+    return committedStatus;
+  }, [marginStatus, marginStatusReady]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -4682,6 +4705,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     LogOut,
     lookupStatus,
     marginStatus,
+    marginStatusReady,
     marketColorMode,
     language,
     newAccount,
@@ -4707,6 +4731,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     removeStock,
     reorderWatchlist,
     saveWatchlistStockTarget,
+    saveMarginDebt,
     reviewLogs,
     clearQuoteDiagnosticLogs,
     closePnlReport,

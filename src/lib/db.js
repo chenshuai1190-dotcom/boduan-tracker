@@ -806,13 +806,18 @@ export const fetchMarginStatus = async (preUser = null) => {
     .maybeSingle();
   if (error) {
     console.error('fetchMarginStatus 失败:', error);
-    return cacheGet(user.id, 'margin_status') || null;
+    const cachedStatus = cacheGet(user.id, 'margin_status');
+    if (cachedStatus) return cachedStatus;
+    throw error;
   }
   const status = data ? {
     currentMargin: Number(data.current_margin),
     marginLimit: Number(data.margin_limit),
-  } : null;
-  if (status) cacheSet(user.id, 'margin_status', status);
+  } : {
+    currentMargin: 0,
+    marginLimit: 0,
+  };
+  cacheSet(user.id, 'margin_status', status);
   return status;
 };
 
@@ -820,15 +825,27 @@ export const upsertMarginStatus = async (status) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
+  const currentMargin = Number(status?.currentMargin);
+  if (!Number.isFinite(currentMargin) || currentMargin < 0) {
+    throw new Error('融资余额必须是不小于 0 的有效金额');
+  }
+  const rawMarginLimit = Number(status?.marginLimit);
+  const normalizedStatus = {
+    currentMargin,
+    marginLimit: Number.isFinite(rawMarginLimit) && rawMarginLimit >= 0 ? rawMarginLimit : 0,
+  };
+
   const { error } = await supabase
     .from('margin_status')
     .upsert({
       user_id: user.id,
-      current_margin: status.currentMargin,
-      margin_limit: status.marginLimit,
+      current_margin: normalizedStatus.currentMargin,
+      margin_limit: normalizedStatus.marginLimit,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
   if (error) throw error;
+  cacheSet(user.id, 'margin_status', normalizedStatus);
+  return normalizedStatus;
 };
 
 // ============ DISCIPLINES (投资戒律) ============
