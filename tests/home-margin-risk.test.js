@@ -2,9 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  HOME_MARGIN_LOGIC_STARTED_AT,
+  HOME_MARGIN_LOGIC_VERSION,
   deriveHomeMarginOverview,
   deriveHomeMarginStress,
   displayMarginDebtToUsd,
+  homeMarginLogicUpdatedAt,
+  isLegacyHomeMarginStatus,
+  marginScenarioToTrackRatio,
+  marginTrackRatioToScenario,
   normalizeMarginDebtUsd,
 } from '../src/lib/homeMarginRisk.js';
 
@@ -22,6 +28,20 @@ test('normalizes the persisted margin debt as a finite non-negative USD amount',
   for (const invalid of [undefined, null, '', 'not-a-number', -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.equal(normalizeMarginDebtUsd(invalid), 0);
   }
+});
+
+test('identifies only records written before the Home margin logic as legacy', () => {
+  assert.equal(HOME_MARGIN_LOGIC_VERSION, 2);
+  assert.equal(HOME_MARGIN_LOGIC_STARTED_AT, '2026-07-21T20:35:57.000Z');
+  assert.equal(homeMarginLogicUpdatedAt(0), '2026-07-21T20:35:58.000Z');
+  assert.equal(homeMarginLogicUpdatedAt(Number.NaN), '2026-07-21T20:35:58.000Z');
+  assert.equal(homeMarginLogicUpdatedAt(Date.parse('2026-07-21T20:36:30.000Z')), '2026-07-21T20:36:30.000Z');
+  assert.equal(isLegacyHomeMarginStatus(null), false);
+  assert.equal(isLegacyHomeMarginStatus({ updated_at: null }), true);
+  assert.equal(isLegacyHomeMarginStatus({ updated_at: 'not-a-date' }), true);
+  assert.equal(isLegacyHomeMarginStatus({ updated_at: '2026-07-21T20:35:56.999Z' }), true);
+  assert.equal(isLegacyHomeMarginStatus({ updated_at: HOME_MARGIN_LOGIC_STARTED_AT }), true);
+  assert.equal(isLegacyHomeMarginStatus({ updated_at: '2026-07-21T20:35:57.001Z' }), false);
 });
 
 test('derives net assets and leverage without adding margin debt to total assets', () => {
@@ -67,6 +87,22 @@ test('converts only the editable margin balance from display currency to canonic
   );
   assert.equal(displayMarginDebtToUsd({ amount: -1, currency: 'CNY', usdRate: 7.2 }), null);
   assert.equal(displayMarginDebtToUsd({ amount: 'bad', currency: 'USD', usdRate: 7.2 }), null);
+});
+
+test('maps the visible slider thumb linearly from minus 100 through zero to plus 100', () => {
+  assert.equal(marginScenarioToTrackRatio(-100), 0);
+  assert.equal(marginScenarioToTrackRatio(-40), 0.3);
+  assert.equal(marginScenarioToTrackRatio(0), 0.5);
+
+  const positive82Ratio = marginScenarioToTrackRatio(82);
+  assertClose(positive82Ratio, 0.91);
+  assert.ok(positive82Ratio > 0.9, 'an 82 percent gain must visibly move the thumb close to the right edge');
+  assertClose(marginTrackRatioToScenario(positive82Ratio), 82);
+
+  assert.equal(marginScenarioToTrackRatio(100), 1);
+  assert.equal(marginTrackRatioToScenario(1), 100);
+  assert.equal(marginScenarioToTrackRatio(250), 1);
+  assert.equal(marginTrackRatioToScenario(2), 100);
 });
 
 test('supports a signed 10 percent decline and keeps the legacy declinePct input compatible', () => {
@@ -128,7 +164,7 @@ test('a positive stock scenario increases assets without changing cash', () => {
   assertClose(stress.stressedLeverage, 25_000_000 / 22_000_000);
 });
 
-test('does not cap a positive stock scenario at 100 percent', () => {
+test('caps a positive stock scenario at 100 percent', () => {
   const stress = deriveHomeMarginStress({
     totalAssetsUsd: 23_000_000,
     positionsMarketValueUsd: 20_000_000,
@@ -137,13 +173,13 @@ test('does not cap a positive stock scenario at 100 percent', () => {
     scenarioPct: 250,
   });
 
-  assert.equal(stress.normalizedScenarioPct, 250);
-  assert.equal(stress.assetChangeUsd, 50_000_000);
-  assert.equal(stress.stressedTotalAssetsUsd, 73_000_000);
-  assert.equal(stress.stressedNetAssetsUsd, 70_000_000);
-  assertClose(stress.totalAssetsChangePct, 50_000_000 / 23_000_000);
-  assert.equal(stress.netAssetsChangePct, 2.5);
-  assertClose(stress.stressedLeverage, 73_000_000 / 70_000_000);
+  assert.equal(stress.normalizedScenarioPct, 100);
+  assert.equal(stress.assetChangeUsd, 20_000_000);
+  assert.equal(stress.stressedTotalAssetsUsd, 43_000_000);
+  assert.equal(stress.stressedNetAssetsUsd, 40_000_000);
+  assertClose(stress.totalAssetsChangePct, 20_000_000 / 23_000_000);
+  assert.equal(stress.netAssetsChangePct, 1);
+  assertClose(stress.stressedLeverage, 43_000_000 / 40_000_000);
 });
 
 test('floors stock scenarios at minus 100 percent and returns null leverage when net assets are non-positive', () => {

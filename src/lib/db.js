@@ -4,6 +4,12 @@ import { supabase } from './supabase';
 import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
 import { earliestReportDate, markPnlReportDirtySafely } from './pnlReportDb';
 import { applyAccountSnapshotMutations } from './accountSnapshotMutation.js';
+import {
+  HOME_MARGIN_LOGIC_VERSION,
+  homeMarginLogicUpdatedAt,
+  isLegacyHomeMarginStatus,
+  normalizeMarginDebtUsd,
+} from './homeMarginRisk.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols';
 import { userScopedStorageKey } from './userScopedStorage.js';
 
@@ -795,6 +801,55 @@ export const upsertInvestmentPlan = async (plan) => {
 
 // ============ MARGIN_STATUS (融资状态, 每人 1 条) ============
 
+const emptyHomeMarginStatus = () => ({
+  currentMargin: 0,
+  marginLimit: 0,
+  logicVersion: HOME_MARGIN_LOGIC_VERSION,
+  updatedAt: null,
+});
+
+const mapHomeMarginStatus = (row) => ({
+  currentMargin: normalizeMarginDebtUsd(row?.current_margin),
+  marginLimit: 0,
+  logicVersion: HOME_MARGIN_LOGIC_VERSION,
+  updatedAt: row?.updated_at || null,
+});
+
+const resetLegacyHomeMarginStatus = async (user, legacyRow, retryCount = 0) => {
+  const resetAt = homeMarginLogicUpdatedAt(0);
+  let resetQuery = supabase
+    .from('margin_status')
+    .update({
+      current_margin: 0,
+      margin_limit: 0,
+      updated_at: resetAt,
+    })
+    .eq('user_id', user.id);
+
+  resetQuery = legacyRow?.updated_at == null
+    ? resetQuery.is('updated_at', null)
+    : resetQuery.eq('updated_at', legacyRow.updated_at);
+
+  const { data: resetRow, error: resetError } = await resetQuery
+    .select('*')
+    .maybeSingle();
+  if (resetError) throw resetError;
+  if (resetRow) return mapHomeMarginStatus(resetRow);
+
+  // Another device may have saved a new-model value after this read. Re-read
+  // before retrying so the legacy reset can never overwrite that newer value.
+  const { data: latestRow, error: latestError } = await supabase
+    .from('margin_status')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (latestError) throw latestError;
+  if (!latestRow) return emptyHomeMarginStatus();
+  if (!isLegacyHomeMarginStatus(latestRow)) return mapHomeMarginStatus(latestRow);
+  if (retryCount >= 1) throw new Error('旧融资余额清零冲突，请刷新后重试');
+  return resetLegacyHomeMarginStatus(user, latestRow, retryCount + 1);
+};
+
 export const fetchMarginStatus = async (preUser = null) => {
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
@@ -807,16 +862,14 @@ export const fetchMarginStatus = async (preUser = null) => {
   if (error) {
     console.error('fetchMarginStatus 失败:', error);
     const cachedStatus = cacheGet(user.id, 'margin_status');
-    if (cachedStatus) return cachedStatus;
+    if (cachedStatus?.logicVersion === HOME_MARGIN_LOGIC_VERSION) return cachedStatus;
     throw error;
   }
-  const status = data ? {
-    currentMargin: Number(data.current_margin),
-    marginLimit: Number(data.margin_limit),
-  } : {
-    currentMargin: 0,
-    marginLimit: 0,
-  };
+  const status = data
+    ? (isLegacyHomeMarginStatus(data)
+      ? await resetLegacyHomeMarginStatus(user, data)
+      : mapHomeMarginStatus(data))
+    : emptyHomeMarginStatus();
   cacheSet(user.id, 'margin_status', status);
   return status;
 };
@@ -829,10 +882,12 @@ export const upsertMarginStatus = async (status) => {
   if (!Number.isFinite(currentMargin) || currentMargin < 0) {
     throw new Error('融资余额必须是不小于 0 的有效金额');
   }
-  const rawMarginLimit = Number(status?.marginLimit);
+  const updatedAt = homeMarginLogicUpdatedAt();
   const normalizedStatus = {
     currentMargin,
-    marginLimit: Number.isFinite(rawMarginLimit) && rawMarginLimit >= 0 ? rawMarginLimit : 0,
+    marginLimit: 0,
+    logicVersion: HOME_MARGIN_LOGIC_VERSION,
+    updatedAt,
   };
 
   const { error } = await supabase
@@ -840,8 +895,8 @@ export const upsertMarginStatus = async (status) => {
     .upsert({
       user_id: user.id,
       current_margin: normalizedStatus.currentMargin,
-      margin_limit: normalizedStatus.marginLimit,
-      updated_at: new Date().toISOString(),
+      margin_limit: 0,
+      updated_at: updatedAt,
     }, { onConflict: 'user_id' });
   if (error) throw error;
   cacheSet(user.id, 'margin_status', normalizedStatus);

@@ -2191,16 +2191,15 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       throw new Error('融资余额必须是不小于 0 的有效金额');
     }
 
-    const currentLimit = Number(marginStatus?.marginLimit);
     const nextStatus = {
       currentMargin: normalizeMarginDebtUsd(numericDebtUsd),
-      marginLimit: Number.isFinite(currentLimit) && currentLimit >= 0 ? currentLimit : 0,
+      marginLimit: 0,
     };
     const persistedStatus = await db.upsertMarginStatus(nextStatus);
     const committedStatus = persistedStatus || nextStatus;
     setMarginStatus(committedStatus);
     return committedStatus;
-  }, [marginStatus, marginStatusReady]);
+  }, [marginStatusReady]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段

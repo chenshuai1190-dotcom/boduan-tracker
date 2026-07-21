@@ -490,6 +490,7 @@ export default function HomeTab({ ctx }) {
     fgiYear,
     fmtPct,
     homeMarginPreview = '',
+    homeMarginScenarioPreview,
     homeWatchlist,
     indices,
     investmentSummary,
@@ -1787,6 +1788,7 @@ export default function HomeTab({ ctx }) {
           marginDebtUsd={marginOverview.marginDebtUsd}
           marketColorMode={marketColorMode}
           initialPanel={homeMarginPreview === 'editor' ? 'editor' : 'risk'}
+          initialScenarioPct={homeMarginScenarioPreview}
           onClose={() => setShowMarginRisk(false)}
           onSaveDebtUsd={saveMarginDebt}
         />

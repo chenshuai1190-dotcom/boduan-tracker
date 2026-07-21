@@ -72,7 +72,7 @@ test('Home margin labels are present in both Chinese and English dictionaries', 
     'home.marginUnchanged',
     'home.marginDownsideFloor',
     'home.marginScenarioReset',
-    'home.marginUpsideUnlimited',
+    'home.marginUpsideCeiling',
     'home.marginBalance',
   ]) {
     assert.equal(countTranslationKey(key), 2, `${key} must exist once in each language dictionary`);
@@ -87,22 +87,28 @@ test('Home margin labels are present in both Chinese and English dictionaries', 
     'home.marginUnchanged',
     'home.marginDownsideFloor',
     'home.marginScenarioReset',
-    'home.marginUpsideUnlimited',
+    'home.marginUpsideCeiling',
     'home.marginBalance',
   ]) {
     assert.ok(marginSheetSource.includes(`'${key}'`), `the production sheet must use ${key}`);
   }
 });
 
-test('margin scenario keeps six signed presets on one row and uses a relative unlimited slider', () => {
+test('margin scenario keeps six signed presets on one row and uses a symmetric bounded slider', () => {
   assert.match(
     marginSheetSource,
     /const\s+SCENARIO_PRESETS\s*=\s*\[\s*-40\s*,\s*-20\s*,\s*-10\s*,\s*10\s*,\s*20\s*,\s*40\s*,?\s*\]/,
     'the approved negative and positive presets must stay fixed and ordered',
   );
   assert.ok(marginSheetSource.includes('grid-cols-6'), 'all six scenario presets must remain on one row');
+  assert.match(marginSheetSource, /initialScenarioPct\s*=\s*0/, 'a newly opened scenario sheet must default to zero');
   assert.ok(marginSheetSource.includes('data-home-margin-scenario-slider="true"'), 'the custom scenario slider needs a stable visual-test marker');
-  assert.ok(marginSheetSource.includes('role="spinbutton"'), 'the unbounded custom control must expose spinbutton semantics');
+  assert.ok(marginSheetSource.includes('role="spinbutton"'), 'the custom control must expose spinbutton semantics');
+  assert.match(marginSheetSource, /aria-valuemin=\{-100\}/, 'the scenario lower bound must be minus 100 percent');
+  assert.match(marginSheetSource, /aria-valuemax=\{100\}/, 'the scenario upper bound must be plus 100 percent');
+  assert.ok(marginSheetSource.includes('left: `${thumbPercent}%`'), 'the thumb must retain a visible position that follows the current scenario');
+  assert.ok(marginSheetSource.includes('marginScenarioToTrackRatio(session.currentValue)'), 'pointer travel must advance from the last bounded scenario without edge lag');
+  assert.ok(marginSheetSource.includes('session.lastX = event.clientX'), 'dragging must use incremental pointer travel so reversing at minus 100 responds immediately');
 
   for (const handler of ['onPointerDown', 'onPointerMove', 'onPointerUp', 'onPointerCancel']) {
     assert.ok(marginSheetSource.includes(handler), `the relative slider must implement ${handler}`);
@@ -125,7 +131,7 @@ test('margin scenario keeps six signed presets on one row and uses a relative un
 test('margin balance save persists before updating UI state and refreshes the user-scoped fallback cache', () => {
   const uiSources = `${homeTabSource}\n${marginSheetSource}`;
   assert.match(appSource, /await\s+db\.upsertMarginStatus\([\s\S]{0,1600}?setMarginStatus\(/);
-  assert.ok(appSource.includes('marginLimit'), 'saving current margin must preserve the existing margin limit field');
+  assert.ok(appSource.includes('marginLimit: 0'), 'the retired margin-limit field must stay cleared under the new model');
   assert.ok(appSource.includes('saveMarginDebt,'), 'Home must receive the isolated margin save callback');
   assert.ok(marginSheetSource.includes('await onSaveDebtUsd(nextDebtUsd)'), 'the editor must wait for the owner callback before closing');
   assert.equal(uiSources.includes('markPnlReportDirty'), false, 'personal financing must not dirty the P&L report');
@@ -137,7 +143,8 @@ test('margin balance save persists before updating UI state and refreshes the us
   assert.ok(saveBlock.includes(".from('margin_status')"));
   assert.ok(saveBlock.includes('user_id: user.id'));
   assert.match(saveBlock, /current_margin:\s*[A-Za-z_$][\w$]*\.currentMargin/);
-  assert.match(saveBlock, /margin_limit:\s*[A-Za-z_$][\w$]*\.marginLimit/);
+  assert.match(saveBlock, /margin_limit:\s*0/);
+  assert.ok(saveBlock.includes('logicVersion: HOME_MARGIN_LOGIC_VERSION'), 'the fallback cache must identify new-model values');
   assert.ok(saveBlock.includes("{ onConflict: 'user_id' }"));
   const errorGuardIndex = saveBlock.search(/if\s*\(error\)\s*throw error/);
   const cacheWriteIndex = saveBlock.search(/cacheSet\(user\.id,\s*'margin_status',/);
@@ -147,29 +154,45 @@ test('margin balance save persists before updating UI state and refreshes the us
   assert.ok(appSource.includes('setMarginStatus,'));
 });
 
-test('margin loading distinguishes an empty row from a failed request before enabling edits', () => {
+test('margin loading clears only legacy current-user rows and rejects legacy cache fallback', () => {
   const fetchStart = dbSource.indexOf('export const fetchMarginStatus');
   const fetchEnd = dbSource.indexOf('export const upsertMarginStatus', fetchStart);
   assert.ok(fetchStart >= 0 && fetchEnd > fetchStart, 'margin loading must remain an isolated db function');
   const fetchBlock = dbSource.slice(fetchStart, fetchEnd);
 
-  assert.match(
-    fetchBlock,
-    /const\s+status\s*=\s*data\s*\?[\s\S]*?:\s*\{\s*currentMargin:\s*0,\s*marginLimit:\s*0,?\s*\}/,
-    'a successful query with no row must resolve to a loaded zero balance',
-  );
+  assert.ok(fetchBlock.includes('emptyHomeMarginStatus()'), 'a successful query with no row must resolve to a loaded zero balance');
+  assert.ok(fetchBlock.includes('isLegacyHomeMarginStatus(data)'), 'legacy detection must use the fixed new-model epoch');
+  assert.ok(fetchBlock.includes('await resetLegacyHomeMarginStatus(user, data)'), 'a legacy row must be cleared before it reaches Home');
 
   const errorStart = fetchBlock.indexOf('if (error)');
   const statusStart = fetchBlock.indexOf('const status =', errorStart);
   assert.ok(errorStart >= 0 && statusStart > errorStart, 'the fetch error branch must finish before successful-row mapping');
   const errorBlock = fetchBlock.slice(errorStart, statusStart);
   const cacheReadIndex = errorBlock.search(/cacheGet\(user\.id,\s*'margin_status'\)/);
-  const cacheReturnIndex = errorBlock.search(/if\s*\([^)]*cached[^)]*\)\s*return\s+cached/i);
+  const cacheVersionIndex = errorBlock.indexOf('cachedStatus?.logicVersion === HOME_MARGIN_LOGIC_VERSION');
+  const cacheReturnIndex = errorBlock.indexOf('return cachedStatus', cacheVersionIndex);
   const throwIndex = errorBlock.indexOf('throw error');
   assert.ok(cacheReadIndex >= 0, 'a failed request should consult the current user cache');
-  assert.ok(cacheReturnIndex > cacheReadIndex, 'a present user cache should be returned');
-  assert.ok(throwIndex > cacheReturnIndex, 'a failed request without cache must remain failed instead of becoming a zero balance');
+  assert.ok(cacheVersionIndex > cacheReadIndex, 'an unversioned legacy cache must not be accepted');
+  assert.ok(cacheReturnIndex > cacheVersionIndex, 'only a current-version user cache may be returned');
+  assert.ok(throwIndex > cacheReturnIndex, 'a failed request without a current-version cache must remain failed');
   assert.match(fetchBlock, /cacheSet\(user\.id,\s*'margin_status',\s*status\)[\s\S]*return status/);
+
+  const resetStart = dbSource.indexOf('const resetLegacyHomeMarginStatus');
+  assert.ok(resetStart >= 0 && resetStart < fetchStart, 'the legacy reset must be an isolated helper');
+  const resetBlock = dbSource.slice(resetStart, fetchStart);
+  assert.ok(resetBlock.includes(".from('margin_status')"));
+  assert.ok(resetBlock.includes(".eq('user_id', user.id)"), 'legacy clearing must target only the authenticated user');
+  assert.ok(
+    resetBlock.includes("resetQuery.eq('updated_at', legacyRow.updated_at)")
+      && resetBlock.includes("resetQuery.is('updated_at', null)"),
+    'legacy clearing must compare the exact row version it originally read',
+  );
+  assert.ok(resetBlock.includes("current_margin: 0") && resetBlock.includes("margin_limit: 0"));
+  assert.ok(resetBlock.includes(".select('*')") && resetBlock.includes('.maybeSingle()'), 'the reset must detect a zero-row concurrency conflict');
+  assert.ok(resetBlock.includes('if (!isLegacyHomeMarginStatus(latestRow)) return mapHomeMarginStatus(latestRow)'), 'a concurrent new-model save must win over legacy clearing');
+  assert.ok(resetBlock.includes('retryCount >= 1'), 'legacy clearing must use a bounded retry');
+  assert.equal(resetBlock.includes('.delete('), false, 'legacy clearing must retain the existing row and table');
 
   const guardedReady = /if\s*\(cloudMargin\s*!==\s*null\s*&&\s*cloudMargin\s*!==\s*undefined\)\s*\{[\s\S]{0,400}?setMarginStatus\(cloudMargin\);[\s\S]{0,200}?setMarginStatusReady\(true\);[\s\S]{0,100}?\}/;
   assert.match(appSource, guardedReady, 'only a resolved margin result may unlock the editor');

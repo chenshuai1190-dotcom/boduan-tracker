@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.368', date: '2026-07-22', latest: true,
+    ver: 'v10.7.9.369', date: '2026-07-22', latest: true,
+    items: [
+      '🎚️ 融资情景滑杆与历史余额修正',
+      '  - 情景测算默认归零，滑杆改为对称的 -100% 至 +100%；圆点跟随当前数值，左右拖动与归零操作保持一致',
+      '  - 新首页启用前留下的融资余额会按当前登录用户一次性清零；使用原更新时间防止覆盖另一设备刚保存的新余额',
+      '  - 旧版无版本缓存不再回退；之后仍复用现有 margin_status 保存新余额，交易、比赛和收益报表边界不变',
+    ],
+    itemsEn: [
+      '🎚️ Margin scenario slider and legacy balance reset',
+      '  - Scenarios now start at zero with a symmetric -100% to +100% control; the thumb follows the current value and drag/reset behavior stays aligned',
+      '  - Margin balances left before the new Home model are cleared once for the signed-in user, using the original update time so a newer save from another device always wins',
+      '  - Unversioned legacy cache entries are no longer restored; new balances continue using the existing margin_status row without entering trades, competitions, or P&L reports',
+    ],
+  },
+  {
+    ver: 'v10.7.9.368', date: '2026-07-22',
     items: [
       '📐 首页净资产与融资情景测算',
       '  - 首页资产卡改为净资产主值，并同时展示总资产、融资负债与实时杠杆倍数；币种切换只改变展示金额',

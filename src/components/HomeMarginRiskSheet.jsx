@@ -4,6 +4,8 @@ import {
   deriveHomeMarginOverview,
   deriveHomeMarginStress,
   displayMarginDebtToUsd,
+  marginScenarioToTrackRatio,
+  marginTrackRatioToScenario,
   normalizeMarginScenarioPct,
 } from '../lib/homeMarginRisk.js';
 import { t } from '../lib/i18n.js';
@@ -78,6 +80,10 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
   const dragRef = React.useRef(null);
   const [dragging, setDragging] = React.useState(false);
   const [tickOffset, setTickOffset] = React.useState(0);
+  const thumbRatio = marginScenarioToTrackRatio(value);
+  const thumbPercent = thumbRatio * 100;
+  const fillLeft = Math.min(50, thumbPercent);
+  const fillWidth = Math.abs(thumbPercent - 50);
 
   const commitValue = React.useCallback((nextValue) => {
     onChange?.(Math.round(normalizeMarginScenarioPct(nextValue)));
@@ -97,80 +103,95 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
 
   return (
     <div
-      role="spinbutton"
-      tabIndex={0}
-      aria-label={t(language, 'home.stockPortfolioMove', '股票组合涨跌')}
-      aria-valuemin={-100}
-      aria-valuenow={Math.round(value)}
-      aria-valuetext={formatScenarioPercent(value)}
-      data-home-margin-scenario-slider="true"
-      className={`mt-3 w-full cursor-ew-resize select-none rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 pb-2 pt-2.5 outline-none focus:border-white/15 ${dragging ? 'is-dragging' : ''}`}
-      style={{
-        touchAction: 'pan-y',
-        WebkitUserSelect: 'none',
-        WebkitTouchCallout: 'none',
-      }}
-      onPointerDown={(event) => {
-        if (event.target.closest('button')) return;
-        dragRef.current = {
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          startValue: value,
-          intent: 'pending',
-        };
-      }}
-      onPointerMove={(event) => {
-        const session = dragRef.current;
-        if (!session || session.pointerId !== event.pointerId) return;
-        const deltaX = event.clientX - session.startX;
-        const deltaY = event.clientY - session.startY;
-
-        if (session.intent === 'pending') {
-          if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
-          if (Math.abs(deltaY) >= Math.abs(deltaX) * 0.8) {
-            dragRef.current = null;
-            return;
-          }
-          session.intent = 'horizontal';
-          event.currentTarget.setPointerCapture(event.pointerId);
-          setDragging(true);
-        }
-
-        if (session.intent !== 'horizontal') return;
-        event.preventDefault();
-        commitValue(session.startValue + deltaX / 2);
-        setTickOffset(deltaX % 16);
-      }}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
-      onLostPointerCapture={() => {
-        dragRef.current = null;
-        setDragging(false);
-        setTickOffset(0);
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-        event.preventDefault();
-        const direction = event.key === 'ArrowRight' ? 1 : -1;
-        commitValue(value + direction * (event.shiftKey ? 10 : 1));
-      }}
+      className="mt-3 w-full select-none rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 pb-2 pt-2"
+      style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
     >
-      <div className="relative h-[25px] overflow-hidden rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.035)_30%,rgba(255,255,255,0.035)_70%,transparent)]" aria-hidden="true">
+      <div
+        role="spinbutton"
+        tabIndex={0}
+        aria-label={t(language, 'home.stockPortfolioMove', '股票组合涨跌')}
+        aria-valuemin={-100}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(value)}
+        aria-valuetext={formatScenarioPercent(value)}
+        data-home-margin-scenario-slider="true"
+        className={`relative h-11 w-full cursor-ew-resize overflow-visible rounded-full outline-none focus:bg-white/[0.025] ${dragging ? 'is-dragging' : ''}`}
+        style={{ touchAction: 'pan-y' }}
+        onPointerDown={(event) => {
+          const element = event.currentTarget;
+          element.setPointerCapture(event.pointerId);
+          dragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            lastX: event.clientX,
+            currentValue: value,
+            trackWidth: Math.max(1, element.getBoundingClientRect().width),
+            intent: 'pending',
+          };
+        }}
+        onPointerMove={(event) => {
+          const session = dragRef.current;
+          if (!session || session.pointerId !== event.pointerId) return;
+          const intentDeltaX = event.clientX - session.startX;
+          const intentDeltaY = event.clientY - session.startY;
+
+          if (session.intent === 'pending') {
+            if (Math.max(Math.abs(intentDeltaX), Math.abs(intentDeltaY)) < 8) return;
+            if (Math.abs(intentDeltaY) >= Math.abs(intentDeltaX) * 0.8) {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+              dragRef.current = null;
+              return;
+            }
+            session.intent = 'horizontal';
+            setDragging(true);
+          }
+
+          if (session.intent !== 'horizontal') return;
+          event.preventDefault();
+          const deltaX = event.clientX - session.lastX;
+          const currentRatio = marginScenarioToTrackRatio(session.currentValue);
+          const nextRatio = currentRatio + deltaX / session.trackWidth;
+          const nextValue = Math.round(marginTrackRatioToScenario(nextRatio));
+          session.lastX = event.clientX;
+          session.currentValue = nextValue;
+          commitValue(nextValue);
+          setTickOffset((current) => (current + deltaX) % 16);
+        }}
+        onPointerUp={finishDrag}
+        onPointerCancel={finishDrag}
+        onLostPointerCapture={() => {
+          dragRef.current = null;
+          setDragging(false);
+          setTickOffset(0);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          const direction = event.key === 'ArrowRight' ? 1 : -1;
+          commitValue(value + direction * (event.shiftKey ? 10 : 1));
+        }}
+      >
         <div
-          className="absolute -left-8 -right-8 top-[11px] h-[3px] rounded-full"
+          className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/[0.08]"
           style={{
-            backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 16px), linear-gradient(90deg, rgba(255,255,255,0.08), ${color}, rgba(255,255,255,0.08))`,
-            backgroundPosition: `${tickOffset}px 0, 0 0`,
+            backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.13) 0 1px, transparent 1px 16px)',
+            backgroundPosition: `${tickOffset}px 0`,
           }}
         />
         <div
-          className="absolute bottom-[3px] left-1/2 top-[3px] z-[1] w-px -translate-x-1/2"
-          style={{ backgroundColor: color }}
+          className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
+          style={{ left: `${fillLeft}%`, width: `${fillWidth}%`, backgroundColor: color }}
         />
         <div
-          className={`absolute left-1/2 top-1/2 z-[2] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/85 ${dragging ? 'scale-110' : ''}`}
+          className="absolute bottom-2 top-2 left-1/2 z-[1] w-px -translate-x-1/2 bg-white/[0.18]"
+        />
+        <div
+          className={`absolute top-1/2 z-[2] h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/85 ${dragging ? 'scale-110' : ''} ${dragging ? '' : 'transition-[left,background-color,box-shadow] duration-150'}`}
           style={{
+            left: `${thumbPercent}%`,
             backgroundColor: color,
             boxShadow: `0 0 0 ${dragging ? 7 : 5}px ${color}20`,
           }}
@@ -180,13 +201,12 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
         <span>{t(language, 'home.marginDownsideFloor', '下跌最低 -100%')}</span>
         <button
           type="button"
-          onPointerDown={(event) => event.stopPropagation()}
           onClick={() => commitValue(0)}
           className="h-[22px] min-w-10 rounded-full border border-white/[0.09] bg-white/[0.035] px-2 text-[9px] text-white/50 active:scale-95"
         >
           {t(language, 'home.marginScenarioReset', '归零')}
         </button>
-        <span className="text-right">{t(language, 'home.marginUpsideUnlimited', '上涨不设上限')}</span>
+        <span className="text-right">{t(language, 'home.marginUpsideCeiling', '上涨最高 +100%')}</span>
       </div>
     </div>
   );
@@ -202,7 +222,7 @@ export default function HomeMarginRiskSheet({
   marginDebtUsd = 0,
   marketColorMode,
   initialPanel = 'risk',
-  initialScenarioPct = 20,
+  initialScenarioPct = 0,
   onClose,
   onSaveDebtUsd,
 }) {

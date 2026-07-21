@@ -7,13 +7,42 @@ function nonNegativeNumber(value, fallback = 0) {
   return Math.max(0, finiteNumber(value, fallback));
 }
 
+// The Home financing model first shipped in 49f1151. Rows last written by the
+// retired Review financing tool are cleared once before they enter this model.
+export const HOME_MARGIN_LOGIC_VERSION = 2;
+export const HOME_MARGIN_LOGIC_STARTED_AT = '2026-07-21T20:35:57.000Z';
+
+export function homeMarginLogicUpdatedAt(now = Date.now()) {
+  const numericNow = Number(now);
+  const logicStartedAt = Date.parse(HOME_MARGIN_LOGIC_STARTED_AT);
+  const safeNow = Number.isFinite(numericNow) ? numericNow : 0;
+  return new Date(Math.max(safeNow, logicStartedAt + 1000)).toISOString();
+}
+
+export function isLegacyHomeMarginStatus(record) {
+  if (!record || typeof record !== 'object') return false;
+  const updatedAt = Date.parse(record.updated_at);
+  const logicStartedAt = Date.parse(HOME_MARGIN_LOGIC_STARTED_AT);
+  return !Number.isFinite(updatedAt) || updatedAt <= logicStartedAt;
+}
+
 export function normalizeMarginDebtUsd(value) {
   return nonNegativeNumber(value);
 }
 
 export function normalizeMarginScenarioPct(value) {
-  const normalized = Math.max(-100, finiteNumber(value));
+  const normalized = Math.min(100, Math.max(-100, finiteNumber(value)));
   return Object.is(normalized, -0) ? 0 : normalized;
+}
+
+export function marginScenarioToTrackRatio(value) {
+  const normalized = normalizeMarginScenarioPct(value);
+  return (normalized + 100) / 200;
+}
+
+export function marginTrackRatioToScenario(value) {
+  const ratio = Math.min(1, Math.max(0, finiteNumber(value, 0.5)));
+  return (ratio - 0.5) * 200;
 }
 
 export function displayMarginDebtToUsd({ amount, currency = 'USD', usdRate = 1 } = {}) {

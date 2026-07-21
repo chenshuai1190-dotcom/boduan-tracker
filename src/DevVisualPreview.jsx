@@ -939,6 +939,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const homeMarginPreview = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('homeMargin') || '';
+  const homeMarginScenarioPreview = typeof window === 'undefined'
+    ? undefined
+    : Number(new URLSearchParams(window.location.search).get('homeMarginScenario'));
   const [homeCurrencyMode, setHomeCurrencyMode] = React.useState(stockDetailCurrencyPreview);
   const [previewMarginDebtUsd, setPreviewMarginDebtUsd] = React.useState(3_000_000 / 7.215);
   const stockReturnComparisonSharePreview = typeof window !== 'undefined'
@@ -1531,6 +1534,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fgiYear: 42,
     fmtPct: null,
     homeMarginPreview,
+    homeMarginScenarioPreview: Number.isFinite(homeMarginScenarioPreview) ? homeMarginScenarioPreview : undefined,
     homeWatchlist,
     indices: previewMarketIndices,
     marketIndices: previewMarketIndices,
