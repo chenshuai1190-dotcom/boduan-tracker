@@ -1,11 +1,12 @@
 import React from 'react';
-import { Loader2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, X } from 'lucide-react';
 import {
   deriveHomeMarginOverview,
   deriveHomeMarginStress,
   displayMarginDebtToUsd,
   marginScenarioToTrackRatio,
   marginTrackRatioToScenario,
+  normalizeMarginDebtUsd,
   normalizeMarginScenarioPct,
 } from '../lib/homeMarginRisk.js';
 import { t } from '../lib/i18n.js';
@@ -212,20 +213,29 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
   );
 }
 
-export default function HomeMarginRiskSheet({
-  language = 'zh',
-  currencyMode = 'USD',
-  usdRate = 1,
-  totalAssetsUsd = 0,
-  positionsMarketValueUsd,
-  cashUsd = 0,
-  marginDebtUsd = 0,
-  marketColorMode,
-  initialPanel = 'risk',
-  initialScenarioPct = 0,
-  onClose,
-  onSaveDebtUsd,
-}) {
+export default function HomeMarginRiskPage({ ctx = {} }) {
+  const {
+    closeHomeMarginRisk: onClose,
+    homeMarginPreview = '',
+    homeMarginScenarioPreview,
+    investmentSummary = {},
+    language = 'zh',
+    marginStatus,
+    marginStatusReady = true,
+    marketColorMode,
+    portfolioCurrencyMode = 'USD',
+    saveMarginDebt: onSaveDebtUsd,
+  } = ctx;
+  const currencyMode = portfolioCurrencyMode === 'CNY' ? 'CNY' : 'USD';
+  const usdRate = Number(investmentSummary?.usdRate) > 0 ? Number(investmentSummary.usdRate) : 1;
+  const totalAssetsUsd = Number(investmentSummary?.totalAssetsUsd) || 0;
+  const positionsMarketValueUsd = Number(investmentSummary?.positionsMarketValue) || 0;
+  const cashUsd = Number(investmentSummary?.cashUsd) || 0;
+  const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
+  const initialPanel = homeMarginPreview === 'editor' ? 'editor' : 'risk';
+  const initialScenarioPct = Number.isFinite(Number(homeMarginScenarioPreview))
+    ? Number(homeMarginScenarioPreview)
+    : 0;
   const normalizedInitialPanel = initialPanel === 'editor' ? 'editor' : 'risk';
   const [panel, setPanel] = React.useState(normalizedInitialPanel);
   const [scenarioPct, setScenarioPct] = React.useState(() => Math.round(normalizeMarginScenarioPct(initialScenarioPct)));
@@ -264,15 +274,16 @@ export default function HomeMarginRiskSheet({
     : marketHexColor(scenarioDirection, marketColorMode);
 
   React.useEffect(() => {
+    if (panel !== 'editor') return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, []);
+  }, [panel]);
 
   React.useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) return undefined;
+    if (panel !== 'editor' || typeof window === 'undefined' || !window.visualViewport) return undefined;
     const viewport = window.visualViewport;
     let rafId = 0;
     const updateFrame = () => {
@@ -297,7 +308,7 @@ export default function HomeMarginRiskSheet({
       viewport.removeEventListener('scroll', updateFrame);
       window.removeEventListener('orientationchange', updateFrame);
     };
-  }, []);
+  }, [panel]);
 
   React.useEffect(() => {
     const handleKeyDown = (event) => {
@@ -354,51 +365,39 @@ export default function HomeMarginRiskSheet({
   ];
 
   return (
-    <div
-      className="fixed left-0 right-0 top-0 z-[190] flex h-[100dvh] items-end justify-center overflow-hidden bg-black/72 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[3px]"
-      style={{
-        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-        ...(visualViewportFrame ? {
-          top: visualViewportFrame.top,
-          height: visualViewportFrame.height,
-        } : {}),
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={panel === 'editor'
-        ? t(language, 'home.marginBalance', '设置融资余额')
-        : t(language, 'home.marginRisk', '融资情景测算')}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !saving) onClose?.();
-      }}
+    <main
+      className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white/[0.86]"
+      style={{ fontFamily: NUMBER_FONT }}
+      data-home-margin-risk-page="true"
     >
-      {panel === 'risk' ? (
-        <section
-          className="max-h-[88dvh] w-full max-w-[430px] overflow-y-auto rounded-[28px] border border-white/10 bg-[linear-gradient(165deg,rgba(23,27,34,0.99),rgba(11,15,20,0.995)_66%)] px-4 pb-5 pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]"
-          data-home-margin-risk-sheet="true"
-        >
-          <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
-          <div className="relative mt-3 flex min-h-9 items-center justify-center">
-            <button
-              type="button"
-              onClick={openEditor}
-              className="absolute left-0 rounded-full px-2 py-1 text-[11px] text-[#f6b54b] active:bg-[#f6b54b]/10"
-            >
-              {t(language, 'home.setMarginBalance', '设置余额')}
-            </button>
-            <h2 className="text-[17px] font-medium text-white/90">{t(language, 'home.marginRisk', '融资情景测算')}</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.07] text-white/55 active:scale-95"
-              aria-label={t(language, 'home.closeMarginRisk', '关闭融资情景测算')}
-            >
-              <X className="h-4 w-4" />
-            </button>
+      <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#05070b]/88 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4px)] backdrop-blur-xl">
+        <div className="grid grid-cols-[64px_1fr_64px] items-center">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] transition active:scale-95"
+            aria-label={t(language, 'home.closeMarginRisk', '返回首页')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="text-center">
+            <h1 className="text-[17px] font-semibold leading-tight text-white/[0.86]">{t(language, 'home.marginRisk', '融资情景测算')}</h1>
           </div>
-          <p className="mt-0.5 text-center text-[11px] text-white/38">
-            {t(language, 'home.marginRiskSubtitle', '假设全部股票同步涨跌，融资负债保持不变')}
-          </p>
+          <button
+            type="button"
+            disabled={!marginStatusReady}
+            onClick={openEditor}
+            className="justify-self-end rounded-full px-1 py-2 text-[11px] text-[#f6b54b] active:bg-[#f6b54b]/10 disabled:opacity-35"
+          >
+            {t(language, 'home.setMarginBalance', '设置余额')}
+          </button>
+        </div>
+      </header>
+
+      <section className="pb-6 pt-5" data-home-margin-risk-content="true">
+        <p className="text-center text-[11px] text-white/38">
+          {t(language, 'home.marginRiskSubtitle', '假设全部股票同步涨跌，融资负债保持不变')}
+        </p>
 
           <div className="mt-4 grid grid-cols-4 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3">
             {currentCards.map(([label, value]) => <Metric key={label} label={label} value={value} />)}
@@ -497,13 +496,30 @@ export default function HomeMarginRiskSheet({
           <p className="mt-4 text-center text-[10px] leading-4 text-white/28">
             {t(language, 'home.marginRiskBoundary', '仅用于个人融资情景测算，不影响比赛、收益报表和交易记录。')}
           </p>
-        </section>
-      ) : (
-        <section
-          className="max-h-full w-full max-w-[430px] overflow-y-auto overscroll-contain rounded-[28px] border border-white/10 bg-[linear-gradient(165deg,rgba(23,27,34,0.99),rgba(11,15,20,0.995)_66%)] px-5 pb-5 pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]"
-          style={{ scrollPaddingBottom: '96px' }}
-          data-home-margin-balance-editor="true"
+      </section>
+
+      {panel === 'editor' && (
+        <div
+          className="fixed left-0 right-0 top-0 z-[190] flex h-[100dvh] items-end justify-center overflow-hidden bg-black/72 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[3px]"
+          style={{
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+            ...(visualViewportFrame ? {
+              top: visualViewportFrame.top,
+              height: visualViewportFrame.height,
+            } : {}),
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t(language, 'home.marginBalance', '设置融资余额')}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) closeEditor();
+          }}
         >
+          <section
+            className="max-h-full w-full max-w-[430px] overflow-y-auto overscroll-contain rounded-[28px] border border-white/10 bg-[linear-gradient(165deg,rgba(23,27,34,0.99),rgba(11,15,20,0.995)_66%)] px-5 pb-5 pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            style={{ scrollPaddingBottom: '96px' }}
+            data-home-margin-balance-editor="true"
+          >
           <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
           <div className="relative mt-3 flex min-h-9 items-center justify-center">
             <h2 className="text-[17px] font-medium text-white/90">{t(language, 'home.marginBalance', '设置融资余额')}</h2>
@@ -601,8 +617,9 @@ export default function HomeMarginRiskSheet({
               {saving ? t(language, 'home.marginSaving', '保存中…') : t(language, 'home.marginSave', '保存')}
             </button>
           </div>
-        </section>
+          </section>
+        </div>
       )}
-    </div>
+    </main>
   );
 }

@@ -16,7 +16,6 @@ import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStock
 import { stockLogoCandidates } from '../lib/stockLogo.js';
 import { deriveHomeMarginOverview, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
-import HomeMarginRiskSheet from '../components/HomeMarginRiskSheet.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -489,8 +488,6 @@ export default function HomeTab({ ctx }) {
     fgiWeek,
     fgiYear,
     fmtPct,
-    homeMarginPreview = '',
-    homeMarginScenarioPreview,
     homeWatchlist,
     indices,
     investmentSummary,
@@ -502,13 +499,13 @@ export default function HomeTab({ ctx }) {
     marketColorMode,
     marketIndices,
     newStock,
+    openHomeMarginRisk,
     openPnlReport,
     openWatchlistStockDetail,
     portfolioCurrencyMode,
     quoteRows,
     RefreshCw,
     reorderWatchlist,
-    saveMarginDebt,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setNewStock,
@@ -540,7 +537,6 @@ export default function HomeTab({ ctx }) {
   const [editActionKey, setEditActionKey] = React.useState(null);
   const [editNotice, setEditNotice] = React.useState(null);
   const [pendingDeleteSymbol, setPendingDeleteSymbol] = React.useState(null);
-  const [showMarginRisk, setShowMarginRisk] = React.useState(() => ['risk', 'editor'].includes(homeMarginPreview));
   const [benchmarkSortDirection, setBenchmarkSortDirection] = React.useState(null);
   const [tableSorts, setTableSorts] = React.useState({
     watchlist: { key: null, direction: 'desc' },
@@ -1062,7 +1058,7 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             disabled={!marginStatusReady}
-            onClick={() => setShowMarginRisk(true)}
+            onClick={openHomeMarginRisk}
             className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
             data-home-margin-trigger="true"
           >
@@ -1775,23 +1771,6 @@ export default function HomeTab({ ctx }) {
             </div>
           </div>
         </div>
-      )}
-
-      {showMarginRisk && marginStatusReady && (
-        <HomeMarginRiskSheet
-          language={language}
-          currencyMode={displayCurrency}
-          usdRate={summary.usdRate}
-          totalAssetsUsd={summary.totalAssetsUsd}
-          positionsMarketValueUsd={summary.positionsMarketValue}
-          cashUsd={summary.cashUsd}
-          marginDebtUsd={marginOverview.marginDebtUsd}
-          marketColorMode={marketColorMode}
-          initialPanel={homeMarginPreview === 'editor' ? 'editor' : 'risk'}
-          initialScenarioPct={homeMarginScenarioPreview}
-          onClose={() => setShowMarginRisk(false)}
-          onSaveDebtUsd={saveMarginDebt}
-        />
       )}
 
       {addStockNotice && (

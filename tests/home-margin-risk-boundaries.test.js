@@ -7,9 +7,10 @@ function source(relativePath) {
 }
 
 const appSource = source('../src/App.jsx');
+const devPreviewSource = source('../src/DevVisualPreview.jsx');
 const dbSource = source('../src/lib/db.js');
 const homeTabSource = source('../src/tabs/HomeTab.jsx');
-const marginSheetSource = source('../src/components/HomeMarginRiskSheet.jsx');
+const marginPageSource = source('../src/pages/HomeMarginRiskPage.jsx');
 const i18nSource = source('../src/lib/i18n.js');
 const rlsSource = source('../supabase/rls.sql');
 const rlsProbeSource = source('../scripts/verify-rls-rest.mjs');
@@ -33,12 +34,12 @@ function countTranslationKey(key) {
   return (i18nSource.match(new RegExp(`['"]${escaped}['"]\\s*:`, 'g')) || []).length;
 }
 
-test('Home financing UI exposes stable semantic markers without replacing the card shell', () => {
-  const combined = `${homeTabSource}\n${marginSheetSource}`;
+test('Home financing UI exposes a stable standalone page without replacing the card shell', () => {
+  const combined = `${homeTabSource}\n${marginPageSource}`;
   for (const marker of [
     'data-home-net-assets-card="true"',
     'data-home-margin-trigger="true"',
-    'data-home-margin-risk-sheet="true"',
+    'data-home-margin-risk-page="true"',
     'data-home-margin-scenario-slider="true"',
     'data-home-margin-balance-editor="true"',
     'data-home-margin-save="true"',
@@ -56,6 +57,43 @@ test('Home financing UI exposes stable semantic markers without replacing the ca
   assert.ok(cardBlock.includes("t(language, 'home.leverage'"));
   assert.equal(cardBlock.includes("t(language, 'home.positions'"), false, 'only the Home header third metric should stop showing position count');
   assert.ok(homeTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4'), 'the existing Home header shell must stay intact');
+});
+
+test('Home margin risk uses a standalone page while keeping the bottom navigation', () => {
+  assert.ok(appSource.includes("lazy(() => import('./pages/HomeMarginRiskPage.jsx'))"));
+  assert.ok(appSource.includes("setActivePage('home-margin-risk')"), 'Home must open the margin experience through page-level navigation');
+  assert.ok(appSource.includes("activePage === 'home-margin-risk'"));
+  assert.ok(appSource.includes('<HomeMarginRiskPage ctx={tabCtx} />'));
+  assert.ok(appSource.includes('isStandalonePage = isPnlReportPage || isHomeMarginRiskPage'), 'the page must receive the standalone safe-area shell');
+  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage;'), 'only the P&L report should hide the bottom tabs');
+  assert.equal(appSource.includes('hideBottomNavigation = isPnlReportPage || isHomeMarginRiskPage'), false, 'the margin page must keep the bottom navigation');
+  assert.ok(appSource.includes("hideBottomNavigation ? 'pb-0' : 'pb-24'"));
+  assert.ok(appSource.includes('{!hideBottomNavigation && ('), 'the hidden-tab rule must drive the real bottom navigation');
+  assert.ok(devPreviewSource.includes("activeTab === 'home-margin-risk' && tab.id === 'home'"), 'the local preview should highlight Home while the margin page is open');
+  assert.ok(homeTabSource.includes('openHomeMarginRisk,'));
+  assert.ok(homeTabSource.includes('onClick={openHomeMarginRisk}'));
+  assert.equal(homeTabSource.includes('showMarginRisk'), false, 'Home must not keep a local modal state for an independent page');
+  assert.equal(homeTabSource.includes('HomeMarginRiskSheet'), false, 'Home must not mount the retired risk sheet');
+
+  assert.ok(marginPageSource.includes('<main'));
+  assert.ok(marginPageSource.includes('data-home-margin-risk-page="true"'));
+  assert.ok(marginPageSource.includes('sticky top-0'));
+  assert.ok(marginPageSource.includes('<ArrowLeft'));
+  assert.ok(marginPageSource.includes("pb-[calc(env(safe-area-inset-bottom)+28px)]"));
+  assert.equal(marginPageSource.includes('data-home-margin-risk-sheet'), false, 'the main scenario surface must no longer present itself as a sheet');
+});
+
+test('the standalone margin page stays isolated from reports, competitions, and formal trades', () => {
+  for (const forbidden of [
+    'stock_trades',
+    'pnl_report_snapshots',
+    'community_competition',
+    'markPnlReportDirty',
+    'deleteStockTrade',
+    'insertStockTrade',
+  ]) {
+    assert.equal(marginPageSource.includes(forbidden), false, `standalone margin page must not consume ${forbidden}`);
+  }
 });
 
 test('Home margin labels are present in both Chinese and English dictionaries', () => {
@@ -90,50 +128,51 @@ test('Home margin labels are present in both Chinese and English dictionaries', 
     'home.marginUpsideCeiling',
     'home.marginBalance',
   ]) {
-    assert.ok(marginSheetSource.includes(`'${key}'`), `the production sheet must use ${key}`);
+    assert.ok(marginPageSource.includes(`'${key}'`), `the production page must use ${key}`);
   }
 });
 
 test('margin scenario keeps six signed presets on one row and uses a symmetric bounded slider', () => {
   assert.match(
-    marginSheetSource,
+    marginPageSource,
     /const\s+SCENARIO_PRESETS\s*=\s*\[\s*-40\s*,\s*-20\s*,\s*-10\s*,\s*10\s*,\s*20\s*,\s*40\s*,?\s*\]/,
     'the approved negative and positive presets must stay fixed and ordered',
   );
-  assert.ok(marginSheetSource.includes('grid-cols-6'), 'all six scenario presets must remain on one row');
-  assert.match(marginSheetSource, /initialScenarioPct\s*=\s*0/, 'a newly opened scenario sheet must default to zero');
-  assert.ok(marginSheetSource.includes('data-home-margin-scenario-slider="true"'), 'the custom scenario slider needs a stable visual-test marker');
-  assert.ok(marginSheetSource.includes('role="spinbutton"'), 'the custom control must expose spinbutton semantics');
-  assert.match(marginSheetSource, /aria-valuemin=\{-100\}/, 'the scenario lower bound must be minus 100 percent');
-  assert.match(marginSheetSource, /aria-valuemax=\{100\}/, 'the scenario upper bound must be plus 100 percent');
-  assert.ok(marginSheetSource.includes('left: `${thumbPercent}%`'), 'the thumb must retain a visible position that follows the current scenario');
-  assert.ok(marginSheetSource.includes('marginScenarioToTrackRatio(session.currentValue)'), 'pointer travel must advance from the last bounded scenario without edge lag');
-  assert.ok(marginSheetSource.includes('session.lastX = event.clientX'), 'dragging must use incremental pointer travel so reversing at minus 100 responds immediately');
+  assert.ok(marginPageSource.includes('grid-cols-6'), 'all six scenario presets must remain on one row');
+  assert.match(marginPageSource, /initialScenarioPct\s*=\s*Number\.isFinite/, 'a newly opened scenario page must normalize its optional preview scenario');
+  assert.ok(marginPageSource.includes(" : 0;"), 'a newly opened scenario page must default to zero');
+  assert.ok(marginPageSource.includes('data-home-margin-scenario-slider="true"'), 'the custom scenario slider needs a stable visual-test marker');
+  assert.ok(marginPageSource.includes('role="spinbutton"'), 'the custom control must expose spinbutton semantics');
+  assert.match(marginPageSource, /aria-valuemin=\{-100\}/, 'the scenario lower bound must be minus 100 percent');
+  assert.match(marginPageSource, /aria-valuemax=\{100\}/, 'the scenario upper bound must be plus 100 percent');
+  assert.ok(marginPageSource.includes('left: `${thumbPercent}%`'), 'the thumb must retain a visible position that follows the current scenario');
+  assert.ok(marginPageSource.includes('marginScenarioToTrackRatio(session.currentValue)'), 'pointer travel must advance from the last bounded scenario without edge lag');
+  assert.ok(marginPageSource.includes('session.lastX = event.clientX'), 'dragging must use incremental pointer travel so reversing at minus 100 responds immediately');
 
   for (const handler of ['onPointerDown', 'onPointerMove', 'onPointerUp', 'onPointerCancel']) {
-    assert.ok(marginSheetSource.includes(handler), `the relative slider must implement ${handler}`);
+    assert.ok(marginPageSource.includes(handler), `the relative slider must implement ${handler}`);
   }
-  assert.ok(marginSheetSource.includes('clientX'), 'scenario changes must derive from relative horizontal pointer travel');
-  assert.ok(marginSheetSource.includes('setPointerCapture'), 'horizontal dragging must retain the active pointer');
-  assert.ok(marginSheetSource.includes('releasePointerCapture'), 'pointer capture must be released when dragging finishes');
-  assert.match(marginSheetSource, /touchAction:\s*['"]pan-y['"]/, 'vertical page gestures must stay available on the slider');
-  assert.ok(marginSheetSource.includes('onKeyDown'), 'the custom slider must remain keyboard operable');
-  assert.ok(marginSheetSource.includes("'ArrowLeft'") && marginSheetSource.includes("'ArrowRight'"), 'arrow keys must adjust the scenario');
+  assert.ok(marginPageSource.includes('clientX'), 'scenario changes must derive from relative horizontal pointer travel');
+  assert.ok(marginPageSource.includes('setPointerCapture'), 'horizontal dragging must retain the active pointer');
+  assert.ok(marginPageSource.includes('releasePointerCapture'), 'pointer capture must be released when dragging finishes');
+  assert.match(marginPageSource, /touchAction:\s*['"]pan-y['"]/, 'vertical page gestures must stay available on the slider');
+  assert.ok(marginPageSource.includes('onKeyDown'), 'the custom slider must remain keyboard operable');
+  assert.ok(marginPageSource.includes("'ArrowLeft'") && marginPageSource.includes("'ArrowRight'"), 'arrow keys must adjust the scenario');
 
-  assert.equal(marginSheetSource.includes('type="range"'), false, 'the bounded native range control must not return');
-  assert.equal(marginSheetSource.includes('max="50"'), false, 'the old positive 50 percent ceiling must not return');
-  assert.equal(marginSheetSource.includes('marketTextClass(-1'), false, 'scenario colors must not stay fixed to a decline');
-  assert.equal(marginSheetSource.includes('marketHexColor(-1'), false, 'scenario accents must follow the signed result');
-  assert.match(marginSheetSource, /marketTextClass\([^)]*(?:scenario|assetChange)/, 'text color must consume a signed scenario value');
-  assert.match(marginSheetSource, /marketHexColor\([^)]*(?:scenario|assetChange)/, 'accent color must consume a signed scenario value');
+  assert.equal(marginPageSource.includes('type="range"'), false, 'the bounded native range control must not return');
+  assert.equal(marginPageSource.includes('max="50"'), false, 'the old positive 50 percent ceiling must not return');
+  assert.equal(marginPageSource.includes('marketTextClass(-1'), false, 'scenario colors must not stay fixed to a decline');
+  assert.equal(marginPageSource.includes('marketHexColor(-1'), false, 'scenario accents must follow the signed result');
+  assert.match(marginPageSource, /marketTextClass\([^)]*(?:scenario|assetChange)/, 'text color must consume a signed scenario value');
+  assert.match(marginPageSource, /marketHexColor\([^)]*(?:scenario|assetChange)/, 'accent color must consume a signed scenario value');
 });
 
 test('margin balance save persists before updating UI state and refreshes the user-scoped fallback cache', () => {
-  const uiSources = `${homeTabSource}\n${marginSheetSource}`;
+  const uiSources = `${homeTabSource}\n${marginPageSource}`;
   assert.match(appSource, /await\s+db\.upsertMarginStatus\([\s\S]{0,1600}?setMarginStatus\(/);
   assert.ok(appSource.includes('marginLimit: 0'), 'the retired margin-limit field must stay cleared under the new model');
   assert.ok(appSource.includes('saveMarginDebt,'), 'Home must receive the isolated margin save callback');
-  assert.ok(marginSheetSource.includes('await onSaveDebtUsd(nextDebtUsd)'), 'the editor must wait for the owner callback before closing');
+  assert.ok(marginPageSource.includes('await onSaveDebtUsd(nextDebtUsd)'), 'the editor must wait for the owner callback before closing');
   assert.equal(uiSources.includes('markPnlReportDirty'), false, 'personal financing must not dirty the P&L report');
 
   const saveStart = dbSource.indexOf('export const upsertMarginStatus');
@@ -204,11 +243,11 @@ test('margin loading clears only legacy current-user rows and rejects legacy cac
 });
 
 test('margin editor keeps iOS keyboard actions reachable and rejects signed input without changing its meaning', () => {
-  assert.ok(marginSheetSource.includes('window.visualViewport'), 'the editor must follow the real iOS visual viewport when the keyboard opens');
-  assert.ok(marginSheetSource.includes('max-h-full') && marginSheetSource.includes('overflow-y-auto'), 'the editor must stay scrollable inside the keyboard-reduced viewport');
-  assert.ok(marginSheetSource.includes("scrollPaddingBottom: '96px'"), 'the editor must reserve scroll room for its save actions');
-  assert.equal(marginSheetSource.includes("replace(/[^0-9.]/g, '')"), false, 'a pasted negative balance must not be silently converted into a positive amount');
-  assert.ok(marginSheetSource.includes("nextValue === '' || /^\\d*(?:\\.\\d*)?$/.test(nextValue)"), 'the editor must accept only complete non-negative decimal input');
+  assert.ok(marginPageSource.includes('window.visualViewport'), 'the editor must follow the real iOS visual viewport when the keyboard opens');
+  assert.ok(marginPageSource.includes('max-h-full') && marginPageSource.includes('overflow-y-auto'), 'the editor must stay scrollable inside the keyboard-reduced viewport');
+  assert.ok(marginPageSource.includes("scrollPaddingBottom: '96px'"), 'the editor must reserve scroll room for its save actions');
+  assert.equal(marginPageSource.includes("replace(/[^0-9.]/g, '')"), false, 'a pasted negative balance must not be silently converted into a positive amount');
+  assert.ok(marginPageSource.includes("nextValue === '' || /^\\d*(?:\\.\\d*)?$/.test(nextValue)"), 'the editor must accept only complete non-negative decimal input');
 });
 
 test('margin status remains private to the authenticated user', () => {

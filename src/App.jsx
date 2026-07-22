@@ -25,6 +25,7 @@ const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
+const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -4388,6 +4389,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const closePnlReport = useCallback(() => {
     setActivePage(null);
   }, []);
+  const openHomeMarginRisk = useCallback(() => {
+    setActivePage('home-margin-risk');
+  }, []);
+  const closeHomeMarginRisk = useCallback(() => {
+    setActivePage(null);
+  }, []);
   const openStockDetail = useCallback((symbol) => {
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
     if (!normalizedSymbol) return;
@@ -4531,11 +4538,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
 
   const isPnlReportPage = activePage === 'pnl-report';
+  const isHomeMarginRiskPage = activePage === 'home-margin-risk';
   const isStockDetailPage = activePage === 'stock-detail';
   const isWatchlistStockDetailPage = activePage === 'watchlist-stock-detail';
   const isWaveTrackerPage = activePage === 'wave-tracker';
   const isCommunityCompetitionPage = activePage === 'community-competition';
-  const isStandalonePage = isPnlReportPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
+  const isStandalonePage = isPnlReportPage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
+  const hideBottomNavigation = isPnlReportPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     accountManager,
@@ -4712,6 +4721,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     newStock,
     newTrade,
     onLogout,
+    openHomeMarginRisk,
     openPnlReport,
     openStockDetail,
     openWatchlistStockDetail,
@@ -4733,6 +4743,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     saveMarginDebt,
     reviewLogs,
     clearQuoteDiagnosticLogs,
+    closeHomeMarginRisk,
     closePnlReport,
     closeStockDetail,
     closeWatchlistStockDetail,
@@ -4895,7 +4906,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${isPnlReportPage ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5011,10 +5022,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         <Suspense fallback={<TabFallback />}>
           {isPnlReportPage
             ? <PnlReportPage ctx={tabCtx} />
-            : isStockDetailPage
-              ? <StockDetailPage ctx={tabCtx} />
-              : isWatchlistStockDetailPage
-                ? <WatchlistStockDetailPage ctx={tabCtx} />
+            : isHomeMarginRiskPage
+              ? <HomeMarginRiskPage ctx={tabCtx} />
+              : isStockDetailPage
+                ? <StockDetailPage ctx={tabCtx} />
+                : isWatchlistStockDetailPage
+                  ? <WatchlistStockDetailPage ctx={tabCtx} />
               : isWaveTrackerPage
                 ? <WaveTrackerPage ctx={tabCtx} />
                 : isCommunityCompetitionPage
@@ -5147,7 +5160,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         )}
 
         {/* 底部 5 tab 导航栏 */}
-        {!isPnlReportPage && (
+        {!hideBottomNavigation && (
         <div
           className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${darkShell ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

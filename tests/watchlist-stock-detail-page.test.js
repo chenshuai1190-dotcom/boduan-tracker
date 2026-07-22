@@ -13,8 +13,8 @@ test('watchlist detail keeps the existing bottom tabs and uses the Chinese stock
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.title', '股票趋势')"));
   assert.ok(i18nSource.includes("'watchlistDetail.title': '股票趋势'"));
   assert.ok(i18nSource.includes("'watchlistDetail.title': 'Stock Detail'"), 'English title should remain unchanged');
-  assert.ok(appSource.includes('{!isPnlReportPage && ('));
-  assert.equal(appSource.includes('!isPnlReportPage && !isWatchlistStockDetailPage'), false);
+  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage;'));
+  assert.equal(appSource.includes('hideBottomNavigation = isPnlReportPage || isHomeMarginRiskPage'), false);
   assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && ("));
   assert.ok(devPreviewSource.includes("activeTab === 'watchlist-stock-detail' && tab.id === 'home'"));
 });

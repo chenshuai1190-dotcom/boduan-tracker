@@ -28,6 +28,7 @@ test('navigation scroll restores a pending Home position only on the Home root',
 
   for (const navigation of [
     { activeTab: 'home', activePage: 'watchlist-stock-detail' },
+    { activeTab: 'home', activePage: 'home-margin-risk' },
     { activeTab: 'trades', activePage: null },
   ]) {
     assert.deepEqual(resolveNavigationScrollTarget({
@@ -92,16 +93,18 @@ test('navigation into Home and non-root Home pages never arm the scroll gesture'
     shouldScrollHomeToTop: false,
   });
 
-  assert.deepEqual(resolveBottomTabTap({
-    tabId: 'home',
-    activeTab: 'home',
-    activePage: 'stock-detail',
-    lastHomeTapAt: 1_000,
-    now: 1_100,
-  }), {
-    nextHomeTapAt: 0,
-    shouldScrollHomeToTop: false,
-  });
+  for (const activePage of ['stock-detail', 'home-margin-risk']) {
+    assert.deepEqual(resolveBottomTabTap({
+      tabId: 'home',
+      activeTab: 'home',
+      activePage,
+      lastHomeTapAt: 1_000,
+      now: 1_100,
+    }), {
+      nextHomeTapAt: 0,
+      shouldScrollHomeToTop: false,
+    });
+  }
 });
 
 test('clicking another bottom tab clears a pending Home tap', () => {

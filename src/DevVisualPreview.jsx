@@ -32,6 +32,7 @@ const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
+const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -787,8 +788,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [activeTab, setActiveTab] = React.useState(() => {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
-    const requestedTab = new URLSearchParams(window.location.search).get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
+    const params = new URLSearchParams(window.location.search);
+    if (['risk', 'editor'].includes(params.get('homeMargin'))) return 'home-margin-risk';
+    const requestedTab = params.get('tab');
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = React.useState(0);
   const [language, setLanguage] = React.useState(() => {
@@ -1560,6 +1563,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     marginStatusReady: true,
     marketColorMode,
     newStock,
+    openHomeMarginRisk: () => setActiveTab('home-margin-risk'),
+    closeHomeMarginRisk: () => setActiveTab('home'),
     openPnlReport: () => setActiveTab('pnl-report'),
     closePnlReport: () => setActiveTab('home'),
     openStockDetail: () => setActiveTab('stock-detail'),
@@ -1857,11 +1862,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   return (
     <div
       className={`min-h-screen bg-[#05070b] text-white ${activeTab === 'pnl-report' ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
-      style={{ paddingTop: ['wave-tracker', 'community-competition', 'watchlist-stock-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      style={{ paddingTop: ['home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
+          : activeTab === 'home-margin-risk'
+          ? <HomeMarginRiskPage ctx={homeCtx} />
           : activeTab === 'stock-detail'
           ? <StockDetailPage ctx={homeCtx} />
           : activeTab === 'watchlist-stock-detail'
@@ -1896,6 +1903,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
             {nav.map(tab => {
               const Icon = tab.icon;
               const isActive = tab.id === activeTab
+                || (activeTab === 'home-margin-risk' && tab.id === 'home')
                 || (activeTab === 'watchlist-stock-detail' && tab.id === 'home')
                 || (['stock-detail', 'wave-tracker', 'community-competition'].includes(activeTab) && tab.id === 'trades');
               return (

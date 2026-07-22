@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.369', date: '2026-07-22', latest: true,
+    ver: 'v10.7.9.370', date: '2026-07-22', latest: true,
+    items: [
+      '🧭 融资情景测算独立页面',
+      '  - 点击首页融资负债后进入独立测算页面，顶部保留返回与“设置余额”，原测算公式和个人余额保存逻辑不变',
+      '  - 独立页面继续显示五栏底部导航并高亮首页；切换栏目会正常离开测算页，余额编辑仍使用页内二级弹层',
+      '  - 融资数据继续与正式交易、比赛排行榜和收益报表隔离',
+    ],
+    itemsEn: [
+      '🧭 Standalone margin scenario page',
+      '  - Tapping margin debt on Home now opens a standalone scenario page with Back and Set Balance controls while preserving the existing formulas and personal balance save flow',
+      '  - The five-tab bottom navigation remains visible with Home highlighted; changing tabs exits the scenario page, while balance editing stays in a secondary in-page sheet',
+      '  - Margin data remains isolated from formal trades, competition rankings, and P&L reports',
+    ],
+  },
+  {
+    ver: 'v10.7.9.369', date: '2026-07-22',
     items: [
       '🎚️ 融资情景滑杆与历史余额修正',
       '  - 情景测算默认归零，滑杆改为对称的 -100% 至 +100%；圆点跟随当前数值，左右拖动与归零操作保持一致',
