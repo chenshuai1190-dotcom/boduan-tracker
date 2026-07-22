@@ -953,11 +953,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 {marginStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayMarginDebt, 2)}` : '--'}
               </div>
               <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-0.5'}`}>
-                <span className="whitespace-nowrap text-[8.5px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                  {tt('home.leverage', '账户杠杆')} {marginStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
+                <span className="shrink-0 whitespace-nowrap text-[11px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                  {tt('home.leverage', '杠杆')} {marginStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
                 </span>
                 {marginStatusReady && marginLeverageStatus && (
-                  <AccountLeverageBadge className="h-[16px] px-1 text-[7.5px]" language={language} tierId={marginLeverageStatus.id} />
+                  <AccountLeverageBadge className="h-[17px] px-1 text-[8px]" language={language} tierId={marginLeverageStatus.id} />
                 )}
               </div>
             </button>

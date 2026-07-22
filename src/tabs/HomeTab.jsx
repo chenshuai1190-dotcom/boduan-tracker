@@ -1072,11 +1072,11 @@ export default function HomeTab({ ctx }) {
               {marginStatusReady ? fmtCurrency(displayMarginDebt, displayCurrency, 2) : '--'}
             </div>
             <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-0.5'}`}>
-              <span className="whitespace-nowrap text-[8.5px] text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                {t(language, 'home.leverage', '账户杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                {t(language, 'home.leverage', '杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
               </span>
               {marginStatusReady && marginLeverageStatus && (
-                <AccountLeverageBadge className="h-[16px] px-1 text-[7.5px]" language={language} tierId={marginLeverageStatus.id} />
+                <AccountLeverageBadge className="h-[17px] px-1 text-[8px]" language={language} tierId={marginLeverageStatus.id} />
               )}
             </div>
           </button>

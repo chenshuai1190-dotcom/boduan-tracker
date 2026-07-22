@@ -378,7 +378,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
     { id: 'total-assets', label: t(language, 'home.totalAssets', '总资产'), value: formatCompactMoneyFromUsd(overview.totalAssetsUsd, currency, usdRate) },
     { id: 'net-assets', label: t(language, 'home.netAssets', '净资产'), value: formatCompactMoneyFromUsd(overview.netAssetsUsd, currency, usdRate) },
     { id: 'margin-debt', label: t(language, 'home.marginDebt', '融资负债'), value: formatCompactMoneyFromUsd(overview.marginDebtUsd, currency, usdRate) },
-    { id: 'account-leverage', label: t(language, 'home.leverage', '账户杠杆'), value: formatLeverage(overview.leverage) },
+    { id: 'account-leverage', label: t(language, 'home.leverage', '杠杆'), value: formatLeverage(overview.leverage) },
   ];
 
   return (
@@ -710,7 +710,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3.5">
             <Metric label={t(language, 'home.totalAssets', '总资产')} value={formatMoneyFromUsd(draftOverview.totalAssetsUsd, currency, usdRate, 0)} />
             <Metric label={t(language, 'home.netAssets', '净资产')} value={formatMoneyFromUsd(draftOverview.netAssetsUsd, currency, usdRate, 0)} />
-            <Metric label={t(language, 'home.leverage', '账户杠杆')} value={formatLeverage(draftOverview.leverage)} />
+            <Metric label={t(language, 'home.leverage', '杠杆')} value={formatLeverage(draftOverview.leverage)} />
           </div>
           {draftDebtUsd !== null && draftOverview.netAssetsUsd <= 0 && (
             <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.07] px-3 py-2 text-[11px] leading-4 text-amber-200/75">

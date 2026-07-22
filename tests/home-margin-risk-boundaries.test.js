@@ -58,6 +58,7 @@ test('Home financing UI exposes a stable standalone page without replacing the c
   assert.ok(cardBlock.includes("t(language, 'home.totalAssets'"));
   assert.ok(cardBlock.includes("t(language, 'home.marginDebt'"));
   assert.ok(cardBlock.includes("t(language, 'home.leverage'"));
+  assert.ok(cardBlock.includes('shrink-0 whitespace-nowrap text-[11px]'), 'Home must keep the original readable leverage text size');
   assert.ok(cardBlock.includes('<AccountLeverageBadge'));
   assert.equal(cardBlock.includes('data-home-margin-leverage-info-trigger'), false, 'Home should not expose the leverage guide');
   assert.equal(cardBlock.includes("t(language, 'home.positions'"), false, 'only the Home header third metric should stop showing position count');
@@ -156,8 +157,8 @@ test('Home margin labels are present in both Chinese and English dictionaries', 
     assert.equal(countTranslationKey(key), 2, `${key} must exist once in each language dictionary`);
   }
 
-  assert.ok(i18nSource.includes("'home.leverage': '账户杠杆'"));
-  assert.ok(i18nSource.includes("'home.leverage': 'Account Leverage'"));
+  assert.ok(i18nSource.includes("'home.leverage': '杠杆'"));
+  assert.ok(i18nSource.includes("'home.leverage': 'Leverage'"));
   assert.ok(accountLeverageBadgeSource.includes("'home.leverageTier.moderate'"));
 
   for (const key of [
@@ -317,7 +318,8 @@ test('personal financing stays out of calculations, reports, and competition whi
   assert.ok(tradesTabSource.includes("tt('home.netAssets', '净资产')"));
   assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"));
   assert.ok(tradesTabSource.includes("tt('home.marginDebt', '融资负债')"));
-  assert.ok(tradesTabSource.includes("tt('home.leverage', '账户杠杆')"));
+  assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"));
+  assert.ok(tradesTabSource.includes('shrink-0 whitespace-nowrap text-[11px]'), 'Trades must mirror the readable Home leverage text size');
   for (const forbiddenWrite of ['saveMarginDebt', 'setMarginStatus', 'upsertMarginStatus', 'margin_status']) {
     assert.equal(tradesTabSource.includes(forbiddenWrite), false, `Trades must not write through ${forbiddenWrite}`);
   }

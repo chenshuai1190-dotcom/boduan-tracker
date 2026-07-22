@@ -2113,7 +2113,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
   assert.ok(tradesTabSource.includes('data-trades-margin-trigger="true"'), 'trade header financing area should open the standalone margin risk page');
-  assert.ok(tradesTabSource.includes("tt('home.leverage', '账户杠杆')"), 'trade header should use the shared account leverage label');
+  assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"), 'trade header should use the shared leverage label');
   assert.ok(tradesTabSource.includes('<AccountLeverageBadge'), 'trade header should use the shared leverage tier badge');
   assert.equal(tradesTabSource.includes("style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}"), false, 'trade header should not keep the wider English positions grid');
   assert.equal(tradesTabSource.includes('truncate whitespace-nowrap'), false, 'trade header should not keep a separate truncation rule instead of matching home');
