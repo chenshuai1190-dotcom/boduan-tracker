@@ -6,10 +6,12 @@ import {
   marketTextClass,
 } from '../lib/marketColorMode.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -33,6 +35,17 @@ function signedCurrency(value, currency = 'USD', digits = 2) {
   const n = toNumber(value);
   const prefix = currency === 'CNY' ? '¥' : '$';
   return `${n >= 0 ? '+' : '-'}${prefix}${fmtAmount(Math.abs(n), digits)}`;
+}
+
+function splitSignedCurrencyAmount(value, currency = 'USD', digits = 2) {
+  const numeric = Number(value);
+  const safeValue = Number.isFinite(numeric) ? numeric : 0;
+  const parts = splitCurrencyAmount(Math.abs(safeValue), currency, digits);
+  return safeValue < 0 ? { ...parts, main: `-${parts.main}` } : parts;
+}
+
+function formatLeverage(value) {
+  return Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
 }
 
 function currencyAmount(value, currency = 'USD', digits = 2) {
@@ -451,10 +464,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     language = 'zh',
     logoCache,
     lookupStatus,
+    marginStatus,
+    marginStatusReady = true,
     marketColorMode,
     newTrade,
     openStockDetail,
     openPnlReport,
+    openHomeMarginRisk,
     openWaveTracker,
     openCommunityCompetition,
     portfolioCurrencyMode,
@@ -604,8 +620,16 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const tradeModalInputStyle = { colorScheme: 'dark' };
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
+  const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
+  const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
+    totalAssetsUsd: summary.totalAssetsUsd,
+    marginDebtUsd,
+  }), [marginDebtUsd, summary.totalAssetsUsd]);
+  const marginLeverageStatus = React.useMemo(() => homeMarginLeverageStatus(marginOverview), [marginOverview]);
   const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
-  const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2);
+  const displayNetAssets = marginOverview.netAssetsUsd * displayRate;
+  const displayMarginDebt = marginOverview.marginDebtUsd * displayRate;
+  const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2);
   const hasTodayPnl = summary.hasTodayPnl !== false;
   const displayTodayPnl = hasTodayPnl ? toNumber(summary.todayPnl) * displayRate : null;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
@@ -841,9 +865,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   return (
     <>
       <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
-        <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-trades-net-assets-card="true">
           <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 text-[13px] font-normal text-white/70">{tt('trades.totalAssets', '总资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+            <div className="min-w-0 text-[13px] font-normal text-white/70">{tt('home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
             <div className="ml-auto flex justify-end">
               <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
                 {['USD', 'CNY'].map((mode) => (
@@ -870,13 +894,25 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             </div>
           </div>
 
-          <div className="mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-            <span>{displayAssetMoney.main}</span>
-            <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
+          <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}>
+            {marginStatusReady ? (
+              <>
+                <span>{displayAssetMoney.main}</span>
+                <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
+              </>
+            ) : (
+              <span className="text-white/30">--</span>
+            )}
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-[12px] text-white/[0.42]">
+            <span>{tt('trades.totalAssets', '总资产')}</span>
+            <span className="truncate text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+              {`${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}`}
+            </span>
           </div>
 
           <div
-            className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10"
+            className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10 border-t border-white/[0.07] pt-4"
           >
             <div className="min-w-0 pr-3">
               <div className="text-[12px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
@@ -893,7 +929,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
               <div className="flex items-center gap-0.5 text-[12px] text-white/50">
                 <span>{tt('trades.totalPnl', '累计盈亏')}</span>
-                <ChevronRight className="h-3 w-3 text-white/28" />
+                <ChevronRight className="h-3 w-3 text-white/[0.28]" />
               </div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
@@ -902,12 +938,29 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 {signedPct(summary.cumulativePnlPct, 2)}
               </div>
             </button>
-            <div className="min-w-0 pl-3">
-              <div className="text-[12px] text-white/50">{tt('trades.positions', '持仓数量')}</div>
-              <div className={`mt-3 whitespace-nowrap ${englishMode ? 'text-[14px]' : 'text-[15px]'} font-normal leading-tight text-white/90`}>
-                {tt('trades.holdingsTrades', '{{holdings}}只 · {{trades}}笔', { holdings: summary.holdingStockCount || 0, trades: summary.sellTradeCount || 0 })}
+            <button
+              type="button"
+              disabled={!marginStatusReady}
+              onClick={openHomeMarginRisk}
+              className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+              data-trades-margin-trigger="true"
+            >
+              <div className="flex items-center gap-0.5 text-[12px] text-white/50">
+                <span>{tt('home.marginDebt', '融资负债')}</span>
+                <ChevronRight className="h-3 w-3 text-white/[0.28]" />
               </div>
-            </div>
+              <div className={`mt-2 truncate ${englishMode ? 'text-[11px]' : 'text-[12px]'} font-normal leading-tight text-white/90 tabular-nums`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                {marginStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayMarginDebt, 2)}` : '--'}
+              </div>
+              <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-0.5'}`}>
+                <span className="whitespace-nowrap text-[8.5px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                  {tt('home.leverage', '账户杠杆')} {marginStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
+                </span>
+                {marginStatusReady && marginLeverageStatus && (
+                  <AccountLeverageBadge className="h-[16px] px-1 text-[7.5px]" language={language} tierId={marginLeverageStatus.id} />
+                )}
+              </div>
+            </button>
           </div>
         </section>
 

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.370', date: '2026-07-22', latest: true,
+    ver: 'v10.7.9.371', date: '2026-07-22', latest: true,
+    items: [
+      '📐 账户杠杆分级与资产卡同步',
+      '  - 首页与交易页头部资产卡统一展示净资产、总资产、今日盈亏、累计盈亏、融资负债和账户杠杆等级',
+      '  - 独立融资页的“账户杠杆”区域可打开分级说明；首页与交易页不增加说明图标',
+      '  - 交易页仅只读复用个人融资状态，不改变融资余额保存、正式交易、比赛排行榜或收益报表逻辑',
+    ],
+    itemsEn: [
+      '📐 Account leverage tiers and synchronized asset cards',
+      '  - Home and Trades now share the same header structure for net assets, total assets, daily P&L, cumulative P&L, margin debt, and account leverage tier',
+      '  - Tapping Account Leverage on the standalone margin page opens the tier guide without adding an explanation icon to Home or Trades',
+      '  - Trades reuses personal margin status as read-only display data without changing balance persistence, formal trades, competition rankings, or P&L reports',
+    ],
+  },
+  {
+    ver: 'v10.7.9.370', date: '2026-07-22',
     items: [
       '🧭 融资情景测算独立页面',
       '  - 点击首页融资负债后进入独立测算页面，顶部保留返回与“设置余额”，原测算公式和个人余额保存逻辑不变',

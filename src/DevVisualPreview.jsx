@@ -789,7 +789,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
     const params = new URLSearchParams(window.location.search);
-    if (['risk', 'editor'].includes(params.get('homeMargin'))) return 'home-margin-risk';
+    if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     const requestedTab = params.get('tab');
     return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
@@ -1708,6 +1708,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     language,
     logoCache: {},
     lookupStatus: tradeLookupStatus,
+    marginStatus: { currentMargin: previewMarginDebtUsd, marginLimit: 0 },
+    marginStatusReady: true,
     marketColorMode,
     newTrade,
     closeCommunityCompetition: () => setActiveTab('trades'),
@@ -1716,6 +1718,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setActiveTab('settings');
     },
     openPnlReport: () => setActiveTab('pnl-report'),
+    openHomeMarginRisk: () => setActiveTab('home-margin-risk'),
     openStockDetail: noop,
     openWaveTracker: () => setActiveTab('wave-tracker'),
     openCommunityCompetition: () => setActiveTab('community-competition'),

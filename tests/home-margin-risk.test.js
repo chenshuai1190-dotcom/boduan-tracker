@@ -4,10 +4,13 @@ import test from 'node:test';
 import {
   HOME_MARGIN_LOGIC_STARTED_AT,
   HOME_MARGIN_LOGIC_VERSION,
+  HOME_MARGIN_LEVERAGE_TIERS,
   deriveHomeMarginOverview,
   deriveHomeMarginStress,
   displayMarginDebtToUsd,
   homeMarginLogicUpdatedAt,
+  homeMarginLeverageStatus,
+  homeMarginLeverageTier,
   isLegacyHomeMarginStatus,
   marginScenarioToTrackRatio,
   marginTrackRatioToScenario,
@@ -77,6 +80,56 @@ test('keeps an unlevered account at 1.00x and never emits invalid leverage', () 
   });
   assert.equal(negativeEquity.netAssetsUsd, -1_000_000);
   assert.equal(negativeEquity.leverage, null);
+});
+
+test('classifies account leverage with conservative exact boundaries', () => {
+  const cases = [
+    [1, 'none'],
+    [1.000001, 'low'],
+    [1.199999, 'low'],
+    [1.2, 'moderate'],
+    [1.499999, 'moderate'],
+    [1.5, 'elevated'],
+    [1.799999, 'elevated'],
+    [1.8, 'high'],
+    [2, 'high'],
+    [2.000001, 'critical'],
+  ];
+
+  assert.deepEqual(HOME_MARGIN_LEVERAGE_TIERS.map((tier) => tier.id), [
+    'none',
+    'low',
+    'moderate',
+    'elevated',
+    'high',
+    'critical',
+  ]);
+  for (const [value, expectedTier] of cases) {
+    assert.equal(homeMarginLeverageTier(value)?.id, expectedTier, `unexpected tier for ${value}`);
+  }
+  for (const invalid of [null, undefined, 'bad', Number.NaN, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, 0, 0.99]) {
+    assert.equal(homeMarginLeverageTier(invalid), null);
+  }
+});
+
+test('derives the shared leverage status from real margin overviews', () => {
+  const low = deriveHomeMarginOverview({ totalAssetsUsd: 23_000_000, marginDebtUsd: 3_000_000 });
+  assert.equal(homeMarginLeverageStatus(low)?.id, 'low');
+
+  const moderate = deriveHomeMarginOverview({ totalAssetsUsd: 23_686_000, marginDebtUsd: 4_627_000 });
+  assert.equal(homeMarginLeverageStatus(moderate)?.id, 'moderate');
+
+  const unlevered = deriveHomeMarginOverview({ totalAssetsUsd: 23_000_000, marginDebtUsd: 0 });
+  assert.equal(homeMarginLeverageStatus(unlevered)?.id, 'none');
+
+  const insufficient = deriveHomeMarginOverview({ totalAssetsUsd: 3_000_000, marginDebtUsd: 3_000_000 });
+  assert.equal(homeMarginLeverageStatus(insufficient)?.id, 'insufficient');
+
+  const debtWithoutAssets = deriveHomeMarginOverview({ totalAssetsUsd: 0, marginDebtUsd: 25 });
+  assert.equal(homeMarginLeverageStatus(debtWithoutAssets)?.id, 'insufficient');
+
+  const empty = deriveHomeMarginOverview({ totalAssetsUsd: 0, marginDebtUsd: 0 });
+  assert.equal(homeMarginLeverageStatus(empty), null);
 });
 
 test('converts only the editable margin balance from display currency to canonical USD', () => {

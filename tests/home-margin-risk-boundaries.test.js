@@ -10,7 +10,9 @@ const appSource = source('../src/App.jsx');
 const devPreviewSource = source('../src/DevVisualPreview.jsx');
 const dbSource = source('../src/lib/db.js');
 const homeTabSource = source('../src/tabs/HomeTab.jsx');
+const tradesTabSource = source('../src/tabs/TradesTab.jsx');
 const marginPageSource = source('../src/pages/HomeMarginRiskPage.jsx');
+const accountLeverageBadgeSource = source('../src/components/AccountLeverageBadge.jsx');
 const i18nSource = source('../src/lib/i18n.js');
 const rlsSource = source('../supabase/rls.sql');
 const rlsProbeSource = source('../scripts/verify-rls-rest.mjs');
@@ -26,7 +28,6 @@ const isolatedSources = [
   ['competition server', source('../server/communityCompetition.js')],
   ['competition daily snapshot server', source('../server/communityCompetitionDailySnapshot.js')],
   ['competition snapshot model', source('../server/communityCompetitionSnapshotModel.js')],
-  ['Trades tab', source('../src/tabs/TradesTab.jsx')],
 ];
 
 function countTranslationKey(key) {
@@ -41,6 +42,8 @@ test('Home financing UI exposes a stable standalone page without replacing the c
     'data-home-margin-trigger="true"',
     'data-home-margin-risk-page="true"',
     'data-home-margin-scenario-slider="true"',
+    'data-home-margin-leverage-info-trigger="true"',
+    'data-home-margin-leverage-info-sheet="true"',
     'data-home-margin-balance-editor="true"',
     'data-home-margin-save="true"',
   ]) {
@@ -55,6 +58,8 @@ test('Home financing UI exposes a stable standalone page without replacing the c
   assert.ok(cardBlock.includes("t(language, 'home.totalAssets'"));
   assert.ok(cardBlock.includes("t(language, 'home.marginDebt'"));
   assert.ok(cardBlock.includes("t(language, 'home.leverage'"));
+  assert.ok(cardBlock.includes('<AccountLeverageBadge'));
+  assert.equal(cardBlock.includes('data-home-margin-leverage-info-trigger'), false, 'Home should not expose the leverage guide');
   assert.equal(cardBlock.includes("t(language, 'home.positions'"), false, 'only the Home header third metric should stop showing position count');
   assert.ok(homeTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4'), 'the existing Home header shell must stay intact');
 });
@@ -79,6 +84,16 @@ test('Home margin risk uses a standalone page while keeping the bottom navigatio
   assert.ok(marginPageSource.includes('data-home-margin-risk-page="true"'));
   assert.ok(marginPageSource.includes('sticky top-0'));
   assert.ok(marginPageSource.includes('<ArrowLeft'));
+  assert.ok(marginPageSource.includes('data-home-margin-leverage-info-trigger="true"'));
+  assert.ok(marginPageSource.includes('data-home-margin-leverage-info-sheet="true"'));
+  assert.ok(marginPageSource.includes("useState(homeMarginPreview === 'leverage')"), 'DEV preview should be able to open the leverage guide for Simulator evidence');
+  assert.equal(marginPageSource.includes('<ChevronRight'), false, 'the leverage area should remain clickable without a separate explanation icon');
+  assert.ok(marginPageSource.includes('bg-[#0d131b]'), 'the leverage guide should keep an opaque dark sheet background');
+  assert.ok(marginPageSource.includes("backgroundImage: 'radial-gradient("), 'the leverage guide accent gradient should remain a valid background image');
+  assert.equal(marginPageSource.includes('bg-[radial-gradient(circle_at_76%_-12%'), false, 'the sheet must not encode a background color inside an invalid Tailwind image utility');
+  assert.ok(marginPageSource.includes("paddingBottom: 'max(8px, env(safe-area-inset-bottom))'"), 'the leverage guide should clear the iOS home indicator');
+  assert.ok(marginPageSource.includes('aria-haspopup="dialog"'));
+  assert.equal(homeTabSource.includes('data-home-margin-leverage-info-trigger'), false, 'the leverage guide trigger belongs only to the standalone page');
   assert.ok(marginPageSource.includes("pb-[calc(env(safe-area-inset-bottom)+28px)]"));
   assert.equal(marginPageSource.includes('data-home-margin-risk-sheet'), false, 'the main scenario surface must no longer present itself as a sheet');
 });
@@ -102,6 +117,31 @@ test('Home margin labels are present in both Chinese and English dictionaries', 
     'home.totalAssets',
     'home.marginDebt',
     'home.leverage',
+    'home.leverageInfoTitle',
+    'home.leverageInfoSubtitle',
+    'home.leverageInfoOpen',
+    'home.currentLeverage',
+    'home.marginShare',
+    'home.leverageRange',
+    'home.leverageState',
+    'home.leverageDescription',
+    'home.leverageTier.none',
+    'home.leverageTier.low',
+    'home.leverageTier.moderate',
+    'home.leverageTier.elevated',
+    'home.leverageTier.high',
+    'home.leverageTier.critical',
+    'home.leverageTier.insufficient',
+    'home.leverageTier.noneDesc',
+    'home.leverageTier.lowDesc',
+    'home.leverageTier.moderateDesc',
+    'home.leverageTier.elevatedDesc',
+    'home.leverageTier.highDesc',
+    'home.leverageTier.criticalDesc',
+    'home.leverageFormula',
+    'home.leverageFormulaValue',
+    'home.marginShareFormula',
+    'home.marginShareFormulaValue',
     'home.marginRisk',
     'home.setMarginBalance',
     'home.stockPortfolioMove',
@@ -115,6 +155,10 @@ test('Home margin labels are present in both Chinese and English dictionaries', 
   ]) {
     assert.equal(countTranslationKey(key), 2, `${key} must exist once in each language dictionary`);
   }
+
+  assert.ok(i18nSource.includes("'home.leverage': '账户杠杆'"));
+  assert.ok(i18nSource.includes("'home.leverage': 'Account Leverage'"));
+  assert.ok(accountLeverageBadgeSource.includes("'home.leverageTier.moderate'"));
 
   for (const key of [
     'home.marginRisk',
@@ -260,13 +304,21 @@ test('margin status remains private to the authenticated user', () => {
   assert.match(rlsProbeSource, /['"]margin_status['"]/);
 });
 
-test('personal financing stays out of investment summary, reports, competition, and Trades', () => {
+test('personal financing stays out of calculations, reports, and competition while Trades mirrors the read-only Home header', () => {
   const forbidden = /\b(?:marginStatus|currentMargin|margin_status)\b/;
   for (const [name, fileSource] of isolatedSources) {
     assert.equal(forbidden.test(fileSource), false, `${name} must not consume personal financing state`);
   }
 
-  const tradesSource = isolatedSources.find(([name]) => name === 'Trades tab')[1];
-  assert.ok(tradesSource.includes("tt('trades.totalAssets', '总资产')"));
-  assert.ok(tradesSource.includes("tt('trades.positions', '持仓数量')"));
+  assert.ok(tradesTabSource.includes('marginStatus,'), 'Trades may read the private margin status for the mirrored header');
+  assert.ok(tradesTabSource.includes('deriveHomeMarginOverview({'));
+  assert.ok(tradesTabSource.includes('data-trades-net-assets-card="true"'));
+  assert.ok(tradesTabSource.includes('data-trades-margin-trigger="true"'));
+  assert.ok(tradesTabSource.includes("tt('home.netAssets', '净资产')"));
+  assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"));
+  assert.ok(tradesTabSource.includes("tt('home.marginDebt', '融资负债')"));
+  assert.ok(tradesTabSource.includes("tt('home.leverage', '账户杠杆')"));
+  for (const forbiddenWrite of ['saveMarginDebt', 'setMarginStatus', 'upsertMarginStatus', 'margin_status']) {
+    assert.equal(tradesTabSource.includes(forbiddenWrite), false, `Trades must not write through ${forbiddenWrite}`);
+  }
 });

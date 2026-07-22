@@ -592,8 +592,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.370'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.370', date: '2026-07-22', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.371'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.371', date: '2026-07-22', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('融资情景测算独立页面') && settingsChangelogSource.includes('五栏底部导航并高亮首页') && settingsChangelogSource.includes('余额编辑仍使用页内二级弹层'), 'settings changelog should document the standalone margin route and preserved bottom navigation');
   assert.ok(settingsChangelogSource.includes('融资情景滑杆与历史余额修正') && settingsChangelogSource.includes('对称的 -100% 至 +100%') && settingsChangelogSource.includes('一次性清零') && settingsChangelogSource.includes('旧版无版本缓存不再回退'), 'settings changelog should document the bounded slider and safe legacy-balance reset');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.368', date: '2026-07-22'") && settingsChangelogSource.includes('首页净资产与融资情景测算'), 'settings changelog should preserve the original margin release as history');
@@ -2082,8 +2082,8 @@ test('primary asset totals split decimal suffixes consistently', () => {
   assert.ok(homeTabSource.includes('const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2)'), 'home net assets should split the decimal suffix and preserve a leading negative sign');
   assert.ok(homeTabSource.includes('displayAssetMoney.decimal'), 'home net assets should render the decimal suffix separately');
   assert.ok(tradesTabSource.includes("import { splitCurrencyAmount } from '../lib/amountDisplay.js';"), 'trades tab should use the shared split amount helper');
-  assert.ok(tradesTabSource.includes('const displayAssetMoney = splitCurrencyAmount(displayAssets, displayCurrency, 2)'), 'trades total assets should split the decimal suffix');
-  assert.ok(tradesTabSource.includes('displayAssetMoney.decimal'), 'trades total assets should render the decimal suffix separately');
+  assert.ok(tradesTabSource.includes('const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2)'), 'trades net assets should split the decimal suffix and preserve a leading negative sign');
+  assert.ok(tradesTabSource.includes('displayAssetMoney.decimal'), 'trades net assets should render the decimal suffix separately');
   assert.ok(analysisTabSource.includes("import { splitCurrencyAmount } from '../lib/amountDisplay.js';"), 'asset tab should use the shared split amount helper');
   assert.ok(analysisTabSource.includes("const totalNowMoney = splitCurrencyAmount(totalNow, 'CNY', 2)"), 'family total assets should split the decimal suffix');
   assert.ok(analysisTabSource.includes('totalNowMoney.decimal'), 'family total assets should render the decimal suffix separately');
@@ -2112,7 +2112,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
-  assert.ok(tradesTabSource.includes("englishMode ? 'text-[14px]' : 'text-[15px]'"), 'trade header positions count should match the English home header text size');
+  assert.ok(tradesTabSource.includes('data-trades-margin-trigger="true"'), 'trade header financing area should open the standalone margin risk page');
+  assert.ok(tradesTabSource.includes("tt('home.leverage', '账户杠杆')"), 'trade header should use the shared account leverage label');
+  assert.ok(tradesTabSource.includes('<AccountLeverageBadge'), 'trade header should use the shared leverage tier badge');
   assert.equal(tradesTabSource.includes("style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}"), false, 'trade header should not keep the wider English positions grid');
   assert.equal(tradesTabSource.includes('truncate whitespace-nowrap'), false, 'trade header should not keep a separate truncation rule instead of matching home');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
@@ -2457,7 +2459,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.370'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.371'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

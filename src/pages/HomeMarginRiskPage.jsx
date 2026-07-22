@@ -1,9 +1,11 @@
 import React from 'react';
 import { ArrowLeft, Loader2, X } from 'lucide-react';
 import {
+  HOME_MARGIN_LEVERAGE_TIERS,
   deriveHomeMarginOverview,
   deriveHomeMarginStress,
   displayMarginDebtToUsd,
+  homeMarginLeverageStatus,
   marginScenarioToTrackRatio,
   marginTrackRatioToScenario,
   normalizeMarginDebtUsd,
@@ -11,10 +13,19 @@ import {
 } from '../lib/homeMarginRisk.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
+import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const SCENARIO_PRESETS = [-40, -20, -10, 10, 20, 40];
 const NEUTRAL_SCENARIO_COLOR = '#8d96a3';
+const LEVERAGE_TIER_DESCRIPTION = Object.freeze({
+  none: ['home.leverageTier.noneDesc', '全部为自有权益'],
+  low: ['home.leverageTier.lowDesc', '少量融资'],
+  moderate: ['home.leverageTier.moderateDesc', '有明确融资敞口'],
+  elevated: ['home.leverageTier.elevatedDesc', '下跌将明显放大净资产波动'],
+  high: ['home.leverageTier.highDesc', '接近普通股票初始融资要求'],
+  critical: ['home.leverageTier.criticalDesc', '净资产对下跌非常敏感'],
+});
 
 function displayRate(currency, usdRate) {
   const rate = Number(usdRate);
@@ -71,8 +82,8 @@ function formatLeverage(value) {
 function Metric({ label, value }) {
   return (
     <div className="min-w-0 px-1 text-center">
-      <div className="text-[10px] text-white/38">{label}</div>
-      <div className="mt-1 truncate text-[12px] font-medium text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{value}</div>
+      <div className="text-[10px] text-white/[0.38]">{label}</div>
+      <div className="mt-1 truncate text-[12px] font-medium text-white/[0.82] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
 }
@@ -246,6 +257,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   });
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
+  const [showLeverageGuide, setShowLeverageGuide] = React.useState(homeMarginPreview === 'leverage');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
   const currency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const currencySymbol = currency === 'CNY' ? '¥' : '$';
@@ -265,6 +277,10 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
     totalAssetsUsd,
     marginDebtUsd: draftDebtUsd ?? 0,
   });
+  const leverageStatus = React.useMemo(() => homeMarginLeverageStatus(overview), [overview]);
+  const financingShare = overview.totalAssetsUsd > 0
+    ? overview.marginDebtUsd / overview.totalAssetsUsd
+    : null;
   const scenarioDirection = Math.sign(stress.normalizedScenarioPct);
   const scenarioColorClass = scenarioDirection === 0
     ? 'text-white/55'
@@ -274,13 +290,13 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
     : marketHexColor(scenarioDirection, marketColorMode);
 
   React.useEffect(() => {
-    if (panel !== 'editor') return undefined;
+    if (panel !== 'editor' && !showLeverageGuide) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [panel]);
+  }, [panel, showLeverageGuide]);
 
   React.useEffect(() => {
     if (panel !== 'editor' || typeof window === 'undefined' || !window.visualViewport) return undefined;
@@ -313,12 +329,13 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   React.useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key !== 'Escape' || saving) return;
-      if (panel === 'editor') setPanel('risk');
+      if (showLeverageGuide) setShowLeverageGuide(false);
+      else if (panel === 'editor') setPanel('risk');
       else onClose?.();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, panel, saving]);
+  }, [onClose, panel, saving, showLeverageGuide]);
 
   const openEditor = () => {
     const rate = displayRate(currency, usdRate);
@@ -358,10 +375,10 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   };
 
   const currentCards = [
-    [t(language, 'home.totalAssets', '总资产'), formatCompactMoneyFromUsd(overview.totalAssetsUsd, currency, usdRate)],
-    [t(language, 'home.netAssets', '净资产'), formatCompactMoneyFromUsd(overview.netAssetsUsd, currency, usdRate)],
-    [t(language, 'home.marginDebt', '融资负债'), formatCompactMoneyFromUsd(overview.marginDebtUsd, currency, usdRate)],
-    [t(language, 'home.leverage', '杠杆'), formatLeverage(overview.leverage)],
+    { id: 'total-assets', label: t(language, 'home.totalAssets', '总资产'), value: formatCompactMoneyFromUsd(overview.totalAssetsUsd, currency, usdRate) },
+    { id: 'net-assets', label: t(language, 'home.netAssets', '净资产'), value: formatCompactMoneyFromUsd(overview.netAssetsUsd, currency, usdRate) },
+    { id: 'margin-debt', label: t(language, 'home.marginDebt', '融资负债'), value: formatCompactMoneyFromUsd(overview.marginDebtUsd, currency, usdRate) },
+    { id: 'account-leverage', label: t(language, 'home.leverage', '账户杠杆'), value: formatLeverage(overview.leverage) },
   ];
 
   return (
@@ -395,12 +412,29 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
       </header>
 
       <section className="pb-6 pt-5" data-home-margin-risk-content="true">
-        <p className="text-center text-[11px] text-white/38">
+        <p className="text-center text-[11px] text-white/[0.38]">
           {t(language, 'home.marginRiskSubtitle', '假设全部股票同步涨跌，融资负债保持不变')}
         </p>
 
           <div className="mt-4 grid grid-cols-4 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3">
-            {currentCards.map(([label, value]) => <Metric key={label} label={label} value={value} />)}
+            {currentCards.map((card) => (
+              card.id === 'account-leverage' ? (
+                <button
+                  key={card.id}
+                  type="button"
+                  aria-expanded={showLeverageGuide}
+                  aria-haspopup="dialog"
+                  aria-label={t(language, 'home.leverageInfoOpen', '查看账户杠杆说明')}
+                  className="min-w-0 active:bg-white/[0.035]"
+                  data-home-margin-leverage-info-trigger="true"
+                  onClick={() => setShowLeverageGuide(true)}
+                >
+                  <Metric label={card.label} value={card.value} />
+                </button>
+              ) : (
+                <Metric key={card.id} label={card.label} value={card.value} />
+              )
+            ))}
           </div>
 
           <div className="mt-5 flex items-end justify-between">
@@ -493,10 +527,103 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
             </span>
           </div>
 
-          <p className="mt-4 text-center text-[10px] leading-4 text-white/28">
+          <p className="mt-4 text-center text-[10px] leading-4 text-white/[0.28]">
             {t(language, 'home.marginRiskBoundary', '仅用于个人融资情景测算，不影响比赛、收益报表和交易记录。')}
           </p>
       </section>
+
+      {showLeverageGuide && (
+        <div
+          className="fixed inset-0 z-[190] flex items-end justify-center bg-black/[0.72] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[5px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="home-margin-leverage-info-title"
+          style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowLeverageGuide(false);
+          }}
+        >
+          <section
+            className="max-h-[82dvh] w-full max-w-[430px] overflow-y-auto overscroll-contain rounded-[28px] border border-white/10 bg-[#0d131b] px-5 pb-5 pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            data-home-margin-leverage-info-sheet="true"
+            style={{ backgroundImage: 'radial-gradient(circle at 76% -12%, rgba(246,181,75,0.09), transparent 38%)' }}
+          >
+            <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
+            <div className="relative mt-3 flex min-h-9 items-center justify-center">
+              <h2 id="home-margin-leverage-info-title" className="text-[17px] font-medium text-white/90">
+                {t(language, 'home.leverageInfoTitle', '账户杠杆说明')}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowLeverageGuide(false)}
+                className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.07] text-white/[0.55] active:scale-95"
+                aria-label={t(language, 'home.cancel', '关闭')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-0.5 text-center text-[11px] text-white/[0.38]">
+              {t(language, 'home.leverageInfoSubtitle', '杠杆越高，市场波动对净资产的放大越明显')}
+            </p>
+
+            <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-[#f6b54b]/20 bg-[#f6b54b]/[0.045] px-4 py-3.5">
+              <div>
+                <div className="text-[10px] text-white/[0.38]">{t(language, 'home.currentLeverage', '当前账户杠杆')}</div>
+                <div className="mt-1 text-[20px] text-white/[0.88] tabular-nums">{formatLeverage(overview.leverage)}</div>
+              </div>
+              <div className="text-right">
+                {leverageStatus && (
+                  <AccountLeverageBadge className="h-6 px-2.5 text-[10px]" language={language} tierId={leverageStatus.id} />
+                )}
+                <div className="mt-2 text-[9.5px] text-white/[0.38] tabular-nums">
+                  {t(language, 'home.marginShare', '融资占总资产 {{percent}}', {
+                    percent: Number.isFinite(financingShare) ? `${(financingShare * 100).toFixed(1)}%` : '—',
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="mx-2 mt-4 grid grid-cols-[88px_68px_1fr] gap-2 text-[8.5px] text-white/[0.28]">
+              <span>{t(language, 'home.leverageRange', '账户杠杆 / 融资占比')}</span>
+              <span>{t(language, 'home.leverageState', '状态')}</span>
+              <span>{t(language, 'home.leverageDescription', '说明')}</span>
+            </div>
+            <div className="mt-2 grid gap-1.5">
+              {HOME_MARGIN_LEVERAGE_TIERS.map((tier) => {
+                const [descriptionKey, descriptionFallback] = LEVERAGE_TIER_DESCRIPTION[tier.id];
+                const isCurrent = leverageStatus?.id === tier.id;
+                return (
+                  <div
+                    key={tier.id}
+                    className={`grid min-h-[49px] grid-cols-[88px_68px_1fr] items-center gap-2 rounded-xl border px-3 py-2 ${isCurrent ? 'border-[#f6b54b]/30 bg-[#f6b54b]/[0.065] shadow-[inset_3px_0_0_rgba(246,181,75,0.68)]' : 'border-white/[0.055] bg-white/[0.02]'}`}
+                    data-home-margin-leverage-tier={tier.id}
+                  >
+                    <div>
+                      <div className="whitespace-nowrap text-[11px] text-white/[0.74] tabular-nums">{tier.leverageRange}</div>
+                      <div className="mt-1 whitespace-nowrap text-[8.5px] text-white/30">{tier.financingShareRange}</div>
+                    </div>
+                    <AccountLeverageBadge className="min-h-[22px] px-1.5 text-[9px]" language={language} tierId={tier.id} />
+                    <div className="text-[9.5px] leading-[1.4] text-white/[0.48]">
+                      {t(language, descriptionKey, descriptionFallback)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid gap-2 rounded-xl bg-white/[0.026] px-3.5 py-3 text-[9.5px] text-white/[0.34]">
+              <div className="flex items-center justify-between gap-3">
+                <span>{t(language, 'home.leverageFormula', '账户杠杆')}</span>
+                <span className="text-white/[0.58]">{t(language, 'home.leverageFormulaValue', '总资产 ÷ 净资产')}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>{t(language, 'home.marginShareFormula', '融资占比')}</span>
+                <span className="text-white/[0.58]">{t(language, 'home.marginShareFormulaValue', '融资负债 ÷ 总资产')}</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       {panel === 'editor' && (
         <div
@@ -583,11 +710,11 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3.5">
             <Metric label={t(language, 'home.totalAssets', '总资产')} value={formatMoneyFromUsd(draftOverview.totalAssetsUsd, currency, usdRate, 0)} />
             <Metric label={t(language, 'home.netAssets', '净资产')} value={formatMoneyFromUsd(draftOverview.netAssetsUsd, currency, usdRate, 0)} />
-            <Metric label={t(language, 'home.leverage', '杠杆')} value={formatLeverage(draftOverview.leverage)} />
+            <Metric label={t(language, 'home.leverage', '账户杠杆')} value={formatLeverage(draftOverview.leverage)} />
           </div>
           {draftDebtUsd !== null && draftOverview.netAssetsUsd <= 0 && (
             <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.07] px-3 py-2 text-[11px] leading-4 text-amber-200/75">
-              {t(language, 'home.marginNetInsufficient', '融资负债已达到或超过总资产，净资产不足，杠杆不再显示。')}
+              {t(language, 'home.marginNetInsufficient', '融资负债已达到或超过总资产，净资产不足，账户杠杆不再显示。')}
             </p>
           )}
           {saveError && (

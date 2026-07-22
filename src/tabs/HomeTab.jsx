@@ -14,8 +14,9 @@ import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
 import { stockLogoCandidates } from '../lib/stockLogo.js';
-import { deriveHomeMarginOverview, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
+import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -612,6 +613,7 @@ export default function HomeTab({ ctx }) {
     totalAssetsUsd: summary.totalAssetsUsd,
     marginDebtUsd,
   }), [marginDebtUsd, summary.totalAssetsUsd]);
+  const marginLeverageStatus = React.useMemo(() => homeMarginLeverageStatus(marginOverview), [marginOverview]);
   const displayNetAssets = marginOverview.netAssetsUsd * displayRate;
   const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2);
   const displayMarginDebt = marginOverview.marginDebtUsd * displayRate;
@@ -1024,9 +1026,9 @@ export default function HomeTab({ ctx }) {
             <span className="text-white/30">--</span>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-2 text-[12px] text-white/42" data-home-total-assets="true">
+        <div className="mt-3 flex items-center gap-2 text-[12px] text-white/[0.42]" data-home-total-assets="true">
           <span>{t(language, 'home.totalAssets', '总资产')}</span>
-          <span className="truncate text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtCurrency(displayAssets, displayCurrency, 2)}</span>
+          <span className="truncate text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtCurrency(displayAssets, displayCurrency, 2)}</span>
         </div>
         <div
           className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10 border-t border-white/[0.07] pt-4"
@@ -1046,7 +1048,7 @@ export default function HomeTab({ ctx }) {
           <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
             <div className="flex items-center gap-0.5 text-[12px] text-white/50">
               <span>{t(language, 'home.totalPnl', '累计盈亏')}</span>
-              <ChevronRight className="h-3 w-3 text-white/28" />
+              <ChevronRight className="h-3 w-3 text-white/[0.28]" />
             </div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
@@ -1064,13 +1066,18 @@ export default function HomeTab({ ctx }) {
           >
             <div className="flex items-center gap-0.5 text-[12px] text-white/50">
               <span>{t(language, 'home.marginDebt', '融资负债')}</span>
-              <ChevronRight className="h-3 w-3 text-white/28" />
+              <ChevronRight className="h-3 w-3 text-white/[0.28]" />
             </div>
             <div className={`mt-2 truncate ${englishMode ? 'text-[11px]' : 'text-[12px]'} font-normal leading-tight text-white/90 tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
               {marginStatusReady ? fmtCurrency(displayMarginDebt, displayCurrency, 2) : '--'}
             </div>
-            <div className="mt-1 truncate text-[11px] text-white/42 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {t(language, 'home.leverage', '杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
+            <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-0.5'}`}>
+              <span className="whitespace-nowrap text-[8.5px] text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                {t(language, 'home.leverage', '账户杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
+              </span>
+              {marginStatusReady && marginLeverageStatus && (
+                <AccountLeverageBadge className="h-[16px] px-1 text-[7.5px]" language={language} tierId={marginLeverageStatus.id} />
+              )}
             </div>
           </button>
         </div>
