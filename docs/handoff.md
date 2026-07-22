@@ -10,16 +10,16 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 生产运行时代码 | `cd6231ad1f0c913810754f658877e794f7f7c2a7` |
-| 设置页版本 | `v10.7.9.369` |
-| 生产入口 | `/assets/index-Cy1jMrI7.js` |
-| Runtime Actions | `29868589096` success |
-| Runtime Vercel | `6sanejSaCM13nAdFk3y6m4v34TcE` success |
+| 生产运行时代码 | `7f151530e8802718f952d42df3a0839806c4bcb0` |
+| 设置页版本 | `v10.7.9.370` |
+| 生产入口 | `/assets/index-DIb-pbQj.js` |
+| Runtime Actions | `29889723681` success |
+| Runtime Vercel | `EXRKu7xfxeYzyutuzx17tvkWb11a` success |
 
 已验证：
 
-- `npm run check:full`：`585 / 585` PASS，Vite production build PASS；融资功能、CAS 迁移与隔离边界定向测试 `78 / 78` PASS；`npm run verify:rls:rest`：22 张表与 2 个 RPC PASS。
-- `npm run verify:deploy-status -- cd6231a`：PASS。
+- `npm run check:full`：`587 / 587` PASS，Vite production build PASS；融资独立页、底栏导航、CAS 迁移与隔离边界相关定向测试 `97 / 97` PASS；既有 `npm run verify:rls:rest` 证据为 22 张表与 2 个 RPC PASS，本次未改 RLS。
+- `npm run verify:deploy-status -- 7f15153`：PASS。
 - 未登录 `/api/quote?symbols=VIX`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=stock-detail`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=fundamentals`：`401`；登录后的单股专用 view 已恢复，只返回本页六项基本面数据。
@@ -28,7 +28,7 @@
 - 首页“自选”中只有股票图标、代码和名称区域进入独立详情页；价格、涨跌、回撤、“持仓”页和排序区域不触发。
 - 首页进入“股票趋势”前会在内存中记录根页面滚动位置；通过详情页头返回或底部“首页”返回时只恢复一次。切换其他 Tab 仍回顶，原双击“首页”平滑回顶不变并会清除旧位置；不写 localStorage，不跨刷新或账户保存。
 - 首页资产卡现在以净资产为主值，并同时展示总资产、融资负债和杠杆倍数；总资产沿用现有投资汇总，净资产严格等于总资产减融资负债。币种切换只换算展示金额，不改变股票价格、持仓或账本口径。
-- 点击融资负债区域打开“融资情景测算”：当前总资产、净资产、融资负债和杠杆保持一排；六个正负快捷值保持一排，情景默认 `0%`，自定义滑杆对称限制为 `-100%` 至 `+100%`。圆点跟随数值，触边后反向拖动立即响应，纵向页面手势和独立归零按钮保留。
+- 点击融资负债区域进入独立“融资情景测算”页面，顶部保留返回和“设置余额”；五栏底部导航继续显示并高亮首页，切换任一栏目会正常离开测算页，余额编辑仍为页内二级弹层。当前总资产、净资产、融资负债和杠杆保持一排；六个正负快捷值保持一排，情景默认 `0%`，自定义滑杆对称限制为 `-100%` 至 `+100%`。圆点跟随数值，触边后反向拖动立即响应，纵向页面手势和独立归零按钮保留。
 - 情景涨跌只作用于股票持仓市值，现金和融资负债保持不变；因此总资产与净资产的绝对变动相同，但净资产百分比会被杠杆放大。总资产、净资产及杠杆同步重算并跟随系统涨跌配色。
 - 融资余额继续按当前登录用户写入现有 `margin_status`，云端成功后才更新 UI。新首页启用前的旧记录会在该用户首次读取时以 `user_id + 原 updated_at` CAS 一次性清零；并发的新模型保存优先，最多重试一次并 fail closed。旧版无版本本地缓存不再恢复，清零和新保存都不跨用户；比赛、收益报表、正式交易和投资汇总均不读取该个人融资状态。
 - 详情页股票价格、技术指标、目标价、平均成本和交易记录固定为 USD；只有持仓市值和盈亏跟随系统 USD/CNY。目标价按 `user_id + symbol` 保存，不进入交易账本或比赛计算。
@@ -48,7 +48,7 @@
 - MA200 周线由按需获取的十年复权收盘预热计算，只推进已完成交易周；未收盘周不会改写锁定值，行情源失败与真实历史不足分别显示“暂不可用”和周数进度。普通首页行情仍保持原 380 天历史窗口。
 - 关键指标为无分割线的 52 周高点、MA200（日）、相对 QQQ（3个月）与独立 MA200 周线详情；MA200（周）旁标签为“芒格指标”，周线面板展示距均线、近四周变化、连续状态和锁定日期。
 - 生产 `watchlist.target_price_usd numeric(18,6)` 已 database-first 迁移；正数约束、RLS、原 5 条 policy、76 条既有数据和 0 条非空目标价均完成 postflight，未改变既有行。
-- 生产 App 分包 `/assets/App-CbU5fxD9.js` 包含旧融资余额 CAS 冲突保护；首页分包 `/assets/HomeTab-rwpkvGDm.js` 包含 `data-home-margin-scenario-slider` 和“上涨最高 +100%”标记；详情页分包 `/assets/WatchlistStockDetailPage-CsZZAWF6.js` 保留既有股票趋势功能；Settings 分包 `/assets/SettingsTab-D-ptYHS4.js` 为 `v10.7.9.369`。
+- 生产 App 分包 `/assets/App-DgnLAVS8.js` 包含 `home-margin-risk` 独立路由，并只在 `pnl-report` 隐藏底栏；融资页分包 `/assets/HomeMarginRiskPage-MxrQ9p27.js` 包含页面、滑杆和余额编辑标记；首页分包 `/assets/HomeTab-CaT_w-XT.js` 保留融资入口；Settings 分包 `/assets/SettingsTab-QAyw_j3V.js` 为 `v10.7.9.370`。
 - 本机真实 Xcode iOS Simulator 已验证默认五年图、联动 tooltip 与周线指标面板；截图在忽略目录 `outputs/ios-simulator/watchlist-weekly-ma-production-v360-*.png`。
 - 本次末端标签精简的 Simulator 截图：`outputs/ios-simulator/watchlist-weekly-ma-no-end-price-v361.png`。
 - 本次日/周均线切换的真实 Simulator 截图：`outputs/ios-simulator/watchlist-real-daily-ma200-1m-v1.png`、`watchlist-real-daily-ma200-tooltip-1m-v1.png` 和 `watchlist-real-weekly-ma200-5y-v1.png`。
@@ -56,6 +56,7 @@
 - 本次相对 QQQ 三个月指标的真实 Simulator 截图：`outputs/ios-simulator/watchlist-relative-qqq-3m-local.png`。
 - iOS 禁选样式的真实 Simulator 启动截图：`outputs/ios-simulator/watchlist-ios-selection-guard-v366.png`；本次恢复没有改动图表交互，线上详情分包仍包含同一防长按 callout 保护。
 - 本次融资情景正式组件已在本机真实 Xcode iPhone 17 Pro Simulator 验证，截图为 `outputs/ios-simulator/home-margin-signed-infinite-production-local-v1.png`（`1206 × 2622`）。
+- 本次独立融资页保留五栏底部导航的最终 Simulator 截图为 `outputs/ios-simulator/home-margin-standalone-with-tabs-local.png`（`1206 × 2622`）。
 
 ## 收益比赛当前状态
 
