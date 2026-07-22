@@ -952,7 +952,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               <div className={`mt-2 truncate ${englishMode ? 'text-[11px]' : 'text-[12px]'} font-normal leading-tight text-white/90 tabular-nums`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {marginStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayMarginDebt, 2)}` : '--'}
               </div>
-              <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-0.5'}`}>
+              <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-[3px]'}`}>
                 <span className="shrink-0 whitespace-nowrap text-[11px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                   {tt('home.leverage', '杠杆')} {marginStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
                 </span>
