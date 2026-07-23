@@ -37,6 +37,7 @@ const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
+const EarningsDetailPage = lazy(() => import('./pages/EarningsDetailPage.jsx'));
 const WaveTrackerPrototype = lazy(() => import('./dev/WaveTrackerPrototype.jsx'));
 const SettingsRedesignPrototype = lazy(() => import('./dev/SettingsRedesignPrototype.jsx'));
 const WatchlistStockDetailPrototype = lazy(() => import('./dev/WatchlistStockDetailPrototype.jsx'));
@@ -293,6 +294,90 @@ const mockEarningsCalendarEvents = [
   { symbol: 'TSM', name: 'TSMC', reportDate: '2026-07-10', session: 'before', epsEstimate: 1.45, revenueEstimate: 20300000000, revenueEstimateUsd: 20300000000, currency: 'USD', impact: 'high' },
   { symbol: 'GOOGL', name: 'Alphabet', reportDate: '2026-07-11', session: 'after', epsEstimate: 2.18, revenueEstimate: 96400000000, revenueEstimateUsd: 96400000000, currency: 'USD', impact: 'normal' },
 ];
+
+const mockEarningsDetailEvent = {
+  symbol: 'GOOGL',
+  name: 'Alphabet',
+  reportDate: '2026-07-22',
+  fiscalDate: '2026-06-30',
+  session: 'post',
+  earningsPublished: true,
+  earningsResult: 'beat',
+  currency: 'USD',
+  epsCurrency: 'USD',
+  epsEstimate: 2.90,
+  epsActual: 9.11,
+  epsPreviousYear: 2.31,
+  epsActualYoyPercent: 294.3723,
+  epsEstimateYoyPercent: 25.5411,
+  revenueEstimateUsd: 116_910_000_000,
+  revenueActualUsd: 119_796_000_000,
+  revenuePreviousYearUsd: 96_428_000_000,
+  revenueActualYoyPercent: 24.2336,
+  revenueEstimateYoyPercent: 21.2407,
+  ebitActualUsd: 40_770_000_000,
+  ebitPreviousYearUsd: 31_266_000_000,
+  ebitActualYoyPercent: 30.3972,
+  ebitActualBasis: 'OperatingIncomeLoss',
+  secForm: '10-Q',
+};
+
+const mockEarningsDetailData = {
+  success: true,
+  schemaVersion: 1,
+  status: 'complete',
+  symbol: 'GOOGL',
+  currency: 'USD',
+  period: {
+    start: '2026-04-01',
+    end: '2026-06-30',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-22',
+  },
+  source: {
+    provider: 'SEC',
+    cik: '0001652044',
+    accession: '0001652044-26-000071',
+    form: '10-Q',
+    filedAt: '2026-07-23',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm',
+    primaryDocumentUrl: 'https://www.sec.gov/Archives/edgar/data/1652044/000165204426000071/goog-20260630.htm',
+  },
+  sections: {
+    reportSegments: {
+      status: 'complete',
+      reason: null,
+      items: [
+        { id: 'google-services', label: 'Google Services', labelZh: '谷歌服务', revenue: 94_540_000_000, previousRevenue: 82_543_000_000, profitMetric: 'operatingIncome', profit: 39_544_000_000, previousProfit: 33_063_000_000 },
+        { id: 'google-cloud', label: 'Google Cloud', labelZh: '谷歌云', revenue: 24_768_000_000, previousRevenue: 13_624_000_000, profitMetric: 'operatingIncome', profit: 8_814_000_000, previousProfit: 2_826_000_000 },
+        { id: 'other-bets', label: 'Other Bets', labelZh: '其他业务', revenue: 382_000_000, previousRevenue: 373_000_000, profitMetric: 'operatingIncome', profit: -1_799_000_000, previousProfit: -1_246_000_000 },
+      ],
+      reconciliation: { id: 'hedging', label: 'Hedging gains (losses)', labelZh: '对冲收益（损失）', revenue: 106_000_000, previousRevenue: -112_000_000 },
+    },
+    revenueBreakdown: {
+      status: 'complete',
+      reason: null,
+      items: [
+        { id: 'search', label: 'Google Search & other', labelZh: '搜索及其他', revenue: 63_271_000_000, previousRevenue: 54_190_000_000, parentId: 'google-services' },
+        { id: 'cloud', label: 'Google Cloud', labelZh: '谷歌云', revenue: 24_768_000_000, previousRevenue: 13_624_000_000, parentId: 'google-cloud' },
+        { id: 'subscriptions', label: 'Subscriptions, platforms & devices', labelZh: '订阅、平台和设备', revenue: 12_911_000_000, previousRevenue: 11_203_000_000, parentId: 'google-services' },
+        { id: 'youtube', label: 'YouTube ads', labelZh: 'YouTube 广告', revenue: 11_055_000_000, previousRevenue: 9_796_000_000, parentId: 'google-services' },
+        { id: 'network', label: 'Google Network', labelZh: '谷歌网络', revenue: 7_303_000_000, previousRevenue: 7_354_000_000, parentId: 'google-services' },
+        { id: 'other-bets', label: 'Other Bets', labelZh: '其他业务', revenue: 382_000_000, previousRevenue: 373_000_000, parentId: 'other-bets' },
+      ],
+    },
+    geographies: {
+      status: 'complete',
+      reason: null,
+      items: [
+        { id: 'us', label: 'United States', labelZh: '美国', revenue: 60_846_000_000, previousRevenue: 46_063_000_000 },
+        { id: 'emea', label: 'EMEA', labelZh: '欧洲、中东和非洲', revenue: 32_501_000_000, previousRevenue: 28_262_000_000 },
+        { id: 'apac', label: 'APAC', labelZh: '亚太地区', revenue: 19_317_000_000, previousRevenue: 16_480_000_000 },
+        { id: 'other-americas', label: 'Other Americas', labelZh: '其他美洲', revenue: 7_026_000_000, previousRevenue: 5_735_000_000 },
+      ],
+    },
+  },
+};
 
 const mockPnlPortfolioSnapshots = [
   {
@@ -1516,6 +1601,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     earningsCalendarEvents: previewEarningsCalendarEvents,
     earningsCalendarNow,
     earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null,
+    earningsDetailDataOverride: mockEarningsDetailData,
+    earningsDetailEvent: mockEarningsDetailEvent,
+    closeEarningsDetail: () => setActiveTab('home'),
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
       const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];
@@ -1864,8 +1952,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen bg-[#05070b] text-white ${activeTab === 'pnl-report' ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition'].includes(activeTab) ? 'px-0' : 'px-4'}`}
-      style={{ paddingTop: ['home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      className={`min-h-screen bg-[#05070b] text-white ${activeTab === 'pnl-report' ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      style={{ paddingTop: ['home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
@@ -1880,6 +1968,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           ? <WaveTrackerPage ctx={waveTrackerCtx} />
           : activeTab === 'community-competition'
           ? <CommunityCompetitionPage ctx={tradesCtx} />
+          : activeTab === 'earnings-detail'
+          ? <EarningsDetailPage ctx={homeCtx} />
           : activeTab === 'home'
           ? <HomeTab ctx={homeCtx} />
           : activeTab === 'trades'
@@ -1908,6 +1998,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
               const isActive = tab.id === activeTab
                 || (activeTab === 'home-margin-risk' && tab.id === 'home')
                 || (activeTab === 'watchlist-stock-detail' && tab.id === 'home')
+                || (activeTab === 'earnings-detail' && tab.id === 'home')
                 || (['stock-detail', 'wave-tracker', 'community-competition'].includes(activeTab) && tab.id === 'trades');
               return (
                 <button
@@ -1956,6 +2047,10 @@ export default function DevVisualPreview() {
         <WatchlistStockDetailPrototype />
       </Suspense>
     );
+  }
+
+  if (preview === 'earnings-segments-prototype') {
+    return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 
   return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''} />;

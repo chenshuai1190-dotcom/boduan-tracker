@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.371', date: '2026-07-22', latest: true,
+    ver: 'v10.7.9.372', date: '2026-07-23', latest: true,
+    items: [
+      '📊 独立财报详情与业务细分',
+      '  - 财报日历改为保留底部导航的独立页面，已发布公司可继续进入“代码 + 财报详情”，返回时保留日历视图与首页滚动位置',
+      '  - 谷歌与特斯拉首期接入 SEC 官方 10-Q 报告分部、产品/服务细分和地区收入；口径不明确时显示不可用，不以推测值补齐',
+      '  - 详情头部同步展示营收、息税前利润和每股收益的公布值/同比与预测值/同比；利润预测保持“—”，财务金额按原币种以万/亿显示',
+      '  - 右上角分享可生成完整财报长图并调起系统分享面板，长图不包含返回按钮或底部导航',
+    ],
+    itemsEn: [
+      '📊 Standalone earnings detail and business breakdowns',
+      '  - Earnings Calendar is now a standalone page that keeps the global bottom navigation; published companies open a ticker-specific detail page while preserving calendar state and Home scroll position',
+      '  - The first release reads official SEC 10-Q reportable segments, product/service breakdowns, and geographic revenue for Alphabet and Tesla; ambiguous fields remain unavailable instead of being inferred',
+      '  - The detail header shows actual/YoY and estimate/YoY for revenue, EBIT, and EPS; the unavailable profit estimate remains an em dash and financial amounts stay in report currency',
+      '  - Share creates a full-length earnings PNG and opens the system share sheet without including Back controls or the bottom navigation',
+    ],
+  },
+  {
+    ver: 'v10.7.9.371', date: '2026-07-22',
     items: [
       '📐 账户杠杆分级与资产卡同步',
       '  - 首页与交易页头部资产卡统一展示净资产、总资产、今日盈亏、累计盈亏、融资负债和账户杠杆等级',

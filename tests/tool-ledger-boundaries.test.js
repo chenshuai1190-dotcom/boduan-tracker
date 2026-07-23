@@ -299,7 +299,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(appSource.includes('<CommunityCompetitionPage ctx={tabCtx} />'), 'app should render community competition through the trade context');
   assert.ok(appSource.includes('openCommunityCompetition'), 'app should expose an opener for the trade-page utility');
   assert.ok(appSource.includes('closeCommunityCompetition'), 'app should expose a closer for the trade-page utility');
-  assert.ok(appSource.includes("${isCommunityCompetitionPage ? 'px-0' : 'px-4'}"), 'the standalone competition page should not inherit the home shell padding a second time');
+  assert.ok(appSource.includes("${isFullBleedPage ? 'px-0' : 'px-4'}"), 'full-bleed standalone pages should not inherit the home shell padding a second time');
   assert.ok(tradesTabSource.includes("id: 'competition'") && tradesTabSource.includes("tt('competition.toolEntry', '社区比赛')"), 'trade-page tool grid should expose the community competition entry');
   assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone page');
   assert.ok(tradesTabSource.includes("id: 'all'") && tradesTabSource.includes("tt('trades.allTools', '全部功能')"), 'trade-page tool grid should expose all tools');
@@ -592,8 +592,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.371'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.371', date: '2026-07-22', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.372'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.372', date: '2026-07-23', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('融资情景测算独立页面') && settingsChangelogSource.includes('五栏底部导航并高亮首页') && settingsChangelogSource.includes('余额编辑仍使用页内二级弹层'), 'settings changelog should document the standalone margin route and preserved bottom navigation');
   assert.ok(settingsChangelogSource.includes('融资情景滑杆与历史余额修正') && settingsChangelogSource.includes('对称的 -100% 至 +100%') && settingsChangelogSource.includes('一次性清零') && settingsChangelogSource.includes('旧版无版本缓存不再回退'), 'settings changelog should document the bounded slider and safe legacy-balance reset');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.368', date: '2026-07-22'") && settingsChangelogSource.includes('首页净资产与融资情景测算'), 'settings changelog should preserve the original margin release as history');
@@ -772,7 +772,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('const includePreviousPublished = true'), 'earnings calendar should enable the previous published quarter for modal review');
   assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: includePreviousPublished ? '1' : '0'"), 'earnings calendar should pass the previous published quarter query parameter');
   assert.ok(earningsCalendarSource.includes('events.filter((event) => isEarningsVisible(event, today)).slice(0, 80)'), 'earnings calendar list view should filter out previous-quarter history while keeping the calendar review data');
-  assert.ok(earningsCalendarSource.includes("const [modalView, setModalView] = React.useState('list')"), 'earnings calendar modal should initialize with list view');
+  assert.ok(earningsCalendarSource.includes("const [modalView, setModalView] = React.useState(initialView === 'calendar' ? 'calendar' : 'list')"), 'earnings calendar should initialize from its persisted standalone view while defaulting to list view');
   assert.ok(earningsCalendarSource.includes("const openModal = (view = 'list', date = null)"), 'earnings calendar modal should use list view as its default open mode');
   assert.equal(earningsCalendarSource.includes("openModal('calendar', event.reportDate)"), false, 'earnings preview company cards should no longer force calendar view');
   assert.ok(earningsCalendarSource.includes("openModal('list', event.reportDate)"), 'earnings preview company cards should open list view while retaining their date for later calendar switching');
@@ -2464,7 +2464,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.371'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.372'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

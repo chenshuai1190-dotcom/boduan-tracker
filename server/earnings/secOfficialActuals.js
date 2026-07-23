@@ -15,6 +15,7 @@ const SEC_MAX_CONCURRENCY = 3;
 const SEC_MAX_EVENTS_PER_REQUEST = 8;
 const SEC_MAX_INDEX_BYTES = 2_000_000;
 const SEC_MAX_EXHIBIT_BYTES = 3_000_000;
+const SEC_MAX_PRIMARY_DOCUMENT_BYTES = 6_000_000;
 const SEC_MAX_COMPANY_FACTS_BYTES = 25_000_000;
 const RESPONSE_CACHE_MAX_ENTRIES = 64;
 const RESULT_CACHE_MAX_ENTRIES = 32;
@@ -116,6 +117,119 @@ export async function fetchSecOfficialActuals({
   const entries = await mapLimit(tasks, SEC_MAX_CONCURRENCY);
   for (const [key, result] of entries) output.set(key, result);
   return output;
+}
+
+export async function fetchSecTenQPrimaryDocument({
+  symbol,
+  fiscalDate,
+  reportDate,
+  fetchFn = globalThis.fetch,
+  userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
+  now = new Date(),
+  requestIntervalMs,
+  batchTimeoutMs = SEC_BATCH_TIMEOUT_MS,
+} = {}) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const normalizedFiscalDate = dateKey(fiscalDate);
+  const normalizedReportDate = dateKey(reportDate);
+  const normalizedNow = normalizeDate(now) || new Date();
+  const today = newYorkDateKey(normalizedNow);
+  const base = {
+    status: 'pending',
+    reason: null,
+    symbol: normalizedSymbol,
+    fiscalDate: normalizedFiscalDate,
+    reportDate: normalizedReportDate,
+  };
+
+  if (!['GOOG', 'GOOGL', 'TSLA'].includes(normalizedSymbol)
+    || !normalizedFiscalDate
+    || !normalizedReportDate) {
+    return { ...base, status: 'unsupported', reason: 'official-detail-adapter-not-supported' };
+  }
+  if (normalizedReportDate > today) {
+    return { ...base, reason: 'not-published' };
+  }
+
+  const cik = KNOWN_CIK_BY_SYMBOL.get(normalizedSymbol);
+  const context = {
+    fetchFn,
+    userAgent: sanitizeUserAgent(userAgent),
+    requestIntervalMs: resolveRequestInterval(fetchFn, requestIntervalMs),
+    cacheEnabled: fetchFn === globalThis.fetch,
+    nowMs: normalizedNow.getTime(),
+    deadlineAt: Date.now() + (
+      Number.isFinite(batchTimeoutMs) && batchTimeoutMs > 0
+        ? batchTimeoutMs
+        : SEC_BATCH_TIMEOUT_MS
+    ),
+  };
+
+  try {
+    const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
+    const submissions = await fetchJsonCached(submissionsUrl, {
+      ...context,
+      ttlMs: SUBMISSIONS_CACHE_TTL_MS,
+      maxBytes: SEC_MAX_COMPANY_FACTS_BYTES,
+    });
+    if (!submissionsMatchesSymbol(submissions, normalizedSymbol)) {
+      return {
+        ...base,
+        status: 'unsupported',
+        reason: 'sec-ticker-mismatch',
+        secCik: cik,
+      };
+    }
+
+    const filing = selectOriginalTenQFiling(
+      normalizeRecentFilings(submissions),
+      normalizedFiscalDate,
+      today,
+    );
+    if (!filing) {
+      return {
+        ...base,
+        reason: 'official-10q-not-filed',
+        secCik: cik,
+      };
+    }
+
+    const primaryDocumentUrl = buildPrimaryDocumentUrl(cik, filing);
+    if (!primaryDocumentUrl) {
+      return {
+        ...base,
+        reason: 'official-primary-document-missing',
+        secCik: cik,
+        accession: filing.accession,
+        form: filing.form,
+        filedAt: filing.acceptedAt || filing.filingDate,
+        filingUrl: buildFilingIndexUrl(cik, filing.accession),
+      };
+    }
+    const html = await fetchTextCached(primaryDocumentUrl, {
+      ...context,
+      ttlMs: FILING_CACHE_TTL_MS,
+      maxBytes: SEC_MAX_PRIMARY_DOCUMENT_BYTES,
+    });
+    return {
+      ...base,
+      status: 'complete',
+      reason: null,
+      secCik: cik,
+      accession: filing.accession,
+      form: filing.form,
+      filedAt: filing.acceptedAt || filing.filingDate,
+      filingUrl: buildFilingIndexUrl(cik, filing.accession),
+      primaryDocumentUrl,
+      html,
+    };
+  } catch {
+    return {
+      ...base,
+      reason: 'sec-unavailable',
+      secCik: cik,
+    };
+  }
 }
 
 export function mergeSecOfficialActuals(events, officialActuals) {
@@ -403,10 +517,14 @@ async function fetchTextCached(url, {
       });
       if (!response?.ok) throw new Error(`SEC HTTP ${response?.status || 0}`);
       const contentLength = Number(response.headers?.get?.('content-length') || 0);
-      if (contentLength > maxBytes) throw new Error('SEC response too large');
-      const responseText = await response.text();
-      if (Buffer.byteLength(responseText, 'utf8') > maxBytes) throw new Error('SEC response too large');
-      return responseText;
+      if (contentLength > maxBytes) {
+        controller.abort();
+        throw new Error('SEC response too large');
+      }
+      return readResponseTextWithLimit(response, {
+        maxBytes,
+        controller,
+      });
     })(),
     new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
@@ -419,6 +537,51 @@ async function fetchTextCached(url, {
   });
   writeCache(responseCache, url, text, ttlMs, { cacheEnabled, nowMs });
   return text;
+}
+
+async function readResponseTextWithLimit(response, { maxBytes, controller }) {
+  const reader = response?.body?.getReader?.();
+  if (!reader) {
+    const responseText = await response.text();
+    if (Buffer.byteLength(responseText, 'utf8') > maxBytes) {
+      controller.abort();
+      throw new Error('SEC response too large');
+    }
+    return responseText;
+  }
+
+  const decoder = new TextDecoder();
+  const decodedChunks = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value || 0);
+      totalBytes += chunk.byteLength;
+      if (totalBytes > maxBytes) {
+        controller.abort();
+        try {
+          await reader.cancel?.();
+        } catch {
+          // The original size-limit error remains the public failure reason.
+        }
+        throw new Error('SEC response too large');
+      }
+      decodedChunks.push(decoder.decode(chunk, { stream: true }));
+    }
+    decodedChunks.push(decoder.decode());
+    return decodedChunks.join('');
+  } catch (error) {
+    controller.abort();
+    throw error;
+  } finally {
+    try {
+      reader.releaseLock?.();
+    } catch {
+      // A reader cleanup failure must not replace the request failure or parsed response.
+    }
+  }
 }
 
 function normalizeRecentFilings(submissions) {
@@ -450,6 +613,13 @@ function normalizeRecentFilings(submissions) {
 function selectTenQFiling(filings, fiscalDate, today) {
   return (filings || [])
     .filter((filing) => /^10-Q(?:\/A)?$/.test(filing.form))
+    .filter((filing) => filing.reportDate === fiscalDate && filing.filingDate <= today)
+    .sort((a, b) => b.filingDate.localeCompare(a.filingDate))[0] || null;
+}
+
+function selectOriginalTenQFiling(filings, fiscalDate, today) {
+  return (filings || [])
+    .filter((filing) => filing.form === '10-Q')
     .filter((filing) => filing.reportDate === fiscalDate && filing.filingDate <= today)
     .sort((a, b) => b.filingDate.localeCompare(a.filingDate))[0] || null;
 }
@@ -560,6 +730,15 @@ function buildFilingIndexUrl(cik, accession) {
   const archiveCik = String(Number(cik));
   const flatAccession = accession.replace(/-/g, '');
   return `https://www.sec.gov/Archives/edgar/data/${archiveCik}/${flatAccession}/${accession}-index.html`;
+}
+
+function buildPrimaryDocumentUrl(cik, filing) {
+  const primaryDocument = String(filing?.primaryDocument || '').trim();
+  if (!/^[a-z0-9][a-z0-9._-]*\.html?$/i.test(primaryDocument)) return null;
+  const archiveCik = String(Number(cik));
+  const flatAccession = String(filing?.accession || '').replace(/-/g, '');
+  if (!archiveCik || !/^\d{18}$/.test(flatAccession)) return null;
+  return `https://www.sec.gov/Archives/edgar/data/${archiveCik}/${flatAccession}/${primaryDocument}`;
 }
 
 function readCache(cache, key, nowMs, enabled) {

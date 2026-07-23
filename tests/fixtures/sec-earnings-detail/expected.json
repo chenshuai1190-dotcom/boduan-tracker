@@ -1,0 +1,239 @@
+{
+  "schemaVersion": 1,
+  "fiscalDate": "2026-06-30",
+  "currency": "USD",
+  "GOOGL": {
+    "symbol": "GOOGL",
+    "period": {
+      "fiscalDate": "2026-06-30",
+      "label": "2026 Q2",
+      "form": "10-Q",
+      "filedAt": "2026-07-30",
+      "accession": "0001652044-26-000071"
+    },
+    "reportSegments": [
+      {
+        "id": "google-services",
+        "label": "Google Services",
+        "labelZh": "谷歌服务",
+        "revenue": 94540000000,
+        "previousRevenue": 82543000000,
+        "profitMetric": "operatingIncome",
+        "profit": 39544000000,
+        "previousProfit": 33063000000
+      },
+      {
+        "id": "google-cloud",
+        "label": "Google Cloud",
+        "labelZh": "谷歌云",
+        "revenue": 24768000000,
+        "previousRevenue": 13624000000,
+        "profitMetric": "operatingIncome",
+        "profit": 8814000000,
+        "previousProfit": 2826000000
+      },
+      {
+        "id": "other-bets",
+        "label": "Other Bets",
+        "labelZh": "其他业务",
+        "revenue": 382000000,
+        "previousRevenue": 373000000,
+        "profitMetric": "operatingIncome",
+        "profit": -1799000000,
+        "previousProfit": -1246000000
+      }
+    ],
+    "reconciliation": {
+      "id": "hedging",
+      "label": "Hedging gains (losses)",
+      "labelZh": "对冲收益（损失）",
+      "revenue": 106000000,
+      "previousRevenue": -112000000
+    },
+    "revenueBreakdown": [
+      {
+        "id": "google-search-other",
+        "label": "Google Search & other",
+        "labelZh": "搜索及其他",
+        "revenue": 63271000000,
+        "previousRevenue": 54190000000,
+        "parentId": "google-services"
+      },
+      {
+        "id": "google-cloud",
+        "label": "Google Cloud",
+        "labelZh": "谷歌云",
+        "revenue": 24768000000,
+        "previousRevenue": 13624000000,
+        "parentId": "google-cloud"
+      },
+      {
+        "id": "subscriptions-platforms-devices",
+        "label": "Subscriptions, platforms & devices",
+        "labelZh": "订阅、平台和设备",
+        "revenue": 12911000000,
+        "previousRevenue": 11203000000,
+        "parentId": "google-services"
+      },
+      {
+        "id": "youtube-ads",
+        "label": "YouTube ads",
+        "labelZh": "YouTube 广告",
+        "revenue": 11055000000,
+        "previousRevenue": 9796000000,
+        "parentId": "google-services"
+      },
+      {
+        "id": "google-network",
+        "label": "Google Network",
+        "labelZh": "谷歌网络",
+        "revenue": 7303000000,
+        "previousRevenue": 7354000000,
+        "parentId": "google-services"
+      },
+      {
+        "id": "other-bets",
+        "label": "Other Bets",
+        "labelZh": "其他业务",
+        "revenue": 382000000,
+        "previousRevenue": 373000000,
+        "parentId": "other-bets"
+      }
+    ],
+    "geographies": [
+      {
+        "id": "united-states",
+        "label": "United States",
+        "labelZh": "美国",
+        "revenue": 60846000000,
+        "previousRevenue": 46063000000
+      },
+      {
+        "id": "emea",
+        "label": "EMEA",
+        "labelZh": "欧洲、中东和非洲",
+        "revenue": 32501000000,
+        "previousRevenue": 28262000000
+      },
+      {
+        "id": "apac",
+        "label": "APAC",
+        "labelZh": "亚太地区",
+        "revenue": 19317000000,
+        "previousRevenue": 16480000000
+      },
+      {
+        "id": "americas-ex-us",
+        "label": "Americas excluding United States",
+        "labelZh": "其他美洲",
+        "revenue": 7026000000,
+        "previousRevenue": 5735000000
+      }
+    ]
+  },
+  "TSLA": {
+    "symbol": "TSLA",
+    "period": {
+      "fiscalDate": "2026-06-30",
+      "label": "2026 Q2",
+      "form": "10-Q",
+      "filedAt": "2026-07-27",
+      "accession": "0001628280-26-049270"
+    },
+    "reportSegments": [
+      {
+        "id": "automotive",
+        "label": "Automotive & services and other",
+        "labelZh": "汽车（含服务及其他）",
+        "revenue": 25097000000,
+        "previousRevenue": 19707000000,
+        "profitMetric": "grossProfit",
+        "profit": 4111000000,
+        "previousProfit": 3032000000
+      },
+      {
+        "id": "energy-generation-storage",
+        "label": "Energy generation and storage",
+        "labelZh": "能源生产与储存",
+        "revenue": 3139000000,
+        "previousRevenue": 2789000000,
+        "profitMetric": "grossProfit",
+        "profit": 640000000,
+        "previousProfit": 846000000
+      }
+    ],
+    "revenueBreakdown": [
+      {
+        "id": "automotive-sales",
+        "label": "Automotive sales",
+        "labelZh": "汽车销售",
+        "revenue": 20006000000,
+        "previousRevenue": 15787000000,
+        "parentId": "automotive"
+      },
+      {
+        "id": "services-other",
+        "label": "Services and other",
+        "labelZh": "服务及其他",
+        "revenue": 4581000000,
+        "previousRevenue": 3046000000,
+        "parentId": "automotive"
+      },
+      {
+        "id": "energy-sales",
+        "label": "Energy generation and storage sales",
+        "labelZh": "能源产品销售",
+        "revenue": 2998000000,
+        "previousRevenue": 2646000000,
+        "parentId": "energy-generation-storage"
+      },
+      {
+        "id": "automotive-leasing",
+        "label": "Automotive leasing",
+        "labelZh": "汽车租赁",
+        "revenue": 364000000,
+        "previousRevenue": 435000000,
+        "parentId": "automotive"
+      },
+      {
+        "id": "automotive-regulatory-credits",
+        "label": "Automotive regulatory credits",
+        "labelZh": "监管积分",
+        "revenue": 146000000,
+        "previousRevenue": 439000000,
+        "parentId": "automotive"
+      },
+      {
+        "id": "energy-leasing",
+        "label": "Energy generation and storage leasing",
+        "labelZh": "能源租赁",
+        "revenue": 141000000,
+        "previousRevenue": 143000000,
+        "parentId": "energy-generation-storage"
+      }
+    ],
+    "geographies": [
+      {
+        "id": "united-states",
+        "label": "United States",
+        "labelZh": "美国",
+        "revenue": 13208000000,
+        "previousRevenue": 11809000000
+      },
+      {
+        "id": "other-international",
+        "label": "Other international",
+        "labelZh": "其他国际市场",
+        "revenue": 10353000000,
+        "previousRevenue": 6382000000
+      },
+      {
+        "id": "china",
+        "label": "China",
+        "labelZh": "中国",
+        "revenue": 4675000000,
+        "previousRevenue": 4305000000
+      }
+    ]
+  }
+}

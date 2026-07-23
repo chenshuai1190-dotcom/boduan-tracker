@@ -719,6 +719,7 @@ function PublishedEarningsDetail({
 function EarningsModal({
   open,
   onClose,
+  standalone = false,
   events,
   quoteBySymbol,
   now,
@@ -733,6 +734,7 @@ function EarningsModal({
   language,
   marketColorMode,
   loading,
+  onOpenDetail,
 }) {
   const [visibleMonth, setVisibleMonth] = React.useState(() => (selectedDate || todayDateKey()).slice(0, 7));
   const [detailEvent, setDetailEvent] = React.useState(null);
@@ -746,13 +748,13 @@ function EarningsModal({
   }, [events]);
 
   React.useEffect(() => {
-    if (!open || typeof document === 'undefined') return undefined;
+    if (!open || standalone || typeof document === 'undefined') return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [open]);
+  }, [open, standalone]);
 
   React.useEffect(() => {
     if (selectedDate) setVisibleMonth(selectedDate.slice(0, 7));
@@ -774,18 +776,29 @@ function EarningsModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/72 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[3px]" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="flex h-[86dvh] max-h-[760px] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]" style={{ fontFamily: FONT }}>
-        <div className="flex shrink-0 items-center justify-between">
+    <div
+      className={standalone
+        ? 'w-full'
+        : 'fixed inset-0 z-[160] flex items-center justify-center bg-black/72 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[3px]'}
+      onClick={standalone ? undefined : (event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div
+        className={standalone
+          ? 'flex h-[calc(100dvh-env(safe-area-inset-top)-138px)] min-h-[560px] w-full flex-col rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+          : 'flex h-[86dvh] max-h-[760px] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]'}
+        style={{ fontFamily: FONT }}
+        data-earnings-calendar-workspace={standalone ? 'standalone' : 'modal'}
+      >
+        {!standalone ? <div className="flex shrink-0 items-center justify-between">
           <div className="text-[14px] font-bold leading-none text-white/70">
             {t(language, 'earningsCalendar.title', '财报日历')}
           </div>
           <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/40 active:scale-95">
             <X className="h-4 w-4" />
           </button>
-        </div>
+        </div> : null}
 
-        <div className="mt-4 grid shrink-0 grid-cols-2 rounded-lg border border-white/[0.06] bg-white/[0.045] p-1">
+        <div className={`${standalone ? '' : 'mt-4'} grid shrink-0 grid-cols-2 rounded-lg border border-white/[0.06] bg-white/[0.045] p-1`}>
           {[
             ['calendar', t(language, 'earningsCalendar.calendarView', '日历视图')],
             ['list', t(language, 'earningsCalendar.listView', '列表视图')],
@@ -865,7 +878,7 @@ function EarningsModal({
                     displayStockName={displayStockName}
                     language={language}
                     marketColorMode={marketColorMode}
-                    onOpenDetail={setDetailEvent}
+                    onOpenDetail={onOpenDetail || setDetailEvent}
                   />
                 ))}
               </div>
@@ -890,7 +903,7 @@ function EarningsModal({
                   displayStockName={displayStockName}
                   language={language}
                   marketColorMode={marketColorMode}
-                  onOpenDetail={setDetailEvent}
+                  onOpenDetail={onOpenDetail || setDetailEvent}
                 />
               ))}
             </div>
@@ -901,7 +914,7 @@ function EarningsModal({
           {t(language, 'earningsCalendar.disclaimer', '财报时间为预计时间,实际可能因公司公告调整,请以官方发布为准。')}
         </div>
       </div>
-      {detailEvent ? (
+      {!standalone && detailEvent ? (
         <PublishedEarningsDetail
           event={detailEvent}
           quote={quoteBySymbol?.get(detailEvent.symbol) || null}
@@ -935,7 +948,14 @@ export default function EarningsCalendar({
   now = Date.now,
   onPromotionChange,
   placementClassName = '',
+  variant = 'home',
+  initialView = 'list',
+  initialSelectedDate = '',
+  onOpenCalendar,
+  onOpenDetail,
+  onCalendarStateChange,
 }) {
+  const standalone = variant === 'standalone';
   const symbols = React.useMemo(() => buildEarningsSymbols({ watchlist, positions }), [watchlist, positions]);
   const quoteBySymbol = React.useMemo(() => new Map(
     (Array.isArray(quoteRows) ? quoteRows : [])
@@ -946,11 +966,11 @@ export default function EarningsCalendar({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [modalOpen, setModalOpen] = React.useState(false);
-  const [modalView, setModalView] = React.useState('list');
-  const [selectedDate, setSelectedDate] = React.useState(todayDateKey());
+  const [modalView, setModalView] = React.useState(initialView === 'calendar' ? 'calendar' : 'list');
+  const [selectedDate, setSelectedDate] = React.useState(dateKey(initialSelectedDate) || todayDateKey());
   const [, forceLiveReactionClockRender] = React.useState(0);
   const modalOpenRef = React.useRef(false);
-  const userSelectedDateRef = React.useRef(false);
+  const userSelectedDateRef = React.useRef(Boolean(dateKey(initialSelectedDate)));
   const eventsRef = React.useRef([]);
   const activeCacheKeyRef = React.useRef('');
   const refreshReadyRef = React.useRef(false);
@@ -968,18 +988,19 @@ export default function EarningsCalendar({
   }, []);
 
   React.useEffect(() => {
-    modalOpenRef.current = modalOpen;
-    if (!modalOpen) userSelectedDateRef.current = false;
-  }, [modalOpen]);
+    const calendarVisible = standalone || modalOpen;
+    modalOpenRef.current = calendarVisible;
+    if (!calendarVisible) userSelectedDateRef.current = false;
+  }, [modalOpen, standalone]);
 
-  const needsLiveReactionClock = React.useMemo(() => modalOpen && events.some((event) => {
+  const needsLiveReactionClock = React.useMemo(() => (standalone || modalOpen) && events.some((event) => {
     if (!isEarningsPublished(event) || normalizeEarningsSession(event?.session) !== 'pre') return false;
     const officialReaction = event?.marketReactionPercent;
     return officialReaction === null
       || officialReaction === undefined
       || String(officialReaction).trim() === ''
       || !Number.isFinite(Number(officialReaction));
-  }), [events, modalOpen]);
+  }), [events, modalOpen, standalone]);
 
   React.useEffect(() => {
     if (!needsLiveReactionClock) return undefined;
@@ -1174,7 +1195,13 @@ export default function EarningsCalendar({
     onPromotionChange(shouldPromote);
   }, [loading, onPromotionChange, shouldPromote]);
 
+  React.useEffect(() => {
+    if (!standalone || typeof onCalendarStateChange !== 'function') return;
+    onCalendarStateChange({ view: modalView, selectedDate });
+  }, [modalView, onCalendarStateChange, selectedDate, standalone]);
+
   const openModal = (view = 'list', date = null) => {
+    const nextSelectedDate = date || selectedDate || todayDateKey();
     if (date) {
       userSelectedDateRef.current = true;
       setSelectedDate(date);
@@ -1183,9 +1210,39 @@ export default function EarningsCalendar({
       setSelectedDate(selectedDate || todayDateKey());
     }
     setModalView(view);
+    if (!standalone && typeof onOpenCalendar === 'function') {
+      onOpenCalendar({ view, selectedDate: nextSelectedDate });
+      refreshBindingRef.current?.request('standalone-open');
+      return;
+    }
     setModalOpen(true);
     refreshBindingRef.current?.request('modal-open');
   };
+
+  if (standalone) {
+    return (
+      <EarningsModal
+        open
+        standalone
+        onClose={() => {}}
+        events={events}
+        quoteBySymbol={quoteBySymbol}
+        now={now}
+        stockFreshnessStartedAt={stockFreshnessStartedAt}
+        selectedDate={selectedDate}
+        setSelectedDate={setUserSelectedDate}
+        view={modalView}
+        setView={setModalView}
+        logoCache={logoCache}
+        cacheStockLogo={cacheStockLogo}
+        displayStockName={displayStockName}
+        language={language}
+        marketColorMode={marketColorMode}
+        loading={loading}
+        onOpenDetail={onOpenDetail}
+      />
+    );
+  }
 
   return (
     <section

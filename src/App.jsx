@@ -30,6 +30,8 @@ const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
+const EarningsCalendarPage = lazy(() => import('./pages/EarningsCalendarPage.jsx'));
+const EarningsDetailPage = lazy(() => import('./pages/EarningsDetailPage.jsx'));
 const FX_RATES_STORAGE_KEY = 'xmoney_fx_rates_v1';
 const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
@@ -4332,10 +4334,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [activePage, setActivePage] = useState(null);
   const lastHomeTabTapAtRef = useRef(0);
   const homeScrollTopBeforeWatchlistRef = useRef(null);
+  const homeScrollTopBeforeEarningsRef = useRef(null);
   const pendingHomeScrollTopRef = useRef(null);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [watchlistStockDetailSymbol, setWatchlistStockDetailSymbol] = useState('');
+  const [earningsCalendarPageState, setEarningsCalendarPageState] = useState({ view: 'list', selectedDate: '' });
+  const [earningsDetailEvent, setEarningsDetailEvent] = useState(null);
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
@@ -4354,9 +4359,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       && activeTab === 'home'
       && activePage === 'watchlist-stock-detail'
     );
+    const returnsFromEarningsToHome = (
+      tabId === 'home'
+      && activeTab === 'home'
+      && (activePage === 'earnings-calendar' || activePage === 'earnings-detail')
+    );
     pendingHomeScrollTopRef.current = returnsFromWatchlistDetailToHome
       ? homeScrollTopBeforeWatchlistRef.current
-      : null;
+      : returnsFromEarningsToHome
+        ? homeScrollTopBeforeEarningsRef.current
+        : null;
 
     if (tapAction.shouldScrollHomeToTop) {
       homeScrollTopBeforeWatchlistRef.current = 0;
@@ -4370,6 +4382,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActivePage(null);
     setStockDetailSymbol('');
     setWatchlistStockDetailSymbol('');
+    setEarningsDetailEvent(null);
   }, [activePage, activeTab]);
   const [portfolioCurrencyMode, setPortfolioCurrencyModeState] = useState(() => readStoredPortfolioCurrency());
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
@@ -4432,6 +4445,37 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const closeCommunityCompetition = useCallback(() => {
     setActivePage(null);
   }, []);
+  const openEarningsCalendar = useCallback(({ view = 'list', selectedDate = '' } = {}) => {
+    if (activeTab === 'home' && activePage === null) {
+      homeScrollTopBeforeEarningsRef.current = readRootScrollTop();
+    }
+    pendingHomeScrollTopRef.current = null;
+    setEarningsCalendarPageState({
+      view: view === 'calendar' ? 'calendar' : 'list',
+      selectedDate: String(selectedDate || '').slice(0, 10),
+    });
+    setEarningsDetailEvent(null);
+    setActivePage('earnings-calendar');
+  }, [activePage, activeTab]);
+  const closeEarningsCalendar = useCallback(() => {
+    pendingHomeScrollTopRef.current = homeScrollTopBeforeEarningsRef.current;
+    setEarningsDetailEvent(null);
+    setActivePage(null);
+  }, []);
+  const onEarningsCalendarStateChange = useCallback((nextState = {}) => {
+    setEarningsCalendarPageState((current) => ({
+      view: nextState.view === 'calendar' ? 'calendar' : 'list',
+      selectedDate: String(nextState.selectedDate || current.selectedDate || '').slice(0, 10),
+    }));
+  }, []);
+  const openEarningsDetail = useCallback((event) => {
+    if (!event?.symbol || event?.earningsPublished !== true) return;
+    setEarningsDetailEvent(event);
+    setActivePage('earnings-detail');
+  }, []);
+  const closeEarningsDetail = useCallback(() => {
+    setActivePage('earnings-calendar');
+  }, []);
   const openCommunityProfileSettings = useCallback(() => {
     setActivePage(null);
     setActiveTab('settings');
@@ -4459,7 +4503,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     } catch {}
   }, [portfolioCurrencyMode]);
 
-  // 页面切换默认回顶；仅从自选详情返回首页时恢复进入前的位置。
+  // 页面切换默认回顶；从自选详情或财报系统返回首页时恢复进入前的位置。
   useLayoutEffect(() => {
     const scrollTarget = resolveNavigationScrollTarget({
       activeTab,
@@ -4543,7 +4587,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isWatchlistStockDetailPage = activePage === 'watchlist-stock-detail';
   const isWaveTrackerPage = activePage === 'wave-tracker';
   const isCommunityCompetitionPage = activePage === 'community-competition';
-  const isStandalonePage = isPnlReportPage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage;
+  const isEarningsCalendarPage = activePage === 'earnings-calendar';
+  const isEarningsDetailPage = activePage === 'earnings-detail';
+  const isStandalonePage = isPnlReportPage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
+  const isFullBleedPage = isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
   const hideBottomNavigation = isPnlReportPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
@@ -4728,6 +4775,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openWaveTracker,
     openCommunityCompetition,
     openCommunityProfileSettings,
+    openEarningsCalendar,
+    openEarningsDetail,
     Pin,
     portfolioCurrencyMode,
     Plus,
@@ -4749,6 +4798,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     closeWatchlistStockDetail,
     closeWaveTracker,
     closeCommunityCompetition,
+    closeEarningsCalendar,
+    closeEarningsDetail,
+    earningsCalendarPageState,
+    earningsDetailEvent,
+    onEarningsCalendarStateChange,
     setAccountDeleteConfirmId,
     setAccounts,
     setAlertsMuted,
@@ -4906,7 +4960,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isCommunityCompetitionPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5032,6 +5086,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <WaveTrackerPage ctx={tabCtx} />
                 : isCommunityCompetitionPage
                   ? <CommunityCompetitionPage ctx={tabCtx} />
+                : isEarningsCalendarPage
+                  ? <EarningsCalendarPage ctx={tabCtx} />
+                : isEarningsDetailPage
+                  ? <EarningsDetailPage ctx={tabCtx} />
               : <ActiveTab ctx={activeTabCtx} />}
         </Suspense>
 
