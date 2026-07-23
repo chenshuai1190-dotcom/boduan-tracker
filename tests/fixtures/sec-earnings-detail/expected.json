@@ -235,5 +235,90 @@
         "previousRevenue": 4305000000
       }
     ]
+  },
+  "NVDA": {
+    "symbol": "NVDA",
+    "period": {
+      "fiscalDate": "2026-04-26",
+      "label": "2027 Q1",
+      "form": "10-Q",
+      "filedAt": "2026-05-20",
+      "accession": "0001045810-26-000052"
+    },
+    "reportSegments": [
+      {
+        "id": "compute-networking",
+        "label": "Compute & Networking",
+        "labelZh": "计算与网络",
+        "revenue": 74550000000,
+        "previousRevenue": 39589000000,
+        "profitMetric": "operatingIncome",
+        "profit": 53335000000,
+        "previousProfit": 22054000000
+      },
+      {
+        "id": "graphics",
+        "label": "Graphics",
+        "labelZh": "图形业务",
+        "revenue": 7065000000,
+        "previousRevenue": 4473000000,
+        "profitMetric": "operatingIncome",
+        "profit": 2941000000,
+        "previousProfit": 1640000000
+      }
+    ],
+    "revenueBreakdown": [
+      {
+        "id": "hyperscale",
+        "label": "Hyperscale",
+        "labelZh": "超大规模",
+        "revenue": 37869000000,
+        "previousRevenue": 17599000000
+      },
+      {
+        "id": "acie",
+        "label": "AI Clouds, Industrial, & Enterprise",
+        "labelZh": "AI 云、工业与企业",
+        "revenue": 37377000000,
+        "previousRevenue": 21513000000
+      },
+      {
+        "id": "edge-computing",
+        "label": "Edge Computing",
+        "labelZh": "边缘计算",
+        "revenue": 6369000000,
+        "previousRevenue": 4950000000
+      }
+    ],
+    "geographies": [
+      {
+        "id": "united-states",
+        "label": "United States",
+        "labelZh": "美国",
+        "revenue": 63769000000,
+        "previousRevenue": 25685000000
+      },
+      {
+        "id": "taiwan",
+        "label": "Taiwan",
+        "labelZh": "中国台湾",
+        "revenue": 12006000000,
+        "previousRevenue": 7648000000
+      },
+      {
+        "id": "china-including-hong-kong",
+        "label": "China (including Hong Kong)",
+        "labelZh": "中国（含香港）",
+        "revenue": 4550000000,
+        "previousRevenue": 9659000000
+      },
+      {
+        "id": "other",
+        "label": "Other",
+        "labelZh": "其他地区",
+        "revenue": 1290000000,
+        "previousRevenue": 1070000000
+      }
+    ]
   }
 }

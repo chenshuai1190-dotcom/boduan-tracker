@@ -1,12 +1,15 @@
-import { fetchSecTenQPrimaryDocument } from './secOfficialActuals.js';
-import { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
+import { fetchSecEarningsFilingSource } from './secOfficialActuals.js';
+import {
+  hasSecEarningsDetailAdapter,
+  parseSecEarningsDetailPrimaryDocument,
+} from './secEarningsDetailParsers.js';
 
 export { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
 
 export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 1;
 export const SEC_EARNINGS_DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-const SUPPORTED_SYMBOLS = new Set(['GOOG', 'GOOGL', 'TSLA']);
+const EARNINGS_SYMBOL_RE = /^[A-Z0-9.-]{1,15}$/;
 const MAX_REPORT_DELAY_DAYS = 180;
 const PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
 const RESULT_CACHE_MAX_ENTRIES = 32;
@@ -17,11 +20,8 @@ export function parseEarningsDetailRequest(query = {}) {
   if (!rawSymbol) return { error: '需要传 symbol 参数' };
 
   const symbol = normalizeSymbol(rawSymbol);
-  if (!/^[A-Z]{1,5}$/.test(symbol)) {
+  if (!EARNINGS_SYMBOL_RE.test(symbol)) {
     return { error: `股票代码不合法: ${String(rawSymbol).trim()}` };
-  }
-  if (!SUPPORTED_SYMBOLS.has(symbol)) {
-    return { error: `暂不支持该财报详情: ${String(rawSymbol).trim()}` };
   }
 
   const rawFiscalDate = singleQueryValue(query.fiscalDate);
@@ -30,7 +30,7 @@ export function parseEarningsDetailRequest(query = {}) {
   if (!rawReportDate) return { error: '需要传 reportDate 参数' };
 
   const fiscalDate = validDateKey(rawFiscalDate);
-  if (!fiscalDate || !isQuarterEnd(fiscalDate)) {
+  if (!fiscalDate) {
     return { error: 'fiscalDate 必须是有效财季结束日期' };
   }
   const reportDate = validDateKey(rawReportDate);
@@ -62,15 +62,19 @@ export async function fetchSecEarningsDetail({
   const cached = readCache(cacheKey, nowDate.getTime(), cacheEnabled);
   if (cached) return cached;
 
+  const detailAdapterSupported = hasSecEarningsDetailAdapter(normalizedSymbol);
   const period = {
-    ...exactQuarterPeriod(normalizedFiscalDate),
+    start: '',
+    end: normalizedFiscalDate,
     fiscalDate: normalizedFiscalDate,
     reportDate: normalizedReportDate,
   };
-  const primary = await fetchSecTenQPrimaryDocument({
+
+  const primary = await fetchSecEarningsFilingSource({
     symbol: normalizedSymbol,
     fiscalDate: normalizedFiscalDate,
     reportDate: normalizedReportDate,
+    includePrimaryDocument: detailAdapterSupported,
     fetchFn,
     userAgent,
     now: nowDate,
@@ -92,6 +96,26 @@ export async function fetchSecEarningsDetail({
     });
     writeCache(cacheKey, pending, PENDING_CACHE_TTL_MS, nowDate.getTime(), cacheEnabled);
     return pending;
+  }
+
+  if (!detailAdapterSupported) {
+    const reason = 'official-detail-adapter-not-supported';
+    const unavailable = responseBase({
+      status: 'unavailable',
+      reason,
+      symbol: normalizedSymbol,
+      period,
+      source: sourceFromPrimary(primary),
+      sections: pendingSections('unavailable', reason),
+    });
+    writeCache(
+      cacheKey,
+      unavailable,
+      SEC_EARNINGS_DETAIL_CACHE_TTL_MS,
+      nowDate.getTime(),
+      cacheEnabled,
+    );
+    return unavailable;
   }
 
   const parsed = parseSecEarningsDetailPrimaryDocument({
@@ -224,26 +248,8 @@ function writeCache(key, value, ttlMs, nowMs, enabled) {
   });
 }
 
-function exactQuarterPeriod(fiscalDate) {
-  const date = parseDate(fiscalDate);
-  if (!date) return { start: '', end: fiscalDate };
-  const quarterEndMonth = Math.floor(date.getUTCMonth() / 3) * 3 + 2;
-  const start = new Date(Date.UTC(date.getUTCFullYear(), quarterEndMonth - 2, 1));
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: fiscalDate,
-  };
-}
-
 function normalizeDate(value) {
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function parseDate(value) {
-  const key = dateKey(value);
-  if (!key) return null;
-  const date = new Date(`${key}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -263,16 +269,6 @@ function validDateKey(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === match[1]
     ? match[1]
     : '';
-}
-
-function isQuarterEnd(value) {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  const expected = new Date(Date.UTC(
-    date.getUTCFullYear(),
-    Math.floor(date.getUTCMonth() / 3) * 3 + 3,
-    0,
-  ));
-  return date.getTime() === expected.getTime();
 }
 
 function dateKey(value) {

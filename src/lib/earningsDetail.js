@@ -96,6 +96,22 @@ export function normalizeEarningsDetailPayload(payload) {
   };
 }
 
+export function earningsDetailSourceBadgeKind(detail, event) {
+  const officialActual = [
+    event?.officialActualSource,
+    event?.revenueActualSource,
+    event?.ebitActualSource,
+    event?.epsActualSource,
+  ].some((value) => /^sec(?:-|$)/i.test(String(value || '').trim()));
+  if (officialActual) return 'official';
+
+  const source = detail?.source;
+  const verifiedFiling = String(source?.provider || '').trim().toUpperCase() === 'SEC'
+    && Boolean(source?.filingUrl || source?.primaryDocumentUrl || source?.accession);
+  if (verifiedFiling || event?.secFilingUrl || event?.secExhibitUrl) return 'filing';
+  return 'base';
+}
+
 export function earningsDetailClientCacheKey({ userId, symbol, fiscalDate, reportDate }) {
   const normalizedSymbol = normalizeEarningsSymbol(symbol);
   const fiscal = dateKey(fiscalDate);

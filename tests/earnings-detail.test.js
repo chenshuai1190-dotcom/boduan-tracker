@@ -10,7 +10,10 @@ import {
   parseEarningsDetailRequest,
   parseSecEarningsDetailPrimaryDocument,
 } from '../server/earnings/secEarningsDetail.js';
-import { fetchSecTenQPrimaryDocument } from '../server/earnings/secOfficialActuals.js';
+import {
+  fetchSecEarningsFilingSource,
+  fetchSecTenQPrimaryDocument,
+} from '../server/earnings/secOfficialActuals.js';
 
 const fixtureRoot = new URL('./fixtures/sec-earnings-detail/', import.meta.url);
 
@@ -24,6 +27,7 @@ function filing({
   accession,
   filingDate,
   primaryDocument,
+  reportDate = '2026-06-30',
 }) {
   const archiveCik = String(Number(cik));
   const flatAccession = accession.replace(/-/g, '');
@@ -34,7 +38,7 @@ function filing({
     form: '10-Q',
     filingDate,
     acceptedAt: `${filingDate}T20:00:00.000Z`,
-    reportDate: '2026-06-30',
+    reportDate,
     primaryDocument,
     filingUrl: `${archiveRoot}/${accession}-index.html`,
     primaryDocumentUrl: `${archiveRoot}/${primaryDocument}`,
@@ -53,6 +57,14 @@ const TSLA_FILING = filing({
   accession: '0001628280-26-049270',
   filingDate: '2026-07-27',
   primaryDocument: 'tsla-20260630.htm',
+});
+
+const NVDA_FILING = filing({
+  cik: '0001045810',
+  accession: '0001045810-26-000052',
+  filingDate: '2026-05-20',
+  primaryDocument: 'nvda-20260426.htm',
+  reportDate: '2026-04-26',
 });
 
 function assertParsedCore(result, status = 'complete') {
@@ -183,6 +195,62 @@ test('TSLA primary 10-Q parser returns two gross-profit segments, six revenue ca
   // The six-month distractor table is deliberately much larger.
   assert.notEqual(parsed.sections.reportSegments.items[0].revenue, 47_000_000_000);
   assert.notEqual(parsed.sections.reportSegments.items[1].revenue, 5_900_000_000);
+});
+
+test('NVDA primary 10-Q parser uses the reported 13-week quarter and reconciles every disclosed section', async () => {
+  const expected = (await fixture('expected.json', true)).NVDA;
+  const parsed = parseSecEarningsDetailPrimaryDocument({
+    symbol: 'NVDA',
+    // The calendar provider reports month-end; the official filing ended four
+    // days earlier. The parser must return the SEC period, not invent a month.
+    fiscalDate: '2026-04-30',
+    html: await fixture('nvda-10q-primary.html'),
+    filing: NVDA_FILING,
+  });
+
+  assert.equal(parsed.status, 'complete');
+  assert.equal(parsed.currency, 'USD');
+  assert.deepEqual(parsed.period, {
+    start: '2026-01-26',
+    end: '2026-04-26',
+  });
+  assertCompleteSection(parsed.sections.reportSegments, expected.reportSegments);
+  assertCompleteSection(parsed.sections.revenueBreakdown, expected.revenueBreakdown);
+  assertCompleteSection(parsed.sections.geographies, expected.geographies);
+  assert.ok(parsed.sections.reportSegments.items.every(
+    item => item.profitMetric === 'operatingIncome',
+  ));
+});
+
+test('NVDA adapter fails only the non-reconciling section instead of publishing guessed detail', async () => {
+  const html = (await fixture('nvda-10q-primary.html')).replace(
+    '>37,377</ix:nonFraction>',
+    '>37,378</ix:nonFraction>',
+  );
+  const parsed = parseSecEarningsDetailPrimaryDocument({
+    symbol: 'NVDA',
+    fiscalDate: '2026-04-30',
+    html,
+    filing: NVDA_FILING,
+  });
+
+  assert.equal(parsed.status, 'partial');
+  assert.equal(parsed.sections.reportSegments.status, 'complete');
+  assert.deepEqual(parsed.sections.revenueBreakdown, {
+    status: 'unavailable',
+    reason: 'ambiguous-or-missing-xbrl-facts',
+    items: [],
+  });
+  assert.equal(parsed.sections.geographies.status, 'complete');
+});
+
+test('NVDA parser rejects a provider date outside the bounded filing tolerance', async () => {
+  assert.equal(parseSecEarningsDetailPrimaryDocument({
+    symbol: 'NVDA',
+    fiscalDate: '2026-05-10',
+    html: await fixture('nvda-10q-primary.html'),
+    filing: NVDA_FILING,
+  }), null);
 });
 
 test('primary parser fails closed on company or fiscal-period mismatch', async () => {
@@ -374,7 +442,321 @@ test('SEC reader wraps parsed sections in the versioned public response envelope
   ]);
 });
 
-test('published report stays pending when SEC has no exact-quarter 10-Q', async () => {
+test('SEC filing source matches NVDA month-end provider data to the unique official 13-week filing', async () => {
+  const primaryHtml = await fixture('nvda-10q-primary.html');
+  const submissions = {
+    tickers: ['NVDA'],
+    filings: {
+      recent: {
+        accessionNumber: [NVDA_FILING.accession],
+        form: ['10-Q'],
+        filingDate: ['2026-05-20'],
+        reportDate: ['2026-04-26'],
+        primaryDocument: ['nvda-20260426.htm'],
+        acceptanceDateTime: ['2026-05-20T20:01:00.000Z'],
+      },
+    },
+  };
+  const requested = [];
+  const result = await fetchSecEarningsFilingSource({
+    symbol: 'NVDA',
+    fiscalDate: '2026-04-30',
+    reportDate: '2026-05-20',
+    now: new Date('2026-05-21T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    fetchFn: async (url) => {
+      const parsed = new URL(url);
+      requested.push(parsed.pathname);
+      if (parsed.pathname === '/files/company_tickers.json') {
+        return textResponse({
+          0: { cik_str: 1045810, ticker: 'NVDA', title: 'NVIDIA Corporation' },
+        });
+      }
+      if (parsed.pathname === '/submissions/CIK0001045810.json') {
+        return textResponse(submissions);
+      }
+      if (parsed.pathname.endsWith('/nvda-20260426.htm')) {
+        return textResponse(primaryHtml);
+      }
+      return textResponse('not found', 404);
+    },
+  });
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.reason, null);
+  assert.equal(result.secCik, '0001045810');
+  assert.equal(result.accession, NVDA_FILING.accession);
+  assert.equal(result.form, '10-Q');
+  assert.equal(result.filedAt, '2026-05-20T20:01:00.000Z');
+  assert.equal(result.filingUrl, NVDA_FILING.filingUrl);
+  assert.equal(result.primaryDocumentUrl, NVDA_FILING.primaryDocumentUrl);
+  assert.equal(result.html, primaryHtml);
+  assert.deepEqual(requested, [
+    '/files/company_tickers.json',
+    '/submissions/CIK0001045810.json',
+    new URL(NVDA_FILING.primaryDocumentUrl).pathname,
+  ]);
+});
+
+test('NVDA detail service returns complete official sections and keeps the provider date as the request key', async () => {
+  clearSecEarningsDetailCachesForTests();
+  const expected = (await fixture('expected.json', true)).NVDA;
+  const primaryHtml = await fixture('nvda-10q-primary.html');
+  const submissions = {
+    tickers: ['NVDA'],
+    filings: {
+      recent: {
+        accessionNumber: [NVDA_FILING.accession],
+        form: ['10-Q'],
+        filingDate: ['2026-05-20'],
+        reportDate: ['2026-04-26'],
+        primaryDocument: ['nvda-20260426.htm'],
+        acceptanceDateTime: ['2026-05-20T20:01:00.000Z'],
+      },
+    },
+  };
+  const result = await fetchSecEarningsDetail({
+    symbol: 'NVDA',
+    fiscalDate: '2026-04-30',
+    reportDate: '2026-05-20',
+    now: new Date('2026-05-21T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    fetchFn: async (url) => {
+      const pathname = new URL(url).pathname;
+      if (pathname === '/files/company_tickers.json') {
+        return textResponse({
+          0: { cik_str: 1045810, ticker: 'NVDA', title: 'NVIDIA Corporation' },
+        });
+      }
+      return pathname === '/submissions/CIK0001045810.json'
+        ? textResponse(submissions)
+        : textResponse(primaryHtml);
+    },
+  });
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.reason, null);
+  assert.deepEqual(result.period, {
+    start: '2026-01-26',
+    end: '2026-04-26',
+    fiscalDate: '2026-04-30',
+    reportDate: '2026-05-20',
+  });
+  assert.equal(result.source?.cik, '0001045810');
+  assert.equal(result.source?.accession, NVDA_FILING.accession);
+  assert.equal(result.source?.form, '10-Q');
+  assert.deepEqual(result.sections.reportSegments.items, expected.reportSegments);
+  assert.deepEqual(result.sections.revenueBreakdown.items, expected.revenueBreakdown);
+  assert.deepEqual(result.sections.geographies.items, expected.geographies);
+});
+
+test('SEC filing source fails closed when two periodic filings are equally near the provider fiscal date', async () => {
+  const submissions = {
+    tickers: ['NVDA'],
+    filings: {
+      recent: {
+        accessionNumber: [
+          '0001045810-26-000052',
+          '0001045810-26-000053',
+        ],
+        form: ['10-Q', '10-Q'],
+        filingDate: ['2026-05-20', '2026-05-21'],
+        reportDate: ['2026-04-26', '2026-05-04'],
+        primaryDocument: ['nvda-20260426.htm', 'nvda-20260504.htm'],
+        acceptanceDateTime: [
+          '2026-05-20T20:01:00.000Z',
+          '2026-05-21T20:01:00.000Z',
+        ],
+      },
+    },
+  };
+  const result = await fetchSecEarningsFilingSource({
+    symbol: 'NVDA',
+    fiscalDate: '2026-04-30',
+    reportDate: '2026-05-20',
+    now: new Date('2026-05-22T12:00:00.000Z'),
+    includePrimaryDocument: false,
+    requestIntervalMs: 0,
+    fetchFn: async (url) => (
+      new URL(url).pathname === '/files/company_tickers.json'
+        ? textResponse({
+            0: { cik_str: 1045810, ticker: 'NVDA', title: 'NVIDIA Corporation' },
+          })
+        : textResponse(submissions)
+    ),
+  });
+
+  assert.equal(result.status, 'pending');
+  assert.equal(result.reason, 'official-filing-not-found');
+  assert.equal(result.secCik, '0001045810');
+  assert.equal(result.accession, undefined);
+});
+
+test('SEC filing source resolves dynamic class-share aliases and exposes source without a deep adapter', async () => {
+  const tickerMap = {
+    0: {
+      cik_str: 1067983,
+      ticker: 'BRK-B',
+      title: 'Berkshire Hathaway Inc.',
+    },
+  };
+  const submissions = {
+    tickers: ['BRK-B'],
+    filings: {
+      recent: {
+        accessionNumber: ['0001067983-26-000090'],
+        form: ['10-K'],
+        filingDate: ['2026-08-03'],
+        reportDate: ['2026-06-29'],
+        primaryDocument: ['brka-20260629.htm'],
+        acceptanceDateTime: ['2026-08-03T12:00:00.000Z'],
+      },
+    },
+  };
+  const requested = [];
+  const result = await fetchSecEarningsFilingSource({
+    symbol: 'BRK.B',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-08-03',
+    now: new Date('2026-08-04T12:00:00.000Z'),
+    includePrimaryDocument: false,
+    requestIntervalMs: 0,
+    fetchFn: async (url) => {
+      const parsed = new URL(url);
+      requested.push(parsed.pathname);
+      if (parsed.pathname === '/files/company_tickers.json') {
+        return textResponse(tickerMap);
+      }
+      if (parsed.pathname === '/submissions/CIK0001067983.json') {
+        return textResponse(submissions);
+      }
+      return textResponse('not found', 404);
+    },
+  });
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.secCik, '0001067983');
+  assert.equal(result.form, '10-K');
+  assert.equal(result.accession, '0001067983-26-000090');
+  assert.equal(result.primaryDocumentUrl, undefined);
+  assert.equal(result.html, undefined);
+  assert.deepEqual(requested, [
+    '/files/company_tickers.json',
+    '/submissions/CIK0001067983.json',
+  ]);
+});
+
+test('SEC filing source recognizes exact-period 6-K and 20-F filings without enabling a deep parser', async () => {
+  const cases = [
+    {
+      symbol: 'TSM',
+      cik: '0001046179',
+      form: '6-K',
+      fiscalDate: '2026-06-30',
+      reportDate: '2026-07-16',
+    },
+    {
+      symbol: 'ASML',
+      cik: '0000937966',
+      form: '20-F',
+      fiscalDate: '2025-12-31',
+      reportDate: '2026-02-25',
+    },
+  ];
+
+  for (const item of cases) {
+    const accession = `${item.cik}-${item.reportDate.slice(2, 4)}-000001`;
+    const tickerMap = {
+      0: {
+        cik_str: Number(item.cik),
+        ticker: item.symbol,
+        title: item.symbol,
+      },
+    };
+    const submissions = {
+      tickers: [item.symbol],
+      filings: {
+        recent: {
+          accessionNumber: [accession],
+          form: [item.form],
+          filingDate: [item.reportDate],
+          reportDate: [item.fiscalDate],
+          primaryDocument: [`${item.symbol.toLowerCase()}-filing.htm`],
+          acceptanceDateTime: [`${item.reportDate}T12:00:00.000Z`],
+        },
+      },
+    };
+    const result = await fetchSecEarningsFilingSource({
+      symbol: item.symbol,
+      fiscalDate: item.fiscalDate,
+      reportDate: item.reportDate,
+      now: new Date(`${item.reportDate}T20:00:00.000Z`),
+      includePrimaryDocument: false,
+      requestIntervalMs: 0,
+      fetchFn: async (url) => {
+        const pathname = new URL(url).pathname;
+        if (pathname === '/files/company_tickers.json') return textResponse(tickerMap);
+        if (pathname === `/submissions/CIK${item.cik}.json`) {
+          return textResponse(submissions);
+        }
+        return textResponse('not found', 404);
+      },
+    });
+    assert.equal(result.status, 'complete', item.symbol);
+    assert.equal(result.form, item.form, item.symbol);
+    assert.equal(result.secCik, item.cik, item.symbol);
+    assert.ok(result.filingUrl.endsWith(`/${accession}-index.html`), item.symbol);
+  }
+});
+
+test('SEC filing source selects the earnings 6-K when the same fiscal period also has a monthly revenue 6-K', async () => {
+  const cik = '0001046179';
+  const earningsAccession = '0001046179-26-000451';
+  const monthlyRevenueAccession = '0001046179-26-000440';
+  const submissions = {
+    tickers: ['TSM'],
+    filings: {
+      recent: {
+        accessionNumber: [
+          earningsAccession,
+          monthlyRevenueAccession,
+        ],
+        form: ['6-K', '6-K'],
+        filingDate: ['2026-07-16', '2026-07-10'],
+        reportDate: ['2026-06-30', '2026-06-30'],
+        primaryDocument: [
+          'tsm-20260716x6k.htm',
+          'tsm-revenue20260710.htm',
+        ],
+        acceptanceDateTime: [
+          '2026-07-16T12:00:00.000Z',
+          '2026-07-10T12:00:00.000Z',
+        ],
+      },
+    },
+  };
+
+  const result = await fetchSecEarningsFilingSource({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+    now: new Date('2026-07-17T12:00:00.000Z'),
+    includePrimaryDocument: false,
+    requestIntervalMs: 0,
+    fetchFn: async (url) => (
+      new URL(url).pathname === `/submissions/CIK${cik}.json`
+        ? textResponse(submissions)
+        : textResponse('not found', 404)
+    ),
+  });
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.form, '6-K');
+  assert.equal(result.accession, earningsAccession);
+  assert.ok(result.filingUrl.endsWith(`/${earningsAccession}-index.html`));
+});
+
+test('published report stays pending when SEC has no matching official filing', async () => {
   clearSecEarningsDetailCachesForTests();
   const submissions = {
     tickers: ['GOOG', 'GOOGL'],
@@ -399,11 +781,11 @@ test('published report stays pending when SEC has no exact-quarter 10-Q', async 
   });
 
   assert.equal(result.status, 'pending');
-  assert.equal(result.reason, 'official-10q-not-filed');
+  assert.equal(result.reason, 'official-filing-not-found');
   assert.equal(result.source?.cik, '0001652044');
   assert.ok(Object.values(result.sections).every(section => (
     section.status === 'pending'
-    && section.reason === 'official-10q-not-filed'
+    && section.reason === 'official-filing-not-found'
     && section.items.length === 0
   )));
 });
@@ -513,7 +895,7 @@ test('SEC primary reader aborts a chunked response as soon as its UTF-8 bytes ex
   assert.equal(fallbackTextCalled, false);
 });
 
-test('earnings detail request accepts one supported US symbol and strict dates', () => {
+test('earnings detail request accepts calendar symbols and non-calendar fiscal quarter ends', () => {
   assert.deepEqual(parseEarningsDetailRequest({
     symbol: 'googl.us',
     fiscalDate: '2026-06-30',
@@ -523,19 +905,149 @@ test('earnings detail request accepts one supported US symbol and strict dates',
     fiscalDate: '2026-06-30',
     reportDate: '2026-07-22',
   });
+  assert.deepEqual(parseEarningsDetailRequest({
+    symbol: 'nvda.us',
+    fiscalDate: '2026-07-26',
+    reportDate: '2026-08-19',
+  }), {
+    symbol: 'NVDA',
+    fiscalDate: '2026-07-26',
+    reportDate: '2026-08-19',
+  });
+  assert.deepEqual(parseEarningsDetailRequest({
+    symbol: 'brk.b.us',
+    fiscalDate: '2026-06-28',
+    reportDate: '2026-08-03',
+  }), {
+    symbol: 'BRK.B',
+    fiscalDate: '2026-06-28',
+    reportDate: '2026-08-03',
+  });
 
   assert.match(parseEarningsDetailRequest({
     symbol: 'NV DA',
     fiscalDate: '2026-06-30',
   }).error, /股票代码|symbol/i);
   assert.match(parseEarningsDetailRequest({
-    symbol: 'MSFT',
-    fiscalDate: '2026-06-30',
-  }).error, /暂不支持|supported/i);
-  assert.match(parseEarningsDetailRequest({
     symbol: 'TSLA',
     fiscalDate: '2026-06',
   }).error, /日期|date/i);
+});
+
+test('stocks without a deep adapter still return verified SEC filing provenance', async () => {
+  clearSecEarningsDetailCachesForTests();
+  const accession = '0000320193-26-000080';
+  const submissions = {
+    tickers: ['AAPL'],
+    filings: {
+      recent: {
+        accessionNumber: [accession],
+        form: ['10-Q'],
+        filingDate: ['2026-07-30'],
+        reportDate: ['2026-06-27'],
+        primaryDocument: ['aapl-20260627.htm'],
+        acceptanceDateTime: ['2026-07-30T20:00:00.000Z'],
+      },
+    },
+  };
+  const requested = [];
+  const result = await fetchSecEarningsDetail({
+    symbol: 'AAPL',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-30',
+    now: new Date('2026-07-31T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    fetchFn: async (url) => {
+      const pathname = new URL(url).pathname;
+      requested.push(pathname);
+      if (pathname === '/files/company_tickers.json') {
+        return textResponse({
+          0: { cik_str: 320193, ticker: 'AAPL', title: 'Apple Inc.' },
+        });
+      }
+      if (pathname === '/submissions/CIK0000320193.json') {
+        return textResponse(submissions);
+      }
+      return textResponse('not found', 404);
+    },
+  });
+
+  assert.deepEqual(requested, [
+    '/files/company_tickers.json',
+    '/submissions/CIK0000320193.json',
+  ]);
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'official-detail-adapter-not-supported');
+  assert.equal(result.symbol, 'AAPL');
+  assert.deepEqual(result.source, {
+    provider: 'SEC',
+    cik: '0000320193',
+    accession,
+    form: '10-Q',
+    filedAt: '2026-07-30T20:00:00.000Z',
+    filingUrl: `https://www.sec.gov/Archives/edgar/data/320193/000032019326000080/${accession}-index.html`,
+    primaryDocumentUrl: null,
+  });
+  assert.deepEqual(result.period, {
+    start: '',
+    end: '2026-06-30',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-30',
+  });
+  assert.deepEqual(Object.values(result.sections), Array.from({ length: 3 }, () => ({
+    status: 'unavailable',
+    reason: 'official-detail-adapter-not-supported',
+    items: [],
+  })));
+});
+
+test('an adapted symbol with a non-calendar fiscal date fails closed without fabricating a quarter', async () => {
+  clearSecEarningsDetailCachesForTests();
+  let fetchCount = 0;
+  const primaryHtml = await fixture('googl-10q-primary.html');
+  const submissions = {
+    tickers: ['GOOG', 'GOOGL'],
+    filings: {
+      recent: {
+        accessionNumber: [GOOGL_FILING.accession],
+        form: ['10-Q'],
+        filingDate: ['2026-07-22'],
+        reportDate: ['2026-06-30'],
+        primaryDocument: ['goog-20260630.htm'],
+        acceptanceDateTime: ['2026-07-22T20:00:00.000Z'],
+      },
+    },
+  };
+  const result = await fetchSecEarningsDetail({
+    symbol: 'GOOGL',
+    fiscalDate: '2026-06-28',
+    reportDate: '2026-07-22',
+    now: new Date('2026-07-23T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    fetchFn: async (url) => {
+      fetchCount += 1;
+      const pathname = new URL(url).pathname;
+      if (pathname === '/submissions/CIK0001652044.json') {
+        return textResponse(submissions);
+      }
+      if (pathname.endsWith('/goog-20260630.htm')) {
+        return textResponse(primaryHtml);
+      }
+      return textResponse('not found', 404);
+    },
+  });
+
+  assert.equal(fetchCount, 2);
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'official-primary-document-unparsed');
+  assert.equal(result.period.start, '');
+  assert.equal(result.period.end, '2026-06-28');
+  assert.equal(result.source?.accession, GOOGL_FILING.accession);
+  assert.ok(Object.values(result.sections).every(section => (
+    section.status === 'unavailable'
+    && section.reason === 'official-primary-document-unparsed'
+    && section.items.length === 0
+  )));
 });
 
 test('earnings detail API preserves 401, 405, and 400 boundaries', async () => {
@@ -593,6 +1105,24 @@ test('earnings detail branch does not require the calendar EODHD key', async () 
     assert.equal(res.body.success, true);
     assert.equal(res.body.status, 'pending');
     assert.equal(res.headers['Cache-Control'], 'private, max-age=300');
+
+    const unsupportedDeepDetail = createResponse();
+    await handler(createRequest({
+      query: {
+        operation: 'detail',
+        symbol: 'AAPL',
+        fiscalDate: '2099-06-28',
+        reportDate: '2099-07-22',
+      },
+    }), unsupportedDeepDetail);
+    assert.equal(unsupportedDeepDetail.statusCode, 200);
+    assert.equal(unsupportedDeepDetail.body.success, true);
+    assert.equal(unsupportedDeepDetail.body.status, 'pending');
+    assert.equal(
+      unsupportedDeepDetail.body.reason,
+      'not-published',
+    );
+    assert.equal(unsupportedDeepDetail.headers['Cache-Control'], 'private, max-age=300');
   } finally {
     if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
     else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;

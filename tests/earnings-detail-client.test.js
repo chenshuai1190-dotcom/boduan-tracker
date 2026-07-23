@@ -5,10 +5,17 @@ import {
   EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS,
   EARNINGS_DETAIL_PENDING_CACHE_TTL_MS,
   earningsDetailClientCacheKey,
+  earningsDetailSourceBadgeKind,
   earningsPercentChange,
   formatEarningsDetailMoney,
   normalizeEarningsDetailPayload,
 } from '../src/lib/earningsDetail.js';
+import {
+  EARNINGS_DETAIL_EXPORT_MAX_DIMENSION,
+  EARNINGS_DETAIL_EXPORT_MAX_PIXELS,
+  EARNINGS_DETAIL_EXPORT_WIDTH,
+  calculateEarningsDetailExportLayout,
+} from '../src/lib/shareEarningsDetail.js';
 
 const appSource = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const calendarSource = fs.readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
@@ -92,6 +99,34 @@ test('earnings detail caches complete data for six hours but pending data for on
   );
 });
 
+test('earnings source badge distinguishes official actuals from filing provenance', () => {
+  assert.equal(
+    earningsDetailSourceBadgeKind(
+      { source: { provider: 'SEC', cik: '0000320193' } },
+      {},
+    ),
+    'base',
+  );
+  assert.equal(
+    earningsDetailSourceBadgeKind(
+      { source: { provider: 'SEC', filingUrl: 'https://www.sec.gov/Archives/aapl.htm' } },
+      {},
+    ),
+    'filing',
+  );
+  assert.equal(
+    earningsDetailSourceBadgeKind(
+      { source: { provider: 'SEC', filingUrl: 'https://www.sec.gov/Archives/nvda.htm' } },
+      { revenueActualSource: 'sec-xbrl' },
+    ),
+    'official',
+  );
+  assert.equal(
+    earningsDetailSourceBadgeKind(null, { secExhibitUrl: 'https://www.sec.gov/Archives/tsm.htm' }),
+    'filing',
+  );
+});
+
 test('earnings calendar and detail are standalone pages that retain the global bottom navigation', () => {
   assert.ok(appSource.includes("const EarningsCalendarPage = lazy(() => import('./pages/EarningsCalendarPage.jsx'));"));
   assert.ok(appSource.includes("const EarningsDetailPage = lazy(() => import('./pages/EarningsDetailPage.jsx'));"));
@@ -110,13 +145,45 @@ test('production detail renders every section in one page and shares the export 
   assert.ok(detailPageSource.includes("language === 'en' ? 'Revenue breakdown' : '细分结构'"));
   assert.ok(detailPageSource.includes("language === 'en' ? 'Geographic revenue' : '地区收入'"));
   assert.ok(detailPageSource.includes("estimate: '—'"));
+  assert.ok(detailPageSource.includes("language === 'en' ? 'Base data' : '基础数据'"));
+  assert.ok(detailPageSource.includes("language === 'en' ? 'SEC filing' : 'SEC 文件'"));
+  assert.ok(detailPageSource.includes('Period ended'));
+  assert.ok(detailPageSource.includes('该公司的官方细分数据暂未接入'));
   assert.ok(detailPageSource.includes('data-earnings-detail-export-root="true"'));
   assert.ok(detailPageSource.includes('data-export-ignore="true"'));
   assert.ok(shareSource.includes("navigator.canShare?.({ files: [file] })"));
   assert.ok(shareSource.includes("canvas.toBlob"));
-  assert.ok(shareSource.includes('MAX_EXPORT_DIMENSION = 8192'));
+  assert.ok(shareSource.includes('EARNINGS_DETAIL_EXPORT_MAX_DIMENSION = 8192'));
   assert.ok(shareSource.includes('} finally {'));
   assert.ok(shareSource.includes('anchor?.remove();'));
   assert.ok(shareSource.includes('setTimeout(() => URL.revokeObjectURL(url), 30_000)'));
   assert.equal(detailPageSource.includes('COMPANY_DATA'), false);
+});
+
+test('earnings detail export uses a stable readable width and stays inside iOS canvas limits', () => {
+  const standard = calculateEarningsDetailExportLayout({
+    height: 2_200,
+    devicePixelRatio: 3,
+  });
+  assert.equal(standard.width, EARNINGS_DETAIL_EXPORT_WIDTH);
+  assert.equal(standard.scale, 3);
+  assert.equal(standard.outputWidth, 1_290);
+  assert.equal(standard.outputHeight, 6_600);
+
+  const longReport = calculateEarningsDetailExportLayout({
+    height: 4_000,
+    devicePixelRatio: 3,
+  });
+  assert.ok(longReport.scale < 3);
+  assert.ok(longReport.outputWidth <= EARNINGS_DETAIL_EXPORT_MAX_DIMENSION);
+  assert.ok(longReport.outputHeight <= EARNINGS_DETAIL_EXPORT_MAX_DIMENSION);
+  assert.ok(
+    longReport.outputWidth * longReport.outputHeight
+      <= EARNINGS_DETAIL_EXPORT_MAX_PIXELS + longReport.outputWidth + longReport.outputHeight,
+  );
+  assert.ok(detailPageSource.includes('data-export-decoration="true"'));
+  assert.ok(detailPageSource.includes('data-export-content="true"'));
+  assert.ok(shareSource.includes('await clonedDocument.fonts?.ready'));
+  assert.ok(shareSource.includes("root.style.webkitTextSizeAdjust = '100%'"));
+  assert.ok(shareSource.includes('exportClone?.remove();'));
 });

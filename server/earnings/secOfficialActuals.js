@@ -26,6 +26,7 @@ const COMPANY_FACTS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const FILING_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const RESULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MISS_CACHE_TTL_MS = 5 * 60 * 1000;
+const SEC_FISCAL_DATE_TOLERANCE_DAYS = 7;
 
 const KNOWN_CIK_BY_SYMBOL = new Map([
   ['TSLA', '0001318605'],
@@ -119,10 +120,11 @@ export async function fetchSecOfficialActuals({
   return output;
 }
 
-export async function fetchSecTenQPrimaryDocument({
+export async function fetchSecEarningsFilingSource({
   symbol,
   fiscalDate,
   reportDate,
+  includePrimaryDocument = true,
   fetchFn = globalThis.fetch,
   userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
   now = new Date(),
@@ -142,16 +144,15 @@ export async function fetchSecTenQPrimaryDocument({
     reportDate: normalizedReportDate,
   };
 
-  if (!['GOOG', 'GOOGL', 'TSLA'].includes(normalizedSymbol)
+  if (!/^[A-Z0-9.-]{1,15}$/.test(normalizedSymbol)
     || !normalizedFiscalDate
     || !normalizedReportDate) {
-    return { ...base, status: 'unsupported', reason: 'official-detail-adapter-not-supported' };
+    return { ...base, status: 'unsupported', reason: 'invalid-sec-filing-request' };
   }
   if (normalizedReportDate > today) {
     return { ...base, reason: 'not-published' };
   }
 
-  const cik = KNOWN_CIK_BY_SYMBOL.get(normalizedSymbol);
   const context = {
     fetchFn,
     userAgent: sanitizeUserAgent(userAgent),
@@ -165,7 +166,20 @@ export async function fetchSecTenQPrimaryDocument({
     ),
   };
 
+  let cik = KNOWN_CIK_BY_SYMBOL.get(normalizedSymbol) || '';
   try {
+    if (!cik) {
+      const cikBySymbol = await fetchTickerCikMap(context);
+      cik = cikBySymbol.get(normalizedSymbol) || '';
+    }
+    if (!cik) {
+      return {
+        ...base,
+        status: 'unsupported',
+        reason: 'sec-cik-not-found',
+      };
+    }
+
     const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
     const submissions = await fetchJsonCached(submissionsUrl, {
       ...context,
@@ -181,37 +195,21 @@ export async function fetchSecTenQPrimaryDocument({
       };
     }
 
-    const filing = selectOriginalTenQFiling(
+    const filing = selectEarningsDetailFiling(
       normalizeRecentFilings(submissions),
       normalizedFiscalDate,
+      normalizedReportDate,
       today,
     );
     if (!filing) {
       return {
         ...base,
-        reason: 'official-10q-not-filed',
+        reason: 'official-filing-not-found',
         secCik: cik,
       };
     }
 
-    const primaryDocumentUrl = buildPrimaryDocumentUrl(cik, filing);
-    if (!primaryDocumentUrl) {
-      return {
-        ...base,
-        reason: 'official-primary-document-missing',
-        secCik: cik,
-        accession: filing.accession,
-        form: filing.form,
-        filedAt: filing.acceptedAt || filing.filingDate,
-        filingUrl: buildFilingIndexUrl(cik, filing.accession),
-      };
-    }
-    const html = await fetchTextCached(primaryDocumentUrl, {
-      ...context,
-      ttlMs: FILING_CACHE_TTL_MS,
-      maxBytes: SEC_MAX_PRIMARY_DOCUMENT_BYTES,
-    });
-    return {
+    const source = {
       ...base,
       status: 'complete',
       reason: null,
@@ -220,6 +218,24 @@ export async function fetchSecTenQPrimaryDocument({
       form: filing.form,
       filedAt: filing.acceptedAt || filing.filingDate,
       filingUrl: buildFilingIndexUrl(cik, filing.accession),
+    };
+    if (!includePrimaryDocument) return source;
+
+    const primaryDocumentUrl = buildPrimaryDocumentUrl(cik, filing);
+    if (!primaryDocumentUrl) {
+      return {
+        ...source,
+        status: 'pending',
+        reason: 'official-primary-document-missing',
+      };
+    }
+    const html = await fetchTextCached(primaryDocumentUrl, {
+      ...context,
+      ttlMs: FILING_CACHE_TTL_MS,
+      maxBytes: SEC_MAX_PRIMARY_DOCUMENT_BYTES,
+    });
+    return {
+      ...source,
       primaryDocumentUrl,
       html,
     };
@@ -230,6 +246,13 @@ export async function fetchSecTenQPrimaryDocument({
       secCik: cik,
     };
   }
+}
+
+// Kept as a compatibility alias for the existing detail service and tests.
+// The reader now resolves the exact official earnings filing rather than being
+// restricted to a hard-coded 10-Q company list.
+export async function fetchSecTenQPrimaryDocument(options = {}) {
+  return fetchSecEarningsFilingSource(options);
 }
 
 export function mergeSecOfficialActuals(events, officialActuals) {
@@ -476,7 +499,8 @@ async function fetchTickerCikMap(context) {
   for (const entry of Object.values(payload || {})) {
     const symbol = normalizeSymbol(entry?.ticker);
     const cik = padCik(entry?.cik_str);
-    if (symbol && cik) result.set(symbol, cik);
+    if (!symbol || !cik) continue;
+    for (const alias of tickerAliases(symbol)) result.set(alias, cik);
   }
   return result;
 }
@@ -610,6 +634,50 @@ function normalizeRecentFilings(submissions) {
   return filings;
 }
 
+function selectEarningsDetailFiling(filings, fiscalDate, reportDate, today) {
+  const periodic = selectUniqueNearestFiscalFiling(filings, fiscalDate, today);
+  if (periodic) return periodic;
+  const foreignEarnings = selectEarnings6KFiling(
+    filings,
+    reportDate,
+    fiscalDate,
+    today,
+  );
+  if (foreignEarnings) return foreignEarnings;
+  return selectEarnings8KFiling(filings, reportDate, today);
+}
+
+function selectUniqueNearestFiscalFiling(filings, fiscalDate, today) {
+  const target = parseDate(fiscalDate);
+  if (!target) return null;
+  const formPriority = new Map([
+    ['10-Q', 0],
+    ['10-K', 1],
+    ['20-F', 2],
+  ]);
+  const candidates = (filings || [])
+    .filter((filing) => formPriority.has(filing.form))
+    .filter((filing) => filing.filingDate <= today)
+    .map((filing) => ({
+      filing,
+      distance: Math.abs(dayDifference(target, parseDate(filing.reportDate))),
+      formPriority: formPriority.get(filing.form),
+    }))
+    .filter(({ distance }) => distance <= SEC_FISCAL_DATE_TOLERANCE_DAYS)
+    .sort((a, b) => (
+      a.distance - b.distance
+      || a.formPriority - b.formPriority
+      || b.filing.filingDate.localeCompare(a.filing.filingDate)
+    ));
+  if (candidates.length === 0) return null;
+  const best = candidates[0];
+  const equallyRanked = candidates.filter((candidate) => (
+    candidate.distance === best.distance
+    && candidate.formPriority === best.formPriority
+  ));
+  return equallyRanked.length === 1 ? best.filing : null;
+}
+
 function selectTenQFiling(filings, fiscalDate, today) {
   return (filings || [])
     .filter((filing) => /^10-Q(?:\/A)?$/.test(filing.form))
@@ -704,7 +772,10 @@ function submissionsMatchesSymbol(submissions, symbol) {
   const tickers = Array.isArray(submissions?.tickers)
     ? submissions.tickers.map(normalizeSymbol).filter(Boolean)
     : [];
-  return tickers.length > 0 && tickers.includes(normalizeSymbol(symbol));
+  const requestedAliases = new Set(tickerAliases(symbol));
+  return tickers.length > 0 && tickers.some((ticker) => (
+    tickerAliases(ticker).some((alias) => requestedAliases.has(alias))
+  ));
 }
 
 function dedupeEvents(events) {
@@ -829,6 +900,15 @@ function normalizeAcceptedAt(value) {
 
 function normalizeSymbol(value) {
   return String(value || '').trim().toUpperCase().replace(/\.US$/, '');
+}
+
+function tickerAliases(value) {
+  const symbol = normalizeSymbol(value);
+  if (!symbol || !/^[A-Z0-9.-]{1,15}$/.test(symbol)) return [];
+  const aliases = new Set([symbol]);
+  if (symbol.includes('.')) aliases.add(symbol.replace(/\./g, '-'));
+  if (symbol.includes('-')) aliases.add(symbol.replace(/-/g, '.'));
+  return Array.from(aliases);
 }
 
 function dateKey(value) {

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.372', date: '2026-07-23', latest: true,
+    ver: 'v10.7.9.373', date: '2026-07-24', latest: true,
+    items: [
+      '🧾 SEC 官方财报覆盖与详情可读性',
+      '  - 财报详情按股票代码动态匹配 SEC 文件；可确认的 10-Q、10-K、20-F、6-K 或 8-K 均提供官方原文入口，不再受固定公司白名单限制',
+      '  - NVIDIA 新增真实财期的报告分部、业务细分和地区收入；谷歌与特斯拉保留确定性结构化适配，台积电可匹配官方 6-K 与公布值；其他未适配公司的深层数据保持不可用而不猜测',
+      '  - 财报详情页字号统一放大 1px，完整分享长图同步提升字号并修复长列表导出的排版与可读性',
+    ],
+    itemsEn: [
+      '🧾 Broader SEC filing coverage and clearer earnings details',
+      '  - Earnings details now resolve SEC filings dynamically by ticker; verified 10-Q, 10-K, 20-F, 6-K, or 8-K filings expose the official source link without a fixed company allowlist',
+      '  - NVIDIA now includes reportable segments, business breakdowns, and geographic revenue for its real fiscal period; deterministic structured adapters remain for Alphabet and Tesla, while TSMC resolves its official 6-K and actuals; unsupported deep breakdowns stay unavailable instead of being inferred',
+      '  - Earnings-detail typography is one pixel larger throughout, and full-report share images use the same larger, corrected long-layout rendering',
+    ],
+  },
+  {
+    ver: 'v10.7.9.372', date: '2026-07-23',
     items: [
       '📊 独立财报详情与业务细分',
       '  - 财报日历改为保留底部导航的独立页面，已发布公司可继续进入“代码 + 财报详情”，返回时保留日历视图与首页滚动位置',

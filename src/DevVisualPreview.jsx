@@ -379,6 +379,144 @@ const mockEarningsDetailData = {
   },
 };
 
+const mockEarningsBaseDetailEvent = {
+  symbol: 'NVDA',
+  name: 'NVIDIA',
+  reportDate: '2026-05-20',
+  fiscalDate: '2026-04-30',
+  session: 'post',
+  earningsPublished: true,
+  earningsResult: 'beat',
+  currency: 'USD',
+  epsCurrency: 'USD',
+  epsEstimate: 1.77,
+  epsActual: 1.87,
+  epsPreviousYear: 0.81,
+  epsActualYoyPercent: 130.8642,
+  epsEstimateYoyPercent: 118.98,
+  revenueEstimateUsd: 79_115_709_670,
+  revenueActualUsd: 81_615_000_000,
+  revenuePreviousYearUsd: 44_062_000_000,
+  revenueActualYoyPercent: 85.2276,
+  revenueEstimateYoyPercent: 79.5554,
+  ebitActualUsd: 47_010_000_000,
+  ebitPreviousYearUsd: 28_410_000_000,
+  ebitActualYoyPercent: 65.4700,
+  ebitActualBasis: 'OperatingIncomeLoss',
+};
+
+const mockEarningsBaseDetailData = {
+  success: true,
+  schemaVersion: 1,
+  status: 'complete',
+  symbol: 'NVDA',
+  currency: 'USD',
+  period: {
+    start: '2026-01-26',
+    end: '2026-04-26',
+    fiscalDate: '2026-04-30',
+    reportDate: '2026-05-20',
+  },
+  source: {
+    provider: 'SEC',
+    cik: '0001045810',
+    accession: '0001045810-26-000052',
+    form: '10-Q',
+    filedAt: '2026-05-20',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/1045810/000104581026000052/0001045810-26-000052-index.html',
+    primaryDocumentUrl: 'https://www.sec.gov/Archives/edgar/data/1045810/000104581026000052/nvda-20260426.htm',
+  },
+  sections: {
+    reportSegments: {
+      status: 'complete',
+      reason: null,
+      items: [
+        {
+          id: 'compute-networking',
+          label: 'Compute & Networking',
+          labelZh: '计算与网络',
+          revenue: 74_550_000_000,
+          previousRevenue: 39_589_000_000,
+          profitMetric: 'operatingIncome',
+          profit: 53_335_000_000,
+          previousProfit: 22_054_000_000,
+        },
+        {
+          id: 'graphics',
+          label: 'Graphics',
+          labelZh: '图形业务',
+          revenue: 7_065_000_000,
+          previousRevenue: 4_473_000_000,
+          profitMetric: 'operatingIncome',
+          profit: 2_941_000_000,
+          previousProfit: 1_640_000_000,
+        },
+      ],
+    },
+    revenueBreakdown: {
+      status: 'complete',
+      reason: null,
+      items: [
+        {
+          id: 'hyperscale',
+          label: 'Hyperscale',
+          labelZh: '超大规模',
+          revenue: 37_869_000_000,
+          previousRevenue: 17_599_000_000,
+        },
+        {
+          id: 'acie',
+          label: 'AI Clouds, Industrial, & Enterprise',
+          labelZh: 'AI 云、工业与企业',
+          revenue: 37_377_000_000,
+          previousRevenue: 21_513_000_000,
+        },
+        {
+          id: 'edge-computing',
+          label: 'Edge Computing',
+          labelZh: '边缘计算',
+          revenue: 6_369_000_000,
+          previousRevenue: 4_950_000_000,
+        },
+      ],
+    },
+    geographies: {
+      status: 'complete',
+      reason: null,
+      items: [
+        {
+          id: 'united-states',
+          label: 'United States',
+          labelZh: '美国',
+          revenue: 63_769_000_000,
+          previousRevenue: 25_685_000_000,
+        },
+        {
+          id: 'taiwan',
+          label: 'Taiwan',
+          labelZh: '中国台湾',
+          revenue: 12_006_000_000,
+          previousRevenue: 7_648_000_000,
+        },
+        {
+          id: 'china-including-hong-kong',
+          label: 'China (including Hong Kong)',
+          labelZh: '中国（含香港）',
+          revenue: 4_550_000_000,
+          previousRevenue: 9_659_000_000,
+        },
+        {
+          id: 'other',
+          label: 'Other',
+          labelZh: '其他地区',
+          revenue: 1_290_000_000,
+          previousRevenue: 1_070_000_000,
+        },
+      ],
+    },
+  },
+};
+
 const mockPnlPortfolioSnapshots = [
   {
     snapshotDate: '2026-01-02',
@@ -870,6 +1008,8 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
 }
 
 function StandardDevVisualPreview({ initialTab = '' }) {
+  const earningsBaseDetailPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('preview') === 'earnings-base-prototype';
   const [activeTab, setActiveTab] = React.useState(() => {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
@@ -1601,8 +1741,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     earningsCalendarEvents: previewEarningsCalendarEvents,
     earningsCalendarNow,
     earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null,
-    earningsDetailDataOverride: mockEarningsDetailData,
-    earningsDetailEvent: mockEarningsDetailEvent,
+    earningsDetailDataOverride: earningsBaseDetailPreview ? mockEarningsBaseDetailData : mockEarningsDetailData,
+    earningsDetailEvent: earningsBaseDetailPreview ? mockEarningsBaseDetailEvent : mockEarningsDetailEvent,
     closeEarningsDetail: () => setActiveTab('home'),
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
@@ -2049,7 +2189,7 @@ export default function DevVisualPreview() {
     );
   }
 
-  if (preview === 'earnings-segments-prototype') {
+  if (['earnings-segments-prototype', 'earnings-base-prototype'].includes(preview)) {
     return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 
