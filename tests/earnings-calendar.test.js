@@ -16,6 +16,7 @@ import {
   buildCalendarMonth,
   buildEarningsSymbols,
   classifyEarningsResult,
+  earningsResultText,
   groupEarningsByDate,
   isEarningsVisible,
   normalizeEarningsEvents,
@@ -130,10 +131,27 @@ test('earnings market reaction uses ordinary close and refuses to guess an unkno
   }), null);
 });
 
-test('earnings result derives a real EPS or USD revenue surprise when the provider omits its percent', () => {
+test('earnings result derives a real EPS or USD revenue surprise and keeps a conservative three-state summary', () => {
   assert.equal(classifyEarningsResult({ epsActual: 7.58, epsEstimate: 7.98 }), 'miss');
   assert.equal(classifyEarningsResult({ revenueActualUsd: 107.9, revenueEstimateUsd: 104.2 }), 'beat');
   assert.equal(classifyEarningsResult({ epsActual: 7.58, epsEstimate: null }), null);
+  assert.equal(classifyEarningsResult({ surprisePercent: 4.5, revenueSurprisePercent: -1.8 }), 'meet');
+  assert.equal(classifyEarningsResult({ surprisePercent: 4.5, revenueSurprisePercent: 0.5 }), 'meet');
+  assert.equal(classifyEarningsResult({ surprisePercent: -4.5, revenueSurprisePercent: -0.5 }), 'meet');
+  assert.equal(classifyEarningsResult({ surprisePercent: -4.5, revenueSurprisePercent: -2.1 }), 'miss');
+  assert.equal(classifyEarningsResult({ earningsResult: 'mixed' }), 'meet');
+  assert.equal(classifyEarningsResult({ surprisePercent: 4.5, revenueSurprisePercent: 2.1, marketReactionPercent: -8 }), 'beat');
+  assert.equal(classifyEarningsResult({ surprisePercent: -4.5, revenueSurprisePercent: -2.1, marketReactionPercent: 8 }), 'miss');
+  assert.equal(earningsResultText('mixed', 'zh'), '符合预期');
+  assert.equal(earningsResultText('mixed', 'en'), 'In line');
+
+  const [legacyMixed] = normalizeEarningsEvents([{
+    symbol: 'OLD',
+    reportDate: '2026-07-23',
+    earningsPublished: true,
+    earningsResult: 'mixed',
+  }]);
+  assert.equal(legacyMixed.earningsResult, 'meet');
 });
 
 test('published ASML uses the exact 0q Trends EPS consensus and recomputes its surprise', () => {
@@ -423,7 +441,7 @@ test('earnings model keeps published reports visible for two days with result st
   assert.equal(published.ebitActualYoyPercent, 25);
   assert.equal(published.ebitActualBasis, 'ebit');
   assert.equal(published.ebitPreviousYearBasis, 'ebit');
-  assert.equal(classifyEarningsResult({ surprisePercent: 4.5, revenueSurprisePercent: -1.8 }), 'mixed');
+  assert.equal(classifyEarningsResult({ surprisePercent: 4.5, revenueSurprisePercent: -1.8 }), 'meet');
   assert.equal(isEarningsVisible(published, '2026-07-10'), true);
   assert.equal(isEarningsVisible(published, '2026-07-11'), false);
   assert.equal(isEarningsVisible(unpublished, '2026-07-08'), true);

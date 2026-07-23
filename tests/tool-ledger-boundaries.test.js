@@ -915,6 +915,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(homeTabSource.includes('<EarningsCalendar'), 'home page should place the earnings calendar at the bottom of the main content');
   assert.ok(homeTabSource.includes('quoteRows={quoteRows}'), 'earnings calendar should reuse the existing home realtime quote rows without a new provider request');
   assert.ok(earningsCalendarSource.includes('resolveEarningsReactionDisplay'), 'published earnings rows and detail should share one reaction display resolver');
+  assert.equal(earningsCalendarSource.includes("result === 'mixed'"), false, 'earnings summary UI should use only beat, miss, and meet states');
+  assert.equal(earningsCalendarSource.includes("['mixed', earningsResultText('mixed'"), false, 'earnings legend should not expose the removed mixed state');
+  assert.ok(earningsCalendarSource.includes("['beat', earningsResultText('beat'") && earningsCalendarSource.includes("['miss', earningsResultText('miss'") && earningsCalendarSource.includes("['meet', earningsResultText('meet'"), 'earnings legend should retain the three approved result states');
   assert.ok(earningsReactionDisplaySource.includes("source === 'EODHD_WS'") && earningsReactionDisplaySource.includes("source === 'EODHD_WS_QUOTE'"), 'live premarket earnings reaction should accept only the existing WebSocket relay sources');
   assert.equal(earningsReactionDisplaySource.includes('/api/quote'), false, 'earnings reaction display should not add a quote API request or merge endpoint boundaries');
   assert.ok(earningsCalendarRefreshSource.includes('/api/earnings-calendar'), 'earnings calendar should use the dedicated API instead of the quote API');

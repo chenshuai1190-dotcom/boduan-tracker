@@ -542,7 +542,7 @@ test('partial-null refreshes preserve real actual fields and zero while still ac
     assert.equal(output.marketReactionTargetDate, '2026-07-15');
     assert.equal(output.earningsPublished, true);
     assert.equal(output.publishedUntil, '2026-07-17');
-    assert.equal(output.earningsResult, 'mixed');
+    assert.equal(output.earningsResult, 'meet');
   }
 });
 

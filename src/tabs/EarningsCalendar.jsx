@@ -215,7 +215,6 @@ function DayDots({ events }) {
 function earningsResultTone(result) {
   if (result === 'beat') return 'border-[#f6b54b]/30 bg-[#f6b54b]/14 text-[#ffd18a]';
   if (result === 'miss') return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300';
-  if (result === 'mixed') return 'border-transparent bg-[#f6b54b]/12 text-[#f6b54b] shadow-[inset_0_0_0_1px_rgba(246,181,75,0.18)]';
   return 'border-white/[0.08] bg-white/[0.06] text-white/45';
 }
 
@@ -253,9 +252,6 @@ function EarningsResultMarker({ event, result: explicitResult }) {
       </span>
     );
   }
-  if (result === 'mixed') {
-    return <span className={`${dimension} shrink-0 rounded-full bg-[linear-gradient(90deg,#f6b54b_0_50%,rgba(246,181,75,0.22)_50%_100%)] shadow-[0_0_10px_rgba(246,181,75,0.22)]`} aria-hidden="true" />;
-  }
   return (
     <span className={`${dimension} inline-flex shrink-0 items-center justify-center rounded-full bg-white/50 text-[#0b0f14] shadow-[0_0_8px_rgba(255,255,255,0.12)]`} aria-hidden="true">
       <Check className={iconSize} strokeWidth={3} />
@@ -268,7 +264,6 @@ function EarningsStatusLegend({ language }) {
     ['unpublished', t(language, 'earningsCalendar.status.unpublished', '未公布')],
     ['beat', earningsResultText('beat', language)],
     ['miss', earningsResultText('miss', language)],
-    ['mixed', earningsResultText('mixed', language)],
     ['meet', earningsResultText('meet', language)],
   ];
   return (
@@ -470,15 +465,13 @@ function resultConclusion(event, language) {
     return `${metric}接近预期,另一项真实公布值尚未同步。`;
   }
   if (language === 'en') {
-    if (result === 'beat') return 'EPS and revenue were above expectations. Short-term sentiment improved.';
-    if (result === 'miss') return 'EPS and revenue were below expectations. Market pressure may continue.';
-    if (result === 'mixed') return 'EPS and revenue signals were split. Watch follow-up guidance.';
-    return 'Results were close to expectations. Market reaction may depend on guidance.';
+    if (result === 'beat') return 'EPS and revenue were both above expectations.';
+    if (result === 'miss') return 'EPS and revenue were both below expectations.';
+    return 'Overall results were in line. See the individual metrics above.';
   }
-  if (result === 'beat') return 'EPS 和营收均高于预期,短线情绪偏强。';
-  if (result === 'miss') return 'EPS 和营收均低于预期,市场反应可能承压。';
-  if (result === 'mixed') return 'EPS 和营收信号不一致,重点看后续指引。';
-  return '实际结果接近预期,市场反应更多取决于公司指引。';
+  if (result === 'beat') return 'EPS 和营收均高于预期。';
+  if (result === 'miss') return 'EPS 和营收均低于预期。';
+  return '整体结果符合预期,具体差异见上方指标。';
 }
 
 function PublishedBadge({ language }) {

@@ -76,9 +76,13 @@ function normalizeEarningsResult(value) {
   const raw = String(value || '').trim().toLowerCase();
   if (['beat', 'surprise', 'outperform', 'above', '超预期'].includes(raw)) return 'beat';
   if (['miss', 'below', 'underperform', '不及预期'].includes(raw)) return 'miss';
-  if (['mixed', 'split', '分化'].includes(raw)) return 'mixed';
+  if (['mixed', 'split', '分化'].includes(raw)) return 'meet';
   if (['meet', 'inline', 'match', '符合预期'].includes(raw)) return 'meet';
   return '';
+}
+
+function isLegacyMixedEarningsResult(value) {
+  return ['mixed', 'split', '分化'].includes(String(value || '').trim().toLowerCase());
 }
 
 export function isEarningsPublished(event) {
@@ -122,8 +126,6 @@ export function classifyEarningsResult(event) {
   const hasNeutral = signals.includes('neutral');
   if (hasPositive && !hasNegative && !hasNeutral) return 'beat';
   if (hasNegative && !hasPositive && !hasNeutral) return 'miss';
-  if (hasPositive && hasNegative) return 'mixed';
-  if ((hasPositive || hasNegative) && hasNeutral) return 'mixed';
   return 'meet';
 }
 
@@ -133,12 +135,10 @@ export function earningsResultText(result, language = 'zh') {
   if (language === 'en') {
     if (normalized === 'beat') return 'Beat';
     if (normalized === 'miss') return 'Miss';
-    if (normalized === 'mixed') return 'Mixed';
     return 'In line';
   }
   if (normalized === 'beat') return '超预期';
   if (normalized === 'miss') return '不及预期';
-  if (normalized === 'mixed') return '分化';
   return '符合预期';
 }
 
@@ -305,11 +305,15 @@ function normalizeEarningsEvent(raw, context = {}) {
   };
 
   const earningsPublished = raw?.earningsPublished === true || isEarningsPublished(normalized);
+  const derivedEarningsResult = earningsPublished
+    ? classifyEarningsResult({ ...normalized, earningsPublished })
+    : null;
   return {
     ...normalized,
     earningsPublished,
     publishedUntil: raw?.publishedUntil || (earningsPublished ? earningsPublishedUntil(normalized) : null),
-    earningsResult: earningsPublished ? classifyEarningsResult({ ...normalized, earningsPublished }) : null,
+    earningsResult: derivedEarningsResult
+      ?? (isLegacyMixedEarningsResult(raw?.earningsResult || raw?.resultStatus) ? 'meet' : null),
   };
 }
 
