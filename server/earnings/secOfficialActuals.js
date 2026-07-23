@@ -1,5 +1,6 @@
 import {
   extractExhibit991Url,
+  extractSecExhibitUrl,
   isSecExhibitActualSupportedEvent,
   parseSecCompanyFactsActuals,
   parseSecExhibitActuals,
@@ -15,7 +16,7 @@ const SEC_MAX_CONCURRENCY = 3;
 const SEC_MAX_EVENTS_PER_REQUEST = 8;
 const SEC_MAX_INDEX_BYTES = 2_000_000;
 const SEC_MAX_EXHIBIT_BYTES = 3_000_000;
-const SEC_MAX_PRIMARY_DOCUMENT_BYTES = 6_000_000;
+const SEC_MAX_PRIMARY_DOCUMENT_BYTES = 9_000_000;
 const SEC_MAX_COMPANY_FACTS_BYTES = 25_000_000;
 const RESPONSE_CACHE_MAX_ENTRIES = 64;
 const RESULT_CACHE_MAX_ENTRIES = 32;
@@ -125,6 +126,7 @@ export async function fetchSecEarningsFilingSource({
   fiscalDate,
   reportDate,
   includePrimaryDocument = true,
+  preferredDocumentTypes = ['PRIMARY'],
   fetchFn = globalThis.fetch,
   userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
   now = new Date(),
@@ -200,6 +202,7 @@ export async function fetchSecEarningsFilingSource({
       normalizedFiscalDate,
       normalizedReportDate,
       today,
+      normalizedSymbol,
     );
     if (!filing) {
       return {
@@ -221,23 +224,42 @@ export async function fetchSecEarningsFilingSource({
     };
     if (!includePrimaryDocument) return source;
 
-    const primaryDocumentUrl = buildPrimaryDocumentUrl(cik, filing);
-    if (!primaryDocumentUrl) {
+    const documentTypes = normalizePreferredDocumentTypes(preferredDocumentTypes);
+    let indexHtml = null;
+    for (const documentType of documentTypes) {
+      let documentUrl = null;
+      let maxBytes = SEC_MAX_PRIMARY_DOCUMENT_BYTES;
+      if (documentType === 'PRIMARY') {
+        documentUrl = buildPrimaryDocumentUrl(cik, filing);
+      } else {
+        if (indexHtml === null) {
+          indexHtml = await fetchTextCached(source.filingUrl, {
+            ...context,
+            ttlMs: FILING_CACHE_TTL_MS,
+            maxBytes: SEC_MAX_INDEX_BYTES,
+          });
+        }
+        documentUrl = extractSecExhibitUrl(indexHtml, source.filingUrl, documentType);
+        maxBytes = SEC_MAX_EXHIBIT_BYTES;
+      }
+      if (!documentUrl) continue;
+      const html = await fetchTextCached(documentUrl, {
+        ...context,
+        ttlMs: FILING_CACHE_TTL_MS,
+        maxBytes,
+      });
       return {
         ...source,
-        status: 'pending',
-        reason: 'official-primary-document-missing',
+        documentType,
+        primaryDocumentUrl: documentUrl,
+        html,
       };
     }
-    const html = await fetchTextCached(primaryDocumentUrl, {
-      ...context,
-      ttlMs: FILING_CACHE_TTL_MS,
-      maxBytes: SEC_MAX_PRIMARY_DOCUMENT_BYTES,
-    });
+
     return {
       ...source,
-      primaryDocumentUrl,
-      html,
+      status: 'pending',
+      reason: 'official-primary-document-missing',
     };
   } catch {
     return {
@@ -634,7 +656,7 @@ function normalizeRecentFilings(submissions) {
   return filings;
 }
 
-function selectEarningsDetailFiling(filings, fiscalDate, reportDate, today) {
+function selectEarningsDetailFiling(filings, fiscalDate, reportDate, today, symbol) {
   const periodic = selectUniqueNearestFiscalFiling(filings, fiscalDate, today);
   if (periodic) return periodic;
   const foreignEarnings = selectEarnings6KFiling(
@@ -642,6 +664,7 @@ function selectEarningsDetailFiling(filings, fiscalDate, reportDate, today) {
     reportDate,
     fiscalDate,
     today,
+    symbol,
   );
   if (foreignEarnings) return foreignEarnings;
   return selectEarnings8KFiling(filings, reportDate, today);
@@ -707,12 +730,17 @@ function selectEarnings8KFiling(filings, reportDate, today) {
     .sort((a, b) => Math.abs(a.distance) - Math.abs(b.distance) || b.filing.filingDate.localeCompare(a.filing.filingDate))[0]?.filing || null;
 }
 
-function selectEarnings6KFiling(filings, reportDate, fiscalDate, today) {
+function selectEarnings6KFiling(filings, reportDate, fiscalDate, today, symbol = '') {
   const target = parseDate(reportDate);
   if (!target || !fiscalDate) return null;
+  const normalizedSymbol = normalizeSymbol(symbol);
   return (filings || [])
     .filter((filing) => /^6-K(?:\/A)?$/.test(filing.form))
-    .filter((filing) => filing.reportDate === fiscalDate)
+    .filter((filing) => (
+      filing.reportDate === fiscalDate
+      || (normalizedSymbol === 'NOK'
+        && Math.abs(dayDifference(target, parseDate(filing.reportDate))) <= 1)
+    ))
     .filter((filing) => filing.filingDate <= today)
     .map((filing) => ({
       filing,
@@ -900,6 +928,17 @@ function normalizeAcceptedAt(value) {
 
 function normalizeSymbol(value) {
   return String(value || '').trim().toUpperCase().replace(/\.US$/, '');
+}
+
+function normalizePreferredDocumentTypes(value) {
+  const input = Array.isArray(value) ? value : [value];
+  const output = [];
+  for (const entry of input) {
+    const normalized = String(entry || '').trim().toUpperCase();
+    if (normalized !== 'PRIMARY' && !/^EX-99\.\d{1,2}$/.test(normalized)) continue;
+    if (!output.includes(normalized)) output.push(normalized);
+  }
+  return output.length > 0 ? output : ['PRIMARY'];
 }
 
 function tickerAliases(value) {

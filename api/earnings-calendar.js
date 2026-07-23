@@ -11,6 +11,10 @@ import {
   parseEarningsDetailRequest,
 } from '../server/earnings/secEarningsDetail.js';
 import {
+  fetchOfficialFundComposition,
+  isOfficialFundCompositionSupportedSymbol,
+} from '../server/earnings/officialFundComposition.js';
+import {
   classifyEarningsResult,
   dateKey,
   EARNINGS_PUBLISHED_RETENTION_DAYS,
@@ -53,6 +57,9 @@ export default async function handler(req, res) {
 
   if (singleQueryValue(req.query?.operation) === 'detail') {
     return handleEarningsDetailRequest(req, res);
+  }
+  if (singleQueryValue(req.query?.operation) === 'fund-composition') {
+    return handleFundCompositionRequest(req, res);
   }
 
   const parsed = parseEarningsRequest(req.query);
@@ -119,6 +126,30 @@ export async function handleEarningsDetailRequest(req, res) {
     });
   } catch {
     return sendError(res, 502, '财报详情读取失败');
+  }
+}
+
+export async function handleFundCompositionRequest(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  const symbol = normalizeEarningsSymbol(singleQueryValue(req.query?.symbol));
+  if (!symbol || !isOfficialFundCompositionSupportedSymbol(symbol)) {
+    return sendError(res, 400, '该代码没有可用的官方基金构成');
+  }
+  try {
+    const composition = await fetchOfficialFundComposition({ symbol });
+    res.setHeader(
+      'Cache-Control',
+      composition.status === 'complete' || composition.status === 'partial'
+        ? 'private, max-age=21600, stale-while-revalidate=1800'
+        : 'private, max-age=300',
+    );
+    return res.status(200).json({
+      success: true,
+      ...composition,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch {
+    return sendError(res, 502, '基金构成读取失败');
   }
 }
 

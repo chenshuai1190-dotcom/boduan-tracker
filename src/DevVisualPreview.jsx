@@ -241,6 +241,42 @@ const mockWatchlistStockDetailEarnings = [
   { symbol: 'NVDA', reportDate: '2026-05-20', fiscalDate: '2026-03-31', session: 'post', epsActual: 1.87, marketReactionPercent: 7.32, earningsPublished: true },
 ];
 
+const mockTqqqFundComposition = {
+  success: true,
+  schemaVersion: 1,
+  kind: 'fund-composition',
+  status: 'complete',
+  symbol: 'TQQQ',
+  fundName: 'ProShares UltraPro QQQ',
+  fundType: 'leveraged-etf',
+  leverageTarget: 3,
+  source: { provider: 'ProShares', official: true },
+  sections: {
+    topHoldings: {
+      status: 'complete',
+      basis: 'benchmark-index',
+      asOfDate: '2026-07-22',
+      items: [
+        ['NVIDIA', 8.9], ['Microsoft', 8.1], ['Apple', 7.4], ['Amazon', 5.7],
+        ['Alphabet A', 3.9], ['Broadcom', 3.4], ['Meta Platforms', 3.2],
+        ['Alphabet C', 3.1], ['Tesla', 2.8], ['Costco', 2.4],
+      ].map(([name, weightPercent], index) => ({ rank: index + 1, name, weightPercent })),
+    },
+    sectors: {
+      status: 'complete',
+      basis: 'benchmark-index',
+      asOfDate: '2026-07-22',
+      items: [
+        { name: 'Technology', weightPercent: 51.2 },
+        { name: 'Consumer Discretionary', weightPercent: 13.1 },
+        { name: 'Health Care', weightPercent: 6.4 },
+        { name: 'Industrials', weightPercent: 5.8 },
+        { name: 'Telecommunications', weightPercent: 5.5 },
+      ],
+    },
+  },
+};
+
 const mockHomeWatchlist = [
   { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },
   { symbol: 'MSFT', name: '微软', price: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, intraday: mockMarketIntraday.red },
@@ -375,6 +411,117 @@ const mockEarningsDetailData = {
         { id: 'apac', label: 'APAC', labelZh: '亚太地区', revenue: 19_317_000_000, previousRevenue: 16_480_000_000 },
         { id: 'other-americas', label: 'Other Americas', labelZh: '其他美洲', revenue: 7_026_000_000, previousRevenue: 5_735_000_000 },
       ],
+    },
+  },
+};
+
+const mockTsmEarningsDetailEvent = {
+  symbol: 'TSM',
+  name: '台积电',
+  reportDate: '2026-07-16',
+  fiscalDate: '2026-06-30',
+  session: 'pre',
+  earningsPublished: true,
+  earningsResult: 'beat',
+  currency: 'USD',
+  epsCurrency: 'TWD',
+  epsEstimate: 3.89,
+  epsActual: 4.31,
+  epsPreviousYear: 2.47,
+  epsActualYoyPercent: 74.5,
+  epsEstimateYoyPercent: 57.4,
+  revenueEstimateUsd: 39_160_000_000,
+  revenueActualUsd: 40_200_000_000,
+  revenuePreviousYearUsd: 30_070_000_000,
+  revenueActualYoyPercent: 33.7,
+  revenueEstimateYoyPercent: 35.4,
+  ebitActualUsd: 24_240_600_000,
+  ebitPreviousYearUsd: 14_914_720_000,
+  ebitActualYoyPercent: 62.5,
+  ebitActualBasis: 'OperatingIncomeLoss',
+  secForm: '6-K',
+};
+
+const tsmShareItems = (definitions) => definitions.map(([id, label, labelZh, current, previous]) => ({
+  id,
+  label,
+  labelZh,
+  revenue: Math.round(40_200_000_000 * current / 100),
+  previousRevenue: Math.round(30_070_000_000 * previous / 100),
+}));
+
+const mockTsmEarningsDetailData = {
+  success: true,
+  schemaVersion: 1,
+  status: 'complete',
+  symbol: 'TSM',
+  currency: 'USD',
+  period: {
+    start: '2026-04-01',
+    end: '2026-06-30',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+  },
+  source: {
+    provider: 'TSMC',
+    cik: '0001046179',
+    accession: '0001046179-26-000451',
+    form: '6-K',
+    filedAt: '2026-07-16',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/1046179/000104617926000451/0001046179-26-000451-index.html',
+    primaryDocumentUrl: 'https://investor.tsmc.com/english/encrypt/files/encrypt_file/reports/2026-07/6f49632674bd2d0fd48cb65aaf89ec6ab510b559/2Q26%20ManagementReport.pdf',
+  },
+  sections: {
+    reportSegments: {
+      status: 'complete',
+      items: [{
+        id: 'dedicated-ic-foundry',
+        label: 'Dedicated IC Foundry',
+        labelZh: '晶圆代工',
+        revenue: 40_200_000_000,
+        previousRevenue: 30_070_000_000,
+        profitMetric: 'operatingIncome',
+        profit: 24_240_600_000,
+        previousProfit: 14_914_720_000,
+      }],
+    },
+    revenueBreakdown: {
+      status: 'complete',
+      items: tsmShareItems([
+        ['hpc', 'High Performance Computing', '高性能计算', 66, 60],
+        ['smartphone', 'Smartphone', '智能手机', 22, 27],
+        ['iot', 'Internet of Things', '物联网', 5, 5],
+        ['automotive', 'Automotive', '汽车电子', 4, 5],
+        ['dce', 'Digital Consumer Electronics', '数字消费电子', 1, 1],
+        ['others', 'Others', '其他平台', 2, 2],
+      ]),
+    },
+    geographies: {
+      status: 'complete',
+      items: tsmShareItems([
+        ['north-america', 'North America', '北美', 78, 75],
+        ['asia-pacific', 'Asia Pacific', '亚太地区', 8, 9],
+        ['china', 'China', '中国', 6, 9],
+        ['japan', 'Japan', '日本', 4, 4],
+        ['emea', 'EMEA', '欧洲、中东和非洲', 4, 3],
+      ]),
+    },
+  },
+  supplemental: {
+    technologyBreakdown: {
+      status: 'complete',
+      items: tsmShareItems([
+        ['2nm', '2nm', '2 纳米', 3, 0],
+        ['3nm', '3nm', '3 纳米', 30, 24],
+        ['5nm', '5nm', '5 纳米', 33, 36],
+        ['7nm', '7nm', '7 纳米', 11, 14],
+        ['16-20nm', '16/20nm', '16/20 纳米', 6, 7],
+        ['28nm', '28nm', '28 纳米', 6, 7],
+        ['40-45nm', '40/45nm', '40/45 纳米', 2, 3],
+        ['65nm', '65nm', '65 纳米', 4, 3],
+        ['90nm-0.13um', '90nm-0.13um', '90 纳米至 0.13 微米', 2, 3],
+        ['0.15um-and-above', '≥0.15um', '0.15 微米及以上', 3, 3],
+      ]),
     },
   },
 };
@@ -1010,6 +1157,8 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
 function StandardDevVisualPreview({ initialTab = '' }) {
   const earningsBaseDetailPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'earnings-base-prototype';
+  const earningsHoldingsDetailPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('preview') === 'earnings-holdings-prototype';
   const [activeTab, setActiveTab] = React.useState(() => {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
@@ -1063,6 +1212,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('stockDetailFocus') || '';
   const watchlistDetailTargetEditorOpen = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('targetEditor') === '1';
+  const watchlistFundCompositionPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('preview') === 'watchlist-fund-composition';
   const [expandedTrades, setExpandedTrades] = React.useState({});
   const [expandedWaves, setExpandedWaves] = React.useState({});
   const [waveNotes, setWaveNotes] = React.useState({});
@@ -1741,8 +1892,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     earningsCalendarEvents: previewEarningsCalendarEvents,
     earningsCalendarNow,
     earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null,
-    earningsDetailDataOverride: earningsBaseDetailPreview ? mockEarningsBaseDetailData : mockEarningsDetailData,
-    earningsDetailEvent: earningsBaseDetailPreview ? mockEarningsBaseDetailEvent : mockEarningsDetailEvent,
+    earningsDetailDataOverride: earningsHoldingsDetailPreview
+      ? mockTsmEarningsDetailData
+      : earningsBaseDetailPreview ? mockEarningsBaseDetailData : mockEarningsDetailData,
+    earningsDetailEvent: earningsHoldingsDetailPreview
+      ? mockTsmEarningsDetailEvent
+      : earningsBaseDetailPreview ? mockEarningsBaseDetailEvent : mockEarningsDetailEvent,
     closeEarningsDetail: () => setActiveTab('home'),
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
@@ -1838,11 +1993,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   const watchlistDetailCtx = {
     ...homeCtx,
-    watchlistStockDetailSymbol: 'NVDA',
+    watchlistStockDetailSymbol: watchlistFundCompositionPreview ? 'TQQQ' : 'NVDA',
     closeWatchlistStockDetail: () => setActiveTab('home'),
-    watchlist: [{ symbol: 'NVDA', name: '英伟达', targetPriceUsd: watchlistDetailTargetUsd }],
-    homeWatchlist: [{ symbol: 'NVDA', name: '英伟达', price: 202.81 }],
-    quoteRows: [{ symbol: 'NVDA', name: '英伟达', price: 202.81 }],
+    watchlist: [{ symbol: watchlistFundCompositionPreview ? 'TQQQ' : 'NVDA', name: watchlistFundCompositionPreview ? 'TQQQ' : '英伟达', targetPriceUsd: watchlistDetailTargetUsd }],
+    homeWatchlist: [{ symbol: watchlistFundCompositionPreview ? 'TQQQ' : 'NVDA', name: watchlistFundCompositionPreview ? 'TQQQ' : '英伟达', price: 202.81 }],
+    quoteRows: [{ symbol: watchlistFundCompositionPreview ? 'TQQQ' : 'NVDA', name: watchlistFundCompositionPreview ? 'TQQQ' : '英伟达', price: 202.81 }],
     investmentSummary: {
       positions: [{
         symbol: 'NVDA',
@@ -1865,6 +2020,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     watchlistStockDetailDataOverride: mockWatchlistStockDetailData,
     watchlistStockDetailEarningsOverride: mockWatchlistStockDetailEarnings,
+    watchlistStockDetailFundCompositionOverride: watchlistFundCompositionPreview
+      ? mockTqqqFundComposition
+      : undefined,
     watchlistStockDetailChartTooltipOpen: watchlistDetailTooltipPreview,
     watchlistStockDetailFocusSection: watchlistDetailFocusSection,
     watchlistStockDetailTargetEditorOpen: watchlistDetailTargetEditorOpen,
@@ -2189,7 +2347,7 @@ export default function DevVisualPreview() {
     );
   }
 
-  if (['earnings-segments-prototype', 'earnings-base-prototype'].includes(preview)) {
+  if (['earnings-segments-prototype', 'earnings-base-prototype', 'earnings-holdings-prototype'].includes(preview)) {
     return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 

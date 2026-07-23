@@ -1,0 +1,68 @@
+{
+  "cusip": "QQQ",
+  "effectiveDate": "2026-07-22",
+  "effectiveBusinessDate": "2026-07-22",
+  "totalNumberOfHoldings": 108,
+  "holdings": [
+    {
+      "ticker": "NVDA",
+      "issuerName": "NVIDIA Corp",
+      "percentageOfTotalNetAssets": 8.288274,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "AAPL",
+      "issuerName": "Apple Inc",
+      "percentageOfTotalNetAssets": 7.730452,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "MU",
+      "issuerName": "Micron Technology Inc",
+      "percentageOfTotalNetAssets": 4.824474,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "MSFT",
+      "issuerName": "Microsoft Corp",
+      "percentageOfTotalNetAssets": 4.683078,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "AMZN",
+      "issuerName": "Amazon.com Inc",
+      "percentageOfTotalNetAssets": 4.253882,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "AMD",
+      "issuerName": "Advanced Micro Devices Inc",
+      "percentageOfTotalNetAssets": 4.015629,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "GOOGL",
+      "issuerName": "Alphabet Inc Class A",
+      "percentageOfTotalNetAssets": 3.21775,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "AVGO",
+      "issuerName": "Broadcom Inc",
+      "percentageOfTotalNetAssets": 3.038568,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "TSLA",
+      "issuerName": "Tesla Inc",
+      "percentageOfTotalNetAssets": 3.017522,
+      "securityTypeName": "Common Stock"
+    },
+    {
+      "ticker": "GOOG",
+      "issuerName": "Alphabet Inc Class C",
+      "percentageOfTotalNetAssets": 3.012851,
+      "securityTypeName": "Common Stock"
+    }
+  ]
+}

@@ -91,6 +91,18 @@ async function fetchQqqBenchmarkRows({ token, from, to, fetchRows }) {
   });
 }
 
+async function fetchFundComposition({ token, symbol }) {
+  const response = await fetch(`/api/earnings-calendar?operation=fund-composition&symbol=${encodeURIComponent(symbol)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || body?.success === false) {
+    throw new Error(body?.error || 'fund composition request failed');
+  }
+  return body;
+}
+
 function finiteNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -812,6 +824,82 @@ function CompanyFundamentalsCard({ data, status, language, marketColorMode }) {
   );
 }
 
+function FundCompositionCard({ data, status, language }) {
+  if (status === 'idle') return null;
+  const topHoldings = Array.isArray(data?.sections?.topHoldings?.items)
+    ? data.sections.topHoldings.items
+    : [];
+  const sectors = Array.isArray(data?.sections?.sectors?.items)
+    ? data.sections.sectors.items
+    : [];
+  const isBenchmark = data?.sections?.topHoldings?.basis === 'benchmark-index';
+  return (
+    <section
+      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
+      data-watchlist-fund-composition={status}
+      data-watchlist-detail-section="fund-composition"
+    >
+      <SectionHeading
+        title={isBenchmark
+          ? t(language, 'watchlistDetail.indexComposition', '指数构成')
+          : t(language, 'watchlistDetail.fundComposition', '基金构成')}
+        trailing={status === 'loading'
+          ? t(language, 'watchlistDetail.loading', '读取中')
+          : (data?.source?.provider || '')}
+      />
+      {status === 'loading' ? (
+        <div className="flex items-center justify-center gap-2 px-4 py-8 text-[11px] text-white/[0.34]">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#f6b54b]" />
+          {t(language, 'watchlistDetail.loadingOfficialComposition', '正在读取官方构成')}
+        </div>
+      ) : topHoldings.length || sectors.length ? (
+        <div className="px-4 pb-4 pt-3">
+          {topHoldings.length ? (
+            <div>
+              <div className="mb-2 flex items-center justify-between text-[10px] text-white/[0.3]">
+                <span>{isBenchmark ? t(language, 'watchlistDetail.topIndexCompanies', '前十大指数公司') : t(language, 'watchlistDetail.topHoldings', '前十大持仓')}</span>
+                <span>{data?.sections?.topHoldings?.asOfDate || '—'}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                {topHoldings.map((item, index) => (
+                  <div key={`${item.ticker || item.name}-${index}`} className="flex min-w-0 items-center gap-2">
+                    <span className="w-4 shrink-0 text-right text-[9px] tabular-nums text-white/[0.22]">{item.rank || index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-[11px] text-white/[0.62]">{item.ticker || item.name}</span>
+                    <span className="shrink-0 text-[10.5px] tabular-nums text-white/[0.48]">{finiteNumber(item.weightPercent)?.toFixed(1) ?? '—'}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {sectors.length ? (
+            <div className={`${topHoldings.length ? 'mt-4 border-t border-white/[0.055] pt-3' : ''}`}>
+              <div className="mb-2 text-[10px] text-white/[0.3]">{t(language, 'watchlistDetail.sectorWeights', '行业权重')}</div>
+              <div className="space-y-2">
+                {sectors.map((item) => (
+                  <div key={item.name} className="grid grid-cols-[88px_1fr_38px] items-center gap-2">
+                    <span className="truncate text-[10px] text-white/[0.42]">{item.name}</span>
+                    <span className="h-1 overflow-hidden rounded-full bg-white/[0.045]"><i className="block h-full rounded-full bg-[#60a5fa]/75" style={{ width: `${Math.max(1, Math.min(100, finiteNumber(item.weightPercent) || 0))}%` }} /></span>
+                    <span className="text-right text-[10px] tabular-nums text-white/[0.44]">{finiteNumber(item.weightPercent)?.toFixed(1) ?? '—'}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {isBenchmark && Number(data?.leverageTarget) > 1 ? (
+            <p className="mt-3 border-t border-white/[0.045] pt-3 text-[9.5px] leading-4 text-white/[0.24]">
+              {language === 'en'
+                ? `${data.leverageTarget}× daily target; weights show the benchmark index, not direct fund holdings.`
+                : `${data.leverageTarget}×每日目标；这里展示基准指数权重，不把衍生品误作普通持仓。`}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="px-4 py-8 text-center text-[11px] text-white/[0.3]">{t(language, 'watchlistDetail.officialCompositionUnavailable', '官方构成暂不可用')}</div>
+      )}
+    </section>
+  );
+}
+
 function TargetEditor({
   language,
   symbol,
@@ -939,6 +1027,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     stockDetailInitialRange = '5y',
     watchlistStockDetailFocusSection = '',
     watchlistStockDetailTargetEditorOpen = false,
+    watchlistStockDetailFundCompositionOverride,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
   const hasFundamentalsOverride = Boolean(
@@ -956,6 +1045,14 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const [fundamentals, setFundamentals] = React.useState(() => initialFundamentals || null);
   const [fundamentalsStatus, setFundamentalsStatus] = React.useState(() => (
     hasFundamentalsOverride ? (initialFundamentals ? 'ready' : 'unavailable') : 'loading'
+  ));
+  const [fundComposition, setFundComposition] = React.useState(
+    () => watchlistStockDetailFundCompositionOverride || null,
+  );
+  const [fundCompositionStatus, setFundCompositionStatus] = React.useState(() => (
+    watchlistStockDetailFundCompositionOverride
+      ? 'ready'
+      : ['QQQ', 'TQQQ'].includes(symbol) ? 'loading' : 'idle'
   ));
   const [earningsEvents, setEarningsEvents] = React.useState(() => watchlistStockDetailEarningsOverride || []);
   const [loading, setLoading] = React.useState(!watchlistStockDetailDataOverride);
@@ -1089,6 +1186,39 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     })();
     return () => { active = false; };
   }, [hasFundamentalsOverride, initialFundamentals, supabase, symbol]);
+
+  React.useEffect(() => {
+    if (watchlistStockDetailFundCompositionOverride) {
+      setFundComposition(watchlistStockDetailFundCompositionOverride);
+      setFundCompositionStatus('ready');
+      return undefined;
+    }
+    if (!['QQQ', 'TQQQ'].includes(symbol) || !supabase?.auth?.getSession) {
+      setFundComposition(null);
+      setFundCompositionStatus('idle');
+      return undefined;
+    }
+    let active = true;
+    setFundComposition(null);
+    setFundCompositionStatus('loading');
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        if (!token) throw new Error('missing session');
+        const next = await fetchFundComposition({ token, symbol });
+        if (!active) return;
+        setFundComposition(next);
+        setFundCompositionStatus('ready');
+      } catch (error) {
+        console.warn('[WatchlistStockDetail] fund composition unavailable:', error?.message || error);
+        if (!active) return;
+        setFundComposition(null);
+        setFundCompositionStatus('unavailable');
+      }
+    })();
+    return () => { active = false; };
+  }, [supabase, symbol, watchlistStockDetailFundCompositionOverride]);
 
   React.useEffect(() => {
     if (!watchlistStockDetailFocusSection) return undefined;
@@ -1360,6 +1490,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         status={fundamentalsStatus}
         language={language}
         marketColorMode={marketColorMode}
+      />
+
+      <FundCompositionCard
+        data={fundComposition}
+        status={fundCompositionStatus}
+        language={language}
       />
 
       <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>

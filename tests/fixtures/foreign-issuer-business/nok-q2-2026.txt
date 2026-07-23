@@ -1,0 +1,41 @@
+Nokia Corporation
+Financial report
+23 July 2026
+Q2'26
+
+Network Infrastructure EUR million Q2'26 Q2'25 YoY change
+Net sales 2 037 1 825 12%
+Optical Networks 868 730 19%
+IP Networks 679 588 15%
+Fixed Networks 490 507 (3)%
+Operating profit 166 117 42%
+
+Mobile Infrastructure EUR million Q2'26 Q2'25 YoY change
+Net sales 2 680 2 531 6%
+Core Software 507 508 0%
+Radio Networks 1 765 1 666 6%
+Technology Standards 407 357 14%
+Operating profit 310 310 0%
+
+Portfolio Businesses EUR million Q2'26 Q2'25 YoY change
+Net sales 94 89 6%
+Operating (loss)/profit 0 (11) 100%
+
+Group Common and Other EUR million Q2'26 Q2'25
+Operating loss (42) (49)
+
+Net sales by region EUR million Q2'26 Q2'25 YoY change
+Americas 1 778 1 554 14%
+APAC 982 951 3%
+EMEA 2 055 1 937 6%
+Total 4 815 4 443 8%
+
+Net sales by customer type EUR million Q2'26 Q2'25 YoY change
+Telecommunication Providers 3 514 3 408 3%
+AI & Cloud 446 220 103%
+Mission Critical Enterprise & Defense 448 461 (3)%
+Technology Licensees 407 357 14%
+Other — (4) 100%
+Total 4 815 4 443 8%
+
+Reconciliation of reported operating profit to comparable operating profit

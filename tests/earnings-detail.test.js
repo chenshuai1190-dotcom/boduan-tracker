@@ -829,8 +829,8 @@ test('SEC primary reader aborts a chunked response as soon as its UTF-8 bytes ex
   };
   const encoder = new TextEncoder();
   const chunks = [
-    encoder.encode('你'.repeat(1_000_000)),
-    encoder.encode(`${'你'.repeat(1_000_000)}x`),
+    encoder.encode('你'.repeat(1_600_000)),
+    encoder.encode(`${'你'.repeat(1_600_000)}x`),
     encoder.encode('must-not-be-read'),
   ];
   let fetchCount = 0;
@@ -1062,6 +1062,13 @@ test('earnings detail API preserves 401, 405, and 400 boundaries', async () => {
     assert.match(unauthorized.body.error, /未授权/);
     assert.equal(unauthorized.headers['Cache-Control'], 'private, no-store');
 
+    const unauthorizedFund = createResponse();
+    await handler(createRequest({
+      query: { operation: 'fund-composition', symbol: 'TQQQ' },
+    }), unauthorizedFund);
+    assert.equal(unauthorizedFund.statusCode, 401);
+    assert.match(unauthorizedFund.body.error, /未授权/);
+
     const methodNotAllowed = createResponse();
     await handler(createRequest({
       method: 'POST',
@@ -1079,6 +1086,13 @@ test('earnings detail API preserves 401, 405, and 400 boundaries', async () => {
     assert.equal(invalid.statusCode, 400);
     assert.match(invalid.body.error, /日期|date|暂不支持|supported/i);
     assert.equal(invalid.headers['Cache-Control'], 'private, no-store');
+
+    const unsupportedFund = createResponse();
+    await handler(createRequest({
+      query: { operation: 'fund-composition', symbol: 'AAPL' },
+    }), unsupportedFund);
+    assert.equal(unsupportedFund.statusCode, 400);
+    assert.match(unsupportedFund.body.error, /官方基金构成/);
   } finally {
     if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
     else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;

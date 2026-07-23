@@ -3,6 +3,15 @@ import {
   hasSecEarningsDetailAdapter,
   parseSecEarningsDetailPrimaryDocument,
 } from './secEarningsDetailParsers.js';
+import {
+  hasSecUsHoldingBusinessAdapter,
+  parseSecUsHoldingBusinessDocument,
+} from './secUsHoldingBusinessAdapters.js';
+import {
+  hasForeignIssuerBusinessCompositionAdapter,
+  knownForeignIssuerBusinessComposition,
+  parseForeignIssuerBusinessComposition,
+} from './foreignIssuerBusinessComposition.js';
 
 export { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
 
@@ -62,7 +71,16 @@ export async function fetchSecEarningsDetail({
   const cached = readCache(cacheKey, nowDate.getTime(), cacheEnabled);
   if (cached) return cached;
 
-  const detailAdapterSupported = hasSecEarningsDetailAdapter(normalizedSymbol);
+  const standardAdapterSupported = hasSecEarningsDetailAdapter(normalizedSymbol);
+  const usHoldingAdapterSupported = hasSecUsHoldingBusinessAdapter(normalizedSymbol);
+  const foreignAdapterSupported = hasForeignIssuerBusinessCompositionAdapter(normalizedSymbol);
+  const detailAdapterSupported = standardAdapterSupported
+    || usHoldingAdapterSupported
+    || foreignAdapterSupported;
+  const knownForeignComposition = knownForeignIssuerBusinessComposition({
+    symbol: normalizedSymbol,
+    fiscalDate: normalizedFiscalDate,
+  });
   const period = {
     start: '',
     end: normalizedFiscalDate,
@@ -74,7 +92,10 @@ export async function fetchSecEarningsDetail({
     symbol: normalizedSymbol,
     fiscalDate: normalizedFiscalDate,
     reportDate: normalizedReportDate,
-    includePrimaryDocument: detailAdapterSupported,
+    includePrimaryDocument: detailAdapterSupported && !knownForeignComposition,
+    preferredDocumentTypes: normalizedSymbol === 'IBKR'
+      ? ['EX-99.1', 'PRIMARY']
+      : ['PRIMARY'],
     fetchFn,
     userAgent,
     now: nowDate,
@@ -118,17 +139,34 @@ export async function fetchSecEarningsDetail({
     return unavailable;
   }
 
-  const parsed = parseSecEarningsDetailPrimaryDocument({
-    symbol: normalizedSymbol,
-    fiscalDate: normalizedFiscalDate,
-    html: primary.html,
-    filing: {
-      cik: primary.secCik,
-      accession: primary.accession,
-      form: primary.form,
-    },
-  });
-  const source = sourceFromPrimary(primary);
+  const filing = {
+    cik: primary.secCik,
+    accession: primary.accession,
+    form: primary.form,
+    documentType: primary.documentType,
+  };
+  const parsed = knownForeignComposition
+    || (standardAdapterSupported
+      ? parseSecEarningsDetailPrimaryDocument({
+          symbol: normalizedSymbol,
+          fiscalDate: normalizedFiscalDate,
+          html: primary.html,
+          filing,
+        })
+      : usHoldingAdapterSupported
+        ? parseSecUsHoldingBusinessDocument({
+            symbol: normalizedSymbol,
+            fiscalDate: normalizedFiscalDate,
+            html: primary.html,
+            filing,
+          })
+        : parseForeignIssuerBusinessComposition({
+            symbol: normalizedSymbol,
+            fiscalDate: normalizedFiscalDate,
+            html: primary.html,
+            sourceUrl: primary.primaryDocumentUrl,
+          }));
+  const source = sourceFromParsed(primary, parsed);
   if (!parsed) {
     const unavailable = responseBase({
       status: 'unavailable',
@@ -159,6 +197,8 @@ export async function fetchSecEarningsDetail({
     },
     source,
     sections: parsed.sections,
+    currency: parsed.currency,
+    supplemental: parsed.supplemental,
   });
   writeCache(
     cacheKey,
@@ -181,16 +221,19 @@ function responseBase({
   period,
   source,
   sections,
+  currency = 'USD',
+  supplemental = {},
 }) {
   return {
     schemaVersion: SEC_EARNINGS_DETAIL_SCHEMA_VERSION,
     status,
     reason,
     symbol,
-    currency: 'USD',
+    currency,
     period,
     source,
     sections,
+    supplemental,
   };
 }
 
@@ -204,6 +247,18 @@ function sourceFromPrimary(primary) {
     filedAt: primary.filedAt || null,
     filingUrl: primary.filingUrl || null,
     primaryDocumentUrl: primary.primaryDocumentUrl || null,
+  };
+}
+
+function sourceFromParsed(primary, parsed) {
+  const source = sourceFromPrimary(primary);
+  const parsedProvider = String(parsed?.source?.provider || '').trim();
+  const parsedUrl = String(parsed?.source?.url || '').trim();
+  if (!source || !parsedProvider || !/^https:\/\//i.test(parsedUrl)) return source;
+  return {
+    ...source,
+    provider: parsedProvider,
+    primaryDocumentUrl: parsedUrl,
   };
 }
 

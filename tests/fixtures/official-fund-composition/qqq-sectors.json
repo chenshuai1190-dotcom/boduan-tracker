@@ -1,0 +1,42 @@
+{
+  "effectiveDate": "2026-06-30",
+  "cusip": "QQQ",
+  "holdingWeights": [
+    {
+      "name": "Technology",
+      "value": 68.51
+    },
+    {
+      "name": "Consumer Discretionary",
+      "value": 16.43
+    },
+    {
+      "name": "Health Care",
+      "value": 3.56
+    },
+    {
+      "name": "Telecommunications",
+      "value": 3.46
+    },
+    {
+      "name": "Industrials",
+      "value": 3.13
+    },
+    {
+      "name": "Consumer Staples",
+      "value": 2.04
+    },
+    {
+      "name": "Basic Materials",
+      "value": 1.28
+    },
+    {
+      "name": "Utilities",
+      "value": 1.14
+    },
+    {
+      "name": "Energy",
+      "value": 0.45
+    }
+  ]
+}

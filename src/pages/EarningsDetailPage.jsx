@@ -277,40 +277,94 @@ function RegionRow({ item, totalRevenue, language, marketColorMode }) {
 }
 
 function DetailSections({ detail, event, language, marketColorMode }) {
-  const totalRevenue = numericOrNull(event?.revenueActualUsd)
-    ?? detail?.sections?.reportSegments?.items?.reduce((sum, item) => sum + (numericOrNull(item.revenue) || 0), 0)
-    ?? 0;
   const report = detail?.sections?.reportSegments || { status: 'pending', items: [] };
   const breakdown = detail?.sections?.revenueBreakdown || { status: 'pending', items: [] };
   const regions = detail?.sections?.geographies || { status: 'pending', items: [] };
+  const supplementalSections = [
+    {
+      key: 'customerTypes',
+      icon: Building2,
+      accent: '#34d399',
+      title: language === 'en' ? 'Customer mix' : '客户结构',
+      subtitle: language === 'en' ? 'Revenue by customer type' : '按客户类型披露的收入构成',
+    },
+    {
+      key: 'technologyBreakdown',
+      icon: Layers3,
+      accent: '#a78bfa',
+      title: language === 'en' ? 'Technology mix' : '制程结构',
+      subtitle: language === 'en' ? 'Wafer revenue by technology' : '按制程节点披露的晶圆收入',
+    },
+  ].map((definition) => ({
+    ...definition,
+    section: detail?.supplemental?.[definition.key],
+  })).filter(({ section }) => section?.items?.length > 0);
+  const reportRevenue = report.items.reduce(
+    (sum, item) => sum + (numericOrNull(item.revenue) || 0),
+    numericOrNull(report.reconciliation?.revenue) || 0,
+  );
+  const totalRevenue = detail?.currency === 'USD'
+    ? numericOrNull(event?.revenueActualUsd) ?? reportRevenue
+    : reportRevenue;
+  const hasAnyOfficialBreakdown = [report, breakdown, regions]
+    .some((section) => section.items.length > 0);
   return (
     <>
-      <section className="mt-4 scroll-mt-24">
-        <div className="mb-2.5 flex items-center justify-between px-1">
-          <div className="flex items-start gap-2.5">
-            <Layers3 className="mt-0.5 h-4 w-4 text-[#a78bfa]/70" />
-            <div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Reportable segments' : '报告分部'}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{language === 'en' ? 'Official accounting segments' : '公司正式披露的会计分部'}</p></div>
+      {!hasAnyOfficialBreakdown ? (
+        <div className="mt-4">
+          <SectionState
+            status={detail?.status || report.status}
+            reason={detail?.reason || report.reason}
+            language={language}
+          />
+        </div>
+      ) : null}
+
+      {report.items.length ? (
+        <section className="mt-4 scroll-mt-24">
+          <div className="mb-2.5 flex items-center justify-between px-1">
+            <div className="flex items-start gap-2.5">
+              <Layers3 className="mt-0.5 h-4 w-4 text-[#a78bfa]/70" />
+              <div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Reportable segments' : '报告分部'}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{language === 'en' ? 'Official accounting segments' : '公司正式披露的会计分部'}</p></div>
+            </div>
+            <span className="text-[10.5px] text-white/[0.23]">{report.items.length} {language === 'en' ? 'segments' : '个分部'}</span>
           </div>
-          <span className="text-[10.5px] text-white/[0.23]">{report.items.length || '—'} {language === 'en' ? 'segments' : '个分部'}</span>
-        </div>
-        {report.items.length ? <div className="space-y-2.5">{report.items.map((item, index) => <SegmentCard key={item.id} item={item} index={index} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div> : <SectionState status={report.status} reason={report.reason} language={language} />}
-      </section>
+          <div className="space-y-2.5">{report.items.map((item, index) => <SegmentCard key={item.id} item={item} index={index} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div>
+        </section>
+      ) : null}
 
-      <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
-        <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
-          <div className="flex items-start gap-2.5"><PieChart className="mt-0.5 h-4 w-4 text-[#f6b54b]/65" /><div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Revenue breakdown' : '细分结构'}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{language === 'en' ? 'Products and services' : '产品与服务类别，不等同于会计分部'}</p></div></div>
-          <span className="text-[10.5px] text-white/[0.23]">{language === 'en' ? 'Revenue · YoY · Share' : '营收 · 同比 · 占比'}</span>
-        </div>
-        {breakdown.items.length ? <div className="divide-y divide-white/[0.045]">{breakdown.items.map((item, index) => <RevenueRow key={item.id} item={item} index={index} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div> : <div className="p-3"><SectionState status={breakdown.status} reason={breakdown.reason} language={language} /></div>}
-      </section>
+      {breakdown.items.length ? (
+        <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
+          <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
+            <div className="flex items-start gap-2.5"><PieChart className="mt-0.5 h-4 w-4 text-[#f6b54b]/65" /><div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Revenue breakdown' : '细分结构'}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{language === 'en' ? 'Products and services' : '产品与服务类别，不等同于会计分部'}</p></div></div>
+            <span className="text-[10.5px] text-white/[0.23]">{language === 'en' ? 'Revenue · YoY · Share' : '营收 · 同比 · 占比'}</span>
+          </div>
+          <div className="divide-y divide-white/[0.045]">{breakdown.items.map((item, index) => <RevenueRow key={item.id} item={item} index={index} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div>
+        </section>
+      ) : null}
 
-      <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
-        <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
-          <div className="flex items-start gap-2.5"><MapPinned className="mt-0.5 h-4 w-4 text-[#60a5fa]/65" /><div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Geographic revenue' : '地区收入'}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{language === 'en' ? 'As officially disclosed' : '按公司官方披露口径'}</p></div></div>
-          <span className="text-[10.5px] text-white/[0.23]">{language === 'en' ? 'YoY · Share' : '同比 · 占比'}</span>
-        </div>
-        {regions.items.length ? <div className="divide-y divide-white/[0.045]">{regions.items.map((item) => <RegionRow key={item.id} item={item} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div> : <div className="p-3"><SectionState status={regions.status} reason={regions.reason} language={language} /></div>}
-      </section>
+      {regions.items.length ? (
+        <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
+          <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
+            <div className="flex items-start gap-2.5"><MapPinned className="mt-0.5 h-4 w-4 text-[#60a5fa]/65" /><div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Geographic revenue' : '地区收入'}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{language === 'en' ? 'As officially disclosed' : '按公司官方披露口径'}</p></div></div>
+            <span className="text-[10.5px] text-white/[0.23]">{language === 'en' ? 'YoY · Share' : '同比 · 占比'}</span>
+          </div>
+          <div className="divide-y divide-white/[0.045]">{regions.items.map((item) => <RegionRow key={item.id} item={item} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div>
+        </section>
+      ) : null}
+
+      {supplementalSections.map(({ key, icon: Icon, accent, title, subtitle, section }) => (
+        <section key={key} className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
+          <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
+            <div className="flex items-start gap-2.5">
+              <Icon className="mt-0.5 h-4 w-4" style={{ color: accent }} />
+              <div><h2 className="text-[15px] text-white/[0.80]">{title}</h2><p className="mt-1 text-[11px] text-white/[0.27]">{subtitle}</p></div>
+            </div>
+            <span className="text-[10.5px] text-white/[0.23]">{language === 'en' ? 'Revenue · YoY · Share' : '营收 · 同比 · 占比'}</span>
+          </div>
+          <div className="divide-y divide-white/[0.045]">{section.items.map((item, index) => <RevenueRow key={item.id} item={item} index={index} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div>
+        </section>
+      ))}
     </>
   );
 }
@@ -341,7 +395,10 @@ export default function EarningsDetailPage({ ctx }) {
   const exportRef = React.useRef(null);
   const symbol = String(event?.symbol || detail?.symbol || '').trim().toUpperCase();
   const name = typeof displayStockName === 'function' ? displayStockName(symbol, event?.name, language) : event?.name || symbol;
-  const filingUrl = detail?.source?.filingUrl || detail?.source?.primaryDocumentUrl || event?.secFilingUrl || event?.secExhibitUrl;
+  const sourceProvider = String(detail?.source?.provider || '').trim().toUpperCase();
+  const filingUrl = sourceProvider === 'SEC'
+    ? detail?.source?.filingUrl || detail?.source?.primaryDocumentUrl || event?.secFilingUrl || event?.secExhibitUrl
+    : detail?.source?.primaryDocumentUrl || detail?.source?.filingUrl || event?.secFilingUrl || event?.secExhibitUrl;
   const cachedLogoUrl = logoCache?.[symbol]?.url;
   const sourceBadgeKind = earningsDetailSourceBadgeKind(detail, event);
   const sourceBadgeClass = sourceBadgeKind === 'official'
@@ -474,7 +531,9 @@ export default function EarningsDetailPage({ ctx }) {
                   {sourceBadgeKind === 'official'
                     ? (language === 'en' ? 'Official' : '官方数据')
                     : sourceBadgeKind === 'filing'
-                      ? (language === 'en' ? 'SEC filing' : 'SEC 文件')
+                      ? (sourceProvider === 'SEC'
+                        ? (language === 'en' ? 'SEC filing' : 'SEC 文件')
+                        : (language === 'en' ? 'Official filing' : '官方文件'))
                       : (language === 'en' ? 'Base data' : '基础数据')}
                 </span>
               </div>
@@ -499,7 +558,7 @@ export default function EarningsDetailPage({ ctx }) {
               <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/[0.24]" />
               <div>
                 <p className="text-[11px] leading-[1.55] text-white/[0.27]">
-                  {detail?.source?.provider === 'SEC'
+                  {['SEC', 'TSM', 'TSMC'].includes(sourceProvider)
                     ? (language === 'en'
                       ? 'Segment, product, and geographic values follow the company’s official filing. Missing or ambiguous fields remain unavailable.'
                       : '报告分部、细分结构与地区数据均按公司官方财报口径展示；缺失或口径不明确的数据统一显示为不可用。')
@@ -510,7 +569,7 @@ export default function EarningsDetailPage({ ctx }) {
                 <p className="mt-1 text-[10.5px] leading-[1.5] text-white/[0.19]">
                   {language === 'en' ? 'Financial amounts stay in the report currency.' : '财务金额保持财报原币种，不跟随持仓币种换算。'}
                 </p>
-                {filingUrl ? <a href={filingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10.5px] text-[#f6b54b]/55">{language === 'en' ? 'SEC official filing' : 'SEC 官方财报'}<ExternalLink className="h-3 w-3" /></a> : null}
+                {filingUrl ? <a href={filingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10.5px] text-[#f6b54b]/55">{sourceProvider === 'SEC' ? (language === 'en' ? 'SEC official filing' : 'SEC 官方财报') : (language === 'en' ? 'Official company report' : '公司官方财报')}<ExternalLink className="h-3 w-3" /></a> : null}
               </div>
             </div>
           </div>

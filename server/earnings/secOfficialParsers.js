@@ -128,10 +128,17 @@ export function parseSecCompanyFactsActuals({
 }
 
 export function extractExhibit991Url(indexHtml, filingUrl) {
+  return extractSecExhibitUrl(indexHtml, filingUrl, 'EX-99.1');
+}
+
+export function extractSecExhibitUrl(indexHtml, filingUrl, documentType) {
   if (typeof indexHtml !== 'string' || !filingUrl) return null;
+  const normalizedType = String(documentType || '').trim().toUpperCase();
+  if (!/^EX-99\.\d{1,2}$/.test(normalizedType)) return null;
+  const typePattern = new RegExp(`\\b${escapeRegex(normalizedType)}\\b`, 'i');
   const rows = indexHtml.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
   for (const row of rows) {
-    if (!/\bEX-99\.1\b/i.test(htmlToText(row))) continue;
+    if (!typePattern.test(htmlToText(row))) continue;
     const links = Array.from(row.matchAll(/href\s*=\s*["']([^"']+)["']/gi), (match) => match[1]);
     for (const href of links) {
       try {
@@ -467,6 +474,10 @@ function normalizeLabel(value) {
 
 function normalizeSymbol(value) {
   return String(value || '').trim().toUpperCase().replace(/\.US$/, '');
+}
+
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function dateKey(value) {

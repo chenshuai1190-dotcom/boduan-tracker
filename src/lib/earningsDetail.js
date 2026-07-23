@@ -4,6 +4,7 @@ export const EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_DETAIL_PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
 const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v1';
 const EARNINGS_DETAIL_SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
+const EARNINGS_DETAIL_SUPPLEMENTAL_KEYS = ['customerTypes', 'technologyBreakdown'];
 const inFlightRequests = new Map();
 
 function finiteOrNull(value) {
@@ -14,6 +15,11 @@ function finiteOrNull(value) {
 
 function safeText(value, maxLength = 180) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function safeOfficialDocumentUrl(value) {
+  const raw = String(value || '');
+  return /^https:\/\/(?:www\.sec\.gov|investor\.tsmc\.com)\//i.test(raw) ? raw : null;
 }
 
 function normalizeStatus(value, fallback = 'unavailable') {
@@ -67,17 +73,18 @@ export function normalizeEarningsDetailPayload(payload) {
         accession: safeText(payload.source.accession, 40),
         form: safeText(payload.source.form, 20),
         filedAt: dateKey(payload.source.filedAt),
-        filingUrl: /^https:\/\/www\.sec\.gov\//i.test(String(payload.source.filingUrl || ''))
-          ? String(payload.source.filingUrl)
-          : null,
-        primaryDocumentUrl: /^https:\/\/www\.sec\.gov\//i.test(String(payload.source.primaryDocumentUrl || ''))
-          ? String(payload.source.primaryDocumentUrl)
-          : null,
+        filingUrl: safeOfficialDocumentUrl(payload.source.filingUrl),
+        primaryDocumentUrl: safeOfficialDocumentUrl(payload.source.primaryDocumentUrl),
       }
     : null;
   const sections = {};
   EARNINGS_DETAIL_SECTION_KEYS.forEach((key) => {
     sections[key] = normalizeSection(payload.sections?.[key], key);
+  });
+  const supplemental = {};
+  EARNINGS_DETAIL_SUPPLEMENTAL_KEYS.forEach((key) => {
+    const section = normalizeSection(payload.supplemental?.[key], 'revenueBreakdown');
+    if (section.items.length > 0) supplemental[key] = section;
   });
   return {
     success: true,
@@ -93,6 +100,7 @@ export function normalizeEarningsDetailPayload(payload) {
     },
     source,
     sections,
+    supplemental,
   };
 }
 
@@ -106,7 +114,9 @@ export function earningsDetailSourceBadgeKind(detail, event) {
   if (officialActual) return 'official';
 
   const source = detail?.source;
-  const verifiedFiling = String(source?.provider || '').trim().toUpperCase() === 'SEC'
+  const verifiedFiling = ['SEC', 'TSM', 'TSMC'].includes(
+    String(source?.provider || '').trim().toUpperCase(),
+  )
     && Boolean(source?.filingUrl || source?.primaryDocumentUrl || source?.accession);
   if (verifiedFiling || event?.secFilingUrl || event?.secExhibitUrl) return 'filing';
   return 'base';

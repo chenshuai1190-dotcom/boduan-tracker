@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.373', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.374', date: '2026-07-24', latest: true,
+    items: [
+      '🧩 持仓业务构成完整覆盖',
+      '  - META、MSFT、IBKR、NOK、NVDA 与 TSM 财报详情接入各自官方报告中的业务构成；未披露维度继续显示不可用，不使用推测值',
+      '  - 台积电按当前财期展示报告分部、平台收入、地区收入与制程结构，并明确标记为公司官方文件',
+      '  - QQQ 与 TQQQ 改为展示 Invesco / ProShares 官方指数成分和行业权重；TQQQ 明确使用基准指数口径，不伪装成基金直接持仓',
+    ],
+    itemsEn: [
+      '🧩 Complete business-composition coverage for held symbols',
+      '  - Earnings details for META, MSFT, IBKR, NOK, NVDA, and TSM now use business composition disclosed in each issuer’s official reports; undisclosed dimensions remain unavailable instead of being inferred',
+      '  - TSMC shows its current-period reportable segment, platform revenue, geographic revenue, and process-node mix with the source identified as an official company document',
+      '  - QQQ and TQQQ show official Invesco / ProShares index composition and sector weights; TQQQ is explicitly labeled as benchmark-index data rather than direct fund holdings',
+    ],
+  },
+  {
+    ver: 'v10.7.9.373', date: '2026-07-24',
     items: [
       '🧾 SEC 官方财报覆盖与详情可读性',
       '  - 财报详情按股票代码动态匹配 SEC 文件；可确认的 10-Q、10-K、20-F、6-K 或 8-K 均提供官方原文入口，不再受固定公司白名单限制',
