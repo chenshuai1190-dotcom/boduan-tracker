@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-07-22 Asia/Shanghai`
+验证时间：`2026-07-24 Asia/Shanghai`
 
 本文件只保存当前已验证生产状态、风险和下一步。历史查 Git、GitHub Actions、Vercel 和 `src/lib/settingsChangelog.js`；稳定边界看 `README.md`；流程看 `docs/development-process.md`。
 
@@ -10,20 +10,24 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 生产运行时代码 | `440d1dcd74e17a1f67d78f56e7c68e785c117071` |
-| 设置页版本 | `v10.7.9.371` |
-| 生产入口 | `/assets/index-DRlvMmcY.js` |
-| Runtime Actions | `29892785125` success |
-| Runtime Vercel | `72xperBT6PXL2ogejaGHtGfbUp9Y` success |
+| 生产运行时代码 | `a463d3fec16f954db3a2cade9f0ab61fbf3a4a19` |
+| 设置页版本 | `v10.7.9.373` |
+| 生产入口 | `/assets/index-CftpmyGC.js` |
+| Runtime Actions | `30025965840` success |
+| Runtime Vercel | `4MNfb9hHnMVuu2sWnd6gy9FWvUMm` success |
 
 已验证：
 
-- `npm run check:full`：`589 / 589` PASS，Vite production build PASS；本次账户杠杆、融资独立页与交易只读边界相关定向测试 `72 / 72` PASS；既有 `npm run verify:rls:rest` 证据为 22 张表与 2 个 RPC PASS，本次未改 RLS。
-- `npm run verify:deploy-status -- 440d1dc`：PASS。
+- `npm run check:full`：`650 / 650` PASS，Vite production build PASS，文档一致性与 `git diff --check` PASS；本次未改数据库、RLS、交易、比赛或收益报表边界。
+- `npm run verify:deploy-status -- a463d3f`：PASS。
 - 未登录 `/api/quote?symbols=VIX`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=stock-detail`：`401`。
 - 未登录 `/api/quote?symbols=NVDA&view=fundamentals`：`401`；登录后的单股专用 view 已恢复，只返回本页六项基本面数据。
 - 未登录 `/api/earnings-calendar?symbols=NVDA`：`401`。
+- 未登录 `/api/earnings-detail?symbol=NVDA&fiscalDate=2026-04-26&reportDate=2026-05-20`：`401`。
+- 财报详情已按真实 SEC filing 动态解析公司与财期；GOOG/GOOGL、TSLA、NVDA 有严格对账的结构化适配，TSM 使用匹配的官方 6-K 与公布值，其他持仓股票保留已核验 SEC 文件入口且不猜测缺失细分。
+- 财报来源徽标严格区分“官方数据”“SEC 文件”“基础数据”：只有逐项公布值来自 SEC 才显示“官方数据”，仅有 filing provenance 不再误标。AAPL 未适配场景已在真实 iPhone 17 Pro / iOS 26.5 Simulator 验证为“SEC 文件”。
+- 财报详情字号统一增加 `1px`；长图分享固定可读宽度并限制 iOS canvas 尺寸，字体加载和导出克隆清理已补齐。真实 Simulator 已验证 `1290 × 5352` 长图无裁切，HTTP 调试地址可正常生成 PNG 并走 Safari 下载兜底。
 - 未登录 `/api/pnl-benchmark?symbol=QQQ&from=2026-04-20&to=2026-07-20`：`401`。
 - 首页“自选”中只有股票图标、代码和名称区域进入独立详情页；价格、涨跌、回撤、“持仓”页和排序区域不触发。
 - 首页进入“股票趋势”前会在内存中记录根页面滚动位置；通过详情页头返回或底部“首页”返回时只恢复一次。切换其他 Tab 仍回顶，原双击“首页”平滑回顶不变并会清除旧位置；不写 localStorage，不跨刷新或账户保存。
@@ -50,7 +54,7 @@
 - MA200 周线由按需获取的十年复权收盘预热计算，只推进已完成交易周；未收盘周不会改写锁定值，行情源失败与真实历史不足分别显示“暂不可用”和周数进度。普通首页行情仍保持原 380 天历史窗口。
 - 关键指标为无分割线的 52 周高点、MA200（日）、相对 QQQ（3个月）与独立 MA200 周线详情；MA200（周）旁标签为“芒格指标”，周线面板展示距均线、近四周变化、连续状态和锁定日期。
 - 生产 `watchlist.target_price_usd numeric(18,6)` 已 database-first 迁移；正数约束、RLS、原 5 条 policy、76 条既有数据和 0 条非空目标价均完成 postflight，未改变既有行。
-- 生产 App 分包 `/assets/App-DnwaWReT.js` 包含 `home-margin-risk` 独立路由；融资页分包 `/assets/HomeMarginRiskPage-CVa3vVyB.js` 包含账户杠杆说明入口与弹层；首页 `/assets/HomeTab-CZDx79g2.js`、交易 `/assets/TradesTab-Wk2rGZVY.js` 和等级徽标 `/assets/AccountLeverageBadge-DfaQe8LZ.js` 已同步，Settings 分包 `/assets/SettingsTab-DV8fURDb.js` 为 `v10.7.9.371`。
+- 当前生产入口 `/assets/index-CftpmyGC.js` 已加载设置页版本 `v10.7.9.373`；财报详情分包包含 SEC 来源三态、NVDA 结构化适配和长图导出修复。
 - 本机真实 Xcode iOS Simulator 已验证默认五年图、联动 tooltip 与周线指标面板；截图在忽略目录 `outputs/ios-simulator/watchlist-weekly-ma-production-v360-*.png`。
 - 本次末端标签精简的 Simulator 截图：`outputs/ios-simulator/watchlist-weekly-ma-no-end-price-v361.png`。
 - 本次日/周均线切换的真实 Simulator 截图：`outputs/ios-simulator/watchlist-real-daily-ma200-1m-v1.png`、`watchlist-real-daily-ma200-tooltip-1m-v1.png` 和 `watchlist-real-weekly-ma200-5y-v1.png`。
