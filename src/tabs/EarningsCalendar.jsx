@@ -257,7 +257,7 @@ function EarningsResultMarker({ event, result: explicitResult }) {
     return <span className={`${dimension} shrink-0 rounded-full bg-[linear-gradient(90deg,#f6b54b_0_50%,rgba(246,181,75,0.22)_50%_100%)] shadow-[0_0_10px_rgba(246,181,75,0.22)]`} aria-hidden="true" />;
   }
   return (
-    <span className={`${dimension} inline-flex shrink-0 items-center justify-center rounded-full bg-white/26 text-[#0b0f14]`} aria-hidden="true">
+    <span className={`${dimension} inline-flex shrink-0 items-center justify-center rounded-full bg-white/50 text-[#0b0f14] shadow-[0_0_8px_rgba(255,255,255,0.12)]`} aria-hidden="true">
       <Check className={iconSize} strokeWidth={3} />
     </span>
   );
