@@ -3,6 +3,7 @@ import { sendError } from '../server/quote/errors.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from '../server/quote/http.js';
 import {
   fetchSecOfficialActuals,
+  isSecOfficialActualSupportedEvent,
   mergeSecOfficialActuals,
 } from '../server/earnings/secOfficialActuals.js';
 import {
@@ -17,6 +18,7 @@ import {
 
 const MAX_EARNINGS_SYMBOLS = 30;
 const MAX_RANGE_DAYS = 90;
+const OFFICIAL_ACTUAL_MIGRATION_DAYS = 30;
 const INCLUDE_PREVIOUS_PUBLISHED_PARAM = 'includePreviousPublished';
 const PUBLISHED_FUNDAMENTALS_FILTER = [
   'General::Sector',
@@ -57,7 +59,11 @@ export default async function handler(req, res) {
       fetchEodhdEarningsTrends({ symbols: parsed.symbols, eodhdKey }),
     ]);
     const merged = mergeEarningsTrendData(events, trends);
-    const enriched = await enrichPublishedEarningsData({ events: merged, eodhdKey });
+    const enriched = await enrichPublishedEarningsData({
+      events: merged,
+      eodhdKey,
+      includeOfficialMigration: parsed.forceOfficialRefresh,
+    });
     const fxRates = await fetchEodhdUsdForexRates({
       currencies: enriched.flatMap((event) => [
         event.currency,
@@ -111,8 +117,9 @@ export function parseEarningsRequest(query = {}) {
   if (daysBetween(from, to) > MAX_RANGE_DAYS) return { error: `查询区间不能超过 ${MAX_RANGE_DAYS} 天` };
 
   const includePreviousPublished = parseBooleanQuery(query[INCLUDE_PREVIOUS_PUBLISHED_PARAM]);
+  const forceOfficialRefresh = parseBooleanQuery(query.refresh);
 
-  return { symbols, from, to, includePreviousPublished };
+  return { symbols, from, to, includePreviousPublished, forceOfficialRefresh };
 }
 
 export async function fetchEodhdEarningsCalendar({ symbols, from, to, includePreviousPublished = false, eodhdKey }) {
@@ -351,6 +358,7 @@ export async function enrichPublishedEarningsData({
   events,
   eodhdKey,
   now = new Date(),
+  includeOfficialMigration = false,
   fetchPublishedFundamentals = fetchEodhdPublishedFundamentals,
   fetchEodRows = fetchEodhdEodRowsForEarnings,
   fetchOfficialActuals = fetchSecOfficialActuals,
@@ -358,10 +366,20 @@ export async function enrichPublishedEarningsData({
   const inputEvents = events || [];
   const today = newYorkDateKey(now) || newYorkDateKey(new Date());
   const recentPublishedFrom = addUtcDays(today, -EARNINGS_PUBLISHED_RETENTION_DAYS);
+  const officialMigrationFrom = addUtcDays(today, -OFFICIAL_ACTUAL_MIGRATION_DAYS);
   const eodhdPublished = inputEvents.filter((event) => parseNumber(event.epsActual) !== null);
   const secCandidates = inputEvents.filter((event) => {
     const reportDate = dateKey(event?.reportDate || event?.report_date);
-    return reportDate && reportDate >= recentPublishedFrom && reportDate <= today;
+    if (!reportDate || reportDate > today) return false;
+    return reportDate >= recentPublishedFrom
+      || (
+        includeOfficialMigration
+        && reportDate >= officialMigrationFrom
+        && isSecOfficialActualSupportedEvent(
+          event?.symbol || event?.code,
+          event?.fiscalDate || event?.date,
+        )
+      );
   });
   const candidates = dedupeEarningsEvents([...eodhdPublished, ...secCandidates]);
   if (candidates.length === 0) return inputEvents;

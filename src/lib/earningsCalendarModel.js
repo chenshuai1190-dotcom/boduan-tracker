@@ -223,6 +223,8 @@ function normalizeEarningsEvent(raw, context = {}) {
     fiscalDate: dateKey(raw?.date || raw?.fiscalDate || raw?.periodDate) || reportDate,
     session,
     currency: raw?.currency || raw?.Currency || 'USD',
+    epsCurrency: raw?.epsCurrency || null,
+    epsUnit: raw?.epsUnit || null,
     epsEstimate: preferredNumeric(raw, 'epsEstimate', 'estimate', 'earningsEstimateAvg'),
     epsActual: preferredNumeric(raw, 'epsActual', 'actual'),
     epsActualSource: raw?.epsActualSource || null,

@@ -18,6 +18,19 @@
       "nonGaapEpsActual": 0.33,
       "nonGaapEpsPreviousYear": 0.4
     },
+    "TSM": {
+      "cik": "0001046179",
+      "accession": "0001046179-26-000451",
+      "form": "6-K",
+      "filedAt": "2026-07-16T11:45:43.000Z",
+      "exhibitDocument": "a2q26e_withguidancexfinal.htm",
+      "revenueActual": 40201000000,
+      "revenuePreviousYear": 30070000000,
+      "operatingIncomeActual": 24259000000,
+      "operatingIncomePreviousYear": 14923000000,
+      "epsActual": 4.31,
+      "epsPreviousYear": 2.47
+    },
     "GOOGL": {
       "cik": "0001652044",
       "accession": "0001652044-26-000066",

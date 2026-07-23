@@ -8,18 +8,19 @@ import {
   getEarningsRefreshCandidates,
   getNewYorkEarningsClock,
   mergeEarningsRefreshEvents,
+  OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
   preservePublishedEarningsEvents,
   requestDueEarningsRefresh,
   resetEarningsRefreshRequestsForTests,
 } from '../src/lib/earningsCalendarRefresh.js';
 
 const officialComplete = {
-  officialActualSchemaVersion: 1,
+  officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
   officialActualStatus: 'complete',
 };
 
 const officialUnsupported = {
-  officialActualSchemaVersion: 1,
+  officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
   officialActualStatus: 'unsupported',
 };
 
@@ -245,7 +246,7 @@ test('published ASML keeps refreshing for delayed actual revenue within retentio
 
 test('legacy published events without a completeness marker receive one bounded migration refresh', () => {
   const legacy = {
-    symbol: 'IBKR',
+    symbol: 'ASML',
     reportDate: '2026-07-21',
     session: 'post',
     epsActual: 0.69,
@@ -256,7 +257,7 @@ test('legacy published events without a completeness marker receive one bounded 
 
   assert.deepEqual(
     getEarningsRefreshCandidates([legacy], Date.parse('2026-07-22T12:00:00Z')).map((event) => event.symbol),
-    ['IBKR'],
+    ['ASML'],
   );
   assert.equal(
     getEarningsRefreshCandidates([legacy], Date.parse('2026-07-24T12:00:00Z')).length,
@@ -282,9 +283,57 @@ test('legacy EODHD-complete events still receive one SEC schema migration refres
   );
 });
 
+test('TSM receives one bounded official-schema migration after the normal two-day window', () => {
+  const staleTsm = {
+    symbol: 'TSM',
+    reportDate: '2026-07-16',
+    fiscalDate: '2026-06-30',
+    session: 'pre',
+    epsActual: 4.31,
+    revenueActualUsd: 39_350_000_000,
+    ebitActualUsd: 21_610_000_000,
+    officialActualSchemaVersion: 1,
+    officialActualStatus: 'unsupported',
+    publishedFinancialsComplete: true,
+    marketReactionPercent: -2.3,
+  };
+
+  assert.deepEqual(
+    getEarningsRefreshCandidates([staleTsm], Date.parse('2026-07-23T12:00:00Z')).map((event) => event.symbol),
+    ['TSM'],
+  );
+  assert.equal(
+    getEarningsRefreshCandidates([{
+      ...staleTsm,
+      officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
+      officialActualStatus: 'complete',
+    }], Date.parse('2026-07-23T12:00:00Z')).length,
+    0,
+  );
+  assert.equal(
+    getEarningsRefreshCandidates([staleTsm], Date.parse('2026-08-20T12:00:00Z')).length,
+    0,
+  );
+  assert.equal(
+    getEarningsRefreshCandidates([{
+      ...staleTsm,
+      symbol: 'NVDA',
+    }], Date.parse('2026-07-23T12:00:00Z')).length,
+    0,
+  );
+  assert.equal(
+    getEarningsRefreshCandidates([{
+      ...staleTsm,
+      reportDate: '2026-10-15',
+      fiscalDate: '2026-09-30',
+    }], Date.parse('2026-10-20T12:00:00Z')).length,
+    0,
+  );
+});
+
 test('published fundamentals keep refreshing when revenue arrives before operating profit', () => {
   const partiallySynced = {
-    officialActualSchemaVersion: 1,
+    officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
     officialActualStatus: 'partial',
     symbol: 'TSLA',
     reportDate: '2026-07-22',
@@ -549,6 +598,8 @@ test('a lower-priority EODHD refresh cannot replace or suppress cached SEC offic
     epsActual: 0.69,
     epsPreviousYear: 0.51,
     epsActualSource: 'sec-exhibit',
+    epsCurrency: 'USD',
+    epsUnit: 'USD/ADR',
     revenueActual: 1_896_000_000,
     revenueActualUsd: 1_896_000_000,
     revenuePreviousYear: 1_480_000_000,
@@ -569,6 +620,8 @@ test('a lower-priority EODHD refresh cannot replace or suppress cached SEC offic
     session: 'post',
     epsActual: 0.69,
     epsActualSource: 'eodhd-calendar',
+    epsCurrency: null,
+    epsUnit: null,
     revenueActual: null,
     revenueActualUsd: null,
     revenueActualSource: null,
@@ -576,12 +629,14 @@ test('a lower-priority EODHD refresh cannot replace or suppress cached SEC offic
     ebitActual: 2_550_000_000,
     ebitActualUsd: 2_550_000_000,
     ebitActualSource: 'eodhd-fundamentals-income-statement',
-    officialActualSchemaVersion: 1,
+    officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
     officialActualStatus: 'pending',
     publishedFinancialsComplete: false,
   }]);
 
   assert.equal(merged.epsActualSource, 'sec-exhibit');
+  assert.equal(merged.epsCurrency, 'USD');
+  assert.equal(merged.epsUnit, 'USD/ADR');
   assert.equal(merged.revenueActual, 1_896_000_000);
   assert.equal(merged.revenueActualSuppressed, false);
   assert.equal(merged.ebitActual, 1_456_000_000);
@@ -623,7 +678,7 @@ test('a supported SEC pending refresh clears stale EODHD actuals from every clie
     ebitActual: null,
     ebitActualUsd: null,
     ebitActualSource: null,
-    officialActualSchemaVersion: 1,
+    officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
     officialActualStatus: 'pending',
     officialActualReason: 'sec-unavailable',
     secCik: '0001318605',

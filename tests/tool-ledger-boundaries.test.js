@@ -888,7 +888,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('isEarningsVisible(event, today)'), 'earnings calendar should keep published events visible through the retention window');
   assert.ok(earningsCalendarSource.includes('formatRevenueUsd'), 'earnings calendar should render revenue estimates in USD display units');
   assert.ok(earningsCalendarSource.includes('earningsCurrencySummary(event, language)'), 'published earnings detail should label EPS and normalized USD revenue currencies separately');
-  assert.ok(earningsCalendarSource.includes("String(event?.currency || 'USD').trim().toUpperCase()"), 'published earnings detail should derive the EPS currency from the event');
+  assert.ok(earningsCalendarSource.includes("String(event?.epsUnit || event?.epsCurrency || event?.currency || 'USD').trim().toUpperCase()"), 'published earnings detail should prefer an official ADR unit before falling back to the event currency');
   assert.ok(i18nSource.includes("'earningsCalendar.ebitMetric': '息税前利润'"), 'Chinese earnings detail should label EBIT precisely');
   assert.ok(i18nSource.includes("'earningsCalendar.ebitMetric': 'EBIT'"), 'English earnings detail should label EBIT precisely');
   assert.ok(i18nSource.includes("'earningsCalendar.metricCurrencies': 'EPS：{{epsCurrency}} · 营收/EBIT：USD'"), 'Chinese earnings detail should distinguish the EPS currency from normalized USD financial values');

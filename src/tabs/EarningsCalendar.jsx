@@ -337,7 +337,7 @@ function ebitValue(event) {
 }
 
 function earningsCurrencySummary(event, language) {
-  const epsCurrency = String(event?.currency || 'USD').trim().toUpperCase() || 'USD';
+  const epsCurrency = String(event?.epsUnit || event?.epsCurrency || event?.currency || 'USD').trim().toUpperCase() || 'USD';
   return t(
     language,
     'earningsCalendar.metricCurrencies',

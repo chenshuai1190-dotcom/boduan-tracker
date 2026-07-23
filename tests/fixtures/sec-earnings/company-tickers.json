@@ -18,5 +18,10 @@
     "cik_str": 1381197,
     "ticker": "IBKR",
     "title": "Interactive Brokers Group, Inc."
+  },
+  "4": {
+    "cik_str": 1046179,
+    "ticker": "TSM",
+    "title": "Taiwan Semiconductor Manufacturing Company Limited"
   }
 }

@@ -1,8 +1,17 @@
 const SUPPORTED_EXHIBIT_SYMBOLS = new Set([
   'TSLA',
+  'TSM',
   'GOOG',
   'GOOGL',
   'IBKR',
+]);
+
+const TSMC_USD_TRANSLATION_BY_FISCAL_DATE = new Map([
+  // Official TSMC quarter-weighted USD/NTD rates for the current and prior-year quarters.
+  ['2026-06-30', {
+    currentRate: 31.601,
+    previousRate: 31.054,
+  }],
 ]);
 
 const REVENUE_CONCEPTS = [
@@ -26,6 +35,15 @@ const EPS_CONCEPTS = [
   'EarningsPerShareDiluted',
 ];
 
+export function isSecExhibitActualSupportedEvent({ symbol, fiscalDate } = {}) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  if (!SUPPORTED_EXHIBIT_SYMBOLS.has(normalizedSymbol)) return false;
+  if (normalizedSymbol === 'TSM') {
+    return TSMC_USD_TRANSLATION_BY_FISCAL_DATE.has(dateKey(fiscalDate));
+  }
+  return true;
+}
+
 export function parseSecExhibitActuals({ symbol, fiscalDate, html }) {
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedFiscalDate = dateKey(fiscalDate);
@@ -34,6 +52,9 @@ export function parseSecExhibitActuals({ symbol, fiscalDate, html }) {
 
   if (normalizedSymbol === 'TSLA') {
     return parseTeslaExhibit(html, normalizedFiscalDate);
+  }
+  if (normalizedSymbol === 'TSM') {
+    return parseTaiwanSemiconductorExhibit(html, normalizedFiscalDate);
   }
   if (normalizedSymbol === 'GOOG' || normalizedSymbol === 'GOOGL') {
     return parseAlphabetExhibit(html, normalizedFiscalDate);
@@ -185,6 +206,46 @@ function parseTeslaExhibit(html, fiscalDate) {
   });
 }
 
+function parseTaiwanSemiconductorExhibit(html, fiscalDate) {
+  const text = htmlToText(html);
+  const translation = TSMC_USD_TRANSLATION_BY_FISCAL_DATE.get(fiscalDate);
+  if (!translation) return null;
+  if (!/TSMC Reports/i.test(text)
+    || !/TWSE\s*:\s*2330,\s*NYSE\s*:\s*TSM/i.test(text)
+    || !/TIFRS/i.test(text)
+    || !containsFiscalQuarter(text, fiscalDate)) {
+    return null;
+  }
+
+  const rows = extractTableRows(html);
+  const revenue = numericValues(findFirstExactRow(rows, ['Net sales', 'Net revenue'], 2));
+  const operatingIncome = numericValues(findFirstExactRow(rows, [
+    'Income from operations',
+    'Operating income',
+  ], 2));
+  const epsNtd = numericValuesWithFootnotes(findFirstExactRow(rows, [
+    'EPS (NT$)',
+    'Earnings per share - diluted (NT$)',
+  ], 2));
+  if (revenue.length < 2 || operatingIncome.length < 2 || epsNtd.length < 2) return null;
+
+  return completeActuals({
+    fiscalDate,
+    actualBasis: 'tifrs',
+    revenueActual: translateMillionsToUsd(revenue[0], translation.currentRate),
+    revenuePreviousYear: translateMillionsToUsd(revenue[1], translation.previousRate),
+    revenueActualBasis: 'netRevenue',
+    ebitActual: translateMillionsToUsd(operatingIncome[0], translation.currentRate),
+    ebitPreviousYear: translateMillionsToUsd(operatingIncome[1], translation.previousRate),
+    ebitActualBasis: 'operatingIncome',
+    epsActual: translateAdrEps(epsNtd[0], translation.currentRate),
+    epsPreviousYear: translateAdrEps(epsNtd[1], translation.previousRate),
+    epsActualBasis: 'EarningsPerADR',
+    epsCurrency: 'USD',
+    epsUnit: 'USD/ADR',
+  });
+}
+
 function parseAlphabetExhibit(html, fiscalDate) {
   const text = htmlToText(html);
   if (!/\bAlphabet\b/i.test(text) || !/in millions/i.test(text) || !containsFiscalQuarter(text, fiscalDate)) return null;
@@ -289,6 +350,15 @@ function numericValues(cells) {
   });
 }
 
+function numericValuesWithFootnotes(cells) {
+  return (cells || []).flatMap((cell) => {
+    const match = String(cell || '').match(/^\s*(\(?[-−]?\$?\d[\d,]*(?:\.\d+)?\)?)(?:\s+[a-z])?\s*$/i);
+    if (!match) return [];
+    const value = parseFinancialNumber(match[1]);
+    return value === null ? [] : [value];
+  });
+}
+
 function extractSeries(section, label, count) {
   const offset = section.toLowerCase().indexOf(label.toLowerCase());
   if (offset < 0) return null;
@@ -379,6 +449,16 @@ function parseFinancialNumber(value) {
 
 function scaleMillions(value) {
   return finite(value) ? value * 1_000_000 : null;
+}
+
+function translateMillionsToUsd(value, exchangeRate) {
+  if (!finite(value) || !positiveFinite(exchangeRate)) return null;
+  return Math.round(value / exchangeRate) * 1_000_000;
+}
+
+function translateAdrEps(value, exchangeRate) {
+  if (!finite(value) || !positiveFinite(exchangeRate)) return null;
+  return Math.round(((value * 5) / exchangeRate) * 100) / 100;
 }
 
 function normalizeLabel(value) {

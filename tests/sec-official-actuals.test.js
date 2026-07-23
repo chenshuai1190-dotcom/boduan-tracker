@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises';
 import {
   clearSecOfficialCachesForTests,
   fetchSecOfficialActuals,
+  isSecOfficialActualSupportedEvent,
+  isSecOfficialActualSupportedSymbol,
   mergeSecOfficialActuals,
 } from '../server/earnings/secOfficialActuals.js';
 import {
@@ -37,10 +39,11 @@ function textResponse(body, status = 200) {
   };
 }
 
-test('SEC exhibit parsers select official GAAP quarter values and reject distractors', async () => {
+test('SEC exhibit parsers select official quarter values and reject distractors', async () => {
   const expected = await fixture('expected.json', true);
   const cases = [
     ['TSLA', 'tsla-exhibit-99.1.html'],
+    ['TSM', 'tsm-exhibit-99.1.html'],
     ['GOOGL', 'googl-exhibit-99.1.html'],
     ['IBKR', 'ibkr-exhibit-99.1.html'],
   ];
@@ -67,6 +70,23 @@ test('SEC exhibit parsers select official GAAP quarter values and reject distrac
     html: await fixture('googl-exhibit-99.1.html'),
   });
   assert.notEqual(google.ebitActual, expected.events.GOOGL.incomeBeforeTaxActual);
+
+  const taiwanSemiconductor = parseSecExhibitActuals({
+    symbol: 'TSM',
+    fiscalDate: expected.fiscalDate,
+    html: await fixture('tsm-exhibit-99.1.html'),
+  });
+  assert.equal(taiwanSemiconductor.revenueActual, 40_201_000_000);
+  assert.equal(taiwanSemiconductor.ebitActual, 24_259_000_000);
+  assert.equal(taiwanSemiconductor.epsActual, 4.31);
+  assert.equal(taiwanSemiconductor.epsCurrency, 'USD');
+  assert.equal(taiwanSemiconductor.epsUnit, 'USD/ADR');
+  assert.notEqual(taiwanSemiconductor.ebitActual, 27_291_000_000);
+  assert.equal(parseSecExhibitActuals({
+    symbol: 'TSM',
+    fiscalDate: '2027-06-30',
+    html: await fixture('tsm-exhibit-99.1.html'),
+  }), null);
 
   const interactiveBrokers = parseSecExhibitActuals({
     symbol: 'IBKR',
@@ -209,17 +229,20 @@ test('SEC XBRL parser selects a 90-day exact quarter and refuses same-end-date Y
   }), null);
 });
 
-test('SEC official reader discovers current 8-K exhibits and overrides only actual fields', async () => {
+test('SEC official reader discovers current 8-K and 6-K exhibits and overrides only actual fields', async () => {
   clearSecOfficialCachesForTests();
   const filenamesByPath = new Map([
     ['/files/company_tickers.json', 'company-tickers.json'],
     ['/submissions/CIK0001318605.json', 'tsla-submissions.json'],
+    ['/submissions/CIK0001046179.json', 'tsm-submissions.json'],
     ['/submissions/CIK0001652044.json', 'googl-submissions.json'],
     ['/submissions/CIK0001381197.json', 'ibkr-submissions.json'],
     ['/Archives/edgar/data/1318605/000162828026049213/0001628280-26-049213-index.html', 'tsla-filing-index.html'],
+    ['/Archives/edgar/data/1046179/000104617926000451/0001046179-26-000451-index.html', 'tsm-filing-index.html'],
     ['/Archives/edgar/data/1652044/000165204426000066/0001652044-26-000066-index.html', 'googl-filing-index.html'],
     ['/Archives/edgar/data/1381197/000138119726000118/0001381197-26-000118-index.html', 'ibkr-filing-index.html'],
     ['/Archives/edgar/data/1318605/000162828026049213/exhibit991.htm', 'tsla-exhibit-99.1.html'],
+    ['/Archives/edgar/data/1046179/000104617926000451/a2q26e_withguidancexfinal.htm', 'tsm-exhibit-99.1.html'],
     ['/Archives/edgar/data/1652044/000165204426000066/googexhibit991q22026.htm', 'googl-exhibit-99.1.html'],
     ['/Archives/edgar/data/1381197/000138119726000118/ibkr-ex99_1.htm', 'ibkr-exhibit-99.1.html'],
   ]);
@@ -238,6 +261,7 @@ test('SEC official reader discovers current 8-K exhibits and overrides only actu
       epsActual: index,
     })),
     { symbol: 'TSLA', reportDate: '2026-07-22', fiscalDate: '2026-06-30' },
+    { symbol: 'TSM', reportDate: '2026-07-16', fiscalDate: '2026-06-30' },
     { symbol: 'GOOGL', reportDate: '2026-07-22', fiscalDate: '2026-06-30' },
     { symbol: 'IBKR', reportDate: '2026-07-21', fiscalDate: '2026-06-30' },
   ];
@@ -250,6 +274,11 @@ test('SEC official reader discovers current 8-K exhibits and overrides only actu
   });
 
   assert.equal(official.get('TSLA|2026-06-30')?.epsActual, 0.32);
+  assert.equal(official.get('TSM|2026-06-30')?.revenueActual, 40_201_000_000);
+  assert.equal(official.get('TSM|2026-06-30')?.ebitActual, 24_259_000_000);
+  assert.equal(official.get('TSM|2026-06-30')?.epsActual, 4.31);
+  assert.equal(official.get('TSM|2026-06-30')?.officialActualSchemaVersion, 2);
+  assert.equal(official.get('TSM|2026-06-30')?.form, '6-K');
   assert.equal(official.get('GOOGL|2026-06-30')?.ebitActual, 40_770_000_000);
   assert.equal(official.get('IBKR|2026-06-30')?.revenueActual, 1_896_000_000);
   assert.equal(official.get('UNSUPPORTED9|2026-06-30')?.officialActualStatus, 'unsupported');
@@ -282,6 +311,55 @@ test('SEC official reader discovers current 8-K exhibits and overrides only actu
   assert.equal(merged.marketReactionPercent, -4.74);
   assert.equal(merged.officialActualSource, 'sec-exhibit');
   assert.equal(merged.officialActualStatus, 'complete');
+
+  const [mergedTsm] = mergeSecOfficialActuals([{
+    symbol: 'TSM',
+    reportDate: '2026-07-16',
+    fiscalDate: '2026-06-30',
+    epsEstimate: 3.89,
+    epsActual: 4.31,
+    epsCurrency: 'TWD',
+    epsUnit: 'TWD/share',
+  }], official);
+  assert.equal(mergedTsm.epsActual, 4.31);
+  assert.equal(mergedTsm.epsCurrency, 'USD');
+  assert.equal(mergedTsm.epsUnit, 'USD/ADR');
+  assert.equal(mergedTsm.officialActualSchemaVersion, 2);
+});
+
+test('SEC official support list includes TSM without broadening unknown symbols', () => {
+  assert.equal(isSecOfficialActualSupportedSymbol('TSM'), true);
+  assert.equal(isSecOfficialActualSupportedSymbol('tsm.us'), true);
+  assert.equal(isSecOfficialActualSupportedSymbol('NVDA'), false);
+  assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-06-30'), true);
+  assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-09-30'), false);
+});
+
+test('unsupported future TSM quarters preserve provider actuals without making SEC requests', async () => {
+  let requests = 0;
+  const event = {
+    symbol: 'TSM',
+    reportDate: '2026-10-15',
+    fiscalDate: '2026-09-30',
+    epsActual: 4.8,
+    revenueActual: 42_000_000_000,
+    ebitActual: 25_000_000_000,
+  };
+  const official = await fetchSecOfficialActuals({
+    events: [event],
+    fetchFn: async () => {
+      requests += 1;
+      throw new Error('must not request SEC before the TSM quarter adapter exists');
+    },
+    now: '2026-10-16T12:00:00Z',
+  });
+  const [merged] = mergeSecOfficialActuals([event], official);
+
+  assert.equal(requests, 0);
+  assert.equal(official.get('TSM|2026-09-30')?.officialActualStatus, 'unsupported');
+  assert.equal(merged.epsActual, 4.8);
+  assert.equal(merged.revenueActual, 42_000_000_000);
+  assert.equal(merged.ebitActual, 25_000_000_000);
 });
 
 test('SEC failure is isolated and pending official values fail closed without breaking the event', async () => {
@@ -292,6 +370,8 @@ test('SEC failure is isolated and pending official values fail closed without br
     fiscalDate: '2026-06-30',
     epsEstimate: 0.31,
     epsActual: 0.27,
+    epsCurrency: 'USD',
+    epsUnit: 'USD/share',
     actual: 7.1,
     epsDifference: 0.01,
     difference: 6.8,
@@ -313,6 +393,8 @@ test('SEC failure is isolated and pending official values fail closed without br
   assert.equal(merged.officialActualStatus, 'pending');
   assert.equal(merged.epsEstimate, 0.31);
   assert.equal(merged.epsActual, null);
+  assert.equal(merged.epsCurrency, null);
+  assert.equal(merged.epsUnit, null);
   assert.equal(merged.actual, null);
   assert.equal(merged.difference, null);
   assert.equal(merged.percent, null);

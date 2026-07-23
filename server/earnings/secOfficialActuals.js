@@ -1,10 +1,11 @@
 import {
   extractExhibit991Url,
+  isSecExhibitActualSupportedEvent,
   parseSecCompanyFactsActuals,
   parseSecExhibitActuals,
 } from './secOfficialParsers.js';
 
-export const OFFICIAL_ACTUAL_SCHEMA_VERSION = 1;
+export const OFFICIAL_ACTUAL_SCHEMA_VERSION = 2;
 export const DEFAULT_SEC_USER_AGENT = 'BoduanTracker/1.0 chenshuai1190@gmail.com';
 
 const SEC_REQUEST_TIMEOUT_MS = 5500;
@@ -27,10 +28,21 @@ const MISS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const KNOWN_CIK_BY_SYMBOL = new Map([
   ['TSLA', '0001318605'],
+  ['TSM', '0001046179'],
   ['GOOG', '0001652044'],
   ['GOOGL', '0001652044'],
   ['IBKR', '0001381197'],
 ]);
+
+export function isSecOfficialActualSupportedSymbol(symbol) {
+  return KNOWN_CIK_BY_SYMBOL.has(normalizeSymbol(symbol));
+}
+
+export function isSecOfficialActualSupportedEvent(symbol, fiscalDate) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  return KNOWN_CIK_BY_SYMBOL.has(normalizedSymbol)
+    && isSecExhibitActualSupportedEvent({ symbol: normalizedSymbol, fiscalDate });
+}
 
 const responseCache = new Map();
 const resultCache = new Map();
@@ -62,7 +74,7 @@ export async function fetchSecOfficialActuals({
 
   const supportedCandidates = [];
   for (const event of publishedCandidates) {
-    if (KNOWN_CIK_BY_SYMBOL.has(event.symbol)) {
+    if (isSecOfficialActualSupportedEvent(event.symbol, event.fiscalDate)) {
       if (supportedCandidates.length < SEC_MAX_EVENTS_PER_REQUEST) supportedCandidates.push(event);
     } else {
       output.set(event.key, statusResult(event, 'unsupported', 'official-adapter-not-supported'));
@@ -138,6 +150,8 @@ export function mergeSecOfficialActuals(events, officialActuals) {
         epsActual: null,
         actual: null,
         epsPreviousYear: null,
+        epsCurrency: null,
+        epsUnit: null,
         epsActualSource: null,
         epsPreviousYearSource: null,
         epsActualBasis: null,
@@ -190,6 +204,8 @@ export function mergeSecOfficialActuals(events, officialActuals) {
       epsActual: official.epsActual,
       actual: official.epsActual,
       epsPreviousYear: official.epsPreviousYear,
+      epsCurrency: official.epsCurrency ?? event.epsCurrency ?? null,
+      epsUnit: official.epsUnit ?? event.epsUnit ?? null,
       epsDifference,
       difference: epsDifference,
       surprisePercent,
@@ -245,7 +261,9 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
   }
   const filings = normalizeRecentFilings(submissions);
   const tenQ = selectTenQFiling(filings, event.fiscalDate, today);
-  const earnings8K = selectEarnings8KFiling(filings, event.reportDate, today);
+  const earningsFiling = event.symbol === 'TSM'
+    ? selectEarnings6KFiling(filings, event.reportDate, event.fiscalDate, today)
+    : selectEarnings8KFiling(filings, event.reportDate, today);
 
   if (tenQ) {
     try {
@@ -274,12 +292,12 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
         return result;
       }
     } catch {
-      // A same-quarter 8-K exhibit remains a valid independent fallback.
+      // A same-quarter earnings exhibit remains a valid independent fallback.
     }
   }
 
-  if (earnings8K) {
-    const filingUrl = buildFilingIndexUrl(cik, earnings8K.accession);
+  if (earningsFiling) {
+    const filingUrl = buildFilingIndexUrl(cik, earningsFiling.accession);
     try {
       const indexHtml = await fetchTextCached(filingUrl, {
         ...context,
@@ -302,7 +320,7 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
           const result = completeResult({
             event,
             cik,
-            filing: earnings8K,
+            filing: earningsFiling,
             filingUrl,
             exhibitUrl,
             parsed,
@@ -317,9 +335,9 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
     }
     const pending = statusResult(event, 'pending', 'official-filing-unparsed', {
       secCik: cik,
-      accession: earnings8K.accession,
-      form: earnings8K.form,
-      filedAt: earnings8K.acceptedAt || earnings8K.filingDate,
+      accession: earningsFiling.accession,
+      form: earningsFiling.form,
+      filedAt: earningsFiling.acceptedAt || earningsFiling.filingDate,
       filingUrl,
     });
     writeCache(resultCache, cacheKey, pending, MISS_CACHE_TTL_MS, context);
@@ -442,6 +460,21 @@ function selectEarnings8KFiling(filings, reportDate, today) {
   return (filings || [])
     .filter((filing) => /^8-K(?:\/A)?$/.test(filing.form))
     .filter((filing) => /(?:^|,)\s*2\.02(?:,|$)/.test(filing.items))
+    .filter((filing) => filing.filingDate <= today)
+    .map((filing) => ({
+      filing,
+      distance: dayDifference(target, parseDate(filing.filingDate)),
+    }))
+    .filter(({ distance }) => distance >= -2 && distance <= 14)
+    .sort((a, b) => Math.abs(a.distance) - Math.abs(b.distance) || b.filing.filingDate.localeCompare(a.filing.filingDate))[0]?.filing || null;
+}
+
+function selectEarnings6KFiling(filings, reportDate, fiscalDate, today) {
+  const target = parseDate(reportDate);
+  if (!target || !fiscalDate) return null;
+  return (filings || [])
+    .filter((filing) => /^6-K(?:\/A)?$/.test(filing.form))
+    .filter((filing) => filing.reportDate === fiscalDate)
     .filter((filing) => filing.filingDate <= today)
     .map((filing) => ({
       filing,

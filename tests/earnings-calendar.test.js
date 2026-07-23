@@ -21,6 +21,7 @@ import {
   normalizeEarningsEvents,
   shouldPromoteEarningsCalendar,
 } from '../src/lib/earningsCalendarModel.js';
+import { OFFICIAL_ACTUAL_SCHEMA_VERSION } from '../server/earnings/secOfficialActuals.js';
 
 function createResponse() {
   return {
@@ -79,8 +80,10 @@ test('earnings calendar request validates symbols and date range', () => {
     from: '2026-07-01',
     to: '2026-07-31',
     includePreviousPublished: false,
+    forceOfficialRefresh: false,
   });
   assert.equal(parseEarningsRequest({ symbols: 'NVDA', includePreviousPublished: '1' }).includePreviousPublished, true);
+  assert.equal(parseEarningsRequest({ symbols: 'TSM', refresh: '1' }).forceOfficialRefresh, true);
   assert.deepEqual(previousCalendarQuarterRange('2026-07-09'), { from: '2026-04-01', to: '2026-06-30' });
   assert.deepEqual(previousCalendarQuarterRange('2026-01-15'), { from: '2025-10-01', to: '2025-12-31' });
 
@@ -216,6 +219,9 @@ test('earnings model keeps SEC provenance and metric bases through normalization
     code: 'TSLA.US',
     report_date: '2026-07-22',
     date: '2026-06-30',
+    currency: 'TWD',
+    epsCurrency: 'USD',
+    epsUnit: 'USD/ADR',
     epsActual: 0.32,
     epsPreviousYear: 0.33,
     epsActualSource: 'sec-exhibit',
@@ -226,7 +232,7 @@ test('earnings model keeps SEC provenance and metric bases through normalization
     ebitActual: 398_000_000,
     ebitActualSource: 'sec-exhibit',
     ebitActualBasis: 'OperatingIncomeLoss',
-    officialActualSchemaVersion: 1,
+    officialActualSchemaVersion: OFFICIAL_ACTUAL_SCHEMA_VERSION,
     officialActualStatus: 'complete',
     officialActualSource: 'sec-exhibit',
     secCik: '0001318605',
@@ -236,7 +242,10 @@ test('earnings model keeps SEC provenance and metric bases through normalization
     secFilingUrl: 'https://www.sec.gov/example',
   }]);
 
-  assert.equal(event.officialActualSchemaVersion, 1);
+  assert.equal(event.officialActualSchemaVersion, OFFICIAL_ACTUAL_SCHEMA_VERSION);
+  assert.equal(event.currency, 'TWD');
+  assert.equal(event.epsCurrency, 'USD');
+  assert.equal(event.epsUnit, 'USD/ADR');
   assert.equal(event.officialActualStatus, 'complete');
   assert.equal(event.epsActualBasis, 'EarningsPerShareDiluted');
   assert.equal(event.revenueActualSource, 'sec-exhibit');
@@ -271,7 +280,7 @@ test('published earnings enrichment overlays SEC actuals without changing EODHD 
     fetchEodRows: async () => new Map([['TSLA', []]]),
     fetchOfficialActuals: async () => new Map([['TSLA|2026-06-30', {
       key: 'TSLA|2026-06-30',
-      officialActualSchemaVersion: 1,
+      officialActualSchemaVersion: OFFICIAL_ACTUAL_SCHEMA_VERSION,
       officialActualStatus: 'complete',
       officialActualSource: 'sec-exhibit',
       actualBasis: 'gaap',
@@ -338,6 +347,41 @@ test('official enrichment uses the New York retention date across the UTC evenin
 
   assert.equal(officialCandidates.length, 1);
   assert.equal(officialCandidates[0].reportDate, '2026-07-20');
+});
+
+test('explicit refresh lets an older supported TSM event migrate to the official adapter', async () => {
+  const seenCandidates = [];
+  const run = (includeOfficialMigration, reportDate = '2026-07-16') => enrichPublishedEarningsData({
+    events: [{
+      symbol: 'TSM',
+      code: 'TSM.US',
+      reportDate,
+      fiscalDate: '2026-06-30',
+      session: 'pre',
+      currency: 'TWD',
+      epsActual: 4.31,
+      epsEstimate: 3.89,
+    }],
+    eodhdKey: 'test-key',
+    now: new Date('2026-07-23T12:00:00.000Z'),
+    includeOfficialMigration,
+    fetchPublishedFundamentals: async () => new Map([['TSM', {
+      sector: 'Technology',
+      incomeRows: [],
+      earningsHistoryRows: [],
+    }]]),
+    fetchEodRows: async () => new Map([['TSM', []]]),
+    fetchOfficialActuals: async ({ events }) => {
+      seenCandidates.push(events.map((event) => event.symbol));
+      return new Map();
+    },
+  });
+
+  await run(false);
+  await run(true);
+  await run(true, '2026-06-01');
+
+  assert.deepEqual(seenCandidates, [[], ['TSM'], []]);
 });
 
 test('earnings model keeps published reports visible for two days with result status', () => {

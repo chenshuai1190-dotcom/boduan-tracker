@@ -1,0 +1,39 @@
+{
+  "cik": "0001046179",
+  "name": "Taiwan Semiconductor Manufacturing Company Limited",
+  "tickers": [
+    "TSM"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001046179-26-000451",
+        "0001046179-26-000440"
+      ],
+      "filingDate": [
+        "2026-07-16",
+        "2026-07-10"
+      ],
+      "reportDate": [
+        "2026-06-30",
+        "2026-07-10"
+      ],
+      "acceptanceDateTime": [
+        "2026-07-16T11:45:43.000Z",
+        "2026-07-10T10:00:00.000Z"
+      ],
+      "form": [
+        "6-K",
+        "6-K"
+      ],
+      "items": [
+        "",
+        ""
+      ],
+      "primaryDocument": [
+        "tsm-20260716x6k.htm",
+        "tsm-revenue20260710.htm"
+      ]
+    }
+  }
+}
