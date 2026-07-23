@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import handler, { parseEarningsDetailRequest } from '../api/earnings-detail.js';
+import handler from '../api/earnings-calendar.js';
 import {
   SEC_EARNINGS_DETAIL_SCHEMA_VERSION,
   clearSecEarningsDetailCachesForTests,
   fetchSecEarningsDetail,
+  parseEarningsDetailRequest,
   parseSecEarningsDetailPrimaryDocument,
 } from '../server/earnings/secEarningsDetail.js';
 import { fetchSecTenQPrimaryDocument } from '../server/earnings/secOfficialActuals.js';
@@ -543,28 +544,59 @@ test('earnings detail API preserves 401, 405, and 400 boundaries', async () => {
     process.env.QUOTE_API_AUTH_REQUIRED = 'true';
     const unauthorized = createResponse();
     await handler(createRequest({
-      query: { symbol: 'GOOGL', fiscalDate: '2026-06-30' },
+      query: { operation: 'detail', symbol: 'GOOGL', fiscalDate: '2026-06-30' },
     }), unauthorized);
     assert.equal(unauthorized.statusCode, 401);
     assert.match(unauthorized.body.error, /未授权/);
+    assert.equal(unauthorized.headers['Cache-Control'], 'private, no-store');
 
     const methodNotAllowed = createResponse();
     await handler(createRequest({
       method: 'POST',
-      query: { symbol: 'GOOGL', fiscalDate: '2026-06-30' },
+      query: { operation: 'detail', symbol: 'GOOGL', fiscalDate: '2026-06-30' },
     }), methodNotAllowed);
     assert.equal(methodNotAllowed.statusCode, 405);
     assert.equal(methodNotAllowed.headers.Allow, 'GET, OPTIONS');
+    assert.equal(methodNotAllowed.headers['Cache-Control'], 'private, no-store');
 
     process.env.QUOTE_API_AUTH_REQUIRED = 'false';
     const invalid = createResponse();
     await handler(createRequest({
-      query: { symbol: 'MSFT', fiscalDate: 'not-a-date' },
+      query: { operation: 'detail', symbol: 'MSFT', fiscalDate: 'not-a-date' },
     }), invalid);
     assert.equal(invalid.statusCode, 400);
     assert.match(invalid.body.error, /日期|date|暂不支持|supported/i);
+    assert.equal(invalid.headers['Cache-Control'], 'private, no-store');
   } finally {
     if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
     else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+  }
+});
+
+test('earnings detail branch does not require the calendar EODHD key', async () => {
+  const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
+  const originalEodhdKey = process.env.EODHD_API_KEY;
+  try {
+    process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+    delete process.env.EODHD_API_KEY;
+    const res = createResponse();
+    await handler(createRequest({
+      query: {
+        operation: 'detail',
+        symbol: 'GOOGL',
+        fiscalDate: '2099-06-30',
+        reportDate: '2099-07-22',
+      },
+    }), res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.status, 'pending');
+    assert.equal(res.headers['Cache-Control'], 'private, max-age=300');
+  } finally {
+    if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
+    else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
+    if (originalEodhdKey === undefined) delete process.env.EODHD_API_KEY;
+    else process.env.EODHD_API_KEY = originalEodhdKey;
   }
 });

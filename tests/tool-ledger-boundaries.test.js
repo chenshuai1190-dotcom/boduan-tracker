@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { inflateSync } from 'node:zlib';
 
@@ -74,6 +74,7 @@ const accountSessionVaultSource = readFileSync(new URL('../src/lib/accountSessio
 const userScopedStorageSource = readFileSync(new URL('../src/lib/userScopedStorage.js', import.meta.url), 'utf8');
 const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.meta.url), 'utf8');
 const earningsCalendarApiSource = readFileSync(new URL('../api/earnings-calendar.js', import.meta.url), 'utf8');
+const earningsDetailServerSource = readFileSync(new URL('../server/earnings/secEarningsDetail.js', import.meta.url), 'utf8');
 const registerApiSource = readFileSync(new URL('../api/register.js', import.meta.url), 'utf8');
 const quoteApiSource = readFileSync(new URL('../api/quote.js', import.meta.url), 'utf8');
 const pnlBenchmarkApiSource = readFileSync(new URL('../api/pnl-benchmark.js', import.meta.url), 'utf8');
@@ -89,6 +90,9 @@ const indicesProviderSource = readFileSync(new URL('../server/quote/providers/in
 const inviteServerSource = readFileSync(new URL('../server/inviteCodes.js', import.meta.url), 'utf8');
 const pnlDailySnapshotServerSource = readFileSync(new URL('../server/pnlReportDailySnapshot.js', import.meta.url), 'utf8');
 const vercelConfigSource = readFileSync(new URL('../vercel.json', import.meta.url), 'utf8');
+const vercelConfig = JSON.parse(vercelConfigSource);
+const apiServerlessFunctionFiles = readdirSync(new URL('../api/', import.meta.url))
+  .filter((name) => name.endsWith('.js'));
 const rlsSource = readFileSync(new URL('../supabase/rls.sql', import.meta.url), 'utf8');
 const inviteSqlSource = readFileSync(new URL('../supabase/invite_codes.sql', import.meta.url), 'utf8');
 const communityProfilesSqlSource = readFileSync(new URL('../supabase/community_profiles.sql', import.meta.url), 'utf8');
@@ -448,6 +452,24 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(devVisualPreviewSource.includes("'AAPL', 'AMD', 'AMZN', 'AVGO', 'GOOGL', 'META', 'MSFT', 'NFLX', 'NVDA', 'QQQ', 'TSLA', 'TSM'"), 'static preview should stress-test the holding card with twelve symbols');
   assert.ok(i18nSource.includes("'competition.toolEntry': '社区比赛'"), 'Chinese i18n should include the competition tool entry');
   assert.ok(i18nSource.includes("'competition.toolEntry': 'Community'"), 'English i18n should include the competition tool entry');
+});
+
+test('earnings detail reuses the authenticated earnings calendar function within the Vercel Hobby limit', () => {
+  const handlerStart = earningsCalendarApiSource.indexOf('export default async function handler');
+  const authIndex = earningsCalendarApiSource.indexOf('await requireQuoteAuth(req, res)', handlerStart);
+  const detailBranchIndex = earningsCalendarApiSource.indexOf("singleQueryValue(req.query?.operation) === 'detail'", handlerStart);
+  const eodhdKeyIndex = earningsCalendarApiSource.indexOf('process.env.EODHD_API_KEY', handlerStart);
+
+  assert.ok(apiServerlessFunctionFiles.length <= 12, 'Vercel Hobby deployments must stay within 12 api serverless functions');
+  assert.equal(existsSync(new URL('../api/earnings-detail.js', import.meta.url)), false, 'earnings detail must not allocate a thirteenth serverless function');
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/earnings-detail'
+    && rewrite.destination === '/api/earnings-calendar?operation=detail'
+  )), 'the public earnings detail path should rewrite to the existing calendar function');
+  assert.ok(authIndex >= 0 && authIndex < detailBranchIndex, 'earnings detail dispatch must happen only after the shared auth gate');
+  assert.ok(detailBranchIndex < eodhdKeyIndex, 'SEC detail reads must not depend on the calendar EODHD key');
+  assert.ok(earningsCalendarApiSource.includes('handleEarningsDetailRequest(req, res)'), 'the calendar handler should dispatch detail requests explicitly');
+  assert.ok(earningsDetailServerSource.includes('export function parseEarningsDetailRequest'), 'detail validation should remain in the SEC detail server boundary');
 });
 
 test('community profile settings use a dedicated public identity table without storage uploads', () => {

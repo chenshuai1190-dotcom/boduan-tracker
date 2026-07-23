@@ -7,6 +7,10 @@ import {
   mergeSecOfficialActuals,
 } from '../server/earnings/secOfficialActuals.js';
 import {
+  fetchSecEarningsDetail,
+  parseEarningsDetailRequest,
+} from '../server/earnings/secEarningsDetail.js';
+import {
   classifyEarningsResult,
   dateKey,
   EARNINGS_PUBLISHED_RETENTION_DAYS,
@@ -36,7 +40,7 @@ const USD_FOREX_SYMBOL_BY_CURRENCY = {
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
-  res.setHeader('Cache-Control', 'private, max-age=900, stale-while-revalidate=1800');
+  res.setHeader('Cache-Control', 'private, no-store');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') {
@@ -46,6 +50,10 @@ export default async function handler(req, res) {
 
   const auth = await requireQuoteAuth(req, res);
   if (!auth.ok) return;
+
+  if (singleQueryValue(req.query?.operation) === 'detail') {
+    return handleEarningsDetailRequest(req, res);
+  }
 
   const parsed = parseEarningsRequest(req.query);
   if (parsed.error) return sendError(res, 400, parsed.error);
@@ -77,6 +85,7 @@ export default async function handler(req, res) {
     });
     const normalized = mergeEarningsRevenueUsd(enriched, fxRates);
 
+    res.setHeader('Cache-Control', 'private, max-age=900, stale-while-revalidate=1800');
     return res.status(200).json({
       success: true,
       source: 'EODHD',
@@ -87,6 +96,29 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     return sendError(res, 502, `财报日历读取失败: ${sanitizeError(error)}`);
+  }
+}
+
+export async function handleEarningsDetailRequest(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  const parsed = parseEarningsDetailRequest(req.query);
+  if (parsed.error) return sendError(res, 400, parsed.error);
+
+  try {
+    const detail = await fetchSecEarningsDetail(parsed);
+    res.setHeader(
+      'Cache-Control',
+      detail.status === 'complete' || detail.status === 'partial'
+        ? 'private, max-age=21600, stale-while-revalidate=1800'
+        : 'private, max-age=300',
+    );
+    return res.status(200).json({
+      success: true,
+      ...detail,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch {
+    return sendError(res, 502, '财报详情读取失败');
   }
 }
 
@@ -755,6 +787,11 @@ function readFxRate(fxRates, currency) {
   if (typeof item === 'number') return item;
   const rate = parseNumber(item?.localPerUsd ?? item?.rate);
   return rate > 0 ? rate : null;
+}
+
+function singleQueryValue(value) {
+  if (Array.isArray(value)) return value.length === 1 ? String(value[0] || '').trim() : '';
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function readFxSource(fxRates, currency) {
