@@ -1,0 +1,52 @@
+{
+  "snapshotDate": "2026-07-23",
+  "fiscalDate": "2026-06-30",
+  "basis": "GAAP",
+  "events": {
+    "TSLA": {
+      "cik": "0001318605",
+      "accession": "0001628280-26-049213",
+      "form": "8-K",
+      "filedAt": "2026-07-22T20:35:52.000Z",
+      "exhibitDocument": "exhibit991.htm",
+      "revenueActual": 28236000000,
+      "revenuePreviousYear": 22496000000,
+      "operatingIncomeActual": 398000000,
+      "operatingIncomePreviousYear": 923000000,
+      "epsActual": 0.32,
+      "epsPreviousYear": 0.33,
+      "nonGaapEpsActual": 0.33,
+      "nonGaapEpsPreviousYear": 0.4
+    },
+    "GOOGL": {
+      "cik": "0001652044",
+      "accession": "0001652044-26-000066",
+      "form": "8-K",
+      "filedAt": "2026-07-22T20:01:36.000Z",
+      "exhibitDocument": "googexhibit991q22026.htm",
+      "revenueActual": 119796000000,
+      "revenuePreviousYear": 96428000000,
+      "operatingIncomeActual": 40770000000,
+      "operatingIncomePreviousYear": 31271000000,
+      "incomeBeforeTaxActual": 138753000000,
+      "epsActual": 9.11,
+      "epsPreviousYear": 2.31
+    },
+    "IBKR": {
+      "cik": "0001381197",
+      "accession": "0001381197-26-000118",
+      "form": "8-K",
+      "filedAt": "2026-07-21T20:11:00.000Z",
+      "exhibitDocument": "ibkr-ex99_1.htm",
+      "netRevenueActual": 1896000000,
+      "netRevenuePreviousYear": 1480000000,
+      "incomeBeforeTaxActual": 1456000000,
+      "incomeBeforeTaxPreviousYear": 1104000000,
+      "epsActual": 0.69,
+      "epsPreviousYear": 0.51,
+      "adjustedNetRevenueActual": 1883000000,
+      "adjustedIncomeBeforeTaxActual": 1443000000,
+      "adjustedEpsActual": 0.69
+    }
+  }
+}

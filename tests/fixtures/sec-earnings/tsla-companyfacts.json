@@ -1,0 +1,95 @@
+{
+  "cik": 1318605,
+  "entityName": "Tesla, Inc.",
+  "facts": {
+    "us-gaap": {
+      "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 19335000000,
+              "accn": "0001628280-26-026673",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-23",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 22387000000,
+              "accn": "0001628280-26-026673",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-23",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "OperatingIncomeLoss": {
+        "label": "Operating Income (Loss)",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 399000000,
+              "accn": "0001628280-26-026673",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-23",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 941000000,
+              "accn": "0001628280-26-026673",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-23",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "EarningsPerShareDiluted": {
+        "label": "Earnings Per Share, Diluted",
+        "units": {
+          "USD/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 0.12,
+              "accn": "0001628280-26-026673",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-23",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 0.13,
+              "accn": "0001628280-26-026673",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-23",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

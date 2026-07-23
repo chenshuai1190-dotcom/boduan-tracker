@@ -1,0 +1,35 @@
+{
+  "cik": "0001652044",
+  "name": "Alphabet Inc.",
+  "tickers": [
+    "GOOGL",
+    "GOOG",
+    "GOOGM",
+    "GOOGN"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001652044-26-000066"
+      ],
+      "filingDate": [
+        "2026-07-22"
+      ],
+      "reportDate": [
+        "2026-07-22"
+      ],
+      "acceptanceDateTime": [
+        "2026-07-22T20:01:36.000Z"
+      ],
+      "form": [
+        "8-K"
+      ],
+      "items": [
+        "2.02,9.01"
+      ],
+      "primaryDocument": [
+        "goog-20260722.htm"
+      ]
+    }
+  }
+}

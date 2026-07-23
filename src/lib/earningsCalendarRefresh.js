@@ -8,6 +8,7 @@ import {
 } from './earningsCalendarModel.js';
 
 export const EARNINGS_CALENDAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+export const OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION = 1;
 export const EARNINGS_CALENDAR_RESUME_DEDUPE_MS = 1200;
 export const EARNINGS_CALENDAR_VISIBLE_RETRY_MS = 120;
 export const EARNINGS_CALENDAR_VISIBLE_RETRY_MAX_MS = 6000;
@@ -103,19 +104,14 @@ function hasMarketReaction(event) {
     && Number.isFinite(Number(value));
 }
 
-function hasActualRevenue(event) {
-  return [event?.revenueActualUsd, event?.revenueActual].some((value) => (
-    value !== null
-    && value !== undefined
-    && String(value).trim() !== ''
-    && Number.isFinite(Number(value))
-  ));
-}
-
-function isPublishedRevenueRefreshDue(event, reportDate, clock) {
-  if (hasActualRevenue(event)) return false;
+function isPublishedFinancialsRefreshDue(event, reportDate, clock) {
   if (clock.date > addUtcDays(reportDate, EARNINGS_PUBLISHED_RETENTION_DAYS)) return false;
   if (clock.date === reportDate && !isDueOnReportDate(event, clock)) return false;
+  if (Number(event?.officialActualSchemaVersion) !== OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION) return true;
+  if (event?.officialActualStatus === 'complete') return false;
+  if (event?.officialActualStatus === 'partial' || event?.officialActualStatus === 'pending') return true;
+  if (event?.publishedFinancialsComplete === true) return false;
+  if (event?.publishedFinancialsComplete === false) return true;
   return true;
 }
 
@@ -145,9 +141,9 @@ export function getEarningsRefreshCandidates(events = [], now = Date.now) {
     const symbol = normalizeEarningsSymbol(event.symbol || event.code || event.ticker);
     if (!reportDate || !symbol || reportDate > clock.date) continue;
     if (isEarningsPublished(event)) {
-      const needsRevenue = isPublishedRevenueRefreshDue(event, reportDate, clock);
+      const needsFinancials = isPublishedFinancialsRefreshDue(event, reportDate, clock);
       const needsMarketReaction = isMarketReactionRefreshDue(event, reportDate, clock);
-      if (!needsRevenue && !needsMarketReaction) continue;
+      if (!needsFinancials && !needsMarketReaction) continue;
     } else {
       if (reportDate < oldestDate) continue;
       if (reportDate === clock.date && !isDueOnReportDate(event, clock)) continue;
@@ -197,11 +193,47 @@ function isMissingActualFieldValue(value) {
 
 function isActualResultField(key) {
   return (key.startsWith('epsActual') && key !== 'epsActualYoyPercent')
+    || key.startsWith('epsPreviousYear')
     || (key.startsWith('revenueActual') && !/(Yoy|Surprise)/i.test(key))
     || key.startsWith('revenuePreviousYear')
     || (key.startsWith('ebitActual') && key !== 'ebitActualYoyPercent')
     || key.startsWith('ebitPreviousYear')
     || key.startsWith('marketReaction');
+}
+
+function shouldClearSuppressedActualField(key, incoming) {
+  return incoming?.revenueActualSuppressed === true
+    && (key.startsWith('revenueActual') || key.startsWith('revenuePreviousYear'));
+}
+
+function actualSourcePriority(value) {
+  const source = String(value || '').trim().toLowerCase();
+  if (source === 'sec-xbrl') return 40;
+  if (source === 'sec-exhibit') return 30;
+  if (source.startsWith('sec-')) return 20;
+  if (source.startsWith('eodhd-')) return 10;
+  return 0;
+}
+
+function actualGroupSource(event, group) {
+  if (group === 'eps') return event?.epsActualSource;
+  if (group === 'revenue') return event?.revenueActualSource;
+  if (group === 'ebit') return event?.ebitActualSource;
+  return null;
+}
+
+function preserveHigherPriorityActualGroup(merged, current, incoming, group) {
+  if (actualSourcePriority(actualGroupSource(current, group)) <= actualSourcePriority(actualGroupSource(incoming, group))) {
+    return;
+  }
+  const prefixes = group === 'eps'
+    ? ['epsActual', 'epsPreviousYear']
+    : group === 'revenue'
+      ? ['revenueActual', 'revenuePreviousYear']
+      : ['ebitActual', 'ebitPreviousYear'];
+  for (const [key, value] of Object.entries(current || {})) {
+    if (prefixes.some((prefix) => key.startsWith(prefix))) merged[key] = value;
+  }
 }
 
 function numericOrNull(value) {
@@ -256,11 +288,37 @@ function recalculateEarningsDerivedFields(event) {
 
 function mergeEarningsEventPreservingActuals(current, incoming) {
   const merged = { ...current, ...incoming };
-  for (const [key, currentValue] of Object.entries(current || {})) {
-    if (!isActualResultField(key) || isMissingActualFieldValue(currentValue)) continue;
-    if (isMissingActualFieldValue(incoming?.[key])) merged[key] = currentValue;
+  const failClosedOfficialPending = Boolean(incoming?.secCik)
+    && ['pending', 'partial'].includes(incoming?.officialActualStatus)
+    && current?.officialActualStatus !== 'complete';
+  if (!failClosedOfficialPending) {
+    preserveHigherPriorityActualGroup(merged, current, incoming, 'eps');
+    preserveHigherPriorityActualGroup(merged, current, incoming, 'revenue');
+    preserveHigherPriorityActualGroup(merged, current, incoming, 'ebit');
+    for (const [key, currentValue] of Object.entries(current || {})) {
+      if (!isActualResultField(key) || isMissingActualFieldValue(currentValue)) continue;
+      if (shouldClearSuppressedActualField(key, incoming)) continue;
+      if (isMissingActualFieldValue(incoming?.[key])) merged[key] = currentValue;
+    }
   }
-  if (isEarningsPublished(current)) {
+  if (current?.officialActualStatus === 'complete' && incoming?.officialActualStatus !== 'complete') {
+    for (const key of [
+      'officialActualStatus',
+      'officialActualSchemaVersion',
+      'officialActualSource',
+      'officialActualReason',
+      'publishedFinancialsComplete',
+      'secCik',
+      'secAccession',
+      'secForm',
+      'secFiledAt',
+      'secFilingUrl',
+      'secExhibitUrl',
+    ]) {
+      merged[key] = current[key] ?? merged[key];
+    }
+  }
+  if (isEarningsPublished(current) && !failClosedOfficialPending) {
     merged.earningsPublished = true;
     if (isMissingActualFieldValue(incoming?.publishedUntil) && !isMissingActualFieldValue(current?.publishedUntil)) {
       merged.publishedUntil = current.publishedUntil;

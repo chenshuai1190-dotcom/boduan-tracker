@@ -17,7 +17,7 @@
 - React 18 + Vite + Tailwind CSS
 - Supabase Auth + Postgres + RLS
 - Vercel Serverless Functions / Cron
-- EODHD、Yahoo Finance、CNN FGI 等服务端行情源
+- EODHD、SEC EDGAR、Yahoo Finance、CNN FGI 等服务端数据源
 - iOS Home Screen PWA
 
 生产地址：`https://boduan-tracker.vercel.app`
@@ -75,6 +75,7 @@ npm run check:full   # FULL 本地完整门禁
 
 - GitHub `main` 是唯一代码源头。禁止直接在 Vercel、浏览器控制台或临时服务器文件中改代码。
 - `EODHD_API_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`CRON_SECRET` 只能存在于服务端环境；不得放入任何 `VITE_` 变量、日志、截图、测试夹具或仓库文件。
+- SEC EDGAR 只能由服务端访问；可选 `SEC_USER_AGENT` 覆盖值不得放入任何 `VITE_` 变量或客户端代码。
 - `/api/quote`、`/api/earnings-calendar`、P&L、比赛和 realtime relay 必须保持登录鉴权；Cron 和修复入口必须保持 `CRON_SECRET` 保护。
 - 浏览器不得直连或暴露付费行情 token。BTC、指数和股票 realtime 统一走已登录服务端 relay。
 - 所有用户表必须保持 owner scope。任何 `auth.uid()`、`user_id`、grant、policy、SECURITY DEFINER、trigger、schema 或 migration 变化都属于 FULL。
@@ -107,6 +108,7 @@ Frontend：
 Server：
 
 - `EODHD_API_KEY`
+- `SEC_USER_AGENT`（SEC EDGAR 公平访问标识；建议包含应用名与可联系邮箱）
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `CRON_SECRET`
 - `QUOTE_API_AUTH_REQUIRED=true`

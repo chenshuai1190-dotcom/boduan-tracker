@@ -2,6 +2,10 @@ import { requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
 import { sendError } from '../server/quote/errors.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from '../server/quote/http.js';
 import {
+  fetchSecOfficialActuals,
+  mergeSecOfficialActuals,
+} from '../server/earnings/secOfficialActuals.js';
+import {
   classifyEarningsResult,
   dateKey,
   EARNINGS_PUBLISHED_RETENTION_DAYS,
@@ -14,6 +18,11 @@ import {
 const MAX_EARNINGS_SYMBOLS = 30;
 const MAX_RANGE_DAYS = 90;
 const INCLUDE_PREVIOUS_PUBLISHED_PARAM = 'includePreviousPublished';
+const PUBLISHED_FUNDAMENTALS_FILTER = [
+  'General::Sector',
+  'Financials::Income_Statement::quarterly',
+  'Earnings::History',
+].join(',');
 const USD_FOREX_SYMBOL_BY_CURRENCY = {
   CNY: 'USDCNY.FOREX',
   EUR: 'USDEUR.FOREX',
@@ -338,22 +347,47 @@ export function mergeEarningsRevenueUsd(events, fxRates = new Map()) {
   });
 }
 
-export async function enrichPublishedEarningsData({ events, eodhdKey }) {
-  const published = (events || []).filter((event) => parseNumber(event.epsActual) !== null);
-  if (published.length === 0) return events || [];
+export async function enrichPublishedEarningsData({
+  events,
+  eodhdKey,
+  now = new Date(),
+  fetchPublishedFundamentals = fetchEodhdPublishedFundamentals,
+  fetchEodRows = fetchEodhdEodRowsForEarnings,
+  fetchOfficialActuals = fetchSecOfficialActuals,
+} = {}) {
+  const inputEvents = events || [];
+  const today = newYorkDateKey(now) || newYorkDateKey(new Date());
+  const recentPublishedFrom = addUtcDays(today, -EARNINGS_PUBLISHED_RETENTION_DAYS);
+  const eodhdPublished = inputEvents.filter((event) => parseNumber(event.epsActual) !== null);
+  const secCandidates = inputEvents.filter((event) => {
+    const reportDate = dateKey(event?.reportDate || event?.report_date);
+    return reportDate && reportDate >= recentPublishedFrom && reportDate <= today;
+  });
+  const candidates = dedupeEarningsEvents([...eodhdPublished, ...secCandidates]);
+  if (candidates.length === 0) return inputEvents;
 
-  const symbols = Array.from(new Set(published.map((event) => event.symbol).filter(Boolean)));
-  const [incomeRowsBySymbol, eodRowsBySymbol] = await Promise.all([
-    fetchEodhdQuarterlyIncomeStatements({ symbols, eodhdKey }),
-    fetchEodhdEodRowsForEarnings({ events: published, eodhdKey }),
+  const candidateKeys = new Set(candidates.map(earningsActualKey));
+  const symbols = Array.from(new Set(candidates.map((event) => event.symbol).filter(Boolean)));
+  const [fundamentalsBySymbol, eodRowsBySymbol, officialActuals] = await Promise.all([
+    fetchPublishedFundamentals({ symbols, eodhdKey }),
+    fetchEodRows({ events: candidates, eodhdKey }),
+    fetchOfficialActuals({ events: secCandidates, now }),
   ]);
 
-  return (events || []).map((event) => {
-    if (parseNumber(event.epsActual) === null) return event;
-    const incomeRows = incomeRowsBySymbol.get(event.symbol) || [];
+  const eodhdEnriched = inputEvents.map((event) => {
+    if (!candidateKeys.has(earningsActualKey(event))) return event;
+    const fundamentals = fundamentalsBySymbol.get(event.symbol) || {};
+    const incomeRows = fundamentals.incomeRows || [];
+    const earningsHistoryRows = fundamentals.earningsHistoryRows || [];
     const incomeRow = incomeRows.find((row) => dateKey(row.date) === event.fiscalDate) || null;
     const previousIncomeRow = incomeRows.find((row) => dateKey(row.date) === previousYearDate(event.fiscalDate)) || null;
-    const reportedEbit = resolveReportedEbit(incomeRow, previousIncomeRow);
+    const financialServices = isFinancialServicesSector(fundamentals.sector);
+    const reportedRevenue = resolveReportedRevenue(incomeRow, previousIncomeRow, fundamentals.sector);
+    const reportedEbit = resolveReportedEbit(incomeRow, previousIncomeRow, fundamentals.sector);
+    const reportedEps = resolvePublishedEps(event, earningsHistoryRows);
+    const publishedFinancialsComplete = financialServices
+      ? reportedEbit.actual !== null
+      : reportedRevenue.actual !== null && reportedEbit.actual !== null;
     const eodRows = eodRowsBySymbol.get(event.symbol) || [];
     const reaction = calculateEarningsMarketReaction({
       rows: eodRows,
@@ -362,18 +396,33 @@ export async function enrichPublishedEarningsData({ events, eodhdKey }) {
     });
     return {
       ...event,
-      revenueActual: parseNumber(incomeRow?.totalRevenue),
-      revenueActualOriginalCurrency: normalizeCurrency(incomeRow?.currency_symbol || incomeRow?.currency || event.currency) || event.currency,
-      revenueActualSource: incomeRow ? 'eodhd-fundamentals-income-statement' : null,
-      revenuePreviousYear: parseNumber(previousIncomeRow?.totalRevenue),
-      revenuePreviousYearOriginalCurrency: normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency,
-      revenuePreviousYearSource: previousIncomeRow ? 'eodhd-fundamentals-income-statement' : null,
+      epsActual: reportedEps.actual,
+      epsActualSource: reportedEps.source,
+      epsPreviousYear: reportedEps.previousYear,
+      epsDifference: calculateEpsDifference(reportedEps.actual, event.epsEstimate),
+      surprisePercent: calculateEpsSurprisePercent(reportedEps.actual, event.epsEstimate),
+      publishedFinancialsComplete,
+      revenueActual: reportedRevenue.actual,
+      revenueActualSuppressed: financialServices,
+      revenueActualOriginalCurrency: reportedRevenue.actual !== null
+        ? normalizeCurrency(incomeRow?.currency_symbol || incomeRow?.currency || event.currency) || event.currency
+        : null,
+      revenueActualSource: reportedRevenue.actual !== null ? 'eodhd-fundamentals-income-statement' : null,
+      revenuePreviousYear: reportedRevenue.previousYear,
+      revenuePreviousYearOriginalCurrency: reportedRevenue.previousYear !== null
+        ? normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency
+        : null,
+      revenuePreviousYearSource: reportedRevenue.previousYear !== null ? 'eodhd-fundamentals-income-statement' : null,
       ebitActual: reportedEbit.actual,
-      ebitActualOriginalCurrency: normalizeCurrency(incomeRow?.currency_symbol || incomeRow?.currency || event.currency) || event.currency,
+      ebitActualOriginalCurrency: reportedEbit.actual !== null
+        ? normalizeCurrency(incomeRow?.currency_symbol || incomeRow?.currency || event.currency) || event.currency
+        : null,
       ebitActualSource: reportedEbit.actual !== null ? 'eodhd-fundamentals-income-statement' : null,
       ebitActualBasis: reportedEbit.basis,
       ebitPreviousYear: reportedEbit.previousYear,
-      ebitPreviousYearOriginalCurrency: normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency,
+      ebitPreviousYearOriginalCurrency: reportedEbit.previousYear !== null
+        ? normalizeCurrency(previousIncomeRow?.currency_symbol || previousIncomeRow?.currency || event.currency) || event.currency
+        : null,
       ebitPreviousYearSource: reportedEbit.previousYear !== null ? 'eodhd-fundamentals-income-statement' : null,
       ebitPreviousYearBasis: reportedEbit.previousYear !== null ? reportedEbit.basis : null,
       marketReactionPercent: reaction?.percent ?? null,
@@ -382,38 +431,124 @@ export async function enrichPublishedEarningsData({ events, eodhdKey }) {
       marketReactionSession: reaction?.session ?? event.session ?? null,
     };
   });
+
+  return mergeSecOfficialActuals(eodhdEnriched, officialActuals).map((event) => {
+    if (!candidateKeys.has(earningsActualKey(event))) return event;
+    const epsDifference = calculateEpsDifference(event.epsActual, event.epsEstimate);
+    const surprisePercent = calculateEpsSurprisePercent(event.epsActual, event.epsEstimate);
+    return {
+      ...event,
+      actual: event.epsActual,
+      epsDifference,
+      difference: epsDifference,
+      surprisePercent,
+      percent: surprisePercent,
+    };
+  });
 }
 
-export function resolveReportedEbit(actualRow, previousRow) {
-  const exactEbit = parseNumber(actualRow?.ebit);
-  const operatingIncome = parseNumber(actualRow?.operatingIncome);
-  const basis = exactEbit !== null ? 'ebit' : operatingIncome !== null ? 'operatingIncome' : null;
-  if (!basis) return { actual: null, previousYear: null, basis: null };
+function dedupeEarningsEvents(events) {
+  const output = new Map();
+  for (const event of events || []) {
+    const key = earningsActualKey(event);
+    if (key && !output.has(key)) output.set(key, event);
+  }
+  return Array.from(output.values());
+}
+
+function earningsActualKey(event) {
+  const symbol = normalizeEarningsSymbol(event?.symbol || event?.code);
+  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  return symbol && fiscalDate ? `${symbol}|${fiscalDate}` : '';
+}
+
+function newYorkDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export function resolveReportedRevenue(actualRow, previousRow, sector = '') {
+  if (isFinancialServicesSector(sector)) {
+    return { actual: null, previousYear: null, basis: null };
+  }
+  const actual = parseNumber(actualRow?.totalRevenue);
+  if (actual === null) return { actual: null, previousYear: null, basis: null };
   return {
-    actual: basis === 'ebit' ? exactEbit : operatingIncome,
+    actual,
+    previousYear: parseNumber(previousRow?.totalRevenue),
+    basis: 'totalRevenue',
+  };
+}
+
+export function resolveReportedEbit(actualRow, previousRow, sector = '') {
+  const basis = isFinancialServicesSector(sector) ? 'incomeBeforeTax' : 'operatingIncome';
+  const actual = parseNumber(actualRow?.[basis]);
+  if (actual === null) return { actual: null, previousYear: null, basis: null };
+  return {
+    actual,
     previousYear: parseNumber(previousRow?.[basis]),
     basis,
   };
 }
 
-export async function fetchEodhdQuarterlyIncomeStatements({ symbols, eodhdKey }) {
+export function resolvePublishedEps(event, earningsHistoryRows = []) {
+  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  const currentRow = earningsHistoryRows.find((row) => dateKey(row?.date) === fiscalDate) || null;
+  const previousRow = earningsHistoryRows.find((row) => dateKey(row?.date) === previousYearDate(fiscalDate)) || null;
+  const historyActual = parseNumber(currentRow?.epsActual);
+  const calendarActual = parseNumber(event?.epsActual);
+  const actual = historyActual ?? calendarActual;
+  const historyPreviousYear = parseNumber(previousRow?.epsActual);
+  return {
+    actual,
+    previousYear: historyPreviousYear ?? parseNumber(event?.epsPreviousYear),
+    source: historyActual !== null
+      ? 'eodhd-fundamentals-earnings-history'
+      : (event?.epsActualSource || (calendarActual !== null ? 'eodhd-calendar' : null)),
+  };
+}
+
+function isFinancialServicesSector(value) {
+  return String(value || '').trim().toLowerCase() === 'financial services';
+}
+
+export async function fetchEodhdPublishedFundamentals({ symbols, eodhdKey }) {
   const entries = await Promise.all((symbols || []).map(async (symbol) => {
+    const normalizedSymbol = normalizeEarningsSymbol(symbol);
     const eodhdSymbol = toEodhdUsSymbol(symbol);
-    if (!eodhdSymbol) return [symbol, []];
+    if (!eodhdSymbol) return [normalizedSymbol, { sector: '', incomeRows: [], earningsHistoryRows: [] }];
     try {
       const url = new URL(`https://eodhd.com/api/v1.1/fundamentals/${eodhdSymbol}`);
       url.searchParams.set('api_token', eodhdKey);
       url.searchParams.set('fmt', 'json');
-      url.searchParams.set('filter', 'Financials::Income_Statement::quarterly');
-      const response = await fetchWithTimeout(url.toString(), {}, { provider: `eodhd:fundamentals-income:${eodhdSymbol}`, timeoutMs: QUOTE_TIMEOUTS.eodhd });
-      if (!response.ok) return [normalizeEarningsSymbol(symbol), []];
+      url.searchParams.set('filter', PUBLISHED_FUNDAMENTALS_FILTER);
+      const response = await fetchWithTimeout(url.toString(), {}, { provider: `eodhd:published-fundamentals:${eodhdSymbol}`, timeoutMs: QUOTE_TIMEOUTS.eodhd });
+      if (!response.ok) return [normalizedSymbol, { sector: '', incomeRows: [], earningsHistoryRows: [] }];
       const body = await response.json();
-      return [normalizeEarningsSymbol(symbol), normalizeObjectRows(body)];
+      return [normalizedSymbol, {
+        sector: String(providerField(body, 'General::Sector') || '').trim(),
+        incomeRows: normalizeObjectRows(providerField(body, 'Financials::Income_Statement::quarterly')),
+        earningsHistoryRows: normalizeObjectRows(providerField(body, 'Earnings::History')),
+      }];
     } catch {
-      return [normalizeEarningsSymbol(symbol), []];
+      return [normalizedSymbol, { sector: '', incomeRows: [], earningsHistoryRows: [] }];
     }
   }));
   return new Map(entries);
+}
+
+function providerField(data, path) {
+  if (!data || typeof data !== 'object') return undefined;
+  if (Object.prototype.hasOwnProperty.call(data, path)) return data[path];
+  return path.split('::').reduce((value, key) => value?.[key], data);
 }
 
 export async function fetchEodhdEodRowsForEarnings({ events, eodhdKey }) {

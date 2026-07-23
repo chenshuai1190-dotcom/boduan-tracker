@@ -879,8 +879,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('estimatePercent={event.revenueEstimateYoyPercent}'), 'published earnings list should use revenue estimate YoY instead of surprise percent');
   assert.ok(earningsCalendarApiSource.includes('trendPeriodRank'), 'earnings calendar API should prefer current-quarter trends over next-quarter trends');
   assert.ok(earningsCalendarApiSource.includes('epsActualYoyPercent'), 'earnings calendar API should expose EPS YoY comparison fields');
-  assert.ok(earningsCalendarApiSource.includes('const exactEbit = parseNumber(actualRow?.ebit)'), 'earnings calendar API should prefer exact quarterly EBIT');
-  assert.ok(earningsCalendarApiSource.includes("basis = exactEbit !== null ? 'ebit' : operatingIncome !== null ? 'operatingIncome' : null"), 'earnings calendar API should use the documented operating-income fallback only when exact EBIT is absent');
+  assert.ok(earningsCalendarApiSource.includes("isFinancialServicesSector(sector) ? 'incomeBeforeTax' : 'operatingIncome'"), 'earnings calendar API should use sector-safe reported profit instead of provider-derived generic EBIT');
+  assert.equal(earningsCalendarApiSource.includes('const exactEbit = parseNumber(actualRow?.ebit)'), false, 'earnings calendar API should not allow provider-derived generic EBIT to override reported operating profit');
+  assert.ok(earningsCalendarApiSource.includes("'Earnings::History'") && earningsCalendarApiSource.includes('resolvePublishedEps'), 'published EPS should refresh from exact-quarter fundamentals history instead of trusting a stale calendar actual');
+  assert.ok(earningsCalendarApiSource.includes("'General::Sector'") && earningsCalendarApiSource.includes('resolveReportedRevenue'), 'published revenue should apply the financial-sector net-revenue safety boundary');
   assert.ok(earningsCalendarApiSource.includes('ebitActualYoyPercent'), 'earnings calendar API should expose reported EBIT YoY comparison fields');
   assert.ok(earningsCalendarRefreshSource.includes("key.startsWith('ebitActual')"), 'partial earnings refreshes should preserve real EBIT fields');
   assert.ok(earningsCalendarSource.includes('isEarningsVisible(event, today)'), 'earnings calendar should keep published events visible through the retention window');

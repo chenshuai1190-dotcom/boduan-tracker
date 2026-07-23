@@ -13,6 +13,16 @@ import {
   resetEarningsRefreshRequestsForTests,
 } from '../src/lib/earningsCalendarRefresh.js';
 
+const officialComplete = {
+  officialActualSchemaVersion: 1,
+  officialActualStatus: 'complete',
+};
+
+const officialUnsupported = {
+  officialActualSchemaVersion: 1,
+  officialActualStatus: 'unsupported',
+};
+
 class FakeEventTarget {
   constructor() {
     this.listeners = new Map();
@@ -147,9 +157,9 @@ test('earnings refresh never treats time or estimates as published and stops onl
     { symbol: 'NVDA', reportDate: '2026-07-13', session: 'post' },
     { symbol: 'OLD', reportDate: '2026-07-12', session: 'pre' },
     { symbol: 'FUTURE', reportDate: '2026-07-16', session: 'pre' },
-    { symbol: 'ZEROEPS', reportDate: '2026-07-15', session: 'pre', epsActual: 0, revenueActualUsd: 1 },
-    { symbol: 'ZEROREV', reportDate: '2026-07-15', session: 'pre', revenueActualUsd: 0 },
-    { symbol: 'FLAGGED', reportDate: '2026-07-15', session: 'pre', earningsPublished: true, revenueActualUsd: 1 },
+    { ...officialComplete, symbol: 'ZEROEPS', reportDate: '2026-07-15', session: 'pre', epsActual: 0, revenueActualUsd: 1, publishedFinancialsComplete: true },
+    { ...officialComplete, symbol: 'ZEROREV', reportDate: '2026-07-15', session: 'pre', revenueActualUsd: 0, publishedFinancialsComplete: true },
+    { ...officialComplete, symbol: 'FLAGGED', reportDate: '2026-07-15', session: 'pre', earningsPublished: true, revenueActualUsd: 1, publishedFinancialsComplete: true },
   ], now);
 
   assert.deepEqual(candidates.map((event) => event.symbol), ['ASML', 'NVDA']);
@@ -157,8 +167,8 @@ test('earnings refresh never treats time or estimates as published and stops onl
 
 test('published pre-market earnings wait for the report-day close before filling a missing market reaction', () => {
   const events = [
-    { symbol: 'ASML', reportDate: '2026-07-15', session: 'pre', epsActual: 7.58, revenueActualUsd: 1, marketReactionPercent: null },
-    { symbol: 'READY', reportDate: '2026-07-15', session: 'pre', epsActual: 1, revenueActualUsd: 1, marketReactionPercent: 0 },
+    { ...officialComplete, symbol: 'ASML', reportDate: '2026-07-15', session: 'pre', epsActual: 7.58, revenueActualUsd: 1, publishedFinancialsComplete: true, marketReactionPercent: null },
+    { ...officialComplete, symbol: 'READY', reportDate: '2026-07-15', session: 'pre', epsActual: 1, revenueActualUsd: 1, publishedFinancialsComplete: true, marketReactionPercent: 0 },
   ];
 
   assert.deepEqual(
@@ -173,7 +183,7 @@ test('published pre-market earnings wait for the report-day close before filling
 
 test('published post-market earnings wait for the next possible trading-day close and skip the weekend', () => {
   const events = [
-    { symbol: 'NFLX', reportDate: '2026-07-17', session: 'post', epsActual: 1.25, revenueActualUsd: 1, marketReactionPercent: null },
+    { ...officialComplete, symbol: 'NFLX', reportDate: '2026-07-17', session: 'post', epsActual: 1.25, revenueActualUsd: 1, publishedFinancialsComplete: true, marketReactionPercent: null },
   ];
 
   assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-17T20:00:00Z')).length, 0);
@@ -188,7 +198,7 @@ test('published post-market earnings wait for the next possible trading-day clos
 
 test('a missing published reaction keeps a short weekday retry window for delayed holiday EOD data', () => {
   const events = [
-    { symbol: 'MSFT', reportDate: '2026-07-16', session: 'post', epsActual: 2, revenueActualUsd: 1, marketReactionPercent: null },
+    { ...officialComplete, symbol: 'MSFT', reportDate: '2026-07-16', session: 'post', epsActual: 2, revenueActualUsd: 1, publishedFinancialsComplete: true, marketReactionPercent: null },
   ];
 
   assert.equal(getEarningsRefreshCandidates(events, Date.parse('2026-07-20T20:00:00Z')).length, 1);
@@ -198,12 +208,14 @@ test('a missing published reaction keeps a short weekday retry window for delaye
 
 test('published ASML keeps refreshing for delayed actual revenue within retention and stops after it arrives', () => {
   const epsOnly = {
+    ...officialUnsupported,
     symbol: 'ASML',
     reportDate: '2026-07-15',
     session: 'pre',
     epsActual: 7.59,
     revenueActual: null,
     revenueActualUsd: null,
+    publishedFinancialsComplete: false,
     marketReactionPercent: 2.2,
   };
 
@@ -226,8 +238,107 @@ test('published ASML keeps refreshing for delayed actual revenue within retentio
     revenueActual: 9_326_000_000,
     revenueActualUsd: 10_182_000_000,
     revenueActualSource: 'eodhd-fundamentals-income-statement',
+    publishedFinancialsComplete: true,
   }]);
   assert.equal(getEarningsRefreshCandidates(complete, Date.parse('2026-07-16T12:00:00Z')).length, 0);
+});
+
+test('legacy published events without a completeness marker receive one bounded migration refresh', () => {
+  const legacy = {
+    symbol: 'IBKR',
+    reportDate: '2026-07-21',
+    session: 'post',
+    epsActual: 0.69,
+    revenueActualUsd: 2_951_000_000,
+    ebitActualUsd: 2_550_000_000,
+    marketReactionPercent: 0,
+  };
+
+  assert.deepEqual(
+    getEarningsRefreshCandidates([legacy], Date.parse('2026-07-22T12:00:00Z')).map((event) => event.symbol),
+    ['IBKR'],
+  );
+  assert.equal(
+    getEarningsRefreshCandidates([legacy], Date.parse('2026-07-24T12:00:00Z')).length,
+    0,
+  );
+});
+
+test('legacy EODHD-complete events still receive one SEC schema migration refresh', () => {
+  const legacyComplete = {
+    symbol: 'TSLA',
+    reportDate: '2026-07-22',
+    session: 'post',
+    epsActual: 0.27,
+    revenueActualUsd: 28_236_000_000,
+    ebitActualUsd: 398_000_000,
+    publishedFinancialsComplete: true,
+    marketReactionPercent: 0,
+  };
+
+  assert.deepEqual(
+    getEarningsRefreshCandidates([legacyComplete], Date.parse('2026-07-23T12:00:00Z')).map((event) => event.symbol),
+    ['TSLA'],
+  );
+});
+
+test('published fundamentals keep refreshing when revenue arrives before operating profit', () => {
+  const partiallySynced = {
+    officialActualSchemaVersion: 1,
+    officialActualStatus: 'partial',
+    symbol: 'TSLA',
+    reportDate: '2026-07-22',
+    session: 'post',
+    epsActual: 0.27,
+    revenueActual: 28_236_000_000,
+    revenueActualUsd: 28_236_000_000,
+    ebitActual: null,
+    ebitActualUsd: null,
+    publishedFinancialsComplete: false,
+    marketReactionPercent: null,
+  };
+  const complete = {
+    ...partiallySynced,
+    officialActualStatus: 'complete',
+    ebitActual: 398_000_000,
+    ebitActualUsd: 398_000_000,
+    publishedFinancialsComplete: true,
+  };
+
+  assert.deepEqual(
+    getEarningsRefreshCandidates(
+      [partiallySynced],
+      Date.parse('2026-07-23T12:00:00Z'),
+    ).map((event) => event.symbol),
+    ['TSLA'],
+  );
+  assert.equal(
+    getEarningsRefreshCandidates([complete], Date.parse('2026-07-23T12:00:00Z')).length,
+    0,
+  );
+});
+
+test('financial revenue suppression stops retrying only after official net revenue and profit arrive', () => {
+  const complete = {
+    ...officialComplete,
+    symbol: 'IBKR',
+    reportDate: '2026-07-21',
+    session: 'post',
+    epsActual: 0.69,
+    revenueActual: 1_896_000_000,
+    revenueActualUsd: 1_896_000_000,
+    revenueActualSuppressed: false,
+    revenueActualSource: 'sec-exhibit',
+    ebitActual: 1_456_000_000,
+    ebitActualUsd: 1_456_000_000,
+    publishedFinancialsComplete: true,
+    marketReactionPercent: 0,
+  };
+
+  assert.equal(
+    getEarningsRefreshCandidates([complete], Date.parse('2026-07-22T12:00:00Z')).length,
+    0,
+  );
 });
 
 test('partial refresh merges ASML actuals without dropping other calendar events or rolling back published data', () => {
@@ -383,6 +494,159 @@ test('partial-null refreshes preserve real actual fields and zero while still ac
     assert.equal(output.earningsPublished, true);
     assert.equal(output.publishedUntil, '2026-07-17');
     assert.equal(output.earningsResult, 'mixed');
+  }
+});
+
+test('an explicit financial revenue suppression clears a previously cached gross actual', () => {
+  const current = [{
+    symbol: 'IBKR',
+    reportDate: '2026-07-21',
+    session: 'post',
+    epsEstimate: 0.64,
+    epsActual: 0.69,
+    revenueEstimateUsd: 1_790_000_000,
+    revenueActual: 2_951_000_000,
+    revenueActualUsd: 2_951_000_000,
+    revenuePreviousYear: 2_467_000_000,
+    revenuePreviousYearUsd: 2_467_000_000,
+    earningsPublished: true,
+  }];
+  const incoming = [{
+    symbol: 'IBKR',
+    reportDate: '2026-07-21',
+    session: 'post',
+    epsEstimate: 0.64,
+    epsActual: 0.69,
+    revenueEstimateUsd: 1_790_000_000,
+    revenueActual: null,
+    revenueActualUsd: null,
+    revenuePreviousYear: null,
+    revenuePreviousYearUsd: null,
+    revenueActualSuppressed: true,
+    earningsPublished: true,
+  }];
+
+  for (const output of [
+    mergeEarningsRefreshEvents(current, incoming)[0],
+    preservePublishedEarningsEvents(current, incoming)[0],
+  ]) {
+    assert.equal(output.revenueActualSuppressed, true);
+    assert.equal(output.revenueActual, null);
+    assert.equal(output.revenueActualUsd, null);
+    assert.equal(output.revenuePreviousYear, null);
+    assert.equal(output.revenuePreviousYearUsd, null);
+    assert.equal(output.revenueSurprisePercent, null);
+    assert.equal(output.revenueActualYoyPercent, null);
+  }
+});
+
+test('a lower-priority EODHD refresh cannot replace or suppress cached SEC official actuals', () => {
+  const current = [{
+    ...officialComplete,
+    symbol: 'IBKR',
+    reportDate: '2026-07-21',
+    session: 'post',
+    epsActual: 0.69,
+    epsPreviousYear: 0.51,
+    epsActualSource: 'sec-exhibit',
+    revenueActual: 1_896_000_000,
+    revenueActualUsd: 1_896_000_000,
+    revenuePreviousYear: 1_480_000_000,
+    revenuePreviousYearUsd: 1_480_000_000,
+    revenueActualSource: 'sec-exhibit',
+    revenueActualSuppressed: false,
+    ebitActual: 1_456_000_000,
+    ebitActualUsd: 1_456_000_000,
+    ebitPreviousYear: 1_104_000_000,
+    ebitPreviousYearUsd: 1_104_000_000,
+    ebitActualSource: 'sec-exhibit',
+    publishedFinancialsComplete: true,
+    secAccession: '0001381197-26-000118',
+  }];
+  const [merged] = mergeEarningsRefreshEvents(current, [{
+    symbol: 'IBKR',
+    reportDate: '2026-07-21',
+    session: 'post',
+    epsActual: 0.69,
+    epsActualSource: 'eodhd-calendar',
+    revenueActual: null,
+    revenueActualUsd: null,
+    revenueActualSource: null,
+    revenueActualSuppressed: true,
+    ebitActual: 2_550_000_000,
+    ebitActualUsd: 2_550_000_000,
+    ebitActualSource: 'eodhd-fundamentals-income-statement',
+    officialActualSchemaVersion: 1,
+    officialActualStatus: 'pending',
+    publishedFinancialsComplete: false,
+  }]);
+
+  assert.equal(merged.epsActualSource, 'sec-exhibit');
+  assert.equal(merged.revenueActual, 1_896_000_000);
+  assert.equal(merged.revenueActualSuppressed, false);
+  assert.equal(merged.ebitActual, 1_456_000_000);
+  assert.equal(merged.officialActualStatus, 'complete');
+  assert.equal(merged.publishedFinancialsComplete, true);
+  assert.equal(merged.secAccession, '0001381197-26-000118');
+});
+
+test('a supported SEC pending refresh clears stale EODHD actuals from every client merge path', () => {
+  const current = [{
+    symbol: 'TSLA',
+    reportDate: '2026-07-22',
+    session: 'post',
+    epsEstimate: 0.31,
+    epsActual: 0.27,
+    epsPreviousYear: 0.4,
+    epsActualSource: 'eodhd-calendar',
+    revenueActual: 28_000_000_000,
+    revenueActualUsd: 28_000_000_000,
+    revenueActualSource: 'eodhd-fundamentals-income-statement',
+    ebitActual: 1_329_000_000,
+    ebitActualUsd: 1_329_000_000,
+    ebitActualSource: 'eodhd-fundamentals-income-statement',
+    earningsPublished: true,
+    publishedUntil: '2026-07-24',
+    earningsResult: 'beat',
+  }];
+  const incoming = [{
+    symbol: 'TSLA',
+    reportDate: '2026-07-22',
+    session: 'post',
+    epsEstimate: 0.31,
+    epsActual: null,
+    epsPreviousYear: null,
+    epsActualSource: null,
+    revenueActual: null,
+    revenueActualUsd: null,
+    revenueActualSource: null,
+    ebitActual: null,
+    ebitActualUsd: null,
+    ebitActualSource: null,
+    officialActualSchemaVersion: 1,
+    officialActualStatus: 'pending',
+    officialActualReason: 'sec-unavailable',
+    secCik: '0001318605',
+    earningsPublished: false,
+    publishedUntil: null,
+    earningsResult: null,
+    publishedFinancialsComplete: false,
+  }];
+
+  for (const merged of [
+    mergeEarningsRefreshEvents(current, incoming)[0],
+    preservePublishedEarningsEvents(current, incoming)[0],
+  ]) {
+    assert.equal(merged.officialActualStatus, 'pending');
+    assert.equal(merged.epsActual, null);
+    assert.equal(merged.epsPreviousYear, null);
+    assert.equal(merged.revenueActual, null);
+    assert.equal(merged.revenueActualUsd, null);
+    assert.equal(merged.ebitActual, null);
+    assert.equal(merged.ebitActualUsd, null);
+    assert.equal(merged.earningsPublished, false);
+    assert.equal(merged.publishedUntil, null);
+    assert.equal(merged.earningsResult, null);
   }
 });
 

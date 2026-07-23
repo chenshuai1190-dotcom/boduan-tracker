@@ -1,0 +1,95 @@
+{
+  "cik": 1381197,
+  "entityName": "Interactive Brokers Group, Inc.",
+  "facts": {
+    "us-gaap": {
+      "RevenuesNetOfInterestExpense": {
+        "label": "Revenues, Net of Interest Expense",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 1427000000,
+              "accn": "0001381197-26-000093",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-07",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 1669000000,
+              "accn": "0001381197-26-000093",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-07",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest": {
+        "label": "Income (Loss) from Continuing Operations before Income Taxes, Extraordinary Items, Noncontrolling Interest",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 1055000000,
+              "accn": "0001381197-26-000093",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-07",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 1288000000,
+              "accn": "0001381197-26-000093",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-07",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "EarningsPerShareDiluted": {
+        "label": "Earnings Per Share, Diluted",
+        "units": {
+          "USD/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 0.48,
+              "accn": "0001381197-26-000093",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-07",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 0.59,
+              "accn": "0001381197-26-000093",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-07",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

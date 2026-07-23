@@ -1,0 +1,32 @@
+{
+  "cik": "0001381197",
+  "name": "Interactive Brokers Group, Inc.",
+  "tickers": [
+    "IBKR"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001381197-26-000118"
+      ],
+      "filingDate": [
+        "2026-07-21"
+      ],
+      "reportDate": [
+        "2026-07-21"
+      ],
+      "acceptanceDateTime": [
+        "2026-07-21T20:11:00.000Z"
+      ],
+      "form": [
+        "8-K"
+      ],
+      "items": [
+        "2.02,9.01"
+      ],
+      "primaryDocument": [
+        "ibkr-20260721.htm"
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "0": {
+    "cik_str": 1318605,
+    "ticker": "TSLA",
+    "title": "Tesla, Inc."
+  },
+  "1": {
+    "cik_str": 1652044,
+    "ticker": "GOOGL",
+    "title": "Alphabet Inc."
+  },
+  "2": {
+    "cik_str": 1652044,
+    "ticker": "GOOG",
+    "title": "Alphabet Inc."
+  },
+  "3": {
+    "cik_str": 1381197,
+    "ticker": "IBKR",
+    "title": "Interactive Brokers Group, Inc."
+  }
+}

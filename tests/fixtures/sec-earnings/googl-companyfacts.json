@@ -1,0 +1,95 @@
+{
+  "cik": 1652044,
+  "entityName": "Alphabet Inc.",
+  "facts": {
+    "us-gaap": {
+      "Revenues": {
+        "label": "Revenues",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 90234000000,
+              "accn": "0001652044-26-000048",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-30",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 109896000000,
+              "accn": "0001652044-26-000048",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-30",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "OperatingIncomeLoss": {
+        "label": "Operating Income (Loss)",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 30606000000,
+              "accn": "0001652044-26-000048",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-30",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 39696000000,
+              "accn": "0001652044-26-000048",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-30",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "EarningsPerShareDiluted": {
+        "label": "Earnings Per Share, Diluted",
+        "units": {
+          "USD/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-03-31",
+              "val": 2.81,
+              "accn": "0001652044-26-000048",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-30",
+              "frame": "CY2025Q1"
+            },
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 5.11,
+              "accn": "0001652044-26-000048",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-04-30",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

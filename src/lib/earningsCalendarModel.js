@@ -223,13 +223,36 @@ function normalizeEarningsEvent(raw, context = {}) {
     fiscalDate: dateKey(raw?.date || raw?.fiscalDate || raw?.periodDate) || reportDate,
     session,
     currency: raw?.currency || raw?.Currency || 'USD',
-    epsEstimate: numericOrNull(raw?.estimate ?? raw?.epsEstimate ?? raw?.earningsEstimateAvg),
-    epsActual: numericOrNull(raw?.actual ?? raw?.epsActual),
-    epsDifference: numericOrNull(raw?.difference ?? raw?.epsDifference),
-    surprisePercent: numericOrNull(raw?.percent ?? raw?.surprisePercent),
+    epsEstimate: preferredNumeric(raw, 'epsEstimate', 'estimate', 'earningsEstimateAvg'),
+    epsActual: preferredNumeric(raw, 'epsActual', 'actual'),
+    epsActualSource: raw?.epsActualSource || null,
+    epsActualBasis: raw?.epsActualBasis || null,
+    epsDifference: preferredNumeric(raw, 'epsDifference', 'difference'),
+    surprisePercent: preferredNumeric(raw, 'surprisePercent', 'percent'),
     epsPreviousYear: numericOrNull(raw?.epsPreviousYear ?? raw?.earningsEstimateYearAgoEps),
+    epsPreviousYearSource: raw?.epsPreviousYearSource || null,
+    epsPreviousYearBasis: raw?.epsPreviousYearBasis || null,
     epsActualYoyPercent: numericOrNull(raw?.epsActualYoyPercent),
     epsEstimateYoyPercent: numericOrNull(raw?.epsEstimateYoyPercent),
+    officialActualStatus: ['complete', 'partial', 'pending', 'unsupported'].includes(raw?.officialActualStatus)
+      ? raw.officialActualStatus
+      : null,
+    officialActualSchemaVersion: Number.isInteger(Number(raw?.officialActualSchemaVersion))
+      ? Number(raw.officialActualSchemaVersion)
+      : null,
+    officialActualSource: raw?.officialActualSource || null,
+    officialActualReason: raw?.officialActualReason || null,
+    secCik: raw?.secCik || null,
+    secAccession: raw?.secAccession || null,
+    secForm: raw?.secForm || null,
+    secFiledAt: raw?.secFiledAt || null,
+    secFilingUrl: raw?.secFilingUrl || null,
+    secExhibitUrl: raw?.secExhibitUrl || null,
+    publishedFinancialsComplete: raw?.publishedFinancialsComplete === true
+      ? true
+      : raw?.publishedFinancialsComplete === false
+        ? false
+        : null,
     revenueEstimate: numericOrNull(raw?.revenueEstimate ?? raw?.revenueEstimateAvg),
     revenueEstimateUsd: numericOrNull(raw?.revenueEstimateUsd),
     revenueEstimateCurrency: raw?.revenueEstimateCurrency || null,
@@ -237,16 +260,21 @@ function normalizeEarningsEvent(raw, context = {}) {
     revenueFxRate: numericOrNull(raw?.revenueFxRate),
     revenueFxSource: raw?.revenueFxSource || null,
     revenueEstimateYoyPercent: numericOrNull(raw?.revenueEstimateYoyPercent),
-    revenueActual: numericOrNull(raw?.revenueActual ?? raw?.actualRevenue),
+    revenueActual: preferredNumeric(raw, 'revenueActual', 'actualRevenue'),
+    revenueActualSuppressed: raw?.revenueActualSuppressed === true,
     revenueActualUsd: numericOrNull(raw?.revenueActualUsd),
     revenueActualCurrency: raw?.revenueActualCurrency || null,
     revenueActualOriginalCurrency: raw?.revenueActualOriginalCurrency || null,
     revenueActualFxRate: numericOrNull(raw?.revenueActualFxRate),
     revenueSurprisePercent: numericOrNull(raw?.revenueSurprisePercent),
+    revenueActualSource: raw?.revenueActualSource || null,
+    revenueActualBasis: raw?.revenueActualBasis || null,
     revenuePreviousYear: numericOrNull(raw?.revenuePreviousYear),
     revenuePreviousYearUsd: numericOrNull(raw?.revenuePreviousYearUsd),
     revenuePreviousYearCurrency: raw?.revenuePreviousYearCurrency || null,
     revenuePreviousYearOriginalCurrency: raw?.revenuePreviousYearOriginalCurrency || null,
+    revenuePreviousYearSource: raw?.revenuePreviousYearSource || null,
+    revenuePreviousYearBasis: raw?.revenuePreviousYearBasis || null,
     revenueActualYoyPercent: numericOrNull(raw?.revenueActualYoyPercent),
     ebitActual: numericOrNull(raw?.ebitActual),
     ebitActualUsd: numericOrNull(raw?.ebitActualUsd),
@@ -332,6 +360,15 @@ function numericOrNull(value) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(String(value).replace(/[$,%\s,]/g, ''));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function preferredNumeric(raw, primaryKey, ...fallbackKeys) {
+  for (const key of [primaryKey, ...fallbackKeys]) {
+    if (raw && Object.prototype.hasOwnProperty.call(raw, key) && raw[key] !== undefined) {
+      return numericOrNull(raw[key]);
+    }
+  }
+  return null;
 }
 
 function calculateSurprisePercent(actualValue, estimateValue) {
