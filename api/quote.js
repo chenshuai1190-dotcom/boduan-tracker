@@ -6,6 +6,7 @@ import { providerForSymbol, QUOTE_PROVIDER } from '../server/quote/providers.js'
 import { createQuoteResponse } from '../server/quote/response.js';
 import { parseSymbolsParam } from '../server/quote/symbols.js';
 import { fetchStockFundamentals } from '../server/quote/fundamentals.js';
+import { fetchStockValuation } from '../server/quote/valuation.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -32,7 +33,14 @@ export default async function handler(req, res) {
   const marketMoversRequested = requestedView === 'market-movers';
   const stockDetailRequested = requestedView === 'stock-detail';
   const fundamentalsRequested = requestedView === 'fundamentals';
-  if (view !== undefined && !marketMoversRequested && !stockDetailRequested && !fundamentalsRequested) {
+  const valuationRequested = requestedView === 'valuation';
+  if (
+    view !== undefined
+    && !marketMoversRequested
+    && !stockDetailRequested
+    && !fundamentalsRequested
+    && !valuationRequested
+  ) {
     return sendError(res, 400, '不支持的 view 参数');
   }
 
@@ -50,7 +58,7 @@ export default async function handler(req, res) {
 
   const parsed = parseSymbolsParam(symbols);
   if (parsed.error) return sendError(res, 400, parsed.error);
-  if ((stockDetailRequested || fundamentalsRequested) && (
+  if ((stockDetailRequested || fundamentalsRequested || valuationRequested) && (
     parsed.symbolList.length !== 1
     || providerForSymbol(parsed.symbolList[0]) !== QUOTE_PROVIDER.STOCK
   )) {
@@ -67,6 +75,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data });
     } catch {
       return sendError(res, 502, '股票基本面暂不可用');
+    }
+  }
+
+  if (valuationRequested) {
+    try {
+      const data = await fetchStockValuation(parsed.symbolList[0], { eodhdKey });
+      return res.status(200).json({ success: true, data });
+    } catch {
+      return sendError(res, 502, '股票估值暂不可用');
     }
   }
 

@@ -401,7 +401,7 @@ function TargetEditor({ targetPrice, onCancel, onSave }) {
           <div className="mt-1.5 text-[15px] tabular-nums" style={{ color: space != null && space >= 0 ? MARKET_RED : MARKET_GREEN, fontFamily: NUMBER_FONT }}>{space == null ? '--' : signedPct(space)}</div>
         </div>
         <div className="px-3 text-center">
-          <div className="text-[10px] text-white/[0.31]">成本至目标进度</div>
+          <div className="text-[10px] text-white/[0.31]">成本至目标已完成</div>
           <div className="mt-1.5 text-[15px] text-[#f6b54b] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progress == null ? '--' : `${progress.toFixed(1)}%`}</div>
         </div>
       </div>
@@ -607,7 +607,7 @@ export default function WatchlistStockDetailPrototype() {
                 <span className="text-center text-[#f6b54b]/75">当前 ${formatNumber(CURRENT_PRICE)}</span>
                 <span className="text-right">目标 ${formatNumber(targetPrice)}</span>
               </div>
-              <div className="mt-3 text-right text-[10px] text-white/[0.3]">成本至目标进度 <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progress == null ? '--' : `${progress.toFixed(1)}%`}</span></div>
+              <div className="mt-3 text-right text-[10px] text-white/[0.3]">成本至目标已完成 <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progress == null ? '--' : `${progress.toFixed(1)}%`}</span></div>
             </div>
           </div>
         </button>

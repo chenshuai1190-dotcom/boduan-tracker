@@ -10,12 +10,14 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import CompanyValuationCard from '../components/CompanyValuationCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/earningsCalendarRefresh.js';
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { loadStockFundamentals } from '../lib/stockFundamentals.js';
+import { loadStockValuation } from '../lib/stockValuation.js';
 import {
   deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
@@ -974,7 +976,7 @@ function TargetEditor({
           <div className="mt-1.5 text-[15px] tabular-nums" style={{ color: marketHexColor(space || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(space)}</div>
         </div>
         <div className="px-3 text-center">
-          <div className="text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.costToTargetProgress', '成本至目标进度')}</div>
+          <div className="text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')}</div>
           <div className="mt-1.5 text-[15px] text-[#f6b54b] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{progress === null ? '--' : `${progress.toFixed(1)}%`}</div>
         </div>
       </div>
@@ -1027,6 +1029,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     stockDetailInitialRange = '5y',
     watchlistStockDetailFocusSection = '',
     watchlistStockDetailTargetEditorOpen = false,
+    watchlistStockDetailValuationTooltipOpen = false,
     watchlistStockDetailFundCompositionOverride,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
@@ -1037,6 +1040,14 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const initialFundamentals = hasFundamentalsOverride
     ? watchlistStockDetailDataOverride.fundamentals
     : null;
+  const hasValuationOverride = Boolean(
+    watchlistStockDetailDataOverride
+    && Object.prototype.hasOwnProperty.call(watchlistStockDetailDataOverride, 'valuation'),
+  );
+  const initialValuation = hasValuationOverride
+    && String(watchlistStockDetailDataOverride.valuation?.symbol || '').trim().toUpperCase() === symbol
+    ? watchlistStockDetailDataOverride.valuation
+    : null;
   const [range, setRange] = React.useState(
     RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y',
   );
@@ -1045,6 +1056,10 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const [fundamentals, setFundamentals] = React.useState(() => initialFundamentals || null);
   const [fundamentalsStatus, setFundamentalsStatus] = React.useState(() => (
     hasFundamentalsOverride ? (initialFundamentals ? 'ready' : 'unavailable') : 'loading'
+  ));
+  const [valuation, setValuation] = React.useState(() => initialValuation || null);
+  const [valuationStatus, setValuationStatus] = React.useState(() => (
+    hasValuationOverride ? (initialValuation ? 'ready' : 'unavailable') : 'loading'
   ));
   const [fundComposition, setFundComposition] = React.useState(
     () => watchlistStockDetailFundCompositionOverride || null,
@@ -1186,6 +1201,41 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     })();
     return () => { active = false; };
   }, [hasFundamentalsOverride, initialFundamentals, supabase, symbol]);
+
+  React.useEffect(() => {
+    if (hasValuationOverride) {
+      setValuation(initialValuation || null);
+      setValuationStatus(initialValuation ? 'ready' : 'unavailable');
+      return undefined;
+    }
+    if (!symbol || !supabase?.auth?.getSession) {
+      setValuation(null);
+      setValuationStatus('unavailable');
+      return undefined;
+    }
+
+    let active = true;
+    setValuation(null);
+    setValuationStatus('loading');
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        const userId = data?.session?.user?.id;
+        if (!token || !userId) throw new Error('missing session');
+        const nextValuation = await loadStockValuation({ userId, symbol, token });
+        if (!active) return;
+        setValuation(nextValuation);
+        setValuationStatus('ready');
+      } catch (error) {
+        console.warn('[WatchlistStockDetail] valuation unavailable:', error?.message || error);
+        if (!active) return;
+        setValuation(null);
+        setValuationStatus('unavailable');
+      }
+    })();
+    return () => { active = false; };
+  }, [hasValuationOverride, initialValuation, supabase, symbol]);
 
   React.useEffect(() => {
     if (watchlistStockDetailFundCompositionOverride) {
@@ -1485,6 +1535,13 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </section>
 
+      <CompanyValuationCard
+        data={valuation}
+        status={valuationStatus}
+        language={language}
+        initialTooltipOpen={watchlistStockDetailValuationTooltipOpen}
+      />
+
       <CompanyFundamentalsCard
         data={fundamentals}
         status={fundamentalsStatus}
@@ -1514,7 +1571,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
               <span className="text-center text-[#f6b54b]/75">{t(language, 'watchlistDetail.current', '当前 {{price}}', { price: formatCurrency(closeDisplay, stockCurrency) })}</span>
               <span className="text-right">{t(language, 'watchlistDetail.target', '目标 {{price}}', { price: formatCurrency(targetDisplay, stockCurrency) })}</span>
             </div>
-            <div className="mt-3 text-right text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.costToTargetProgress', '成本至目标进度')} <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}</span></div>
+            <div className="mt-3 text-right text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')} <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}</span></div>
           </div>
         </div>
       </button>

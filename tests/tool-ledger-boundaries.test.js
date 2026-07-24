@@ -614,8 +614,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.375'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.375', date: '2026-07-24', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.376'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.376', date: '2026-07-24', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('股票趋势新增公司估值') && settingsChangelogSource.includes('超过历史（5年）') && settingsChangelogSource.includes('每月最后交易日') && settingsChangelogSource.includes('不引入未来数据或补造比较基准'), 'settings changelog should document the five-year valuation release and its real-data boundaries');
   assert.ok(settingsChangelogSource.includes('融资情景测算独立页面') && settingsChangelogSource.includes('五栏底部导航并高亮首页') && settingsChangelogSource.includes('余额编辑仍使用页内二级弹层'), 'settings changelog should document the standalone margin route and preserved bottom navigation');
   assert.ok(settingsChangelogSource.includes('融资情景滑杆与历史余额修正') && settingsChangelogSource.includes('对称的 -100% 至 +100%') && settingsChangelogSource.includes('一次性清零') && settingsChangelogSource.includes('旧版无版本缓存不再回退'), 'settings changelog should document the bounded slider and safe legacy-balance reset');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.368', date: '2026-07-22'") && settingsChangelogSource.includes('首页净资产与融资情景测算'), 'settings changelog should preserve the original margin release as history');

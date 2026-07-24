@@ -197,6 +197,30 @@ const mockWatchlistQqqHistory = mockWatchlistDetailHistory.map((row, index) => (
   adjustedClose: Number((430 + index * 0.34 + Math.sin(index / 13) * 4.5).toFixed(4)),
 }));
 
+const mockNvdaValuationSeries = [
+  ['2021-07-30', 92.07], ['2021-08-31', 79.68], ['2021-09-30', 73.74],
+  ['2021-10-29', 91.00], ['2021-11-30', 100.48], ['2021-12-31', 90.45],
+  ['2022-01-31', 75.31], ['2022-02-28', 74.99], ['2022-03-31', 70.79],
+  ['2022-04-29', 48.12], ['2022-05-31', 50.09], ['2022-06-30', 40.67],
+  ['2022-07-29', 48.73], ['2022-08-31', 49.33], ['2022-09-30', 39.69],
+  ['2022-10-31', 44.12], ['2022-11-30', 71.32], ['2022-12-30', 61.59],
+  ['2023-01-31', 82.33], ['2023-02-28', 132.53], ['2023-03-31', 158.59],
+  ['2023-04-28', 158.43], ['2023-05-31', 195.12], ['2023-06-30', 218.19],
+  ['2023-07-31', 241.02], ['2023-08-31', 118.79], ['2023-09-29', 104.71],
+  ['2023-10-31', 98.16], ['2023-11-30', 61.76], ['2023-12-29', 65.40],
+  ['2024-01-31', 81.26], ['2024-02-29', 66.18], ['2024-03-28', 75.59],
+  ['2024-04-30', 72.29], ['2024-05-31', 63.98], ['2024-06-28', 72.10],
+  ['2024-07-31', 68.29], ['2024-08-30', 55.96], ['2024-09-30', 56.93],
+  ['2024-10-31', 62.24], ['2024-11-29', 54.38], ['2024-12-31', 52.82],
+  ['2025-01-31', 47.23], ['2025-02-28', 42.40], ['2025-03-31', 36.79],
+  ['2025-04-30', 36.97], ['2025-05-30', 43.42], ['2025-06-30', 50.77],
+  ['2025-07-31', 57.16], ['2025-08-29', 49.44], ['2025-09-30', 52.96],
+  ['2025-10-31', 57.47], ['2025-11-28', 43.72], ['2025-12-31', 46.07],
+  ['2026-01-30', 47.21], ['2026-02-27', 36.09], ['2026-03-31', 35.52],
+  ['2026-04-30', 40.65], ['2026-05-29', 32.28], ['2026-06-30', 30.63],
+  ['2026-07-23', 31.95],
+].map(([date, peTtm]) => ({ date, peTtm }));
+
 const mockWatchlistStockDetailData = {
   source: 'EODHD_EOD',
   priceBasis: 'adjusted_close',
@@ -217,6 +241,31 @@ const mockWatchlistStockDetailData = {
     revenueGrowthTtmPct: 70.683769,
     netMarginTtmPct: 62.965944,
     freeCashFlowMarginTtmPct: 46.974449,
+  },
+  valuation: {
+    symbol: 'NVDA',
+    currency: 'USD',
+    source: 'EODHD_VALUATION',
+    asOfDate: '2026-07-23',
+    windowStartDate: '2021-07-24',
+    fetchedAt: '2026-07-24T00:00:00.000Z',
+    seriesFrequency: 'monthly-last-trading-day',
+    statisticsFrequency: 'daily',
+    current: {
+      peTtm: 31.9549,
+      peForward: 24.1546,
+    },
+    percentile5y: 2.15,
+    summary: {
+      min: 29.47,
+      p25: 46.31,
+      median: 62.83,
+      average: 75.01,
+      p75: 81.19,
+      max: 244.97,
+      observationCount: 1254,
+    },
+    series: mockNvdaValuationSeries,
   },
   indicators: {
     week52High: 235.88,
@@ -1306,6 +1355,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('stockDetailFocus') || '';
   const watchlistDetailTargetEditorOpen = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('targetEditor') === '1';
+  const watchlistDetailValuationTooltipOpen = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('valuationTooltip') === '1';
   const watchlistFundCompositionPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'watchlist-fund-composition';
   const [expandedTrades, setExpandedTrades] = React.useState({});
@@ -2124,6 +2175,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     watchlistStockDetailChartTooltipOpen: watchlistDetailTooltipPreview,
     watchlistStockDetailFocusSection: watchlistDetailFocusSection,
     watchlistStockDetailTargetEditorOpen: watchlistDetailTargetEditorOpen,
+    watchlistStockDetailValuationTooltipOpen: watchlistDetailValuationTooltipOpen,
   };
 
   const waveTrackerCtx = {

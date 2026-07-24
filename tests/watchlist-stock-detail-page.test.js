@@ -7,6 +7,8 @@ const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8
 const devPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const fundamentalsCacheSource = readFileSync(new URL('../src/lib/stockFundamentals.js', import.meta.url), 'utf8');
+const valuationCacheSource = readFileSync(new URL('../src/lib/stockValuation.js', import.meta.url), 'utf8');
+const valuationCardSource = readFileSync(new URL('../src/components/CompanyValuationCard.jsx', import.meta.url), 'utf8');
 
 test('watchlist detail keeps the existing bottom tabs and uses the Chinese stock-trend title', () => {
   assert.ok(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'));
@@ -64,6 +66,39 @@ test('company fundamentals load independently, cache per user for six hours, and
   assert.ok(i18nSource.includes("'watchlistDetail.companyFundamentals': 'Company Fundamentals'"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.companyFundamentals', '基本信息')"));
   assert.ok(devPreviewSource.includes('marketCapitalization: 4_912_000_000_000'));
+});
+
+test('company valuation loads independently and presents only real five-year provider history', () => {
+  assert.ok(pageSource.includes('loadStockValuation({ userId, symbol, token })'));
+  assert.ok(pageSource.includes("setValuationStatus('loading')"));
+  assert.ok(pageSource.includes("setValuationStatus('unavailable')"));
+  assert.ok(pageSource.includes("console.warn('[WatchlistStockDetail] valuation unavailable:'"));
+  assert.equal(pageSource.includes('valuationPromise'), false, 'the chart/detail Promise must never await valuation');
+  assert.ok(pageSource.includes('<CompanyValuationCard'));
+  assert.ok(valuationCardSource.includes('data-watchlist-detail-section="valuation"'));
+  assert.ok(valuationCardSource.includes('data-watchlist-company-valuation="true"'));
+  assert.ok(valuationCardSource.includes('data-watchlist-valuation-chart="true"'));
+  assert.ok(valuationCardSource.includes('data-watchlist-valuation-tooltip="true"'));
+  assert.ok(valuationCardSource.includes('复权收盘价 ÷ 当时已披露的滚动四季 EPS'));
+  assert.ok(valuationCardSource.includes('统计：日频 · 曲线：每月最后交易日'));
+  assert.ok(valuationCardSource.includes('不会补造历史百分位或比较基准'));
+  assert.equal(valuationCardSource.includes('行业平均'), false);
+  assert.equal(valuationCardSource.includes('标普500'), false);
+  assert.ok(valuationCacheSource.includes('6 * 60 * 60 * 1000'));
+  assert.ok(valuationCacheSource.includes('`${normalizedUserId}:${normalized}`'));
+  assert.ok(valuationCacheSource.includes('inFlightRequests'));
+  assert.ok(valuationCacheSource.includes('view=valuation'));
+  assert.ok(valuationCacheSource.includes("'monthly-last-trading-day'"));
+  assert.ok(valuationCacheSource.includes("'daily'"));
+  assert.ok(valuationCacheSource.includes("cache: 'no-store'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.companyValuation': '公司估值'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.companyValuation': 'Company Valuation'"));
+  assert.ok(valuationCardSource.includes("t(language, 'watchlistDetail.valuationPercentile', '超过历史（5年）')"));
+  assert.ok(i18nSource.includes("'watchlistDetail.valuationPercentile': '超过历史（5年）'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.valuationPercentile': 'Above 5Y History'"));
+  assert.equal(valuationCardSource.includes("t(language, 'watchlistDetail.valuationPercentile', '历史百分位')"), false);
+  assert.ok(devPreviewSource.includes('percentile5y: 2.15'));
+  assert.ok(devPreviewSource.includes('observationCount: 1254'));
 });
 
 test('production watchlist detail only converts holding asset totals and keeps stock prices in their quote currency', () => {
@@ -126,13 +161,18 @@ test('target card keeps whole-card editing without redundant edit chrome or scal
   assert.equal(pageSource.includes('<ChevronRight'), false);
   assert.equal(pageSource.includes("t(language, 'watchlistDetail.edit', '编辑')"), false);
   assert.ok(pageSource.includes('targetProgressPositionPercent(targetProgress)'));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')"));
+  assert.ok(i18nSource.includes("'watchlistDetail.costToTargetProgress': '成本至目标已完成'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.costToTargetProgress': 'Cost-to-Target Completion'"));
+  assert.equal(pageSource.includes("'成本至目标进度'"), false);
   const metricsIndex = pageSource.indexOf('data-watchlist-key-metrics="spacious"');
+  const valuationIndex = pageSource.indexOf('<CompanyValuationCard');
   const fundamentalsIndex = pageSource.indexOf('<CompanyFundamentalsCard');
   const targetIndex = pageSource.indexOf('data-watchlist-detail-section="target"');
   const eventsIndex = pageSource.indexOf('data-watchlist-detail-section="events"');
   const positionIndex = pageSource.indexOf("t(language, 'watchlistDetail.myPosition'");
   const tradesIndex = pageSource.indexOf('data-watchlist-detail-section="trades"');
-  assert.ok(metricsIndex < fundamentalsIndex && fundamentalsIndex < targetIndex && targetIndex < eventsIndex && eventsIndex < positionIndex && positionIndex < tradesIndex, 'approved module order should be metrics, fundamentals, target, key events, position, then trades');
+  assert.ok(metricsIndex < valuationIndex && valuationIndex < fundamentalsIndex && fundamentalsIndex < targetIndex && targetIndex < eventsIndex && eventsIndex < positionIndex && positionIndex < tradesIndex, 'approved module order should be metrics, valuation, fundamentals, target, key events, position, then trades');
 });
 
 test('production watchlist detail only mutates its isolated target and keeps holdings and trades read-only', () => {

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.375', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.376', date: '2026-07-24', latest: true,
+    items: [
+      '📈 股票趋势新增公司估值',
+      '  - 关键指标下方新增公司估值，展示市盈率 TTM、超过历史（5年）和预期市盈率，并提供五年历史估值曲线',
+      '  - 历史统计按日频计算，曲线采用每月最后交易日；历史估值只使用当时已披露的滚动四季利润与历史股本，不引入未来数据或补造比较基准',
+      '  - 目标价进度文案改为“成本至目标已完成”，计算公式保持不变',
+    ],
+    itemsEn: [
+      '📈 Company valuation added to Stock Trend',
+      '  - A new Company Valuation section below Key Metrics shows trailing P/E, Above 5Y History, forward P/E, and a five-year valuation curve',
+      '  - Historical statistics use daily observations while the curve uses each month’s last trading day; historical valuation uses only trailing-four-quarter earnings and share counts available at the time, without future leakage or synthetic benchmarks',
+      '  - The target-price progress label is now “Cost-to-Target Completion,” with its calculation unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.375', date: '2026-07-24',
     items: [
       '🔎 全站辅助字号与可读性标准',
       '  - 首页“财报日历”恢复正常字重；交易、财报日历、股票趋势、波段记录、融资测算、设置和收益比赛的辅助文字统一采用首页字号与灰度层级',
