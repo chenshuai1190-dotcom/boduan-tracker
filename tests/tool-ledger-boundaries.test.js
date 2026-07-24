@@ -2125,6 +2125,12 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(homeTabSource.includes(sharedHeaderShell), 'home header should keep the shared header card shell');
   assert.ok(tradesTabSource.includes(sharedHeaderShell), 'trade header should keep the shared header card shell');
   assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
+  assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');
+  assert.ok(tradesTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'trade net-assets title should match the home header baseline');
+  assert.ok(homeTabSource.includes('text-[13px]">{t(language, \'home.totalAssets\''), 'home total-assets label should remain the header typography baseline');
+  assert.ok(tradesTabSource.includes('text-[13px]">{tt(\'trades.totalAssets\''), 'trade total-assets label should match the home header baseline');
+  assert.ok(homeTabSource.includes('truncate text-[12px] text-white/[0.72] tabular-nums'), 'home total-assets value should remain the header typography baseline');
+  assert.ok(tradesTabSource.includes('truncate text-[12px] text-white/[0.72] tabular-nums'), 'trade total-assets value should match the home header baseline');
   assert.ok(analysisTabSource.includes('text-[13px] font-normal text-white/70'), 'asset header title should match the home title tone');
   assert.ok(analysisTabSource.includes('mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums'), 'family total amount should match the home amount position and color');
   assert.equal(analysisTabSource.includes('sm:text-[38px]'), false, 'asset header amount should not grow larger than home on wider screens');

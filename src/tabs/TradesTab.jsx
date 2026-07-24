@@ -867,7 +867,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-trades-net-assets-card="true">
           <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 text-[13px] font-normal text-white/70">{tt('home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
+            <div className="min-w-0 text-[14px] font-normal text-white/70">{tt('home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
             <div className="ml-auto flex justify-end">
               <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
                 {['USD', 'CNY'].map((mode) => (
@@ -904,9 +904,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               <span className="text-white/30">--</span>
             )}
           </div>
-          <div className="mt-3 flex items-center gap-2 text-[12px] text-white/[0.42]">
-            <span>{tt('trades.totalAssets', '总资产')}</span>
-            <span className="truncate text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+          <div className="mt-3 flex items-center gap-2 text-white/[0.42]">
+            <span className="text-[13px]">{tt('trades.totalAssets', '总资产')}</span>
+            <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
               {`${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}`}
             </span>
           </div>
