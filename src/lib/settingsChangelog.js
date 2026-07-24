@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.378', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.379', date: '2026-07-24', latest: true,
+    items: [
+      '₿ 首页 BTC 实时行情增加独立兜底',
+      '  - 有效 WebSocket 行情始终优先，并且只有收到真实 BTC tick 后才显示绿色 LIVE，连接成功但没有行情时不再误标实时',
+      '  - 实时源暂时不可用时，服务端自动读取 BTC-USD.CC REST 行情，使用橙色 REST 标识并保留价格、涨跌幅与曲线',
+      '  - 下一笔有效实时行情到达后自动切回 LIVE；REST 请求与缓存均留在已登录服务端，不向浏览器暴露行情密钥',
+    ],
+    itemsEn: [
+      '₿ Independent fallback added for Home BTC quotes',
+      '  - Valid WebSocket quotes always take priority, and the green LIVE label appears only after a real BTC tick instead of treating an open connection as live data',
+      '  - When the realtime source is temporarily unavailable, the authenticated server automatically reads the BTC-USD.CC REST quote and keeps price, change, and the chart visible under an amber REST label',
+      '  - The next valid realtime tick automatically restores LIVE; REST requests and caching remain on the authenticated server without exposing the market-data key to the browser',
+    ],
+  },
+  {
+    ver: 'v10.7.9.378', date: '2026-07-24',
     items: [
       '🧾 股票趋势新增最近财报入口',
       '  - “基本信息”下方新增最近已公布财报卡片，集中展示营收、息税前利润与每股收益的公布值、预测值和同比',

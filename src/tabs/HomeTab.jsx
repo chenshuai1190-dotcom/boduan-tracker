@@ -262,6 +262,7 @@ function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
 }
 
 function marketCardName(item, language) {
+  if (isBtcMarketCard(item)) return 'BTC';
   if (!isEnglishLanguage(language)) return item?.name || item?.ticker;
   const ticker = String(item?.displaySymbol || item?.symbol || item?.ticker || '').toUpperCase();
   const map = {
@@ -298,6 +299,7 @@ function isFreshBtcMarketCard(item, now = Date.now()) {
 function resolveBtcDisplayRealtimeStatus(item, nextStatus) {
   const currentStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
   const status = nextStatus || currentStatus;
+  if (status === 'live' && currentStatus === 'fallback') return currentStatus;
   if (
     ['connecting', 'reconnecting', 'paused'].includes(status)
     && ['live', 'fallback'].includes(currentStatus)
@@ -324,11 +326,11 @@ function MiniMarketCard({ item, marketColorMode, language }) {
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
   const realtimeLabel = marketRealtimeLabel(realtimeStatus, language);
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5 min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="flex min-w-0 items-start justify-between gap-1.5">
+    <div className={`rounded-xl border border-white/10 bg-white/[0.045] ${isBtc ? 'p-2' : 'p-2.5'} min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
+      <div className={`flex min-w-0 items-start justify-between ${isBtc ? 'gap-1' : 'gap-1.5'}`}>
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
-          <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[10px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
+          <span className={`inline-flex shrink-0 items-center rounded-full border px-1 py-[1px] text-[10px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
             {realtimeLabel}
           </span>
         )}

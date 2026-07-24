@@ -2,6 +2,7 @@ const BTC_REALTIME_SYMBOL = 'BTC-USD';
 const BTC_REST_TICKER = 'BTC-USD.CC';
 const BTC_DISPLAY_SYMBOL = 'BTCUSD';
 const BTC_DISPLAY_NAME = 'BTC/美元';
+const BTC_INTRADAY_LIMIT = 80;
 
 function asNumber(value) {
   const n = Number(value);
@@ -36,6 +37,15 @@ export function applyBtcTickToMarketCard(card, tick, realtimeStatus = 'live') {
   return createBtcMarketCard(card || {}, tick, realtimeStatus);
 }
 
+export function resolveBtcSnapshotRealtimeStatus(snapshot = {}) {
+  const status = String(snapshot?.status || '').trim().toLowerCase();
+  const sources = [snapshot?.source, snapshot?.tick?.source]
+    .map((source) => String(source || '').trim().toUpperCase())
+    .filter(Boolean);
+  const isFallbackSource = sources.some((source) => source.includes('REST') || source.includes('FALLBACK'));
+  return status === 'live' && !isFallbackSource ? 'live' : 'fallback';
+}
+
 export function createBtcPlaceholderMarketCard(realtimeStatus = 'connecting') {
   return {
     ticker: BTC_REST_TICKER,
@@ -54,8 +64,19 @@ export function createBtcPlaceholderMarketCard(realtimeStatus = 'connecting') {
 
 function createBtcMarketCard(card = {}, tick, realtimeStatus) {
   const price = asNumber(tick?.price);
-  const previousIntraday = Array.isArray(card?.intraday) ? card.intraday : [];
-  const intraday = [...previousIntraday, price].slice(-80);
+  const previousIntraday = normalizeBtcIntraday(card?.intraday);
+  let intraday = previousIntraday;
+  if (realtimeStatus === 'fallback' && intraday.length === 0) {
+    const fallbackIntraday = normalizeBtcIntraday(tick?.intraday);
+    const previousClose = asNumber(tick?.previousClose);
+    intraday = fallbackIntraday.length > 0
+      ? fallbackIntraday
+      : previousClose && previousClose > 0
+        ? [previousClose]
+        : [];
+  }
+  if (intraday.at(-1) !== price) intraday = [...intraday, price];
+  intraday = intraday.slice(-BTC_INTRADAY_LIMIT);
   return {
     ...card,
     ticker: BTC_REST_TICKER,
@@ -72,4 +93,11 @@ function createBtcMarketCard(card = {}, tick, realtimeStatus) {
     realtimeAt: tick?.timestamp || tick?.receivedAt || Date.now(),
     realtimeReceivedAt: tick?.receivedAt || Date.now(),
   };
+}
+
+function normalizeBtcIntraday(values) {
+  return (Array.isArray(values) ? values : [])
+    .map(asNumber)
+    .filter((value) => value !== null && value > 0)
+    .slice(-BTC_INTRADAY_LIMIT);
 }

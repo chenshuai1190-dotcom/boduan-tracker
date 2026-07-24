@@ -126,6 +126,17 @@ const mockSampledMarketIndices = mockRestMarketIndices.map((card) => ({
   intraday: [card.previousClose, card.price],
 }));
 const mockBtcMarketCard = mockIndices[3];
+const mockBtcFallbackMarketCard = {
+  ...mockBtcMarketCard,
+  ticker: 'BTC-USD.CC',
+  price: 63973.94,
+  change: -1070.87,
+  changePercent: -1.65,
+  intraday: [65044.81, 64888.12, 64692.33, 64761.18, 64480.46, 64392.27, 64181.55, 64244.76, 64082.31, 63973.94],
+  source: 'EODHD_REST',
+  realtime: false,
+  realtimeStatus: 'fallback',
+};
 
 function buildMockWatchlistDetailHistory() {
   const allRows = [];
@@ -2052,9 +2063,17 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     benchmarkStatus: { text: '等待中', desc: '回撤<5%, 空仓等待' },
     benchmarkStock: homeSignalBenchmarkStock,
     benchmarkSymbol,
-    btcMarketCard: btcPreviewMode === 'placeholder' ? null : mockBtcMarketCard,
+    btcMarketCard: btcPreviewMode === 'placeholder'
+      ? null
+      : btcPreviewMode === 'fallback'
+        ? mockBtcFallbackMarketCard
+        : mockBtcMarketCard,
     btcRealtimeLastTick: btcPreviewMode === 'placeholder' ? null : Date.now(),
-    btcRealtimeStatus: btcPreviewMode === 'placeholder' ? 'connecting' : 'live',
+    btcRealtimeStatus: btcPreviewMode === 'placeholder'
+      ? 'connecting'
+      : btcPreviewMode === 'fallback'
+        ? 'fallback'
+        : 'live',
     cacheStockLogo: () => {},
     CheckCircle2,
     ChevronRight,

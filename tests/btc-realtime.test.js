@@ -1,7 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeBtcTick, sanitizeEodhdKey } from '../server/realtime/btc.js';
+import {
+  normalizeBtcRestQuote,
+  normalizeBtcTick,
+  parseEodhdProviderStatus,
+  sanitizeEodhdKey,
+} from '../server/realtime/btc.js';
+import {
+  BTC_REST_FALLBACK_TTL_MS,
+  BTC_WS_SNAPSHOT_MAX_AGE_MS,
+  buildBtcRealtimeSnapshot,
+  createBtcRestFallbackLoader,
+  fetchBtcRestTick,
+  isEligibleBtcWsSnapshotTick,
+  resolveBtcClientStatus,
+} from '../server/realtime/btcRelay.js';
 import {
   BTC_REALTIME_PROTOCOL,
   INDICES_REALTIME_PROTOCOL,
@@ -13,9 +27,11 @@ import {
 import { INDEX_REALTIME_SYMBOLS, normalizeIndexTick } from '../server/realtime/indices.js';
 import { normalizeStockTick, parseStockRealtimeSymbolsParam } from '../server/realtime/stocks.js';
 import {
+  applyBtcTickToMarketCard,
   applyBtcTickToMarketCards,
   createBtcPlaceholderMarketCard,
   isBtcMarketCard,
+  resolveBtcSnapshotRealtimeStatus,
 } from '../src/lib/btcRealtime.js';
 import {
   applyIndexTickToMarketCards,
@@ -62,6 +78,241 @@ test('normalizeBtcTick ignores non-BTC and invalid messages', () => {
 
 test('sanitizeEodhdKey removes invisible whitespace', () => {
   assert.equal(sanitizeEodhdKey('  abc\u200B123\n'), 'abc123');
+});
+
+test('BTC provider status parser identifies upstream HTTP-style failures', () => {
+  assert.deepEqual(parseEodhdProviderStatus(JSON.stringify({
+    status_code: 500,
+    message: 'Internal error. Try again later',
+  })), {
+    statusCode: 500,
+    message: 'Internal error. Try again later',
+    isError: true,
+  });
+  assert.deepEqual(parseEodhdProviderStatus({ status_code: 200, message: 'Authorized' }), {
+    statusCode: 200,
+    message: 'Authorized',
+    isError: false,
+  });
+  assert.equal(parseEodhdProviderStatus({ s: 'BTC-USD', p: 62554.42 }), null);
+});
+
+test('normalizeBtcRestQuote creates a fallback tick and seeds a two-point curve', () => {
+  const tick = normalizeBtcRestQuote({
+    code: 'BTC-USD.CC',
+    timestamp: 1784901840,
+    close: 63973.94140625,
+    previousClose: 65044.814209441,
+    change: -1070.8728,
+    change_p: -1.6464,
+    volume: 25671000064,
+  }, { receivedAt: 1784901840999 });
+
+  assert.equal(tick.type, 'btc_tick');
+  assert.equal(tick.symbol, 'BTC-USD');
+  assert.equal(tick.ticker, 'BTC-USD.CC');
+  assert.equal(tick.displaySymbol, 'BTCUSD');
+  assert.equal(tick.price, 63973.94140625);
+  assert.equal(tick.previousClose, 65044.814209441);
+  assert.equal(tick.change, -1070.8728);
+  assert.equal(tick.changePercent, -1.6464);
+  assert.deepEqual(tick.intraday, [65044.814209441, 63973.94140625]);
+  assert.equal(tick.timestamp, 1784901840000);
+  assert.equal(tick.receivedAt, 1784901840999);
+  assert.equal(tick.source, 'EODHD_REST');
+});
+
+test('fetchBtcRestTick keeps the key server-side and normalizes the provider response', async () => {
+  let requestedUrl = '';
+  const tick = await fetchBtcRestTick({
+    eodhdKey: ' demo\u200B ',
+    receivedAt: 1784901840999,
+    fetchImpl: async (url, options) => {
+      requestedUrl = String(url);
+      assert.equal(options.cache, 'no-store');
+      assert.equal(options.headers.Accept, 'application/json');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 'BTC-USD.CC',
+          timestamp: 1784901840,
+          close: 63973.94140625,
+          previousClose: 65044.814209441,
+          change: -1070.8728,
+          change_p: -1.6464,
+        }),
+      };
+    },
+  });
+
+  const parsedUrl = new URL(requestedUrl);
+  assert.equal(parsedUrl.pathname, '/api/real-time/BTC-USD.CC');
+  assert.equal(parsedUrl.searchParams.get('api_token'), 'demo');
+  assert.equal(parsedUrl.searchParams.get('fmt'), 'json');
+  assert.equal(tick.source, 'EODHD_REST');
+  assert.equal(JSON.stringify(tick).includes('demo'), false);
+
+  await assert.rejects(
+    fetchBtcRestTick({
+      eodhdKey: 'private-key',
+      fetchImpl: async () => ({ ok: false, status: 503 }),
+    }),
+    (error) => {
+      assert.equal(error.message, 'EODHD BTC REST 请求失败: HTTP 503');
+      assert.equal(error.message.includes('private-key'), false);
+      return true;
+    },
+  );
+});
+
+test('BTC REST fallback loader deduplicates concurrent requests and caches for a short TTL', async () => {
+  let now = 100_000;
+  let calls = 0;
+  let resolveFetch;
+  const firstTick = { price: 63973.94, source: 'EODHD_REST' };
+  const secondTick = { price: 64010.12, source: 'EODHD_REST' };
+  const loader = createBtcRestFallbackLoader({
+    now: () => now,
+    fetchTick: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Promise((resolve) => {
+          resolveFetch = () => resolve(firstTick);
+        });
+      }
+      return secondTick;
+    },
+  });
+
+  const pendingA = loader({ eodhdKey: 'server-only' });
+  const pendingB = loader({ eodhdKey: 'server-only' });
+  await Promise.resolve();
+  assert.equal(calls, 1);
+  resolveFetch();
+  assert.equal(await pendingA, firstTick);
+  assert.equal(await pendingB, firstTick);
+
+  now += BTC_REST_FALLBACK_TTL_MS - 1;
+  assert.equal(await loader({ eodhdKey: 'server-only' }), firstTick);
+  assert.equal(calls, 1);
+
+  now += 2;
+  assert.equal(await loader({ eodhdKey: 'server-only' }), secondTick);
+  assert.equal(calls, 2);
+});
+
+test('BTC REST fallback loader does not cache or retain a failed request', async () => {
+  let calls = 0;
+  const recoveredTick = { price: 64123.45, source: 'EODHD_REST' };
+  const loader = createBtcRestFallbackLoader({
+    fetchTick: async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('temporary provider failure');
+      return recoveredTick;
+    },
+  });
+
+  const failedA = loader({ eodhdKey: 'server-only' });
+  const failedB = loader({ eodhdKey: 'server-only' });
+  await assert.rejects(failedA, /temporary provider failure/);
+  await assert.rejects(failedB, /temporary provider failure/);
+  assert.equal(calls, 1);
+
+  assert.equal(await loader({ eodhdKey: 'server-only' }), recoveredTick);
+  assert.equal(await loader({ eodhdKey: 'server-only' }), recoveredTick);
+  assert.equal(calls, 2);
+});
+
+test('BTC snapshot only lets a fresh tick on a live upstream outrank REST fallback', () => {
+  const now = 1784901840999;
+  const staleWsTick = {
+    price: 64200,
+    receivedAt: now - 20_000,
+    source: 'EODHD_WS',
+  };
+  const freshWsTick = {
+    price: 64210,
+    receivedAt: now - 5_000,
+    source: 'EODHD_WS',
+  };
+  const restTick = {
+    price: 63973.94,
+    previousClose: 65044.81,
+    intraday: [65044.81, 63973.94],
+    source: 'EODHD_REST',
+  };
+
+  assert.equal(BTC_WS_SNAPSHOT_MAX_AGE_MS, 15_000);
+  assert.equal(isEligibleBtcWsSnapshotTick(staleWsTick, {
+    upstreamStatus: 'live',
+    now,
+  }), false);
+  assert.equal(isEligibleBtcWsSnapshotTick(freshWsTick, {
+    upstreamStatus: 'reconnecting',
+    now,
+  }), false);
+  assert.equal(isEligibleBtcWsSnapshotTick(freshWsTick, {
+    upstreamStatus: 'live',
+    now,
+  }), true);
+
+  const staleSnapshot = buildBtcRealtimeSnapshot({
+    wsTick: staleWsTick,
+    restTick,
+    upstreamStatus: 'live',
+    receivedAt: now,
+  });
+  assert.equal(staleSnapshot.status, 'fallback');
+  assert.equal(staleSnapshot.source, 'EODHD_REST');
+  assert.equal(staleSnapshot.tick, restTick);
+
+  const disconnectedSnapshot = buildBtcRealtimeSnapshot({
+    wsTick: freshWsTick,
+    restTick,
+    upstreamStatus: 'reconnecting',
+    receivedAt: now,
+  });
+  assert.equal(disconnectedSnapshot.status, 'fallback');
+  assert.equal(disconnectedSnapshot.source, 'EODHD_REST');
+  assert.equal(disconnectedSnapshot.tick, restTick);
+
+  const liveSnapshot = buildBtcRealtimeSnapshot({
+    wsTick: freshWsTick,
+    restTick,
+    upstreamStatus: 'live',
+    receivedAt: now,
+  });
+  assert.equal(liveSnapshot.status, 'live');
+  assert.equal(liveSnapshot.source, 'EODHD_WS');
+  assert.equal(liveSnapshot.tick, freshWsTick);
+});
+
+test('BTC client status never reports live when the latest WebSocket tick is stale', () => {
+  const now = 1784901840999;
+  const freshTick = { receivedAt: now - 5_000 };
+  const staleTick = { receivedAt: now - 20_000 };
+
+  assert.equal(resolveBtcClientStatus({
+    upstreamStatus: 'live',
+    lastTick: freshTick,
+    now,
+  }), 'live');
+  assert.equal(resolveBtcClientStatus({
+    upstreamStatus: 'live',
+    lastTick: staleTick,
+    now,
+  }), 'stale');
+  assert.equal(resolveBtcClientStatus({
+    upstreamStatus: 'live',
+    lastTick: null,
+    now,
+  }), 'stale');
+  assert.equal(resolveBtcClientStatus({
+    upstreamStatus: 'reconnecting',
+    lastTick: freshTick,
+    now,
+  }), 'reconnecting');
 });
 
 test('realtime auth extracts Supabase token from WebSocket protocol', () => {
@@ -132,6 +383,77 @@ test('BTC placeholder keeps the fourth home market card reserved before first ti
   assert.equal(placeholder.changePercent, null);
   assert.deepEqual(placeholder.intraday, []);
   assert.equal(placeholder.realtimeStatus, 'connecting');
+});
+
+test('BTC first REST fallback seeds the sparkline from snapshot intraday data', () => {
+  const card = applyBtcTickToMarketCard(null, {
+    price: 62000,
+    previousClose: 61000,
+    intraday: [null, 0, 61000, '61500', 62000],
+    source: 'EODHD_REST',
+    timestamp: 1783000000123,
+  }, 'fallback');
+
+  assert.equal(card.price, 62000);
+  assert.equal(card.realtime, false);
+  assert.equal(card.realtimeStatus, 'fallback');
+  assert.deepEqual(card.intraday, [61000, 61500, 62000]);
+});
+
+test('BTC first REST fallback uses previous close when intraday history is unavailable', () => {
+  const card = applyBtcTickToMarketCard(null, {
+    price: 62000,
+    previousClose: 61000,
+    source: 'EODHD_REST',
+  }, 'fallback');
+
+  assert.deepEqual(card.intraday, [61000, 62000]);
+});
+
+test('BTC WebSocket tick immediately replaces fallback status and extends the curve', () => {
+  const fallbackCard = applyBtcTickToMarketCard(null, {
+    price: 62000,
+    previousClose: 61000,
+    source: 'EODHD_REST',
+  }, 'fallback');
+  const liveCard = applyBtcTickToMarketCard(fallbackCard, {
+    price: 62100,
+    source: 'EODHD_WS',
+    timestamp: 1783000000123,
+  }, 'live');
+
+  assert.equal(liveCard.price, 62100);
+  assert.equal(liveCard.realtime, true);
+  assert.equal(liveCard.realtimeStatus, 'live');
+  assert.deepEqual(liveCard.intraday, [61000, 62000, 62100]);
+});
+
+test('BTC snapshot status follows both server status and data source', () => {
+  assert.equal(resolveBtcSnapshotRealtimeStatus({
+    status: 'live',
+    source: 'EODHD_WS',
+    tick: { source: 'EODHD_WS' },
+  }), 'live');
+  assert.equal(resolveBtcSnapshotRealtimeStatus({
+    status: 'live',
+    source: 'EODHD_WS',
+    tick: { source: 'EODHD_REST' },
+  }), 'fallback');
+  assert.equal(resolveBtcSnapshotRealtimeStatus({
+    status: 'live',
+    source: 'EODHD_REST',
+    tick: { source: 'EODHD_WS' },
+  }), 'fallback');
+  assert.equal(resolveBtcSnapshotRealtimeStatus({
+    status: 'fallback',
+    source: 'EODHD_WS',
+    tick: { source: 'EODHD_WS' },
+  }), 'fallback');
+  assert.equal(resolveBtcSnapshotRealtimeStatus({
+    status: 'reconnecting',
+    source: 'EODHD_WS',
+    tick: { source: 'EODHD_WS' },
+  }), 'fallback');
 });
 
 test('index placeholders keep the first three home market cards reserved before REST data', () => {

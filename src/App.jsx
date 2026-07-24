@@ -6,7 +6,7 @@ import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 import { normalizeMarginDebtUsd } from './lib/homeMarginRisk.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
-import { applyBtcTickToMarketCard } from './lib/btcRealtime.js';
+import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
@@ -1378,12 +1378,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     });
   }, []);
 
-  const applyBtcRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
+  const applyBtcRealtimeTick = useCallback((tick, realtimeStatus = 'live', options = {}) => {
     const price = Number(tick?.price);
     if (!Number.isFinite(price) || price <= 0) return;
+    const receivedAt = Date.now();
     const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
     btcRealtimeRef.current.lastTick = tick;
-    btcRealtimeRef.current.lastTickAt = Date.now();
+    btcRealtimeRef.current.lastTickAt = receivedAt;
+    if (options?.transport === 'websocket') {
+      btcRealtimeRef.current.lastWebSocketTickAt = receivedAt;
+    }
     setBtcRealtimeStatus(realtimeStatus);
     setBtcRealtimeLastTick(new Date(tickAt).toISOString());
     setBtcRealtimeError(null);
@@ -1685,6 +1689,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     retryDelayMs: 1000,
     lastTick: null,
     lastTickAt: 0,
+    lastWebSocketTickAt: 0,
     liveAt: 0,
     lastConnectAttemptAt: 0,
     lastForceReconnectAt: 0,
@@ -3468,13 +3473,19 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const fetchBtcRestFallback = useCallback(async () => {
     const ref = btcRealtimeRef.current;
     if (ref.lastTickAt && Date.now() - ref.lastTickAt < REALTIME_STALE_MS) return;
+    const requestedAt = Date.now();
     try {
       const r = await fetchRealtimeSnapshot('/api/btc-realtime');
       const result = await r.json().catch(() => ({}));
       if (!r.ok || !result?.success) throw new Error(result?.error || 'BTC snapshot failed');
       const tick = result?.data?.tick;
       if (!tick?.price) return;
-      applyBtcRealtimeTick(tick, 'fallback');
+      if (ref.lastWebSocketTickAt >= requestedAt) return;
+      applyBtcRealtimeTick(
+        tick,
+        resolveBtcSnapshotRealtimeStatus(result?.data),
+        { transport: 'snapshot' },
+      );
     } catch (e) {
       setBtcRealtimeError(e.message || 'BTC REST 兜底失败');
     }
@@ -3547,7 +3558,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             return;
           }
           if (payload?.type === 'btc_tick') {
-            applyBtcRealtimeTick(payload, 'live');
+            applyBtcRealtimeTick(payload, 'live', { transport: 'websocket' });
             return;
           }
           if (payload?.type === 'btc_status' && payload.status) {
