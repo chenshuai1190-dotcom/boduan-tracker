@@ -250,6 +250,7 @@ function normalizeEarningsEvent(raw, context = {}) {
     secFiledAt: raw?.secFiledAt || null,
     secFilingUrl: raw?.secFilingUrl || null,
     secExhibitUrl: raw?.secExhibitUrl || null,
+    secPrimaryDocumentUrl: raw?.secPrimaryDocumentUrl || null,
     publishedFinancialsComplete: raw?.publishedFinancialsComplete === true
       ? true
       : raw?.publishedFinancialsComplete === false

@@ -58,7 +58,7 @@ test('Home financing UI exposes a stable standalone page without replacing the c
   assert.ok(cardBlock.includes("t(language, 'home.totalAssets'"));
   assert.ok(cardBlock.includes("t(language, 'home.marginDebt'"));
   assert.ok(cardBlock.includes("t(language, 'home.leverage'"));
-  assert.ok(cardBlock.includes('shrink-0 whitespace-nowrap text-[11px]'), 'Home must keep the original readable leverage text size');
+  assert.ok(cardBlock.includes('shrink-0 whitespace-nowrap text-[12px]'), 'Home must keep the enlarged readable leverage text size');
   assert.ok(cardBlock.includes('<AccountLeverageBadge'));
   assert.equal(cardBlock.includes('data-home-margin-leverage-info-trigger'), false, 'Home should not expose the leverage guide');
   assert.equal(cardBlock.includes("t(language, 'home.positions'"), false, 'only the Home header third metric should stop showing position count');

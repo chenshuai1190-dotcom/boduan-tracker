@@ -415,6 +415,98 @@ const mockEarningsDetailData = {
   },
 };
 
+const mockNokEarningsDetailEvent = {
+  symbol: 'NOK',
+  name: '诺基亚',
+  reportDate: '2026-07-23',
+  fiscalDate: '2026-06-30',
+  session: 'pre',
+  earningsPublished: true,
+  earningsResult: 'beat',
+  currency: 'EUR',
+  epsCurrency: 'EUR',
+  epsEstimate: 0.0579,
+  epsActual: 0,
+  epsPreviousYear: 0.02,
+  epsActualYoyPercent: -100,
+  epsEstimateYoyPercent: 146.5,
+  revenueEstimateUsd: 5_519_000_000,
+  revenueActualUsd: 5_577_000_000,
+  revenuePreviousYearUsd: 5_145_000_000,
+  revenueActualYoyPercent: 8.4,
+  revenueEstimateYoyPercent: 3.6,
+  ebitActualUsd: 505_000_000,
+  ebitPreviousYearUsd: 427_000_000,
+  ebitActualYoyPercent: 18.3,
+  ebitActualBasis: 'comparableOperatingIncome',
+  secForm: '6-K',
+};
+
+const mockNokEarningsDetailData = {
+  success: true,
+  schemaVersion: 1,
+  status: 'complete',
+  symbol: 'NOK',
+  currency: 'EUR',
+  period: {
+    start: '2026-04-01',
+    end: '2026-06-30',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-23',
+  },
+  source: {
+    provider: 'SEC',
+    cik: '0000924613',
+    accession: '0001104659-26-086081',
+    form: '6-K',
+    filedAt: '2026-07-23',
+    filingUrl: 'https://www.sec.gov/Archives/edgar/data/924613/000110465926086081/tm2621179d1_6k.htm',
+    primaryDocumentUrl: 'https://www.sec.gov/Archives/edgar/data/924613/000110465926086081/tm2621179d1_6k.htm',
+  },
+  sections: {
+    reportSegments: {
+      status: 'complete',
+      items: [
+        { id: 'network-infrastructure', label: 'Network Infrastructure', labelZh: '网络基础设施', revenue: 2_037_000_000, previousRevenue: 1_825_000_000, profitMetric: 'operatingIncome', profit: 166_000_000, previousProfit: 117_000_000 },
+        { id: 'mobile-infrastructure', label: 'Mobile Infrastructure', labelZh: '移动基础设施', revenue: 2_680_000_000, previousRevenue: 2_531_000_000, profitMetric: 'operatingIncome', profit: 310_000_000, previousProfit: 310_000_000 },
+        { id: 'portfolio-businesses', label: 'Portfolio Businesses', labelZh: '组合业务', revenue: 94_000_000, previousRevenue: 89_000_000, profitMetric: 'operatingIncome', profit: 0, previousProfit: -11_000_000 },
+      ],
+      reconciliation: { revenue: 4_000_000, previousRevenue: -2_000_000 },
+    },
+    revenueBreakdown: {
+      status: 'complete',
+      items: [
+        { id: 'optical-networks', label: 'Optical Networks', labelZh: '光网络', revenue: 868_000_000, previousRevenue: 730_000_000 },
+        { id: 'ip-networks', label: 'IP Networks', labelZh: 'IP 网络', revenue: 679_000_000, previousRevenue: 588_000_000 },
+        { id: 'fixed-networks', label: 'Fixed Networks', labelZh: '固定网络', revenue: 490_000_000, previousRevenue: 507_000_000 },
+        { id: 'core-software', label: 'Core Software', labelZh: '核心软件', revenue: 507_000_000, previousRevenue: 508_000_000 },
+        { id: 'radio-networks', label: 'Radio Networks', labelZh: '无线网络', revenue: 1_765_000_000, previousRevenue: 1_666_000_000 },
+        { id: 'technology-standards', label: 'Technology Standards', labelZh: '技术标准与授权', revenue: 407_000_000, previousRevenue: 357_000_000 },
+        { id: 'portfolio-detail', label: 'Portfolio Businesses', labelZh: '组合业务', revenue: 94_000_000, previousRevenue: 89_000_000 },
+      ],
+    },
+    geographies: {
+      status: 'complete',
+      items: [
+        { id: 'americas', label: 'Americas', labelZh: '美洲', revenue: 1_778_000_000, previousRevenue: 1_554_000_000 },
+        { id: 'apac', label: 'APAC', labelZh: '亚太地区', revenue: 982_000_000, previousRevenue: 951_000_000 },
+        { id: 'emea', label: 'EMEA', labelZh: '欧洲、中东和非洲', revenue: 2_055_000_000, previousRevenue: 1_937_000_000 },
+      ],
+    },
+  },
+  supplemental: {
+    customerTypes: {
+      status: 'complete',
+      items: [
+        { id: 'telecommunication-providers', label: 'Telecommunication Providers', labelZh: '电信运营商', revenue: 3_514_000_000, previousRevenue: 3_408_000_000 },
+        { id: 'ai-cloud', label: 'AI & Cloud', labelZh: 'AI 与云客户', revenue: 446_000_000, previousRevenue: 220_000_000 },
+        { id: 'mission-critical', label: 'Mission Critical Enterprise & Defense', labelZh: '关键任务企业与国防', revenue: 448_000_000, previousRevenue: 461_000_000 },
+        { id: 'technology-licensees', label: 'Technology Licensees', labelZh: '技术授权客户', revenue: 407_000_000, previousRevenue: 357_000_000 },
+      ],
+    },
+  },
+};
+
 const mockTsmEarningsDetailEvent = {
   symbol: 'TSM',
   name: '台积电',
@@ -1159,6 +1251,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('preview') === 'earnings-base-prototype';
   const earningsHoldingsDetailPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'earnings-holdings-prototype';
+  const earningsNokDetailPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('preview') === 'earnings-nok-prototype';
   const [activeTab, setActiveTab] = React.useState(() => {
     if (initialTab) return initialTab;
     if (typeof window === 'undefined') return 'analysis';
@@ -1892,12 +1986,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     earningsCalendarEvents: previewEarningsCalendarEvents,
     earningsCalendarNow,
     earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null,
-    earningsDetailDataOverride: earningsHoldingsDetailPreview
-      ? mockTsmEarningsDetailData
-      : earningsBaseDetailPreview ? mockEarningsBaseDetailData : mockEarningsDetailData,
-    earningsDetailEvent: earningsHoldingsDetailPreview
-      ? mockTsmEarningsDetailEvent
-      : earningsBaseDetailPreview ? mockEarningsBaseDetailEvent : mockEarningsDetailEvent,
+    earningsDetailDataOverride: earningsNokDetailPreview
+      ? mockNokEarningsDetailData
+      : earningsHoldingsDetailPreview
+        ? mockTsmEarningsDetailData
+        : earningsBaseDetailPreview ? mockEarningsBaseDetailData : mockEarningsDetailData,
+    earningsDetailEvent: earningsNokDetailPreview
+      ? mockNokEarningsDetailEvent
+      : earningsHoldingsDetailPreview
+        ? mockTsmEarningsDetailEvent
+        : earningsBaseDetailPreview ? mockEarningsBaseDetailEvent : mockEarningsDetailEvent,
     closeEarningsDetail: () => setActiveTab('home'),
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
@@ -2347,7 +2445,7 @@ export default function DevVisualPreview() {
     );
   }
 
-  if (['earnings-segments-prototype', 'earnings-base-prototype', 'earnings-holdings-prototype'].includes(preview)) {
+  if (['earnings-segments-prototype', 'earnings-base-prototype', 'earnings-holdings-prototype', 'earnings-nok-prototype'].includes(preview)) {
     return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 

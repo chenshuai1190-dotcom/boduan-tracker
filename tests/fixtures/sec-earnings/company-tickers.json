@@ -23,5 +23,10 @@
     "cik_str": 1046179,
     "ticker": "TSM",
     "title": "Taiwan Semiconductor Manufacturing Company Limited"
+  },
+  "5": {
+    "cik_str": 924613,
+    "ticker": "NOK",
+    "title": "Nokia Oyj"
   }
 }

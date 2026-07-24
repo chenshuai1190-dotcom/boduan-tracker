@@ -1252,7 +1252,7 @@ export default function EarningsCalendar({
       style={{ fontFamily: FONT }}
     >
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-[14px] font-bold leading-none text-white/70">
+        <div className="text-[15px] font-bold leading-none text-white/70">
           {t(language, 'earningsCalendar.title', '财报日历')}
         </div>
         <button
@@ -1270,7 +1270,7 @@ export default function EarningsCalendar({
         style={{ gridTemplateColumns: previewEvents.length > 0 ? `repeat(${previewEvents.length}, minmax(0, 1fr)) 42px` : '1fr' }}
       >
         {previewEvents.length === 0 ? (
-          <div className="flex min-h-[88px] flex-1 items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.025] px-4 text-center text-[12px] text-white/35">
+          <div className="flex min-h-[88px] flex-1 items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.025] px-4 text-center text-[13px] text-white/35">
             {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : error || t(language, 'earningsCalendar.noEvents', '暂无关注股票财报')}
           </div>
         ) : (
@@ -1285,7 +1285,7 @@ export default function EarningsCalendar({
                   index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''
                 }`}
               >
-                <div className="text-[12px] leading-none tabular-nums text-white/35">{shortDateLabel(event.reportDate)}</div>
+                <div className="text-[13px] leading-none tabular-nums text-white/35">{shortDateLabel(event.reportDate)}</div>
                 <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="mt-2 h-7 w-7 rounded-md" />
                 <div className="mt-1.5 max-w-full truncate text-[11px] leading-none font-normal text-white/70">{event.symbol}</div>
                 <span className="mt-1.5 inline-flex h-3.5 items-center justify-center">

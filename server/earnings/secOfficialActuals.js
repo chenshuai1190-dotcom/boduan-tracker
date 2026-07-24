@@ -6,7 +6,7 @@ import {
   parseSecExhibitActuals,
 } from './secOfficialParsers.js';
 
-export const OFFICIAL_ACTUAL_SCHEMA_VERSION = 2;
+export const OFFICIAL_ACTUAL_SCHEMA_VERSION = 3;
 export const DEFAULT_SEC_USER_AGENT = 'BoduanTracker/1.0 chenshuai1190@gmail.com';
 
 const SEC_REQUEST_TIMEOUT_MS = 5500;
@@ -35,6 +35,7 @@ const KNOWN_CIK_BY_SYMBOL = new Map([
   ['GOOG', '0001652044'],
   ['GOOGL', '0001652044'],
   ['IBKR', '0001381197'],
+  ['NOK', '0000924613'],
 ]);
 
 export function isSecOfficialActualSupportedSymbol(symbol) {
@@ -299,6 +300,7 @@ export function mergeSecOfficialActuals(events, officialActuals) {
       secFiledAt: official.filedAt || official.secFiledAt || null,
       secFilingUrl: official.filingUrl || official.secFilingUrl || null,
       secExhibitUrl: official.exhibitUrl || official.secExhibitUrl || null,
+      secPrimaryDocumentUrl: official.primaryDocumentUrl || official.secPrimaryDocumentUrl || null,
     };
     if (official.officialActualStatus === 'unsupported' || official.officialActualStatus === 'complete') {
       // Handled below.
@@ -350,6 +352,7 @@ export function mergeSecOfficialActuals(events, officialActuals) {
     }
 
     const source = official.officialActualSource || official.actualSource;
+    const actualCurrency = normalizeCurrencyCode(official.currency) || 'USD';
     const epsEstimate = parseNumeric(event.epsEstimate ?? event.estimate);
     const epsDifference = epsEstimate === null
       ? null
@@ -363,7 +366,7 @@ export function mergeSecOfficialActuals(events, officialActuals) {
       epsActual: official.epsActual,
       actual: official.epsActual,
       epsPreviousYear: official.epsPreviousYear,
-      epsCurrency: official.epsCurrency ?? event.epsCurrency ?? null,
+      epsCurrency: official.epsCurrency ?? actualCurrency,
       epsUnit: official.epsUnit ?? event.epsUnit ?? null,
       epsDifference,
       difference: epsDifference,
@@ -376,16 +379,16 @@ export function mergeSecOfficialActuals(events, officialActuals) {
       revenueActual: official.revenueActual,
       revenuePreviousYear: official.revenuePreviousYear,
       revenueActualSuppressed: false,
-      revenueActualOriginalCurrency: 'USD',
-      revenuePreviousYearOriginalCurrency: 'USD',
+      revenueActualOriginalCurrency: actualCurrency,
+      revenuePreviousYearOriginalCurrency: actualCurrency,
       revenueActualSource: source,
       revenuePreviousYearSource: source,
       revenueActualBasis: official.revenueActualBasis || null,
       revenuePreviousYearBasis: official.revenueActualBasis || null,
       ebitActual: official.ebitActual,
       ebitPreviousYear: official.ebitPreviousYear,
-      ebitActualOriginalCurrency: 'USD',
-      ebitPreviousYearOriginalCurrency: 'USD',
+      ebitActualOriginalCurrency: actualCurrency,
+      ebitPreviousYearOriginalCurrency: actualCurrency,
       ebitActualSource: source,
       ebitPreviousYearSource: source,
       ebitActualBasis: official.ebitActualBasis,
@@ -420,8 +423,14 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
   }
   const filings = normalizeRecentFilings(submissions);
   const tenQ = selectTenQFiling(filings, event.fiscalDate, today);
-  const earningsFiling = event.symbol === 'TSM'
-    ? selectEarnings6KFiling(filings, event.reportDate, event.fiscalDate, today)
+  const earningsFiling = ['NOK', 'TSM'].includes(event.symbol)
+    ? selectEarnings6KFiling(
+        filings,
+        event.reportDate,
+        event.fiscalDate,
+        today,
+        event.symbol,
+      )
     : selectEarnings8KFiling(filings, event.reportDate, today);
 
   if (tenQ) {
@@ -458,22 +467,33 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
   if (earningsFiling) {
     const filingUrl = buildFilingIndexUrl(cik, earningsFiling.accession);
     try {
-      const indexHtml = await fetchTextCached(filingUrl, {
-        ...context,
-        ttlMs: FILING_CACHE_TTL_MS,
-        maxBytes: SEC_MAX_INDEX_BYTES,
-      });
-      const exhibitUrl = extractExhibit991Url(indexHtml, filingUrl);
-      if (exhibitUrl) {
-        const exhibitHtml = await fetchTextCached(exhibitUrl, {
+      let exhibitUrl = null;
+      let primaryDocumentUrl = null;
+      let documentUrl = null;
+      let documentMaxBytes = SEC_MAX_EXHIBIT_BYTES;
+      if (event.symbol === 'NOK') {
+        primaryDocumentUrl = buildPrimaryDocumentUrl(cik, earningsFiling);
+        documentUrl = primaryDocumentUrl;
+        documentMaxBytes = SEC_MAX_PRIMARY_DOCUMENT_BYTES;
+      } else {
+        const indexHtml = await fetchTextCached(filingUrl, {
           ...context,
           ttlMs: FILING_CACHE_TTL_MS,
-          maxBytes: SEC_MAX_EXHIBIT_BYTES,
+          maxBytes: SEC_MAX_INDEX_BYTES,
+        });
+        exhibitUrl = extractExhibit991Url(indexHtml, filingUrl);
+        documentUrl = exhibitUrl;
+      }
+      if (documentUrl) {
+        const documentHtml = await fetchTextCached(documentUrl, {
+          ...context,
+          ttlMs: FILING_CACHE_TTL_MS,
+          maxBytes: documentMaxBytes,
         });
         const parsed = parseSecExhibitActuals({
           symbol: event.symbol,
           fiscalDate: event.fiscalDate,
-          html: exhibitHtml,
+          html: documentHtml,
         });
         if (parsed) {
           const result = completeResult({
@@ -482,15 +502,17 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
             filing: earningsFiling,
             filingUrl,
             exhibitUrl,
+            primaryDocumentUrl,
             parsed,
-            source: 'sec-exhibit',
+            source: primaryDocumentUrl ? 'sec-primary' : 'sec-exhibit',
           });
           writeCache(resultCache, cacheKey, result, RESULT_CACHE_TTL_MS, context);
           return result;
         }
       }
     } catch {
-      // A malformed, oversized, timed-out, or unsupported exhibit never overrides provider data.
+      // A malformed, oversized, timed-out, or unsupported official document
+      // never overrides provider data.
     }
     const pending = statusResult(event, 'pending', 'official-filing-unparsed', {
       secCik: cik,
@@ -756,6 +778,7 @@ function completeResult({
   filing,
   filingUrl = buildFilingIndexUrl(cik, filing.accession),
   exhibitUrl = null,
+  primaryDocumentUrl = null,
   parsed,
   source,
 }) {
@@ -776,6 +799,7 @@ function completeResult({
     filedAt: filing.acceptedAt || filing.filingDate,
     filingUrl,
     exhibitUrl,
+    primaryDocumentUrl,
     ...parsed,
   };
 }
@@ -928,6 +952,11 @@ function normalizeAcceptedAt(value) {
 
 function normalizeSymbol(value) {
   return String(value || '').trim().toUpperCase().replace(/\.US$/, '');
+}
+
+function normalizeCurrencyCode(value) {
+  const currency = String(value || '').trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(currency) ? currency : '';
 }
 
 function normalizePreferredDocumentTypes(value) {

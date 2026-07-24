@@ -331,6 +331,81 @@ test('TSM receives one bounded official-schema migration after the normal two-da
   );
 });
 
+test('NOK receives schema v3 migration and keeps SEC primary EUR metadata after a lower-quality refresh', () => {
+  assert.equal(OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION, 3);
+
+  const staleNok = {
+    symbol: 'NOK',
+    reportDate: '2026-07-23',
+    fiscalDate: '2026-06-30',
+    session: 'pre',
+    epsActual: 0,
+    revenueActualUsd: 5_577_000_000,
+    officialActualSchemaVersion: 2,
+    officialActualStatus: 'unsupported',
+    publishedFinancialsComplete: true,
+    marketReactionPercent: -1.6,
+  };
+  assert.deepEqual(
+    getEarningsRefreshCandidates([staleNok], Date.parse('2026-07-24T12:00:00Z'))
+      .map((event) => event.symbol),
+    ['NOK'],
+  );
+
+  const current = [{
+    ...staleNok,
+    officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
+    officialActualStatus: 'complete',
+    officialActualSource: 'sec-primary',
+    epsActual: 0,
+    epsPreviousYear: 0.02,
+    epsActualSource: 'sec-primary',
+    epsCurrency: 'EUR',
+    epsUnit: 'EUR/share',
+    revenueActual: 4_815_000_000,
+    revenueActualUsd: 5_598_837_209,
+    revenueActualOriginalCurrency: 'EUR',
+    revenueActualSource: 'sec-primary',
+    revenuePreviousYear: 4_443_000_000,
+    revenuePreviousYearUsd: 5_166_279_070,
+    revenuePreviousYearOriginalCurrency: 'EUR',
+    ebitActual: 434_000_000,
+    ebitActualUsd: 504_651_163,
+    ebitActualOriginalCurrency: 'EUR',
+    ebitActualSource: 'sec-primary',
+    ebitPreviousYear: 367_000_000,
+    ebitPreviousYearUsd: 426_744_186,
+    ebitPreviousYearOriginalCurrency: 'EUR',
+    secCik: '0000924613',
+    secPrimaryDocumentUrl: 'https://www.sec.gov/Archives/example/nokia-6k.htm',
+  }];
+  const [merged] = mergeEarningsRefreshEvents(current, [{
+    symbol: 'NOK',
+    reportDate: '2026-07-23',
+    fiscalDate: '2026-06-30',
+    session: 'pre',
+    officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,
+    officialActualStatus: 'pending',
+    officialActualReason: 'official-filing-unparsed',
+    secCik: '0000924613',
+    epsActual: null,
+    revenueActual: null,
+    revenueActualUsd: null,
+    ebitActual: null,
+    ebitActualUsd: null,
+    publishedFinancialsComplete: false,
+  }]);
+
+  assert.equal(merged.officialActualStatus, 'complete');
+  assert.equal(merged.officialActualSource, 'sec-primary');
+  assert.equal(merged.secPrimaryDocumentUrl, current[0].secPrimaryDocumentUrl);
+  assert.equal(merged.epsCurrency, 'EUR');
+  assert.equal(merged.revenueActualOriginalCurrency, 'EUR');
+  assert.equal(merged.revenuePreviousYearOriginalCurrency, 'EUR');
+  assert.equal(merged.ebitActualOriginalCurrency, 'EUR');
+  assert.equal(merged.ebitPreviousYearOriginalCurrency, 'EUR');
+});
+
 test('published fundamentals keep refreshing when revenue arrives before operating profit', () => {
   const partiallySynced = {
     officialActualSchemaVersion: OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION,

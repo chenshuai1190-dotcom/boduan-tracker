@@ -121,6 +121,29 @@ test('Tesla parser reads the real SEC image-alt shape without selecting non-GAAP
   assert.notEqual(parsed?.epsActual, 0.33);
 });
 
+test('Nokia primary 6-K parser keeps each official metric on its declared EUR basis', async () => {
+  const nokia = parseSecExhibitActuals({
+    symbol: 'NOK',
+    fiscalDate: '2026-06-30',
+    html: await fixture('nok-primary-6k.html'),
+  });
+
+  assert.ok(nokia);
+  assert.equal(nokia.currency, 'EUR');
+  assert.equal(nokia.actualBasis, 'nokia-reported-and-comparable');
+  assert.equal(nokia.revenueActual, 4_815_000_000);
+  assert.equal(nokia.revenuePreviousYear, 4_443_000_000);
+  assert.equal(nokia.revenueActualBasis, 'reportedNetSales');
+  assert.equal(nokia.ebitActual, 434_000_000);
+  assert.equal(nokia.ebitPreviousYear, 367_000_000);
+  assert.equal(nokia.ebitActualBasis, 'comparableOperatingIncome');
+  assert.equal(nokia.epsActual, 0);
+  assert.equal(nokia.epsPreviousYear, 0.02);
+  assert.equal(nokia.epsActualBasis, 'reportedDilutedEPS');
+  assert.equal(nokia.epsCurrency, 'EUR');
+  assert.equal(nokia.epsUnit, 'EUR/share');
+});
+
 test('SEC filing index selects the declared EX-99.1 archive document', async () => {
   const filingUrl = 'https://www.sec.gov/Archives/edgar/data/1318605/000162828026049213/0001628280-26-049213-index.html';
   assert.equal(
@@ -237,6 +260,7 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
     ['/submissions/CIK0001046179.json', 'tsm-submissions.json'],
     ['/submissions/CIK0001652044.json', 'googl-submissions.json'],
     ['/submissions/CIK0001381197.json', 'ibkr-submissions.json'],
+    ['/submissions/CIK0000924613.json', 'nok-submissions.json'],
     ['/Archives/edgar/data/1318605/000162828026049213/0001628280-26-049213-index.html', 'tsla-filing-index.html'],
     ['/Archives/edgar/data/1046179/000104617926000451/0001046179-26-000451-index.html', 'tsm-filing-index.html'],
     ['/Archives/edgar/data/1652044/000165204426000066/0001652044-26-000066-index.html', 'googl-filing-index.html'],
@@ -245,6 +269,7 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
     ['/Archives/edgar/data/1046179/000104617926000451/a2q26e_withguidancexfinal.htm', 'tsm-exhibit-99.1.html'],
     ['/Archives/edgar/data/1652044/000165204426000066/googexhibit991q22026.htm', 'googl-exhibit-99.1.html'],
     ['/Archives/edgar/data/1381197/000138119726000118/ibkr-ex99_1.htm', 'ibkr-exhibit-99.1.html'],
+    ['/Archives/edgar/data/924613/000110465926086081/tm2621179d1_6k.htm', 'nok-primary-6k.html'],
   ]);
   const requested = [];
   const fetchFn = async (url) => {
@@ -264,6 +289,7 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
     { symbol: 'TSM', reportDate: '2026-07-16', fiscalDate: '2026-06-30' },
     { symbol: 'GOOGL', reportDate: '2026-07-22', fiscalDate: '2026-06-30' },
     { symbol: 'IBKR', reportDate: '2026-07-21', fiscalDate: '2026-06-30' },
+    { symbol: 'NOK', reportDate: '2026-07-23', fiscalDate: '2026-06-30' },
   ];
   const official = await fetchSecOfficialActuals({
     events,
@@ -277,10 +303,25 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
   assert.equal(official.get('TSM|2026-06-30')?.revenueActual, 40_201_000_000);
   assert.equal(official.get('TSM|2026-06-30')?.ebitActual, 24_259_000_000);
   assert.equal(official.get('TSM|2026-06-30')?.epsActual, 4.31);
-  assert.equal(official.get('TSM|2026-06-30')?.officialActualSchemaVersion, 2);
+  assert.equal(official.get('TSM|2026-06-30')?.officialActualSchemaVersion, 3);
   assert.equal(official.get('TSM|2026-06-30')?.form, '6-K');
   assert.equal(official.get('GOOGL|2026-06-30')?.ebitActual, 40_770_000_000);
   assert.equal(official.get('IBKR|2026-06-30')?.revenueActual, 1_896_000_000);
+  assert.equal(official.get('NOK|2026-06-30')?.officialActualStatus, 'complete');
+  assert.equal(official.get('NOK|2026-06-30')?.officialActualSource, 'sec-primary');
+  assert.equal(official.get('NOK|2026-06-30')?.officialActualSchemaVersion, 3);
+  assert.equal(official.get('NOK|2026-06-30')?.form, '6-K');
+  assert.equal(official.get('NOK|2026-06-30')?.currency, 'EUR');
+  assert.equal(official.get('NOK|2026-06-30')?.revenueActual, 4_815_000_000);
+  assert.equal(official.get('NOK|2026-06-30')?.revenuePreviousYear, 4_443_000_000);
+  assert.equal(official.get('NOK|2026-06-30')?.ebitActual, 434_000_000);
+  assert.equal(official.get('NOK|2026-06-30')?.ebitPreviousYear, 367_000_000);
+  assert.equal(official.get('NOK|2026-06-30')?.epsActual, 0);
+  assert.equal(official.get('NOK|2026-06-30')?.epsPreviousYear, 0.02);
+  assert.equal(
+    official.get('NOK|2026-06-30')?.primaryDocumentUrl,
+    'https://www.sec.gov/Archives/edgar/data/924613/000110465926086081/tm2621179d1_6k.htm',
+  );
   assert.equal(official.get('UNSUPPORTED9|2026-06-30')?.officialActualStatus, 'unsupported');
   assert.ok(requested.some((path) => path.endsWith('exhibit991.htm')));
 
@@ -324,13 +365,44 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
   assert.equal(mergedTsm.epsActual, 4.31);
   assert.equal(mergedTsm.epsCurrency, 'USD');
   assert.equal(mergedTsm.epsUnit, 'USD/ADR');
-  assert.equal(mergedTsm.officialActualSchemaVersion, 2);
+  assert.equal(mergedTsm.officialActualSchemaVersion, 3);
+
+  const [mergedNok] = mergeSecOfficialActuals([{
+    symbol: 'NOK',
+    reportDate: '2026-07-23',
+    fiscalDate: '2026-06-30',
+    epsEstimate: 0.0579,
+    epsActual: 0.08,
+    revenueActual: 5_577_000_000,
+    ebitActual: 505_000_000,
+  }], official);
+  assert.equal(mergedNok.epsActual, 0);
+  assert.equal(mergedNok.epsPreviousYear, 0.02);
+  assert.equal(mergedNok.epsCurrency, 'EUR');
+  assert.equal(mergedNok.epsUnit, 'EUR/share');
+  assert.equal(mergedNok.revenueActual, 4_815_000_000);
+  assert.equal(mergedNok.revenuePreviousYear, 4_443_000_000);
+  assert.equal(mergedNok.revenueActualOriginalCurrency, 'EUR');
+  assert.equal(mergedNok.revenueActualBasis, 'reportedNetSales');
+  assert.equal(mergedNok.ebitActual, 434_000_000);
+  assert.equal(mergedNok.ebitPreviousYear, 367_000_000);
+  assert.equal(mergedNok.ebitActualOriginalCurrency, 'EUR');
+  assert.equal(mergedNok.ebitActualBasis, 'comparableOperatingIncome');
+  assert.equal(mergedNok.actualBasis, 'nokia-reported-and-comparable');
+  assert.equal(mergedNok.officialActualSource, 'sec-primary');
+  assert.equal(
+    mergedNok.secPrimaryDocumentUrl,
+    'https://www.sec.gov/Archives/edgar/data/924613/000110465926086081/tm2621179d1_6k.htm',
+  );
 });
 
-test('SEC official support list includes TSM without broadening unknown symbols', () => {
+test('SEC official support list includes Nokia and TSM without broadening unknown symbols', () => {
+  assert.equal(isSecOfficialActualSupportedSymbol('NOK'), true);
+  assert.equal(isSecOfficialActualSupportedSymbol('nok.us'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('TSM'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('tsm.us'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('NVDA'), false);
+  assert.equal(isSecOfficialActualSupportedEvent('NOK', '2026-06-30'), true);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-06-30'), true);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-09-30'), false);
 });

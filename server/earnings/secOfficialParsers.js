@@ -4,6 +4,7 @@ const SUPPORTED_EXHIBIT_SYMBOLS = new Set([
   'GOOG',
   'GOOGL',
   'IBKR',
+  'NOK',
 ]);
 
 const TSMC_USD_TRANSLATION_BY_FISCAL_DATE = new Map([
@@ -55,6 +56,9 @@ export function parseSecExhibitActuals({ symbol, fiscalDate, html }) {
   }
   if (normalizedSymbol === 'TSM') {
     return parseTaiwanSemiconductorExhibit(html, normalizedFiscalDate);
+  }
+  if (normalizedSymbol === 'NOK') {
+    return parseNokiaPrimaryDocument(html, normalizedFiscalDate);
   }
   if (normalizedSymbol === 'GOOG' || normalizedSymbol === 'GOOGL') {
     return parseAlphabetExhibit(html, normalizedFiscalDate);
@@ -253,6 +257,59 @@ function parseTaiwanSemiconductorExhibit(html, fiscalDate) {
   });
 }
 
+function parseNokiaPrimaryDocument(html, fiscalDate) {
+  const text = htmlToText(html);
+  const expectedQuarter = quarterLabelForDate(fiscalDate).replace(
+    /^Q([1-4])-(\d{2})(\d{2})$/,
+    "Q$1'$3",
+  );
+  if (!expectedQuarter
+    || !/\bNokia Corporation\b/i.test(text)
+    || !text.includes(expectedQuarter)
+    || !/\bComparable results\b/i.test(text)) {
+    return null;
+  }
+
+  const rows = extractTableRows(html);
+  const reportedIndex = rows.findIndex((row) => normalizeLabel(row[0]) === 'reported results');
+  const comparableIndex = rows.findIndex(
+    (row, index) => index > reportedIndex && normalizeLabel(row[0]) === 'comparable results',
+  );
+  if (reportedIndex < 0 || comparableIndex <= reportedIndex) return null;
+
+  const reportedRows = rows.slice(reportedIndex + 1, comparableIndex);
+  const comparableRows = rows.slice(comparableIndex + 1, comparableIndex + 20);
+  const reportedRevenue = nokiaNumericValues(findRowByLabel(reportedRows, 'Net sales'));
+  const comparableOperatingIncome = nokiaNumericValues(
+    findRowByLabel(comparableRows, 'Operating profit'),
+  );
+  const reportedEps = nokiaNumericValues(
+    findRowByLabel(reportedRows, 'EPS for the period, diluted'),
+  );
+  if (reportedRevenue.length < 2
+    || comparableOperatingIncome.length < 2
+    || reportedEps.length < 2) {
+    return null;
+  }
+
+  return completeActuals({
+    fiscalDate,
+    currency: 'EUR',
+    actualBasis: 'nokia-reported-and-comparable',
+    revenueActual: scaleMillions(reportedRevenue[0]),
+    revenuePreviousYear: scaleMillions(reportedRevenue[1]),
+    revenueActualBasis: 'reportedNetSales',
+    ebitActual: scaleMillions(comparableOperatingIncome[0]),
+    ebitPreviousYear: scaleMillions(comparableOperatingIncome[1]),
+    ebitActualBasis: 'comparableOperatingIncome',
+    epsActual: reportedEps[0],
+    epsPreviousYear: reportedEps[1],
+    epsActualBasis: 'reportedDilutedEPS',
+    epsCurrency: 'EUR',
+    epsUnit: 'EUR/share',
+  });
+}
+
 function parseAlphabetExhibit(html, fiscalDate) {
   const text = htmlToText(html);
   if (!/\bAlphabet\b/i.test(text) || !/in millions/i.test(text) || !containsFiscalQuarter(text, fiscalDate)) return null;
@@ -347,6 +404,20 @@ function findFirstExactRow(rows, labels, minimumNumbers) {
     if (row.length) return row;
   }
   return [];
+}
+
+function findRowByLabel(rows, label) {
+  const normalizedLabel = normalizeLabel(label);
+  return (rows || []).find((row) => normalizeLabel(row[0]) === normalizedLabel) || [];
+}
+
+function nokiaNumericValues(cells) {
+  return (cells || []).slice(1).flatMap((cell) => {
+    const raw = String(cell || '').trim().replace(/\u00a0/g, ' ');
+    if (!/^\(?[-−]?\d+(?: \d{3})*(?:\.\d+)?\)?$/.test(raw)) return [];
+    const value = parseFinancialNumber(raw.replace(/\s+/g, ''));
+    return value === null ? [] : [value];
+  });
 }
 
 function numericValues(cells) {

@@ -10,18 +10,10 @@ import {
   formatEarningsDetailMoney,
   normalizeEarningsDetailPayload,
 } from '../src/lib/earningsDetail.js';
-import {
-  EARNINGS_DETAIL_EXPORT_MAX_DIMENSION,
-  EARNINGS_DETAIL_EXPORT_MAX_PIXELS,
-  EARNINGS_DETAIL_EXPORT_WIDTH,
-  calculateEarningsDetailExportLayout,
-} from '../src/lib/shareEarningsDetail.js';
-
 const appSource = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const calendarSource = fs.readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
 const calendarPageSource = fs.readFileSync(new URL('../src/pages/EarningsCalendarPage.jsx', import.meta.url), 'utf8');
 const detailPageSource = fs.readFileSync(new URL('../src/pages/EarningsDetailPage.jsx', import.meta.url), 'utf8');
-const shareSource = fs.readFileSync(new URL('../src/lib/shareEarningsDetail.js', import.meta.url), 'utf8');
 
 test('earnings detail payload keeps only the documented SEC section contract', () => {
   const normalized = normalizeEarningsDetailPayload({
@@ -139,7 +131,7 @@ test('earnings calendar and detail are standalone pages that retain the global b
   assert.ok(appSource.includes("setActivePage('earnings-detail')"));
 });
 
-test('production detail renders every section in one page and shares the export root as a long PNG', () => {
+test('production detail renders every official section without screenshot or share controls', () => {
   assert.ok(detailPageSource.includes('<DetailSections detail={detail}'));
   assert.ok(detailPageSource.includes("language === 'en' ? 'Reportable segments' : '报告分部'"));
   assert.ok(detailPageSource.includes("language === 'en' ? 'Revenue breakdown' : '细分结构'"));
@@ -149,41 +141,10 @@ test('production detail renders every section in one page and shares the export 
   assert.ok(detailPageSource.includes("language === 'en' ? 'SEC filing' : 'SEC 文件'"));
   assert.ok(detailPageSource.includes('Period ended'));
   assert.ok(detailPageSource.includes('该公司的官方细分数据暂未接入'));
-  assert.ok(detailPageSource.includes('data-earnings-detail-export-root="true"'));
-  assert.ok(detailPageSource.includes('data-export-ignore="true"'));
-  assert.ok(shareSource.includes("navigator.canShare?.({ files: [file] })"));
-  assert.ok(shareSource.includes("canvas.toBlob"));
-  assert.ok(shareSource.includes('EARNINGS_DETAIL_EXPORT_MAX_DIMENSION = 8192'));
-  assert.ok(shareSource.includes('} finally {'));
-  assert.ok(shareSource.includes('anchor?.remove();'));
-  assert.ok(shareSource.includes('setTimeout(() => URL.revokeObjectURL(url), 30_000)'));
+  assert.equal(detailPageSource.includes('shareEarningsDetailImage'), false);
+  assert.equal(detailPageSource.includes('Share2'), false);
+  assert.equal(detailPageSource.includes('data-earnings-export-page'), false);
+  assert.equal(detailPageSource.includes('分享完整财报'), false);
+  assert.equal(fs.existsSync(new URL('../src/lib/shareEarningsDetail.js', import.meta.url)), false);
   assert.equal(detailPageSource.includes('COMPANY_DATA'), false);
-});
-
-test('earnings detail export uses a stable readable width and stays inside iOS canvas limits', () => {
-  const standard = calculateEarningsDetailExportLayout({
-    height: 2_200,
-    devicePixelRatio: 3,
-  });
-  assert.equal(standard.width, EARNINGS_DETAIL_EXPORT_WIDTH);
-  assert.equal(standard.scale, 3);
-  assert.equal(standard.outputWidth, 1_290);
-  assert.equal(standard.outputHeight, 6_600);
-
-  const longReport = calculateEarningsDetailExportLayout({
-    height: 4_000,
-    devicePixelRatio: 3,
-  });
-  assert.ok(longReport.scale < 3);
-  assert.ok(longReport.outputWidth <= EARNINGS_DETAIL_EXPORT_MAX_DIMENSION);
-  assert.ok(longReport.outputHeight <= EARNINGS_DETAIL_EXPORT_MAX_DIMENSION);
-  assert.ok(
-    longReport.outputWidth * longReport.outputHeight
-      <= EARNINGS_DETAIL_EXPORT_MAX_PIXELS + longReport.outputWidth + longReport.outputHeight,
-  );
-  assert.ok(detailPageSource.includes('data-export-decoration="true"'));
-  assert.ok(detailPageSource.includes('data-export-content="true"'));
-  assert.ok(shareSource.includes('await clonedDocument.fonts?.ready'));
-  assert.ok(shareSource.includes("root.style.webkitTextSizeAdjust = '100%'"));
-  assert.ok(shareSource.includes('exportClone?.remove();'));
 });

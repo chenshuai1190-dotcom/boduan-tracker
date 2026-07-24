@@ -774,8 +774,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(settingsChangelogSource.includes('首页财报日历视觉压缩'), 'settings changelog should keep the previous earnings calendar visual update');
   assert.ok(earningsCalendarSource.includes('grid min-h-[88px]'), 'earnings calendar homepage preview should use a fixed one-line grid');
   assert.ok(earningsCalendarSource.includes('overflow-hidden'), 'earnings calendar homepage preview should not expose horizontal scrolling');
-  assert.ok(earningsCalendarSource.includes('text-[12px] leading-none tabular-nums text-white/35'), 'earnings calendar homepage date should be smaller and use the edit-watchlist gray');
-  assert.ok(earningsCalendarSource.includes('text-[14px] font-bold leading-none text-white/70'), 'earnings calendar titles should use the reduced primary brightness');
+  assert.ok(earningsCalendarSource.includes('text-[13px] leading-none tabular-nums text-white/35'), 'earnings calendar homepage date should use the enlarged edit-watchlist gray');
+  assert.ok(earningsCalendarSource.includes('text-[15px] font-bold leading-none text-white/70'), 'earnings calendar titles should use the enlarged reduced-brightness style');
   assert.ok(earningsCalendarSource.includes('text-[11px] leading-none font-normal text-white/70'), 'earnings calendar homepage symbol should use the reduced primary brightness');
   assert.ok(earningsCalendarSource.includes('text-[15px] leading-none text-white/70 tabular-nums'), 'earnings actual values should use the reduced primary brightness');
   assert.ok(earningsCalendarSource.includes('text-[15px] leading-none text-white/60 tabular-nums'), 'earnings estimate values should use the lower secondary brightness');
@@ -1102,7 +1102,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.equal(tradesTabSource.includes("gridTemplateColumns: '0.95fr 1fr 1.3fr'"), false, 'English trade header should use the same metric columns as Chinese');
   assert.ok(settingsChangelogSource.includes('v10.7.9.190'), 'settings changelog should retain the gray close-lock label update');
   assert.ok(settingsChangelogSource.includes('收盘锁定标签灰色弱化'), 'settings changelog should describe the gray close-lock label update');
-  assert.ok(homeTabSource.includes('text-[10px] text-[#6f7785]'), 'home close-lock label should use a neutral gray instead of translucent white');
+  assert.ok(homeTabSource.includes('text-[11px] text-[#6f7785]'), 'home close-lock label should use the enlarged neutral gray instead of translucent white');
   assert.ok(tradesTabSource.includes('text-[10px] text-[#6f7785]'), 'trade close-lock label should use a neutral gray instead of translucent white');
   assert.ok(settingsChangelogSource.includes('v10.7.9.189'), 'settings changelog should retain the close-locked daily pnl update');
   assert.ok(settingsChangelogSource.includes('今日盈亏收盘锁定'), 'settings changelog should describe the close-locked daily pnl update');
@@ -2433,7 +2433,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('VIX 恐慌指数'), 'rollback should keep the inline VIX fear card title');
   assert.ok(homeTabSource.includes('CNN 恐慌贪婪指数'), 'rollback should keep the inline CNN fear greed card title');
   assert.ok(homeTabSource.includes('<FgiGauge value={fgi} language={language} />'), 'rollback should keep the inline CNN gauge with language-aware aria text');
-  assert.ok(homeTabSource.includes("${englishMode ? 'text-[10px]' : 'text-[12px]'} font-normal text-white/60"), 'fear-card titles should keep the gray normal-weight style and shrink only in English mode');
+  assert.ok(homeTabSource.includes("${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60"), 'fear-card titles should keep the enlarged gray normal-weight style and shrink only in English mode');
   assert.ok(homeTabSource.includes('text-2xl font-normal text-emerald-400 tabular-nums'), 'rollback should preserve the previous normal-weight VIX value');
   assert.equal(homeTabSource.includes("signalIsCalm ? 'bg-emerald-400' : 'bg-amber-400'"), false, 'current signal heading should not render the removed status dot');
   assert.ok(homeTabSource.includes('truncate text-base font-normal text-white/80'), 'current signal status text should be normal weight and slightly muted');
@@ -2446,7 +2446,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes("text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}"), 'home holdings tab label should match the muted current-signal status brightness');
   assert.ok(homeTabSource.includes('sticky left-0 z-20 bg-[#0b0f14] text-white/40'), 'home name header should match the inactive price and change headers while remaining fixed during metric scrolling');
   assert.ok(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/70'), 'home watchlist and holding ticker codes should use normal weight and reduced brightness');
-  assert.ok(homeTabSource.includes('block truncate text-[10px] leading-[12px] text-white/35'), 'home watchlist and holding company names should use the lower secondary brightness');
+  assert.ok(homeTabSource.includes('block truncate text-[11px] leading-[13px] text-white/35'), 'home watchlist and holding company names should use the enlarged lower secondary style');
   assert.equal(homeTabSource.includes('block truncate text-[13px] font-normal leading-[14px] text-white/80'), false, 'home ticker codes should not retain the previous brighter white');
   assert.equal(homeTabSource.includes('block truncate text-[10px] leading-[12px] text-white/40'), false, 'home company names should not retain the previous brighter secondary white');
   assert.equal(homeTabSource.includes('block truncate text-[13px] font-semibold leading-[14px] text-white'), false, 'home watchlist and holding ticker codes should not return to bold pure white');
@@ -2473,14 +2473,14 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('id="fgiGaugeGlow"'), 'CNN gauge should define a glow filter');
   assert.ok(homeTabSource.includes('strokeWidth="6"'), 'CNN gauge arc should stay slim');
   assert.ok(homeTabSource.includes('strokeWidth="1.7"'), 'CNN gauge pointer should stay slim');
-  assert.ok(homeTabSource.includes('text-[8px] font-medium leading-none text-[#8f98a6]'), 'CNN tick labels should be smaller than the previous 10px labels');
+  assert.ok(homeTabSource.includes('text-[9px] font-medium leading-none text-[#8f98a6]'), 'CNN tick labels should remain smaller than the previous 10px labels after the one-pixel increase');
   assert.ok(homeTabSource.includes("left: '21%'"), 'CNN left endpoint label should be nudged inward near the marked arc start');
   assert.ok(homeTabSource.includes("top-[4px]"), 'CNN midpoint label should move above the highlighted arc');
   assert.ok(homeTabSource.includes("left: '81.5%'"), 'CNN right endpoint label should be nudged inward near the marked arc end');
   assert.equal(homeTabSource.includes('<text x="27" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">0</text>'), false, 'CNN left endpoint label should not rely on SVG text rendering');
   assert.equal(homeTabSource.includes('<text x="133" y="67" fill="#7f8794" fontSize="9" textAnchor="middle">100</text>'), false, 'CNN right endpoint label should not rely on SVG text rendering');
   assert.ok(homeTabSource.includes("home.vix.calmDesc"), 'VIX status description should use the smaller common helper text size and language fallback');
-  assert.ok(homeTabSource.includes('mt-1.5 text-[11px] text-white/50">{fgiInfo.desc}</div>'), 'CNN description should match the smaller VIX helper text size');
+  assert.ok(homeTabSource.includes('mt-1.5 text-[12px] text-white/50">{fgiInfo.desc}</div>'), 'CNN description should match the enlarged VIX helper text size');
   assert.ok(homeTabSource.includes('px-3.5 py-2.5'), 'fear cards should use compressed vertical padding');
   assert.ok(homeTabSource.includes('mt-3 h-1.5 rounded-full bg-gradient-to-r'), 'VIX risk bar should stay thin');
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');

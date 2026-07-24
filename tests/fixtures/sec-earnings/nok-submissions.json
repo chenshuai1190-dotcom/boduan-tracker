@@ -1,0 +1,32 @@
+{
+  "cik": "0000924613",
+  "name": "Nokia Oyj",
+  "tickers": [
+    "NOK"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001104659-26-086081"
+      ],
+      "filingDate": [
+        "2026-07-23"
+      ],
+      "reportDate": [
+        "2026-07-23"
+      ],
+      "acceptanceDateTime": [
+        "2026-07-23T05:45:00.000Z"
+      ],
+      "form": [
+        "6-K"
+      ],
+      "items": [
+        ""
+      ],
+      "primaryDocument": [
+        "tm2621179d1_6k.htm"
+      ]
+    }
+  }
+}
