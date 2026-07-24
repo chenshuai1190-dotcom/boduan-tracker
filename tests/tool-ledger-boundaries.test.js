@@ -2138,6 +2138,7 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');
   assert.ok(reviewTabSource.includes('gap-2 text-[14px] font-normal text-white/70'), 'review header title should match the home title size and tone');
   assert.ok(reviewTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'review goal amount should match the responsive home amount sizing');
+  assert.ok(reviewTabSource.includes('mt-3 whitespace-nowrap font-normal leading-[1.1]'), 'review goal amount should stay on one line without clipping its glyphs');
   assert.ok(settingsChangelogSource.includes('v10.7.9.148'), 'settings changelog should document the asset header alignment update');
   assert.ok(settingsChangelogSource.includes('资产头卡对齐首页'), 'settings changelog should describe the asset header alignment update');
 });
