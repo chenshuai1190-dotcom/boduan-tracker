@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.377', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.378', date: '2026-07-24', latest: true,
+    items: [
+      '🧾 股票趋势新增最近财报入口',
+      '  - “基本信息”下方新增最近已公布财报卡片，集中展示营收、息税前利润与每股收益的公布值、预测值和同比',
+      '  - 卡片只使用真实已公布结果，并按来源区分官方数据、官方文件与基础公布值；缺失预测继续显示不可用，不做推测',
+      '  - 点击整卡直接进入现有财报详情，返回后定位回原股票的财报卡片；公司估值底部摘要同步改为居中显示',
+    ],
+    itemsEn: [
+      '🧾 Latest earnings added to Stock Trend',
+      '  - A Latest Earnings card below Company Fundamentals brings together reported, estimated, and year-over-year revenue, operating profit, and EPS values',
+      '  - The card uses published results only and distinguishes official data, official filings, and base reported values; missing estimates remain unavailable instead of being inferred',
+      '  - Tapping the card opens the existing earnings detail directly and returns to the same stock and card position; the valuation summary is now centered as well',
+    ],
+  },
+  {
+    ver: 'v10.7.9.377', date: '2026-07-24',
     items: [
       '🧭 股票趋势标题与估值交互精简',
       '  - 页面顶部改为“股票代码 + 股票趋势”单排居中标题，保持原有返回入口与紧凑头部高度',

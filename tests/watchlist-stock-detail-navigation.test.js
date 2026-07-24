@@ -53,6 +53,25 @@ test('watchlist detail return restores the prior Home scroll without replacing d
   assert.ok(appSource.includes("window.scrollTo({ top: 0, behavior: 'smooth' });"), 'the existing Home double-tap should remain a smooth explicit return to top');
 });
 
+test('published earnings detail returns to the originating watchlist stock and restores the earnings-card focus', () => {
+  const openStart = appSource.indexOf('const openEarningsDetail = useCallback');
+  const closeStart = appSource.indexOf('const closeEarningsDetail = useCallback', openStart);
+  const closeEnd = appSource.indexOf('const openCommunityProfileSettings', closeStart);
+  const openBlock = appSource.slice(openStart, closeStart);
+  const closeBlock = appSource.slice(closeStart, closeEnd);
+
+  assert.ok(appSource.includes("const [earningsDetailReturnPage, setEarningsDetailReturnPage] = useState('earnings-calendar')"));
+  assert.ok(appSource.includes("const [watchlistStockDetailFocusSection, setWatchlistStockDetailFocusSection] = useState('')"));
+  assert.ok(openBlock.includes("returnPage = 'earnings-calendar'"));
+  assert.ok(openBlock.includes('isEarningsPublished(event)'), 'actual published values should open detail even if the provider omitted the explicit boolean');
+  assert.ok(openBlock.includes("returnPage === 'watchlist-stock-detail'"));
+  assert.ok(closeBlock.includes("earningsDetailReturnPage === 'watchlist-stock-detail' && watchlistStockDetailSymbol"));
+  assert.ok(closeBlock.includes("setWatchlistStockDetailFocusSection('earnings')"));
+  assert.ok(closeBlock.includes("setActivePage('watchlist-stock-detail')"));
+  assert.ok(appSource.includes('watchlistStockDetailFocusSection,'), 'the focus request should reach the remounted stock detail page');
+  assert.ok(appSource.includes("returnsFromWatchlistEarningsToHome"), 'bottom Home should still restore the pre-watchlist Home position from nested earnings detail');
+});
+
 test('watchlist target save only updates the matching watchlist row after DB success', () => {
   const start = appSource.indexOf('const saveWatchlistStockTarget = async');
   const end = appSource.indexOf('\n  const addStock = async', start);

@@ -614,8 +614,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.377'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.377', date: '2026-07-24', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.378'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.378', date: '2026-07-24', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('股票趋势标题与估值交互精简') && settingsChangelogSource.includes('单排居中标题') && settingsChangelogSource.includes('立即关闭数据浮层') && settingsChangelogSource.includes('有效交易日、区间与中位数'), 'settings changelog should document the compact heading and valuation interaction refinements');
   assert.ok(settingsChangelogSource.includes('股票趋势新增公司估值') && settingsChangelogSource.includes('超过历史（5年）') && settingsChangelogSource.includes('每月最后交易日') && settingsChangelogSource.includes('不引入未来数据或补造比较基准'), 'settings changelog should document the five-year valuation release and its real-data boundaries');
   assert.ok(settingsChangelogSource.includes('融资情景测算独立页面') && settingsChangelogSource.includes('五栏底部导航并高亮首页') && settingsChangelogSource.includes('余额编辑仍使用页内二级弹层'), 'settings changelog should document the standalone margin route and preserved bottom navigation');
@@ -2499,7 +2499,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.377'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.378'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

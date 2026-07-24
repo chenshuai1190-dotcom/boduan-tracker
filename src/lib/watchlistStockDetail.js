@@ -1,4 +1,5 @@
 import { normalizeUserStockSymbol } from './symbols.js';
+import { dateKey, isEarningsPublished } from './earningsCalendarModel.js';
 
 const RANGE_MONTHS = Object.freeze({
   '1m': 1,
@@ -18,6 +19,12 @@ function finiteNumber(value) {
 function positiveNumber(value) {
   const number = finiteNumber(value);
   return number !== null && number > 0 ? number : null;
+}
+
+function nullableFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function clampNumber(value, minimum, maximum) {
@@ -320,6 +327,32 @@ export function findWatchlistStockDetailRows({
     .sort((left, right) => String(right?.date || '').localeCompare(String(left?.date || ''))
       || Number(right?.id || 0) - Number(left?.id || 0));
   return { symbol: normalizedSymbol, watchlistRow, quoteRow, position, trades };
+}
+
+export function resolveWatchlistEarningsEvents(events, symbol, marketDate) {
+  const normalizedSymbol = normalizeUserStockSymbol(symbol);
+  const today = dateKey(marketDate);
+  const rows = (Array.isArray(events) ? events : [])
+    .filter((event) => normalizeUserStockSymbol(event?.symbol) === normalizedSymbol)
+    .map((event) => ({
+      event,
+      reportDate: dateKey(event?.reportDate || event?.report_date || event?.date),
+    }))
+    .filter((row) => row.reportDate);
+  const publishedRows = rows
+    .filter(({ event, reportDate }) => isEarningsPublished(event) && (!today || reportDate <= today))
+    .sort((left, right) => right.reportDate.localeCompare(left.reportDate));
+  const upcoming = rows
+    .filter(({ event, reportDate }) => !isEarningsPublished(event) && today && reportDate >= today)
+    .sort((left, right) => left.reportDate.localeCompare(right.reportDate))[0]?.event || null;
+
+  return {
+    upcoming,
+    latestPublished: publishedRows[0]?.event || null,
+    latestReactionEvent: publishedRows.find(
+      ({ event }) => nullableFiniteNumber(event?.marketReactionPercent) !== null,
+    )?.event || null,
+  };
 }
 
 export function deriveCloseBasedPosition(position, closeUsd, totalAssetsUsd) {

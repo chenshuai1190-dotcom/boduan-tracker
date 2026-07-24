@@ -409,7 +409,7 @@ export default function CompanyValuationCard({
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="h-2 w-4 rounded-[3px] border border-[#f6b54b]/15 bg-[#f6b54b]/[0.08]" />{t(language, 'watchlistDetail.valuationQuartileBand', 'P25–P75 区间')}</span>
           </div>
           <div
-            className="mx-4 mb-4 mt-3 border-t border-white/[0.06] pt-3 text-[11px] leading-[1.55] text-white/[0.40]"
+            className="mx-4 mb-4 mt-3 border-t border-white/[0.06] pt-3 text-center text-[11px] leading-[1.55] text-white/[0.40]"
             data-watchlist-valuation-summary="true"
           >
             {summaryParts.length ? <div>{summaryParts.join(' · ')}</div> : null}

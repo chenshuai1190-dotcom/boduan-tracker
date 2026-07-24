@@ -11,6 +11,7 @@ import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, should
 import { applyStockTickToQuoteRows, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
+import { isEarningsPublished } from './lib/earningsCalendarModel.js';
 import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
@@ -4339,8 +4340,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [watchlistStockDetailSymbol, setWatchlistStockDetailSymbol] = useState('');
+  const [watchlistStockDetailFocusSection, setWatchlistStockDetailFocusSection] = useState('');
   const [earningsCalendarPageState, setEarningsCalendarPageState] = useState({ view: 'list', selectedDate: '' });
   const [earningsDetailEvent, setEarningsDetailEvent] = useState(null);
+  const [earningsDetailReturnPage, setEarningsDetailReturnPage] = useState('earnings-calendar');
   const [language, setLanguageState] = useState(() => getStoredLanguage());
   const setLanguage = useCallback((nextLanguage) => {
     setLanguageState(saveStoredLanguage(nextLanguage));
@@ -4364,9 +4367,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       && activeTab === 'home'
       && (activePage === 'earnings-calendar' || activePage === 'earnings-detail')
     );
+    const returnsFromWatchlistEarningsToHome = (
+      returnsFromEarningsToHome
+      && activePage === 'earnings-detail'
+      && earningsDetailReturnPage === 'watchlist-stock-detail'
+    );
     pendingHomeScrollTopRef.current = returnsFromWatchlistDetailToHome
       ? homeScrollTopBeforeWatchlistRef.current
-      : returnsFromEarningsToHome
+      : returnsFromWatchlistEarningsToHome
+        ? homeScrollTopBeforeWatchlistRef.current
+        : returnsFromEarningsToHome
         ? homeScrollTopBeforeEarningsRef.current
         : null;
 
@@ -4382,8 +4392,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActivePage(null);
     setStockDetailSymbol('');
     setWatchlistStockDetailSymbol('');
+    setWatchlistStockDetailFocusSection('');
     setEarningsDetailEvent(null);
-  }, [activePage, activeTab]);
+    setEarningsDetailReturnPage('earnings-calendar');
+  }, [activePage, activeTab, earningsDetailReturnPage]);
   const [portfolioCurrencyMode, setPortfolioCurrencyModeState] = useState(() => readStoredPortfolioCurrency());
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
     setPortfolioCurrencyModeState(normalizePortfolioCurrency(nextCurrency));
@@ -4425,11 +4437,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       homeScrollTopBeforeWatchlistRef.current = readRootScrollTop();
     }
     pendingHomeScrollTopRef.current = null;
+    setWatchlistStockDetailFocusSection('');
     setWatchlistStockDetailSymbol(normalizedSymbol);
     setActivePage('watchlist-stock-detail');
   }, [activePage, activeTab]);
   const closeWatchlistStockDetail = useCallback(() => {
     pendingHomeScrollTopRef.current = homeScrollTopBeforeWatchlistRef.current;
+    setWatchlistStockDetailFocusSection('');
     setActivePage(null);
     setWatchlistStockDetailSymbol('');
   }, []);
@@ -4455,6 +4469,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       selectedDate: String(selectedDate || '').slice(0, 10),
     });
     setEarningsDetailEvent(null);
+    setEarningsDetailReturnPage('earnings-calendar');
     setActivePage('earnings-calendar');
   }, [activePage, activeTab]);
   const closeEarningsCalendar = useCallback(() => {
@@ -4468,14 +4483,24 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       selectedDate: String(nextState.selectedDate || current.selectedDate || '').slice(0, 10),
     }));
   }, []);
-  const openEarningsDetail = useCallback((event) => {
-    if (!event?.symbol || event?.earningsPublished !== true) return;
+  const openEarningsDetail = useCallback((event, { returnPage = 'earnings-calendar' } = {}) => {
+    if (!event?.symbol || !isEarningsPublished(event)) return;
+    const nextReturnPage = returnPage === 'watchlist-stock-detail'
+      ? 'watchlist-stock-detail'
+      : 'earnings-calendar';
+    setEarningsDetailReturnPage(nextReturnPage);
+    if (nextReturnPage === 'watchlist-stock-detail') setWatchlistStockDetailFocusSection('');
     setEarningsDetailEvent(event);
     setActivePage('earnings-detail');
   }, []);
   const closeEarningsDetail = useCallback(() => {
+    if (earningsDetailReturnPage === 'watchlist-stock-detail' && watchlistStockDetailSymbol) {
+      setWatchlistStockDetailFocusSection('earnings');
+      setActivePage('watchlist-stock-detail');
+      return;
+    }
     setActivePage('earnings-calendar');
-  }, []);
+  }, [earningsDetailReturnPage, watchlistStockDetailSymbol]);
   const openCommunityProfileSettings = useCallback(() => {
     setActivePage(null);
     setActiveTab('settings');
@@ -4883,6 +4908,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     snapshotTab,
     stockTrades,
     stockDetailSymbol,
+    watchlistStockDetailFocusSection,
     watchlistStockDetailSymbol,
     stockFreshnessStartedAt: warmStartedAt,
     syncSwingWaveQuoteRows,

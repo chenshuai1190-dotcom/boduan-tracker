@@ -10,6 +10,7 @@ import {
   fullStockDetailChartWindow,
   normalizeStockDetailHistory,
   normalizeStockDetailWeeklyHistory,
+  resolveWatchlistEarningsEvents,
   resolveStockDetailClose,
   sliceStockDetailChartWindow,
   stockDetailChartDragIntent,
@@ -143,6 +144,53 @@ test('three-month relative return never presents a stale QQQ window as current',
     { date: '2026-03-17', adjustedClose: 200 },
     { date: '2026-06-15', adjustedClose: 210 },
   ]), null);
+});
+
+test('watchlist earnings separates the latest published report from the latest available market reaction', () => {
+  const events = [
+    {
+      symbol: 'NVDA',
+      reportDate: '2026-07-22',
+      fiscalDate: '2026-06-30',
+      earningsPublished: true,
+      epsActual: 1.91,
+      marketReactionPercent: null,
+    },
+    {
+      symbol: 'NVDA',
+      reportDate: '2026-05-20',
+      fiscalDate: '2026-04-30',
+      earningsPublished: true,
+      epsActual: 1.87,
+      marketReactionPercent: 7.32,
+    },
+    {
+      symbol: 'NVDA',
+      reportDate: '2026-07-23',
+      fiscalDate: '2026-06-30',
+      epsEstimate: 1.92,
+    },
+    {
+      symbol: 'NVDA',
+      reportDate: '2026-08-28',
+      fiscalDate: '2026-07-31',
+      epsEstimate: 2.11,
+    },
+    {
+      symbol: 'NVDA',
+      reportDate: '2026-08-30',
+      fiscalDate: '2026-07-31',
+      earningsPublished: true,
+      epsActual: 2.18,
+      marketReactionPercent: 4.2,
+    },
+  ];
+
+  const resolved = resolveWatchlistEarningsEvents(events, 'nvda', '2026-07-24');
+  assert.equal(resolved.latestPublished, events[0], 'a published report must not be hidden just because market reaction is pending');
+  assert.equal(resolved.latestReactionEvent, events[1], 'the reaction tile should fall back to the latest published report with a real reaction');
+  assert.equal(resolved.upcoming, events[3], 'a past schedule without actuals must not be treated as published');
+  assert.notEqual(resolved.latestPublished, events[4], 'a future schedule carrying stale actual fields must not replace the latest completed report');
 });
 
 test('three-month relative return rejects a sparse window that starts too far after three months', () => {

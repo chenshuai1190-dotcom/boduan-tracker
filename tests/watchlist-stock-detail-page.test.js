@@ -71,6 +71,32 @@ test('company fundamentals load independently, cache per user for six hours, and
   assert.ok(devPreviewSource.includes('marketCapitalization: 4_912_000_000_000'));
 });
 
+test('latest published earnings appear below fundamentals and open the existing detail page directly', () => {
+  assert.ok(pageSource.includes('resolveWatchlistEarningsEvents(earningsEvents, symbol, marketDate)'));
+  assert.ok(pageSource.includes('data-watchlist-published-earnings="true"'));
+  assert.ok(pageSource.includes('data-watchlist-detail-section="earnings"'));
+  assert.ok(pageSource.includes("onOpenDetail?.(event, { returnPage: 'watchlist-stock-detail' })"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.latestPublishedEarnings', '最近财报')"));
+  assert.ok(pageSource.includes("t(language, 'earningsCalendar.revenueMetric', '营业收入')"));
+  assert.ok(pageSource.includes("t(language, 'earningsCalendar.ebitMetric', '息税前利润')"));
+  assert.ok(pageSource.includes("t(language, 'earningsCalendar.epsMetric', '每股收益')"));
+  assert.ok(pageSource.includes("estimate: '—'"), 'profit estimates must remain unavailable instead of being inferred');
+  assert.ok(pageSource.includes('earningsDetailSourceBadgeKind(null, event)'));
+  assert.ok(pageSource.includes('formatEarningsDetailMoney(revenueActual, language)'));
+  assert.ok(pageSource.includes('event={earnings.latestPublished}'));
+  assert.ok(pageSource.includes('earnings.latestReactionEvent?.marketReactionPercent'));
+  assert.ok(i18nSource.includes("'watchlistDetail.latestPublishedEarnings': '最近财报'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.latestPublishedEarnings': 'Latest Earnings'"));
+  assert.ok(devPreviewSource.includes("officialActualSource: 'sec-companyfacts'"));
+  assert.ok(devPreviewSource.includes('revenueActualUsd: 81_615_000_000'));
+  assert.ok(devPreviewSource.includes('ebitActualUsd: 47_010_000_000'));
+
+  const fundamentalsIndex = pageSource.indexOf('<CompanyFundamentalsCard');
+  const earningsIndex = pageSource.indexOf('<PublishedEarningsCard');
+  const targetIndex = pageSource.indexOf('data-watchlist-detail-section="target"');
+  assert.ok(fundamentalsIndex < earningsIndex && earningsIndex < targetIndex, 'published earnings should sit between fundamentals and the target plan');
+});
+
 test('company valuation loads independently and presents only real five-year provider history', () => {
   assert.ok(pageSource.includes('loadStockValuation({ userId, symbol, token })'));
   assert.ok(pageSource.includes("setValuationStatus('loading')"));
@@ -86,6 +112,7 @@ test('company valuation loads independently and presents only real five-year pro
   assert.ok(valuationCardSource.includes("document.removeEventListener('pointerdown', closeOnOutsidePointer, true)"));
   assert.ok(valuationCardSource.includes('chartRef.current?.contains(event.target)'));
   assert.ok(valuationCardSource.includes('data-watchlist-valuation-summary="true"'));
+  assert.match(valuationCardSource, /className="[^"]*text-center[^"]*"\s+data-watchlist-valuation-summary="true"/);
   assert.ok(valuationCardSource.includes("summaryParts.join(' · ')"));
   assert.ok(valuationCardSource.includes("'watchlistDetail.valuationObservations'"));
   assert.ok(valuationCardSource.includes("'watchlistDetail.valuationRange'"));
@@ -168,12 +195,16 @@ test('production detail shares the Home logo candidate chain and reads the persi
 
 test('target card keeps whole-card editing without redundant edit chrome or scale animation', () => {
   const targetButtonLine = pageSource.split('\n').find((line) => line.includes('data-watchlist-detail-section="target"')) || '';
+  const targetBlock = pageSource.slice(
+    pageSource.indexOf('data-watchlist-detail-section="target"'),
+    pageSource.indexOf('data-watchlist-detail-section="events"'),
+  );
   assert.ok(targetButtonLine.includes('setShowTargetEditor(true)'));
   assert.ok(targetButtonLine.includes('editTargetAria'));
   assert.equal(targetButtonLine.includes('scale-'), false);
-  assert.equal(pageSource.includes('<Pencil'), false);
-  assert.equal(pageSource.includes('<ChevronRight'), false);
-  assert.equal(pageSource.includes("t(language, 'watchlistDetail.edit', '编辑')"), false);
+  assert.equal(targetBlock.includes('<Pencil'), false);
+  assert.equal(targetBlock.includes('<ChevronRight'), false);
+  assert.equal(targetBlock.includes("t(language, 'watchlistDetail.edit', '编辑')"), false);
   assert.ok(pageSource.includes('targetProgressPositionPercent(targetProgress)'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')"));
   assert.ok(i18nSource.includes("'watchlistDetail.costToTargetProgress': '成本至目标已完成'"));
@@ -182,11 +213,12 @@ test('target card keeps whole-card editing without redundant edit chrome or scal
   const metricsIndex = pageSource.indexOf('data-watchlist-key-metrics="spacious"');
   const valuationIndex = pageSource.indexOf('<CompanyValuationCard');
   const fundamentalsIndex = pageSource.indexOf('<CompanyFundamentalsCard');
+  const earningsIndex = pageSource.indexOf('<PublishedEarningsCard');
   const targetIndex = pageSource.indexOf('data-watchlist-detail-section="target"');
   const eventsIndex = pageSource.indexOf('data-watchlist-detail-section="events"');
   const positionIndex = pageSource.indexOf("t(language, 'watchlistDetail.myPosition'");
   const tradesIndex = pageSource.indexOf('data-watchlist-detail-section="trades"');
-  assert.ok(metricsIndex < valuationIndex && valuationIndex < fundamentalsIndex && fundamentalsIndex < targetIndex && targetIndex < eventsIndex && eventsIndex < positionIndex && positionIndex < tradesIndex, 'approved module order should be metrics, valuation, fundamentals, target, key events, position, then trades');
+  assert.ok(metricsIndex < valuationIndex && valuationIndex < fundamentalsIndex && fundamentalsIndex < earningsIndex && earningsIndex < targetIndex && targetIndex < eventsIndex && eventsIndex < positionIndex && positionIndex < tradesIndex, 'approved module order should be metrics, valuation, fundamentals, published earnings, target, key events, position, then trades');
 });
 
 test('production watchlist detail only mutates its isolated target and keeps holdings and trades read-only', () => {

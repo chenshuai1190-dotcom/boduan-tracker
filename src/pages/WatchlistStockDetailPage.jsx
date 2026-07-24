@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ArrowLeft,
   CalendarDays,
+  ChevronRight,
   Clock3,
   Minus,
   Plus,
@@ -14,6 +15,7 @@ import CompanyValuationCard from '../components/CompanyValuationCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/earningsCalendarRefresh.js';
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
+import { earningsDetailSourceBadgeKind, formatEarningsDetailMoney } from '../lib/earningsDetail.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { loadStockFundamentals } from '../lib/stockFundamentals.js';
@@ -30,6 +32,7 @@ import {
   normalizeStockDetailChartWindow,
   normalizeStockDetailHistory,
   normalizeStockDetailWeeklyHistory,
+  resolveWatchlistEarningsEvents,
   resolveStockDetailClose,
   sliceStockDetailChartWindow,
   stockDetailChartDragIntent,
@@ -826,6 +829,197 @@ function CompanyFundamentalsCard({ data, status, language, marketColorMode }) {
   );
 }
 
+function earningsMetricNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function earningsRevenueValue(event, kind) {
+  if (kind === 'actual') {
+    return earningsMetricNumber(event?.revenueActualUsd)
+      ?? (String(event?.revenueActualOriginalCurrency || '').toUpperCase() === 'USD'
+        ? earningsMetricNumber(event?.revenueActual)
+        : null);
+  }
+  return earningsMetricNumber(event?.revenueEstimateUsd)
+    ?? (String(event?.currency || '').toUpperCase() === 'USD'
+      ? earningsMetricNumber(event?.revenueEstimate)
+      : null);
+}
+
+function earningsProfitValue(event) {
+  return earningsMetricNumber(event?.ebitActualUsd)
+    ?? (String(event?.ebitActualOriginalCurrency || '').toUpperCase() === 'USD'
+      ? earningsMetricNumber(event?.ebitActual)
+      : null);
+}
+
+function formatEarningsYoy(value) {
+  const number = earningsMetricNumber(value);
+  return number === null ? '—' : `${number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
+}
+
+function PublishedEarningsValue({ value, yoy, muted = false, marketColorMode }) {
+  const yoyNumber = earningsMetricNumber(yoy);
+  return (
+    <div className="min-w-0 text-right">
+      <div
+        className={`truncate text-[14.5px] leading-none tabular-nums ${muted ? 'text-white/[0.40]' : 'text-white/[0.78]'}`}
+        style={{ fontFamily: NUMBER_FONT }}
+      >
+        {value}
+      </div>
+      <div
+        className="mt-1.5 text-[11px] leading-none tabular-nums"
+        style={{
+          color: yoyNumber === null ? 'rgba(255,255,255,0.40)' : marketHexColor(yoyNumber, marketColorMode),
+          fontFamily: NUMBER_FONT,
+        }}
+      >
+        {formatEarningsYoy(yoy)}
+      </div>
+    </div>
+  );
+}
+
+function PublishedEarningsCard({
+  event,
+  language,
+  marketColorMode,
+  displayName,
+  logoUrls,
+  cacheStockLogo,
+  onOpenDetail,
+}) {
+  const reportDate = dateKey(event?.reportDate || event?.report_date || event?.date);
+  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  if (!event || !isEarningsPublished(event) || !reportDate || !fiscalDate) return null;
+
+  const revenueActual = earningsRevenueValue(event, 'actual');
+  const revenueEstimate = earningsRevenueValue(event, 'estimate');
+  const profitActual = earningsProfitValue(event);
+  const epsActual = earningsMetricNumber(event?.epsActual);
+  const epsEstimate = earningsMetricNumber(event?.epsEstimate);
+  if ([revenueActual, profitActual, epsActual].every((value) => value === null)) return null;
+
+  const epsCurrency = String(event?.epsUnit || event?.epsCurrency || event?.currency || 'USD').trim().toUpperCase() || 'USD';
+  const sourceKind = earningsDetailSourceBadgeKind(null, event);
+  const sourceLabel = sourceKind === 'official'
+    ? t(language, 'watchlistDetail.officialEarningsData', '官方数据')
+    : sourceKind === 'filing'
+      ? t(language, 'watchlistDetail.officialEarningsFiling', '官方文件')
+      : t(language, 'watchlistDetail.earningsPublished', '已公布');
+  const sourceClass = sourceKind === 'official'
+    ? 'border-emerald-400/15 bg-emerald-400/[0.07] text-emerald-300/75'
+    : sourceKind === 'filing'
+      ? 'border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] text-[#f6b54b]/75'
+      : 'border-white/[0.08] bg-white/[0.035] text-white/[0.50]';
+  const profitBasis = String(event?.ebitActualBasis || '').toLowerCase();
+  const profitQualifier = profitBasis.includes('comparable')
+    ? t(language, 'watchlistDetail.comparableProfitBasis', '可比经营利润口径')
+    : profitBasis.includes('incomebeforetax')
+      ? t(language, 'watchlistDetail.pretaxProfitBasis', '税前利润口径')
+      : t(language, 'watchlistDetail.operatingProfitBasis', '经营利润口径');
+  const rows = [
+    {
+      key: 'revenue',
+      label: t(language, 'earningsCalendar.revenueMetric', '营业收入'),
+      qualifier: 'USD',
+      actual: formatEarningsDetailMoney(revenueActual, language),
+      actualYoy: event?.revenueActualYoyPercent,
+      estimate: formatEarningsDetailMoney(revenueEstimate, language),
+      estimateYoy: event?.revenueEstimateYoyPercent,
+      estimateMissing: revenueEstimate === null,
+    },
+    {
+      key: 'profit',
+      label: t(language, 'earningsCalendar.ebitMetric', '息税前利润'),
+      qualifier: profitQualifier,
+      actual: formatEarningsDetailMoney(profitActual, language),
+      actualYoy: event?.ebitActualYoyPercent,
+      estimate: '—',
+      estimateYoy: null,
+      estimateMissing: true,
+    },
+    {
+      key: 'eps',
+      label: t(language, 'earningsCalendar.epsMetric', '每股收益'),
+      qualifier: epsCurrency,
+      actual: epsActual === null ? '—' : epsActual.toFixed(2),
+      actualYoy: event?.epsActualYoyPercent,
+      estimate: epsEstimate === null ? '—' : epsEstimate.toFixed(2),
+      estimateYoy: event?.epsEstimateYoyPercent,
+      estimateMissing: epsEstimate === null,
+    },
+  ];
+
+  return (
+    <button
+      type="button"
+      data-watchlist-published-earnings="true"
+      data-watchlist-detail-section="earnings"
+      onClick={() => onOpenDetail?.(event, { returnPage: 'watchlist-stock-detail' })}
+      disabled={typeof onOpenDetail !== 'function'}
+      className="mt-3 block w-full scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] disabled:cursor-default"
+      aria-label={t(language, 'watchlistDetail.openEarningsDetailAria', '查看 {{symbol}} 最近财报详情', { symbol: event.symbol })}
+    >
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
+        <h2 className="text-[15px] font-normal text-white/[0.82]">
+          {t(language, 'watchlistDetail.latestPublishedEarnings', '最近财报')}
+        </h2>
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10.5px] ${sourceClass}`}>
+          <i className={`h-1.5 w-1.5 rounded-full ${sourceKind === 'official' ? 'bg-emerald-400' : sourceKind === 'filing' ? 'bg-[#f6b54b]' : 'bg-white/30'}`} />
+          {sourceLabel}
+        </span>
+      </div>
+
+      <div className="px-4 pb-3.5 pt-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <StockLogo symbol={event.symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-10 w-10 shrink-0 rounded-[10px]" />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <span className="shrink-0 text-[15px] text-white/[0.82]">{event.symbol}</span>
+              <span className="truncate text-[12px] text-white/[0.45]">{displayName}</span>
+            </div>
+            <div className="mt-1 truncate text-[11px] text-white/[0.40]">
+              {t(language, 'watchlistDetail.reportPeriodEnded', '财报期截至 {{date}}', { date: formatDate(fiscalDate, language, { year: true }) })}
+              {event?.secForm ? ` · ${event.secForm}` : ''}
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-[#f6b54b]/75">
+            {t(language, 'watchlistDetail.viewEarningsDetail', '查看详情')}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </span>
+        </div>
+
+        <div className="mt-3.5 grid grid-cols-[minmax(0,1.12fr)_0.92fr_0.92fr] items-end border-b border-white/[0.05] pb-2 text-[11px] leading-[1.35] text-white/[0.40]">
+          <span>{t(language, 'earningsCalendar.metric', '指标')}</span>
+          <span className="text-right">{t(language, 'earningsCalendar.actualValue', '公布值')}<br />{t(language, 'earningsCalendar.yoy', '同比')}</span>
+          <span className="text-right">{t(language, 'earningsCalendar.forecastValue', '预测值')}<br />{t(language, 'earningsCalendar.yoy', '同比')}</span>
+        </div>
+        <div className="divide-y divide-white/[0.045]">
+          {rows.map((row) => (
+            <div key={row.key} className="grid grid-cols-[minmax(0,1.12fr)_0.92fr_0.92fr] items-center py-2.5">
+              <div className="min-w-0 pr-2">
+                <div className="truncate text-[12.5px] text-white/[0.65]">{row.label}</div>
+                <div className="mt-0.5 truncate text-[10.5px] text-white/[0.40]">{row.qualifier}</div>
+              </div>
+              <PublishedEarningsValue value={row.actual} yoy={row.actualYoy} marketColorMode={marketColorMode} />
+              <PublishedEarningsValue value={row.estimate} yoy={row.estimateYoy} muted={row.estimateMissing} marketColorMode={marketColorMode} />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px] text-white/[0.40]">
+          <span>{t(language, 'watchlistDetail.reportedOn', '公布于 {{date}}', { date: formatDate(reportDate, language, { year: true }) })}</span>
+          <span>{epsCurrency === 'USD' ? 'USD' : `EPS ${epsCurrency} · USD`} · {language === 'en' ? 'B/M' : '万/亿'}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function FundCompositionCard({ data, status, language }) {
   if (status === 'idle') return null;
   const topHoldings = Array.isArray(data?.sections?.topHoldings?.items)
@@ -990,20 +1184,6 @@ function TargetEditor({
   );
 }
 
-function resolveEarningsEvents(events, symbol, marketDate) {
-  const rows = (Array.isArray(events) ? events : [])
-    .filter((event) => String(event?.symbol || '').trim().toUpperCase() === symbol)
-    .filter((event) => dateKey(event?.reportDate || event?.report_date || event?.date));
-  const upcoming = rows
-    .filter((event) => !isEarningsPublished(event) && dateKey(event?.reportDate || event?.report_date || event?.date) >= marketDate)
-    .sort((left, right) => dateKey(left?.reportDate).localeCompare(dateKey(right?.reportDate)))[0] || null;
-  const latestPublished = rows
-    .filter((event) => isEarningsPublished(event) || dateKey(event?.reportDate) < marketDate)
-    .sort((left, right) => dateKey(right?.reportDate).localeCompare(dateKey(left?.reportDate)))
-    .find((event) => finiteNumber(event?.marketReactionPercent) !== null) || null;
-  return { upcoming, latestPublished };
-}
-
 export default function WatchlistStockDetailPage({ ctx = {} }) {
   const {
     watchlistStockDetailSymbol = '',
@@ -1023,6 +1203,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     cacheStockLogo,
     supabase,
     saveWatchlistStockTarget,
+    openEarningsDetail,
     watchlistStockDetailDataOverride,
     watchlistStockDetailEarningsOverride,
     watchlistStockDetailChartTooltipOpen = false,
@@ -1351,12 +1532,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const distance52 = high52 && close.closeUsd ? ((close.closeUsd / high52) - 1) * 100 : null;
   const distanceMa200 = ma200 && close.closeUsd ? ((close.closeUsd / ma200) - 1) * 100 : null;
   const marketDate = getNewYorkEarningsClock(Date.now()).date;
-  const earnings = resolveEarningsEvents(earningsEvents, symbol, marketDate);
+  const earnings = resolveWatchlistEarningsEvents(earningsEvents, symbol, marketDate);
   const upcomingDate = dateKey(earnings.upcoming?.reportDate);
   const countdown = upcomingDate ? daysBetween(marketDate, upcomingDate) : null;
   const upcomingSession = normalizeEarningsSession(earnings.upcoming?.session);
-  const latestReaction = finiteNumber(earnings.latestPublished?.marketReactionPercent);
-  const latestSession = normalizeEarningsSession(earnings.latestPublished?.session);
+  const latestReaction = finiteNumber(earnings.latestReactionEvent?.marketReactionPercent);
+  const latestSession = normalizeEarningsSession(earnings.latestReactionEvent?.session);
   const weeklyPanelReady = !loading
     && ma200WeeklyStatus === 'ready'
     && ma200Weekly !== null
@@ -1550,6 +1731,16 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         status={fundamentalsStatus}
         language={language}
         marketColorMode={marketColorMode}
+      />
+
+      <PublishedEarningsCard
+        event={earnings.latestPublished}
+        language={language}
+        marketColorMode={marketColorMode}
+        displayName={displayName}
+        logoUrls={logoUrls}
+        cacheStockLogo={cacheStockLogo}
+        onOpenDetail={openEarningsDetail}
       />
 
       <FundCompositionCard

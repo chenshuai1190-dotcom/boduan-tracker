@@ -287,7 +287,33 @@ const mockWatchlistStockDetailData = {
 
 const mockWatchlistStockDetailEarnings = [
   { symbol: 'NVDA', reportDate: '2026-08-28', fiscalDate: '2026-06-30', session: 'post', epsEstimate: 1.92 },
-  { symbol: 'NVDA', reportDate: '2026-05-20', fiscalDate: '2026-03-31', session: 'post', epsActual: 1.87, marketReactionPercent: 7.32, earningsPublished: true },
+  {
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    reportDate: '2026-05-20',
+    fiscalDate: '2026-04-30',
+    session: 'post',
+    earningsPublished: true,
+    earningsResult: 'beat',
+    currency: 'USD',
+    epsCurrency: 'USD',
+    epsEstimate: 1.77,
+    epsActual: 1.87,
+    epsActualYoyPercent: 130.8642,
+    epsEstimateYoyPercent: 118.98,
+    revenueEstimateUsd: 79_115_709_670,
+    revenueActualUsd: 81_615_000_000,
+    revenueActualYoyPercent: 85.2276,
+    revenueEstimateYoyPercent: 79.5554,
+    ebitActualUsd: 47_010_000_000,
+    ebitActualYoyPercent: 65.47,
+    ebitActualBasis: 'OperatingIncomeLoss',
+    officialActualStatus: 'complete',
+    officialActualSource: 'sec-companyfacts',
+    secForm: '10-Q',
+    secFilingUrl: 'https://www.sec.gov/Archives/edgar/data/1045810/000104581026000052/0001045810-26-000052-index.html',
+    marketReactionPercent: 7.32,
+  },
 ];
 
 const mockTqqqFundComposition = {
@@ -1310,6 +1336,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     const requestedTab = params.get('tab');
     return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
+  const [previewEarningsDetailEvent, setPreviewEarningsDetailEvent] = React.useState(() => (
+    earningsNokDetailPreview
+      ? mockNokEarningsDetailEvent
+      : earningsHoldingsDetailPreview
+        ? mockTsmEarningsDetailEvent
+        : earningsBaseDetailPreview
+          ? mockEarningsBaseDetailEvent
+          : mockEarningsDetailEvent
+  ));
+  const [previewEarningsReturnTab, setPreviewEarningsReturnTab] = React.useState('home');
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = React.useState(0);
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
@@ -2037,17 +2073,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     earningsCalendarEvents: previewEarningsCalendarEvents,
     earningsCalendarNow,
     earningsCalendarRequest: earningsResumeSmoke || earningsLiveSmoke ? earningsCalendarRequest : null,
-    earningsDetailDataOverride: earningsNokDetailPreview
-      ? mockNokEarningsDetailData
-      : earningsHoldingsDetailPreview
-        ? mockTsmEarningsDetailData
-        : earningsBaseDetailPreview ? mockEarningsBaseDetailData : mockEarningsDetailData,
-    earningsDetailEvent: earningsNokDetailPreview
-      ? mockNokEarningsDetailEvent
-      : earningsHoldingsDetailPreview
-        ? mockTsmEarningsDetailEvent
-        : earningsBaseDetailPreview ? mockEarningsBaseDetailEvent : mockEarningsDetailEvent,
-    closeEarningsDetail: () => setActiveTab('home'),
+    earningsDetailDataOverride: previewEarningsDetailEvent?.symbol === 'NVDA'
+      ? mockEarningsBaseDetailData
+      : earningsNokDetailPreview
+        ? mockNokEarningsDetailData
+        : earningsHoldingsDetailPreview
+          ? mockTsmEarningsDetailData
+          : mockEarningsDetailData,
+    earningsDetailEvent: previewEarningsDetailEvent,
+    closeEarningsDetail: () => setActiveTab(previewEarningsReturnTab),
+    openEarningsDetail: (event, { returnPage = 'earnings-calendar' } = {}) => {
+      setPreviewEarningsDetailEvent(event);
+      setPreviewEarningsReturnTab(returnPage === 'watchlist-stock-detail' ? 'watchlist-stock-detail' : 'home');
+      setActiveTab('earnings-detail');
+    },
     fetchMarketMovers: async () => devMarketMoversFixture,
     fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
       const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];
