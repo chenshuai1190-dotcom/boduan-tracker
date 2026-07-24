@@ -177,6 +177,15 @@ function ValuationChart({ data, language, initialTooltipOpen = false }) {
     const timerId = window.setTimeout(() => setSelectedIndex(null), 12_000);
     return () => window.clearTimeout(timerId);
   }, [selectedIndex]);
+  React.useEffect(() => {
+    if (selectedIndex === null) return undefined;
+    const closeOnOutsidePointer = (event) => {
+      if (chartRef.current?.contains(event.target)) return;
+      setSelectedIndex(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+  }, [selectedIndex]);
 
   if (!chart) return null;
 
@@ -394,14 +403,15 @@ export default function CompanyValuationCard({
       {chartReady ? (
         <>
           <ValuationChart data={data} language={language} initialTooltipOpen={initialTooltipOpen} />
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-3 text-[11px] text-white/[0.40]">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 pt-3 text-center text-[11px] text-white/[0.40]">
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="h-0.5 w-4 rounded-full bg-[#f6b54b]" />{t(language, 'watchlistDetail.peTtmLegend', '市盈率 TTM')}</span>
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="h-px w-4 border-t border-dashed border-white/35" />{t(language, 'watchlistDetail.valuationAverage', '五年平均 {{value}}', { value: formatPe(summary.average) })}</span>
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="h-2 w-4 rounded-[3px] border border-[#f6b54b]/15 bg-[#f6b54b]/[0.08]" />{t(language, 'watchlistDetail.valuationQuartileBand', 'P25–P75 区间')}</span>
           </div>
-          <div className="mx-4 mb-4 mt-3 border-t border-white/[0.06] pt-3 text-[11px] leading-[1.55] text-white/[0.40]">
-            <div className="text-white/[0.50]">{t(language, 'watchlistDetail.valuationMethod', '口径：复权收盘价 ÷ 当时已披露的滚动四季 EPS')}</div>
-            <div>{t(language, 'watchlistDetail.valuationFrequencies', '统计：日频 · 曲线：每月最后交易日')}</div>
+          <div
+            className="mx-4 mb-4 mt-3 border-t border-white/[0.06] pt-3 text-[11px] leading-[1.55] text-white/[0.40]"
+            data-watchlist-valuation-summary="true"
+          >
             {summaryParts.length ? <div>{summaryParts.join(' · ')}</div> : null}
           </div>
         </>

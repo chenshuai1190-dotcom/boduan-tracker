@@ -10,8 +10,11 @@ const fundamentalsCacheSource = readFileSync(new URL('../src/lib/stockFundamenta
 const valuationCacheSource = readFileSync(new URL('../src/lib/stockValuation.js', import.meta.url), 'utf8');
 const valuationCardSource = readFileSync(new URL('../src/components/CompanyValuationCard.jsx', import.meta.url), 'utf8');
 
-test('watchlist detail keeps the existing bottom tabs and uses the Chinese stock-trend title', () => {
+test('watchlist detail keeps the existing bottom tabs and shows the symbol beside the stock-trend title', () => {
   assert.ok(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'));
+  assert.ok(pageSource.includes('data-watchlist-detail-heading="symbol-title"'));
+  assert.ok(pageSource.includes('items-baseline justify-center gap-2'));
+  assert.ok(pageSource.includes("{symbol || '--'}"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.title', '股票趋势')"));
   assert.ok(i18nSource.includes("'watchlistDetail.title': '股票趋势'"));
   assert.ok(i18nSource.includes("'watchlistDetail.title': 'Stock Detail'"), 'English title should remain unchanged');
@@ -79,8 +82,19 @@ test('company valuation loads independently and presents only real five-year pro
   assert.ok(valuationCardSource.includes('data-watchlist-company-valuation="true"'));
   assert.ok(valuationCardSource.includes('data-watchlist-valuation-chart="true"'));
   assert.ok(valuationCardSource.includes('data-watchlist-valuation-tooltip="true"'));
-  assert.ok(valuationCardSource.includes('复权收盘价 ÷ 当时已披露的滚动四季 EPS'));
-  assert.ok(valuationCardSource.includes('统计：日频 · 曲线：每月最后交易日'));
+  assert.ok(valuationCardSource.includes("document.addEventListener('pointerdown', closeOnOutsidePointer, true)"));
+  assert.ok(valuationCardSource.includes("document.removeEventListener('pointerdown', closeOnOutsidePointer, true)"));
+  assert.ok(valuationCardSource.includes('chartRef.current?.contains(event.target)'));
+  assert.ok(valuationCardSource.includes('data-watchlist-valuation-summary="true"'));
+  assert.ok(valuationCardSource.includes("summaryParts.join(' · ')"));
+  assert.ok(valuationCardSource.includes("'watchlistDetail.valuationObservations'"));
+  assert.ok(valuationCardSource.includes("'watchlistDetail.valuationRange'"));
+  assert.ok(valuationCardSource.includes("'watchlistDetail.valuationMedian'"));
+  assert.ok(valuationCardSource.includes('items-center justify-center'));
+  assert.equal(valuationCardSource.includes('复权收盘价 ÷ 当时已披露的滚动四季 EPS'), false);
+  assert.equal(valuationCardSource.includes('统计：日频 · 曲线：每月最后交易日'), false);
+  assert.equal(i18nSource.includes("'watchlistDetail.valuationMethod'"), false);
+  assert.equal(i18nSource.includes("'watchlistDetail.valuationFrequencies'"), false);
   assert.ok(valuationCardSource.includes('不会补造历史百分位或比较基准'));
   assert.equal(valuationCardSource.includes('行业平均'), false);
   assert.equal(valuationCardSource.includes('标普500'), false);

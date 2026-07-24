@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.376', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.377', date: '2026-07-24', latest: true,
+    items: [
+      '🧭 股票趋势标题与估值交互精简',
+      '  - 页面顶部改为“股票代码 + 股票趋势”单排居中标题，保持原有返回入口与紧凑头部高度',
+      '  - 点击估值曲线外的其他区域会立即关闭数据浮层，图表内继续支持切换历史数据点',
+      '  - 五年估值图例整排居中；移除“口径”和“统计”说明，仅保留有效交易日、区间与中位数',
+    ],
+    itemsEn: [
+      '🧭 Streamlined Stock Trend heading and valuation interaction',
+      '  - The page header now centers the ticker and Stock Detail title on one line while preserving the Back action and compact header height',
+      '  - Tapping outside the valuation chart now dismisses its data tooltip immediately, while chart taps continue selecting historical points',
+      '  - The five-year valuation legend is centered, and the Basis and Statistics notes are removed while valid trading days, range, and median remain',
+    ],
+  },
+  {
+    ver: 'v10.7.9.376', date: '2026-07-24',
     items: [
       '📈 股票趋势新增公司估值',
       '  - 关键指标下方新增公司估值，展示市盈率 TTM、超过历史（5年）和预期市盈率，并提供五年历史估值曲线',
