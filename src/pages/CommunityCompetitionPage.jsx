@@ -110,7 +110,7 @@ function isRetryableCompetitionHttpFailure(error) {
 function MetricBlock({ label, value, color = NEUTRAL }) {
   return (
     <div className="min-w-0">
-      <div className="whitespace-nowrap text-[10px] leading-4 text-white/[0.42]">{label}</div>
+      <div className="whitespace-nowrap text-[11px] leading-4 text-white/[0.40]">{label}</div>
       <div className="mt-1.5 whitespace-nowrap text-[15px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
@@ -119,7 +119,7 @@ function MetricBlock({ label, value, color = NEUTRAL }) {
 function StatCard({ label, value, color = 'rgba(255,255,255,0.86)' }) {
   return (
     <div className="min-w-0 px-2 text-center">
-      <div className="truncate text-[10.5px] text-white/[0.38]">{label}</div>
+      <div className="truncate text-[11px] text-white/[0.40]">{label}</div>
       <div className="mt-1.5 truncate text-[17px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
@@ -241,12 +241,12 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
             </div>
             <div className="min-w-0">
               <div className="truncate text-[19px] text-white/[0.92]">{row.nickname || '--'}</div>
-              <div className="mt-1 text-[10px] text-white/[0.34]">#{isFiniteValue(row.rank) ? Math.trunc(Number(row.rank)) : '--'} · {formatDate(snapshotDate, language)}</div>
+              <div className="mt-1 text-[11px] text-white/[0.40]">#{isFiniteValue(row.rank) ? Math.trunc(Number(row.rank)) : '--'} · {formatDate(snapshotDate, language)}</div>
             </div>
           </div>
-          <div className="mt-5 text-[11px] text-white/[0.38]">{periodMetricLabel}</div>
+          <div className="mt-5 text-[11px] text-white/[0.40]">{periodMetricLabel}</div>
           <div className="mt-1 text-[30px] leading-none tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
-          <div className="mt-5 text-[11px] text-white/[0.38]">{tt('competition.closeHoldingSymbols', '收盘持仓代码')}</div>
+          <div className="mt-5 text-[11px] text-white/[0.40]">{tt('competition.closeHoldingSymbols', '收盘持仓代码')}</div>
           <div className="mt-2.5 max-h-[112px] overflow-y-auto overscroll-contain pr-1">
             {!holdingsAvailable ? (
               <div className="text-[12px] text-white/[0.46]">{tt('competition.holdingsUnavailable', '持仓暂不可用')}</div>
@@ -276,7 +276,7 @@ function TrendChart({ self = [], benchmark = [], compact = false }) {
   const benchmarkPoints = React.useMemo(() => normalizeTrendPoints(benchmark), [benchmark]);
   const allPoints = [...ownPoints, ...benchmarkPoints];
   if (allPoints.length < 2 || (ownPoints.length < 2 && benchmarkPoints.length < 2)) {
-    return <div className={`flex ${compact ? 'h-[54px]' : 'h-[72px]'} items-center justify-center text-[12px] text-white/28`}>--</div>;
+    return <div className={`flex ${compact ? 'h-[54px]' : 'h-[72px]'} items-center justify-center text-[12px] text-white/40`}>--</div>;
   }
 
   const dates = Array.from(new Set(allPoints.map((point) => point.date))).sort();
@@ -364,7 +364,7 @@ function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = fal
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
       <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
       <p className="mx-auto mt-3 max-w-[286px] text-[13px] leading-[1.8] text-white/42 [text-wrap:pretty]">{protectHintText(desc)}</p>
-      {note ? <p className="mx-auto mt-3 max-w-[286px] text-[10.5px] leading-[1.7] text-white/28 [text-wrap:pretty]">{protectHintText(note)}</p> : null}
+      {note ? <p className="mx-auto mt-3 max-w-[286px] text-[12px] leading-[1.7] text-white/50 [text-wrap:pretty]">{protectHintText(note)}</p> : null}
       {actionLabel ? (
         <button type="button" onClick={onAction} disabled={busy} className="mx-auto mt-6 flex h-11 min-w-[148px] items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/12 px-5 text-[13px] font-semibold text-[#ffd18a] active:scale-95 disabled:opacity-50">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -433,7 +433,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
               data-competition-leaderboard-refresh
               role="status"
               aria-live="polite"
-              className="mt-0.5 flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#f6b54b]/[0.16] bg-[#f6b54b]/[0.07] px-2 text-[9.5px] text-[#d7b273]"
+              className="mt-0.5 flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#f6b54b]/[0.16] bg-[#f6b54b]/[0.07] px-2 text-[10px] text-[#d7b273]"
             >
               <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} />
               <span>{tt('competition.loadingLatestLeaderboard', '正在加载最新榜单…')}</span>
@@ -457,7 +457,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
             {self?.nickname || '--'}
           </div>
           <div className="col-start-2 grid min-w-0 grid-cols-3">
-            <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] leading-5 text-[#7f858e]">
+            <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[11px] leading-5 text-white/40">
               {ready ? tt('competition.dataAsOfClose', '数据截至 {{date}} 收盘', { date: snapshotDateLabel }) : '--'}
             </div>
           </div>
@@ -489,11 +489,11 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         </div>
         <div className="px-1 pb-1">
           {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} selected={selection?.row === row} onSelect={selectRow} />) : (
-            <div className="border-t border-white/[0.045] px-4 py-10 text-center text-[12px] text-white/28">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
+            <div className="border-t border-white/[0.045] px-4 py-10 text-center text-[12px] text-white/40">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
           )}
           {self && selfLeaderIndex < 0 ? <RankRow row={self} self selected={selection?.row === self} onSelect={selectRow} /> : null}
         </div>
-        <div className="border-t border-white/[0.045] px-4 py-2.5 text-center text-[10px] leading-[1.65] text-white/25 [text-wrap:balance]">
+        <div className="border-t border-white/[0.045] px-4 py-2.5 text-center text-[12px] leading-[1.65] text-white/40 [text-wrap:balance]">
           {protectHintText(tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'))}
         </div>
         {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} /> : null}
@@ -505,7 +505,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
             {baselineTitle}
             <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
           </div>
-          <div className="whitespace-nowrap text-[9.5px] text-white/24">
+          <div className="whitespace-nowrap text-[11px] text-white/40">
             {ready ? tt('competition.calculationStart', '起算 {{date}}', { date: formatDate(data?.calculationStartDate, language) }) : '--'}
           </div>
         </div>

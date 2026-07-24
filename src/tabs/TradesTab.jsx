@@ -915,19 +915,19 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10 border-t border-white/[0.07] pt-4"
           >
             <div className="min-w-0 pr-3">
-              <div className="text-[12px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
+              <div className="text-[13px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
               </div>
               <div className={`mt-1 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] font-normal tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 <span>{hasTodayPnl ? signedPct(summary.todayPnlPct, 2) : '--'}</span>
                 {hasTodayPnl && summary.todayPnlLocked && (
-                  <span className="text-[10px] text-[#6f7785]">{tt('trades.pnlLocked', '收盘锁定')}</span>
+                  <span className="text-[11px] text-[#6f7785]">{tt('trades.pnlLocked', '收盘锁定')}</span>
                 )}
               </div>
             </div>
             <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
-              <div className="flex items-center gap-0.5 text-[12px] text-white/50">
+              <div className="flex items-center gap-0.5 text-[13px] text-white/50">
                 <span>{tt('trades.totalPnl', '累计盈亏')}</span>
                 <ChevronRight className="h-3 w-3 text-white/[0.28]" />
               </div>
@@ -945,7 +945,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
               data-trades-margin-trigger="true"
             >
-              <div className="flex items-center gap-0.5 text-[12px] text-white/50">
+              <div className="flex items-center gap-0.5 text-[13px] text-white/50">
                 <span>{tt('home.marginDebt', '融资负债')}</span>
                 <ChevronRight className="h-3 w-3 text-white/[0.28]" />
               </div>
@@ -953,11 +953,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 {marginStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayMarginDebt, 2)}` : '--'}
               </div>
               <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-[3px]'}`}>
-                <span className="shrink-0 whitespace-nowrap text-[11px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                   {tt('home.leverage', '杠杆')} {marginStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
                 </span>
                 {marginStatusReady && marginLeverageStatus && (
-                  <AccountLeverageBadge className="h-[17px] px-1 text-[8px]" language={language} tierId={marginLeverageStatus.id} />
+                  <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />
                 )}
               </div>
             </button>
@@ -1363,7 +1363,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   <h2 className="text-[14px] font-normal leading-tight tracking-normal text-white">
                     {tt('trades.swingLog', '波段记录')}
                   </h2>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">
+                  <div className="mt-1 text-[11px] font-normal text-white/45">
                     {waveView === 'completed' ? tt('trades.waveCompletedSubtitle', '已完成波段归类') : tt('trades.waveActiveSubtitle', '点击波段查看明细')}
                   </div>
                 </div>
@@ -1387,7 +1387,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   <div className="text-[16px] font-normal tabular-nums text-[#ff4b1f]" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomActiveCount}
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.active', '进行中')}</div>
+                  <div className="mt-1 text-[11px] font-normal text-white/45">{tt('trades.active', '进行中')}</div>
                 </button>
                 <button
                   type="button"
@@ -1399,14 +1399,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomCompletedCount}
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.completed', '已完成')}</div>
+                  <div className="mt-1 text-[11px] font-normal text-white/45">{tt('trades.completed', '已完成')}</div>
                 </button>
                 <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center">
                   <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                     {calmRoomAvgActiveDays}
                     <span className="ml-0.5 text-[10px] font-normal text-white/45">{tt('trades.day', '天')}</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-white/45">{tt('trades.avgHolding', '均持有')}</div>
+                  <div className="mt-1 text-[11px] font-normal text-white/45">{tt('trades.avgHolding', '均持有')}</div>
                 </div>
               </div>
             </section>
@@ -1414,7 +1414,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             {waveGroups.length === 0 ? (
               <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                 <div className="text-[13px] font-normal text-white/75">{tt('trades.noWaveRecords', '暂无波段记录')}</div>
-                <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noWaveRecordsDesc', '添加波段买入或卖出后,这里会自动显示。')}</div>
+                <div className="mt-1 text-[12px] font-normal text-white/50">{tt('trades.noWaveRecordsDesc', '添加波段买入或卖出后,这里会自动显示。')}</div>
                 <button
                   type="button"
                   onClick={() => openWaveTradeModal()}
@@ -1428,7 +1428,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               completedWaveGroups.length === 0 ? (
                 <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                   <div className="text-[13px] font-normal text-white/75">{tt('trades.noCompletedWaves', '暂无已完成波段')}</div>
-                  <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noCompletedWavesDesc', '卖出至清仓后,完成的波段会归类到这里。')}</div>
+                  <div className="mt-1 text-[12px] font-normal text-white/50">{tt('trades.noCompletedWavesDesc', '卖出至清仓后,完成的波段会归类到这里。')}</div>
                 </section>
               ) : completedWaveGroups.map(group => (
                 <section key={`completed-${group.symbol}`} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[0_16px_40px_rgba(0,0,0,0.26)]">
@@ -1472,7 +1472,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                             <span className="min-w-0">
                               <span className="block text-[12px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {startD} → {endD}
-                                <span className="ml-1 text-[10px] font-normal text-white/45">· {daysText(w.heldDays)}</span>
+                                <span className="ml-1 text-[11px] font-normal text-white/40">· {daysText(w.heldDays)}</span>
                               </span>
                               <span className="mt-1 block text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {formatWaveUsdPrice(w.avgBuyPrice)} → {formatWaveUsdPrice(w.avgSellPrice)}
@@ -1514,7 +1514,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                  className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left text-[11px] font-normal text-white/55 active:scale-95"
+                                  className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left text-[11px] font-normal text-white/40 active:scale-95"
                                 >
                                   {noteValue}
                                 </button>
@@ -1530,7 +1530,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                className="text-[10px] font-normal text-white/35 active:scale-95"
+                                className="text-[11px] font-normal text-white/40 active:scale-95"
                               >
                                 {tt('trades.addNote', '+ 加备注')}
                               </button>
@@ -1539,7 +1539,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
                           {isExpanded && (
                             <div className="border-t border-white/10 px-3 pb-3 pt-2.5">
-                              <div className="mb-2 text-[10px] font-normal text-white/45">{tt('trades.tradeDetails', '交易明细')}</div>
+                              <div className="mb-2 text-[11px] font-normal text-white/40">{tt('trades.tradeDetails', '交易明细')}</div>
                               <div className="space-y-1.5">
                                 {waveTrades.map(t => {
                                   const isBuy = !t.side || t.side === 'buy';
@@ -1586,7 +1586,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             ) : activeWaveGroups.length === 0 ? (
               <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                 <div className="text-[13px] font-normal text-white/75">{tt('trades.noActiveWaves', '暂无进行中的波段')}</div>
-                <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noActiveWavesDesc', '已清仓的记录请点上方“已完成”查看。')}</div>
+                <div className="mt-1 text-[12px] font-normal text-white/50">{tt('trades.noActiveWavesDesc', '已清仓的记录请点上方“已完成”查看。')}</div>
                 {calmRoomCompletedCount > 0 && (
                   <button
                     type="button"
@@ -1653,13 +1653,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         <div className={`text-[13px] font-normal tabular-nums ${pnlClass(totalGain, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           {signedWaveCurrencyAmount(totalGain, 0)}
                         </div>
-                        <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.totalPnlMetric', '总盈亏')}</div>
+                        <div className="mt-1 text-[11px] font-normal text-white/40">{tt('trades.totalPnlMetric', '总盈亏')}</div>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center">
                         <div className="text-[13px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           {completedCount > 0 ? `${winRate}%` : '—'}
                         </div>
-                        <div className="mt-1 text-[10px] font-normal text-white/40">
+                        <div className="mt-1 text-[11px] font-normal text-white/40">
                           {tt('trades.winRate', '胜率')}{completedCount > 0 ? ` ${winCount}/${completedCount}` : ''}
                         </div>
                       </div>
@@ -1667,7 +1667,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         <div className="text-[13px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                           {avgHeld > 0 ? daysText(avgHeld) : '—'}
                         </div>
-                        <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.avgHolding', '均持有')}</div>
+                        <div className="mt-1 text-[11px] font-normal text-white/40">{tt('trades.avgHolding', '均持有')}</div>
                       </div>
                     </div>
                   </div>
@@ -1693,7 +1693,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 animate-pulse" />
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-white/90">{tt('trades.active', '进行中')}</div>
-                                <div className="mt-1 text-[10px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                   {tt('trades.startedDay', '{{date}} 开始 · 第 {{day}} 天', { date: startD, day: w.heldDays })}
                                 </div>
                               </div>
@@ -1708,25 +1708,25 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
                           <div className="mt-3 grid grid-cols-4 gap-1.5 rounded-xl border border-white/10 bg-black/15 p-2.5">
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">{tt('trades.avgBuy', '买入均')}</div>
+                              <div className="text-[11px] font-normal text-white/40">{tt('trades.avgBuy', '买入均')}</div>
                               <div className="mt-1 text-[12px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {formatWaveUsdPrice(w.avgBuyPrice)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">{tt('trades.currentPrice', '现价')}</div>
+                              <div className="text-[11px] font-normal text-white/40">{tt('trades.currentPrice', '现价')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${w.currentPrice === w.avgBuyPrice ? 'text-white/90' : pnlClass(w.currentPrice - w.avgBuyPrice, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {w.currentPrice > 0 ? formatWaveUsdPrice(w.currentPrice) : '—'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">{tt('trades.held', '持有')}</div>
+                              <div className="text-[11px] font-normal text-white/40">{tt('trades.held', '持有')}</div>
                               <div className="mt-1 text-[12px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {sharesText(w.heldShares, 0)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-normal text-white/40">{tt('trades.floatingProfit', '浮盈')}</div>
+                              <div className="text-[11px] font-normal text-white/40">{tt('trades.floatingProfit', '浮盈')}</div>
                               <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                 {signedWaveCurrencyAmount(w.gainAmount, 0)}
                               </div>
@@ -1760,7 +1760,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left text-[11px] font-normal text-white/55 active:scale-95"
+                                className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left text-[11px] font-normal text-white/40 active:scale-95"
                               >
                                 {noteValue}
                               </button>
@@ -1776,7 +1776,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                              className="text-[10px] font-normal text-[#f6b54b] active:scale-95"
+                              className="text-[11px] font-normal text-[#f6b54b] active:scale-95"
                             >
                               {tt('trades.addNote', '+ 加备注')}
                             </button>
@@ -1785,7 +1785,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
                         {isExpanded && (
                           <div className="border-t border-white/10 px-3 pb-3 pt-2.5">
-                            <div className="mb-2 text-[10px] font-normal text-white/45">{tt('trades.tradeDetails', '交易明细')}</div>
+                            <div className="mb-2 text-[11px] font-normal text-white/40">{tt('trades.tradeDetails', '交易明细')}</div>
                             <div className="space-y-1.5">
                               {waveTrades.map(t => {
                                 const isBuy = !t.side || t.side === 'buy';
@@ -1826,7 +1826,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                       </div>
                     );
                   })() : (
-                    <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3 text-[11px] font-normal text-white/40">
+                    <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3 text-[12px] font-normal text-white/50">
                       {tt('trades.noActiveWaves', '暂无进行中的波段')}
                     </div>
                   )}
@@ -1839,8 +1839,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2 text-left active:bg-white/[0.045]"
                         title={tt('trades.viewCompleted', '查看已完成波段')}
                       >
-                        <span className="text-[10px] font-normal text-white/75">{tt('trades.completed', '已完成')}</span>
-                        <span className="flex items-center gap-2 text-[9px] font-normal text-white/40">
+                        <span className="text-[11px] font-normal text-white/75">{tt('trades.completed', '已完成')}</span>
+                        <span className="flex items-center gap-2 text-[10px] font-normal text-white/40">
                           {completedWaves.length}
                           <span className={`transition ${completedOpen ? 'rotate-180' : ''}`}>▾</span>
                         </span>
@@ -1866,11 +1866,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                   title={tt('trades.expandCompletedWave', '展开已完成波段明细')}
                                 >
                                   <span className="min-w-0">
-                                    <span className="block text-[10px] font-normal tabular-nums text-white/75" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                    <span className="block text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       {startD} → {endD}
-                                      <span className="ml-1 text-[9px] font-normal text-white/40">· {daysText(w.heldDays)}</span>
+                                      <span className="ml-1 text-[11px] font-normal text-white/40">· {daysText(w.heldDays)}</span>
                                     </span>
-                                    <span className="mt-0.5 block text-[9px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                    <span className="mt-0.5 block text-[10px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       {formatWaveUsdPrice(w.avgBuyPrice)} → {formatWaveUsdPrice(w.avgSellPrice)}
                                     </span>
                                   </span>
@@ -1878,7 +1878,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                     <span className={`block text-[12px] font-normal tabular-nums ${pnlClass(w.gainPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       {signedPct(w.gainPct, 1)}
                                     </span>
-                                    <span className={`block text-[9px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                    <span className={`block text-[10px] font-normal tabular-nums ${pnlClass(w.gainAmount, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                       {signedWaveCurrencyAmount(w.gainAmount, 0)}
                                     </span>
                                   </span>
@@ -1892,7 +1892,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                         autoFocus
                                         defaultValue={noteValue}
                                         placeholder={englishMode ? 'e.g. tariff panic, AI wave...' : '如:关税恐慌、新冠崩盘、AI 浪潮…'}
-                                        className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[10px] font-normal text-white outline-none placeholder:text-white/25"
+                                        className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
                                         style={{ colorScheme: 'dark' }}
                                         onClick={(e) => e.stopPropagation()}
                                         onKeyDown={(e) => {
@@ -1911,14 +1911,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                         <button
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                          className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left text-[10px] font-normal text-white/48 active:scale-95"
+                                          className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left text-[11px] font-normal text-white/40 active:scale-95"
                                         >
                                           {noteValue}
                                         </button>
                                         <button
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
-                                          className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[9px] font-normal text-white/35 active:scale-95"
+                                          className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
                                         >
                                           {tt('trades.clear', '清除')}
                                         </button>
@@ -1932,7 +1932,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                     <button
                                       type="button"
                                       onClick={(e) => { e.stopPropagation(); setEditingNoteId(w.id); }}
-                                      className="text-[9px] font-normal text-white/30 active:scale-95"
+                                      className="text-[11px] font-normal text-white/40 active:scale-95"
                                     >
                                       {tt('trades.addNote', '+ 加备注')}
                                     </button>
@@ -1941,7 +1941,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
                                 {isExpanded && (
                                   <div className="border-t border-white/10 px-2.5 pb-2.5 pt-2.5">
-                                    <div className="mb-2 text-[9px] font-normal text-white/45">{tt('trades.tradeDetails', '交易明细')}</div>
+                                    <div className="mb-2 text-[11px] font-normal text-white/40">{tt('trades.tradeDetails', '交易明细')}</div>
                                     <div className="space-y-1.5">
                                       {waveTrades.map(t => {
                                         const isBuy = !t.side || t.side === 'buy';
@@ -1950,10 +1950,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                         return (
                                           <div key={t.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-1.5">
                                             <div className="flex min-w-0 items-center gap-2">
-                                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-normal text-white ${isBuy ? 'bg-[#ff4b1f]/90' : 'bg-emerald-500/80'}`}>
+                                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-normal text-white ${isBuy ? 'bg-[#ff4b1f]/90' : 'bg-emerald-500/80'}`}>
                                                 {sideLabel(t.side, true)}
                                               </span>
-                                              <span className="shrink-0 text-[10px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                                              <span className="shrink-0 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                                 {(t.date || '').slice(5)}
                                               </span>
                                               <span className="truncate text-[10px] font-normal tabular-nums text-white/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -2039,7 +2039,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4">
                   {symbolTrades.length === 0 ? (
-                    <div className="py-12 text-center text-sm text-white/[0.38]">
+                    <div className="py-12 text-center text-[12px] text-white/50">
                       {tt('trades.noTrades', '暂无交易记录')}
                     </div>
                   ) : (
@@ -2071,22 +2071,22 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                             </div>
                             <div className="grid grid-cols-3 gap-2 text-[12px]">
                               <div>
-                                <div className="text-[9px] font-normal uppercase tracking-wider text-white/[0.32]">{tt('trades.quantity', '股数')}</div>
+                                <div className="text-[11px] font-normal uppercase tracking-wider text-white/40">{tt('trades.quantity', '股数')}</div>
                                 <div className="mt-0.5 font-normal tabular-nums text-white/[0.74]" style={{ fontFamily: TRADE_NUMBER_FONT }}>{trade.shares}</div>
                               </div>
                               <div>
-                                <div className="text-[9px] font-normal uppercase tracking-wider text-white/[0.32]">{tt('trades.unitPrice', '单价')}</div>
+                                <div className="text-[11px] font-normal uppercase tracking-wider text-white/40">{tt('trades.unitPrice', '单价')}</div>
                                 <div className="mt-0.5 font-normal tabular-nums text-white/[0.74]" style={{ fontFamily: TRADE_NUMBER_FONT }}>{formatWaveUsdPrice(trade.price)}</div>
                               </div>
                               <div>
-                                <div className="text-[9px] font-normal uppercase tracking-wider text-white/[0.32]">{tt('trades.amount', '金额')}</div>
+                                <div className="text-[11px] font-normal uppercase tracking-wider text-white/40">{tt('trades.amount', '金额')}</div>
                                 <div className={`mt-0.5 font-normal tabular-nums ${isBuy ? 'text-[#ff6048]' : 'text-emerald-400'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                                   {signedWaveCurrencyAmount(isBuy ? -amount : amount, 0)}
                                 </div>
                               </div>
                             </div>
                             {trade.batch && (
-                              <div className="mt-2 border-t border-white/[0.06] pt-2 text-[10px] font-normal text-white/[0.32]">
+                              <div className="mt-2 border-t border-white/[0.06] pt-2 text-[11px] font-normal text-white/40">
                                 {tt('trades.batch', '批次')}: {trade.batch}
                               </div>
                             )}
@@ -2098,7 +2098,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 </div>
 
                 <div className="border-t border-white/[0.07] bg-black/[0.12] px-5 py-3">
-                  <p className="text-center text-[10px] font-normal leading-relaxed text-white/[0.32]">
+                  <p className="text-center text-[11px] font-normal leading-relaxed text-white/40">
                     {tt('trades.allTradesHint', '删除单笔交易不影响其他波段 · 按日期倒序排列')}
                   </p>
                 </div>
@@ -2299,7 +2299,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               {!activeSymbol ? (
                 <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                   <div className="text-[13px] font-normal text-white/75">{tt('trades.noStocks', '还没有股票')}</div>
-                  <div className="mt-1 text-[10px] font-normal text-white/40">{tt('trades.noStocksDesc', '点上方新增添加第一只股票。')}</div>
+                  <div className="mt-1 text-[12px] font-normal text-white/50">{tt('trades.noStocksDesc', '点上方新增添加第一只股票。')}</div>
                 </section>
               ) : (
                 <>

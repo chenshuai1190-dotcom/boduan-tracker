@@ -188,7 +188,7 @@ function SortHeader({ label, sortKey, sortState, onSort }) {
 
 function LogoPlaceholder({ symbol, className = '' }) {
   return (
-    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.08] text-[9px] font-black text-white/55 ${className}`}>
+    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.08] text-[10px] font-black text-white/55 ${className}`}>
       {String(symbol || '?').slice(0, 2)}
     </span>
   );
@@ -328,7 +328,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
       <div className="flex min-w-0 items-start justify-between gap-1.5">
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
-          <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[8px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
+          <span className={`shrink-0 rounded-full border px-1.5 py-[1px] text-[10px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
             {realtimeLabel}
           </span>
         )}
@@ -451,9 +451,9 @@ function FgiGauge({ value, language }) {
         <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
         <text x="80" y="53" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
       </svg>
-      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[9px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '21%' }}>0</span>
-      <span className="pointer-events-none absolute left-1/2 top-[4px] -translate-x-1/2 text-[9px] font-medium leading-none text-[#8f98a6]" style={labelStyle}>50</span>
-      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[9px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '81.5%' }}>100</span>
+      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '21%' }}>0</span>
+      <span className="pointer-events-none absolute left-1/2 top-[4px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={labelStyle}>50</span>
+      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '81.5%' }}>100</span>
     </div>
   );
 }
@@ -1077,7 +1077,7 @@ export default function HomeTab({ ctx }) {
                 {t(language, 'home.leverage', '杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
               </span>
               {marginStatusReady && marginLeverageStatus && (
-                <AccountLeverageBadge className="h-[17px] px-1 text-[8px]" language={language} tierId={marginLeverageStatus.id} />
+                <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />
               )}
             </div>
           </button>

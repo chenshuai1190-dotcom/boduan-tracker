@@ -29,7 +29,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.374';
+const SETTINGS_VERSION = 'v10.7.9.375';
 
 function communityAvatarImageClass() {
   return 'scale-[1.15]';
@@ -451,7 +451,7 @@ function SettingsTab({ ctx }) {
           <div className="flex min-w-0 items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-[13px] text-white/75">{user?.email || '--'}</p>
-              <p className="mt-1 text-[10px] text-white/30">{t(language, 'settings.accountHealthy', '当前账户 · 登录状态正常')}</p>
+              <p className="mt-1 text-[11px] text-white/40">{t(language, 'settings.accountHealthy', '当前账户 · 登录状态正常')}</p>
             </div>
             <button
               type="button"
@@ -484,7 +484,7 @@ function SettingsTab({ ctx }) {
             disabled={communityLoading || communitySaving}
             className="mt-2 block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/[0.09] bg-[#080b11] px-3.5 text-[14px] font-normal text-white/85 outline-none placeholder:text-white/20 focus:border-[#f2a83a]/35 disabled:opacity-60"
           />
-          <p className={`mt-2 text-[10px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/30' : 'text-rose-300'}`}>
+          <p className={`mt-2 text-[11px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/40' : 'text-rose-300'}`}>
             {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}
           </p>
           <div className="mb-2.5 mt-4 flex items-center justify-between">
@@ -523,7 +523,7 @@ function SettingsTab({ ctx }) {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-[12px] text-white/70">{t(language, 'settings.inviteAdminOnly', '管理员专属')}</p>
-              <p className="mt-1 text-[10px] text-white/30">{t(language, 'settings.inviteDesc', '生成并管理新用户邀请码')}</p>
+              <p className="mt-1 text-[11px] text-white/40">{t(language, 'settings.inviteDesc', '生成并管理新用户邀请码')}</p>
             </div>
             <button
               type="button"
@@ -560,12 +560,12 @@ function SettingsTab({ ctx }) {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-mono text-[12px] tracking-[0.08em] text-white/70">{invite.code}</span>
                     {used && invite.usedByEmail && (
-                      <span className="mt-1 block truncate text-[10px] tracking-normal text-white/32">
+                      <span className="mt-1 block truncate text-[11px] tracking-normal text-white/40">
                         {t(language, 'settings.inviteUsedByEmail', '注册邮箱: {{email}}', { email: invite.usedByEmail })}
                       </span>
                     )}
                   </span>
-                  <span className={`mr-2 rounded-full px-2 py-1 text-[9px] ${used ? 'bg-white/[0.05] text-white/30' : 'bg-[#2cce91]/10 text-[#49daa7]'}`}>
+                  <span className={`mr-2 rounded-full px-2 py-1 text-[10px] ${used ? 'bg-white/[0.05] text-white/35' : 'bg-[#2cce91]/10 text-[#49daa7]'}`}>
                     {used ? t(language, 'settings.inviteUsed', '已使用') : t(language, 'settings.inviteActive', '可用')}
                   </span>
                   <Copy className="h-3.5 w-3.5 text-white/30" />
@@ -681,7 +681,7 @@ function SettingsTab({ ctx }) {
           >
             <Globe2 className="h-[18px] w-[18px] text-white/42" />
             <span className="flex-1 text-[13px] text-white/68">{t(language, 'settings.changelog', '更新日志')}</span>
-            <span className="text-[10px] text-white/28">{SETTINGS_VERSION}</span>
+            <span className="text-[10px] text-white/35">{SETTINGS_VERSION}</span>
             {expandedSection === 'changelog'
               ? <ChevronDown className="h-4 w-4 text-white/30" />
               : <ChevronRight className="h-4 w-4 text-white/30" />}
@@ -703,7 +703,7 @@ function SettingsTab({ ctx }) {
                         <span className={`rounded border px-2 py-0.5 font-mono text-[10px] ${log.latest ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-[#f6a524]/20 bg-[#f6a524]/10 text-[#f6a524]'}`}>
                           {log.ver}
                         </span>
-                        <span className="font-mono text-[9px] text-white/30">{log.date}</span>
+                        <span className="font-mono text-[10px] text-white/35">{log.date}</span>
                       </div>
                       <ul className="space-y-0.5">
                         {(currentLanguage === 'en' && Array.isArray(log.itemsEn) ? log.itemsEn : log.items).map((item, itemIndex) => (
@@ -726,7 +726,7 @@ function SettingsTab({ ctx }) {
                         : t(language, 'settings.viewFullHistory', '查看完整历史（共 {{total}} 个版本）', { total: changelog.length })}
                     </button>
                   )}
-                  <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[9px] text-white/24">
+                  <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[11px] text-white/40">
                     <span>{t(language, 'settings.dataSource', '数据源')}</span>
                     <span>EODHD Core + Yahoo Charts</span>
                   </div>
@@ -736,7 +736,7 @@ function SettingsTab({ ctx }) {
           )}
         </section>
 
-        <p className="mt-4 text-center text-[9px] tracking-[0.06em] text-white/18">Quote · {SETTINGS_VERSION}</p>
+        <p className="mt-4 text-center text-[10px] tracking-[0.06em] text-white/18">Quote · {SETTINGS_VERSION}</p>
       </div>
 
       {showCommunityProfile && (
@@ -817,7 +817,7 @@ function SettingsTab({ ctx }) {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px] text-white/75">{account.email}</span>
-                      <span className={`mt-0.5 block text-[9px] ${current ? 'text-[#f2b65d]' : 'text-white/28'}`}>
+                      <span className={`mt-0.5 block text-[11px] ${current ? 'text-[#f2b65d]' : 'text-white/40'}`}>
                         {current ? t(language, 'settings.currentAccount', '当前账户') : t(language, 'settings.tapToSwitch', '点击直接切换')}
                       </span>
                     </span>

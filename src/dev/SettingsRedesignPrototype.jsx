@@ -227,7 +227,7 @@ function InvitePanel() {
         {INVITE_CODES.map((item) => (
           <div key={item.code} className="flex min-w-0 items-center rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3">
             <span className="min-w-0 flex-1 truncate font-mono text-[12px] tracking-[0.08em] text-white/70">{item.code}</span>
-            <span className={`mr-2 rounded-full px-2 py-1 text-[9px] ${item.state === '可用' ? 'bg-[#2cce91]/10 text-[#49daa7]' : 'bg-white/[0.05] text-white/30'}`}>{item.state}</span>
+            <span className={`mr-2 rounded-full px-2 py-1 text-[10px] ${item.state === '可用' ? 'bg-[#2cce91]/10 text-[#49daa7]' : 'bg-white/[0.05] text-white/30'}`}>{item.state}</span>
             <Copy className="h-3.5 w-3.5 text-white/30" />
           </div>
         ))}
@@ -311,7 +311,7 @@ export default function SettingsRedesignPrototype() {
           )}
         </section>
 
-        <p className="mt-4 text-center text-[9px] tracking-[0.06em] text-white/18">HTML 视觉原型 · 不连接真实账户</p>
+        <p className="mt-4 text-center text-[10px] tracking-[0.06em] text-white/18">HTML 视觉原型 · 不连接真实账户</p>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.09] bg-[#070a0f]/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>

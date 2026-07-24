@@ -360,7 +360,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes("tt('competition.participantsRanked', '参赛/上榜')") && communityCompetitionPageSource.includes('rankedParticipants < joinedParticipants'), 'a later-start cohort should show joined/ranked coverage instead of a joined count beside fewer rows');
   assert.ok(communityCompetitionPageSource.includes('overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 pb-2 pt-3'), 'the self card should reduce only its bottom padding while preserving the top spacing');
   assert.ok(communityCompetitionPageSource.includes('data-competition-update-row className="mt-1.5 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4"'), 'the nickname and update label should share one horizontally aligned row');
-  assert.ok(communityCompetitionPageSource.includes('data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[10px] leading-5'), 'the update label should keep its third-column position while aligning vertically with the nickname');
+  assert.ok(communityCompetitionPageSource.includes('data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[11px] leading-5'), 'the update label should keep its third-column position while matching the readable auxiliary size');
   assert.ok(i18nSource.includes("'competition.nasdaq100': 'QQQ benchmark'"), 'English benchmark copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.outperformNasdaq': 'Beat QQQ'"), 'English outperformance copy should identify QQQ');
   assert.ok(i18nSource.includes("'competition.dataDisclosure': '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'"), 'Chinese disclosure should remain translated centrally');
@@ -614,8 +614,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.374'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.374', date: '2026-07-24', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.375'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.375', date: '2026-07-24', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('融资情景测算独立页面') && settingsChangelogSource.includes('五栏底部导航并高亮首页') && settingsChangelogSource.includes('余额编辑仍使用页内二级弹层'), 'settings changelog should document the standalone margin route and preserved bottom navigation');
   assert.ok(settingsChangelogSource.includes('融资情景滑杆与历史余额修正') && settingsChangelogSource.includes('对称的 -100% 至 +100%') && settingsChangelogSource.includes('一次性清零') && settingsChangelogSource.includes('旧版无版本缓存不再回退'), 'settings changelog should document the bounded slider and safe legacy-balance reset');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.368', date: '2026-07-22'") && settingsChangelogSource.includes('首页净资产与融资情景测算'), 'settings changelog should preserve the original margin release as history');
@@ -775,7 +775,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('grid min-h-[88px]'), 'earnings calendar homepage preview should use a fixed one-line grid');
   assert.ok(earningsCalendarSource.includes('overflow-hidden'), 'earnings calendar homepage preview should not expose horizontal scrolling');
   assert.ok(earningsCalendarSource.includes('text-[13px] leading-none tabular-nums text-white/35'), 'earnings calendar homepage date should use the enlarged edit-watchlist gray');
-  assert.ok(earningsCalendarSource.includes('text-[15px] font-bold leading-none text-white/70'), 'earnings calendar titles should use the enlarged reduced-brightness style');
+  assert.ok(earningsCalendarSource.includes('text-[15px] font-normal leading-none text-white/70'), 'earnings calendar homepage title should use the enlarged reduced-brightness style without bold weight');
+  assert.equal(earningsCalendarSource.includes('text-[15px] font-bold leading-none text-white/70'), false, 'earnings calendar homepage title should not return to bold weight');
   assert.ok(earningsCalendarSource.includes('text-[11px] leading-none font-normal text-white/70'), 'earnings calendar homepage symbol should use the reduced primary brightness');
   assert.ok(earningsCalendarSource.includes('text-[15px] leading-none text-white/70 tabular-nums'), 'earnings actual values should use the reduced primary brightness');
   assert.ok(earningsCalendarSource.includes('text-[15px] leading-none text-white/60 tabular-nums'), 'earnings estimate values should use the lower secondary brightness');
@@ -1103,7 +1104,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(settingsChangelogSource.includes('v10.7.9.190'), 'settings changelog should retain the gray close-lock label update');
   assert.ok(settingsChangelogSource.includes('收盘锁定标签灰色弱化'), 'settings changelog should describe the gray close-lock label update');
   assert.ok(homeTabSource.includes('text-[11px] text-[#6f7785]'), 'home close-lock label should use the enlarged neutral gray instead of translucent white');
-  assert.ok(tradesTabSource.includes('text-[10px] text-[#6f7785]'), 'trade close-lock label should use a neutral gray instead of translucent white');
+  assert.ok(tradesTabSource.includes('text-[11px] text-[#6f7785]'), 'trade close-lock label should match the home auxiliary size while keeping the neutral gray');
   assert.ok(settingsChangelogSource.includes('v10.7.9.189'), 'settings changelog should retain the close-locked daily pnl update');
   assert.ok(settingsChangelogSource.includes('今日盈亏收盘锁定'), 'settings changelog should describe the close-locked daily pnl update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.188'), 'settings changelog should retain the cropped login logo update');
@@ -2286,7 +2287,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('divide-y divide-white/[0.055]'), false, 'compound yearly table should not keep white row dividers');
   assert.equal(reviewTabSource.includes('stroke="rgba(255,255,255,0.07)"'), false, 'compound chart grid should not use white grid lines');
   assert.ok(reviewTabSource.includes('const xLabelIndexes = chartPoints.map((_, index) => index);'), 'compound chart should show every year label across the full plan');
-  assert.ok(reviewTabSource.includes('fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>'), 'compound chart year labels should stay small enough to fit all ten years');
+  assert.ok(reviewTabSource.includes('fontSize="10" fontFamily={NUMBER_FONT}>{point.year}</text>'), 'compound chart year labels should fit all ten years without dropping below the global text floor');
   assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums'), 'compound summary numbers should stay compact for mobile');
   assert.ok(reviewTabSource.includes("valueClass: 'text-[#ff4b1f]'"), 'compound accumulated gain should use the home red amount color');
   assert.ok(reviewTabSource.includes("{tt('review.actualGain', '实际收益')} <span className=\"text-[#ff4b1f] tabular-nums\""), 'compound actual gain should use the home red amount color');
@@ -2473,7 +2474,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(homeTabSource.includes('id="fgiGaugeGlow"'), 'CNN gauge should define a glow filter');
   assert.ok(homeTabSource.includes('strokeWidth="6"'), 'CNN gauge arc should stay slim');
   assert.ok(homeTabSource.includes('strokeWidth="1.7"'), 'CNN gauge pointer should stay slim');
-  assert.ok(homeTabSource.includes('text-[9px] font-medium leading-none text-[#8f98a6]'), 'CNN tick labels should remain smaller than the previous 10px labels after the one-pixel increase');
+  assert.ok(homeTabSource.includes('text-[10px] font-medium leading-none text-[#8f98a6]'), 'CNN tick labels should keep the minimum readable production text size');
   assert.ok(homeTabSource.includes("left: '21%'"), 'CNN left endpoint label should be nudged inward near the marked arc start');
   assert.ok(homeTabSource.includes("top-[4px]"), 'CNN midpoint label should move above the highlighted arc');
   assert.ok(homeTabSource.includes("left: '81.5%'"), 'CNN right endpoint label should be nudged inward near the marked arc end');
@@ -2486,7 +2487,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.374'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.375'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -15,13 +15,14 @@
     "verify:docs-consistency": "node scripts/verify-docs-consistency.mjs",
     "verify:frontend-smoke": "node scripts/verify-frontend-smoke.mjs",
     "verify:local-env": "node scripts/verify-local-env.mjs",
+    "verify:typography": "node scripts/verify-typography.mjs",
     "verify:workspace-state": "node scripts/verify-workspace-state.mjs",
     "verify:toolchain": "node scripts/verify-toolchain.mjs",
     "verify:deploy-status": "node scripts/verify-deploy-status.mjs",
     "verify:rls:rest": "node scripts/verify-rls-rest.mjs",
     "check:docs": "npm run verify:docs-consistency && git diff HEAD --check",
-    "check:fast": "npm run build && git diff HEAD --check",
-    "check:full": "npm test && npm run build && git diff HEAD --check",
+    "check:fast": "npm run verify:typography && npm run build && git diff HEAD --check",
+    "check:full": "npm test && npm run verify:typography && npm run build && git diff HEAD --check",
     "check": "npm run check:full"
   },
   "engines": {

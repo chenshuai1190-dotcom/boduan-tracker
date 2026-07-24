@@ -243,7 +243,7 @@ function LogoBadge({ symbol }) {
 function Metric({ label, value, valueColor = 'rgba(255,255,255,0.84)', align = 'left' }) {
   return (
     <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
-      <div className="truncate text-[9px] leading-3 text-white/[0.36]">{label}</div>
+      <div className="truncate text-[10px] leading-3 text-white/[0.36]">{label}</div>
       <div
         className="mt-1 truncate text-[11.5px] font-normal leading-[15px] tabular-nums"
         style={{ color: valueColor, fontFamily: NUMBER_FONT }}
@@ -360,7 +360,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction }) {
               <div className="text-[19px] font-normal tabular-nums" style={{ color: tone(summary.returnPct), fontFamily: NUMBER_FONT }}>
                 {formatPct(summary.returnPct)}
               </div>
-              {expanded ? <div className="mt-0.5 text-[9px] text-white/[0.35]">总收益率</div> : null}
+              {expanded ? <div className="mt-0.5 text-[10px] text-white/[0.35]">总收益率</div> : null}
             </div>
             {expanded ? <ChevronUp className="h-4 w-4 text-white/[0.68]" /> : <ChevronRight className="h-4 w-4 text-white/[0.48]" />}
           </div>
@@ -618,11 +618,11 @@ export default function WaveTrackerPrototype() {
             </div>
           </div>
           <div className="border-l border-white/[0.12] px-3">
-            <div className="text-[9.5px] text-white/[0.36]">累计盈亏</div>
+            <div className="text-[10px] text-white/[0.36]">累计盈亏</div>
             <div className="mt-1 whitespace-nowrap text-[12px] tabular-nums" style={{ color: tone(cumulativePnl), fontFamily: NUMBER_FONT }}>{formatPnl(cumulativePnl, 2)}</div>
           </div>
           <div className="border-l border-white/[0.12] px-3">
-            <div className="text-[9.5px] text-white/[0.36]">持仓数量</div>
+            <div className="text-[10px] text-white/[0.36]">持仓数量</div>
             <div className="mt-1 whitespace-nowrap text-[12px] text-white/[0.84] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{activeStockCount}只 · {activeWaveCount}段</div>
           </div>
           <div className="relative">
@@ -659,7 +659,7 @@ export default function WaveTrackerPrototype() {
           ))}
         </section>
 
-        <div className="mt-5 flex items-center gap-3 px-8 text-[9.5px] text-white/[0.22]">
+        <div className="mt-5 flex items-center gap-3 px-8 text-[10px] text-white/[0.22]">
           <span className="h-px flex-1 bg-white/[0.07]" />
           已显示全部
           <span className="h-px flex-1 bg-white/[0.07]" />

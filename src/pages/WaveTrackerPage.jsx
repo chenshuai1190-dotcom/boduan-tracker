@@ -162,7 +162,7 @@ function StatusDot({ accent = 'gray', pulse = false }) {
 function Metric({ label, value, valueColor = 'rgba(255,255,255,0.84)', align = 'left' }) {
   return (
     <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
-      <div className="truncate text-[9px] leading-3 text-white/[0.36]">{label}</div>
+      <div className="truncate text-[11px] leading-3 text-white/[0.40]">{label}</div>
       <div
         className="mt-1 truncate text-[11.5px] font-normal leading-[15px] tabular-nums"
         style={{ color: valueColor, fontFamily: NUMBER_FONT }}
@@ -177,7 +177,7 @@ function FormField({ label, prefix, children, ...inputProps }) {
   const isDateInput = inputProps.type === 'date';
   return (
     <label className="block min-w-0 max-w-full overflow-hidden">
-      <span className="mb-1.5 block text-[10.5px] font-normal text-white/[0.38]">{label}</span>
+      <span className="mb-1.5 block text-[11px] font-normal text-white/[0.40]">{label}</span>
       <span className="flex h-10 w-full min-w-0 max-w-full items-center overflow-hidden rounded-[11px] border border-white/[0.08] bg-black/[0.18] px-2.5 focus-within:border-[#f6b54b]/35">
         {prefix ? <span className="mr-1.5 text-[13px] text-white/[0.38]">{prefix}</span> : null}
         {children || (
@@ -241,11 +241,11 @@ function ModalStockHeader({ group, wave, sideLabel, logoCache, cacheStockLogo })
       </div>
       <div className="min-w-0">
         <div className="truncate text-[15px] font-normal leading-5 text-white/[0.82]">{group.symbol}</div>
-        <div className="mt-[3px] truncate text-[11.5px] leading-4 text-white/[0.42]">{group.displayName}</div>
+        <div className="mt-[3px] truncate text-[11px] leading-4 text-white/[0.35]">{group.displayName}</div>
       </div>
       <div className="text-right">
         <div className="whitespace-nowrap text-[13px] text-white/[0.5]">{sideLabel}</div>
-        <div className="mt-0.5 whitespace-nowrap text-[11px] text-white/[0.34] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+        <div className="mt-0.5 whitespace-nowrap text-[11px] text-white/[0.40] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
           {wave ? `${formatShares(wave.shares)} · ${formatUsdPrice(wave.buyPriceUsd)}` : '--'}
         </div>
       </div>
@@ -267,7 +267,7 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
         <span className="rounded-[7px] border border-[#f6b54b]/55 px-2 py-1 text-[10px] font-normal text-[#f5bd62] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           {tt('swing.waveNumber', '波段 {{number}}', { number: String(wave.sequence).padStart(2, '0') })}
         </span>
-        <div className="flex min-w-0 items-center gap-2 text-[10.5px] text-white/[0.58]">
+        <div className="flex min-w-0 items-center gap-2 text-[11px] text-white/[0.50]">
           <StatusDot accent={statusAccent(wave.status, wave.returnPct)} pulse={isActive} />
           <span className="shrink-0 text-white/[0.76]">{isActive ? tt('trades.active', '进行中') : tt('trades.completed', '已完成')}</span>
           <span className="h-3 w-px shrink-0 bg-white/[0.09]" />
@@ -291,7 +291,7 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
 
       <div className="mt-3 flex min-h-6 items-center gap-2 border-t border-white/[0.045] pt-2.5">
         <FileText className="h-3.5 w-3.5 shrink-0 text-white/[0.32]" strokeWidth={1.7} />
-        <span className="min-w-0 flex-1 truncate text-[10.5px] text-white/[0.42]">{wave.note || tt('swing.noNote', '暂无计划备注')}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-white/[0.50]">{wave.note || tt('swing.noNote', '暂无计划备注')}</span>
       </div>
     </button>
   );
@@ -308,9 +308,9 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
           <LogoBadge symbol={group.symbol} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
           <div className="min-w-0">
             <div className="truncate text-[19px] font-normal leading-6 tracking-[0.01em] text-white/[0.94]">{group.symbol}</div>
-            <div className="mt-0.5 truncate text-[10.5px] text-white/[0.43]">{group.displayName}</div>
+            <div className="mt-0.5 truncate text-[11px] text-white/[0.35]">{group.displayName}</div>
             {!expanded ? (
-              <div className="mt-1.5 whitespace-nowrap text-[10px] text-white/[0.38] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              <div className="mt-1.5 whitespace-nowrap text-[11px] text-white/[0.40] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                 {isActive
                   ? tt('swing.startedDays', '{{date}} 开始 · 第 {{days}} 天', { date: shortDate(summary.firstDate), days: summary.heldDays ?? '--' })
                   : tt('swing.completedDays', '{{start}} ~ {{end}} · {{days}} 天', { start: shortDate(summary.firstDate), end: shortDate(summary.endDate), days: summary.heldDays ?? '--' })}
@@ -322,7 +322,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
               <div className="text-[19px] font-normal tabular-nums" style={{ color: tone(summary.returnPct), fontFamily: NUMBER_FONT }}>
                 {formatPct(summary.returnPct)}
               </div>
-              {expanded ? <div className="mt-0.5 text-[9px] text-white/[0.35]">{tt('swing.totalReturn', '总收益率')}</div> : null}
+              {expanded ? <div className="mt-0.5 text-[11px] text-white/[0.40]">{tt('swing.totalReturn', '总收益率')}</div> : null}
             </div>
             {expanded ? <ChevronUp className="h-4 w-4 text-white/[0.68]" /> : <ChevronRight className="h-4 w-4 text-white/[0.48]" />}
           </div>
@@ -786,11 +786,11 @@ export default function WaveTrackerPage({ ctx = {} }) {
             </div>
           </div>
           <div className="min-w-0 border-l border-white/[0.12] px-3">
-            <div className="text-[9.5px] text-white/[0.36]">{tt('swing.cumulativePnl', '累计盈亏')}</div>
+            <div className="text-[11px] text-white/[0.40]">{tt('swing.cumulativePnl', '累计盈亏')}</div>
             <div className="mt-1 whitespace-nowrap text-[12px] tabular-nums" style={{ color: tone(cumulativeDisplayPnl), fontFamily: NUMBER_FONT }}>{formatPnl(cumulativeDisplayPnl, displayCurrency, 2)}</div>
           </div>
           <div className="min-w-0 pr-2 min-[360px]:border-l min-[360px]:border-white/[0.12] min-[360px]:px-3">
-            <div className="text-[9.5px] text-white/[0.36]">{tt('swing.positions', '持仓数量')}</div>
+            <div className="text-[11px] text-white/[0.40]">{tt('swing.positions', '持仓数量')}</div>
             <div className="mt-1 whitespace-nowrap text-[12px] text-white/[0.84] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
               {tt('swing.positionsValue', '{{stocks}}只 · {{waves}}段', { stocks: dashboard.activeStockCount, waves: dashboard.activeWaveCount })}
             </div>
@@ -825,13 +825,13 @@ export default function WaveTrackerPage({ ctx = {} }) {
           ) : loadError ? (
             <div className="rounded-[18px] border border-[#ff5b50]/20 bg-[#ff5b50]/[0.035] px-4 py-7 text-center">
               <div className="text-[13px] text-white/[0.7]">{tt('swing.loadFailed', '波段记录加载失败')}</div>
-              <div className="mt-1 break-words text-[10.5px] text-white/[0.38]">{loadError}</div>
+              <div className="mt-1 break-words text-[12px] text-white/[0.50]">{loadError}</div>
               <button type="button" onClick={() => loadRows().catch(() => {})} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.retry', '重新加载')}</button>
             </div>
           ) : visibleGroups.length === 0 ? (
             <div className="rounded-[18px] border border-dashed border-white/[0.1] bg-[#0b0f14] px-4 py-10 text-center">
               <div className="text-[13px] text-white/[0.68]">{filter === 'all' ? tt('swing.empty', '暂无波段记录') : tt('swing.emptyFilter', '当前分类暂无记录')}</div>
-              <div className="mt-1 text-[10.5px] text-white/[0.34]">{tt('swing.emptyDesc', '每个波段独立记录一次完整买入和完整卖出。')}</div>
+              <div className="mt-1 text-[12px] text-white/[0.50]">{tt('swing.emptyDesc', '每个波段独立记录一次完整买入和完整卖出。')}</div>
               {filter === 'all' ? <button type="button" onClick={openAdd} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.addFirst', '新增第一个波段')}</button> : null}
             </div>
           ) : visibleGroups.map((group) => (
@@ -853,7 +853,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
         </section>
 
         {!loading && !loadError && visibleGroups.length > 0 ? (
-          <div className="mt-5 flex items-center gap-3 px-8 text-[9.5px] text-white/[0.22]">
+          <div className="mt-5 flex items-center gap-3 px-8 text-[11px] text-white/[0.40]">
             <span className="h-px flex-1 bg-white/[0.07]" />
             {tt('swing.allShown', '已显示全部')}
             <span className="h-px flex-1 bg-white/[0.07]" />
@@ -926,23 +926,23 @@ export default function WaveTrackerPage({ ctx = {} }) {
             <>
               <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.07] border-y border-white/[0.07] py-3.5">
                 <div className="min-w-0 pr-2.5">
-                  <div className="text-[10px] text-white/[0.4]">{tt('swing.currentPnl', '当前收益')}</div>
+                  <div className="text-[11px] text-white/[0.40]">{tt('swing.currentPnl', '当前收益')}</div>
                   <div className="mt-1.5 truncate text-[17px] tabular-nums" style={{ color: tone(selection.wave.pnlUsd), fontFamily: NUMBER_FONT }}>
                     {formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)}
                   </div>
                 </div>
                 <div className="min-w-0 px-2.5">
-                  <div className="text-[10px] text-white/[0.4]">{tt('swing.currentPrice', '现价')}</div>
+                  <div className="text-[11px] text-white/[0.40]">{tt('swing.currentPrice', '现价')}</div>
                   <div className="mt-1.5 truncate text-[17px] text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatUsdPrice(selection.wave.currentPriceUsd)}</div>
                 </div>
                 <div className="min-w-0 pl-2.5">
-                  <div className="text-[10px] text-white/[0.4]">{tt('swing.unrealized', '浮盈')}</div>
+                  <div className="text-[11px] text-white/[0.40]">{tt('swing.unrealized', '浮盈')}</div>
                   <div className="mt-1.5 truncate text-[17px] tabular-nums" style={{ color: tone(selection.wave.returnPct), fontFamily: NUMBER_FONT }}>{formatPct(selection.wave.returnPct)}</div>
                 </div>
               </div>
 
               <div className="pt-4">
-                <label htmlFor="wave-forecast-target" className="text-[10.5px] text-white/[0.52]">{tt('swing.targetPriceUsd', '目标股价（USD）')}</label>
+                <label htmlFor="wave-forecast-target" className="text-[11px] text-white/[0.50]">{tt('swing.targetPriceUsd', '目标股价（USD）')}</label>
                 <div className="mt-2.5 flex h-[56px] w-full min-w-0 max-w-full items-center overflow-hidden rounded-[14px] border border-white/[0.11] bg-black/[0.2] px-3 focus-within:border-[#f6b54b]/45">
                   <span className="mr-2 shrink-0 text-[19px] text-[#f6b54b]">$</span>
                   <input
@@ -986,7 +986,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
               </div>
 
               <div className="mt-5">
-                <div className="text-[10.5px] text-white/[0.52]">{tt('swing.forecastPnl', '预计收益')}</div>
+                <div className="text-[11px] text-white/[0.50]">{tt('swing.forecastPnl', '预计收益')}</div>
                 <div className="mt-1.5 flex min-w-0 items-end justify-between gap-3">
                   <div className="min-w-0 truncate text-[27px] font-normal tabular-nums" style={{ color: tone(forecast.forecastPnlUsd), fontFamily: NUMBER_FONT }}>
                     {formatPnl(forecast.forecastPnlUsd == null ? null : forecast.forecastPnlUsd * displayRate, displayCurrency, 2)}
@@ -1010,7 +1010,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
                 <Metric label={tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct)} />
                 <Metric label={tt('swing.realized', '已实现')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd)} align="right" />
               </div>
-              <div className="mt-3 flex items-start gap-2 border-t border-white/[0.06] pt-3 text-[10.5px] leading-4 text-white/[0.4]">
+              <div className="mt-3 flex items-start gap-2 border-t border-white/[0.06] pt-3 text-[12px] leading-4 text-white/[0.50]">
                 <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{selection.wave.note || tt('swing.noNote', '暂无计划备注')}</span>
               </div>
@@ -1072,7 +1072,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
           <ModalFormScroller>
             <div className="space-y-3">
               <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={tt('swing.endWave', '结束波段')} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
-              <div className="rounded-[11px] border border-[#ff5b50]/15 bg-[#ff5b50]/[0.045] px-3 py-2.5 text-[10.5px] leading-4 text-white/[0.42]">
+              <div className="rounded-[11px] border border-[#ff5b50]/15 bg-[#ff5b50]/[0.045] px-3 py-2.5 text-[12px] leading-4 text-white/[0.50]">
                 {tt('swing.fullSellOnly', '波段需一次性卖出，不支持部分卖出。')}
               </div>
               <div className="grid min-w-0 grid-cols-1 gap-2.5 min-[360px]:grid-cols-2">
@@ -1082,8 +1082,8 @@ export default function WaveTrackerPage({ ctx = {} }) {
                 </FormField>
               </div>
               <FormField label={tt('swing.endDate', '结束日期')} type="date" min={selection.wave.buyDate} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
-              {draft.endDate && draft.endDate < selection.wave.buyDate ? <div className="text-[10px]" style={{ color: PROFIT }}>{tt('swing.endBeforeStart', '结束日期不能早于开始日期')}</div> : null}
-              <div className="flex items-center gap-2 text-[10px] text-white/[0.28]">
+              {draft.endDate && draft.endDate < selection.wave.buyDate ? <div className="text-[11px]" style={{ color: PROFIT }}>{tt('swing.endBeforeStart', '结束日期不能早于开始日期')}</div> : null}
+              <div className="flex items-center gap-2 text-[11px] text-white/[0.40]">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {tt('swing.noFees', '第一版不计算佣金和手续费')}
               </div>

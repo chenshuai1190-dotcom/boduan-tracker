@@ -487,7 +487,7 @@ function PublishedFinancialComparison({ event, language, marketColorMode }) {
   if (!rows.length) return null;
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.025]">
-      <div className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center border-b border-white/[0.06] px-3 py-2 text-[10px] leading-4 text-white/35">
+      <div className="grid grid-cols-[minmax(82px,1fr)_92px_92px] items-center border-b border-white/[0.06] px-3 py-2 text-[11px] leading-4 text-white/40">
         <span>{t(language, 'earningsCalendar.metric', '指标')}</span>
         <span className="text-right">{t(language, 'earningsCalendar.actualValue', '公布值')}<br />{t(language, 'earningsCalendar.yoy', '同比')}</span>
         <span className="text-right">{t(language, 'earningsCalendar.forecastValue', '预测值')}<br />{t(language, 'earningsCalendar.yoy', '同比')}</span>
@@ -518,13 +518,13 @@ function PublishedFinancialComparison({ event, language, marketColorMode }) {
 function MetricStack({ label, actual, actualPercent, estimate, estimatePercent, language, marketColorMode, resultMarker = null }) {
   return (
     <div className="min-w-0 text-left">
-      <div className="text-[10px] leading-none text-white/35">{label}</div>
+      <div className="text-[11px] leading-none text-white/40">{label}</div>
       <div className="mt-1.5 flex min-w-0 items-center gap-1">
         <span className="truncate text-[12px] leading-none text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{actual}</span>
         {resultMarker}
       </div>
       <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(actualPercent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(actualPercent)}</div>
-      <div className="mt-1.5 truncate text-[10px] leading-none text-white/30 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{t(language, 'earningsCalendar.forecastShort', '预期')} {estimate}</div>
+      <div className="mt-1.5 truncate text-[11px] leading-none text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{t(language, 'earningsCalendar.forecastShort', '预期')} {estimate}</div>
       <div className={`mt-1 text-[10px] leading-none tabular-nums ${signedPercentClass(estimatePercent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(estimatePercent)}</div>
     </div>
   );
@@ -577,7 +577,7 @@ function PublishedEarningsEventRow({
           <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-8 w-8 shrink-0 rounded-lg" />
           <div className="min-w-0">
             <div className="truncate text-[14px] font-normal text-white/70">{event.symbol}</div>
-            <div className="truncate text-[10px] text-white/40">{name}</div>
+            <div className="truncate text-[11px] text-white/40">{name}</div>
           </div>
         </div>
         <MetricStack
@@ -600,7 +600,7 @@ function PublishedEarningsEventRow({
           marketColorMode={marketColorMode}
         />
         <div className="min-w-0 text-right">
-          <div className="text-[10px] leading-none text-white/35">{reactionLabel(reaction, language)}</div>
+          <div className="text-[11px] leading-none text-white/40">{reactionLabel(reaction, language)}</div>
           <div className={`mt-1.5 text-[12px] leading-none tabular-nums ${signedPercentClass(reaction.percent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
         </div>
       </div>
@@ -625,7 +625,7 @@ function UpcomingEarningsEventRow({ event, logoCache, cacheStockLogo, displaySto
           <EarningsLogo symbol={event.symbol} urls={logoUrls(event.symbol, cachedLogoUrl)} onLogoLoad={cacheStockLogo} className="h-7 w-7 shrink-0 rounded-lg" />
           <div className="min-w-0">
             <div className="truncate text-[13px] font-normal text-white/70">{event.symbol}</div>
-            <div className="truncate text-[9px] text-white/40">{name}</div>
+            <div className="truncate text-[11px] text-white/40">{name}</div>
           </div>
         </div>
         <div className="text-left">
@@ -690,7 +690,7 @@ function PublishedEarningsDetail({
           </button>
         </div>
         <div className="mt-4 border-t border-white/[0.06] pt-3">
-          <div className="flex items-center justify-between gap-3 text-[10px] text-white/35">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-white/40">
             <span>{earningsCurrencySummary(event, language)}</span>
             <span>{t(language, 'earningsCalendar.fiscalDate', '财报期')} {event.fiscalDate || event.reportDate}</span>
           </div>
@@ -699,8 +699,8 @@ function PublishedEarningsDetail({
         <PublishedFinancialComparison event={event} language={language} marketColorMode={marketColorMode} />
         <div className="mt-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-3">
           <div>
-            <div className="text-[10px] text-white/35">{reactionLabel(reaction, language)}</div>
-            <div className="mt-1 text-[10px] text-white/30">{reactionStatusText(reaction, language)}</div>
+            <div className="text-[11px] text-white/40">{reactionLabel(reaction, language)}</div>
+            <div className="mt-1 text-[11px] text-white/40">{reactionStatusText(reaction, language)}</div>
           </div>
           <div className="text-right">
             <div className={`text-[15px] leading-none tabular-nums ${signedPercentClass(reaction.percent, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{formatSignedPercent(reaction.percent)}</div>
@@ -910,7 +910,7 @@ function EarningsModal({
           </div>
         )}
 
-        <div className="mt-3 shrink-0 text-[10px] leading-4 text-white/30">
+        <div className="mt-3 shrink-0 text-[11px] leading-4 text-white/40">
           {t(language, 'earningsCalendar.disclaimer', '财报时间为预计时间,实际可能因公司公告调整,请以官方发布为准。')}
         </div>
       </div>
@@ -1252,7 +1252,7 @@ export default function EarningsCalendar({
       style={{ fontFamily: FONT }}
     >
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-[15px] font-bold leading-none text-white/70">
+        <div className="text-[15px] font-normal leading-none text-white/70">
           {t(language, 'earningsCalendar.title', '财报日历')}
         </div>
         <button

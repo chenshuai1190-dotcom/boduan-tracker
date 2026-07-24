@@ -54,7 +54,7 @@ test('company fundamentals load independently, cache per user for six hours, and
   assert.ok(pageSource.includes("return '—'"), 'missing fundamentals must use one em dash');
   assert.ok(pageSource.includes('grid grid-cols-3 gap-x-3 gap-y-[18px]'));
   assert.ok(pageSource.includes('text-[15px] font-normal tabular-nums'));
-  assert.ok(pageSource.includes('text-[6.5px]'));
+  assert.ok(pageSource.includes('text-[10px]'), 'fundamental suffixes should respect the global readable text floor');
   assert.equal(pageSource.includes('fundamentalsPromise'), false, 'the chart/detail Promise must never await fundamentals');
   assert.ok(fundamentalsCacheSource.includes('6 * 60 * 60 * 1000'));
   assert.ok(fundamentalsCacheSource.includes('`${normalizedUserId}:${normalized}`'));
@@ -95,6 +95,8 @@ test('technical indicators use a borderless daily row plus one detailed weekly M
   assert.equal(pageSource.includes('distanceMa200Daily'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股 {{stock}} · QQQ {{qqq}}'"));
+  assert.ok(pageSource.includes('grid-cols-[0.84fr_0.84fr_1.32fr]'), 'the relative QQQ metric should receive enough width to keep both returns on one line');
+  assert.ok(pageSource.includes('overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-white/[0.40]">{detail}'), 'metric details should remain single-line at the shared auxiliary size');
   assert.ok(pageSource.includes('deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory)'));
   assert.equal(pageSource.includes('distanceEma30'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));

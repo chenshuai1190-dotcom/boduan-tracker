@@ -383,7 +383,7 @@ function CompoundDetailModal({
               return (
                 <g key={point.year}>
                   <line x1={point.x} x2={point.x} y1={padTop} y2={padTop + plotHeight} stroke="rgba(86,99,120,0.12)" strokeWidth="0.7" />
-                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(141,148,160,0.66)" fontSize="8" fontFamily={NUMBER_FONT}>{point.year}</text>
+                  <text x={point.x} y={chartHeight - 5} textAnchor="middle" fill="rgba(141,148,160,0.66)" fontSize="10" fontFamily={NUMBER_FONT}>{point.year}</text>
                 </g>
               );
             })}
@@ -952,7 +952,7 @@ export default function ReviewTab({ ctx }) {
                   <div className="flex items-center justify-between text-[12px] text-white/45">
                     <span className="flex items-center gap-1">
                       {tt('review.growthTarget', '增长目标')}
-                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/20 text-[9px] text-white/45">i</span>
+                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/20 text-[10px] text-white/45">i</span>
                     </span>
                     <span className="text-white/70 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget)}</span>
                   </div>

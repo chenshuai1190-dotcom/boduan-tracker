@@ -300,15 +300,15 @@ function PriceChart({ range, initialTooltipOpen = false }) {
           data-watchlist-price-chart-tooltip="true"
           className={`pointer-events-none absolute top-2 w-[184px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > chart.width * 0.56 ? 'left-8' : 'right-2'}`}
         >
-          <div className="text-[9px] text-white/[0.42]">{chartPointDate(range, selectedIndex, series.values.length)} · 普通收盘</div>
+          <div className="text-[10px] text-white/[0.42]">{chartPointDate(range, selectedIndex, series.values.length)} · 普通收盘</div>
           <div className="mt-1 text-[18px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>${formatNumber(selectedValue)}</div>
-          <div className="mt-1 flex items-center justify-between gap-2 text-[9px]">
+          <div className="mt-1 flex items-center justify-between gap-2 text-[10px]">
             <span className="text-white/[0.3]">{weeklyMa ? '周涨跌' : '当日涨跌'}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: selectedColor, fontFamily: NUMBER_FONT }}>
               {selectedChange == null ? '--' : `${selectedChange >= 0 ? '+' : ''}${formatNumber(selectedChange)}  ${signedPct(selectedChangePct)}`}
             </span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px]">
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px]">
             <span className="text-white/[0.3]">{maLabel}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: maColor, fontFamily: NUMBER_FONT }}>
               {Number.isFinite(selectedMaValue) ? `$${formatNumber(selectedMaValue)} · ${signedPct(selectedMaDistance)}` : '--'}
@@ -323,16 +323,16 @@ function PriceChart({ range, initialTooltipOpen = false }) {
 function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)' }) {
   return (
     <div className="min-w-0 text-center">
-      <div className="truncate text-[9.5px] text-white/[0.36]">{label}</div>
+      <div className="truncate text-[10px] text-white/[0.36]">{label}</div>
       <div className="mt-1.5 truncate text-[15px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
-      <div className="mt-1 truncate text-[9px] text-white/[0.26]">{detail}</div>
+      <div className="mt-1 truncate text-[10px] text-white/[0.26]">{detail}</div>
     </div>
   );
 }
 
 function IndicatorBadge({ children }) {
   return (
-    <span className="inline-flex shrink-0 items-center rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[8.5px] text-[#f6b54b]/75">
+    <span className="inline-flex shrink-0 items-center rounded-md bg-[#f6b54b]/[0.1] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">
       {children}
     </span>
   );
@@ -460,12 +460,12 @@ export default function WatchlistStockDetailPrototype() {
                 <span className="text-[18px] font-normal text-white/[0.9]">TSM</span>
                 <span className="truncate text-[13px] text-white/[0.45]">台积电</span>
               </div>
-              <div className="mt-1 flex items-center gap-1.5 text-[9.5px] text-white/[0.29]">
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-white/[0.29]">
                 <span className="rounded-md bg-white/[0.045] px-1.5 py-0.5">美股</span>
                 <span className="rounded-md bg-white/[0.045] px-1.5 py-0.5">半导体</span>
               </div>
             </div>
-            <div className="shrink-0 rounded-full border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[9px] text-white/[0.34]">普通收盘</div>
+            <div className="shrink-0 rounded-full border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[10px] text-white/[0.34]">普通收盘</div>
           </div>
 
           <div className="mt-4" data-prototype-price-summary="inline">
@@ -474,7 +474,7 @@ export default function WatchlistStockDetailPrototype() {
               <span className="text-[15px]" style={{ color: MARKET_GREEN }}>-2.77%</span>
               <span className="text-[13px] opacity-75" style={{ color: MARKET_GREEN }}>(-11.37)</span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[9.5px] text-white/[0.31]">
+            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] text-white/[0.31]">
               <span>7/17 收盘</span><span aria-hidden="true">·</span><span>美东时间</span><span aria-hidden="true">·</span><span>USD</span>
             </div>
           </div>
@@ -496,7 +496,7 @@ export default function WatchlistStockDetailPrototype() {
             <PriceChart range={range} initialTooltipOpen={initialChartTooltipOpen} />
           </div>
 
-          <div className="mt-1 flex items-center justify-center gap-6 text-[9.5px] text-white/[0.4]" data-prototype-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}>
+          <div className="mt-1 flex items-center justify-center gap-6 text-[10px] text-white/[0.4]" data-prototype-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}>
             <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#22c55e]" />股价</span>
             <span className="inline-flex items-center gap-1.5"><i className={`h-0.5 w-4 rounded-full ${range === '5y' ? 'bg-[#f6b54b]' : 'bg-[#60a5fa]'}`} />{range === '5y' ? 'MA200（周）' : 'MA200（日）'}</span>
           </div>
@@ -526,27 +526,27 @@ export default function WatchlistStockDetailPrototype() {
             <div className="flex min-w-0 items-center gap-2">
               <h3 className="text-[13px] font-normal text-white/[0.76]">MA200（周）</h3>
               <IndicatorBadge>芒格指标</IndicatorBadge>
-              <span className="ml-auto text-[9px] text-white/[0.28]">周收盘锁定</span>
+              <span className="ml-auto text-[10px] text-white/[0.28]">周收盘锁定</span>
             </div>
 
             <div className="mt-3 flex items-end justify-between gap-4">
               <div>
-                <div className="text-[9.5px] text-white/[0.32]">距200周均线</div>
+                <div className="text-[10px] text-white/[0.32]">距200周均线</div>
                 <div className="mt-1 text-[22px] font-normal text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+117.47%</div>
               </div>
               <div className="pb-0.5 text-right">
                 <div className="text-[12px] text-[#ff4b1f]/90">长期趋势上方</div>
-                <div className="mt-1 text-[9px] text-white/[0.27]">基于已完成交易周</div>
+                <div className="mt-1 text-[10px] text-white/[0.27]">基于已完成交易周</div>
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
-              <div><div className="text-[8.5px] text-white/[0.27]">200周均线</div><div className="mt-1 text-[11.5px] text-white/[0.65] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$183.18</div></div>
-              <div className="text-center"><div className="text-[8.5px] text-white/[0.27]">近4周变化</div><div className="mt-1 text-[11.5px] text-[#ff4b1f]/85 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+3.95%</div></div>
-              <div className="text-right"><div className="text-[8.5px] text-white/[0.27]">连续状态</div><div className="mt-1 text-[11.5px] text-white/[0.65]">上方 142 周</div></div>
+              <div><div className="text-[10px] text-white/[0.27]">200周均线</div><div className="mt-1 text-[11.5px] text-white/[0.65] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$183.18</div></div>
+              <div className="text-center"><div className="text-[10px] text-white/[0.27]">近4周变化</div><div className="mt-1 text-[11.5px] text-[#ff4b1f]/85 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+3.95%</div></div>
+              <div className="text-right"><div className="text-[10px] text-white/[0.27]">连续状态</div><div className="mt-1 text-[11.5px] text-white/[0.65]">上方 142 周</div></div>
             </div>
 
-            <div className="mt-3.5 text-[8.5px] text-white/[0.22]">更新至 7/17 周收盘 · 200周数据完整</div>
+            <div className="mt-3.5 text-[10px] text-white/[0.22]">更新至 7/17 周收盘 · 200周数据完整</div>
           </div>
         </section>
 
@@ -565,9 +565,9 @@ export default function WatchlistStockDetailPrototype() {
               </div>
             </div>
             <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.06] border-t border-white/[0.06] pt-3">
-              <div className="pr-3"><div className="text-[9.5px] text-white/[0.31]">持仓数量</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>500 股</div></div>
-              <div className="px-3"><div className="text-[9.5px] text-white/[0.31]">平均成本</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$195.30</div></div>
-              <div className="pl-3"><div className="text-[9.5px] text-white/[0.31]">仓位占比</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>12.68%</div></div>
+              <div className="pr-3"><div className="text-[10px] text-white/[0.31]">持仓数量</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>500 股</div></div>
+              <div className="px-3"><div className="text-[10px] text-white/[0.31]">平均成本</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>$195.30</div></div>
+              <div className="pl-3"><div className="text-[10px] text-white/[0.31]">仓位占比</div><div className="mt-1.5 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>12.68%</div></div>
             </div>
             <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.055]"><div className="h-full rounded-full bg-[#f6b54b]/80" style={{ width: '12.68%' }} /></div>
           </div>
@@ -583,7 +583,7 @@ export default function WatchlistStockDetailPrototype() {
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
             <div className="flex items-center gap-2">
               <h2 className="text-[15px] font-normal text-white/[0.82]">目标价</h2>
-              <span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[9px] text-[#f6b54b]/75">个人计划</span>
+              <span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">个人计划</span>
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-white/[0.32]"><Pencil className="h-3 w-3" />编辑<ChevronRight className="h-3.5 w-3.5" /></div>
           </div>
@@ -602,7 +602,7 @@ export default function WatchlistStockDetailPrototype() {
               <div className="relative h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]">
                 <span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]" style={{ left: `${progressPosition}%` }} />
               </div>
-              <div className="mt-2 grid grid-cols-3 text-[9.5px] text-white/[0.29]">
+              <div className="mt-2 grid grid-cols-3 text-[10px] text-white/[0.29]">
                 <span>成本 ${formatNumber(AVG_COST)}</span>
                 <span className="text-center text-[#f6b54b]/75">当前 ${formatNumber(CURRENT_PRICE)}</span>
                 <span className="text-right">目标 ${formatNumber(targetPrice)}</span>
@@ -615,9 +615,9 @@ export default function WatchlistStockDetailPrototype() {
         <section className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-prototype-section="events">
           <SectionHeading title="关键事件" trailing="自动读取" />
           <div className="grid grid-cols-3 divide-x divide-white/[0.06] px-1 py-4">
-            <div className="px-3 text-center"><CalendarDays className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">下次财报</div><div className="mt-1 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>8/28</div><div className="mt-0.5 text-[9px] text-white/[0.25]">预计盘后</div></div>
-            <div className="px-3 text-center"><Clock3 className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">距离财报</div><div className="mt-1 text-[13px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>42 天</div><div className="mt-0.5 text-[9px] text-white/[0.25]">2026 Q2</div></div>
-            <div className="px-3 text-center"><TrendingUp className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[9.5px] text-white/[0.3]">最近财报反应</div><div className="mt-1 text-[13px] tabular-nums" style={{ color: MARKET_RED, fontFamily: NUMBER_FONT }}>+7.32%</div><div className="mt-0.5 text-[9px] text-white/[0.25]">盘后涨幅</div></div>
+            <div className="px-3 text-center"><CalendarDays className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[10px] text-white/[0.3]">下次财报</div><div className="mt-1 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>8/28</div><div className="mt-0.5 text-[10px] text-white/[0.25]">预计盘后</div></div>
+            <div className="px-3 text-center"><Clock3 className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[10px] text-white/[0.3]">距离财报</div><div className="mt-1 text-[13px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>42 天</div><div className="mt-0.5 text-[10px] text-white/[0.25]">2026 Q2</div></div>
+            <div className="px-3 text-center"><TrendingUp className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[10px] text-white/[0.3]">最近财报反应</div><div className="mt-1 text-[13px] tabular-nums" style={{ color: MARKET_RED, fontFamily: NUMBER_FONT }}>+7.32%</div><div className="mt-0.5 text-[10px] text-white/[0.25]">盘后涨幅</div></div>
           </div>
         </section>
 
@@ -628,8 +628,8 @@ export default function WatchlistStockDetailPrototype() {
               const buy = trade.side === '买入';
               return (
                 <div key={trade.id} className="grid grid-cols-[88px_minmax(0,1fr)_96px] items-center gap-3 py-3">
-                  <div><div className="text-[12px]" style={{ color: buy ? MARKET_RED : MARKET_GREEN }}>{trade.side}</div><div className="mt-1 text-[9.5px] text-white/[0.27] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{trade.date}</div></div>
-                  <div className="text-right"><div className="text-[11.5px] text-white/[0.61] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{trade.shares} 股</div><div className="mt-1 text-[9.5px] text-white/[0.27] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ ${formatNumber(trade.price)}</div></div>
+                  <div><div className="text-[12px]" style={{ color: buy ? MARKET_RED : MARKET_GREEN }}>{trade.side}</div><div className="mt-1 text-[10px] text-white/[0.27] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{trade.date}</div></div>
+                  <div className="text-right"><div className="text-[11.5px] text-white/[0.61] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{trade.shares} 股</div><div className="mt-1 text-[10px] text-white/[0.27] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ ${formatNumber(trade.price)}</div></div>
                   <div className="text-right text-[11.5px] text-white/[0.62] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{trade.amount > 0 ? '+' : '-'}${formatNumber(Math.abs(trade.amount))}</div>
                 </div>
               );
@@ -637,7 +637,7 @@ export default function WatchlistStockDetailPrototype() {
           </div>
         </section>
 
-        <p className="mt-4 text-center text-[9px] tracking-[0.06em] text-white/[0.16]">HTML 视觉原型 · 不连接真实账户</p>
+        <p className="mt-4 text-center text-[10px] tracking-[0.06em] text-white/[0.16]">HTML 视觉原型 · 不连接真实账户</p>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.09] bg-[#070a0f]/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} data-prototype-bottom-tabs="five">
@@ -648,7 +648,7 @@ export default function WatchlistStockDetailPrototype() {
             return (
               <button key={item.id} type="button" className={`flex flex-col items-center justify-center gap-1 ${active ? 'text-[#f6a524]' : 'text-white/[0.36]'}`}>
                 <Icon className={`h-[19px] w-[19px] ${active ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
-                <span className="text-[9.5px]">{item.label}</span>
+                <span className="text-[10px]">{item.label}</span>
               </button>
             );
           })}

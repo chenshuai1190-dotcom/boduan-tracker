@@ -45,6 +45,8 @@ node --test tests/<直接相关测试>.test.js   # 有直接相关测试时运�
 npm run check:fast
 ```
 
+`check:fast` 与 `check:full` 都固定运行 `npm run verify:typography`。所有 `src/` 可见文字下限为 `10px`；新增更小字号会直接阻断本地门禁和 CI。
+
 FAST 本地明确不要求：全量 `npm test`、audit、toolchain、local-env、RLS、401、marker 回查、全库文档扫描或手工开发日志。代码推送后仍由 GitHub CI 统一跑一次全量测试、build 和 high-level audit，本地不重复。
 
 纯文案、颜色、图标和简单样式不要求制作截图。需要制作或交付静态 HTML、页面截图作为视觉确认时，必须通过 localhost 在本机真实 Xcode iOS Simulator 的 Safari 中打开并截图；桌面浏览器、Codex 内置浏览器、响应式视口以及手工伪造的 iOS 状态栏都不能作为截图证据。不要求无关页面和重复截图。

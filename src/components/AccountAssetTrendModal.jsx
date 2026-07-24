@@ -214,12 +214,12 @@ export default function AccountAssetTrendModal({
 
         <div ref={chartRootRef} className="mt-5 border-0 bg-transparent p-0">
           <div className="relative h-[76px]">
-            <div className="absolute left-[39px] top-[7px] text-[9.5px] text-white/[0.30]">
+            <div className="absolute left-[39px] top-[7px] text-[10px] text-white/[0.30]">
               {t(language, 'analysis.accountTrendUnit', '单位：{{currency}}', { currency })}
             </div>
             {selectedSlot && (
               <div className="pointer-events-none absolute right-0 top-0 z-[5] w-[169px] rounded-[11px] border border-white/[0.12] bg-[#151b23] px-2.5 py-[9px] shadow-[0_12px_26px_rgba(0,0,0,0.50)]">
-                <div className="text-[9.5px] font-normal text-white/[0.48]">{formatMonth(selectedSlot.month, language)}</div>
+                <div className="text-[10px] font-normal text-white/[0.48]">{formatMonth(selectedSlot.month, language)}</div>
                 <div className="mt-[5px] whitespace-nowrap text-[14px] font-medium leading-none text-white/[0.90] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                   {formatAmount(selectedSlot.balance, currency)}
                 </div>
@@ -240,7 +240,7 @@ export default function AccountAssetTrendModal({
 
           {dataSlots.length > 0 ? (
             <div className="grid h-[128px] grid-cols-[38px_minmax(0,1fr)]">
-              <div className="flex flex-col justify-between whitespace-nowrap py-0.5 pb-[23px] pr-[7px] text-right text-[8px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              <div className="flex flex-col justify-between whitespace-nowrap py-0.5 pb-[23px] pr-[7px] text-right text-[10px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                 {axisTicks.map((tick, index) => <span key={`${tick}-${index}`}>{formatAxisValue(tick, language)}</span>)}
               </div>
               <div
@@ -276,7 +276,7 @@ export default function AccountAssetTrendModal({
                           aria-hidden="true"
                         />
                       )}
-                      <span className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 text-[8px] leading-none text-white/[0.38] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                      <span className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 text-[10px] leading-none text-white/[0.38] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                         {slot.month.slice(-2)}
                       </span>
                     </div>
@@ -301,12 +301,12 @@ export default function AccountAssetTrendModal({
               <div className="mt-[5px] whitespace-nowrap text-[15px] font-normal leading-none text-white/[0.76] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                 {formatAmount(point?.balance, currency)}
               </div>
-              <div className="mt-1 text-[9px] text-white/[0.30]">{formatMonth(point?.month, language, true)}</div>
+              <div className="mt-1 text-[10px] text-white/[0.30]">{formatMonth(point?.month, language, true)}</div>
             </div>
           ))}
         </div>
 
-        <div className="mt-2 text-center text-[9.5px] text-white/[0.24]">
+        <div className="mt-2 text-center text-[10px] text-white/[0.24]">
           {t(language, 'analysis.accountTrendSource', '数据来自该账户每月余额快照')}
         </div>
       </div>

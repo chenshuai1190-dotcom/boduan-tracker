@@ -319,7 +319,7 @@ test('personal financing stays out of calculations, reports, and competition whi
   assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"));
   assert.ok(tradesTabSource.includes("tt('home.marginDebt', '融资负债')"));
   assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"));
-  assert.ok(tradesTabSource.includes('shrink-0 whitespace-nowrap text-[11px]'), 'Trades must mirror the readable Home leverage text size');
+  assert.ok(tradesTabSource.includes('shrink-0 whitespace-nowrap text-[12px]'), 'Trades must mirror the readable Home leverage text size');
   for (const forbiddenWrite of ['saveMarginDebt', 'setMarginStatus', 'upsertMarginStatus', 'margin_status']) {
     assert.equal(tradesTabSource.includes(forbiddenWrite), false, `Trades must not write through ${forbiddenWrite}`);
   }

@@ -48,6 +48,7 @@ npm run bootstrap:vercel-link    # 任务确实需要 Vercel CLI link/env
 npm run check:docs   # 纯文档
 npm run check:fast   # FAST 代码；受影响测试按任务先单独运行
 npm run check:full   # FULL 本地完整门禁
+npm run verify:typography # 单独检查字号下限
 ```
 
 具体判定见 `docs/development-process.md`。
@@ -94,6 +95,9 @@ npm run check:full   # FULL 本地完整门禁
 ## 产品实现规则
 
 - 用户可见系统文案必须同步简体中文与 English；用户自己写的备注、目标、账户名等保持原文。
+- 辅助文字统一以首页为准：普通说明使用 `12px / white 50%`，时间、口径和次级信息使用 `11–12px / white 40%`，实体副标题使用 `11px / white 35%`，同类字段标签使用 `13px / white 50%`。
+- 徽章、图表刻度、tooltip 和紧凑控件允许使用 `10px`，但任何可见文字不得小于 `10px`；禁止重新引入 `8px`、`8.5px`、`9px` 或 `9.5px` 字号。
+- `npm run verify:typography` 是 FAST 与 FULL 的固定门禁，扫描 `src/` 中 Tailwind 任意字号、CSS `font-size` 和内联 `fontSize`。
 - 新增、保存、删除、同步、导入和导出必须防重复提交，并给出明确成功或失败反馈。
 - 核心体验使用应用内受控弹窗、菜单和 toast，不使用 `alert`、`confirm`、`prompt` 承载正式流程。
 - 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 localhost 在本机真实 Xcode iOS Simulator 的 Safari 中打开并截图。桌面浏览器、Codex 内置浏览器、响应式视口以及手工伪造的 iOS 状态栏都不能作为截图证据。纯文案、颜色、图标和简单样式不强制制作截图。

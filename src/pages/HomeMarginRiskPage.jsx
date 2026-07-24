@@ -82,7 +82,7 @@ function formatLeverage(value) {
 function Metric({ label, value }) {
   return (
     <div className="min-w-0 px-1 text-center">
-      <div className="text-[10px] text-white/[0.38]">{label}</div>
+      <div className="text-[13px] text-white/50">{label}</div>
       <div className="mt-1 truncate text-[12px] font-medium text-white/[0.82] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
@@ -209,12 +209,12 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
           }}
         />
       </div>
-      <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[9px] text-white/30">
+      <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[10px] text-white/30">
         <span>{t(language, 'home.marginDownsideFloor', '下跌最低 -100%')}</span>
         <button
           type="button"
           onClick={() => commitValue(0)}
-          className="h-[22px] min-w-10 rounded-full border border-white/[0.09] bg-white/[0.035] px-2 text-[9px] text-white/50 active:scale-95"
+          className="h-[22px] min-w-10 rounded-full border border-white/[0.09] bg-white/[0.035] px-2 text-[10px] text-white/50 active:scale-95"
         >
           {t(language, 'home.marginScenarioReset', '归零')}
         </button>
@@ -412,7 +412,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
       </header>
 
       <section className="pb-6 pt-5" data-home-margin-risk-content="true">
-        <p className="text-center text-[11px] text-white/[0.38]">
+        <p className="text-center text-[12px] text-white/50">
           {t(language, 'home.marginRiskSubtitle', '假设全部股票同步涨跌，融资负债保持不变')}
         </p>
 
@@ -438,7 +438,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           </div>
 
           <div className="mt-5 flex items-end justify-between">
-            <div className="text-[12px] text-white/55">{t(language, 'home.stockPortfolioMove', '股票组合涨跌')}</div>
+            <div className="text-[12px] text-white/50">{t(language, 'home.stockPortfolioMove', '股票组合涨跌')}</div>
             <div className={`text-[21px] font-medium tabular-nums ${scenarioColorClass}`} style={{ fontFamily: NUMBER_FONT }}>
               {formatScenarioPercent(stress.normalizedScenarioPct)}
             </div>
@@ -516,8 +516,8 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
             ))}
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3.5 py-3 text-[11px]">
-            <span className="min-w-0 truncate text-white/45">
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3.5 py-3 text-[12px]">
+            <span className="min-w-0 truncate text-white/40">
               {t(language, 'home.marginDebtFixed', '融资负债保持 {{amount}}', {
                 amount: formatMoneyFromUsd(overview.marginDebtUsd, currency, usdRate, 2),
               })}
@@ -527,7 +527,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
             </span>
           </div>
 
-          <p className="mt-4 text-center text-[10px] leading-4 text-white/[0.28]">
+          <p className="mt-4 text-center text-[11px] leading-4 text-white/40">
             {t(language, 'home.marginRiskBoundary', '仅用于个人融资情景测算，不影响比赛、收益报表和交易记录。')}
           </p>
       </section>
@@ -562,20 +562,20 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-0.5 text-center text-[11px] text-white/[0.38]">
+            <p className="mt-0.5 text-center text-[12px] text-white/50">
               {t(language, 'home.leverageInfoSubtitle', '杠杆越高，市场波动对净资产的放大越明显')}
             </p>
 
             <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-[#f6b54b]/20 bg-[#f6b54b]/[0.045] px-4 py-3.5">
               <div>
-                <div className="text-[10px] text-white/[0.38]">{t(language, 'home.currentLeverage', '当前账户杠杆')}</div>
+                <div className="text-[12px] text-white/50">{t(language, 'home.currentLeverage', '当前账户杠杆')}</div>
                 <div className="mt-1 text-[20px] text-white/[0.88] tabular-nums">{formatLeverage(overview.leverage)}</div>
               </div>
               <div className="text-right">
                 {leverageStatus && (
                   <AccountLeverageBadge className="h-6 px-2.5 text-[10px]" language={language} tierId={leverageStatus.id} />
                 )}
-                <div className="mt-2 text-[9.5px] text-white/[0.38] tabular-nums">
+                <div className="mt-2 text-[11px] text-white/40 tabular-nums">
                   {t(language, 'home.marginShare', '融资占总资产 {{percent}}', {
                     percent: Number.isFinite(financingShare) ? `${(financingShare * 100).toFixed(1)}%` : '—',
                   })}
@@ -583,7 +583,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               </div>
             </div>
 
-            <div className="mx-2 mt-4 grid grid-cols-[88px_68px_1fr] gap-2 text-[8.5px] text-white/[0.28]">
+            <div className="mx-2 mt-4 grid grid-cols-[88px_68px_1fr] gap-2 text-[11px] text-white/40">
               <span>{t(language, 'home.leverageRange', '账户杠杆 / 融资占比')}</span>
               <span>{t(language, 'home.leverageState', '状态')}</span>
               <span>{t(language, 'home.leverageDescription', '说明')}</span>
@@ -600,10 +600,10 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                   >
                     <div>
                       <div className="whitespace-nowrap text-[11px] text-white/[0.74] tabular-nums">{tier.leverageRange}</div>
-                      <div className="mt-1 whitespace-nowrap text-[8.5px] text-white/30">{tier.financingShareRange}</div>
+                      <div className="mt-1 whitespace-nowrap text-[11px] text-white/35">{tier.financingShareRange}</div>
                     </div>
-                    <AccountLeverageBadge className="min-h-[22px] px-1.5 text-[9px]" language={language} tierId={tier.id} />
-                    <div className="text-[9.5px] leading-[1.4] text-white/[0.48]">
+                    <AccountLeverageBadge className="min-h-[22px] px-1.5 text-[10px]" language={language} tierId={tier.id} />
+                    <div className="text-[12px] leading-[1.4] text-white/50">
                       {t(language, descriptionKey, descriptionFallback)}
                     </div>
                   </div>
@@ -611,14 +611,14 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               })}
             </div>
 
-            <div className="mt-3 grid gap-2 rounded-xl bg-white/[0.026] px-3.5 py-3 text-[9.5px] text-white/[0.34]">
+            <div className="mt-3 grid gap-2 rounded-xl bg-white/[0.026] px-3.5 py-3 text-[11px] text-white/40">
               <div className="flex items-center justify-between gap-3">
                 <span>{t(language, 'home.leverageFormula', '账户杠杆')}</span>
-                <span className="text-white/[0.58]">{t(language, 'home.leverageFormulaValue', '总资产 ÷ 净资产')}</span>
+                <span className="text-white/50">{t(language, 'home.leverageFormulaValue', '总资产 ÷ 净资产')}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span>{t(language, 'home.marginShareFormula', '融资占比')}</span>
-                <span className="text-white/[0.58]">{t(language, 'home.marginShareFormulaValue', '融资负债 ÷ 总资产')}</span>
+                <span className="text-white/50">{t(language, 'home.marginShareFormulaValue', '融资负债 ÷ 总资产')}</span>
               </div>
             </div>
           </section>
@@ -660,12 +660,12 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <p className="mt-0.5 text-center text-[11px] text-white/38">
+          <p className="mt-0.5 text-center text-[12px] text-white/50">
             {t(language, 'home.marginBalanceSubtitle', '只调整个人融资负债，总资产保持不变')}
           </p>
 
           <div className="mt-5 flex items-center justify-between">
-            <label htmlFor="home-margin-debt-input" className="text-[12px] text-white/55">
+            <label htmlFor="home-margin-debt-input" className="text-[12px] text-white/50">
               {t(language, 'home.marginBalanceLabel', '融资余额（{{currency}}）', { currency })}
             </label>
             <button
@@ -721,7 +721,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
             <p className="mt-3 rounded-xl border border-rose-300/15 bg-rose-300/[0.07] px-3 py-2 text-[11px] leading-4 text-rose-200/80" role="alert">{saveError}</p>
           )}
 
-          <p className="mt-4 text-center text-[10px] leading-4 text-white/28">
+          <p className="mt-4 text-center text-[11px] leading-4 text-white/40">
             {t(language, 'home.marginBalanceBoundary', '融资余额仅当前登录用户可见，不写入股票交易、比赛或收益报表。')}
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3">

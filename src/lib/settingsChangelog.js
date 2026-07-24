@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.374', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.375', date: '2026-07-24', latest: true,
+    items: [
+      '🔎 全站辅助字号与可读性标准',
+      '  - 首页“财报日历”恢复正常字重；交易、财报日历、股票趋势、波段记录、融资测算、设置和收益比赛的辅助文字统一采用首页字号与灰度层级',
+      '  - 股票趋势“相对 QQQ（3个月）”为第三列保留更宽空间，个股与 QQQ 涨跌幅继续以 11px 单行完整显示',
+      '  - 全站可见文字下限固定为 10px，并新增自动门禁阻止 8px、8.5px、9px 或 9.5px 字号重新进入代码',
+    ],
+    itemsEn: [
+      '🔎 Unified auxiliary typography and readability standard',
+      '  - The Home Earnings Calendar title returns to normal weight, while auxiliary text across Trades, Earnings Calendar, Stock Trend, Wave Tracker, margin scenarios, Settings, and Return Competition now follows the Home size and gray hierarchy',
+      '  - Stock Trend gives the three-month relative-QQQ metric a wider third column so both stock and QQQ returns remain fully visible on one 11px line',
+      '  - All visible text now has a 10px minimum, with an automated gate preventing 8px, 8.5px, 9px, or 9.5px text from re-entering the codebase',
+    ],
+  },
+  {
+    ver: 'v10.7.9.374', date: '2026-07-24',
     items: [
       '🧩 持仓业务构成完整覆盖',
       '  - META、MSFT、IBKR、NOK、NVDA 与 TSM 财报详情接入各自官方报告中的业务构成；未披露维度继续显示不可用，不使用推测值',

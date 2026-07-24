@@ -100,6 +100,7 @@ if (failures.length === 0) {
     'npm run check:docs',
     'npm run check:fast',
     'npm run check:full',
+    'npm run verify:typography',
     'npm run verify:deploy-status',
   ])
 
@@ -112,9 +113,10 @@ if (failures.length === 0) {
 
   const requiredScripts = {
     'verify:docs-consistency': 'node scripts/verify-docs-consistency.mjs',
+    'verify:typography': 'node scripts/verify-typography.mjs',
     'check:docs': 'npm run verify:docs-consistency && git diff HEAD --check',
-    'check:fast': 'npm run build && git diff HEAD --check',
-    'check:full': 'npm test && npm run build && git diff HEAD --check',
+    'check:fast': 'npm run verify:typography && npm run build && git diff HEAD --check',
+    'check:full': 'npm test && npm run verify:typography && npm run build && git diff HEAD --check',
     'verify:deploy-status': 'node scripts/verify-deploy-status.mjs',
   }
   for (const [scriptName, expected] of Object.entries(requiredScripts)) {
