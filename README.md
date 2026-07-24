@@ -95,7 +95,7 @@ npm run verify:typography # 单独检查字号下限
 ## 产品实现规则
 
 - 用户可见系统文案必须同步简体中文与 English；用户自己写的备注、目标、账户名等保持原文。
-- 辅助文字统一以首页为准：普通说明使用 `12px / white 50%`，时间、口径和次级信息使用 `11–12px / white 40%`，实体副标题使用 `11px / white 35%`，同类字段标签使用 `13px / white 50%`。
+- 字号层级统一以首页为准：主模块资产类头部标题使用 `14px / white 70%`，主金额使用 `clamp(28px, 8.7vw, 34px)`，普通说明使用 `12px / white 50%`，时间、口径和次级信息使用 `11–12px / white 40%`，实体副标题使用 `11px / white 35%`，同类字段标签使用 `13px / white 50%`。
 - 徽章、图表刻度、tooltip 和紧凑控件允许使用 `10px`，但任何可见文字不得小于 `10px`；禁止重新引入 `8px`、`8.5px`、`9px` 或 `9.5px` 字号。
 - `npm run verify:typography` 是 FAST 与 FULL 的固定门禁，扫描 `src/` 中 Tailwind 任意字号、CSS `font-size` 和内联 `fontSize`。
 - 新增、保存、删除、同步、导入和导出必须防重复提交，并给出明确成功或失败反馈。

@@ -2131,10 +2131,13 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(tradesTabSource.includes('text-[13px]">{tt(\'trades.totalAssets\''), 'trade total-assets label should match the home header baseline');
   assert.ok(homeTabSource.includes('truncate text-[12px] text-white/[0.72] tabular-nums'), 'home total-assets value should remain the header typography baseline');
   assert.ok(tradesTabSource.includes('truncate text-[12px] text-white/[0.72] tabular-nums'), 'trade total-assets value should match the home header baseline');
-  assert.ok(analysisTabSource.includes('text-[13px] font-normal text-white/70'), 'asset header title should match the home title tone');
-  assert.ok(analysisTabSource.includes('mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums'), 'family total amount should match the home amount position and color');
+  assert.ok(analysisTabSource.includes('gap-1.5 text-[14px] font-normal text-white/70'), 'asset header title should match the home title size and tone');
+  assert.ok(analysisTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'family total amount should match the responsive home amount sizing');
   assert.equal(analysisTabSource.includes('sm:text-[38px]'), false, 'asset header amount should not grow larger than home on wider screens');
   assert.ok(analysisTabSource.includes('mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10'), 'asset header metrics should match the home/trade metric grid');
+  assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');
+  assert.ok(reviewTabSource.includes('gap-2 text-[14px] font-normal text-white/70'), 'review header title should match the home title size and tone');
+  assert.ok(reviewTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'review goal amount should match the responsive home amount sizing');
   assert.ok(settingsChangelogSource.includes('v10.7.9.148'), 'settings changelog should document the asset header alignment update');
   assert.ok(settingsChangelogSource.includes('资产头卡对齐首页'), 'settings changelog should describe the asset header alignment update');
 });

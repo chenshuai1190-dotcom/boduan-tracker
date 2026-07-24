@@ -636,7 +636,7 @@ function AnalysisTab({ ctx }) {
     <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="flex min-h-[34px] items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-normal text-white/70">
+          <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-normal text-white/70">
             <span>{tt('analysis.familyNetWorth', '家庭总资产')}</span>
             <Info className="h-3.5 w-3.5 text-white/50" strokeWidth={1.8} />
           </div>
@@ -654,8 +654,8 @@ function AnalysisTab({ ctx }) {
         </div>
 
         <div
-          className="mt-3 whitespace-nowrap text-[34px] font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums"
-          style={{ fontFamily: ASSET_NUMBER_FONT }}
+          className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums"
+          style={{ fontFamily: ASSET_NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}
         >
           <span>{totalNowMoney.main}</span>
           <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{totalNowMoney.decimal}</span>
@@ -667,7 +667,7 @@ function AnalysisTab({ ctx }) {
             const color = positive ? ASSET_PINK : ASSET_GREEN;
             return (
               <div key={item.label} className={idx === 0 ? 'min-w-0 pr-3' : idx === metricItems.length - 1 ? 'min-w-0 pl-3' : 'min-w-0 px-3'}>
-                <div className="text-[12px] text-white/50">{item.label}</div>
+                <div className="text-[13px] text-white/50">{item.label}</div>
                 {item.enabled ? (
                   <div className="mt-2 space-y-1">
                     <div className="whitespace-nowrap text-[13px] font-normal leading-tight tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
