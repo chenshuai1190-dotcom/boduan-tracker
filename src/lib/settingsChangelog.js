@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.381', date: '2026-07-25', latest: true,
+    ver: 'v10.7.9.382', date: '2026-07-25', latest: true,
+    items: [
+      '🛠️ 收益报表净资产历史修复闭环',
+      '  - 已核验融资记录从原持久化时间起生效，补齐 7 月 23 日和 7 月 24 日快照的融资负债与净资产；更早的 7 月 22 日继续保持未知',
+      '  - 修复事务强制校验只更新两条目标快照、总资产完全不变且其他账户零变化，重复执行不会重复写入',
+      '  - 本地真实数据库双跑和 iPhone 模拟器均验证 7 月 24 日可同时显示净资产与总资产',
+    ],
+    itemsEn: [
+      '🛠️ Completed the historical net-assets repair in the P&L report',
+      '  - The verified financing record now takes effect from its original persisted time, repairing margin debt and net assets for July 23 and July 24 while July 22 remains explicitly unavailable',
+      '  - The transaction requires exactly two target snapshots, unchanged total assets, and zero changes to other accounts; repeated execution remains idempotent',
+      '  - A real local database double run and iPhone Simulator both verify that July 24 shows Net Assets and Total Assets together',
+    ],
+  },
+  {
+    ver: 'v10.7.9.381', date: '2026-07-25',
     items: [
       '🧾 收益报表修正初始融资历史锚点',
       '  - 对已核验的管理员账户新增明确融资历史锚点，使用原持久化记录时间作为起点；不对其他账户自动套用',

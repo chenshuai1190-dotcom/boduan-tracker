@@ -79,6 +79,8 @@ test('verified admin repair adds a narrow pre-boundary history anchor and stays 
   assert.ok(sql.includes('verified margin backfill must match the audited history boundary'), 'the production history boundary must fail closed');
   assert.ok(sql.includes('verified margin backfill must match one positive migration seed'), 'the persisted positive seed must fail closed');
   assert.ok(sql.includes('verified margin backfill target set must match the manifest exactly'), 'the authorized target set must be materialized exactly');
+  assert.ok(sql.includes('verified margin backfill requires exactly three audited snapshots'), 'the production snapshot set must be exact');
+  assert.ok(sql.includes('verified margin backfill snapshots must be wholly pending or wholly applied'), 'partial prior repairs must fail closed');
   assert.ok(sql.includes('verified margin backfill must create exactly one matching event'), 'every manifest row must produce exactly one event');
   assert.ok(sql.includes('verified margin event falls outside the authorized manifest'), 'unexpected verified events must abort the repair');
   assert.ok(sql.includes('seed.effective_at = manifest.history_started_at'), 'the seed must match the audited migration instant');
@@ -92,6 +94,11 @@ test('verified admin repair adds a narrow pre-boundary history anchor and stays 
   assert.ok(sql.includes("margin_debt_basis = 'event'"), 'repaired snapshots must retain event provenance');
   assert.ok(sql.includes("source_version = 'pnl_snapshot_v2'"), 'repaired snapshots must use the current schema');
   assert.ok(sql.includes('snapshot.margin_debt_usd is distinct from event.margin_debt_usd'), 'postconditions must verify the exact repaired amount');
+  assert.ok(sql.includes('verified margin backfill must complete exactly two snapshots'), 'the transaction must repair exactly 7/23 and 7/24');
+  assert.ok(sql.includes('verified margin backfill changed the pre-anchor snapshot'), '7/22 must remain untouched');
+  assert.ok(sql.includes('verified margin backfill changed another account snapshot'), 'other accounts must remain untouched');
+  assert.ok(sql.includes('verified margin backfill changed target total assets'), 'target total assets must remain byte-for-byte stable');
+  assert.ok(sql.includes('snapshot.xmin = pg_current_xact_id()::xid'), 'transaction-owned writes must use native xid comparison before commit');
   assert.doesNotMatch(
     sql,
     /set[\s\S]{0,300}\btotal_assets_usd\s*=/iu,
@@ -163,6 +170,9 @@ test('asset chart gaps and deterministic dev-preview scenarios stay wired to the
   assert.ok(devPreviewSource.includes("['unknown', 'mixed']"));
   assert.ok(devPreviewSource.includes("['default_zero', 'mixed']"));
   assert.ok(devPreviewSource.includes("['negative', 'mixed']"));
+  assert.ok(devPreviewSource.includes("normalizedScenario === 'verified_backfill'"));
+  assert.ok(devPreviewSource.includes("snapshotDate: '2026-07-24'"));
+  assert.ok(devPreviewSource.includes("marginDebtEventId: 'dev_verified_margin_event'"));
   assert.ok(devPreviewSource.includes("normalizedScenario === 'benchmark_only'"));
   assert.ok(devPreviewSource.includes('pnlReportInitialChartMode'));
   assert.ok(devPreviewSource.includes('pnlReportTooltipDate'));

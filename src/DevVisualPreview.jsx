@@ -992,6 +992,45 @@ function buildMockPnlPortfolioSnapshots(scenario = 'known') {
       netAssetsUsd: Number(target?.totalAssetsUsd || 0) - marginDebtUsd,
     });
   }
+  if (normalizedScenario === 'verified_backfill') {
+    const marginDebtUsd = 899500;
+    return [
+      ...snapshots,
+      {
+        ...snapshots.at(-1),
+        snapshotDate: '2026-07-22',
+        totalAssetsUsd: 3237800,
+        marginDebtUsd: null,
+        marginDebtEventId: null,
+        marginDebtEffectiveAt: null,
+        marginDebtBasis: null,
+        netAssetsUsd: null,
+        updatedAt: '2026-07-22T21:00:00Z',
+      },
+      {
+        ...snapshots.at(-1),
+        snapshotDate: '2026-07-23',
+        totalAssetsUsd: 3244200,
+        marginDebtUsd,
+        marginDebtEventId: 'dev_verified_margin_event',
+        marginDebtEffectiveAt: '2026-07-23T15:28:49.797Z',
+        marginDebtBasis: 'event',
+        netAssetsUsd: 3244200 - marginDebtUsd,
+        updatedAt: '2026-07-23T21:00:00Z',
+      },
+      {
+        ...snapshots.at(-1),
+        snapshotDate: '2026-07-24',
+        totalAssetsUsd: 3249938.7,
+        marginDebtUsd,
+        marginDebtEventId: 'dev_verified_margin_event',
+        marginDebtEffectiveAt: '2026-07-23T15:28:49.797Z',
+        marginDebtBasis: 'event',
+        netAssetsUsd: 3249938.7 - marginDebtUsd,
+        updatedAt: '2026-07-24T21:00:00Z',
+      },
+    ];
+  }
   if (normalizedScenario === 'benchmark_only') {
     return snapshots.filter((snapshot) => snapshot.snapshotDate !== '2026-06-04');
   }

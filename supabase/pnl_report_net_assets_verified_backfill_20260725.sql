@@ -155,6 +155,182 @@ begin
 end;
 $$;
 
+create temporary table margin_debt_verified_expected_snapshots (
+  user_id uuid not null,
+  snapshot_date date not null,
+  should_repair boolean not null,
+  primary key (user_id, snapshot_date)
+) on commit drop;
+
+insert into margin_debt_verified_expected_snapshots (
+  user_id,
+  snapshot_date,
+  should_repair
+)
+select
+  target.user_id,
+  expected.snapshot_date,
+  expected.should_repair
+from margin_debt_verified_targets as target
+cross join (
+  values
+    (date '2026-07-22', false),
+    (date '2026-07-23', true),
+    (date '2026-07-24', true)
+) as expected(snapshot_date, should_repair);
+
+create temporary table margin_debt_verified_deploy_state (
+  was_already_applied boolean not null,
+  other_legacy_row_count bigint not null,
+  target_total_assets_signature text not null
+) on commit drop;
+
+do $$
+declare
+  expected_row_count integer;
+  verified_event_count integer;
+  exact_verified_event_count integer;
+  unknown_row_count integer;
+  null_repair_row_count integer;
+  exact_repair_row_count integer;
+  other_legacy_row_count bigint;
+  target_total_assets_signature text;
+begin
+  select count(*)
+  into expected_row_count
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date;
+
+  if expected_row_count <> 3 then
+    raise exception 'verified margin backfill requires exactly three audited snapshots';
+  end if;
+
+  select count(*)
+  into verified_event_count
+  from public.margin_debt_events
+  where source = 'verified_backfill_v1';
+
+  select count(*)
+  into exact_verified_event_count
+  from public.margin_debt_events as verified
+  join margin_debt_verified_targets as target
+    on target.user_id = verified.user_id
+   and target.margin_debt_usd = verified.margin_debt_usd
+   and target.effective_at = verified.effective_at
+   and target.effective_at = verified.source_updated_at
+  where verified.source = 'verified_backfill_v1'
+    and verified.logic_version = 2;
+
+  select count(*)
+  into unknown_row_count
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date
+  where not expected.should_repair
+    and snapshot.margin_debt_usd is null
+    and snapshot.margin_debt_event_id is null
+    and snapshot.margin_debt_effective_at is null
+    and snapshot.margin_debt_basis is null
+    and snapshot.net_assets_usd is null
+    and snapshot.source_version = 'pnl_snapshot_v1';
+
+  if unknown_row_count <> 1 then
+    raise exception 'verified margin backfill requires the pre-anchor snapshot to remain unknown';
+  end if;
+
+  select count(*)
+  into null_repair_row_count
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date
+  where expected.should_repair
+    and snapshot.margin_debt_usd is null
+    and snapshot.margin_debt_event_id is null
+    and snapshot.margin_debt_effective_at is null
+    and snapshot.margin_debt_basis is null
+    and snapshot.net_assets_usd is null
+    and snapshot.source_version = 'pnl_snapshot_v1';
+
+  select count(*)
+  into exact_repair_row_count
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date
+  join public.margin_debt_events as verified
+    on verified.user_id = expected.user_id
+   and verified.source = 'verified_backfill_v1'
+   and verified.margin_debt_usd = snapshot.margin_debt_usd
+   and verified.id = snapshot.margin_debt_event_id
+   and verified.effective_at = snapshot.margin_debt_effective_at
+   and snapshot.margin_debt_basis = 'event'
+   and snapshot.net_assets_usd = (
+     snapshot.total_assets_usd - verified.margin_debt_usd
+   )
+   and snapshot.source_version = 'pnl_snapshot_v2'
+  where expected.should_repair;
+
+  if not (
+    (
+      verified_event_count = 0
+      and exact_verified_event_count = 0
+      and null_repair_row_count = 2
+      and exact_repair_row_count = 0
+    )
+    or
+    (
+      verified_event_count = 1
+      and exact_verified_event_count = 1
+      and null_repair_row_count = 0
+      and exact_repair_row_count = 2
+    )
+  ) then
+    raise exception 'verified margin backfill snapshots must be wholly pending or wholly applied';
+  end if;
+
+  select count(*)
+  into other_legacy_row_count
+  from public.pnl_report_snapshots as snapshot
+  where not exists (
+      select 1
+      from margin_debt_verified_targets as target
+      where target.user_id = snapshot.user_id
+    )
+    and (
+      snapshot.snapshot_date + time '17:00'
+    ) at time zone 'America/New_York' < (
+      select min(target.history_started_at)
+      from margin_debt_verified_targets as target
+    );
+
+  select md5(string_agg(
+    snapshot.id::text || ':' || snapshot.total_assets_usd::text,
+    ','
+    order by snapshot.id
+  ))
+  into target_total_assets_signature
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date;
+
+  insert into margin_debt_verified_deploy_state (
+    was_already_applied,
+    other_legacy_row_count,
+    target_total_assets_signature
+  )
+  values (
+    verified_event_count = 1,
+    other_legacy_row_count,
+    target_total_assets_signature
+  );
+end;
+$$;
+
 insert into public.margin_debt_events (
   user_id,
   margin_debt_usd,
@@ -356,7 +532,25 @@ from backfill_candidates as candidate
 where snapshot.id = candidate.snapshot_id;
 
 do $$
+declare
+  was_already_applied boolean;
+  other_legacy_row_count_before bigint;
+  other_legacy_row_count_after bigint;
+  target_total_assets_signature_before text;
+  target_total_assets_signature_after text;
+  target_changed_by_transaction integer;
+  other_changed_by_transaction integer;
 begin
+  select
+    state.was_already_applied,
+    state.other_legacy_row_count,
+    state.target_total_assets_signature
+  into
+    was_already_applied,
+    other_legacy_row_count_before,
+    target_total_assets_signature_before
+  from margin_debt_verified_deploy_state as state;
+
   if exists (
     select 1
     from public.pnl_report_snapshots as snapshot
@@ -395,6 +589,115 @@ begin
       )
   ) then
     raise exception 'eligible verified snapshot remains incomplete';
+  end if;
+
+  if (
+    select count(*)
+    from margin_debt_verified_expected_snapshots as expected
+    join public.pnl_report_snapshots as snapshot
+      on snapshot.user_id = expected.user_id
+     and snapshot.snapshot_date = expected.snapshot_date
+    where not expected.should_repair
+      and snapshot.margin_debt_usd is null
+      and snapshot.margin_debt_event_id is null
+      and snapshot.margin_debt_effective_at is null
+      and snapshot.margin_debt_basis is null
+      and snapshot.net_assets_usd is null
+      and snapshot.source_version = 'pnl_snapshot_v1'
+      and snapshot.xmin <> pg_current_xact_id()::xid
+  ) <> 1 then
+    raise exception 'verified margin backfill changed the pre-anchor snapshot';
+  end if;
+
+  if (
+    select count(*)
+    from margin_debt_verified_expected_snapshots as expected
+    join public.pnl_report_snapshots as snapshot
+      on snapshot.user_id = expected.user_id
+     and snapshot.snapshot_date = expected.snapshot_date
+    join public.margin_debt_events as verified
+      on verified.user_id = expected.user_id
+     and verified.source = 'verified_backfill_v1'
+     and verified.margin_debt_usd = snapshot.margin_debt_usd
+     and verified.id = snapshot.margin_debt_event_id
+     and verified.effective_at = snapshot.margin_debt_effective_at
+     and snapshot.margin_debt_basis = 'event'
+     and snapshot.net_assets_usd = (
+       snapshot.total_assets_usd - verified.margin_debt_usd
+     )
+     and snapshot.source_version = 'pnl_snapshot_v2'
+    where expected.should_repair
+  ) <> 2 then
+    raise exception 'verified margin backfill must complete exactly two snapshots';
+  end if;
+
+  select count(*)
+  into target_changed_by_transaction
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date
+  where expected.should_repair
+    and snapshot.xmin = pg_current_xact_id()::xid;
+
+  if target_changed_by_transaction <> (
+    case when was_already_applied then 0 else 2 end
+  ) then
+    raise exception 'verified margin backfill changed an unexpected number of target snapshots';
+  end if;
+
+  select count(*)
+  into other_legacy_row_count_after
+  from public.pnl_report_snapshots as snapshot
+  where not exists (
+      select 1
+      from margin_debt_verified_targets as target
+      where target.user_id = snapshot.user_id
+    )
+    and (
+      snapshot.snapshot_date + time '17:00'
+    ) at time zone 'America/New_York' < (
+      select min(target.history_started_at)
+      from margin_debt_verified_targets as target
+    );
+
+  select count(*)
+  into other_changed_by_transaction
+  from public.pnl_report_snapshots as snapshot
+  where not exists (
+      select 1
+      from margin_debt_verified_targets as target
+      where target.user_id = snapshot.user_id
+    )
+    and (
+      snapshot.snapshot_date + time '17:00'
+    ) at time zone 'America/New_York' < (
+      select min(target.history_started_at)
+      from margin_debt_verified_targets as target
+    )
+    and snapshot.xmin = pg_current_xact_id()::xid;
+
+  if other_legacy_row_count_after <> other_legacy_row_count_before
+    or other_changed_by_transaction <> 0
+  then
+    raise exception 'verified margin backfill changed another account snapshot';
+  end if;
+
+  select md5(string_agg(
+    snapshot.id::text || ':' || snapshot.total_assets_usd::text,
+    ','
+    order by snapshot.id
+  ))
+  into target_total_assets_signature_after
+  from margin_debt_verified_expected_snapshots as expected
+  join public.pnl_report_snapshots as snapshot
+    on snapshot.user_id = expected.user_id
+   and snapshot.snapshot_date = expected.snapshot_date;
+
+  if target_total_assets_signature_after is distinct from
+    target_total_assets_signature_before
+  then
+    raise exception 'verified margin backfill changed target total assets';
   end if;
 end;
 $$;
