@@ -51,6 +51,17 @@ function jsonResponse(body, status = 200) {
 function withExactSpyClose(fetchImpl, onSpy = () => {}) {
   return async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({
+        ...target,
+        known: false,
+        margin_debt_usd: null,
+        margin_debt_event_id: null,
+        margin_debt_effective_at: null,
+        margin_debt_basis: null,
+      })));
+    }
     if (href.includes('/api/eod/SPY.US')) {
       onSpy(href);
       const targetDate = new URL(href).searchParams.get('to');
@@ -796,6 +807,8 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
   const originalFetch = globalThis.fetch;
   const fixedNow = '2026-07-15T00:30:00.000Z';
   const portfolioWrites = [];
+  const marginTargets = [];
+  const mutationOrder = [];
   let latestSnapshotReads = 0;
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
@@ -815,6 +828,45 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
 
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      marginTargets.push(...targets);
+      mutationOrder.push('margin-rpc');
+      return jsonResponse(targets.map((target) => {
+        const key = `${target.user_id}:${target.snapshot_date}`;
+        if (key === 'user-a:2026-07-13') {
+          return {
+            ...target,
+            known: false,
+            margin_debt_usd: null,
+            margin_debt_event_id: null,
+            margin_debt_effective_at: null,
+            margin_debt_basis: null,
+          };
+        }
+        if (key === 'user-a:2026-07-14') {
+          return {
+            ...target,
+            known: true,
+            margin_debt_usd: 1500,
+            margin_debt_event_id: 41,
+            margin_debt_effective_at: '2026-07-14T20:55:00.000Z',
+            margin_debt_basis: 'event',
+          };
+        }
+        if (key === 'user-b:2026-07-14') {
+          return {
+            ...target,
+            known: true,
+            margin_debt_usd: 0,
+            margin_debt_event_id: null,
+            margin_debt_effective_at: null,
+            margin_debt_basis: 'default_zero',
+          };
+        }
+        throw new Error(`unexpected margin target: ${key}`);
+      }));
+    }
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
         { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
@@ -827,6 +879,7 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
       if (href.includes('user_id=eq.user-b')) return jsonResponse([]);
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
+      mutationOrder.push('marker-delete');
       return jsonResponse(null);
     }
     if (href.includes('/api/eod/SPY.US')) {
@@ -851,10 +904,14 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
       ]);
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      mutationOrder.push('marker-write');
       portfolioWrites.push(JSON.parse(options.body)[0]);
       return jsonResponse(null);
     }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) {
+      mutationOrder.push(options.method === 'DELETE' ? 'symbol-delete' : 'symbol-write');
+      return jsonResponse(null);
+    }
     throw new Error(`unexpected fetch: ${href}`);
   };
 
@@ -879,10 +936,186 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
   assert.equal(res.body.writtenUsers, 2);
   assert.equal(latestSnapshotReads, 2);
   assert.deepEqual(
+    marginTargets.map((target) => `${target.user_id}:${target.snapshot_date}`),
+    ['user-a:2026-07-13', 'user-a:2026-07-14', 'user-b:2026-07-14']
+  );
+  assert.deepEqual(
     portfolioWrites.map((row) => `${row.user_id}:${row.snapshot_date}`),
     ['user-a:2026-07-13', 'user-a:2026-07-14', 'user-b:2026-07-14']
   );
+  const portfolioByTarget = new Map(
+    portfolioWrites.map((row) => [`${row.user_id}:${row.snapshot_date}`, row])
+  );
+  assert.deepEqual(
+    {
+      margin_debt_usd: portfolioByTarget.get('user-a:2026-07-13').margin_debt_usd,
+      margin_debt_event_id: portfolioByTarget.get('user-a:2026-07-13').margin_debt_event_id,
+      margin_debt_effective_at: portfolioByTarget.get('user-a:2026-07-13').margin_debt_effective_at,
+      margin_debt_basis: portfolioByTarget.get('user-a:2026-07-13').margin_debt_basis,
+    },
+    {
+      margin_debt_usd: null,
+      margin_debt_event_id: null,
+      margin_debt_effective_at: null,
+      margin_debt_basis: null,
+    }
+  );
+  assert.deepEqual(
+    {
+      margin_debt_usd: portfolioByTarget.get('user-a:2026-07-14').margin_debt_usd,
+      margin_debt_event_id: portfolioByTarget.get('user-a:2026-07-14').margin_debt_event_id,
+      margin_debt_effective_at: portfolioByTarget.get('user-a:2026-07-14').margin_debt_effective_at,
+      margin_debt_basis: portfolioByTarget.get('user-a:2026-07-14').margin_debt_basis,
+    },
+    {
+      margin_debt_usd: 1500,
+      margin_debt_event_id: '41',
+      margin_debt_effective_at: '2026-07-14T20:55:00.000Z',
+      margin_debt_basis: 'event',
+    }
+  );
+  assert.deepEqual(
+    {
+      margin_debt_usd: portfolioByTarget.get('user-b:2026-07-14').margin_debt_usd,
+      margin_debt_event_id: portfolioByTarget.get('user-b:2026-07-14').margin_debt_event_id,
+      margin_debt_effective_at: portfolioByTarget.get('user-b:2026-07-14').margin_debt_effective_at,
+      margin_debt_basis: portfolioByTarget.get('user-b:2026-07-14').margin_debt_basis,
+    },
+    {
+      margin_debt_usd: 0,
+      margin_debt_event_id: null,
+      margin_debt_effective_at: null,
+      margin_debt_basis: 'default_zero',
+    }
+  );
+  assert.ok(portfolioWrites.every((row) => row.source_version === 'pnl_snapshot_v2'));
+  assert.equal(mutationOrder[0], 'margin-rpc');
+  assert.equal(mutationOrder.filter((event) => event === 'margin-rpc').length, 1);
+  assert.ok(mutationOrder.slice(1).every((event) => (
+    ['marker-delete', 'symbol-delete', 'symbol-write', 'marker-write'].includes(event)
+  )));
   assert.doesNotMatch(JSON.stringify(res.body), /user-a|user-b/);
+});
+
+test('margin snapshot RPC contract failures stop before every P&L mutation', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  const unknownRow = (target) => ({
+    ...target,
+    known: false,
+    margin_debt_usd: null,
+    margin_debt_event_id: null,
+    margin_debt_effective_at: null,
+    margin_debt_basis: null,
+  });
+  const cases = [
+    {
+      name: 'incomplete',
+      rows: () => [],
+    },
+    {
+      name: 'duplicate',
+      rows: (target) => [unknownRow(target), unknownRow(target)],
+    },
+    {
+      name: 'malformed-known-event',
+      rows: (target) => [{
+        ...target,
+        known: true,
+        margin_debt_usd: 250,
+        margin_debt_event_id: null,
+        margin_debt_effective_at: null,
+        margin_debt_basis: 'event',
+      }],
+    },
+  ];
+
+  try {
+    for (const contractCase of cases) {
+      let rpcCalls = 0;
+      let stockProviderCalls = 0;
+      let pnlMutations = 0;
+      const events = [];
+      globalThis.fetch = async (url, options = {}) => {
+        const href = String(url);
+        if (href.includes('/api/eod/SPY.US')) {
+          return jsonResponse([
+            { date: '2026-07-08', close: 620, adjusted_close: 620 },
+          ]);
+        }
+        if (href.includes('/rest/v1/stock_trades')) {
+          return jsonResponse([
+            { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+          ]);
+        }
+        if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+          rpcCalls += 1;
+          events.push('margin-rpc');
+          const targets = JSON.parse(options.body || '{}').p_targets || [];
+          assert.deepEqual(
+            targets.map((target) => `${target.user_id}:${target.snapshot_date}`),
+            ['user-a:2026-07-08'],
+            contractCase.name
+          );
+          return jsonResponse(contractCase.rows(targets[0]));
+        }
+        if (href.includes('/api/eod/NVDA.US')) {
+          stockProviderCalls += 1;
+          return jsonResponse([
+            { date: '2026-07-08', close: 120, adjusted_close: 120 },
+          ]);
+        }
+        if (
+          (
+            href.includes('/rest/v1/pnl_report_snapshots')
+            || href.includes('/rest/v1/pnl_report_symbol_snapshots')
+          )
+          && (options.method === 'DELETE' || options.method === 'POST')
+        ) {
+          pnlMutations += 1;
+          events.push('pnl-mutation');
+          return jsonResponse(null);
+        }
+        throw new Error(`unexpected fetch for ${contractCase.name}: ${href}`);
+      };
+
+      const res = createResponse();
+      await handler(createRequest({
+        headers: { authorization: 'Bearer cron-secret' },
+        query: { date: '2026-07-08' },
+      }), res);
+
+      assert.equal(res.statusCode, 503, contractCase.name);
+      assert.equal(res.headers['retry-after'], '300', contractCase.name);
+      assert.match(res.body.error, /暂时失败/, contractCase.name);
+      assert.doesNotMatch(
+        JSON.stringify(res.body),
+        /融资快照解析结果|margin_snapshot_contract_invalid/,
+        contractCase.name
+      );
+      assert.equal(rpcCalls, 1, contractCase.name);
+      assert.equal(stockProviderCalls, 0, contractCase.name);
+      assert.equal(pnlMutations, 0, contractCase.name);
+      assert.deepEqual(events, ['margin-rpc'], contractCase.name);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
 });
 
 test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 500', async () => {
@@ -975,6 +1208,10 @@ test('scheduled catch-up blocks a failed user from later dates while other users
 
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
         { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
@@ -1150,6 +1387,10 @@ test('a transient symbol write removes an existing completion marker and the nex
 
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
         { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },

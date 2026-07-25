@@ -822,6 +822,7 @@ const resetLegacyHomeMarginStatus = async (user, legacyRow, retryCount = 0) => {
     .update({
       current_margin: 0,
       margin_limit: 0,
+      logic_version: HOME_MARGIN_LOGIC_VERSION,
       updated_at: resetAt,
     })
     .eq('user_id', user.id);
@@ -896,6 +897,7 @@ export const upsertMarginStatus = async (status) => {
       user_id: user.id,
       current_margin: normalizedStatus.currentMargin,
       margin_limit: 0,
+      logic_version: HOME_MARGIN_LOGIC_VERSION,
       updated_at: updatedAt,
     }, { onConflict: 'user_id' });
   if (error) throw error;

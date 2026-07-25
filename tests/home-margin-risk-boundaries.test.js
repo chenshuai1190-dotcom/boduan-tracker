@@ -305,10 +305,25 @@ test('margin status remains private to the authenticated user', () => {
   assert.match(rlsProbeSource, /['"]margin_status['"]/);
 });
 
-test('personal financing stays out of calculations, reports, and competition while Trades mirrors the read-only Home header', () => {
+test('live financing state stays out of calculators and report UI while P&L only locks immutable close history', () => {
   const forbidden = /\b(?:marginStatus|currentMargin|margin_status)\b/;
   for (const [name, fileSource] of isolatedSources) {
-    assert.equal(forbidden.test(fileSource), false, `${name} must not consume personal financing state`);
+    assert.equal(forbidden.test(fileSource), false, `${name} must not consume the current live financing state`);
+  }
+
+  const pnlSnapshotServer = source('../server/pnlReportDailySnapshot.js');
+  assert.ok(pnlSnapshotServer.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets'), 'the server snapshot job may resolve immutable historical financing through the service-only RPC');
+  assert.equal(pnlSnapshotServer.includes(".from('margin_status')"), false, 'the snapshot job must not read the mutable current margin row directly');
+  assert.ok(dbSource.includes('logic_version: HOME_MARGIN_LOGIC_VERSION'), 'current Home saves must activate database event capture explicitly');
+  for (const relativePath of [
+    '../server/communityCompetition.js',
+    '../server/communityCompetitionDailySnapshot.js',
+    '../server/communityCompetitionSnapshotModel.js',
+    '../src/lib/investmentSummary.js',
+  ]) {
+    const boundarySource = source(relativePath);
+    assert.equal(boundarySource.includes('resolve_margin_debt_snapshot_targets'), false, `${relativePath} must not consume historical financing`);
+    assert.equal(boundarySource.includes('margin_debt_events'), false, `${relativePath} must not consume financing events`);
   }
 
   assert.ok(tradesTabSource.includes('marginStatus,'), 'Trades may read the private margin status for the mirrored header');

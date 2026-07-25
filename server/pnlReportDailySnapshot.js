@@ -184,6 +184,109 @@ async function fetchAllStockTrades() {
   return rows.map(mapStockTradeRow).filter(isValidTrade);
 }
 
+function marginSnapshotContractError() {
+  const error = new Error('融资快照解析结果不完整');
+  error.status = 500;
+  error.retryable = true;
+  error.reason = 'margin_snapshot_contract_invalid';
+  return error;
+}
+
+function marginSnapshotTargetKey(userId, snapshotDate) {
+  return `${userId}\u0000${snapshotDate}`;
+}
+
+function normalizeResolvedMarginSnapshot(row) {
+  if (typeof row?.known !== 'boolean') throw marginSnapshotContractError();
+  const marginDebtFields = [
+    row?.margin_debt_usd,
+    row?.margin_debt_event_id,
+    row?.margin_debt_effective_at,
+    row?.margin_debt_basis,
+  ];
+  if (!row.known) {
+    if (marginDebtFields.some((value) => value !== null && value !== undefined)) {
+      throw marginSnapshotContractError();
+    }
+    return null;
+  }
+
+  const marginDebtUsd = Number(row.margin_debt_usd);
+  if (!Number.isFinite(marginDebtUsd) || marginDebtUsd < 0) {
+    throw marginSnapshotContractError();
+  }
+  if (row.margin_debt_basis === 'default_zero') {
+    if (
+      marginDebtUsd !== 0
+      || row.margin_debt_event_id != null
+      || row.margin_debt_effective_at != null
+    ) {
+      throw marginSnapshotContractError();
+    }
+    return {
+      marginDebtUsd: 0,
+      marginDebtEventId: null,
+      marginDebtEffectiveAt: null,
+      marginDebtBasis: 'default_zero',
+    };
+  }
+  if (row.margin_debt_basis !== 'event') throw marginSnapshotContractError();
+
+  const eventId = String(row.margin_debt_event_id ?? '');
+  const effectiveAt = String(row.margin_debt_effective_at ?? '');
+  if (!/^[1-9]\d*$/.test(eventId) || !effectiveAt || !Number.isFinite(Date.parse(effectiveAt))) {
+    throw marginSnapshotContractError();
+  }
+  return {
+    marginDebtUsd,
+    marginDebtEventId: eventId,
+    marginDebtEffectiveAt: effectiveAt,
+    marginDebtBasis: 'event',
+  };
+}
+
+async function resolveMarginDebtSnapshotTargets(pendingDatesByUser) {
+  const targets = [...pendingDatesByUser.entries()].flatMap(([userId, dates]) => (
+    (Array.isArray(dates) ? dates : []).map((snapshotDate) => ({
+      user_id: userId,
+      snapshot_date: snapshotDate,
+    }))
+  ));
+  if (targets.length === 0) return new Map();
+
+  const rows = await supabaseAdminFetch('/rest/v1/rpc/resolve_margin_debt_snapshot_targets', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ p_targets: targets }),
+  });
+  if (!Array.isArray(rows)) throw marginSnapshotContractError();
+
+  const targetKeys = new Set(
+    targets.map((target) => marginSnapshotTargetKey(target.user_id, target.snapshot_date))
+  );
+  if (targetKeys.size !== targets.length || rows.length !== targetKeys.size) {
+    throw marginSnapshotContractError();
+  }
+
+  const snapshotsByUser = new Map();
+  const seenKeys = new Set();
+  rows.forEach((row) => {
+    const userId = String(row?.user_id || '');
+    const snapshotDate = normalizeDateParam(row?.snapshot_date);
+    const key = marginSnapshotTargetKey(userId, snapshotDate);
+    if (!userId || !snapshotDate || !targetKeys.has(key) || seenKeys.has(key)) {
+      throw marginSnapshotContractError();
+    }
+    seenKeys.add(key);
+    if (!snapshotsByUser.has(userId)) snapshotsByUser.set(userId, new Map());
+    snapshotsByUser.get(userId).set(snapshotDate, normalizeResolvedMarginSnapshot(row));
+  });
+  if (seenKeys.size !== targetKeys.size) {
+    throw marginSnapshotContractError();
+  }
+  return snapshotsByUser;
+}
+
 function groupTradesByUser(stockTrades) {
   const grouped = new Map();
   stockTrades.forEach((trade) => {
@@ -488,6 +591,10 @@ function toPortfolioSnapshotRow(snapshot, userId) {
     cash_usd: snapshot.cashUsd || 0,
     market_value_usd: snapshot.marketValueUsd || 0,
     total_assets_usd: snapshot.totalAssetsUsd || 0,
+    margin_debt_usd: snapshot.marginDebtUsd == null ? null : snapshot.marginDebtUsd,
+    margin_debt_event_id: snapshot.marginDebtEventId == null ? null : snapshot.marginDebtEventId,
+    margin_debt_effective_at: snapshot.marginDebtEffectiveAt || null,
+    margin_debt_basis: snapshot.marginDebtBasis || null,
     realized_pnl_usd: snapshot.realizedPnlUsd || 0,
     unrealized_pnl_usd: snapshot.unrealizedPnlUsd || 0,
     cumulative_pnl_usd: snapshot.cumulativePnlUsd || 0,
@@ -498,7 +605,7 @@ function toPortfolioSnapshotRow(snapshot, userId) {
     sell_proceeds_usd: snapshot.sellProceedsUsd || 0,
     trade_count: snapshot.tradeCount || 0,
     holding_count: snapshot.holdingCount || 0,
-    source_version: snapshot.sourceVersion || 'pnl_snapshot_v1',
+    source_version: snapshot.sourceVersion || 'pnl_snapshot_v2',
     locked_at: snapshot.lockedAt || null,
     updated_at: new Date().toISOString(),
   };
@@ -528,7 +635,7 @@ function toSymbolSnapshotRow(snapshot, userId, snapshotDate) {
     total_buy_shares: snapshot.totalBuyShares || 0,
     total_sell_shares: snapshot.totalSellShares || 0,
     is_open: Boolean(snapshot.isOpen),
-    source_version: snapshot.sourceVersion || 'pnl_snapshot_v1',
+    source_version: snapshot.sourceVersion || 'pnl_snapshot_v2',
     updated_at: new Date().toISOString(),
   };
 }
@@ -783,6 +890,11 @@ export async function runPnlReportDailySnapshot({
     };
   }
 
+  // Resolve every user's historical margin at the database-authoritative
+  // 17:00 America/New_York cutoff before any completion row is deleted.
+  const marginDebtSnapshotsByUser = await resolveMarginDebtSnapshotTargets(
+    pendingDatesByUser
+  );
   const requiredDatesBySymbol = requiredCloseDatesBySymbol(groupedByUser, pendingDatesByUser);
   const requiredSymbols = new Set(requiredDatesBySymbol.keys());
   const earliestPlannedDate = plannedDates[0] || effectiveTargetDate;
@@ -844,6 +956,7 @@ export async function runPnlReportDailySnapshot({
           snapshotDates: [snapshotDate],
           toDate: snapshotDate,
           maxSnapshots: 1,
+          marginDebtByDate: marginDebtSnapshotsByUser.get(userId),
           lockedAt,
           backfillMode: 'ledger',
         });

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.379', date: '2026-07-24', latest: true,
+    ver: 'v10.7.9.380', date: '2026-07-25', latest: true,
+    items: [
+      '📊 收益报表补全净资产历史口径',
+      '  - 分段名称继续保留“总资产走势”，图表内部新增红色净资产与金色总资产双曲线，点击日期同时查看两项金额',
+      '  - 融资负债由数据库按每个交易日美东 17:00 的最后有效记录锁定，收盘重试和补跑保持同一口径；净资产严格等于总资产减融资负债',
+      '  - 历史记录启用前的日期保持未知并明确提示，不使用当前融资余额倒推；股票收益、纳斯达克对比、比赛和交易账本计算均不改变',
+    ],
+    itemsEn: [
+      '📊 Exact historical net assets added to the P&L report',
+      '  - The segment remains named Total Assets Trend, while the chart now adds a red Net Assets line alongside the gold Total Assets line and shows both values for a selected date',
+      '  - Margin debt is locked by the database to the latest effective record before 17:00 America/New_York on each trading day, keeping close retries and catch-up runs on the same basis; net assets always equal total assets minus margin debt',
+      '  - Dates before margin history began remain explicitly unavailable instead of projecting the current debt backward; stock returns, Nasdaq comparison, competition, and trade-ledger calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.379', date: '2026-07-24',
     items: [
       '₿ 首页 BTC 实时行情增加独立兜底',
       '  - 有效 WebSocket 行情始终优先，并且只有收到真实 BTC tick 后才显示绿色 LIVE，连接成功但没有行情时不再误标实时',

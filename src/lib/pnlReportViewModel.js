@@ -9,6 +9,13 @@ function isFiniteNumber(value) {
   return Number.isFinite(Number(value));
 }
 
+function isPresentFiniteNumber(value) {
+  return value !== null
+    && value !== undefined
+    && value !== ''
+    && Number.isFinite(Number(value));
+}
+
 function normalizeDate(value) {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = value ? new Date(value) : new Date();
@@ -593,6 +600,13 @@ export function buildPnlReportViewModel({
   });
   const trend = trendDates.map((date) => {
     const snapshot = snapshotByDate.get(date);
+    const totalAssetUsd = snapshot ? toNumber(snapshot.totalAssetsUsd) : null;
+    const marginDebtUsd = snapshot && isPresentFiniteNumber(snapshot.marginDebtUsd) && toNumber(snapshot.marginDebtUsd) >= 0
+      ? toNumber(snapshot.marginDebtUsd)
+      : null;
+    const netAssetUsd = snapshot && isPresentFiniteNumber(snapshot.netAssetsUsd)
+      ? toNumber(snapshot.netAssetsUsd)
+      : (totalAssetUsd != null && marginDebtUsd != null ? totalAssetUsd - marginDebtUsd : null);
     const benchmarkPoint = benchmarkStartClose
       ? findCloseOnOrBefore(benchmark.rows, date)
       : null;
@@ -614,7 +628,10 @@ export function buildPnlReportViewModel({
       benchmarkPct: benchmarkPoint?.close && benchmarkStartClose
         ? benchmarkPoint.close / benchmarkStartClose - 1
         : (isFiniteNumber(snapshot?.benchmarkPct) ? toNumber(snapshot.benchmarkPct) : null),
-      assetUsd: snapshot ? toNumber(snapshot.totalAssetsUsd) : null,
+      assetUsd: totalAssetUsd,
+      totalAssetUsd,
+      marginDebtUsd,
+      netAssetUsd,
     };
   });
   const outperformPct = benchmark.returnPct == null ? null : periodValues.pnlPct - benchmark.returnPct;

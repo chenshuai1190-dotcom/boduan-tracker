@@ -86,6 +86,7 @@ npm run verify:typography # 单独检查字号下限
 ## 金融与比赛不变量
 
 - 正式收益、持仓、汇率、QQQ 对比和比赛排名只使用权威账本与真实 provider 数据；缺数据必须 fail closed，不使用 mock、估算、实时价或旧收盘价冒充正式结果。
+- “总资产走势”中的净资产只使用每日收盘总资产与数据库按目标交易日美东 `17:00` 锁定的融资事件计算；历史系统启用前保持未知，不拿当前融资余额倒推，也不改变收益、QQQ、比赛或交易账本口径。
 - 个人收益与内部比赛是两条独立链路。比赛只读正式 `stock_trades`，只写比赛表和脱敏 publication marker，不修改正式账本或个人收益快照。
 - 比赛快照使用 ledger revision/hash/CAS 和数据库权威时间；已锁定行不可覆盖或删除。
 - publication marker 只能在目标日 exact complete batch 后推进。部分成员完成、缺 QQQ、缺精确 EOD 或 provider 失败都不得发布新榜。

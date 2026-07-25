@@ -1,4 +1,4 @@
-export const PNL_REPORT_SNAPSHOT_VERSION = 'pnl_snapshot_v1';
+export const PNL_REPORT_SNAPSHOT_VERSION = 'pnl_snapshot_v2';
 
 const EPSILON = 0.0000001;
 
@@ -9,6 +9,39 @@ function toNumber(value) {
 
 function hasOwn(object, key) {
   return Boolean(object && Object.prototype.hasOwnProperty.call(object, key));
+}
+
+export function normalizePnlMarginDebtUsd(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+function marginDebtSnapshotForDate(marginDebtByDate, snapshotDate) {
+  let raw = null;
+  if (marginDebtByDate instanceof Map) {
+    raw = marginDebtByDate.get(snapshotDate);
+  } else if (typeof marginDebtByDate === 'function') {
+    raw = marginDebtByDate(snapshotDate);
+  } else if (hasOwn(marginDebtByDate, snapshotDate)) {
+    raw = marginDebtByDate[snapshotDate];
+  }
+  const source = raw && typeof raw === 'object' ? raw : { marginDebtUsd: raw };
+  const marginDebtUsd = normalizePnlMarginDebtUsd(
+    source.marginDebtUsd ?? source.margin_debt_usd
+  );
+  return {
+    marginDebtUsd,
+    marginDebtEventId: marginDebtUsd == null
+      ? null
+      : (source.marginDebtEventId ?? source.margin_debt_event_id ?? source.id ?? null),
+    marginDebtEffectiveAt: marginDebtUsd == null
+      ? null
+      : (source.marginDebtEffectiveAt ?? source.margin_debt_effective_at ?? source.effectiveAt ?? source.effective_at ?? null),
+    marginDebtBasis: marginDebtUsd == null
+      ? null
+      : (source.marginDebtBasis ?? source.margin_debt_basis ?? source.basis ?? null),
+  };
 }
 
 function normalizeSymbol(symbol) {
@@ -451,6 +484,10 @@ export function buildPnlReportSnapshots({
   quoteRows = [],
   snapshotDate = new Date(),
   cashUsd = 0,
+  marginDebtUsd = null,
+  marginDebtEventId = null,
+  marginDebtEffectiveAt = null,
+  marginDebtBasis = null,
   lockedAt = null,
 } = {}) {
   const date = normalizeReportDate(snapshotDate);
@@ -476,6 +513,8 @@ export function buildPnlReportSnapshots({
   const positiveCostBasisUsd = returnCostBasisUsd > EPSILON
     ? returnCostBasisUsd
     : openSnapshots.reduce((sum, snapshot) => sum + snapshot.remainingCostUsd, 0);
+  const totalAssetsUsd = marketValueUsd + toNumber(cashUsd);
+  const normalizedMarginDebtUsd = normalizePnlMarginDebtUsd(marginDebtUsd);
 
   return {
     portfolioSnapshot: {
@@ -483,7 +522,14 @@ export function buildPnlReportSnapshots({
       currency: 'USD',
       cashUsd: toNumber(cashUsd),
       marketValueUsd,
-      totalAssetsUsd: marketValueUsd + toNumber(cashUsd),
+      totalAssetsUsd,
+      marginDebtUsd: normalizedMarginDebtUsd,
+      marginDebtEventId: normalizedMarginDebtUsd == null ? null : marginDebtEventId,
+      marginDebtEffectiveAt: normalizedMarginDebtUsd == null ? null : marginDebtEffectiveAt,
+      marginDebtBasis: normalizedMarginDebtUsd == null ? null : marginDebtBasis,
+      netAssetsUsd: normalizedMarginDebtUsd == null
+        ? null
+        : totalAssetsUsd - normalizedMarginDebtUsd,
       realizedPnlUsd: roundTiny(realizedPnlUsd),
       unrealizedPnlUsd: roundTiny(unrealizedPnlUsd),
       cumulativePnlUsd: roundTiny(cumulativePnlUsd),
@@ -509,6 +555,7 @@ export function buildPnlReportHistoricalSnapshots({
   maxSnapshots = 7,
   toDate = null,
   cashUsd = 0,
+  marginDebtByDate = null,
   lockedAt = null,
   backfillMode = 'ledger',
 } = {}) {
@@ -538,6 +585,7 @@ export function buildPnlReportHistoricalSnapshots({
   const snapshots = [];
 
   targetDates.forEach((date) => {
+    const marginDebtSnapshot = marginDebtSnapshotForDate(marginDebtByDate, date);
     const historicalQuoteRows = symbols.map((symbol) => {
       const rows = closeMap.get(symbol) || [];
       const current = exactCloseOnDate(rows, date);
@@ -560,6 +608,7 @@ export function buildPnlReportHistoricalSnapshots({
       quoteRows: historicalQuoteRows,
       snapshotDate: date,
       cashUsd,
+      ...marginDebtSnapshot,
       lockedAt,
     });
     const missingSymbols = built.symbolSnapshots

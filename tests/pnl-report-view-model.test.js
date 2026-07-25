@@ -116,6 +116,91 @@ test('computes period turnover and Nasdaq outperformance from independent inputs
   assert.equal(Number(report.trend.find((point) => point.date === '2026-07-08').benchmarkPct.toFixed(4)), 0.1);
 });
 
+test('keeps known, zero, unknown, and negative net assets distinct from benchmark-only dates', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [
+      {
+        snapshotDate: '2026-07-13',
+        cumulativePnlUsd: 300,
+        cumulativePnlPct: 0.03,
+        totalAssetsUsd: 1300,
+        marginDebtUsd: 1500,
+        netAssetsUsd: -200,
+        dailyPnlUsd: 20,
+        dailyPnlPct: 0.02,
+      },
+      {
+        snapshotDate: '2026-07-10',
+        cumulativePnlUsd: 280,
+        cumulativePnlPct: 0.028,
+        totalAssetsUsd: 1200,
+        marginDebtUsd: 200,
+        dailyPnlUsd: 10,
+        dailyPnlPct: 0.01,
+      },
+      {
+        snapshotDate: '2026-07-08',
+        cumulativePnlUsd: 270,
+        cumulativePnlPct: 0.027,
+        totalAssetsUsd: 1100,
+        marginDebtUsd: 0,
+        netAssetsUsd: 1100,
+        dailyPnlUsd: 5,
+        dailyPnlPct: 0.005,
+      },
+      {
+        snapshotDate: '2026-07-06',
+        cumulativePnlUsd: 265,
+        cumulativePnlPct: 0.0265,
+        totalAssetsUsd: 1000,
+        marginDebtUsd: null,
+        netAssetsUsd: null,
+        dailyPnlUsd: 5,
+        dailyPnlPct: 0.005,
+      },
+    ],
+    benchmarkRows: [
+      { date: '2026-07-06', adjustedClose: 500 },
+      { date: '2026-07-07', adjustedClose: 505 },
+      { date: '2026-07-08', adjustedClose: 510 },
+      { date: '2026-07-10', adjustedClose: 515 },
+      { date: '2026-07-13', adjustedClose: 520 },
+    ],
+    range: 'all',
+    now: new Date('2026-07-13T22:00:00.000Z'),
+  });
+
+  const trendByDate = new Map(report.trend.map((point) => [point.date, point]));
+
+  assert.deepEqual(
+    {
+      totalAssetUsd: trendByDate.get('2026-07-10').totalAssetUsd,
+      marginDebtUsd: trendByDate.get('2026-07-10').marginDebtUsd,
+      netAssetUsd: trendByDate.get('2026-07-10').netAssetUsd,
+    },
+    {
+      totalAssetUsd: 1200,
+      marginDebtUsd: 200,
+      netAssetUsd: 1000,
+    },
+  );
+
+  assert.equal(trendByDate.get('2026-07-08').marginDebtUsd, 0);
+  assert.equal(trendByDate.get('2026-07-08').netAssetUsd, 1100);
+
+  assert.equal(trendByDate.get('2026-07-06').totalAssetUsd, 1000);
+  assert.equal(trendByDate.get('2026-07-06').marginDebtUsd, null);
+  assert.equal(trendByDate.get('2026-07-06').netAssetUsd, null);
+
+  assert.equal(trendByDate.get('2026-07-13').marginDebtUsd, 1500);
+  assert.equal(trendByDate.get('2026-07-13').netAssetUsd, -200);
+
+  assert.equal(trendByDate.get('2026-07-07').totalAssetUsd, null);
+  assert.equal(trendByDate.get('2026-07-07').marginDebtUsd, null);
+  assert.equal(trendByDate.get('2026-07-07').netAssetUsd, null);
+  assert.notEqual(trendByDate.get('2026-07-07').benchmarkPct, null);
+});
+
 test('returns report range bounds from latest snapshot and first trade', () => {
   const bounds = getPnlReportRangeBounds({
     portfolioSnapshots: [{ snapshotDate: '2026-07-08' }],

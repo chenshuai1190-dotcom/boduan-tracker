@@ -7,6 +7,7 @@ import {
   buildPnlReportHistoricalSnapshots,
   buildPnlReportSnapshots,
   latestCompletedUsTradingDate,
+  normalizePnlMarginDebtUsd,
   normalizeReportDate,
   PNL_REPORT_SNAPSHOT_VERSION,
   resolveScheduledUsSnapshotDate,
@@ -213,6 +214,79 @@ test('builds recent historical close snapshots with real daily pnl values', () =
   assert.equal(result.snapshots[2].portfolioSnapshot.dailyPnlUsd, 5);
   assert.equal(result.snapshots[2].symbolSnapshots.find((row) => row.symbol === 'NVDA').dailyPnlUsd, -20);
   assert.equal(result.snapshots[2].symbolSnapshots.find((row) => row.symbol === 'MSFT').dailyPnlUsd, 25);
+});
+
+test('locks known, zero, unknown, and negative-net-asset margin states per historical date', () => {
+  const result = buildPnlReportHistoricalSnapshots({
+    snapshotDates: [
+      '2026-07-06',
+      '2026-07-07',
+      '2026-07-08',
+      '2026-07-09',
+    ],
+    cashUsd: 1000,
+    marginDebtByDate: new Map([
+      ['2026-07-06', {
+        marginDebtUsd: 200,
+        marginDebtEventId: 41,
+        marginDebtEffectiveAt: '2026-07-06T20:00:00.000Z',
+        marginDebtBasis: 'event',
+      }],
+      ['2026-07-07', {
+        marginDebtUsd: 0,
+        marginDebtBasis: 'default_zero',
+      }],
+      ['2026-07-09', {
+        marginDebtUsd: 1200,
+        marginDebtEventId: 42,
+        marginDebtEffectiveAt: '2026-07-09T20:00:00.000Z',
+        marginDebtBasis: 'event',
+      }],
+    ]),
+    lockedAt: '2026-07-10T01:00:00.000Z',
+  });
+
+  assert.equal(result.snapshots.length, 4);
+  const portfolioByDate = new Map(result.snapshots.map(({ portfolioSnapshot }) => [
+    portfolioSnapshot.snapshotDate,
+    portfolioSnapshot,
+  ]));
+
+  assert.deepEqual(
+    {
+      totalAssetsUsd: portfolioByDate.get('2026-07-06').totalAssetsUsd,
+      marginDebtUsd: portfolioByDate.get('2026-07-06').marginDebtUsd,
+      marginDebtEventId: portfolioByDate.get('2026-07-06').marginDebtEventId,
+      marginDebtEffectiveAt: portfolioByDate.get('2026-07-06').marginDebtEffectiveAt,
+      marginDebtBasis: portfolioByDate.get('2026-07-06').marginDebtBasis,
+      netAssetsUsd: portfolioByDate.get('2026-07-06').netAssetsUsd,
+    },
+    {
+      totalAssetsUsd: 1000,
+      marginDebtUsd: 200,
+      marginDebtEventId: 41,
+      marginDebtEffectiveAt: '2026-07-06T20:00:00.000Z',
+      marginDebtBasis: 'event',
+      netAssetsUsd: 800,
+    },
+  );
+
+  assert.equal(portfolioByDate.get('2026-07-07').marginDebtUsd, 0);
+  assert.equal(portfolioByDate.get('2026-07-07').marginDebtBasis, 'default_zero');
+  assert.equal(portfolioByDate.get('2026-07-07').netAssetsUsd, 1000);
+
+  assert.equal(portfolioByDate.get('2026-07-08').marginDebtUsd, null);
+  assert.equal(portfolioByDate.get('2026-07-08').marginDebtEventId, null);
+  assert.equal(portfolioByDate.get('2026-07-08').marginDebtEffectiveAt, null);
+  assert.equal(portfolioByDate.get('2026-07-08').marginDebtBasis, null);
+  assert.equal(portfolioByDate.get('2026-07-08').netAssetsUsd, null);
+
+  assert.equal(portfolioByDate.get('2026-07-09').marginDebtUsd, 1200);
+  assert.equal(portfolioByDate.get('2026-07-09').netAssetsUsd, -200);
+
+  assert.equal(normalizePnlMarginDebtUsd(0), 0);
+  assert.equal(normalizePnlMarginDebtUsd(null), null);
+  assert.equal(normalizePnlMarginDebtUsd(-1), null);
 });
 
 test('strict ledger historical backfill starts from the actual trade entry date', () => {

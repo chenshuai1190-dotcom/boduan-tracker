@@ -2,7 +2,16 @@ import React from 'react';
 import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
-import { buildPnlReportCloseSnapshotInput, buildPnlReportHistoricalSnapshots } from '../lib/pnlReportSnapshots.js';
+import {
+  buildAreaPathFromPoints,
+  buildLinePathFromPoints,
+  isExplicitUnknownNetAssetPoint,
+  splitChartPointSegments,
+} from '../lib/pnlReportChart.js';
+import {
+  buildPnlReportCloseSnapshotInput,
+  buildPnlReportHistoricalSnapshots,
+} from '../lib/pnlReportSnapshots.js';
 import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
 
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -13,6 +22,8 @@ const PNL_REPORT_HISTORY_CLOSE_ROWS = PNL_REPORT_HISTORY_SNAPSHOT_COUNT + 1;
 const PNL_CHART_WIDTH = 310;
 const PNL_CHART_HEIGHT = 150;
 const PNL_CHART_PAD = 10;
+const NET_ASSET_COLOR = '#ff5038';
+const TOTAL_ASSET_COLOR = '#f6b54b';
 // Kept for controlled local/testing use; hidden from the product page for now.
 const SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS = false;
 
@@ -151,63 +162,113 @@ function nullableSignedPct(value, digits = 2) {
   return isRenderableChartValue(value) ? signedPct(value, digits) : '--';
 }
 
+function currencyAmount(value, currency = 'USD', digits = 2) {
+  if (!isRenderableChartValue(value)) return '--';
+  const amount = Number(value);
+  const symbol = currency === 'CNY' ? '¥' : '$';
+  return `${amount < 0 ? '-' : ''}${symbol}${fmt(Math.abs(amount), digits)}`;
+}
+
+function compactAssetAxisValue(value, englishMode) {
+  if (!isRenderableChartValue(value)) return '--';
+  const n = Number(value);
+  const abs = Math.abs(n);
+  if (!englishMode && abs >= 10000) return `${fmt(n / 10000, abs >= 1000000 ? 0 : 1)}万`;
+  if (abs >= 1000000) return `${fmt(n / 1000000, 1)}M`;
+  if (abs >= 1000) return `${fmt(n / 1000, 1)}K`;
+  return fmt(n, 0);
+}
+
 function chartX(index, total, width = PNL_CHART_WIDTH, pad = PNL_CHART_PAD) {
   return pad + (index / Math.max(total - 1, 1)) * (width - pad * 2);
 }
 
-function buildLinePoints(points, key, width = PNL_CHART_WIDTH, height = PNL_CHART_HEIGHT, pad = PNL_CHART_PAD) {
+function buildChartDomain(points, keys, kind = 'percentage') {
+  const valueKeys = Array.isArray(keys) ? keys : [keys];
+  const values = points.flatMap((point) => valueKeys
+    .filter((key) => isRenderableChartValue(point?.[key]))
+    .map((key) => Number(point[key])));
+  if (!values.length) return null;
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const fixedPctDomain = kind === 'percentage';
+  const min = fixedPctDomain ? Math.min(rawMin, -0.1956) : rawMin;
+  const max = fixedPctDomain ? Math.max(rawMax, 0.7848) : rawMax;
+  const padding = fixedPctDomain ? 0 : Math.max((max - min) * 0.12, 1);
+  return {
+    min: min - padding,
+    max: max + padding,
+  };
+}
+
+function buildLinePoints(
+  points,
+  key,
+  domain = null,
+  width = PNL_CHART_WIDTH,
+  height = PNL_CHART_HEIGHT,
+  pad = PNL_CHART_PAD,
+) {
   const validPoints = points
     .map((point, index) => ({ point, index, value: Number(point?.[key]) }))
     .filter(({ point }) => isRenderableChartValue(point?.[key]));
   if (!validPoints.length) return [];
-  const values = validPoints.map(({ value }) => value);
-  const rawMin = Math.min(...values);
-  const rawMax = Math.max(...values);
-  const fixedPctDomain = key !== 'assetUsd';
-  const min = fixedPctDomain ? Math.min(rawMin, -0.1956) : rawMin;
-  const max = fixedPctDomain ? Math.max(rawMax, 0.7848) : rawMax;
-  const padding = fixedPctDomain ? 0 : Math.max((max - min) * 0.12, 1);
-  const domainMin = min - padding;
-  const domainMax = max + padding;
-  const span = domainMax - domainMin || 1;
+  const resolvedDomain = domain || buildChartDomain(points, key);
+  const span = resolvedDomain.max - resolvedDomain.min || 1;
   return validPoints.map(({ point, index, value }) => {
     const x = chartX(index, points.length, width, pad);
-    const y = pad + (1 - ((value - domainMin) / span)) * (height - pad * 2);
+    const y = pad + (1 - ((value - resolvedDomain.min) / span)) * (height - pad * 2);
     return { point, index, value, x, y };
   });
 }
 
-function buildLinePathFromPoints(points) {
-  return points.map(({ x, y }, pathIndex) => (
-    `${pathIndex === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`
-  )).join(' ');
-}
-
-function buildLinePath(points, key, width = PNL_CHART_WIDTH, height = PNL_CHART_HEIGHT, pad = PNL_CHART_PAD) {
-  return buildLinePathFromPoints(buildLinePoints(points, key, width, height, pad));
-}
-
-function validPointCount(points, key) {
-  return points.filter((point) => isRenderableChartValue(point?.[key])).length;
-}
-
-function buildAreaPath(linePath, width = PNL_CHART_WIDTH, height = PNL_CHART_HEIGHT, pad = PNL_CHART_PAD) {
-  if (!linePath) return '';
-  return `${linePath} L${width - pad} ${height - pad} L${pad} ${height - pad} Z`;
-}
-
-function SparkArea({ data, mode, color, language, marketColorMode, initialSelectedDate = '' }) {
+function SparkArea({
+  data,
+  mode,
+  color,
+  language,
+  marketColorMode,
+  displayCurrency,
+  displayRate,
+  initialSelectedDate = '',
+}) {
   const englishMode = isEnglishLanguage(language);
   const [selectedIndex, setSelectedIndex] = React.useState(null);
   const chartRootRef = React.useRef(null);
-  const primaryKey = mode === 'assets' ? 'assetUsd' : 'pnlPct';
+  const primaryKey = mode === 'assets' ? 'netAssetUsd' : 'pnlPct';
   const hasBenchmark = data.some(point => Number.isFinite(Number(point?.benchmarkPct)));
   const showBenchmark = mode === 'pnl' && hasBenchmark;
-  const primaryPoints = React.useMemo(() => buildLinePoints(data, primaryKey), [data, primaryKey]);
-  const benchmarkPoints = React.useMemo(() => (showBenchmark ? buildLinePoints(data, 'benchmarkPct') : []), [data, showBenchmark]);
-  const primaryPath = buildLinePathFromPoints(primaryPoints);
+  const primaryDomain = React.useMemo(() => (
+    mode === 'assets'
+      ? buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')
+      : buildChartDomain(data, primaryKey, 'percentage')
+  ), [data, mode, primaryKey]);
+  const primaryPoints = React.useMemo(
+    () => buildLinePoints(data, primaryKey, primaryDomain),
+    [data, primaryDomain, primaryKey]
+  );
+  const totalAssetPoints = React.useMemo(
+    () => (mode === 'assets' ? buildLinePoints(data, 'totalAssetUsd', primaryDomain) : []),
+    [data, mode, primaryDomain]
+  );
+  const benchmarkPoints = React.useMemo(
+    () => (showBenchmark
+      ? buildLinePoints(data, 'benchmarkPct', buildChartDomain(data, 'benchmarkPct', 'percentage'))
+      : []),
+    [data, showBenchmark]
+  );
+  const primarySegments = React.useMemo(
+    () => (mode === 'assets'
+      ? splitChartPointSegments(data, primaryPoints, isExplicitUnknownNetAssetPoint)
+      : (primaryPoints.length > 0 ? [primaryPoints] : [])),
+    [data, mode, primaryPoints]
+  );
+  const primaryPaths = primarySegments.map(buildLinePathFromPoints).filter(Boolean);
+  const totalAssetPath = mode === 'assets' ? buildLinePathFromPoints(totalAssetPoints) : '';
   const benchmarkPath = showBenchmark ? buildLinePathFromPoints(benchmarkPoints) : '';
-  const areaPath = validPointCount(data, primaryKey) > 1 ? buildAreaPath(primaryPath) : '';
+  const areaPaths = primarySegments.map(
+    (segment) => buildAreaPathFromPoints(segment, PNL_CHART_HEIGHT, PNL_CHART_PAD)
+  ).filter(Boolean);
   const firstLabel = data[0]?.label || '--';
   const middleLabel = data[Math.floor(data.length / 2)]?.label || firstLabel;
   const lastLabel = data[data.length - 1]?.label || firstLabel;
@@ -216,23 +277,40 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
     index,
     x: chartX(index, data.length),
   })), [data]);
+  const selectableSlots = mode === 'assets' ? totalAssetPoints : pointSlots;
   const primaryByIndex = React.useMemo(() => new Map(primaryPoints.map((point) => [point.index, point])), [primaryPoints]);
+  const totalAssetByIndex = React.useMemo(
+    () => new Map(totalAssetPoints.map((point) => [point.index, point])),
+    [totalAssetPoints]
+  );
   const benchmarkByIndex = React.useMemo(() => new Map(benchmarkPoints.map((point) => [point.index, point])), [benchmarkPoints]);
   const selectedSlot = selectedIndex == null ? null : pointSlots[selectedIndex] || null;
   const selectedPrimary = selectedSlot ? primaryByIndex.get(selectedSlot.index) || null : null;
+  const selectedTotalAsset = selectedSlot ? totalAssetByIndex.get(selectedSlot.index) || null : null;
   const selectedBenchmark = selectedSlot ? benchmarkByIndex.get(selectedSlot.index) || null : null;
   const selectedTooltipLeft = '50%';
   const selectedTooltipTop = '0px';
+  const gridLines = [18, 50, 82, 114];
+  const assetAxisLabels = primaryDomain
+    ? gridLines.map((y) => {
+        const ratio = (y - PNL_CHART_PAD) / (PNL_CHART_HEIGHT - PNL_CHART_PAD * 2);
+        const valueUsd = primaryDomain.max - ratio * (primaryDomain.max - primaryDomain.min);
+        return compactAssetAxisValue(convertUsd(valueUsd, displayRate), englishMode);
+      })
+    : gridLines.map(() => '--');
+  const axisLabels = mode === 'assets'
+    ? assetAxisLabels
+    : ['78.48%', '58.87%', '39.26%', '19.66%'];
 
   React.useEffect(() => {
     setSelectedIndex(null);
   }, [data, mode]);
 
   React.useEffect(() => {
-    if (!initialSelectedDate || mode !== 'pnl') return;
-    const nextIndex = data.findIndex((point) => point?.date === initialSelectedDate);
-    if (nextIndex >= 0) setSelectedIndex(nextIndex);
-  }, [data, initialSelectedDate, mode]);
+    if (!initialSelectedDate) return;
+    const selected = selectableSlots.find((slot) => slot?.point?.date === initialSelectedDate);
+    if (selected) setSelectedIndex(selected.index);
+  }, [initialSelectedDate, selectableSlots]);
 
   React.useEffect(() => {
     if (selectedIndex == null) return undefined;
@@ -244,13 +322,13 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
   }, [selectedIndex]);
 
   const updateSelection = React.useCallback((event) => {
-    if (mode !== 'pnl' || pointSlots.length === 0) return;
+    if (selectableSlots.length === 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width) return;
     const x = ((event.clientX - rect.left) / rect.width) * PNL_CHART_WIDTH;
-    let nextIndex = pointSlots[0].index;
+    let nextIndex = selectableSlots[0].index;
     let nextDistance = Number.POSITIVE_INFINITY;
-    pointSlots.forEach((slot) => {
+    selectableSlots.forEach((slot) => {
       const distance = Math.abs(slot.x - x);
       if (distance < nextDistance) {
         nextDistance = distance;
@@ -258,7 +336,7 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
       }
     });
     setSelectedIndex(nextIndex);
-  }, [mode, pointSlots]);
+  }, [selectableSlots]);
 
   const handlePointerDown = React.useCallback((event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -281,17 +359,22 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
       <svg viewBox="0 0 310 150" className="h-full w-full overflow-visible">
         <defs>
           <linearGradient id="pnlReportArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.32" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+            <stop offset="0%" stopColor={mode === 'assets' ? NET_ASSET_COLOR : color} stopOpacity="0.32" />
+            <stop offset="100%" stopColor={mode === 'assets' ? NET_ASSET_COLOR : color} stopOpacity="0.02" />
           </linearGradient>
         </defs>
-        {[18, 50, 82, 114].map((y) => (
+        {gridLines.map((y) => (
           <line key={y} x1="10" y1={y} x2="300" y2={y} stroke="rgba(255,255,255,0.09)" strokeDasharray="3 4" />
         ))}
-        {areaPath && <path d={areaPath} fill="url(#pnlReportArea)" />}
-        {primaryPath && <path d={primaryPath} fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />}
+        {areaPaths.map((path, index) => (
+          <path key={`primary-area-${index}`} d={path} fill="url(#pnlReportArea)" />
+        ))}
+        {totalAssetPath && <path d={totalAssetPath} fill="none" stroke={TOTAL_ASSET_COLOR} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.92" />}
+        {primaryPaths.map((path, index) => (
+          <path key={`primary-line-${index}`} d={path} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        ))}
         {benchmarkPath && <path d={benchmarkPath} fill="none" stroke="#51a7ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" />}
-        {selectedSlot && mode === 'pnl' && (
+        {selectedSlot && (selectedPrimary || selectedTotalAsset || (mode === 'pnl' && selectedBenchmark)) && (
           <>
             <line
               x1={selectedSlot.x}
@@ -302,20 +385,31 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
               strokeDasharray="4 4"
             />
             {selectedPrimary && (
-              <circle cx={selectedPrimary.x} cy={selectedPrimary.y} r="3.4" fill={color} stroke="#101318" strokeWidth="1.2" />
+              <circle cx={selectedPrimary.x} cy={selectedPrimary.y} r="3.4" fill={mode === 'assets' ? NET_ASSET_COLOR : color} stroke="#101318" strokeWidth="1.2" />
             )}
-            {selectedBenchmark && (
+            {mode === 'assets' && selectedTotalAsset && (
+              <circle cx={selectedTotalAsset.x} cy={selectedTotalAsset.y} r="3.2" fill={TOTAL_ASSET_COLOR} stroke="#101318" strokeWidth="1.2" />
+            )}
+            {mode === 'pnl' && selectedBenchmark && (
               <circle cx={selectedBenchmark.x} cy={selectedBenchmark.y} r="3.4" fill="#51a7ff" stroke="#101318" strokeWidth="1.2" />
             )}
           </>
         )}
-        <text x="300" y="21" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">78.48%</text>
-        <text x="300" y="54" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">58.87%</text>
-        <text x="300" y="87" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">39.26%</text>
-        <text x="300" y="122" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">19.66%</text>
-        <text x="10" y="146" fontSize="9" fill="rgba(255,255,255,0.38)">{firstLabel}</text>
-        <text x="148" y="146" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.38)">{middleLabel}</text>
-        <text x="300" y="146" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.38)">{lastLabel}</text>
+        {axisLabels.map((label, index) => (
+          <text
+            key={`${gridLines[index]}-${label}`}
+            x="300"
+            y={gridLines[index] + 3}
+            textAnchor="end"
+            fontSize="10"
+            fill="rgba(255,255,255,0.38)"
+          >
+            {label}
+          </text>
+        ))}
+        <text x="10" y="146" fontSize="10" fill="rgba(255,255,255,0.38)">{firstLabel}</text>
+        <text x="148" y="146" textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.38)">{middleLabel}</text>
+        <text x="300" y="146" textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.38)">{lastLabel}</text>
       </svg>
       {selectedSlot && mode === 'pnl' && (
         <div
@@ -356,6 +450,51 @@ function SparkArea({ data, mode, color, language, marketColorMode, initialSelect
               </>
             )}
           </div>
+        </div>
+      )}
+      {selectedSlot && selectedTotalAsset && mode === 'assets' && (
+        <div
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-xl border border-white/10 bg-[#111820]/95 px-4 py-3 text-left shadow-2xl backdrop-blur"
+          data-pnl-report-asset-tooltip="true"
+          style={{
+            left: selectedTooltipLeft,
+            top: selectedTooltipTop,
+            width: 'calc(100% - 22px)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-4 text-[12px] leading-5">
+            <div className="truncate text-white/[0.78]">{displayTooltipDate(selectedSlot.point?.date, englishMode)}</div>
+            <div className="shrink-0 text-white/[0.46]">{displayCurrency}</div>
+          </div>
+          <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2">
+            <div className="inline-flex items-center gap-1.5 text-[12px] text-white/[0.64]">
+              <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: NET_ASSET_COLOR }} />
+              {t(language, 'pnlReport.tooltip.netAssets', '净资产')}
+            </div>
+            <div
+              className={`text-right text-[16px] font-medium leading-none tabular-nums ${selectedPrimary ? '' : 'text-white/[0.34]'}`}
+              style={selectedPrimary ? { color: NET_ASSET_COLOR, fontFamily: NUMBER_FONT } : { fontFamily: NUMBER_FONT }}
+            >
+              {selectedPrimary
+                ? currencyAmount(convertUsd(selectedSlot.point?.netAssetUsd, displayRate), displayCurrency, 2)
+                : '--'}
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-[12px] text-white/[0.64]">
+              <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: TOTAL_ASSET_COLOR }} />
+              {t(language, 'pnlReport.tooltip.totalAssets', '总资产')}
+            </div>
+            <div
+              className="text-right text-[16px] font-medium leading-none tabular-nums"
+              style={{ color: TOTAL_ASSET_COLOR, fontFamily: NUMBER_FONT }}
+            >
+              {currencyAmount(convertUsd(selectedSlot.point?.totalAssetUsd, displayRate), displayCurrency, 2)}
+            </div>
+          </div>
+          {!selectedPrimary && (
+            <div className="mt-2 text-[10px] leading-4 text-white/[0.38]">
+              {t(language, 'pnlReport.tooltip.marginUnavailable', '该日没有融资负债快照')}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -414,6 +553,7 @@ export default function PnlReportPage({ ctx = {} }) {
     investmentSummary,
     language = 'zh',
     marketColorMode,
+    pnlReportInitialChartMode = 'pnl',
     pnlReportTooltipDate = '',
     quoteRows,
     stockTrades,
@@ -433,7 +573,9 @@ export default function PnlReportPage({ ctx = {} }) {
   const [draftDate, setDraftDate] = React.useState(dateKeyToday());
   const [draftStartDate, setDraftStartDate] = React.useState(dateKeyToday());
   const [draftEndDate, setDraftEndDate] = React.useState(dateKeyToday());
-  const [chartMode, setChartMode] = React.useState('pnl');
+  const [chartMode, setChartMode] = React.useState(
+    pnlReportInitialChartMode === 'assets' ? 'assets' : 'pnl'
+  );
   const [calendarMode, setCalendarMode] = React.useState('pnl');
   const [calendarView, setCalendarView] = React.useState('month');
   const [calendarDate, setCalendarDate] = React.useState(null);
@@ -688,6 +830,9 @@ export default function PnlReportPage({ ctx = {} }) {
   }));
   const rankingRows = reportData.rankings[rankMode] || [];
   const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
+  const hasAssetSnapshotsWithoutMargin = reportData.trend.some(
+    (point) => isRenderableChartValue(point?.totalAssetUsd) && !isRenderableChartValue(point?.netAssetUsd)
+  );
   const currentRangeLabel = range === 'custom'
     ? customRangeLabel
     : rangeItems.find(([id]) => id === range)?.[1] || t(language, 'pnlReport.range.all', '全部');
@@ -834,8 +979,23 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="mt-5 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-start text-[12px] text-white/[0.52]">
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: totalColor }} />{t(language, 'pnlReport.mine', '我的')}</span>
-            {hasBenchmarkTrend && <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>}
+            {chartMode === 'assets' ? (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <i className="h-2 w-2 rounded-full" style={{ background: NET_ASSET_COLOR }} />
+                  {t(language, 'pnlReport.tooltip.netAssets', '净资产')}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <i className="h-2 w-2 rounded-full" style={{ background: TOTAL_ASSET_COLOR }} />
+                  {t(language, 'pnlReport.tooltip.totalAssets', '总资产')} ({displayCurrency})
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: totalColor }} />{t(language, 'pnlReport.mine', '我的')}</span>
+                {hasBenchmarkTrend && <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#51a7ff]" />{t(language, 'pnlReport.nasdaq', '纳斯达克')}</span>}
+              </>
+            )}
           </div>
         </div>
         <SparkArea
@@ -844,8 +1004,15 @@ export default function PnlReportPage({ ctx = {} }) {
           color={totalColor}
           language={language}
           marketColorMode={marketColorMode}
+          displayCurrency={displayCurrency}
+          displayRate={displayRate}
           initialSelectedDate={pnlReportTooltipDate}
         />
+        {chartMode === 'assets' && hasAssetSnapshotsWithoutMargin && (
+          <div className="mt-1 text-center text-[10px] leading-4 text-white/[0.38]">
+            {t(language, 'pnlReport.netAssetsHistoryNotice', '净资产自融资负债记录生效日起展示')}
+          </div>
+        )}
       </section>
 
       <section className="mt-3 grid grid-cols-2 gap-3">

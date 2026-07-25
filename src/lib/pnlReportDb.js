@@ -47,6 +47,11 @@ const mapPnlReportSnapshot = (snapshot) => ({
   cashUsd: Number(snapshot.cash_usd || 0),
   marketValueUsd: Number(snapshot.market_value_usd || 0),
   totalAssetsUsd: Number(snapshot.total_assets_usd || 0),
+  marginDebtUsd: snapshot.margin_debt_usd == null ? null : Number(snapshot.margin_debt_usd),
+  marginDebtEventId: snapshot.margin_debt_event_id == null ? null : String(snapshot.margin_debt_event_id),
+  marginDebtEffectiveAt: snapshot.margin_debt_effective_at || null,
+  marginDebtBasis: snapshot.margin_debt_basis || null,
+  netAssetsUsd: snapshot.net_assets_usd == null ? null : Number(snapshot.net_assets_usd),
   realizedPnlUsd: Number(snapshot.realized_pnl_usd || 0),
   unrealizedPnlUsd: Number(snapshot.unrealized_pnl_usd || 0),
   cumulativePnlUsd: Number(snapshot.cumulative_pnl_usd || 0),
@@ -108,6 +113,14 @@ const toPnlReportSnapshotRow = (snapshot, userId) => ({
   cash_usd: snapshot.cashUsd || 0,
   market_value_usd: snapshot.marketValueUsd || 0,
   total_assets_usd: snapshot.totalAssetsUsd || 0,
+  ...(snapshot.marginDebtUsd == null && !snapshot.marginDebtBasis
+    ? {}
+    : {
+        margin_debt_usd: snapshot.marginDebtUsd,
+        margin_debt_event_id: snapshot.marginDebtEventId == null ? null : snapshot.marginDebtEventId,
+        margin_debt_effective_at: snapshot.marginDebtEffectiveAt || null,
+        margin_debt_basis: snapshot.marginDebtBasis || null,
+      }),
   realized_pnl_usd: snapshot.realizedPnlUsd || 0,
   unrealized_pnl_usd: snapshot.unrealizedPnlUsd || 0,
   cumulative_pnl_usd: snapshot.cumulativePnlUsd || 0,
@@ -118,7 +131,7 @@ const toPnlReportSnapshotRow = (snapshot, userId) => ({
   sell_proceeds_usd: snapshot.sellProceedsUsd || 0,
   trade_count: snapshot.tradeCount || 0,
   holding_count: snapshot.holdingCount || 0,
-  source_version: snapshot.sourceVersion || 'pnl_snapshot_v1',
+  source_version: snapshot.sourceVersion || 'pnl_snapshot_v2',
   locked_at: snapshot.lockedAt || null,
   updated_at: new Date().toISOString(),
 });
@@ -146,7 +159,7 @@ const toPnlReportSymbolSnapshotRow = (snapshot, userId, fallbackDate) => ({
   total_buy_shares: snapshot.totalBuyShares || 0,
   total_sell_shares: snapshot.totalSellShares || 0,
   is_open: Boolean(snapshot.isOpen),
-  source_version: snapshot.sourceVersion || 'pnl_snapshot_v1',
+  source_version: snapshot.sourceVersion || 'pnl_snapshot_v2',
   updated_at: new Date().toISOString(),
 });
 

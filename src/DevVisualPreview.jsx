@@ -842,7 +842,7 @@ const mockEarningsBaseDetailData = {
   },
 };
 
-const mockPnlPortfolioSnapshots = [
+const mockPnlPortfolioSnapshotRows = [
   {
     snapshotDate: '2026-01-02',
     cumulativePnlUsd: 18500,
@@ -932,6 +932,71 @@ const mockPnlPortfolioSnapshots = [
     updatedAt: '2026-07-08T21:00:00Z',
   },
 ];
+
+const mockPnlMarginDebtUsd = [
+  912500,
+  918000,
+  905000,
+  899500,
+  899500,
+  892000,
+  905500,
+  899500,
+];
+
+function buildMockPnlPortfolioSnapshots(scenario = 'known') {
+  const normalizedScenario = String(scenario || 'known').trim().toLowerCase().replaceAll('-', '_');
+  const snapshots = mockPnlPortfolioSnapshotRows.map((snapshot, index) => {
+    const marginDebtUsd = mockPnlMarginDebtUsd[index];
+    return {
+      ...snapshot,
+      marginDebtUsd,
+      marginDebtEventId: `dev_margin_event_${index + 1}`,
+      marginDebtEffectiveAt: `${snapshot.snapshotDate}T20:30:00Z`,
+      marginDebtBasis: 'event',
+      netAssetsUsd: snapshot.totalAssetsUsd - marginDebtUsd,
+    };
+  });
+  const overrideSnapshot = (snapshotDate, values) => {
+    const target = snapshots.find((snapshot) => snapshot.snapshotDate === snapshotDate);
+    if (target) Object.assign(target, values);
+  };
+
+  if (['unknown', 'mixed'].includes(normalizedScenario)) {
+    overrideSnapshot('2026-04-22', {
+      marginDebtUsd: null,
+      marginDebtEventId: null,
+      marginDebtEffectiveAt: null,
+      marginDebtBasis: null,
+      netAssetsUsd: null,
+    });
+  }
+  if (['default_zero', 'mixed'].includes(normalizedScenario)) {
+    const target = snapshots.find((snapshot) => snapshot.snapshotDate === '2026-05-12');
+    overrideSnapshot('2026-05-12', {
+      marginDebtUsd: 0,
+      marginDebtEventId: null,
+      marginDebtEffectiveAt: null,
+      marginDebtBasis: 'default_zero',
+      netAssetsUsd: target?.totalAssetsUsd ?? null,
+    });
+  }
+  if (['negative', 'mixed'].includes(normalizedScenario)) {
+    const target = snapshots.find((snapshot) => snapshot.snapshotDate === '2026-06-04');
+    const marginDebtUsd = Number(target?.totalAssetsUsd || 0) + 480000;
+    overrideSnapshot('2026-06-04', {
+      marginDebtUsd,
+      marginDebtEventId: 'dev_margin_event_negative',
+      marginDebtEffectiveAt: '2026-06-04T20:30:00Z',
+      marginDebtBasis: 'event',
+      netAssetsUsd: Number(target?.totalAssetsUsd || 0) - marginDebtUsd,
+    });
+  }
+  if (normalizedScenario === 'benchmark_only') {
+    return snapshots.filter((snapshot) => snapshot.snapshotDate !== '2026-06-04');
+  }
+  return snapshots;
+}
 
 const mockPnlBenchmarkRows = [
   { date: '2026-01-02', close: 462.00, rawClose: 462.00 },
@@ -1367,6 +1432,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (typeof window === 'undefined') return '';
     return new URLSearchParams(window.location.search).get('pnlReportTooltipDate') || '';
   }, []);
+  const pnlReportInitialChartMode = React.useMemo(() => {
+    if (typeof window === 'undefined') return 'pnl';
+    return new URLSearchParams(window.location.search).get('pnlReportChart') === 'assets'
+      ? 'assets'
+      : 'pnl';
+  }, []);
+  const pnlReportAssetScenario = React.useMemo(() => {
+    if (typeof window === 'undefined') return 'known';
+    return new URLSearchParams(window.location.search).get('pnlReportAssetScenario') || 'known';
+  }, []);
+  const mockPnlPortfolioSnapshots = React.useMemo(
+    () => buildMockPnlPortfolioSnapshots(pnlReportAssetScenario),
+    [pnlReportAssetScenario],
+  );
   const [changelogExpanded, setChangelogExpanded] = React.useState(false);
   const [newPwd, setNewPwd] = React.useState('');
   const [pwdLoading, setPwdLoading] = React.useState(false);
@@ -1914,7 +1993,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     deleteCostBasisTrade: async () => ({}),
     deleteCostBasisSymbol: async () => ({}),
     insertCostBasisTrade: async () => ({}),
-  }), [competitionPreviewState, stockDetailSnapshotHistory]);
+  }), [competitionPreviewState, mockPnlPortfolioSnapshots, stockDetailSnapshotHistory]);
 
   const fmt = React.useCallback((n, digits = 2) => {
     const value = Number(n);
@@ -2159,6 +2238,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     closePnlReport: () => setActiveTab('home'),
     openStockDetail: () => setActiveTab('stock-detail'),
     closeStockDetail: () => setActiveTab('trades'),
+    pnlReportInitialChartMode,
     pnlReportTooltipDate,
     portfolioCurrencyMode: homeCurrencyMode,
     quoteRows: freshnessPreviewMode === 'locked' ? [] : homeWatchlist,
