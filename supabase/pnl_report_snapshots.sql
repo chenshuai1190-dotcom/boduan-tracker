@@ -55,7 +55,14 @@ create table if not exists public.margin_debt_events (
   user_id uuid not null references auth.users(id) on delete cascade,
   margin_debt_usd numeric(18, 6) not null check (margin_debt_usd >= 0),
   effective_at timestamptz not null default clock_timestamp(),
-  source text not null check (source in ('migration_seed_v1', 'status_activation', 'status_change')),
+  source text not null check (
+    source in (
+      'migration_seed_v1',
+      'verified_backfill_v1',
+      'status_activation',
+      'status_change'
+    )
+  ),
   logic_version integer not null default 2 check (logic_version = 2),
   source_updated_at timestamptz,
   created_at timestamptz not null default clock_timestamp()
@@ -484,6 +491,24 @@ before insert or update of
 on public.pnl_report_snapshots
 for each row execute function public.protect_pnl_report_margin_snapshot();
 
+alter table public.margin_debt_events
+drop constraint if exists margin_debt_events_source_check;
+
+alter table public.margin_debt_events
+add constraint margin_debt_events_source_check
+check (
+  source in (
+    'migration_seed_v1',
+    'verified_backfill_v1',
+    'status_activation',
+    'status_change'
+  )
+);
+
+create unique index if not exists margin_debt_events_verified_backfill_unique_idx
+on public.margin_debt_events (user_id, source, effective_at)
+where source = 'verified_backfill_v1';
+
 create or replace function public.resolve_margin_debt_snapshot_targets(
   p_targets jsonb
 )
@@ -518,33 +543,55 @@ as $$
     cross join public.margin_debt_history_meta as meta
     where meta.version = 'v1'
       and meta.seed_completed_at is not null
+  ),
+  resolved as (
+    select
+      bounded.*,
+      event.id as event_id,
+      event.margin_debt_usd as event_margin_debt_usd,
+      event.effective_at as event_effective_at,
+      (
+        bounded.cutoff_at >= bounded.history_started_at
+        or coalesce(event.source = 'verified_backfill_v1', false)
+      ) as is_known
+    from bounded
+    left join lateral (
+      select
+        candidate.id,
+        candidate.margin_debt_usd,
+        candidate.effective_at,
+        candidate.source
+      from public.margin_debt_events as candidate
+      where candidate.user_id = bounded.user_id
+        and candidate.effective_at <= bounded.cutoff_at
+      order by candidate.effective_at desc, candidate.id desc
+      limit 1
+    ) as event on true
   )
   select
-    bounded.user_id,
-    bounded.snapshot_date,
+    resolved.user_id,
+    resolved.snapshot_date,
     case
-      when bounded.cutoff_at < bounded.history_started_at then null
-      when event.id is null then 0
-      else event.margin_debt_usd
+      when not resolved.is_known then null
+      when resolved.event_id is null then 0
+      else resolved.event_margin_debt_usd
     end,
-    case when bounded.cutoff_at < bounded.history_started_at then null else event.id end,
-    case when bounded.cutoff_at < bounded.history_started_at then null else event.effective_at end,
     case
-      when bounded.cutoff_at < bounded.history_started_at then null
-      when event.id is null then 'default_zero'
+      when not resolved.is_known then null
+      else resolved.event_id
+    end,
+    case
+      when not resolved.is_known then null
+      else resolved.event_effective_at
+    end,
+    case
+      when not resolved.is_known then null
+      when resolved.event_id is null then 'default_zero'
       else 'event'
     end,
-    bounded.cutoff_at >= bounded.history_started_at
-  from bounded
-  left join lateral (
-    select candidate.id, candidate.margin_debt_usd, candidate.effective_at
-    from public.margin_debt_events as candidate
-    where candidate.user_id = bounded.user_id
-      and candidate.effective_at <= bounded.cutoff_at
-    order by candidate.effective_at desc, candidate.id desc
-    limit 1
-  ) as event on true
-  order by bounded.user_id, bounded.snapshot_date;
+    resolved.is_known
+  from resolved
+  order by resolved.user_id, resolved.snapshot_date;
 $$;
 
 revoke all on function public.resolve_margin_debt_snapshot_targets(jsonb)

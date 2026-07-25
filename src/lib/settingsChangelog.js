@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.380', date: '2026-07-25', latest: true,
+    ver: 'v10.7.9.381', date: '2026-07-25', latest: true,
+    items: [
+      '🧾 收益报表修正初始融资历史锚点',
+      '  - 对已核验的管理员账户新增明确融资历史锚点，使用原持久化记录时间作为起点；不对其他账户自动套用',
+      '  - 只补齐日终截止时间达到或晚于该起点、早于历史系统启用且融资字段仍为空的旧快照；更早日期继续保持未知',
+      '  - 净资产仍严格等于总资产减融资负债；总资产、收益、交易账本、比赛及纳斯达克对比均不改动',
+    ],
+    itemsEn: [
+      '🧾 Corrected the initial margin-history anchor in the P&L report',
+      '  - A specific financing-history anchor is added only for the verified admin account, using its original persisted record time; no other account is inferred automatically',
+      '  - Only empty snapshots whose close cutoff is at or after that anchor and before the history system started are repaired; earlier dates remain unavailable',
+      '  - Net assets still equal total assets minus margin debt exactly; total assets, returns, trade ledgers, competition, and Nasdaq comparison remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.380', date: '2026-07-25',
     items: [
       '📊 收益报表补全净资产历史口径',
       '  - 分段名称继续保留“总资产走势”，图表内部新增红色净资产与金色总资产双曲线，点击日期同时查看两项金额',
