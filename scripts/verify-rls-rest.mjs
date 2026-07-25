@@ -24,8 +24,19 @@ const USER_TABLES = [
 ].map(table => ({ table, select: 'user_id' }));
 const SERVICE_ONLY_TABLES = [
   { table: 'snapshot_publication_markers', select: 'channel' },
+  { table: 'margin_debt_events', select: 'user_id' },
+  { table: 'margin_debt_history_meta', select: 'version' },
 ];
 const SERVICE_ONLY_RPCS = [
+  {
+    name: 'resolve_margin_debt_snapshot_targets',
+    body: {
+      p_targets: [{
+        user_id: '00000000-0000-0000-0000-000000000000',
+        snapshot_date: '2000-01-01',
+      }],
+    },
+  },
   {
     name: 'join_community_competition_member',
     body: {

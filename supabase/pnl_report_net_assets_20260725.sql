@@ -1,6 +1,8 @@
--- P&L report snapshot foundation.
--- Apply in the Supabase SQL editor after verifying this is the production project.
--- The report system is independent from the live trading display, but stock_trades remains the source of truth.
+-- Add database-authoritative margin history and exact net assets to P&L.
+-- Apply before deploying runtime code that calls
+-- resolve_margin_debt_snapshot_targets or writes the new snapshot fields.
+-- Existing P&L rows intentionally stay NULL: current debt is never projected
+-- backward into dates that predate this history system.
 
 begin;
 
@@ -53,151 +55,33 @@ $$;
 create table if not exists public.margin_debt_events (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
-  margin_debt_usd numeric(18, 6) not null check (margin_debt_usd >= 0),
+  margin_debt_usd numeric(18, 6) not null,
   effective_at timestamptz not null default clock_timestamp(),
-  source text not null check (source in ('migration_seed_v1', 'status_activation', 'status_change')),
-  logic_version integer not null default 2 check (logic_version = 2),
+  source text not null,
+  logic_version integer not null default 2,
   source_updated_at timestamptz,
-  created_at timestamptz not null default clock_timestamp()
+  created_at timestamptz not null default clock_timestamp(),
+
+  constraint margin_debt_events_amount_check
+    check (margin_debt_usd >= 0),
+  constraint margin_debt_events_source_check
+    check (source in ('migration_seed_v1', 'status_activation', 'status_change')),
+  constraint margin_debt_events_logic_version_check
+    check (logic_version = 2)
 );
 
 create index if not exists margin_debt_events_user_effective_idx
 on public.margin_debt_events (user_id, effective_at desc, id desc);
 
-create table if not exists public.pnl_report_snapshots (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  snapshot_date date not null,
-  currency text not null default 'USD',
-  cash_usd numeric(18, 6) not null default 0,
-  market_value_usd numeric(18, 6) not null default 0,
-  total_assets_usd numeric(18, 6) not null default 0,
-  margin_debt_usd numeric(18, 6),
-  margin_debt_event_id bigint,
-  margin_debt_effective_at timestamptz,
-  margin_debt_basis text,
-  net_assets_usd numeric(18, 6) generated always as (
-    case
-      when margin_debt_usd is null then null
-      else total_assets_usd - margin_debt_usd
-    end
-  ) stored,
-  realized_pnl_usd numeric(18, 6) not null default 0,
-  unrealized_pnl_usd numeric(18, 6) not null default 0,
-  cumulative_pnl_usd numeric(18, 6) not null default 0,
-  cumulative_pnl_pct numeric(18, 10) not null default 0,
-  daily_pnl_usd numeric(18, 6),
-  daily_pnl_pct numeric(18, 10),
-  total_buy_cost_usd numeric(18, 6) not null default 0,
-  sell_proceeds_usd numeric(18, 6) not null default 0,
-  trade_count integer not null default 0,
-  holding_count integer not null default 0,
-  source_version text not null default 'pnl_snapshot_v2',
-  locked_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint pnl_report_snapshots_margin_debt_nonnegative_check
-    check (margin_debt_usd is null or margin_debt_usd >= 0),
-  constraint pnl_report_snapshots_margin_provenance_check check (
-    (
-      margin_debt_usd is null
-      and margin_debt_event_id is null
-      and margin_debt_effective_at is null
-      and margin_debt_basis is null
-    )
-    or
-    (
-      margin_debt_usd = 0
-      and margin_debt_event_id is null
-      and margin_debt_effective_at is null
-      and margin_debt_basis = 'default_zero'
-    )
-    or
-    (
-      margin_debt_usd is not null
-      and margin_debt_event_id is not null
-      and margin_debt_effective_at is not null
-      and margin_debt_basis = 'event'
-    )
-  ),
-  unique (user_id, snapshot_date)
-);
+comment on table public.margin_debt_events is
+'Append-only service-owned history captured atomically from margin_status.';
 
-create index if not exists pnl_report_snapshots_user_date_idx
-on public.pnl_report_snapshots (user_id, snapshot_date desc);
-
-create table if not exists public.pnl_report_symbol_snapshots (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  snapshot_date date not null,
-  symbol text not null,
-  name text not null default '',
-  currency text not null default 'USD',
-  held_shares numeric(18, 6) not null default 0,
-  avg_cost_usd numeric(18, 6) not null default 0,
-  remaining_cost_usd numeric(18, 6) not null default 0,
-  current_price_usd numeric(18, 6) not null default 0,
-  previous_close_usd numeric(18, 6) not null default 0,
-  market_value_usd numeric(18, 6) not null default 0,
-  realized_pnl_usd numeric(18, 6) not null default 0,
-  unrealized_pnl_usd numeric(18, 6) not null default 0,
-  cumulative_pnl_usd numeric(18, 6) not null default 0,
-  daily_pnl_usd numeric(18, 6),
-  daily_pnl_pct numeric(18, 10),
-  total_buy_cost_usd numeric(18, 6) not null default 0,
-  sell_proceeds_usd numeric(18, 6) not null default 0,
-  sold_cost_usd numeric(18, 6) not null default 0,
-  total_buy_shares numeric(18, 6) not null default 0,
-  total_sell_shares numeric(18, 6) not null default 0,
-  is_open boolean not null default false,
-  source_version text not null default 'pnl_snapshot_v2',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (user_id, snapshot_date, symbol)
-);
-
-create index if not exists pnl_report_symbol_snapshots_user_date_idx
-on public.pnl_report_symbol_snapshots (user_id, snapshot_date desc);
-
-create index if not exists pnl_report_symbol_snapshots_user_symbol_date_idx
-on public.pnl_report_symbol_snapshots (user_id, symbol, snapshot_date desc);
-
-create table if not exists public.pnl_report_rebuild_state (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  dirty_from_date date,
-  reason text not null default 'stock_trade_changed',
-  source_trade_id uuid,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.pnl_report_snapshots
-add column if not exists margin_debt_usd numeric(18, 6);
-
-alter table public.pnl_report_snapshots
-add column if not exists margin_debt_event_id bigint;
-
-alter table public.pnl_report_snapshots
-add column if not exists margin_debt_effective_at timestamptz;
-
-alter table public.pnl_report_snapshots
-add column if not exists margin_debt_basis text;
-
-alter table public.pnl_report_snapshots
-add column if not exists net_assets_usd numeric(18, 6)
-generated always as (
-  case
-    when margin_debt_usd is null then null
-    else total_assets_usd - margin_debt_usd
-  end
-) stored;
-
-alter table public.pnl_report_snapshots
-alter column source_version set default 'pnl_snapshot_v2';
-
-alter table public.pnl_report_symbol_snapshots
-alter column source_version set default 'pnl_snapshot_v2';
+comment on table public.margin_debt_history_meta is
+'Service-only boundary before which historical margin debt is unknown.';
 
 do $$
+declare
+  started_at timestamptz;
 begin
   if exists (
     select 1
@@ -208,56 +92,6 @@ begin
     raise exception 'margin debt history metadata exists without a completed seed';
   end if;
 
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'pnl_report_snapshots_margin_debt_nonnegative_check'
-      and conrelid = 'public.pnl_report_snapshots'::regclass
-  ) then
-    alter table public.pnl_report_snapshots
-    add constraint pnl_report_snapshots_margin_debt_nonnegative_check
-    check (margin_debt_usd is null or margin_debt_usd >= 0);
-  end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'pnl_report_snapshots_margin_provenance_check'
-      and conrelid = 'public.pnl_report_snapshots'::regclass
-  ) then
-    alter table public.pnl_report_snapshots
-    add constraint pnl_report_snapshots_margin_provenance_check
-    check (
-      (
-        margin_debt_usd is null
-        and margin_debt_event_id is null
-        and margin_debt_effective_at is null
-        and margin_debt_basis is null
-      )
-      or
-      (
-        margin_debt_usd = 0
-        and margin_debt_event_id is null
-        and margin_debt_effective_at is null
-        and margin_debt_basis = 'default_zero'
-      )
-      or
-      (
-        margin_debt_usd is not null
-        and margin_debt_usd >= 0
-        and margin_debt_event_id is not null
-        and margin_debt_effective_at is not null
-        and margin_debt_basis = 'event'
-      )
-    );
-  end if;
-end;
-$$;
-
-do $$
-declare
-  started_at timestamptz;
-begin
   if exists (
     select 1
     from public.margin_status
@@ -319,6 +153,9 @@ begin
 end;
 $$;
 
+-- Mark only values already written by the current Home financing model.
+-- Legacy rows remain unmarked and will emit an activation event when the
+-- existing bounded CAS reset first moves them into logic version 2.
 update public.margin_status
 set logic_version = 2
 where (
@@ -328,51 +165,6 @@ where (
   and current_margin is not null
   and current_margin >= 0
   and logic_version is distinct from 2;
-
-create or replace function public.mark_pnl_report_dirty(
-  p_dirty_from_date date,
-  p_reason text default 'stock_trade_changed',
-  p_source_trade_id uuid default null
-)
-returns void
-language plpgsql
-security invoker
-set search_path = public
-as $$
-begin
-  if auth.uid() is null then
-    raise exception 'not authenticated';
-  end if;
-
-  if p_dirty_from_date is null then
-    raise exception 'dirty_from_date is required';
-  end if;
-
-  insert into public.pnl_report_rebuild_state (
-    user_id,
-    dirty_from_date,
-    reason,
-    source_trade_id,
-    updated_at
-  )
-  values (
-    auth.uid(),
-    p_dirty_from_date,
-    coalesce(nullif(p_reason, ''), 'stock_trade_changed'),
-    p_source_trade_id,
-    now()
-  )
-  on conflict (user_id) do update
-  set
-    dirty_from_date = least(
-      coalesce(public.pnl_report_rebuild_state.dirty_from_date, excluded.dirty_from_date),
-      excluded.dirty_from_date
-    ),
-    reason = excluded.reason,
-    source_trade_id = excluded.source_trade_id,
-    updated_at = now();
-end;
-$$;
 
 create or replace function public.capture_margin_debt_event()
 returns trigger
@@ -389,21 +181,26 @@ begin
   if new.current_margin is null or new.current_margin < 0 then
     raise exception 'margin debt must be a non-negative amount';
   end if;
+
   if auth.uid() is not null and auth.uid() <> new.user_id then
     raise exception 'margin debt owner mismatch';
   end if;
+
   if tg_op = 'UPDATE' then
     was_current := coalesce(old.logic_version, 0) = 2
       or old.updated_at > timestamptz '2026-07-21T20:35:57.000Z';
   end if;
   becomes_current := coalesce(new.logic_version, 0) = 2
     or new.updated_at > timestamptz '2026-07-21T20:35:57.000Z';
+
   if becomes_current then
     new.logic_version := 2;
   end if;
+
   if not becomes_current then
     return new;
   end if;
+
   if not was_current then
     event_source := 'status_activation';
   elsif old.current_margin is distinct from new.current_margin then
@@ -411,6 +208,7 @@ begin
   else
     return new;
   end if;
+
   insert into public.margin_debt_events (
     user_id,
     margin_debt_usd,
@@ -427,6 +225,7 @@ begin
     2,
     new.updated_at
   );
+
   return new;
 end;
 $$;
@@ -440,6 +239,87 @@ on public.margin_status;
 create trigger capture_margin_debt_event
 before insert or update on public.margin_status
 for each row execute function public.capture_margin_debt_event();
+
+alter table public.pnl_report_snapshots
+add column if not exists margin_debt_usd numeric(18, 6);
+
+alter table public.pnl_report_snapshots
+add column if not exists margin_debt_event_id bigint;
+
+alter table public.pnl_report_snapshots
+add column if not exists margin_debt_effective_at timestamptz;
+
+alter table public.pnl_report_snapshots
+add column if not exists margin_debt_basis text;
+
+alter table public.pnl_report_snapshots
+add column if not exists net_assets_usd numeric(18, 6)
+generated always as (
+  case
+    when margin_debt_usd is null then null
+    else total_assets_usd - margin_debt_usd
+  end
+) stored;
+
+alter table public.pnl_report_snapshots
+alter column source_version set default 'pnl_snapshot_v2';
+
+alter table public.pnl_report_symbol_snapshots
+alter column source_version set default 'pnl_snapshot_v2';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'pnl_report_snapshots_margin_debt_nonnegative_check'
+      and conrelid = 'public.pnl_report_snapshots'::regclass
+  ) then
+    alter table public.pnl_report_snapshots
+    add constraint pnl_report_snapshots_margin_debt_nonnegative_check
+    check (margin_debt_usd is null or margin_debt_usd >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'pnl_report_snapshots_margin_provenance_check'
+      and conrelid = 'public.pnl_report_snapshots'::regclass
+  ) then
+    alter table public.pnl_report_snapshots
+    add constraint pnl_report_snapshots_margin_provenance_check
+    check (
+      (
+        margin_debt_usd is null
+        and margin_debt_event_id is null
+        and margin_debt_effective_at is null
+        and margin_debt_basis is null
+      )
+      or
+      (
+        margin_debt_usd = 0
+        and margin_debt_event_id is null
+        and margin_debt_effective_at is null
+        and margin_debt_basis = 'default_zero'
+      )
+      or
+      (
+        margin_debt_usd is not null
+        and margin_debt_usd >= 0
+        and margin_debt_event_id is not null
+        and margin_debt_effective_at is not null
+        and margin_debt_basis = 'event'
+      )
+    );
+  end if;
+end;
+$$;
+
+comment on column public.pnl_report_snapshots.margin_debt_usd is
+'Debt at the fixed 17:00 America/New_York snapshot cutoff; NULL means unknown.';
+
+comment on column public.pnl_report_snapshots.net_assets_usd is
+'Generated exact net assets: total_assets_usd minus margin_debt_usd.';
 
 create or replace function public.protect_pnl_report_margin_snapshot()
 returns trigger
@@ -511,8 +391,9 @@ as $$
     select
       targets.user_id,
       targets.snapshot_date,
-      (targets.snapshot_date + time '17:00')
-        at time zone 'America/New_York' as cutoff_at,
+      (
+        targets.snapshot_date + time '17:00'
+      ) at time zone 'America/New_York' as cutoff_at,
       meta.history_started_at
     from targets
     cross join public.margin_debt_history_meta as meta
@@ -526,15 +407,21 @@ as $$
       when bounded.cutoff_at < bounded.history_started_at then null
       when event.id is null then 0
       else event.margin_debt_usd
-    end,
-    case when bounded.cutoff_at < bounded.history_started_at then null else event.id end,
-    case when bounded.cutoff_at < bounded.history_started_at then null else event.effective_at end,
+    end as margin_debt_usd,
+    case
+      when bounded.cutoff_at < bounded.history_started_at then null
+      else event.id
+    end as margin_debt_event_id,
+    case
+      when bounded.cutoff_at < bounded.history_started_at then null
+      else event.effective_at
+    end as margin_debt_effective_at,
     case
       when bounded.cutoff_at < bounded.history_started_at then null
       when event.id is null then 'default_zero'
       else 'event'
-    end,
-    bounded.cutoff_at >= bounded.history_started_at
+    end as margin_debt_basis,
+    bounded.cutoff_at >= bounded.history_started_at as known
   from bounded
   left join lateral (
     select candidate.id, candidate.margin_debt_usd, candidate.effective_at
@@ -557,9 +444,6 @@ alter table public.margin_debt_events enable row level security;
 alter table public.margin_debt_events force row level security;
 alter table public.margin_debt_history_meta enable row level security;
 alter table public.margin_debt_history_meta force row level security;
-alter table public.pnl_report_snapshots enable row level security;
-alter table public.pnl_report_symbol_snapshots enable row level security;
-alter table public.pnl_report_rebuild_state enable row level security;
 
 revoke all privileges on table public.margin_debt_events
 from public, anon, authenticated, service_role;
@@ -575,30 +459,6 @@ to service_role;
 
 revoke all privileges on sequence public.margin_debt_events_id_seq
 from public, anon, authenticated, service_role;
-
-drop policy if exists "users can manage own pnl report snapshots" on public.pnl_report_snapshots;
-create policy "users can manage own pnl report snapshots"
-on public.pnl_report_snapshots
-for all
-to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists "users can manage own pnl report symbol snapshots" on public.pnl_report_symbol_snapshots;
-create policy "users can manage own pnl report symbol snapshots"
-on public.pnl_report_symbol_snapshots
-for all
-to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists "users can manage own pnl report rebuild state" on public.pnl_report_rebuild_state;
-create policy "users can manage own pnl report rebuild state"
-on public.pnl_report_rebuild_state
-for all
-to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
 
 notify pgrst, 'reload schema';
 
