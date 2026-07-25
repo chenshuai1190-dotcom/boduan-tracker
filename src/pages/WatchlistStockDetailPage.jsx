@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import CompanyValuationCard from '../components/CompanyValuationCard.jsx';
+import Ma200RetestHistoryCard from '../components/Ma200RetestHistoryCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/earningsCalendarRefresh.js';
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
@@ -1457,7 +1458,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       document.querySelector(`[data-watchlist-detail-section="${watchlistStockDetailFocusSection}"]`)?.scrollIntoView({ block: 'start' });
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [loading, watchlistStockDetailFocusSection]);
+  }, [loading, stockDetail?.ma200RetestHistory, watchlistStockDetailFocusSection]);
 
   const history = React.useMemo(() => normalizeStockDetailHistory(stockDetail?.history), [stockDetail?.history]);
   const qqqComparisonHistory = React.useMemo(() => (
@@ -1718,6 +1719,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           )}
         </div>
       </section>
+
+      <Ma200RetestHistoryCard
+        data={stockDetail?.ma200RetestHistory}
+        language={language}
+        marketColorMode={marketColorMode}
+      />
 
       <CompanyValuationCard
         data={valuation}

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.382', date: '2026-07-25', latest: true,
+    ver: 'v10.7.9.383', date: '2026-07-26', latest: true,
+    items: [
+      '📈 股票趋势新增 MA200 日线回踩历史',
+      '  - “关键指标”下方新增近 5 次回踩统计，集中展示恢复率、平均反弹、平均回踩、恢复天数及逐次结果',
+      '  - 全部结果使用真实复权日收盘和 200 个交易日均线计算；事件观察 20 个交易日，未完成事件不计入汇总',
+      '  - 紧凑表格保留真实回踩与反弹路径，底部对照每次幅度；仅为历史统计，不代表未来表现，也不改变持仓、交易、收益或比赛账本',
+    ],
+    itemsEn: [
+      '📈 Daily MA200 retest history added to Stock Trend',
+      '  - A latest-five retest section below Key Metrics now summarizes recovery rate, average rebound, average depth, recovery time, and every outcome',
+      '  - Every result is calculated from real adjusted daily closes and a 200-session moving average; each event is observed for 20 trading sessions and incomplete events stay out of the summary',
+      '  - The compact table keeps the actual retest and rebound path with a per-event comparison chart; these are historical statistics only and do not change holdings, trades, P&L, or competition ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.382', date: '2026-07-25',
     items: [
       '🛠️ 收益报表净资产历史修复闭环',
       '  - 已核验融资记录从原持久化时间起生效，补齐 7 月 23 日和 7 月 24 日快照的融资负债与净资产；更早的 7 月 22 日继续保持未知',

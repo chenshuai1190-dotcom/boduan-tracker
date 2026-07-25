@@ -7,6 +7,12 @@ const DAILY_MA_WINDOW = 200;
 const WEEKLY_MA_WINDOW = 200;
 const WEEKLY_MA_TREND_WEEKS = 4;
 const WEEKLY_HISTORY_YEARS = 5;
+const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v1';
+const MA200_RETEST_LOOKBACK_YEARS = 5;
+const MA200_RETEST_PREPARE_DAYS = 5;
+const MA200_RETEST_PREPARE_DISTANCE = 0.03;
+const MA200_RETEST_OBSERVATION_DAYS = 20;
+const MA200_RETEST_RESOLVED_LIMIT = 5;
 
 function positiveNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -31,6 +37,10 @@ function shiftDateKey(dateKey, days) {
 
 function mean(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function averageOrNull(values) {
+  return values.length > 0 ? mean(values) : null;
 }
 
 function shiftYearKey(dateKey, years) {
@@ -221,6 +231,194 @@ function buildDailyHistory(normalizedRows) {
   });
 }
 
+function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
+  return {
+    algorithmVersion: MA200_RETEST_ALGORITHM_VERSION,
+    asOfDate,
+    status,
+    basis: 'adjusted_close',
+    maWindowTradingDays: DAILY_MA_WINDOW,
+    observationTradingDays: MA200_RETEST_OBSERVATION_DAYS,
+    lookbackYears: MA200_RETEST_LOOKBACK_YEARS,
+    summary: {
+      resolvedSampleSize: 0,
+      recoveredCount: 0,
+      recoveryRatePct: null,
+      averageRetestDepthPct: null,
+      averageMaxReboundPct: null,
+      averageRecoveryTradingDays: null,
+    },
+    events: [],
+  };
+}
+
+function isPreparedAboveMa200(row) {
+  return Number.isFinite(row?.ma200)
+    && row.ma200 > 0
+    && row.close >= row.ma200 * (1 + MA200_RETEST_PREPARE_DISTANCE);
+}
+
+function isAboveMa200(row) {
+  return Number.isFinite(row?.ma200)
+    && row.ma200 > 0
+    && row.close > row.ma200;
+}
+
+function findMa200RetestTriggerIndexes(allHistory) {
+  const triggerIndexes = [];
+  let preparedStreak = 0;
+  let armed = false;
+
+  for (let index = 0; index < allHistory.length; index += 1) {
+    const row = allHistory[index];
+    if (!Number.isFinite(row?.ma200) || row.ma200 <= 0) {
+      preparedStreak = 0;
+      armed = false;
+      continue;
+    }
+
+    if (armed && row.close <= row.ma200) {
+      triggerIndexes.push(index);
+      preparedStreak = 0;
+      armed = false;
+      continue;
+    }
+
+    if (isPreparedAboveMa200(row)) {
+      preparedStreak += 1;
+      if (preparedStreak >= MA200_RETEST_PREPARE_DAYS) armed = true;
+    } else if (!armed) {
+      preparedStreak = 0;
+    }
+  }
+
+  return triggerIndexes;
+}
+
+function findRecoveryConfirmationIndex(allHistory, triggerIndex, observedTradingDays) {
+  const observationEndIndex = triggerIndex + observedTradingDays;
+  for (let index = triggerIndex + 2; index <= observationEndIndex; index += 1) {
+    if (isAboveMa200(allHistory[index - 1]) && isAboveMa200(allHistory[index])) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function buildMa200RetestEvent(allHistory, triggerIndex) {
+  const trigger = allHistory[triggerIndex];
+  const observedTradingDays = Math.min(
+    MA200_RETEST_OBSERVATION_DAYS,
+    allHistory.length - triggerIndex - 1,
+  );
+  const complete = observedTradingDays === MA200_RETEST_OBSERVATION_DAYS;
+  const observationEndIndex = triggerIndex + observedTradingDays;
+  const recoveryConfirmationIndex = findRecoveryConfirmationIndex(
+    allHistory,
+    triggerIndex,
+    observedTradingDays,
+  );
+  const recovered = recoveryConfirmationIndex >= 0;
+  const depthEndIndex = recovered ? recoveryConfirmationIndex : observationEndIndex;
+  let lowIndex = triggerIndex;
+  let lowestDistance = (trigger.close / trigger.ma200) - 1;
+
+  for (let index = triggerIndex + 1; index <= depthEndIndex; index += 1) {
+    const row = allHistory[index];
+    const distance = (row.close / row.ma200) - 1;
+    if (distance < lowestDistance) {
+      lowestDistance = distance;
+      lowIndex = index;
+    }
+  }
+
+  const lowRow = allHistory[lowIndex];
+  let reboundHigh = lowRow.close;
+  for (let index = lowIndex + 1; index <= observationEndIndex; index += 1) {
+    reboundHigh = Math.max(reboundHigh, allHistory[index].close);
+  }
+
+  const seriesStartIndex = Math.max(0, triggerIndex - MA200_RETEST_PREPARE_DAYS);
+  const series = allHistory
+    .slice(seriesStartIndex, observationEndIndex + 1)
+    .map((row) => ({
+      date: row.date,
+      close: row.close,
+      ma200: row.ma200,
+    }));
+
+  return {
+    triggerDate: trigger.date,
+    status: complete ? (recovered ? 'recovered' : 'failed') : 'observing',
+    triggerClose: trigger.close,
+    triggerMa200: trigger.ma200,
+    retestDepthPct: lowestDistance * 100,
+    maxReboundPct: ((reboundHigh / lowRow.close) - 1) * 100,
+    recoveryTradingDays: recovered ? recoveryConfirmationIndex - triggerIndex : null,
+    recoveryDate: recovered ? allHistory[recoveryConfirmationIndex].date : '',
+    lowDate: lowRow.date,
+    observedTradingDays,
+    observationEndDate: allHistory[observationEndIndex].date,
+    series,
+  };
+}
+
+function buildMa200RetestHistory(allHistory, latestDate) {
+  const availableMaRows = allHistory.filter((row) => Number.isFinite(row.ma200));
+  if (!latestDate || availableMaRows.length < MA200_RETEST_PREPARE_DAYS + 1) {
+    return emptyMa200RetestHistory(latestDate);
+  }
+
+  const lookbackStart = shiftYearKey(latestDate, -MA200_RETEST_LOOKBACK_YEARS);
+  const recentEvents = findMa200RetestTriggerIndexes(allHistory)
+    .filter((index) => allHistory[index].date >= lookbackStart)
+    .map((index) => buildMa200RetestEvent(allHistory, index));
+
+  if (recentEvents.length === 0) {
+    return emptyMa200RetestHistory(latestDate, 'no_events');
+  }
+
+  const resolvedEvents = recentEvents
+    .filter((event) => event.status !== 'observing')
+    .slice(-MA200_RETEST_RESOLVED_LIMIT);
+  const latestObservingEvent = recentEvents
+    .filter((event) => event.status === 'observing')
+    .at(-1);
+  const recoveredEvents = resolvedEvents.filter((event) => event.status === 'recovered');
+  const resolvedSampleSize = resolvedEvents.length;
+  const events = [
+    ...(latestObservingEvent ? [latestObservingEvent] : []),
+    ...resolvedEvents.slice().reverse(),
+  ].sort((left, right) => right.triggerDate.localeCompare(left.triggerDate));
+
+  return {
+    algorithmVersion: MA200_RETEST_ALGORITHM_VERSION,
+    asOfDate: latestDate,
+    status: 'ready',
+    basis: 'adjusted_close',
+    maWindowTradingDays: DAILY_MA_WINDOW,
+    observationTradingDays: MA200_RETEST_OBSERVATION_DAYS,
+    lookbackYears: MA200_RETEST_LOOKBACK_YEARS,
+    summary: {
+      resolvedSampleSize,
+      recoveredCount: recoveredEvents.length,
+      recoveryRatePct: resolvedSampleSize > 0
+        ? (recoveredEvents.length / resolvedSampleSize) * 100
+        : null,
+      averageRetestDepthPct: averageOrNull(
+        resolvedEvents.map((event) => event.retestDepthPct),
+      ),
+      averageMaxReboundPct: averageOrNull(
+        resolvedEvents.map((event) => event.maxReboundPct),
+      ),
+      averageRecoveryTradingDays: averageOrNull(
+        recoveredEvents.map((event) => event.recoveryTradingDays),
+      ),
+    },
+    events,
+  };
+}
+
 export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
   const cutoffDate = validDateKey(asOfDate);
   if (!cutoffDate) {
@@ -231,6 +429,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
       asOfDate: '',
       history: [],
       weeklyHistory: [],
+      ma200RetestHistory: emptyMa200RetestHistory(),
       indicators: {
         week52High: null,
         ma200: null,
@@ -262,6 +461,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
     : null;
   const ma200 = allHistory.at(-1)?.ma200 ?? null;
   const weeklyDetail = buildWeeklyDetail(normalizedRows, cutoffDate);
+  const ma200RetestHistory = buildMa200RetestHistory(allHistory, latestDate);
 
   return {
     source: 'EODHD_EOD',
@@ -270,6 +470,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
     asOfDate: latestDate,
     history,
     weeklyHistory: weeklyDetail.weeklyHistory,
+    ma200RetestHistory,
     indicators: {
       week52High: Number.isFinite(week52High) ? week52High : null,
       ma200: Number.isFinite(ma200) ? ma200 : null,

@@ -1466,6 +1466,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
   });
+  const visualViewportWidth = React.useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const value = Number(new URLSearchParams(window.location.search).get('visualWidth'));
+    return Number.isFinite(value) && value >= 320 && value <= 430
+      ? Math.round(value)
+      : null;
+  }, []);
   const [marketColorMode, setMarketColorMode] = React.useState('redUpGreenDown');
   const pnlReportTooltipDate = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -1522,8 +1529,33 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('targetEditor') === '1';
   const watchlistDetailValuationTooltipOpen = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('valuationTooltip') === '1';
+  const ma200LivePreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('ma200Live') === '1';
   const watchlistFundCompositionPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'watchlist-fund-composition';
+  const [ma200LiveStockDetail, setMa200LiveStockDetail] = React.useState(null);
+  React.useEffect(() => {
+    if (!ma200LivePreview) {
+      setMa200LiveStockDetail(null);
+      return undefined;
+    }
+    let active = true;
+    fetch(`http://${window.location.hostname}:4175/stock-detail?symbol=NVDA`, { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json().catch(() => null);
+        if (!response.ok || body?.ok !== true || !body?.stockDetail) {
+          throw new Error(body?.error || 'real MA200 preview unavailable');
+        }
+        if (active) setMa200LiveStockDetail(body.stockDetail);
+      })
+      .catch((error) => {
+        console.warn('[DevVisualPreview] real MA200 preview unavailable:', error?.message || error);
+        if (active) setMa200LiveStockDetail(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [ma200LivePreview]);
   const [expandedTrades, setExpandedTrades] = React.useState({});
   const [expandedWaves, setExpandedWaves] = React.useState({});
   const [waveNotes, setWaveNotes] = React.useState({});
@@ -2344,7 +2376,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setWatchlistDetailTargetUsd(Number(targetPriceUsd));
       return { success: true, targetPriceUsd: Number(targetPriceUsd) };
     },
-    watchlistStockDetailDataOverride: mockWatchlistStockDetailData,
+    watchlistStockDetailDataOverride: ma200LiveStockDetail
+      ? { ...mockWatchlistStockDetailData, ...ma200LiveStockDetail }
+      : mockWatchlistStockDetailData,
     watchlistStockDetailEarningsOverride: mockWatchlistStockDetailEarnings,
     watchlistStockDetailFundCompositionOverride: watchlistFundCompositionPreview
       ? mockTqqqFundComposition
@@ -2578,7 +2612,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   return (
     <div
       className={`min-h-screen bg-[#05070b] text-white ${activeTab === 'pnl-report' ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
-      style={{ paddingTop: ['home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      style={{
+        paddingTop: ['home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        ...(visualViewportWidth
+          ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
+          : {}),
+      }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
