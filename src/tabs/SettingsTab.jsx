@@ -29,7 +29,7 @@ import {
 import { normalizeLanguage, t } from '../lib/i18n.js';
 import { MARKET_COLOR_MODES, normalizeMarketColorMode } from '../lib/marketColorMode.js';
 
-const SETTINGS_VERSION = 'v10.7.9.394';
+const SETTINGS_VERSION = 'v10.7.9.395';
 
 function communityAvatarImageClass() {
   return 'scale-[1.15]';

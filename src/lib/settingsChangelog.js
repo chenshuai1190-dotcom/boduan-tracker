@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.394', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.395', date: '2026-07-26', latest: true,
+    items: [
+      '📊 季度业绩趋势恢复卡片内布局',
+      '  - 季度图恢复为与年度图一致的画布、柱宽和间距，最近 6 个完整季度全部显示在卡片内',
+      '  - 取消季度图横向滚动和自动右移，四位数营收与净利润标签不再因固定宽画布而越界',
+      '  - 仅调整展示布局；SEC 历史数据、季度范围、缓存和财报计算口径均保持不变',
+    ],
+    itemsEn: [
+      '📊 Restored the quarterly performance trend to the card layout',
+      '  - The quarterly chart now uses the same canvas, bar width, and spacing as the annual chart, keeping the latest six complete quarters inside the card',
+      '  - Horizontal scrolling and automatic right alignment are removed so four-digit revenue and net-income labels no longer overflow a fixed-width canvas',
+      '  - This is presentation-only; SEC history data, the quarterly window, cache, and earnings calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.394', date: '2026-07-26',
     items: [
       '📊 季度业绩趋势排版优化',
       '  - 季度图改为展示最近 6 个完整季度，并按时间顺序重新均分横向空间，季度之间更清晰',

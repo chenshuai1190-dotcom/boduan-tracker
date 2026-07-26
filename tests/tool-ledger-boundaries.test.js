@@ -625,8 +625,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.394'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.394', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.395'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.395', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('季度业绩趋势排版优化') && settingsChangelogSource.includes('最近 6 个完整季度') && settingsChangelogSource.includes('季度柱宽统一为 18px') && settingsChangelogSource.includes('8 季度源数据、缓存和财报计算口径均保持不变'), 'settings changelog should document the six-quarter display window and unchanged data boundaries');
   assert.ok(settingsChangelogSource.includes('财报历史财期读取修复') && settingsChangelogSource.includes('已核验的 SEC 收入口径迁移') && settingsChangelogSource.includes('比较期重报不会冒充最新季度') && settingsChangelogSource.includes('schema 与本地缓存同步升级') && settingsChangelogSource.includes('不修改财报公布值、数据库、交易、持仓、收益或比赛数据'), 'settings changelog should document the earnings-history freshness repair and unchanged data boundaries');
   assert.ok(settingsChangelogSource.includes('财报详情增加业绩趋势') && settingsChangelogSource.includes('近 6 个完整财年') && settingsChangelogSource.includes('近 8 个完整季度') && settingsChangelogSource.includes('SEC Company Facts') && settingsChangelogSource.includes('不修改数据库、交易、持仓、收益或比赛数据'), 'settings changelog should document the official earnings-growth release and its data boundaries');
@@ -2540,7 +2540,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.394'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.395'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -16,7 +16,7 @@ const REVENUE_COLOR = '#5e8ff5';
 const PROFIT_COLOR = '#69c34a';
 const ACCENT_COLOR = '#e7aa49';
 const ANNUAL_CHART_WIDTH = 356;
-const QUARTERLY_CHART_WIDTH = 480;
+const QUARTERLY_CHART_WIDTH = 356;
 const CHART_HEIGHT = 185;
 
 function finiteOrNull(value) {
@@ -224,7 +224,6 @@ function GrowthChart({
   onSelect,
   currency,
   language,
-  scrollRef,
 }) {
   const width = mode === 'quarterly' ? QUARTERLY_CHART_WIDTH : ANNUAL_CHART_WIDTH;
   const chart = React.useMemo(
@@ -241,18 +240,12 @@ function GrowthChart({
 
   return (
     <div
-      ref={scrollRef}
-      className={mode === 'quarterly'
-        ? 'overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-        : 'overflow-visible'}
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      className="overflow-visible"
       data-earnings-growth-chart-scroll={mode}
     >
       <svg
         viewBox={`0 0 ${chart.width} ${chart.height}`}
-        className={mode === 'quarterly'
-          ? 'block h-[185px] w-[480px] max-w-none overflow-visible'
-          : 'block h-auto w-full overflow-visible'}
+        className="block h-auto w-full overflow-visible"
         role="img"
         aria-label={languageIsEnglish(language)
           ? `${mode === 'annual' ? 'Annual' : 'Quarterly'} revenue and net income chart`
@@ -437,7 +430,6 @@ export default function EarningsGrowthCard({
   className = '',
 }) {
   const rootRef = React.useRef(null);
-  const quarterlyScrollRef = React.useRef(null);
   const normalizedOverride = React.useMemo(
     () => (dataOverride ? normalizeEarningsGrowthPayload(dataOverride, symbol) : null),
     [dataOverride, symbol],
@@ -512,15 +504,6 @@ export default function EarningsGrowthCard({
       return next;
     });
   }, [data]);
-
-  React.useEffect(() => {
-    if (mode !== 'quarterly' || !quarterlyReady) return undefined;
-    const frame = requestAnimationFrame(() => {
-      const node = quarterlyScrollRef.current;
-      if (node) node.scrollLeft = Math.max(0, node.scrollWidth - node.clientWidth - 18);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [mode, quarterlyReady]);
 
   const periods = earningsGrowthVisiblePeriods(data, mode);
   const selectedKey = selectedByMode[mode];
@@ -647,7 +630,6 @@ export default function EarningsGrowthCard({
           onSelect={(key) => setSelectedByMode((current) => ({ ...current, [mode]: key }))}
           currency={data.currency}
           language={language}
-          scrollRef={mode === 'quarterly' ? quarterlyScrollRef : undefined}
         />
       </div>
 

@@ -292,7 +292,7 @@ function niceStep(value) {
 
 export function buildEarningsGrowthChartGeometry(periods, {
   mode = 'annual',
-  width = mode === 'quarterly' ? 480 : 356,
+  width = 356,
   height = 185,
 } = {}) {
   const rows = (Array.isArray(periods) ? periods : [])
@@ -317,14 +317,8 @@ export function buildEarningsGrowthChartGeometry(periods, {
     margin.top + ((domainMax - value) / (domainMax - domainMin)) * plotHeight
   );
   const groupWidth = plotWidth / rows.length;
-  const quarterly = mode === 'quarterly';
-  const barWidth = Math.min(
-    quarterly ? 18 : 16,
-    groupWidth * (quarterly ? 0.34 : 0.31),
-  );
-  const barGap = quarterly
-    ? Math.max(9, Math.min(10, groupWidth * 0.15))
-    : Math.max(4, Math.min(6, groupWidth * 0.1));
+  const barWidth = Math.min(16, groupWidth * 0.31);
+  const barGap = Math.max(4, Math.min(6, groupWidth * 0.1));
   const zeroY = y(0);
   const groups = rows.map((period, index) => {
     const centerX = margin.left + groupWidth * (index + 0.5);

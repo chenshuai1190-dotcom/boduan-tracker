@@ -229,7 +229,7 @@ test('chart labels keep a consistent distance from positive bars and grouped bar
   }
 });
 
-test('six visible quarters leave enough room between adjacent four-digit labels', () => {
+test('six visible quarters stay inside the card without a horizontal scroller', () => {
   const rows = Array.from({ length: 8 }, (_, index) => period(`FY202${index}`, {
     fiscalQuarter: `Q${(index % 4) + 1}`,
     revenue: 1_198 + index,
@@ -242,20 +242,31 @@ test('six visible quarters leave enough room between adjacent four-digit labels'
   assert.equal(visible[0], rows[2]);
   const chart = buildEarningsGrowthChartGeometry(visible, {
     mode: 'quarterly',
-    width: 480,
+    width: 356,
     height: 185,
   });
+  const annualGeometry = buildEarningsGrowthChartGeometry(visible, {
+    mode: 'annual',
+    width: 356,
+    height: 185,
+  });
+  assert.equal(chart.width, 356);
   chart.groups.forEach((group, index) => {
     const revenueCenter = group.revenue.x + group.revenue.width / 2;
     const netIncomeCenter = group.netIncome.x + group.netIncome.width / 2;
-    assert.equal(group.revenue.width, 18);
-    assert.equal(group.netIncome.width, 18);
-    assert.ok(netIncomeCenter - revenueCenter >= 28);
+    assert.equal(group.revenue.width, annualGeometry.groups[index].revenue.width);
+    assert.equal(group.netIncome.width, annualGeometry.groups[index].netIncome.width);
+    assert.equal(group.revenue.x, annualGeometry.groups[index].revenue.x);
+    assert.equal(group.netIncome.x, annualGeometry.groups[index].netIncome.x);
+    assert.equal(group.centerX, annualGeometry.groups[index].centerX);
+    assert.ok(group.revenue.x >= chart.left);
+    assert.ok(group.netIncome.x + group.netIncome.width <= chart.width - chart.right);
     if (index > 0) {
       const previous = chart.groups[index - 1];
       const previousNetIncomeCenter = previous.netIncome.x + previous.netIncome.width / 2;
-      assert.ok(revenueCenter - previousNetIncomeCenter >= 40);
+      assert.ok(revenueCenter - previousNetIncomeCenter >= 30);
     }
+    assert.ok(netIncomeCenter > revenueCenter);
   });
 });
 
@@ -470,6 +481,8 @@ test('earnings growth component keeps the confirmed mobile interaction contract'
   assert.equal(componentSource.includes('sourceText('), false);
   assert.equal(componentSource.includes('SEC 公司事实'), false);
   assert.equal(componentSource.includes('role="dialog"'), false);
-  assert.ok(componentSource.includes('const QUARTERLY_CHART_WIDTH = 480'));
+  assert.ok(componentSource.includes('const QUARTERLY_CHART_WIDTH = 356'));
   assert.ok(componentSource.includes("earningsGrowthVisiblePeriods(data, mode)"));
+  assert.equal(componentSource.includes('overflow-x-auto'), false);
+  assert.equal(componentSource.includes('scrollLeft ='), false);
 });
