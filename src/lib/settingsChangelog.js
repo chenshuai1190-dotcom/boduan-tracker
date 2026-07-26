@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.389', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.390', date: '2026-07-26', latest: true,
+    items: [
+      '📅 首页财报股票直达详情',
+      '  - 首页财报日历中的已公布股票改为直接进入对应财报详情，返回时恢复首页原滚动位置',
+      '  - 尚未公布财报的股票继续进入对应日期列表，避免进入不存在的报告或出现点击无响应',
+      '  - “全部”、日历视图及现有详情数据保持不变；不修改财报接口、缓存、公布判断或官方数据解析',
+    ],
+    itemsEn: [
+      '📅 Home earnings stocks now open report details directly',
+      '  - Published stocks in the Home earnings calendar now open their matching earnings detail and return to the original Home scroll position',
+      '  - Unpublished stocks continue to open their matching date list so taps never lead to a nonexistent report or a dead action',
+      '  - All, calendar view, and existing detail data remain unchanged; earnings APIs, caches, publication rules, and official-data parsing are untouched',
+    ],
+  },
+  {
+    ver: 'v10.7.9.389', date: '2026-07-26',
     items: [
       '🎨 MA200 回踩界面细节优化',
       '  - 回踩详情标题改为弹层内几何居中，不再受右侧关闭按钮影响',

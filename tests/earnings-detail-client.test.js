@@ -12,6 +12,7 @@ import {
 } from '../src/lib/earningsDetail.js';
 const appSource = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const calendarSource = fs.readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
+const homeTabSource = fs.readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const calendarPageSource = fs.readFileSync(new URL('../src/pages/EarningsCalendarPage.jsx', import.meta.url), 'utf8');
 const detailPageSource = fs.readFileSync(new URL('../src/pages/EarningsDetailPage.jsx', import.meta.url), 'utf8');
 
@@ -129,6 +130,20 @@ test('earnings calendar and detail are standalone pages that retain the global b
   assert.ok(calendarSource.includes('onOpenDetail={onOpenDetail}'));
   assert.ok(appSource.includes("setActivePage('earnings-calendar')"));
   assert.ok(appSource.includes("setActivePage('earnings-detail')"));
+});
+
+test('home earnings preview opens published reports directly and returns to Home', () => {
+  assert.ok(homeTabSource.includes('openEarningsDetail,'));
+  assert.ok(homeTabSource.includes("onOpenDetail={(event) => openEarningsDetail(event, { returnPage: 'home' })}"));
+  assert.ok(calendarSource.includes('const openPreviewEvent = (event) => {'));
+  assert.ok(calendarSource.includes("if (isEarningsPublished(event) && typeof onOpenDetail === 'function')"));
+  assert.ok(calendarSource.includes('onOpenDetail(event);'));
+  assert.ok(calendarSource.includes("openModal('list', event.reportDate);"));
+  assert.ok(calendarSource.includes('onClick={() => openPreviewEvent(event)}'));
+  assert.ok(appSource.includes("returnPage === 'home'"));
+  assert.ok(appSource.includes("if (earningsDetailReturnPage === 'home')"));
+  assert.ok(appSource.includes('pendingHomeScrollTopRef.current = homeScrollTopBeforeEarningsRef.current;'));
+  assert.ok(appSource.includes('setActivePage(null);'));
 });
 
 test('production detail renders every official section without screenshot or share controls', () => {

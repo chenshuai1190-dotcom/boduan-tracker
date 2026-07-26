@@ -504,6 +504,7 @@ export default function HomeTab({ ctx }) {
     newStock,
     openHomeMarginRisk,
     openEarningsCalendar,
+    openEarningsDetail,
     openPnlReport,
     openWatchlistStockDetail,
     portfolioCurrencyMode,
@@ -1420,6 +1421,7 @@ export default function HomeTab({ ctx }) {
         requestEventsOverride={earningsCalendarRequest}
         now={earningsCalendarNow || Date.now}
         onOpenCalendar={openEarningsCalendar}
+        onOpenDetail={(event) => openEarningsDetail(event, { returnPage: 'home' })}
         onPromotionChange={setPromoteEarningsCalendar}
         placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}
       />

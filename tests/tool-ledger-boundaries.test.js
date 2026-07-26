@@ -614,8 +614,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.389'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.389', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.390'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.390', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('首页财报股票直达详情') && settingsChangelogSource.includes('已公布股票改为直接进入对应财报详情') && settingsChangelogSource.includes('尚未公布财报的股票继续进入对应日期列表') && settingsChangelogSource.includes('不修改财报接口、缓存、公布判断或官方数据解析'), 'settings changelog should document direct Home earnings-detail navigation without changing earnings data boundaries');
   assert.ok(settingsChangelogSource.includes('MA200 回踩界面细节优化') && settingsChangelogSource.includes('弹层内几何居中') && settingsChangelogSource.includes('四位年份的 YYYY/MM 日期') && settingsChangelogSource.includes('移除“回踩历史（MA200）”标题后的说明图标') && settingsChangelogSource.includes('不改变回踩触发、20 日恢复、60 日结果或其他业务数据'), 'settings changelog should document the display-only retest title, date, and icon refinements');
   assert.ok(settingsChangelogSource.includes('MA200 回踩增加当前周期状态') && settingsChangelogSource.includes('等待趋势重置') && settingsChangelogSource.includes('不重复生成回踩记录') && settingsChangelogSource.includes('重新连续 5 日收盘高出日线 MA200 至少 3%') && settingsChangelogSource.includes('daily-ma200-retest-v5') && settingsChangelogSource.includes('20 日恢复、60 日结果和近 5 次汇总保持不变'), 'settings changelog should document the parallel current-cycle state without changing historical MA200 results');
   assert.ok(settingsChangelogSource.includes('MA200 单次回踩增加完整走势详情') && settingsChangelogSource.includes('触发前 5 日到触发后 60 个交易日') && settingsChangelogSource.includes('分别展示最低价格与日期、距 MA200 最深位置以及第 60 日结果') && settingsChangelogSource.includes('不增加行情请求') && settingsChangelogSource.includes('不改变持仓、交易、收益、比赛或数据库数据'), 'settings changelog should document the MA200 retest detail release boundaries');
@@ -807,8 +808,11 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('events.filter((event) => isEarningsVisible(event, today)).slice(0, 80)'), 'earnings calendar list view should filter out previous-quarter history while keeping the calendar review data');
   assert.ok(earningsCalendarSource.includes("const [modalView, setModalView] = React.useState(initialView === 'calendar' ? 'calendar' : 'list')"), 'earnings calendar should initialize from its persisted standalone view while defaulting to list view');
   assert.ok(earningsCalendarSource.includes("const openModal = (view = 'list', date = null)"), 'earnings calendar modal should use list view as its default open mode');
-  assert.equal(earningsCalendarSource.includes("openModal('calendar', event.reportDate)"), false, 'earnings preview company cards should no longer force calendar view');
-  assert.ok(earningsCalendarSource.includes("openModal('list', event.reportDate)"), 'earnings preview company cards should open list view while retaining their date for later calendar switching');
+  assert.equal(earningsCalendarSource.includes("openModal('calendar', event.reportDate)"), false, 'earnings preview company cards should never force calendar view');
+  assert.ok(earningsCalendarSource.includes('const openPreviewEvent = (event) => {') && earningsCalendarSource.includes("if (isEarningsPublished(event) && typeof onOpenDetail === 'function')") && earningsCalendarSource.includes('onOpenDetail(event);'), 'published Home earnings preview cards should open the existing detail page');
+  assert.ok(earningsCalendarSource.includes("openModal('list', event.reportDate)"), 'unpublished Home earnings preview cards should keep the matching date-list fallback');
+  assert.ok(homeTabSource.includes("onOpenDetail={(event) => openEarningsDetail(event, { returnPage: 'home' })}"), 'Home earnings details should retain Home as their return destination');
+  assert.ok(appSource.includes("if (earningsDetailReturnPage === 'home')") && appSource.includes('pendingHomeScrollTopRef.current = homeScrollTopBeforeEarningsRef.current;'), 'closing a Home-opened earnings detail should restore the original Home position');
   assert.ok(earningsCalendarSource.includes("onClick={() => openModal('calendar')}"), 'the explicit calendar shortcut should continue to open calendar view');
   assert.equal(earningsCalendarSource.includes('const listEvents = React.useMemo(() => events.slice(0, 80), [events]);'), false, 'earnings calendar list view should not render the raw full event set');
   assert.ok(earningsCalendarSource.includes('events={events}'), 'earnings calendar modal should receive the full fetched event set instead of only homepage-visible rows');
@@ -2521,7 +2525,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.389'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.390'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

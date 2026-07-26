@@ -1219,6 +1219,14 @@ export default function EarningsCalendar({
     refreshBindingRef.current?.request('modal-open');
   };
 
+  const openPreviewEvent = (event) => {
+    if (isEarningsPublished(event) && typeof onOpenDetail === 'function') {
+      onOpenDetail(event);
+      return;
+    }
+    openModal('list', event.reportDate);
+  };
+
   if (standalone) {
     return (
       <EarningsModal
@@ -1280,7 +1288,7 @@ export default function EarningsCalendar({
               <button
                 key={event.id}
                 type="button"
-                onClick={() => openModal('list', event.reportDate)}
+                onClick={() => openPreviewEvent(event)}
                 className={`flex min-w-0 flex-col items-center justify-center rounded-xl px-1 py-1.5 active:scale-[0.98] ${
                   index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''
                 }`}

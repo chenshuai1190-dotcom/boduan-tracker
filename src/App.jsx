@@ -4498,16 +4498,28 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     if (!event?.symbol || !isEarningsPublished(event)) return;
     const nextReturnPage = returnPage === 'watchlist-stock-detail'
       ? 'watchlist-stock-detail'
-      : 'earnings-calendar';
+      : returnPage === 'home'
+        ? 'home'
+        : 'earnings-calendar';
+    if (nextReturnPage === 'home' && activeTab === 'home' && activePage === null) {
+      homeScrollTopBeforeEarningsRef.current = readRootScrollTop();
+      pendingHomeScrollTopRef.current = null;
+    }
     setEarningsDetailReturnPage(nextReturnPage);
     if (nextReturnPage === 'watchlist-stock-detail') setWatchlistStockDetailFocusSection('');
     setEarningsDetailEvent(event);
     setActivePage('earnings-detail');
-  }, []);
+  }, [activePage, activeTab]);
   const closeEarningsDetail = useCallback(() => {
     if (earningsDetailReturnPage === 'watchlist-stock-detail' && watchlistStockDetailSymbol) {
       setWatchlistStockDetailFocusSection('earnings');
       setActivePage('watchlist-stock-detail');
+      return;
+    }
+    if (earningsDetailReturnPage === 'home') {
+      pendingHomeScrollTopRef.current = homeScrollTopBeforeEarningsRef.current;
+      setEarningsDetailEvent(null);
+      setActivePage(null);
       return;
     }
     setActivePage('earnings-calendar');
