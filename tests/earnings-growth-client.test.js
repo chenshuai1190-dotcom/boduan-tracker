@@ -320,5 +320,8 @@ test('earnings growth component keeps the confirmed mobile interaction contract'
   assert.equal(componentSource.includes("stroke={selected ? 'rgba(231,170,73,0.12)'"), false);
   assert.equal(componentSource.includes("bg-[#e7aa49]/[0.14]"), false);
   assert.equal(componentSource.includes("shadow-[inset_0_0_0_1px_rgba(231,170,73,0.25)]"), false);
+  assert.equal(componentSource.includes('<Info'), false);
+  assert.equal(componentSource.includes('sourceText('), false);
+  assert.equal(componentSource.includes('SEC 公司事实'), false);
   assert.equal(componentSource.includes('role="dialog"'), false);
 });

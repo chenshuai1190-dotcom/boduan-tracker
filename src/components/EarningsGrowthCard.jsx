@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
   buildEarningsGrowthChartGeometry,
   buildEarningsGrowthSummary,
@@ -128,14 +128,6 @@ function valueTone(value, marketColorMode) {
   return number === null || number === 0
     ? 'rgba(255,255,255,0.55)'
     : marketHexColor(number, marketColorMode);
-}
-
-function sourceText(source, language) {
-  const provider = String(source?.provider || '').trim().toUpperCase();
-  if (source?.label) return source.label;
-  if (provider.includes('SEC')) return languageIsEnglish(language) ? 'SEC Company Facts' : 'SEC 公司事实';
-  if (provider.includes('EODHD')) return languageIsEnglish(language) ? 'EODHD fundamentals' : 'EODHD 财务数据';
-  return provider || (languageIsEnglish(language) ? 'Financial filings' : '财务报告数据');
 }
 
 function useNearViewport(targetRef, eager, rootMargin) {
@@ -581,17 +573,9 @@ export default function EarningsGrowthCard({
     >
       <div className="flex items-start justify-between gap-3 px-[15px] pb-3 pt-[15px]">
         <div className="min-w-0">
-          <div className="flex items-center gap-[7px]">
-            <h2 className="truncate text-[16px] font-normal tracking-[0.01em] text-white/[0.88]">
-              {english ? 'Performance trend' : '业绩趋势'}
-            </h2>
-            <Info
-              className="h-4 w-4 shrink-0 text-white/[0.34]"
-              aria-label={english
-                ? 'Only complete published fiscal periods are included'
-                : '仅统计已完成并公布的财务期间'}
-            />
-          </div>
+          <h2 className="truncate text-[16px] font-normal tracking-[0.01em] text-white/[0.88]">
+            {english ? 'Performance trend' : '业绩趋势'}
+          </h2>
           <p className="mt-1 truncate text-[11px] text-white/[0.48]">{subtitle}</p>
         </div>
         <div
@@ -724,9 +708,8 @@ export default function EarningsGrowthCard({
             : '仅展示口径完整且可确认的期间'}
         </div>
       ) : null}
-      <footer className="flex min-h-[42px] items-center justify-between border-t border-white/[0.045] px-[15px] text-[10px] text-white/[0.34]">
+      <footer className="flex min-h-[42px] items-center border-t border-white/[0.045] px-[15px] text-[10px] text-white/[0.34]">
         <span>{rangeText}</span>
-        <span className="font-normal text-[#e7aa49]/70">{sourceText(data.source, language)}</span>
       </footer>
     </section>
   );
