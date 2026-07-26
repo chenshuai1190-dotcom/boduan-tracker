@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info } from 'lucide-react';
+import Ma200RetestDetailModal from './Ma200RetestDetailModal.jsx';
 import { marketHexColor } from '../lib/marketColorMode.js';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -247,18 +248,29 @@ function RetestEventRow({
   index,
   language,
   marketColorMode,
+  onOpenDetail,
   recentReboundTradingDays,
 }) {
   const recoveryDays = finiteNumber(event?.recentRecoveryTradingDays);
   const status = ['recovered', 'failed', 'observing'].includes(event?.recentReboundStatus)
     ? event.recentReboundStatus
     : 'observing';
+  const detailAvailable = Array.isArray(event?.detailSeries) && event.detailSeries.length >= 2;
 
   return (
-    <div
-      className={`grid min-h-[58px] min-w-0 ${TABLE_GRID} items-center border-t border-white/[0.045]`}
+    <button
+      type="button"
+      onClick={() => onOpenDetail?.(event)}
+      disabled={!detailAvailable}
+      className={`grid min-h-[58px] w-full min-w-0 ${TABLE_GRID} items-center border-t border-white/[0.045] text-left transition-colors enabled:active:bg-white/[0.035] disabled:cursor-default`}
+      aria-label={copy(
+        language,
+        `查看 ${formatDate(event?.triggerDate, language)} 回踩详情`,
+        `View retest details for ${formatDate(event?.triggerDate, language)}`,
+      )}
       data-ma200-retest-event={event?.triggerDate || ''}
       data-ma200-retest-row="compact-table"
+      data-ma200-retest-detail-available={detailAvailable ? 'true' : 'false'}
     >
       <span
         className="px-0.5 text-center text-[10px] tabular-nums text-white/[0.28]"
@@ -313,7 +325,7 @@ function RetestEventRow({
         recoveryDays={recoveryDays}
         marketColorMode={marketColorMode}
       />
-    </div>
+    </button>
   );
 }
 
@@ -321,6 +333,7 @@ function RetestEventsTable({
   events,
   language,
   marketColorMode,
+  onOpenDetail,
   recentReboundTradingDays,
 }) {
   return (
@@ -378,6 +391,7 @@ function RetestEventsTable({
             index={index}
             language={language}
             marketColorMode={marketColorMode}
+            onOpenDetail={onOpenDetail}
             recentReboundTradingDays={recentReboundTradingDays}
           />
         ))}
@@ -607,13 +621,20 @@ function EmptyState({ language, status }) {
 }
 
 export default function Ma200RetestHistoryCard({
+  currency = 'USD',
   data,
+  initialDetailDate = '',
   language = 'zh',
   marketColorMode,
+  symbol = '',
 }) {
   const summary = data?.summary || {};
   const events = Array.isArray(data?.events) ? data.events : [];
   const visibleEvents = events.slice(0, 5);
+  const [selectedTriggerDate, setSelectedTriggerDate] = React.useState(initialDetailDate);
+  const selectedEvent = visibleEvents.find(
+    (event) => event?.triggerDate === selectedTriggerDate,
+  ) || null;
   const ready = data?.status === 'ready' && events.length > 0;
   const recentReboundTradingDays = Math.max(
     1,
@@ -649,12 +670,26 @@ export default function Ma200RetestHistoryCard({
   const positiveColor = marketHexColor(1, marketColorMode);
   const negativeColor = marketHexColor(-1, marketColorMode);
 
+  React.useEffect(() => {
+    setSelectedTriggerDate(initialDetailDate);
+  }, [initialDetailDate, symbol]);
+
+  React.useEffect(() => {
+    if (
+      !selectedTriggerDate
+      || selectedEvent
+      || selectedTriggerDate === initialDetailDate
+    ) return;
+    setSelectedTriggerDate('');
+  }, [initialDetailDate, selectedEvent, selectedTriggerDate]);
+
   return (
-    <section
-      className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
-      data-watchlist-detail-section="ma200-retest"
-      data-watchlist-ma200-retest-history="daily"
-    >
+    <>
+      <section
+        className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
+        data-watchlist-detail-section="ma200-retest"
+        data-watchlist-ma200-retest-history="daily"
+      >
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-1.5">
           <h2 className="truncate whitespace-nowrap text-[15px] font-normal text-white/[0.82]">
@@ -736,6 +771,7 @@ export default function Ma200RetestHistoryCard({
             events={visibleEvents}
             language={language}
             marketColorMode={marketColorMode}
+            onOpenDetail={(event) => setSelectedTriggerDate(event?.triggerDate || '')}
             recentReboundTradingDays={recentReboundTradingDays}
           />
           <RetestHistoryDistribution
@@ -762,6 +798,20 @@ export default function Ma200RetestHistoryCard({
           )}
         </div>
       ) : null}
-    </section>
+      </section>
+
+      {selectedEvent ? (
+        <Ma200RetestDetailModal
+          currency={currency}
+          event={selectedEvent}
+          language={language}
+          marketColorMode={marketColorMode}
+          observationTradingDays={observationTradingDays}
+          recentReboundTradingDays={recentReboundTradingDays}
+          symbol={symbol}
+          onClose={() => setSelectedTriggerDate('')}
+        />
+      ) : null}
+    </>
   );
 }

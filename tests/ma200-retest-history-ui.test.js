@@ -4,6 +4,8 @@ import test from 'node:test';
 
 const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const cardSource = readFileSync(new URL('../src/components/Ma200RetestHistoryCard.jsx', import.meta.url), 'utf8');
+const modalSource = readFileSync(new URL('../src/components/Ma200RetestDetailModal.jsx', import.meta.url), 'utf8');
+const detailSource = readFileSync(new URL('../src/lib/ma200RetestDetail.js', import.meta.url), 'utf8');
 const devPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 
 test('daily MA200 retest history sits directly below key metrics and before company valuation', () => {
@@ -98,6 +100,49 @@ test('daily MA200 events use the reference-style compact seven-column table', ()
   assert.equal(cardSource.includes('aria-expanded'), false);
   assert.equal(cardSource.includes('setExpanded'), false);
   assert.equal(cardSource.includes("copy(language, '最近事件'"), false);
+});
+
+test('each MA200 event row opens a production detail modal without another provider request', () => {
+  assert.ok(cardSource.includes("import Ma200RetestDetailModal from './Ma200RetestDetailModal.jsx'"));
+  assert.ok(cardSource.includes('type="button"'));
+  assert.ok(cardSource.includes('onClick={() => onOpenDetail?.(event)}'));
+  assert.ok(cardSource.includes("data-ma200-retest-detail-available={detailAvailable ? 'true' : 'false'}"));
+  assert.ok(cardSource.includes('const [selectedTriggerDate, setSelectedTriggerDate]'));
+  assert.ok(cardSource.includes('<Ma200RetestDetailModal'));
+  assert.ok(cardSource.includes("onClose={() => setSelectedTriggerDate('')}"));
+  assert.ok(pageSource.includes('currency={stockCurrency}'));
+  assert.ok(pageSource.includes('symbol={symbol}'));
+  assert.ok(pageSource.includes('initialDetailDate={watchlistStockDetailMa200DetailDate}'));
+  assert.equal(modalSource.includes('fetch('), false);
+  assert.equal(modalSource.includes('localhost'), false);
+  assert.equal(modalSource.includes(':4175'), false);
+  assert.equal(modalSource.includes("symbol = 'NVDA'"), false);
+  assert.equal(modalSource.includes('2022-04-07'), false);
+});
+
+test('MA200 detail modal derives the full path and keeps lowest close distinct from MA200 depth', () => {
+  assert.ok(modalSource.includes('deriveMa200RetestDetail(event, observationTradingDays)'));
+  assert.ok(detailSource.includes('event?.detailSeries'));
+  assert.ok(detailSource.includes('row.close < lowest.close'));
+  assert.ok(detailSource.includes('((row.close / row.ma200) - 1) * 100'));
+  assert.ok(detailSource.includes('row.relativeTradingDay === normalizedObservationDays'));
+  assert.ok(modalSource.includes("label={copy(language, '最低收盘', 'Lowest close')}"));
+  assert.ok(modalSource.includes("label={copy(language, '距 MA200 最深', 'Deepest vs MA200')}"));
+  assert.ok(modalSource.includes('`第 ${observationTradingDays} 日结果`'));
+  assert.ok(modalSource.includes('T-5'));
+  assert.ok(modalSource.includes('T0'));
+  assert.ok(modalSource.includes('T+20'));
+  assert.ok(modalSource.includes('T+60'));
+  assert.ok(modalSource.includes('data-ma200-retest-detail-modal='));
+  assert.ok(modalSource.includes('data-ma200-retest-detail-chart="true"'));
+  assert.ok(modalSource.includes('data-ma200-retest-detail-tooltip='));
+  assert.ok(modalSource.includes('data-ma200-retest-detail-trigger='));
+  assert.ok(modalSource.includes('setSelectedIndex(lowestCloseIndex)'));
+  assert.ok(modalSource.includes("document.addEventListener('pointerdown', clearOutsideChart, true)"));
+  assert.ok(modalSource.includes('onPointerDown={selectNearestPoint}'));
+  assert.ok(modalSource.includes('onPointerMove={(event) =>'));
+  assert.equal(/text-\\[(?:8|8\\.5|9|9\\.5)px\\]/.test(modalSource), false);
+  assert.equal(/fontSize=["'](?:8|8\\.5|9|9\\.5)["']/.test(modalSource), false);
 });
 
 test('daily MA200 mini chart is calculated from real event series with zero, low, and rebound segments', () => {

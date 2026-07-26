@@ -432,6 +432,14 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
       close: row.close,
       ma200: row.ma200,
     }));
+  const detailSeries = allHistory
+    .slice(seriesStartIndex, summaryWindow.observationEndIndex + 1)
+    .map((row, offset) => ({
+      date: row.date,
+      close: row.close,
+      ma200: row.ma200,
+      relativeTradingDay: seriesStartIndex + offset - triggerIndex,
+    }));
 
   return {
     triggerDate: trigger.date,
@@ -473,6 +481,7 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
       : '',
     recentLowDate: allHistory[recentWindow.lowIndex].date,
     series,
+    detailSeries,
   };
 }
 

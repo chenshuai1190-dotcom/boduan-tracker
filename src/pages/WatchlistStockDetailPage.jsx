@@ -1212,6 +1212,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     watchlistStockDetailFocusSection = '',
     watchlistStockDetailTargetEditorOpen = false,
     watchlistStockDetailValuationTooltipOpen = false,
+    watchlistStockDetailMa200DetailDate = '',
     watchlistStockDetailFundCompositionOverride,
   } = ctx;
   const symbol = String(watchlistStockDetailSymbol || '').trim().toUpperCase();
@@ -1729,9 +1730,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       </section>
 
       <Ma200RetestHistoryCard
+        currency={stockCurrency}
         data={stockDetail?.ma200RetestHistory}
+        initialDetailDate={watchlistStockDetailMa200DetailDate}
         language={language}
         marketColorMode={marketColorMode}
+        symbol={symbol}
       />
 
       <CompanyValuationCard

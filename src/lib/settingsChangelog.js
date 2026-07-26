@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.386', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.387', date: '2026-07-26', latest: true,
+    items: [
+      '🔎 MA200 单次回踩增加完整走势详情',
+      '  - 点击近 5 次回踩中的任一记录，可查看触发前 5 日到触发后 60 个交易日的真实收盘价与日线 MA200 走势',
+      '  - 详情默认定位最低收盘点，并分别展示最低价格与日期、距 MA200 最深位置以及第 60 日结果，避免混淆两种低点口径',
+      '  - 全部价格继续使用原始收盘与官方拆股记录推导的仅拆股复权口径；不增加行情请求，也不改变持仓、交易、收益、比赛或数据库数据',
+    ],
+    itemsEn: [
+      '🔎 Complete path details added for each MA200 retest',
+      '  - Tap any latest-five retest to view the real close and daily MA200 path from five sessions before the trigger through session 60',
+      '  - Details initially focus on the lowest close and separately show its price and date, the deepest distance below MA200, and the session-60 result so the two lows are not conflated',
+      '  - Prices continue to use split-only adjustments derived from raw closes and official split actions; no extra market-data request is added, and holdings, trades, P&L, competition, and database data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.386', date: '2026-07-26',
     items: [
       '📐 MA200 回踩资格与 60 日结果口径完善',
       '  - 连续 5 日收盘高出日线 MA200 至少 3% 后，回踩资格在未来 60 个交易日内有效；期间首次收盘触及或跌破 MA200 才记录事件',

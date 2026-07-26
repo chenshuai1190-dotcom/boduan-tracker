@@ -1533,6 +1533,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('valuationTooltip') === '1';
   const ma200LivePreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('ma200Live') === '1';
+  const ma200DetailPreviewDate = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('ma200Detail') || '';
   const watchlistFundCompositionPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'watchlist-fund-composition';
   const [ma200LiveStockDetail, setMa200LiveStockDetail] = React.useState(null);
@@ -2389,6 +2392,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     watchlistStockDetailFocusSection: watchlistDetailFocusSection,
     watchlistStockDetailTargetEditorOpen: watchlistDetailTargetEditorOpen,
     watchlistStockDetailValuationTooltipOpen: watchlistDetailValuationTooltipOpen,
+    watchlistStockDetailMa200DetailDate: ma200DetailPreviewDate,
   };
 
   const waveTrackerCtx = {

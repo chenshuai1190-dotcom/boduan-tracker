@@ -326,6 +326,18 @@ test('daily MA200 retest uses split-adjusted closes without dividends, a 60-sess
   assert.notEqual(event.series.at(-1).date, rows.at(-1).date);
   assert.equal(event.series[5].close, rows[triggerIndex].close);
   assert.notEqual(event.series[5].close, rows[triggerIndex].adjusted_close);
+  assert.equal(event.detailSeries.length, 66);
+  assert.equal(event.detailSeries[0].date, rows[triggerIndex - 5].date);
+  assert.equal(event.detailSeries[0].relativeTradingDay, -5);
+  assert.equal(event.detailSeries[5].relativeTradingDay, 0);
+  assert.equal(event.detailSeries[5].close, rows[triggerIndex].close);
+  assert.notEqual(event.detailSeries[5].close, rows[triggerIndex].adjusted_close);
+  assert.equal(event.detailSeries.at(-1).date, rows[triggerIndex + 60].date);
+  assert.equal(event.detailSeries.at(-1).relativeTradingDay, 60);
+  assert.deepEqual(
+    event.detailSeries.map((row) => row.relativeTradingDay),
+    Array.from({ length: 66 }, (_, index) => index - 5),
+  );
 });
 
 test('daily MA200 retest keeps its summary on completed outcomes from the same latest-five trigger cohort', () => {
@@ -356,6 +368,8 @@ test('daily MA200 retest keeps its summary on completed outcomes from the same l
   assert.equal(history.events[0].recentMaxReboundPct, null);
   assert.equal(history.events[0].recentReboundEndDate, '');
   assert.equal(history.events[0].series.length, 10);
+  assert.equal(history.events[0].detailSeries.length, 10);
+  assert.equal(history.events[0].detailSeries.at(-1).relativeTradingDay, 4);
   assert.deepEqual(
     resolvedEvents.map((event) => event.status),
     ['recovered', 'failed', 'recovered', 'failed'],
@@ -548,6 +562,8 @@ test('daily MA200 retest measures fixed-window lows even after an early recovery
   assert.equal(event.lowDate, rows[triggerIndex + 30].date);
   assert.ok(Math.abs(event.recentRetestDepthPct - (-10)) < 1e-10);
   assert.ok(Math.abs(event.retestDepthPct - (-20)) < 1e-10);
+  assert.equal(event.detailSeries.length, 66);
+  assert.equal(event.detailSeries.at(-1).date, rows[triggerIndex + 60].date);
 });
 
 test('daily MA200 retest exposes trigger-to-session-60 forward return only after completion', () => {
@@ -563,6 +579,8 @@ test('daily MA200 retest exposes trigger-to-session-60 forward return only after
   ).ma200RetestHistory.events[0];
   assert.equal(incompleteEvent.forwardReturnPct, null);
   assert.equal(incompleteEvent.forwardReturnEndDate, '');
+  assert.equal(incompleteEvent.detailSeries.length, 65);
+  assert.equal(incompleteEvent.detailSeries.at(-1).relativeTradingDay, 59);
 
   fixture.appendAtMaRatio(1.10);
   const completeRows = fixture.rows();
@@ -575,6 +593,8 @@ test('daily MA200 retest exposes trigger-to-session-60 forward return only after
   ) * 100;
   assert.equal(completeEvent.forwardReturnPct, expectedForwardReturn);
   assert.equal(completeEvent.forwardReturnEndDate, completeRows[triggerIndex + 60].date);
+  assert.equal(completeEvent.detailSeries.length, 66);
+  assert.equal(completeEvent.detailSeries.at(-1).relativeTradingDay, 60);
 
   fixture.appendAtMaRatio(0.50);
   const laterRows = fixture.rows();
@@ -584,6 +604,8 @@ test('daily MA200 retest exposes trigger-to-session-60 forward return only after
   ).ma200RetestHistory.events[0];
   assert.equal(laterEvent.forwardReturnPct, expectedForwardReturn);
   assert.equal(laterEvent.forwardReturnEndDate, completeRows[triggerIndex + 60].date);
+  assert.equal(laterEvent.detailSeries.length, 66);
+  assert.equal(laterEvent.detailSeries.at(-1).date, completeRows[triggerIndex + 60].date);
 });
 
 test('daily MA200 retest leaves the 20-session display metrics empty until session 20 closes', () => {
