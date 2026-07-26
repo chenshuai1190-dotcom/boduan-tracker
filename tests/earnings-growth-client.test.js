@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {
+  SEC_FINANCIAL_HISTORY_SCHEMA_VERSION,
+} from '../server/earnings/secFinancialHistory.js';
+import {
   EARNINGS_GROWTH_CACHE_TTL_MS,
+  EARNINGS_GROWTH_SCHEMA_VERSION,
+  EARNINGS_GROWTH_STORAGE_PREFIX,
+  EARNINGS_GROWTH_STORAGE_VERSION,
   EARNINGS_GROWTH_TRANSIENT_CACHE_TTL_MS,
   buildEarningsGrowthChartGeometry,
   buildEarningsGrowthSummary,
@@ -12,6 +18,7 @@ import {
   resetEarningsGrowthMemoryCache,
 } from '../src/lib/earningsGrowth.js';
 
+const PREVIOUS_EARNINGS_GROWTH_SCHEMA_VERSION = 2;
 const componentSource = fs.readFileSync(
   new URL('../src/components/EarningsGrowthCard.jsx', import.meta.url),
   'utf8',
@@ -38,6 +45,7 @@ function period(fiscalYear, overrides = {}) {
 function payload(overrides = {}) {
   return {
     success: true,
+    schemaVersion: EARNINGS_GROWTH_SCHEMA_VERSION,
     status: 'complete',
     symbol: 'NVDA',
     currency: 'USD',
@@ -104,12 +112,33 @@ test('earnings growth normalization keeps only complete comparable periods', () 
   }), 'NVDA');
 
   assert.equal(normalized.symbol, 'NVDA');
+  assert.equal(normalized.schemaVersion, EARNINGS_GROWTH_SCHEMA_VERSION);
   assert.equal(normalized.currency, 'USD');
   assert.equal(normalized.annual.length, 6);
   assert.deepEqual(normalized.annual.map((row) => row.fiscalYear), [
     2023, 2024, 2025, 2026, 2027, 2028,
   ]);
   assert.equal(normalized.source.provider, 'SEC_COMPANY_FACTS');
+});
+
+test('earnings growth normalization rejects missing or stale response schemas', () => {
+  const missingSchema = payload();
+  delete missingSchema.schemaVersion;
+  assert.equal(normalizeEarningsGrowthPayload(missingSchema, 'NVDA'), null);
+  assert.equal(normalizeEarningsGrowthPayload(payload({
+    schemaVersion: PREVIOUS_EARNINGS_GROWTH_SCHEMA_VERSION,
+  }), 'NVDA'), null);
+  assert.equal(normalizeEarningsGrowthPayload(payload({
+    schemaVersion: String(EARNINGS_GROWTH_SCHEMA_VERSION),
+  }), 'NVDA'), null);
+});
+
+test('earnings growth client and SEC history server require the same schema', () => {
+  assert.equal(EARNINGS_GROWTH_SCHEMA_VERSION, 3);
+  assert.equal(
+    SEC_FINANCIAL_HISTORY_SCHEMA_VERSION,
+    EARNINGS_GROWTH_SCHEMA_VERSION,
+  );
 });
 
 test('conflicting duplicate fiscal periods fail closed', () => {
@@ -227,6 +256,91 @@ test('earnings growth loader authenticates once and reuses the user-scoped cache
   assert.equal(first.symbol, 'NVDA');
   assert.equal(second.annual.length, 3);
   assert.equal(requestCount, 1);
+});
+
+test('earnings growth loader bypasses an unexpired v1 cache containing schema 2 complete data', async () => {
+  resetEarningsGrowthMemoryCache();
+  const storage = memoryStorage();
+  const userId = 'user-schema-upgrade';
+  const oldPayload = payload({
+    schemaVersion: PREVIOUS_EARNINGS_GROWTH_SCHEMA_VERSION,
+    annual: [period(2024, { revenue: 100, netIncome: 20 })],
+  });
+  storage.setItem(
+    `xmoney_earnings_growth_v1:${userId}:NVDA`,
+    JSON.stringify({
+      version: 1,
+      expiresAt: EARNINGS_GROWTH_CACHE_TTL_MS * 2,
+      data: oldPayload,
+    }),
+  );
+  let requestCount = 0;
+  const fresh = await loadEarningsGrowth({
+    userId,
+    symbol: 'NVDA',
+    token: 'session-token',
+    storage,
+    now: () => 1_000,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return {
+        ok: true,
+        async json() {
+          return payload({
+            annual: [period(2025, { revenue: 200, netIncome: 40 })],
+          });
+        },
+      };
+    },
+  });
+
+  assert.equal(requestCount, 1);
+  assert.equal(fresh.annual.at(-1).fiscalYear, 2025);
+  const upgraded = JSON.parse(
+    storage.getItem(`${EARNINGS_GROWTH_STORAGE_PREFIX}:${userId}:NVDA`),
+  );
+  assert.equal(upgraded.version, EARNINGS_GROWTH_STORAGE_VERSION);
+  assert.equal(upgraded.data.schemaVersion, EARNINGS_GROWTH_SCHEMA_VERSION);
+});
+
+test('earnings growth loader rejects schema 2 inside the current cache key', async () => {
+  resetEarningsGrowthMemoryCache();
+  const storage = memoryStorage();
+  const userId = 'user-current-schema-mismatch';
+  storage.setItem(
+    `${EARNINGS_GROWTH_STORAGE_PREFIX}:${userId}:NVDA`,
+    JSON.stringify({
+      version: EARNINGS_GROWTH_STORAGE_VERSION,
+      expiresAt: EARNINGS_GROWTH_CACHE_TTL_MS * 2,
+      data: payload({
+        schemaVersion: PREVIOUS_EARNINGS_GROWTH_SCHEMA_VERSION,
+        annual: [period(2024, { revenue: 100, netIncome: 20 })],
+      }),
+    }),
+  );
+  let requestCount = 0;
+  const fresh = await loadEarningsGrowth({
+    userId,
+    symbol: 'NVDA',
+    token: 'session-token',
+    storage,
+    now: () => 1_000,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return {
+        ok: true,
+        async json() {
+          return payload({
+            annual: [period(2025, { revenue: 200, netIncome: 40 })],
+          });
+        },
+      };
+    },
+  });
+
+  assert.equal(requestCount, 1);
+  assert.equal(fresh.schemaVersion, EARNINGS_GROWTH_SCHEMA_VERSION);
+  assert.equal(fresh.annual.at(-1).fiscalYear, 2025);
 });
 
 test('unavailable official history accepts an empty currency and uses the transient cache', async () => {

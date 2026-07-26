@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.392', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.393', date: '2026-07-26', latest: true,
+    items: [
+      '🛠️ 财报历史财期读取修复',
+      '  - Alphabet 的年度与季度历史现在会衔接已核验的 SEC 收入口径迁移，不再因官方概念切换而停留在较早财期',
+      '  - 只有公司、相邻口径及官方重叠数据全部匹配时才合并历史；比较期重报不会冒充最新季度，冲突数据继续显示不可用',
+      '  - 业绩趋势数据 schema 与本地缓存同步升级，修复上线后会重新读取官方历史，不继续复用旧结果',
+      '  - 不修改财报公布值、数据库、交易、持仓、收益或比赛数据',
+    ],
+    itemsEn: [
+      '🛠️ Fixed fiscal-period freshness in earnings history',
+      '  - Alphabet annual and quarterly history now follows a verified SEC revenue-concept migration instead of stopping at an older fiscal period after the official concept changed',
+      '  - History is stitched only when the company, adjacent concepts, and official overlap all match; comparative restatements cannot masquerade as the latest quarter, and conflicting data still fails closed',
+      '  - The performance-trend data schema and local cache are upgraded together so the fixed official history is fetched again instead of reusing stale results',
+      '  - Reported earnings actuals, databases, trades, holdings, P&L, and competition data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.392', date: '2026-07-26',
     items: [
       '📊 财报详情增加业绩趋势',
       '  - 财报详情底部新增年度与季度切换，展示近 6 个完整财年的营收、净利润和复合增速，以及近 8 个完整季度的同比与环比变化',

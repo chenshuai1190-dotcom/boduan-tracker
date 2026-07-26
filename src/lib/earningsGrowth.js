@@ -2,9 +2,10 @@ export const EARNINGS_GROWTH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_GROWTH_TRANSIENT_CACHE_TTL_MS = 5 * 60 * 1000;
 export const EARNINGS_GROWTH_ANNUAL_LIMIT = 6;
 export const EARNINGS_GROWTH_QUARTERLY_LIMIT = 8;
+export const EARNINGS_GROWTH_SCHEMA_VERSION = 3;
+export const EARNINGS_GROWTH_STORAGE_VERSION = 2;
+export const EARNINGS_GROWTH_STORAGE_PREFIX = 'xmoney_earnings_growth_v2';
 
-const STORAGE_VERSION = 1;
-const STORAGE_PREFIX = 'xmoney_earnings_growth_v1';
 const MAX_MEMORY_ENTRIES = 40;
 const VALID_STATUSES = new Set(['complete', 'partial', 'unavailable']);
 const memoryCache = new Map();
@@ -153,12 +154,16 @@ export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
   if (!value || typeof value !== 'object' || Array.isArray(value) || value.success === false) {
     return null;
   }
+  const schemaVersion = Number.isInteger(value.schemaVersion)
+    ? value.schemaVersion
+    : null;
   const symbol = normalizedSymbol(value.symbol || expectedSymbol);
   const expected = normalizedSymbol(expectedSymbol);
   const status = VALID_STATUSES.has(value.status) ? value.status : '';
   const currency = normalizedCurrency(value.currency);
   if (
-    !symbol
+    schemaVersion !== EARNINGS_GROWTH_SCHEMA_VERSION
+    || !symbol
     || (expected && symbol !== expected)
     || !status
     || (status !== 'unavailable' && !currency)
@@ -167,6 +172,7 @@ export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
   }
   if (status === 'unavailable') {
     return {
+      schemaVersion,
       status,
       reason: safeText(value.reason, 160),
       symbol,
@@ -177,6 +183,7 @@ export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
     };
   }
   return {
+    schemaVersion,
     status,
     reason: safeText(value.reason, 160),
     symbol,
@@ -371,7 +378,7 @@ function identityKey(userId, symbol) {
 }
 
 function storageKey(identity) {
-  return `${STORAGE_PREFIX}:${identity}`;
+  return `${EARNINGS_GROWTH_STORAGE_PREFIX}:${identity}`;
 }
 
 function setMemoryEntry(identity, entry) {
@@ -401,7 +408,11 @@ function readCachedGrowth({ identity, symbol, storage, now, allowStale = false }
     const stored = JSON.parse(storage.getItem(storageKey(identity)) || 'null');
     const data = normalizeEarningsGrowthPayload(stored?.data, symbol);
     const expiresAt = Number(stored?.expiresAt);
-    if (stored?.version !== STORAGE_VERSION || !data || !Number.isFinite(expiresAt)) {
+    if (
+      stored?.version !== EARNINGS_GROWTH_STORAGE_VERSION
+      || !data
+      || !Number.isFinite(expiresAt)
+    ) {
       removeStored(storage, identity);
       return null;
     }
@@ -421,7 +432,7 @@ function writeCachedGrowth({ identity, data, storage, expiresAt }) {
   setMemoryEntry(identity, entry);
   try {
     storage?.setItem(storageKey(identity), JSON.stringify({
-      version: STORAGE_VERSION,
+      version: EARNINGS_GROWTH_STORAGE_VERSION,
       expiresAt,
       data,
     }));

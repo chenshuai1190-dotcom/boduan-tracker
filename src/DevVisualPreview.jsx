@@ -24,6 +24,7 @@ import {
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 import { localMonthKey, shiftMonthKey } from './lib/calendarMonth.js';
+import { EARNINGS_GROWTH_SCHEMA_VERSION } from './lib/earningsGrowth.js';
 import { normalizeLanguage, t } from './lib/i18n.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -846,6 +847,7 @@ const mockEarningsBaseDetailData = {
 
 const mockEarningsGrowthData = {
   success: true,
+  schemaVersion: EARNINGS_GROWTH_SCHEMA_VERSION,
   status: 'complete',
   symbol: 'NVDA',
   currency: 'USD',
