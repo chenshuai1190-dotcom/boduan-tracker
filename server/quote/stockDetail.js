@@ -10,6 +10,7 @@ const WEEKLY_HISTORY_YEARS = 5;
 const STOCK_DETAIL_PRICE_BASIS = 'split_adjusted_close';
 const STOCK_DETAIL_SOURCE = 'EODHD_EOD_SPLITS';
 const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v5';
+const MA200_CYCLE_STATE_VERSION = 'daily-ma200-cycle-state-v1';
 const MA200_RETEST_LOOKBACK_YEARS = 5;
 const MA200_RETEST_PREPARE_DAYS = 5;
 const MA200_RETEST_PREPARE_DISTANCE = 0.03;
@@ -273,6 +274,25 @@ function buildDailyHistory(normalizedRows) {
   });
 }
 
+function emptyMa200RetestCurrentCycle(asOfDate = '') {
+  return {
+    version: MA200_CYCLE_STATE_VERSION,
+    asOfDate,
+    state: 'unavailable',
+    status: 'unavailable',
+    latestTriggerDate: '',
+    tradingDaysSinceTrigger: null,
+    currentClose: null,
+    currentMa200: null,
+    currentDistancePct: null,
+    preparedTradingDays: 0,
+    requiredPreparedTradingDays: MA200_RETEST_PREPARE_DAYS,
+    qualificationDate: '',
+    qualificationExpiresInTradingDays: null,
+    resetDate: '',
+  };
+}
+
 function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
   return {
     algorithmVersion: MA200_RETEST_ALGORITHM_VERSION,
@@ -297,6 +317,7 @@ function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
       maxReboundSampleSize: 0,
       averageRecoveryTradingDays: null,
     },
+    currentCycle: emptyMa200RetestCurrentCycle(asOfDate),
     events: [],
   };
 }
@@ -353,6 +374,113 @@ function findMa200RetestTriggerIndexes(allHistory) {
   }
 
   return triggerIndexes;
+}
+
+function buildMa200RetestCurrentCycle(allHistory, triggerIndexes) {
+  const latestIndex = allHistory.length - 1;
+  const latestRow = allHistory[latestIndex];
+  if (
+    latestIndex < 0
+    || !Number.isFinite(latestRow?.close)
+    || !Number.isFinite(latestRow?.ma200)
+    || latestRow.ma200 <= 0
+  ) {
+    return emptyMa200RetestCurrentCycle(latestRow?.date || '');
+  }
+
+  const latestTriggerIndex = triggerIndexes.at(-1) ?? -1;
+  const scanStartIndex = Math.max(0, latestTriggerIndex + 1);
+  let preparedStreak = 0;
+  let latestQualificationIndex = -1;
+  let resetIndex = -1;
+
+  for (let index = scanStartIndex; index <= latestIndex; index += 1) {
+    const row = allHistory[index];
+    if (!Number.isFinite(row?.ma200) || row.ma200 <= 0) {
+      preparedStreak = 0;
+      latestQualificationIndex = -1;
+      continue;
+    }
+
+    if (isPreparedAboveMa200(row)) {
+      preparedStreak += 1;
+      if (preparedStreak >= MA200_RETEST_PREPARE_DAYS) {
+        if (resetIndex < 0) resetIndex = index;
+        latestQualificationIndex = index;
+      }
+      continue;
+    }
+
+    preparedStreak = 0;
+    if (
+      latestQualificationIndex >= 0
+      && index - latestQualificationIndex > MA200_RETEST_QUALIFICATION_VALID_DAYS
+    ) {
+      latestQualificationIndex = -1;
+    }
+  }
+
+  const currentDistancePct = ((latestRow.close / latestRow.ma200) - 1) * 100;
+  const tradingDaysSinceTrigger = latestTriggerIndex >= 0
+    ? latestIndex - latestTriggerIndex
+    : null;
+  const recentRecoveryConfirmationIndex = latestTriggerIndex >= 0
+    ? findRecoveryConfirmationIndex(
+        allHistory,
+        latestTriggerIndex,
+        Math.min(tradingDaysSinceTrigger, MA200_RETEST_RECENT_REBOUND_DAYS),
+      )
+    : -1;
+  const qualificationActive = latestQualificationIndex >= 0;
+  const resetCompletedAfterTrigger = latestTriggerIndex >= 0 && resetIndex >= 0;
+  const state = qualificationActive
+    ? 'armed'
+    : latestTriggerIndex >= 0 && !resetCompletedAfterTrigger
+      ? 'waiting_reset'
+      : 'unarmed';
+  const status = state === 'armed'
+    ? 'waiting_retest'
+    : state === 'waiting_reset'
+      ? preparedStreak > 0
+        ? 'reset_confirming'
+        : tradingDaysSinceTrigger < MA200_RETEST_RECENT_REBOUND_DAYS
+          && recentRecoveryConfirmationIndex < 0
+          ? 'retest_observing'
+          : tradingDaysSinceTrigger >= MA200_RETEST_RECENT_REBOUND_DAYS
+            && recentRecoveryConfirmationIndex < 0
+            ? 'long_breakdown'
+            : 'repairing'
+      : preparedStreak > 0
+        ? 'qualifying'
+        : 'unarmed';
+  const qualificationAge = qualificationActive
+    ? latestIndex - latestQualificationIndex
+    : null;
+
+  return {
+    version: MA200_CYCLE_STATE_VERSION,
+    asOfDate: latestRow.date,
+    state,
+    status,
+    latestTriggerDate: latestTriggerIndex >= 0
+      ? allHistory[latestTriggerIndex].date
+      : '',
+    tradingDaysSinceTrigger,
+    currentClose: latestRow.close,
+    currentMa200: latestRow.ma200,
+    currentDistancePct,
+    preparedTradingDays: Math.min(preparedStreak, MA200_RETEST_PREPARE_DAYS),
+    requiredPreparedTradingDays: MA200_RETEST_PREPARE_DAYS,
+    qualificationDate: qualificationActive
+      ? allHistory[latestQualificationIndex].date
+      : '',
+    qualificationExpiresInTradingDays: qualificationActive
+      ? Math.max(0, MA200_RETEST_QUALIFICATION_VALID_DAYS - qualificationAge)
+      : null,
+    resetDate: resetCompletedAfterTrigger
+      ? allHistory[resetIndex].date
+      : '',
+  };
 }
 
 function findRecoveryConfirmationIndex(allHistory, triggerIndex, observedTradingDays) {
@@ -492,12 +620,17 @@ function buildMa200RetestHistory(allHistory, latestDate) {
   }
 
   const lookbackStart = shiftYearKey(latestDate, -MA200_RETEST_LOOKBACK_YEARS);
-  const recentEvents = findMa200RetestTriggerIndexes(allHistory)
+  const triggerIndexes = findMa200RetestTriggerIndexes(allHistory);
+  const currentCycle = buildMa200RetestCurrentCycle(allHistory, triggerIndexes);
+  const recentEvents = triggerIndexes
     .filter((index) => allHistory[index].date >= lookbackStart)
     .map((index) => buildMa200RetestEvent(allHistory, index));
 
   if (recentEvents.length === 0) {
-    return emptyMa200RetestHistory(latestDate, 'no_events');
+    return {
+      ...emptyMa200RetestHistory(latestDate, 'no_events'),
+      currentCycle,
+    };
   }
 
   const events = recentEvents
@@ -543,6 +676,7 @@ function buildMa200RetestHistory(allHistory, latestDate) {
         recentRecoveredEvents.map((event) => event.recentRecoveryTradingDays),
       ),
     },
+    currentCycle,
     events,
   };
 }

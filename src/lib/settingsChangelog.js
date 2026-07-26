@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.387', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.388', date: '2026-07-26', latest: true,
+    items: [
+      '🧭 MA200 回踩增加当前周期状态',
+      '  - 最近一次回踩后持续位于 MA200 下方时，页面会继续显示原事件，并标明“等待趋势重置”、当前距 MA200 与 5 日重置进度，不重复生成回踩记录',
+      '  - 只有重新连续 5 日收盘高出日线 MA200 至少 3%，才重新激活资格；之后首次收盘触及或跌破 MA200 才生成下一次事件',
+      '  - 原 daily-ma200-retest-v5 触发、20 日恢复、60 日结果和近 5 次汇总保持不变；不增加生产行情请求，也不改变持仓、交易、收益、比赛或数据库数据',
+    ],
+    itemsEn: [
+      '🧭 Current-cycle status added to MA200 retests',
+      '  - When a stock remains below MA200 after its latest retest, the original event stays in place while the page shows “Waiting for trend reset,” the current distance to MA200, and five-session reset progress without creating duplicate events',
+      '  - Qualification is reactivated only after 5 consecutive closes at least 3% above daily MA200; the first later close at or below MA200 then creates the next event',
+      '  - Existing daily-ma200-retest-v5 triggers, 20-session recovery, 60-session outcomes, and latest-five summaries remain unchanged; no production quote request is added, and holdings, trades, P&L, competition, and database data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.387', date: '2026-07-26',
     items: [
       '🔎 MA200 单次回踩增加完整走势详情',
       '  - 点击近 5 次回踩中的任一记录，可查看触发前 5 日到触发后 60 个交易日的真实收盘价与日线 MA200 走势',

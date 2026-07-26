@@ -599,6 +599,131 @@ function RetestHistoryDistribution({
   );
 }
 
+function CurrentCycleStatus({
+  cycle,
+  language,
+  marketColorMode,
+}) {
+  const state = ['unarmed', 'armed', 'waiting_reset'].includes(cycle?.state)
+    ? cycle.state
+    : '';
+  if (!state) return null;
+
+  const status = String(cycle?.status || '');
+  const requiredPreparedTradingDays = Math.max(
+    1,
+    Math.trunc(finiteNumber(cycle?.requiredPreparedTradingDays) || 5),
+  );
+  const preparedTradingDays = Math.max(
+    0,
+    Math.min(
+      requiredPreparedTradingDays,
+      Math.trunc(finiteNumber(cycle?.preparedTradingDays) || 0),
+    ),
+  );
+  const currentDistancePct = finiteNumber(cycle?.currentDistancePct);
+  const cycleLabel = state === 'armed'
+    ? copy(language, '回踩资格已激活', 'Retest qualification active')
+    : state === 'waiting_reset'
+      ? copy(language, '等待趋势重置', 'Waiting for trend reset')
+      : copy(language, '未激活', 'Not active');
+  const statusLabel = status === 'long_breakdown'
+    ? copy(language, '长期破位', 'Long breakdown')
+    : status === 'retest_observing'
+      ? copy(language, '回踩观察中', 'Retest observation')
+    : status === 'repairing'
+      ? copy(language, '修复中', 'Repairing')
+      : status === 'reset_confirming'
+        ? copy(language, '趋势重置确认中', 'Reset confirmation')
+        : status === 'waiting_retest'
+          ? copy(language, '等待下一次回踩', 'Waiting for retest')
+          : status === 'qualifying'
+            ? copy(language, '激活确认中', 'Qualification in progress')
+            : copy(language, '等待激活', 'Waiting to activate');
+  const guidance = state === 'armed'
+    ? copy(
+        language,
+        '资格有效期内首次收盘≤MA200，才生成下一次回踩事件',
+        'The first close at or below MA200 while qualified creates the next retest event',
+      )
+    : state === 'waiting_reset'
+      ? copy(
+          language,
+          '需重新连续5日收盘高出MA200至少3%',
+          'Needs 5 consecutive closes at least 3% above MA200',
+        )
+      : copy(
+          language,
+          '等待连续5日收盘高出MA200至少3%',
+          'Waiting for 5 consecutive closes at least 3% above MA200',
+        );
+  const statusColor = status === 'long_breakdown'
+    ? valueColor(-1, marketColorMode)
+    : status === 'waiting_retest'
+      ? valueColor(1, marketColorMode)
+      : 'rgba(255,255,255,0.72)';
+
+  return (
+    <div
+      className="mx-3 mt-3 rounded-xl bg-white/[0.018] px-3 py-2.5"
+      data-ma200-current-cycle={state}
+      data-ma200-current-cycle-status={status}
+    >
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0 truncate text-[10.5px] text-white/[0.40]">
+          {copy(language, '当前周期', 'Current cycle')}
+          {cycle?.latestTriggerDate ? ` · ${formatDate(cycle.latestTriggerDate, language)}` : ''}
+        </div>
+        <div className="shrink-0 text-[12px] text-[#e4aa4f]">{cycleLabel}</div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] text-white/[0.34]">
+            {copy(language, '当前状态', 'Current status')}
+          </div>
+          <div
+            className="mt-1 truncate text-[12px] font-normal"
+            style={{ color: statusColor }}
+          >
+            {statusLabel}
+          </div>
+        </div>
+        <div className="min-w-0 text-center">
+          <div className="text-[10px] text-white/[0.34]">
+            {copy(language, '距MA200', 'vs MA200')}
+          </div>
+          <div
+            className="mt-1 text-[12px] tabular-nums"
+            style={{
+              color: valueColor(currentDistancePct, marketColorMode),
+              fontFamily: NUMBER_FONT,
+            }}
+          >
+            {formatPercent(currentDistancePct)}
+          </div>
+        </div>
+        <div className="min-w-0 text-right">
+          <div className="text-[10px] text-white/[0.34]">
+            {copy(language, '重置进度', 'Reset progress')}
+          </div>
+          <div
+            className="mt-1 text-[12px] tabular-nums text-white/[0.72]"
+            style={{ fontFamily: NUMBER_FONT }}
+          >
+            {preparedTradingDays}/{requiredPreparedTradingDays}
+            {copy(language, '日', 'd')}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2 text-[10px] leading-4 text-white/[0.32]">
+        {guidance}
+      </div>
+    </div>
+  );
+}
+
 function EmptyState({ language, status }) {
   const message = status === 'insufficient_data'
     ? copy(
@@ -715,6 +840,12 @@ export default function Ma200RetestHistoryCard({
           {copy(language, '近5次回踩', 'Latest 5 retests')}
         </div>
       </div>
+
+      <CurrentCycleStatus
+        cycle={data?.currentCycle}
+        language={language}
+        marketColorMode={marketColorMode}
+      />
 
       {ready ? (
         <>

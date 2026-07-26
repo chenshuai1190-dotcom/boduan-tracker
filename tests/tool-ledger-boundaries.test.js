@@ -614,8 +614,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.387'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.387', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.388'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.388', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('MA200 回踩增加当前周期状态') && settingsChangelogSource.includes('等待趋势重置') && settingsChangelogSource.includes('不重复生成回踩记录') && settingsChangelogSource.includes('重新连续 5 日收盘高出日线 MA200 至少 3%') && settingsChangelogSource.includes('daily-ma200-retest-v5') && settingsChangelogSource.includes('20 日恢复、60 日结果和近 5 次汇总保持不变'), 'settings changelog should document the parallel current-cycle state without changing historical MA200 results');
   assert.ok(settingsChangelogSource.includes('MA200 单次回踩增加完整走势详情') && settingsChangelogSource.includes('触发前 5 日到触发后 60 个交易日') && settingsChangelogSource.includes('分别展示最低价格与日期、距 MA200 最深位置以及第 60 日结果') && settingsChangelogSource.includes('不增加行情请求') && settingsChangelogSource.includes('不改变持仓、交易、收益、比赛或数据库数据'), 'settings changelog should document the MA200 retest detail release boundaries');
   assert.ok(settingsChangelogSource.includes('MA200 回踩资格与 60 日结果口径完善') && settingsChangelogSource.includes('回踩资格在未来 60 个交易日内有效') && settingsChangelogSource.includes('触发日至第 60 个交易日收盘的真实涨跌幅') && settingsChangelogSource.includes('固定窗口不会因提前恢复而截断后续低点') && settingsChangelogSource.includes('深跌标签不再被竖线遮挡') && settingsChangelogSource.includes('不改变持仓、交易、收益、比赛或数据库数据'), 'settings changelog should document the v5 qualification, fixed windows, endpoint return, and cleaned UI');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.385', date: '2026-07-26'") && settingsChangelogSource.includes('MA200 回踩观察窗口调整为 20 个交易日') && settingsChangelogSource.includes('已完成的 20 个交易日样本') && settingsChangelogSource.includes('60 个交易日最大反弹继续独立统计') && settingsChangelogSource.includes('第 20 日成功、第 21 日失败') && settingsChangelogSource.includes('不改变持仓、交易、收益、比赛或数据库数据'), 'settings changelog should preserve the 20-session action-window release');
@@ -2519,7 +2520,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.387'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.388'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

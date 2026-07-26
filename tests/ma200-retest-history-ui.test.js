@@ -75,6 +75,38 @@ test('daily MA200 summary keeps all four metrics in one compact row on mobile', 
   assert.ok(summarySource.includes('`${recentReboundTradingDays}日恢复率`'));
 });
 
+test('daily MA200 card adds a borderless current-cycle sidecar without changing historical metrics', () => {
+  assert.ok(cardSource.includes('function CurrentCycleStatus'));
+  assert.ok(cardSource.includes('cycle={data?.currentCycle}'));
+  assert.ok(cardSource.includes('data-ma200-current-cycle={state}'));
+  assert.ok(cardSource.includes('data-ma200-current-cycle-status={status}'));
+  assert.ok(cardSource.includes("'waiting_reset'"));
+  assert.ok(cardSource.includes("'long_breakdown'"));
+  assert.ok(cardSource.includes("'retest_observing'"));
+  assert.ok(cardSource.includes("'reset_confirming'"));
+  assert.ok(cardSource.includes("'waiting_retest'"));
+  assert.ok(cardSource.includes("copy(language, '当前周期', 'Current cycle')"));
+  assert.ok(cardSource.includes("copy(language, '等待趋势重置', 'Waiting for trend reset')"));
+  assert.ok(cardSource.includes("copy(language, '长期破位', 'Long breakdown')"));
+  assert.ok(cardSource.includes("copy(language, '回踩观察中', 'Retest observation')"));
+  assert.ok(cardSource.includes("copy(language, '距MA200', 'vs MA200')"));
+  assert.ok(cardSource.includes("copy(language, '重置进度', 'Reset progress')"));
+  assert.ok(cardSource.includes('需重新连续5日收盘高出MA200至少3%'));
+  assert.ok(cardSource.includes('rounded-xl bg-white/[0.018]'));
+  assert.equal(cardSource.includes('data-ma200-current-cycle-border='), false);
+
+  const cycleIndex = cardSource.indexOf('<CurrentCycleStatus');
+  const readyBranchIndex = cardSource.indexOf('{ready ? (');
+  const summaryIndex = cardSource.indexOf('data-ma200-retest-summary="compact-four-column"');
+  const eventTableIndex = cardSource.indexOf('<RetestEventsTable', summaryIndex);
+  assert.ok(
+    cycleIndex >= 0
+      && cycleIndex < readyBranchIndex
+      && readyBranchIndex < summaryIndex
+      && summaryIndex < eventTableIndex,
+  );
+});
+
 test('daily MA200 events use the reference-style compact seven-column table', () => {
   assert.ok(cardSource.includes("const TABLE_GRID = 'grid-cols-[15px_62px_42px_minmax(76px,1fr)_47px_30px_44px]'"));
   assert.ok(cardSource.includes('data-ma200-retest-table="compact-seven-column"'));

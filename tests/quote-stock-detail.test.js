@@ -666,6 +666,203 @@ test('daily MA200 retest keeps its trigger date stable as later sessions resolve
   assert.equal(resolved.ma200RetestHistory.events[0].triggerDate, triggerDate);
 });
 
+test('daily MA200 current cycle keeps a 140-session long breakdown as one waiting-reset episode', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
+  const triggerIndex = fixture.appendAtMaRatio(0.95);
+  for (let day = 1; day <= 140; day += 1) fixture.appendAtMaRatio(0.8752);
+  const rows = fixture.rows();
+  const detail = buildStockDetail(rows, { asOfDate: rows.at(-1).date });
+  const history = detail.ma200RetestHistory;
+
+  assert.equal(history.events.length, 1);
+  assert.equal(history.events[0].triggerDate, rows[triggerIndex].date);
+  assert.equal(history.events[0].status, 'failed');
+  assert.equal(history.events[0].observedTradingDays, 60);
+  assert.equal(history.events[0].observationEndDate, rows[triggerIndex + 60].date);
+  assert.ok(Math.abs((rows.at(-1).close / detail.indicators.ma200) - 0.8752) < 1e-12);
+  assert.equal(history.currentCycle?.state, 'waiting_reset');
+  assert.equal(history.currentCycle?.status, 'long_breakdown');
+  assert.equal(history.currentCycle?.preparedTradingDays, 0);
+});
+
+test('daily MA200 current cycle observes through session 19 and becomes long breakdown only after session 20 fails', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
+  const triggerIndex = fixture.appendAtMaRatio(0.95);
+
+  const triggeredRows = fixture.rows();
+  const triggeredHistory = buildStockDetail(
+    triggeredRows,
+    { asOfDate: triggeredRows.at(-1).date },
+  ).ma200RetestHistory;
+  assert.equal(triggeredHistory.events[0].triggerDate, triggeredRows[triggerIndex].date);
+  assert.equal(triggeredHistory.currentCycle?.tradingDaysSinceTrigger, 0);
+  assert.equal(triggeredHistory.currentCycle?.status, 'retest_observing');
+
+  for (let day = 1; day <= 19; day += 1) fixture.appendAtMaRatio(0.98);
+  const sessionNineteenRows = fixture.rows();
+  const sessionNineteenHistory = buildStockDetail(
+    sessionNineteenRows,
+    { asOfDate: sessionNineteenRows.at(-1).date },
+  ).ma200RetestHistory;
+  assert.equal(sessionNineteenHistory.currentCycle?.tradingDaysSinceTrigger, 19);
+  assert.equal(sessionNineteenHistory.currentCycle?.status, 'retest_observing');
+
+  fixture.appendAtMaRatio(0.98);
+  const sessionTwentyRows = fixture.rows();
+  const sessionTwentyHistory = buildStockDetail(
+    sessionTwentyRows,
+    { asOfDate: sessionTwentyRows.at(-1).date },
+  ).ma200RetestHistory;
+  assert.equal(sessionTwentyHistory.currentCycle?.tradingDaysSinceTrigger, 20);
+  assert.equal(sessionTwentyHistory.events[0].recentReboundStatus, 'failed');
+  assert.equal(sessionTwentyHistory.currentCycle?.status, 'long_breakdown');
+});
+
+test('daily MA200 current cycle remains visible and armed even before the first historical retest event', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 6; index += 1) fixture.appendAtMaRatio(1.03);
+  const rows = fixture.rows();
+  const history = buildStockDetail(
+    rows,
+    { asOfDate: rows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(history.status, 'no_events');
+  assert.equal(history.events.length, 0);
+  assert.equal(history.currentCycle?.state, 'armed');
+  assert.equal(history.currentCycle?.status, 'waiting_retest');
+  assert.equal(history.currentCycle?.preparedTradingDays, 5);
+});
+
+test('daily MA200 current cycle does not reset after only two closes above MA200 or four closes 3% above it', () => {
+  const recoveryOnly = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) recoveryOnly.appendAtMaRatio(1.05);
+  const recoveryOnlyTriggerIndex = recoveryOnly.appendAtMaRatio(0.95);
+  for (let day = 1; day <= 70; day += 1) recoveryOnly.appendAtMaRatio(0.98);
+  recoveryOnly.appendAtMaRatio(1.01);
+  recoveryOnly.appendAtMaRatio(1.01);
+  const recoveryOnlyRows = recoveryOnly.rows();
+  const recoveryOnlyHistory = buildStockDetail(
+    recoveryOnlyRows,
+    { asOfDate: recoveryOnlyRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(recoveryOnlyHistory.events.length, 1);
+  assert.equal(
+    recoveryOnlyHistory.events[0].triggerDate,
+    recoveryOnlyRows[recoveryOnlyTriggerIndex].date,
+  );
+  assert.equal(recoveryOnlyHistory.currentCycle?.state, 'waiting_reset');
+  assert.equal(recoveryOnlyHistory.currentCycle?.preparedTradingDays, 0);
+
+  recoveryOnly.appendAtMaRatio(1);
+  const recoveryTouchRows = recoveryOnly.rows();
+  const recoveryTouchHistory = buildStockDetail(
+    recoveryTouchRows,
+    { asOfDate: recoveryTouchRows.at(-1).date },
+  ).ma200RetestHistory;
+  assert.equal(recoveryTouchHistory.events.length, 1);
+
+  const fourDayPreparation = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fourDayPreparation.appendAtMaRatio(1.05);
+  const fourDayTriggerIndex = fourDayPreparation.appendAtMaRatio(0.95);
+  for (let day = 1; day <= 70; day += 1) fourDayPreparation.appendAtMaRatio(0.98);
+  for (let day = 1; day <= 4; day += 1) fourDayPreparation.appendAtMaRatio(1.03);
+  const fourDayRows = fourDayPreparation.rows();
+  const fourDayHistory = buildStockDetail(
+    fourDayRows,
+    { asOfDate: fourDayRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(fourDayHistory.events.length, 1);
+  assert.equal(fourDayHistory.events[0].triggerDate, fourDayRows[fourDayTriggerIndex].date);
+  assert.equal(fourDayHistory.currentCycle?.state, 'waiting_reset');
+  assert.equal(fourDayHistory.currentCycle?.preparedTradingDays, 4);
+
+  fourDayPreparation.appendAtMaRatio(1);
+  const fourDayTouchRows = fourDayPreparation.rows();
+  const fourDayTouchHistory = buildStockDetail(
+    fourDayTouchRows,
+    { asOfDate: fourDayTouchRows.at(-1).date },
+  ).ma200RetestHistory;
+  assert.equal(fourDayTouchHistory.events.length, 1);
+});
+
+test('daily MA200 current cycle arms after five exact 3% closes and records the first later touch once', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
+  const firstTriggerIndex = fixture.appendAtMaRatio(0.95);
+  for (let day = 1; day <= 70; day += 1) fixture.appendAtMaRatio(0.98);
+  for (let day = 1; day <= 5; day += 1) fixture.appendAtMaRatio(1.03);
+  const armedRows = fixture.rows();
+  const armedHistory = buildStockDetail(
+    armedRows,
+    { asOfDate: armedRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(armedHistory.events.length, 1);
+  assert.equal(armedHistory.events[0].triggerDate, armedRows[firstTriggerIndex].date);
+  assert.equal(armedHistory.currentCycle?.state, 'armed');
+  assert.equal(armedHistory.currentCycle?.status, 'waiting_retest');
+  assert.equal(armedHistory.currentCycle?.preparedTradingDays, 5);
+
+  const secondTriggerIndex = fixture.appendAtMaRatio(1);
+  const touchedRows = fixture.rows();
+  const touchedHistory = buildStockDetail(
+    touchedRows,
+    { asOfDate: touchedRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(touchedHistory.events.length, 2);
+  assert.equal(touchedHistory.events[0].triggerDate, touchedRows[secondTriggerIndex].date);
+  assert.equal(touchedHistory.events[1].triggerDate, touchedRows[firstTriggerIndex].date);
+  assert.equal(touchedHistory.currentCycle?.state, 'waiting_reset');
+  assert.equal(touchedHistory.currentCycle?.preparedTradingDays, 0);
+
+  for (let day = 1; day <= 100; day += 1) fixture.appendAtMaRatio(0.98);
+  const extendedRows = fixture.rows();
+  const extendedHistory = buildStockDetail(
+    extendedRows,
+    { asOfDate: extendedRows.at(-1).date },
+  ).ma200RetestHistory;
+  assert.equal(extendedHistory.events.length, 2);
+});
+
+test('daily MA200 current cycle metadata does not change completed event outcomes or summary metrics', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
+  const triggerIndex = fixture.appendAtMaRatio(0.95);
+  for (let day = 1; day <= 60; day += 1) fixture.appendAtMaRatio(0.98);
+  const resolvedRows = fixture.rows();
+  const resolvedHistory = buildStockDetail(
+    resolvedRows,
+    { asOfDate: resolvedRows.at(-1).date },
+  ).ma200RetestHistory;
+  const resolvedEvents = structuredClone(resolvedHistory.events);
+  const resolvedSummary = structuredClone(resolvedHistory.summary);
+
+  assert.equal(resolvedEvents.length, 1);
+  assert.equal(resolvedEvents[0].triggerDate, resolvedRows[triggerIndex].date);
+  assert.equal(resolvedEvents[0].status, 'failed');
+  assert.equal(resolvedEvents[0].recentReboundStatus, 'failed');
+  assert.equal(resolvedEvents[0].observedTradingDays, 60);
+  assert.equal(resolvedEvents[0].recentObservedTradingDays, 20);
+
+  for (let day = 1; day <= 5; day += 1) fixture.appendAtMaRatio(1.03);
+  const armedRows = fixture.rows();
+  const armedHistory = buildStockDetail(
+    armedRows,
+    { asOfDate: armedRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(armedHistory.currentCycle?.state, 'armed');
+  assert.equal(armedHistory.currentCycle?.status, 'waiting_retest');
+  assert.deepEqual(armedHistory.events, resolvedEvents);
+  assert.deepEqual(armedHistory.summary, resolvedSummary);
+});
+
 test('daily MA200 retest requires five consecutive closes at least 3% above MA200 before arming', () => {
   const fixture = ma200RatioFixture();
   for (let index = 0; index < 4; index += 1) fixture.appendAtMaRatio(1.05);
