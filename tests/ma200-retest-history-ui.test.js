@@ -20,9 +20,10 @@ test('daily MA200 retest history sits directly below key metrics and before comp
   assert.ok(pageSource.includes('data={stockDetail?.ma200RetestHistory}'));
 });
 
-test('daily MA200 card keeps its methodology in the info hint and never presents weekly MA as the retest source', () => {
+test('daily MA200 card removes the title icon while retaining methodology metadata and daily-MA scope', () => {
   assert.ok(cardSource.includes('回踩历史（MA200）'));
-  assert.ok(cardSource.includes("import { Info } from 'lucide-react'"));
+  assert.equal(cardSource.includes("import { Info } from 'lucide-react'"), false);
+  assert.equal(cardSource.includes('<Info className='), false);
   assert.ok(cardSource.includes('近5次回踩'));
   assert.ok(cardSource.includes('拆股复权收盘价（不含现金分红）'));
   assert.ok(cardSource.includes('const DEFAULT_RECENT_REBOUND_DAYS = 20'));
@@ -173,6 +174,7 @@ test('MA200 detail modal derives the full path and keeps lowest close distinct f
   assert.ok(modalSource.includes("document.addEventListener('pointerdown', clearOutsideChart, true)"));
   assert.ok(modalSource.includes('onPointerDown={selectNearestPoint}'));
   assert.ok(modalSource.includes('onPointerMove={(event) =>'));
+  assert.ok(modalSource.includes('titleClassName="!flex-1 !pl-[31px] !text-center'));
   assert.equal(/text-\\[(?:8|8\\.5|9|9\\.5)px\\]/.test(modalSource), false);
   assert.equal(/fontSize=["'](?:8|8\\.5|9|9\\.5)["']/.test(modalSource), false);
 });
@@ -207,6 +209,9 @@ test('daily MA200 history plots only complete 60-session endpoint returns after 
   assert.ok(cardSource.includes('data-ma200-forward-return-end-date={event.forwardReturnEndDate}'));
   assert.ok(cardSource.includes('{formatPercent(event.forwardReturnPct)}'));
   assert.ok(cardSource.includes('第${observationTradingDays}个交易日收盘的涨跌幅'));
+  assert.ok(cardSource.includes("match(/^(\\d{4})-(\\d{2})-\\d{2}$/)"));
+  assert.ok(cardSource.includes('`${match[1]}/${match[2]}`'));
+  assert.equal(cardSource.includes('/^\\d{2}(\\d{2})-(\\d{2})-\\d{2}$/'), false);
   assert.ok(cardSource.includes('.sort((left, right) => left.triggerDate.localeCompare(right.triggerDate))'));
 
   const eventTableIndex = cardSource.indexOf('<RetestEventsTable');

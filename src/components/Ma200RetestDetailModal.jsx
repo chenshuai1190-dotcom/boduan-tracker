@@ -373,7 +373,7 @@ export default function Ma200RetestDetailModal({
         maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 82px)',
       }}
       contentClassName="!min-h-0 !overflow-y-auto !rounded-none !border-0 !bg-transparent !p-0 !shadow-none"
-      titleClassName="!text-[19px] !font-medium !tracking-[-0.2px]"
+      titleClassName="!flex-1 !pl-[31px] !text-center !text-[19px] !font-medium !tracking-[-0.2px]"
       showGrabber
     >
       <div className="min-w-0" data-ma200-retest-detail-modal={event?.triggerDate || ''}>

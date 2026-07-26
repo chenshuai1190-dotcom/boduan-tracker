@@ -1,5 +1,4 @@
 import React from 'react';
-import { Info } from 'lucide-react';
 import Ma200RetestDetailModal from './Ma200RetestDetailModal.jsx';
 import { marketHexColor } from '../lib/marketColorMode.js';
 
@@ -46,7 +45,7 @@ function compactDate(value, language) {
 }
 
 function distributionDateLabel(value) {
-  const match = String(value || '').match(/^\d{2}(\d{2})-(\d{2})-\d{2}$/);
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-\d{2}$/);
   return match ? `${match[1]}/${match[2]}` : '';
 }
 
@@ -816,25 +815,17 @@ export default function Ma200RetestHistoryCard({
         data-watchlist-ma200-retest-history="daily"
       >
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <h2 className="truncate whitespace-nowrap text-[15px] font-normal text-white/[0.82]">
-            {copy(language, '回踩历史（MA200）', 'Retest history (MA200)')}
-          </h2>
-          <span
-            className="inline-flex shrink-0 text-white/[0.30]"
+        <div className="min-w-0">
+          <h2
+            className="truncate whitespace-nowrap text-[15px] font-normal text-white/[0.82]"
             title={copy(
               language,
               `基于拆股复权收盘价（不含现金分红）的日线MA200；连续5日高出均线至少3%后，资格在未来${qualificationValidTradingDays}个交易日内有效，首次触及才触发；逐次路径固定${recentReboundTradingDays}日，平均反弹为${observationTradingDays}日内最大反弹，底图为触发日至第${observationTradingDays}日终点收益`,
               `Split-adjusted daily MA200 without dividends; after 5 consecutive closes at least 3% above MA200, qualification remains valid for the next ${qualificationValidTradingDays} sessions and the first touch triggers the event. Event paths are fixed at ${recentReboundTradingDays} sessions; average rebound is the ${observationTradingDays}-session maximum and the chart shows the endpoint return on session ${observationTradingDays}`,
             )}
-            aria-label={copy(
-              language,
-              `基于拆股复权收盘价（不含现金分红）的日线MA200；连续5日高出均线至少3%后，资格在未来${qualificationValidTradingDays}个交易日内有效，首次触及才触发；逐次路径固定${recentReboundTradingDays}日，平均反弹为${observationTradingDays}日内最大反弹，底图为触发日至第${observationTradingDays}日终点收益`,
-              `Split-adjusted daily MA200 without dividends; after 5 consecutive closes at least 3% above MA200, qualification remains valid for the next ${qualificationValidTradingDays} sessions and the first touch triggers the event. Event paths are fixed at ${recentReboundTradingDays} sessions; average rebound is the ${observationTradingDays}-session maximum and the chart shows the endpoint return on session ${observationTradingDays}`,
-            )}
           >
-            <Info className="h-3.5 w-3.5" aria-hidden="true" />
-          </span>
+            {copy(language, '回踩历史（MA200）', 'Retest history (MA200)')}
+          </h2>
         </div>
         <div className="shrink-0 rounded-full bg-white/[0.045] px-2.5 py-1 text-[10.5px] text-white/[0.42]">
           {copy(language, '近5次回踩', 'Latest 5 retests')}

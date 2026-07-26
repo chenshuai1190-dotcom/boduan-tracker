@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.388', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.389', date: '2026-07-26', latest: true,
+    items: [
+      '🎨 MA200 回踩界面细节优化',
+      '  - 回踩详情标题改为弹层内几何居中，不再受右侧关闭按钮影响',
+      '  - “触发后 60 日涨跌幅”横轴改用四位年份的 YYYY/MM 日期，事件与涨跌幅数据保持不变',
+      '  - 移除“回踩历史（MA200）”标题后的说明图标；仅调整显示，不改变回踩触发、20 日恢复、60 日结果或其他业务数据',
+    ],
+    itemsEn: [
+      '🎨 Refined MA200 retest presentation',
+      '  - The retest-detail title is now geometrically centered within the sheet and is no longer offset by the close button',
+      '  - The 60-session return chart now uses four-digit YYYY/MM axis dates while preserving every event and return value',
+      '  - The trailing info icon is removed from the Retest history (MA200) title; these are display-only changes and do not alter triggers, 20-session recovery, 60-session outcomes, or other business data',
+    ],
+  },
+  {
+    ver: 'v10.7.9.388', date: '2026-07-26',
     items: [
       '🧭 MA200 回踩增加当前周期状态',
       '  - 最近一次回踩后持续位于 MA200 下方时，页面会继续显示原事件，并标明“等待趋势重置”、当前距 MA200 与 5 日重置进度，不重复生成回踩记录',
