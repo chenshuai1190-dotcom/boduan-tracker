@@ -233,11 +233,13 @@ const mockNvdaValuationSeries = [
 ].map(([date, peTtm]) => ({ date, peTtm }));
 
 const mockWatchlistStockDetailData = {
-  source: 'EODHD_EOD',
-  priceBasis: 'adjusted_close',
+  source: 'EODHD_EOD_SPLITS',
+  priceBasis: 'split_adjusted_close',
+  relativeReturnPriceBasis: 'adjusted_close',
   currency: 'USD',
   asOfDate: '2026-07-17',
   history: mockWatchlistDetailHistory,
+  relativeReturnHistory: mockWatchlistDetailHistory.map(({ date, close }) => ({ date, close })),
   qqqHistory: mockWatchlistQqqHistory,
   weeklyHistory: buildMockWatchlistWeeklyHistory(),
   fundamentals: {

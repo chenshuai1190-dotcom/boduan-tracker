@@ -603,9 +603,12 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     }
     const fromDate = historyStart.toISOString().slice(0, 10);
     const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
+    const splitsUrl = includeStockDetail
+      ? `https://eodhd.com/api/splits/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&to=${stockDetailCutoffDate}&fmt=json`
+      : '';
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
-    const [quoteRes, eodRes, yahooRes] = await Promise.all([
+    const [quoteRes, eodRes, yahooRes, splitsRes] = await Promise.all([
       providerFetch(quoteUrl, {}, { provider: 'eodhd:stock-quote', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
       providerFetch(eodUrl, {}, { provider: 'eodhd:stock-history', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
       providerFetch(yahooUrl, {
@@ -614,6 +617,13 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
           'Accept': 'application/json',
         },
       }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null),
+      includeStockDetail
+        ? providerFetch(
+            splitsUrl,
+            {},
+            { provider: 'eodhd:stock-splits', timeoutMs: QUOTE_TIMEOUTS.eodhd },
+          ).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     let rawEodhdQuoteData = null;
@@ -689,6 +699,7 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     let latestCompletedClose = null;
     let latestCompletedBaseline = null;
     let stockDetail = null;
+    let stockDetailSplitActions = null;
     if (includeStockDetail) {
       const unavailableDetail = buildEodhdStockDetail([], { asOfDate: stockDetailCutoffDate });
       stockDetail = {
@@ -698,13 +709,24 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
           ma200WeeklyStatus: 'unavailable',
         },
       };
+      if (splitsRes?.ok) {
+        try {
+          const payload = await splitsRes.json();
+          if (Array.isArray(payload)) stockDetailSplitActions = payload;
+        } catch {
+          stockDetailSplitActions = null;
+        }
+      }
     }
     if (eodRes.ok) {
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
           if (includeStockDetail) {
-            const nextStockDetail = buildEodhdStockDetail(eodData, { asOfDate: stockDetailCutoffDate });
+            const nextStockDetail = buildEodhdStockDetail(eodData, {
+              asOfDate: stockDetailCutoffDate,
+              splitActions: stockDetailSplitActions,
+            });
             if (nextStockDetail.history.length > 0) stockDetail = nextStockDetail;
           }
           const quoteEodData = includeStockDetail

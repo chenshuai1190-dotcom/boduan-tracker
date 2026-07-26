@@ -1461,14 +1461,22 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   }, [loading, stockDetail?.ma200RetestHistory, watchlistStockDetailFocusSection]);
 
   const history = React.useMemo(() => normalizeStockDetailHistory(stockDetail?.history), [stockDetail?.history]);
+  const relativeReturnHistory = React.useMemo(
+    () => (
+      stockDetail?.relativeReturnPriceBasis === 'adjusted_close'
+        ? normalizeStockDetailHistory(stockDetail?.relativeReturnHistory)
+        : []
+    ),
+    [stockDetail?.relativeReturnHistory, stockDetail?.relativeReturnPriceBasis],
+  );
   const qqqComparisonHistory = React.useMemo(() => (
     symbol === 'QQQ'
-      ? history.map((row) => ({ date: row.date, adjustedClose: row.close }))
+      ? relativeReturnHistory.map((row) => ({ date: row.date, adjustedClose: row.close }))
       : qqqHistory
-  ), [history, qqqHistory, symbol]);
+  ), [qqqHistory, relativeReturnHistory, symbol]);
   const qqqRelativeReturn = React.useMemo(
-    () => deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory),
-    [history, qqqComparisonHistory],
+    () => deriveThreeMonthQqqRelativeReturn(relativeReturnHistory, qqqComparisonHistory),
+    [qqqComparisonHistory, relativeReturnHistory],
   );
   const weeklyHistory = React.useMemo(
     () => normalizeStockDetailWeeklyHistory(stockDetail?.weeklyHistory),

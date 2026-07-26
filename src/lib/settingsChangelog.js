@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.383', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.384', date: '2026-07-26', latest: true,
+    items: [
+      '🧮 MA200 回踩历史数据口径修正',
+      '  - 股价曲线、日线与周线 MA200、52 周高点及回踩统计统一使用原始收盘加官方拆股记录推导的仅拆股复权价，不再把现金分红混入技术指标',
+      '  - 顶部汇总按可见最近 5 次触发中已完成的 60 个交易日样本计算；逐次回踩、最大反弹、恢复天数与结果全部锁定 30 个交易日',
+      '  - 相对 QQQ 继续使用独立总回报复权序列；拆股数据缺失或异常时明确显示不可用，不回退到错误口径，也不改变持仓、交易、收益或比赛账本',
+    ],
+    itemsEn: [
+      '🧮 Corrected the MA200 retest-history data basis',
+      '  - Price charts, daily and weekly MA200, 52-week highs, and retest statistics now derive split-only prices from raw closes plus official split records, keeping cash dividends out of technical indicators',
+      '  - The summary uses completed 60-session samples from the same visible latest-five trigger cohort, while every per-event depth, maximum rebound, recovery time, and outcome is locked to 30 sessions',
+      '  - Relative QQQ keeps its separate total-return adjusted series; missing or invalid split data now reports unavailable instead of falling back to the wrong basis, without changing holdings, trades, P&L, or competition ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.383', date: '2026-07-26',
     items: [
       '📈 股票趋势新增 MA200 日线回踩历史',
       '  - “关键指标”下方新增近 5 次回踩统计，集中展示恢复率、平均反弹、平均回踩、恢复天数及逐次结果',

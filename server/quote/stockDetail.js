@@ -7,17 +7,31 @@ const DAILY_MA_WINDOW = 200;
 const WEEKLY_MA_WINDOW = 200;
 const WEEKLY_MA_TREND_WEEKS = 4;
 const WEEKLY_HISTORY_YEARS = 5;
-const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v1';
+const STOCK_DETAIL_PRICE_BASIS = 'split_adjusted_close';
+const STOCK_DETAIL_SOURCE = 'EODHD_EOD_SPLITS';
+const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v3';
 const MA200_RETEST_LOOKBACK_YEARS = 5;
 const MA200_RETEST_PREPARE_DAYS = 5;
 const MA200_RETEST_PREPARE_DISTANCE = 0.03;
-const MA200_RETEST_OBSERVATION_DAYS = 20;
+const MA200_RETEST_OBSERVATION_DAYS = 60;
+const MA200_RETEST_RECENT_REBOUND_DAYS = 30;
 const MA200_RETEST_RESOLVED_LIMIT = 5;
+const MA200_COMPARISON_EPSILON = 1e-12;
 
 function positiveNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function splitRatio(value) {
+  const match = String(value || '').trim().match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+  if (!match) return null;
+  const numerator = positiveNumber(match[1]);
+  const denominator = positiveNumber(match[2]);
+  if (numerator === null || denominator === null) return null;
+  const ratio = numerator / denominator;
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : null;
 }
 
 function validDateKey(value) {
@@ -186,29 +200,56 @@ function calculateAnnualizedVolatility20(closes) {
   return Number.isFinite(annualizedPercent) ? annualizedPercent : null;
 }
 
-function normalizeRows(rows, asOfDate) {
+function normalizeSplitActions(actions, asOfDate) {
+  if (!Array.isArray(actions)) return null;
+
+  const byDate = new Map();
+  for (const action of actions) {
+    const date = validDateKey(action?.date);
+    const ratio = splitRatio(action?.split);
+    if (!date || ratio === null) return null;
+    if (date > asOfDate) continue;
+
+    if (byDate.has(date)) return null;
+    byDate.set(date, ratio);
+  }
+
+  return Array.from(byDate, ([date, ratio]) => ({ date, ratio }))
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function normalizeRows(rows, splitActions, asOfDate) {
   const byDate = new Map();
   for (const row of Array.isArray(rows) ? rows : []) {
     const date = validDateKey(row?.date);
     if (!date || date > asOfDate) continue;
 
-    const adjustedClose = positiveNumber(row?.adjusted_close);
-    if (adjustedClose === null) continue;
-
     const rawClose = positiveNumber(row?.close);
     const rawHigh = positiveNumber(row?.high);
-    const adjustedHigh = rawClose !== null && rawHigh !== null
-      ? rawHigh * (adjustedClose / rawClose)
-      : null;
+    const totalReturnClose = positiveNumber(row?.adjusted_close);
+    if (rawClose === null) continue;
+
+    const futureSplitFactor = splitActions.reduce(
+      (factor, action) => (action.date > date ? factor * action.ratio : factor),
+      1,
+    );
+    if (!Number.isFinite(futureSplitFactor) || futureSplitFactor <= 0) continue;
+
+    const splitAdjustedClose = rawClose / futureSplitFactor;
+    const splitAdjustedHigh = rawHigh === null ? null : rawHigh / futureSplitFactor;
+    if (!Number.isFinite(splitAdjustedClose) || splitAdjustedClose <= 0) continue;
 
     // EODHD rows should be unique by date. If duplicates arrive, the last valid
     // provider row wins; an invalid duplicate never erases an earlier valid row.
     byDate.set(date, {
       date,
-      close: adjustedClose,
-      adjustedHigh: adjustedHigh !== null && Number.isFinite(adjustedHigh) && adjustedHigh > 0
-        ? Math.max(adjustedHigh, adjustedClose)
-        : adjustedClose,
+      close: splitAdjustedClose,
+      totalReturnClose,
+      high: splitAdjustedHigh !== null
+        && Number.isFinite(splitAdjustedHigh)
+        && splitAdjustedHigh > 0
+        ? Math.max(splitAdjustedHigh, splitAdjustedClose)
+        : splitAdjustedClose,
     });
   }
 
@@ -236,9 +277,14 @@ function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
     algorithmVersion: MA200_RETEST_ALGORITHM_VERSION,
     asOfDate,
     status,
-    basis: 'adjusted_close',
+    basis: STOCK_DETAIL_PRICE_BASIS,
     maWindowTradingDays: DAILY_MA_WINDOW,
+    triggerBasis: 'daily_close_at_or_below_ma200',
+    prepareTradingDays: MA200_RETEST_PREPARE_DAYS,
+    prepareDistancePct: MA200_RETEST_PREPARE_DISTANCE * 100,
+    recoveryConfirmationTradingDays: 2,
     observationTradingDays: MA200_RETEST_OBSERVATION_DAYS,
+    recentReboundTradingDays: MA200_RETEST_RECENT_REBOUND_DAYS,
     lookbackYears: MA200_RETEST_LOOKBACK_YEARS,
     summary: {
       resolvedSampleSize: 0,
@@ -255,13 +301,13 @@ function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
 function isPreparedAboveMa200(row) {
   return Number.isFinite(row?.ma200)
     && row.ma200 > 0
-    && row.close >= row.ma200 * (1 + MA200_RETEST_PREPARE_DISTANCE);
+    && (row.close / row.ma200) >= (1 + MA200_RETEST_PREPARE_DISTANCE - MA200_COMPARISON_EPSILON);
 }
 
 function isAboveMa200(row) {
   return Number.isFinite(row?.ma200)
     && row.ma200 > 0
-    && row.close > row.ma200;
+    && (row.close / row.ma200) > (1 + MA200_COMPARISON_EPSILON);
 }
 
 function findMa200RetestTriggerIndexes(allHistory) {
@@ -277,7 +323,7 @@ function findMa200RetestTriggerIndexes(allHistory) {
       continue;
     }
 
-    if (armed && row.close <= row.ma200) {
+    if (armed && (row.close / row.ma200) <= (1 + MA200_COMPARISON_EPSILON)) {
       triggerIndexes.push(index);
       preparedStreak = 0;
       armed = false;
@@ -305,13 +351,13 @@ function findRecoveryConfirmationIndex(allHistory, triggerIndex, observedTrading
   return -1;
 }
 
-function buildMa200RetestEvent(allHistory, triggerIndex) {
+function analyzeMa200RetestWindow(allHistory, triggerIndex, observationTradingDays) {
   const trigger = allHistory[triggerIndex];
   const observedTradingDays = Math.min(
-    MA200_RETEST_OBSERVATION_DAYS,
+    observationTradingDays,
     allHistory.length - triggerIndex - 1,
   );
-  const complete = observedTradingDays === MA200_RETEST_OBSERVATION_DAYS;
+  const complete = observedTradingDays === observationTradingDays;
   const observationEndIndex = triggerIndex + observedTradingDays;
   const recoveryConfirmationIndex = findRecoveryConfirmationIndex(
     allHistory,
@@ -338,9 +384,33 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
     reboundHigh = Math.max(reboundHigh, allHistory[index].close);
   }
 
+  return {
+    complete,
+    observedTradingDays,
+    observationEndIndex,
+    recoveryConfirmationIndex,
+    recovered,
+    lowIndex,
+    retestDepthPct: lowestDistance * 100,
+    maxReboundPct: ((reboundHigh / lowRow.close) - 1) * 100,
+  };
+}
+
+function buildMa200RetestEvent(allHistory, triggerIndex) {
+  const trigger = allHistory[triggerIndex];
+  const summaryWindow = analyzeMa200RetestWindow(
+    allHistory,
+    triggerIndex,
+    MA200_RETEST_OBSERVATION_DAYS,
+  );
+  const recentWindow = analyzeMa200RetestWindow(
+    allHistory,
+    triggerIndex,
+    MA200_RETEST_RECENT_REBOUND_DAYS,
+  );
   const seriesStartIndex = Math.max(0, triggerIndex - MA200_RETEST_PREPARE_DAYS);
   const series = allHistory
-    .slice(seriesStartIndex, observationEndIndex + 1)
+    .slice(seriesStartIndex, recentWindow.observationEndIndex + 1)
     .map((row) => ({
       date: row.date,
       close: row.close,
@@ -349,16 +419,39 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
 
   return {
     triggerDate: trigger.date,
-    status: complete ? (recovered ? 'recovered' : 'failed') : 'observing',
+    status: summaryWindow.complete
+      ? (summaryWindow.recovered ? 'recovered' : 'failed')
+      : 'observing',
+    rebound30Status: recentWindow.complete
+      ? (recentWindow.recovered ? 'recovered' : 'failed')
+      : 'observing',
     triggerClose: trigger.close,
     triggerMa200: trigger.ma200,
-    retestDepthPct: lowestDistance * 100,
-    maxReboundPct: ((reboundHigh / lowRow.close) - 1) * 100,
-    recoveryTradingDays: recovered ? recoveryConfirmationIndex - triggerIndex : null,
-    recoveryDate: recovered ? allHistory[recoveryConfirmationIndex].date : '',
-    lowDate: lowRow.date,
-    observedTradingDays,
-    observationEndDate: allHistory[observationEndIndex].date,
+    retestDepthPct: summaryWindow.retestDepthPct,
+    maxReboundPct: summaryWindow.maxReboundPct,
+    recoveryTradingDays: summaryWindow.recovered
+      ? summaryWindow.recoveryConfirmationIndex - triggerIndex
+      : null,
+    recoveryDate: summaryWindow.recovered
+      ? allHistory[summaryWindow.recoveryConfirmationIndex].date
+      : '',
+    lowDate: allHistory[summaryWindow.lowIndex].date,
+    observedTradingDays: summaryWindow.observedTradingDays,
+    observationEndDate: allHistory[summaryWindow.observationEndIndex].date,
+    recentObservedTradingDays: recentWindow.observedTradingDays,
+    rebound30Complete: recentWindow.complete,
+    recovery30TradingDays: recentWindow.recovered
+      ? recentWindow.recoveryConfirmationIndex - triggerIndex
+      : null,
+    recovery30Date: recentWindow.recovered
+      ? allHistory[recentWindow.recoveryConfirmationIndex].date
+      : '',
+    retestDepth30Pct: recentWindow.complete ? recentWindow.retestDepthPct : null,
+    maxRebound30Pct: recentWindow.complete ? recentWindow.maxReboundPct : null,
+    rebound30EndDate: recentWindow.complete
+      ? allHistory[recentWindow.observationEndIndex].date
+      : '',
+    low30Date: allHistory[recentWindow.lowIndex].date,
     series,
   };
 }
@@ -378,26 +471,28 @@ function buildMa200RetestHistory(allHistory, latestDate) {
     return emptyMa200RetestHistory(latestDate, 'no_events');
   }
 
-  const resolvedEvents = recentEvents
-    .filter((event) => event.status !== 'observing')
-    .slice(-MA200_RETEST_RESOLVED_LIMIT);
-  const latestObservingEvent = recentEvents
-    .filter((event) => event.status === 'observing')
-    .at(-1);
+  const events = recentEvents
+    .slice(-MA200_RETEST_RESOLVED_LIMIT)
+    .reverse();
+  // Keep the summary and the visible latest-five table on one cohort. An
+  // incomplete 60-session event stays visible but is excluded from the
+  // summary until its window closes.
+  const resolvedEvents = events.filter((event) => event.status !== 'observing');
   const recoveredEvents = resolvedEvents.filter((event) => event.status === 'recovered');
   const resolvedSampleSize = resolvedEvents.length;
-  const events = [
-    ...(latestObservingEvent ? [latestObservingEvent] : []),
-    ...resolvedEvents.slice().reverse(),
-  ].sort((left, right) => right.triggerDate.localeCompare(left.triggerDate));
 
   return {
     algorithmVersion: MA200_RETEST_ALGORITHM_VERSION,
     asOfDate: latestDate,
     status: 'ready',
-    basis: 'adjusted_close',
+    basis: STOCK_DETAIL_PRICE_BASIS,
     maWindowTradingDays: DAILY_MA_WINDOW,
+    triggerBasis: 'daily_close_at_or_below_ma200',
+    prepareTradingDays: MA200_RETEST_PREPARE_DAYS,
+    prepareDistancePct: MA200_RETEST_PREPARE_DISTANCE * 100,
+    recoveryConfirmationTradingDays: 2,
     observationTradingDays: MA200_RETEST_OBSERVATION_DAYS,
+    recentReboundTradingDays: MA200_RETEST_RECENT_REBOUND_DAYS,
     lookbackYears: MA200_RETEST_LOOKBACK_YEARS,
     summary: {
       resolvedSampleSize,
@@ -419,28 +514,42 @@ function buildMa200RetestHistory(allHistory, latestDate) {
   };
 }
 
-export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
+export function buildEodhdStockDetail(rows = [], { asOfDate, splitActions } = {}) {
   const cutoffDate = validDateKey(asOfDate);
-  if (!cutoffDate) {
+  const normalizedSplitActions = cutoffDate
+    ? normalizeSplitActions(splitActions, cutoffDate)
+    : null;
+  if (!cutoffDate || normalizedSplitActions === null) {
+    const unavailable = Boolean(cutoffDate);
     return {
-      source: 'EODHD_EOD',
-      priceBasis: 'adjusted_close',
+      source: STOCK_DETAIL_SOURCE,
+      priceBasis: STOCK_DETAIL_PRICE_BASIS,
+      relativeReturnPriceBasis: 'adjusted_close',
+      splitActionCount: 0,
       currency: 'USD',
       asOfDate: '',
       history: [],
+      relativeReturnHistory: [],
       weeklyHistory: [],
-      ma200RetestHistory: emptyMa200RetestHistory(),
+      ma200RetestHistory: emptyMa200RetestHistory(
+        '',
+        unavailable ? 'unavailable' : 'insufficient_data',
+      ),
       indicators: {
         week52High: null,
         ma200: null,
         ema30: null,
         volatility20AnnualizedPct: null,
-        ...emptyWeeklyIndicators(),
+        ...(
+          unavailable
+            ? { ...emptyWeeklyIndicators(), ma200WeeklyStatus: 'unavailable' }
+            : emptyWeeklyIndicators()
+        ),
       },
     };
   }
 
-  const normalizedRows = normalizeRows(rows, cutoffDate);
+  const normalizedRows = normalizeRows(rows, normalizedSplitActions, cutoffDate);
   // Build the rolling daily MA from the full provider history before trimming
   // the response window, so the first visible point still has a real warmup.
   const allHistory = buildDailyHistory(normalizedRows);
@@ -448,6 +557,14 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
   const dailyHistoryFrom = latestDate ? shiftDateKey(latestDate, -DAILY_HISTORY_DAYS) : '';
   const history = dailyHistoryFrom
     ? allHistory.filter((row) => row.date >= dailyHistoryFrom)
+    : [];
+  const relativeReturnHistoryCandidate = dailyHistoryFrom
+    ? normalizedRows
+      .filter((row) => row.date >= dailyHistoryFrom && Number.isFinite(row.totalReturnClose))
+      .map((row) => ({ date: row.date, close: row.totalReturnClose }))
+    : [];
+  const relativeReturnHistory = relativeReturnHistoryCandidate.at(-1)?.date === latestDate
+    ? relativeReturnHistoryCandidate
     : [];
   const closes = history.map((row) => row.close);
   const week52Start = latestDate
@@ -457,18 +574,21 @@ export function buildEodhdStockDetail(rows = [], { asOfDate } = {}) {
     ? normalizedRows.filter((row) => row.date >= week52Start && row.date <= latestDate)
     : [];
   const week52High = week52Rows.length > 0
-    ? Math.max(...week52Rows.map((row) => row.adjustedHigh))
+    ? Math.max(...week52Rows.map((row) => row.high))
     : null;
   const ma200 = allHistory.at(-1)?.ma200 ?? null;
   const weeklyDetail = buildWeeklyDetail(normalizedRows, cutoffDate);
   const ma200RetestHistory = buildMa200RetestHistory(allHistory, latestDate);
 
   return {
-    source: 'EODHD_EOD',
-    priceBasis: 'adjusted_close',
+    source: STOCK_DETAIL_SOURCE,
+    priceBasis: STOCK_DETAIL_PRICE_BASIS,
+    relativeReturnPriceBasis: 'adjusted_close',
+    splitActionCount: normalizedSplitActions.length,
     currency: 'USD',
     asOfDate: latestDate,
     history,
+    relativeReturnHistory,
     weeklyHistory: weeklyDetail.weeklyHistory,
     ma200RetestHistory,
     indicators: {

@@ -245,7 +245,10 @@ function RetestEventRow({
   language,
   marketColorMode,
 }) {
-  const recoveryDays = finiteNumber(event?.recoveryTradingDays);
+  const recoveryDays = finiteNumber(event?.recovery30TradingDays);
+  const status = ['recovered', 'failed', 'observing'].includes(event?.rebound30Status)
+    ? event.rebound30Status
+    : 'observing';
 
   return (
     <div
@@ -269,16 +272,16 @@ function RetestEventRow({
       <span
         className="truncate px-0.5 text-center text-[10px] tabular-nums"
         style={{
-          color: valueColor(event?.retestDepthPct, marketColorMode),
+          color: valueColor(event?.retestDepth30Pct, marketColorMode),
           fontFamily: NUMBER_FONT,
         }}
       >
-        {formatPercent(event?.retestDepthPct)}
+        {formatPercent(event?.retestDepth30Pct)}
       </span>
       <div className="min-w-0 px-0.5">
         <RetestMiniChart
           rows={event?.series}
-          lowDate={event?.lowDate}
+          lowDate={event?.low30Date}
           language={language}
           marketColorMode={marketColorMode}
         />
@@ -286,22 +289,22 @@ function RetestEventRow({
       <span
         className="truncate px-0.5 text-center text-[10px] tabular-nums"
         style={{
-          color: valueColor(event?.maxReboundPct, marketColorMode),
+          color: valueColor(event?.maxRebound30Pct, marketColorMode),
           fontFamily: NUMBER_FONT,
         }}
       >
-        {formatPercent(event?.maxReboundPct)}
+        {formatPercent(event?.maxRebound30Pct)}
       </span>
       <span
         className="truncate px-0.5 text-center text-[10px] tabular-nums text-white/[0.52]"
         style={{ fontFamily: NUMBER_FONT }}
       >
         {recoveryDays === null
-          ? event?.status === 'failed' ? '>20' : '—'
+          ? status === 'failed' ? '>30' : '—'
           : copy(language, `${recoveryDays}`, `${recoveryDays}`)}
       </span>
       <EventStatus
-        status={event?.status}
+        status={status}
         language={language}
         recoveryDays={recoveryDays}
         marketColorMode={marketColorMode}
@@ -330,13 +333,15 @@ function RetestEventsTable({ events, language, marketColorMode }) {
           title={copy(language, '迷你V形日线MA200图', 'Mini daily MA200 V chart')}
           aria-label={copy(language, '走势', 'Path')}
         />
-        <span className="px-0.5" title={copy(language, '反弹幅度（20日）', 'Rebound (20 sessions)')}>
-          {copy(language, '20日反弹', '20d rebound')}
+        <span className="px-0.5" title={copy(language, '30日内最深回踩后的最大反弹', 'Maximum rebound after the deepest retest within 30 sessions')}>
+          {copy(language, '30日反弹', '30d rebound')}
         </span>
         <span className="px-0.5" title={copy(language, '反弹天数', 'Rebound days')}>
           {copy(language, '天数', 'Days')}
         </span>
-        <span className="px-0.5">{copy(language, '结果', 'Result')}</span>
+        <span className="px-0.5" title={copy(language, '30日观察结果', '30-session result')}>
+          {copy(language, '结果', 'Result')}
+        </span>
       </div>
       <div>
         {events.map((event, index) => (
@@ -355,11 +360,11 @@ function RetestEventsTable({ events, language, marketColorMode }) {
 
 function completedDistributionEvents(events) {
   return (Array.isArray(events) ? events : [])
-    .filter((event) => event?.status === 'recovered' || event?.status === 'failed')
+    .filter((event) => event?.rebound30Complete === true)
     .map((event) => {
       const triggerDate = String(event?.triggerDate || '');
-      const retestDepthPct = finiteNumber(event?.retestDepthPct);
-      const maxReboundPct = finiteNumber(event?.maxReboundPct);
+      const retestDepthPct = finiteNumber(event?.retestDepth30Pct);
+      const maxReboundPct = finiteNumber(event?.maxRebound30Pct);
       if (!distributionDateLabel(triggerDate)
         || retestDepthPct === null
         || maxReboundPct === null) {
@@ -419,8 +424,8 @@ function RetestHistoryDistribution({ events, language, marketColorMode }) {
         <div className="shrink-0 text-[10px] text-white/[0.30]">
           {copy(
             language,
-            `已完成${points.length}次 · 观察中不计`,
-            `${points.length} completed · Tracking excluded`,
+            `30日样本 ${points.length} 次 · 未满30日不计`,
+            `${points.length} 30-session samples · Under 30 excluded`,
           )}
         </div>
       </div>
@@ -431,8 +436,8 @@ function RetestHistoryDistribution({ events, language, marketColorMode }) {
         role="img"
         aria-label={copy(
           language,
-          '已完成事件的回踩幅度与20日反弹分布',
-          'Retest depth and 20-session rebound distribution for completed events',
+          '已完成事件的回踩幅度与30日反弹分布',
+          'Retest depth and 30-session rebound distribution for completed events',
         )}
         preserveAspectRatio="xMidYMid meet"
       >
@@ -530,7 +535,7 @@ function RetestHistoryDistribution({ events, language, marketColorMode }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: positiveColor }} />
-          {copy(language, '20日反弹', '20d rebound')}
+          {copy(language, '30日内最大反弹', '30d max rebound')}
         </span>
       </div>
     </div>
@@ -593,13 +598,13 @@ export default function Ma200RetestHistoryCard({
             className="inline-flex shrink-0 text-white/[0.30]"
             title={copy(
               language,
-              '基于复权收盘价的日线MA200回踩统计',
-              'Daily MA200 retests based on adjusted closes',
+              '基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；顶部汇总按近5次触发中已完成的60日样本计算，明细观察30日',
+              'Daily MA200 retests use split-adjusted closes without cash dividends; the summary uses completed 60-session samples from the latest five triggers and details use 30 sessions',
             )}
             aria-label={copy(
               language,
-              '基于复权收盘价的日线MA200回踩统计',
-              'Daily MA200 retests based on adjusted closes',
+              '基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；顶部汇总按近5次触发中已完成的60日样本计算，明细观察30日',
+              'Daily MA200 retests use split-adjusted closes without cash dividends; the summary uses completed 60-session samples from the latest five triggers and details use 30 sessions',
             )}
           >
             <Info className="h-3.5 w-3.5" aria-hidden="true" />
@@ -630,7 +635,7 @@ export default function Ma200RetestHistoryCard({
             <SummaryMetric
               label={copy(language, '平均反弹幅度', 'Avg. rebound')}
               value={formatPercent(summary?.averageMaxReboundPct)}
-              detail={copy(language, '20日内', '20 sessions')}
+              detail={copy(language, '60日内最大', '60-session max')}
               color={positiveColor}
             />
             <SummaryMetric
@@ -659,7 +664,7 @@ export default function Ma200RetestHistoryCard({
             marketColorMode={marketColorMode}
           />
           <RetestHistoryDistribution
-            events={events}
+            events={visibleEvents}
             language={language}
             marketColorMode={marketColorMode}
           />
@@ -671,8 +676,8 @@ export default function Ma200RetestHistoryCard({
       <div className="mt-3 border-t border-white/[0.06] px-4 py-3 text-center text-[10.5px] leading-relaxed text-white/[0.34]">
         {copy(
           language,
-          '口径：200个交易日复权收盘均线；回踩后观察20个交易日。观察中事件不计入汇总。仅为历史统计，不代表未来表现。',
-          'Basis: 200-session adjusted-close average with a 20-session observation window. Observing events are excluded from summaries. Historical statistics do not predict future results.',
+          '口径：收盘触及或跌破日线MA200；价格仅拆股复权，不含分红。回踩取恢复前最深收盘偏离，反弹取该低点后的最高收盘涨幅。顶部汇总按近5次触发中已完成的60个交易日样本计算，明细均观察30个交易日。未满窗口不计入统计，仅供历史参考。',
+          'Basis: triggered when the close reaches or falls below daily MA200. Prices are split-adjusted without dividends. Depth is the deepest closing deviation before recovery; rebound is the highest closing gain after that low. The summary uses completed 60-session samples from the latest five triggers; every detail uses 30 sessions. Incomplete windows are excluded; history is not predictive.',
         )}
         {data?.asOfDate ? (
           <span className="mt-1 block tabular-nums" style={{ fontFamily: NUMBER_FONT }}>

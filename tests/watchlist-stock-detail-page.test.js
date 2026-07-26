@@ -173,7 +173,11 @@ test('technical indicators use a borderless daily row plus one detailed weekly M
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股 {{stock}} · QQQ {{qqq}}'"));
   assert.ok(pageSource.includes('grid-cols-[0.84fr_0.84fr_1.32fr]'), 'the relative QQQ metric should receive enough width to keep both returns on one line');
   assert.ok(pageSource.includes('overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-white/[0.40]">{detail}'), 'metric details should remain single-line at the shared auxiliary size');
-  assert.ok(pageSource.includes('deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory)'));
+  assert.ok(pageSource.includes('normalizeStockDetailHistory(stockDetail?.relativeReturnHistory)'));
+  assert.ok(pageSource.includes("stockDetail?.relativeReturnPriceBasis === 'adjusted_close'"));
+  assert.ok(pageSource.includes('deriveThreeMonthQqqRelativeReturn(relativeReturnHistory, qqqComparisonHistory)'));
+  assert.equal(pageSource.includes('deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory)'), false);
+  assert.ok(pageSource.includes('relativeReturnHistory.map((row) => ({ date: row.date, adjustedClose: row.close }))'));
   assert.equal(pageSource.includes('distanceEma30'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.longTermTrend', '芒格指标')"));
